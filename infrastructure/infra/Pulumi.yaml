@@ -1,0 +1,3 @@
+name: viberator-infra
+runtime: nodejs
+description: Infrastructure for Vibug Viberator

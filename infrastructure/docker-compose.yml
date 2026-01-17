@@ -1,0 +1,76 @@
+services:
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    container_name: viberator-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - viberator-network
+
+  # API Server - handles job submissions
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: viberator-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - API_PORT=3000
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - viberator-network
+    restart: unless-stopped
+
+  # Worker - processes jobs from the queue
+  worker:
+    build:
+      context: .
+      dockerfile: docker/viberator-bullmq.Dockerfile
+    container_name: viberator-worker
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      - WORKER_CONCURRENCY=1
+      - WORK_DIR=/tmp/viberator-work
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - viberator-network
+    restart: unless-stopped
+    volumes:
+      # Mount SSH keys for git operations
+      - ${HOME}/.ssh:/home/nodeapp/.ssh:ro
+      # Mount git config if available
+      - ${HOME}/.gitconfig:/home/nodeapp/.gitconfig:ro
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  viberator-network:
+    driver: bridge

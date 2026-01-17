@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: vibug_receiver
+      POSTGRES_PASSWORD: your_password
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    scale: 0
+    build:
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
