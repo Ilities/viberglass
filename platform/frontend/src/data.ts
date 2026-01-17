@@ -1,11 +1,18 @@
-import { getBugReports, getBugReport, BugReport, BugReportSummary, getMockBugReports, getMockBugReportStats, triggerAutoFix as apiTriggerAutoFix } from '@/lib/api';
+import {
+  triggerAutoFix as apiTriggerAutoFix,
+  BugReport,
+  BugReportSummary,
+  getBugReport,
+  getBugReports,
+  getMockBugReports,
+  getMockBugReportStats,
+} from '@/service/api/bug-report-api'
 
 // Bug report functions
-export async function getRecentBugReports(projectId: string = 'default-project'): Promise<BugReportSummary[]> {
+export async function getRecentBugReports(projectSlug: string): Promise<BugReportSummary[]> {
   try {
-    // Try to fetch from API first
-    const bugReports = await getBugReports(projectId, 10, 0);
-    return bugReports.map(report => ({
+    const bugReports = await getBugReports(undefined, 10, 0, projectSlug)
+    return bugReports.map((report) => ({
       id: report.id,
       title: report.title,
       severity: report.severity,
@@ -15,20 +22,20 @@ export async function getRecentBugReports(projectId: string = 'default-project')
       ticketSystem: report.ticketSystem,
       autoFixStatus: report.autoFixStatus,
       status: report.ticketId ? 'resolved' : report.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
-    }));
+    }))
   } catch (error) {
     // Fall back to mock data if API is not available
-    console.warn('Using mock data for bug reports:', error);
-    return getMockBugReports();
+    console.warn('Using mock data for bug reports:', error)
+    return getMockBugReports()
   }
 }
 
 export async function getBugReportDetails(id: string): Promise<BugReport | null> {
   try {
-    return await getBugReport(id);
+    return await getBugReport(id)
   } catch (error) {
-    console.warn('Failed to fetch bug report details:', error);
-    return null;
+    console.warn('Failed to fetch bug report details:', error)
+    return null
   }
 }
 
@@ -36,10 +43,10 @@ export async function getBugReportStats() {
   try {
     // In a real implementation, you'd have an API endpoint for stats
     // For now, return mock stats
-    return getMockBugReportStats();
+    return getMockBugReportStats()
   } catch (error) {
-    console.warn('Failed to fetch bug report stats:', error);
-    return getMockBugReportStats();
+    console.warn('Failed to fetch bug report stats:', error)
+    return getMockBugReportStats()
   }
 }
 
@@ -47,30 +54,30 @@ export async function getBugReportStats() {
 export function formatSeverity(severity: string): { label: string; color: string } {
   switch (severity) {
     case 'critical':
-      return { label: 'Critical', color: 'bg-red-100 text-red-800' };
+      return { label: 'Critical', color: 'bg-red-100 text-red-800' }
     case 'high':
-      return { label: 'High', color: 'bg-orange-100 text-orange-800' };
+      return { label: 'High', color: 'bg-orange-100 text-orange-800' }
     case 'medium':
-      return { label: 'Medium', color: 'bg-yellow-100 text-yellow-800' };
+      return { label: 'Medium', color: 'bg-yellow-100 text-yellow-800' }
     case 'low':
-      return { label: 'Low', color: 'bg-green-100 text-green-800' };
+      return { label: 'Low', color: 'bg-green-100 text-green-800' }
     default:
-      return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' };
+      return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
   }
 }
 
 export function formatAutoFixStatus(status?: string): { label: string; color: string } {
   switch (status) {
     case 'completed':
-      return { label: 'Fixed', color: 'bg-green-100 text-green-800' };
+      return { label: 'Fixed', color: 'bg-green-100 text-green-800' }
     case 'in_progress':
-      return { label: 'Fixing', color: 'bg-blue-100 text-blue-800' };
+      return { label: 'Fixing', color: 'bg-blue-100 text-blue-800' }
     case 'pending':
-      return { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' };
+      return { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' }
     case 'failed':
-      return { label: 'Failed', color: 'bg-red-100 text-red-800' };
+      return { label: 'Failed', color: 'bg-red-100 text-red-800' }
     default:
-      return { label: 'Not Requested', color: 'bg-gray-100 text-gray-800' };
+      return { label: 'Not Requested', color: 'bg-gray-100 text-gray-800' }
   }
 }
 
@@ -85,79 +92,79 @@ export function formatTicketSystem(system: string): string {
     trello: 'Trello',
     monday: 'Monday',
     clickup: 'ClickUp',
-  };
-  return systems[system] || system;
+  }
+  return systems[system] || system
 }
 
 export function formatTimestamp(date: Date): string {
-  const now = new Date();
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+  const now = new Date()
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
 
   if (diffInHours < 1) {
-    return 'Just now';
+    return 'Just now'
   } else if (diffInHours < 24) {
-    return `${Math.floor(diffInHours)}h ago`;
+    return `${Math.floor(diffInHours)}h ago`
   } else {
-    return date.toLocaleDateString();
+    return date.toLocaleDateString()
   }
 }
 
 export async function triggerAutoFix(ticketId: string, ticketSystem: string, repositoryUrl?: string): Promise<void> {
   try {
-    await apiTriggerAutoFix(ticketId, ticketSystem, repositoryUrl);
+    await apiTriggerAutoFix(ticketId, ticketSystem, repositoryUrl)
   } catch (error) {
-    console.warn('Failed to trigger auto-fix:', error);
+    console.warn('Failed to trigger auto-fix:', error)
     // Fall back to mock success for development
   }
 }
 
 // Mock data for events and orders (leftover from Catalyst demo)
 export interface Event {
-  id: string;
-  name: string;
-  date: string;
-  time: string;
-  location: string;
-  imgUrl: string;
-  status: string;
-  totalRevenue: number;
-  totalRevenueChange: number;
-  ticketsSold: number;
-  ticketsAvailable: number;
-  ticketsSoldChange: number;
-  pageViews: number;
-  pageViewsChange: number;
+  id: string
+  name: string
+  date: string
+  time: string
+  location: string
+  imgUrl: string
+  status: string
+  totalRevenue: number
+  totalRevenueChange: number
+  ticketsSold: number
+  ticketsAvailable: number
+  ticketsSoldChange: number
+  pageViews: number
+  pageViewsChange: number
 }
 
 export interface Order {
-  id: string;
-  date: string;
+  id: string
+  date: string
   customer: {
-    name: string;
-    email: string;
-    address: string;
-    country: string;
-    countryFlagUrl: string;
-  };
+    name: string
+    email: string
+    address: string
+    country: string
+    countryFlagUrl: string
+  }
   event: {
-    name: string;
-    thumbUrl: string;
-    url: string;
-  };
+    name: string
+    thumbUrl: string
+    url: string
+  }
   amount: {
-    usd: number;
-    cad: number;
-    fee: number;
-    net: number;
-  };
+    usd: number
+    cad: number
+    fee: number
+    net: number
+  }
   payment: {
-    transactionId: string;
+    transactionId: string
     card: {
-      type: string;
-      number: string;
-      expiry: string;
-    };
-  };
+      type: string
+      number: string
+      expiry: string
+    }
+  }
 }
 
 export async function getEvents(): Promise<Event[]> {
@@ -194,12 +201,12 @@ export async function getEvents(): Promise<Event[]> {
       pageViews: 8500,
       pageViewsChange: 15.7,
     },
-  ];
+  ]
 }
 
 export async function getEvent(id: string): Promise<Event | undefined> {
-  const events = await getEvents();
-  return events.find(event => event.id === id);
+  const events = await getEvents()
+  return events.find((event) => event.id === id)
 }
 
 export async function getEventOrders(eventId: string): Promise<Order[]> {
@@ -222,8 +229,8 @@ export async function getEventOrders(eventId: string): Promise<Order[]> {
       amount: {
         usd: 150,
         cad: 200,
-        fee: 7.50,
-        net: 192.50,
+        fee: 7.5,
+        net: 192.5,
       },
       payment: {
         transactionId: 'txn_1234567890',
@@ -234,7 +241,7 @@ export async function getEventOrders(eventId: string): Promise<Order[]> {
         },
       },
     },
-  ];
+  ]
 }
 
 export async function getOrders(): Promise<Order[]> {
@@ -257,8 +264,8 @@ export async function getOrders(): Promise<Order[]> {
       amount: {
         usd: 150,
         cad: 200,
-        fee: 7.50,
-        net: 192.50,
+        fee: 7.5,
+        net: 192.5,
       },
       payment: {
         transactionId: 'txn_1234567890',
@@ -299,20 +306,20 @@ export async function getOrders(): Promise<Order[]> {
         },
       },
     },
-  ];
+  ]
 }
 
 export async function getOrder(id: string): Promise<Order | undefined> {
-  const orders = await getOrders();
-  return orders.find(order => order.id === id);
+  const orders = await getOrders()
+  return orders.find((order) => order.id === id)
 }
 
 // Mock countries data (leftover from Catalyst demo)
 export interface Country {
-  name: string;
-  code: string;
-  flagUrl: string;
-  regions: string[];
+  name: string
+  code: string
+  flagUrl: string
+  regions: string[]
 }
 
 export function getCountries(): Country[] {
@@ -321,13 +328,78 @@ export function getCountries(): Country[] {
       name: 'United States',
       code: 'US',
       flagUrl: '/flags/us.svg',
-      regions: ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'],
+      regions: [
+        'Alabama',
+        'Alaska',
+        'Arizona',
+        'Arkansas',
+        'California',
+        'Colorado',
+        'Connecticut',
+        'Delaware',
+        'Florida',
+        'Georgia',
+        'Hawaii',
+        'Idaho',
+        'Illinois',
+        'Indiana',
+        'Iowa',
+        'Kansas',
+        'Kentucky',
+        'Louisiana',
+        'Maine',
+        'Maryland',
+        'Massachusetts',
+        'Michigan',
+        'Minnesota',
+        'Mississippi',
+        'Missouri',
+        'Montana',
+        'Nebraska',
+        'Nevada',
+        'New Hampshire',
+        'New Jersey',
+        'New Mexico',
+        'New York',
+        'North Carolina',
+        'North Dakota',
+        'Ohio',
+        'Oklahoma',
+        'Oregon',
+        'Pennsylvania',
+        'Rhode Island',
+        'South Carolina',
+        'South Dakota',
+        'Tennessee',
+        'Texas',
+        'Utah',
+        'Vermont',
+        'Virginia',
+        'Washington',
+        'West Virginia',
+        'Wisconsin',
+        'Wyoming',
+      ],
     },
     {
       name: 'Canada',
       code: 'CA',
       flagUrl: '/flags/ca.svg',
-      regions: ['Alberta', 'British Columbia', 'Manitoba', 'New Brunswick', 'Newfoundland and Labrador', 'Northwest Territories', 'Nova Scotia', 'Nunavut', 'Ontario', 'Prince Edward Island', 'Quebec', 'Saskatchewan', 'Yukon'],
+      regions: [
+        'Alberta',
+        'British Columbia',
+        'Manitoba',
+        'New Brunswick',
+        'Newfoundland and Labrador',
+        'Northwest Territories',
+        'Nova Scotia',
+        'Nunavut',
+        'Ontario',
+        'Prince Edward Island',
+        'Quebec',
+        'Saskatchewan',
+        'Yukon',
+      ],
     },
-  ];
+  ]
 }

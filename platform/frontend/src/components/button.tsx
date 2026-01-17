@@ -57,6 +57,18 @@ const styles = {
     '[--btn-icon:var(--color-zinc-500)] data-active:[--btn-icon:var(--color-zinc-700)] data-hover:[--btn-icon:var(--color-zinc-700)] dark:[--btn-icon:var(--color-zinc-500)] dark:data-active:[--btn-icon:var(--color-zinc-400)] dark:data-hover:[--btn-icon:var(--color-zinc-400)]',
   ],
   colors: {
+    brand: [
+      'text-brand-charcoal [--btn-bg:#d4520a] [--btn-border:#c44a09]/90 [--btn-hover-overlay:var(--color-white)]/10',
+      'dark:text-brand-charcoal dark:[--btn-bg:#d4520a] dark:[--btn-hover-overlay:var(--color-white)]/10',
+      '[--btn-icon:#1a1a1a] data-active:[--btn-icon:#1a1a1a] data-hover:[--btn-icon:#1a1a1a]',
+      'hover:shadow-brand',
+    ],
+    'brand/gradient': [
+      'text-brand-charcoal bg-brand-gradient [--btn-border:#c44a09]/90 [--btn-hover-overlay:var(--color-white)]/10',
+      'dark:text-brand-charcoal',
+      '[--btn-icon:#1a1a1a] data-active:[--btn-icon:#1a1a1a] data-hover:[--btn-icon:#1a1a1a]',
+      'hover:shadow-brand',
+    ],
     'dark/zinc': [
       'text-white [--btn-bg:var(--color-zinc-900)] [--btn-border:var(--color-zinc-950)]/90 [--btn-hover-overlay:var(--color-white)]/10',
       'dark:text-white dark:[--btn-bg:var(--color-zinc-600)] dark:[--btn-hover-overlay:var(--color-white)]/5',

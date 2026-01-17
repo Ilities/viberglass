@@ -75,6 +75,7 @@ export interface PMIntegration {
 export interface ProjectConfig {
   id: string;
   name: string;
+  slug: string;
   ticketSystem: TicketSystem;
   credentials: AuthCredentials;
   webhookUrl?: string;

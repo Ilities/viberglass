@@ -22,11 +22,16 @@ export class MessageQueueService {
   private autoFixQueue: Bull.Queue<AutoFixJobData>;
   private bugReportQueue: Bull.Queue<BugReportProcessingJobData>;
 
+
   constructor() {
     // Initialize Redis client
+    const redisHost = process.env.REDIS_HOST || "localhost";
+    const redisPort = parseInt(process.env.REDIS_PORT || "6379");
+    const isFullUrl = redisHost.startsWith("redis://") || redisHost.startsWith("rediss://");
+
+
     this.redisClient = Redis.createClient({
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
+      url: isFullUrl ? redisHost : `${redisHost}:${redisPort}`,
       password: process.env.REDIS_PASSWORD || undefined,
     });
 
@@ -274,7 +279,7 @@ export class MessageQueueService {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Update database status
-    const pool = require("../config/database").default;
+    const pool = require("../persistence/config/database").default;
     const client = await pool.connect();
 
     try {
@@ -296,7 +301,7 @@ export class MessageQueueService {
       );
 
       console.log(`[DEBUG_LOG] Auto-fix completed for ticket ${ticketId}`);
-    } catch (error) {
+    } catch (error: any) {
       await client.query(
         `UPDATE auto_fix_queue 
          SET status = $1, error_message = $2 
