@@ -1,6 +1,6 @@
 'use client'
 
-import { getProjectByName, Project } from '@/service/api/project-api'
+import { getProjectBySlug, Project } from '@/service/api/project-api'
 import { useParams } from 'next/navigation'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 
@@ -30,7 +30,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     async function fetchProject() {
       setIsLoading(true)
       try {
-        const project = await getProjectByName(projectSlug)
+        const project = await getProjectBySlug(projectSlug)
         setProject(project)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch project')

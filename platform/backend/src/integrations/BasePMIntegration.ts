@@ -84,7 +84,7 @@ export abstract class BasePMIntegration implements PMIntegration {
       userAgent: bugReport.metadata.network.userAgent,
       screenResolution: `${bugReport.metadata.screen.width}x${bugReport.metadata.screen.height}`,
       viewportSize: `${bugReport.metadata.screen.viewportWidth}x${bugReport.metadata.screen.viewportHeight}`,
-      timestamp: bugReport.timestamp.toISOString(),
+      timestamp: bugReport.timestamp,
       errorCount: bugReport.metadata.errors.length,
       consoleLogCount: bugReport.metadata.console.length
     };
@@ -99,7 +99,7 @@ export abstract class BasePMIntegration implements PMIntegration {
     description += `**Screen Resolution:** ${bugReport.metadata.screen.width}x${bugReport.metadata.screen.height}\n`;
     description += `**Viewport:** ${bugReport.metadata.screen.viewportWidth}x${bugReport.metadata.screen.viewportHeight}\n`;
     description += `**Page URL:** ${bugReport.metadata.pageUrl}\n`;
-    description += `**Timestamp:** ${bugReport.timestamp.toISOString()}\n\n`;
+    description += `**Timestamp:** ${bugReport.timestamp}\n\n`;
 
     if (bugReport.metadata.errors.length > 0) {
       description += `## JavaScript Errors\n`;

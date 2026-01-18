@@ -13,6 +13,7 @@ import { Navbar, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/
 import { Sidebar, SidebarBody, SidebarHeader, SidebarItem, SidebarLabel, SidebarSection } from '@/components/sidebar'
 import { StackedLayout } from '@/components/stacked-layout'
 import { ProjectProvider } from '@/context/project-context'
+import { getProjects, Project } from '@/service/api/project-api'
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
@@ -24,9 +25,16 @@ import {
 } from '@heroicons/react/16/solid'
 import { BugAntIcon, Cog6ToothIcon, ExclamationTriangleIcon, HomeIcon } from '@heroicons/react/20/solid'
 import { useParams, usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
-function ProjectDropdownMenu({ project }: { project: string }) {
+function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
   const pathname = usePathname()
+  const [projects, setProjects] = useState<Project[]>([])
+
+  useEffect(() => {
+    getProjects().then(setProjects).catch(console.error)
+  }, [])
+
   return (
     <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
       <DropdownItem href={`/`}>
@@ -35,20 +43,22 @@ function ProjectDropdownMenu({ project }: { project: string }) {
       </DropdownItem>
 
       {pathname !== '/' ? (
-        <DropdownItem href={`/project/${project}/settings`}>
+        <DropdownItem href={`/project/${projectSlug}/settings`}>
           <Cog8ToothIcon />
           <DropdownLabel>Project Settings</DropdownLabel>
         </DropdownItem>
       ) : null}
       <DropdownDivider />
-      <DropdownItem href="/project/vibug">
-        <Avatar slot="icon" src="/teams/viberator.svg" />
-        <DropdownLabel>Vibug</DropdownLabel>
-      </DropdownItem>
-      <DropdownItem href="/project/viberator">
-        <Avatar slot="icon" initials="VB" className="bg-purple-500 text-white" />
-        <DropdownLabel>Viberator</DropdownLabel>
-      </DropdownItem>
+      {projects.map((p) => (
+        <DropdownItem key={p.id} href={`/project/${p.slug}`}>
+          {p.slug === 'viberator' ? (
+            <Avatar slot="icon" src="/teams/viberator.svg" />
+          ) : (
+            <Avatar slot="icon" initials={p.name.substring(0, 2).toUpperCase()} className="bg-purple-500 text-white" />
+          )}
+          <DropdownLabel>{p.name}</DropdownLabel>
+        </DropdownItem>
+      ))}
       <DropdownDivider />
       <DropdownItem href="/new">
         <PlusIcon />
@@ -93,9 +103,9 @@ export function ApplicationLayout({ children }: { children: React.ReactNode }) {
 
 function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { project } = useParams<{ project: string }>()
+  const { project: projectSlug } = useParams<{ project: string }>()
 
-  const basePath = `/project/${project}`
+  const basePath = `/project/${projectSlug}`
 
   return (
     <>
@@ -105,10 +115,10 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
             <Dropdown>
               <DropdownButton as={NavbarItem} className="max-lg:hidden">
                 <Avatar src="/teams/viberator.svg" />
-                <NavbarLabel>{project}</NavbarLabel>
+                <NavbarLabel>{projectSlug}</NavbarLabel>
                 <ChevronDownIcon />
               </DropdownButton>
-              <ProjectDropdownMenu project={project} />
+              <ProjectDropdownMenu projectSlug={projectSlug} />
             </Dropdown>
             {pathname.startsWith('/project/') ? (
               <NavbarSection className="hidden lg:flex">
@@ -140,10 +150,10 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
               <Dropdown>
                 <DropdownButton as={SidebarItem}>
                   <Avatar src="/teams/viberator.svg" />
-                  <SidebarLabel>{project}</SidebarLabel>
+                  <SidebarLabel>{projectSlug}</SidebarLabel>
                   <ChevronDownIcon />
                 </DropdownButton>
-                <ProjectDropdownMenu project={project} />
+                <ProjectDropdownMenu projectSlug={projectSlug} />
               </Dropdown>
             </SidebarHeader>
 

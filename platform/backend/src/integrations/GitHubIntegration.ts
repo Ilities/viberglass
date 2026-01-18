@@ -209,7 +209,7 @@ export class GitHubIntegration extends BasePMIntegration {
       ticketId: issue.number.toString(),
       ticket,
       changes: payload.changes || {},
-      timestamp: new Date(payload.issue?.updated_at || new Date()),
+      timestamp: payload.issue?.updated_at || new Date().toISOString(),
       source: 'github'
     };
   }
@@ -227,8 +227,8 @@ export class GitHubIntegration extends BasePMIntegration {
         githubId: issue.id,
         githubNumber: issue.number
       },
-      createdAt: new Date(issue.created_at),
-      updatedAt: new Date(issue.updated_at),
+      createdAt: issue.created_at,
+      updatedAt: issue.updated_at,
       url: issue.html_url,
       repositoryUrl: `https://github.com/${this.config.owner}/${this.config.repo}`
     };

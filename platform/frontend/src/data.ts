@@ -1,17 +1,43 @@
-import {
-  triggerAutoFix as apiTriggerAutoFix,
-  BugReport,
-  BugReportSummary,
-  getBugReport,
-  getBugReports,
-  getMockBugReports,
-  getMockBugReportStats,
-} from '@/service/api/bug-report-api'
+import type { BugReport, Project, Severity, AutoFixStatus } from '@viberator/types'
+import { getBugReports } from '@/service/api/bug-report-api'
+import { getProjects as apiGetProjects, getProjectBySlug as apiGetProjectBySlug } from '@/service/api/project-api'
+
+// Extended bug report with computed status for UI
+export interface BugReportSummary {
+  id: string
+  title: string
+  severity: Severity
+  category: string
+  timestamp: string
+  ticketId?: string
+  ticketSystem: string
+  autoFixStatus?: AutoFixStatus
+  status: 'open' | 'resolved' | 'in_progress'
+}
+
+// Project functions
+export async function getProjectsList(): Promise<Project[]> {
+  try {
+    return await apiGetProjects()
+  } catch (error) {
+    console.warn('Failed to fetch projects:', error)
+    return []
+  }
+}
+
+export async function getProjectBySlug(slug: string): Promise<Project | null> {
+  try {
+    return await apiGetProjectBySlug(slug)
+  } catch (error) {
+    console.warn('Failed to fetch project:', error)
+    return null
+  }
+}
 
 // Bug report functions
-export async function getRecentBugReports(projectSlug: string): Promise<BugReportSummary[]> {
+export async function getRecentBugReports(projectSlug?: string): Promise<BugReportSummary[]> {
   try {
-    const bugReports = await getBugReports(undefined, 10, 0, projectSlug)
+    const bugReports = await getBugReports({ projectSlug, limit: 10 })
     return bugReports.map((report) => ({
       id: report.id,
       title: report.title,
@@ -24,7 +50,6 @@ export async function getRecentBugReports(projectSlug: string): Promise<BugRepor
       status: report.ticketId ? 'resolved' : report.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
     }))
   } catch (error) {
-    // Fall back to mock data if API is not available
     console.warn('Using mock data for bug reports:', error)
     return getMockBugReports()
   }
@@ -32,6 +57,7 @@ export async function getRecentBugReports(projectSlug: string): Promise<BugRepor
 
 export async function getBugReportDetails(id: string): Promise<BugReport | null> {
   try {
+    const { getBugReport } = await import('@/service/api/bug-report-api')
     return await getBugReport(id)
   } catch (error) {
     console.warn('Failed to fetch bug report details:', error)
@@ -40,14 +66,9 @@ export async function getBugReportDetails(id: string): Promise<BugReport | null>
 }
 
 export async function getBugReportStats() {
-  try {
-    // In a real implementation, you'd have an API endpoint for stats
-    // For now, return mock stats
-    return getMockBugReportStats()
-  } catch (error) {
-    console.warn('Failed to fetch bug report stats:', error)
-    return getMockBugReportStats()
-  }
+  // In a real implementation, you'd have an API endpoint for stats
+  // For now, return mock stats
+  return getMockBugReportStats()
 }
 
 // Utility functions for bug report formatting
@@ -96,310 +117,94 @@ export function formatTicketSystem(system: string): string {
   return systems[system] || system
 }
 
-export function formatTimestamp(date: Date): string {
+export function formatTimestamp(date: string | Date): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date
   const now = new Date()
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+  const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60)
 
   if (diffInHours < 1) {
     return 'Just now'
   } else if (diffInHours < 24) {
     return `${Math.floor(diffInHours)}h ago`
   } else {
-    return date.toLocaleDateString()
+    return dateObj.toLocaleDateString()
   }
 }
 
 export async function triggerAutoFix(ticketId: string, ticketSystem: string, repositoryUrl?: string): Promise<void> {
   try {
+    const { triggerAutoFix: apiTriggerAutoFix } = await import('@/service/api/bug-report-api')
     await apiTriggerAutoFix(ticketId, ticketSystem, repositoryUrl)
   } catch (error) {
     console.warn('Failed to trigger auto-fix:', error)
-    // Fall back to mock success for development
   }
 }
 
-// Mock data for events and orders (leftover from Catalyst demo)
-export interface Event {
-  id: string
-  name: string
-  date: string
-  time: string
-  location: string
-  imgUrl: string
-  status: string
-  totalRevenue: number
-  totalRevenueChange: number
-  ticketsSold: number
-  ticketsAvailable: number
-  ticketsSoldChange: number
-  pageViews: number
-  pageViewsChange: number
-}
-
-export interface Order {
-  id: string
-  date: string
-  customer: {
-    name: string
-    email: string
-    address: string
-    country: string
-    countryFlagUrl: string
-  }
-  event: {
-    name: string
-    thumbUrl: string
-    url: string
-  }
-  amount: {
-    usd: number
-    cad: number
-    fee: number
-    net: number
-  }
-  payment: {
-    transactionId: string
-    card: {
-      type: string
-      number: string
-      expiry: string
-    }
-  }
-}
-
-export async function getEvents(): Promise<Event[]> {
+// Mock data for development
+function getMockBugReports(): BugReportSummary[] {
   return [
     {
-      id: '1',
-      name: 'Summer Music Festival',
-      date: 'Jul 15, 2024',
-      time: '7:00 PM',
-      location: 'Central Park',
-      imgUrl: '/events/summer-festival.jpg',
-      status: 'On Sale',
-      totalRevenue: 125000,
-      totalRevenueChange: 12.5,
-      ticketsSold: 2500,
-      ticketsAvailable: 5000,
-      ticketsSoldChange: 8.3,
-      pageViews: 15000,
-      pageViewsChange: -2.1,
+      id: 'bug-001',
+      title: 'Button not clickable on mobile',
+      severity: 'high',
+      category: 'UI/UX',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      ticketId: 'ISSUE-123',
+      ticketSystem: 'github',
+      autoFixStatus: 'pending',
+      status: 'open',
     },
     {
-      id: '2',
-      name: 'Tech Conference 2024',
-      date: 'Aug 20, 2024',
-      time: '9:00 AM',
-      location: 'Convention Center',
-      imgUrl: '/events/tech-conference.jpg',
-      status: 'Sold Out',
-      totalRevenue: 75000,
-      totalRevenueChange: -5.2,
-      ticketsSold: 1500,
-      ticketsAvailable: 1500,
-      ticketsSoldChange: 0,
-      pageViews: 8500,
-      pageViewsChange: 15.7,
+      id: 'bug-002',
+      title: 'Form validation error',
+      severity: 'medium',
+      category: 'Forms',
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      ticketId: 'ISSUE-124',
+      ticketSystem: 'linear',
+      autoFixStatus: 'completed',
+      status: 'resolved',
+    },
+    {
+      id: 'bug-003',
+      title: 'Page load performance issue',
+      severity: 'low',
+      category: 'Performance',
+      timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+      ticketSystem: 'jira',
+      status: 'in_progress',
     },
   ]
 }
 
-export async function getEvent(id: string): Promise<Event | undefined> {
-  const events = await getEvents()
-  return events.find((event) => event.id === id)
+function getMockBugReportStats() {
+  return {
+    total: 47,
+    open: 23,
+    resolved: 18,
+    inProgress: 6,
+    bySeverity: {
+      critical: 2,
+      high: 8,
+      medium: 15,
+      low: 22,
+    },
+    byCategory: {
+      'UI/UX': 12,
+      Forms: 8,
+      Performance: 6,
+      API: 5,
+      Security: 3,
+      Other: 13,
+    },
+    autoFixStats: {
+      requested: 15,
+      completed: 8,
+      pending: 4,
+      failed: 3,
+    },
+  }
 }
 
-export async function getEventOrders(eventId: string): Promise<Order[]> {
-  return [
-    {
-      id: 'ORD-001',
-      date: 'Jun 15, 2024',
-      customer: {
-        name: 'John Doe',
-        email: 'john@example.com',
-        address: '123 Main St, New York, NY 10001',
-        country: 'United States',
-        countryFlagUrl: '/flags/us.svg',
-      },
-      event: {
-        name: 'Summer Music Festival',
-        thumbUrl: '/events/summer-festival-thumb.jpg',
-        url: `/events/${eventId}`,
-      },
-      amount: {
-        usd: 150,
-        cad: 200,
-        fee: 7.5,
-        net: 192.5,
-      },
-      payment: {
-        transactionId: 'txn_1234567890',
-        card: {
-          type: 'Visa',
-          number: '4242',
-          expiry: '12/26',
-        },
-      },
-    },
-  ]
-}
-
-export async function getOrders(): Promise<Order[]> {
-  return [
-    {
-      id: 'ORD-001',
-      date: 'Jun 15, 2024',
-      customer: {
-        name: 'John Doe',
-        email: 'john@example.com',
-        address: '123 Main St, New York, NY 10001',
-        country: 'United States',
-        countryFlagUrl: '/flags/us.svg',
-      },
-      event: {
-        name: 'Summer Music Festival',
-        thumbUrl: '/events/summer-festival-thumb.jpg',
-        url: '/events/1',
-      },
-      amount: {
-        usd: 150,
-        cad: 200,
-        fee: 7.5,
-        net: 192.5,
-      },
-      payment: {
-        transactionId: 'txn_1234567890',
-        card: {
-          type: 'Visa',
-          number: '4242',
-          expiry: '12/26',
-        },
-      },
-    },
-    {
-      id: 'ORD-002',
-      date: 'Jun 16, 2024',
-      customer: {
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        address: '456 Oak Ave, Toronto, ON M5V 1A1',
-        country: 'Canada',
-        countryFlagUrl: '/flags/ca.svg',
-      },
-      event: {
-        name: 'Tech Conference 2024',
-        thumbUrl: '/events/tech-conference-thumb.jpg',
-        url: '/events/2',
-      },
-      amount: {
-        usd: 300,
-        cad: 400,
-        fee: 15,
-        net: 385,
-      },
-      payment: {
-        transactionId: 'txn_0987654321',
-        card: {
-          type: 'Mastercard',
-          number: '5555',
-          expiry: '08/25',
-        },
-      },
-    },
-  ]
-}
-
-export async function getOrder(id: string): Promise<Order | undefined> {
-  const orders = await getOrders()
-  return orders.find((order) => order.id === id)
-}
-
-// Mock countries data (leftover from Catalyst demo)
-export interface Country {
-  name: string
-  code: string
-  flagUrl: string
-  regions: string[]
-}
-
-export function getCountries(): Country[] {
-  return [
-    {
-      name: 'United States',
-      code: 'US',
-      flagUrl: '/flags/us.svg',
-      regions: [
-        'Alabama',
-        'Alaska',
-        'Arizona',
-        'Arkansas',
-        'California',
-        'Colorado',
-        'Connecticut',
-        'Delaware',
-        'Florida',
-        'Georgia',
-        'Hawaii',
-        'Idaho',
-        'Illinois',
-        'Indiana',
-        'Iowa',
-        'Kansas',
-        'Kentucky',
-        'Louisiana',
-        'Maine',
-        'Maryland',
-        'Massachusetts',
-        'Michigan',
-        'Minnesota',
-        'Mississippi',
-        'Missouri',
-        'Montana',
-        'Nebraska',
-        'Nevada',
-        'New Hampshire',
-        'New Jersey',
-        'New Mexico',
-        'New York',
-        'North Carolina',
-        'North Dakota',
-        'Ohio',
-        'Oklahoma',
-        'Oregon',
-        'Pennsylvania',
-        'Rhode Island',
-        'South Carolina',
-        'South Dakota',
-        'Tennessee',
-        'Texas',
-        'Utah',
-        'Vermont',
-        'Virginia',
-        'Washington',
-        'West Virginia',
-        'Wisconsin',
-        'Wyoming',
-      ],
-    },
-    {
-      name: 'Canada',
-      code: 'CA',
-      flagUrl: '/flags/ca.svg',
-      regions: [
-        'Alberta',
-        'British Columbia',
-        'Manitoba',
-        'New Brunswick',
-        'Newfoundland and Labrador',
-        'Northwest Territories',
-        'Nova Scotia',
-        'Nunavut',
-        'Ontario',
-        'Prince Edward Island',
-        'Quebec',
-        'Saskatchewan',
-        'Yukon',
-      ],
-    },
-  ]
-}
+// Re-export types for convenience
+export type { BugReport, Project, Severity, AutoFixStatus }

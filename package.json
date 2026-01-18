@@ -4,6 +4,7 @@
   "private": true,
   "description": "Viberator monorepo - AI Agent Orchestrator and Platform",
   "workspaces": [
+    "packages/types",
     "viberator/app",
     "viberator/infrastructure/infra",
     "platform/backend",
@@ -11,7 +12,9 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w @viberator/orchestrator\" \"npm run dev -w @viberator/platform-backend\" \"npm run dev -w @viberator/frontend\"",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @viberator/types && npm run build --workspaces --if-present",
+    "types:build": "npm run build -w @viberator/types",
+    "types:dev": "npm run dev -w @viberator/types",
     "test": "npm run test --workspaces --if-present",
     "orchestrator:dev": "npm run dev:api -w @viberator/orchestrator",
     "orchestrator:dev:worker": "npm run dev:worker -w @viberator/orchestrator",

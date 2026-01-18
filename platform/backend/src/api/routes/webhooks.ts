@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { GitHubIntegration } from '../../integrations/GitHubIntegration';
 import { BugReportDAO } from '../../persistence/BugReportDAO';
 import { MessageQueueService } from '../../services/MessageQueueService';
-import pool from '../../persistence/config/database';
+import { pool } from '../../persistence/config/database';
 
 const router = express.Router();
 const bugReportService = new BugReportDAO();

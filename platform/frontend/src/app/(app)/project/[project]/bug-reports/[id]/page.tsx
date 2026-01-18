@@ -10,9 +10,9 @@ import { notFound } from 'next/navigation'
 export default async function BugReportDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ project: string; id: string }>
 }) {
-  const { id } = await params
+  const { project, id } = await params
   const bugReport = await getBugReportDetails(id)
 
   if (!bugReport) {
@@ -29,7 +29,7 @@ export default async function BugReportDetailPage({
   return (
     <>
       <div className="flex items-center gap-4">
-        <Button href="/bug-reports" plain>
+        <Button href={`/project/${project}/bug-reports`} plain>
           <ArrowLeftIcon className="h-5 w-5" />
           Back to Bug Reports
         </Button>
@@ -58,12 +58,12 @@ export default async function BugReportDetailPage({
           </div>
         </div>
         <div className="flex gap-2">
-          <Button href={`/enhance?id=${bugReport.id}`} color="blue">
+          <Button href={`/project/${project}/enhance?id=${bugReport.id}`} color="blue">
             <SparklesIcon className="h-5 w-5" />
             Enhance & Fix
           </Button>
-          {bugReport.ticketId && (
-            <Button href={`/bug-reports/${bugReport.id}/media/${bugReport.screenshot.id}`} plain>
+          {bugReport.screenshot && (
+            <Button href={`/project/${project}/bug-reports/${bugReport.id}/media/${bugReport.screenshot.id}`} plain>
               <EyeIcon className="h-5 w-5" />
               View Screenshot
             </Button>

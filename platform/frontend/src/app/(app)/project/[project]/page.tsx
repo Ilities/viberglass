@@ -5,9 +5,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/badge'
 import { getRecentBugReports, getBugReportStats, formatSeverity, formatAutoFixStatus, formatTicketSystem, formatTimestamp } from '@/data'
 
-export default async function Home() {
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ project: string }>
+}) {
+  const { project } = await params
   const [bugReports, stats] = await Promise.all([
-    getRecentBugReports(),
+    getRecentBugReports(project),
     getBugReportStats()
   ])
 
@@ -44,7 +49,7 @@ export default async function Home() {
         </TableHead>
         <TableBody>
           {bugReports.map((report) => (
-            <TableRow key={report.id} href={`/bug-reports/${report.id}`} title={`Bug #${report.id}`}>
+            <TableRow key={report.id} href={`/project/${project}/bug-reports/${report.id}`} title={`Bug #${report.id}`}>
               <TableCell className="font-medium">{report.title}</TableCell>
               <TableCell>
                 <Badge className={formatSeverity(report.severity).color}>

@@ -36,7 +36,7 @@ export default async function BugReportsPage({
       <div className="flex items-end justify-between">
         <Heading>Bug Reports</Heading>
         <div className="flex gap-4">
-          <Button href="/enhance" color="brand">
+          <Button href={`/project/${project}/enhance`} color="brand">
             Enhance & Auto-Fix
           </Button>
         </div>
@@ -87,7 +87,7 @@ export default async function BugReportsPage({
         </TableHead>
         <TableBody>
           {filteredReports.map((report) => (
-            <TableRow key={report.id} href={`/bug-reports/${report.id}`}>
+            <TableRow key={report.id} href={`/project/${project}/bug-reports/${report.id}`}>
               <TableCell className="font-medium">{report.title}</TableCell>
               <TableCell>
                 <Badge className={formatSeverity(report.severity).color}>{formatSeverity(report.severity).label}</Badge>

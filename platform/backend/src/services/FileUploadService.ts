@@ -66,7 +66,7 @@ export class FileUploadService {
         mimeType: file.mimetype,
         size: file.size,
         url: result.Location,
-        uploadedAt: new Date()
+        uploadedAt: new Date().toISOString()
       };
       
       return mediaAsset;

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@viberator/types": "*",
     "@headlessui/react": "^2.2.6",
     "@heroicons/react": "^2.2.0",
     "clsx": "^2.1.1",

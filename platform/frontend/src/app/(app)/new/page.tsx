@@ -7,7 +7,8 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
-import { createProject } from '@/service/api/project-api'
+import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
+import type { AuthCredentials } from '@viberator/types'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -38,16 +39,22 @@ export default function NewProjectPage() {
 
     try {
       const credentialsRaw = formData.get('credentials') as string
-      let credentials = {}
+      let credentials: AuthCredentials = { type: 'api_key' }
       try {
-        credentials = credentialsRaw ? JSON.parse(credentialsRaw) : {}
+        if (credentialsRaw) {
+          const parsed = JSON.parse(credentialsRaw)
+          credentials = {
+            type: parsed.type || 'api_key',
+            ...parsed,
+          }
+        }
       } catch (e) {
         throw new Error('Invalid JSON in Credentials field')
       }
 
-      const projectData = {
+      const projectData: CreateProjectRequest = {
         name: formData.get('name') as string,
-        ticketSystem: formData.get('ticket_system') as any,
+        ticketSystem: formData.get('ticket_system') as CreateProjectRequest['ticketSystem'],
         credentials,
         repositoryUrl: formData.get('repository_url') as string,
         autoFixEnabled: autoFixEnabled,
@@ -59,7 +66,7 @@ export default function NewProjectPage() {
       }
 
       const project = await createProject(projectData)
-      router.push(`/project/${project.id}`)
+      router.push(`/project/${project.slug}`)
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred')
       setIsSubmitting(false)

@@ -63,17 +63,26 @@ export class BugReportDAO {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      const toISOString = (date: Date | string): string =>
+        date instanceof Date ? date.toISOString() : date;
+
       return {
         id: result.id,
         projectId: result.project_id,
-        timestamp: result.timestamp,
+        timestamp: toISOString(result.timestamp),
         title: result.title,
         description: result.description,
         severity: result.severity as any,
         category: result.category,
         metadata: result.metadata as any,
-        screenshot: screenshotAsset,
-        recording: recordingAsset,
+        screenshot: {
+          ...screenshotAsset,
+          uploadedAt: toISOString(screenshotAsset.uploadedAt as any),
+        },
+        recording: recordingAsset ? {
+          ...recordingAsset,
+          uploadedAt: toISOString(recordingAsset.uploadedAt as any),
+        } : undefined,
         annotations: result.annotations as any,
         ticketId: result.ticket_id || undefined,
         ticketUrl: result.ticket_url|| undefined,
@@ -81,8 +90,8 @@ export class BugReportDAO {
         autoFixRequested: result.auto_fix_requested,
         autoFixStatus: result.auto_fix_status as any,
         pullRequestUrl: result.pull_request_url|| undefined,
-        createdAt: result.created_at,
-        updatedAt: result.updated_at,
+        createdAt: toISOString(result.created_at),
+        updatedAt: toISOString(result.updated_at),
       };
     });
   }
@@ -194,6 +203,10 @@ export class BugReportDAO {
     return rows.map((row) => this.mapRowToBugReport(row));
   }
 
+  private toISOString(date: Date | string): string {
+    return date instanceof Date ? date.toISOString() : date;
+  }
+
   private mapRowToBugReport(row: any): BugReport {
     const screenshot: MediaAsset = {
       id: row.screenshot_id,
@@ -201,7 +214,7 @@ export class BugReportDAO {
       mimeType: row.screenshot_mime_type,
       size: Number(row.screenshot_size),
       url: row.screenshot_url,
-      uploadedAt: row.screenshot_uploaded_at,
+      uploadedAt: this.toISOString(row.screenshot_uploaded_at),
     };
 
     let recording: MediaAsset | undefined;
@@ -212,14 +225,14 @@ export class BugReportDAO {
         mimeType: row.recording_mime_type,
         size: Number(row.recording_size),
         url: row.recording_url,
-        uploadedAt: row.recording_uploaded_at,
+        uploadedAt: this.toISOString(row.recording_uploaded_at),
       };
     }
 
     return {
       id: row.id,
       projectId: row.project_id,
-      timestamp: row.timestamp,
+      timestamp: this.toISOString(row.timestamp),
       title: row.title,
       description: row.description,
       severity: row.severity,
@@ -234,8 +247,8 @@ export class BugReportDAO {
       autoFixRequested: row.auto_fix_requested,
       autoFixStatus: row.auto_fix_status,
       pullRequestUrl: row.pull_request_url,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      createdAt: this.toISOString(row.created_at),
+      updatedAt: this.toISOString(row.updated_at),
     };
   }
 }
