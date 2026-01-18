@@ -1,3 +1,6 @@
+# Local Docker Worker - Ephemeral CLI-based worker
+# This container runs a single job and exits
+
 # Build stage
 FROM node:24-slim AS builder
 WORKDIR /app
@@ -21,7 +24,6 @@ RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 RUN npm install -g @anthropic-ai/claude-code
 
 COPY package*.json ./
-
 RUN npm install --omit=dev
 
 # Copy built files from builder
@@ -38,4 +40,5 @@ USER viberator
 ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
-CMD ["node", "dist/bullmq-worker.js"]
+# Default command shows help
+CMD ["node", "dist/cli-worker.js", "--help"]

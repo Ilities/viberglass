@@ -1,75 +1,46 @@
 services:
-  # Redis for job queue
-  redis:
-    image: redis:7-alpine
-    container_name: viberator-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    networks:
-      - viberator-network
-
-  # API Server - handles job submissions
+  # API Server - handles job submissions and worker orchestration
   api:
     build:
-      context: .
-      dockerfile: docker/api.Dockerfile
+      context: ..
+      dockerfile: infrastructure/docker/api.Dockerfile
     container_name: viberator-api
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - API_PORT=3000
       - LOG_LEVEL=info
       - LOG_FORMAT=json
     env_file:
-      - .env
-    depends_on:
-      redis:
-        condition: service_healthy
+      - ../.env
     networks:
       - viberator-network
     restart: unless-stopped
 
-  # Worker - processes jobs from the queue
+  # Ephemeral Worker - processes a single job and exits
+  # This service can be scaled on-demand by the orchestrator
   worker:
     build:
-      context: .
-      dockerfile: docker/viberator-bullmq.Dockerfile
+      context: ..
+      dockerfile: infrastructure/docker/viberator-docker-worker.Dockerfile
     container_name: viberator-worker
     environment:
       - NODE_ENV=production
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - LOG_LEVEL=info
       - LOG_FORMAT=json
-      - WORKER_CONCURRENCY=1
       - WORK_DIR=/tmp/viberator-work
     env_file:
-      - .env
-    depends_on:
-      redis:
-        condition: service_healthy
+      - ../.env
     networks:
       - viberator-network
-    restart: unless-stopped
+    # Do not restart - workers are ephemeral and exit after job completion
+    restart: "no"
     volumes:
       # Mount SSH keys for git operations
-      - ${HOME}/.ssh:/home/nodeapp/.ssh:ro
+      - ${HOME}/.ssh:/home/viberator/.ssh:ro
       # Mount git config if available
-      - ${HOME}/.gitconfig:/home/nodeapp/.gitconfig:ro
-
-volumes:
-  redis-data:
-    driver: local
+      - ${HOME}/.gitconfig:/home/viberator/.gitconfig:ro
 
 networks:
   viberator-network:

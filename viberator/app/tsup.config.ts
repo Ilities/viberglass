@@ -2,7 +2,7 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: {
-    "bullmq-worker": "src/workers/bullmq-handler.ts",
+    "cli-worker": "src/workers/cli-handler.ts",
     "lambda-handler": "src/workers/lambda-handler.ts",
     "api-server": "src/api-server.ts",
   },

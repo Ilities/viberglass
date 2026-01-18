@@ -86,6 +86,42 @@ docker-compose up --build
 *   **Health Check**: `GET http://localhost:3000/health`
 *   **API Docs**: `GET http://localhost:3000/api/docs`
 *   **Queue Status**: `GET http://localhost:3000/api/webhooks/status`
+*   **Jobs Queue Stats**: `GET http://localhost:3000/api/jobs/stats/queue`
+
+## 🤖 Jobs API (AI Agent Integration)
+
+The backend includes a Jobs API for submitting AI agent tasks (powered by the Viberator worker service):
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/jobs` | Submit a new job for AI processing |
+| GET | `/api/jobs/:jobId` | Get job status and results |
+| GET | `/api/jobs` | List jobs (with optional status filter) |
+| DELETE | `/api/jobs/:jobId` | Delete a job |
+| GET | `/api/jobs/stats/queue` | Get queue statistics |
+
+### Example Usage
+
+```bash
+# Submit a job
+curl -X POST http://localhost:3000/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repository": "https://github.com/example/repo.git",
+    "task": "Fix the authentication bug",
+    "branch": "main"
+  }'
+
+# Check job status
+curl http://localhost:3000/api/jobs/job_1234567890_abc
+
+# View queue stats
+curl http://localhost:3000/api/jobs/stats/queue
+```
+
+> **Note**: The Jobs API requires the Viberator worker service to be running and connected to Redis. See [viberator/app/README.md](../../viberator/app/README.md) for worker setup.
 
 ## 🔧 Integrations (Optional)
 To enable ticket synchronization, provide API keys in `.env` for:

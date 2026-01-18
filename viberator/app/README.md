@@ -8,7 +8,7 @@ A containerized AI agent orchestrator that executes various AI coding CLI tools 
 - **Intelligent Agent Selection**: Automatically selects the best agent based on language, complexity, cost, and success rates
 - **Flexible Configuration**: Supports environment variables and AWS Systems Manager Parameter Store
 - **Docker Ready**: Fully containerized with proper security and resource management
-- **Dual Mode Operation**: HTTP API server mode and CLI execution mode
+- **Worker Mode**: Executes AI coding jobs from a centralized queue
 - **Comprehensive Logging**: Structured logging with configurable levels and formats
 
 ## Supported AI Agents
@@ -34,23 +34,13 @@ cp .env.example .env
 docker build -t vibug-viberator .
 ```
 
-2. **Run in server mode:**
+2. **Run the worker:**
 ```bash
 docker run -d \
-  --name vibug-viberator \
+  --name vibug-viberator-worker \
   --env-file .env \
-  -p 3000:3000 \
-  vibug-viberator
-```
-
-3. **Run in CLI mode:**
-```bash
-docker run --rm \
-  --env-file .env \
-  -e MODE=cli \
-  -e REPO_URL=https://github.com/example/repo.git \
-  -e BUG_DESCRIPTION="Fix null pointer exception" \
-  vibug-viberator
+  -e REDIS_HOST=your-redis-host \
+  vibug-viberator npm run start:worker
 ```
 
 ### Local Development
@@ -65,10 +55,12 @@ npm install
 npm run build
 ```
 
-3. **Start in development mode:**
+3. **Start the worker in development mode:**
 ```bash
-npm run dev
+npm run dev:worker
 ```
+
+> For HTTP API access, use the [platform/backend](../../platform/backend) service instead.
 
 ## Configuration
 
@@ -89,8 +81,6 @@ GEMINI_CLI_API_KEY=your_gemini_api_key
 #### Optional Configuration
 ```bash
 # Application Settings
-MODE=server              # 'server' or 'cli'
-PORT=3000               # HTTP server port
 LOG_LEVEL=info          # debug, info, warn, error
 LOG_FORMAT=json         # json or text
 
@@ -116,49 +106,44 @@ For production deployments, store sensitive configuration in AWS SSM:
 /vibug-viberator/execution/maxConcurrentJobs
 ```
 
-## API Reference
+## API Access
 
-### Server Mode Endpoints
+The HTTP API for submitting jobs and checking status is now provided by the **platform/backend** service.
 
-#### Health Check
+### API Endpoints (via platform/backend)
+
+#### Submit Job
 ```http
-GET /health
-```
-
-#### Execute Bug Fix
-```http
-POST /execute
+POST /api/jobs
 Content-Type: application/json
 
 {
-  "bugReport": {
-    "id": "bug-001",
-    "title": "Null pointer exception in user service",
-    "description": "Application crashes when user data is null",
-    "stepsToReproduce": "1. Login 2. Navigate to profile 3. Clear session",
-    "expectedBehavior": "Should handle null gracefully",
-    "actualBehavior": "Application crashes with NPE",
-    "severity": "high",
-    "language": "java"
-  },
-  "projectSettings": {
-    "repoUrl": "https://github.com/example/repo.git",
-    "branch": "main",
-    "testingRequired": true,
-    "codingStandards": "Google Java Style"
-  }
+  "repository": "https://github.com/example/repo.git",
+  "task": "Fix null pointer exception in user service",
+  "branch": "main",
+  "baseBranch": "main",
+  "context": {},
+  "settings": {},
+  "tenantId": "optional-tenant-id"
 }
 ```
 
-#### Check Execution Status
+#### Get Job Status
 ```http
-GET /execution/{executionId}/status
+GET /api/jobs/{jobId}
 ```
 
-#### List Available Agents
+#### List Jobs
 ```http
-GET /agents
+GET /api/jobs?status=completed&limit=10
 ```
+
+#### Queue Statistics
+```http
+GET /api/jobs/stats/queue
+```
+
+> See the [platform README](../../platform/README.md) for full API documentation.
 
 ## Agent Selection Algorithm
 
@@ -205,30 +190,33 @@ docker run --rm --env-file .env \
   vibug-viberator
 ```
 
-### Example 3: Using API
+### Example 3: Using the Platform Backend API
+
+The HTTP API is now provided by the platform/backend service:
 
 ```bash
-curl -X POST http://localhost:3000/execute \
+# Start the platform backend first (see platform/backend/README.md)
+# Then submit jobs to the worker:
+
+curl -X POST http://localhost:3000/api/jobs \
   -H "Content-Type: application/json" \
   -d '{
-    "bugReport": {
-      "id": "react-rendering-001",
-      "title": "Component not rendering",
-      "description": "UserProfile component returns blank",
-      "stepsToReproduce": "1. Navigate to /profile 2. Component is empty",
-      "expectedBehavior": "Should show user information",
-      "actualBehavior": "Blank page displayed",
-      "severity": "medium",
+    "repository": "https://github.com/example/react-app.git",
+    "task": "Fix UserProfile component not rendering - returns blank page",
+    "branch": "main",
+    "baseBranch": "main",
+    "context": {
       "language": "javascript",
-      "framework": "react"
+      "framework": "react",
+      "severity": "medium"
     },
-    "projectSettings": {
-      "repoUrl": "https://github.com/example/react-app.git",
-      "branch": "main",
+    "settings": {
       "testingRequired": true
     }
   }'
 ```
+
+This will queue the job for processing by the viberator worker.
 
 ## Architecture
 
@@ -238,17 +226,35 @@ curl -X POST http://localhost:3000/execute \
 2. **AgentOrchestrator**: Selects and executes appropriate AI agents
 3. **BaseAgent**: Abstract base class for all AI agent implementations
 4. **Individual Agents**: Specific implementations for each AI service
-5. **VibugViberator**: Main application class with HTTP API and CLI modes
+5. **Worker Service**: Processes jobs from the Redis queue (BullMQ)
+
+### System Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│ Platform/Backend│────▶│  Redis Queue     │────▶│ Viberator Worker│
+│   (HTTP API)    │     │   (BullMQ)       │     │  (This Service) │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                                                        │
+                                                        ▼
+                                                 ┌─────────────────┐
+                                                 │   AI Agents     │
+                                                 │  (Claude, etc.) │
+                                                 └─────────────────┘
+```
 
 ### Execution Flow
 
-1. **Configuration Loading**: Load from environment and AWS SSM
-2. **Agent Selection**: Analyze bug report and select best agent
-3. **Context Preparation**: Prepare execution environment and prompts
-4. **Repository Cloning**: Clone target repository to isolated workspace
-5. **Agent Execution**: Run selected AI agent CLI with prepared context
-6. **Result Processing**: Parse results, detect changed files, run tests
-7. **Cleanup**: Clean up workspace and return results
+1. **Job Submission**: HTTP API receives job request via platform/backend
+2. **Queueing**: Job is added to Redis queue
+3. **Worker Processing**: Worker picks up job from queue
+4. **Configuration Loading**: Load from environment and AWS SSM
+5. **Agent Selection**: Analyze task and select best agent
+6. **Context Preparation**: Prepare execution environment and prompts
+7. **Repository Cloning**: Clone target repository to isolated workspace
+8. **Agent Execution**: Run selected AI agent CLI with prepared context
+9. **Result Processing**: Parse results, detect changed files, run tests
+10. **Cleanup**: Clean up workspace and update job status
 
 ## Security
 

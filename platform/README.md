@@ -111,13 +111,13 @@ npm test
 
 ### Health Check
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:8888/health
 ```
 
 ### Create Bug Report
 
 ```bash
-curl -X POST http://localhost:3000/api/bug-reports \
+curl -X POST http://localhost:8888/api/tickets \
   -F "screenshot=@screenshot.png" \
   -F "recording=@recording.mp4" \
   -F "projectId=123e4567-e89b-12d3-a456-426614174000" \
@@ -141,6 +141,54 @@ curl -X POST http://localhost:3000/api/bug-reports \
   -F 'annotations=[
     {"id": "ann1", "type": "arrow", "x": 100, "y": 200, "color": "red"}
   ]'
+```
+
+### Jobs API (AI Agent Execution)
+
+The Jobs API manages AI agent execution for automated bug fixing. These endpoints integrate with the Viberator worker service.
+
+#### Submit Job
+```bash
+curl -X POST http://localhost:8888/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repository": "https://github.com/example/repo.git",
+    "task": "Fix null pointer exception in user service",
+    "branch": "main",
+    "baseBranch": "main",
+    "context": {
+      "language": "java",
+      "severity": "high"
+    },
+    "settings": {
+      "testingRequired": true
+    },
+    "tenantId": "optional-tenant-id"
+  }'
+```
+
+#### Get Job Status
+```bash
+curl http://localhost:8888/api/jobs/job_1234567890_abc123
+```
+
+#### List Jobs
+```bash
+# List all jobs
+curl http://localhost:8888/api/jobs?limit=20
+
+# Filter by status
+curl http://localhost:8888/api/jobs?status=completed&limit=10
+```
+
+#### Delete Job
+```bash
+curl -X DELETE http://localhost:8888/api/jobs/job_1234567890_abc123
+```
+
+#### Queue Statistics
+```bash
+curl http://localhost:8888/api/jobs/stats/queue
 ```
 
 ### Webhook Endpoints

@@ -12,6 +12,7 @@ import ticketsRouter from "./routes/tickets";
 import webhooksRouter from "./routes/webhooks";
 import clankersRouter from "./routes/clankers";
 import deploymentStrategiesRouter from "./routes/deployment-strategies";
+import jobsRouter from "./routes/jobs";
 
 // Load environment variables
 dotenv.config();
@@ -51,6 +52,7 @@ app.use("/api/tickets", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/clankers", clankersRouter);
 app.use("/api/deployment-strategies", deploymentStrategiesRouter);
+app.use("/api/jobs", jobsRouter);
 
 // API documentation endpoint
 app.get("/api/docs", (req, res) => {
@@ -131,6 +133,40 @@ app.get("/api/docs", (req, res) => {
           ticketSystem: "PM system name",
           repositoryUrl: "Optional repository URL",
         },
+      },
+      "POST /api/jobs": {
+        description: "Submit a job for AI agent execution",
+        parameters: {
+          repository: "Repository URL (required)",
+          task: "Task description (required)",
+          branch: "Target branch (default: main)",
+          baseBranch: "Base branch (default: main)",
+          context: "Additional context object",
+          settings: "Execution settings object",
+          tenantId: "Tenant identifier (default: api-server)",
+        },
+      },
+      "GET /api/jobs/:jobId": {
+        description: "Get job status and details",
+        parameters: {
+          jobId: "Job identifier",
+        },
+      },
+      "GET /api/jobs": {
+        description: "List jobs",
+        parameters: {
+          status: "Filter by job status (optional)",
+          limit: "Number of results (default: 10)",
+        },
+      },
+      "DELETE /api/jobs/:jobId": {
+        description: "Delete a job",
+        parameters: {
+          jobId: "Job identifier",
+        },
+      },
+      "GET /api/jobs/stats/queue": {
+        description: "Get queue statistics",
       },
     },
     examples: {

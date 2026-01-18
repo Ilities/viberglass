@@ -156,6 +156,24 @@ export interface ClankersTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface JobsTable {
+  id: string;
+  tenant_id: string;
+  repository: string;
+  task: string;
+  branch: string | null;
+  base_branch: string | null;
+  context: Json | null;
+  settings: Json | null;
+  status: Generated<"queued" | "active" | "completed" | "failed">;
+  progress: Json | null;
+  result: Json | null;
+  error_message: string | null;
+  created_at: Generated<Timestamp>;
+  started_at: Timestamp | null;
+  finished_at: Timestamp | null;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -166,4 +184,5 @@ export interface Database {
   deployment_strategies: DeploymentStrategiesTable;
   clanker_config_files: ClankerConfigFilesTable;
   clankers: ClankersTable;
+  jobs: JobsTable;
 }
