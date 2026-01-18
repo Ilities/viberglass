@@ -1,6 +1,7 @@
-import type { Ticket, Project, Severity, AutoFixStatus } from '@viberator/types'
+import type { Ticket, Project, Severity, AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy } from '@viberator/types'
 import { getTickets } from '@/service/api/ticket-api'
 import { getProjects as apiGetProjects, getProjectBySlug as apiGetProjectBySlug } from '@/service/api/project-api'
+import { getClankers as apiGetClankers, getClankerBySlug as apiGetClankerBySlug, getDeploymentStrategies as apiGetDeploymentStrategies } from '@/service/api/clanker-api'
 
 // Extended ticket with computed status for UI
 export interface TicketSummary {
@@ -206,5 +207,64 @@ function getMockTicketStats() {
   }
 }
 
+// Clanker functions
+export async function getClankersList(): Promise<Clanker[]> {
+  try {
+    return await apiGetClankers()
+  } catch (error) {
+    console.warn('Failed to fetch clankers:', error)
+    return []
+  }
+}
+
+export async function getClankerBySlug(slug: string): Promise<Clanker | null> {
+  try {
+    return await apiGetClankerBySlug(slug)
+  } catch (error) {
+    console.warn('Failed to fetch clanker:', error)
+    return null
+  }
+}
+
+export async function getDeploymentStrategiesList(): Promise<DeploymentStrategy[]> {
+  try {
+    return await apiGetDeploymentStrategies()
+  } catch (error) {
+    console.warn('Failed to fetch deployment strategies:', error)
+    return []
+  }
+}
+
+// Utility functions for clanker formatting
+export function formatClankerStatus(status: ClankerStatus): { label: string; color: string } {
+  switch (status) {
+    case 'active':
+      return { label: 'Active', color: 'bg-green-100 text-green-800' }
+    case 'inactive':
+      return { label: 'Inactive', color: 'bg-gray-100 text-gray-800' }
+    case 'deploying':
+      return { label: 'Deploying', color: 'bg-blue-100 text-blue-800' }
+    case 'failed':
+      return { label: 'Failed', color: 'bg-red-100 text-red-800' }
+    default:
+      return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
+  }
+}
+
+export function formatDeploymentStrategy(strategy: DeploymentStrategy | null | undefined): string {
+  if (!strategy) return 'Not configured'
+
+  // Capitalize first letter and format common names
+  const formatters: Record<string, string> = {
+    docker: 'Docker',
+    ecs: 'AWS ECS',
+    kubernetes: 'Kubernetes',
+    k8s: 'Kubernetes',
+    lambda: 'AWS Lambda',
+  }
+
+  return formatters[strategy.name.toLowerCase()] || strategy.name
+}
+
 // Re-export types for convenience
-export type { Ticket, Project, Severity, AutoFixStatus }
+export type { Ticket, Project, Severity, AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy }

@@ -5,6 +5,10 @@ import {
   projectSchema,
   updateTicketSchema,
   updateProjectSchema,
+  clankerSchema,
+  updateClankerSchema,
+  deploymentStrategySchema,
+  updateDeploymentStrategySchema,
 } from "./schemas";
 
 export const validateCreateTicket = (
@@ -148,5 +152,89 @@ export const validateFileUploads = (
     }
   }
 
+  next();
+};
+
+export const validateCreateClanker = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { error, value } = clankerSchema.validate(req.body);
+
+  if (error) {
+    return res.status(400).json({
+      error: "Validation error",
+      details: error.details.map((detail) => ({
+        field: detail.path.join("."),
+        message: detail.message,
+      })),
+    });
+  }
+
+  req.body = value;
+  next();
+};
+
+export const validateUpdateClanker = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { error, value } = updateClankerSchema.validate(req.body);
+
+  if (error) {
+    return res.status(400).json({
+      error: "Validation error",
+      details: error.details.map((detail) => ({
+        field: detail.path.join("."),
+        message: detail.message,
+      })),
+    });
+  }
+
+  req.body = value;
+  next();
+};
+
+export const validateCreateDeploymentStrategy = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { error, value } = deploymentStrategySchema.validate(req.body);
+
+  if (error) {
+    return res.status(400).json({
+      error: "Validation error",
+      details: error.details.map((detail) => ({
+        field: detail.path.join("."),
+        message: detail.message,
+      })),
+    });
+  }
+
+  req.body = value;
+  next();
+};
+
+export const validateUpdateDeploymentStrategy = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { error, value } = updateDeploymentStrategySchema.validate(req.body);
+
+  if (error) {
+    return res.status(400).json({
+      error: "Validation error",
+      details: error.details.map((detail) => ({
+        field: detail.path.join("."),
+        message: detail.message,
+      })),
+    });
+  }
+
+  req.body = value;
   next();
 };

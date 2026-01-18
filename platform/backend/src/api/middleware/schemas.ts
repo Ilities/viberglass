@@ -143,3 +143,39 @@ export const updateProjectSchema = Joi.object({
   customFieldMappings: Joi.object().optional(),
   repositoryUrl: Joi.string().uri().allow(null).optional(),
 });
+
+// Config file schema for clankers
+const configFileSchema = Joi.object({
+  fileType: Joi.string().min(1).max(100).required(),
+  content: Joi.string().required(),
+});
+
+export const clankerSchema = Joi.object({
+  name: Joi.string().min(1).max(255).required(),
+  description: Joi.string().allow(null, "").optional(),
+  deploymentStrategyId: Joi.string().uuid().allow(null).optional(),
+  deploymentConfig: Joi.object().allow(null).optional(),
+  configFiles: Joi.array().items(configFileSchema).optional(),
+});
+
+export const updateClankerSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  deploymentStrategyId: Joi.string().uuid().allow(null).optional(),
+  deploymentConfig: Joi.object().allow(null).optional(),
+  configFiles: Joi.array().items(configFileSchema).optional(),
+  status: Joi.string().valid("active", "inactive", "deploying", "failed").optional(),
+  statusMessage: Joi.string().allow(null, "").optional(),
+});
+
+export const deploymentStrategySchema = Joi.object({
+  name: Joi.string().min(1).max(50).required(),
+  description: Joi.string().allow(null, "").optional(),
+  configSchema: Joi.object().allow(null).optional(),
+});
+
+export const updateDeploymentStrategySchema = Joi.object({
+  name: Joi.string().min(1).max(50).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  configSchema: Joi.object().allow(null).optional(),
+});

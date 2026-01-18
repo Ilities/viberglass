@@ -13,3 +13,6 @@ export * from './ticket'
 
 // External PM ticket types (Jira, Linear, GitHub, etc.)
 export * from './externalTicket'
+
+// Clanker types
+export * from './clanker'

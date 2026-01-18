@@ -10,6 +10,8 @@ import createError from "http-errors";
 import projectsRouter from "./routes/projects";
 import ticketsRouter from "./routes/tickets";
 import webhooksRouter from "./routes/webhooks";
+import clankersRouter from "./routes/clankers";
+import deploymentStrategiesRouter from "./routes/deployment-strategies";
 
 // Load environment variables
 dotenv.config();
@@ -47,6 +49,8 @@ app.get("/health", (req, res) => {
 app.use("/api/projects", projectsRouter);
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
+app.use("/api/clankers", clankersRouter);
+app.use("/api/deployment-strategies", deploymentStrategiesRouter);
 
 // API documentation endpoint
 app.get("/api/docs", (req, res) => {

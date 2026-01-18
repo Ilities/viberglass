@@ -67,6 +67,7 @@ export interface TicketsTable {
   external_ticket_id: string | null;
   external_ticket_url: string | null;
   ticket_system:
+    | 2
     | "jira"
     | "linear"
     | "github"
@@ -125,6 +126,36 @@ export interface AutoFixQueueTable {
   completed_at: Timestamp | null;
 }
 
+export interface DeploymentStrategiesTable {
+  id: Generated<string>;
+  name: string;
+  description: string | null;
+  config_schema: Json | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface ClankerConfigFilesTable {
+  id: Generated<string>;
+  clanker_id: string;
+  file_type: string;
+  content: string;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ClankersTable {
+  id: Generated<string>;
+  name: string;
+  slug: string;
+  description: string | null;
+  deployment_strategy_id: string | null;
+  deployment_config: Json | null;
+  status: Generated<"active" | "inactive" | "deploying" | "failed">;
+  status_message: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -132,4 +163,7 @@ export interface Database {
   pm_integrations: PMIntegrationsTable;
   webhook_events: WebhookEventsTable;
   auto_fix_queue: AutoFixQueueTable;
+  deployment_strategies: DeploymentStrategiesTable;
+  clanker_config_files: ClankerConfigFilesTable;
+  clankers: ClankersTable;
 }
