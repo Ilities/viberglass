@@ -4,7 +4,7 @@ import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
-import { formatAutoFixStatus, formatSeverity, getBugReportDetails } from '@/data'
+import { formatAutoFixStatus, formatSeverity, getTicketDetails } from '@/data'
 import { ClockIcon, PlayIcon, SparklesIcon } from '@heroicons/react/20/solid'
 import { notFound } from 'next/navigation'
 
@@ -16,17 +16,17 @@ export default async function EnhancePage({
   params: Promise<{ project: string }>
 }) {
   const { project } = await params
-  const { id: bugReportId } = await searchParams
+  const { id: ticketId } = await searchParams
 
-  if (!bugReportId) {
+  if (!ticketId) {
     return (
       <>
         <Heading>Enhance & Auto-Fix</Heading>
         <div className="mt-8 text-center">
-          <p className="text-zinc-500">Select a bug report to enhance and auto-fix.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Select a ticket to enhance and auto-fix.</p>
           <div className="mt-4">
-            <Button href={`/project/${project}/bug-reports`} color="brand">
-              Browse Bug Reports
+            <Button href={`/project/${project}/tickets`} color="brand">
+              Browse Tickets
             </Button>
           </div>
         </div>
@@ -34,9 +34,9 @@ export default async function EnhancePage({
     )
   }
 
-  const bugReport = await getBugReportDetails(bugReportId as string)
+  const ticket = await getTicketDetails(ticketId as string)
 
-  if (!bugReport) {
+  if (!ticket) {
     notFound()
   }
 
@@ -44,54 +44,60 @@ export default async function EnhancePage({
     <>
       <div className="flex items-center gap-4">
         <Heading>Enhance & Auto-Fix</Heading>
-        <Badge className={formatSeverity(bugReport.severity).color}>{formatSeverity(bugReport.severity).label}</Badge>
+        <Badge className={formatSeverity(ticket.severity).color}>{formatSeverity(ticket.severity).label}</Badge>
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
         <div>
-          <Subheading>Original Bug Report</Subheading>
-          <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6">
-            <h3 className="font-semibold text-zinc-900">{bugReport.title}</h3>
-            <p className="mt-2 text-zinc-700">{bugReport.description}</p>
-            <div className="mt-4 flex items-center gap-4 text-sm text-zinc-500">
-              <span>Category: {bugReport.category}</span>
-              <span>Reported: {new Date(bugReport.timestamp).toLocaleString()}</span>
+          <Subheading>Original Ticket</Subheading>
+          <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
+            <h3 className="font-semibold text-zinc-900 dark:text-white">{ticket.title}</h3>
+            <p className="mt-2 text-zinc-700 dark:text-zinc-300">{ticket.description}</p>
+            <div className="mt-4 flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400">
+              <span>Category: {ticket.category}</span>
+              <span>Reported: {new Date(ticket.timestamp).toLocaleString()}</span>
             </div>
           </div>
 
           <Subheading className="mt-8">Technical Context</Subheading>
           <div className="mt-4 space-y-4">
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="text-sm font-medium text-zinc-900">Browser & Environment</div>
-              <div className="mt-2 text-sm text-zinc-600">
-                {bugReport.metadata.browser.name} {bugReport.metadata.browser.version} on {bugReport.metadata.os.name}{' '}
-                {bugReport.metadata.os.version}
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+              <div className="text-sm font-medium text-zinc-900 dark:text-white">Browser & Environment</div>
+              <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                {ticket.metadata.browser?.name} {ticket.metadata.browser?.version} on {ticket.metadata.os?.name}{' '}
+                {ticket.metadata.os?.version}
               </div>
-              <div className="mt-1 text-sm text-zinc-600">
-                Screen: {bugReport.metadata.screen.width}×{bugReport.metadata.screen.height} | Viewport:{' '}
-                {bugReport.metadata.screen.viewportWidth}×{bugReport.metadata.screen.viewportHeight}
+              <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Screen: {ticket.metadata.screen?.width}×{ticket.metadata.screen?.height} | Viewport:{' '}
+                {ticket.metadata.screen?.viewportWidth}×{ticket.metadata.screen?.viewportHeight}
               </div>
             </div>
 
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="text-sm font-medium text-zinc-900">Page Context</div>
-              <div className="mt-2 text-sm break-all text-zinc-600">URL: {bugReport.metadata.pageUrl}</div>
-              {bugReport.metadata.referrer && (
-                <div className="mt-1 text-sm break-all text-zinc-600">Referrer: {bugReport.metadata.referrer}</div>
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+              <div className="text-sm font-medium text-zinc-900 dark:text-white">Page Context</div>
+              <div className="mt-2 text-sm break-all text-zinc-600 dark:text-zinc-400">
+                URL: {ticket.metadata.pageUrl}
+              </div>
+              {ticket.metadata.referrer && (
+                <div className="mt-1 text-sm break-all text-zinc-600 dark:text-zinc-400">
+                  Referrer: {ticket.metadata.referrer}
+                </div>
               )}
             </div>
 
-            {bugReport.metadata.errors.length > 0 && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                <div className="text-sm font-medium text-red-900">JavaScript Errors</div>
+            {ticket.metadata.errors && ticket.metadata.errors.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
+                <div className="text-sm font-medium text-red-900 dark:text-red-200">JavaScript Errors</div>
                 <div className="mt-2 space-y-2">
-                  {bugReport.metadata.errors.slice(0, 3).map((error, index) => (
-                    <div key={index} className="text-sm text-red-800">
+                  {ticket.metadata.errors.slice(0, 3).map((error, index) => (
+                    <div key={index} className="text-sm text-red-800 dark:text-red-200">
                       {error.message}
                     </div>
                   ))}
-                  {bugReport.metadata.errors.length > 3 && (
-                    <div className="text-sm text-red-600">+{bugReport.metadata.errors.length - 3} more errors</div>
+                  {ticket.metadata.errors.length > 3 && (
+                    <div className="text-sm text-red-600 dark:text-red-300">
+                      +{ticket.metadata.errors.length - 3} more errors
+                    </div>
                   )}
                 </div>
               </div>
@@ -100,10 +106,10 @@ export default async function EnhancePage({
         </div>
 
         <div>
-          <Subheading>Enhance Bug Report</Subheading>
+          <Subheading>Enhance External Ticket</Subheading>
           <form className="mt-4 space-y-6">
             <div>
-              <label className="block text-sm font-medium text-zinc-900">Additional Context</label>
+              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Additional Context</label>
               <Textarea
                 rows={4}
                 placeholder="Add any additional context, steps to reproduce, or observations..."
@@ -113,7 +119,7 @@ export default async function EnhancePage({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-900">Reproduction Steps</label>
+              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Reproduction Steps</label>
               <Textarea
                 rows={3}
                 placeholder="Describe the steps to reproduce this issue..."
@@ -123,12 +129,12 @@ export default async function EnhancePage({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-900">Expected Behavior</label>
+              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Expected Behavior</label>
               <Input type="text" placeholder="What should happen instead?" className="mt-2" name="expectedBehavior" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-900">Priority Override</label>
+              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Priority Override</label>
               <Select name="priorityOverride" className="mt-2">
                 <option value="">Use original priority</option>
                 <option value="critical">Critical</option>
@@ -143,7 +149,7 @@ export default async function EnhancePage({
                 <SparklesIcon className="mr-2 h-5 w-5" />
                 Enhance & Send to AI
               </Button>
-              {bugReport.ticketId && (
+              {ticket.id && (
                 <Button type="button" color="green" className="flex-1">
                   <PlayIcon className="mr-2 h-5 w-5" />
                   Trigger Auto-Fix Now
@@ -152,26 +158,26 @@ export default async function EnhancePage({
             </div>
           </form>
 
-          {bugReport.autoFixStatus && (
+          {ticket.autoFixStatus && (
             <div className="mt-8">
               <Subheading>Auto-Fix Status</Subheading>
-              <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-4">
+              <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
                 <div className="flex items-center gap-3">
-                  <ClockIcon className="h-5 w-5 text-zinc-400" />
+                  <ClockIcon className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
                   <div>
-                    <div className="font-medium text-zinc-900">
-                      <Badge className={formatAutoFixStatus(bugReport.autoFixStatus).color}>
-                        {formatAutoFixStatus(bugReport.autoFixStatus).label}
+                    <div className="font-medium text-zinc-900 dark:text-white">
+                      <Badge className={formatAutoFixStatus(ticket.autoFixStatus).color}>
+                        {formatAutoFixStatus(ticket.autoFixStatus).label}
                       </Badge>
                     </div>
-                    <div className="text-sm text-zinc-600">
-                      {bugReport.autoFixStatus === 'completed' && bugReport.pullRequestUrl && (
-                        <a href={bugReport.pullRequestUrl} className="text-blue-600 hover:underline">
+                    <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                      {ticket.autoFixStatus === 'completed' && ticket.pullRequestUrl && (
+                        <a href={ticket.pullRequestUrl} className="text-blue-600 hover:underline dark:text-blue-400">
                           View Pull Request
                         </a>
                       )}
-                      {bugReport.autoFixStatus === 'in_progress' && 'AI agent is working on this issue...'}
-                      {bugReport.autoFixStatus === 'failed' &&
+                      {ticket.autoFixStatus === 'in_progress' && 'AI agent is working on this issue...'}
+                      {ticket.autoFixStatus === 'failed' &&
                         'Auto-fix attempt failed. Manual intervention may be required.'}
                     </div>
                   </div>

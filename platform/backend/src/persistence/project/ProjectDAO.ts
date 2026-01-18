@@ -1,24 +1,26 @@
-import { v4 as uuidv4 } from 'uuid';
-import db from '../config/database';
-import { ProjectConfig } from '../../models/PMIntegration';
+import { v4 as uuidv4 } from "uuid";
+import db from "../config/database";
+import { ProjectConfig } from "../../models/PMIntegration";
 
 const slugify = (text: string) =>
   text
     .toString()
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '-')     // Replace spaces with -
-    .replace(/[^\w-]+/g, '')  // Remove all non-word chars
-    .replace(/--+/g, '-');    // Replace multiple - with single -
+    .replace(/\s+/g, "-") // Replace spaces with -
+    .replace(/[^\w-]+/g, "") // Remove all non-word chars
+    .replace(/--+/g, "-"); // Replace multiple - with single -
 
 export class ProjectDAO {
-  async createProject(request: Omit<ProjectConfig, 'id' | 'createdAt' | 'updatedAt' | 'slug'>): Promise<ProjectConfig> {
+  async createProject(
+    request: Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">,
+  ): Promise<ProjectConfig> {
     const projectId = uuidv4();
     const timestamp = new Date();
     const slug = slugify(request.name);
 
     const result = await db
-      .insertInto('projects')
+      .insertInto("projects")
       .values({
         id: projectId,
         name: request.name,
@@ -41,9 +43,9 @@ export class ProjectDAO {
 
   async getProject(id: string): Promise<ProjectConfig | null> {
     const row = await db
-      .selectFrom('projects')
+      .selectFrom("projects")
       .selectAll()
-      .where('id', '=', id)
+      .where("id", "=", id)
       .executeTakeFirst();
 
     if (!row) return null;
@@ -51,7 +53,10 @@ export class ProjectDAO {
     return this.mapRowToProject(row);
   }
 
-  async updateProject(id: string, updates: Partial<ProjectConfig>): Promise<ProjectConfig> {
+  async updateProject(
+    id: string,
+    updates: Partial<ProjectConfig>,
+  ): Promise<ProjectConfig> {
     const updateData: any = {
       updated_at: new Date(),
     };
@@ -60,18 +65,27 @@ export class ProjectDAO {
       updateData.name = updates.name;
       updateData.slug = slugify(updates.name);
     }
-    if (updates.ticketSystem !== undefined) updateData.ticket_system = updates.ticketSystem;
-    if (updates.credentials !== undefined) updateData.credentials = JSON.stringify(updates.credentials);
-    if (updates.webhookUrl !== undefined) updateData.webhook_url = updates.webhookUrl;
-    if (updates.autoFixEnabled !== undefined) updateData.auto_fix_enabled = updates.autoFixEnabled;
-    if (updates.autoFixTags !== undefined) updateData.auto_fix_tags = updates.autoFixTags;
-    if (updates.customFieldMappings !== undefined) updateData.custom_field_mappings = JSON.stringify(updates.customFieldMappings);
-    if (updates.repositoryUrl !== undefined) updateData.repository_url = updates.repositoryUrl;
+    if (updates.ticketSystem !== undefined)
+      updateData.ticket_system = updates.ticketSystem;
+    if (updates.credentials !== undefined)
+      updateData.credentials = JSON.stringify(updates.credentials);
+    if (updates.webhookUrl !== undefined)
+      updateData.webhook_url = updates.webhookUrl;
+    if (updates.autoFixEnabled !== undefined)
+      updateData.auto_fix_enabled = updates.autoFixEnabled;
+    if (updates.autoFixTags !== undefined)
+      updateData.auto_fix_tags = updates.autoFixTags;
+    if (updates.customFieldMappings !== undefined)
+      updateData.custom_field_mappings = JSON.stringify(
+        updates.customFieldMappings,
+      );
+    if (updates.repositoryUrl !== undefined)
+      updateData.repository_url = updates.repositoryUrl;
 
     const result = await db
-      .updateTable('projects')
+      .updateTable("projects")
       .set(updateData)
-      .where('id', '=', id)
+      .where("id", "=", id)
       .returningAll()
       .executeTakeFirstOrThrow();
 
@@ -80,9 +94,9 @@ export class ProjectDAO {
 
   async listProjects(limit = 50, offset = 0): Promise<ProjectConfig[]> {
     const rows = await db
-      .selectFrom('projects')
+      .selectFrom("projects")
       .selectAll()
-      .orderBy('created_at', 'desc')
+      .orderBy("created_at", "desc")
       .limit(limit)
       .offset(offset)
       .execute();
@@ -91,10 +105,7 @@ export class ProjectDAO {
   }
 
   async deleteProject(id: string): Promise<void> {
-    await db
-      .deleteFrom('projects')
-      .where('id', '=', id)
-      .execute();
+    await db.deleteFrom("projects").where("id", "=", id).execute();
   }
 
   private mapRowToProject(row: any): ProjectConfig {
@@ -103,13 +114,17 @@ export class ProjectDAO {
       name: row.name,
       slug: row.slug,
       ticketSystem: row.ticket_system,
-      credentials: typeof row.credentials === 'string' ? JSON.parse(row.credentials) : row.credentials,
+      credentials:
+        typeof row.credentials === "string"
+          ? JSON.parse(row.credentials)
+          : row.credentials,
       webhookUrl: row.webhook_url || undefined,
       autoFixEnabled: row.auto_fix_enabled,
       autoFixTags: row.auto_fix_tags || [],
-      customFieldMappings: typeof row.custom_field_mappings === 'string'
-        ? JSON.parse(row.custom_field_mappings)
-        : row.custom_field_mappings,
+      customFieldMappings:
+        typeof row.custom_field_mappings === "string"
+          ? JSON.parse(row.custom_field_mappings)
+          : row.custom_field_mappings,
       repositoryUrl: row.repository_url || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -118,9 +133,9 @@ export class ProjectDAO {
 
   async findByName(name: string) {
     const row = await db
-      .selectFrom('projects')
+      .selectFrom("projects")
       .selectAll()
-      .where('name', '=', name)
+      .where("slug", "=", name)
       .executeTakeFirst();
 
     if (!row) return null;

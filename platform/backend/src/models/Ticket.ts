@@ -11,21 +11,21 @@ export type {
   ErrorInfo,
   MediaAsset,
   Annotation,
-  BugReportMetadata,
-  BugReport,
-  UpdateBugReportRequest,
+  TicketMetadata,
+  Ticket,
+  UpdateTicketRequest,
 } from '@viberator/types';
 
-// Backend-specific types for bug report creation
-import type { BugReportMetadata, Severity, TicketSystem, Annotation } from '@viberator/types';
+// Backend-specific types for ticket creation
+import type { TicketMetadata, Severity, TicketSystem, Annotation } from '@viberator/types';
 
-export interface CreateBugReportRequest {
+export interface CreateTicketRequest {
   projectId: string;
   title: string;
   description: string;
   severity: Severity;
   category: string;
-  metadata: BugReportMetadata;
+  metadata: TicketMetadata;
   annotations: Annotation[];
   autoFixRequested: boolean;
   ticketSystem: TicketSystem;

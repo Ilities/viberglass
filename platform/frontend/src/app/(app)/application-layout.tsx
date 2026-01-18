@@ -13,14 +13,17 @@ import { Navbar, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/
 import { Sidebar, SidebarBody, SidebarHeader, SidebarItem, SidebarLabel, SidebarSection } from '@/components/sidebar'
 import { StackedLayout } from '@/components/stacked-layout'
 import { ProjectProvider } from '@/context/project-context'
+import { useTheme } from '@/context/theme-context'
 import { getProjects, Project } from '@/service/api/project-api'
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
   Cog8ToothIcon,
   LightBulbIcon,
+  MoonIcon,
   PlusIcon,
   ShieldCheckIcon,
+  SunIcon,
   UserCircleIcon,
 } from '@heroicons/react/16/solid'
 import { BugAntIcon, Cog6ToothIcon, ExclamationTriangleIcon, HomeIcon } from '@heroicons/react/20/solid'
@@ -69,11 +72,23 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
 }
 
 function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' }) {
+  const { theme, toggleTheme } = useTheme()
+
   return (
     <DropdownMenu className="min-w-64" anchor={anchor}>
       <DropdownItem href="#">
         <UserCircleIcon />
         <DropdownLabel>My account</DropdownLabel>
+      </DropdownItem>
+      <DropdownDivider />
+      <DropdownItem
+        onClick={(e) => {
+          e.preventDefault()
+          toggleTheme()
+        }}
+      >
+        {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        <DropdownLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
       <DropdownItem href="#">
@@ -125,11 +140,21 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                 <NavbarItem href={basePath} current={pathname === basePath}>
                   Dashboard
                 </NavbarItem>
-                <NavbarItem href={`${basePath}/bug-reports`} current={pathname.startsWith(`${basePath}/bug-reports`)}>
-                  Bug Reports
+                <NavbarItem href={`${basePath}/tickets`} current={pathname.startsWith(`${basePath}/tickets`)}>
+                  Tickets
                 </NavbarItem>
                 <NavbarItem href={`${basePath}/enhance`} current={pathname.startsWith(`${basePath}/enhance`)}>
                   Enhance & Fix
+                </NavbarItem>
+              </NavbarSection>
+            ) : null}
+            {!pathname.startsWith('/project/') ? (
+              <NavbarSection className="hidden lg:flex">
+                <NavbarItem href="/" current={pathname === basePath}>
+                  Dashboard
+                </NavbarItem>
+                <NavbarItem href="/clankers" current={pathname.startsWith(`/clankers`)}>
+                  Clankers
                 </NavbarItem>
               </NavbarSection>
             ) : null}
@@ -163,7 +188,7 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                   <HomeIcon />
                   <SidebarLabel>Dashboard</SidebarLabel>
                 </SidebarItem>
-                <SidebarItem href={`${basePath}/bug-reports`} current={pathname.startsWith(`${basePath}/bug-reports`)}>
+                <SidebarItem href={`${basePath}/tickets`} current={pathname.startsWith(`${basePath}/tickets`)}>
                   <BugAntIcon />
                   <SidebarLabel>Bug Reports</SidebarLabel>
                 </SidebarItem>

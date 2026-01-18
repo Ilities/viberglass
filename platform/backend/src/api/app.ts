@@ -8,7 +8,7 @@ import createError from "http-errors";
 
 // Import routes
 import projectsRouter from "./routes/projects";
-import bugReportsRouter from "./routes/bugReports";
+import ticketsRouter from "./routes/tickets";
 import webhooksRouter from "./routes/webhooks";
 
 // Load environment variables
@@ -45,7 +45,7 @@ app.get("/health", (req, res) => {
 
 // API routes
 app.use("/api/projects", projectsRouter);
-app.use("/api/bug-reports", bugReportsRouter);
+app.use("/api/tickets", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
 
 // API documentation endpoint
@@ -53,19 +53,19 @@ app.get("/api/docs", (req, res) => {
   const docs = {
     version: "1.0.0",
     title: "ViBug Receiver API",
-    description: "Bug report capture and PM system integration API",
+    description: "Ticket capture and PM system integration API",
     endpoints: {
-      "POST /api/bug-reports": {
-        description: "Create a new bug report",
+      "POST /api/tickets": {
+        description: "Create a new ticket",
         parameters: {
           "multipart/form-data": {
             screenshot: "Required image file",
             recording: "Optional video file",
             projectId: "UUID of the project",
-            title: "Bug report title",
-            description: "Bug description",
+            title: "Ticket title",
+            description: "Ticket description",
             severity: "low|medium|high|critical",
-            category: "Bug category",
+            category: "Ticket category",
             metadata: "Technical metadata object",
             annotations: "Array of annotations",
             autoFixRequested: "Boolean",
@@ -73,29 +73,35 @@ app.get("/api/docs", (req, res) => {
           },
         },
         responses: {
-          201: "Bug report created successfully",
+          201: "Ticket created successfully",
           400: "Validation error",
           500: "Internal server error",
         },
       },
-      "GET /api/bug-reports/:id": {
-        description: "Get a specific bug report",
+      "GET /api/tickets/:id": {
+        description: "Get a specific ticket",
         parameters: {
-          id: "UUID of the bug report",
+          id: "UUID of the ticket",
         },
       },
-      "GET /api/bug-reports": {
-        description: "Get bug reports by project",
+      "GET /api/tickets": {
+        description: "Get tickets by project",
         parameters: {
           projectId: "UUID of the project (query param)",
           limit: "Number of results (default: 50)",
           offset: "Result offset (default: 0)",
         },
       },
-      "PUT /api/bug-reports/:id": {
-        description: "Update a bug report",
+      "PUT /api/tickets/:id": {
+        description: "Update a ticket",
         parameters: {
-          id: "UUID of the bug report",
+          id: "UUID of the ticket",
+        },
+      },
+      "DELETE /api/tickets/:id": {
+        description: "Delete a ticket",
+        parameters: {
+          id: "UUID of the ticket",
         },
       },
       "POST /api/webhooks/github": {
@@ -117,16 +123,16 @@ app.get("/api/docs", (req, res) => {
       "POST /api/webhooks/trigger-autofix": {
         description: "Manually trigger auto-fix for a ticket",
         parameters: {
-          ticketId: "ID of the ticket",
+          ticketId: "ID of the external ticket",
           ticketSystem: "PM system name",
           repositoryUrl: "Optional repository URL",
         },
       },
     },
     examples: {
-      createBugReport: {
+      createTicket: {
         method: "POST",
-        url: "/api/bug-reports",
+        url: "/api/tickets",
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -178,33 +184,26 @@ app.use((req, res, next) => {
 });
 
 // Error handler
-app.use(
-  (
-    err: any,
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction,
-  ) => {
-    // Set locals, only providing error in development
-    res.locals.message = err.message;
-    res.locals.error = req.app.get("env") === "development" ? err : {};
+app.use((err: any, req: express.Request, res: express.Response) => {
+  // Set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get("env") === "development" ? err : {};
 
-    // Log error
-    console.error("Application error:", err);
+  // Log error
+  console.error("Application error:", err);
 
-    // Send error response
-    if (req.path.startsWith("/api/")) {
-      // API error response
-      res.status(err.status || 500).json({
-        error: err.message || "Internal server error",
-        ...(req.app.get("env") === "development" && { stack: err.stack }),
-      });
-    } else {
-      // Render the error page for web requests
-      res.status(err.status || 500);
-      res.render("error");
-    }
-  },
-);
+  // Send error response
+  if (req.path.startsWith("/api/")) {
+    // API error response
+    res.status(err.status || 500).json({
+      error: err.message || "Internal server error",
+      ...(req.app.get("env") === "development" && { stack: err.stack }),
+    });
+  } else {
+    // Render the error page for web requests
+    res.status(err.status || 500);
+    res.render("error");
+  }
+});
 
 export default app;

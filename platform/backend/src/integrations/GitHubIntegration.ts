@@ -1,13 +1,13 @@
-import axios from 'axios';
-import { BasePMIntegration } from './BasePMIntegration';
-import { BugReport } from '../models/BugReport';
-import { 
-  AuthCredentials, 
-  Ticket, 
-  TicketUpdate, 
+import axios from "axios";
+import { BasePMIntegration } from "./BasePMIntegration";
+import { GitHubConfig } from "../models/PMIntegration";
+import {
+  AuthCredentials,
+  ExternalTicket,
+  ExternalTicketUpdate,
+  Ticket,
   WebhookEvent,
-  GitHubConfig 
-} from '../models/PMIntegration';
+} from "@viberator/types";
 
 interface GitHubIssue {
   id: number;
@@ -34,12 +34,12 @@ export class GitHubIntegration extends BasePMIntegration {
 
   private setupApiClient() {
     this.apiClient = axios.create({
-      baseURL: 'https://api.github.com',
+      baseURL: "https://api.github.com",
       headers: {
-        'Authorization': `token ${this.config.token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'vibug-receiver/1.0'
-      }
+        Authorization: `token ${this.config.token}`,
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "vibug-receiver/1.0",
+      },
     });
   }
 
@@ -47,39 +47,39 @@ export class GitHubIntegration extends BasePMIntegration {
     try {
       this.config = { ...this.config, ...credentials } as GitHubConfig;
       this.setupApiClient();
-      
+
       // Test authentication by getting user info
-      await this.apiClient.get('/user');
+      await this.apiClient.get("/user");
     } catch (error) {
       throw new Error(`GitHub authentication failed: ${error}`);
     }
   }
 
-  async createTicket(bugReport: BugReport): Promise<Ticket> {
+  async createTicket(ticket: Ticket): Promise<ExternalTicket> {
     try {
       const labels = [
-        'bug',
-        this.getLabelFromCategory(bugReport.category),
-        `severity:${bugReport.severity}`
+        "bug",
+        this.getLabelFromCategory(ticket.category),
+        `severity:${ticket.severity}`,
       ];
 
       if (this.config.labels) {
         labels.push(...this.config.labels);
       }
 
-      if (this.shouldEnableAutoFix(bugReport)) {
-        labels.push('auto-fix');
+      if (this.shouldEnableAutoFix(ticket)) {
+        labels.push("auto-fix");
       }
 
       const issueData = {
-        title: bugReport.title,
-        body: this.formatBugReportDescription(bugReport),
-        labels: labels
+        title: ticket.title,
+        body: this.formatBugReportDescription(ticket),
+        labels: labels,
       };
 
       const response = await this.apiClient.post(
         `/repos/${this.config.owner}/${this.config.repo}/issues`,
-        issueData
+        issueData,
       );
 
       const issue: GitHubIssue = response.data;
@@ -90,7 +90,10 @@ export class GitHubIntegration extends BasePMIntegration {
     }
   }
 
-  async updateTicket(ticketId: string, updates: TicketUpdate): Promise<void> {
+  async updateTicket(
+    ticketId: string,
+    updates: ExternalTicketUpdate,
+  ): Promise<void> {
     try {
       const updateData: any = {};
 
@@ -103,7 +106,7 @@ export class GitHubIntegration extends BasePMIntegration {
       }
 
       if (updates.status) {
-        updateData.state = updates.status === 'closed' ? 'closed' : 'open';
+        updateData.state = updates.status === "closed" ? "closed" : "open";
       }
 
       if (updates.labels) {
@@ -116,14 +119,14 @@ export class GitHubIntegration extends BasePMIntegration {
 
       await this.apiClient.patch(
         `/repos/${this.config.owner}/${this.config.repo}/issues/${ticketId}`,
-        updateData
+        updateData,
       );
 
       // Add comment if provided
       if (updates.comment) {
         await this.apiClient.post(
           `/repos/${this.config.owner}/${this.config.repo}/issues/${ticketId}/comments`,
-          { body: updates.comment }
+          { body: updates.comment },
         );
       }
     } catch (error) {
@@ -131,10 +134,10 @@ export class GitHubIntegration extends BasePMIntegration {
     }
   }
 
-  async getTicket(ticketId: string): Promise<Ticket> {
+  async getTicket(ticketId: string): Promise<ExternalTicket> {
     try {
       const response = await this.apiClient.get(
-        `/repos/${this.config.owner}/${this.config.repo}/issues/${ticketId}`
+        `/repos/${this.config.owner}/${this.config.repo}/issues/${ticketId}`,
       );
 
       const issue: GitHubIssue = response.data;
@@ -147,19 +150,19 @@ export class GitHubIntegration extends BasePMIntegration {
   async registerWebhook(url: string, events: string[]): Promise<void> {
     try {
       const webhookData = {
-        name: 'web',
+        name: "web",
         active: true,
         events: events,
         config: {
           url: url,
-          content_type: 'json',
-          insecure_ssl: '0'
-        }
+          content_type: "json",
+          insecure_ssl: "0",
+        },
       };
 
       await this.apiClient.post(
         `/repos/${this.config.owner}/${this.config.repo}/hooks`,
-        webhookData
+        webhookData,
       );
     } catch (error) {
       throw new Error(`Failed to register GitHub webhook: ${error}`);
@@ -171,34 +174,38 @@ export class GitHubIntegration extends BasePMIntegration {
     const issue = payload.issue;
 
     if (!issue) {
-      throw new Error('Invalid webhook payload: missing issue data');
+      throw new Error("Invalid webhook payload: missing issue data");
     }
 
-    let eventType: 'ticket_created' | 'ticket_updated' | 'ticket_deleted' | 'comment_added';
+    let eventType:
+      | "ticket_created"
+      | "ticket_updated"
+      | "ticket_deleted"
+      | "comment_added";
 
     switch (action) {
-      case 'opened':
-        eventType = 'ticket_created';
+      case "opened":
+        eventType = "ticket_created";
         break;
-      case 'edited':
-      case 'labeled':
-      case 'unlabeled':
-      case 'assigned':
-      case 'unassigned':
-        eventType = 'ticket_updated';
+      case "edited":
+      case "labeled":
+      case "unlabeled":
+      case "assigned":
+      case "unassigned":
+        eventType = "ticket_updated";
         break;
-      case 'closed':
-      case 'reopened':
-        eventType = 'ticket_updated';
+      case "closed":
+      case "reopened":
+        eventType = "ticket_updated";
         break;
-      case 'deleted':
-        eventType = 'ticket_deleted';
+      case "deleted":
+        eventType = "ticket_deleted";
         break;
       default:
         if (payload.comment) {
-          eventType = 'comment_added';
+          eventType = "comment_added";
         } else {
-          eventType = 'ticket_updated';
+          eventType = "ticket_updated";
         }
     }
 
@@ -210,42 +217,44 @@ export class GitHubIntegration extends BasePMIntegration {
       ticket,
       changes: payload.changes || {},
       timestamp: payload.issue?.updated_at || new Date().toISOString(),
-      source: 'github'
+      source: "github",
     };
   }
 
-  private mapGitHubIssueToTicket(issue: GitHubIssue): Ticket {
+  private mapGitHubIssueToTicket(issue: GitHubIssue): ExternalTicket {
     return {
       id: issue.number.toString(),
       title: issue.title,
-      description: issue.body || '',
+      description: issue.body || "",
       status: issue.state,
-      priority: this.extractPriorityFromLabels(issue.labels.map(l => l.name)),
+      priority: this.extractPriorityFromLabels(issue.labels.map((l) => l.name)),
       assignee: issue.assignee?.login,
-      labels: issue.labels.map(l => l.name),
+      labels: issue.labels.map((l) => l.name),
       customFields: {
         githubId: issue.id,
-        githubNumber: issue.number
+        githubNumber: issue.number,
       },
       createdAt: issue.created_at,
       updatedAt: issue.updated_at,
       url: issue.html_url,
-      repositoryUrl: `https://github.com/${this.config.owner}/${this.config.repo}`
+      repositoryUrl: `https://github.com/${this.config.owner}/${this.config.repo}`,
     };
   }
 
   private extractPriorityFromLabels(labels: string[]): string {
-    const priorityLabel = labels.find(label => label.startsWith('priority:') || label.startsWith('severity:'));
+    const priorityLabel = labels.find(
+      (label) => label.startsWith("priority:") || label.startsWith("severity:"),
+    );
     if (priorityLabel) {
-      const priority = priorityLabel.split(':')[1];
+      const priority = priorityLabel.split(":")[1];
       return this.getPriorityFromSeverity(priority);
     }
-    return 'Medium';
+    return "Medium";
   }
 
-  protected formatBugReportDescription(bugReport: BugReport): string {
+  protected formatBugReportDescription(bugReport: Ticket): string {
     let description = super.formatBugReportDescription(bugReport);
-    
+
     // Add GitHub-specific formatting
     description += `\n## Media Assets\n`;
     description += `**Screenshot:** [View Screenshot](${bugReport.screenshot.url})\n`;
@@ -261,7 +270,12 @@ export class GitHubIntegration extends BasePMIntegration {
   }
 
   // GitHub-specific methods
-  async createPullRequest(title: string, body: string, head: string, base: string = 'main'): Promise<any> {
+  async createPullRequest(
+    title: string,
+    body: string,
+    head: string,
+    base: string = "main",
+  ): Promise<any> {
     try {
       const response = await this.apiClient.post(
         `/repos/${this.config.owner}/${this.config.repo}/pulls`,
@@ -269,8 +283,8 @@ export class GitHubIntegration extends BasePMIntegration {
           title,
           body,
           head,
-          base
-        }
+          base,
+        },
       );
 
       return response.data;
@@ -279,12 +293,15 @@ export class GitHubIntegration extends BasePMIntegration {
     }
   }
 
-  async linkPullRequestToIssue(issueNumber: string, pullRequestNumber: string): Promise<void> {
+  async linkPullRequestToIssue(
+    issueNumber: string,
+    pullRequestNumber: string,
+  ): Promise<void> {
     try {
       const comment = `This issue is being addressed by #${pullRequestNumber}`;
       await this.apiClient.post(
         `/repos/${this.config.owner}/${this.config.repo}/issues/${issueNumber}/comments`,
-        { body: comment }
+        { body: comment },
       );
     } catch (error) {
       throw new Error(`Failed to link PR to issue: ${error}`);
@@ -293,7 +310,9 @@ export class GitHubIntegration extends BasePMIntegration {
 
   async getRepositoryInfo(): Promise<any> {
     try {
-      const response = await this.apiClient.get(`/repos/${this.config.owner}/${this.config.repo}`);
+      const response = await this.apiClient.get(
+        `/repos/${this.config.owner}/${this.config.repo}`,
+      );
       return response.data;
     } catch (error) {
       throw new Error(`Failed to get repository info: ${error}`);

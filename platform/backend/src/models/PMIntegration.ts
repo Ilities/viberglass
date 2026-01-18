@@ -1,16 +1,11 @@
-// Re-export types from shared types package
-export type {
+import {
   AuthCredentials,
-  AuthCredentialType,
-  Ticket,
-  TicketUpdate,
-  WebhookEvent,
+  ExternalTicket,
+  ExternalTicketUpdate,
   Project,
-  CreateProjectRequest,
-  UpdateProjectRequest,
-} from '@viberator/types';
-
-import type { BugReport, TicketSystem, AuthCredentials, Ticket, TicketUpdate, WebhookEvent, Project } from '@viberator/types';
+  Ticket,
+  WebhookEvent,
+} from "@viberator/types";
 
 // Backend-specific interface for PM Integration implementations
 export interface CustomFieldMapping {
@@ -22,18 +17,21 @@ export interface PMIntegration {
   authenticate(credentials: AuthCredentials): Promise<void>;
 
   // Ticket operations
-  createTicket(bugReport: BugReport): Promise<Ticket>;
-  updateTicket(ticketId: string, updates: TicketUpdate): Promise<void>;
-  getTicket(ticketId: string): Promise<Ticket>;
+  createTicket(ticket: Ticket): Promise<ExternalTicket>;
+
+  updateTicket(ticketId: string, updates: ExternalTicketUpdate): Promise<void>;
+
+  getTicket(ticketId: string): Promise<ExternalTicket>;
 
   // Auto-fix tag detection
-  hasAutoFixTag(ticket: Ticket): boolean;
+  hasAutoFixTag(ticket: ExternalTicket): boolean;
 
   // Custom field mapping
-  mapCustomFields(bugReport: BugReport): CustomFieldMapping;
+  mapCustomFields(ticket: Ticket): CustomFieldMapping;
 
   // Webhook support
   registerWebhook(url: string, events: string[]): Promise<void>;
+
   handleWebhook(payload: unknown): WebhookEvent;
 }
 

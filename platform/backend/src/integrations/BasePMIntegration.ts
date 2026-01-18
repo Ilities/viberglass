@@ -1,13 +1,15 @@
-import { BugReport } from '../models/BugReport';
-import { 
-  PMIntegration, 
-  AuthCredentials, 
-  Ticket, 
-  TicketUpdate, 
-  CustomFieldMapping, 
+import {
+  PMIntegration,
+  CustomFieldMapping,
+  AutoFixDetectionConfig,
+} from "../models/PMIntegration";
+import {
+  AuthCredentials,
+  ExternalTicket,
+  ExternalTicketUpdate,
+  Ticket,
   WebhookEvent,
-  AutoFixDetectionConfig
-} from '../models/PMIntegration';
+} from "@viberator/types";
 
 export abstract class BasePMIntegration implements PMIntegration {
   protected credentials: AuthCredentials;
@@ -16,30 +18,33 @@ export abstract class BasePMIntegration implements PMIntegration {
   constructor(credentials: AuthCredentials) {
     this.credentials = credentials;
     this.autoFixConfig = {
-      labelMatching: ['auto-fix', 'ai-fix', '🤖 auto-fix', 'autofix'],
+      labelMatching: ["auto-fix", "ai-fix", "🤖 auto-fix", "autofix"],
       customFields: { autoFixEnabled: true },
-      titlePrefixes: ['[AUTO-FIX]', '[AI-FIX]', '[AUTOFIX]'],
-      descriptionMarkers: ['<!-- AUTO-FIX -->', '<!-- AI-FIX -->'],
+      titlePrefixes: ["[AUTO-FIX]", "[AI-FIX]", "[AUTOFIX]"],
+      descriptionMarkers: ["<!-- AUTO-FIX -->", "<!-- AI-FIX -->"],
       projectSettings: {
         enableForAllBugs: false,
-        enableForSeverity: ['high', 'critical']
-      }
+        enableForSeverity: ["high", "critical"],
+      },
     };
   }
 
   abstract authenticate(credentials: AuthCredentials): Promise<void>;
-  abstract createTicket(bugReport: BugReport): Promise<Ticket>;
-  abstract updateTicket(ticketId: string, updates: TicketUpdate): Promise<void>;
-  abstract getTicket(ticketId: string): Promise<Ticket>;
+  abstract createTicket(ticket: Ticket): Promise<ExternalTicket>;
+  abstract updateTicket(
+    ticketId: string,
+    updates: ExternalTicketUpdate,
+  ): Promise<void>;
+  abstract getTicket(ticketId: string): Promise<ExternalTicket>;
   abstract registerWebhook(url: string, events: string[]): Promise<void>;
   abstract handleWebhook(payload: unknown): WebhookEvent;
 
-  hasAutoFixTag(ticket: Ticket): boolean {
+  hasAutoFixTag(ticket: ExternalTicket): boolean {
     // Check labels
-    const hasAutoFixLabel = ticket.labels.some(label => 
-      this.autoFixConfig.labelMatching.some(pattern => 
-        label.toLowerCase().includes(pattern.toLowerCase())
-      )
+    const hasAutoFixLabel = ticket.labels.some((label) =>
+      this.autoFixConfig.labelMatching.some((pattern) =>
+        label.toLowerCase().includes(pattern.toLowerCase()),
+      ),
     );
 
     if (hasAutoFixLabel) {
@@ -47,8 +52,8 @@ export abstract class BasePMIntegration implements PMIntegration {
     }
 
     // Check title prefixes
-    const hasAutoFixTitle = this.autoFixConfig.titlePrefixes.some(prefix =>
-      ticket.title.startsWith(prefix)
+    const hasAutoFixTitle = this.autoFixConfig.titlePrefixes.some((prefix) =>
+      ticket.title.startsWith(prefix),
     );
 
     if (hasAutoFixTitle) {
@@ -56,8 +61,8 @@ export abstract class BasePMIntegration implements PMIntegration {
     }
 
     // Check description markers
-    const hasAutoFixDescription = this.autoFixConfig.descriptionMarkers.some(marker =>
-      ticket.description.includes(marker)
+    const hasAutoFixDescription = this.autoFixConfig.descriptionMarkers.some(
+      (marker) => ticket.description.includes(marker),
     );
 
     if (hasAutoFixDescription) {
@@ -65,7 +70,9 @@ export abstract class BasePMIntegration implements PMIntegration {
     }
 
     // Check custom fields
-    for (const [field, expectedValue] of Object.entries(this.autoFixConfig.customFields)) {
+    for (const [field, expectedValue] of Object.entries(
+      this.autoFixConfig.customFields,
+    )) {
       if (ticket.customFields[field] === expectedValue) {
         return true;
       }
@@ -74,36 +81,50 @@ export abstract class BasePMIntegration implements PMIntegration {
     return false;
   }
 
-  mapCustomFields(bugReport: BugReport): CustomFieldMapping {
+  mapCustomFields(ticket: Ticket): CustomFieldMapping {
     return {
-      severity: bugReport.severity,
-      category: bugReport.category,
-      browser: `${bugReport.metadata.browser.name} ${bugReport.metadata.browser.version}`,
-      os: `${bugReport.metadata.os.name} ${bugReport.metadata.os.version}`,
-      pageUrl: bugReport.metadata.pageUrl,
-      userAgent: bugReport.metadata.network.userAgent,
-      screenResolution: `${bugReport.metadata.screen.width}x${bugReport.metadata.screen.height}`,
-      viewportSize: `${bugReport.metadata.screen.viewportWidth}x${bugReport.metadata.screen.viewportHeight}`,
-      timestamp: bugReport.timestamp,
-      errorCount: bugReport.metadata.errors.length,
-      consoleLogCount: bugReport.metadata.console.length
+      severity: ticket.severity,
+      category: ticket.category,
+      browser: ticket.metadata.browser
+        ? `${ticket.metadata.browser.name} ${ticket.metadata.browser.version}`
+        : "Unknown",
+      os: ticket.metadata.os
+        ? `${ticket.metadata.os.name} ${ticket.metadata.os.version}`
+        : "Unknown",
+      pageUrl: ticket.metadata.pageUrl,
+      userAgent: ticket.metadata.network?.userAgent,
+      screenResolution: ticket.metadata.screen
+        ? `${ticket.metadata.screen.width}x${ticket.metadata.screen.height}`
+        : "Unknown",
+      viewportSize: ticket.metadata.screen
+        ? `${ticket.metadata.screen.viewportWidth}x${ticket.metadata.screen.viewportHeight}`
+        : "Unknown",
+      timestamp: ticket.timestamp,
+      errorCount: ticket.metadata.errors?.length ?? 0,
+      consoleLogCount: ticket.metadata.console?.length ?? 0,
     };
   }
 
-  protected formatBugReportDescription(bugReport: BugReport): string {
-    let description = `${bugReport.description}\n\n`;
-    
-    description += `## Technical Details\n`;
-    description += `**Browser:** ${bugReport.metadata.browser.name} ${bugReport.metadata.browser.version}\n`;
-    description += `**OS:** ${bugReport.metadata.os.name} ${bugReport.metadata.os.version}\n`;
-    description += `**Screen Resolution:** ${bugReport.metadata.screen.width}x${bugReport.metadata.screen.height}\n`;
-    description += `**Viewport:** ${bugReport.metadata.screen.viewportWidth}x${bugReport.metadata.screen.viewportHeight}\n`;
-    description += `**Page URL:** ${bugReport.metadata.pageUrl}\n`;
-    description += `**Timestamp:** ${bugReport.timestamp}\n\n`;
+  protected formatBugReportDescription(ticket: Ticket): string {
+    let description = `${ticket.description}\n\n`;
 
-    if (bugReport.metadata.errors.length > 0) {
+    description += `## Technical Details\n`;
+    if (ticket.metadata.browser) {
+      description += `**Browser:** ${ticket.metadata.browser.name} ${ticket.metadata.browser.version}\n`;
+    }
+    if (ticket.metadata.os) {
+      description += `**OS:** ${ticket.metadata.os.name} ${ticket.metadata.os.version}\n`;
+    }
+    if (ticket.metadata.screen) {
+      description += `**Screen Resolution:** ${ticket.metadata.screen.width}x${ticket.metadata.screen.height}\n`;
+      description += `**Viewport:** ${ticket.metadata.screen.viewportWidth}x${ticket.metadata.screen.viewportHeight}\n`;
+    }
+    description += `**Page URL:** ${ticket.metadata.pageUrl || "N/A"}\n`;
+    description += `**Timestamp:** ${ticket.timestamp}\n\n`;
+
+    if (ticket.metadata.errors && ticket.metadata.errors.length > 0) {
       description += `## JavaScript Errors\n`;
-      bugReport.metadata.errors.forEach((error, index) => {
+      ticket.metadata.errors.forEach((error, index) => {
         description += `### Error ${index + 1}\n`;
         description += `**Message:** ${error.message}\n`;
         if (error.filename) {
@@ -116,29 +137,33 @@ export abstract class BasePMIntegration implements PMIntegration {
       });
     }
 
-    if (bugReport.metadata.console.length > 0) {
+    if (ticket.metadata.console && ticket.metadata.console.length > 0) {
       description += `## Console Logs\n`;
-      const errorLogs = bugReport.metadata.console.filter(log => log.level === 'error');
-      const warningLogs = bugReport.metadata.console.filter(log => log.level === 'warn');
-      
+      const errorLogs = ticket.metadata.console.filter(
+        (log) => log.level === "error",
+      );
+      const warningLogs = ticket.metadata.console.filter(
+        (log) => log.level === "warn",
+      );
+
       if (errorLogs.length > 0) {
         description += `### Errors\n`;
-        errorLogs.slice(0, 10).forEach(log => {
+        errorLogs.slice(0, 10).forEach((log) => {
           description += `- ${log.message}\n`;
         });
         description += `\n`;
       }
-      
+
       if (warningLogs.length > 0) {
         description += `### Warnings\n`;
-        warningLogs.slice(0, 10).forEach(log => {
+        warningLogs.slice(0, 10).forEach((log) => {
           description += `- ${log.message}\n`;
         });
         description += `\n`;
       }
     }
 
-    if (bugReport.autoFixRequested) {
+    if (ticket.autoFixRequested) {
       description += `## Auto-Fix Request\n`;
       description += `This bug report has been marked for automatic fixing. An AI agent will analyze this issue and attempt to create a pull request with a solution.\n\n`;
       description += `<!-- AUTO-FIX -->\n`;
@@ -149,25 +174,25 @@ export abstract class BasePMIntegration implements PMIntegration {
 
   protected getPriorityFromSeverity(severity: string): string {
     switch (severity.toLowerCase()) {
-      case 'critical':
-        return 'Critical';
-      case 'high':
-        return 'High';
-      case 'medium':
-        return 'Medium';
-      case 'low':
-        return 'Low';
+      case "critical":
+        return "Critical";
+      case "high":
+        return "High";
+      case "medium":
+        return "Medium";
+      case "low":
+        return "Low";
       default:
-        return 'Medium';
+        return "Medium";
     }
   }
 
   protected getLabelFromCategory(category: string): string {
-    return `bug:${category.toLowerCase().replace(/\s+/g, '-')}`;
+    return `bug:${category.toLowerCase().replace(/\s+/g, "-")}`;
   }
 
-  protected shouldEnableAutoFix(bugReport: BugReport): boolean {
-    if (bugReport.autoFixRequested) {
+  protected shouldEnableAutoFix(ticket: Ticket): boolean {
+    if (ticket.autoFixRequested) {
       return true;
     }
 
@@ -175,13 +200,15 @@ export abstract class BasePMIntegration implements PMIntegration {
       return true;
     }
 
-    return this.autoFixConfig.projectSettings.enableForSeverity.includes(bugReport.severity);
+    return this.autoFixConfig.projectSettings.enableForSeverity.includes(
+      ticket.severity,
+    );
   }
 
   updateAutoFixConfig(config: Partial<AutoFixDetectionConfig>): void {
     this.autoFixConfig = {
       ...this.autoFixConfig,
-      ...config
+      ...config,
     };
   }
 }

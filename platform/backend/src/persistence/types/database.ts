@@ -1,8 +1,9 @@
-import type { ColumnType } from 'kysely';
+import type { ColumnType } from "kysely";
 
-export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
-  ? ColumnType<S, I | undefined, U>
-  : ColumnType<T, T | undefined, T>;
+export type Generated<T> =
+  T extends ColumnType<infer S, infer I, infer U>
+    ? ColumnType<S, I | undefined, U>
+    : ColumnType<T, T | undefined, T>;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
@@ -22,7 +23,16 @@ export interface ProjectsTable {
   id: Generated<string>;
   name: string;
   slug: string;
-  ticket_system: 'jira' | 'linear' | 'github' | 'gitlab' | 'azure' | 'asana' | 'trello' | 'monday' | 'clickup';
+  ticket_system:
+    | "jira"
+    | "linear"
+    | "github"
+    | "gitlab"
+    | "azure"
+    | "asana"
+    | "trello"
+    | "monday"
+    | "clickup";
   credentials: Json;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
@@ -42,23 +52,32 @@ export interface MediaAssetsTable {
   uploaded_at: Generated<Timestamp>;
 }
 
-export interface BugReportsTable {
+export interface TicketsTable {
   id: Generated<string>;
   project_id: string;
   timestamp: Timestamp;
   title: string;
   description: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   category: string;
   metadata: Json;
-  screenshot_id: string;
+  screenshot_id: string | null;
   recording_id: string | null;
   annotations: Generated<Json>;
-  ticket_id: string | null;
-  ticket_url: string | null;
-  ticket_system: 'jira' | 'linear' | 'github' | 'gitlab' | 'azure' | 'asana' | 'trello' | 'monday' | 'clickup';
+  external_ticket_id: string | null;
+  external_ticket_url: string | null;
+  ticket_system:
+    | "jira"
+    | "linear"
+    | "github"
+    | "gitlab"
+    | "azure"
+    | "asana"
+    | "trello"
+    | "monday"
+    | "clickup";
   auto_fix_requested: Generated<boolean>;
-  auto_fix_status: 'pending' | 'in_progress' | 'completed' | 'failed' | null;
+  auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   pull_request_url: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
@@ -67,7 +86,16 @@ export interface BugReportsTable {
 export interface PMIntegrationsTable {
   id: Generated<string>;
   project_id: string;
-  system: 'jira' | 'linear' | 'github' | 'gitlab' | 'azure' | 'asana' | 'trello' | 'monday' | 'clickup';
+  system:
+    | "jira"
+    | "linear"
+    | "github"
+    | "gitlab"
+    | "azure"
+    | "asana"
+    | "trello"
+    | "monday"
+    | "clickup";
   config: Json;
   is_active: Generated<boolean>;
   created_at: Generated<Timestamp>;
@@ -88,9 +116,9 @@ export interface WebhookEventsTable {
 
 export interface AutoFixQueueTable {
   id: Generated<string>;
-  bug_report_id: string;
+  ticket_ref_id: string;
   ticket_id: string;
-  status: Generated<'pending' | 'in_progress' | 'completed' | 'failed'>;
+  status: Generated<"pending" | "in_progress" | "completed" | "failed">;
   error_message: string | null;
   created_at: Generated<Timestamp>;
   started_at: Timestamp | null;
@@ -100,7 +128,7 @@ export interface AutoFixQueueTable {
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
-  bug_reports: BugReportsTable;
+  tickets: TicketsTable;
   pm_integrations: PMIntegrationsTable;
   webhook_events: WebhookEventsTable;
   auto_fix_queue: AutoFixQueueTable;

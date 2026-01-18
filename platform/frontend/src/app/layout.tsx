@@ -1,3 +1,4 @@
+import { ThemeProvider } from '@/context/theme-context'
 import '@/styles/tailwind.css'
 import type { Metadata } from 'next'
 import { Inter, Orbitron, Space_Mono } from 'next/font/google'
@@ -34,9 +35,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${orbitron.variable} ${spaceMono.variable} text-zinc-950 antialiased lg:bg-zinc-100 dark:bg-zinc-900 dark:text-white dark:lg:bg-zinc-950`}
+      className={`${inter.variable} ${orbitron.variable} ${spaceMono.variable} suppress-transition text-zinc-950 antialiased`}
+      suppressHydrationWarning
     >
-      <body>{children}</body>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   )
 }

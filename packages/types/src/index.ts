@@ -8,8 +8,8 @@ export * from './common'
 // Project types
 export * from './project'
 
-// Bug report types
-export * from './bug-report'
-
-// Ticket and PM integration types
+// Ticket types (internal tickets)
 export * from './ticket'
+
+// External PM ticket types (Jira, Linear, GitHub, etc.)
+export * from './externalTicket'

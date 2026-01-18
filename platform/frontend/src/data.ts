@@ -1,15 +1,15 @@
-import type { BugReport, Project, Severity, AutoFixStatus } from '@viberator/types'
-import { getBugReports } from '@/service/api/bug-report-api'
+import type { Ticket, Project, Severity, AutoFixStatus } from '@viberator/types'
+import { getTickets } from '@/service/api/ticket-api'
 import { getProjects as apiGetProjects, getProjectBySlug as apiGetProjectBySlug } from '@/service/api/project-api'
 
-// Extended bug report with computed status for UI
-export interface BugReportSummary {
+// Extended ticket with computed status for UI
+export interface TicketSummary {
   id: string
   title: string
   severity: Severity
   category: string
   timestamp: string
-  ticketId?: string
+  externalTicketId?: string
   ticketSystem: string
   autoFixStatus?: AutoFixStatus
   status: 'open' | 'resolved' | 'in_progress'
@@ -34,44 +34,44 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
   }
 }
 
-// Bug report functions
-export async function getRecentBugReports(projectSlug?: string): Promise<BugReportSummary[]> {
+// Ticket functions
+export async function getRecentTickets(projectSlug?: string): Promise<TicketSummary[]> {
   try {
-    const bugReports = await getBugReports({ projectSlug, limit: 10 })
-    return bugReports.map((report) => ({
-      id: report.id,
-      title: report.title,
-      severity: report.severity,
-      category: report.category,
-      timestamp: report.timestamp,
-      ticketId: report.ticketId,
-      ticketSystem: report.ticketSystem,
-      autoFixStatus: report.autoFixStatus,
-      status: report.ticketId ? 'resolved' : report.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
+    const tickets = await getTickets({ projectSlug, limit: 10 })
+    return tickets.map((ticket) => ({
+      id: ticket.id,
+      title: ticket.title,
+      severity: ticket.severity,
+      category: ticket.category,
+      timestamp: ticket.timestamp,
+      externalTicketId: ticket.externalTicketId,
+      ticketSystem: ticket.ticketSystem,
+      autoFixStatus: ticket.autoFixStatus,
+      status: ticket.externalTicketId ? 'resolved' : ticket.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
     }))
   } catch (error) {
-    console.warn('Using mock data for bug reports:', error)
-    return getMockBugReports()
+    console.warn('Using mock data for tickets:', error)
+    return getMockTickets()
   }
 }
 
-export async function getBugReportDetails(id: string): Promise<BugReport | null> {
+export async function getTicketDetails(id: string): Promise<Ticket | null> {
   try {
-    const { getBugReport } = await import('@/service/api/bug-report-api')
-    return await getBugReport(id)
+    const { getTicket } = await import('@/service/api/ticket-api')
+    return await getTicket(id)
   } catch (error) {
-    console.warn('Failed to fetch bug report details:', error)
+    console.warn('Failed to fetch ticket details:', error)
     return null
   }
 }
 
-export async function getBugReportStats() {
+export async function getTicketStats() {
   // In a real implementation, you'd have an API endpoint for stats
   // For now, return mock stats
-  return getMockBugReportStats()
+  return getMockTicketStats()
 }
 
-// Utility functions for bug report formatting
+// Utility functions for ticket formatting
 export function formatSeverity(severity: string): { label: string; color: string } {
   switch (severity) {
     case 'critical':
@@ -133,7 +133,7 @@ export function formatTimestamp(date: string | Date): string {
 
 export async function triggerAutoFix(ticketId: string, ticketSystem: string, repositoryUrl?: string): Promise<void> {
   try {
-    const { triggerAutoFix: apiTriggerAutoFix } = await import('@/service/api/bug-report-api')
+    const { triggerAutoFix: apiTriggerAutoFix } = await import('@/service/api/ticket-api')
     await apiTriggerAutoFix(ticketId, ticketSystem, repositoryUrl)
   } catch (error) {
     console.warn('Failed to trigger auto-fix:', error)
@@ -141,32 +141,32 @@ export async function triggerAutoFix(ticketId: string, ticketSystem: string, rep
 }
 
 // Mock data for development
-function getMockBugReports(): BugReportSummary[] {
+function getMockTickets(): TicketSummary[] {
   return [
     {
-      id: 'bug-001',
+      id: 'ticket-001',
       title: 'Button not clickable on mobile',
       severity: 'high',
       category: 'UI/UX',
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      ticketId: 'ISSUE-123',
+      externalTicketId: 'ISSUE-123',
       ticketSystem: 'github',
       autoFixStatus: 'pending',
       status: 'open',
     },
     {
-      id: 'bug-002',
+      id: 'ticket-002',
       title: 'Form validation error',
       severity: 'medium',
       category: 'Forms',
       timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      ticketId: 'ISSUE-124',
+      externalTicketId: 'ISSUE-124',
       ticketSystem: 'linear',
       autoFixStatus: 'completed',
       status: 'resolved',
     },
     {
-      id: 'bug-003',
+      id: 'ticket-003',
       title: 'Page load performance issue',
       severity: 'low',
       category: 'Performance',
@@ -177,7 +177,7 @@ function getMockBugReports(): BugReportSummary[] {
   ]
 }
 
-function getMockBugReportStats() {
+function getMockTicketStats() {
   return {
     total: 47,
     open: 23,
@@ -207,4 +207,4 @@ function getMockBugReportStats() {
 }
 
 // Re-export types for convenience
-export type { BugReport, Project, Severity, AutoFixStatus }
+export type { Ticket, Project, Severity, AutoFixStatus }

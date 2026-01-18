@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
     /* Fonts - using CSS variables from next/font */
     --font-sans: var(--font-inter), Inter, sans-serif;
