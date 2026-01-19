@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 3 of 12 (Worker Configuration)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-01-19 — Completed 03-02-PLAN.md (CredentialProvider and ConfigLoader)
+Last activity: 2026-01-19 — Completed 03-03-PLAN.md (Wire ViberatorWorker to Use Payload-Based Configuration)
 
-Progress: [███░░░░░░░] 25%
+Progress: [████░░░░░░] 31%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: ~3 minutes
-- Total execution time: 0.46 hours
+- Total execution time: 0.51 hours
 
 **By Phase:**
 
@@ -30,7 +30,7 @@ Progress: [███░░░░░░░] 25%
 |-------|-------|-------|----------|
 | 01 | 5 | 5 | 4m |
 | 02 | 2 | 2 | 2m |
-| 03 | 2 | 4 | 3m |
+| 03 | 3 | 4 | 3m |
 
 **Recent Trend:**
 - Last 5 plans: N/A
@@ -72,6 +72,13 @@ Recent decisions affecting current work:
 | CredentialProvider class pattern | Worker-side SSM credential fetching with 5-min cache | Map-based TTL cache, soft fail on missing |
 | ConfigLoader class pattern | S3 instruction file fetching with graceful degradation | AWS default credential chain, s3:// URL parsing |
 | @aws-sdk/client-s3 dependency | S3 operations for instruction file fetching | Matches existing @aws-sdk/client-ssm pattern |
+| Payload-based worker initialization | ViberatorWorker.initialize() accepts optional WorkerPayload | Backward compatible, enables SSM/env credential fetching |
+| Environment variable injection | injectEnvironmentVars() before git operations | GitService reads via SCMAuthFactory.authenticateUrl |
+| Credential key transformation | keyToEnvVar() converts to UPPER_CASE_WITH_UNDERSCORES | github_token -> GITHUB_TOKEN for env var conventions |
+| Credential cleanup | finally block removes injected credentials | Prevents credential leakage after execution |
+| LambdaPayload with jobId | Uses jobId field instead of id for consistency | Matches BaseWorkerPayload, different from CodingJobData.id |
+| DockerPayload with workerType validation | CLI handler validates workerType='docker' | Ensures correct payload type for Docker workers |
+| CredentialProvider env fallback | Checks process.env before SSM fetch | Docker workers receive creds via -e flags at container start |
 
 ### Pending Todos
 
@@ -84,5 +91,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed 03-02-PLAN.md — CredentialProvider and ConfigLoader created
+Stopped at: Completed 03-03-PLAN.md — Wire ViberatorWorker to Use Payload-Based Configuration
 Resume file: None
