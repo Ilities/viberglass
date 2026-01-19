@@ -16,9 +16,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Result Callback
 
-- [ ] **CB-01**: Worker POSTs execution result to platform API endpoint on completion
-- [ ] **CB-02**: Platform updates job status in database (queued, running, completed, failed)
-- [ ] **CB-03**: Result payload includes commit SHA, PR URL, error message, logs
+- [x] **CB-01**: Worker POSTs execution result to platform API endpoint on completion
+- [x] **CB-02**: Platform updates job status in database (queued, running, completed, failed)
+- [x] **CB-03**: Result payload includes commit SHA, PR URL, error message, logs
 - [ ] **CB-04**: Frontend polls and displays current job status to user
 
 ### Webhook Triggers
@@ -121,9 +121,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXEC-02 | Phase 3 | Pending |
 | EXEC-03 | Phase 3 | Pending |
 | EXEC-04 | Phase 3 | Pending |
-| CB-01 | Phase 2 | Pending |
-| CB-02 | Phase 2 | Pending |
-| CB-03 | Phase 2 | Pending |
+| CB-01 | Phase 2 | Complete |
+| CB-02 | Phase 2 | Complete |
+| CB-03 | Phase 2 | Complete |
 | CB-04 | Phase 5 | Pending |
 | WEB-01 | Phase 8 | Pending |
 | WEB-02 | Phase 8 | Pending |
