@@ -1,4 +1,4 @@
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import type { Clanker } from '@viberator/types';
 import type { JobData } from '../../types/Job';
 import { WorkerInvoker, InvocationResult } from '../WorkerInvoker';
