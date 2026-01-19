@@ -80,6 +80,9 @@ export class ConfigLoader {
       );
 
       // Body.transformToString() from AWS SDK v3
+      if (!response.Body) {
+        throw new Error('Empty response body from S3');
+      }
       const content = await response.Body.transformToString();
 
       this.logger.debug("Successfully fetched instruction file from S3", {

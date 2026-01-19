@@ -5,8 +5,10 @@ import { ConfigManager } from "../config/ConfigManager";
 import { AgentOrchestrator } from "../orchestrator/AgentOrchestrator";
 import { Configuration, ExecutionContext } from "../types";
 import { GitService } from "../services/GitService";
-import { CodingJobData, JobResult } from "./types";
+import { CodingJobData, JobResult, WorkerPayload } from "./types";
 import { CallbackClient } from "./CallbackClient";
+import { CredentialProvider } from "./CredentialProvider";
+import { ConfigLoader } from "./ConfigLoader";
 
 export class ViberatorWorker {
   private logger: any;
@@ -16,6 +18,11 @@ export class ViberatorWorker {
   private gitService!: GitService;
   private callbackClient!: CallbackClient;
   private initialized: boolean = false;
+  private credentialProvider?: CredentialProvider;
+  private configLoader?: ConfigLoader;
+  private clankerConfig?: Record<string, unknown>;
+  private instructionFiles: Map<string, string> = new Map();
+  private fetchedCredentials?: Record<string, string | undefined>;
 
   constructor() {
     // AWS Lambda only allows writing to /tmp
@@ -28,7 +35,7 @@ export class ViberatorWorker {
     });
   }
 
-  async initialize(): Promise<void> {
+  async initialize(payload?: WorkerPayload): Promise<void> {
     if (this.initialized) return;
 
     try {
@@ -37,6 +44,10 @@ export class ViberatorWorker {
       const configManager = new ConfigManager(this.logger);
       this.config = await configManager.loadConfiguration();
       this.logger.level = this.config.logging.level;
+
+      // Initialize credential provider and config loader
+      this.credentialProvider = new CredentialProvider(this.logger);
+      this.configLoader = new ConfigLoader(this.logger);
 
       const agentConfigs = configManager.getAgentConfigs();
       this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger);
@@ -51,6 +62,65 @@ export class ViberatorWorker {
 
       if (!fs.existsSync(this.workDir)) {
         fs.mkdirSync(this.workDir, { recursive: true });
+      }
+
+      // Process payload if provided
+      if (payload) {
+        // Store deployment config based on worker type
+        if (payload.workerType === 'docker') {
+          // DockerPayload uses clankerConfig
+          this.clankerConfig = (payload as any).clankerConfig;
+        } else {
+          // LambdaPayload and EcsPayload use deploymentConfig
+          this.clankerConfig = (payload as any).deploymentConfig;
+        }
+
+        // Fetch credentials from SSM
+        const credentials = await this.credentialProvider.getCredentials(
+          payload.tenantId,
+          payload.requiredCredentials || []
+        );
+        this.fetchedCredentials = credentials;
+
+        // Validate required credentials
+        this.credentialProvider.validateRequired(
+          credentials,
+          payload.requiredCredentials || []
+        );
+
+        // Load instruction files based on worker type
+        if (payload.workerType === 'lambda' || payload.workerType === 'ecs') {
+          // AWS workers: fetch from S3 - S3InstructionFile has s3Url
+          const awsPayload = payload as any; // LambdaPayload/EcsPayload have s3Url
+          const files = await this.configLoader.fetchInstructionFiles(
+            awsPayload.instructionFiles.map((f: { fileType: string; s3Url: string }) => ({
+              fileType: f.fileType,
+              s3Url: f.s3Url
+            }))
+          );
+          files.forEach(f => this.instructionFiles.set(f.fileType, f.content));
+        } else if (payload.workerType === 'docker') {
+          // Docker workers: read from mounted filesystem
+          const dockerPayload = payload as any; // DockerPayload has mountPath
+          for (const file of dockerPayload.instructionFiles) {
+            try {
+              const content = fs.readFileSync(file.mountPath, 'utf-8');
+              this.instructionFiles.set(file.fileType, content);
+            } catch (error) {
+              this.logger.warn('Failed to read mounted config file', {
+                path: file.mountPath,
+                error: error instanceof Error ? error.message : String(error)
+              });
+            }
+          }
+        }
+
+        this.logger.info("Worker payload processed", {
+          tenantId: payload.tenantId,
+          workerType: payload.workerType,
+          credentialsFetched: Object.keys(credentials).length,
+          instructionFilesLoaded: this.instructionFiles.size
+        });
       }
 
       this.initialized = true;
