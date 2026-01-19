@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Worker Configuration
 
 - [ ] **WRK-01**: Worker fetches SCM credentials from configured CredentialProvider using tenantId
-- [ ] **WRK-02**: Worker loads clanker configuration by ID from platform API
+- [ ] **WRK-02**: Worker gets clanker configuration from invocation payload
 - [ ] **WRK-03**: Worker injects environment variables from clanker config into agent execution
 - [ ] **WRK-04**: Worker retrieves instruction files (agents.md) from clanker config
 - [ ] **WRK-05**: Worker authenticates git operations using SCM provider URLs
