@@ -1,65 +1,56 @@
 import { SQSHandler, SQSEvent } from "aws-lambda";
 import { ViberatorWorker } from "./viberator";
-import { CodingJobData } from "./types";
-import { getTenantSecret } from "../utils/secrets";
+import { LambdaPayload } from "./types";
+import { CodingJobData, JobResult } from "./types";
 
 export const handler: SQSHandler = async (event: SQSEvent) => {
   for (const record of event.Records) {
     try {
-      const jobData: CodingJobData = JSON.parse(record.body);
-      console.log(jobData);
-      console.log(`Lambda processing task: ${jobData.id}`);
+      const payload: LambdaPayload = JSON.parse(record.body);
+      console.log("Lambda processing task:", payload);
 
-      // Validate tenantId
-      if (!jobData.tenantId) {
-        throw new Error("Missing tenantId in job data");
+      // Validate required fields
+      if (!payload.tenantId) {
+        throw new Error("Missing tenantId in payload");
+      }
+      if (!payload.jobId) {
+        throw new Error("Missing jobId in payload");
+      }
+      if (!payload.repository) {
+        throw new Error("Missing repository in payload");
+      }
+      if (!payload.task) {
+        throw new Error("Missing task in payload");
       }
 
-      const githubToken = await getTenantSecret(
-        jobData.tenantId,
-        "GITHUB_TOKEN",
-      );
-      const claudeApiKey = await getTenantSecret(
-        jobData.tenantId,
-        "CLAUDE_CODE_API_KEY",
-      );
+      // Initialize worker with payload - handles credential fetching and injection
+      const worker = new ViberatorWorker();
+      await worker.initialize(payload);
 
-      if (!githubToken) {
-        throw new Error(`Missing GITHUB_TOKEN for tenant ${jobData.tenantId}`);
-      }
-      if (!claudeApiKey) {
-        throw new Error(
-          `Missing CLAUDE_CODE_API_KEY for tenant ${jobData.tenantId}`,
-        );
-      }
+      // Convert LambdaPayload to CodingJobData for executeTask
+      const jobData: CodingJobData = {
+        id: payload.jobId,
+        tenantId: payload.tenantId,
+        repository: payload.repository,
+        task: payload.task,
+        branch: payload.branch,
+        baseBranch: payload.baseBranch,
+        context: payload.context,
+        settings: payload.settings,
+        timestamp: Date.now(),
+      };
 
-      console.log("Retrieved tenant credentials successfully");
-
-      // Set credentials in environment BEFORE initializing worker
-      process.env.GITHUB_TOKEN = githubToken;
-      process.env.CLAUDE_CODE_API_KEY = claudeApiKey;
-
-      // Initialize worker with tenant credentials in environment
-      const codingWorker = new ViberatorWorker();
-      await codingWorker.initialize();
-      const jobId = `${jobData.id}_job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      const result = await codingWorker.executeTask({ ...jobData, id: jobId });
+      const result: JobResult = await worker.executeTask(jobData);
 
       if (!result.success) {
-        // We log it and throw to ensure SQS retries the message if configured
         console.error(`Task failed: ${result.errorMessage}`);
-        throw new Error(result.errorMessage);
+        throw new Error(result.errorMessage || "Task execution failed");
       }
 
-      console.log(`Task ${jobData.id} finished successfully`);
+      console.log(`Task ${payload.jobId} finished successfully`);
     } catch (error) {
       console.error("Error in Lambda execution loop:", error);
-      throw error; // Re-throwing tells SQS the batch (or item) failed
-    } finally {
-      // Clear credentials after execution
-      delete process.env.GITHUB_TOKEN;
-      delete process.env.CLAUDE_CODE_API_KEY;
+      throw error;
     }
   }
 };
