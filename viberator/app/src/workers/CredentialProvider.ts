@@ -36,16 +36,37 @@ export class CredentialProvider {
   }
 
   /**
-   * Fetch a single credential for a tenant from SSM
+   * Transform credential key to environment variable name
+   * Converts lowercase/kebab-case to UPPERCASE_WITH_UNDERSCORES
+   * Example: github_token -> GITHUB_TOKEN
+   */
+  private keyToEnvVar(key: string): string {
+    return key.toUpperCase().replace(/-/g, '_');
+  }
+
+  /**
+   * Fetch a single credential for a tenant
+   *
+   * For Docker workers: checks process.env first (credentials from -e flags)
+   * For AWS workers: fetches from SSM Parameter Store
    *
    * @param tenantId - Tenant identifier
-   * @param key - Credential key (e.g., "GITHUB_TOKEN")
+   * @param key - Credential key (e.g., "github_token")
    * @returns Credential value or undefined if not found
    */
   async getCredential(
     tenantId: string,
     key: string
   ): Promise<string | undefined> {
+    const envVar = this.keyToEnvVar(key);
+
+    // Check environment variable first (Docker workers receive creds via -e flags)
+    if (process.env[envVar]) {
+      this.logger.debug("Credential found in environment", { envVar, key });
+      return process.env[envVar];
+    }
+
+    // Fall back to SSM for AWS workers (Lambda/ECS)
     const parameterName = `${this.pathPrefix}/${tenantId}/${key}`;
 
     // Check cache first
