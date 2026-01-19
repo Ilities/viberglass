@@ -1,0 +1,181 @@
+import Joi from "joi";
+
+export const ticketSchema = Joi.object({
+  projectId: Joi.string().uuid().required(),
+  title: Joi.string().min(1).max(500).required(),
+  description: Joi.string().min(1).required(),
+  severity: Joi.string().valid("low", "medium", "high", "critical").required(),
+  category: Joi.string().min(1).max(100).required(),
+  metadata: Joi.object({
+    browser: Joi.object({
+      name: Joi.string().optional(),
+      version: Joi.string().optional(),
+    }),
+    os: Joi.object({
+      name: Joi.string().optional(),
+      version: Joi.string().optional(),
+    }),
+    screen: Joi.object({
+      width: Joi.number().positive().optional(),
+      height: Joi.number().positive().optional(),
+      viewportWidth: Joi.number().positive().optional(),
+      viewportHeight: Joi.number().positive().optional(),
+      pixelRatio: Joi.number().positive().optional(),
+    }),
+    network: Joi.object({
+      userAgent: Joi.string().optional(),
+      language: Joi.string().optional(),
+      cookiesEnabled: Joi.boolean().optional(),
+      onLine: Joi.boolean().optional(),
+    }),
+    console: Joi.array().items(
+      Joi.object({
+        level: Joi.string().valid("error", "warn", "info", "debug").optional(),
+        message: Joi.string().optional(),
+        timestamp: Joi.date().optional(),
+        source: Joi.string().optional(),
+      }),
+    ),
+    errors: Joi.array().items(
+      Joi.object({
+        message: Joi.string().optional(),
+        stack: Joi.string().optional(),
+        filename: Joi.string().optional(),
+        lineno: Joi.number().optional(),
+        colno: Joi.number().optional(),
+        timestamp: Joi.date().optional(),
+      }),
+    ),
+    pageUrl: Joi.string().uri().optional(),
+    referrer: Joi.string().uri().optional(),
+    localStorage: Joi.object().optional(),
+    sessionStorage: Joi.object().optional(),
+    timestamp: Joi.date().required(),
+    timezone: Joi.string().required(),
+  }).required(),
+  annotations: Joi.array()
+    .items(
+      Joi.object({
+        id: Joi.string().uuid().required(),
+        type: Joi.string()
+          .valid("arrow", "rectangle", "text", "blur")
+          .required(),
+        x: Joi.number().required(),
+        y: Joi.number().required(),
+        width: Joi.number().optional(),
+        height: Joi.number().optional(),
+        text: Joi.string().optional(),
+        color: Joi.string().optional(),
+      }),
+    )
+    .required(),
+  autoFixRequested: Joi.boolean().required(),
+  ticketSystem: Joi.string()
+    .valid(
+      "jira",
+      "linear",
+      "github",
+      "gitlab",
+      "azure",
+      "asana",
+      "trello",
+      "monday",
+      "clickup",
+    )
+    .optional(),
+});
+
+export const updateTicketSchema = Joi.object({
+  title: Joi.string().min(1).max(500).optional(),
+  description: Joi.string().min(1).optional(),
+  severity: Joi.string().valid("low", "medium", "high", "critical").optional(),
+  category: Joi.string().min(1).max(100).optional(),
+  externalTicketId: Joi.string().optional(),
+  externalTicketUrl: Joi.string().uri().optional(),
+  autoFixStatus: Joi.string()
+    .valid("pending", "in_progress", "completed", "failed")
+    .optional(),
+  pullRequestUrl: Joi.string().uri().optional(),
+});
+
+export const projectSchema = Joi.object({
+  name: Joi.string().min(1).max(255).required(),
+  ticketSystem: Joi.string()
+    .valid(
+      "jira",
+      "linear",
+      "github",
+      "gitlab",
+      "azure",
+      "asana",
+      "trello",
+      "monday",
+      "clickup",
+    )
+    .required(),
+  credentials: Joi.object().required(),
+  webhookUrl: Joi.string().uri().allow(null).optional(),
+  autoFixEnabled: Joi.boolean().optional(),
+  autoFixTags: Joi.array().items(Joi.string()).optional(),
+  customFieldMappings: Joi.object().optional(),
+  repositoryUrl: Joi.string().uri().allow(null).optional(),
+});
+
+export const updateProjectSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  ticketSystem: Joi.string()
+    .valid(
+      "jira",
+      "linear",
+      "github",
+      "gitlab",
+      "azure",
+      "asana",
+      "trello",
+      "monday",
+      "clickup",
+    )
+    .optional(),
+  credentials: Joi.object().optional(),
+  webhookUrl: Joi.string().uri().allow(null).optional(),
+  autoFixEnabled: Joi.boolean().optional(),
+  autoFixTags: Joi.array().items(Joi.string()).optional(),
+  customFieldMappings: Joi.object().optional(),
+  repositoryUrl: Joi.string().uri().allow(null).optional(),
+});
+
+// Config file schema for clankers
+const configFileSchema = Joi.object({
+  fileType: Joi.string().min(1).max(100).required(),
+  content: Joi.string().required(),
+});
+
+export const clankerSchema = Joi.object({
+  name: Joi.string().min(1).max(255).required(),
+  description: Joi.string().allow(null, "").optional(),
+  deploymentStrategyId: Joi.string().uuid().allow(null).optional(),
+  deploymentConfig: Joi.object().allow(null).optional(),
+  configFiles: Joi.array().items(configFileSchema).optional(),
+});
+
+export const updateClankerSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  deploymentStrategyId: Joi.string().uuid().allow(null).optional(),
+  deploymentConfig: Joi.object().allow(null).optional(),
+  configFiles: Joi.array().items(configFileSchema).optional(),
+  status: Joi.string().valid("active", "inactive", "deploying", "failed").optional(),
+  statusMessage: Joi.string().allow(null, "").optional(),
+});
+
+export const deploymentStrategySchema = Joi.object({
+  name: Joi.string().min(1).max(50).required(),
+  description: Joi.string().allow(null, "").optional(),
+  configSchema: Joi.object().allow(null).optional(),
+});
+
+export const updateDeploymentStrategySchema = Joi.object({
+  name: Joi.string().min(1).max(50).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  configSchema: Joi.object().allow(null).optional(),
+});

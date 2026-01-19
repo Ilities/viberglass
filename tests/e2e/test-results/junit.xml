@@ -1,0 +1,832 @@
+<testsuites id="" name="" tests="184" failures="2" skipped="179" errors="0" time="24.325782">
+<testsuite name="auth/auth.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="chromium" tests="11" failures="2" skipped="6" time="22.817" errors="0">
+<testcase name="Authentication E2E Tests › Login Page › should display login form with required fields" classname="auth/auth.e2e.test.ts" time="0.5">
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should show validation error for empty credentials" classname="auth/auth.e2e.test.ts" time="0.416">
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should show error for invalid credentials" classname="auth/auth.e2e.test.ts" time="0.473">
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should login successfully with valid credentials" classname="auth/auth.e2e.test.ts" time="10.694">
+<failure message="auth.e2e.test.ts:81:5 should login successfully with valid credentials" type="FAILURE">
+<![CDATA[  [chromium] › auth/auth.e2e.test.ts:81:5 › Authentication E2E Tests › Login Page › should login successfully with valid credentials 
+
+    TimeoutError: page.waitForURL: Timeout 10000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "/" until "load"
+    ============================================================
+
+      81 |
+      82 |       // Should redirect to dashboard
+    > 83 |       await page.waitForURL('/', { timeout: 10000 });
+         |                  ^
+      84 |
+      85 |       // Should show dashboard
+      86 |       await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+        at /home/jussi/Development/viberator/tests/e2e/tests/auth/auth.e2e.test.ts:83:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../test-results/auth-auth.e2e-Authenticati-282c1-ully-with-valid-credentials-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../test-results/auth-auth.e2e-Authenticati-282c1-ully-with-valid-credentials-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../test-results/auth-auth.e2e-Authenticati-282c1-ully-with-valid-credentials-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|auth-auth.e2e-Authenticati-282c1-ully-with-valid-credentials-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|auth-auth.e2e-Authenticati-282c1-ully-with-valid-credentials-chromium/video.webm]]
+
+[[ATTACHMENT|auth-auth.e2e-Authenticati-282c1-ully-with-valid-credentials-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should redirect to dashboard if already authenticated" classname="auth/auth.e2e.test.ts" time="10.734">
+<failure message="auth.e2e.test.ts:99:5 should redirect to dashboard if already authenticated" type="FAILURE">
+<![CDATA[  [chromium] › auth/auth.e2e.test.ts:99:5 › Authentication E2E Tests › Login Page › should redirect to dashboard if already authenticated 
+
+    TimeoutError: page.waitForURL: Timeout 10000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "/" until "load"
+    ============================================================
+
+       at ../playwright/fixtures.ts:44
+
+      42 |     await page.fill('input[name="password"]', TEST_PASSWORD);
+      43 |     await page.click('button[type="submit"]');
+    > 44 |     await page.waitForURL('/', { timeout: 10000 });
+         |                ^
+      45 |     await use(page);
+      46 |   },
+      47 | });
+        at Object.authenticatedPage (/home/jussi/Development/viberator/tests/e2e/playwright/fixtures.ts:44:16)
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../test-results/auth-auth.e2e-Authenticati-cebca-rd-if-already-authenticated-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../test-results/auth-auth.e2e-Authenticati-cebca-rd-if-already-authenticated-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../test-results/auth-auth.e2e-Authenticati-cebca-rd-if-already-authenticated-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|auth-auth.e2e-Authenticati-cebca-rd-if-already-authenticated-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|auth-auth.e2e-Authenticati-cebca-rd-if-already-authenticated-chromium/video.webm]]
+
+[[ATTACHMENT|auth-auth.e2e-Authenticati-cebca-rd-if-already-authenticated-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Authentication E2E Tests › Forgot Password › should display forgot password page" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Registration › should display registration form" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Session Management › should persist session across page navigations" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Protected Routes › should redirect unauthenticated users to login" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Protected Routes › should allow authenticated users to access protected routes" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › SEC-1 to SEC-6: Authentication Security › SEC-1: should isolate user sessions" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="clankers/clanker-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="chromium" tests="19" failures="0" skipped="19" time="0" errors="0">
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › C-1: should create a new clanker" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should display deployment strategy options" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should display agent selection options" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should allow selecting secrets for clanker" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should allow adding config files" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker List Page › should display list of clankers" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker List Page › should show clanker status badges" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker List Page › should have &quot;New Clanker&quot; button" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-2 to C-6: Clanker Actions › C-2: should show start button for inactive clankers" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-2 to C-6: Clanker Actions › C-6: should show stop button for active clankers" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-2 to C-6: Clanker Actions › C-5: should show clanker health status" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker Detail Page › should display clanker details" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker Detail Page › should have edit button" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-4: Deployment Strategies › should support Docker deployment" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-4: Deployment Strategies › should support ECS deployment" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-4: Deployment Strategies › should support Lambda deployment" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-7, C-8: Secret Association › should allow associating secrets with clanker" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker Status Display › should display correct status color" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Dashboard Clanker Section › should show clankers on dashboard" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="integrations/integration-config.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="chromium" tests="24" failures="0" skipped="24" time="0" errors="0">
+<testcase name="Integration Configuration E2E Tests › I-1 to I-6: Integration Management › I-1, I-5: should display integrations page" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › I-1 to I-6: Integration Management › should show integration cards for available integrations" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › I-1 to I-6: Integration Management › should use entity-scoped routes for configured integration cards" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Integration Configuration › should auto-create GitHub integration from new route" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Integration Configuration › should show GitHub webhook-first routing fields" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Targeted Webhook UI › should render GitHub-specific inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Targeted Webhook UI › should allow configuring GitHub inbound events after creating inbound webhook" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Targeted Webhook UI › should support selecting between multiple inbound GitHub configs" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Integration Configuration › should auto-create Jira integration from new route" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Targeted Webhook UI › should render Jira-specific inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Targeted Webhook UI › should save Jira webhook settings and keep state after reload" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Targeted Webhook UI › should support selecting between multiple inbound Jira configs" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Shortcut Targeted Webhook UI › should render Shortcut-specific inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Shortcut Targeted Webhook UI › should save Shortcut webhook settings and keep state after reload" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Custom Targeted Webhook UI › should render custom inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Custom Targeted Webhook UI › should allow creating targeted custom inbound and outbound webhook configs" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitLab Integration Configuration › should display GitLab integration configuration page" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › I-3: Connection Testing › should have test connection button" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Integration Status Indicators › should show configuration status for integrations" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › E2E Integration with External Services › should handle GitHub webhook payload (mocked)" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › E2E Integration with External Services › should validate webhook signature" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Project Integration Linking › I-2: should allow linking integration to project" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Third-Party Integration Mocking › should skip actual GitHub API calls in E2E tests" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Third-Party Integration Mocking › should skip actual Jira API calls in E2E tests" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="main-flow.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="chromium" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Setup: Create Integration and Project" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Step 1-7: Webhook Ingestion -&gt; Platform Ticket Creation" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Step 8-15: Job Execution (Mock Worker)" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Step 16-18: Verify Feedback to Integration (Mock Server)" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="projects/project-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="chromium" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testcase name="Project Management E2E Tests › P-1 to P-5: Project CRUD Operations › P-1: should create a new project" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › P-1 to P-5: Project CRUD Operations › P-3: should enable auto-fix with tags" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › P-1 to P-5: Project CRUD Operations › P-4: should handle project view and navigation" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Dashboard - Projects Section › UI-1, UI-2: should display dashboard with projects" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Dashboard - Projects Section › should show empty state when no projects exist" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Dashboard - Projects Section › should display project cards with correct information" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Project Settings › should access project settings page" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › P-5: Duplicate slug prevention › should handle duplicate project names gracefully" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Multiple Repository URLs › P-2: should support multiple repository URLs" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="secrets/secrets-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="chromium" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-1: should create a new secret" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-2: should list all secrets with masked values" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-3: should support different storage locations" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-4: should support environment variable storage" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Validation › should require secret name" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Validation › should validate secret name format" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Deletion › should allow deleting secrets" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Deletion › should show confirmation dialog before deletion" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Editing › should allow editing secret metadata" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-6: Security - No credential logging › should not log secret values in console" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › SSM Configuration › should allow SSM parameter path configuration" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Badges › should display storage location badges" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Empty State › should show empty state when no secrets exist" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="tickets/ticket-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="chromium" tests="12" failures="0" skipped="12" time="0" errors="0">
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-1: should create a new ticket" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-2: should create ticket with screenshot" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-3: should create ticket with recording" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-4: should run ticket (create job)" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-6: should list tickets by project" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Detail Page › should display ticket details" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Detail Page › T-5: should display PR URL when available" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Severity and Category › should display severity badges" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Severity and Category › should allow selecting severity when creating ticket" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Validation › should require title and description" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket List Filtering › should display ticket list with proper columns" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Manual Ticket Flow › should support complete manual ticket creation flow" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="auth/auth.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="firefox" tests="11" failures="0" skipped="11" time="0" errors="0">
+<testcase name="Authentication E2E Tests › Login Page › should display login form with required fields" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should show validation error for empty credentials" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should show error for invalid credentials" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should login successfully with valid credentials" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Login Page › should redirect to dashboard if already authenticated" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Forgot Password › should display forgot password page" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Registration › should display registration form" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Session Management › should persist session across page navigations" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Protected Routes › should redirect unauthenticated users to login" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › Protected Routes › should allow authenticated users to access protected routes" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication E2E Tests › SEC-1 to SEC-6: Authentication Security › SEC-1: should isolate user sessions" classname="auth/auth.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="clankers/clanker-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="firefox" tests="19" failures="0" skipped="19" time="0" errors="0">
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › C-1: should create a new clanker" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should display deployment strategy options" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should display agent selection options" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should allow selecting secrets for clanker" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-1 to C-8: Clanker CRUD Operations › should allow adding config files" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker List Page › should display list of clankers" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker List Page › should show clanker status badges" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker List Page › should have &quot;New Clanker&quot; button" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-2 to C-6: Clanker Actions › C-2: should show start button for inactive clankers" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-2 to C-6: Clanker Actions › C-6: should show stop button for active clankers" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-2 to C-6: Clanker Actions › C-5: should show clanker health status" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker Detail Page › should display clanker details" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker Detail Page › should have edit button" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-4: Deployment Strategies › should support Docker deployment" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-4: Deployment Strategies › should support ECS deployment" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-4: Deployment Strategies › should support Lambda deployment" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › C-7, C-8: Secret Association › should allow associating secrets with clanker" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Clanker Status Display › should display correct status color" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Clanker Management E2E Tests › Dashboard Clanker Section › should show clankers on dashboard" classname="clankers/clanker-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="integrations/integration-config.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="firefox" tests="24" failures="0" skipped="24" time="0" errors="0">
+<testcase name="Integration Configuration E2E Tests › I-1 to I-6: Integration Management › I-1, I-5: should display integrations page" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › I-1 to I-6: Integration Management › should show integration cards for available integrations" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › I-1 to I-6: Integration Management › should use entity-scoped routes for configured integration cards" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Integration Configuration › should auto-create GitHub integration from new route" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Integration Configuration › should show GitHub webhook-first routing fields" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Targeted Webhook UI › should render GitHub-specific inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Targeted Webhook UI › should allow configuring GitHub inbound events after creating inbound webhook" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitHub Targeted Webhook UI › should support selecting between multiple inbound GitHub configs" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Integration Configuration › should auto-create Jira integration from new route" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Targeted Webhook UI › should render Jira-specific inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Targeted Webhook UI › should save Jira webhook settings and keep state after reload" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Jira Targeted Webhook UI › should support selecting between multiple inbound Jira configs" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Shortcut Targeted Webhook UI › should render Shortcut-specific inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Shortcut Targeted Webhook UI › should save Shortcut webhook settings and keep state after reload" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Custom Targeted Webhook UI › should render custom inbound and outbound sections" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Custom Targeted Webhook UI › should allow creating targeted custom inbound and outbound webhook configs" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › GitLab Integration Configuration › should display GitLab integration configuration page" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › I-3: Connection Testing › should have test connection button" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Integration Status Indicators › should show configuration status for integrations" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › E2E Integration with External Services › should handle GitHub webhook payload (mocked)" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › E2E Integration with External Services › should validate webhook signature" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Project Integration Linking › I-2: should allow linking integration to project" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Third-Party Integration Mocking › should skip actual GitHub API calls in E2E tests" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Integration Configuration E2E Tests › Third-Party Integration Mocking › should skip actual Jira API calls in E2E tests" classname="integrations/integration-config.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="main-flow.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="firefox" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Setup: Create Integration and Project" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Step 1-7: Webhook Ingestion -&gt; Platform Ticket Creation" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Step 8-15: Job Execution (Mock Worker)" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Main End-to-End Flow (Mocked Infrastructure) › Step 16-18: Verify Feedback to Integration (Mock Server)" classname="main-flow.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="projects/project-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="firefox" tests="9" failures="0" skipped="9" time="0" errors="0">
+<testcase name="Project Management E2E Tests › P-1 to P-5: Project CRUD Operations › P-1: should create a new project" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › P-1 to P-5: Project CRUD Operations › P-3: should enable auto-fix with tags" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › P-1 to P-5: Project CRUD Operations › P-4: should handle project view and navigation" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Dashboard - Projects Section › UI-1, UI-2: should display dashboard with projects" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Dashboard - Projects Section › should show empty state when no projects exist" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Dashboard - Projects Section › should display project cards with correct information" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Project Settings › should access project settings page" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › P-5: Duplicate slug prevention › should handle duplicate project names gracefully" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Project Management E2E Tests › Multiple Repository URLs › P-2: should support multiple repository URLs" classname="projects/project-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="secrets/secrets-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="firefox" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-1: should create a new secret" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-2: should list all secrets with masked values" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-3: should support different storage locations" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-1 to S-6: Secret CRUD Operations › S-4: should support environment variable storage" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Validation › should require secret name" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Validation › should validate secret name format" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Deletion › should allow deleting secrets" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Deletion › should show confirmation dialog before deletion" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Editing › should allow editing secret metadata" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › S-6: Security - No credential logging › should not log secret values in console" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › SSM Configuration › should allow SSM parameter path configuration" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Secret Badges › should display storage location badges" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Secrets Management E2E Tests › Empty State › should show empty state when no secrets exist" classname="secrets/secrets-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="tickets/ticket-management.e2e.test.ts" timestamp="2026-03-11T07:16:01.611Z" hostname="firefox" tests="12" failures="0" skipped="12" time="0" errors="0">
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-1: should create a new ticket" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-2: should create ticket with screenshot" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-3: should create ticket with recording" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-4: should run ticket (create job)" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › T-1 to T-6: Ticket CRUD Operations › T-6: should list tickets by project" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Detail Page › should display ticket details" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Detail Page › T-5: should display PR URL when available" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Severity and Category › should display severity badges" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Severity and Category › should allow selecting severity when creating ticket" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket Validation › should require title and description" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Ticket List Filtering › should display ticket list with proper columns" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Ticket Management E2E Tests › Manual Ticket Flow › should support complete manual ticket creation flow" classname="tickets/ticket-management.e2e.test.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>

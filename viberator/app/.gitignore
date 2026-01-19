@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# IDE - IntelliJ
+.idea/
+.idea
+*.iml
+*.iws
+*.ipr
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+.output.txt
+
+# Pulumi
+infra/bin/
+.pulumi/

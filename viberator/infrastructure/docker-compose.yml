@@ -1,0 +1,28 @@
+services:
+  # Ephemeral Worker - processes a single job and exits
+  # This service can be scaled on-demand by the orchestrator
+  worker:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/viberator-docker-worker.Dockerfile
+    container_name: viberator-worker
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      - WORK_DIR=/tmp/viberator-work
+    env_file:
+      - ../.env
+    networks:
+      - viberator-network
+    # Do not restart - workers are ephemeral and exit after job completion
+    restart: "no"
+    volumes:
+      # Mount SSH keys for git operations
+      - ${HOME}/.ssh:/home/viberator/.ssh:ro
+      # Mount git config if available
+      - ${HOME}/.gitconfig:/home/viberator/.gitconfig:ro
+
+networks:
+  viberator-network:
+    driver: bridge

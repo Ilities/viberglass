@@ -1,0 +1,48 @@
+{
+  "name": "viberator-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Viberator monorepo - AI Agent Orchestrator and Platform",
+  "workspaces": [
+    "packages/types",
+    "viberator/app",
+    "viberator/infrastructure/infra",
+    "platform/backend",
+    "platform/frontend",
+    "e2e-tests"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @viberator/orchestrator\" \"npm run dev -w @viberator/platform-backend\" \"npm run dev -w @viberator/frontend\"",
+    "build": "npm run build -w @viberator/types && npm run build --workspaces --if-present",
+    "types:build": "npm run build -w @viberator/types",
+    "types:dev": "npm run dev -w @viberator/types",
+    "test": "npm run test:unit --workspaces --if-present",
+    "test:unit": "npm run test:unit --workspaces --if-present",
+    "test:integration": "npm run test:integration --workspaces --if-present",
+    "test:e2e": "npm run test -w @viberator/e2e-tests",
+    "test:e2e:setup": "npm run setup:services -w @viberator/e2e-tests",
+    "test:e2e:teardown": "npm run teardown:services -w @viberator/e2e-tests",
+    "orchestrator:dev": "npm run dev:api -w @viberator/orchestrator",
+    "orchestrator:dev:worker": "npm run dev:worker -w @viberator/orchestrator",
+    "orchestrator:build": "npm run build -w @viberator/orchestrator",
+    "orchestrator:start": "npm run start:api -w @viberator/orchestrator",
+    "platform:dev": "concurrently -n be,fe \"npm run dev -w @viberator/platform-backend\" \"npm run dev -w @viberator/frontend\"",
+    "platform:build": "concurrently -n be,fe \"npm run build -w @viberator/platform-backend\" \"npm run build -w @viberator/frontend\"",
+    "platform:start": "concurrently -n be,fe \"npm run start -w @viberator/platform-backend\" \"npm run start -w @viberator/frontend\"",
+    "platform-backend:dev": "npm run dev -w @viberator/platform-backend",
+    "platform-backend:build": "npm run build -w @viberator/platform-backend",
+    "platform-backend:start": "npm run start -w @viberator/platform-backend",
+    "platform-backend:migrate": "npm run migrate:latest -w @viberator/platform-backend",
+    "frontend:dev": "npm run dev -w @viberator/frontend",
+    "frontend:build": "npm run build -w @viberator/frontend",
+    "frontend:start": "npm run start -w @viberator/frontend",
+    "infra:up": "npm run up -w @viberator/infra",
+    "infra:preview": "npm run preview -w @viberator/infra"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
