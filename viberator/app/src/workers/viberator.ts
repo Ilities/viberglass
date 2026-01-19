@@ -6,6 +6,7 @@ import { AgentOrchestrator } from "../orchestrator/AgentOrchestrator";
 import { Configuration, ExecutionContext } from "../types";
 import { GitService } from "../services/GitService";
 import { CodingJobData, JobResult } from "./types";
+import { CallbackClient } from "./CallbackClient";
 
 export class ViberatorWorker {
   private logger: any;
@@ -13,6 +14,7 @@ export class ViberatorWorker {
   private orchestrator!: AgentOrchestrator;
   private workDir: string;
   private gitService!: GitService;
+  private callbackClient!: CallbackClient;
   private initialized: boolean = false;
 
   constructor() {
@@ -39,6 +41,13 @@ export class ViberatorWorker {
       const agentConfigs = configManager.getAgentConfigs();
       this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger);
       this.gitService = new GitService(this.logger);
+
+      // Initialize callback client
+      this.callbackClient = new CallbackClient(this.logger, {
+        platformUrl: process.env.PLATFORM_API_URL,
+        maxRetries: 3,
+        retryDelay: 1000,
+      });
 
       if (!fs.existsSync(this.workDir)) {
         fs.mkdirSync(this.workDir, { recursive: true });
@@ -131,7 +140,7 @@ export class ViberatorWorker {
         pullRequestUrl,
       });
 
-      return {
+      const workerResult: JobResult = {
         success: true,
         branch: featureBranch,
         pullRequestUrl,
@@ -139,6 +148,22 @@ export class ViberatorWorker {
         executionTime,
         commitHash,
       };
+
+      // Send result to platform (non-blocking for worker flow)
+      try {
+        await this.callbackClient.sendResult(id, data.tenantId, {
+          ...workerResult,
+          logs: [],  // TODO: collect execution logs
+        });
+      } catch (callbackError) {
+        this.logger.warn('Failed to send result to platform', {
+          jobId: id,
+          error: callbackError instanceof Error ? callbackError.message : String(callbackError),
+        });
+        // Don't throw - callback failure shouldn't fail the worker
+      }
+
+      return workerResult;
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage =
@@ -149,6 +174,23 @@ export class ViberatorWorker {
         error: errorMessage,
         executionTime,
       });
+
+      // Send failure result to platform
+      try {
+        await this.callbackClient.sendResult(id, data.tenantId, {
+          success: false,
+          executionTime,
+          errorMessage,
+          logs: [],  // TODO: collect execution logs
+          changedFiles: [],
+        });
+      } catch (callbackError) {
+        this.logger.warn('Failed to send failure result to platform', {
+          jobId: id,
+          error: callbackError instanceof Error ? callbackError.message : String(callbackError),
+        });
+        // Don't throw - callback failure shouldn't fail the worker
+      }
 
       return {
         success: false,
