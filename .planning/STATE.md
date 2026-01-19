@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 4 of 12 (Worker Execution)
-Plan: 0 of 4 in current phase
-Status: Not started
-Last activity: 2026-01-19 — Completed Phase 3 (Worker Configuration)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-01-19 — Completed 04-01-PLAN.md
 
-Progress: [████░░░░░░] 31%
+Progress: [█████░░░░░] 34%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: ~3 minutes
-- Total execution time: 0.51 hours
+- Total execution time: 0.54 hours
 
 **By Phase:**
 
@@ -31,6 +31,7 @@ Progress: [████░░░░░░] 31%
 | 01 | 5 | 5 | 4m |
 | 02 | 2 | 2 | 2m |
 | 03 | 3 | 3 | 3m |
+| 04 | 1 | 4 | 2m |
 
 **Recent Trend:**
 - Last 5 plans: N/A
@@ -79,6 +80,9 @@ Recent decisions affecting current work:
 | LambdaPayload with jobId | Uses jobId field instead of id for consistency | Matches BaseWorkerPayload, different from CodingJobData.id |
 | DockerPayload with workerType validation | CLI handler validates workerType='docker' | Ensures correct payload type for Docker workers |
 | CredentialProvider env fallback | Checks process.env before SSM fetch | Docker workers receive creds via -e flags at container start |
+| WorkerInvoker fire-and-forget | invoke() returns execution ID only, results come via callback | Async invocation pattern matches Phase 2 callback architecture |
+| ErrorClassification enum | TRANSIENT vs PERMANENT for retry logic | isTransient/isPermanent getters for clean retry decisions |
+| WorkerInvokerFactory registration | registerInvoker() allows dynamic invoker addition | Enables Plans 02/03 to add Lambda/ECS/Docker implementations |
 
 ### Pending Todos
 
@@ -91,5 +95,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed Phase 3 (Worker Configuration) — 3 plans executed
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
