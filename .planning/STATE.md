@@ -11,24 +11,24 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 1 of 12 (Multi-Tenant Security Foundation)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-19 — Completed 01-03-PLAN.md
+Last activity: 2026-01-19 — Completed 01-04-PLAN.md
 
-Progress: [███░░░░░░░] 60%
+Progress: [████░░░░░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: ~3 minutes
-- Total execution time: 0.14 hours
+- Total execution time: 0.18 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 3 | 5 | 3m |
+| 01 | 4 | 5 | 3m |
 
 **Recent Trend:**
 - Last 5 plans: N/A
@@ -54,6 +54,9 @@ Recent decisions affecting current work:
 | 64-char hex key format | Direct 32-byte key for production security | CREDENTIALS_ENCRYPTION_KEY env var |
 | SSM hierarchical paths | /prefix/{tenantId}/{key} enables tenant-scoped IAM policies | SecureString with KMS encryption |
 | 5-minute SSM cache | Reduce API calls and cost while maintaining freshness | In-memory Map with TTL |
+| Fixed fallback chain order | Simplified debugging, predictable credential lookup | Environment -> File -> AWS |
+| CredentialProviderFactory singleton | App-wide credential access with single initialization | getCredentialFactory() |
+| X-Tenant-Id header | Standard convention for multi-tenant API requests | tenantMiddleware extracts and validates |
 
 ### Pending Todos
 
@@ -66,5 +69,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed 01-03-PLAN.md (AwsSsmProvider with SSM Parameter Store)
+Stopped at: Completed 01-04-PLAN.md (CredentialProviderFactory and tenant validation middleware)
 Resume file: None
