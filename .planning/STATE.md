@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 3 of 12 (Worker Configuration)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-01-19 — Completed 03-01-PLAN.md (Type-Specific Payload Interfaces)
+Last activity: 2026-01-19 — Completed 03-02-PLAN.md (CredentialProvider and ConfigLoader)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: ~3 minutes
-- Total execution time: 0.42 hours
+- Total execution time: 0.46 hours
 
 **By Phase:**
 
@@ -30,7 +30,7 @@ Progress: [██░░░░░░░░] 20%
 |-------|-------|-------|----------|
 | 01 | 5 | 5 | 4m |
 | 02 | 2 | 2 | 2m |
-| 03 | 1 | 4 | 1m |
+| 03 | 2 | 4 | 3m |
 
 **Recent Trend:**
 - Last 5 plans: N/A
@@ -69,6 +69,9 @@ Recent decisions affecting current work:
 | Type-specific worker payloads | BaseWorkerPayload with type-specific Lambda/ECS/Docker extensions | S3 URLs for AWS, mount paths for Docker |
 | WorkerType discrimination | Literal 'lambda' | 'ecs' | 'docker' for type narrowing | WorkerPayload union type enables safe type guards |
 | Instruction file references | S3InstructionFile for AWS workers, MountedInstructionFile for Docker | Separate patterns for cloud vs container deployment |
+| CredentialProvider class pattern | Worker-side SSM credential fetching with 5-min cache | Map-based TTL cache, soft fail on missing |
+| ConfigLoader class pattern | S3 instruction file fetching with graceful degradation | AWS default credential chain, s3:// URL parsing |
+| @aws-sdk/client-s3 dependency | S3 operations for instruction file fetching | Matches existing @aws-sdk/client-ssm pattern |
 
 ### Pending Todos
 
@@ -81,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed 03-01-PLAN.md — worker payload types defined
+Stopped at: Completed 03-02-PLAN.md — CredentialProvider and ConfigLoader created
 Resume file: None
