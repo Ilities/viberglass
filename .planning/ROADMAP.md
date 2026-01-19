@@ -54,7 +54,7 @@ interface CredentialProvider {
 
 **Plans**: 5 plans in 4 waves
 
-**Status**: ✅ Complete (2026-01-19)
+**Status**: Complete (2026-01-19)
 
 Plans:
 - [x] 01-01-PLAN.md — Create CredentialProvider interface, EnvironmentProvider, and log redaction utilities
@@ -91,7 +91,7 @@ Plans:
 
 **Plans**: 2 plans in 1 wave
 
-**Status**: ✅ Complete (2026-01-19)
+**Status**: Complete (2026-01-19)
 
 Plans:
 - [x] 02-01-PLAN.md — Create POST /api/jobs/:jobId/result callback endpoint
@@ -101,18 +101,27 @@ Plans:
 
 ### Phase 3: Worker Configuration
 
-**Goal**: Workers receive their complete configuration at invocation time from the platform, including clanker configuration, executor specification, and tenant identifier.
+**Goal**: Workers receive their complete configuration at invocation time from the platform, including clanker configuration, credential variable names, and tenant identifier.
 
 **Depends on**: Phase 2
 
 **Requirements**: WRK-01, WRK-02, WRK-03, WRK-04, WRK-05
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. Worker fetches clanker configuration from platform API by ID
+2. Worker validates all required credentials exist in environment before starting job
+3. Worker injects environment variables from clanker config before agent execution
+4. Worker authenticates git operations using SCM credentials from environment
+5. Worker retrieves instruction files (agents.md, etc.) from clanker config
+
+**Plans**: 3 plans in 2 waves
 
 **Status**: Not started
 
 Plans:
-- [ ] TBD
+- [ ] 03-01-PLAN.md — Create WorkerConfigurationClient for fetching clanker configs from platform API
+- [ ] 03-02-PLAN.md — Extend job types and create CredentialInjector for environment-based credential handling
+- [ ] 03-03-PLAN.md — Wire ViberatorWorker to use configuration-based initialization
 
 ---
 
