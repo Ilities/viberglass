@@ -30,7 +30,7 @@ Workers receive their complete configuration at invocation time from the platfor
 
 ### Config file / instruction handling
 - **AWS workers**: Fetch LARGER INSTRUCTION FILES (agents.md, claude.md, etc.) from S3 using platform credentials
-- **Docker workers**: Instruction files mounted as data volumes
+- **Docker workers**: LARGER INSTRUCTION FILES (agents.md, claude.md, etc.) mounted as data volumes
 - Dedicated ConfigLoader class with methods like `fetchInstructionFile()`, `parseConfig()`
 - If S3 fetch succeeds but file content is malformed: log warning and continue
 - Claude's discretion: fetch timing (init vs lazy), retry strategy
