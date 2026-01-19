@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 4 of 12 (Worker Execution)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-01-19 — Completed 04-01-PLAN.md
+Last activity: 2026-01-19 — Completed 04-02-PLAN.md
 
-Progress: [█████░░░░░] 34%
+Progress: [██████░░░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: ~3 minutes
-- Total execution time: 0.54 hours
+- Total execution time: 0.58 hours
 
 **By Phase:**
 
@@ -31,7 +31,7 @@ Progress: [█████░░░░░] 34%
 | 01 | 5 | 5 | 4m |
 | 02 | 2 | 2 | 2m |
 | 03 | 3 | 3 | 3m |
-| 04 | 1 | 4 | 2m |
+| 04 | 2 | 4 | 2m |
 
 **Recent Trend:**
 - Last 5 plans: N/A
@@ -83,6 +83,9 @@ Recent decisions affecting current work:
 | WorkerInvoker fire-and-forget | invoke() returns execution ID only, results come via callback | Async invocation pattern matches Phase 2 callback architecture |
 | ErrorClassification enum | TRANSIENT vs PERMANENT for retry logic | isTransient/isPermanent getters for clean retry decisions |
 | WorkerInvokerFactory registration | registerInvoker() allows dynamic invoker addition | Enables Plans 02/03 to add Lambda/ECS/Docker implementations |
+| Lambda async invocation pattern | InvocationType: 'Event' returns 202, no response payload | requestId serves as execution ID for tracking |
+| ECS RunTask failure checking | response.failures array must be checked even on 200 response | taskArn is execution ID, AGENT/CAPACITY failures are transient |
+| AWS SDK v3 Lambda/ECS clients | @aws-sdk/client-lambda and @aws-sdk/client-ecs | Modular clients matching existing @aws-sdk/client-ssm pattern |
 
 ### Pending Todos
 
@@ -95,5 +98,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed 04-01-PLAN.md
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
