@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Multi-Tenant Security Foundation** - Cloud-agnostic credential storage interface with AWS SSM provider implementation
 - [x] **Phase 2: Result Callback** - Workers POST results to platform API
 - [x] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
-- [ ] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
+- [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -138,13 +138,13 @@ Plans:
 
 **Plans**: 4 plans in 3 waves
 
-**Status**: Not started
+**Status**: Complete (2026-01-19)
 
 Plans:
-- [ ] 04-01-PLAN.md — Create WorkerInvoker interface, error types, and factory skeleton
-- [ ] 04-02-PLAN.md — Implement LambdaInvoker and EcsInvoker for AWS workers
-- [ ] 04-03-PLAN.md — Implement DockerInvoker for local Docker workers
-- [ ] 04-04-PLAN.md — Create WorkerExecutionService with retry logic and OrphanSweeper
+- [x] 04-01-PLAN.md — Create WorkerInvoker interface, error types, and factory skeleton
+- [x] 04-02-PLAN.md — Implement LambdaInvoker and EcsInvoker for AWS workers
+- [x] 04-03-PLAN.md — Implement DockerInvoker for local Docker workers
+- [x] 04-04-PLAN.md — Create WorkerExecutionService with retry logic and OrphanSweeper
 
 ---
 

@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Worker Execution
 
-- [ ] **EXEC-01**: Platform invokes Lambda worker asynchronously via AWS SDK
-- [ ] **EXEC-02**: Platform starts ECS task worker via RunTask API
-- [ ] **EXEC-03**: Platform starts local Docker worker via docker run
-- [ ] **EXEC-04**: Platform handles worker execution failures with retry logic
+- [x] **EXEC-01**: Platform invokes Lambda worker asynchronously via AWS SDK
+- [x] **EXEC-02**: Platform starts ECS task worker via RunTask API
+- [x] **EXEC-03**: Platform starts local Docker worker via docker run
+- [x] **EXEC-04**: Platform handles worker execution failures with retry logic
 
 ### Result Callback
 
@@ -117,10 +117,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXEC-01 | Phase 4 | Pending |
-| EXEC-02 | Phase 4 | Pending |
-| EXEC-03 | Phase 4 | Pending |
-| EXEC-04 | Phase 4 | Pending |
+| EXEC-01 | Phase 4 | Complete |
+| EXEC-02 | Phase 4 | Complete |
+| EXEC-03 | Phase 4 | Complete |
+| EXEC-04 | Phase 4 | Complete |
 | CB-01 | Phase 2 | Complete |
 | CB-02 | Phase 2 | Complete |
 | CB-03 | Phase 2 | Complete |
