@@ -1,6 +1,8 @@
 import { Request, Response, Router } from "express";
 import { JobService } from "../../services/JobService";
 import { JobData } from "../../types/Job";
+import { tenantMiddleware } from "../middleware/tenantValidation";
+import { validateResultCallback } from "../middleware/validation";
 
 const router = Router();
 const jobService = new JobService();
@@ -119,5 +121,66 @@ router.get("/stats/queue", async (req: Request, res: Response) => {
     });
   }
 });
+
+router.post(
+  "/:jobId/result",
+  tenantMiddleware,
+  validateResultCallback,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const tenantId = req.tenantId!;
+      const result = req.body;
+
+      // Verify job belongs to tenant (SEC-03)
+      const job = await jobService.getJobStatus(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      if (job.data.tenantId !== tenantId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Idempotency: Reject updates to terminal states
+      if (job.status === "completed" || job.status === "failed") {
+        return res.status(409).json({
+          error: "Job already in terminal state",
+          status: job.status,
+        });
+      }
+
+      // Determine status from success field
+      const status = result.success ? "completed" : "failed";
+
+      // Update job status using existing JobService method
+      await jobService.updateJobStatus(jobId, status, {
+        result: {
+          success: result.success,
+          branch: result.branch,
+          pullRequestUrl: result.pullRequestUrl,
+          changedFiles: result.changedFiles,
+          executionTime: result.executionTime,
+          errorMessage: result.errorMessage,
+          commitHash: result.commitHash,
+        },
+        errorMessage: result.errorMessage,
+      });
+
+      return res.json({
+        success: true,
+        jobId,
+        status,
+      });
+    } catch (error) {
+      console.error("Failed to update job result", {
+        error,
+        jobId: req.params.jobId,
+      });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
+    }
+  },
+);
 
 export default router;
