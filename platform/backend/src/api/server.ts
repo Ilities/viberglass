@@ -3,9 +3,16 @@
 import app from './app';
 import * as http from 'http';
 import * as dotenv from 'dotenv';
+import { OrphanSweeper } from '../workers/OrphanSweeper';
 
 // Load environment variables
 dotenv.config();
+
+// Initialize orphan sweeper for stuck job detection
+const orphanSweeper = new OrphanSweeper({
+  sweepIntervalMs: parseInt(process.env.ORPHAN_SWEEP_INTERVAL_MS || '60000', 10),
+  jobTimeoutMs: parseInt(process.env.ORPHAN_JOB_TIMEOUT_MS || '1800000', 10),
+});
 
 // Normalize a port into a number, string, or false
 function normalizePort(val: string): number | string | false {
@@ -68,6 +75,10 @@ function onListening(): void {
   console.log('[DEBUG_LOG] - GitHub Token:', process.env.GITHUB_TOKEN ? '✓' : '✗ (not configured)');
   
   console.log('[DEBUG_LOG] Server ready to receive bug reports!');
+  console.log('[DEBUG_LOG] Starting orphan sweeper for stuck job detection...');
+
+  // Start orphan sweeper after server is listening
+  orphanSweeper.start();
 }
 
 // Get port from environment and store in Express
@@ -85,6 +96,7 @@ server.on('listening', onListening);
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('[DEBUG_LOG] SIGTERM received, shutting down gracefully...');
+  orphanSweeper.stop();
   server.close(() => {
     console.log('[DEBUG_LOG] Server closed');
     process.exit(0);
@@ -93,6 +105,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('[DEBUG_LOG] SIGINT received, shutting down gracefully...');
+  orphanSweeper.stop();
   server.close(() => {
     console.log('[DEBUG_LOG] Server closed');
     process.exit(0);
