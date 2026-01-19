@@ -60,10 +60,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Multi-Tenant Security
 
-- [ ] **SEC-01**: CredentialProvider interface defines cloud-agnostic credential storage
-- [ ] **SEC-02**: Workers isolate operations by tenantId
-- [ ] **SEC-03**: API validates tenant access to resources
-- [ ] **SEC-04**: No credentials in environment variables or code
+- [x] **SEC-01**: CredentialProvider interface defines cloud-agnostic credential storage
+- [x] **SEC-02**: Workers isolate operations by tenantId
+- [x] **SEC-03**: API validates tenant access to resources
+- [x] **SEC-04**: No credentials in environment variables or code
 
 ## v2 Requirements
 
@@ -147,10 +147,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEP-03 | Phase 11 | Pending |
 | DEP-04 | Phase 11 | Pending |
 | DEP-05 | Phase 12 | Pending |
-| SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
-| SEC-03 | Phase 1 | Pending |
-| SEC-04 | Phase 1 | Pending |
+| SEC-01 | Phase 1 | Complete |
+| SEC-02 | Phase 1 | Complete |
+| SEC-03 | Phase 1 | Complete |
+| SEC-04 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 29 total
