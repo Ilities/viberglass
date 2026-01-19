@@ -33,19 +33,19 @@ export class LambdaInvoker implements WorkerInvoker {
     try {
       const command = new InvokeCommand({
         FunctionName: functionName,
-        InvocationType: 'Event', // Async - returns 202, no response payload
+        InvocationType: 'Event',  // Async - returns 202, no response payload
         Payload: Buffer.from(JSON.stringify(payload)),
       });
 
       const response: InvokeCommandOutput = await this.client.send(command);
 
-      const executionId = response.$metadata.requestId || `lambda-${Date.now()}`;
+      const executionId = response.$metadata.requestId || 'lambda-' + Date.now();
 
       console.info('[LambdaInvoker] Worker invoked', {
         jobId: job.id,
         functionName,
         executionId,
-        statusCode: response.StatusCode, // Should be 202 for Event
+        statusCode: response.StatusCode,  // Should be 202 for Event
       });
 
       return {
@@ -58,11 +58,7 @@ export class LambdaInvoker implements WorkerInvoker {
   }
 
   private classifyError(error: unknown, functionName: string): WorkerError {
-    const err = error as {
-      name?: string;
-      $metadata?: { httpStatusCode?: number };
-      message?: string;
-    };
+    const err = error as { name?: string; $metadata?: { httpStatusCode?: number }; message?: string };
     const errorName = err.name || '';
     const statusCode = err.$metadata?.httpStatusCode;
 
@@ -81,7 +77,7 @@ export class LambdaInvoker implements WorkerInvoker {
 
     if (transientErrors.includes(errorName) || (statusCode && statusCode >= 500)) {
       return new WorkerError(
-        `Lambda invocation failed (transient): ${errorName || err.message}`,
+        'Lambda invocation failed (transient): ' + (errorName || err.message),
         ErrorClassification.TRANSIENT,
         error
       );
@@ -89,14 +85,14 @@ export class LambdaInvoker implements WorkerInvoker {
 
     // Permanent errors - do not retry
     return new WorkerError(
-      `Lambda invocation failed (permanent): ${errorName || err.message}`,
+      'Lambda invocation failed (permanent): ' + (errorName || err.message),
       ErrorClassification.PERMANENT,
       error
     );
   }
 
   private getFunctionName(clanker: Clanker): string | undefined {
-    const config = clanker.deploymentConfig as LambdaDeploymentConfig | undefined;
+    const config = clanker.deploymentConfig as unknown as LambdaDeploymentConfig | undefined;
     return config?.functionArn || config?.functionName;
   }
 

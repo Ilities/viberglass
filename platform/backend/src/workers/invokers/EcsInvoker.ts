@@ -49,16 +49,14 @@ export class EcsInvoker implements WorkerInvoker {
           },
         },
         overrides: {
-          containerOverrides: [
-            {
-              name: ecsConfig.containerName || 'worker',
-              environment: [
-                { name: 'JOB_PAYLOAD', value: JSON.stringify(payload) },
-                { name: 'TENANT_ID', value: job.tenantId },
-                { name: 'JOB_ID', value: job.id },
-              ],
-            },
-          ],
+          containerOverrides: [{
+            name: ecsConfig.containerName || 'worker',
+            environment: [
+              { name: 'JOB_PAYLOAD', value: JSON.stringify(payload) },
+              { name: 'TENANT_ID', value: job.tenantId },
+              { name: 'JOB_ID', value: job.id },
+            ],
+          }],
         },
       });
 
@@ -94,16 +92,13 @@ export class EcsInvoker implements WorkerInvoker {
     }
   }
 
-  private classifyEcsFailure(failure: {
-    reason?: string;
-    detail?: string;
-  }): WorkerError {
+  private classifyEcsFailure(failure: { reason?: string; detail?: string }): WorkerError {
     const reason = failure.reason || '';
 
     // Transient: AGENT disconnected, capacity issues
     if (reason === 'AGENT' || reason.includes('CAPACITY')) {
       return new WorkerError(
-        `ECS task failed to start (transient): ${reason} - ${failure.detail}`,
+        'ECS task failed to start (transient): ' + reason + ' - ' + failure.detail,
         ErrorClassification.TRANSIENT,
         failure
       );
@@ -111,7 +106,7 @@ export class EcsInvoker implements WorkerInvoker {
 
     // Permanent: RESOURCE, ATTRIBUTE, MISSING, INACTIVE
     return new WorkerError(
-      `ECS task failed to start (permanent): ${reason} - ${failure.detail}`,
+      'ECS task failed to start (permanent): ' + reason + ' - ' + failure.detail,
       ErrorClassification.PERMANENT,
       failure
     );
@@ -124,7 +119,7 @@ export class EcsInvoker implements WorkerInvoker {
     // Transient errors
     if (errorName === 'ServerException') {
       return new WorkerError(
-        `ECS server error (transient): ${err.message}`,
+        'ECS server error (transient): ' + err.message,
         ErrorClassification.TRANSIENT,
         error
       );
@@ -132,7 +127,7 @@ export class EcsInvoker implements WorkerInvoker {
 
     // Permanent: ClusterNotFoundException, InvalidParameterException, etc.
     return new WorkerError(
-      `ECS invocation failed (permanent): ${errorName || err.message}`,
+      'ECS invocation failed (permanent): ' + (errorName || err.message),
       ErrorClassification.PERMANENT,
       error
     );

@@ -1,4 +1,7 @@
 import { WorkerInvoker, WorkerType } from './WorkerInvoker';
+import { LambdaInvoker } from './invokers/LambdaInvoker';
+import { EcsInvoker } from './invokers/EcsInvoker';
+import { DockerInvoker } from './invokers/DockerInvoker';
 
 export interface WorkerInvokerConfig {
   lambda?: { region?: string };
@@ -14,9 +17,14 @@ export class WorkerInvokerFactory {
   }
 
   private initializeInvokers(config: WorkerInvokerConfig): void {
-    // Invokers will be registered by Plans 02 and 03
-    // For now, log that factory is ready for invoker registration
-    console.info('[WorkerInvokerFactory] Initialized (invokers pending)');
+    // Initialize all invoker types
+    this.invokers.set('lambda', new LambdaInvoker(config.lambda));
+    this.invokers.set('ecs', new EcsInvoker(config.ecs));
+    this.invokers.set('docker', new DockerInvoker(config.docker));
+
+    console.info('[WorkerInvokerFactory] Initialized invokers:', {
+      types: Array.from(this.invokers.keys()),
+    });
   }
 
   registerInvoker(type: WorkerType, invoker: WorkerInvoker): void {

@@ -3,3 +3,4 @@ export * from './errors/WorkerError';
 export * from './WorkerInvokerFactory';
 export * from './invokers/LambdaInvoker';
 export * from './invokers/EcsInvoker';
+export * from './invokers/DockerInvoker';
