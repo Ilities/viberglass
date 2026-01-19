@@ -5,37 +5,55 @@
 
 ## Phase Boundary
 
-Workers receive their complete configuration at invocation time from the platform, including clanker configuration, executor specification, credential variable names, and tenant identifier. The platform passes config to workers; workers consume it. Actual worker execution (Lambda/ECS/Docker invocation) is Phase 4.
+Workers receive their complete configuration at invocation time from the platform, including clanker metadata, credential variable names, and S3 URLs for large instruction files. Workers do NOT call the platform API. The architecture is hybrid: small config passed in payload, large files fetched from S3 (AWS workers) or mounted as volumes (Docker).
 
 ## Implementation Decisions
 
-### Configuration payload shape
-- **Structure:** Structured/nested — config.clanker.*, config.executor.*, config.tenant
-- **Naming:** camelCase (clankerConfig, executorType, tenantId)
-- **Nested objects:** Inline objects — clanker definition embedded directly in payload
-- **Schema:** No formal schema — loose agreement between platform and worker
-- **Executor specification:** Simple string/ID in payload
-- **Extensibility:** Extensible/additional — workers ignore unknown fields
+### Payload structure
+- Type-specific payloads: LambdaPayload, EcsPayload, DockerPayload as separate TypeScript interfaces
+- Each worker type gets its own payload schema tailored to its invocation model
+- Claude's discretion: exact fields and payload shape
 
-### Credential delivery method
-- **Delivery mechanism:** Environment-bound — credentials pre-injected as environment variables
-- **Variable discovery:** Platform passes variable names at invocation time
-- **Representation:** Rich objects — array with metadata
-  ```typescript
-  credentials: [{ name: 'GITHUB_TOKEN', type: 'token' }, ...]
-  ```
-- Worker reads listed variables from its environment
+### Worker type distinction
+- **ECS**: Task definition is the clanker config (predetermined when clanker created), runtime vars passed in payload
+- **Lambda**: Function itself is the config, runtime vars passed in payload
+- **Docker**: Full config passed in payload, secrets referenced from environment variables at `docker run` time
+
+### Credential retrieval by worker type
+- **AWS-based workers (Lambda/ECS)**: Retrieve credentials from SSM Parameter Store or Secrets Manager at runtime using platform AWS credentials
+- **Docker worker**: Credentials passed via `-e` flags at `docker run` time from host environment
+
+### Credential validation
+- Worker validates required credentials against clanker config (config lists which creds are required)
+- If required credential is missing: log warning and continue (not fail-fast)
+- Claude's discretion: SSM URL pattern, fetch implementation details
+
+### Config file / instruction handling
+- **AWS workers**: Fetch LARGER INSTRUCTION FILES (agents.md, claude.md, etc.) from S3 using platform credentials
+- **Docker workers**: Instruction files mounted as data volumes
+- Dedicated ConfigLoader class with methods like `fetchInstructionFile()`, `parseConfig()`
+- If S3 fetch succeeds but file content is malformed: log warning and continue
+- Claude's discretion: fetch timing (init vs lazy), retry strategy
+
+### Error handling
+- S3 fetch failures: Claude's discretion on retry strategy
+- Configuration errors reported via BOTH callback endpoint with error details AND non-zero exit code
+- Detailed error messages (what went wrong, which field, which S3 URL, etc.)
+- Claude's discretion: exact error format, retry/backoff implementation
 
 ### Claude's Discretion
-- Exact structure of rich credential objects (what metadata fields beyond name/type)
-- Nesting depth and organization of configuration sections
-- How clanker configuration is structured within config.clanker
-- Tenant identifier placement and format
+- Exact fields in each payload type (LambdaPayload, EcsPayload, DockerPayload)
+- S3 URL format and expiration for instruction files
+- Fetch timing (init vs lazy loading) for instruction files
+- Retry strategy for S3 fetch failures (backoff pattern, max attempts)
+- Exact error message format and categorization
+- ConfigLoader implementation details
 
 ## Specific Ideas
 
-- Names passed at invocation time, worker reads from environment
-- Inline objects for nested structures (no reference resolution)
+- Platform AWS credentials are used for SSM/S3 access by AWS workers (not tenant-specific role assumption)
+- Credential variable names are mapped from clanker config to environment
+- Docker workers rely on host environment at `docker run -e GITHUB_API_KEY=$GITHUB_API_KEY` style
 
 ## Deferred Ideas
 
