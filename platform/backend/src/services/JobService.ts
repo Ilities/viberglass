@@ -216,4 +216,22 @@ export class JobService {
       },
     };
   }
+
+  /**
+   * Find jobs that have been active for longer than the cutoff time
+   * Used by OrphanSweeper to detect stuck jobs
+   */
+  async findOrphanedJobs(cutoffTime: Date): Promise<Array<{ id: string; started_at: Date }>> {
+    const jobs = await db
+      .selectFrom('jobs')
+      .select(['id', 'started_at'])
+      .where('status', '=', 'active')
+      .where('started_at', '<', cutoffTime)
+      .execute();
+
+    return jobs.map(job => ({
+      id: job.id,
+      started_at: job.started_at!,
+    }));
+  }
 }
