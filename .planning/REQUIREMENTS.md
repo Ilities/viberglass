@@ -30,11 +30,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Worker Configuration
 
-- [ ] **WRK-01**: Worker fetches SCM credentials from configured CredentialProvider using tenantId
-- [ ] **WRK-02**: Worker gets clanker configuration from invocation payload
-- [ ] **WRK-03**: Worker injects environment variables from clanker config into agent execution
-- [ ] **WRK-04**: Worker retrieves instruction files (agents.md) from clanker config
-- [ ] **WRK-05**: Worker authenticates git operations using SCM provider URLs
+- [x] **WRK-01**: Worker fetches SCM credentials from configured CredentialProvider using tenantId
+- [x] **WRK-02**: Worker gets clanker configuration from invocation payload
+- [x] **WRK-03**: Worker injects environment variables from clanker config into agent execution
+- [x] **WRK-04**: Worker retrieves instruction files (agents.md) from clanker config
+- [x] **WRK-05**: Worker authenticates git operations using SCM provider URLs
 
 ### Clanker Status Display
 
@@ -102,8 +102,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------|--------------|
 | 1 - Multi-Tenant Security Foundation | SEC-01, SEC-02, SEC-03, SEC-04 |
 | 2 - Result Callback | CB-01, CB-02, CB-03 |
-| 3 - Worker Execution | EXEC-01, EXEC-02, EXEC-03, EXEC-04 |
-| 4 - Worker Configuration | WRK-01, WRK-02, WRK-03, WRK-04, WRK-05 |
+| 3 - Worker Configuration | WRK-01, WRK-02, WRK-03, WRK-04, WRK-05 |
+| 4 - Worker Execution | EXEC-01, EXEC-02, EXEC-03, EXEC-04 |
 | 5 - Job Status Polling | CB-04 |
 | 6 - Clanker Static Status | STAT-01 |
 | 7 - Clanker Runtime Status | STAT-02, STAT-03, STAT-04, STAT-05 |
@@ -117,10 +117,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXEC-01 | Phase 3 | Pending |
-| EXEC-02 | Phase 3 | Pending |
-| EXEC-03 | Phase 3 | Pending |
-| EXEC-04 | Phase 3 | Pending |
+| EXEC-01 | Phase 4 | Pending |
+| EXEC-02 | Phase 4 | Pending |
+| EXEC-03 | Phase 4 | Pending |
+| EXEC-04 | Phase 4 | Pending |
 | CB-01 | Phase 2 | Complete |
 | CB-02 | Phase 2 | Complete |
 | CB-03 | Phase 2 | Complete |
@@ -129,11 +129,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-02 | Phase 8 | Pending |
 | WEB-03 | Phase 8 | Pending |
 | WEB-04 | Phase 8 | Pending |
-| WRK-01 | Phase 4 | Pending |
-| WRK-02 | Phase 4 | Pending |
-| WRK-03 | Phase 4 | Pending |
-| WRK-04 | Phase 4 | Pending |
-| WRK-05 | Phase 4 | Pending |
+| WRK-01 | Phase 3 | Complete |
+| WRK-02 | Phase 3 | Complete |
+| WRK-03 | Phase 3 | Complete |
+| WRK-04 | Phase 3 | Complete |
+| WRK-05 | Phase 3 | Complete |
 | STAT-01 | Phase 6 | Pending |
 | STAT-02 | Phase 7 | Pending |
 | STAT-03 | Phase 7 | Pending |
