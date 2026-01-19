@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 3 of 12 (Worker Configuration)
-Plan: 0 of 0 in current phase
-Status: Not started
-Last activity: 2026-01-19 — Completed Phase 2 (Result Callback)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-01-19 — Completed 03-01-PLAN.md (Type-Specific Payload Interfaces)
 
-Progress: [██░░░░░░░░] 17%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: ~3 minutes
-- Total execution time: 0.40 hours
+- Total execution time: 0.42 hours
 
 **By Phase:**
 
@@ -30,6 +30,7 @@ Progress: [██░░░░░░░░] 17%
 |-------|-------|-------|----------|
 | 01 | 5 | 5 | 4m |
 | 02 | 2 | 2 | 2m |
+| 03 | 1 | 4 | 1m |
 
 **Recent Trend:**
 - Last 5 plans: N/A
@@ -65,6 +66,9 @@ Recent decisions affecting current work:
 | Non-blocking callbacks | Callback failures logged but don't throw, worker completes regardless | Prevents platform issues from breaking worker flow |
 | Exponential backoff retry | delay * 2^attempt pattern (1s, 2s, 4s) with 3 retries | Handles transient failures, only 5xx/429 retried |
 | Extended redaction patterns | Added gho_, ghu_, ghs_, ghr_ for all GitHub token types | SEC-04 compliance for all token formats |
+| Type-specific worker payloads | BaseWorkerPayload with type-specific Lambda/ECS/Docker extensions | S3 URLs for AWS, mount paths for Docker |
+| WorkerType discrimination | Literal 'lambda' | 'ecs' | 'docker' for type narrowing | WorkerPayload union type enables safe type guards |
+| Instruction file references | S3InstructionFile for AWS workers, MountedInstructionFile for Docker | Separate patterns for cloud vs container deployment |
 
 ### Pending Todos
 
@@ -77,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed Phase 2 (Result Callback) — 2 plans executed
+Stopped at: Completed 03-01-PLAN.md — worker payload types defined
 Resume file: None
