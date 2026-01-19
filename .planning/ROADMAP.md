@@ -126,9 +126,25 @@ Plans:
 
 **Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. WorkerInvoker interface defines invoke() returning execution ID
+2. LambdaInvoker invokes Lambda functions asynchronously (InvocationType: Event)
+3. EcsInvoker starts ECS tasks via RunTask API
+4. DockerInvoker starts Docker containers via dockerode
+5. Transient errors trigger retry with exponential backoff
+6. Permanent errors fail job immediately without retry
+7. Execution ID stored on job record for debugging
+8. OrphanSweeper marks stuck jobs as failed after timeout
+
+**Plans**: 4 plans in 3 waves
 
 **Status**: Not started
+
+Plans:
+- [ ] 04-01-PLAN.md — Create WorkerInvoker interface, error types, and factory skeleton
+- [ ] 04-02-PLAN.md — Implement LambdaInvoker and EcsInvoker for AWS workers
+- [ ] 04-03-PLAN.md — Implement DockerInvoker for local Docker workers
+- [ ] 04-04-PLAN.md — Create WorkerExecutionService with retry logic and OrphanSweeper
 
 ---
 
