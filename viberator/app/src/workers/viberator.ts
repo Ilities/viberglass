@@ -137,6 +137,10 @@ export class ViberatorWorker {
 
     this.logger.info("Processing task", { jobId: id, repository });
 
+    // Inject credentials into environment for GitService authentication
+    // This must happen before any git operations (clone, push, etc.)
+    this.injectEnvironmentVars(this.fetchedCredentials || {});
+
     try {
       const jobWorkDir = path.join(this.workDir, id);
       if (!fs.existsSync(jobWorkDir)) {
@@ -268,6 +272,9 @@ export class ViberatorWorker {
         executionTime,
         errorMessage,
       };
+    } finally {
+      // Clean up injected credentials to prevent leakage
+      this.cleanupEnvironmentVars(this.fetchedCredentials || {});
     }
   }
 
@@ -294,6 +301,62 @@ export class ViberatorWorker {
       }
     } catch (error) {
       this.logger.warn("Failed to cleanup workspace", { workDir, error });
+    }
+  }
+
+  /**
+   * Transform credential key to environment variable name
+   * Converts lowercase/kebab-case to UPPERCASE_WITH_UNDERSCORES
+   * Example: github_token -> GITHUB_TOKEN
+   */
+  private keyToEnvVar(key: string): string {
+    return key.toUpperCase().replace(/-/g, '_');
+  }
+
+  /**
+   * Inject credentials into process.env for GitService authentication
+   * GitService uses SCMAuthFactory which reads from environment variables
+   */
+  private injectEnvironmentVars(credentials: Record<string, string | undefined>): void {
+    // Inject each credential as an environment variable
+    for (const [key, value] of Object.entries(credentials)) {
+      if (value !== undefined) {
+        const envKey = this.keyToEnvVar(key);
+        process.env[envKey] = value;
+        this.logger.debug('Injected credential into environment', { envKey });
+      }
+    }
+
+    // Inject clankerConfig environment variables if present
+    if (this.clankerConfig?.environment) {
+      const envConfig = this.clankerConfig.environment as Record<string, string>;
+      for (const [key, value] of Object.entries(envConfig)) {
+        process.env[key] = value;
+        this.logger.debug('Injected clanker config environment variable', { key });
+      }
+    }
+  }
+
+  /**
+   * Remove injected credentials from process.env to prevent leakage
+   */
+  private cleanupEnvironmentVars(credentials: Record<string, string | undefined>): void {
+    // Remove each credential from environment
+    for (const [key, value] of Object.entries(credentials)) {
+      if (value !== undefined) {
+        const envKey = this.keyToEnvVar(key);
+        delete process.env[envKey];
+        this.logger.debug('Cleaned up credential from environment', { envKey });
+      }
+    }
+
+    // Clean up clankerConfig environment variables if we tracked them
+    if (this.clankerConfig?.environment) {
+      const envConfig = this.clankerConfig.environment as Record<string, string>;
+      for (const key of Object.keys(envConfig)) {
+        delete process.env[key];
+        this.logger.debug('Cleaned up clanker config environment variable', { key });
+      }
     }
   }
 }
