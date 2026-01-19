@@ -8,14 +8,20 @@
     "viberator/app",
     "viberator/infrastructure/infra",
     "platform/backend",
-    "platform/frontend"
+    "platform/frontend",
+    "e2e-tests"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w @viberator/orchestrator\" \"npm run dev -w @viberator/platform-backend\" \"npm run dev -w @viberator/frontend\"",
     "build": "npm run build -w @viberator/types && npm run build --workspaces --if-present",
     "types:build": "npm run build -w @viberator/types",
     "types:dev": "npm run dev -w @viberator/types",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test:unit --workspaces --if-present",
+    "test:unit": "npm run test:unit --workspaces --if-present",
+    "test:integration": "npm run test:integration --workspaces --if-present",
+    "test:e2e": "npm run test -w @viberator/e2e-tests",
+    "test:e2e:setup": "npm run setup:services -w @viberator/e2e-tests",
+    "test:e2e:teardown": "npm run teardown:services -w @viberator/e2e-tests",
     "orchestrator:dev": "npm run dev:api -w @viberator/orchestrator",
     "orchestrator:dev:worker": "npm run dev:worker -w @viberator/orchestrator",
     "orchestrator:build": "npm run build -w @viberator/orchestrator",

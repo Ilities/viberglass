@@ -148,22 +148,6 @@ Credentials injected via SSM Parameter Store:
 ### Lambda
 Same as ECS - credentials fetched from SSM at runtime.
 
-## Migration from BullMQ
-
-The old BullMQ architecture has been removed:
-
-**Removed:**
-- ❌ `src/workers/bullmq-handler.ts`
-- ❌ `infrastructure/docker/viberator-bullmq.Dockerfile`
-- ❌ Redis dependency
-- ❌ `bullmq` and `ioredis` packages
-
-**Replaced with:**
-- ✅ `src/workers/cli-handler.ts` (CLI-based worker)
-- ✅ `infrastructure/docker/viberator-docker-worker.Dockerfile`
-- ✅ `infrastructure/docker/viberator-ecs-worker.Dockerfile`
-- ✅ Direct execution model
-
 ## Development
 
 ```bash

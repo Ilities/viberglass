@@ -1,23 +1,4 @@
 services:
-  # API Server - handles job submissions and worker orchestration
-  api:
-    build:
-      context: ..
-      dockerfile: infrastructure/docker/api.Dockerfile
-    container_name: viberator-api
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - API_PORT=3000
-      - LOG_LEVEL=info
-      - LOG_FORMAT=json
-    env_file:
-      - ../.env
-    networks:
-      - viberator-network
-    restart: unless-stopped
-
   # Ephemeral Worker - processes a single job and exits
   # This service can be scaled on-demand by the orchestrator
   worker:
