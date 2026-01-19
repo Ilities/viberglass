@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Multi-Tenant Security Foundation** - Cloud-agnostic credential storage interface with AWS SSM provider implementation
 - [x] **Phase 2: Result Callback** - Workers POST results to platform API
-- [ ] **Phase 3: Worker Configuration** - Workers fetch credentials and clanker configs
+- [ ] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
 - [ ] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
@@ -101,27 +101,34 @@ Plans:
 
 ### Phase 3: Worker Configuration
 
-**Goal**: Workers receive their complete configuration at invocation time from the platform, including clanker configuration, credential variable names, and tenant identifier.
+**Goal**: Workers receive their complete configuration at invocation time from the platform, including clanker metadata, credential variable names, and S3 URLs for large config files. Workers do NOT call the platform API.
 
 **Depends on**: Phase 2
 
 **Requirements**: WRK-01, WRK-02, WRK-03, WRK-04, WRK-05
 
 **Success Criteria** (what must be TRUE):
-1. Worker fetches clanker configuration from platform API by ID
+1. Worker receives clanker configuration via payload/event at invocation time
 2. Worker validates all required credentials exist in environment before starting job
 3. Worker injects environment variables from clanker config before agent execution
 4. Worker authenticates git operations using SCM credentials from environment
-5. Worker retrieves instruction files (agents.md, etc.) from clanker config
+5. Worker retrieves instruction files (agents.md, etc.) from S3 URLs provided in payload
+6. NO platform API calls are made from worker initialization
+
+**Architecture**: Hybrid approach
+- Small config (clanker metadata, credential variable names) passed in payload
+- Large files (agents.md, claude.md, etc.) fetched from S3 URLs in payload
+- Platform uploads config files to S3 when creating/updating clankers
+- Workers fetch from S3 using platform's credentials (not tenant credentials)
 
 **Plans**: 3 plans in 2 waves
 
 **Status**: Not started
 
 Plans:
-- [ ] 03-01-PLAN.md — Create WorkerConfigurationClient for fetching clanker configs from platform API
-- [ ] 03-02-PLAN.md — Extend job types and create CredentialInjector for environment-based credential handling
-- [ ] 03-03-PLAN.md — Wire ViberatorWorker to use configuration-based initialization
+- [ ] 03-01-PLAN.md — Define shared types for payload-based worker configuration
+- [ ] 03-02-PLAN.md — Create ConfigLoader and CredentialInjector for payload-based initialization
+- [ ] 03-03-PLAN.md — Wire ViberatorWorker to use payload-based configuration
 
 ---
 
