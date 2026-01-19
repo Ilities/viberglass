@@ -179,3 +179,14 @@ export const updateDeploymentStrategySchema = Joi.object({
   description: Joi.string().allow(null, "").optional(),
   configSchema: Joi.object().allow(null).optional(),
 });
+
+export const resultCallbackSchema = Joi.object({
+  success: Joi.boolean().required(),
+  commitHash: Joi.string().allow(null, "").optional(),
+  pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
+  errorMessage: Joi.string().allow(null, "").optional(),
+  logs: Joi.array().items(Joi.string()).default([]),
+  changedFiles: Joi.array().items(Joi.string()).default([]),
+  executionTime: Joi.number().integer().min(0).required(),
+  branch: Joi.string().optional(),
+});
