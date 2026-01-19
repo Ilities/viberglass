@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { ViberatorWorker } from "./viberator";
-import { CodingJobData } from "./types";
+import { DockerPayload, CodingJobData, JobResult } from "./types";
 
 /**
  * CLI-based ephemeral worker entry point
  *
  * Usage:
- *   docker run viberator-worker --job-data '{"id":"...","tenantId":"..."}'
+ *   docker run viberator-worker --job-data '{"jobId":"...","tenantId":"...","workerType":"docker"}'
  *   ecs-run-task --task-def viberator-worker --overrides '{"containerOverrides":[{"name":"worker","command":["--job-data","{...}"}]}'
  */
 
@@ -42,33 +42,35 @@ function parseArgs(args: string[]): CliArgs {
 
 function showHelp(): void {
   console.log(`
-Viberator Ephemeral Worker
+Viberator Ephemeral Worker (Docker)
 
 Usage:
   worker [options]
 
 Options:
-  -j, --job-data <json>    Job data as JSON string
+  -j, --job-data <json>    Job data as JSON string (DockerPayload format)
   -f, --job-file <path>    Path to JSON file containing job data
   -h, --help               Show this help message
 
 Examples:
   # Direct JSON input
-  worker --job-data '{"id":"job-123","tenantId":"tenant-abc","repository":"https://github.com/user/repo","task":"Fix the bug"}'
+  worker --job-data '{"jobId":"job-123","tenantId":"tenant-abc","workerType":"docker","repository":"https://github.com/user/repo","task":"Fix the bug","requiredCredentials":["GITHUB_TOKEN"],"instructionFiles":[],"clankerId":"clanker-1"}'
 
   # File input
   worker --job-file /tmp/job.json
 
 Environment Variables:
-  GITHUB_TOKEN              GitHub access token
-  CLAUDE_CODE_API_KEY       Claude Code API key
   WORK_DIR                  Working directory (default: /tmp/viberator-work)
   LOG_LEVEL                 Log level (default: info)
   CONFIG_PATH               Path to configuration file
+
+Docker Credential Flow:
+  Credentials are passed via environment variables at container start (docker run -e GITHUB_TOKEN=...).
+  The CredentialProvider checks process.env before SSM, so Docker workers receive credentials from the host.
 `);
 }
 
-async function loadJobData(args: CliArgs): Promise<CodingJobData> {
+async function loadJobData(args: CliArgs): Promise<DockerPayload> {
   if (args["job-file"]) {
     const fs = await import("fs");
     const content = fs.readFileSync(args["job-file"], "utf-8");
@@ -93,31 +95,48 @@ async function main() {
   }
 
   try {
-    const jobData = await loadJobData(args);
+    const payload = await loadJobData(args);
 
-    // Validate required fields
-    if (!jobData.id) {
-      throw new Error("Missing required field: id");
+    // Validate required DockerPayload fields
+    if (!payload.jobId) {
+      throw new Error("Missing required field: jobId");
     }
-    if (!jobData.tenantId) {
+    if (!payload.tenantId) {
       throw new Error("Missing required field: tenantId");
     }
-    if (!jobData.repository) {
+    if (!payload.repository) {
       throw new Error("Missing required field: repository");
     }
-    if (!jobData.task) {
+    if (!payload.task) {
       throw new Error("Missing required field: task");
     }
+    if (payload.workerType !== 'docker') {
+      throw new Error(`Invalid workerType: ${payload.workerType}. Expected 'docker' for CLI worker.`);
+    }
 
-    console.log(`Starting ephemeral worker for job: ${jobData.id}`);
+    console.log(`Starting ephemeral worker for job: ${payload.jobId}`);
 
+    // Initialize worker with DockerPayload
     const worker = new ViberatorWorker();
-    await worker.initialize();
+    await worker.initialize(payload);
 
-    const result = await worker.executeTask(jobData);
+    // Convert DockerPayload to CodingJobData for executeTask
+    const jobData: CodingJobData = {
+      id: payload.jobId,
+      tenantId: payload.tenantId,
+      repository: payload.repository,
+      task: payload.task,
+      branch: payload.branch,
+      baseBranch: payload.baseBranch,
+      context: payload.context,
+      settings: payload.settings,
+      timestamp: Date.now(),
+    };
+
+    const result: JobResult = await worker.executeTask(jobData);
 
     console.log(
-      `Job ${jobData.id} completed with status: ${result.success ? "SUCCESS" : "FAILED"}`,
+      `Job ${payload.jobId} completed with status: ${result.success ? "SUCCESS" : "FAILED"}`,
     );
     console.log(JSON.stringify(result, null, 2));
 
