@@ -14,8 +14,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Multi-Tenant Security Foundation** - Cloud-agnostic credential storage interface with AWS SSM provider implementation
 - [ ] **Phase 2: Result Callback** - Workers POST results to platform API
-- [ ] **Phase 3: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
-- [ ] **Phase 4: Worker Configuration** - Workers fetch credentials and clanker configs
+- [ ] **Phase 3: Worker Configuration** - Workers fetch credentials and clanker configs
+- [ ] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -66,3 +66,176 @@ Plans:
 ---
 
 ### Phase 2: Result Callback
+
+**Goal**: Workers POST execution results to the platform API, updating job status in the database with commit SHA, PR URL, error messages, and execution logs.
+
+**Depends on**: Phase 1 (tenantMiddleware, logRedaction)
+
+**Requirements**: CB-01, CB-02, CB-03
+
+**Success Criteria** (what must be TRUE):
+1. Worker can POST result to /api/jobs/:jobId/result endpoint
+2. Endpoint validates tenantId via X-Tenant-Id header (SEC-03)
+3. Valid result payload updates job status to 'completed' or 'failed' (CB-02)
+4. Endpoint rejects result for jobs already in terminal state (idempotency)
+5. Result payload includes commitHash, pullRequestUrl, errorMessage, logs (CB-03)
+6. Worker retries callback on transient failures with exponential backoff
+7. Logs are redacted before sending (SEC-04)
+
+**Callback Endpoint Pattern**:
+```typescript
+// POST /api/jobs/:jobId/result
+// Headers: X-Tenant-Id: <tenantId>
+// Body: { success, commitHash, pullRequestUrl, errorMessage, logs, changedFiles, executionTime, branch }
+```
+
+**Plans**: 2 plans in 1 wave
+
+**Status**: 🔄 Planning
+
+Plans:
+- [ ] 02-01-PLAN.md — Create POST /api/jobs/:jobId/result callback endpoint
+- [ ] 02-02-PLAN.md — Create CallbackClient and integrate into ViberatorWorker
+
+---
+
+### Phase 3: Worker Configuration
+
+**Goal**: Workers receive their complete configuration at invocation time from the platform, including clanker configuration, executor specification, and tenant identifier.
+
+**Depends on**: Phase 2
+
+**Requirements**: WRK-01, WRK-02, WRK-03, WRK-04, WRK-05
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+Plans:
+- [ ] TBD
+
+---
+
+### Phase 4: Worker Execution
+
+**Goal**: Platform invokes Lambda/ECS/Docker workers asynchronously via AWS SDK with retry logic.
+
+**Depends on**: Phase 3
+
+**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 5: Job Status Polling
+
+**Goal**: Frontend polls and displays current job status to users.
+
+**Depends on**: Phase 2, Phase 4
+
+**Requirements**: CB-04
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 6: Clanker Static Status
+
+**Goal**: Platform displays clanker static status (resource exists, connected, ready).
+
+**Depends on**: Phase 3
+
+**Requirements**: STAT-01
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 7: Clanker Runtime Status
+
+**Goal**: Workers POST heartbeat and progress updates to platform API during task execution.
+
+**Depends on**: Phase 4
+
+**Requirements**: STAT-02, STAT-03, STAT-04, STAT-05
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 8: Webhook Provider Architecture
+
+**Goal**: Provider-agnostic webhook integration with GitHub as first implementation.
+
+**Depends on**: Phase 5
+
+**Requirements**: WEB-01, WEB-02, WEB-03, WEB-04
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 9: Local Development
+
+**Goal**: Docker compose environment for local development.
+
+**Depends on**: Phase 7
+
+**Requirements**: DEV-01, DEV-02, DEV-03
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 10: AWS Infrastructure
+
+**Goal**: Pulumi stack provisions complete AWS infrastructure.
+
+**Depends on**: Phase 8
+
+**Requirements**: DEP-01
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 11: Deployment Process
+
+**Goal**: CI/CD pipeline and environment-specific configs.
+
+**Depends on**: Phase 10
+
+**Requirements**: DEP-02, DEP-03, DEP-04
+
+**Plans**: 0 plans
+
+**Status**: Not started
+
+---
+
+### Phase 12: Secret Management
+
+**Goal**: Provider-based secret management for all deployment targets.
+
+**Depends on**: Phase 11
+
+**Requirements**: DEP-05
+
+**Plans**: 0 plans
+
+**Status**: Not started
