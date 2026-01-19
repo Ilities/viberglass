@@ -1,0 +1,160 @@
+import { ECSClient, RunTaskCommand, RunTaskCommandOutput } from '@aws-sdk/client-ecs';
+import type { Clanker } from '@viberator/types';
+import type { JobData } from '../../types/Job';
+import { WorkerInvoker, InvocationResult } from '../WorkerInvoker';
+import { WorkerError, ErrorClassification } from '../errors/WorkerError';
+
+interface EcsDeploymentConfig {
+  clusterArn: string;
+  taskDefinitionArn: string;
+  launchType?: 'FARGATE' | 'EC2';
+  subnetIds: string[];
+  securityGroupIds: string[];
+  assignPublicIp?: 'ENABLED' | 'DISABLED';
+  containerName?: string;
+}
+
+export class EcsInvoker implements WorkerInvoker {
+  readonly name = 'EcsInvoker';
+  private client: ECSClient;
+
+  constructor(config?: { region?: string }) {
+    this.client = new ECSClient({
+      region: config?.region || process.env.AWS_REGION || 'us-east-1',
+    });
+  }
+
+  async invoke(job: JobData, clanker: Clanker): Promise<InvocationResult> {
+    const ecsConfig = clanker.deploymentConfig as unknown as EcsDeploymentConfig | undefined;
+
+    if (!ecsConfig?.clusterArn || !ecsConfig?.taskDefinitionArn) {
+      throw new WorkerError(
+        'ECS cluster ARN and task definition ARN required in clanker deploymentConfig',
+        ErrorClassification.PERMANENT
+      );
+    }
+
+    const payload = this.buildPayload(job, clanker);
+
+    try {
+      const command = new RunTaskCommand({
+        cluster: ecsConfig.clusterArn,
+        taskDefinition: ecsConfig.taskDefinitionArn,
+        launchType: ecsConfig.launchType || 'FARGATE',
+        networkConfiguration: {
+          awsvpcConfiguration: {
+            subnets: ecsConfig.subnetIds || [],
+            securityGroups: ecsConfig.securityGroupIds || [],
+            assignPublicIp: ecsConfig.assignPublicIp || 'DISABLED',
+          },
+        },
+        overrides: {
+          containerOverrides: [
+            {
+              name: ecsConfig.containerName || 'worker',
+              environment: [
+                { name: 'JOB_PAYLOAD', value: JSON.stringify(payload) },
+                { name: 'TENANT_ID', value: job.tenantId },
+                { name: 'JOB_ID', value: job.id },
+              ],
+            },
+          ],
+        },
+      });
+
+      const response: RunTaskCommandOutput = await this.client.send(command);
+
+      // Check for failures in response
+      if (response.failures && response.failures.length > 0) {
+        const failure = response.failures[0];
+        throw this.classifyEcsFailure(failure);
+      }
+
+      const taskArn = response.tasks?.[0]?.taskArn;
+      if (!taskArn) {
+        throw new WorkerError(
+          'ECS RunTask returned no task ARN',
+          ErrorClassification.TRANSIENT
+        );
+      }
+
+      console.info('[EcsInvoker] Worker task started', {
+        jobId: job.id,
+        taskArn,
+        cluster: ecsConfig.clusterArn,
+      });
+
+      return {
+        executionId: taskArn,
+        workerType: 'ecs',
+      };
+    } catch (error) {
+      if (error instanceof WorkerError) throw error;
+      throw this.classifyError(error);
+    }
+  }
+
+  private classifyEcsFailure(failure: {
+    reason?: string;
+    detail?: string;
+  }): WorkerError {
+    const reason = failure.reason || '';
+
+    // Transient: AGENT disconnected, capacity issues
+    if (reason === 'AGENT' || reason.includes('CAPACITY')) {
+      return new WorkerError(
+        `ECS task failed to start (transient): ${reason} - ${failure.detail}`,
+        ErrorClassification.TRANSIENT,
+        failure
+      );
+    }
+
+    // Permanent: RESOURCE, ATTRIBUTE, MISSING, INACTIVE
+    return new WorkerError(
+      `ECS task failed to start (permanent): ${reason} - ${failure.detail}`,
+      ErrorClassification.PERMANENT,
+      failure
+    );
+  }
+
+  private classifyError(error: unknown): WorkerError {
+    const err = error as { name?: string; message?: string };
+    const errorName = err.name || '';
+
+    // Transient errors
+    if (errorName === 'ServerException') {
+      return new WorkerError(
+        `ECS server error (transient): ${err.message}`,
+        ErrorClassification.TRANSIENT,
+        error
+      );
+    }
+
+    // Permanent: ClusterNotFoundException, InvalidParameterException, etc.
+    return new WorkerError(
+      `ECS invocation failed (permanent): ${errorName || err.message}`,
+      ErrorClassification.PERMANENT,
+      error
+    );
+  }
+
+  private buildPayload(job: JobData, clanker: Clanker): object {
+    return {
+      workerType: 'ecs',
+      tenantId: job.tenantId,
+      jobId: job.id,
+      clankerId: clanker.id,
+      repository: job.repository,
+      task: job.task,
+      branch: job.branch,
+      baseBranch: job.baseBranch,
+      context: job.context,
+      settings: job.settings,
+      deploymentConfig: clanker.deploymentConfig,
+    };
+  }
+
+  async isAvailable(): Promise<boolean> {
+    return this.client !== undefined;
+  }
+}
