@@ -11,25 +11,25 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 2 of 12 (Result Callback)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-01-19 — Completed 02-01-PLAN.md (Worker callback endpoint)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-01-19 — Completed 02-02-PLAN.md (Worker Callback Client)
 
-Progress: [██        ] 17%
+Progress: [██████████] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: ~4 minutes
-- Total execution time: 0.37 hours
+- Total plans completed: 7
+- Average duration: ~3 minutes
+- Total execution time: 0.40 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 5 | 5 | 4m |
-| 02 | 1 | 2 | 2m |
+| 02 | 2 | 2 | 2m |
 
 **Recent Trend:**
 - Last 5 plans: N/A
@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 | Test coverage targets | All provider operations and security guarantees verified | 175 passing tests |
 | Status-based idempotency | Reject updates to terminal states rather than idempotency tokens | Simpler pattern, matches JobService |
 | Joi middleware pattern | Follow existing validation patterns for consistency | validateResultCallback after validateUpdateTicket |
+| Non-blocking callbacks | Callback failures logged but don't throw, worker completes regardless | Prevents platform issues from breaking worker flow |
+| Exponential backoff retry | delay * 2^attempt pattern (1s, 2s, 4s) with 3 retries | Handles transient failures, only 5xx/429 retried |
+| Extended redaction patterns | Added gho_, ghu_, ghs_, ghr_ for all GitHub token types | SEC-04 compliance for all token formats |
 
 ### Pending Todos
 
@@ -74,5 +77,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed 02-01-PLAN.md (Worker callback endpoint)
+Stopped at: Completed 02-02-PLAN.md (Worker Callback Client)
 Resume file: None
