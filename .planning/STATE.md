@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 4 of 12 (Worker Execution)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-01-19 — Completed 04-04-PLAN.md
+Phase: 4.1 of 12 (Allow Frontend to Invoke Workers)
+Plan: 02 of 4 in current phase
+Status: In progress
+Last activity: 2026-01-20 — Completed 04.1-02-PLAN.md
 
-Progress: [████████░░] 46%
+Progress: [████████░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: ~3 minutes
-- Total execution time: 0.69 hours
+- Total execution time: 0.72 hours
 
 **By Phase:**
 
@@ -94,6 +94,12 @@ Recent decisions affecting current work:
 | Execution ID storage | Stored in job.progress.executionId after successful invocation | Enables CloudWatch correlation and debugging |
 | OrphanSweeper background sweep | Runs every 60s by default, marks jobs as failed after 30min timeout | Safety net for workers that fail to callback |
 | OrphanSweeper graceful shutdown | stop() clears interval on SIGTERM/SIGINT | Prevents memory leaks from setInterval |
+| sonner toast library | Headless, accessible, DX-friendly for user notifications | Toaster component in layout, 5s duration, bottom-right position |
+| Job API client pattern | fetch-based API calls with typed responses | runTicket(ticketId, clankerId), getJob(jobId) functions |
+
+### Roadmap Evolution
+
+- Phase 4.1 inserted after Phase 4: Allow frontend to invoke workers and initiate jobs from tickets (URGENT)
 
 ### Pending Todos
 
@@ -105,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-19
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-01-20
+Stopped at: Completed 04.1-02-PLAN.md
 Resume file: None
