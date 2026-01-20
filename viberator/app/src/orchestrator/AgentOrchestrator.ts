@@ -10,6 +10,7 @@ import {
 } from "../types";
 import { Logger } from "winston";
 import { AgentFactory } from "../agents/AgentFactory";
+import { randomUUID } from "crypto";
 
 export class AgentOrchestrator {
   private agents: Map<string, AgentConfig>;
@@ -157,7 +158,7 @@ export class AgentOrchestrator {
     agentConfig: AgentConfig,
     context: ExecutionContext,
   ): Promise<ExecutionResult> {
-    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const executionId = `exec_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
     const execution: AgentExecution = {
       id: executionId,
