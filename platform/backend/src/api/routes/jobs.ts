@@ -3,6 +3,7 @@ import { JobService } from "../../services/JobService";
 import { JobData } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
 import { validateResultCallback } from "../middleware/validation";
+import { randomUUID } from "crypto";
 
 const router = Router();
 const jobService = new JobService();
@@ -25,7 +26,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
 
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
     const jobData: JobData = {
       tenantId: tenantId ?? "api-server",
