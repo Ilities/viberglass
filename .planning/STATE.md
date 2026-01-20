@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 4.2 of 12 (Testing) — Plan 1 of 3 complete
-Next: 04.2-02 (Integration tests)
+Phase: 4.2 of 12 (Testing) — Plan 2 of 3 complete
+Next: 04.2-03 (Integration tests)
 Status: In progress
-Last activity: 2026-01-20 — Completed 04.2-01 (Invoker error classification tests)
+Last activity: 2026-01-20 — Completed 04.2-02 (WorkerExecutionService and OrphanSweeper tests)
 
-Progress: [█████████░] 56%
+Progress: [██████████] 58%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: ~4 minutes
-- Total execution time: 1.44 hours
+- Total execution time: 1.51 hours
 
 **By Phase:**
 
@@ -33,10 +33,10 @@ Progress: [█████████░] 56%
 | 03 | 3 | 3 | 3m |
 | 04 | 4 | 4 | 3m |
 | 04.1 | 4 | 4 | 5m |
-| 04.2 | 1 | 3 | 6m |
+| 04.2 | 2 | 3 | 6m |
 
 **Recent Trend:**
-- Last 5 plans: 5m, 2m, 7m, 4m, 6m
+- Last 5 plans: 5m, 2m, 7m, 4m, 8m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -107,6 +107,8 @@ Recent decisions affecting current work:
 | Play icon button in table rows | Prevents row navigation with e.preventDefault()/e.stopPropagation() | Clean interaction pattern for table actions |
 | Client/server component split | Server fetches data, client handles interactions | Leverages Next.js RSC for optimal performance |
 | AWS SDK mock reference pattern | Declare mock function before jest.mock() to share reference | Prevents mock consumption issues in multi-assertion tests |
+| jest.useFakeTimers for retry testing | Fake timers with advanceTimersByTimeAsync for delay verification | Tests retry/backoff without real delays |
+| Mock service injection | jest.mock() for JobService and WorkerInvokerFactory | Isolated unit testing without external dependencies |
 
 ### Roadmap Evolution
 
@@ -124,5 +126,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04.2-01 (Invoker error classification tests)
+Stopped at: Completed 04.2-02 (WorkerExecutionService and OrphanSweeper tests)
 Resume file: None
