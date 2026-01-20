@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 5: Job Status Polling
+**Current focus:** Phase 4.3: Application organization and structural refactoring
 
 ## Current Position
 
-Phase: 4.2 of 12 (Testing) — PHASE COMPLETE
-Next: Phase 5 (Job Status Polling)
-Status: Phase complete
-Last activity: 2026-01-20 — Completed Phase 4.2
+Phase: 4.3 of 12 (Application organization and structural refactoring) — INSERTED
+Next: Phase 4.3 (structural refactoring) or Phase 5 (Job Status Polling)
+Status: Phase inserted, not yet planned
+Last activity: 2026-01-20 — Inserted Phase 4.3
 
 Progress: [██████████] 61%
 
@@ -118,6 +118,7 @@ Recent decisions affecting current work:
 
 - Phase 4.1 inserted after Phase 4: Allow frontend to invoke workers and initiate jobs from tickets (URGENT)
 - Phase 4.2 inserted after Phase 4.1: Testing (URGENT)
+- Phase 4.3 inserted after Phase 4.2: Application organization and structural refactoring (URGENT)
 
 ### Pending Todos
 

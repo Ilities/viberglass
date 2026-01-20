@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
 - [x] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
 - [x] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
+- [ ] **Phase 4.3: Application organization and structural refactoring** - Code organization improvements (INSERTED)
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -199,6 +200,32 @@ Plans:
 - [x] 04.2-01-PLAN.md — Error classification tests for Lambda/ECS/Docker invokers
 - [x] 04.2-02-PLAN.md — Retry logic tests (WorkerExecutionService) and orphan detection (OrphanSweeper)
 - [x] 04.2-03-PLAN.md — Integration tests for full worker execution flow
+
+---
+
+### Phase 4.3: Application organization and structural refactoring (INSERTED)
+
+**Goal**: Improve code organization and structure across the application by eliminating duplication, removing deprecated APIs, fixing anti-patterns, and improving type safety.
+
+**Depends on**: Phase 4.2
+
+**Requirements**: None (structural refactoring)
+
+**Success Criteria** (what must be TRUE):
+1. Validation middleware uses factory pattern (no 200+ lines of duplicate code)
+2. No deprecated String.substr() calls remain
+3. Frontend data.ts has no mock fallbacks (errors propagate properly)
+4. 'as any' casts reduced significantly with proper type definitions
+
+**Plans**: 4 plans in 2 waves
+
+**Status**: Planned, not executed
+
+Plans:
+- [ ] 04.3-01-PLAN.md — Refactor validation middleware to factory pattern
+- [ ] 04.3-02-PLAN.md — Replace deprecated substr() with crypto.randomUUID()
+- [ ] 04.3-03-PLAN.md — Remove mock fallbacks from frontend data.ts
+- [ ] 04.3-04-PLAN.md — Replace 'as any' casts with proper types
 
 ---
 
