@@ -25,7 +25,6 @@
     "@types/pg": "^8.10.9",
     "@types/uuid": "^9.0.7",
     "@viberator/types": "*",
-    "aws-sdk": "^2.1500.0",
     "axios": "^1.6.2",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
