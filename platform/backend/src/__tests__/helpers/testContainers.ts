@@ -3,7 +3,7 @@ import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 
 interface Database {
-  id: Generated<number>;
+  id: number;
   name: string;
 }
 
@@ -30,7 +30,7 @@ export class TestDatabase {
     });
 
     this.db = new Kysely<any>({
-      dialect: new PostgresDialect(pool),
+      dialect: new PostgresDialect({ pool }),
     });
 
     return {
