@@ -172,6 +172,8 @@ export interface JobsTable {
   created_at: Generated<Timestamp>;
   started_at: Timestamp | null;
   finished_at: Timestamp | null;
+  ticket_id: string | null;
+  clanker_id: string | null;
 }
 
 export interface Database {

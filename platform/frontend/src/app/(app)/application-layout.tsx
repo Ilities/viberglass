@@ -1,5 +1,6 @@
 'use client'
 
+import { Toaster } from 'sonner'
 import { Avatar } from '@/components/avatar'
 import {
   Dropdown,
@@ -207,6 +208,14 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
       >
         {children}
       </StackedLayout>
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{
+          duration: 5000,
+        }}
+      />
     </>
   )
 }
