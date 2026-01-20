@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 4.1 of 12 (Allow Frontend to Invoke Workers)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-01-20 — Completed 04.1-04-PLAN.md
+Plan: 3 of 4 in current phase
+Status: In progress
+Last activity: 2026-01-20 — Completed 04.1-03-PLAN.md
 
-Progress: [██████████] 50%
+Progress: [████████░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: ~3 minutes
-- Total execution time: 1.00 hours
+- Total plans completed: 19
+- Average duration: ~4 minutes
+- Total execution time: 1.08 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [██████████] 50%
 | 02 | 2 | 2 | 2m |
 | 03 | 3 | 3 | 3m |
 | 04 | 4 | 4 | 3m |
-| 04.1 | 4 | 4 | 4m |
+| 04.1 | 3 | 4 | 5m |
 
 **Recent Trend:**
-- Last 5 plans: 6m, 4m, 4m, 4m, 4m
+- Last 5 plans: 4m, 4m, 4m, 4m, 7m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -102,6 +102,9 @@ Recent decisions affecting current work:
 | Hardcoded tenant ID | Uses "api-server" tenantId for ticket-sourced jobs | To be replaced with real auth when implemented |
 | Job detail page server/client split | Server component for data fetching, client component for interactions | router.refresh() pattern for manual refresh |
 | Status badge color coding | queued=yellow, active=blue, completed=green, failed=red | Consistent visual feedback for job states |
+| RunTicketModal component pattern | Pre-flight confirmation modal with clanker selection | Single modal used from both list and detail views |
+| Play icon button in table rows | Prevents row navigation with e.preventDefault()/e.stopPropagation() | Clean interaction pattern for table actions |
+| Client/server component split | Server fetches data, client handles interactions | Leverages Next.js RSC for optimal performance |
 
 ### Roadmap Evolution
 
@@ -118,5 +121,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04.1-04-PLAN.md (Phase 4.1 complete)
+Stopped at: Completed 04.1-03-PLAN.md
 Resume file: None
