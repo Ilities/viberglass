@@ -2,7 +2,8 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableRow } from '@/components/table'
-import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getTicketDetails } from '@/data'
+import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getTicketDetails, getClankersList } from '@/data'
+import { TicketRunButton } from './ticket-run-button'
 import { ArrowLeftIcon, EyeIcon, SparklesIcon } from '@heroicons/react/20/solid'
 import { notFound } from 'next/navigation'
 
@@ -13,6 +14,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ p
   if (!ticket) {
     notFound()
   }
+
+  // Fetch clankers for the run button
+  const clankers = await getClankersList()
 
   return (
     <>
@@ -44,6 +48,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ p
           </div>
         </div>
         <div className="flex gap-2">
+          <TicketRunButton ticket={ticket} clankers={clankers} project={project} />
           <Button href={`/project/${project}/enhance?id=${ticket.id}`} color="blue">
             <SparklesIcon className="h-5 w-5" />
             Enhance & Fix
