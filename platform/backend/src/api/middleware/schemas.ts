@@ -190,3 +190,7 @@ export const resultCallbackSchema = Joi.object({
   executionTime: Joi.number().integer().min(0).required(),
   branch: Joi.string().optional(),
 });
+
+export const runTicketSchema = Joi.object({
+  clankerId: Joi.string().uuid().required(),
+});
