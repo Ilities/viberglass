@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 4.1 of 12 (Allow Frontend to Invoke Workers)
-Plan: 1 of 4 in current phase
-Status: In progress
-Last activity: 2026-01-20 — Completed 04.1-01-PLAN.md
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-01-20 — Completed 04.1-04-PLAN.md
 
-Progress: [████████░░] 47%
+Progress: [██████████] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 20
 - Average duration: ~3 minutes
-- Total execution time: 0.82 hours
+- Total execution time: 1.00 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [████████░░] 47%
 | 02 | 2 | 2 | 2m |
 | 03 | 3 | 3 | 3m |
 | 04 | 4 | 4 | 3m |
-| 04.1 | 1 | 4 | 6m |
+| 04.1 | 4 | 4 | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 4m, 3m, 4m, 6m
+- Last 5 plans: 6m, 4m, 4m, 4m, 4m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -100,6 +100,8 @@ Recent decisions affecting current work:
 | Ticket-to-job foreign keys | Jobs table links to tickets and clankers via nullable FK columns | ON DELETE SET NULL preserves job history |
 | Fire-and-forget ticket run | POST /api/tickets/:id/run returns 202 before worker completes | Worker invocation is non-blocking with error logging |
 | Hardcoded tenant ID | Uses "api-server" tenantId for ticket-sourced jobs | To be replaced with real auth when implemented |
+| Job detail page server/client split | Server component for data fetching, client component for interactions | router.refresh() pattern for manual refresh |
+| Status badge color coding | queued=yellow, active=blue, completed=green, failed=red | Consistent visual feedback for job states |
 
 ### Roadmap Evolution
 
@@ -116,5 +118,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04.1-01-PLAN.md
+Stopped at: Completed 04.1-04-PLAN.md (Phase 4.1 complete)
 Resume file: None
