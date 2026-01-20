@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
 - [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
 - [x] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
-- [ ] **Phase 4.2: Testing** - Comprehensive testing coverage for worker execution flow (INSERTED)
+- [ ] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -179,29 +179,26 @@ Plans:
 
 ### Phase 4.2: Testing (INSERTED)
 
-**Goal**: Comprehensive testing coverage for worker execution flow.
+**Goal**: Pragmatic testing for worker execution flow - focus on error classification logic and retry behavior, skip trivial tests.
 
 **Depends on**: Phase 4.1
 
 **Requirements**: None (testing phase)
 
 **Success Criteria** (what must be TRUE):
-1. All worker invokers have unit tests (Lambda, ECS, Docker)
-2. WorkerExecutionService retry logic verified via tests
-3. OrphanSweeper behavior verified via tests
-4. Integration tests cover ticket-to-job flow
-5. Frontend components have unit tests (API client, modal)
+1. Error classification tested (transient vs permanent) - this is the business logic
+2. Retry logic tested with exponential backoff
+3. Orphan detection timeout behavior tested
+4. Integration tests verify end-to-end worker execution flow
 
-**Plans**: 5 plans in 2 waves
+**Plans**: 3 plans in 2 waves
 
 **Status**: In planning
 
 Plans:
-- [ ] 04.2-01-PLAN.md — Unit tests for WorkerError, WorkerInvokerFactory, and LambdaInvoker
-- [ ] 04.2-02-PLAN.md — Unit tests for EcsInvoker and DockerInvoker
-- [ ] 04.2-03-PLAN.md — Unit tests for WorkerExecutionService and OrphanSweeper
-- [ ] 04.2-04-PLAN.md — Integration tests for worker execution and ticket run flow
-- [ ] 04.2-05-PLAN.md — Frontend unit tests for job API and RunTicketModal
+- [ ] 04.2-01-PLAN.md — Error classification tests for Lambda/ECS/Docker invokers
+- [ ] 04.2-02-PLAN.md — Retry logic tests (WorkerExecutionService) and orphan detection (OrphanSweeper)
+- [ ] 04.2-03-PLAN.md — Integration tests for full worker execution flow
 
 ---
 
