@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
 - [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
 - [x] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
-- [ ] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
+- [x] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -193,12 +193,12 @@ Plans:
 
 **Plans**: 3 plans in 2 waves
 
-**Status**: In planning
+**Status**: Complete (2026-01-20)
 
 Plans:
-- [ ] 04.2-01-PLAN.md — Error classification tests for Lambda/ECS/Docker invokers
-- [ ] 04.2-02-PLAN.md — Retry logic tests (WorkerExecutionService) and orphan detection (OrphanSweeper)
-- [ ] 04.2-03-PLAN.md — Integration tests for full worker execution flow
+- [x] 04.2-01-PLAN.md — Error classification tests for Lambda/ECS/Docker invokers
+- [x] 04.2-02-PLAN.md — Retry logic tests (WorkerExecutionService) and orphan detection (OrphanSweeper)
+- [x] 04.2-03-PLAN.md — Integration tests for full worker execution flow
 
 ---
 

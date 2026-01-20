@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 4.2: Testing
+**Current focus:** Phase 5: Job Status Polling
 
 ## Current Position
 
-Phase: 4.2 of 12 (Testing) — Plan 3 of 3 complete
-Next: Phase 5 or next testing phase
-Status: Phase 4.2 complete
-Last activity: 2026-01-20 — Completed 04.2-03 (Worker execution integration tests)
+Phase: 4.2 of 12 (Testing) — PHASE COMPLETE
+Next: Phase 5 (Job Status Polling)
+Status: Phase complete
+Last activity: 2026-01-20 — Completed Phase 4.2
 
 Progress: [██████████] 61%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 61%
 | 04.2 | 3 | 3 | 6m |
 
 **Recent Trend:**
-- Last 5 plans: 5m, 2m, 7m, 4m, 8m
+- Last 5 plans: 6m, 8m, 8m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -112,6 +112,7 @@ Recent decisions affecting current work:
 | Service integration test pattern | Real WorkerExecutionService with mocked JobService | Tests service integration without database dependency |
 | AWS SDK boundary mocking | jest.mock() at module level for @aws-sdk/client-lambda/ecs | Prevents real AWS calls during integration tests |
 | dockerode mocking pattern | jest.mock() returning jest.fn().mockImplementation() | Works with default import in DockerInvoker |
+| Pragmatic testing approach | Focus on complex logic (error classification, retry), skip trivial tests | 134 tests for worker execution flow |
 
 ### Roadmap Evolution
 
@@ -129,5 +130,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04.2-03 (Worker execution integration tests)
+Stopped at: Phase 4.2 complete
 Resume file: None
