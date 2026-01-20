@@ -16,6 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Result Callback** - Workers POST results to platform API
 - [x] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
 - [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
+- [ ] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -145,6 +146,33 @@ Plans:
 - [x] 04-02-PLAN.md — Implement LambdaInvoker and EcsInvoker for AWS workers
 - [x] 04-03-PLAN.md — Implement DockerInvoker for local Docker workers
 - [x] 04-04-PLAN.md — Create WorkerExecutionService with retry logic and OrphanSweeper
+
+---
+
+### Phase 4.1: Allow Frontend to Invoke Workers and Initiate Jobs (INSERTED)
+
+**Goal**: Frontend can invoke workers and initiate jobs to run from tickets.
+
+**Depends on**: Phase 4
+
+**Requirements**: None (urgent insertion bridging UI to backend)
+
+**Success Criteria** (what must be TRUE):
+1. POST /api/tickets/:ticketId/run creates job and invokes worker
+2. Job record links to originating ticket and clanker
+3. Run button visible in ticket list with clanker selection modal
+4. Successful run shows toast and redirects to job detail page
+5. Job detail page displays status, PR link, error details
+
+**Plans**: 4 plans in 2 waves
+
+**Status**: Not started
+
+Plans:
+- [ ] 04.1-01-PLAN.md — Create run ticket API endpoint with job creation and worker invocation
+- [ ] 04.1-02-PLAN.md — Set up job API client and toast notifications
+- [ ] 04.1-03-PLAN.md — Create run ticket modal and ticket table with run actions
+- [ ] 04.1-04-PLAN.md — Create job detail page
 
 ---
 
