@@ -6,23 +6,23 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 4: Worker Execution
+**Current focus:** Phase 4.1: Allow Frontend to Invoke Workers
 
 ## Current Position
 
 Phase: 4.1 of 12 (Allow Frontend to Invoke Workers)
-Plan: 02 of 4 in current phase
+Plan: 1 of 4 in current phase
 Status: In progress
-Last activity: 2026-01-20 — Completed 04.1-02-PLAN.md
+Last activity: 2026-01-20 — Completed 04.1-01-PLAN.md
 
 Progress: [████████░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: ~3 minutes
-- Total execution time: 0.72 hours
+- Total execution time: 0.82 hours
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [████████░░] 47%
 | 02 | 2 | 2 | 2m |
 | 03 | 3 | 3 | 3m |
 | 04 | 4 | 4 | 3m |
+| 04.1 | 1 | 4 | 6m |
 
 **Recent Trend:**
-- Last 5 plans: N/A
-- Trend: N/A
+- Last 5 plans: 4m, 4m, 3m, 4m, 6m
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -96,6 +97,9 @@ Recent decisions affecting current work:
 | OrphanSweeper graceful shutdown | stop() clears interval on SIGTERM/SIGINT | Prevents memory leaks from setInterval |
 | sonner toast library | Headless, accessible, DX-friendly for user notifications | Toaster component in layout, 5s duration, bottom-right position |
 | Job API client pattern | fetch-based API calls with typed responses | runTicket(ticketId, clankerId), getJob(jobId) functions |
+| Ticket-to-job foreign keys | Jobs table links to tickets and clankers via nullable FK columns | ON DELETE SET NULL preserves job history |
+| Fire-and-forget ticket run | POST /api/tickets/:id/run returns 202 before worker completes | Worker invocation is non-blocking with error logging |
+| Hardcoded tenant ID | Uses "api-server" tenantId for ticket-sourced jobs | To be replaced with real auth when implemented |
 
 ### Roadmap Evolution
 
@@ -112,5 +116,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 04.1-02-PLAN.md
+Stopped at: Completed 04.1-01-PLAN.md
 Resume file: None
