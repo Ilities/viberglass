@@ -12,6 +12,7 @@ import {
   validateFileUploads,
   validateRunTicket,
 } from "../middleware/validation";
+import { randomUUID } from "crypto";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -329,7 +330,7 @@ router.post(
       }
 
       // Generate jobId
-      const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
       // Create job via JobService.submitJob with ticket and clanker references
       const jobData = {
