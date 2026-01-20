@@ -2,9 +2,15 @@ import db from "../persistence/config/database";
 import { JobData, JobResult } from "../types/Job";
 import { sql } from "kysely";
 
+export interface SubmitJobOptions {
+  ticketId?: string;
+  clankerId?: string;
+}
+
 export class JobService {
   async submitJob(
     data: JobData,
+    options?: SubmitJobOptions,
   ): Promise<{ jobId: string; status: string; timestamp: string }> {
     const jobId = data.id;
 
@@ -17,10 +23,12 @@ export class JobService {
         task: data.task,
         branch: data.branch || null,
         base_branch: data.baseBranch || null,
-        context: JSON.stringify(data.context),
-        settings: JSON.stringify(data.settings),
+        context: JSON.stringify(data.context || {}),
+        settings: JSON.stringify(data.settings || {}),
         status: "queued",
         progress: null,
+        ticket_id: options?.ticketId || null,
+        clanker_id: options?.clankerId || null,
         created_at: new Date(),
       })
       .execute();
@@ -29,6 +37,8 @@ export class JobService {
       jobId,
       repository: data.repository,
       tenantId: data.tenantId,
+      ticketId: options?.ticketId,
+      clankerId: options?.clankerId,
     });
 
     return {

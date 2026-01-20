@@ -10,6 +10,7 @@ import {
   deploymentStrategySchema,
   updateDeploymentStrategySchema,
   resultCallbackSchema,
+  runTicketSchema,
 } from "./schemas";
 
 export const validateCreateTicket = (
@@ -246,6 +247,27 @@ export const validateResultCallback = (
   next: NextFunction,
 ) => {
   const { error, value } = resultCallbackSchema.validate(req.body);
+
+  if (error) {
+    return res.status(400).json({
+      error: "Validation error",
+      details: error.details.map((detail) => ({
+        field: detail.path.join("."),
+        message: detail.message,
+      })),
+    });
+  }
+
+  req.body = value;
+  next();
+};
+
+export const validateRunTicket = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { error, value } = runTicketSchema.validate(req.body);
 
   if (error) {
     return res.status(400).json({
