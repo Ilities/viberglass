@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Result Callback** - Workers POST results to platform API
 - [x] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
 - [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
-- [ ] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
+- [x] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -166,13 +166,13 @@ Plans:
 
 **Plans**: 4 plans in 2 waves
 
-**Status**: Not started
+**Status**: Complete (2026-01-20)
 
 Plans:
-- [ ] 04.1-01-PLAN.md — Create run ticket API endpoint with job creation and worker invocation
-- [ ] 04.1-02-PLAN.md — Set up job API client and toast notifications
-- [ ] 04.1-03-PLAN.md — Create run ticket modal and ticket table with run actions
-- [ ] 04.1-04-PLAN.md — Create job detail page
+- [x] 04.1-01-PLAN.md — Create run ticket API endpoint with job creation and worker invocation
+- [x] 04.1-02-PLAN.md — Set up job API client and toast notifications
+- [x] 04.1-03-PLAN.md — Create run ticket modal and ticket table with run actions
+- [x] 04.1-04-PLAN.md — Create job detail page
 
 ---
 
