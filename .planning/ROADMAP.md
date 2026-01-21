@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
 - [x] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
 - [x] **Phase 4.3: Application organization and structural refactoring** - Code organization improvements (INSERTED)
+- [ ] **Phase 4.4: E2E Flow Verification** - Verify happy path and document infrastructure setup (INSERTED)
 - [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
@@ -226,6 +227,46 @@ Plans:
 - [x] 04.3-02-PLAN.md — Replace deprecated substr() with crypto.randomUUID()
 - [x] 04.3-03-PLAN.md — Remove mock fallbacks from frontend data.ts
 - [x] 04.3-04-PLAN.md — Replace 'as any' casts with proper types
+
+---
+
+### Phase 4.4: E2E Flow Verification (INSERTED)
+
+**Goal**: Verify the complete end-to-end happy path works and produce infrastructure setup documentation for local Docker and AWS ECS clankers.
+
+**Depends on**: Phase 4.3
+
+**Requirements**: None (verification and documentation phase)
+
+**Happy Path to Verify**:
+1. User navigates to platform frontend
+2. User creates a ticket for a project
+3. User configures a clanker (Docker or AWS ECS) successfully
+4. User enhances ticket with additional context
+5. User triggers the clanker to work on the ticket
+6. User follows progress via logs streamed to frontend
+7. User sees a pull request appear on GitHub with proposed fix
+
+**Success Criteria** (what must be TRUE):
+1. Happy path works end-to-end for Docker clanker locally
+2. Happy path works end-to-end for AWS ECS clanker
+3. Gaps in current implementation identified and documented
+4. Local infrastructure setup instructions complete and tested
+5. AWS infrastructure setup instructions complete and tested
+6. Log streaming to frontend functional during job execution
+
+**Plans**: 2 plans in 2 waves
+
+Plans:
+- [ ] 04.4-01-PLAN.md — Verify Docker E2E prerequisites and trace code flow
+- [ ] 04.4-02-PLAN.md — Create infrastructure setup documentation (Docker and ECS)
+
+**Details:**
+Plan 01 verifies prerequisites (Docker running, worker image, services) and traces the complete code flow from frontend to callback. Documents any gaps found (e.g., log streaming not yet implemented - Phase 7 scope).
+
+Plan 02 creates comprehensive setup documentation for both local Docker and AWS ECS deployments, including troubleshooting sections based on RESEARCH.md common pitfalls.
+
+**Status**: Planned
 
 ---
 
