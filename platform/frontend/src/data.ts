@@ -18,58 +18,32 @@ export interface TicketSummary {
 
 // Project functions
 export async function getProjectsList(): Promise<Project[]> {
-  try {
-    return await apiGetProjects()
-  } catch (error) {
-    console.warn('Failed to fetch projects:', error)
-    return []
-  }
+  return await apiGetProjects()
 }
 
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
-  try {
-    return await apiGetProjectBySlug(slug)
-  } catch (error) {
-    console.warn('Failed to fetch project:', error)
-    return null
-  }
+  return await apiGetProjectBySlug(slug)
 }
 
 // Ticket functions
 export async function getRecentTickets(projectSlug?: string): Promise<TicketSummary[]> {
-  try {
-    const tickets = await getTickets({ projectSlug, limit: 10 })
-    return tickets.map((ticket) => ({
-      id: ticket.id,
-      title: ticket.title,
-      severity: ticket.severity,
-      category: ticket.category,
-      timestamp: ticket.timestamp,
-      externalTicketId: ticket.externalTicketId,
-      ticketSystem: ticket.ticketSystem,
-      autoFixStatus: ticket.autoFixStatus,
-      status: ticket.externalTicketId ? 'resolved' : ticket.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
-    }))
-  } catch (error) {
-    console.warn('Using mock data for tickets:', error)
-    return getMockTickets()
-  }
+  const tickets = await getTickets({ projectSlug, limit: 10 })
+  return tickets.map((ticket) => ({
+    id: ticket.id,
+    title: ticket.title,
+    severity: ticket.severity,
+    category: ticket.category,
+    timestamp: ticket.timestamp,
+    externalTicketId: ticket.externalTicketId,
+    ticketSystem: ticket.ticketSystem,
+    autoFixStatus: ticket.autoFixStatus,
+    status: ticket.externalTicketId ? 'resolved' : ticket.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
+  }))
 }
 
 export async function getTicketDetails(id: string): Promise<Ticket | null> {
-  try {
-    const { getTicket } = await import('@/service/api/ticket-api')
-    return await getTicket(id)
-  } catch (error) {
-    console.warn('Failed to fetch ticket details:', error)
-    return null
-  }
-}
-
-export async function getTicketStats() {
-  // In a real implementation, you'd have an API endpoint for stats
-  // For now, return mock stats
-  return getMockTicketStats()
+  const { getTicket } = await import('@/service/api/ticket-api')
+  return await getTicket(id)
 }
 
 // Utility functions for ticket formatting
@@ -133,12 +107,8 @@ export function formatTimestamp(date: string | Date): string {
 }
 
 export async function triggerAutoFix(ticketId: string, ticketSystem: string, repositoryUrl?: string): Promise<void> {
-  try {
-    const { triggerAutoFix: apiTriggerAutoFix } = await import('@/service/api/ticket-api')
-    await apiTriggerAutoFix(ticketId, ticketSystem, repositoryUrl)
-  } catch (error) {
-    console.warn('Failed to trigger auto-fix:', error)
-  }
+  const { triggerAutoFix: apiTriggerAutoFix } = await import('@/service/api/ticket-api')
+  await apiTriggerAutoFix(ticketId, ticketSystem, repositoryUrl)
 }
 
 // Mock data for development
@@ -209,30 +179,15 @@ function getMockTicketStats() {
 
 // Clanker functions
 export async function getClankersList(): Promise<Clanker[]> {
-  try {
-    return await apiGetClankers()
-  } catch (error) {
-    console.warn('Failed to fetch clankers:', error)
-    return []
-  }
+  return await apiGetClankers()
 }
 
 export async function getClankerBySlug(slug: string): Promise<Clanker | null> {
-  try {
-    return await apiGetClankerBySlug(slug)
-  } catch (error) {
-    console.warn('Failed to fetch clanker:', error)
-    return null
-  }
+  return await apiGetClankerBySlug(slug)
 }
 
 export async function getDeploymentStrategiesList(): Promise<DeploymentStrategy[]> {
-  try {
-    return await apiGetDeploymentStrategies()
-  } catch (error) {
-    console.warn('Failed to fetch deployment strategies:', error)
-    return []
-  }
+  return await apiGetDeploymentStrategies()
 }
 
 // Utility functions for clanker formatting
