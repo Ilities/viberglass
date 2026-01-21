@@ -3,6 +3,9 @@ import type { Clanker } from '@viberator/types';
 import type { JobData } from '../../types/Job';
 import { WorkerInvoker, InvocationResult } from '../WorkerInvoker';
 import { WorkerError, ErrorClassification } from '../errors/WorkerError';
+import { createChildLogger } from '../../config/logger';
+
+const logger = createChildLogger({ invoker: 'ECS' });
 
 interface EcsDeploymentConfig {
   clusterArn: string;
@@ -76,7 +79,7 @@ export class EcsInvoker implements WorkerInvoker {
         );
       }
 
-      console.info('[EcsInvoker] Worker task started', {
+      logger.info('Worker task started', {
         jobId: job.id,
         taskArn,
         cluster: ecsConfig.clusterArn,

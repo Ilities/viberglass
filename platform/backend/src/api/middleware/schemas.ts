@@ -208,3 +208,12 @@ export const logEntrySchema = Joi.object({
   message: Joi.string().min(1).max(5000).required(),
   source: Joi.string().max(100).optional().allow(null, ''),
 });
+
+// Batch log entries schema for efficient bulk logging
+export const logBatchSchema = Joi.object({
+  logs: Joi.array()
+    .items(logEntrySchema)
+    .min(1)
+    .max(100) // Limit batch size to 100 logs
+    .required(),
+});

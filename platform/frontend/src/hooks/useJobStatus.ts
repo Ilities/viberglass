@@ -1,104 +1,149 @@
-import { useEffect, useRef, useState } from 'react'
-import { usePolling } from './usePolling'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getJob, JobStatus } from '@/service/api/job-api'
 import { toast } from 'sonner'
 
 export interface UseJobStatusResult {
   /** Latest job data from polling */
   job: JobStatus | null
-  /** Is a poll request currently in flight */
+  /** Is initial load in progress */
   isLoading: boolean
-  /** Error from last poll attempt */
+  /** Error from last fetch attempt */
   error: Error | null
   /** Is polling currently active */
   isPolling: boolean
-  /** Manually trigger a poll */
+  /** Manually trigger a fetch */
   refetch: () => Promise<void>
 }
 
+const POLL_INTERVAL = 3000
+
 /**
- * Job-specific polling hook with toast notifications.
+ * Job-specific hook with initial fetch and polling for updates.
  *
- * This hook polls job status every 3 seconds and shows toast notifications
- * when jobs complete or fail. Polling stops automatically when the job
- * reaches a terminal state (completed or failed).
- *
- * Toast notifications only appear on status changes, not on initial mount.
+ * This hook:
+ * 1. Fetches job data immediately when jobId is available
+ * 2. Polls for status/log updates every 3 seconds
+ * 3. Shows toast notifications when jobs complete or fail
+ * 4. Stops polling when job reaches terminal state (completed/failed)
  *
  * @param jobId - The job ID to poll for status (can be undefined during initial render)
  * @returns Job state and control functions
  */
 export function useJobStatus(jobId: string | undefined): UseJobStatusResult {
-  // Track previous status to detect changes for toast notifications
-  const [previousStatus, setPreviousStatus] = useState<string | null>(null)
-
-  // Track loading state explicitly - this fixes the issue where computed
-  // isLoading (!data && !error) never becomes false due to dependency issues
+  const [job, setJob] = useState<JobStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const [isPolling, setIsPolling] = useState(false)
 
-  // Track if we've received data at least once
-  const hasReceivedData = useRef(false)
+  const previousStatusRef = useRef<string | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Use the generic polling hook
-  const { data, error, isPolling, refetch } = usePolling<JobStatus>({
-    fn: () => getJob(jobId!),
-    interval: 3000, // 3 seconds
-    immediate: true,
-    enabled: !!jobId, // Only poll if jobId exists
-    onComplete: (job) => {
-      const isTerminal = job.status === 'completed' || job.status === 'failed'
-      const statusChanged = previousStatus !== null && previousStatus !== job.status
+  // Determine if job is in terminal state
+  const isTerminal = job?.status === 'completed' || job?.status === 'failed'
 
-      // Show toast notification on status change to terminal state
-      if (isTerminal && statusChanged) {
-        if (job.status === 'completed') {
+  // Fetch job data and handle status changes
+  const fetchJob = useCallback(async () => {
+    if (!jobId) return
+
+    try {
+      const jobData = await getJob(jobId)
+      setJob(jobData)
+      setError(null)
+
+      // Check for status change to terminal state for toast
+      const prevStatus = previousStatusRef.current
+      const statusChanged = prevStatus !== null && prevStatus !== jobData.status
+      const nowTerminal = jobData.status === 'completed' || jobData.status === 'failed'
+
+      if (nowTerminal && statusChanged) {
+        if (jobData.status === 'completed') {
           toast.success('Job completed successfully', {
             description: 'Your changes have been applied',
-            action: job.result?.pullRequestUrl
+            action: jobData.result?.pullRequestUrl
               ? {
                   label: 'View PR',
-                  onClick: () => window.open(job.result!.pullRequestUrl!, '_blank'),
+                  onClick: () => window.open(jobData.result!.pullRequestUrl!, '_blank'),
                 }
               : undefined,
           })
-        } else if (job.status === 'failed') {
+        } else if (jobData.status === 'failed') {
           toast.error('Job failed', {
-            description: job.result?.errorMessage || job.failedReason || 'An error occurred',
+            description: jobData.result?.errorMessage || jobData.failedReason || 'An error occurred',
           })
         }
       }
 
-      // Update previous status for next comparison
-      setPreviousStatus(job.status)
+      previousStatusRef.current = jobData.status
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch job'))
+    }
+  }, [jobId])
 
-      // Stop polling when terminal state is reached
-      return isTerminal
-    },
-  })
-
-  // Manage isLoading state explicitly based on data/error changes
+  // Initial fetch when jobId becomes available
   useEffect(() => {
-    // If we have data, we're done loading
-    if (data) {
-      hasReceivedData.current = true
-      setIsLoading(false)
-      return
-    }
-
-    // If we have an error and haven't received data yet, we're done loading
-    if (error && !hasReceivedData.current) {
-      setIsLoading(false)
-      return
-    }
-
-    // Reset loading state when jobId changes (component is now loading new data)
-    if (jobId && !hasReceivedData.current) {
+    if (!jobId) {
+      setJob(null)
+      setError(null)
       setIsLoading(true)
+      previousStatusRef.current = null
+      return
     }
-  }, [data, error, jobId])
+
+    // Reset and fetch for new jobId
+    setIsLoading(true)
+    previousStatusRef.current = null
+
+    getJob(jobId)
+      .then((jobData) => {
+        setJob(jobData)
+        previousStatusRef.current = jobData.status
+        setIsLoading(false)
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error('Failed to fetch job'))
+        setIsLoading(false)
+      })
+  }, [jobId])
+
+  // Set up polling interval
+  useEffect(() => {
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    // Don't poll if no jobId or job is in terminal state
+    if (!jobId || isTerminal) {
+      setIsPolling(false)
+      return
+    }
+
+    // Start polling
+    setIsPolling(true)
+    intervalRef.current = setInterval(() => {
+      fetchJob()
+    }, POLL_INTERVAL)
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [jobId, isTerminal, fetchJob])
+
+  // Manual refetch
+  const refetch = useCallback(async () => {
+    if (!jobId) return
+    setIsLoading(true)
+    await fetchJob()
+    setIsLoading(false)
+  }, [jobId, fetchJob])
 
   return {
-    job: data,
+    job,
     isLoading,
     error,
     isPolling,

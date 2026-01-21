@@ -7,6 +7,9 @@ import {
   GetParametersByPathCommand,
 } from '@aws-sdk/client-ssm';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
+import { createChildLogger } from '../../config/logger';
+
+const logger = createChildLogger({ component: 'AwsSsmProvider' });
 
 /**
  * AWS SSM Parameter Store credential provider
@@ -103,7 +106,7 @@ export class AwsSsmProvider implements CredentialProvider {
       }
 
       // Log error but don't expose details
-      console.error(`[AwsSsmProvider] Failed to get parameter: ${path}`);
+      logger.error('Failed to get parameter', { path });
 
       // Clear cache on error
       this.cache.delete(path);
@@ -134,7 +137,7 @@ export class AwsSsmProvider implements CredentialProvider {
         expiry: Date.now() + this.ttl,
       });
     } catch (error) {
-      console.error(`[AwsSsmProvider] Failed to put parameter: ${path}`);
+      logger.error('Failed to put parameter', { path });
       throw new Error(`Failed to store credential in SSM: ${(error as Error).message}`);
     }
   }
@@ -162,7 +165,7 @@ export class AwsSsmProvider implements CredentialProvider {
         return;
       }
 
-      console.error(`[AwsSsmProvider] Failed to delete parameter: ${path}`);
+      logger.error('Failed to delete parameter', { path });
       throw new Error(`Failed to delete credential from SSM: ${(error as Error).message}`);
     }
   }
@@ -189,7 +192,7 @@ export class AwsSsmProvider implements CredentialProvider {
       }
 
       // Other errors mean SSM is not accessible
-      console.warn('[AwsSsmProvider] SSM not accessible:', (error as Error).message);
+      logger.warn('SSM not accessible', { error: (error as Error).message });
       return false;
     }
   }
@@ -224,7 +227,7 @@ export class AwsSsmProvider implements CredentialProvider {
       if (errorName === 'ParameterNotFound') {
         return [];
       }
-      console.error(`[AwsSsmProvider] Failed to list keys for tenant: ${tenantId}`);
+      logger.error('Failed to list keys for tenant', { tenantId });
       return [];
     }
   }

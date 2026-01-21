@@ -1,6 +1,9 @@
 import type { Clanker } from '@viberator/types';
 import type { ClankerHealthStatus } from '@viberator/types';
 import { getWorkerInvokerFactory } from '../workers/WorkerInvokerFactory';
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ service: 'ClankerHealthService' });
 
 export class ClankerHealthService {
   constructor() {}
@@ -31,7 +34,10 @@ export class ClankerHealthService {
       const invoker = factory.getInvokerForClanker(clanker);
       checks.invokerAvailable = await invoker.isAvailable();
     } catch (error) {
-      console.warn(`[ClankerHealthService] Failed to get invoker for clanker ${clanker.id}:`, error);
+      logger.warn('Failed to get invoker for clanker', {
+        clankerId: clanker.id,
+        error: error instanceof Error ? error.message : error,
+      });
       checks.invokerAvailable = false;
     }
 

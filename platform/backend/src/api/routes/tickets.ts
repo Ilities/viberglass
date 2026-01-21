@@ -13,6 +13,7 @@ import {
   validateRunTicket,
 } from "../middleware/validation";
 import { randomUUID } from "crypto";
+import logger from "../../config/logger";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -64,7 +65,7 @@ router.post(
         data: ticket,
       });
     } catch (error) {
-      console.error("Error creating ticket:", error);
+      logger.error('Error creating ticket', { error: error instanceof Error ? error.message : error });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to create ticket",
@@ -89,7 +90,7 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
       data: ticket,
     });
   } catch (error) {
-    console.error("Error fetching ticket:", error);
+    logger.error('Error fetching ticket', { error: error instanceof Error ? error.message : error });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch ticket",
@@ -124,7 +125,7 @@ router.put(
         data: updatedTicket,
       });
     } catch (error) {
-      console.error("Error updating ticket:", error);
+      logger.error('Error updating ticket', { error: error instanceof Error ? error.message : error });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to update ticket",
@@ -149,7 +150,7 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
       message: "Ticket deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting ticket:", error);
+    logger.error('Error deleting ticket', { error: error instanceof Error ? error.message : error });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to delete ticket",
@@ -209,7 +210,7 @@ router.get("/", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching tickets:", error);
+    logger.error('Error fetching tickets', { error: error instanceof Error ? error.message : error });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch tickets",
@@ -258,7 +259,7 @@ router.get(
         },
       });
     } catch (error) {
-      console.error("Error generating signed URL:", error);
+      logger.error('Error generating signed URL', { error: error instanceof Error ? error.message : error });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to generate signed URL",
@@ -288,7 +289,7 @@ router.post(
       // Get project by ticket.projectId
       const project = await projectService.getProject(ticket.projectId);
       if (!project) {
-        console.error("[TicketRun] Project not found for ticket", {
+        logger.error('Project not found for ticket', {
           ticketId,
           projectId: ticket.projectId,
         });
@@ -361,7 +362,7 @@ router.post(
       workerExecutionService
         .executeJob(jobData, clanker)
         .then((result) => {
-          console.info("[TicketRun] Worker invoked successfully", {
+          logger.info('Worker invoked successfully', {
             ticketId,
             jobId,
             clankerId,
@@ -369,7 +370,7 @@ router.post(
           });
         })
         .catch((error) => {
-          console.error("[TicketRun] Worker invocation failed", {
+          logger.error('Worker invocation failed', {
             ticketId,
             jobId,
             clankerId,
@@ -386,7 +387,7 @@ router.post(
         },
       });
     } catch (error) {
-      console.error("Error running ticket:", error);
+      logger.error('Error running ticket', { error: error instanceof Error ? error.message : error });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to run ticket",

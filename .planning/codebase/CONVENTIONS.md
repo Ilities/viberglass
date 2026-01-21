@@ -116,7 +116,7 @@ try {
 try {
   // operation
 } catch (error) {
-  console.error('Failed to enqueue job', { error });
+  logger.error('Failed to enqueue job', { error: error instanceof Error ? error.message : error });
   res.status(500).json({
     error: error instanceof Error ? error.message : 'Internal server error',
   });
@@ -125,27 +125,64 @@ try {
 
 ## Logging
 
-**Framework:** Winston (used in orchestrator), console.log (used in backend services)
+**Framework:** Winston (used in all packages)
+
+**Configuration:**
+- Logger configuration in `platform/backend/src/config/logger.ts`
+- Environment-based: development (debug level, colorized), production (info level, JSON + file rotation), test (minimal output)
+- Integrated with `logRedaction.ts` for automatic sensitive data redaction
+- File rotation in production: `logs/error-YYYY-MM-DD.log` and `logs/combined-YYYY-MM-DD.log`
 
 **Patterns:**
-- Use structured logging with objects: `this.logger.info('Cloning repository', { repoUrl, branch })`
-- Log levels: `info`, `warn`, `error`, `debug`
+- **NEVER use console.log/error/warn/info/debug** - always use Winston logger
+- Import logger: `import logger from '../config/logger'` (default logger)
+- Use child loggers for context: `const logger = createChildLogger({ service: 'ServiceName' })`
+- Use structured logging with objects: `logger.info('Operation completed', { jobId, status })`
+- Log levels: `error`, `warn`, `info`, `debug`
 - Include context in log objects for debugging
-- Use descriptive log messages with operation context
+- Use descriptive log messages with operation context (avoid manual prefixes like `[ServiceName]`)
 
-**Winston example from `/home/jussi/Development/viberator/viberator/app/src/services/GitService.ts`:**
+**Child logger pattern (preferred for services/workers):**
 
 ```typescript
-this.logger.info('Cloning repository', { repoUrl, branch });
-this.logger.debug('Repository cloned successfully', { repoUrl, branch });
-this.logger.error('Git clone failed', { error: errorMessage });
-this.logger.warn('No authentication applied - URL unchanged. Check if token is set.');
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ service: 'JobService' });
+// or
+const logger = createChildLogger({ worker: 'OrphanSweeper' });
+// or
+const logger = createChildLogger({ invoker: 'Docker' });
+
+// Logs automatically include the context
+logger.info('Job enqueued', { jobId, repository, tenantId });
+// Output: [JobService] Job enqueued { jobId: '...', repository: '...', tenantId: '...' }
 ```
 
-**Console logging in backend services from `/home/jussi/Development/viberator/platform/backend/src/services/JobService.ts`:**
+**Default logger pattern (for routes/simple cases):**
 
 ```typescript
-console.log(\`[JobService] Job ${jobId} enqueued\`, { jobId, repository, tenantId });
+import logger from '../config/logger';
+
+logger.error('Failed to enqueue job', { error: error instanceof Error ? error.message : error });
+logger.info('Server started', { port, env: process.env.NODE_ENV });
+```
+
+**Error logging pattern:**
+
+```typescript
+try {
+  // operation
+} catch (error) {
+  logger.error('Operation failed', {
+    error: error instanceof Error ? error.message : error,
+    context: 'additional context'
+  });
+  // or with stack trace for debugging
+  logger.error('Critical failure', {
+    error: error instanceof Error ? error.message : error,
+    stack: error instanceof Error ? error.stack : undefined
+  });
+}
 ```
 
 ## Comments

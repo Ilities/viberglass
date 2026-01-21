@@ -1,4 +1,7 @@
 import { JobService } from '../services/JobService';
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ worker: 'HeartbeatSweeper' });
 
 export interface HeartbeatSweeperConfig {
   sweepIntervalMs?: number;  // How often to check (default: 60 seconds)
@@ -22,23 +25,23 @@ export class HeartbeatSweeper {
    */
   start(): void {
     if (this.intervalId) {
-      console.warn('[HeartbeatSweeper] Already running');
+      logger.warn('Already running');
       return;
     }
 
-    console.info('[HeartbeatSweeper] Starting stale job detection sweep', {
+    logger.info('Starting stale job detection sweep', {
       sweepIntervalMs: this.config.sweepIntervalMs,
       gracePeriodMs: this.config.gracePeriodMs,
     });
 
     // Run immediately on start, then at interval
     this.sweep().catch(error => {
-      console.error('[HeartbeatSweeper] Initial sweep failed', { error });
+      logger.error('Initial sweep failed', { error: error instanceof Error ? error.message : error });
     });
 
     this.intervalId = setInterval(() => {
       this.sweep().catch(error => {
-        console.error('[HeartbeatSweeper] Sweep failed', { error });
+        logger.error('Sweep failed', { error: error instanceof Error ? error.message : error });
       });
     }, this.config.sweepIntervalMs);
   }
@@ -50,7 +53,7 @@ export class HeartbeatSweeper {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.info('[HeartbeatSweeper] Stopped');
+      logger.info('Stopped');
     }
   }
 
@@ -60,12 +63,12 @@ export class HeartbeatSweeper {
   async sweep(): Promise<number> {
     const staleThreshold = new Date(Date.now() - this.config.gracePeriodMs);
 
-    console.debug('[HeartbeatSweeper] Running sweep', { staleThreshold });
+    logger.debug('Running sweep', { staleThreshold });
 
     const staleJobs = await this.jobService.findStaleJobs(staleThreshold);
 
     for (const job of staleJobs) {
-      console.warn('[HeartbeatSweeper] Marking job as failed (no heartbeat)', {
+      logger.warn('Marking job as failed (no heartbeat)', {
         jobId: job.id,
         startedAt: job.started_at,
         lastHeartbeat: job.last_heartbeat,
@@ -77,7 +80,7 @@ export class HeartbeatSweeper {
     }
 
     if (staleJobs.length > 0) {
-      console.info('[HeartbeatSweeper] Sweep completed', {
+      logger.info('Sweep completed', {
         staleCount: staleJobs.length,
       });
     }

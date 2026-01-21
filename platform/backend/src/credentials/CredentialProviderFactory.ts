@@ -3,6 +3,9 @@ import { EnvironmentProvider } from './providers/EnvironmentProvider';
 import { FileProvider } from './providers/FileProvider';
 import { AwsSsmProvider } from './providers/AwsSsmProvider';
 import type { CredentialConfig } from '../config/credentials';
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ component: 'CredentialProviderFactory' });
 
 /**
  * Credential Provider Factory
@@ -45,7 +48,7 @@ export class CredentialProviderFactory implements CredentialProvider {
           encryptionKey: config.file.encryptionKey,
         }));
       } catch (error) {
-        console.warn('[CredentialFactory] Failed to initialize FileProvider:', (error as Error).message);
+        logger.warn('Failed to initialize FileProvider', { error: (error as Error).message });
       }
     }
 
@@ -57,7 +60,7 @@ export class CredentialProviderFactory implements CredentialProvider {
           pathPrefix: config.aws.pathPrefix,
         }));
       } catch (error) {
-        console.warn('[CredentialFactory] Failed to initialize AwsSsmProvider:', (error as Error).message);
+        logger.warn('Failed to initialize AwsSsmProvider', { error: (error as Error).message });
       }
     }
 
@@ -65,7 +68,8 @@ export class CredentialProviderFactory implements CredentialProvider {
       throw new Error('No credential providers configured. Enable at least one provider.');
     }
 
-    console.info(`[CredentialFactory] Initialized ${providers.length} provider(s):`, {
+    logger.info('Initialized providers', {
+      count: providers.length,
       providers: providers.map(p => p.name),
     });
 
@@ -83,7 +87,7 @@ export class CredentialProviderFactory implements CredentialProvider {
         const value = await provider.get(tenantId, key);
 
         if (value !== null) {
-          console.debug(`[CredentialFactory] Credential found in ${provider.name}`, {
+          logger.debug('Credential found', {
             tenantId,
             key,
             provider: provider.name,
@@ -92,7 +96,7 @@ export class CredentialProviderFactory implements CredentialProvider {
         }
       } catch (error) {
         lastError = error as Error;
-        console.warn(`[CredentialFactory] Provider ${provider.name} failed, trying next`, {
+        logger.warn('Provider failed, trying next', {
           tenantId,
           key,
           provider: provider.name,
@@ -103,7 +107,7 @@ export class CredentialProviderFactory implements CredentialProvider {
 
     // All providers exhausted
     if (lastError) {
-      console.warn(`[CredentialFactory] All providers failed`, {
+      logger.warn('All providers failed', {
         tenantId,
         key,
         lastError: lastError.message,
@@ -122,7 +126,7 @@ export class CredentialProviderFactory implements CredentialProvider {
     for (const provider of this.providers) {
       try {
         await provider.put(tenantId, key, value);
-        console.info(`[CredentialFactory] Credential stored in ${provider.name}`, {
+        logger.info('Credential stored', {
           tenantId,
           key,
           provider: provider.name,
@@ -148,7 +152,7 @@ export class CredentialProviderFactory implements CredentialProvider {
     for (const provider of this.providers) {
       try {
         await provider.delete(tenantId, key);
-        console.info(`[CredentialFactory] Credential deleted from ${provider.name}`, {
+        logger.info('Credential deleted', {
           tenantId,
           key,
           provider: provider.name,
@@ -190,8 +194,9 @@ export class CredentialProviderFactory implements CredentialProvider {
             return keys;
           }
         } catch (error) {
-          console.warn(`[CredentialFactory] Failed to list keys from ${provider.name}`, {
+          logger.warn('Failed to list keys from provider', {
             tenantId,
+            provider: provider.name,
             error: (error as Error).message,
           });
         }

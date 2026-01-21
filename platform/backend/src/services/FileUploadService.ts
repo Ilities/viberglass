@@ -1,12 +1,18 @@
-import AWS from 'aws-sdk';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import type { MediaAsset } from '@viberator/types';
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ service: 'FileUploadService' });
 
 // Configure AWS S3
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+const s3 = new S3Client({
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
   region: process.env.AWS_REGION || 'us-east-1',
 });
 
@@ -44,35 +50,38 @@ export class FileUploadService {
     const fileExtension = this.getFileExtension(file.originalname);
     const filename = `${fileId}${fileExtension}`;
     const key = `${prefix}/${filename}`;
-    
-    const uploadParams: AWS.S3.PutObjectRequest = {
+
+    const uploadParams = {
       Bucket: bucketName,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-      ACL: 'private', // Files are private by default
       Metadata: {
         originalName: file.originalname,
         uploadedAt: new Date().toISOString(),
       }
     };
-    
+
     try {
-      const result = await s3.upload(uploadParams).promise();
-      
+      await s3.send(new PutObjectCommand(uploadParams));
+
+      // Construct the S3 URL
+      const region = process.env.AWS_REGION || 'us-east-1';
+      const url = `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+
       const mediaAsset: MediaAsset = {
         id: fileId,
         filename: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        url: result.Location,
+        url,
         uploadedAt: new Date().toISOString()
       };
-      
+
       return mediaAsset;
-      
+
     } catch (error) {
-      console.error('Error uploading file to S3:', error);
+      logger.error('Error uploading file to S3', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to upload file');
     }
   }
@@ -86,16 +95,15 @@ export class FileUploadService {
   }
   
   async generateSignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
-    const params = {
+    const command = new GetObjectCommand({
       Bucket: bucketName,
       Key: key,
-      Expires: expiresIn
-    };
-    
+    });
+
     try {
-      return await s3.getSignedUrlPromise('getObject', params);
+      return await getSignedUrl(s3, command, { expiresIn });
     } catch (error) {
-      console.error('Error generating signed URL:', error);
+      logger.error('Error generating signed URL', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to generate signed URL');
     }
   }
@@ -105,11 +113,11 @@ export class FileUploadService {
       Bucket: bucketName,
       Key: key
     };
-    
+
     try {
-      await s3.deleteObject(params).promise();
+      await s3.send(new DeleteObjectCommand(params));
     } catch (error) {
-      console.error('Error deleting file from S3:', error);
+      logger.error('Error deleting file from S3', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to delete file');
     }
   }
