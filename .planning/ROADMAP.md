@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
 - [x] **Phase 4.3: Application organization and structural refactoring** - Code organization improvements (INSERTED)
 - [x] **Phase 4.4: E2E Flow Verification** - Verify happy path and document infrastructure setup (INSERTED)
-- [ ] **Phase 5: Job Status Polling** - Frontend displays current job status
+- [x] **Phase 5: Job Status Polling** - Frontend displays current job status
 - [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
 - [ ] **Phase 8: Webhook Provider Architecture** - Provider-agnostic webhook integration with GitHub as first implementation
@@ -278,12 +278,12 @@ Plan 02 creates comprehensive setup documentation for both local Docker and AWS 
 
 **Plans**: 3 plans in 3 waves
 
-**Status**: Not started
+**Status**: Complete (2026-01-21)
 
 Plans:
-- [ ] 05-01-PLAN.md — Create useInterval and usePolling hooks
-- [ ] 05-02-PLAN.md — Create useJobStatus hook with toast notifications
-- [ ] 05-03-PLAN.md — Create JobStatusIndicator component and integrate polling into job detail page
+- [x] 05-01-PLAN.md — Create useInterval and usePolling hooks
+- [x] 05-02-PLAN.md — Create useJobStatus hook with toast notifications
+- [x] 05-03-PLAN.md — Create JobStatusIndicator component and integrate polling into job detail page
 
 ---
 

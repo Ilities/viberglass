@@ -6,23 +6,23 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 5: Job Status Polling
+**Current focus:** Phase 6: Clanker Static Status
 
 ## Current Position
 
 Phase: 5 of 12 (Job Status Polling) — COMPLETE
-Plan: 03 of 3 (Animated Status Indicator)
-Status: Job status polling with animated indicator and client-side job detail page complete
-Last activity: 2026-01-21 — Completed JobStatusIndicator and job detail page polling integration
+Next: Plan Phase 6 (Clanker Static Status)
+Status: Phase 5 verified, 18/18 must-haves passed
+Last activity: 2026-01-21 — Job status polling complete with animated indicator, toast notifications, and client-side polling
 
-Progress: [█████████░] 86%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39
+- Total plans completed: 37
 - Average duration: ~4 minutes
-- Total execution time: 2.6 hours
+- Total execution time: 2.5 hours
 
 **By Phase:**
 
