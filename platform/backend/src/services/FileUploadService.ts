@@ -1,7 +1,7 @@
 import AWS from 'aws-sdk';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
-import { MediaAsset } from '../models/BugReport';
+import type { MediaAsset } from '@viberator/types';
 
 // Configure AWS S3
 const s3 = new AWS.S3({
