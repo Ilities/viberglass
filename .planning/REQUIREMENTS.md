@@ -38,11 +38,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Clanker Status Display
 
-- [ ] **STAT-01**: Platform displays clanker static status (resource exists, connected, ready)
-- [ ] **STAT-02**: Worker POSTs heartbeat to platform API during task execution
-- [ ] **STAT-03**: Worker POSTs progress updates to platform API
-- [ ] **STAT-04**: Platform stores and displays runtime status history
-- [ ] **STAT-05**: Frontend shows real-time status updates for active clankers
+- [x] **STAT-01**: Platform displays clanker static status (resource exists, connected, ready)
+- [x] **STAT-02**: Worker POSTs heartbeat to platform API during task execution
+- [x] **STAT-03**: Worker POSTs progress updates to platform API
+- [x] **STAT-04**: Platform stores and displays runtime status history
+- [x] **STAT-05**: Frontend shows real-time status updates for active clankers
 
 ### Local Development
 
@@ -135,10 +135,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WRK-04 | Phase 3 | Complete |
 | WRK-05 | Phase 3 | Complete |
 | STAT-01 | Phase 6 | Complete |
-| STAT-02 | Phase 7 | Pending |
-| STAT-03 | Phase 7 | Pending |
-| STAT-04 | Phase 7 | Pending |
-| STAT-05 | Phase 7 | Pending |
+| STAT-02 | Phase 7 | Complete |
+| STAT-03 | Phase 7 | Complete |
+| STAT-04 | Phase 7 | Complete |
+| STAT-05 | Phase 7 | Complete |
 | DEV-01 | Phase 9 | Pending |
 | DEV-02 | Phase 9 | Pending |
 | DEV-03 | Phase 9 | Pending |
