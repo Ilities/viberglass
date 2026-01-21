@@ -4,6 +4,7 @@ import app from './app';
 import * as http from 'http';
 import * as dotenv from 'dotenv';
 import { OrphanSweeper } from '../workers/OrphanSweeper';
+import { HeartbeatSweeper } from '../workers/HeartbeatSweeper';
 
 // Load environment variables
 dotenv.config();
@@ -12,6 +13,12 @@ dotenv.config();
 const orphanSweeper = new OrphanSweeper({
   sweepIntervalMs: parseInt(process.env.ORPHAN_SWEEP_INTERVAL_MS || '60000', 10),
   jobTimeoutMs: parseInt(process.env.ORPHAN_JOB_TIMEOUT_MS || '1800000', 10),
+});
+
+// Initialize heartbeat sweeper for stale job detection
+const heartbeatSweeper = new HeartbeatSweeper({
+  sweepIntervalMs: parseInt(process.env.HEARTBEAT_SWEEP_INTERVAL_MS || '60000', 10),
+  gracePeriodMs: parseInt(process.env.HEARTBEAT_GRACE_PERIOD_MS || '300000', 10),
 });
 
 // Normalize a port into a number, string, or false
@@ -79,9 +86,11 @@ function onListening(): void {
 
   console.log('[DEBUG_LOG] Server ready to receive bug reports!');
   console.log('[DEBUG_LOG] Starting orphan sweeper for stuck job detection...');
+  console.log('[DEBUG_LOG] Starting heartbeat sweeper for stale job detection...');
 
   // Start orphan sweeper after server is listening
   orphanSweeper.start();
+  heartbeatSweeper.start();
 }
 
 // Get port from environment and store in Express
@@ -100,6 +109,7 @@ server.on('listening', onListening);
 process.on('SIGTERM', () => {
   console.log('[DEBUG_LOG] SIGTERM received, shutting down gracefully...');
   orphanSweeper.stop();
+  heartbeatSweeper.stop();
   server.close(() => {
     console.log('[DEBUG_LOG] Server closed');
     process.exit(0);
@@ -109,6 +119,7 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   console.log('[DEBUG_LOG] SIGINT received, shutting down gracefully...');
   orphanSweeper.stop();
+  heartbeatSweeper.stop();
   server.close(() => {
     console.log('[DEBUG_LOG] Server closed');
     process.exit(0);
