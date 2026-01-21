@@ -134,7 +134,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WRK-03 | Phase 3 | Complete |
 | WRK-04 | Phase 3 | Complete |
 | WRK-05 | Phase 3 | Complete |
-| STAT-01 | Phase 6 | Pending |
+| STAT-01 | Phase 6 | Complete |
 | STAT-02 | Phase 7 | Pending |
 | STAT-03 | Phase 7 | Pending |
 | STAT-04 | Phase 7 | Pending |
