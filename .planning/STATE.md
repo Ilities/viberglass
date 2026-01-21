@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 6 of 12 (Clanker Static Status) — COMPLETE
-Next: Plan Phase 7 (Clanker Runtime Status)
-Status: Phase 6 verified, 10/11 must-haves passed
-Last activity: 2026-01-21 — Clanker static status with health badge, detail page integration, and manual refresh
+Phase: 7 of 12 (Clanker Runtime Status) — In Progress
+Plan: 1 of 4 (Database Schema for Heartbeat and Progress)
+Status: Plan 07-01 complete
+Last activity: 2026-01-21 — Database migration and TypeScript types for job heartbeat tracking
 
-Progress: [█████████░] 87%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 42
+- Total plans completed: 43
 - Average duration: ~4 minutes
-- Total execution time: 2.7 hours
+- Total execution time: 2.8 hours
 
 **By Phase:**
 
@@ -38,6 +38,7 @@ Progress: [█████████░] 87%
 | 04.4 | 2 | 2 | 10m |
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
+| 07 | 1 | 4 | 2m |
 
 **Recent Trend:**
 - Last 5 plans: 6m, 4m, 3m, 4m, 3m
@@ -74,6 +75,10 @@ Recent decisions affecting current work:
 | Animated status indicators | Use motion/react with conditional animation for visual feedback | JobStatusIndicator pulses when job is active + polling |
 | Three-tier clanker health checks | resourceExists (DB), deploymentConfigured (strategy+config), invokerAvailable (connectivity) | ClankerHealthService validates all three before marking healthy |
 | Server-client component separation | Keep main page as server component, use client components for interactivity | ClankerHealth is a client component while page.tsx remains server component for SSR |
+| UUID primary keys for new tables | Consistent with modern PostgreSQL practices, better than varchar for performance | job_progress_updates and job_log_lines use uuid |
+| ON DELETE CASCADE foreign keys | Automatic cleanup when jobs are deleted prevents orphaned records | progress and log tables cascade on job deletion |
+| Partial index on last_heartbeat | Optimizes stale job queries without index bloat, only indexes active jobs | idx_jobs_last_heartbeat has WHERE status = 'active' |
+| Separated progress from log tables | Different query patterns (history vs streaming) warrant separate storage | job_progress_updates for timeline, job_log_lines for streaming |
 
 ### Roadmap Evolution
 
@@ -90,9 +95,10 @@ None yet.
 
 - Frontend static build requires backend running on port 8888 (expected behavior for SSR with data fetching)
 - Log streaming not implemented (mapped to Phase 7)
+- Progress updates API not implemented (mapped to Phase 7, plan 02)
 
 ## Session Continuity
 
 Last session: 2026-01-21
-Stopped at: Completed Phase 6 Plan 02 - Clanker Health Badge UI
+Stopped at: Completed Phase 7 Plan 01 - Database Schema for Heartbeat and Progress
 Resume file: None
