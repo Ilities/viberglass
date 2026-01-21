@@ -1,26 +1,13 @@
-import { notFound } from 'next/navigation'
-import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ClockIcon } from '@heroicons/react/20/solid'
-import { Badge } from '@/components/badge'
+'use client'
+
+import { useParams } from 'next/navigation'
+import { ArrowLeftIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid'
+import { useJobStatus } from '@/hooks/useJobStatus'
+import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableRow } from '@/components/table'
-import { getJob } from '@/service/api/job-api'
 import { JobRefreshButton } from './job-refresh-button'
-
-function formatJobStatus(status: string): { label: string; color: string } {
-  switch (status) {
-    case 'completed':
-      return { label: 'Completed', color: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200' }
-    case 'active':
-      return { label: 'Running', color: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200' }
-    case 'queued':
-      return { label: 'Queued', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-200' }
-    case 'failed':
-      return { label: 'Failed', color: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200' }
-    default:
-      return { label: status, color: 'bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-zinc-200' }
-  }
-}
 
 function formatDuration(start: string | null, end: string | null): string {
   if (!start) return '-'
@@ -36,22 +23,25 @@ function formatDuration(start: string | null, end: string | null): string {
   return `${seconds}s`
 }
 
-export default async function JobDetailPage({
-  params,
-}: {
-  params: Promise<{ project: string; jobId: string }>
-}) {
-  const { project, jobId } = await params
+export default function JobDetailPage() {
+  const { jobId, project } = useParams<{ project: string; jobId: string }>()
+  const { job, isLoading, error, isPolling } = useJobStatus(jobId)
 
-  let job
-  try {
-    job = await getJob(jobId)
-  } catch (error) {
-    notFound()
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-zinc-500 dark:text-zinc-400">Loading job details...</div>
+      </div>
+    )
   }
 
-  const status = formatJobStatus(job.status)
-  const isTerminal = job.status === 'completed' || job.status === 'failed'
+  if (error || !job) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-red-600 dark:text-red-400">Job not found</div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -66,13 +56,7 @@ export default async function JobDetailPage({
         <div className="flex-1">
           <Heading>Job {job.jobId}</Heading>
           <div className="mt-4 flex items-center gap-4">
-            <Badge className={status.color}>{status.label}</Badge>
-            {!isTerminal && (
-              <span className="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400">
-                <ClockIcon className="h-4 w-4" />
-                Status may be outdated - refresh for latest
-              </span>
-            )}
+            <JobStatusIndicator status={job.status} isPolling={isPolling} />
           </div>
         </div>
         <div className="flex gap-2">
