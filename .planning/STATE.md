@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 5 of 12 (Job Status Polling) — COMPLETE
-Plan: 02 of 2 (Job Status Integration)
-Status: Job status polling hook with toast notifications complete
-Last activity: 2026-01-21 — Completed useJobStatus hook
+Plan: 03 of 3 (Animated Status Indicator)
+Status: Job status polling with animated indicator and client-side job detail page complete
+Last activity: 2026-01-21 — Completed JobStatusIndicator and job detail page polling integration
 
-Progress: [█████████░] 83%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36
+- Total plans completed: 39
 - Average duration: ~4 minutes
-- Total execution time: 2.2 hours
+- Total execution time: 2.6 hours
 
 **By Phase:**
 
@@ -36,10 +36,10 @@ Progress: [█████████░] 83%
 | 04.2 | 3 | 3 | 6m |
 | 04.3 | 4 | 4 | 3m |
 | 04.4 | 2 | 2 | 10m |
-| 05 | 2 | 2 | 3m |
+| 05 | 3 | 3 | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 6m, 3m, 11m, 6m, 4m
+- Last 5 plans: 11m, 6m, 4m, 3m, 4m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -69,6 +69,8 @@ Recent decisions affecting current work:
 | Page Visibility API for polling | Pauses polling when tab hidden (document.hidden) to save bandwidth/server resources | usePolling hook automatically pauses/resumes |
 | Status change detection for toasts | Track previousStatus to only notify on changes, not initial load | useJobStatus shows toasts only when jobs transition to terminal states |
 | 3-second polling interval | Balances freshness with server load | useJobStatus polls getJob every 3 seconds |
+| Params guard pattern for useParams | Check useParams values before use to handle initial render edge case | Job detail page guards undefined jobId with loading state |
+| Animated status indicators | Use motion/react with conditional animation for visual feedback | JobStatusIndicator pulses when job is active + polling |
 
 ### Roadmap Evolution
 
@@ -85,10 +87,9 @@ None yet.
 
 - Frontend static build requires backend running on port 8888 (expected behavior for SSR with data fetching)
 - Log streaming not implemented (mapped to Phase 7)
-- useJobStatus hook created, pending integration into ticket detail pages
 
 ## Session Continuity
 
 Last session: 2026-01-21
-Stopped at: Completed Phase 5 Plan 02 - Job Status Integration
+Stopped at: Completed Phase 5 Plan 03 - Animated Status Indicator
 Resume file: None
