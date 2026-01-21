@@ -1,5 +1,6 @@
 import { BaseAgent } from "./BaseAgent";
 import { ExecutionContext, ExecutionResult } from "../types";
+import type { AgentCLIResult } from "./BaseAgent";
 import axios from "axios";
 import * as path from "path";
 
@@ -12,7 +13,7 @@ export class QwenCodeAgent extends BaseAgent {
     prompt: string,
     context: ExecutionContext,
     workDir: string,
-  ): Promise<Omit<ExecutionResult, "executionTime" | "cost">> {
+  ): Promise<AgentCLIResult> {
     // Check if we should use direct API or CLI
     if (this.config.endpoint && this.config.endpoint.includes("api")) {
       return this.executeViaAPI(prompt, context, workDir);
@@ -25,7 +26,7 @@ export class QwenCodeAgent extends BaseAgent {
     prompt: string,
     context: ExecutionContext,
     workDir: string,
-  ): Promise<Omit<ExecutionResult, "executionTime" | "cost">> {
+  ): Promise<AgentCLIResult> {
     try {
       this.logger.info("Executing Qwen Code via API", {
         endpoint: this.config.endpoint,
@@ -157,7 +158,7 @@ export class QwenCodeAgent extends BaseAgent {
     prompt: string,
     context: ExecutionContext,
     workDir: string,
-  ): Promise<Omit<ExecutionResult, "executionTime" | "cost">> {
+  ): Promise<AgentCLIResult> {
     try {
       await this.cloneRepository(context.repoUrl, context.branch, workDir);
       const repoDir = path.join(workDir, "repo");

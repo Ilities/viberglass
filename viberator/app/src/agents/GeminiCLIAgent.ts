@@ -1,5 +1,6 @@
 import { BaseAgent } from "./BaseAgent";
 import { ExecutionContext, ExecutionResult } from "../types";
+import type { AgentCLIResult } from "./BaseAgent";
 import * as path from "path";
 
 export class GeminiCLIAgent extends BaseAgent {
@@ -11,7 +12,7 @@ export class GeminiCLIAgent extends BaseAgent {
     prompt: string,
     context: ExecutionContext,
     workDir: string,
-  ): Promise<Omit<ExecutionResult, "executionTime" | "cost">> {
+  ): Promise<AgentCLIResult> {
     try {
       await this.cloneRepository(context.repoUrl, context.branch, workDir);
       const repoDir = path.join(workDir, "repo");
