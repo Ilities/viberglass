@@ -194,3 +194,17 @@ export const resultCallbackSchema = Joi.object({
 export const runTicketSchema = Joi.object({
   clankerId: Joi.string().uuid().required(),
 });
+
+// Progress update schema for worker progress reporting
+export const progressUpdateSchema = Joi.object({
+  step: Joi.string().max(100).optional().allow(null, ''),
+  message: Joi.string().min(1).max(1000).required(),
+  details: Joi.object().optional().allow(null),
+});
+
+// Log entry schema for worker logging
+export const logEntrySchema = Joi.object({
+  level: Joi.string().valid('info', 'warn', 'error', 'debug').required(),
+  message: Joi.string().min(1).max(5000).required(),
+  source: Joi.string().max(100).optional().allow(null, ''),
+});
