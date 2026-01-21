@@ -11,6 +11,8 @@ import {
   updateDeploymentStrategySchema,
   resultCallbackSchema,
   runTicketSchema,
+  progressUpdateSchema,
+  logEntrySchema,
 } from "./schemas";
 
 /**
@@ -53,6 +55,8 @@ export const validateUpdateDeploymentStrategy = createValidator(
 );
 export const validateResultCallback = createValidator(resultCallbackSchema);
 export const validateRunTicket = createValidator(runTicketSchema);
+export const validateProgressUpdate = createValidator(progressUpdateSchema);
+export const validateLogEntry = createValidator(logEntrySchema);
 
 // Custom validators with special logic
 
