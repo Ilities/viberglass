@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 7 of 12 (Clanker Runtime Status) — In Progress
-Plan: 3 of 4 (Worker Callback Client and Heartbeat Sweeper)
-Status: Plan 07-03 complete
-Last activity: 2026-01-21 — Worker progress/log callbacks with HeartbeatSweeper for stale job detection
+Phase: 7 of 12 (Clanker Runtime Status) — Complete
+Plan: 4 of 4 (Frontend Progress Timeline and Log Viewer)
+Status: Phase 7 complete
+Last activity: 2026-01-21 — Frontend UI for progress timeline and log viewer with stale indicator
 
 Progress: [██████████] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45
+- Total plans completed: 49
 - Average duration: ~4 minutes
-- Total execution time: 2.9 hours
+- Total execution time: 3.0 hours
 
 **By Phase:**
 
@@ -38,10 +38,10 @@ Progress: [██████████] 92%
 | 04.4 | 2 | 2 | 10m |
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
-| 07 | 3 | 4 | 2.7m |
+| 07 | 4 | 4 | 2.5m |
 
 **Recent Trend:**
-- Last 5 plans: 6m, 4m, 3m, 3m, 3m
+- Last 5 plans: 3m, 3m, 3m, 3m, 2m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -84,6 +84,10 @@ Recent decisions affecting current work:
 | Heartbeat monitoring with grace period | Jobs that stop sending heartbeats are automatically failed after 5 minutes | HeartbeatSweeper runs every 60 seconds checking last_heartbeat < grace period |
 | Worker callback retry pattern | All worker callbacks use exponential backoff with 429/5xx retry, non-retryable 4xx fail fast | CallbackClient sendResult/sendProgress/sendLog all share retry logic |
 | Differential timeouts for callbacks | Results: 30s, Progress: 10s, Logs: 5s - reflects priority of each callback type | Prevents worker blocking on low-priority log delivery |
+| Logs reversed to chronological order | DESC query from database reversed for UI readability (oldest to newest) | LogViewer shows logs in chronological order |
+| 5 minute stale threshold | Matches HeartbeatSweeper grace period for consistency between backend and frontend | isJobStale() uses same 5 minute threshold |
+| Live indicator only when active and polling | Visual feedback only meaningful when job is actively running and polling is enabled | LogViewer live indicator checks isPolling && status === 'active' |
+| ProgressTimeline returns null for queued | Queued jobs have no progress yet, hiding component is cleaner than empty state | ProgressTimeline component returns null for currentStatus === 'queued' |
 
 ### Roadmap Evolution
 
@@ -99,10 +103,9 @@ None yet.
 ### Blockers/Concerns
 
 - Frontend static build requires backend running on port 8888 (expected behavior for SSR with data fetching)
-- Frontend log streaming UI not implemented (API ready at GET /api/jobs/:jobId/logs, worker CallbackClient.sendLog() ready)
 
 ## Session Continuity
 
 Last session: 2026-01-21
-Stopped at: Completed Phase 7 Plan 03 - Worker Callback Client and Heartbeat Sweeper
+Stopped at: Completed Phase 7 Plan 04 - Frontend Progress Timeline and Log Viewer (Phase 7 complete)
 Resume file: None
