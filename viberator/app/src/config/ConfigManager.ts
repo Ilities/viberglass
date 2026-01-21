@@ -219,11 +219,11 @@ export class ConfigManager {
 
     // Logging configuration
     if (process.env.LOG_LEVEL) {
-      config.logging.level = process.env.LOG_LEVEL as any;
+      config.logging.level = process.env.LOG_LEVEL as Configuration["logging"]["level"];
     }
 
     if (process.env.LOG_FORMAT) {
-      config.logging.format = process.env.LOG_FORMAT as any;
+      config.logging.format = process.env.LOG_FORMAT as Configuration["logging"]["format"];
     }
 
     // Execution configuration
