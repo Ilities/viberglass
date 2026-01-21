@@ -5,6 +5,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { GitService } from "../services/GitService";
 
+// Intermediate type for CLI results that may include optional cost
+type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost"> & {
+  cost?: number;
+};
+
 export abstract class BaseAgent {
   protected config: AgentConfig;
   protected logger: Logger;
@@ -46,10 +51,7 @@ export abstract class BaseAgent {
       return {
         ...result,
         executionTime,
-        cost:
-          (result as any).cost !== undefined
-            ? (result as any).cost
-            : this.config.costPerExecution,
+        cost: result.cost ?? this.config.costPerExecution,
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
@@ -97,7 +99,7 @@ export abstract class BaseAgent {
     prompt: string,
     context: ExecutionContext,
     workDir: string,
-  ): Promise<Omit<ExecutionResult, "executionTime" | "cost">>;
+  ): Promise<AgentCLIResult>;
 
   /**
    * Prepare working directory for execution
