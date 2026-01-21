@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import db from "../persistence/config/database";
 import { JobData, JobResult } from "../types/Job";
 import { sql } from "kysely";
@@ -246,5 +247,78 @@ export class JobService {
       id: job.id,
       started_at: job.started_at!,
     }));
+  }
+
+  /**
+   * Record a progress update for a job (also updates heartbeat)
+   * Progress updates update the jobs table and store history in job_progress_updates
+   */
+  async recordProgress(
+    jobId: string,
+    progress: {
+      step?: string;
+      message: string;
+      details?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    const progressData = {
+      step: progress.step || null,
+      message: progress.message,
+      details: progress.details || null,
+    };
+
+    await db.transaction().execute(async (trx) => {
+      // Update jobs table with new progress and heartbeat timestamp
+      await trx
+        .updateTable('jobs')
+        .set({
+          progress: JSON.stringify(progressData),
+          last_heartbeat: new Date(),
+        })
+        .where('id', '=', jobId)
+        .execute();
+
+      // Insert into job_progress_updates for history
+      await trx
+        .insertInto('job_progress_updates')
+        .values({
+          id: randomUUID(),
+          job_id: jobId,
+          step: progressData.step,
+          message: progressData.message,
+          details: progressData.details ? JSON.stringify(progressData.details) : null,
+          created_at: new Date(),
+        })
+        .execute();
+    });
+
+    console.log(`[JobService] Job ${jobId} progress: ${progress.message}`);
+  }
+
+  /**
+   * Record a log line for a job
+   * Log lines are stored in job_log_lines table for frontend display
+   */
+  async recordLog(
+    jobId: string,
+    log: {
+      level: 'info' | 'warn' | 'error' | 'debug';
+      message: string;
+      source?: string;
+    },
+  ): Promise<void> {
+    await db
+      .insertInto('job_log_lines')
+      .values({
+        id: randomUUID(),
+        job_id: jobId,
+        level: log.level,
+        message: log.message,
+        source: log.source || null,
+        created_at: new Date(),
+      })
+      .execute();
+
+    console.log(`[JobService] Job ${jobId} log: ${log.level} - ${log.message}`);
   }
 }
