@@ -174,6 +174,26 @@ export interface JobsTable {
   finished_at: Timestamp | null;
   ticket_id: string | null;
   clanker_id: string | null;
+  last_heartbeat: Generated<Timestamp> | null;
+  last_heartbeat_grace_period_seconds: Generated<number>;
+}
+
+export interface JobProgressUpdatesTable {
+  id: Generated<string>;
+  job_id: string;
+  step: string | null;
+  message: string;
+  details: Json | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface JobLogLinesTable {
+  id: Generated<string>;
+  job_id: string;
+  level: "debug" | "error" | "info" | "warn";
+  message: string;
+  source: string | null;
+  created_at: Generated<Timestamp>;
 }
 
 export interface Database {
@@ -187,4 +207,6 @@ export interface Database {
   clanker_config_files: ClankerConfigFilesTable;
   clankers: ClankersTable;
   jobs: JobsTable;
+  job_progress_updates: JobProgressUpdatesTable;
+  job_log_lines: JobLogLinesTable;
 }
