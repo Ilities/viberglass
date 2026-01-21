@@ -3,7 +3,11 @@ import { JobService } from "../../services/JobService";
 import type { JobStatus } from "../../services/JobService";
 import { JobData } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
-import { validateResultCallback } from "../middleware/validation";
+import {
+  validateResultCallback,
+  validateProgressUpdate,
+  validateLogEntry,
+} from "../middleware/validation";
 import { randomUUID } from "crypto";
 
 const router = Router();
@@ -175,6 +179,83 @@ router.post(
       });
     } catch (error) {
       console.error("Failed to update job result", {
+        error,
+        jobId: req.params.jobId,
+      });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
+    }
+  },
+);
+
+// POST /:jobId/progress - Worker progress update (also updates heartbeat)
+router.post(
+  "/:jobId/progress",
+  tenantMiddleware,
+  validateProgressUpdate,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const tenantId = req.tenantId!;
+      const { step, message, details } = req.body;
+
+      // Verify job belongs to tenant (SEC-03)
+      const job = await jobService.getJobStatus(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      if (job.data.tenantId !== tenantId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Record progress (updates heartbeat)
+      await jobService.recordProgress(jobId, { step, message, details });
+
+      return res.json({
+        success: true,
+        jobId,
+      });
+    } catch (error) {
+      console.error("Failed to record job progress", {
+        error,
+        jobId: req.params.jobId,
+      });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
+    }
+  },
+);
+
+// POST /:jobId/logs - Worker log lines
+router.post(
+  "/:jobId/logs",
+  tenantMiddleware,
+  validateLogEntry,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const tenantId = req.tenantId!;
+      const { level, message, source } = req.body;
+
+      // Verify job belongs to tenant (SEC-03)
+      const job = await jobService.getJobStatus(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      if (job.data.tenantId !== tenantId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Record log line
+      await jobService.recordLog(jobId, { level, message, source });
+
+      return res.json({
+        success: true,
+      });
+    } catch (error) {
+      console.error("Failed to record job log", {
         error,
         jobId: req.params.jobId,
       });
