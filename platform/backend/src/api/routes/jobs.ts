@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import { JobService } from "../../services/JobService";
+import type { JobStatus } from "../../services/JobService";
 import { JobData } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
 import { validateResultCallback } from "../middleware/validation";
@@ -74,7 +75,7 @@ router.get("/:jobId", async (req: Request, res: Response) => {
 
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const status = req.query.status as string;
+    const status = req.query.status as JobStatus;
     const limit = parseInt(req.query.limit as string) || 10;
 
     const result = await jobService.listJobs(status, limit);
