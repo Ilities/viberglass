@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 7: Clanker Runtime Status
+**Current focus:** Phase 8: Webhook Provider Architecture
 
 ## Current Position
 
-Phase: 7 of 12 (Clanker Runtime Status) — Complete
-Plan: 4 of 4 (Frontend Progress Timeline and Log Viewer)
-Status: Phase 7 complete
-Last activity: 2026-01-21 — Frontend UI for progress timeline and log viewer with stale indicator
+Phase: 7 of 12 (Clanker Runtime Status) — COMPLETE
+Next: Plan Phase 8 (Webhook Provider Architecture)
+Status: Phase 7 verified, 12/12 must-haves passed
+Last activity: 2026-01-21 — Clanker runtime status with progress timeline, log viewer, heartbeat monitoring
 
-Progress: [██████████] 92%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
