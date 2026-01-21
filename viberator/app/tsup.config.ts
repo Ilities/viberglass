@@ -4,7 +4,6 @@ export default defineConfig({
   entry: {
     "cli-worker": "src/workers/cli-handler.ts",
     "lambda-handler": "src/workers/lambda-handler.ts",
-    "api-server": "src/api-server.ts",
   },
   format: ["esm"],
   target: "node24",

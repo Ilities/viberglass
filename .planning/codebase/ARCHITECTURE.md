@@ -65,7 +65,6 @@
 **Key components:**
 - `JobService.ts` - Job lifecycle management (submit, update status, query)
 - `FileUploadService.ts` - S3 integration for ticket media
-- `MessageQueueService.ts` - SQS integration for worker communication
 
 ### Integration Layer
 - Purpose: External system integration (GitHub, PM systems)

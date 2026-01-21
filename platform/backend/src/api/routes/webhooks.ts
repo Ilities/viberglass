@@ -1,11 +1,9 @@
 import express from "express";
 import crypto from "crypto";
 import { GitHubIntegration } from "../../integrations/GitHubIntegration";
-import { MessageQueueService } from "../../services/MessageQueueService";
 import { pool } from "../../persistence/config/database";
 
 const router = express.Router();
-const messageQueueService = new MessageQueueService();
 
 // Middleware to verify GitHub webhook signature
 const verifyGitHubSignature = (
@@ -83,15 +81,6 @@ router.post("/github", verifyGitHubSignature, async (req, res) => {
     // Check if this issue has auto-fix tags and queue for processing
     if (githubIntegration.hasAutoFixTag(webhookEvent.ticket)) {
       console.log(`Auto-fix detected for issue ${webhookEvent.ticketId}`);
-
-      // Queue auto-fix job
-      await messageQueueService.queueAutoFixJob({
-        ticketId: webhookEvent.ticketId,
-        ticketSystem: "github",
-        repositoryUrl: webhookEvent.ticket.repositoryUrl || "",
-        issueData: webhookEvent.ticket,
-        priority: webhookEvent.ticket.priority || "medium",
-      });
 
       // Update database with auto-fix status
       const client2 = await pool.connect();
@@ -245,14 +234,6 @@ router.post("/trigger-autofix", async (req, res) => {
         .status(400)
         .json({ error: "ticketId and ticketSystem are required" });
     }
-
-    // Queue auto-fix job
-    await messageQueueService.queueAutoFixJob({
-      ticketId,
-      ticketSystem,
-      repositoryUrl: repositoryUrl || "",
-      priority: "medium",
-    });
 
     // Update database
     const client = await pool.connect();

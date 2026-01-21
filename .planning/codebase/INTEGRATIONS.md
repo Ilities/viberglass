@@ -43,12 +43,6 @@
   - Service: `platform/backend/src/services/FileUploadService.ts`
   - Signed URL generation for private files
 
-**Caching:**
-- Redis - Message queue backend and caching
-  - Connection: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
-  - Client: `redis` npm package
-  - Used by: Bull job queues in `platform/backend/src/services/MessageQueueService.ts`
-
 ## Authentication & Identity
 
 **Auth Provider:**
