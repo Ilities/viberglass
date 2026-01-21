@@ -60,20 +60,23 @@ function onListening(): void {
   const bind = typeof addr === 'string'
     ? 'pipe ' + addr
     : 'port ' + addr?.port;
-  
+
   console.log('[DEBUG_LOG] Server starting up...');
   console.log('[DEBUG_LOG] Environment:', process.env.NODE_ENV || 'development');
   console.log('[DEBUG_LOG] Listening on ' + bind);
-  console.log('[DEBUG_LOG] Health check: http://localhost:' + (addr as any)?.port + '/health');
-  console.log('[DEBUG_LOG] API docs: http://localhost:' + (addr as any)?.port + '/api/docs');
-  
+
+  // Narrow the type for AddressInfo (port property)
+  const port = addr && typeof addr === 'object' ? addr.port : 3000;
+  console.log('[DEBUG_LOG] Health check: http://localhost:' + port + '/health');
+  console.log('[DEBUG_LOG] API docs: http://localhost:' + port + '/api/docs');
+
   // Log configuration status
   console.log('[DEBUG_LOG] Configuration status:');
   console.log('[DEBUG_LOG] - Database:', process.env.DB_HOST ? '✓' : '✗ (using defaults)');
   console.log('[DEBUG_LOG] - Redis:', process.env.REDIS_HOST ? '✓' : '✗ (using defaults)');
   console.log('[DEBUG_LOG] - AWS S3:', process.env.AWS_ACCESS_KEY_ID ? '✓' : '✗ (not configured)');
   console.log('[DEBUG_LOG] - GitHub Token:', process.env.GITHUB_TOKEN ? '✓' : '✗ (not configured)');
-  
+
   console.log('[DEBUG_LOG] Server ready to receive bug reports!');
   console.log('[DEBUG_LOG] Starting orphan sweeper for stuck job detection...');
 

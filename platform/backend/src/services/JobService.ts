@@ -2,6 +2,9 @@ import db from "../persistence/config/database";
 import { JobData, JobResult } from "../types/Job";
 import { sql } from "kysely";
 
+// Job status type from database schema
+export type JobStatus = "queued" | "active" | "completed" | "failed";
+
 export interface SubmitJobOptions {
   ticketId?: string;
   clankerId?: string;
@@ -50,7 +53,7 @@ export class JobService {
 
   async updateJobStatus(
     jobId: string,
-    status: "queued" | "active" | "completed" | "failed",
+    status: JobStatus,
     updates: {
       progress?: Record<string, unknown>;
       result?: JobResult;
@@ -118,13 +121,13 @@ export class JobService {
   }
 
   async listJobs(
-    status?: string,
+    status?: JobStatus,
     limit: number = 10,
   ): Promise<{ jobs: any[]; count: number }> {
     let query = db.selectFrom("jobs").selectAll();
 
     if (status) {
-      query = query.where("status", "=", status as any);
+      query = query.where("status", "=", status);
     }
 
     const jobs = await query
