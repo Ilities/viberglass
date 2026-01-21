@@ -4,6 +4,7 @@ import { Button } from '@/components/button'
 import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/description-list'
 import { Divider } from '@/components/divider'
 import { Heading, Subheading } from '@/components/heading'
+import { ClankerHealth } from './clanker-health'
 import { getClankerBySlug, formatClankerStatus, formatDeploymentStrategy } from '@/data'
 import { PencilIcon } from '@heroicons/react/16/solid'
 import { notFound } from 'next/navigation'
@@ -61,6 +62,8 @@ export default async function ClankerPage({ params }: ClankerPageProps) {
                 <span className="ml-2 text-sm text-zinc-500">{clanker.statusMessage}</span>
               )}
             </DescriptionDetails>
+
+            <ClankerHealth clankerId={clanker.id} />
 
             <DescriptionTerm>Deployment Strategy</DescriptionTerm>
             <DescriptionDetails>
