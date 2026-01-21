@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 5 of 12 (Job Status Polling) — COMPLETE
-Next: Plan Phase 6 (Clanker Static Status)
-Status: Phase 5 verified, 18/18 must-haves passed
-Last activity: 2026-01-21 — Job status polling complete with animated indicator, toast notifications, and client-side polling
+Phase: 6 of 12 (Clanker Static Status) — In Progress
+Plan: 01 of (unknown)
+Status: Plan 01 complete - health check API with ClankerHealthStatus type, ClankerHealthService, and GET /:id/health endpoint
+Last activity: 2026-01-21 — Clanker static health check API with three-tier validation (resource, deployment, invoker connectivity)
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37
+- Total plans completed: 38
 - Average duration: ~4 minutes
 - Total execution time: 2.5 hours
 
@@ -37,9 +37,10 @@ Progress: [█████████░] 85%
 | 04.3 | 4 | 4 | 3m |
 | 04.4 | 2 | 2 | 10m |
 | 05 | 3 | 3 | 4m |
+| 06 | 1 | ? | 1m |
 
 **Recent Trend:**
-- Last 5 plans: 11m, 6m, 4m, 3m, 4m
+- Last 5 plans: 6m, 4m, 3m, 4m, 1m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 | 3-second polling interval | Balances freshness with server load | useJobStatus polls getJob every 3 seconds |
 | Params guard pattern for useParams | Check useParams values before use to handle initial render edge case | Job detail page guards undefined jobId with loading state |
 | Animated status indicators | Use motion/react with conditional animation for visual feedback | JobStatusIndicator pulses when job is active + polling |
+| Three-tier clanker health checks | resourceExists (DB), deploymentConfigured (strategy+config), invokerAvailable (connectivity) | ClankerHealthService validates all three before marking healthy |
 
 ### Roadmap Evolution
 
@@ -91,5 +93,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-21
-Stopped at: Completed Phase 5 Plan 03 - Animated Status Indicator
+Stopped at: Completed Phase 6 Plan 01 - Clanker Static Status
 Resume file: None
