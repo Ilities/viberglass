@@ -259,7 +259,7 @@ Plans:
 - [x] 04.4-01-PLAN.md — Verify Docker E2E prerequisites and trace code flow
 - [x] 04.4-02-PLAN.md — Create infrastructure setup documentation (Docker and ECS)
 
-**Details:**
+**Details**:
 Plan 01 verifies prerequisites (Docker running, worker image, services) and traces the complete code flow from frontend to callback. Documents any gaps found (e.g., log streaming not yet implemented - Phase 7 scope).
 
 Plan 02 creates comprehensive setup documentation for both local Docker and AWS ECS deployments, including troubleshooting sections based on RESEARCH.md common pitfalls.
@@ -276,9 +276,14 @@ Plan 02 creates comprehensive setup documentation for both local Docker and AWS 
 
 **Requirements**: CB-04
 
-**Plans**: 0 plans
+**Plans**: 3 plans in 3 waves
 
 **Status**: Not started
+
+Plans:
+- [ ] 05-01-PLAN.md — Create useInterval and usePolling hooks
+- [ ] 05-02-PLAN.md — Create useJobStatus hook with toast notifications
+- [ ] 05-03-PLAN.md — Create JobStatusIndicator component and integrate polling into job detail page
 
 ---
 
