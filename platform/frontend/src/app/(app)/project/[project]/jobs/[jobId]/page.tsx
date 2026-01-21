@@ -4,9 +4,12 @@ import { useParams } from 'next/navigation'
 import { ArrowLeftIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
+import { ProgressTimeline } from '@/components/progress-timeline'
+import { LogViewer } from '@/components/log-viewer'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableRow } from '@/components/table'
+import { Badge } from '@/components/badge'
 import { JobRefreshButton } from './job-refresh-button'
 
 function formatDuration(start: string | null, end: string | null): string {
@@ -21,6 +24,16 @@ function formatDuration(start: string | null, end: string | null): string {
     return `${minutes}m ${seconds % 60}s`
   }
   return `${seconds}s`
+}
+
+/**
+ * Check if a job is stale (no heartbeat for over 5 minutes)
+ */
+function isJobStale(lastHeartbeat: string | null, status: string): boolean {
+  if (status !== 'active') return false
+  if (!lastHeartbeat) return true // Active job with no heartbeat is stale
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+  return new Date(lastHeartbeat).getTime() < fiveMinutesAgo
 }
 
 export default function JobDetailPage() {
@@ -197,10 +210,27 @@ export default function JobDetailPage() {
                   <TableCell>{Math.round(job.result.executionTime / 1000)}s</TableCell>
                 </TableRow>
               )}
+              <TableRow>
+                <TableCell className="font-medium">Last seen</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span>{job.lastHeartbeat ? new Date(job.lastHeartbeat).toLocaleString() : 'Never'}</span>
+                    {isJobStale(job.lastHeartbeat, job.status) && (
+                      <Badge color="yellow">Stale</Badge>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </div>
       </div>
+
+      {/* Progress Timeline */}
+      <ProgressTimeline updates={job.progressUpdates || []} currentStatus={job.status} />
+
+      {/* Log Viewer */}
+      <LogViewer logs={job.logs || []} isConnected={isPolling && job.status === 'active'} />
     </>
   )
 }
