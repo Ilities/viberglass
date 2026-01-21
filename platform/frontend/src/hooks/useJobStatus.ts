@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePolling } from './usePolling'
 import { getJob, JobStatus } from '@/service/api/job-api'
 import { toast } from 'sonner'
@@ -31,6 +31,13 @@ export interface UseJobStatusResult {
 export function useJobStatus(jobId: string | undefined): UseJobStatusResult {
   // Track previous status to detect changes for toast notifications
   const [previousStatus, setPreviousStatus] = useState<string | null>(null)
+
+  // Track loading state explicitly - this fixes the issue where computed
+  // isLoading (!data && !error) never becomes false due to dependency issues
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Track if we've received data at least once
+  const hasReceivedData = useRef(false)
 
   // Use the generic polling hook
   const { data, error, isPolling, refetch } = usePolling<JobStatus>({
@@ -69,9 +76,30 @@ export function useJobStatus(jobId: string | undefined): UseJobStatusResult {
     },
   })
 
+  // Manage isLoading state explicitly based on data/error changes
+  useEffect(() => {
+    // If we have data, we're done loading
+    if (data) {
+      hasReceivedData.current = true
+      setIsLoading(false)
+      return
+    }
+
+    // If we have an error and haven't received data yet, we're done loading
+    if (error && !hasReceivedData.current) {
+      setIsLoading(false)
+      return
+    }
+
+    // Reset loading state when jobId changes (component is now loading new data)
+    if (jobId && !hasReceivedData.current) {
+      setIsLoading(true)
+    }
+  }, [data, error, jobId])
+
   return {
     job: data,
-    isLoading: !data && !error,
+    isLoading,
     error,
     isPolling,
     refetch,
