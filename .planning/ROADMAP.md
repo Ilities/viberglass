@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4.3: Application organization and structural refactoring** - Code organization improvements (INSERTED)
 - [x] **Phase 4.4: E2E Flow Verification** - Verify happy path and document infrastructure setup (INSERTED)
 - [x] **Phase 5: Job Status Polling** - Frontend displays current job status
-- [ ] **Phase 6: Clanker Static Status** - Platform displays resource readiness
+- [x] **Phase 6: Clanker Static Status** - Platform displays resource readiness
 - [ ] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
 - [ ] **Phase 8: Webhook Provider Architecture** - Provider-agnostic webhook integration with GitHub as first implementation
 - [ ] **Phase 9: Local Development** - Docker compose environment for local development
@@ -313,9 +313,15 @@ Plans:
 
 **Requirements**: STAT-02, STAT-03, STAT-04, STAT-05
 
-**Plans**: 0 plans
+**Plans**: 4 plans in 4 waves
 
-**Status**: Not started
+**Status**: Planning complete
+
+Plans:
+- [ ] 07-01-PLAN.md — Create database migration for heartbeat and progress tracking
+- [ ] 07-02-PLAN.md — Create backend API endpoints for progress and log updates
+- [ ] 07-03-PLAN.md — Extend CallbackClient and create HeartbeatSweeper
+- [ ] 07-04-PLAN.md — Create frontend progress timeline and log viewer UI
 
 ---
 
