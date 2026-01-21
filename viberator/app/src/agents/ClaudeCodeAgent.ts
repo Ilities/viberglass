@@ -1,5 +1,6 @@
 import { BaseAgent } from "./BaseAgent";
 import { AgentConfig, ExecutionContext, ExecutionResult } from "../types";
+import type { AgentCLIResult } from "./BaseAgent";
 import { Logger } from "winston";
 import * as path from "path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
@@ -21,7 +22,7 @@ export class ClaudeCodeAgent extends BaseAgent {
     prompt: string,
     context: ExecutionContext,
     workDir: string,
-  ): Promise<Omit<ExecutionResult, "executionTime" | "cost">> {
+  ): Promise<AgentCLIResult> {
     try {
       // Clone repository
       await this.cloneRepository(context.repoUrl, context.branch, workDir);

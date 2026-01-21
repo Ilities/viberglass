@@ -5,6 +5,7 @@ import {
   validateUpdateDeploymentStrategy,
   validateUuidParam,
 } from "../middleware/validation";
+import logger from "../../config/logger";
 
 const router = express.Router();
 const deploymentStrategyService = new DeploymentStrategyDAO();
@@ -19,7 +20,7 @@ router.get("/", async (req, res) => {
       data: strategies,
     });
   } catch (error) {
-    console.error("Error fetching deployment strategies:", error);
+    logger.error('Error fetching deployment strategies', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -35,7 +36,7 @@ router.get("/by-name/:name", async (req, res) => {
     }
     res.json({ success: true, data: strategy });
   } catch (error) {
-    console.error("Error fetching deployment strategy:", error);
+    logger.error('Error fetching deployment strategy', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -48,7 +49,7 @@ router.post("/", validateCreateDeploymentStrategy, async (req, res) => {
     );
     res.status(201).json({ success: true, data: strategy });
   } catch (error) {
-    console.error("Error creating deployment strategy:", error);
+    logger.error('Error creating deployment strategy', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -64,7 +65,7 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
     }
     res.json({ success: true, data: strategy });
   } catch (error) {
-    console.error("Error fetching deployment strategy:", error);
+    logger.error('Error fetching deployment strategy', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -90,7 +91,7 @@ router.put(
         );
       res.json({ success: true, data: updatedStrategy });
     } catch (error) {
-      console.error("Error updating deployment strategy:", error);
+      logger.error('Error updating deployment strategy', { error: error instanceof Error ? error.message : error });
       res.status(500).json({ error: "Internal server error" });
     }
   }
@@ -109,7 +110,7 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
     await deploymentStrategyService.deleteDeploymentStrategy(req.params.id);
     res.status(204).send();
   } catch (error) {
-    console.error("Error deleting deployment strategy:", error);
+    logger.error('Error deleting deployment strategy', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });

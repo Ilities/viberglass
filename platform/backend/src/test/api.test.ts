@@ -1,5 +1,6 @@
 import request from 'supertest';
 import app from '../service/app';
+import logger from '../config/logger';
 
 describe('API Endpoints', () => {
   
@@ -124,13 +125,13 @@ describe('API Endpoints', () => {
 // Integration test for the full bug report creation flow
 describe('Bug Report Integration', () => {
   it('should demonstrate the complete flow', () => {
-    console.log('[DEBUG_LOG] Bug Report Creation Flow:');
-    console.log('[DEBUG_LOG] 1. Widget captures screenshot and metadata');
-    console.log('[DEBUG_LOG] 2. POST /api/bug-reports with multipart form data');
-    console.log('[DEBUG_LOG] 3. File uploaded to S3, metadata stored in PostgreSQL');
-    console.log('[DEBUG_LOG] 4. If autoFixRequested, job queued in Redis');
-    console.log('[DEBUG_LOG] 5. Webhook creates ticket in PM system');
-    console.log('[DEBUG_LOG] 6. Auto-fix agent processes if tags detected');
+    logger.debug('Bug Report Creation Flow:');
+    logger.debug('1. Widget captures screenshot and metadata');
+    logger.debug('2. POST /api/bug-reports with multipart form data');
+    logger.debug('3. File uploaded to S3, metadata stored in PostgreSQL');
+    logger.debug('4. If autoFixRequested, job queued in Redis');
+    logger.debug('5. Webhook creates ticket in PM system');
+    logger.debug('6. Auto-fix agent processes if tags detected');
     
     expect(true).toBe(true); // This test just demonstrates the flow
   });

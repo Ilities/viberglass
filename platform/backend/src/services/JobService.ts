@@ -1,10 +1,23 @@
+import { randomUUID } from "crypto";
 import db from "../persistence/config/database";
 import { JobData, JobResult } from "../types/Job";
 import { sql } from "kysely";
+import { createChildLogger } from "../config/logger";
+
+const logger = createChildLogger({ service: "JobService" });
+
+// Job status type from database schema
+export type JobStatus = "queued" | "active" | "completed" | "failed";
+
+export interface SubmitJobOptions {
+  ticketId?: string;
+  clankerId?: string;
+}
 
 export class JobService {
   async submitJob(
     data: JobData,
+    options?: SubmitJobOptions,
   ): Promise<{ jobId: string; status: string; timestamp: string }> {
     const jobId = data.id;
 
@@ -17,18 +30,22 @@ export class JobService {
         task: data.task,
         branch: data.branch || null,
         base_branch: data.baseBranch || null,
-        context: JSON.stringify(data.context),
-        settings: JSON.stringify(data.settings),
+        context: JSON.stringify(data.context || {}),
+        settings: JSON.stringify(data.settings || {}),
         status: "queued",
         progress: null,
+        ticket_id: options?.ticketId || null,
+        clanker_id: options?.clankerId || null,
         created_at: new Date(),
       })
       .execute();
 
-    console.log(`[JobService] Job ${jobId} enqueued`, {
+    logger.info("Job enqueued", {
       jobId,
       repository: data.repository,
       tenantId: data.tenantId,
+      ticketId: options?.ticketId,
+      clankerId: options?.clankerId,
     });
 
     return {
@@ -40,7 +57,7 @@ export class JobService {
 
   async updateJobStatus(
     jobId: string,
-    status: "queued" | "active" | "completed" | "failed",
+    status: JobStatus,
     updates: {
       progress?: Record<string, unknown>;
       result?: JobResult;
@@ -70,7 +87,7 @@ export class JobService {
       .where("id", "=", jobId)
       .execute();
 
-    console.log(`[JobService] Job ${jobId} updated to ${status}`, updates);
+    logger.info("Job status updated", { jobId, status, ...updates });
   }
 
   async getJobStatus(jobId: string): Promise<any | null> {
@@ -84,10 +101,43 @@ export class JobService {
       return null;
     }
 
+    // Fetch progress updates history
+    const progressUpdates = await db
+      .selectFrom("job_progress_updates")
+      .selectAll()
+      .where("job_id", "=", jobId)
+      .orderBy("created_at", "desc")
+      .execute();
+
+    // Fetch log lines (most recent first, limited to 100)
+    const logs = await db
+      .selectFrom("job_log_lines")
+      .selectAll()
+      .where("job_id", "=", jobId)
+      .orderBy("created_at", "desc")
+      .limit(100)
+      .execute();
+
     return {
       jobId: job.id,
       status: job.status,
       progress: job.progress,
+      lastHeartbeat: job.last_heartbeat?.toISOString() || null,
+      progressUpdates: progressUpdates.map((pu) => ({
+        step: pu.step,
+        message: pu.message,
+        details: pu.details || null,
+        createdAt: pu.created_at?.toISOString() || new Date().toISOString(),
+      })),
+      logs: logs
+        .reverse() // Show oldest to newest for chronological reading
+        .map((log) => ({
+          id: log.id,
+          level: log.level,
+          message: log.message,
+          source: log.source,
+          createdAt: log.created_at?.toISOString() || new Date().toISOString(),
+        })),
       data: {
         id: job.id,
         tenantId: job.tenant_id,
@@ -108,13 +158,13 @@ export class JobService {
   }
 
   async listJobs(
-    status?: string,
+    status?: JobStatus,
     limit: number = 10,
   ): Promise<{ jobs: any[]; count: number }> {
     let query = db.selectFrom("jobs").selectAll();
 
     if (status) {
-      query = query.where("status", "=", status as any);
+      query = query.where("status", "=", status);
     }
 
     const jobs = await query
@@ -142,11 +192,11 @@ export class JobService {
       .where("id", "=", jobId)
       .executeTakeFirst();
 
-    if (result.numDeletedRows === 0) {
+    if (result.numDeletedRows === 0n) {
       throw new Error("Job not found");
     }
 
-    console.log(`[JobService] Job ${jobId} removed`);
+    logger.info("Job removed", { jobId });
 
     return { message: "Job removed successfully", jobId };
   }
@@ -215,5 +265,171 @@ export class JobService {
         timestamp: job.created_at?.getTime() || Date.now(),
       },
     };
+  }
+
+  /**
+   * Find jobs that have been active for longer than the cutoff time
+   * Used by OrphanSweeper to detect stuck jobs
+   */
+  async findOrphanedJobs(
+    cutoffTime: Date,
+  ): Promise<Array<{ id: string; started_at: Date }>> {
+    const jobs = await db
+      .selectFrom("jobs")
+      .select(["id", "started_at"])
+      .where("status", "=", "active")
+      .where("started_at", "<", cutoffTime)
+      .execute();
+
+    return jobs.map((job) => ({
+      id: job.id,
+      started_at: job.started_at!,
+    }));
+  }
+
+  /**
+   * Find jobs that have stopped sending heartbeats
+   * A job is stale if:
+   * - last_heartbeat is before the stale threshold, OR
+   * - last_heartbeat is NULL AND started_at is before the stale threshold (never sent progress)
+   * Used by HeartbeatSweeper to detect jobs that stopped communicating
+   */
+  async findStaleJobs(
+    staleThreshold: Date,
+  ): Promise<
+    Array<{ id: string; started_at: Date | null; last_heartbeat: Date | null }>
+  > {
+    const jobs = await db
+      .selectFrom("jobs")
+      .select(["id", "started_at", "last_heartbeat"])
+      .where("status", "=", "active")
+      .where((eb) =>
+        eb.or([
+          eb("last_heartbeat", "<", staleThreshold),
+          eb.and([
+            eb("last_heartbeat", "is", null),
+            eb("started_at", "<", staleThreshold),
+          ]),
+        ]),
+      )
+      .execute();
+
+    return jobs.map((job) => ({
+      id: job.id,
+      started_at: job.started_at,
+      last_heartbeat: job.last_heartbeat,
+    }));
+  }
+
+  /**
+   * Record a progress update for a job (also updates heartbeat)
+   * Progress updates update the jobs table and store history in job_progress_updates
+   */
+  async recordProgress(
+    jobId: string,
+    progress: {
+      step?: string;
+      message: string;
+      details?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    const progressData = {
+      step: progress.step || null,
+      message: progress.message,
+      details: progress.details || null,
+    };
+
+    await db.transaction().execute(async (trx) => {
+      // Update jobs table with new progress and heartbeat timestamp
+      await trx
+        .updateTable("jobs")
+        .set({
+          progress: JSON.stringify(progressData),
+          last_heartbeat: new Date(),
+        })
+        .where("id", "=", jobId)
+        .execute();
+
+      // Insert into job_progress_updates for history
+      await trx
+        .insertInto("job_progress_updates")
+        .values({
+          id: randomUUID(),
+          job_id: jobId,
+          step: progressData.step,
+          message: progressData.message,
+          details: progressData.details
+            ? JSON.stringify(progressData.details)
+            : null,
+          created_at: new Date(),
+        })
+        .execute();
+    });
+
+    logger.debug("Job progress recorded", {
+      jobId,
+      message: progress.message,
+      step: progress.step,
+    });
+  }
+
+  /**
+   * Record a log line for a job
+   * Log lines are stored in job_log_lines table for frontend display
+   */
+  async recordLog(
+    jobId: string,
+    log: {
+      level: "info" | "warn" | "error" | "debug";
+      message: string;
+      source?: string;
+    },
+  ): Promise<void> {
+    await db
+      .insertInto("job_log_lines")
+      .values({
+        id: randomUUID(),
+        job_id: jobId,
+        level: log.level,
+        message: log.message,
+        source: log.source || null,
+        created_at: new Date(),
+      })
+      .execute();
+
+    logger.debug("Job log recorded", {
+      jobId,
+      level: log.level,
+      message: log.message,
+    });
+  }
+
+  /**
+   * Record multiple log lines for a job in a single bulk insert
+   * This is much more efficient than individual recordLog calls
+   */
+  async recordLogBatch(
+    jobId: string,
+    logs: Array<{
+      level: "info" | "warn" | "error" | "debug";
+      message: string;
+      source?: string;
+    }>,
+  ): Promise<void> {
+    if (logs.length === 0) return;
+
+    const now = new Date();
+    const values = logs.map((log) => ({
+      id: randomUUID(),
+      job_id: jobId,
+      level: log.level,
+      message: log.message,
+      source: log.source || null,
+      created_at: now,
+    }));
+
+    await db.insertInto("job_log_lines").values(values).execute();
+
+    logger.debug("Job log batch recorded", { jobId, count: logs.length });
   }
 }

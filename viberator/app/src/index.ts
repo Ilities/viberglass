@@ -2,12 +2,12 @@ import { ConfigManager } from "./config/ConfigManager";
 import { AgentOrchestrator } from "./orchestrator/AgentOrchestrator";
 import { AgentFactory } from "./agents";
 import { BugReport, Ticket, ProjectSettings, Configuration } from "./types";
-import { createLogger, format, transports } from "winston";
+import { createLogger, format, transports, Logger } from "winston";
 import express, { Request, Response } from "express";
 
 class VibugViberator {
   private config!: Configuration;
-  private logger: any;
+  private logger: Logger;
   private orchestrator!: AgentOrchestrator;
   private configManager!: ConfigManager;
   private app: express.Application;
@@ -326,7 +326,7 @@ class VibugViberator {
           process.env.STEPS_TO_REPRODUCE || "Steps to reproduce the bug",
         expectedBehavior: process.env.EXPECTED_BEHAVIOR || "Expected behavior",
         actualBehavior: process.env.ACTUAL_BEHAVIOR || "Actual behavior",
-        severity: (process.env.BUG_SEVERITY as any) || "medium",
+        severity: (process.env.BUG_SEVERITY as BugReport["severity"]) || "medium",
         language: process.env.LANGUAGE || "javascript",
       };
 

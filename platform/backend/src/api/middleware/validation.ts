@@ -9,91 +9,58 @@ import {
   updateClankerSchema,
   deploymentStrategySchema,
   updateDeploymentStrategySchema,
+  resultCallbackSchema,
+  runTicketSchema,
+  progressUpdateSchema,
+  logEntrySchema,
+  logBatchSchema,
 } from "./schemas";
 
-export const validateCreateTicket = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = ticketSchema.validate(req.body);
+/**
+ * Factory function that creates validation middleware from a Joi schema.
+ * Handles the standard validation flow: validate req.body, return 400 on error,
+ * replace req.body with validated value on success.
+ *
+ * @param schema - Joi schema to validate against
+ * @returns Express middleware function
+ */
+function createValidator(schema: Joi.Schema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const { error, value } = schema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        error: "Validation error",
+        details: error.details.map((detail) => ({
+          field: detail.path.join("."),
+          message: detail.message,
+        })),
+      });
+    }
+    req.body = value;
+    next();
+  };
+}
 
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
+// Schema validators - each created via factory
+export const validateCreateTicket = createValidator(ticketSchema);
+export const validateUpdateTicket = createValidator(updateTicketSchema);
+export const validateCreateProject = createValidator(projectSchema);
+export const validateUpdateProject = createValidator(updateProjectSchema);
+export const validateCreateClanker = createValidator(clankerSchema);
+export const validateUpdateClanker = createValidator(updateClankerSchema);
+export const validateCreateDeploymentStrategy = createValidator(
+  deploymentStrategySchema,
+);
+export const validateUpdateDeploymentStrategy = createValidator(
+  updateDeploymentStrategySchema,
+);
+export const validateResultCallback = createValidator(resultCallbackSchema);
+export const validateRunTicket = createValidator(runTicketSchema);
+export const validateProgressUpdate = createValidator(progressUpdateSchema);
+export const validateLogEntry = createValidator(logEntrySchema);
+export const validateLogBatch = createValidator(logBatchSchema);
 
-  req.body = value;
-  next();
-};
-
-export const validateUpdateTicket = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = updateTicketSchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
-
-  req.body = value;
-  next();
-};
-
-export const validateCreateProject = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = projectSchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
-
-  req.body = value;
-  next();
-};
-
-export const validateUpdateProject = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = updateProjectSchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
-
-  req.body = value;
-  next();
-};
+// Custom validators with special logic
 
 export const validateUuidParam = (paramName: string) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -152,89 +119,5 @@ export const validateFileUploads = (
     }
   }
 
-  next();
-};
-
-export const validateCreateClanker = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = clankerSchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
-
-  req.body = value;
-  next();
-};
-
-export const validateUpdateClanker = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = updateClankerSchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
-
-  req.body = value;
-  next();
-};
-
-export const validateCreateDeploymentStrategy = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = deploymentStrategySchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
-
-  req.body = value;
-  next();
-};
-
-export const validateUpdateDeploymentStrategy = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { error, value } = updateDeploymentStrategySchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      error: "Validation error",
-      details: error.details.map((detail) => ({
-        field: detail.path.join("."),
-        message: detail.message,
-      })),
-    });
-  }
-
-  req.body = value;
   next();
 };

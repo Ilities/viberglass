@@ -179,3 +179,41 @@ export const updateDeploymentStrategySchema = Joi.object({
   description: Joi.string().allow(null, "").optional(),
   configSchema: Joi.object().allow(null).optional(),
 });
+
+export const resultCallbackSchema = Joi.object({
+  success: Joi.boolean().required(),
+  commitHash: Joi.string().allow(null, "").optional(),
+  pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
+  errorMessage: Joi.string().allow(null, "").optional(),
+  logs: Joi.array().items(Joi.string()).default([]),
+  changedFiles: Joi.array().items(Joi.string()).default([]),
+  executionTime: Joi.number().integer().min(0).required(),
+  branch: Joi.string().optional(),
+});
+
+export const runTicketSchema = Joi.object({
+  clankerId: Joi.string().uuid().required(),
+});
+
+// Progress update schema for worker progress reporting
+export const progressUpdateSchema = Joi.object({
+  step: Joi.string().max(100).optional().allow(null, ''),
+  message: Joi.string().min(1).max(1000).required(),
+  details: Joi.object().optional().allow(null),
+});
+
+// Log entry schema for worker logging
+export const logEntrySchema = Joi.object({
+  level: Joi.string().valid('info', 'warn', 'error', 'debug').required(),
+  message: Joi.string().min(1).max(5000).required(),
+  source: Joi.string().max(100).optional().allow(null, ''),
+});
+
+// Batch log entries schema for efficient bulk logging
+export const logBatchSchema = Joi.object({
+  logs: Joi.array()
+    .items(logEntrySchema)
+    .min(1)
+    .max(100) // Limit batch size to 100 logs
+    .required(),
+});

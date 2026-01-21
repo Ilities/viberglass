@@ -1,10 +1,9 @@
 import express from "express";
 import cors from "cors";
-import * as dotenv from "dotenv";
 import path from "path";
 import cookieParser from "cookie-parser";
-import logger from "morgan";
 import createError from "http-errors";
+import logger from "../config/logger";
 
 // Import routes
 import projectsRouter from "./routes/projects";
@@ -14,13 +13,26 @@ import clankersRouter from "./routes/clankers";
 import deploymentStrategiesRouter from "./routes/deployment-strategies";
 import jobsRouter from "./routes/jobs";
 
-// Load environment variables
-dotenv.config();
-
 const app = express();
 
-// Middleware
-app.use(logger("dev"));
+// HTTP request logging middleware with Winston
+app.use((req, res, next) => {
+  const start = Date.now();
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    logger.http("HTTP Request", {
+      method: req.method,
+      url: req.url,
+      status: res.statusCode,
+      duration: `${duration}ms`,
+      ip: req.ip,
+    });
+  });
+
+  next();
+});
+
 app.use(express.json({ limit: "10mb" })); // Increased limit for file uploads
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.use(cookieParser());
@@ -230,7 +242,11 @@ app.use((err: any, req: express.Request, res: express.Response) => {
   res.locals.error = req.app.get("env") === "development" ? err : {};
 
   // Log error
-  console.error("Application error:", err);
+  logger.error("Application error", {
+    message: err.message,
+    stack: err.stack,
+    status: err.status,
+  });
 
   // Send error response
   if (req.path.startsWith("/api/")) {

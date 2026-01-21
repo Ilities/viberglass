@@ -1,10 +1,10 @@
-import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import { formatAutoFixStatus, formatSeverity, formatTimestamp, getRecentTickets } from '@/data'
+import { formatAutoFixStatus, formatSeverity, formatTimestamp, getRecentTickets, getClankersList } from '@/data'
+import { getTickets } from '@/service/api/ticket-api'
+import { TicketsTable } from './tickets-table'
 import { FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 
 export default async function TicketsPage({
@@ -17,6 +17,10 @@ export default async function TicketsPage({
   const { project } = await params
   const tickets = await getRecentTickets(project)
   const searchP = await searchParams
+
+  // Fetch clankers and full tickets for the run modal
+  const clankers = await getClankersList()
+  const fullTickets = await getTickets({ projectSlug: project, limit: 50 }).catch(() => [])
 
   // Parse search params
   const status = searchP.status as string
@@ -75,56 +79,9 @@ export default async function TicketsPage({
         </Button>
       </div>
 
-      <Table className="mt-8 [--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
-        <TableHead>
-          <TableRow>
-            <TableHeader>Title</TableHeader>
-            <TableHeader>Severity</TableHeader>
-            <TableHeader>Category</TableHeader>
-            <TableHeader>Status</TableHeader>
-            <TableHeader>Auto-Fix</TableHeader>
-            <TableHeader>Reported</TableHeader>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {filteredTickets.map((ticket) => (
-            <TableRow key={ticket.id} href={`/project/${project}/tickets/${ticket.id}`}>
-              <TableCell className="font-medium">{ticket.title}</TableCell>
-              <TableCell>
-                <Badge className={formatSeverity(ticket.severity).color}>{formatSeverity(ticket.severity).label}</Badge>
-              </TableCell>
-              <TableCell>{ticket.category}</TableCell>
-              <TableCell>
-                <Badge
-                  className={
-                    ticket.status === 'resolved'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200'
-                      : ticket.status === 'in_progress'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200'
-                        : 'bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-zinc-200'
-                  }
-                >
-                  {ticket.status === 'in_progress'
-                    ? 'In Progress'
-                    : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {ticket.autoFixStatus ? (
-                  <Badge className={formatAutoFixStatus(ticket.autoFixStatus).color}>
-                    {formatAutoFixStatus(ticket.autoFixStatus).label}
-                  </Badge>
-                ) : (
-                  <span className="text-zinc-400">—</span>
-                )}
-              </TableCell>
-              <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(ticket.timestamp)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      {filteredTickets.length === 0 && (
+      {filteredTickets.length > 0 ? (
+        <TicketsTable tickets={filteredTickets} fullTickets={fullTickets} clankers={clankers} project={project} />
+      ) : (
         <div className="mt-8 text-center">
           <p className="text-zinc-500 dark:text-zinc-400">No tickets found matching your criteria.</p>
         </div>

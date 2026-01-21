@@ -5,6 +5,7 @@ import {
   validateUpdateProject,
   validateUuidParam
 } from '../middleware/validation';
+import logger from '../../config/logger';
 
 const router = express.Router();
 const projectService = new ProjectDAO();
@@ -23,7 +24,7 @@ router.get('/', async (req, res) => {
       pagination: { limit, offset, count: projects.length }
     });
   } catch (error) {
-    console.error('Error fetching projects:', error);
+    logger.error('Error fetching projects', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -37,7 +38,7 @@ router.get('/by-name/:name', async (req, res) => {
     }
     res.json({ success: true, data: project });
   } catch (error) {
-    console.error('Error fetching project:', error);
+    logger.error('Error fetching project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -48,7 +49,7 @@ router.post('/', validateCreateProject, async (req, res) => {
     const project = await projectService.createProject(req.body);
     res.status(201).json({ success: true, data: project });
   } catch (error) {
-    console.error('Error creating project:', error);
+    logger.error('Error creating project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -62,7 +63,7 @@ router.get('/:id', validateUuidParam('id'), async (req, res) => {
     }
     res.json({ success: true, data: project });
   } catch (error) {
-    console.error('Error fetching project:', error);
+    logger.error('Error fetching project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -79,7 +80,7 @@ router.put('/:id', validateUuidParam('id'), validateUpdateProject, async (req, r
     const updatedProject = await projectService.updateProject(req.params.id, req.body);
     res.json({ success: true, data: updatedProject });
   } catch (error) {
-    console.error('Error updating project:', error);
+    logger.error('Error updating project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -95,7 +96,7 @@ router.delete('/:id', validateUuidParam('id'), async (req, res) => {
     await projectService.deleteProject(req.params.id);
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting project:', error);
+    logger.error('Error deleting project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

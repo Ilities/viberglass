@@ -1,0 +1,7 @@
+{
+  "mode": "yolo",
+  "depth": "comprehensive",
+  "parallel": false,
+  "phases": 12,
+  "plansPerPhase": 10
+}

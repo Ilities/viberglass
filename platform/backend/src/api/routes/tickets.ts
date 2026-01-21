@@ -1,18 +1,27 @@
 import express from "express";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
+import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { FileUploadService, upload } from "../../services/FileUploadService";
+import { JobService } from "../../services/JobService";
+import { WorkerExecutionService } from "../../workers/WorkerExecutionService";
 import {
   validateCreateTicket,
   validateUpdateTicket,
   validateUuidParam,
   validateFileUploads,
+  validateRunTicket,
 } from "../middleware/validation";
+import { randomUUID } from "crypto";
+import logger from "../../config/logger";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
 const projectService = new ProjectDAO();
+const clankerService = new ClankerDAO();
 const fileUploadService = new FileUploadService();
+const jobService = new JobService();
+const workerExecutionService = new WorkerExecutionService();
 
 // POST /api/tickets - Create a new ticket
 router.post(
@@ -56,7 +65,7 @@ router.post(
         data: ticket,
       });
     } catch (error) {
-      console.error("Error creating ticket:", error);
+      logger.error('Error creating ticket', { error: error instanceof Error ? error.message : error });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to create ticket",
@@ -81,7 +90,7 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
       data: ticket,
     });
   } catch (error) {
-    console.error("Error fetching ticket:", error);
+    logger.error('Error fetching ticket', { error: error instanceof Error ? error.message : error });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch ticket",
@@ -116,7 +125,7 @@ router.put(
         data: updatedTicket,
       });
     } catch (error) {
-      console.error("Error updating ticket:", error);
+      logger.error('Error updating ticket', { error: error instanceof Error ? error.message : error });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to update ticket",
@@ -141,7 +150,7 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
       message: "Ticket deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting ticket:", error);
+    logger.error('Error deleting ticket', { error: error instanceof Error ? error.message : error });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to delete ticket",
@@ -201,7 +210,7 @@ router.get("/", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching tickets:", error);
+    logger.error('Error fetching tickets', { error: error instanceof Error ? error.message : error });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch tickets",
@@ -250,10 +259,138 @@ router.get(
         },
       });
     } catch (error) {
-      console.error("Error generating signed URL:", error);
+      logger.error('Error generating signed URL', { error: error instanceof Error ? error.message : error });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to generate signed URL",
+      });
+    }
+  },
+);
+
+// POST /api/tickets/:id/run - Run a ticket as a job with worker invocation
+router.post(
+  "/:id/run",
+  validateUuidParam("id"),
+  validateRunTicket,
+  async (req, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { clankerId } = req.body;
+
+      // Get ticket by id
+      const ticket = await ticketService.getTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({
+          error: "Ticket not found",
+        });
+      }
+
+      // Get project by ticket.projectId
+      const project = await projectService.getProject(ticket.projectId);
+      if (!project) {
+        logger.error('Project not found for ticket', {
+          ticketId,
+          projectId: ticket.projectId,
+        });
+        return res.status(500).json({
+          error: "Data integrity issue",
+          message: "Associated project not found",
+        });
+      }
+
+      // Validate project has repositoryUrl
+      if (!project.repositoryUrl) {
+        return res.status(400).json({
+          error: "Project has no repository configured",
+          message: "Please configure a repository URL for this project before running tickets",
+        });
+      }
+
+      // Get clanker by clankerId
+      const clanker = await clankerService.getClanker(clankerId);
+      if (!clanker) {
+        return res.status(404).json({
+          error: "Clanker not found",
+        });
+      }
+
+      // Validate clanker has deploymentStrategyId and status is 'active'
+      if (!clanker.deploymentStrategyId) {
+        return res.status(400).json({
+          error: "Clanker not ready",
+          message: "Selected clanker has no deployment strategy configured",
+        });
+      }
+
+      if (clanker.status !== "active") {
+        return res.status(400).json({
+          error: "Clanker not ready",
+          message: `Selected clanker is ${clanker.status}. Only active clankers can run jobs.`,
+        });
+      }
+
+      // Generate jobId
+      const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
+
+      // Create job via JobService.submitJob with ticket and clanker references
+      const jobData = {
+        id: jobId,
+        tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
+        repository: project.repositoryUrl,
+        task: `${ticket.title}\n\n${ticket.description}`,
+        branch: undefined, // Worker creates branch
+        baseBranch: "main",
+        context: {
+          ticketId: ticket.id,
+          stepsToReproduce: ticket.description,
+        },
+        settings: {
+          testRequired: false,
+          maxChanges: 10,
+        },
+        timestamp: Date.now(),
+      };
+
+      await jobService.submitJob(jobData, {
+        ticketId: ticket.id,
+        clankerId: clanker.id,
+      });
+
+      // Invoke worker via WorkerExecutionService.executeJob - fire and forget
+      // Don't await the result, just log errors
+      workerExecutionService
+        .executeJob(jobData, clanker)
+        .then((result) => {
+          logger.info('Worker invoked successfully', {
+            ticketId,
+            jobId,
+            clankerId,
+            executionId: result.executionId,
+          });
+        })
+        .catch((error) => {
+          logger.error('Worker invocation failed', {
+            ticketId,
+            jobId,
+            clankerId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+
+      // Return 202 Accepted immediately
+      return res.status(202).json({
+        success: true,
+        data: {
+          jobId,
+          status: "active",
+        },
+      });
+    } catch (error) {
+      logger.error('Error running ticket', { error: error instanceof Error ? error.message : error });
+      res.status(500).json({
+        error: "Internal server error",
+        message: "Failed to run ticket",
       });
     }
   },

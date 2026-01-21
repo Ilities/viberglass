@@ -1,11 +1,10 @@
 import express from "express";
 import crypto from "crypto";
 import { GitHubIntegration } from "../../integrations/GitHubIntegration";
-import { MessageQueueService } from "../../services/MessageQueueService";
 import { pool } from "../../persistence/config/database";
+import logger from "../../config/logger";
 
 const router = express.Router();
-const messageQueueService = new MessageQueueService();
 
 // Middleware to verify GitHub webhook signature
 const verifyGitHubSignature = (
@@ -82,16 +81,7 @@ router.post("/github", verifyGitHubSignature, async (req, res) => {
 
     // Check if this issue has auto-fix tags and queue for processing
     if (githubIntegration.hasAutoFixTag(webhookEvent.ticket)) {
-      console.log(`Auto-fix detected for issue ${webhookEvent.ticketId}`);
-
-      // Queue auto-fix job
-      await messageQueueService.queueAutoFixJob({
-        ticketId: webhookEvent.ticketId,
-        ticketSystem: "github",
-        repositoryUrl: webhookEvent.ticket.repositoryUrl || "",
-        issueData: webhookEvent.ticket,
-        priority: webhookEvent.ticket.priority || "medium",
-      });
+      logger.info('Auto-fix detected for issue', { ticketId: webhookEvent.ticketId });
 
       // Update database with auto-fix status
       const client2 = await pool.connect();
@@ -115,7 +105,7 @@ router.post("/github", verifyGitHubSignature, async (req, res) => {
       autoFixQueued: githubIntegration.hasAutoFixTag(webhookEvent.ticket),
     });
   } catch (error) {
-    console.error("Error processing GitHub webhook:", error);
+    logger.error('Error processing GitHub webhook', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Failed to process webhook" });
   }
 });
@@ -149,11 +139,11 @@ router.post("/linear", async (req, res) => {
     }
 
     // Process Linear webhook (would implement LinearIntegration similarly)
-    console.log(`Linear webhook received: ${event}`);
+    logger.info('Linear webhook received', { event });
 
     res.status(200).json({ message: "Linear webhook processed successfully" });
   } catch (error) {
-    console.error("Error processing Linear webhook:", error);
+    logger.error('Error processing Linear webhook', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Failed to process webhook" });
   }
 });
@@ -187,11 +177,11 @@ router.post("/jira", async (req, res) => {
     }
 
     // Process Jira webhook (would implement JiraIntegration similarly)
-    console.log(`Jira webhook received: ${event}`);
+    logger.info('Jira webhook received', { event });
 
     res.status(200).json({ message: "Jira webhook processed successfully" });
   } catch (error) {
-    console.error("Error processing Jira webhook:", error);
+    logger.error('Error processing Jira webhook', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Failed to process webhook" });
   }
 });
@@ -230,7 +220,7 @@ router.get("/status", async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error("Error getting webhook status:", error);
+    logger.error('Error getting webhook status', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Failed to get status" });
   }
 });
@@ -245,14 +235,6 @@ router.post("/trigger-autofix", async (req, res) => {
         .status(400)
         .json({ error: "ticketId and ticketSystem are required" });
     }
-
-    // Queue auto-fix job
-    await messageQueueService.queueAutoFixJob({
-      ticketId,
-      ticketSystem,
-      repositoryUrl: repositoryUrl || "",
-      priority: "medium",
-    });
 
     // Update database
     const client = await pool.connect();
@@ -275,7 +257,7 @@ router.post("/trigger-autofix", async (req, res) => {
       ticketSystem,
     });
   } catch (error) {
-    console.error("Error triggering auto-fix:", error);
+    logger.error('Error triggering auto-fix', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Failed to trigger auto-fix" });
   }
 });

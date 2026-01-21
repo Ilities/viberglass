@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   Clanker,
   ClankerConfigFile,
+  ClankerHealthStatus,
   CreateClankerRequest,
   DeploymentStrategy,
   PaginatedResponse,
@@ -109,6 +110,18 @@ export async function stopClanker(id: string): Promise<Clanker> {
   return data.data
 }
 
+export async function getClankerHealth(id: string): Promise<ClankerHealthStatus> {
+  const response = await fetch(`${API_BASE_URL}/api/clankers/${id}/health`)
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Clanker not found')
+    }
+    throw new Error('Failed to fetch clanker health')
+  }
+  const data: ApiResponse<ClankerHealthStatus> = await response.json()
+  return data.data
+}
+
 // Config file API functions
 
 export async function getConfigFiles(clankerId: string): Promise<ClankerConfigFile[]> {
@@ -180,6 +193,7 @@ export async function getDeploymentStrategyByName(name: string): Promise<Deploym
 export type {
   Clanker,
   ClankerConfigFile,
+  ClankerHealthStatus,
   CreateClankerRequest,
   UpdateClankerRequest,
   DeploymentStrategy,
