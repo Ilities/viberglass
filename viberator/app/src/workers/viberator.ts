@@ -1,17 +1,17 @@
-import { createLogger, format, transports } from "winston";
+import { createLogger, format, transports, Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
 import { ConfigManager } from "../config/ConfigManager";
 import { AgentOrchestrator } from "../orchestrator/AgentOrchestrator";
 import { Configuration, ExecutionContext } from "../types";
 import { GitService } from "../services/GitService";
-import { CodingJobData, JobResult, WorkerPayload } from "./types";
+import { CodingJobData, JobResult, WorkerPayload, LambdaPayload, EcsPayload, DockerPayload } from "./types";
 import { CallbackClient } from "./CallbackClient";
 import { CredentialProvider } from "./CredentialProvider";
 import { ConfigLoader } from "./ConfigLoader";
 
 export class ViberatorWorker {
-  private logger: any;
+  private logger: Logger;
   private config!: Configuration;
   private orchestrator!: AgentOrchestrator;
   private workDir: string;
@@ -69,10 +69,10 @@ export class ViberatorWorker {
         // Store deployment config based on worker type
         if (payload.workerType === 'docker') {
           // DockerPayload uses clankerConfig
-          this.clankerConfig = (payload as any).clankerConfig;
+          this.clankerConfig = (payload as DockerPayload).clankerConfig;
         } else {
           // LambdaPayload and EcsPayload use deploymentConfig
-          this.clankerConfig = (payload as any).deploymentConfig;
+          this.clankerConfig = (payload as LambdaPayload | EcsPayload).deploymentConfig;
         }
 
         // Fetch credentials from SSM
@@ -91,9 +91,9 @@ export class ViberatorWorker {
         // Load instruction files based on worker type
         if (payload.workerType === 'lambda' || payload.workerType === 'ecs') {
           // AWS workers: fetch from S3 - S3InstructionFile has s3Url
-          const awsPayload = payload as any; // LambdaPayload/EcsPayload have s3Url
+          const awsPayload = payload as LambdaPayload | EcsPayload;
           const files = await this.configLoader.fetchInstructionFiles(
-            awsPayload.instructionFiles.map((f: { fileType: string; s3Url: string }) => ({
+            awsPayload.instructionFiles.map((f) => ({
               fileType: f.fileType,
               s3Url: f.s3Url
             }))
@@ -101,7 +101,7 @@ export class ViberatorWorker {
           files.forEach(f => this.instructionFiles.set(f.fileType, f.content));
         } else if (payload.workerType === 'docker') {
           // Docker workers: read from mounted filesystem
-          const dockerPayload = payload as any; // DockerPayload has mountPath
+          const dockerPayload = payload as DockerPayload;
           for (const file of dockerPayload.instructionFiles) {
             try {
               const content = fs.readFileSync(file.mountPath, 'utf-8');
