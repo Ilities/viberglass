@@ -80,6 +80,20 @@ export interface ClankerSummary {
   updatedAt: string
 }
 
+// Health check result for a clanker
+export interface ClankerHealthStatus {
+  clankerId: string
+  isHealthy: boolean
+  status: 'healthy' | 'unhealthy' | 'unknown'
+  checks: {
+    resourceExists: boolean        // Clanker record exists
+    deploymentConfigured: boolean  // Has strategy + config
+    invokerAvailable: boolean      // isAvailable() check
+  }
+  message?: string
+  lastChecked: string              // ISO timestamp
+}
+
 // Request body for creating a deployment strategy
 export interface CreateDeploymentStrategyRequest {
   name: string
