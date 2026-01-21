@@ -25,6 +25,16 @@ function formatDuration(start: string | null, end: string | null): string {
 
 export default function JobDetailPage() {
   const { jobId, project } = useParams<{ project: string; jobId: string }>()
+
+  // useParams can return undefined during initial render
+  if (!jobId) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-zinc-500 dark:text-zinc-400">Loading job details...</div>
+      </div>
+    )
+  }
+
   const { job, isLoading, error, isPolling } = useJobStatus(jobId)
 
   if (isLoading) {

@@ -25,16 +25,16 @@ export interface UseJobStatusResult {
  *
  * Toast notifications only appear on status changes, not on initial mount.
  *
- * @param jobId - The job ID to poll for status
+ * @param jobId - The job ID to poll for status (can be undefined during initial render)
  * @returns Job state and control functions
  */
-export function useJobStatus(jobId: string): UseJobStatusResult {
+export function useJobStatus(jobId: string | undefined): UseJobStatusResult {
   // Track previous status to detect changes for toast notifications
   const [previousStatus, setPreviousStatus] = useState<string | null>(null)
 
   // Use the generic polling hook
   const { data, error, isPolling, refetch } = usePolling<JobStatus>({
-    fn: () => getJob(jobId),
+    fn: () => getJob(jobId!),
     interval: 3000, // 3 seconds
     immediate: true,
     enabled: !!jobId, // Only poll if jobId exists
