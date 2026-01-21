@@ -12,7 +12,7 @@
 
 **Unused DEBUG_LOG Prefixes:**
 - Issue: Extensive debug logging with `[DEBUG_LOG]` prefix throughout codebase that serves no structured purpose
-- Files: `platform/backend/src/services/MessageQueueService.ts:86-202`, `platform/backend/src/api/server.ts:57-70`, `platform/backend/src/test/api.test.ts:127-133`
+- Files: `platform/backend/src/api/server.ts:57-70`, `platform/backend/src/test/api.test.ts:127-133`
 - Impact: Clutters logs, makes debugging harder, no structured way to filter these logs
 - Fix approach: Replace with proper logging framework (winston/pino) and log levels
 

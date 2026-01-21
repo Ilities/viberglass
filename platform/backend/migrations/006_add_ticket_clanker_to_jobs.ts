@@ -5,10 +5,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .alterTable("jobs")
     .addColumn("ticket_id", "uuid", (col) =>
-      col
-        .references("tickets.id")
-        .onDelete("set null")
-        .null(),
+      col.references("tickets.id").onDelete("set null"),
     )
     .execute();
 
@@ -16,10 +13,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .alterTable("jobs")
     .addColumn("clanker_id", "uuid", (col) =>
-      col
-        .references("clankers.id")
-        .onDelete("set null")
-        .null(),
+      col.references("clankers.id").onDelete("set null"),
     )
     .execute();
 
