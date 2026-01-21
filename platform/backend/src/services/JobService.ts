@@ -98,10 +98,43 @@ export class JobService {
       return null;
     }
 
+    // Fetch progress updates history
+    const progressUpdates = await db
+      .selectFrom("job_progress_updates")
+      .selectAll()
+      .where("job_id", "=", jobId)
+      .orderBy("created_at", "desc")
+      .execute();
+
+    // Fetch log lines (most recent first, limited to 100)
+    const logs = await db
+      .selectFrom("job_log_lines")
+      .selectAll()
+      .where("job_id", "=", jobId)
+      .orderBy("created_at", "desc")
+      .limit(100)
+      .execute();
+
     return {
       jobId: job.id,
       status: job.status,
       progress: job.progress,
+      lastHeartbeat: job.last_heartbeat?.toISOString() || null,
+      progressUpdates: progressUpdates.map((pu) => ({
+        step: pu.step,
+        message: pu.message,
+        details: pu.details ? JSON.parse(pu.details as string) : null,
+        createdAt: pu.created_at?.toISOString() || new Date().toISOString(),
+      })),
+      logs: logs
+        .reverse() // Show oldest to newest for chronological reading
+        .map((log) => ({
+          id: log.id,
+          level: log.level,
+          message: log.message,
+          source: log.source,
+          createdAt: log.created_at?.toISOString() || new Date().toISOString(),
+        })),
       data: {
         id: job.id,
         tenantId: job.tenant_id,
