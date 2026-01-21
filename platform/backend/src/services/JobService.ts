@@ -2,6 +2,9 @@ import { randomUUID } from "crypto";
 import db from "../persistence/config/database";
 import { JobData, JobResult } from "../types/Job";
 import { sql } from "kysely";
+import { createChildLogger } from "../config/logger";
+
+const logger = createChildLogger({ service: "JobService" });
 
 // Job status type from database schema
 export type JobStatus = "queued" | "active" | "completed" | "failed";
@@ -37,7 +40,7 @@ export class JobService {
       })
       .execute();
 
-    console.log(`[JobService] Job ${jobId} enqueued`, {
+    logger.info("Job enqueued", {
       jobId,
       repository: data.repository,
       tenantId: data.tenantId,
@@ -84,7 +87,7 @@ export class JobService {
       .where("id", "=", jobId)
       .execute();
 
-    console.log(`[JobService] Job ${jobId} updated to ${status}`, updates);
+    logger.info("Job status updated", { jobId, status, ...updates });
   }
 
   async getJobStatus(jobId: string): Promise<any | null> {
@@ -123,7 +126,7 @@ export class JobService {
       progressUpdates: progressUpdates.map((pu) => ({
         step: pu.step,
         message: pu.message,
-        details: pu.details ? JSON.parse(pu.details as string) : null,
+        details: pu.details || null,
         createdAt: pu.created_at?.toISOString() || new Date().toISOString(),
       })),
       logs: logs
@@ -193,7 +196,7 @@ export class JobService {
       throw new Error("Job not found");
     }
 
-    console.log(`[JobService] Job ${jobId} removed`);
+    logger.info("Job removed", { jobId });
 
     return { message: "Job removed successfully", jobId };
   }
@@ -268,15 +271,17 @@ export class JobService {
    * Find jobs that have been active for longer than the cutoff time
    * Used by OrphanSweeper to detect stuck jobs
    */
-  async findOrphanedJobs(cutoffTime: Date): Promise<Array<{ id: string; started_at: Date }>> {
+  async findOrphanedJobs(
+    cutoffTime: Date,
+  ): Promise<Array<{ id: string; started_at: Date }>> {
     const jobs = await db
-      .selectFrom('jobs')
-      .select(['id', 'started_at'])
-      .where('status', '=', 'active')
-      .where('started_at', '<', cutoffTime)
+      .selectFrom("jobs")
+      .select(["id", "started_at"])
+      .where("status", "=", "active")
+      .where("started_at", "<", cutoffTime)
       .execute();
 
-    return jobs.map(job => ({
+    return jobs.map((job) => ({
       id: job.id,
       started_at: job.started_at!,
     }));
@@ -289,23 +294,27 @@ export class JobService {
    * - last_heartbeat is NULL AND started_at is before the stale threshold (never sent progress)
    * Used by HeartbeatSweeper to detect jobs that stopped communicating
    */
-  async findStaleJobs(staleThreshold: Date): Promise<Array<{ id: string; started_at: Date | null; last_heartbeat: Date | null }>> {
+  async findStaleJobs(
+    staleThreshold: Date,
+  ): Promise<
+    Array<{ id: string; started_at: Date | null; last_heartbeat: Date | null }>
+  > {
     const jobs = await db
-      .selectFrom('jobs')
-      .select(['id', 'started_at', 'last_heartbeat'])
-      .where('status', '=', 'active')
+      .selectFrom("jobs")
+      .select(["id", "started_at", "last_heartbeat"])
+      .where("status", "=", "active")
       .where((eb) =>
         eb.or([
-          eb('last_heartbeat', '<', staleThreshold),
+          eb("last_heartbeat", "<", staleThreshold),
           eb.and([
-            eb('last_heartbeat', 'is', null),
-            eb('started_at', '<', staleThreshold),
+            eb("last_heartbeat", "is", null),
+            eb("started_at", "<", staleThreshold),
           ]),
-        ])
+        ]),
       )
       .execute();
 
-    return jobs.map(job => ({
+    return jobs.map((job) => ({
       id: job.id,
       started_at: job.started_at,
       last_heartbeat: job.last_heartbeat,
@@ -333,29 +342,35 @@ export class JobService {
     await db.transaction().execute(async (trx) => {
       // Update jobs table with new progress and heartbeat timestamp
       await trx
-        .updateTable('jobs')
+        .updateTable("jobs")
         .set({
           progress: JSON.stringify(progressData),
           last_heartbeat: new Date(),
         })
-        .where('id', '=', jobId)
+        .where("id", "=", jobId)
         .execute();
 
       // Insert into job_progress_updates for history
       await trx
-        .insertInto('job_progress_updates')
+        .insertInto("job_progress_updates")
         .values({
           id: randomUUID(),
           job_id: jobId,
           step: progressData.step,
           message: progressData.message,
-          details: progressData.details ? JSON.stringify(progressData.details) : null,
+          details: progressData.details
+            ? JSON.stringify(progressData.details)
+            : null,
           created_at: new Date(),
         })
         .execute();
     });
 
-    console.log(`[JobService] Job ${jobId} progress: ${progress.message}`);
+    logger.debug("Job progress recorded", {
+      jobId,
+      message: progress.message,
+      step: progress.step,
+    });
   }
 
   /**
@@ -365,13 +380,13 @@ export class JobService {
   async recordLog(
     jobId: string,
     log: {
-      level: 'info' | 'warn' | 'error' | 'debug';
+      level: "info" | "warn" | "error" | "debug";
       message: string;
       source?: string;
     },
   ): Promise<void> {
     await db
-      .insertInto('job_log_lines')
+      .insertInto("job_log_lines")
       .values({
         id: randomUUID(),
         job_id: jobId,
@@ -382,6 +397,39 @@ export class JobService {
       })
       .execute();
 
-    console.log(`[JobService] Job ${jobId} log: ${log.level} - ${log.message}`);
+    logger.debug("Job log recorded", {
+      jobId,
+      level: log.level,
+      message: log.message,
+    });
+  }
+
+  /**
+   * Record multiple log lines for a job in a single bulk insert
+   * This is much more efficient than individual recordLog calls
+   */
+  async recordLogBatch(
+    jobId: string,
+    logs: Array<{
+      level: "info" | "warn" | "error" | "debug";
+      message: string;
+      source?: string;
+    }>,
+  ): Promise<void> {
+    if (logs.length === 0) return;
+
+    const now = new Date();
+    const values = logs.map((log) => ({
+      id: randomUUID(),
+      job_id: jobId,
+      level: log.level,
+      message: log.message,
+      source: log.source || null,
+      created_at: now,
+    }));
+
+    await db.insertInto("job_log_lines").values(values).execute();
+
+    logger.debug("Job log batch recorded", { jobId, count: logs.length });
   }
 }

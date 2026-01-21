@@ -51,6 +51,7 @@ export interface S3InstructionFile {
 export interface MountedInstructionFile {
   fileType: string;
   mountPath: string; // e.g., /etc/viberator/config/agents.md
+  content?: string; // inline override content
 }
 
 /**
@@ -59,7 +60,7 @@ export interface MountedInstructionFile {
  * and fetch them at runtime using platform credentials
  */
 export interface LambdaPayload extends BaseWorkerPayload {
-  workerType: 'lambda';
+  workerType: "lambda";
   instructionFiles: S3InstructionFile[];
   requiredCredentials: string[]; // e.g., ['GITHUB_TOKEN', 'CLAUDE_API_KEY']
   deploymentConfig?: Record<string, unknown>;
@@ -71,7 +72,7 @@ export interface LambdaPayload extends BaseWorkerPayload {
  * and fetch them at runtime using platform credentials
  */
 export interface EcsPayload extends BaseWorkerPayload {
-  workerType: 'ecs';
+  workerType: "ecs";
   instructionFiles: S3InstructionFile[];
   requiredCredentials: string[];
   deploymentConfig?: Record<string, unknown>;
@@ -84,7 +85,7 @@ export interface EcsPayload extends BaseWorkerPayload {
  * Credentials passed via environment variables at docker run time
  */
 export interface DockerPayload extends BaseWorkerPayload {
-  workerType: 'docker';
+  workerType: "docker";
   instructionFiles: MountedInstructionFile[];
   requiredCredentials: string[];
   clankerConfig?: Record<string, unknown>; // Full config for Docker

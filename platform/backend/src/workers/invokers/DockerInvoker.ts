@@ -5,6 +5,9 @@ import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import fs from "fs";
 import { PassThrough } from "stream";
+import { createChildLogger } from "../../config/logger";
+
+const logger = createChildLogger({ invoker: "Docker" });
 
 interface DockerDeploymentConfig {
   containerImage: string;
@@ -41,18 +44,47 @@ export class DockerInvoker implements WorkerInvoker {
 
     try {
       // Create container with unique name
+      const jsonPayload = JSON.stringify(payload);
+
+      // Determine platform API URL for Docker container
+      // Priority: env var > host network mode > bridge network with host.docker.internal
+      // Note: On Linux, host.docker.internal requires --add-host or using bridge IP
+      let platformApiUrl = process.env.PLATFORM_API_URL;
+
+      if (!platformApiUrl) {
+        if (dockerConfig.networkMode === "host") {
+          // Host network mode: use localhost
+          platformApiUrl = "http://localhost:8888";
+        } else {
+          // Bridge network: try host.docker.internal (works on Docker Desktop)
+          // For Linux, users should set PLATFORM_API_URL env var or use host network
+          platformApiUrl = "http://host.docker.internal:8888";
+        }
+      }
+
+      // On Linux, add host.docker.internal mapping for bridge network
+      const extraHosts: string[] = [];
+      if (
+        process.platform === "linux" &&
+        (!dockerConfig.networkMode || dockerConfig.networkMode === "bridge")
+      ) {
+        extraHosts.push("host.docker.internal:host-gateway");
+      }
+
       const container = await this.docker.createContainer({
         Image: dockerConfig.containerImage,
         name: `viberator-job-${job.id}`,
         Env: [
-          `JOB_PAYLOAD=${JSON.stringify(payload)}`,
           `TENANT_ID=${job.tenantId}`,
           `JOB_ID=${job.id}`,
+          `PLATFORM_API_URL=${platformApiUrl}`,
           ...this.formatEnvironmentVars(dockerConfig.environmentVariables),
         ],
+        Cmd: ["node", "dist/cli-worker.js", "--job-data", jsonPayload],
         HostConfig: {
           AutoRemove: true, // Clean up after completion
-          NetworkMode: dockerConfig.networkMode || "bridge",
+          NetworkMode: dockerConfig.networkMode || "host",
+          ExtraHosts: extraHosts.length > 0 ? extraHosts : undefined,
         },
       });
 
@@ -61,7 +93,7 @@ export class DockerInvoker implements WorkerInvoker {
 
       const containerId = container.id;
 
-      console.info("[DockerInvoker] Container started", {
+      logger.info("Container started", {
         jobId: job.id,
         containerId,
         image: dockerConfig.containerImage,
@@ -134,6 +166,7 @@ export class DockerInvoker implements WorkerInvoker {
       baseBranch: job.baseBranch,
       context: job.context,
       settings: job.settings,
+      instructionFiles: job.context?.instructionFiles ?? [],
       clankerConfig: clanker, // Full config for Docker (no external storage)
     };
   }
@@ -157,7 +190,7 @@ export class DockerInvoker implements WorkerInvoker {
     if (logFilePath) {
       fileStream = fs.createWriteStream(logFilePath, { flags: "a" });
       fileStream.on("error", (err) => {
-        console.warn("[DockerInvoker] Log file write error", {
+        logger.warn("Log file write error", {
           jobId,
           error: err.message,
         });
@@ -182,9 +215,9 @@ export class DockerInvoker implements WorkerInvoker {
         const trimmed = text.trimEnd();
         if (trimmed.length > 0) {
           if (isError) {
-            console.error(`[DockerInvoker][${jobId}] ${trimmed}`);
+            logger.error("Container stderr", { jobId, message: trimmed });
           } else {
-            console.info(`[DockerInvoker][${jobId}] ${trimmed}`);
+            logger.debug("Container stdout", { jobId, message: trimmed });
           }
         }
         fileStream?.write(text);
@@ -195,14 +228,14 @@ export class DockerInvoker implements WorkerInvoker {
 
       logStream.on("end", () => fileStream?.end());
       logStream.on("error", (err) => {
-        console.warn("[DockerInvoker] Log stream error", {
+        logger.warn("Log stream error", {
           jobId,
           error: err.message,
         });
         fileStream?.end();
       });
     } catch (err) {
-      console.warn("[DockerInvoker] Failed to attach to container logs", {
+      logger.warn("Failed to attach to container logs", {
         jobId,
         error: (err as Error).message,
       });

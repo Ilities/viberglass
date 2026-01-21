@@ -6,6 +6,7 @@ import {
   validateUpdateClanker,
   validateUuidParam,
 } from "../middleware/validation";
+import logger from "../../config/logger";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
@@ -25,7 +26,7 @@ router.get("/", async (req, res) => {
       pagination: { limit, offset, count: clankers.length },
     });
   } catch (error) {
-    console.error("Error fetching clankers:", error);
+    logger.error('Error fetching clankers', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -39,7 +40,7 @@ router.get("/by-slug/:slug", async (req, res) => {
     }
     res.json({ success: true, data: clanker });
   } catch (error) {
-    console.error("Error fetching clanker:", error);
+    logger.error('Error fetching clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -50,7 +51,7 @@ router.post("/", validateCreateClanker, async (req, res) => {
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
   } catch (error) {
-    console.error("Error creating clanker:", error);
+    logger.error('Error creating clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -64,7 +65,7 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
     }
     res.json({ success: true, data: clanker });
   } catch (error) {
-    console.error("Error fetching clanker:", error);
+    logger.error('Error fetching clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -87,7 +88,7 @@ router.put(
       );
       res.json({ success: true, data: updatedClanker });
     } catch (error) {
-      console.error("Error updating clanker:", error);
+      logger.error('Error updating clanker', { error: error instanceof Error ? error.message : error });
       res.status(500).json({ error: "Internal server error" });
     }
   }
@@ -104,7 +105,7 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
     await clankerService.deleteClanker(req.params.id);
     res.status(204).send();
   } catch (error) {
-    console.error("Error deleting clanker:", error);
+    logger.error('Error deleting clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -134,7 +135,7 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
       try {
         await clankerService.updateStatus(req.params.id, "active", null);
       } catch (err) {
-        console.error("Error setting clanker to active:", err);
+        logger.error('Error setting clanker to active', { error: err instanceof Error ? err.message : err });
         await clankerService.updateStatus(
           req.params.id,
           "failed",
@@ -145,7 +146,7 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
 
     res.json({ success: true, data: updatedClanker });
   } catch (error) {
-    console.error("Error starting clanker:", error);
+    logger.error('Error starting clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -171,7 +172,7 @@ router.post("/:id/stop", validateUuidParam("id"), async (req, res) => {
 
     res.json({ success: true, data: updatedClanker });
   } catch (error) {
-    console.error("Error stopping clanker:", error);
+    logger.error('Error stopping clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -187,7 +188,7 @@ router.get('/:id/health', validateUuidParam('id'), async (req, res) => {
     const health = await healthService.checkClankerHealth(clanker);
     res.json({ success: true, data: health });
   } catch (error) {
-    console.error('Error checking clanker health:', error);
+    logger.error('Error checking clanker health', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -205,7 +206,7 @@ router.get("/:id/config-files", validateUuidParam("id"), async (req, res) => {
     const configFiles = await clankerService.getConfigFiles(req.params.id);
     res.json({ success: true, data: configFiles });
   } catch (error) {
-    console.error("Error fetching config files:", error);
+    logger.error('Error fetching config files', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -231,7 +232,7 @@ router.get(
 
       res.json({ success: true, data: configFile });
     } catch (error) {
-      console.error("Error fetching config file:", error);
+      logger.error('Error fetching config file', { error: error instanceof Error ? error.message : error });
       res.status(500).json({ error: "Internal server error" });
     }
   }
@@ -251,7 +252,7 @@ router.delete(
       await clankerService.deleteConfigFile(req.params.id, req.params.fileType);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting config file:", error);
+      logger.error('Error deleting config file', { error: error instanceof Error ? error.message : error });
       res.status(500).json({ error: "Internal server error" });
     }
   }

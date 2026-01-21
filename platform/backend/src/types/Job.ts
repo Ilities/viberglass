@@ -1,3 +1,9 @@
+interface InstructionFile {
+  fileType: string;
+  content?: string;
+  mountPath?: string;
+}
+
 export interface JobData {
   id: string;
   tenantId: string;
@@ -12,6 +18,7 @@ export interface JobData {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    instructionFiles?: InstructionFile[];
   };
   settings?: {
     maxChanges?: number;

@@ -1,4 +1,3 @@
-import axios, { AxiosError } from "axios";
 import { Logger } from "winston";
 
 export interface CallbackResult {
@@ -47,76 +46,80 @@ export class CallbackClient {
           attempt: attempt + 1,
         });
 
-        const response = await axios.post(
-          url,
-          {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": tenantId,
+          },
+          body: JSON.stringify({
             ...result,
             logs: result.logs.map((log) => this.redactSensitiveInfo(log)),
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-Tenant-Id": tenantId, // SEC-03: Tenant header
-            },
-            timeout: 30000, // 30 second timeout
-          },
-        );
-
-        this.logger.info("Job result sent successfully", {
-          jobId,
-          status: response.status,
+          }),
+          signal: AbortSignal.timeout(30000), // 30 second timeout
         });
 
-        return; // Success, exit retry loop
-      } catch (error) {
-        const isLastAttempt = attempt === this.maxRetries;
-        const delay = this.retryDelay * Math.pow(2, attempt); // Exponential backoff
-
-        if (axios.isAxiosError(error)) {
-          const statusCode = error.response?.status;
-          const isRetryable =
-            !statusCode || statusCode >= 500 || statusCode === 429;
+        if (!response.ok) {
+          const statusCode = response.status;
+          const isRetryable = statusCode >= 500 || statusCode === 429;
 
           if (!isRetryable) {
-            // Don't retry client errors (4xx)
+            const errorData = await response.json().catch(() => ({ error: response.statusText }));
             this.logger.error("Non-retryable error sending result", {
               jobId,
               statusCode,
-              message: error.response?.data?.error || error.message,
+              message: errorData.error || response.statusText,
             });
-            throw new Error(
-              `Callback failed: ${error.response?.data?.error || error.message}`,
-            );
+            throw new Error(`Callback failed: ${errorData.error || response.statusText}`);
           }
 
-          if (isLastAttempt) {
+          if (attempt === this.maxRetries) {
             this.logger.error("Max retries exceeded sending job result", {
               jobId,
-              lastError: error.message,
+              lastStatus: statusCode,
             });
-            throw new Error(
-              `Callback failed after ${this.maxRetries + 1} attempts`,
-            );
+            throw new Error(`Callback failed after ${this.maxRetries + 1} attempts`);
           }
 
+          const delay = this.retryDelay * Math.pow(2, attempt);
           this.logger.warn("Retryable error, will retry", {
             jobId,
             attempt: attempt + 1,
             statusCode,
             delay,
           });
+          await this.sleep(delay);
+          continue;
+        }
+
+        this.logger.info("Job result sent successfully", {
+          jobId,
+          status: response.status,
+        });
+
+        return;
+      } catch (error) {
+        const isLastAttempt = attempt === this.maxRetries;
+
+        if (error instanceof Error && error.name === "AbortError") {
+          this.logger.error("Request timeout", { jobId });
+          if (isLastAttempt) {
+            throw new Error(`Callback timeout after ${this.maxRetries + 1} attempts`);
+          }
+        } else if (error instanceof Error && error.message.startsWith("Callback failed:")) {
+          throw error;
         } else {
           this.logger.error("Unexpected error sending result", {
             jobId,
             error: error instanceof Error ? error.message : String(error),
           });
-          throw error;
+          if (isLastAttempt) {
+            throw error;
+          }
         }
 
-        // Wait before retry (exponential backoff)
-        if (!isLastAttempt) {
-          await this.sleep(delay);
-        }
+        const delay = this.retryDelay * Math.pow(2, attempt);
+        await this.sleep(delay);
       }
     }
   }
@@ -135,21 +138,52 @@ export class CallbackClient {
           attempt: attempt + 1,
         });
 
-        const response = await axios.post(
-          url,
-          {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": tenantId,
+          },
+          body: JSON.stringify({
             step: progress.step || null,
             message: this.redactSensitiveInfo(progress.message),
             details: progress.details || null,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-Tenant-Id": tenantId,
-            },
-            timeout: 10000, // 10 second timeout
-          },
-        );
+          }),
+          signal: AbortSignal.timeout(10000), // 10 second timeout
+        });
+
+        if (!response.ok) {
+          const statusCode = response.status;
+          const isRetryable = statusCode >= 500 || statusCode === 429;
+
+          if (!isRetryable) {
+            const errorData = await response.json().catch(() => ({ error: response.statusText }));
+            this.logger.error("Non-retryable error sending progress", {
+              jobId,
+              statusCode,
+              message: errorData.error || response.statusText,
+            });
+            throw new Error(`Progress callback failed: ${errorData.error || response.statusText}`);
+          }
+
+          if (attempt === this.maxRetries) {
+            this.logger.error("Max retries exceeded sending job progress", {
+              jobId,
+              lastStatus: statusCode,
+            });
+            throw new Error(`Progress callback failed after ${this.maxRetries + 1} attempts`);
+          }
+
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          this.logger.warn("Retryable error sending progress, will retry", {
+            jobId,
+            attempt: attempt + 1,
+            statusCode,
+            delay,
+          });
+          await this.sleep(delay);
+          continue;
+        }
 
         this.logger.info("Job progress sent successfully", {
           jobId,
@@ -159,51 +193,26 @@ export class CallbackClient {
         return;
       } catch (error) {
         const isLastAttempt = attempt === this.maxRetries;
-        const delay = this.retryDelay * Math.pow(2, attempt);
 
-        if (axios.isAxiosError(error)) {
-          const statusCode = error.response?.status;
-          const isRetryable =
-            !statusCode || statusCode >= 500 || statusCode === 429;
-
-          if (!isRetryable) {
-            this.logger.error("Non-retryable error sending progress", {
-              jobId,
-              statusCode,
-              message: error.response?.data?.error || error.message,
-            });
-            throw new Error(
-              `Progress callback failed: ${error.response?.data?.error || error.message}`,
-            );
-          }
-
+        if (error instanceof Error && error.name === "AbortError") {
+          this.logger.error("Request timeout", { jobId });
           if (isLastAttempt) {
-            this.logger.error("Max retries exceeded sending job progress", {
-              jobId,
-              lastError: error.message,
-            });
-            throw new Error(
-              `Progress callback failed after ${this.maxRetries + 1} attempts`,
-            );
+            throw new Error(`Progress callback timeout after ${this.maxRetries + 1} attempts`);
           }
-
-          this.logger.warn("Retryable error sending progress, will retry", {
-            jobId,
-            attempt: attempt + 1,
-            statusCode,
-            delay,
-          });
+        } else if (error instanceof Error && error.message.startsWith("Progress callback failed:")) {
+          throw error;
         } else {
           this.logger.error("Unexpected error sending progress", {
             jobId,
             error: error instanceof Error ? error.message : String(error),
           });
-          throw error;
+          if (isLastAttempt) {
+            throw error;
+          }
         }
 
-        if (!isLastAttempt) {
-          await this.sleep(delay);
-        }
+        const delay = this.retryDelay * Math.pow(2, attempt);
+        await this.sleep(delay);
       }
     }
   }
@@ -223,21 +232,52 @@ export class CallbackClient {
           attempt: attempt + 1,
         });
 
-        const response = await axios.post(
-          url,
-          {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": tenantId,
+          },
+          body: JSON.stringify({
             level: log.level,
             message: this.redactSensitiveInfo(log.message),
             source: log.source || null,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-Tenant-Id": tenantId,
-            },
-            timeout: 5000, // 5 second timeout
-          },
-        );
+          }),
+          signal: AbortSignal.timeout(5000), // 5 second timeout
+        });
+
+        if (!response.ok) {
+          const statusCode = response.status;
+          const isRetryable = statusCode >= 500 || statusCode === 429;
+
+          if (!isRetryable) {
+            const errorData = await response.json().catch(() => ({ error: response.statusText }));
+            this.logger.error("Non-retryable error sending log", {
+              jobId,
+              statusCode,
+              message: errorData.error || response.statusText,
+            });
+            throw new Error(`Log callback failed: ${errorData.error || response.statusText}`);
+          }
+
+          if (attempt === this.maxRetries) {
+            this.logger.error("Max retries exceeded sending job log", {
+              jobId,
+              lastStatus: statusCode,
+            });
+            throw new Error(`Log callback failed after ${this.maxRetries + 1} attempts`);
+          }
+
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          this.logger.warn("Retryable error sending log, will retry", {
+            jobId,
+            attempt: attempt + 1,
+            statusCode,
+            delay,
+          });
+          await this.sleep(delay);
+          continue;
+        }
 
         this.logger.info("Job log sent successfully", {
           jobId,
@@ -247,51 +287,125 @@ export class CallbackClient {
         return;
       } catch (error) {
         const isLastAttempt = attempt === this.maxRetries;
-        const delay = this.retryDelay * Math.pow(2, attempt);
 
-        if (axios.isAxiosError(error)) {
-          const statusCode = error.response?.status;
-          const isRetryable =
-            !statusCode || statusCode >= 500 || statusCode === 429;
-
-          if (!isRetryable) {
-            this.logger.error("Non-retryable error sending log", {
-              jobId,
-              statusCode,
-              message: error.response?.data?.error || error.message,
-            });
-            throw new Error(
-              `Log callback failed: ${error.response?.data?.error || error.message}`,
-            );
-          }
-
+        if (error instanceof Error && error.name === "AbortError") {
+          this.logger.error("Request timeout", { jobId });
           if (isLastAttempt) {
-            this.logger.error("Max retries exceeded sending job log", {
-              jobId,
-              lastError: error.message,
-            });
-            throw new Error(
-              `Log callback failed after ${this.maxRetries + 1} attempts`,
-            );
+            throw new Error(`Log callback timeout after ${this.maxRetries + 1} attempts`);
           }
-
-          this.logger.warn("Retryable error sending log, will retry", {
-            jobId,
-            attempt: attempt + 1,
-            statusCode,
-            delay,
-          });
+        } else if (error instanceof Error && error.message.startsWith("Log callback failed:")) {
+          throw error;
         } else {
           this.logger.error("Unexpected error sending log", {
             jobId,
             error: error instanceof Error ? error.message : String(error),
           });
-          throw error;
+          if (isLastAttempt) {
+            throw error;
+          }
         }
 
-        if (!isLastAttempt) {
+        const delay = this.retryDelay * Math.pow(2, attempt);
+        await this.sleep(delay);
+      }
+    }
+  }
+
+  async sendLogBatch(
+    jobId: string,
+    tenantId: string,
+    logs: Array<{ level: "info" | "warn" | "error" | "debug"; message: string; source?: string }>,
+  ): Promise<void> {
+    if (logs.length === 0) return;
+
+    const url = `${this.apiUrl}/api/jobs/${jobId}/logs/batch`;
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        this.logger.info("Sending batch job logs to platform", {
+          jobId,
+          count: logs.length,
+          attempt: attempt + 1,
+        });
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": tenantId,
+          },
+          body: JSON.stringify({
+            logs: logs.map(log => ({
+              level: log.level,
+              message: this.redactSensitiveInfo(log.message),
+              source: log.source || null,
+            })),
+          }),
+          signal: AbortSignal.timeout(10000), // 10 second timeout for batch
+        });
+
+        if (!response.ok) {
+          const statusCode = response.status;
+          const isRetryable = statusCode >= 500 || statusCode === 429;
+
+          if (!isRetryable) {
+            const errorData = await response.json().catch(() => ({ error: response.statusText }));
+            this.logger.error("Non-retryable error sending batch logs", {
+              jobId,
+              statusCode,
+              message: errorData.error || response.statusText,
+            });
+            throw new Error(`Batch log callback failed: ${errorData.error || response.statusText}`);
+          }
+
+          if (attempt === this.maxRetries) {
+            this.logger.error("Max retries exceeded sending batch logs", {
+              jobId,
+              lastStatus: statusCode,
+            });
+            throw new Error(`Batch log callback failed after ${this.maxRetries + 1} attempts`);
+          }
+
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          this.logger.warn("Retryable error sending batch logs, will retry", {
+            jobId,
+            attempt: attempt + 1,
+            statusCode,
+            delay,
+          });
           await this.sleep(delay);
+          continue;
         }
+
+        this.logger.info("Batch job logs sent successfully", {
+          jobId,
+          count: logs.length,
+          status: response.status,
+        });
+
+        return;
+      } catch (error) {
+        const isLastAttempt = attempt === this.maxRetries;
+
+        if (error instanceof Error && error.name === "AbortError") {
+          this.logger.error("Request timeout", { jobId });
+          if (isLastAttempt) {
+            throw new Error(`Batch log callback timeout after ${this.maxRetries + 1} attempts`);
+          }
+        } else if (error instanceof Error && error.message.startsWith("Batch log callback failed:")) {
+          throw error;
+        } else {
+          this.logger.error("Unexpected error sending batch logs", {
+            jobId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          if (isLastAttempt) {
+            throw error;
+          }
+        }
+
+        const delay = this.retryDelay * Math.pow(2, attempt);
+        await this.sleep(delay);
       }
     }
   }

@@ -3,6 +3,9 @@ import type { Clanker } from '@viberator/types';
 import type { JobData } from '../../types/Job';
 import { WorkerInvoker, InvocationResult } from '../WorkerInvoker';
 import { WorkerError, ErrorClassification } from '../errors/WorkerError';
+import { createChildLogger } from '../../config/logger';
+
+const logger = createChildLogger({ invoker: 'Lambda' });
 
 interface LambdaDeploymentConfig {
   functionName?: string;
@@ -41,7 +44,7 @@ export class LambdaInvoker implements WorkerInvoker {
 
       const executionId = response.$metadata.requestId || 'lambda-' + Date.now();
 
-      console.info('[LambdaInvoker] Worker invoked', {
+      logger.info('Worker invoked', {
         jobId: job.id,
         functionName,
         executionId,

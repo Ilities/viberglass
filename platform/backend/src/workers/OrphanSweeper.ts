@@ -1,4 +1,7 @@
 import { JobService } from '../services/JobService';
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ worker: 'OrphanSweeper' });
 
 export interface OrphanSweeperConfig {
   sweepIntervalMs?: number;  // How often to check (default: 60 seconds)
@@ -22,23 +25,23 @@ export class OrphanSweeper {
    */
   start(): void {
     if (this.intervalId) {
-      console.warn('[OrphanSweeper] Already running');
+      logger.warn('Already running');
       return;
     }
 
-    console.info('[OrphanSweeper] Starting orphan detection sweep', {
+    logger.info('Starting orphan detection sweep', {
       sweepIntervalMs: this.config.sweepIntervalMs,
       jobTimeoutMs: this.config.jobTimeoutMs,
     });
 
     // Run immediately on start, then at interval
     this.sweep().catch(error => {
-      console.error('[OrphanSweeper] Initial sweep failed', { error });
+      logger.error('Initial sweep failed', { error: error instanceof Error ? error.message : error });
     });
 
     this.intervalId = setInterval(() => {
       this.sweep().catch(error => {
-        console.error('[OrphanSweeper] Sweep failed', { error });
+        logger.error('Sweep failed', { error: error instanceof Error ? error.message : error });
       });
     }, this.config.sweepIntervalMs);
   }
@@ -50,7 +53,7 @@ export class OrphanSweeper {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.info('[OrphanSweeper] Stopped');
+      logger.info('Stopped');
     }
   }
 
@@ -60,12 +63,12 @@ export class OrphanSweeper {
   async sweep(): Promise<number> {
     const cutoffTime = new Date(Date.now() - this.config.jobTimeoutMs);
 
-    console.debug('[OrphanSweeper] Running sweep', { cutoffTime });
+    logger.debug('Running sweep', { cutoffTime });
 
     const orphanedJobs = await this.jobService.findOrphanedJobs(cutoffTime);
 
     for (const job of orphanedJobs) {
-      console.warn('[OrphanSweeper] Marking job as timed out', {
+      logger.warn('Marking job as timed out', {
         jobId: job.id,
         startedAt: job.started_at,
       });
@@ -76,7 +79,7 @@ export class OrphanSweeper {
     }
 
     if (orphanedJobs.length > 0) {
-      console.info('[OrphanSweeper] Sweep completed', {
+      logger.info('Sweep completed', {
         orphanCount: orphanedJobs.length,
       });
     }

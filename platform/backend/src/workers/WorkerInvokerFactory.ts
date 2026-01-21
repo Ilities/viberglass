@@ -2,6 +2,9 @@ import { WorkerInvoker, WorkerType } from './WorkerInvoker';
 import { LambdaInvoker } from './invokers/LambdaInvoker';
 import { EcsInvoker } from './invokers/EcsInvoker';
 import { DockerInvoker } from './invokers/DockerInvoker';
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ component: 'WorkerInvokerFactory' });
 
 export interface WorkerInvokerConfig {
   lambda?: { region?: string };
@@ -22,14 +25,14 @@ export class WorkerInvokerFactory {
     this.invokers.set('ecs', new EcsInvoker(config.ecs));
     this.invokers.set('docker', new DockerInvoker(config.docker));
 
-    console.info('[WorkerInvokerFactory] Initialized invokers:', {
+    logger.info('Initialized invokers', {
       types: Array.from(this.invokers.keys()),
     });
   }
 
   registerInvoker(type: WorkerType, invoker: WorkerInvoker): void {
     this.invokers.set(type, invoker);
-    console.info(`[WorkerInvokerFactory] Registered ${type} invoker`);
+    logger.info('Registered invoker', { type });
   }
 
   getInvoker(workerType: WorkerType): WorkerInvoker {

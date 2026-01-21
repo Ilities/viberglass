@@ -3,6 +3,9 @@ import type { JobData } from '../types/Job';
 import { getWorkerInvokerFactory } from './WorkerInvokerFactory';
 import { WorkerError } from './errors/WorkerError';
 import { JobService } from '../services/JobService';
+import { createChildLogger } from '../config/logger';
+
+const logger = createChildLogger({ service: 'WorkerExecutionService' });
 
 export interface ExecutionConfig {
   maxRetries?: number;          // Default: 3
@@ -64,7 +67,7 @@ export class WorkerExecutionService {
           },
         });
 
-        console.info('[WorkerExecutionService] Job invoked successfully', {
+        logger.info('Job invoked successfully', {
           jobId: job.id,
           executionId: result.executionId,
           workerType: result.workerType,
@@ -85,7 +88,7 @@ export class WorkerExecutionService {
         if (error instanceof WorkerError) {
           if (error.isPermanent) {
             // Permanent error - fail immediately
-            console.error('[WorkerExecutionService] Permanent error, not retrying', {
+            logger.error('Permanent error, not retrying', {
               jobId: job.id,
               error: error.message,
               attempts,
@@ -103,7 +106,7 @@ export class WorkerExecutionService {
           // Transient error - retry with backoff
           if (attempts <= this.config.maxRetries) {
             const delay = this.calculateBackoff(attempts);
-            console.warn('[WorkerExecutionService] Transient error, retrying', {
+            logger.warn('Transient error, retrying', {
               jobId: job.id,
               error: error.message,
               attempt: attempts,
@@ -114,7 +117,7 @@ export class WorkerExecutionService {
           }
         } else {
           // Unknown error type - treat as permanent
-          console.error('[WorkerExecutionService] Unknown error type', {
+          logger.error('Unknown error type', {
             jobId: job.id,
             error: (error as Error).message,
             attempts,
@@ -133,7 +136,7 @@ export class WorkerExecutionService {
 
     // Exhausted retries
     const errorMessage = `Worker invocation failed after ${attempts} attempts: ${lastError?.message}`;
-    console.error('[WorkerExecutionService] Exhausted retries', {
+    logger.error('Exhausted retries', {
       jobId: job.id,
       error: errorMessage,
       attempts,
