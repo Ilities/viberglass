@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 7 of 12 (Clanker Runtime Status) — In Progress
-Plan: 1 of 4 (Database Schema for Heartbeat and Progress)
-Status: Plan 07-01 complete
-Last activity: 2026-01-21 — Database migration and TypeScript types for job heartbeat tracking
+Plan: 2 of 4 (Progress and Log API Endpoints)
+Status: Plan 07-02 complete
+Last activity: 2026-01-21 — Worker progress and log streaming API with tenant validation
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43
+- Total plans completed: 44
 - Average duration: ~4 minutes
-- Total execution time: 2.8 hours
+- Total execution time: 2.9 hours
 
 **By Phase:**
 
@@ -38,7 +38,7 @@ Progress: [█████████░] 88%
 | 04.4 | 2 | 2 | 10m |
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
-| 07 | 1 | 4 | 2m |
+| 07 | 2 | 4 | 2.5m |
 
 **Recent Trend:**
 - Last 5 plans: 6m, 4m, 3m, 4m, 3m
@@ -79,6 +79,8 @@ Recent decisions affecting current work:
 | ON DELETE CASCADE foreign keys | Automatic cleanup when jobs are deleted prevents orphaned records | progress and log tables cascade on job deletion |
 | Partial index on last_heartbeat | Optimizes stale job queries without index bloat, only indexes active jobs | idx_jobs_last_heartbeat has WHERE status = 'active' |
 | Separated progress from log tables | Different query patterns (history vs streaming) warrant separate storage | job_progress_updates for timeline, job_log_lines for streaming |
+| Transaction for progress updates | Atomic heartbeat + history insert prevents data races between concurrent progress calls | JobService.recordProgress() uses db.transaction().execute() |
+| JSON.stringify for jsonb columns | Kysely requires string serialization for JSON columns, matching existing pattern | recordProgress() and recordLog() use JSON.stringify() |
 
 ### Roadmap Evolution
 
@@ -94,11 +96,10 @@ None yet.
 ### Blockers/Concerns
 
 - Frontend static build requires backend running on port 8888 (expected behavior for SSR with data fetching)
-- Log streaming not implemented (mapped to Phase 7)
-- Progress updates API not implemented (mapped to Phase 7, plan 02)
+- Frontend log streaming UI not implemented (API ready at POST /api/jobs/:jobId/logs)
 
 ## Session Continuity
 
 Last session: 2026-01-21
-Stopped at: Completed Phase 7 Plan 01 - Database Schema for Heartbeat and Progress
+Stopped at: Completed Phase 7 Plan 02 - Progress and Log API Endpoints
 Resume file: None
