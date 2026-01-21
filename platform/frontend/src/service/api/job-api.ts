@@ -12,10 +12,28 @@ export interface RunTicketResponse {
   }
 }
 
+export interface ProgressUpdate {
+  step: string | null
+  message: string
+  details: Record<string, unknown> | null
+  createdAt: string
+}
+
+export interface LogEntry {
+  id: string
+  level: 'info' | 'warn' | 'error' | 'debug'
+  message: string
+  source: string | null
+  createdAt: string
+}
+
 export interface JobStatus {
   jobId: string
   status: 'queued' | 'active' | 'completed' | 'failed'
   progress: Record<string, unknown> | null
+  lastHeartbeat: string | null
+  progressUpdates: ProgressUpdate[]
+  logs: LogEntry[]
   data: {
     id: string
     tenantId: string
