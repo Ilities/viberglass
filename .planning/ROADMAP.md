@@ -295,9 +295,13 @@ Plans:
 
 **Requirements**: STAT-01
 
-**Plans**: 0 plans
+**Plans**: 2 plans in 2 waves
 
-**Status**: Not started
+**Status**: Planning complete
+
+Plans:
+- [ ] 06-01-PLAN.md — Create backend health check service and API endpoint
+- [ ] 06-02-PLAN.md — Create frontend health badge component and integrate display
 
 ---
 
