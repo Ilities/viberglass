@@ -1,5 +1,6 @@
 import express from "express";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
+import { ClankerHealthService } from "../../services/ClankerHealthService";
 import {
   validateCreateClanker,
   validateUpdateClanker,
@@ -8,6 +9,7 @@ import {
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
+const healthService = new ClankerHealthService();
 
 // GET /api/clankers - List all clankers
 router.get("/", async (req, res) => {
@@ -171,6 +173,22 @@ router.post("/:id/stop", validateUuidParam("id"), async (req, res) => {
   } catch (error) {
     console.error("Error stopping clanker:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/clankers/:id/health - Get clanker health status
+router.get('/:id/health', validateUuidParam('id'), async (req, res) => {
+  try {
+    const clanker = await clankerService.getClanker(req.params.id);
+    if (!clanker) {
+      return res.status(404).json({ error: 'Clanker not found' });
+    }
+
+    const health = await healthService.checkClankerHealth(clanker);
+    res.json({ success: true, data: health });
+  } catch (error) {
+    console.error('Error checking clanker health:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
