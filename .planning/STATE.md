@@ -12,17 +12,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 Phase: 4.3 of 12 (Application organization and structural refactoring) — INSERTED
 Next: Execute remaining Phase 4.3 plans, then Phase 5 (Job Status Polling)
-Status: In progress (3 of 4 plans complete)
-Last activity: 2026-01-21 — Completed plan 04.3-03: Frontend data access layer cleanup
+Status: In progress (4 of 4 plans complete)
+Last activity: 2026-01-21 — Completed plan 04.3-04: Type safety improvements
 
-Progress: [██████████] 67%
+Progress: [██████████] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
+- Total plans completed: 31
 - Average duration: ~4 minutes
-- Total execution time: 1.7 hours
+- Total execution time: 1.8 hours
 
 **By Phase:**
 
@@ -34,10 +34,10 @@ Progress: [██████████] 67%
 | 04 | 4 | 4 | 3m |
 | 04.1 | 4 | 4 | 5m |
 | 04.2 | 3 | 3 | 6m |
-| 04.3 | 3 | 4 | 3m |
+| 04.3 | 4 | 4 | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 8m, 2m, 6m, 3m, 3m
+- Last 5 plans: 8m, 2m, 6m, 3m, 11m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -58,6 +58,8 @@ Recent decisions affecting current work:
 | Type safety over 'as any' | Enable better IDE support and compile-time checking | Proper type definitions |
 | Formatting utilities separation | Separates data access from presentation logic | Cleaner architecture with lib/formatters.ts |
 | getTicketStats() placeholder | Keep function with zeros rather than break UI | TODO for future API endpoint |
+| AgentCLIResult intermediate type | Extends ExecutionResult with optional cost without breaking existing types | Type-safe agent cost propagation |
+| Indexed access type pattern | Use Type['field'] for literal casts instead of duplicate type definitions | DRY type-safe casts |
 
 ### Roadmap Evolution
 
@@ -76,5 +78,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-21
-Stopped at: Completed 04.3-03-PLAN.md (Frontend data access layer cleanup)
+Stopped at: Completed 04.3-04-PLAN.md (Type safety improvements)
 Resume file: None
