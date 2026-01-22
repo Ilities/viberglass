@@ -11,3 +11,7 @@ config:
   viberator:environment: prod
   viberator:enableSpot: "false"
   viberator:containerInsights: "true"
+  # Database configuration (optional - defaults shown)
+  # viberator:dbInstanceClass: db.m6g.xlarge
+  # viberator:dbAllocatedStorage: 100
+  # viberator:singleNatGateway: "false"

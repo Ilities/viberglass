@@ -11,3 +11,7 @@ config:
   viberator:environment: dev
   viberator:enableSpot: "true"
   viberator:containerInsights: "true"
+  # Database configuration (optional - defaults shown)
+  # viberator:dbInstanceClass: db.t4g.micro
+  # viberator:dbAllocatedStorage: 20
+  # viberator:singleNatGateway: "true"
