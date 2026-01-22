@@ -11,3 +11,7 @@ config:
   viberator:environment: staging
   viberator:enableSpot: "false"
   viberator:containerInsights: "true"
+  # Database configuration (optional - defaults shown)
+  # viberator:dbInstanceClass: db.t4g.large
+  # viberator:dbAllocatedStorage: 50
+  # viberator:singleNatGateway: "true"
