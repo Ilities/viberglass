@@ -9,6 +9,7 @@ import { createStorage, StorageOutputs } from "./components/storage";
 import { createKmsKey, KmsOutputs } from "./components/kms";
 import { createVpc, VpcOutputs } from "./components/vpc";
 import { createDatabase, DatabaseOutputs } from "./components/database";
+import { createLogging, LoggingOutputs } from "./components/logging";
 
 /**
  * Viberator Infrastructure Stack
@@ -25,6 +26,12 @@ import { createDatabase, DatabaseOutputs } from "./components/database";
 
 // Load configuration from Pulumi stack
 const config = getConfig();
+
+// Create CloudWatch log groups with environment-specific retention
+const logging: LoggingOutputs = createLogging({
+  environment: config.environment,
+  retentionInDays: config.logRetentionDays,
+});
 
 // Create VPC with public/private subnets, NAT gateways, and security groups
 const vpc: VpcOutputs = createVpc(`${config.environment}-viberator`, {
@@ -77,6 +84,7 @@ const lambdaWorker: WorkerLambdaOutputs = createWorkerLambda({
 const ecsWorker: WorkerEcsOutputs = createWorkerEcs({
   config,
   repositoryUrl: registry.repositoryUrl,
+  logGroupName: logging.ecsWorkerLogGroupName,
   cpu: "2048",
   memory: "4096",
 });
