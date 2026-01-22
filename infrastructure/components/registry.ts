@@ -39,7 +39,7 @@ export function createRegistry(options: RegistryOptions): RegistryOutputs {
 
   return {
     repositoryUrl: repo.url,
-    repositoryArn: repo.repositoryArn,
-    repositoryId: repo.repositoryId,
+    repositoryArn: repo.repository.arn,
+    repositoryId: repo.repository.id,
   };
 }
