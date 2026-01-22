@@ -86,6 +86,78 @@ graph TB
     style Private2 fill:#ffe1e1
 ```
 
+## Data Flow Diagrams
+
+### User Request Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CloudFront as CloudFront
+    participant ALB as Application LB
+    participant Backend as ECS Backend
+    participant RDS as PostgreSQL
+    participant SQS as Job Queue
+    participant Worker as Lambda/ECS Worker
+
+    User->>CloudFront: HTTP Request
+    CloudFront->>ALB: Forward Request
+    ALB->>Backend: Route to Target
+    Backend->>RDS: Query Data
+    RDS-->>Backend: Return Results
+    Backend->>SQS: Enqueue Job
+    SQS-->>Backend: Job Queued
+    Backend-->>ALB: JSON Response
+    ALB-->>CloudFront: Response
+    CloudFront-->>User: HTTP Response
+
+    Note over SQS,Worker: Async Processing
+    SQS->>Worker: Trigger/Send Message
+    Worker->>RDS: Access Database
+    Worker->>SQS: Delete Message
+```
+
+### File Upload Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Backend as ECS Backend
+    participant S3 as Uploads Bucket
+    participant SQS as Job Queue
+    participant Worker as Lambda/ECS Worker
+
+    User->>Backend: Upload File + Create Ticket
+    Backend->>S3: Store File
+    S3-->>Backend: File URL
+    Backend->>SQS: Enqueue Job with File URL
+    SQS->>Worker: Trigger Processing
+    Worker->>S3: Download File
+    Worker->>Worker: Process File
+    Worker->>S3: Upload Result
+    Worker->>Backend: Callback with Status
+```
+
+### Security Group Relationships
+
+```mermaid
+graph LR
+    ALBSG[ALB Security Group]
+    BackendSG[Backend Security Group]
+    WorkerSG[Worker Security Group]
+    RDSSG[RDS Security Group]
+    Internet[Internet]
+
+    Internet -->|HTTP/HTTPS| ALBSG
+    ALBSG -->|Backend Port| BackendSG
+    BackendSG -->|PostgreSQL:5432| RDSSG
+    BackendSG -->|Callback Port| WorkerSG
+    WorkerSG -->|All Outbound| Internet
+
+    style RDSSG fill:#f9f,stroke:#333,stroke-width:2px
+    style BackendSG fill:#9cf,stroke:#333,stroke-width:2px
+```
+
 ## Prerequisites
 
 - **Pulumi CLI** - Install from https://www.pulumi.com/docs/install/
@@ -209,17 +281,37 @@ Stack configuration is stored in `Pulumi.{stack}.yaml` files.
 
 ### Configuration Keys
 
-| Config Key | Default | Description |
-|------------|---------|-------------|
-| `aws:region` | `us-east-1` | AWS region for all resources |
-| `awsRegion` | (from aws:region) | Viberator-specific region config |
-| `environment` | `dev` | Environment name (dev/staging/prod) |
-| `enableSpot` | `false` | Use Fargate Spot for workers (dev only) |
-| `containerInsights` | `true` | Enable ECS Container Insights |
-| `dbInstanceClass` | (per env) | RDS instance class |
-| `dbAllocatedStorage` | (per env) | RDS storage in GB |
-| `singleNatGateway` | (per env) | Use single NAT for cost savings |
-| `logRetentionDays` | (per env) | CloudWatch log retention |
+| Config Key | Type | Default | Description |
+|------------|------|---------|-------------|
+| `aws:region` | string | `us-east-1` | AWS region for all resources |
+| `awsRegion` | string | (from aws:region) | Viberator-specific region config |
+| `environment` | string | `dev` | Environment name (dev/staging/prod) |
+| `enableSpot` | bool | `false` | Use Fargate Spot for workers (dev only) |
+| `containerInsights` | bool | `true` | Enable ECS Container Insights |
+| `dbInstanceClass` | string | (per env) | RDS instance class |
+| `dbAllocatedStorage` | number | (per env) | RDS storage in GB |
+| `singleNatGateway` | bool | (per env) | Use single NAT for cost savings |
+| `logRetentionDays` | number | (per env) | CloudWatch log retention |
+
+#### Valid Values Reference
+
+**Database Instance Classes:**
+
+| Instance | vCPU | Memory | Cost/month | Environment |
+|----------|------|--------|------------|-------------|
+| `db.t4g.micro` | 2 | 1 GB | ~$15 | Dev |
+| `db.t4g.large` | 2 | 8 GB | ~$70 | Staging |
+| `db.m6g.xlarge` | 4 | 16 GB | ~$180 | Production |
+
+**Log Retention Options:**
+
+| Value | Retention | Use Case |
+|-------|-----------|----------|
+| 1 | 1 day | Debugging |
+| 7 | 1 week | Development |
+| 30 | 1 month | Staging |
+| 90 | 3 months | Production |
+| 365 | 1 year | Compliance |
 
 ### Environment Defaults
 
