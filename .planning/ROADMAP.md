@@ -318,24 +318,51 @@ Plans:
 **Status**: Complete (2026-01-21)
 
 Plans:
-- [ ] 07-01-PLAN.md — Create database migration for heartbeat and progress tracking
-- [ ] 07-02-PLAN.md — Create backend API endpoints for progress and log updates
-- [ ] 07-03-PLAN.md — Extend CallbackClient and create HeartbeatSweeper
-- [ ] 07-04-PLAN.md — Create frontend progress timeline and log viewer UI
+- [x] 07-01-PLAN.md — Create database migration for heartbeat and progress tracking
+- [x] 07-02-PLAN.md — Create backend API endpoints for progress and log updates
+- [x] 07-03-PLAN.md — Extend CallbackClient and create HeartbeatSweeper
+- [x] 07-04-PLAN.md — Create frontend progress timeline and log viewer UI
 
 ---
 
 ### Phase 8: Webhook Provider Architecture
 
-**Goal**: Provider-agnostic webhook integration with GitHub as first implementation.
+**Goal**: Provider-agnostic webhook integration with GitHub as first implementation. Incoming webhooks from external platforms trigger ticket creation and optionally clanker execution.
 
-**Depends on**: Phase 5
+**Depends on**: Phase 7
 
 **Requirements**: WEB-01, WEB-02, WEB-03, WEB-04
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. WebhookProvider interface defines signature validation, event parsing, outbound calls
+2. GitHubWebhookProvider validates HMAC-SHA256 signatures with timing-safe comparison
+3. GitHub issues and issue_comment events create tickets in database
+4. @bot mentions in comments trigger ticket creation (configurable username)
+5. Auto-execute configuration triggers job creation after ticket creation
+6. Completed jobs post result comments and update labels on GitHub issues
+7. Duplicate webhooks detected and skipped via content hash
+8. Failed webhooks stored for manual retry
+
+**Provider Interface Pattern**:
+```typescript
+interface WebhookProvider {
+  validateSignature(payload: string, signature: string, secret: string): boolean;
+  parseEvent(headers: Record<string, string>, payload: unknown): WebhookEvent | null;
+  postComment(config: ProviderConfig, issueNumber: number, body: string): Promise<void>;
+  updateLabels(config: ProviderConfig, issueNumber: number, add: string[], remove: string[]): Promise<void>;
+}
+```
+
+**Plans**: 5 plans in 4 waves
 
 **Status**: Not started
+
+Plans:
+- [ ] 08-01-PLAN.md — Create database schema types and webhook interfaces
+- [ ] 08-02-PLAN.md — Implement WebhookProvider interface and GitHubWebhookProvider
+- [ ] 08-03-PLAN.md — Create deduplication service and configuration DAOs
+- [ ] 08-04-PLAN.md — Create WebhookService orchestration and refactor API routes
+- [ ] 08-05-PLAN.md — Create feedback service and frontend webhook configuration UI
 
 ---
 
@@ -343,7 +370,7 @@ Plans:
 
 **Goal**: Docker compose environment for local development.
 
-**Depends on**: Phase 7
+**Depends on**: Phase 8
 
 **Requirements**: DEV-01, DEV-02, DEV-03
 
@@ -357,7 +384,7 @@ Plans:
 
 **Goal**: Pulumi stack provisions complete AWS infrastructure.
 
-**Depends on**: Phase 8
+**Depends on**: Phase 9
 
 **Requirements**: DEP-01
 
