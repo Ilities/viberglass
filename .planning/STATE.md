@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 8 of 12 (Webhook Provider Architecture)
-Plan: 4 of 4 (Webhook Integration - Orchestration and Feedback)
+Plan: 5 of 5 (Frontend Webhook Configuration UI)
 Status: Phase complete
-Last activity: 2026-01-22 — Webhook orchestration, feedback posting, and route refactoring with end-to-end GitHub webhook integration
+Last activity: 2026-01-22 — Frontend webhook configuration UI with list pages, forms, and delivery management
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56
+- Total plans completed: 61
 - Average duration: ~4 minutes
-- Total execution time: 3.3 hours
+- Total execution time: 3.5 hours
 
 **By Phase:**
 
@@ -39,7 +39,7 @@ Progress: [██████████] 100%
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
 | 07 | 4 | 4 | 2.5m |
-| 08 | 4 | 4 | 4m |
+| 08 | 5 | 5 | 4m |
 
 **Recent Trend:**
 - Last 5 plans: 3m, 3m, 4m, 4m, 6m
@@ -107,6 +107,9 @@ Recent decisions affecting current work:
 | FeedbackService best-effort posting | Errors posting results don't fail job completion; logged for manual retry | Graceful degradation for outbound API calls |
 | Optional FeedbackService in JobService | Constructor parameter optional for backward compatibility | Gradual migration for result feedback |
 | Tenant resolution from webhook config | Webhook routes use default tenant; actual tenant from config mapping | Allows webhooks without X-Tenant-Id header |
+| Top-level /webhooks path for management | Webhook management at top-level path for global configurations | Not project-specific, allows tenant-level default configs |
+| Auto-refresh for failed delivery list | Polls every 10 seconds using usePolling hook | Live updates for failed webhook deliveries |
+| Setup instructions after config creation | Shows exact webhook URL, content type, secret after save | User-friendly GitHub/Jira webhook configuration |
 
 ### Roadmap Evolution
 
@@ -126,5 +129,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed Phase 8 Plan 04 - Webhook Integration
+Stopped at: Completed Phase 8 Plan 05 - Frontend Webhook Configuration UI
 Resume file: None
