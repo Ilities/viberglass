@@ -52,12 +52,14 @@ export function createQueue(options: QueueOptions): QueueOutputs {
     }
   );
 
-  // Create main worker queue
+  // Create main worker queue with redrive policy for DLQ
   const queue = new aws.sqs.Queue(`${options.config.environment}-viberator-worker-queue`, {
     visibilityTimeoutSeconds: visibilityTimeout,
     messageRetentionSeconds: messageRetention,
-    deadLetterTargetArn: deadLetterQueue.arn,
-    maxReceiveCount: maxReceiveCount,
+    redrivePolicy: JSON.stringify({
+      deadLetterTargetArn: deadLetterQueue.arn,
+      maxReceiveCount: maxReceiveCount,
+    }),
     tags: options.config.tags,
   });
 

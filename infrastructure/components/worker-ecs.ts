@@ -38,6 +38,8 @@ export interface WorkerEcsOutputs {
   executionRoleArn: pulumi.Output<string>;
   /** Task role ARN */
   taskRoleArn: pulumi.Output<string>;
+  /** Task role name for policy attachments */
+  taskRoleName: pulumi.Output<string>;
   /** Worker container image URI */
   imageUri: pulumi.Output<string>;
 }
@@ -176,6 +178,7 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
     taskDefinitionFamily: workerContainer.family,
     executionRoleArn: ecsTaskExecutionRole.arn,
     taskRoleArn: ecsTaskRole.arn,
+    taskRoleName: ecsTaskRole.name,
     imageUri: ecsImage.imageUri,
   };
 }

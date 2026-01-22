@@ -1,9 +1,12 @@
+import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { getConfig, InfrastructureConfig } from "./config";
 import { createRegistry, RegistryOutputs } from "./components/registry";
 import { createQueue, QueueOutputs } from "./components/queue";
 import { createWorkerLambda, WorkerLambdaOutputs } from "./components/worker-lambda";
 import { createWorkerEcs, WorkerEcsOutputs } from "./components/worker-ecs";
+import { createStorage, StorageOutputs } from "./components/storage";
+import { createKmsKey, KmsOutputs } from "./components/kms";
 
 /**
  * Viberator Infrastructure Stack
@@ -11,6 +14,7 @@ import { createWorkerEcs, WorkerEcsOutputs } from "./components/worker-ecs";
  * This stack creates the AWS infrastructure for running Viberator workers:
  * - ECR repository for container images
  * - SQS queue for job processing with DLQ
+ * - S3 bucket for file uploads with encryption and lifecycle policies
  * - Lambda worker for lightweight jobs
  * - ECS cluster with Fargate for heavier workloads
  *
@@ -51,6 +55,31 @@ const ecsWorker: WorkerEcsOutputs = createWorkerEcs({
   memory: "4096",
 });
 
+// Create S3 storage for file uploads
+const storage: StorageOutputs = createStorage({
+  config,
+  bucketPrefix: "viberator-uploads",
+  versioningEnabled: config.environment !== "dev",
+});
+
+// Attach S3 access policy to Lambda worker role
+const lambdaS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
+  `${config.environment}-viberator-lambda-s3-access`,
+  {
+    role: lambdaWorker.lambdaRoleName,
+    policyArn: storage.accessPolicyArn,
+  }
+);
+
+// Attach S3 access policy to ECS task role
+const ecsS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
+  `${config.environment}-viberator-ecs-s3-access`,
+  {
+    role: ecsWorker.taskRoleName,
+    policyArn: storage.accessPolicyArn,
+  }
+);
+
 // Export stack outputs
 export const awsRegion = config.awsRegion;
 export const environment = config.environment;
@@ -76,3 +105,7 @@ export const ecsTaskDefinitionFamily = ecsWorker.taskDefinitionFamily;
 export const ecsExecutionRoleArn = ecsWorker.executionRoleArn;
 export const ecsTaskRoleArn = ecsWorker.taskRoleArn;
 export const ecsImageUri = ecsWorker.imageUri;
+
+export const uploadsBucketName = storage.bucketName;
+export const uploadsBucketArn = storage.bucketArn;
+export const uploadsAccessPolicyArn = storage.accessPolicyArn;
