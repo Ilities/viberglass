@@ -28,6 +28,7 @@ export interface VpcConfig {
  */
 export interface VpcOutputs {
   vpcId: pulumi.Output<string>;
+  vpcCidr: pulumi.Output<string>;
   publicSubnetIds: pulumi.Output<string[]>;
   privateSubnetIds: pulumi.Output<string[]>;
   natGatewayIds: pulumi.Output<string[]>;
@@ -356,6 +357,7 @@ export class VpcComponent {
   public outputs(): VpcOutputs {
     return {
       vpcId: this.vpc.id,
+      vpcCidr: this.vpc.cidrBlock,
       publicSubnetIds: pulumi.all(this.publicSubnets.map((s) => s.id)),
       privateSubnetIds: pulumi.all(this.privateSubnets.map((s) => s.id)),
       natGatewayIds: pulumi.all(this.natGateways.map((n) => n.id)),

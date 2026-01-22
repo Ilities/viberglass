@@ -146,6 +146,7 @@ export const environment = config.environment;
 
 // VPC outputs
 export const vpcId = vpc.vpcId;
+export const vpcCidr = vpc.vpcCidr;
 export const publicSubnetIds = vpc.publicSubnetIds;
 export const privateSubnetIds = vpc.privateSubnetIds;
 export const backendSecurityGroupId = vpc.backendSecurityGroupId;
