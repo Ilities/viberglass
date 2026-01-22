@@ -7,6 +7,8 @@ import { createWorkerLambda, WorkerLambdaOutputs } from "./components/worker-lam
 import { createWorkerEcs, WorkerEcsOutputs } from "./components/worker-ecs";
 import { createStorage, StorageOutputs } from "./components/storage";
 import { createKmsKey, KmsOutputs } from "./components/kms";
+import { createVpc, VpcOutputs } from "./components/vpc";
+import { createDatabase, DatabaseOutputs } from "./components/database";
 
 /**
  * Viberator Infrastructure Stack
@@ -23,6 +25,23 @@ import { createKmsKey, KmsOutputs } from "./components/kms";
 
 // Load configuration from Pulumi stack
 const config = getConfig();
+
+// Create VPC with public/private subnets, NAT gateways, and security groups
+const vpc: VpcOutputs = createVpc(`${config.environment}-viberator`, {
+  environment: config.environment,
+  singleNatGateway: config.singleNatGateway ?? true,
+});
+
+// Create RDS PostgreSQL database with SSM credentials storage
+const database: DatabaseOutputs = createDatabase({
+  config,
+  vpc: {
+    privateSubnetIds: vpc.privateSubnetIds,
+    rdsSecurityGroupId: vpc.rdsSecurityGroupId,
+  },
+  instanceClass: config.dbInstanceClass,
+  allocatedStorage: config.dbAllocatedStorage,
+});
 
 // Create ECR repository for container images
 const registry: RegistryOutputs = createRegistry({
@@ -55,6 +74,37 @@ const ecsWorker: WorkerEcsOutputs = createWorkerEcs({
   memory: "4096",
 });
 
+// Create KMS key for SSM Parameter Store encryption
+const kms: KmsOutputs = createKmsKey({
+  config,
+});
+
+// Attach KMS decrypt permission to Lambda worker role
+new aws.iam.RolePolicy(`${config.environment}-viberator-lambda-kms`, {
+  role: lambdaWorker.lambdaRoleName,
+  policy: pulumi.interpolate`{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt", "kms:GenerateDataKey*"],
+      "Resource": "${kms.keyArn}"
+    }]
+  }`,
+});
+
+// Attach KMS decrypt permission to ECS task role
+new aws.iam.RolePolicy(`${config.environment}-viberator-ecs-kms`, {
+  role: ecsWorker.taskRoleName,
+  policy: pulumi.interpolate`{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt", "kms:GenerateDataKey*"],
+      "Resource": "${kms.keyArn}"
+    }]
+  }`,
+});
+
 // Create S3 storage for file uploads
 const storage: StorageOutputs = createStorage({
   config,
@@ -84,6 +134,24 @@ const ecsS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
 export const awsRegion = config.awsRegion;
 export const environment = config.environment;
 
+// VPC outputs
+export const vpcId = vpc.vpcId;
+export const publicSubnetIds = vpc.publicSubnetIds;
+export const privateSubnetIds = vpc.privateSubnetIds;
+export const backendSecurityGroupId = vpc.backendSecurityGroupId;
+export const rdsSecurityGroupId = vpc.rdsSecurityGroupId;
+export const workerSecurityGroupId = vpc.workerSecurityGroupId;
+
+// Database outputs
+export const databaseEndpoint = database.endpoint;
+export const databasePort = database.port;
+export const databaseInstanceArn = database.instanceArn;
+export const databaseName = database.databaseName;
+export const databaseSsmUsernamePath = database.usernamePath;
+export const databaseSsmPasswordPath = database.passwordPath;
+export const databaseSsmUrlPath = database.urlPath;
+export const databaseSsmHostPath = database.hostPath;
+
 export const repositoryUrl = registry.repositoryUrl;
 export const repositoryArn = registry.repositoryArn;
 export const repositoryId = registry.repositoryId;
@@ -109,3 +177,8 @@ export const ecsImageUri = ecsWorker.imageUri;
 export const uploadsBucketName = storage.bucketName;
 export const uploadsBucketArn = storage.bucketArn;
 export const uploadsAccessPolicyArn = storage.accessPolicyArn;
+
+// KMS outputs
+export const kmsKeyId = kms.keyId;
+export const kmsKeyArn = kms.keyArn;
+export const kmsAliasName = kms.aliasName;
