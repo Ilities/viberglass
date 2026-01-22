@@ -10,6 +10,8 @@ import { createKmsKey, KmsOutputs } from "./components/kms";
 import { createVpc, VpcOutputs } from "./components/vpc";
 import { createDatabase, DatabaseOutputs } from "./components/database";
 import { createLogging, LoggingOutputs } from "./components/logging";
+import { createLoadBalancer, LoadBalancerOutputs } from "./components/load-balancer";
+import { createBackendEcs, createBackendService, BackendEcsOutputs } from "./components/backend-ecs";
 
 /**
  * Viberator Infrastructure Stack
@@ -140,6 +142,90 @@ const ecsS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
   }
 );
 
+// Determine backend configuration based on environment
+const backendCpu = config.environment === "prod" ? "512" : "256";
+const backendMemory = config.environment === "prod" ? "1024" : "512";
+const backendMinTasks = config.environment === "prod" ? 2 : 1;
+const backendMaxTasks = config.environment === "prod" ? 10 : 3;
+const backendDesiredCount = config.environment === "prod" ? 2 : 1;
+
+// Create Application Load Balancer for backend API
+const loadBalancer: LoadBalancerOutputs = createLoadBalancer({
+  environment: config.environment,
+  projectName: "viberator",
+  vpcId: vpc.vpcId,
+  vpcCidr: vpc.vpcCidr,
+  publicSubnetIds: vpc.publicSubnetIds,
+  backendSecurityGroupId: vpc.backendSecurityGroupId,
+  healthCheckPath: "/health",
+  backendPort: 80,
+});
+
+// Create backend ECS task definition and service
+const backendEcs: BackendEcsOutputs = createBackendEcs({
+  config,
+  repositoryUrl: registry.repositoryUrl,
+  logGroupName: logging.backendLogGroupName,
+  targetGroupArn: loadBalancer.targetGroupArn,
+  privateSubnetIds: vpc.privateSubnetIds,
+  backendSecurityGroupId: vpc.backendSecurityGroupId,
+  albSecurityGroupId: loadBalancer.albSecurityGroupId,
+  databaseSsm: {
+    urlPath: database.urlPath,
+    hostPath: database.hostPath,
+  },
+  cpu: backendCpu,
+  memory: backendMemory,
+  desiredCount: backendDesiredCount,
+  minTasks: backendMinTasks,
+  maxTasks: backendMaxTasks,
+});
+
+// Create backend ECS service (reuse worker cluster)
+const backendService = createBackendService({
+  config,
+  repositoryUrl: registry.repositoryUrl,
+  logGroupName: logging.backendLogGroupName,
+  targetGroupArn: loadBalancer.targetGroupArn,
+  privateSubnetIds: vpc.privateSubnetIds,
+  backendSecurityGroupId: vpc.backendSecurityGroupId,
+  albSecurityGroupId: loadBalancer.albSecurityGroupId,
+  databaseSsm: {
+    urlPath: database.urlPath,
+    hostPath: database.hostPath,
+  },
+  cpu: backendCpu,
+  memory: backendMemory,
+  desiredCount: backendDesiredCount,
+  minTasks: backendMinTasks,
+  maxTasks: backendMaxTasks,
+  taskDefinitionArn: backendEcs.taskDefinitionArn,
+  clusterArn: ecsWorker.clusterArn,
+  clusterName: ecsWorker.clusterName,
+});
+
+// Attach KMS decrypt permission to backend task role
+new aws.iam.RolePolicy(`${config.environment}-viberator-backend-kms`, {
+  role: backendEcs.taskRoleName,
+  policy: pulumi.interpolate`{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt", "kms:GenerateDataKey*"],
+      "Resource": "${kms.keyArn}"
+    }]
+  }`,
+});
+
+// Attach S3 access policy to backend task role
+const backendS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
+  `${config.environment}-viberator-backend-s3-access`,
+  {
+    role: backendEcs.taskRoleName,
+    policyArn: storage.accessPolicyArn,
+  }
+);
+
 // Export stack outputs
 export const awsRegion = config.awsRegion;
 export const environment = config.environment;
@@ -201,3 +287,22 @@ export const ecsWorkerLogGroupName = logging.ecsWorkerLogGroupName;
 export const ecsWorkerLogGroupArn = logging.ecsWorkerLogGroupArn;
 export const backendLogGroupName = logging.backendLogGroupName;
 export const backendLogGroupArn = logging.backendLogGroupArn;
+
+// Backend outputs
+export const backendUrl = pulumi.interpolate`http://${loadBalancer.albDnsName}`;
+export const backendServiceArn = backendService.serviceArn;
+export const backendServiceName = backendService.serviceName;
+export const backendTaskDefinitionArn = backendEcs.taskDefinitionArn;
+export const backendTaskDefinitionFamily = backendEcs.taskDefinitionFamily;
+export const backendExecutionRoleArn = backendEcs.executionRoleArn;
+export const backendTaskRoleArn = backendEcs.taskRoleArn;
+export const backendImageUri = backendEcs.imageUri;
+export const backendScalingTargetArn = backendService.scalingTargetArn;
+
+// Load balancer outputs
+export const albDnsName = loadBalancer.albDnsName;
+export const albCanonicalHostedZoneId = loadBalancer.albCanonicalHostedZoneId;
+export const albArn = loadBalancer.albArn;
+export const albTargetGroupArn = loadBalancer.targetGroupArn;
+export const albTargetGroupName = loadBalancer.targetGroupName;
+export const albSecurityGroupId = loadBalancer.albSecurityGroupId;
