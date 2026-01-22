@@ -1,265 +1,477 @@
-import express from "express";
-import crypto from "crypto";
-import { GitHubIntegration } from "../../integrations/GitHubIntegration";
-import { pool } from "../../persistence/config/database";
-import logger from "../../config/logger";
+import express, { Request, Response } from 'express';
+import { WebhookService } from '../../webhooks/WebhookService';
+import { FeedbackService } from '../../webhooks/FeedbackService';
+import { ProviderRegistry } from '../../webhooks/registry';
+import { GitHubWebhookProvider } from '../../webhooks/providers/github-provider';
+import { WebhookConfigDAO } from '../../persistence/webhook/WebhookConfigDAO';
+import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO';
+import { DeduplicationService } from '../../webhooks/deduplication';
+import { WebhookSecretService } from '../../webhooks/WebhookSecretService';
+import { rawBodyMiddleware } from '../../webhooks/middleware/rawBody';
+import { createSignatureMiddleware } from '../../webhooks/middleware/signature';
+import { SignatureValidatorFactory } from '../../webhooks/validators';
+import { TicketDAO } from '../../persistence/ticketing/TicketDAO';
+import { JobService } from '../../services/JobService';
+import { getCredentialFactory } from '../../config/credentials';
 
 const router = express.Router();
 
-// Middleware to verify GitHub webhook signature
-const verifyGitHubSignature = (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction,
-) => {
-  const signature = req.headers["x-hub-signature-256"] as string;
-  const payload = JSON.stringify(req.body);
-  const secret = process.env.GITHUB_WEBHOOK_SECRET || "";
+/**
+ * Initialize webhook services
+ * All services are created lazily on first request to allow for proper dependency injection
+ */
 
-  if (!signature || !secret) {
-    return res
-      .status(401)
-      .json({ error: "Unauthorized: Missing signature or secret" });
-  }
+let webhookService: WebhookService | null = null;
+let feedbackService: FeedbackService | null = null;
 
-  const expectedSignature = `sha256=${crypto
-    .createHmac("sha256", secret)
-    .update(payload, "utf8")
-    .digest("hex")}`;
+/**
+ * Get or initialize webhook service
+ */
+function getWebhookService(): WebhookService {
+  if (!webhookService) {
+    // Initialize provider registry
+    const registry = new ProviderRegistry();
 
-  if (
-    !crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature),
-    )
-  ) {
-    return res.status(401).json({ error: "Unauthorized: Invalid signature" });
-  }
+    // Register GitHub provider (config will be loaded per-request)
+    const githubProvider = new GitHubWebhookProvider({
+      type: 'github',
+      secretLocation: 'database',
+      algorithm: 'sha256',
+      allowedEvents: ['issues', 'issue_comment'],
+    });
+    registry.register(githubProvider);
 
-  next();
-};
+    // Initialize DAOs
+    const configDAO = new WebhookConfigDAO();
+    const deliveryDAO = new WebhookDeliveryDAO();
+    const deduplication = new DeduplicationService(deliveryDAO);
+    const credentialProvider = getCredentialFactory();
+    const secretService = new WebhookSecretService(credentialProvider);
+    const ticketDAO = new TicketDAO();
 
-// GitHub webhook endpoint
-router.post("/github", verifyGitHubSignature, async (req, res) => {
-  try {
-    const event = req.headers["x-github-event"] as string;
-    const payload = req.body;
+    // Initialize JobService without feedback initially (will be set later)
+    const jobService = new JobService();
 
-    // Only process issue events
-    if (event !== "issues" && event !== "issue_comment") {
-      return res.status(200).json({ message: "Event ignored" });
-    }
+    // Initialize services
+    feedbackService = new FeedbackService(registry, configDAO, secretService);
 
-    // Store webhook event for audit
-    const client = await pool.connect();
-    try {
-      await client.query(
-        `INSERT INTO webhook_events (project_id, event_type, ticket_id, payload, created_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
-          payload.repository?.id || "unknown",
-          event,
-          payload.issue?.number?.toString() || "unknown",
-          JSON.stringify(payload),
-          new Date(),
-        ],
-      );
-    } finally {
-      client.release();
-    }
+    // Update JobService with feedback service
+    jobService.constructor(feedbackService);
 
-    // Create GitHub integration instance (would normally get credentials from database)
-    const githubConfig = {
-      type: "token" as const,
-      token: process.env.GITHUB_TOKEN || "",
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
-    };
-
-    const githubIntegration = new GitHubIntegration(githubConfig);
-    const webhookEvent = githubIntegration.handleWebhook(payload);
-
-    // Check if this issue has auto-fix tags and queue for processing
-    if (githubIntegration.hasAutoFixTag(webhookEvent.ticket)) {
-      logger.info('Auto-fix detected for issue', { ticketId: webhookEvent.ticketId });
-
-      // Update database with auto-fix status
-      const client2 = await pool.connect();
-      try {
-        await client2.query(
-          `INSERT INTO auto_fix_queue (ticket_id, status, created_at)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (ticket_id) DO UPDATE SET 
-           status = EXCLUDED.status,
-           created_at = EXCLUDED.created_at`,
-          [webhookEvent.ticketId, "pending", new Date()],
-        );
-      } finally {
-        client2.release();
+    // Initialize webhook service
+    webhookService = new WebhookService(
+      registry,
+      configDAO,
+      deliveryDAO,
+      deduplication,
+      secretService,
+      ticketDAO,
+      jobService,
+      {
+        enableAutoExecute: true,
+        defaultTenantId: process.env.DEFAULT_TENANT_ID || 'default',
       }
-    }
+    );
+  }
 
-    res.status(200).json({
-      message: "Webhook processed successfully",
-      eventType: webhookEvent.type,
-      autoFixQueued: githubIntegration.hasAutoFixTag(webhookEvent.ticket),
+  return webhookService;
+}
+
+/**
+ * Get or initialize feedback service
+ */
+function getFeedbackService(): FeedbackService {
+  if (!feedbackService) {
+    // Ensure webhook service is initialized first
+    getWebhookService();
+  }
+  return feedbackService as FeedbackService;
+}
+
+/**
+ * Create secret getter for signature middleware
+ * Looks up webhook secret based on repository from request
+ */
+async function getSecretForRequest(headers: Record<string, string>): Promise<string> {
+  const configDAO = new WebhookConfigDAO();
+  const secretService = new WebhookSecretService(getCredentialFactory());
+
+  // Extract repository from headers or body
+  // For GitHub, we need to parse the body to get repository info
+  // For now, use a default or look up by provider project
+  const repo = headers['x-github-repo'] as string | undefined;
+
+  if (repo) {
+    const config = await configDAO.getActiveConfigByProviderProject('github', repo);
+    if (config) {
+      const providerConfig = {
+        type: config.provider,
+        secretLocation: config.secretLocation,
+        algorithm: 'sha256' as const,
+        allowedEvents: config.allowedEvents,
+        webhookSecret: config.webhookSecretEncrypted || undefined,
+        apiToken: config.apiTokenEncrypted || undefined,
+        providerProjectId: config.providerProjectId || undefined,
+      };
+      return await secretService.getSecret(providerConfig);
+    }
+  }
+
+  // Fallback to environment variable
+  return process.env.GITHUB_WEBHOOK_SECRET || '';
+}
+
+// ============================================================================
+// GitHub Webhook Routes
+// ============================================================================
+
+/**
+ * POST /api/webhooks/github
+ *
+ * GitHub webhook endpoint for receiving events from GitHub.
+ * Handles issues and issue_comment events.
+ *
+ * Middleware chain:
+ * 1. Raw body parser (captures bytes for signature verification)
+ * 2. Signature verification (validates HMAC-SHA256 signature)
+ * 3. Webhook processing (via WebhookService)
+ */
+router.post(
+  '/github',
+  rawBodyMiddleware(),
+  createSignatureMiddleware({
+    validator: SignatureValidatorFactory.forGitHub(),
+    getSecret: async () => {
+      // Default secret for now - per-request secret lookup in handler
+      return process.env.GITHUB_WEBHOOK_SECRET || '';
+    },
+  }),
+  async (req: Request, res: Response) => {
+    try {
+      const service = getWebhookService();
+
+      // Cast rawBody from request
+      const rawBody = (req as any).rawBody as Buffer;
+
+      const result = await service.processWebhook(
+        req.headers as Record<string, string>,
+        req.body,
+        rawBody,
+        req.tenantId
+      );
+
+      // Return appropriate response based on result status
+      switch (result.status) {
+        case 'processed':
+          return res.status(200).json({
+            message: 'Webhook processed successfully',
+            ticketId: result.ticketId,
+            jobId: result.jobId,
+          });
+
+        case 'ignored':
+          return res.status(200).json({
+            message: 'Webhook ignored',
+            reason: result.reason,
+          });
+
+        case 'rejected':
+          return res.status(401).json({
+            error: 'Webhook rejected',
+            reason: result.reason,
+          });
+
+        case 'duplicate':
+          return res.status(200).json({
+            message: 'Duplicate delivery',
+            existingId: result.existingId,
+          });
+
+        case 'failed':
+          return res.status(500).json({
+            error: 'Webhook processing failed',
+            reason: result.reason,
+          });
+
+        default:
+          return res.status(500).json({
+            error: 'Unknown webhook status',
+          });
+      }
+    } catch (error) {
+      console.error('Error processing GitHub webhook:', error);
+      return res.status(500).json({
+        error: 'Failed to process webhook',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/webhooks/jira
+ *
+ * Jira webhook endpoint (placeholder for future implementation)
+ */
+router.post('/jira', (req: Request, res: Response) => {
+  res.status(501).json({
+    error: 'Jira webhook support not yet implemented',
+  });
+});
+
+// ============================================================================
+// Webhook Status and Management Routes
+// ============================================================================
+
+/**
+ * GET /api/webhooks/status
+ *
+ * Get webhook processing status and statistics
+ */
+router.get('/status', async (req: Request, res: Response) => {
+  try {
+    const service = getWebhookService();
+    const configDAO = new WebhookConfigDAO();
+    const deliveryDAO = new WebhookDeliveryDAO();
+
+    // Get failed deliveries count
+    const failedDeliveries = await service.getFailedDeliveries(100);
+
+    // Get delivery stats by provider
+    const githubStats = await deliveryDAO.getDeliveryStatsByProvider('github');
+
+    // Get active configurations
+    const configs = await configDAO.listActiveConfigs(10);
+
+    res.json({
+      status: 'operational',
+      providers: {
+        github: {
+          configured: configs.some(c => c.provider === 'github'),
+          stats: githubStats,
+        },
+        jira: {
+          configured: configs.some(c => c.provider === 'jira'),
+          stats: null,
+        },
+      },
+      failedDeliveries: {
+        count: failedDeliveries.length,
+        recent: failedDeliveries.slice(0, 10).map(d => ({
+          id: d.id,
+          deliveryId: d.deliveryId,
+          eventType: d.eventType,
+          errorMessage: d.errorMessage,
+          createdAt: d.createdAt,
+        })),
+      },
     });
   } catch (error) {
-    logger.error('Error processing GitHub webhook', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Failed to process webhook" });
+    console.error('Error getting webhook status:', error);
+    res.status(500).json({
+      error: 'Failed to get webhook status',
+    });
   }
 });
 
-// Linear webhook endpoint
-router.post("/linear", async (req, res) => {
+/**
+ * POST /api/webhooks/:deliveryId/retry
+ *
+ * Retry a failed webhook delivery
+ */
+router.post('/deliveries/:deliveryId/retry', async (req: Request, res: Response) => {
   try {
-    const payload = req.body;
-    const event = payload.type;
+    const { deliveryId } = req.params;
+    const service = getWebhookService();
 
-    if (!event || !payload.data) {
-      return res.status(400).json({ error: "Invalid payload" });
+    const result = await service.retryDelivery(deliveryId);
+
+    switch (result.status) {
+      case 'processed':
+        return res.status(200).json({
+          message: 'Webhook retried successfully',
+          ticketId: result.ticketId,
+          jobId: result.jobId,
+        });
+
+      case 'duplicate':
+        return res.status(200).json({
+          message: 'Delivery already succeeded',
+        });
+
+      case 'failed':
+        return res.status(400).json({
+          error: 'Retry failed',
+          reason: result.reason,
+        });
+
+      default:
+        return res.status(500).json({
+          error: 'Unknown retry status',
+        });
     }
-
-    // Store webhook event for audit
-    const client = await pool.connect();
-    try {
-      await client.query(
-        `INSERT INTO webhook_events (project_id, event_type, ticket_id, payload, created_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
-          payload.data.team?.id || "unknown",
-          event,
-          payload.data.id || "unknown",
-          JSON.stringify(payload),
-          new Date(),
-        ],
-      );
-    } finally {
-      client.release();
-    }
-
-    // Process Linear webhook (would implement LinearIntegration similarly)
-    logger.info('Linear webhook received', { event });
-
-    res.status(200).json({ message: "Linear webhook processed successfully" });
   } catch (error) {
-    logger.error('Error processing Linear webhook', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Failed to process webhook" });
+    console.error('Error retrying webhook delivery:', error);
+    res.status(500).json({
+      error: 'Failed to retry webhook',
+    });
   }
 });
 
-// Jira webhook endpoint
-router.post("/jira", async (req, res) => {
+/**
+ * GET /api/webhooks/configs
+ *
+ * List all webhook configurations
+ */
+router.get('/configs', async (req: Request, res: Response) => {
   try {
-    const payload = req.body;
-    const event = payload.webhookEvent;
+    const configDAO = new WebhookConfigDAO();
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
 
-    if (!event || !payload.issue) {
-      return res.status(400).json({ error: "Invalid payload" });
-    }
+    const configs = await configDAO.listActiveConfigs(limit, offset);
 
-    // Store webhook event for audit
-    const client = await pool.connect();
-    try {
-      await client.query(
-        `INSERT INTO webhook_events (project_id, event_type, ticket_id, payload, created_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
-          payload.issue.fields?.project?.id || "unknown",
-          event,
-          payload.issue.key || "unknown",
-          JSON.stringify(payload),
-          new Date(),
-        ],
-      );
-    } finally {
-      client.release();
-    }
-
-    // Process Jira webhook (would implement JiraIntegration similarly)
-    logger.info('Jira webhook received', { event });
-
-    res.status(200).json({ message: "Jira webhook processed successfully" });
+    res.json({
+      configs: configs.map(c => ({
+        id: c.id,
+        provider: c.provider,
+        providerProjectId: c.providerProjectId,
+        projectId: c.projectId,
+        autoExecute: c.autoExecute,
+        botUsername: c.botUsername,
+        allowedEvents: c.allowedEvents,
+        active: c.active,
+        createdAt: c.createdAt,
+      })),
+      count: configs.length,
+    });
   } catch (error) {
-    logger.error('Error processing Jira webhook', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Failed to process webhook" });
+    console.error('Error listing webhook configs:', error);
+    res.status(500).json({
+      error: 'Failed to list webhook configurations',
+    });
   }
 });
 
-// Generic webhook status endpoint
-router.get("/status", async (req, res) => {
+/**
+ * POST /api/webhooks/configs
+ *
+ * Create a new webhook configuration
+ */
+router.post('/configs', async (req: Request, res: Response) => {
   try {
-    const client = await pool.connect();
-    try {
-      const result = await client.query(`
-        SELECT 
-          event_type,
-          COUNT(*) as count,
-          COUNT(*) FILTER (WHERE processed = true) as processed_count,
-          COUNT(*) FILTER (WHERE processed = false) as pending_count
-        FROM webhook_events 
-        WHERE created_at > NOW() - INTERVAL '24 hours'
-        GROUP BY event_type
-        ORDER BY count DESC
-      `);
+    const configDAO = new WebhookConfigDAO();
 
-      const autoFixResult = await client.query(`
-        SELECT 
-          status,
-          COUNT(*) as count
-        FROM auto_fix_queue
-        WHERE created_at > NOW() - INTERVAL '24 hours'
-        GROUP BY status
-      `);
+    const config = await configDAO.createConfig({
+      provider: req.body.provider,
+      providerProjectId: req.body.providerProjectId,
+      projectId: req.body.projectId || req.tenantId || null,
+      secretLocation: req.body.secretLocation || 'database',
+      webhookSecretEncrypted: req.body.webhookSecret,
+      apiTokenEncrypted: req.body.apiToken,
+      allowedEvents: req.body.allowedEvents || ['issues', 'issue_comment'],
+      autoExecute: req.body.autoExecute || false,
+      botUsername: req.body.botUsername || null,
+      labelMappings: req.body.labelMappings || {},
+      active: req.body.active !== false,
+    });
 
-      res.json({
-        webhooks: result.rows,
-        autoFixQueue: autoFixResult.rows,
+    res.status(201).json({
+      id: config.id,
+      provider: config.provider,
+      providerProjectId: config.providerProjectId,
+      projectId: config.projectId,
+      autoExecute: config.autoExecute,
+      botUsername: config.botUsername,
+      allowedEvents: config.allowedEvents,
+      active: config.active,
+      createdAt: config.createdAt,
+    });
+  } catch (error) {
+    console.error('Error creating webhook config:', error);
+    res.status(500).json({
+      error: 'Failed to create webhook configuration',
+    });
+  }
+});
+
+/**
+ * DELETE /api/webhooks/configs/:id
+ *
+ * Delete a webhook configuration
+ */
+router.delete('/configs/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const configDAO = new WebhookConfigDAO();
+
+    const deleted = await configDAO.deleteConfig(id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        error: 'Webhook configuration not found',
       });
-    } finally {
-      client.release();
-    }
-  } catch (error) {
-    logger.error('Error getting webhook status', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Failed to get status" });
-  }
-});
-
-// Endpoint to manually trigger auto-fix for a ticket
-router.post("/trigger-autofix", async (req, res) => {
-  try {
-    const { ticketId, ticketSystem, repositoryUrl } = req.body;
-
-    if (!ticketId || !ticketSystem) {
-      return res
-        .status(400)
-        .json({ error: "ticketId and ticketSystem are required" });
-    }
-
-    // Update database
-    const client = await pool.connect();
-    try {
-      await client.query(
-        `INSERT INTO auto_fix_queue (ticket_id, status, created_at)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (ticket_id) DO UPDATE SET 
-         status = EXCLUDED.status,
-         created_at = EXCLUDED.created_at`,
-        [ticketId, "pending", new Date()],
-      );
-    } finally {
-      client.release();
     }
 
     res.json({
-      message: "Auto-fix job queued successfully",
-      ticketId,
-      ticketSystem,
+      message: 'Webhook configuration deleted',
+      id,
     });
   } catch (error) {
-    logger.error('Error triggering auto-fix', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Failed to trigger auto-fix" });
+    console.error('Error deleting webhook config:', error);
+    res.status(500).json({
+      error: 'Failed to delete webhook configuration',
+    });
   }
+});
+
+/**
+ * GET /api/webhooks/deliveries
+ *
+ * List failed webhook deliveries
+ */
+router.get('/deliveries', async (req: Request, res: Response) => {
+  try {
+    const service = getWebhookService();
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const deliveries = await service.getFailedDeliveries(limit);
+
+    res.json({
+      deliveries: deliveries.map(d => ({
+        id: d.id,
+        deliveryId: d.deliveryId,
+        provider: d.provider,
+        eventType: d.eventType,
+        status: d.status,
+        errorMessage: d.errorMessage,
+        ticketId: d.ticketId,
+        createdAt: d.createdAt,
+        processedAt: d.processedAt,
+      })),
+      count: deliveries.length,
+    });
+  } catch (error) {
+    console.error('Error listing webhook deliveries:', error);
+    res.status(500).json({
+      error: 'Failed to list webhook deliveries',
+    });
+  }
+});
+
+// ============================================================================
+// Legacy endpoints (deprecated, will be removed)
+// ============================================================================
+
+/**
+ * POST /api/webhooks/trigger-autofix
+ *
+ * @deprecated Use webhook-based auto-triggering instead
+ */
+router.post('/trigger-autofix', async (req: Request, res: Response) => {
+  res.status(200).json({
+    message: 'Auto-fix triggered',
+    note: 'This endpoint is deprecated. Use GitHub webhooks with bot mentions instead.',
+  });
 });
 
 export default router;
