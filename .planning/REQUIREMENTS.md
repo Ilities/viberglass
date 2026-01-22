@@ -46,9 +46,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Local Development
 
-- [ ] **DEV-01**: Docker compose configuration starts all services locally
-- [ ] **DEV-02**: Local workers execute jobs directly (no queue required)
-- [ ] **DEV-03**: Development documentation explains local setup
+- [x] **DEV-01**: Docker compose configuration starts all services locally
+- [x] **DEV-02**: Local workers execute jobs directly (no queue required)
+- [x] **DEV-03**: Development documentation explains local setup
 
 ### Production Deployment
 
@@ -139,9 +139,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STAT-03 | Phase 7 | Complete |
 | STAT-04 | Phase 7 | Complete |
 | STAT-05 | Phase 7 | Complete |
-| DEV-01 | Phase 9 | Pending |
-| DEV-02 | Phase 9 | Pending |
-| DEV-03 | Phase 9 | Pending |
+| DEV-01 | Phase 9 | Complete |
+| DEV-02 | Phase 9 | Complete |
+| DEV-03 | Phase 9 | Complete |
 | DEP-01 | Phase 10 | Pending |
 | DEP-02 | Phase 11 | Pending |
 | DEP-03 | Phase 11 | Pending |
