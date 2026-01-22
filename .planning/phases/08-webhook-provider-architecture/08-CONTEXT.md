@@ -20,15 +20,22 @@ Provider-agnostic webhook integration with GitHub as the first implementation. I
 - Secret storage is user-configurable in UI: database for local runs, SSM for cloud deployments
 
 ### GitHub Webhook Scope
-- Events that create tickets: Issues + PR comments (mentioning @bot)
+- Events that create tickets: Issues
 - Project/clanker selection: Repository mapping for project (configured in UI), labels can override clanker selection
 - Auto-execution: Configurable per project — settings control whether to auto-run clanker or just create ticket
 - Result feedback: Both comment on issue/PR with details + label updates (e.g., 'fix-submitted', 'failed')
 
+### Jira Webhook Scope
+- Events that create tickets: Issues created, updated (with configurable filter — e.g., specific labels/components)
+- Project/clanker selection: Jira Project + optional Issue Type mapping for clanker selection; labels/components can override
+- Auto-execution: Configurable per project — settings control whether to auto-run clanker or just create ticket
+- Result feedback: Comment on issue with details + transition workflow (e.g., 'In Progress' → 'Done' on success, or add 'Failed' label)
+- Authentication: OAuth 2.0 or API token (user-configurable); PAT support for self-hosted instances
+
 ### Webhook Delivery Handling
-- Deduplication: Content-based (hash payload, skip if same hash seen recently)
+- Deduplication: Using deduplication ID from webhook payload
 - Processing: Synchronous — process immediately in request handler
-- Logging: Basic application logs for debugging (no database event history)
+- Logging: Database event history
 - Error handling: Manual retry mechanism — store failed events for inspection and manual retry
 
 ### Webhook Configuration UX
