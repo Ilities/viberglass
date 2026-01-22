@@ -1,0 +1,14 @@
+# Compiled output
+bin/
+*.js
+*.js.map
+*.d.ts
+
+# Dependencies
+node_modules/
+
+# Pulumi
+.pulumi/
+Pulumi.dev.yaml
+Pulumi.staging.yaml
+Pulumi.prod.yaml
