@@ -1,0 +1,13 @@
+# Development stack configuration
+# Copy this file to Pulumi.dev.yaml and update with your values
+# Usage: pulumi stack select dev
+
+encryptionsalt:
+  - v1:YOUR_SALT_HERE
+
+config:
+  aws:region: us-east-1
+  viberator:awsRegion: us-east-1
+  viberator:environment: dev
+  viberator:enableSpot: "true"
+  viberator:containerInsights: "true"

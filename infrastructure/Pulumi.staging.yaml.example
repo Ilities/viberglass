@@ -1,0 +1,13 @@
+# Staging stack configuration
+# Copy this file to Pulumi.staging.yaml and update with your values
+# Usage: pulumi stack select staging
+
+encryptionsalt:
+  - v1:YOUR_SALT_HERE
+
+config:
+  aws:region: us-east-1
+  viberator:awsRegion: us-east-1
+  viberator:environment: staging
+  viberator:enableSpot: "false"
+  viberator:containerInsights: "true"

@@ -1,0 +1,13 @@
+# Production stack configuration
+# Copy this file to Pulumi.prod.yaml and update with your values
+# Usage: pulumi stack select prod
+
+encryptionsalt:
+  - v1:YOUR_SALT_HERE
+
+config:
+  aws:region: us-east-1
+  viberator:awsRegion: us-east-1
+  viberator:environment: prod
+  viberator:enableSpot: "false"
+  viberator:containerInsights: "true"
