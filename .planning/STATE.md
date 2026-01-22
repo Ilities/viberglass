@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 8 of 12 (Webhook Provider Architecture)
-Plan: 3 of 3 (Webhook Persistence Layer)
+Plan: 4 of 4 (Webhook Integration - Orchestration and Feedback)
 Status: Phase complete
-Last activity: 2026-01-22 — Webhook configuration and delivery tracking DAOs with deduplication service and AES-256-GCM secret encryption
+Last activity: 2026-01-22 — Webhook orchestration, feedback posting, and route refactoring with end-to-end GitHub webhook integration
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52
+- Total plans completed: 56
 - Average duration: ~4 minutes
-- Total execution time: 3.2 hours
+- Total execution time: 3.3 hours
 
 **By Phase:**
 
@@ -39,10 +39,10 @@ Progress: [██████████] 100%
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
 | 07 | 4 | 4 | 2.5m |
-| 08 | 3 | 3 | 3m |
+| 08 | 4 | 4 | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 3m, 2m, 1m, 4m
+- Last 5 plans: 3m, 3m, 4m, 4m, 6m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -103,6 +103,10 @@ Recent decisions affecting current work:
 | AES-256-GCM for webhook secret encryption | Provides authenticated encryption with integrity verification | WebhookSecretService uses crypto.createCipheriv with aes-256-gcm |
 | timingSafeEqual for secret verification | Prevents timing attack vulnerabilities when comparing secrets | WebhookSecretService.verifySecret uses crypto.timingSafeEqual |
 | BigInt handling for Kysely aggregates | count() and numDeletedRows return bigint, need typeof check | WebhookDeliveryDAO converts safely with Number() |
+| WebhookService orchestration pattern | Service coordinates registry, DAOs, deduplication, secret service, ticket/job creation | Single entry point for webhook processing |
+| FeedbackService best-effort posting | Errors posting results don't fail job completion; logged for manual retry | Graceful degradation for outbound API calls |
+| Optional FeedbackService in JobService | Constructor parameter optional for backward compatibility | Gradual migration for result feedback |
+| Tenant resolution from webhook config | Webhook routes use default tenant; actual tenant from config mapping | Allows webhooks without X-Tenant-Id header |
 
 ### Roadmap Evolution
 
@@ -122,5 +126,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed Phase 8 Plan 03 - Webhook Persistence Layer
+Stopped at: Completed Phase 8 Plan 04 - Webhook Integration
 Resume file: None
