@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 7 of 12 (Clanker Runtime Status) — COMPLETE
-Next: Plan Phase 8 (Webhook Provider Architecture)
-Status: Phase 7 verified, 12/12 must-haves passed
-Last activity: 2026-01-21 — Clanker runtime status with progress timeline, log viewer, heartbeat monitoring
+Phase: 8 of 12 (Webhook Provider Architecture)
+Plan: 1 of 3 (Webhook Provider Database Schema)
+Status: In progress - Plan 1 complete
+Last activity: 2026-01-22 — Webhook provider database schema with deduplication tracking
 
 Progress: [█████████░] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 49
+- Total plans completed: 50
 - Average duration: ~4 minutes
 - Total execution time: 3.0 hours
 
@@ -39,9 +39,10 @@ Progress: [█████████░] 92%
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
 | 07 | 4 | 4 | 2.5m |
+| 08 | 1 | 3 | 1m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 3m, 3m, 3m, 2m
+- Last 5 plans: 3m, 3m, 3m, 2m, 1m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -88,6 +89,10 @@ Recent decisions affecting current work:
 | 5 minute stale threshold | Matches HeartbeatSweeper grace period for consistency between backend and frontend | isJobStale() uses same 5 minute threshold |
 | Live indicator only when active and polling | Visual feedback only meaningful when job is actively running and polling is enabled | LogViewer live indicator checks isPolling && status === 'active' |
 | ProgressTimeline returns null for queued | Queued jobs have no progress yet, hiding component is cleaner than empty state | ProgressTimeline component returns null for currentStatus === 'queued' |
+| Nullable project_id for webhook configs | Allows tenant-level default configurations without being bound to a specific project | webhook_provider_configs.project_id is nullable with ON DELETE CASCADE |
+| api_token_encrypted in provider config | Stores outbound API credentials (GitHub PAT, Jira API token) alongside webhook config | Simplifies credential management for posting results back to platforms |
+| Unique delivery_id for webhook deduplication | Database-level unique constraint prevents duplicate webhook processing from retries | webhook_delivery_attempts.delivery_id has unique constraint |
+| Check constraints for webhook enums | provider and status fields use CHECK constraints for type safety at database level | `provider IN ('github', 'jira')` and `status IN ('pending', 'processing', 'succeeded', 'failed')` |
 
 ### Roadmap Evolution
 
@@ -106,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-21
-Stopped at: Completed Phase 7 Plan 04 - Frontend Progress Timeline and Log Viewer (Phase 7 complete)
+Last session: 2026-01-22
+Stopped at: Completed Phase 8 Plan 01 - Webhook Provider Database Schema
 Resume file: None
