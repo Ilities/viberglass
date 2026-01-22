@@ -10,8 +10,13 @@
 #   docker compose down           # Stop and remove containers
 #   docker compose ps             # Show running services
 #   docker compose logs backend   # Show backend logs
-
-version: '3.8'
+#
+# Port Conflicts:
+# If you have PostgreSQL or Redis already running on the host, you may see
+# "port is already allocated" errors. Options:
+#   1. Stop the host service temporarily: sudo systemctl stop postgresql
+#   2. Change the host port mapping below (e.g., "5433:5432" for postgres)
+#   3. Remove the ports section entirely (services still accessible within Docker network)
 
 networks:
   viberator-dev-network:
