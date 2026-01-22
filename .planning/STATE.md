@@ -11,19 +11,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 10 of 12 (AWS Infrastructure) — IN PROGRESS
-Plan: 10-08 (Frontend S3+CloudFront) — COMPLETE
-Next: Plan 10-09 (Infrastructure Documentation)
-Status: Frontend hosting infrastructure with S3+CloudFront, backend ECS service with ALB
-Last activity: 2026-01-22 — Frontend S3+CloudFront distribution with OAC, SPA routing support
+Plan: 10-09 (Infrastructure Documentation) — COMPLETE
+Next: Phase 11: CI/CD Pipelines
+Status: Complete AWS infrastructure with comprehensive documentation
+Last activity: 2026-01-22 — Infrastructure documentation with architecture diagrams, configuration reference, troubleshooting guide
 
-Progress: [█████████░] 83% of v1.0
+Progress: [█████████░] 84% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 71
+- Total plans completed: 72
 - Average duration: ~4 minutes
-- Total execution time: 4.5 hours
+- Total execution time: 4.6 hours
 
 **By Phase:**
 
@@ -42,10 +42,10 @@ Progress: [█████████░] 83% of v1.0
 | 07 | 4 | 4 | 2.5m |
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
-| 10 | 7 | ? | 7m |
+| 10 | 8 | ? | 7m |
 
 **Recent Trend:**
-- Last 5 plans: 2m, 4m, 7m, 18m, 2m
+- Last 5 plans: 2m, 4m, 7m, 18m, 3m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -150,6 +150,9 @@ Recent decisions affecting current work:
 | CloudFront price class by environment | PriceClass_100 for dev/staging, All for production | Optimizes costs while maintaining global reach for prod |
 | SPA routing via CloudFront error responses | Returns 200 with /index.html for 403/404 errors | Supports Next.js client-side routing without custom routes |
 | SSM parameters for frontend build config | API URL and CDN URL stored in SSM for CI/CD injection | NEXT_PUBLIC_ variables embedded during static build |
+| Mermaid diagrams for infrastructure docs | Renders in GitHub without external dependencies, easy to update | Architecture, network, data flow, and security diagrams in README |
+| .yaml.example pattern for Pulumi configs | Actual config files gitignored, examples show all options with comments | Clear separation of template vs sensitive configuration |
+| Single comprehensive README | 667-line document covering all aspects of infrastructure | Easier to maintain than split documentation, fully searchable |
 
 ### Roadmap Evolution
 
@@ -170,6 +173,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 10-08-PLAN.md - Frontend S3+CloudFront
+Stopped at: Completed 10-09-PLAN.md - Infrastructure Documentation
 Resume file: None
-Phase 10 (AWS Infrastructure) IN PROGRESS - 7 of ? plans complete
+Phase 10 (AWS Infrastructure) IN PROGRESS - 8 of 9 plans complete
