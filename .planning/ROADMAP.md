@@ -374,9 +374,14 @@ Plans:
 
 **Requirements**: DEV-01, DEV-02, DEV-03
 
-**Plans**: 0 plans
+**Plans**: 3 plans in 3 waves
 
 **Status**: Not started
+
+Plans:
+- [ ] 09-01-PLAN.md — Create development Dockerfiles for backend and frontend with hot-reload
+- [ ] 09-02-PLAN.md — Create unified docker-compose.yml with all services and health checks
+- [ ] 09-03-PLAN.md — Create simplified local development documentation and deprecate legacy files
 
 ---
 
