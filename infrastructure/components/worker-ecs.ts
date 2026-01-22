@@ -12,6 +12,8 @@ export interface WorkerEcsOptions {
   config: InfrastructureConfig;
   /** ECR repository URL for the worker image */
   repositoryUrl: pulumi.Output<string>;
+  /** CloudWatch log group name for worker logs */
+  logGroupName: pulumi.Input<string>;
   /** Task CPU units (256, 512, 1024, 2048, 4096) */
   cpu?: string;
   /** Task memory in MB (512, 1024, 2048, 4096, 8192, 16384) */
@@ -124,10 +126,8 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
   });
 
   // CloudWatch log group for ECS logs
-  const logGroup = new aws.cloudwatch.LogGroup(`${options.config.environment}-viberator-worker-logs`, {
-    retentionInDays: 7,
-    tags: options.config.tags,
-  });
+  // Note: Log group is created centrally by logging component
+  // This reference will be passed in from parent stack
 
   // Container definition for the worker
   const workerContainer = new aws.ecs.TaskDefinition(`${options.config.environment}-viberator-ecs-worker`, {
@@ -146,9 +146,9 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
         logConfiguration: {
           logDriver: "awslogs",
           options: {
-            "awslogs-group": logGroup.name,
+            "awslogs-group": options.logGroupName,
             "awslogs-region": options.config.awsRegion,
-            "awslogs-stream-prefix": "ecs",
+            "awslogs-stream-prefix": "worker",
           },
         },
         environment: [
