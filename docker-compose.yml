@@ -1,0 +1,132 @@
+# Viberator Development Environment
+# One-command local development: docker compose up
+#
+# This compose file starts all services (postgres, redis, backend, frontend)
+# with proper dependency ordering, health checks, and hot-reload support.
+#
+# Usage:
+#   docker compose up -d          # Start all services in background
+#   docker compose up             # Start all services with logs
+#   docker compose down           # Stop and remove containers
+#   docker compose ps             # Show running services
+#   docker compose logs backend   # Show backend logs
+#
+# Port Conflicts:
+# If you have PostgreSQL or Redis already running on the host, you may see
+# "port is already allocated" errors. Options:
+#   1. Stop the host service temporarily: sudo systemctl stop postgresql
+#   2. Change the host port mapping below (e.g., "5433:5432" for postgres)
+#   3. Remove the ports section entirely (services still accessible within Docker network)
+
+networks:
+  viberator-dev-network:
+    name: viberator-dev-network
+
+volumes:
+  postgres-data:
+    name: viberator-postgres-data
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: viberator-dev-postgres
+    environment:
+      POSTGRES_DB: viberator
+      POSTGRES_USER: viberator
+      POSTGRES_PASSWORD: viberator_dev
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U viberator"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - viberator-dev-network
+
+  # Redis (for future Bull queue functionality)
+  redis:
+    image: redis:7-alpine
+    container_name: viberator-dev-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - viberator-dev-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: platform/backend/Dockerfile.dev
+    container_name: viberator-dev-backend
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: viberator
+      DB_USER: viberator
+      DB_PASSWORD: viberator_dev
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Node
+      NODE_ENV: development
+      PORT: 8888
+      LOG_LEVEL: debug
+      # Hot-reload in containers (required for some Docker setups)
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "8888:8888"
+    volumes:
+      # Mount source with cached mode for better performance on macOS/Windows
+      - ./platform/backend:/app/platform/backend:cached
+      - ./packages/types:/app/packages/types:cached
+      # Preserve container's node_modules (prevents architecture mismatch)
+      - /app/platform/backend/node_modules
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - viberator-dev-network
+    restart: unless-stopped
+
+  # Frontend (Next.js with HMR)
+  frontend:
+    build:
+      context: .
+      dockerfile: platform/frontend/Dockerfile.dev
+    container_name: viberator-dev-frontend
+    environment:
+      # Backend API URL (from host perspective)
+      NEXT_PUBLIC_API_URL: http://localhost:8888
+      NODE_ENV: development
+      # Hot-reload in containers
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source with cached mode for better performance
+      - ./platform/frontend:/app/platform/frontend:cached
+      - ./packages/types:/app/packages/types:cached
+      # Preserve container's node_modules
+      - /app/platform/frontend/node_modules
+      - /app/node_modules
+      # Preserve Next.js build cache
+      - /app/platform/frontend/.next
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - viberator-dev-network
+    restart: unless-stopped

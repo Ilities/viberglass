@@ -1,3 +1,10 @@
+# DEPRECATED: Use docker-compose.yml at repository root instead
+# The root docker-compose.yml provides a complete development environment
+# with postgres, redis, backend, and frontend services.
+#
+# This file is kept for reference but should not be used for new development.
+# To start all services: docker compose up (from repository root)
+
 services:
   postgres:
     image: postgres:15-alpine

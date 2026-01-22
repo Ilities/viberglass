@@ -1,0 +1,31 @@
+# Frontend Development Container
+# This container runs the Next.js frontend with HMR (Hot Module Reload)
+# NOTE: Build from repository root for workspace dependencies: docker build -f platform/frontend/Dockerfile.dev .
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy monorepo root package.json for workspace resolution
+COPY package*.json ./
+
+# Create frontend directory and copy its package.json
+RUN mkdir -p platform/frontend
+COPY platform/frontend/package*.json ./platform/frontend/
+
+# Install all dependencies (workspace-aware from root)
+RUN npm install --legacy-peer-deps
+
+# Copy all workspace packages (types, frontend source, etc.)
+# Note: In docker-compose, source is mounted via volume, overriding these copies
+COPY packages/types ./packages/types
+COPY platform/frontend ./platform/frontend
+
+# Expose Next.js default port
+EXPOSE 3000
+
+# Set working directory to frontend for running the dev server
+WORKDIR /app/platform/frontend
+
+# Use Next.js dev server for HMR (matches "npm run dev" script)
+CMD ["npm", "run", "dev"]
