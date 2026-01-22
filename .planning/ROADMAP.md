@@ -255,6 +255,8 @@ Plans:
 
 **Plans**: 2 plans in 2 waves
 
+**Status**: Complete (2026-01-21)
+
 Plans:
 - [x] 04.4-01-PLAN.md — Verify Docker E2E prerequisites and trace code flow
 - [x] 04.4-02-PLAN.md — Create infrastructure setup documentation (Docker and ECS)
@@ -263,8 +265,6 @@ Plans:
 Plan 01 verifies prerequisites (Docker running, worker image, services) and traces the complete code flow from frontend to callback. Documents any gaps found (e.g., log streaming not yet implemented - Phase 7 scope).
 
 Plan 02 creates comprehensive setup documentation for both local Docker and AWS ECS deployments, including troubleshooting sections based on RESEARCH.md common pitfalls.
-
-**Status**: Complete (2026-01-21)
 
 ---
 
@@ -358,11 +358,11 @@ interface WebhookProvider {
 **Status**: Not started
 
 Plans:
-- [ ] 08-01-PLAN.md — Create database schema types and webhook interfaces
-- [ ] 08-02-PLAN.md — Implement WebhookProvider interface and GitHubWebhookProvider
+- [ ] 08-01-PLAN.md — Create database schema with inbound secrets and outbound API token storage
+- [ ] 08-02-PLAN.md — Implement WebhookProvider interface with inbound and outbound methods
 - [ ] 08-03-PLAN.md — Create deduplication service and configuration DAOs
-- [ ] 08-04-PLAN.md — Create WebhookService orchestration and refactor API routes
-- [ ] 08-05-PLAN.md — Create feedback service and frontend webhook configuration UI
+- [ ] 08-04-PLAN.md — Create WebhookService, FeedbackService, and integrate with JobService
+- [ ] 08-05-PLAN.md — Create frontend webhook configuration UI
 
 ---
 
