@@ -142,7 +142,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEV-01 | Phase 9 | Complete |
 | DEV-02 | Phase 9 | Complete |
 | DEV-03 | Phase 9 | Complete |
-| DEP-01 | Phase 10 | Pending |
+| DEP-01 | Phase 10 | Complete |
 | DEP-02 | Phase 11 | Pending |
 | DEP-03 | Phase 11 | Pending |
 | DEP-04 | Phase 11 | Pending |
