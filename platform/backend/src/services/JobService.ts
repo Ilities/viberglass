@@ -3,6 +3,7 @@ import db from "../persistence/config/database";
 import { JobData, JobResult } from "../types/Job";
 import { sql } from "kysely";
 import { createChildLogger } from "../config/logger";
+import type { FeedbackService } from "../webhooks/FeedbackService";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -15,6 +16,11 @@ export interface SubmitJobOptions {
 }
 
 export class JobService {
+  private feedbackService?: FeedbackService;
+
+  constructor(feedbackService?: FeedbackService) {
+    this.feedbackService = feedbackService;
+  }
   async submitJob(
     data: JobData,
     options?: SubmitJobOptions,
@@ -88,6 +94,39 @@ export class JobService {
       .execute();
 
     logger.info("Job status updated", { jobId, status, ...updates });
+
+    // Post result back to webhook provider on completion
+    if ((status === "completed" || status === "failed") && this.feedbackService && updates.result) {
+      // Fetch job details to get ticketId and repository
+      const job = await db
+        .selectFrom("jobs")
+        .select(["id", "ticket_id", "repository", "status"])
+        .where("id", "=", jobId)
+        .executeTakeFirst();
+
+      if (job?.ticket_id) {
+        // Post result to webhook provider asynchronously
+        // Don't fail the job completion if posting fails
+        this.feedbackService
+          .postJobResult(
+            {
+              id: job.id,
+              ticketId: job.ticket_id,
+              status: job.status as "completed" | "failed",
+              result: updates.result,
+              repository: job.repository || undefined,
+            },
+            updates.result
+          )
+          .catch((error) => {
+            logger.error(`Failed to post result for job ${jobId} to webhook provider`, {
+              error: error instanceof Error ? error.message : String(error),
+              jobId,
+              ticketId: job.ticket_id,
+            });
+          });
+      }
+    }
   }
 
   async getJobStatus(jobId: string): Promise<any | null> {
