@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 10 of 12 (AWS Infrastructure) — COMPLETE
-Next: Phase 11: Deployment Process
-Status: Phase 10 verified, 10/10 must-haves passed
-Last activity: 2026-01-23 — AWS Infrastructure with Pulumi, VPC, RDS, S3, KMS, CloudWatch, ECS, ALB, CloudFront
+Phase: 11 of 12 (Deployment Process) — In Progress
+Plan: 01 of 3 (Production Docker Image)
+Status: Plan 01 complete - multi-stage Dockerfile with 82.5MB image size
+Last activity: 2026-01-22 — Production Docker image for ECS deployment
 
-Progress: [█████████░] 83% of v1.0
+Progress: [█████████░] 84% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 73
+- Total plans completed: 74
 - Average duration: ~4 minutes
 - Total execution time: 4.7 hours
 
@@ -42,6 +42,7 @@ Progress: [█████████░] 83% of v1.0
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
 | 10 | 9 | 9 | 6m |
+| 11 | 1 | 3 | 2m |
 
 **Recent Trend:**
 - Last 5 plans: 3m, 4m, 2m, 2m, 3m
@@ -152,6 +153,9 @@ Recent decisions affecting current work:
 | Mermaid diagrams for infrastructure docs | Renders in GitHub without external dependencies, easy to update | Architecture, network, data flow, and security diagrams in README |
 | .yaml.example pattern for Pulumi configs | Actual config files gitignored, examples show all options with comments | Clear separation of template vs sensitive configuration |
 | Single comprehensive README | 667-line document covering all aspects of infrastructure | Easier to maintain than split documentation, fully searchable |
+| Multi-stage Docker build for production | Separate builder and production stages for minimal runtime image | Dockerfile.prod uses node:20-alpine, TypeScript compiled at build time |
+| Non-root container user | Run as nodejs (uid 1001) instead of root for security | Production Dockerfile creates and uses non-root user |
+| Exclude test files from TypeScript compilation | Added src/**/__tests__/** and src/test/** to tsconfig exclude | Prevents dev dependency requirement in production Docker builds |
 
 ### Roadmap Evolution
 
@@ -171,7 +175,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-23
-Stopped at: Completed Phase 10 (AWS Infrastructure) - all 9 plans executed, verification passed
+Last session: 2026-01-22
+Stopped at: Completed Phase 11 Plan 01 (Production Docker Image) - multi-stage Dockerfile with health check
 Resume file: None
-Phase 10 COMPLETE - Ready to begin Phase 11 planning
+Phase 11 Plan 01 COMPLETE - Ready to begin Plan 02 (CI/CD Pipeline)
