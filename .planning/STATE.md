@@ -11,19 +11,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 10 of 12 (AWS Infrastructure) — IN PROGRESS
-Plan: 10-06 (CloudWatch Logging) — COMPLETE
-Next: Plan 10-07 (Backend ECS Service)
-Status: CloudWatch log groups with environment-specific retention for all compute resources
-Last activity: 2026-01-22 — Logging component wired to ECS worker, log outputs exported
+Plan: 10-07 (Backend ECS Service) — COMPLETE
+Next: Plan 10-08 (Frontend S3+CloudFront)
+Status: ECS Fargate service with ALB for backend API deployment
+Last activity: 2026-01-22 — Backend ECS service with auto-scaling, ALB with target groups
 
-Progress: [█████████░] 81% of v1.0
+Progress: [█████████░] 82% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 69
+- Total plans completed: 70
 - Average duration: ~4 minutes
-- Total execution time: 4.3 hours
+- Total execution time: 4.4 hours
 
 **By Phase:**
 
@@ -42,10 +42,10 @@ Progress: [█████████░] 81% of v1.0
 | 07 | 4 | 4 | 2.5m |
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
-| 10 | 5 | ? | 9m |
+| 10 | 6 | ? | 8m |
 
 **Recent Trend:**
-- Last 5 plans: 2m, 4m, 7m, 18m, 3m
+- Last 5 plans: 2m, 4m, 7m, 18m, 4m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -142,6 +142,10 @@ Recent decisions affecting current work:
 | KMS decrypt permissions via inline policies | Attach inline IAM policies to Lambda/ECS roles for kms:Decrypt and kms:GenerateDataKey* | Compute roles can decrypt SSM parameters encrypted with customer key |
 | KMS alias naming convention | alias/viberator-{environment}-ssm for consistent cross-environment reference | Easy identification in CloudTrail and compliance reports |
 | Centralized logging component pattern | Single createLogging() function for all CloudWatch log groups with environment-based retention defaults | Consistent log management: dev=7, staging=30, prod=90 days |
+| HTTP-only ALB for MVP with optional HTTPS | Load balancer defaults to HTTP, HTTPS requires ACM certificate ARN | Simplifies dev setup, production can add certificate |
+| Backend ECS service reuses worker cluster | Single ECS cluster hosts both worker and backend tasks | Cost-effective versus separate clusters |
+| ALB target group port 80, backend port 3000 | SSL termination at ALB, container uses internal port | Simplifies certificate management |
+| Auto-scaling targets: CPU 70%, Memory 80% | Target tracking policies with 300s cooldown | Balances responsiveness with stability |
 
 ### Roadmap Evolution
 
@@ -162,6 +166,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 10-06-PLAN.md - CloudWatch Logging
+Stopped at: Completed 10-07-PLAN.md - Backend ECS Service
 Resume file: None
-Phase 10 (AWS Infrastructure) IN PROGRESS - 5 of ? plans complete
+Phase 10 (AWS Infrastructure) IN PROGRESS - 6 of ? plans complete
