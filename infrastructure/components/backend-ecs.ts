@@ -1,0 +1,359 @@
+import * as aws from "@pulumi/aws";
+import * as awsx from "@pulumi/awsx";
+import * as pulumi from "@pulumi/pulumi";
+import * as path from "path";
+import { InfrastructureConfig } from "../config";
+
+/**
+ * Backend ECS configuration options.
+ */
+export interface BackendEcsOptions {
+  /** Configuration loaded from Pulumi stack */
+  config: InfrastructureConfig;
+  /** ECR repository URL for the backend image */
+  repositoryUrl: pulumi.Output<string>;
+  /** CloudWatch log group name for backend logs */
+  logGroupName: pulumi.Input<string>;
+  /** Target group ARN from load balancer */
+  targetGroupArn: pulumi.Input<string>;
+  /** VPC private subnet IDs for ECS tasks */
+  privateSubnetIds: pulumi.Input<pulumi.Input<string>[]>;
+  /** Backend security group ID */
+  backendSecurityGroupId: pulumi.Input<string>;
+  /** ALB security group ID for allowing traffic */
+  albSecurityGroupId: pulumi.Input<string>;
+  /** Database SSM parameter paths */
+  databaseSsm: {
+    urlPath: pulumi.Input<string>;
+    hostPath: pulumi.Input<string>;
+  };
+  /** Task CPU units (256, 512, 1024, 2048, 4096) */
+  cpu?: string;
+  /** Task memory in MB (512, 1024, 2048, 4096, 8192, 16384) */
+  memory?: string;
+  /** Container port (default: 3000) */
+  containerPort?: number;
+  /** Desired task count */
+  desiredCount?: number;
+  /** Minimum task count for auto-scaling */
+  minTasks?: number;
+  /** Maximum task count for auto-scaling */
+  maxTasks?: number;
+  /** Path to Dockerfile for the backend image */
+  dockerfilePath?: string;
+  /** Build context for docker build */
+  contextPath?: string;
+}
+
+/**
+ * Backend ECS component outputs.
+ */
+export interface BackendEcsOutputs {
+  /** ECS service ARN */
+  serviceArn: pulumi.Output<string>;
+  /** ECS service name */
+  serviceName: pulumi.Output<string>;
+  /** Task definition ARN */
+  taskDefinitionArn: pulumi.Output<string>;
+  /** Task definition family */
+  taskDefinitionFamily: pulumi.Output<string>;
+  /** Task execution role ARN */
+  executionRoleArn: pulumi.Output<string>;
+  /** Task role ARN */
+  taskRoleArn: pulumi.Output<string>;
+  /** Task role name for policy attachments */
+  taskRoleName: pulumi.Output<string>;
+  /** Backend container image URI */
+  imageUri: pulumi.Output<string>;
+  /** Auto-scaling target ARN */
+  scalingTargetArn: pulumi.Output<string>;
+}
+
+/**
+ * Creates ECS infrastructure for running the backend API.
+ *
+ * This creates:
+ * - ECR image for backend container
+ * - IAM roles for task execution and task permissions
+ * - Task definition with container configuration
+ * - ECS service with load balancer integration
+ * - Auto-scaling based on CPU and memory metrics
+ *
+ * Containers are configured with CloudWatch logging and environment
+ * variables for production operation. Database credentials are sourced
+ * from SSM Parameter Store.
+ */
+export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs {
+  const cpu = options.cpu ?? "256";
+  const memory = options.memory ?? "512";
+  const containerPort = options.containerPort ?? 3000;
+  const desiredCount = options.desiredCount ?? 1;
+  const minTasks = options.minTasks ?? 1;
+  const maxTasks = options.maxTasks ?? 3;
+  const contextPath = options.contextPath ?? path.join(__dirname, "../../platform/backend");
+  const dockerfilePath = options.dockerfilePath ?? path.join(contextPath, "Dockerfile");
+
+  // Build and publish the backend container image
+  const backendImage = new awsx.ecr.Image(`${options.config.environment}-viberator-backend-image`, {
+    repositoryUrl: options.repositoryUrl,
+    context: contextPath,
+    dockerfile: dockerfilePath,
+    platform: "linux/amd64",
+  });
+
+  // IAM role for ECS task execution (pulls images, writes logs)
+  const backendTaskExecutionRole = new aws.iam.Role(
+    `${options.config.environment}-viberator-backend-task-exec-role`,
+    {
+      assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
+        Service: "ecs-tasks.amazonaws.com",
+      }),
+      tags: options.config.tags,
+    }
+  );
+
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-backend-task-exec-basic`, {
+    role: backendTaskExecutionRole.name,
+    policyArn: "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+  });
+
+  // IAM role for backend task (for SSM, S3, KMS access)
+  const backendTaskRole = new aws.iam.Role(
+    `${options.config.environment}-viberator-backend-task-role`,
+    {
+      assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
+        Service: "ecs-tasks.amazonaws.com",
+      }),
+      tags: options.config.tags,
+    }
+  );
+
+  // SSM policy for database credentials
+  const ssmPolicy = new aws.iam.Policy(`${options.config.environment}-viberator-backend-ssm-policy`, {
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: ["ssm:GetParameter", "ssm:GetParameters"],
+          Effect: "Allow",
+          Resource: [
+            options.databaseSsm.urlPath,
+            options.databaseSsm.hostPath,
+          ],
+        },
+      ],
+    },
+    tags: options.config.tags,
+  });
+
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-backend-task-ssm`, {
+    role: backendTaskRole.name,
+    policyArn: ssmPolicy.arn,
+  });
+
+  // CloudWatch Logs policy
+  const logsPolicy = new aws.iam.Policy(`${options.config.environment}-viberator-backend-logs-policy`, {
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: ["logs:CreateLogStream", "logs:PutLogEvents"],
+          Effect: "Allow",
+          Resource: `arn:aws:logs:${options.config.awsRegion}:*:log-group${options.logGroupName}`,
+        },
+      ],
+    },
+    tags: options.config.tags,
+  });
+
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-backend-task-logs`, {
+    role: backendTaskRole.name,
+    policyArn: logsPolicy.arn,
+  });
+
+  // ECS Execute Command policy (for debugging)
+  const executeCommandPolicy = new aws.iam.RolePolicy(
+    `${options.config.environment}-viberator-backend-exec-command`,
+    {
+      role: backendTaskRole.name,
+      policy: {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Action: ["ssmmessages:CreateControlChannel", "ssmmessages:CreateDataChannel", "ssmmessages:OpenControlChannel", "ssmmessages:OpenDataChannel"],
+            Resource: "*",
+          },
+        ],
+      },
+    }
+  );
+
+  // Backend task definition
+  const backendTaskDefinition = new aws.ecs.TaskDefinition(
+    `${options.config.environment}-viberator-backend`,
+    {
+      family: `${options.config.environment}-viberator-backend`,
+      networkMode: "awsvpc",
+      requiresCompatibilities: ["FARGATE"],
+      cpu: cpu,
+      memory: memory,
+      executionRoleArn: backendTaskExecutionRole.arn,
+      taskRoleArn: backendTaskRole.arn,
+      containerDefinitions: pulumi.interpolate`${JSON.stringify([
+        {
+          name: "viberator-backend",
+          image: backendImage.imageUri,
+          essential: true,
+          portMappings: [
+            {
+              containerPort: containerPort,
+              protocol: "tcp",
+            },
+          ],
+          logConfiguration: {
+            logDriver: "awslogs",
+            options: {
+              "awslogs-group": options.logGroupName,
+              "awslogs-region": options.config.awsRegion,
+              "awslogs-stream-prefix": "backend",
+            },
+          },
+          environment: [
+            { name: "NODE_ENV", value: "production" },
+            { name: "PORT", value: containerPort.toString() },
+            { name: "AWS_REGION", value: options.config.awsRegion },
+          ],
+          secrets: [
+            {
+              name: "DATABASE_URL",
+              valueFrom: options.databaseSsm.urlPath,
+            },
+          ],
+          healthCheck: {
+            command: ["CMD-SHELL", `curl -f http://localhost:${containerPort}/health || exit 1`],
+            interval: 30,
+            timeout: 5,
+            retries: 3,
+            startPeriod: 60,
+          },
+        },
+      ])}`,
+      tags: options.config.tags,
+    }
+  );
+
+  return {
+    taskDefinitionArn: backendTaskDefinition.arn,
+    taskDefinitionFamily: backendTaskDefinition.family,
+    executionRoleArn: backendTaskExecutionRole.arn,
+    taskRoleArn: backendTaskRole.arn,
+    taskRoleName: backendTaskRole.name,
+    imageUri: backendImage.imageUri,
+    serviceArn: pulumi.output(""),
+    serviceName: pulumi.output(""),
+    scalingTargetArn: pulumi.output(""),
+  };
+}
+
+/**
+ * Creates the ECS service for backend API.
+ *
+ * This should be called after createBackendEcs with the task definition
+ * outputs. Separated to allow for proper dependency ordering when wiring
+ * components together.
+ */
+export function createBackendService(
+  options: BackendEcsOptions & {
+    taskDefinitionArn: pulumi.Input<string>;
+    clusterArn: pulumi.Input<string>;
+    clusterName: pulumi.Input<string>;
+  }
+): Pick<BackendEcsOutputs, "serviceArn" | "serviceName" | "scalingTargetArn"> {
+  const desiredCount = options.desiredCount ?? 1;
+  const minTasks = options.minTasks ?? 1;
+  const maxTasks = options.maxTasks ?? 3;
+  const containerPort = options.containerPort ?? 3000;
+
+  // ECS Service
+  const backendService = new aws.ecs.Service(`${options.config.environment}-viberator-backend-service`, {
+    name: `${options.config.environment}-viberator-backend`,
+    cluster: options.clusterArn,
+    taskDefinition: options.taskDefinitionArn,
+    desiredCount: desiredCount,
+    launchType: "FARGATE",
+    forceNewDeployment: true,
+    networkConfiguration: {
+      subnets: options.privateSubnetIds,
+      securityGroups: [options.backendSecurityGroupId, options.albSecurityGroupId],
+      assignPublicIp: false,
+    },
+    loadBalancers: [
+      {
+        targetGroupArn: options.targetGroupArn,
+        containerName: "viberator-backend",
+        containerPort: containerPort,
+      },
+    ],
+    enableExecuteCommand: true,
+    tags: options.config.tags,
+  });
+
+  // Auto-scaling target
+  const scalingTarget = new aws.appautoscaling.Target(
+    `${options.config.environment}-viberator-backend-scaling-target`,
+    {
+      maxCapacity: maxTasks,
+      minCapacity: minTasks,
+      resourceId: pulumi.interpolate`service/${options.clusterName}/${backendService.name}`,
+      scalableDimension: "ecs:service:DesiredCount",
+      serviceNamespace: "ecs",
+    }
+  );
+
+  // CPU-based scaling policy
+  const cpuScalingPolicy = new aws.appautoscaling.Policy(
+    `${options.config.environment}-viberator-backend-cpu-scaling`,
+    {
+      policyType: "TargetTrackingScaling",
+      resourceId: scalingTarget.resourceId,
+      scalableDimension: scalingTarget.scalableDimension,
+      serviceNamespace: scalingTarget.serviceNamespace,
+      targetTrackingScalingPolicyConfiguration: {
+        predefinedMetricSpecification: {
+          predefinedMetricType: "ecs:service:CPUUtilization",
+        },
+        targetValue: 70.0,
+        scaleInCooldown: 300,
+        scaleOutCooldown: 60,
+        disableScaleIn: false,
+      },
+    }
+  );
+
+  // Memory-based scaling policy
+  const memoryScalingPolicy = new aws.appautoscaling.Policy(
+    `${options.config.environment}-viberator-backend-memory-scaling`,
+    {
+      policyType: "TargetTrackingScaling",
+      resourceId: scalingTarget.resourceId,
+      scalableDimension: scalingTarget.scalableDimension,
+      serviceNamespace: scalingTarget.serviceNamespace,
+      targetTrackingScalingPolicyConfiguration: {
+        predefinedMetricSpecification: {
+          predefinedMetricType: "ecs:service:MemoryUtilization",
+        },
+        targetValue: 80.0,
+        scaleInCooldown: 300,
+        scaleOutCooldown: 60,
+        disableScaleIn: false,
+      },
+    }
+  );
+
+  return {
+    serviceArn: backendService.id,
+    serviceName: backendService.name,
+    scalingTargetArn: scalingTarget.arn,
+  };
+}
