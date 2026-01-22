@@ -430,9 +430,28 @@ Plans:
 
 **Requirements**: DEP-02, DEP-03, DEP-04
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. Production Dockerfile builds optimized backend container image
+2. Frontend builds to static export compatible with S3+CloudFront
+3. GitHub Actions CI runs tests on PRs
+4. Backend deploys to ECS with migrations on push to main (dev)
+5. Frontend syncs to S3 with CloudFront invalidation on push to main (dev)
+6. Staging/prod deployments require manual trigger
+7. Prod deployment requires approval
+8. Pulumi preview runs on infrastructure PRs
+9. Pulumi up runs for dev infrastructure on merge to main
+10. OIDC authentication used for all AWS access
 
-**Status**: Not started
+**Plans**: 5 plans in 3 waves
+
+**Status**: Planning
+
+Plans:
+- [ ] 11-01-PLAN.md — Create production Dockerfile for backend with multi-stage build
+- [ ] 11-02-PLAN.md — Configure Next.js for static export to S3
+- [ ] 11-03-PLAN.md — Create GitHub Actions workflows for backend CI/CD
+- [ ] 11-04-PLAN.md — Create GitHub Actions workflows for frontend CI/CD
+- [ ] 11-05-PLAN.md — Create GitHub Actions workflows for Pulumi infrastructure
 
 ---
 
