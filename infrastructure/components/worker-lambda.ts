@@ -105,7 +105,9 @@ export function createWorkerLambda(options: WorkerLambdaOptions): WorkerLambdaOu
   });
 
   // Create the Lambda function using the image from ECR
+  // Function name matches log group naming: /aws/lambda/viberator-{environment}-worker
   const workerLambda = new aws.lambda.Function(`${options.config.environment}-viberator-worker`, {
+    name: `viberator-${options.config.environment}-worker`,
     packageType: "Image",
     imageUri: image.imageUri,
     role: lambdaRole.arn,
