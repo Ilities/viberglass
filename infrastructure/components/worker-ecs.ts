@@ -59,12 +59,12 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
   const dockerfilePath = options.dockerfilePath ?? path.join(contextPath, "docker/viberator-ecs-worker.Dockerfile");
 
   // ECS cluster with Container Insights
-  const clusterSettings: aws.types.input.ecs.ClusterClusterSetting[] = [];
+  const clusterSettings: aws.types.input.ecs.ClusterSetting[] = [];
   if (options.config.containerInsights) {
     clusterSettings.push({
       name: "containerInsights",
       value: "enabled",
-    });
+    } as aws.types.input.ecs.ClusterSetting);
   }
 
   const cluster = new aws.ecs.Cluster(`${options.config.environment}-viberator-ecs-cluster`, {
