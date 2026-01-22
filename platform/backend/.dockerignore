@@ -1,11 +1,53 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
+
+# Logs
 npm-debug.log
-.git
+*.log
+lerna-debug.log*
+
+# Environment files
 .env
 .env.local
 .env.*.local
-*.log
+
+# Testing
 coverage
+.nyc_output
+
+# IDE
 .idea
 .vscode
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+*.md
+
+# Migrations (not needed in container)
+migrations
+
+# Test files
+src/**/__tests__
+src/test
+**/*.test.ts
+**/*.spec.ts
