@@ -91,11 +91,12 @@ new aws.lambda.EventSourceMapping("viberator-sqs-trigger", {
 // ========== ECS Worker Infrastructure ==========
 // ECS cluster for running ephemeral workers
 const cluster = new aws.ecs.Cluster("viberator-ecs-cluster", {
-  settings: {
-
-    name: "containerInsights",
-    value: "enabled",
-  },
+  settings: [
+    {
+      name: "containerInsights",
+      value: "enabled",
+    },
+  ],
 });
 
 // Build and publish the ECS worker container image
