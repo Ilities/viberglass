@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Multi-Tenant Security Foundation** - Cloud-agnostic credential storage interface with AWS SSM provider implementation
 - [x] **Phase 2: Result Callback** - Workers POST results to platform API
 - [x] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
-- [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
+- [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers asynchronously via AWS SDK with retry logic
 - [x] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
 - [x] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
 - [x] **Phase 4.3: Application organization and structural refactoring** - Code organization improvements (INSERTED)
@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
 - [x] **Phase 8: Webhook Provider Architecture** - Provider-agnostic webhook integration with GitHub as first implementation
 - [x] **Phase 9: Local Development** - Docker compose environment for local development
-- [ ] **Phase 10: AWS Infrastructure** - Pulumi stack provisions cloud resources and AWS credential provider
+- [ ] **Phase 10: AWS Infrastructure** - Pulumi stack provisions complete AWS infrastructure
 - [ ] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
 - [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
@@ -387,15 +387,38 @@ Plans:
 
 ### Phase 10: AWS Infrastructure
 
-**Goal**: Pulumi stack provisions complete AWS infrastructure.
+**Goal**: Pulumi stack provisions complete AWS infrastructure for production deployment.
 
 **Depends on**: Phase 9
 
 **Requirements**: DEP-01
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. Pulumi infrastructure at `infrastructure/` with multi-stack support (dev/staging/prod)
+2. VPC with public/private subnets across 2 AZs, NAT gateways for private egress
+3. RDS PostgreSQL in private subnets with credentials in SSM
+4. S3 bucket for file uploads with encryption and lifecycle policies
+5. KMS key for SSM parameter encryption
+6. CloudWatch log groups for all compute resources
+7. ECS Fargate service for backend API with Application Load Balancer
+8. S3+CloudFront for frontend static hosting
+9. Worker infrastructure (Lambda and ECS) configured
+10. Comprehensive documentation for deployment and operations
+
+**Plans**: 9 plans in 5 waves
 
 **Status**: Not started
+
+Plans:
+- [ ] 10-01-PLAN.md — Reorganize Pulumi infrastructure to proper location with multi-stack support (dev/staging/prod)
+- [ ] 10-02-PLAN.md — Create VPC networking with public/private subnets, NAT gateways, and security groups
+- [ ] 10-03-PLAN.md — Create RDS PostgreSQL with subnet group, parameter group, and SSM credential storage
+- [ ] 10-04-PLAN.md — Create S3 bucket for file uploads with encryption and lifecycle policies
+- [ ] 10-05-PLAN.md — Create KMS key for SSM parameter encryption
+- [ ] 10-06-PLAN.md — Create CloudWatch log groups with retention policies
+- [ ] 10-07-PLAN.md — Create ECS Fargate service and Application Load Balancer for backend API
+- [ ] 10-08-PLAN.md — Create S3+CloudFront for frontend static hosting
+- [ ] 10-09-PLAN.md — Complete infrastructure wiring and create comprehensive documentation
 
 ---
 
