@@ -1,45 +1,49 @@
 # Phase 8: Webhook Provider Architecture - Research
 
 **Researched:** 2026-01-22
-**Domain:** Webhook integration, GitHub API, Provider patterns
+**Domain:** Webhook integration architecture, provider plugin system, event-driven processing
 **Confidence:** HIGH
 
 ## Summary
 
-This phase implements a provider-agnostic webhook integration system with GitHub as the first implementation. Research covered webhook signature verification (HMAC-SHA256 for GitHub/Bitbucket, simple token for GitLab), provider interface patterns from established projects like Woodpecker CI, GitHub webhook payload structures, deduplication strategies, and integration patterns with existing codebase services.
+This phase implements a provider-agnostic webhook integration system with GitHub and Jira as the first two providers. The core challenge is designing a secure, extensible plugin architecture that handles incoming webhook events, validates signatures, prevents replay attacks, and provides outbound API capabilities for posting results back to platforms.
 
-The codebase already has partial webhook infrastructure in `platform/backend/src/api/routes/webhooks.ts` and `GitHubIntegration.ts` that can be refactored into the new provider architecture. The existing `CredentialProviderFactory` pattern provides an excellent template for the webhook provider factory.
-
-**Primary recommendation:** Implement a `WebhookProvider` interface with `validateSignature`, `parseEvent`, `postComment`, and `updateLabels` methods. Use content-based SHA-256 hashing for deduplication with a 24-hour TTL window stored in PostgreSQL.
+**Primary recommendation:** Use a hybrid approach combining (1) a generic HMAC-SHA256 signature validator with configurable algorithms, (2) a TypeScript interface-based plugin system using abstract base classes with dynamic loading from a providers directory, and (3) idempotency through database-tracked delivery IDs with timing-safe signature verification using Node.js built-in `crypto.timingSafeEqual()`.
 
 ## Standard Stack
 
-The established libraries/tools for this domain:
+The established libraries/tools for webhook provider architecture in TypeScript/Node.js:
 
 ### Core
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
-| Node.js crypto | built-in | HMAC-SHA256 signature validation | Native, no dependencies, used in existing codebase |
-| crypto.timingSafeEqual | built-in | Timing-safe signature comparison | Prevents timing attacks, already used in webhooks.ts |
-| crypto.randomUUID | built-in | UUID generation | Already established pattern in codebase |
-| axios | ^1.x | HTTP client for outbound API calls | Already used in GitHubIntegration.ts |
-| Joi | ^17.x | Request validation | Already used in validation middleware |
+| Node.js `crypto` | Built-in | HMAC-SHA256 signature verification, timing-safe comparison | Official GitHub docs recommend `crypto.timingSafeEqual()` for security |
+| `express` | ^4.19.x / ^5.x | HTTP server with raw body parsing middleware | Required for signature verification on raw request body |
+| `kysely` | ^0.26.x | Type-safe database queries for idempotency tracking | Already in use in the project |
+| `axios` | ^1.6.x | Outbound API calls to GitHub/Jira | Already in use in the project |
 
 ### Supporting
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| Kysely | existing | Database queries | All DB operations - matches codebase pattern |
+| `crypto.timingSafeEqual()` | Built-in | Constant-time signature comparison | Always - prevents timing attack vulnerabilities |
+| `express.raw()` | Built-in middleware | Capture raw request body before JSON parsing | Required for signature verification |
+| `@octokit/webhooks` | ^10.x | GitHub webhook verification (optional) | If using Octokit instead of raw crypto |
+| UUID generation | Built-in `crypto.randomUUID()` | Idempotency keys, event tracking | For tracking processed webhook events |
 
 ### Alternatives Considered
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
-| Manual HMAC | github-webhook-handler npm | Extra dependency for simple use case |
-| PostgreSQL dedup | Redis | Adds operational complexity for simple TTL cache |
-| Joi validation | Zod | Joi already established in codebase |
+| Raw `crypto` module | `@octokit/webhooks` library | Octokit is GitHub-specific; need generic solution for multiple providers |
+| Raw body parsing | `body-parser.json()` | Body parser mutates body; need raw for signature verification |
+| Database idempotency | Redis in-memory | Redis is faster but adds dependency; database already available |
 
 **Installation:**
 ```bash
-# No new dependencies needed - all core libraries already in project
+# Core dependencies (likely already installed)
+npm install express crypto axios kysely
+
+# Optional GitHub-specific verification
+npm install @octokit/webhooks
 ```
 
 ## Architecture Patterns
@@ -48,263 +52,292 @@ The established libraries/tools for this domain:
 ```
 platform/backend/src/
 ├── webhooks/
-│   ├── WebhookProvider.ts           # Provider interface
-│   ├── WebhookProviderFactory.ts    # Factory for creating providers
-│   ├── WebhookService.ts            # Orchestrates webhook processing
-│   ├── WebhookDeduplicationService.ts # Handles deduplication
+│   ├── provider.ts              # Base WebhookProvider interface
+│   ├── registry.ts              # Provider registry with dynamic loading
+│   ├── validator.ts             # Generic signature validator
+│   ├── middleware/
+│   │   ├── signature.ts         # Express middleware for signature verification
+│   │   └── idempotency.ts       # Deduplication middleware
 │   ├── providers/
-│   │   ├── GitHubWebhookProvider.ts # GitHub implementation
-│   │   ├── GitLabWebhookProvider.ts # GitLab implementation (future)
-│   │   └── BitbucketWebhookProvider.ts # Bitbucket implementation (future)
-│   └── types.ts                     # Webhook-specific types
-├── persistence/
-│   └── webhooks/
-│       ├── WebhookConfigDAO.ts      # Webhook configuration storage
-│       └── WebhookFailedEventDAO.ts # Failed event storage for retry
+│   │   ├── github-provider.ts   # GitHub webhook implementation
+│   │   ├── jira-provider.ts     # Jira webhook implementation
+│   │   └── base-provider.ts     # Abstract base class
+│   └── routes.ts                # Express route handlers
+├── outbound/
+│   ├── api-client.ts            # Generic outbound API client
+│   └── rate-limiter.ts          # Rate limiting for outbound calls
 ```
 
-### Pattern 1: Provider Interface
-**What:** Abstract interface defining webhook provider contract
-**When to use:** All webhook providers must implement this interface
+### Pattern 1: Provider Plugin Interface
+
+**What:** Define a TypeScript interface that all webhook providers must implement, enabling dynamic loading and type safety.
+
+**When to use:** Core pattern for the entire provider system.
+
 **Example:**
 ```typescript
-// Source: Modeled after existing CredentialProvider.ts pattern
-export interface WebhookProvider {
-  readonly name: string;
-  readonly providerType: 'github' | 'gitlab' | 'bitbucket';
+// Source: Based on TypeScript plugin architecture patterns (DEV Community, Codeless Code)
 
-  // Inbound: Receiving webhooks
-  validateSignature(payload: string, signature: string, secret: string): boolean;
-  parseEvent(headers: Record<string, string>, payload: unknown): WebhookEvent | null;
-
-  // Outbound: Responding to platform
-  postComment(config: ProviderConfig, issueId: string, body: string): Promise<void>;
-  updateLabels(config: ProviderConfig, issueId: string, add: string[], remove: string[]): Promise<void>;
-
-  // Configuration
-  getSetupInstructions(webhookUrl: string): WebhookSetupInstructions;
+// Provider configuration interface
+interface WebhookProviderConfig {
+  type: 'github' | 'jira';
+  secretLocation: 'database' | 'ssm' | 'env';
+  secretPath?: string;
+  algorithm: 'sha256' | 'sha1';
+  allowedEvents: string[];
 }
 
-export interface WebhookEvent {
-  deliveryId: string;              // X-GitHub-Delivery / X-Hook-UUID
-  eventType: string;               // issues, issue_comment, etc.
-  action: string;                  // opened, created, etc.
-  repository: {
-    owner: string;
-    name: string;
-    fullName: string;
+// Parsed webhook event
+interface ParsedWebhookEvent {
+  provider: string;
+  eventType: string;
+  deduplicationId: string;      // Provider-specific unique ID
+  timestamp: string;
+  payload: unknown;
+  metadata: {
+    projectId?: string;
+    repositoryId?: string;
+    issueKey?: string;
   };
-  issue?: {
-    number: number;
-    title: string;
-    body: string;
-    labels: string[];
-    url: string;
-  };
-  comment?: {
-    id: number;
-    body: string;
-    author: string;
-  };
-  sender: {
-    login: string;
-  };
-  rawPayload: unknown;
-}
-```
-
-### Pattern 2: Signature Validation by Provider
-**What:** Each provider has different signature mechanisms
-**When to use:** During webhook request validation
-**Example:**
-```typescript
-// GitHub: HMAC-SHA256 signature
-// Source: https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
-export class GitHubWebhookProvider implements WebhookProvider {
-  validateSignature(payload: string, signature: string, secret: string): boolean {
-    if (!signature || !secret) return false;
-
-    const expectedSignature = `sha256=${crypto
-      .createHmac('sha256', secret)
-      .update(payload, 'utf8')
-      .digest('hex')}`;
-
-    // CRITICAL: Use timing-safe comparison to prevent timing attacks
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
-  }
 }
 
-// GitLab: Simple token comparison
-// Source: https://docs.gitlab.com/user/project/integrations/webhooks/
-export class GitLabWebhookProvider implements WebhookProvider {
-  validateSignature(_payload: string, token: string, secret: string): boolean {
-    if (!token || !secret) return false;
-    // GitLab sends secret in X-Gitlab-Token header (not HMAC)
-    return crypto.timingSafeEqual(
-      Buffer.from(token),
-      Buffer.from(secret)
-    );
-  }
+// Outbound result interface
+interface WebhookResult {
+  success: boolean;
+  action: 'comment' | 'label_update' | 'status_update';
+  targetId: string;
+  details?: string;
 }
 
-// Bitbucket: HMAC-SHA256 signature (similar to GitHub)
-// Source: https://support.atlassian.com/bitbucket-cloud/docs/manage-webhooks/
-export class BitbucketWebhookProvider implements WebhookProvider {
-  validateSignature(payload: string, signature: string, secret: string): boolean {
-    if (!signature || !secret) return false;
+// Base provider interface
+export abstract class WebhookProvider {
+  abstract readonly name: string;
+  abstract readonly config: WebhookProviderConfig;
 
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(payload, 'utf8')
-      .digest('hex');
+  // Parse incoming webhook payload into standardized format
+  abstract parseEvent(payload: unknown, headers: Record<string, string>): ParsedWebhookEvent;
 
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
-  }
+  // Verify webhook signature
+  abstract verifySignature(payload: Buffer, signature: string, secret: string): boolean;
+
+  // Post result back to platform (comment, label update, etc.)
+  abstract postResult(ticketId: string, result: WebhookResult): Promise<void>;
+
+  // Get supported event types
+  abstract getSupportedEvents(): string[];
+
+  // Validate configuration
+  abstract validateConfig(config: WebhookProviderConfig): boolean;
 }
 ```
 
-### Pattern 3: Event Parsing with @bot Detection
-**What:** Parse webhook payload and detect bot mentions
-**When to use:** When processing issue_comment events
+### Pattern 2: Generic Signature Validator
+
+**What:** A configurable HMAC signature validator supporting multiple algorithms and secret sources.
+
+**When to use:** All incoming webhook requests require signature verification.
+
 **Example:**
 ```typescript
-// Source: Based on CONTEXT.md decisions for @bot mentions
-export function detectBotMention(body: string, botUsername: string): boolean {
-  // Match @bot or @botname at word boundaries
-  const pattern = new RegExp(`@${botUsername}\\b`, 'i');
-  return pattern.test(body);
+// Source: GitHub official docs - Validating webhook deliveries
+// https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+
+import crypto from 'crypto';
+
+interface SignatureValidatorConfig {
+  algorithm: 'sha256' | 'sha1';
+  headerName: string;           // e.g., 'x-hub-signature-256'
+  prefix: string;               // e.g., 'sha256='
+  secretLocation: 'database' | 'ssm' | 'env';
 }
 
-export function extractIntent(body: string, botUsername: string): string | null {
-  // Extract text after @bot mention
-  const pattern = new RegExp(`@${botUsername}\\s+(.+?)(?:\\n|$)`, 'i');
-  const match = body.match(pattern);
-  return match ? match[1].trim() : null;
-}
+export class SignatureValidator {
+  constructor(private config: SignatureValidatorConfig) {}
 
-// In GitHubWebhookProvider.parseEvent():
-parseEvent(headers: Record<string, string>, payload: unknown): WebhookEvent | null {
-  const eventType = headers['x-github-event'];
-  const deliveryId = headers['x-github-delivery'];
-
-  if (!eventType || !deliveryId) return null;
-
-  const data = payload as GitHubWebhookPayload;
-
-  // Only process issues and issue_comment events
-  if (eventType !== 'issues' && eventType !== 'issue_comment') {
-    return null;
-  }
-
-  // For comments, check for @bot mention
-  if (eventType === 'issue_comment' && data.comment) {
-    const botUsername = 'viberator'; // configurable
-    if (!detectBotMention(data.comment.body, botUsername)) {
-      return null; // Ignore comments without @bot mention
+  async getSecret(projectId: string): Promise<string> {
+    // Fetch from configured location (database, SSM, or env)
+    switch (this.config.secretLocation) {
+      case 'database':
+        return await this.getSecretFromDatabase(projectId);
+      case 'ssm':
+        return await this.getSecretFromSSM(projectId);
+      case 'env':
+        return process.env.WEBHOOK_SECRET || '';
     }
   }
 
-  return {
-    deliveryId,
-    eventType,
-    action: data.action,
-    repository: {
-      owner: data.repository.owner.login,
-      name: data.repository.name,
-      fullName: data.repository.full_name,
-    },
-    issue: data.issue ? {
-      number: data.issue.number,
-      title: data.issue.title,
-      body: data.issue.body || '',
-      labels: data.issue.labels?.map(l => l.name) || [],
-      url: data.issue.html_url,
-    } : undefined,
-    comment: data.comment ? {
-      id: data.comment.id,
-      body: data.comment.body,
-      author: data.comment.user.login,
-    } : undefined,
-    sender: {
-      login: data.sender.login,
-    },
-    rawPayload: payload,
-  };
+  verify(payload: Buffer, signature: string, secret: string): boolean {
+    // Strip prefix if present
+    const receivedSignature = signature.replace(this.config.prefix, '');
+
+    // Compute expected signature
+    const hmac = crypto.createHmac(this.config.algorithm, secret);
+    hmac.update(payload);
+    const expectedSignature = hmac.digest('hex');
+
+    // CRITICAL: Use timing-safe comparison to prevent timing attacks
+    // Source: GitHub docs explicitly warn against using ==
+    const receivedBuf = Buffer.from(receivedSignature, 'hex');
+    const expectedBuf = Buffer.from(expectedSignature, 'hex');
+
+    // Ensure buffers are same length before comparison
+    if (receivedBuf.length !== expectedBuf.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(receivedBuf, expectedBuf);
+  }
+
+  private async getSecretFromDatabase(projectId: string): Promise<string> {
+    // Implementation using Kysely
+    return '';
+  }
+
+  private async getSecretFromSSM(projectId: string): Promise<string> {
+    // Implementation using AWS SDK
+    return '';
+  }
 }
 ```
 
-### Pattern 4: Deduplication Service
-**What:** Prevent duplicate processing of webhooks
-**When to use:** Before processing any webhook event
+### Pattern 3: Provider Registry with Dynamic Loading
+
+**What:** A registry pattern that loads providers dynamically from a directory, enabling hot-reloading in development and easy addition of new providers.
+
+**When to use:** Core provider management system.
+
 **Example:**
 ```typescript
-// Source: https://hookdeck.com/webhooks/guides/implement-webhook-idempotency
-export class WebhookDeduplicationService {
-  private static readonly DEDUP_TTL_HOURS = 24;
+// Source: Designing a Plugin System in TypeScript (DEV Community, April 2025)
+// https://dev.to/hexshift/designing-a-plugin-system-in-typescript-for-modular-web-applications-4db5
 
-  async isDuplicate(event: WebhookEvent): Promise<boolean> {
-    const hash = this.computeHash(event);
+import path from 'path';
+import { promises as fs } from 'fs';
+import { WebhookProvider } from './base-provider';
 
-    // Check if hash exists within TTL window
-    const existing = await db
-      .selectFrom('webhook_deduplication')
-      .select('id')
-      .where('hash', '=', hash)
-      .where('created_at', '>', this.getTtlCutoff())
-      .executeTakeFirst();
+export class ProviderRegistry {
+  private providers = new Map<string, WebhookProvider>();
 
-    return !!existing;
+  async loadProvidersFromDirectory(providerDir: string) {
+    const files = await fs.readdir(providerDir);
+
+    for (const file of files) {
+      if (file.endsWith('-provider.ts')) {
+        const modulePath = path.join(providerDir, file);
+        const module = await import(modulePath);
+        const ProviderClass = module.default || module[Object.keys(module)[0]];
+
+        if (ProviderClass && typeof ProviderClass === 'function') {
+          const provider = new ProviderClass();
+          this.providers.set(provider.name, provider);
+        }
+      }
+    }
   }
 
-  async markProcessed(event: WebhookEvent): Promise<void> {
-    const hash = this.computeHash(event);
-
-    await db
-      .insertInto('webhook_deduplication')
-      .values({
-        id: crypto.randomUUID(),
-        hash,
-        delivery_id: event.deliveryId,
-        event_type: event.eventType,
-        created_at: new Date(),
-      })
-      .onConflict((oc) => oc.column('hash').doNothing())
-      .execute();
+  register(provider: WebhookProvider) {
+    this.providers.set(provider.name, provider);
   }
 
-  private computeHash(event: WebhookEvent): string {
-    // Hash immutable fields: deliveryId + eventType + action + repo + issue/comment
-    const data = JSON.stringify({
-      deliveryId: event.deliveryId,
-      eventType: event.eventType,
-      action: event.action,
-      repository: event.repository.fullName,
-      issueNumber: event.issue?.number,
-      commentId: event.comment?.id,
-    });
-
-    return crypto.createHash('sha256').update(data).digest('hex');
+  get(name: string): WebhookProvider | undefined {
+    return this.providers.get(name);
   }
 
-  private getTtlCutoff(): Date {
-    const cutoff = new Date();
-    cutoff.setHours(cutoff.getHours() - WebhookDeduplicationService.DEDUP_TTL_HOURS);
-    return cutoff;
+  getProviderForHeaders(headers: Record<string, string>): WebhookProvider | undefined {
+    // Route to appropriate provider based on headers
+    // GitHub: x-github-event
+    // Jira: x-atlassian-webhook-identifier or webhookEvent in body
+    if (headers['x-github-event']) {
+      return this.get('github');
+    }
+    if (headers['x-atlassian-webhook-identifier']) {
+      return this.get('jira');
+    }
+    return undefined;
   }
+
+  list(): string[] {
+    return Array.from(this.providers.keys());
+  }
+}
+```
+
+### Pattern 4: Express Middleware for Signature Verification
+
+**What:** Raw body parsing middleware combined with signature verification before JSON parsing.
+
+**When to use:** All webhook endpoints.
+
+**Example:**
+```typescript
+// Source: GitHub webhook verification best practices + Jira webhook guide
+// https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+// https://inventivehq.com/blog/jira-webhooks-guide
+
+import express, { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import { SignatureValidator } from './validator';
+
+interface ExtendedRequest extends Request {
+  rawBody?: Buffer;
+}
+
+// CRITICAL: Use raw body parser for webhook routes
+// Standard body-parser will mutate the body, breaking signature verification
+export function rawBodyMiddleware() {
+  return express.raw({
+    type: 'application/json',
+    limit: '10mb',
+  });
+}
+
+export function createSignatureMiddleware(validator: SignatureValidator) {
+  return async (req: ExtendedRequest, res: Response, next: NextFunction) => {
+    const signature = req.headers['x-hub-signature-256'] as string ||
+                      req.headers['x-hub-signature'] as string ||
+                      req.headers['x-hub-signature'] as string; // Jira
+
+    if (!signature) {
+      return res.status(401).json({ error: 'Missing signature header' });
+    }
+
+    // Store raw body for verification
+    const rawBody = req.body;
+
+    // Get project ID from request (e.g., from path parameter or header)
+    const projectId = req.headers['x-project-id'] as string || 'default';
+
+    try {
+      const secret = await validator.getSecret(projectId);
+      const isValid = validator.verify(rawBody, signature, secret);
+
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+
+      // Replace raw body with parsed JSON for next middleware
+      try {
+        req.body = JSON.parse(rawBody.toString('utf8'));
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON payload' });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Signature verification error:', error);
+      return res.status(500).json({ error: 'Signature verification failed' });
+    }
+  };
 }
 ```
 
 ### Anti-Patterns to Avoid
-- **Plain string comparison for signatures:** Always use `crypto.timingSafeEqual` to prevent timing attacks
-- **Parsing body after JSON.stringify:** GitHub signs the raw body, not the re-serialized JSON
-- **Processing webhooks synchronously with long operations:** Return 200 quickly, process async if needed
-- **Single global webhook secret:** Use per-project secrets for better security isolation
+- **Using standard string comparison (`===` or `==`) for signatures**: Opens application to timing attacks where an attacker can incrementally guess the correct signature. Use `crypto.timingSafeEqual()` instead.
+- **Parsing JSON before signature verification**: Body parsing mutates the request body, causing signature verification to fail. Always verify against raw bytes first.
+- **Skipping idempotency checks**: Webhook providers retry on failures. Without idempotency, the same event will be processed multiple times.
+- **Hardcoding secrets in code**: Credentials should be fetched from secure storage (database, SSM, or environment variables).
+- **Synchronous processing of webhook handlers**: Long-running operations will cause webhook timeouts. Use job queues for async processing.
+- **Not validating event types before processing**: Process only subscribed events to avoid unexpected behavior.
 
 ## Don't Hand-Roll
 
@@ -312,359 +345,365 @@ Problems that look simple but have existing solutions:
 
 | Problem | Don't Build | Use Instead | Why |
 |---------|-------------|-------------|-----|
-| HMAC signature | Manual byte comparison | crypto.timingSafeEqual | Timing attack prevention |
-| UUID generation | substr(random) | crypto.randomUUID() | Cryptographically secure |
-| HTTP client | fetch wrapper | axios (existing) | Already established in codebase |
-| Validation | Manual checks | Joi schemas | Consistent with codebase patterns |
-| Deduplication | In-memory cache | PostgreSQL table | Survives restarts, shared across instances |
+| HMAC signature verification | Custom crypto logic | Node.js built-in `crypto` module with `timingSafeEqual()` | Timing-safe comparison is critical for security; subtle bugs are common |
+| Idempotency tracking | Custom in-memory tracking | Database with unique constraint on `deduplication_id` | In-memory doesn't survive restarts; database provides durability and deduplication |
+| Rate limiting for outbound APIs | Custom request throttling | `axios-rate-limit` or token bucket algorithm | Proper rate limiting requires backoff strategy and retry handling |
+| Webhook body parsing | Custom parsers | Express `express.raw()` middleware | Raw body parsing is required for signature verification |
+| Secret management | Environment variables only | AWS SSM Parameter Store or HashiCorp Vault for cloud | Database-backed for local, SSM for cloud provides flexibility |
 
-**Key insight:** The codebase already has well-established patterns for factories (CredentialProviderFactory), validation (Joi schemas), and database access (Kysely). Follow these patterns rather than inventing new ones.
+**Key insight:** Signature verification security pitfalls are the most dangerous to hand-roll. Timing attacks can reveal secrets byte-by-byte, and this is not theoretical—GitHub explicitly warns against standard comparison in their official documentation.
 
 ## Common Pitfalls
 
-### Pitfall 1: Raw Body Access for Signature Verification
-**What goes wrong:** Express parses JSON body, signature verification fails because body was re-serialized
-**Why it happens:** GitHub signs the raw request body, not the JSON-parsed-then-stringified version
-**How to avoid:** Use `express.raw()` or `express.json({ verify: (req, res, buf) => req.rawBody = buf })`
-**Warning signs:** Signature validation fails even with correct secret
+### Pitfall 1: Timing Attack Vulnerability in Signature Verification
 
-### Pitfall 2: Webhook Timeout
-**What goes wrong:** GitHub/GitLab retry webhook because endpoint took too long
-**Why it happens:** Processing ticket creation, job execution inline with webhook request
-**How to avoid:** Return 200 immediately after validation, process asynchronously
-**Warning signs:** Duplicate webhooks, multiple jobs created for same event
+**What goes wrong:** Using standard string comparison (`===`, `==`, or `Buffer.equals()`) for HMAC signature verification allows attackers to use timing side-channels to guess valid signatures.
 
-### Pitfall 3: Missing Delivery ID Deduplication
-**What goes wrong:** Same webhook processed multiple times during retries
-**Why it happens:** Webhook providers retry on timeout/5xx, but delivery ID is the same
-**How to avoid:** Store and check X-GitHub-Delivery / X-Hook-UUID before processing
-**Warning signs:** Duplicate tickets/jobs for single GitHub event
+**Why it happens:** Standard string comparison returns false as soon as a mismatching character is found. Attackers can measure response times to determine how many characters match, then iteratively guess the signature.
 
-### Pitfall 4: Secret Storage Security
-**What goes wrong:** Webhook secrets exposed in logs, config files, or database dumps
-**Why it happens:** Treating secrets like regular config
-**How to avoid:** Use CredentialProvider for secret storage, never log secrets
-**Warning signs:** Secrets visible in application logs or config dumps
+**How to avoid:** Always use `crypto.timingSafeEqual()` for signature comparison. This function compares all bytes regardless of differences, preventing timing leaks.
 
-### Pitfall 5: Event Type Confusion
-**What goes wrong:** Processing wrong event type or missing events
-**Why it happens:** GitHub sends many event types, not all relevant
-**How to avoid:** Explicit allowlist of event types to process (issues, issue_comment)
-**Warning signs:** Jobs created for irrelevant events like label changes
+**Warning signs:**
+- Signature verification using `signature === expectedSignature`
+- Using `Buffer.compare()` or standard equality for HMAC results
+- GitHub docs explicitly warn: "Never use a plain == operator"
+
+### Pitfall 2: Signature Verification Fails Due to Body Parsing
+
+**What goes wrong:** Signature verification fails even with correct secret because the request body was modified by Express body-parser before verification.
+
+**Why it happens:** Standard `express.json()` middleware parses and mutates the request body. The signature was computed on the raw bytes, but verification is done on the parsed/modified object.
+
+**How to avoid:** Use `express.raw({ type: 'application/json' })` middleware to capture raw body, verify signature against raw bytes, then parse JSON manually.
+
+**Warning signs:**
+- Signature validation passes in tests but fails in production
+- Using `express.json()` before signature verification
+- Verification works with curl but fails from actual webhooks
+
+### Pitfall 3: Duplicate Event Processing
+
+**What goes wrong:** The same webhook event is processed multiple times, causing duplicate tickets, API calls, or notifications.
+
+**Why it happens:** Webhook providers retry failed deliveries. Without idempotency handling, retries create duplicate actions. Jira retries up to 5 times, GitHub has similar retry behavior.
+
+**How to avoid:** Track processed webhook IDs using the provider's deduplication identifier (`X-GitHub-Delivery` for GitHub, `X-Atlassian-Webhook-Identifier` for Jira) in a database with unique constraints.
+
+**Warning signs:**
+- Duplicate issues created in external systems
+- Same comment posted multiple times
+- Users report receiving multiple notifications for single events
+
+### Pitfall 4: Webhook Timeout Due to Synchronous Processing
+
+**What goes wrong:** Webhook endpoints timeout (30s for GitHub primary, 15 minutes for secondary) because processing takes too long.
+
+**Why it happens:** Business logic, database operations, or outbound API calls are executed synchronously in the webhook handler.
+
+**How to avoid:** Return 200 OK immediately, then process webhooks asynchronously using a job queue (Bull, BullMQ) or background worker.
+
+**Warning signs:**
+- Jira/GitHub webhook logs showing timeouts
+- Processing sometimes succeeds, sometimes fails
+- Long-running operations in webhook handlers
+
+### Pitfall 5: Signature Replay Attacks
+
+**What goes wrong:** Attacker captures and re-sends a valid webhook request, triggering unauthorized actions.
+
+**Why it happens:** Signatures remain valid indefinitely; without timestamp validation, old signed requests can be replayed.
+
+**How to avoid:** Reject webhooks older than a configured time window (e.g., 5-10 minutes) by checking the timestamp field in the payload. Combine with deduplication tracking for comprehensive protection.
+
+**Warning signs:**
+- Webhook events processed with very old timestamps
+- Suspicious activity patterns in logs
+- No timestamp validation in signature verification
+
+### Pitfall 6: Rate Limiting on Outbound API Calls
+
+**What goes wrong:** Outbound calls to GitHub/Jira APIs fail due to rate limiting after processing multiple webhooks.
+
+**Why it happens:** Each webhook may trigger outbound API calls (comments, label updates). High webhook volume can exceed rate limits (GitHub: 5,000 requests/hour authenticated; Jira: new rate limits starting Nov 2025).
+
+**How to avoid:** Implement rate limiting and exponential backoff for outbound API calls. Use batch operations where available. Monitor rate limit headers and queue requests when limits are approached.
+
+**Warning signs:**
+- HTTP 429 responses from GitHub/Jira APIs
+- "Rate limit exceeded" errors
+- Failures during high webhook volume periods
 
 ## Code Examples
 
 Verified patterns from official sources:
 
-### GitHub Webhook Headers
+### GitHub Signature Verification (Node.js)
+
 ```typescript
-// Source: https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
-interface GitHubWebhookHeaders {
-  'x-hub-signature-256': string;  // sha256=<hex digest>
-  'x-github-event': string;       // issues, issue_comment, push, etc.
-  'x-github-delivery': string;    // unique delivery UUID
-  'x-github-hook-id': string;     // webhook config ID
-  'x-github-hook-installation-target-id': string;
-  'x-github-hook-installation-target-type': string; // repository, organization
+// Source: GitHub official documentation - Validating webhook deliveries
+// https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+
+import crypto from 'crypto';
+
+export function verifyGitHubSignature(
+  payload: string,
+  signatureHeader: string,
+  secret: string
+): boolean {
+  const signatureParts = signatureHeader.split('=');
+  const algorithm = signatureParts[0];
+  const signatureHash = signatureParts[1];
+
+  // Only support SHA-256 (recommended by GitHub)
+  if (algorithm !== 'sha256') {
+    return false;
+  }
+
+  // Compute HMAC
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(payload);
+  const expectedHash = hmac.digest('hex');
+
+  // CRITICAL: Use timing-safe comparison
+  const signatureBuf = Buffer.from(signatureHash, 'hex');
+  const expectedBuf = Buffer.from(expectedHash, 'hex');
+
+  if (signatureBuf.length !== expectedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(signatureBuf, expectedBuf);
 }
 ```
 
-### GitHub Issue Event Payload
+### Jira Webhook Event Parsing
+
 ```typescript
-// Source: https://docs.github.com/en/webhooks/webhook-events-and-payloads#issues
-interface GitHubIssuePayload {
-  action: 'opened' | 'edited' | 'closed' | 'reopened' | 'assigned' | 'unassigned' | 'labeled' | 'unlabeled';
-  issue: {
-    number: number;
-    title: string;
-    body: string | null;
-    state: 'open' | 'closed';
-    labels: Array<{ name: string; color: string }>;
-    assignee: { login: string } | null;
-    html_url: string;
-    created_at: string;
-    updated_at: string;
+// Source: Jira webhook event types from Atlassian docs
+// https://developer.atlassian.com/cloud/jira/platform/modules/webhook/
+
+interface JiraWebhookPayload {
+  timestamp: number;
+  webhookEvent: string;
+  issue_event_type_name?: string;
+  user: {
+    accountId: string;
+    displayName: string;
+    emailAddress?: string;
   };
-  repository: {
-    id: number;
-    name: string;
-    full_name: string;
-    owner: { login: string };
-    html_url: string;
+  issue?: {
+    id: string;
+    key: string;
+    fields: {
+      summary: string;
+      status: { name: string };
+      project: { id: string; key: string; name: string };
+      issuetype: { name: string };
+      labels: string[];
+      components: Array<{ id: string; name: string }>;
+    };
   };
-  sender: {
-    login: string;
-    id: number;
+  changelog?: {
+    items: Array<{
+      field: string;
+      fromString?: string;
+      toString?: string;
+    }>;
+  };
+}
+
+export function parseJiraWebhook(
+  payload: unknown,
+  headers: Record<string, string>
+): ParsedWebhookEvent {
+  const data = payload as JiraWebhookPayload;
+
+  return {
+    provider: 'jira',
+    eventType: data.webhookEvent,
+    deduplicationId: headers['x-atlassian-webhook-identifier'] || `${data.timestamp}-${data.issue?.id}`,
+    timestamp: new Date(data.timestamp).toISOString(),
+    payload: data,
+    metadata: {
+      projectId: data.issue?.fields.project.id,
+      issueKey: data.issue?.key,
+    },
   };
 }
 ```
 
-### GitHub Issue Comment Event Payload
+### GitHub Webhook Event Parsing
+
 ```typescript
-// Source: https://docs.github.com/en/webhooks/webhook-events-and-payloads#issue_comment
-interface GitHubIssueCommentPayload {
-  action: 'created' | 'edited' | 'deleted';
-  issue: {
+// Source: GitHub webhook events and payloads
+// https://docs.github.com/en/webhooks/webhook-events-and-payloads
+
+interface GitHubWebhookPayload {
+  action?: string;
+  issue?: {
+    id: number;
     number: number;
     title: string;
-    body: string | null;
-    state: 'open' | 'closed';
-    labels: Array<{ name: string; color: string }>;
-    html_url: string;
-    // Note: pull_request key exists if this is a PR comment
-    pull_request?: { url: string };
-  };
-  comment: {
-    id: number;
-    body: string;
+    state: string;
+    labels: Array<{ name: string }>;
     user: { login: string };
     created_at: string;
+    updated_at: string;
     html_url: string;
   };
-  repository: {
+  repository?: {
     id: number;
     name: string;
     full_name: string;
     owner: { login: string };
   };
-  sender: {
+  sender?: {
     login: string;
   };
 }
-```
 
-### GitHub API: Post Comment
-```typescript
-// Source: https://docs.github.com/en/rest/issues/comments
-async postComment(config: GitHubConfig, issueNumber: number, body: string): Promise<void> {
-  await axios.post(
-    `https://api.github.com/repos/${config.owner}/${config.repo}/issues/${issueNumber}/comments`,
-    { body },
-    {
-      headers: {
-        Authorization: `token ${config.token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'viberator/1.0',
-      },
-    }
-  );
-}
-```
+export function parseGitHubWebhook(
+  payload: unknown,
+  headers: Record<string, string>
+): ParsedWebhookEvent {
+  const data = payload as GitHubWebhookPayload;
+  const eventType = headers['x-github-event'] as string;
 
-### GitHub API: Update Labels
-```typescript
-// Source: https://docs.github.com/en/rest/issues/labels
-async updateLabels(
-  config: GitHubConfig,
-  issueNumber: number,
-  add: string[],
-  remove: string[]
-): Promise<void> {
-  const baseUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/issues/${issueNumber}/labels`;
-  const headers = {
-    Authorization: `token ${config.token}`,
-    Accept: 'application/vnd.github.v3+json',
-    'User-Agent': 'viberator/1.0',
+  return {
+    provider: 'github',
+    eventType,
+    deduplicationId: headers['x-github-delivery'] || `${eventType}-${data.issue?.id}`,
+    timestamp: data.issue?.updated_at || new Date().toISOString(),
+    payload: data,
+    metadata: {
+      repositoryId: data.repository?.full_name,
+      issueKey: data.issue?.number.toString(),
+    },
   };
-
-  // Add labels
-  if (add.length > 0) {
-    await axios.post(baseUrl, { labels: add }, { headers });
-  }
-
-  // Remove labels one by one
-  for (const label of remove) {
-    await axios.delete(`${baseUrl}/${encodeURIComponent(label)}`, { headers });
-  }
 }
 ```
 
-### Express Raw Body Middleware
+### Idempotency Check Middleware
+
 ```typescript
-// Capture raw body for signature verification while still parsing JSON
-app.use('/api/webhooks', express.json({
-  verify: (req: Request, _res, buf) => {
-    (req as any).rawBody = buf.toString('utf8');
+// Source: Webhook idempotency best practices
+// https://hookdeck.com/blog/webhooks-at-scale
+
+import { Request, Response, NextFunction } from 'express';
+import { db } from '../database';
+
+export async function idempotencyCheck(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const deduplicationId = req.headers['x-deduplication-id'] as string ||
+                           req.headers['x-github-delivery'] as string ||
+                           req.headers['x-atlassian-webhook-identifier'] as string;
+
+  if (!deduplicationId) {
+    return res.status(400).json({ error: 'Missing deduplication ID' });
   }
-}));
+
+  try {
+    // Check if already processed
+    const existing = await db
+      .selectFrom('webhook_events')
+      .where('deduplication_id', '=', deduplicationId)
+      .executeTakeFirst();
+
+    if (existing) {
+      return res.status(200).json({
+        message: 'Event already processed',
+        eventId: existing.id,
+        duplicate: true,
+      });
+    }
+
+    // Mark as processing (insert record)
+    await db
+      .insertInto('webhook_events')
+      .values({
+        deduplication_id: deduplicationId,
+        provider: req.body.provider,
+        event_type: req.body.eventType,
+        payload: req.body.payload,
+        processed: false,
+        created_at: new Date(),
+      })
+      .execute();
+
+    next();
+  } catch (error) {
+    console.error('Idempotency check error:', error);
+    return res.status(500).json({ error: 'Idempotency check failed' });
+  }
+}
 ```
-
-## Database Schema
-
-### New Tables Required
-
-```sql
--- Webhook provider configuration (per-project or tenant-wide default)
-CREATE TABLE webhook_configs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  provider_type VARCHAR(20) NOT NULL CHECK (provider_type IN ('github', 'gitlab', 'bitbucket')),
-  secret_key VARCHAR(255) NOT NULL, -- Reference to secret in CredentialProvider
-  bot_username VARCHAR(100),
-  auto_execute BOOLEAN DEFAULT false,
-  default_clanker_id UUID REFERENCES clankers(id),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(project_id, provider_type)
-);
-
--- Webhook deduplication tracking
-CREATE TABLE webhook_deduplication (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  hash VARCHAR(64) NOT NULL UNIQUE,
-  delivery_id VARCHAR(100),
-  event_type VARCHAR(50),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Index for TTL cleanup queries
-CREATE INDEX idx_webhook_dedup_created_at ON webhook_deduplication(created_at);
-
--- Failed webhook events for manual retry
-CREATE TABLE webhook_failed_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  provider_type VARCHAR(20) NOT NULL,
-  delivery_id VARCHAR(100),
-  event_type VARCHAR(50),
-  headers JSONB NOT NULL,
-  payload JSONB NOT NULL,
-  error_message TEXT,
-  retry_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_retry_at TIMESTAMP
-);
-
--- Index for finding failed events to retry
-CREATE INDEX idx_webhook_failed_project ON webhook_failed_events(project_id, created_at);
-```
-
-### Existing Tables to Leverage
-- `webhook_events` - Already exists for audit logging
-- `tickets` - For creating tickets from webhooks
-- `jobs` - For auto-execution
-- `projects` - Repository mapping already has repository_url
 
 ## State of the Art
 
 | Old Approach | Current Approach | When Changed | Impact |
 |--------------|------------------|--------------|--------|
-| SHA1 signatures | SHA256 signatures | 2021 | X-Hub-Signature deprecated, use X-Hub-Signature-256 |
-| Polling for updates | Webhooks | N/A | Real-time updates, reduced API calls |
-| Single webhook endpoint | Provider-specific endpoints | N/A | Better separation, type-safe handling |
+| SHA-1 signatures (X-Hub-Signature) | SHA-256 signatures (X-Hub-Signature-256) | GitHub: 2021+ | Use X-Hub-Signature-256; X-Hub-Signature is legacy only |
+| No signature verification (Jira) | HMAC-SHA256 optional (Jira Feb 2024+) | February 2024 | Jira now supports X-Hub-Signature header |
+| Synchronous webhook processing | Async with job queues | Industry standard since ~2020 | Prevents timeouts, improves reliability |
+| Basic signature comparison | Timing-safe comparison | Security best practice | Prevents timing attack vulnerabilities |
+| Polling for updates | Webhook push notifications | Industry standard | Reduces API load, enables real-time updates |
 
 **Deprecated/outdated:**
-- `X-Hub-Signature` header (SHA1): Use `X-Hub-Signature-256` instead
-- GitLab token-only auth: Consider enabling URL signing for additional security
+- **X-Hub-Signature (SHA-1)**: GitHub recommends X-Hub-Signature-256 (SHA-256) only; SHA-1 is legacy
+- **Plain string comparison for signatures**: Vulnerable to timing attacks; use timing-safe comparison
+- **Parsing JSON before signature verification**: Breaks signature validation; use raw body
+- **No idempotency handling**: Webhooks retry; idempotency is required for reliability
+
+**Upcoming changes:**
+- **Jira API Token Rate Limiting**: Starting November 22, 2025, Atlassian implements rate limits for API tokens
+- **GitHub Events API payload changes**: August 8, 2025 - GitHub trimming fields to reduce payload size
 
 ## Open Questions
 
-Things that couldn't be fully resolved:
+1. **Secret rotation strategy**
+   - What we know: Secrets should be rotated periodically for security
+   - What's unclear: How to handle rotation gracefully for active webhooks
+   - Recommendation: Store secret versions in database, support multiple valid secrets during rotation window
 
-1. **Bot username configuration**
-   - What we know: @bot mentions need a configurable username
-   - What's unclear: Should this be tenant-wide or per-project?
-   - Recommendation: Start with tenant-wide default, allow project override
+2. **Webhook ordering guarantees**
+   - What we know: Neither GitHub nor Jira guarantee webhook delivery order
+   - What's unclear: Whether the system needs strict ordering for certain operations
+   - Recommendation: Design handlers to be order-independent; use timestamp fields for ordering when needed
 
-2. **Label-based clanker override**
-   - What we know: CONTEXT.md mentions labels can override clanker selection
-   - What's unclear: Exact label format (e.g., `clanker:slug` vs `use-clanker-X`)
-   - Recommendation: Use `viberator:clanker-<slug>` format for clarity
-
-3. **Rate limiting on outbound calls**
-   - What we know: GitHub API has rate limits, posting comments triggers notifications
-   - What's unclear: Exact rate limit handling strategy
-   - Recommendation: Log rate limit warnings, implement basic backoff
-
-## Integration Points
-
-### TicketService Integration
-The webhook handler will create tickets using existing `TicketDAO`:
-```typescript
-// Create ticket from webhook event
-const ticket = await ticketDAO.createTicket({
-  projectId: webhookConfig.projectId,
-  title: event.issue.title,
-  description: event.issue.body || event.comment?.body || '',
-  severity: 'medium', // Default, could be derived from labels
-  category: 'webhook',
-  metadata: { source: 'github', issueNumber: event.issue.number },
-  ticketSystem: 'github',
-  autoFixRequested: webhookConfig.autoExecute,
-});
-```
-
-### WorkerExecutionService Integration
-For auto-execution, leverage existing service:
-```typescript
-// After ticket creation, if auto-execute enabled
-if (webhookConfig.autoExecute && webhookConfig.defaultClankerId) {
-  const job = await jobService.submitJob({
-    tenantId: project.tenantId,
-    repository: project.repositoryUrl,
-    task: ticket.description,
-    // ...
-  }, {
-    ticketId: ticket.id,
-    clankerId: webhookConfig.defaultClankerId,
-  });
-
-  await workerExecutionService.executeJob(job, clanker);
-}
-```
-
-### Existing Webhooks Route Refactoring
-The current `webhooks.ts` will be refactored to use the new provider architecture:
-```typescript
-// Before: Hardcoded GitHub handling
-router.post('/github', verifyGitHubSignature, async (req, res) => { ... });
-
-// After: Provider-agnostic with factory
-router.post('/:provider', async (req, res) => {
-  const provider = webhookProviderFactory.getProvider(req.params.provider);
-  // ... unified handling
-});
-```
+3. **Failed webhook retry strategy**
+   - What we know: Manual retry is specified in requirements
+   - What's unclear: Whether automatic retry with exponential backoff should also be implemented
+   - Recommendation: Store failed events with error details; provide UI for manual retry; consider automatic retry for transient failures
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- GitHub Webhooks Documentation - Signature validation, event payloads, headers
-  - https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
-  - https://docs.github.com/en/webhooks/webhook-events-and-payloads
-- GitHub REST API - Issues, Comments, Labels
-  - https://docs.github.com/en/rest/issues/comments
-  - https://docs.github.com/en/rest/issues/labels
+- [GitHub Webhook Documentation - Validating webhook deliveries](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries) - Official HMAC-SHA256 verification with timing-safe comparison
+- [GitHub Webhook Events and Payloads](https://docs.github.com/en/webhooks/webhook-events-and-payloads) - Complete webhook event reference
+- [Atlassian Jira Webhook Modules](https://developer.atlassian.com/cloud/jira/platform/modules/webhook/) - Official Jira webhook event types
+- [Designing a Plugin System in TypeScript](https://dev.to/hexshift/designing-a-plugin-system-in-typescript-for-modular-web-applications-4db5) - April 2025 plugin architecture patterns
+- [Towards a well-typed plugin architecture](https://code.lol/post/programming/plugin-architecture/) - TypeScript plugin system with dependency enforcement
 
 ### Secondary (MEDIUM confidence)
-- GitLab Webhooks Documentation - Token-based verification, event types
-  - https://docs.gitlab.com/user/project/integrations/webhooks/
-- Bitbucket Webhooks Documentation - HMAC signature verification
-  - https://support.atlassian.com/bitbucket-cloud/docs/manage-webhooks/
-- Hookdeck Webhook Best Practices - Deduplication, idempotency patterns
-  - https://hookdeck.com/webhooks/guides/implement-webhook-idempotency
-- Woodpecker CI Forge Abstraction - Provider interface patterns
-  - https://deepwiki.com/woodpecker-ci/woodpecker/4.1-authentication-and-authorization
+- [Jira Webhooks: Complete Guide with Payload Examples](https://inventivehq.com/blog/jira-webhooks-guide) - January 24, 2025 comprehensive guide with verified code examples
+- [Webhooks at Scale: Best Practices and Lessons Learned](https://hookdeck.com/blog/webhooks-at-scale) - Idempotency and scalability patterns
+- [Webhook Security Best Practices](https://webflow.com/blog/webhook-security) - Timestamp validation and replay attack prevention
+- [How to Apply Webhook Best Practices](https://www.integrate.io/blog/apply-webhook-best-practices/) - October 2025 delivery ID and upsert patterns
 
 ### Tertiary (LOW confidence)
-- Various Medium/blog posts on webhook best practices
-  - https://medium.com/@kaushalsinh73/top-7-webhook-reliability-tricks-for-idempotency-a098f3ef5809
-  - https://release.com/blog/webhook-authentication-learnings
+- [Plugin Based Architecture in Node.js](https://www.n-school.com/plugin-based-architecture-in-node-js/) - May 14, 2025 general plugin patterns (marked for validation)
+- Various GitHub community discussions on webhook implementation (verified against official docs where applicable)
 
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: HIGH - Uses only existing codebase dependencies
-- Architecture: HIGH - Based on existing CredentialProvider pattern
-- GitHub integration: HIGH - Based on official documentation
-- Pitfalls: HIGH - Verified with official docs and existing codebase
-- GitLab/Bitbucket: MEDIUM - Reviewed docs but not tested
-- Deduplication: MEDIUM - Based on industry best practices, not official docs
+- Standard stack: HIGH - All based on official documentation and widely-used libraries
+- Architecture: HIGH - Plugin patterns verified with 2025 sources; TypeScript patterns from code.lol with detailed examples
+- Signature verification: HIGH - Directly from GitHub official documentation with explicit warnings
+- Pitfalls: HIGH - Multiple authoritative sources agree on timing attacks, idempotency, and body parsing issues
 
 **Research date:** 2026-01-22
-**Valid until:** 2026-02-22 (30 days - GitHub webhook API is stable)
-
----
-
-*Phase: 08-webhook-provider-architecture*
-*Research completed: 2026-01-22*
+**Valid until:** 2026-02-21 (30 days - webhook documentation is relatively stable; monitor for GitHub/Jira API changes)
