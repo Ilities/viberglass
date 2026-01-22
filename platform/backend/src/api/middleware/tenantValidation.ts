@@ -24,8 +24,17 @@ declare global {
 
 /**
  * Extract tenant ID from request
- * In this phase, we use the X-Tenant-Id header
- * Future phases may use JWT claims or session data
+ *
+ * Priority order:
+ * 1. X-Tenant-Id header (standard API requests)
+ * 2. tenantId query parameter (webhook compatibility)
+ * 3. DEFAULT_TENANT_ID environment variable (configured default)
+ * 4. 'api-server' as fallback default
+ *
+ * For webhook routes, the tenant is resolved from the webhook configuration
+ * (repository/project mapping) rather than the request headers. The default
+ * tenant here ensures the request doesn't fail before the webhook handler
+ * can resolve the actual tenant from the configuration.
  */
 function extractTenantId(req: Request): string | null {
   // 1. Check header (current implementation)
@@ -39,7 +48,8 @@ function extractTenantId(req: Request): string | null {
     return req.query.tenantId;
   }
 
-  // 3. Default tenant for single-tenant deployments
+  // 3. Default tenant for single-tenant deployments and webhook routes
+  // Webhook routes will override this with tenant from configuration
   const defaultTenant = process.env.DEFAULT_TENANT_ID || 'api-server';
   return defaultTenant;
 }
@@ -69,6 +79,11 @@ export async function validateTenantAccess(
 
 /**
  * Middleware to add tenantId to request
+ *
+ * Note: This middleware always sets a tenantId (using defaults if not provided),
+ * which means webhook routes work without X-Tenant-Id header. The actual tenant
+ * for webhook-originated resources is resolved from the webhook configuration
+ * (repository/project mapping) in the WebhookService.
  */
 export function tenantMiddleware(
   req: Request,

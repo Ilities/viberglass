@@ -6,23 +6,23 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 8: Webhook Provider Architecture
+**Current focus:** Phase 9: Local Development
 
 ## Current Position
 
-Phase: 7 of 12 (Clanker Runtime Status) — COMPLETE
-Next: Plan Phase 8 (Webhook Provider Architecture)
-Status: Phase 7 verified, 12/12 must-haves passed
-Last activity: 2026-01-21 — Clanker runtime status with progress timeline, log viewer, heartbeat monitoring
+Phase: 8 of 12 (Webhook Provider Architecture) — COMPLETE
+Next: Plan Phase 9 (Local Development) or discuss requirements
+Status: Phase 8 verified, 8/8 must-haves passed
+Last activity: 2026-01-22 — Provider-agnostic webhook integration with GitHub, frontend configuration UI
 
-Progress: [█████████░] 92%
+Progress: [████████░░] 100% → 67% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 49
+- Total plans completed: 61
 - Average duration: ~4 minutes
-- Total execution time: 3.0 hours
+- Total execution time: 3.5 hours
 
 **By Phase:**
 
@@ -39,9 +39,10 @@ Progress: [█████████░] 92%
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
 | 07 | 4 | 4 | 2.5m |
+| 08 | 5 | 5 | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 3m, 3m, 3m, 2m
+- Last 5 plans: 3m, 3m, 4m, 4m, 6m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -88,6 +89,27 @@ Recent decisions affecting current work:
 | 5 minute stale threshold | Matches HeartbeatSweeper grace period for consistency between backend and frontend | isJobStale() uses same 5 minute threshold |
 | Live indicator only when active and polling | Visual feedback only meaningful when job is actively running and polling is enabled | LogViewer live indicator checks isPolling && status === 'active' |
 | ProgressTimeline returns null for queued | Queued jobs have no progress yet, hiding component is cleaner than empty state | ProgressTimeline component returns null for currentStatus === 'queued' |
+| Nullable project_id for webhook configs | Allows tenant-level default configurations without being bound to a specific project | webhook_provider_configs.project_id is nullable with ON DELETE CASCADE |
+| api_token_encrypted in provider config | Stores outbound API credentials (GitHub PAT, Jira API token) alongside webhook config | Simplifies credential management for posting results back to platforms |
+| Unique delivery_id for webhook deduplication | Database-level unique constraint prevents duplicate webhook processing from retries | webhook_delivery_attempts.delivery_id has unique constraint |
+| Check constraints for webhook enums | provider and status fields use CHECK constraints for type safety at database level | `provider IN ('github', 'jira')` and `status IN ('pending', 'processing', 'succeeded', 'failed')` |
+| Abstract class for WebhookProvider | Enables shared utility logic in BaseWebhookProvider while maintaining type safety | All providers extend BaseWebhookProvider for common parsing/formatting |
+| crypto.timingSafeEqual() for HMAC | Per GitHub security guidelines, prevents timing attack vulnerabilities | SignatureValidator always uses timing-safe comparison |
+| express.raw() before JSON parsing | Signature verification requires exact raw bytes from request | Raw body middleware must run before signature middleware |
+| x-github-delivery for deduplication | GitHub provides unique delivery ID for each webhook attempt | Used as deduplicationId in ParsedWebhookEvent |
+| Bearer token auth for GitHub API | Modern authentication using GitHub PATs with Bearer prefix | GitHubWebhookProvider uses Authorization: Bearer {token} |
+| Graceful undefined from provider routing | Returns undefined for unknown providers instead of throwing | ProviderRegistry.getProviderForHeaders returns undefined |
+| Kysely jsonb columns require JSON.stringify with 'as any' | Type system strictness requires workaround for jsonb inserts | WebhookConfigDAO and WebhookDeliveryDAO use this pattern |
+| AES-256-GCM for webhook secret encryption | Provides authenticated encryption with integrity verification | WebhookSecretService uses crypto.createCipheriv with aes-256-gcm |
+| timingSafeEqual for secret verification | Prevents timing attack vulnerabilities when comparing secrets | WebhookSecretService.verifySecret uses crypto.timingSafeEqual |
+| BigInt handling for Kysely aggregates | count() and numDeletedRows return bigint, need typeof check | WebhookDeliveryDAO converts safely with Number() |
+| WebhookService orchestration pattern | Service coordinates registry, DAOs, deduplication, secret service, ticket/job creation | Single entry point for webhook processing |
+| FeedbackService best-effort posting | Errors posting results don't fail job completion; logged for manual retry | Graceful degradation for outbound API calls |
+| Optional FeedbackService in JobService | Constructor parameter optional for backward compatibility | Gradual migration for result feedback |
+| Tenant resolution from webhook config | Webhook routes use default tenant; actual tenant from config mapping | Allows webhooks without X-Tenant-Id header |
+| Top-level /webhooks path for management | Webhook management at top-level path for global configurations | Not project-specific, allows tenant-level default configs |
+| Auto-refresh for failed delivery list | Polls every 10 seconds using usePolling hook | Live updates for failed webhook deliveries |
+| Setup instructions after config creation | Shows exact webhook URL, content type, secret after save | User-friendly GitHub/Jira webhook configuration |
 
 ### Roadmap Evolution
 
@@ -106,6 +128,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-21
-Stopped at: Completed Phase 7 Plan 04 - Frontend Progress Timeline and Log Viewer (Phase 7 complete)
+Last session: 2026-01-22
+Stopped at: Phase 8 Complete - Webhook Provider Architecture with Frontend UI
 Resume file: None
+User approved frontend webhook UI implementation at checkpoint
