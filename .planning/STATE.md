@@ -11,19 +11,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 10 of 12 (AWS Infrastructure) — IN PROGRESS
-Plan: 10-07 (Backend ECS Service) — COMPLETE
-Next: Plan 10-08 (Frontend S3+CloudFront)
-Status: ECS Fargate service with ALB for backend API deployment
-Last activity: 2026-01-22 — Backend ECS service with auto-scaling, ALB with target groups
+Plan: 10-08 (Frontend S3+CloudFront) — COMPLETE
+Next: Plan 10-09 (Infrastructure Documentation)
+Status: Frontend hosting infrastructure with S3+CloudFront, backend ECS service with ALB
+Last activity: 2026-01-22 — Frontend S3+CloudFront distribution with OAC, SPA routing support
 
-Progress: [█████████░] 82% of v1.0
+Progress: [█████████░] 83% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 70
+- Total plans completed: 71
 - Average duration: ~4 minutes
-- Total execution time: 4.4 hours
+- Total execution time: 4.5 hours
 
 **By Phase:**
 
@@ -42,10 +42,10 @@ Progress: [█████████░] 82% of v1.0
 | 07 | 4 | 4 | 2.5m |
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
-| 10 | 6 | ? | 8m |
+| 10 | 7 | ? | 7m |
 
 **Recent Trend:**
-- Last 5 plans: 2m, 4m, 7m, 18m, 4m
+- Last 5 plans: 2m, 4m, 7m, 18m, 2m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -146,6 +146,10 @@ Recent decisions affecting current work:
 | Backend ECS service reuses worker cluster | Single ECS cluster hosts both worker and backend tasks | Cost-effective versus separate clusters |
 | ALB target group port 80, backend port 3000 | SSL termination at ALB, container uses internal port | Simplifies certificate management |
 | Auto-scaling targets: CPU 70%, Memory 80% | Target tracking policies with 300s cooldown | Balances responsiveness with stability |
+| Frontend S3+CloudFront with OAC | Origin Access Control instead of public S3 bucket for security | S3 bucket blocks all public access, CloudFront is only entry point |
+| CloudFront price class by environment | PriceClass_100 for dev/staging, All for production | Optimizes costs while maintaining global reach for prod |
+| SPA routing via CloudFront error responses | Returns 200 with /index.html for 403/404 errors | Supports Next.js client-side routing without custom routes |
+| SSM parameters for frontend build config | API URL and CDN URL stored in SSM for CI/CD injection | NEXT_PUBLIC_ variables embedded during static build |
 
 ### Roadmap Evolution
 
@@ -166,6 +170,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 10-07-PLAN.md - Backend ECS Service
+Stopped at: Completed 10-08-PLAN.md - Frontend S3+CloudFront
 Resume file: None
-Phase 10 (AWS Infrastructure) IN PROGRESS - 6 of ? plans complete
+Phase 10 (AWS Infrastructure) IN PROGRESS - 7 of ? plans complete
