@@ -19,6 +19,8 @@ export interface InfrastructureConfig {
   dbAllocatedStorage?: number;
   /** Use single NAT gateway for cost savings (default: true for dev/staging) */
   singleNatGateway?: boolean;
+  /** Log retention in days (default: 7 for dev, 30 for staging, 90 for prod) */
+  logRetentionDays?: number;
   /** Common tags applied to all resources */
   tags: {
     Environment: string;
@@ -41,11 +43,13 @@ export function getConfig(): InfrastructureConfig {
   const dbInstanceClass = config.get("dbInstanceClass");
   const dbAllocatedStorage = config.getNumber("dbAllocatedStorage");
   const singleNatGateway = config.getBoolean("singleNatGateway");
+  const logRetentionDays = config.getNumber("logRetentionDays");
 
   // Set database defaults based on environment
   let finalDbInstanceClass = dbInstanceClass;
   let finalDbAllocatedStorage = dbAllocatedStorage;
   let finalSingleNatGateway = singleNatGateway;
+  let finalLogRetentionDays = logRetentionDays;
 
   if (!finalDbInstanceClass) {
     switch (environment) {
@@ -77,6 +81,19 @@ export function getConfig(): InfrastructureConfig {
     finalSingleNatGateway = environment !== "prod";
   }
 
+  if (finalLogRetentionDays === undefined) {
+    switch (environment) {
+      case "prod":
+        finalLogRetentionDays = 90;
+        break;
+      case "staging":
+        finalLogRetentionDays = 30;
+        break;
+      default:
+        finalLogRetentionDays = 7;
+    }
+  }
+
   return {
     awsRegion,
     environment,
@@ -85,6 +102,7 @@ export function getConfig(): InfrastructureConfig {
     dbInstanceClass: finalDbInstanceClass,
     dbAllocatedStorage: finalDbAllocatedStorage,
     singleNatGateway: finalSingleNatGateway,
+    logRetentionDays: finalLogRetentionDays,
     tags: {
       Environment: environment,
       Project: "viberator",
