@@ -12,6 +12,7 @@ import { createDatabase, DatabaseOutputs } from "./components/database";
 import { createLogging, LoggingOutputs } from "./components/logging";
 import { createLoadBalancer, LoadBalancerOutputs } from "./components/load-balancer";
 import { createBackendEcs, createBackendService, BackendEcsOutputs } from "./components/backend-ecs";
+import { createFrontend, FrontendOutputs } from "./components/frontend";
 
 /**
  * Viberator Infrastructure Stack
@@ -226,6 +227,15 @@ const backendS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
   }
 );
 
+// Create frontend S3+CloudFront hosting
+const backendUrlForFrontend = pulumi.interpolate`http://${loadBalancer.albDnsName}`;
+const frontend: FrontendOutputs = createFrontend({
+  config,
+  backendUrl: backendUrlForFrontend,
+  bucketPrefix: "viberator-frontend",
+  priceClass: config.environment === "prod" ? "PriceClass_All" : "PriceClass_100",
+});
+
 // Export stack outputs
 export const awsRegion = config.awsRegion;
 export const environment = config.environment;
@@ -306,3 +316,12 @@ export const albArn = loadBalancer.albArn;
 export const albTargetGroupArn = loadBalancer.targetGroupArn;
 export const albTargetGroupName = loadBalancer.targetGroupName;
 export const albSecurityGroupId = loadBalancer.albSecurityGroupId;
+
+// Frontend outputs
+export const frontendUrl = frontend.frontendUrl;
+export const frontendBucketName = frontend.bucketName;
+export const frontendBucketArn = frontend.bucketArn;
+export const frontendCloudFrontDomain = frontend.cloudfrontDomainName;
+export const frontendDistributionId = frontend.cloudfrontDistributionId;
+export const frontendSsmApiUrlPath = frontend.ssmApiUrlPath;
+export const frontendSsmCdnUrlPath = frontend.ssmCdnUrlPath;
