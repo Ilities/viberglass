@@ -32,13 +32,20 @@ const vpc: VpcOutputs = createVpc(`${config.environment}-viberator`, {
   singleNatGateway: config.singleNatGateway ?? true,
 });
 
+// Create KMS key for SSM Parameter Store encryption
+const kms: KmsOutputs = createKmsKey({
+  config,
+});
+
 // Create RDS PostgreSQL database with SSM credentials storage
+// Uses KMS key for encrypting SecureString parameters
 const database: DatabaseOutputs = createDatabase({
   config,
   vpc: {
     privateSubnetIds: vpc.privateSubnetIds,
     rdsSecurityGroupId: vpc.rdsSecurityGroupId,
   },
+  kmsKeyArn: kms.keyArn,
   instanceClass: config.dbInstanceClass,
   allocatedStorage: config.dbAllocatedStorage,
 });
@@ -72,11 +79,6 @@ const ecsWorker: WorkerEcsOutputs = createWorkerEcs({
   repositoryUrl: registry.repositoryUrl,
   cpu: "2048",
   memory: "4096",
-});
-
-// Create KMS key for SSM Parameter Store encryption
-const kms: KmsOutputs = createKmsKey({
-  config,
 });
 
 // Attach KMS decrypt permission to Lambda worker role
