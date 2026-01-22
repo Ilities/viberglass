@@ -3,6 +3,10 @@ import '@/styles/tailwind.css'
 import type { Metadata } from 'next'
 import { Inter, Orbitron, Space_Mono } from 'next/font/google'
 
+// Force dynamic rendering for SSR - data fetched at request time, not build time
+// Required for Amplify hosting with backend API calls
+export const dynamic = 'force-dynamic'
+
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
