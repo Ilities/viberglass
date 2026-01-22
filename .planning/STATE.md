@@ -11,19 +11,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 10 of 12 (AWS Infrastructure) — IN PROGRESS
-Plan: 10-03 (RDS PostgreSQL Database) — COMPLETE
-Next: Plan 10-04 (ECS Backend Deployment)
-Status: RDS PostgreSQL database with SSM credential storage
-Last activity: 2026-01-22 — RDS PostgreSQL 16 with random password generation and SSM SecureString credentials
+Plan: 10-05 (KMS Key for SSM Encryption) — COMPLETE
+Next: Plan 10-06 (IAM Roles and Policies)
+Status: Customer-managed KMS key with annual rotation for SSM encryption
+Last activity: 2026-01-22 — KMS key created with Lambda/ECS decrypt permissions
 
-Progress: [█████████░] 79% of v1.0
+Progress: [█████████░] 80% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 67
+- Total plans completed: 68
 - Average duration: ~4 minutes
-- Total execution time: 3.9 hours
+- Total execution time: 4.2 hours
 
 **By Phase:**
 
@@ -42,10 +42,10 @@ Progress: [█████████░] 79% of v1.0
 | 07 | 4 | 4 | 2.5m |
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
-| 10 | 3 | 3 | 11m |
+| 10 | 4 | 4 | 10m |
 
 **Recent Trend:**
-- Last 5 plans: 2m, 2m, 4m, 7m, 18m
+- Last 5 plans: 2m, 4m, 7m, 18m, 19m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -138,6 +138,9 @@ Recent decisions affecting current work:
 | PostgreSQL 16 for new RDS instances | Using latest PostgreSQL major version for new installations | Modern features and performance improvements |
 | SSM SecureString for all DB credentials | Password and connection URL stored as SecureString with KMS encryption | Secure credential storage without hardcoding |
 | Multi-AZ only for production | Dev/staging use single-AZ for cost savings, prod uses multi-AZ for HA | Balance between cost and availability |
+| Customer-managed KMS for SSM | Use customer-managed key instead of AWS default for better control and compliance visibility | KMS key with annual rotation for all SecureString parameters |
+| KMS decrypt permissions via inline policies | Attach inline IAM policies to Lambda/ECS roles for kms:Decrypt and kms:GenerateDataKey* | Compute roles can decrypt SSM parameters encrypted with customer key |
+| KMS alias naming convention | alias/viberator-{environment}-ssm for consistent cross-environment reference | Easy identification in CloudTrail and compliance reports |
 
 ### Roadmap Evolution
 
@@ -158,6 +161,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 10-03-PLAN.md - RDS PostgreSQL Database
+Stopped at: Completed 10-05-PLAN.md - KMS Key for SSM Encryption
 Resume file: None
-Phase 10 (AWS Infrastructure) IN PROGRESS - 3 of ? plans complete
+Phase 10 (AWS Infrastructure) IN PROGRESS - 4 of ? plans complete
