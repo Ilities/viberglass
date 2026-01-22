@@ -11,17 +11,17 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 10 of 12 (AWS Infrastructure) — IN PROGRESS
-Plan: 10-02 (VPC Networking) — COMPLETE
-Next: Plan 10-03 (RDS PostgreSQL) or discuss requirements
-Status: VPC component created with public/private subnets, NAT gateways, and security groups
-Last activity: 2026-01-22 — VPC networking infrastructure with stack-aware configuration
+Plan: 10-01 (Pulumi Infrastructure Reorganization) — COMPLETE
+Next: Plan 10-02 (VPC Networking)
+Status: Infrastructure reorganized to top-level directory with modular component structure
+Last activity: 2026-01-22 — Pulumi infrastructure reorganization with multi-stack support
 
 Progress: [█████████░] 77% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 66
+- Total plans completed: 65
 - Average duration: ~4 minutes
 - Total execution time: 3.7 hours
 
@@ -42,10 +42,10 @@ Progress: [█████████░] 77% of v1.0
 | 07 | 4 | 4 | 2.5m |
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
-| 10 | 2 | ? | 3m |
+| 10 | 1 | ? | 7m |
 
 **Recent Trend:**
-- Last 5 plans: 2m, 1m, 2m, 4m, 4m
+- Last 5 plans: 1m, 2m, 2m, 4m, 7m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -122,6 +122,12 @@ Recent decisions affecting current work:
 | No version attribute in compose | version field is obsolete in modern Docker Compose v2 | docker-compose.yml uses native format |
 | Documentation-first developer onboarding | README provides quick start, docs/LOCAL_DEVELOPMENT.md provides detailed guide | New developers can start with single command |
 | Legacy file deprecation pattern | Add deprecation notice header instead of deleting files | Backward compatibility maintained while guiding to new approach |
+| Top-level infrastructure/ directory | More intuitive location, removes awkward viberator/infrastructure/infra/ nesting | Pulumi project at repo root with modular components |
+| Modular component architecture | Each AWS resource type in its own file with factory function | Component pattern for registry, queue, worker-lambda, worker-ecs |
+| Pulumi stack configuration templates | .yaml.example files tracked in git, actual .yaml files gitignored | Clear separation of template vs. sensitive config |
+| Resource naming pattern | ${environment}-viberator-{resource} for all AWS resources | Easily identifiable resources across environments |
+| getConfig() centralization | Single function loads all Pulumi config with type safety | Consistent config access across components |
+| Old infrastructure preservation | Keep viberator/infrastructure/infra/ during migration for rollback safety | Allows rollback if issues with new structure |
 | Single NAT gateway for non-production | Reduces AWS costs by ~$30/month per NAT gateway | Dev/staging use single NAT, prod uses multi-NAT for HA |
 | Component-based VPC pattern | Reusable VpcComponent class encapsulates all networking resources | VPC, subnets, NAT gateways, and security groups in one component |
 | Security group references over CIDR | Inter-service communication uses SG references instead of CIDR blocks | Better security posture for RDS-worker-backend communication |
@@ -145,6 +151,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 10-02-PLAN.md - VPC Networking
+Stopped at: Completed 10-01-PLAN.md - Pulumi Infrastructure Reorganization
 Resume file: None
-Phase 10 (AWS Infrastructure) IN PROGRESS - 2 of ? plans complete
+Phase 10 (AWS Infrastructure) IN PROGRESS - 1 of ? plans complete
