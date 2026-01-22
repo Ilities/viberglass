@@ -192,3 +192,11 @@ export const uploadsAccessPolicyArn = storage.accessPolicyArn;
 export const kmsKeyId = kms.keyId;
 export const kmsKeyArn = kms.keyArn;
 export const kmsAliasName = kms.aliasName;
+
+// Logging outputs
+export const lambdaLogGroupName = logging.lambdaLogGroupName;
+export const lambdaLogGroupArn = logging.lambdaLogGroupArn;
+export const ecsWorkerLogGroupName = logging.ecsWorkerLogGroupName;
+export const ecsWorkerLogGroupArn = logging.ecsWorkerLogGroupArn;
+export const backendLogGroupName = logging.backendLogGroupName;
+export const backendLogGroupArn = logging.backendLogGroupArn;
