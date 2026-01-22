@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 8 of 12 (Webhook Provider Architecture)
-Plan: 1 of 3 (Webhook Provider Database Schema)
-Status: In progress - Plan 1 complete
-Last activity: 2026-01-22 — Webhook provider database schema with deduplication tracking
+Plan: 2 of 3 (Webhook Provider Implementation)
+Status: In progress - Plan 2 complete
+Last activity: 2026-01-22 — Webhook provider plugin system with GitHub implementation and outbound API
 
 Progress: [█████████░] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 50
+- Total plans completed: 51
 - Average duration: ~4 minutes
-- Total execution time: 3.0 hours
+- Total execution time: 3.1 hours
 
 **By Phase:**
 
@@ -39,10 +39,10 @@ Progress: [█████████░] 92%
 | 05 | 3 | 3 | 4m |
 | 06 | 2 | 2 | 3m |
 | 07 | 4 | 4 | 2.5m |
-| 08 | 1 | 3 | 1m |
+| 08 | 2 | 3 | 2m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 3m, 3m, 2m, 1m
+- Last 5 plans: 3m, 3m, 2m, 1m, 3m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -93,6 +93,12 @@ Recent decisions affecting current work:
 | api_token_encrypted in provider config | Stores outbound API credentials (GitHub PAT, Jira API token) alongside webhook config | Simplifies credential management for posting results back to platforms |
 | Unique delivery_id for webhook deduplication | Database-level unique constraint prevents duplicate webhook processing from retries | webhook_delivery_attempts.delivery_id has unique constraint |
 | Check constraints for webhook enums | provider and status fields use CHECK constraints for type safety at database level | `provider IN ('github', 'jira')` and `status IN ('pending', 'processing', 'succeeded', 'failed')` |
+| Abstract class for WebhookProvider | Enables shared utility logic in BaseWebhookProvider while maintaining type safety | All providers extend BaseWebhookProvider for common parsing/formatting |
+| crypto.timingSafeEqual() for HMAC | Per GitHub security guidelines, prevents timing attack vulnerabilities | SignatureValidator always uses timing-safe comparison |
+| express.raw() before JSON parsing | Signature verification requires exact raw bytes from request | Raw body middleware must run before signature middleware |
+| x-github-delivery for deduplication | GitHub provides unique delivery ID for each webhook attempt | Used as deduplicationId in ParsedWebhookEvent |
+| Bearer token auth for GitHub API | Modern authentication using GitHub PATs with Bearer prefix | GitHubWebhookProvider uses Authorization: Bearer {token} |
+| Graceful undefined from provider routing | Returns undefined for unknown providers instead of throwing | ProviderRegistry.getProviderForHeaders returns undefined |
 
 ### Roadmap Evolution
 
@@ -112,5 +118,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed Phase 8 Plan 01 - Webhook Provider Database Schema
+Stopped at: Completed Phase 8 Plan 02 - Webhook Provider Implementation
 Resume file: None
