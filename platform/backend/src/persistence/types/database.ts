@@ -196,6 +196,38 @@ export interface JobLogLinesTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface WebhookProviderConfigsTable {
+  id: Generated<string>;
+  project_id: string | null;
+  provider: "github" | "jira";
+  provider_project_id: string | null;
+  secret_location: "database" | "ssm" | "env";
+  secret_path: string | null;
+  webhook_secret_encrypted: string | null;
+  api_token_encrypted: string | null;
+  allowed_events: Generated<string[]>;
+  auto_execute: Generated<boolean>;
+  bot_username: string | null;
+  label_mappings: Generated<JsonObject>;
+  active: Generated<boolean>;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface WebhookDeliveryAttemptsTable {
+  id: Generated<string>;
+  provider: "github" | "jira";
+  delivery_id: string;
+  event_type: string;
+  status: "pending" | "processing" | "succeeded" | "failed";
+  error_message: string | null;
+  payload: Json;
+  project_id: string | null;
+  ticket_id: string | null;
+  created_at: Generated<Timestamp>;
+  processed_at: Timestamp | null;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -209,4 +241,6 @@ export interface Database {
   jobs: JobsTable;
   job_progress_updates: JobProgressUpdatesTable;
   job_log_lines: JobLogLinesTable;
+  webhook_provider_configs: WebhookProviderConfigsTable;
+  webhook_delivery_attempts: WebhookDeliveryAttemptsTable;
 }
