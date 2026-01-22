@@ -39,6 +39,8 @@ export interface WorkerLambdaOutputs {
   eventSourceMappingId: pulumi.Output<string>;
   /** Lambda function image URI */
   imageUri: pulumi.Output<string>;
+  /** Lambda IAM role name */
+  lambdaRoleName: pulumi.Output<string>;
 }
 
 /**
@@ -137,5 +139,6 @@ export function createWorkerLambda(options: WorkerLambdaOptions): WorkerLambdaOu
     lambdaInvokeArn: workerLambda.invokeArn,
     eventSourceMappingId: eventSourceMapping.id,
     imageUri: image.imageUri,
+    lambdaRoleName: lambdaRole.name,
   };
 }

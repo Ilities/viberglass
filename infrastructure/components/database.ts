@@ -318,32 +318,52 @@ export function createDatabase(
   // 2. Create DB parameter group
   const parameterGroup = createDbParameterGroup(config);
 
-  // 3. Create RDS instance
-  // We need to create a placeholder password for the instance creation
-  // The actual password is stored in SSM and rotated on first access
-  const dbPassword = pulumi.output("ChangeMeImmediately!");
+  // 3. Create credentials with SSM storage first (generates random password)
+  // Create a temporary endpoint placeholder for credentials
+  const tempEndpoint = pulumi.output("temp-db-endpoint.placeholder");
 
+  const credentials = createDatabaseCredentials(
+    config,
+    dbName,
+    masterUsername,
+    tempEndpoint,
+    kmsKeyArn
+  );
+
+  // 4. Create RDS instance with the random password
   const rdsInstance = createRdsInstance(
     config,
     vpc,
     subnetGroup.name,
     parameterGroup.name,
-    dbPassword,
+    credentials.randomPassword.result,
     options
   );
 
-  // 4. Create credentials with SSM storage (using KMS key if provided)
-  const credentials = createDatabaseCredentials(
-    config,
-    dbName,
-    masterUsername,
-    rdsInstance.endpoint,
-    kmsKeyArn
+  // 5. Update SSM parameters with actual RDS endpoint
+  const basePath = `/viberator/${config.environment}/database`;
+
+  // Create new URL and host parameters with the actual endpoint
+  const urlParam = new aws.ssm.Parameter(
+    `${config.environment}-viberator-db-url-actual`,
+    {
+      name: `${basePath}/url`,
+      type: "SecureString",
+      value: pulumi.interpolate`postgresql://${masterUsername}:${credentials.randomPassword.result}@${rdsInstance.endpoint}:5432/${dbName}`,
+      keyId: kmsKeyArn,
+      tags: config.tags,
+    }
   );
 
-  // Update RDS instance with the actual password
-  // Note: In production, you'd want to handle this rotation more carefully
-  // For now, we create the instance with a placeholder and update via SSM
+  const hostParam = new aws.ssm.Parameter(
+    `${config.environment}-viberator-db-host-actual`,
+    {
+      name: `${basePath}/host`,
+      type: "String",
+      value: rdsInstance.endpoint,
+      tags: config.tags,
+    }
+  );
 
   return {
     // Subnet and parameter groups
@@ -359,7 +379,7 @@ export function createDatabase(
     // SSM parameters
     usernamePath: credentials.usernameParam.name,
     passwordPath: credentials.passwordParam.name,
-    urlPath: credentials.urlParam.name,
-    hostPath: credentials.hostParam.name,
+    urlPath: urlParam.name,
+    hostPath: hostParam.name,
   };
 }
