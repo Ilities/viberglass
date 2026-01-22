@@ -23,10 +23,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Webhook Triggers
 
-- [ ] **WEB-01**: Platform receives and validates GitHub webhook events
-- [ ] **WEB-02**: Webhook payload creates ticket (if project configured for auto-fix)
-- [ ] **WEB-03**: Ticket creation triggers worker execution
-- [ ] **WEB-04**: Webhook signature verification prevents unauthorized requests
+- [x] **WEB-01**: Platform receives and validates GitHub webhook events
+- [x] **WEB-02**: Webhook payload creates ticket (if project configured for auto-fix)
+- [x] **WEB-03**: Ticket creation triggers worker execution
+- [x] **WEB-04**: Webhook signature verification prevents unauthorized requests
 
 ### Worker Configuration
 
@@ -125,10 +125,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CB-02 | Phase 2 | Complete |
 | CB-03 | Phase 2 | Complete |
 | CB-04 | Phase 5 | Complete |
-| WEB-01 | Phase 8 | Pending |
-| WEB-02 | Phase 8 | Pending |
-| WEB-03 | Phase 8 | Pending |
-| WEB-04 | Phase 8 | Pending |
+| WEB-01 | Phase 8 | Complete |
+| WEB-02 | Phase 8 | Complete |
+| WEB-03 | Phase 8 | Complete |
+| WEB-04 | Phase 8 | Complete |
 | WRK-01 | Phase 3 | Complete |
 | WRK-02 | Phase 3 | Complete |
 | WRK-03 | Phase 3 | Complete |
