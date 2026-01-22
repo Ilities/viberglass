@@ -153,7 +153,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
   });
 
   // Enable server-side encryption with AES256
-  const encryption = new aws.s3.BucketServerSideEncryptionConfiguration(
+  const encryption = new aws.s3.BucketServerSideEncryptionConfigurationV2(
     `${options.config.environment}-viberator-uploads-encryption`,
     {
       bucket: bucket.id,
@@ -181,7 +181,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
   );
 
   // Configure versioning
-  const versioning = new aws.s3.BucketVersioning(
+  const versioning = new aws.s3.BucketVersioningV2(
     `${options.config.environment}-viberator-uploads-versioning`,
     {
       bucket: bucket.id,
@@ -220,9 +220,9 @@ export function createStorage(options: StorageOptions): StorageOutputs {
 
     // Noncurrent version transition to IA
     if (rule.noncurrentVersionTransitionToIaDays !== undefined) {
-      lifecycleRule.noncurrentVersionTransition = [
+      lifecycleRule.noncurrentVersionTransitions = [
         {
-          newStorageClass: "STANDARD_IA",
+          storageClass: "STANDARD_IA",
           noncurrentDays: rule.noncurrentVersionTransitionToIaDays,
         },
       ];
