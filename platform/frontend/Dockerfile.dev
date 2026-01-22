@@ -17,6 +17,7 @@ COPY platform/frontend/package*.json ./platform/frontend/
 RUN npm install --legacy-peer-deps
 
 # Copy all workspace packages (types, frontend source, etc.)
+# Note: In docker-compose, source is mounted via volume, overriding these copies
 COPY packages/types ./packages/types
 COPY platform/frontend ./platform/frontend
 

@@ -17,6 +17,7 @@ COPY platform/backend/package*.json ./platform/backend/
 RUN npm install --legacy-peer-deps
 
 # Copy all workspace packages (types, backend source, etc.)
+# Note: In docker-compose, source is mounted via volume, overriding these copies
 COPY packages/types ./packages/types
 COPY platform/backend ./platform/backend
 
