@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 12 of 12 (Secret Management)
-Plan: 2 of 2
-Status: Phase 12 Plan 02 COMPLETE - Pulumi secrets component for SSM parameter management
-Last activity: 2026-01-23 — Created Pulumi secrets component with SecureString encryption, integrated into infrastructure stack
+Plan: 3 of 3
+Status: Phase 12 Plan 03 COMPLETE - Backend deployment workflows using environment-specific secrets and SSM configuration
+Last activity: 2026-01-23 — Updated backend deployment workflows to use SSM parameters and GitHub environment secrets
 
-Progress: [█████████░] 96% of v1.0
+Progress: [█████████░] 97% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 91
+- Total plans completed: 92
 - Average duration: ~4 minutes
-- Total execution time: 5.7 hours
+- Total execution time: 5.8 hours
 
 **By Phase:**
 
@@ -45,10 +45,10 @@ Progress: [█████████░] 96% of v1.0
 | 11 | 5 | 5 | 3m |
 | 11.1 | 1 | 1 | 3m |
 | 11.2 | 3 | 3 | 3m |
-| 12 | 2 | 2 | 3m |
+| 12 | 3 | 3 | 3.7m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 4m, 1m, 3m, 5m
+- Last 5 plans: 3m, 5m, 3m, 5m, 5m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -189,6 +189,10 @@ Recent decisions affecting current work:
 | Pulumi secrets component placement | Secrets creation after all dependencies (VPC, ALB, ECR, ECS) to avoid forward references | Infrastructure code order matches resource dependency graph |
 | SSM parameter naming by category | /viberator/{environment}/{category}/{key} with categories: database, frontend, amplify, ecs, deployment | Organized parameter hierarchy for easy navigation and workflow references |
 | SecureString vs String type selection | SecureString for sensitive (database URLs, OIDC roles), String for non-sensitive (API URLs, region) | KMS encryption only applied to values that need it, cost-optimized |
+| AWS credentials before SSM fetch in workflows | SSM parameter fetch must happen after aws-actions/configure-aws-credentials step | Authentication required for SSM API calls |
+| Fallback values for SSM parameter fetch | Use || echo 'default' pattern for graceful degradation if Pulumi hasn't created parameters yet | Prevents workflow failures during initial infrastructure setup |
+| GitHub environment directive for secret isolation | Add environment: dev/staging/prod to workflow jobs for environment-specific secret injection | Each environment uses its own AWS_ROLE_ARN and other secrets |
+| Staging workflow creation | Created new deploy-backend-staging.yml workflow since it didn't exist | Follows same pattern as dev/prod with staging-specific paths |
 
 ### Roadmap Evolution
 
@@ -212,6 +216,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 12 Plan 02 Complete - Pulumi secrets component with SSM parameter management
+Stopped at: Phase 12 Plan 03 Complete - Backend deployment workflows updated to use SSM configuration
 Resume file: None
-Phase 12 COMPLETE - All secret management infrastructure in place, ready for Phase 13: Deployment Workflows
+Phase 12 COMPLETE - All secret management infrastructure and CI/CD workflows in place
