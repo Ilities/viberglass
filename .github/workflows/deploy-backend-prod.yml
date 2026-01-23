@@ -19,11 +19,7 @@ permissions:
   contents: read    # Required for checkout
 
 env:
-  AWS_REGION: us-east-1
   ENVIRONMENT: prod
-  ECS_CLUSTER: prod-viberator-cluster
-  ECS_SERVICE: prod-viberator-backend
-  ECR_REPOSITORY: viberator-backend
 
 jobs:
   confirm-deployment:
@@ -53,7 +49,25 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
+
+      - name: Get deployment config from SSM
+        id: get-config
+        run: |
+          # Fetch deployment configuration
+          AWS_REGION=$(aws ssm get-parameter --name "/viberator/prod/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "us-east-1")
+          ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberator/prod/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "viberator-backend")
+          ECS_CLUSTER=$(aws ssm get-parameter --name "/viberator/prod/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "prod-viberator-cluster")
+          ECS_SERVICE=$(aws ssm get-parameter --name "/viberator/prod/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "prod-viberator-backend")
+
+          echo "aws_region=$AWS_REGION" >> $GITHUB_OUTPUT
+          echo "ecr_repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
+          echo "ecs_cluster=$ECS_CLUSTER" >> $GITHUB_OUTPUT
+          echo "ecs_service=$ECS_SERVICE" >> $GITHUB_OUTPUT
+          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=$ECS_CLUSTER" >> $GITHUB_ENV
+          echo "ECS_SERVICE=$ECS_SERVICE" >> $GITHUB_ENV
 
       - name: Login to Amazon ECR
         id: login-ecr

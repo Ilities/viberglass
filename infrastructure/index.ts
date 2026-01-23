@@ -14,6 +14,7 @@ import { createLoadBalancer, LoadBalancerOutputs } from "./components/load-balan
 import { createBackendEcs, createBackendService, BackendEcsOutputs } from "./components/backend-ecs";
 import { createAmplifyOidc, AmplifyOidcOutputs } from "./components/amplify-oidc";
 import { createAmplifyFrontend, AmplifyFrontendOutputs } from "./components/amplify-frontend";
+import { createDeploymentSecrets, DeploymentSecretsOutputs } from "./components/secrets";
 
 /**
  * Viberator Infrastructure Stack
@@ -30,6 +31,7 @@ import { createAmplifyFrontend, AmplifyFrontendOutputs } from "./components/ampl
 
 // Load configuration from Pulumi stack
 const config = getConfig();
+const pulumiConfig = new pulumi.Config();
 
 // Create CloudWatch log groups with environment-specific retention
 const logging: LoggingOutputs = createLogging({
@@ -242,6 +244,21 @@ const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
   stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
 });
 
+// Create SSM parameters for deployment secrets
+const secrets: DeploymentSecretsOutputs = createDeploymentSecrets({
+  config,
+  kmsKeyId: kms.keyId,
+  databaseUrl: pulumi.interpolate`postgresql://${config.environment}-viberator-db.${vpc.privateSubnetIds[0]}`,
+  databaseHost: pulumi.interpolate`${config.environment}-viberator-db.${vpc.privateSubnetIds[0]}`,
+  frontendApiUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}/api`,
+  amplifyAppId: pulumiConfig.get("amplifyAppId"),
+  amplifyBranch: config.environment,
+  ecrRepository: registry.repositoryUrl.apply(url => url.split("/").pop() ?? "viberator-backend"),
+  ecsCluster: ecsWorker.clusterName,
+  ecsService: backendService.serviceName,
+  oidcRoleArn: pulumiConfig.get("oidcRoleArn"),
+});
+
 // Export stack outputs
 export const awsRegion = config.awsRegion;
 export const environment = config.environment;
@@ -332,3 +349,9 @@ export const amplifyOidcRoleArn = amplifyOidc.roleArn;
 export const amplifySsmAppIdPath = amplifyFrontend.ssmAppIdPath;
 export const amplifySsmBranchNamePath = amplifyFrontend.ssmBranchNamePath;
 export const amplifySsmRegionPath = amplifyFrontend.ssmRegionPath;
+
+// Secrets outputs
+export const secretsSsmPaths = secrets.ssmPaths;
+export const deploymentRegionArn = secrets.deploymentRegionArn;
+export const deploymentOidcRoleArn = secrets.deploymentOidcRoleArn;
+export const deploymentEcrRepositoryArn = secrets.deploymentEcrRepositoryArn;

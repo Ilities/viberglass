@@ -1,15 +1,15 @@
-# Frontend deployment workflow for dev environment
-# Triggers Amplify deployment on push to main branch
+# Frontend deployment workflow for staging environment
+# Manual trigger via workflow_dispatch for staging deployments
 
-name: Deploy Frontend (Dev)
+name: Deploy Frontend (Staging)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'platform/frontend/**'
-      - 'packages/types/**'
-      - '.github/workflows/deploy-frontend-dev.yml'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Deployment reason'
+        required: false
+        default: 'Manual staging deployment'
 
 permissions:
   id-token: write
@@ -17,10 +17,10 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to Dev (Amplify)
+    name: Deploy to Staging (Amplify)
     runs-on: ubuntu-latest
     environment:
-      name: dev
+      name: staging
       url: ${{ steps.amplify.outputs.appUrl }}
 
     steps:
@@ -47,7 +47,7 @@ jobs:
         run: |
           # Get AWS region from SSM
           AWS_REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/deployment/region" \
+            --name "/viberator/staging/deployment/region" \
             --query Parameter.Value \
             --output text 2>/dev/null || echo "us-east-1")
 
@@ -55,12 +55,12 @@ jobs:
 
           # Get backend API URL from SSM
           API_URL=$(aws ssm get-parameter \
-            --name "/viberator/dev/frontend/apiUrl" \
+            --name "/viberator/staging/frontend/apiUrl" \
             --query Parameter.Value \
             --output text)
 
           if [ -z "$API_URL" ]; then
-            echo "::error::Backend API URL not found in SSM at /viberator/dev/frontend/apiUrl"
+            echo "::error::Backend API URL not found in SSM at /viberator/staging/frontend/apiUrl"
             exit 1
           fi
 
@@ -77,17 +77,17 @@ jobs:
         run: |
           # Get Amplify configuration from SSM (provisioned by Pulumi)
           APP_ID=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/appId" \
+            --name "/viberator/staging/amplify/appId" \
             --query Parameter.Value \
             --output text)
 
           BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/branchName" \
+            --name "/viberator/staging/amplify/branchName" \
             --query Parameter.Value \
             --output text)
 
           REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/region" \
+            --name "/viberator/staging/amplify/region" \
             --query Parameter.Value \
             --output text)
 
@@ -97,6 +97,7 @@ jobs:
           fi
 
           echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME, region: $REGION"
+          echo "Reason: ${{ inputs.reason }}"
 
           # Trigger Amplify deployment using AWS CLI
           DEPLOYMENT_ID=$(aws amplify start-deployment \
@@ -126,17 +127,17 @@ jobs:
         run: |
           # Get Amplify configuration from SSM (provisioned by Pulumi)
           APP_ID=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/appId" \
+            --name "/viberator/staging/amplify/appId" \
             --query Parameter.Value \
             --output text)
 
           BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/branchName" \
+            --name "/viberator/staging/amplify/branchName" \
             --query Parameter.Value \
             --output text)
 
           REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/region" \
+            --name "/viberator/staging/amplify/region" \
             --query Parameter.Value \
             --output text)
 
@@ -158,10 +159,10 @@ jobs:
             echo "Current status: $STATUS"
 
             if [ "$STATUS" = "SUCCEED" ]; then
-              echo "✓ Deployment succeeded"
+              echo "✓ Staging deployment succeeded"
               exit 0
             elif [ "$STATUS" = "FAIL" ]; then
-              echo "✗ Deployment failed"
+              echo "✗ Staging deployment failed"
               aws amplify get-job \
                 --app-id "$APP_ID" \
                 --branch-name "$BRANCH_NAME" \
@@ -171,7 +172,7 @@ jobs:
                 --output table
               exit 1
             elif [ "$STATUS" = "TIMEDOUT" ]; then
-              echo "✗ Deployment timed out"
+              echo "✗ Staging deployment timed out"
               exit 1
             fi
 
@@ -181,3 +182,17 @@ jobs:
 
           echo "::warning::Deployment wait timed out after $TIMEOUT seconds"
           exit 1
+
+      - name: Deployment summary
+        if: steps.amplify.outputs.deploymentTriggered == 'true'
+        run: |
+          echo "### :white_check_mark: Staging Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **App URL** | ${{ steps.amplify.outputs.appUrl }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployment ID** | ${{ steps.amplify.outputs.deploymentId }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Reason** | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployed by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please verify the staging deployment at: ${{ steps.amplify.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY

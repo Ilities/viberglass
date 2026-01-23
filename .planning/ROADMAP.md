@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
 - [x] **Phase 11.1: Remove Unused Frontend Infrastructure** - Clean up deprecated S3+CloudFront static hosting (INSERTED)
 - [x] **Phase 11.2: Amplify Frontend Infrastructure** - Pulumi provisions Amplify app for frontend SSR deployment (INSERTED)
-- [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
+- [x] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
 ## Phase Details
 
@@ -554,11 +554,11 @@ interface SecretProvider {
 
 **Plans**: 5 plans in 3 waves
 
-**Status**: Planning
+**Status**: Complete (2026-01-23)
 
 Plans:
-- [ ] 12-01-PLAN.md — Create SecretProvider interface and SsmSecretProvider implementation
-- [ ] 12-02-PLAN.md — Create Pulumi secrets component for SSM parameter provisioning
-- [ ] 12-03-PLAN.md — Update backend deployment workflows to use centralized secrets
-- [ ] 12-04-PLAN.md — Update frontend deployment workflows to use centralized secrets
-- [ ] 12-05-PLAN.md — Create deployment secrets documentation and GitHub quick reference
+- [x] 12-01-PLAN.md — Create SecretProvider interface and SsmSecretProvider implementation
+- [x] 12-02-PLAN.md — Create Pulumi secrets component for SSM parameter provisioning
+- [x] 12-03-PLAN.md — Update backend deployment workflows to use centralized secrets
+- [x] 12-04-PLAN.md — Update frontend deployment workflows to use centralized secrets
+- [x] 12-05-PLAN.md — Create deployment secrets documentation and GitHub quick reference

@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 11.2 of 12 (Amplify Frontend Infrastructure) — COMPLETE
-Plan: 3 of 3
-Status: Phase 11.2 COMPLETE - Amplify IaC-to-CI/CD integration complete, workflows use SSM parameters
-Last activity: 2026-01-23 — Updated GitHub Actions workflows to read Amplify config from SSM, documented Amplify infrastructure
+Phase: 12 of 12 (Secret Management) — PHASE COMPLETE
+Plan: 5 of 5
+Status: Phase 12 Plan 05 COMPLETE - Deployment secrets documentation created
+Last activity: 2026-01-23 — Created comprehensive deployment secrets documentation (docs/DEPLOYMENT_SECRETS.md) and GitHub deployment quick reference (.github/DEPLOYMENT.md)
 
-Progress: [█████████░] 94% of v1.0
+Progress: [█████████░] 100% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 89
+- Total plans completed: 95
 - Average duration: ~4 minutes
-- Total execution time: 5.6 hours
+- Total execution time: 6.7 hours
 
 **By Phase:**
 
@@ -45,10 +45,11 @@ Progress: [█████████░] 94% of v1.0
 | 11 | 5 | 5 | 3m |
 | 11.1 | 1 | 1 | 3m |
 | 11.2 | 3 | 3 | 3m |
+| 12 | 5 | 5 | 10.2m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 4m, 1m, 3m, 5m
-- Trend: Stable
+- Last 5 plans: 5m, 3m, 5m, 4m, 44m
+- Trend: Documentation phase takes longer (expected)
 
 *Updated after each plan completion*
 
@@ -178,6 +179,28 @@ Recent decisions affecting current work:
 | SSM-driven CI/CD configuration for Amplify | GitHub Actions workflows read Amplify config from SSM parameters instead of hardcoded secrets | Pulumi is single source of truth for Amplify provisioning, workflows automatically adapt to IaC changes |
 | Production workflow exits on missing SSM | Production deployment fails with error if SSM parameters not found (no graceful degradation) | Production requires IaC provisioning, prevents silent failures |
 | Dynamic region parameterization in workflows | Amplify workflows use --region "$REGION" from SSM instead of hardcoded region | Supports Amplify apps in any AWS region, cross-region deployments |
+| Environment-first API for deployment secrets | getSecret(environment, key) instead of tenant-first get(tenantId, key) from Phase 1 | Deployment secrets are environment-scoped, not tenant-scoped |
+| Deployment secrets path hierarchy | /viberator/{environment}/{category}/{key} for deployment secrets vs /viberator/tenants/{tenantId}/{key} for tenant credentials | Clear separation between deployment-time CI/CD secrets and runtime tenant data |
+| SecureString default for deployment secrets | putSecret defaults to secure=true with KMS encryption, optional secure=false for plain strings | Most deployment values are sensitive, default to secure storage |
+| SecretCategory enum for organization | database, frontend, amplify, ecs, lambda categories for deployment secret organization | Structured SSM parameter hierarchy for easy navigation |
+| isAvailable() tests SSM access | Lists parameters with prefix to verify AWS credentials work, returns false on auth errors | Graceful provider availability checking for CI/CD workflows |
+| Separate kmsKeyId parameter in DeploymentSecretsOptions | InfrastructureConfig doesn't include kmsKeyId, added as separate parameter | Avoids modifying core config interface for component-specific needs |
+| SSM parameter keyId property for KMS encryption | Pulumi aws.ssm.Parameter uses keyId (not kmsKeyId) for KMS key reference | Correct property name for SecureString encryption |
+| Pulumi secrets component placement | Secrets creation after all dependencies (VPC, ALB, ECR, ECS) to avoid forward references | Infrastructure code order matches resource dependency graph |
+| SSM parameter naming by category | /viberator/{environment}/{category}/{key} with categories: database, frontend, amplify, ecs, deployment | Organized parameter hierarchy for easy navigation and workflow references |
+| SecureString vs String type selection | SecureString for sensitive (database URLs, OIDC roles), String for non-sensitive (API URLs, region) | KMS encryption only applied to values that need it, cost-optimized |
+| AWS credentials before SSM fetch in workflows | SSM parameter fetch must happen after aws-actions/configure-aws-credentials step | Authentication required for SSM API calls |
+| Fallback values for SSM parameter fetch | Use || echo 'default' pattern for graceful degradation if Pulumi hasn't created parameters yet | Prevents workflow failures during initial infrastructure setup |
+| GitHub environment directive for secret isolation | Add environment: dev/staging/prod to workflow jobs for environment-specific secret injection | Each environment uses its own AWS_ROLE_ARN and other secrets |
+| Staging workflow creation | Created new deploy-backend-staging.yml workflow since it didn't exist | Follows same pattern as dev/prod with staging-specific paths |
+| SSM-based Amplify config in workflows | Keep fetching Amplify config from SSM (not GitHub secrets) for frontend deployments | Pulumi is single source of truth; workflows adapt to IaC changes automatically |
+| Remove hardcoded fallback URLs | Fail-fast on missing SSM parameters instead of using placeholder values | Prevents broken deployments from misconfiguration |
+| Dynamic region fetching from SSM | Fetch AWS region from /viberator/{env}/deployment/region instead of hardcoded us-east-1 | Supports multi-region deployments without workflow changes |
+| Consolidated config fetching in workflows | Single get-config step for region and backend URL instead of separate steps | Cleaner workflow structure, fewer SSM API calls |
+| Frontend staging workflow creation | Created new deploy-frontend-staging.yml workflow (was missing from Phase 11-04) | Completes deployment workflow set: dev, staging, prod |
+| Documentation-first approach | Comprehensive setup guide created before enabling production deployments | Teams can maintain secret configuration without guessing |
+| Clear separation of deployment vs runtime secrets | Documentation distinguishes deployment secrets (Phase 12) from tenant credentials (Phase 1) | Proper security boundaries and access patterns |
+| Comprehensive troubleshooting guide | Six common issues documented with symptoms, causes, and solutions | Reduces time to resolution for secret-related deployment issues |
 
 ### Roadmap Evolution
 
@@ -201,6 +224,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 11.2 Plan 03 Complete - GitHub Actions workflows read Amplify config from SSM, infrastructure documented
+Stopped at: Phase 12 Plan 05 Complete - Deployment secrets documentation created and approved
 Resume file: None
-Phase 11.2 COMPLETE - All Amplify infrastructure automated and documented, ready for Phase 12
+Next: Phase 12 COMPLETE - All secret management plans finished (01-05). Project ready for v1.0 release (Phase 13 not defined in roadmap).

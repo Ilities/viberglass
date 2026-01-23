@@ -5,3 +5,24 @@ description: Viberator AWS Infrastructure
 # Stack configuration templates
 # Each stack (dev, staging, prod) will have its own Pulumi.{stack}.yaml
 # with environment-specific settings.
+
+# Secret values are set via:
+# - pulumi config set {stack}:{secretName} "..." --secret (for SecureString)
+# - pulumi config set {stack}:{secretName} "..." (for String type)
+# - Or via AWS Console/CLI for operational updates
+#
+# Secret types documented below for reference:
+# dev:
+#   secrets:
+#     databaseUrl:
+#       secure: true
+#     databaseHost:
+#       secure: true
+#     frontendApiUrl:
+#       secure: false
+#     amplifyAppId:
+#       secure: false
+#     amplifyBranch:
+#       secure: false
+#     oidcRoleArn:
+#       secure: true
