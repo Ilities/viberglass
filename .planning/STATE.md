@@ -6,23 +6,23 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 12: Secret Management
+**Current focus:** Phase 11.1 Complete
 
 ## Current Position
 
-Phase: 11 of 12 (Deployment Process) — Complete
-Plan: 05 of 5 (Pulumi CI/CD Workflows)
-Status: Phase 11 complete - CI/CD pipeline with 9 workflows (backend, frontend, Pulumi)
-Last activity: 2026-01-23 — All CI/CD workflows verified and operational
+Phase: 11.1 of 12 (Remove Unused Frontend Infrastructure) — COMPLETE
+Plan: 1 of 1
+Status: Phase 11.1 complete - S3+CloudFront frontend infrastructure removed
+Last activity: 2026-01-23 — Removed unused frontend infrastructure (250 lines)
 
-Progress: [██████████] 92% of v1.0
+Progress: [██████████] 93% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 85
+- Total plans completed: 86
 - Average duration: ~4 minutes
-- Total execution time: 5.2 hours
+- Total execution time: 5.3 hours
 
 **By Phase:**
 
@@ -43,9 +43,10 @@ Progress: [██████████] 92% of v1.0
 | 09 | 3 | 3 | 2m |
 | 10 | 9 | 9 | 6m |
 | 11 | 5 | 5 | 3m |
+| 11.1 | 1 | 1 | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 2m, 3m, 4m, 2m
+- Last 5 plans: 4m, 2m, 3m, 4m, 3m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -166,6 +167,7 @@ Recent decisions affecting current work:
 | Automated dev Pulumi deployment | Infrastructure deploys to dev on main merge | pulumi up runs automatically for dev stack |
 | Manual prod Pulumi deployment | Prod requires workflow_dispatch with approval | Production infrastructure changes are intentional |
 | Pulumi concurrency control | Prevents simultaneous pulumi operations | group: pulumi-${{ github.workflow }} |
+| Remove unused S3+CloudFront frontend infrastructure | Amplify SSR is actual deployment method, Pulumi code never deployed | Saves $15-20/month, aligns infrastructure with production |
 
 ### Roadmap Evolution
 
@@ -173,6 +175,7 @@ Recent decisions affecting current work:
 - Phase 4.2 inserted after Phase 4.1: Testing (URGENT)
 - Phase 4.3 inserted after Phase 4.2: Application organization and structural refactoring (URGENT)
 - Phase 4.4 inserted after Phase 4.3: E2E flow verification and infrastructure setup (URGENT)
+- Phase 11.1 inserted after Phase 11: Remove unused frontend infrastructure (URGENT)
 
 ### Pending Todos
 
@@ -182,11 +185,11 @@ None yet.
 
 - Frontend SSR deployment requires Amplify app setup in AWS Console (manual step)
 - Pulumi CLI not installed locally - required before AWS infrastructure deployment
-- Phase 10 S3+CloudFront frontend infrastructure unused due to Amplify SSR approach (can be removed later)
+- ~~Phase 10 S3+CloudFront frontend infrastructure unused due to Amplify SSR approach~~ (RESOLVED - removed in Phase 11.1)
 
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 11 Complete - All 5 plans executed (CI/CD pipeline operational)
+Stopped at: Phase 11.1 Complete - Removed unused S3+CloudFront frontend infrastructure
 Resume file: None
-Phase 11 COMPLETE - CI/CD pipeline with 9 workflows for backend, frontend, and Pulumi infrastructure
+Phase 11.1 COMPLETE - Pulumi stack now clean and aligned with Amplify SSR deployment
