@@ -27,6 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: Local Development** - Docker compose environment for local development
 - [x] **Phase 10: AWS Infrastructure** - Pulumi stack provisions complete AWS infrastructure
 - [x] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
+- [ ] **Phase 11.1: Remove Unused Frontend Infrastructure** - Clean up deprecated S3+CloudFront static hosting (INSERTED)
 - [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
 ## Phase Details
@@ -458,6 +459,37 @@ Plans:
 - Phase 10's S3+CloudFront frontend infrastructure remains but is unused
 - Backend CI/CD workflows verified (CI, dev, prod with OIDC)
 - Pulumi workflows created (preview, dev, prod)
+
+---
+
+### Phase 11.1: Remove Unused Frontend Infrastructure (INSERTED)
+
+**Goal**: Remove the unused S3+CloudFront frontend static hosting infrastructure from Pulumi stack, since Amplify SSR is now the deployment method.
+
+**Depends on**: Phase 11
+
+**Requirements**: None (cleanup/technical debt)
+
+**Success Criteria** (what must be TRUE):
+1. S3 bucket for frontend static hosting removed from Pulumi stack
+2. CloudFront distribution removed from Pulumi stack
+3. CloudFront OAC (Origin Access Control) removed from Pulumi stack
+4. SSM parameters for frontend CDN URL removed (no longer needed)
+5. Pulumi up succeeds without errors
+6. Documentation updated to reflect Amplify-only deployment
+
+**Plans**: 1 plan in 1 wave
+
+**Status**: Planned (2026-01-23)
+
+Plans:
+- [ ] 11.1-01-PLAN.md — Remove S3+CloudFront frontend infrastructure from Pulumi stack
+
+**Details**:
+Phase 10 created S3+CloudFront infrastructure for static hosting, but Phase 11 switched to Amplify SSR for Next.js 15 dynamic route support. The static hosting resources are now unused and should be removed to:
+- Reduce AWS costs (~$15-20/month for CloudFront)
+- Avoid confusion about deployment method
+- Simplify infrastructure maintenance
 
 ---
 
