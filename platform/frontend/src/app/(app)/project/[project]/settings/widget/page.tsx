@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: 'Widget Settings',
 }
 
+export const generateStaticParams = async () => {
+  return []
+}
+
 export default function WidgetSettingsPage() {
   return (
     <div className="space-y-8 p-6 lg:p-8">

@@ -68,25 +68,22 @@ export function createAmplifyFrontend(
     name: `${config.environment}-viberator-frontend`,
     description: `Viberator frontend - ${config.environment} environment`,
     platform: "WEB_COMPUTE", // CRITICAL: Required for SSR support
-    buildSpec: {
-      backend: {
-        phases: {
-          preBuild: {
-            commands: ["npm ci --legacy-peer-deps"],
-          },
-          build: {
-            commands: ["npm run build"],
-          },
-        },
-        artifacts: {
-          baseDirectory: ".next",
-          files: ["**/*"],
-        },
-        cache: {
-          paths: ["node_modules/**/*"],
-        },
-      },
-    },
+    buildSpec: `version: 1
+backend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci --legacy-peer-deps
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*`,
     environmentVariables: {
       NEXT_PUBLIC_API_URL: backendUrl,
     },

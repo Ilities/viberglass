@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: 'Settings',
 }
 
+export const generateStaticParams = async () => {
+  return []
+}
+
 export default async function Settings({ params }: { params: Promise<{ project: string }> }) {
   const { project } = await params
   redirect(`/project/${project}/settings/widget`)

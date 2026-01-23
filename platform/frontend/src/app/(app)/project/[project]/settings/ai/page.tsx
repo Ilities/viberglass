@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   title: 'AI Settings',
 }
 
+export const generateStaticParams = async () => {
+  return []
+}
+
 export default function AISettingsPage() {
   return (
     <div className="space-y-8 p-6 lg:p-8">

@@ -8,6 +8,10 @@ import { formatAutoFixStatus, formatSeverity, getTicketDetails } from '@/data'
 import { ClockIcon, PlayIcon, SparklesIcon } from '@heroicons/react/20/solid'
 import { notFound } from 'next/navigation'
 
+export const generateStaticParams = async () => {
+  return []
+}
+
 export default async function EnhancePage({
   searchParams,
   params,

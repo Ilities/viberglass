@@ -176,6 +176,7 @@ Recent decisions affecting current work:
 - Phase 4.3 inserted after Phase 4.2: Application organization and structural refactoring (URGENT)
 - Phase 4.4 inserted after Phase 4.3: E2E flow verification and infrastructure setup (URGENT)
 - Phase 11.1 inserted after Phase 11: Remove unused frontend infrastructure (URGENT)
+- Phase 11.2 inserted after Phase 11.1: Amplify Frontend Infrastructure - Pulumi provisions Amplify app for frontend SSR deployment (URGENT)
 
 ### Pending Todos
 

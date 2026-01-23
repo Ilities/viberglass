@@ -7,6 +7,10 @@ import { getTickets } from '@/service/api/ticket-api'
 import { TicketsTable } from './tickets-table'
 import { FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 
+export const generateStaticParams = async () => {
+  return []
+}
+
 export default async function TicketsPage({
   params,
   searchParams,

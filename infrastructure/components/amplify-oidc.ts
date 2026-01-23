@@ -47,8 +47,8 @@ export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutpu
     `${config.environment}-viberator-github-oidc`,
     {
       url: "https://token.actions.githubusercontent.com",
-      clientIdList: ["sts.amazonaws.com"],
-      thumbprintList: ["6938fd4d98bab03faadb97b34396831e3780aea1"],
+      clientIdLists: ["sts.amazonaws.com"],
+      thumbprintLists: ["6938fd4d98bab03faadb97b34396831e3780aea1"],
     }
   );
 
