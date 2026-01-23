@@ -46,24 +46,37 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get Production backend URL from Pulumi stack
-        id: pulumi-outputs
+      - name: Get deployment config from SSM
+        id: get-config
         run: |
-          # Get backend URL from Pulumi stack output (or SSM parameter)
+          # Get AWS region from SSM
+          AWS_REGION=$(aws ssm get-parameter \
+            --name "/viberator/prod/deployment/region" \
+            --query Parameter.Value \
+            --output text 2>/dev/null || echo "us-east-1")
+
+          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
+
+          # Get backend API URL from SSM
           API_URL=$(aws ssm get-parameter \
             --name "/viberator/prod/frontend/apiUrl" \
-            --with-decryption \
             --query Parameter.Value \
-            --output text 2>/dev/null || echo "https://api.viberator.internal")
+            --output text)
+
+          if [ -z "$API_URL" ]; then
+            echo "::error::Backend API URL not found in SSM at /viberator/prod/frontend/apiUrl"
+            exit 1
+          fi
 
           echo "backendUrl=$API_URL" >> $GITHUB_OUTPUT
+          echo "NEXT_PUBLIC_API_URL=$API_URL" >> $GITHUB_ENV
 
       - name: Build frontend with environment variables
         run: npm run build -w @viberator/frontend
         env:
-          NEXT_PUBLIC_API_URL: ${{ steps.pulumi-outputs.outputs.backendUrl }}
+          NEXT_PUBLIC_API_URL: ${{ steps.get-config.outputs.backendUrl }}
 
       - name: Start Amplify deployment
         id: amplify
@@ -84,8 +97,8 @@ jobs:
             --query Parameter.Value \
             --output text)
 
-          if [ -z "$APP_ID" ]; then
-            echo "::error::Amplify app ID not found in SSM. Run pulumi up for prod stack first."
+          if [ -z "$APP_ID" ] || [ -z "$BRANCH_NAME" ] || [ -z "$REGION" ]; then
+            echo "::error::Amplify configuration not found in SSM. Run pulumi up first."
             exit 1
           fi
 
