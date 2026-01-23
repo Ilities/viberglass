@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 11 of 12 (Deployment Process) — In Progress
-Plan: 02 of 3 (Amplify Frontend Deployment)
-Status: Plan 02 complete - Amplify SSR configuration with Lambda@Edge
-Last activity: 2026-01-22 — Amplify SSR hosting configuration for Next.js 15
+Plan: 04 of 4 (Frontend Deployment Workflows)
+Status: Plan 04 complete - GitHub Actions CI/CD for Amplify deployment
+Last activity: 2026-01-23 — Frontend deployment workflows with Amplify automation
 
-Progress: [█████████░] 86% of v1.0
+Progress: [██████████] 89% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 75
+- Total plans completed: 79
 - Average duration: ~4 minutes
-- Total execution time: 4.8 hours
+- Total execution time: 4.9 hours
 
 **By Phase:**
 
@@ -42,10 +42,10 @@ Progress: [█████████░] 86% of v1.0
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
 | 10 | 9 | 9 | 6m |
-| 11 | 2 | 3 | 3m |
+| 11 | 4 | 4 | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 2m, 3m, 2m, 4m
+- Last 5 plans: 4m, 2m, 3m, 4m, 2m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -159,6 +159,9 @@ Recent decisions affecting current work:
 | AWS Amplify SSR over S3+CloudFront static export | Bypasses Next.js 15 static export limitations with dynamic routes | Full SSR with Lambda@Edge, image optimization enabled |
 | force-dynamic route segment config | Ensures all pages render dynamically at request time | Data fetched at request time, not build time |
 | Amplify build configuration with amplify.yml | PreBuild/build/postBuild phases for CI/CD | Git-based deployment with automatic Lambda@Edge setup |
+| GitHub Actions for Amplify deployment | OIDC auth with aws amplify start-deployment CLI | Automated dev deployment, manual staging/prod with approval gates |
+| Amplify polling for deployment verification | Wait loop with aws amplify get-job status checks | Confirms deployment completion before marking success |
+| Monorepo path filtering for CI/CD | Workflows trigger on specific path patterns | Only builds affected workspaces on changes |
 
 ### Roadmap Evolution
 
@@ -179,7 +182,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-22
-Stopped at: Completed Phase 11 Plan 02 (Amplify Frontend Deployment) - SSR configuration
+Last session: 2026-01-23
+Stopped at: Completed Phase 11 Plan 04 (Frontend Deployment Workflows) - GitHub Actions CI/CD
 Resume file: None
-Phase 11 Plan 02 COMPLETE - Ready to begin Plan 03 (Deployment Automation)
+Phase 11 Plan 04 COMPLETE - Frontend CI/CD pipeline ready for use
