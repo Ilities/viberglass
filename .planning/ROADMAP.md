@@ -401,7 +401,7 @@ Plans:
 5. KMS key for SSM parameter encryption
 6. CloudWatch log groups for all compute resources
 7. ECS Fargate service for backend API with Application Load Balancer
-8. S3+CloudFront for frontend static hosting
+8. S3+CloudFront for frontend static hosting (unused - see Phase 11)
 9. Worker infrastructure (Lambda and ECS) configured
 10. Comprehensive documentation for deployment and operations
 
@@ -432,26 +432,32 @@ Plans:
 
 **Success Criteria** (what must be TRUE):
 1. Production Dockerfile builds optimized backend container image
-2. Frontend builds to static export compatible with S3+CloudFront
+2. Frontend builds for Amplify SSR deployment (dynamic rendering, not static export)
 3. GitHub Actions CI runs tests on PRs
 4. Backend deploys to ECS with migrations on push to main (dev)
-5. Frontend syncs to S3 with CloudFront invalidation on push to main (dev)
-6. Staging/prod deployments require manual trigger
-7. Prod deployment requires approval
-8. Pulumi preview runs on infrastructure PRs
-9. Pulumi up runs for dev infrastructure on merge to main
-10. OIDC authentication used for all AWS access
+5. Frontend deploys to Amplify on push to main (dev)
+6. Prod deployments require manual trigger with approval
+7. Pulumi preview runs on infrastructure PRs
+8. Pulumi up runs for dev infrastructure on merge to main
+9. OIDC authentication used for all AWS access
+10. Two environments: dev (auto-deploy) and prod (manual with approval)
 
 **Plans**: 5 plans in 3 waves
 
-**Status**: Planning
+**Status**: In Progress (2026-01-23)
 
 Plans:
-- [ ] 11-01-PLAN.md — Create production Dockerfile for backend with multi-stage build
-- [ ] 11-02-PLAN.md — Configure Next.js for static export to S3
-- [ ] 11-03-PLAN.md — Create GitHub Actions workflows for backend CI/CD
-- [ ] 11-04-PLAN.md — Create GitHub Actions workflows for frontend CI/CD
+- [x] 11-01-PLAN.md — Create production Dockerfile for backend with multi-stage build
+- [x] 11-02-PLAN.md — Configure Next.js for Amplify SSR deployment
+- [ ] 11-03-PLAN.md — Verify and finalize GitHub Actions workflows for backend CI/CD
+- [x] 11-04-PLAN.md — Create GitHub Actions workflows for frontend CI/CD
 - [ ] 11-05-PLAN.md — Create GitHub Actions workflows for Pulumi infrastructure
+
+**Notes**:
+- Frontend deployment uses AWS Amplify SSR (not S3+CloudFront static export) to support Next.js 15 dynamic routes
+- Phase 10's S3+CloudFront frontend infrastructure remains but is unused
+- Backend CI/CD workflows already exist but need verification and documentation
+- Pulumi workflows do not exist yet and need to be created
 
 ---
 
