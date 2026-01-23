@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Webhook Provider Architecture** - Provider-agnostic webhook integration with GitHub as first implementation
 - [x] **Phase 9: Local Development** - Docker compose environment for local development
 - [x] **Phase 10: AWS Infrastructure** - Pulumi stack provisions complete AWS infrastructure
-- [ ] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
+- [x] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
 - [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
 ## Phase Details
@@ -444,20 +444,20 @@ Plans:
 
 **Plans**: 5 plans in 3 waves
 
-**Status**: In Progress (2026-01-23)
+**Status**: Complete (2026-01-23)
 
 Plans:
 - [x] 11-01-PLAN.md — Create production Dockerfile for backend with multi-stage build
 - [x] 11-02-PLAN.md — Configure Next.js for Amplify SSR deployment
-- [ ] 11-03-PLAN.md — Verify and finalize GitHub Actions workflows for backend CI/CD
+- [x] 11-03-PLAN.md — Verify and finalize GitHub Actions workflows for backend CI/CD
 - [x] 11-04-PLAN.md — Create GitHub Actions workflows for frontend CI/CD
-- [ ] 11-05-PLAN.md — Create GitHub Actions workflows for Pulumi infrastructure
+- [x] 11-05-PLAN.md — Create GitHub Actions workflows for Pulumi infrastructure
 
 **Notes**:
 - Frontend deployment uses AWS Amplify SSR (not S3+CloudFront static export) to support Next.js 15 dynamic routes
 - Phase 10's S3+CloudFront frontend infrastructure remains but is unused
-- Backend CI/CD workflows already exist but need verification and documentation
-- Pulumi workflows do not exist yet and need to be created
+- Backend CI/CD workflows verified (CI, dev, prod with OIDC)
+- Pulumi workflows created (preview, dev, prod)
 
 ---
 

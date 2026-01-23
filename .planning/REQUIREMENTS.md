@@ -52,10 +52,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Production Deployment
 
-- [ ] **DEP-01**: Pulumi stack provisions complete AWS infrastructure
-- [ ] **DEP-02**: Deployment process documented for all components
-- [ ] **DEP-03**: Environment-specific configuration (dev, staging, prod)
-- [ ] **DEP-04**: CI/CD pipeline builds and deploys container images
+- [x] **DEP-01**: Pulumi stack provisions complete AWS infrastructure
+- [x] **DEP-02**: Deployment process documented for all components
+- [x] **DEP-03**: Environment-specific configuration (dev, staging, prod)
+- [x] **DEP-04**: CI/CD pipeline builds and deploys container images
 - [ ] **DEP-05**: Secret management uses provider pattern supporting multiple backends
 
 ### Multi-Tenant Security
@@ -143,9 +143,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEV-02 | Phase 9 | Complete |
 | DEV-03 | Phase 9 | Complete |
 | DEP-01 | Phase 10 | Complete |
-| DEP-02 | Phase 11 | Pending |
-| DEP-03 | Phase 11 | Pending |
-| DEP-04 | Phase 11 | Pending |
+| DEP-02 | Phase 11 | Complete |
+| DEP-03 | Phase 11 | Complete |
+| DEP-04 | Phase 11 | Complete |
 | DEP-05 | Phase 12 | Pending |
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
