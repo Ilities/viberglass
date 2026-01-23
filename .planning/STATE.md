@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 12 of 12 (Secret Management)
-Plan: 3 of 3
-Status: Phase 12 Plan 03 COMPLETE - Backend deployment workflows using environment-specific secrets and SSM configuration
-Last activity: 2026-01-23 — Updated backend deployment workflows to use SSM parameters and GitHub environment secrets
+Plan: 4 of 5
+Status: Phase 12 Plan 04 COMPLETE - Frontend deployment workflows using dynamic SSM configuration
+Last activity: 2026-01-23 — Updated frontend deployment workflows (dev/staging/prod) to use SSM parameters and dynamic region configuration
 
 Progress: [█████████░] 97% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 92
+- Total plans completed: 93
 - Average duration: ~4 minutes
-- Total execution time: 5.8 hours
+- Total execution time: 5.9 hours
 
 **By Phase:**
 
@@ -45,10 +45,10 @@ Progress: [█████████░] 97% of v1.0
 | 11 | 5 | 5 | 3m |
 | 11.1 | 1 | 1 | 3m |
 | 11.2 | 3 | 3 | 3m |
-| 12 | 3 | 3 | 3.7m |
+| 12 | 4 | 5 | 3.5m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 5m, 3m, 5m, 5m
+- Last 5 plans: 5m, 3m, 5m, 3m, 4m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -193,6 +193,11 @@ Recent decisions affecting current work:
 | Fallback values for SSM parameter fetch | Use || echo 'default' pattern for graceful degradation if Pulumi hasn't created parameters yet | Prevents workflow failures during initial infrastructure setup |
 | GitHub environment directive for secret isolation | Add environment: dev/staging/prod to workflow jobs for environment-specific secret injection | Each environment uses its own AWS_ROLE_ARN and other secrets |
 | Staging workflow creation | Created new deploy-backend-staging.yml workflow since it didn't exist | Follows same pattern as dev/prod with staging-specific paths |
+| SSM-based Amplify config in workflows | Keep fetching Amplify config from SSM (not GitHub secrets) for frontend deployments | Pulumi is single source of truth; workflows adapt to IaC changes automatically |
+| Remove hardcoded fallback URLs | Fail-fast on missing SSM parameters instead of using placeholder values | Prevents broken deployments from misconfiguration |
+| Dynamic region fetching from SSM | Fetch AWS region from /viberator/{env}/deployment/region instead of hardcoded us-east-1 | Supports multi-region deployments without workflow changes |
+| Consolidated config fetching in workflows | Single get-config step for region and backend URL instead of separate steps | Cleaner workflow structure, fewer SSM API calls |
+| Frontend staging workflow creation | Created new deploy-frontend-staging.yml workflow (was missing from Phase 11-04) | Completes deployment workflow set: dev, staging, prod |
 
 ### Roadmap Evolution
 
@@ -216,6 +221,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 12 Plan 03 Complete - Backend deployment workflows updated to use SSM configuration
+Stopped at: Phase 12 Plan 04 Complete - Frontend deployment workflows updated with dynamic SSM configuration
 Resume file: None
-Phase 12 COMPLETE - All secret management infrastructure and CI/CD workflows in place
+Next: Phase 12 Plan 05 - Deployment secrets documentation (non-autonomous, requires user input for documentation review)
