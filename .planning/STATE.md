@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 ## Current Position
 
-Phase: 12 of 12 (Secret Management) — Planning
-Plan: 0 of 5
-Status: Phase 11.1 complete, ready to plan Phase 12 (Secret Management)
-Last activity: 2026-01-23 — Phase 11.1 complete, S3+CloudFront infrastructure removed
+Phase: 11.2 of 12 (Amplify Frontend Infrastructure) — In Progress
+Plan: 1 of 1
+Status: Phase 11.2 plan 01 complete, ready to integrate Amplify components into Pulumi stack
+Last activity: 2026-01-23 — Completed Amplify OIDC and frontend provisioning components
 
-Progress: [██████████] 93% of v1.0
+Progress: [█████████░] 94% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 86
+- Total plans completed: 87
 - Average duration: ~4 minutes
-- Total execution time: 5.3 hours
+- Total execution time: 5.4 hours
 
 **By Phase:**
 
@@ -44,9 +44,10 @@ Progress: [██████████] 93% of v1.0
 | 10 | 9 | 9 | 6m |
 | 11 | 5 | 5 | 3m |
 | 11.1 | 1 | 1 | 3m |
+| 11.2 | 1 | 1 | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 2m, 3m, 4m, 3m
+- Last 5 plans: 2m, 3m, 4m, 3m, 4m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -168,6 +169,11 @@ Recent decisions affecting current work:
 | Manual prod Pulumi deployment | Prod requires workflow_dispatch with approval | Production infrastructure changes are intentional |
 | Pulumi concurrency control | Prevents simultaneous pulumi operations | group: pulumi-${{ github.workflow }} |
 | Remove unused S3+CloudFront frontend infrastructure | Amplify SSR is actual deployment method, Pulumi code never deployed | Saves $15-20/month, aligns infrastructure with production |
+| Separate OIDC provider for Amplify deployment | Creates distinct OpenID Connect provider and IAM role for Amplify (not reuse Pulumi OIDC) | Separation of concerns between infrastructure provisioning and application deployment |
+| WEB_COMPUTE platform for Amplify SSR | platform: "WEB_COMPUTE" enables Next.js SSR with Lambda@Edge | Full SSR support instead of static hosting |
+| Auto-branch creation disabled for security | enableAutoBranchCreation: false prevents unauthorized branches | Only explicitly configured branches can be deployed |
+| GitHub Actions-driven Amplify builds | enableAutoBuild: false builds via GitHub Actions workflows | Consistent with existing CI/CD approach |
+| SSM for Amplify configuration storage | Parameters follow /viberator/{environment}/amplify/* pattern | CI/CD can fetch app ID, branch, region at deployment time |
 
 ### Roadmap Evolution
 
@@ -176,7 +182,7 @@ Recent decisions affecting current work:
 - Phase 4.3 inserted after Phase 4.2: Application organization and structural refactoring (URGENT)
 - Phase 4.4 inserted after Phase 4.3: E2E flow verification and infrastructure setup (URGENT)
 - Phase 11.1 inserted after Phase 11: Remove unused frontend infrastructure (URGENT)
-- Phase 11.2 inserted after Phase 11.1: Amplify Frontend Infrastructure - Pulumi provisions Amplify app for frontend SSR deployment (URGENT)
+- Phase 11.2 inserted after Phase 11.1: Amplify Frontend Infrastructure - Pulumi provisions Amplify app for frontend SSR deployment (URGENT) - COMPLETE
 
 ### Pending Todos
 
@@ -184,13 +190,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Frontend SSR deployment requires Amplify app setup in AWS Console (manual step)
+- ~~Frontend SSR deployment requires Amplify app setup in AWS Console (manual step)~~ (RESOLVED - Pulumi components created in Phase 11.2)
 - Pulumi CLI not installed locally - required before AWS infrastructure deployment
 - ~~Phase 10 S3+CloudFront frontend infrastructure unused due to Amplify SSR approach~~ (RESOLVED - removed in Phase 11.1)
 
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 11.1 Complete - Removed unused S3+CloudFront frontend infrastructure
+Stopped at: Phase 11.2 Plan 01 Complete - Amplify OIDC and frontend components created
 Resume file: None
-Phase 11.1 COMPLETE - Pulumi stack now clean and aligned with Amplify SSR deployment
+Phase 11.2-01 COMPLETE - Amplify infrastructure components ready for Pulumi stack integration
