@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 11 of 12 (Deployment Process) — In Progress
-Plan: 01 of 3 (Production Docker Image)
-Status: Plan 01 complete - multi-stage Dockerfile with 82.5MB image size
-Last activity: 2026-01-22 — Production Docker image for ECS deployment
+Plan: 02 of 3 (Amplify Frontend Deployment)
+Status: Plan 02 complete - Amplify SSR configuration with Lambda@Edge
+Last activity: 2026-01-22 — Amplify SSR hosting configuration for Next.js 15
 
-Progress: [█████████░] 84% of v1.0
+Progress: [█████████░] 86% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 74
+- Total plans completed: 75
 - Average duration: ~4 minutes
-- Total execution time: 4.7 hours
+- Total execution time: 4.8 hours
 
 **By Phase:**
 
@@ -42,10 +42,10 @@ Progress: [█████████░] 84% of v1.0
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
 | 10 | 9 | 9 | 6m |
-| 11 | 1 | 3 | 2m |
+| 11 | 2 | 3 | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 4m, 2m, 2m, 3m
+- Last 5 plans: 4m, 2m, 3m, 2m, 4m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -156,6 +156,9 @@ Recent decisions affecting current work:
 | Multi-stage Docker build for production | Separate builder and production stages for minimal runtime image | Dockerfile.prod uses node:20-alpine, TypeScript compiled at build time |
 | Non-root container user | Run as nodejs (uid 1001) instead of root for security | Production Dockerfile creates and uses non-root user |
 | Exclude test files from TypeScript compilation | Added src/**/__tests__/** and src/test/** to tsconfig exclude | Prevents dev dependency requirement in production Docker builds |
+| AWS Amplify SSR over S3+CloudFront static export | Bypasses Next.js 15 static export limitations with dynamic routes | Full SSR with Lambda@Edge, image optimization enabled |
+| force-dynamic route segment config | Ensures all pages render dynamically at request time | Data fetched at request time, not build time |
+| Amplify build configuration with amplify.yml | PreBuild/build/postBuild phases for CI/CD | Git-based deployment with automatic Lambda@Edge setup |
 
 ### Roadmap Evolution
 
@@ -170,12 +173,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Frontend static build requires backend running on port 8888 (expected behavior for SSR with data fetching)
+- Frontend SSR deployment requires Amplify app setup in AWS Console (manual step)
 - Pulumi CLI not installed locally - required before AWS infrastructure deployment
+- Phase 10 S3+CloudFront frontend infrastructure unused due to Amplify SSR approach (can be removed later)
 
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed Phase 11 Plan 01 (Production Docker Image) - multi-stage Dockerfile with health check
+Stopped at: Completed Phase 11 Plan 02 (Amplify Frontend Deployment) - SSR configuration
 Resume file: None
-Phase 11 Plan 01 COMPLETE - Ready to begin Plan 02 (CI/CD Pipeline)
+Phase 11 Plan 02 COMPLETE - Ready to begin Plan 03 (Deployment Automation)
