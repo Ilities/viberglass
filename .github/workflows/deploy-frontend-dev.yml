@@ -1,0 +1,141 @@
+# Frontend deployment workflow for dev environment
+# Triggers Amplify deployment on push to main branch
+
+name: Deploy Frontend (Dev)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'platform/frontend/**'
+      - 'packages/types/**'
+      - '.github/workflows/deploy-frontend-dev.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Dev (Amplify)
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+      url: ${{ steps.amplify.outputs.appUrl }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Get Dev backend URL from Pulumi stack
+        id: pulumi-outputs
+        run: |
+          # Get backend URL from Pulumi stack output (or SSM parameter)
+          API_URL=$(aws ssm get-parameter \
+            --name "/viberator/dev/frontend/apiUrl" \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text 2>/dev/null || echo "https://dev-api.viberator.internal")
+
+          echo "backendUrl=$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Build frontend with environment variables
+        run: npm run build -w @viberator/frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.pulumi-outputs.outputs.backendUrl }}
+
+      - name: Start Amplify deployment
+        id: amplify
+        run: |
+          # Get Amplify app ID and branch from secrets
+          APP_ID=${{ secrets.DEV_AMPLIFY_APP_ID }}
+          BRANCH_NAME=${{ secrets.DEV_AMPLIFY_BRANCH || 'main' }}
+
+          if [ -z "$APP_ID" ]; then
+            echo "::warning::DEV_AMPLIFY_APP_ID not set. Skipping Amplify deployment trigger."
+            echo "deploymentTriggered=false" >> $GITHUB_OUTPUT
+            echo "appUrl=https://dev.example.com" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME"
+
+          # Trigger Amplify deployment using AWS CLI
+          DEPLOYMENT_ID=$(aws amplify start-deployment \
+            --app-id "$APP_ID" \
+            --branch-name "$BRANCH_NAME" \
+            --source-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --query 'jobSummary.id' \
+            --output text)
+
+          echo "Deployment started with ID: $DEPLOYMENT_ID"
+          echo "deploymentId=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "deploymentTriggered=true" >> $GITHUB_OUTPUT
+
+          # Get the app URL for environment linking
+          APP_URL=$(aws amplify get-app \
+            --app-id "$APP_ID" \
+            --query 'app.defaultDomain' \
+            --output text)
+
+          echo "appUrl=https://$APP_URL" >> $GITHUB_OUTPUT
+
+      - name: Wait for Amplify deployment to complete
+        if: steps.amplify.outputs.deploymentTriggered == 'true'
+        run: |
+          APP_ID=${{ secrets.DEV_AMPLIFY_APP_ID }}
+          BRANCH_NAME=${{ secrets.DEV_AMPLIFY_BRANCH || 'main' }}
+          DEPLOYMENT_ID=${{ steps.amplify.outputs.deploymentId }}
+
+          echo "Waiting for deployment $DEPLOYMENT_ID to complete..."
+          TIMEOUT=600  # 10 minutes
+          ELAPSED=0
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            STATUS=$(aws amplify get-job \
+              --app-id "$APP_ID" \
+              --branch-name "$BRANCH_NAME" \
+              --job-id "$DEPLOYMENT_ID" \
+              --query 'job.summary.status' \
+              --output text)
+
+            echo "Current status: $STATUS"
+
+            if [ "$STATUS" = "SUCCEED" ]; then
+              echo "✓ Deployment succeeded"
+              exit 0
+            elif [ "$STATUS" = "FAIL" ]; then
+              echo "✗ Deployment failed"
+              aws amplify get-job \
+                --app-id "$APP_ID" \
+                --branch-name "$BRANCH_NAME" \
+                --job-id "$DEPLOYMENT_ID" \
+                --query 'job.summary' \
+                --output table
+              exit 1
+            elif [ "$STATUS" = "TIMEDOUT" ]; then
+              echo "✗ Deployment timed out"
+              exit 1
+            fi
+
+            sleep 15
+            ELAPSED=$((ELAPSED + 15))
+          done
+
+          echo "::warning::Deployment wait timed out after $TIMEOUT seconds"
+          exit 1
