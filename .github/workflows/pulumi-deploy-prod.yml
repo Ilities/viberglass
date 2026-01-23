@@ -1,0 +1,73 @@
+# Pulumi Production Deployment Workflow
+# Manually triggered with approval gates for production infrastructure changes
+
+name: Pulumi Deploy (Prod)
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for deployment'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: pulumi-deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Infrastructure to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Display deployment reason
+        run: |
+          echo "Deployment reason: ${{ github.event.inputs.reason }}"
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Install Pulumi CLI
+        uses: pulumi/setup-pulumi@v3
+
+      - name: Install infrastructure dependencies
+        working-directory: infrastructure
+        run: npm ci
+
+      - name: Run Pulumi up (prod stack)
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: prod
+          work-dir: infrastructure
+          diff: true
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "Production stack deployment completed"
+          echo "Check Pulumi Cloud for full stack outputs: https://app.pulumi.com/"
+          echo ""
+          echo "IMPORTANT: Verify all resources are healthy before closing this workflow run"
