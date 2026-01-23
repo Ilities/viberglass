@@ -12,6 +12,8 @@ import { createDatabase, DatabaseOutputs } from "./components/database";
 import { createLogging, LoggingOutputs } from "./components/logging";
 import { createLoadBalancer, LoadBalancerOutputs } from "./components/load-balancer";
 import { createBackendEcs, createBackendService, BackendEcsOutputs } from "./components/backend-ecs";
+import { createAmplifyOidc, AmplifyOidcOutputs } from "./components/amplify-oidc";
+import { createAmplifyFrontend, AmplifyFrontendOutputs } from "./components/amplify-frontend";
 
 /**
  * Viberator Infrastructure Stack
@@ -226,6 +228,20 @@ const backendS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
   }
 );
 
+// Create OIDC provider for GitHub Actions Amplify deployment
+const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
+  config,
+  githubRepository: "jussijormanainen/viberator", // TODO: make configurable
+});
+
+// Create Amplify frontend app and branch
+const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
+  config,
+  backendUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}`, // From existing ALB output
+  branchName: config.environment === "prod" ? "production" : "main",
+  stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
+});
+
 // Export stack outputs
 export const awsRegion = config.awsRegion;
 export const environment = config.environment;
@@ -306,3 +322,13 @@ export const albArn = loadBalancer.albArn;
 export const albTargetGroupArn = loadBalancer.targetGroupArn;
 export const albTargetGroupName = loadBalancer.targetGroupName;
 export const albSecurityGroupId = loadBalancer.albSecurityGroupId;
+
+// Amplify outputs
+export const amplifyAppId = amplifyFrontend.appId;
+export const amplifyAppArn = amplifyFrontend.appArn;
+export const amplifyDefaultDomain = amplifyFrontend.defaultDomain;
+export const amplifyBranchName = amplifyFrontend.branchName;
+export const amplifyOidcRoleArn = amplifyOidc.roleArn;
+export const amplifySsmAppIdPath = amplifyFrontend.ssmAppIdPath;
+export const amplifySsmBranchNamePath = amplifyFrontend.ssmBranchNamePath;
+export const amplifySsmRegionPath = amplifyFrontend.ssmRegionPath;
