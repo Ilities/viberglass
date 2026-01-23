@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 11.2 of 12 (Amplify Frontend Infrastructure) — COMPLETE
-Plan: 2 of 2
-Status: Phase 11.2 COMPLETE - Amplify components integrated into Pulumi stack
-Last activity: 2026-01-23 — Integrated Amplify OIDC and frontend components into main infrastructure stack
+Plan: 3 of 3
+Status: Phase 11.2 COMPLETE - Amplify IaC-to-CI/CD integration complete, workflows use SSM parameters
+Last activity: 2026-01-23 — Updated GitHub Actions workflows to read Amplify config from SSM, documented Amplify infrastructure
 
 Progress: [█████████░] 94% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 88
+- Total plans completed: 89
 - Average duration: ~4 minutes
-- Total execution time: 5.5 hours
+- Total execution time: 5.6 hours
 
 **By Phase:**
 
@@ -44,10 +44,10 @@ Progress: [█████████░] 94% of v1.0
 | 10 | 9 | 9 | 6m |
 | 11 | 5 | 5 | 3m |
 | 11.1 | 1 | 1 | 3m |
-| 11.2 | 2 | 2 | 2.5m |
+| 11.2 | 3 | 3 | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 3m, 4m, 3m, 4m, 1m
+- Last 5 plans: 3m, 4m, 1m, 3m, 5m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -175,6 +175,9 @@ Recent decisions affecting current work:
 | GitHub Actions-driven Amplify builds | enableAutoBuild: false builds via GitHub Actions workflows | Consistent with existing CI/CD approach |
 | SSM for Amplify configuration storage | Parameters follow /viberator/{environment}/amplify/* pattern | CI/CD can fetch app ID, branch, region at deployment time |
 | Direct loadBalancer interpolation in Amplify | Use pulumi.interpolate`http://${loadBalancer.albDnsName}` directly to avoid forward reference | Amplify component receives backend URL without TypeScript error |
+| SSM-driven CI/CD configuration for Amplify | GitHub Actions workflows read Amplify config from SSM parameters instead of hardcoded secrets | Pulumi is single source of truth for Amplify provisioning, workflows automatically adapt to IaC changes |
+| Production workflow exits on missing SSM | Production deployment fails with error if SSM parameters not found (no graceful degradation) | Production requires IaC provisioning, prevents silent failures |
+| Dynamic region parameterization in workflows | Amplify workflows use --region "$REGION" from SSM instead of hardcoded region | Supports Amplify apps in any AWS region, cross-region deployments |
 
 ### Roadmap Evolution
 
@@ -198,6 +201,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 11.2 Plan 02 Complete - Amplify components integrated into Pulumi stack
+Stopped at: Phase 11.2 Plan 03 Complete - GitHub Actions workflows read Amplify config from SSM, infrastructure documented
 Resume file: None
-Phase 11.2-02 COMPLETE - Amplify infrastructure IaC complete, ready for Phase 12
+Phase 11.2 COMPLETE - All Amplify infrastructure automated and documented, ready for Phase 12
