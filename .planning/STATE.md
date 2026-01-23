@@ -6,23 +6,23 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 10: AWS Infrastructure
+**Current focus:** Phase 12: Secret Management
 
 ## Current Position
 
-Phase: 9 of 12 (Local Development) — COMPLETE
-Next: Plan Phase 10 (AWS Infrastructure) or discuss requirements
-Status: Phase 9 verified, 17/17 must-haves passed
-Last activity: 2026-01-22 — Local Development environment with Docker Compose
+Phase: 11.2 of 12 (Amplify Frontend Infrastructure) — COMPLETE
+Plan: 3 of 3
+Status: Phase 11.2 COMPLETE - Amplify IaC-to-CI/CD integration complete, workflows use SSM parameters
+Last activity: 2026-01-23 — Updated GitHub Actions workflows to read Amplify config from SSM, documented Amplify infrastructure
 
-Progress: [████████░░] 75% of v1.0
+Progress: [█████████░] 94% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 64
+- Total plans completed: 89
 - Average duration: ~4 minutes
-- Total execution time: 3.6 hours
+- Total execution time: 5.6 hours
 
 **By Phase:**
 
@@ -41,9 +41,13 @@ Progress: [████████░░] 75% of v1.0
 | 07 | 4 | 4 | 2.5m |
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
+| 10 | 9 | 9 | 6m |
+| 11 | 5 | 5 | 3m |
+| 11.1 | 1 | 1 | 3m |
+| 11.2 | 3 | 3 | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 6m, 2m, 2m, 1m
+- Last 5 plans: 3m, 4m, 1m, 3m, 5m
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -120,6 +124,60 @@ Recent decisions affecting current work:
 | No version attribute in compose | version field is obsolete in modern Docker Compose v2 | docker-compose.yml uses native format |
 | Documentation-first developer onboarding | README provides quick start, docs/LOCAL_DEVELOPMENT.md provides detailed guide | New developers can start with single command |
 | Legacy file deprecation pattern | Add deprecation notice header instead of deleting files | Backward compatibility maintained while guiding to new approach |
+| Top-level infrastructure/ directory | More intuitive location, removes awkward viberator/infrastructure/infra/ nesting | Pulumi project at repo root with modular components |
+| Modular component architecture | Each AWS resource type in its own file with factory function | Component pattern for registry, queue, worker-lambda, worker-ecs |
+| Pulumi stack configuration templates | .yaml.example files tracked in git, actual .yaml files gitignored | Clear separation of template vs. sensitive config |
+| Resource naming pattern | ${environment}-viberator-{resource} for all AWS resources | Easily identifiable resources across environments |
+| getConfig() centralization | Single function loads all Pulumi config with type safety | Consistent config access across components |
+| Old infrastructure preservation | Keep viberator/infrastructure/infra/ during migration for rollback safety | Allows rollback if issues with new structure |
+| Single NAT gateway for non-production | Reduces AWS costs by ~$30/month per NAT gateway | Dev/staging use single NAT, prod uses multi-NAT for HA |
+| Component-based VPC pattern | Reusable VpcComponent class encapsulates all networking resources | VPC, subnets, NAT gateways, and security groups in one component |
+| Security group references over CIDR | Inter-service communication uses SG references instead of CIDR blocks | Better security posture for RDS-worker-backend communication |
+| S3 lifecycle policies by environment | Dev: 90-day expiration, Staging: version cleanup, Prod: Glacier archiving | Cost-optimized storage tiering based on environment |
+| AES-256 for S3 encryption | Server-side encryption with bucket key enabled for cost optimization | Secure file storage with minimal KMS cost |
+| Random password generation for RDS | Use pulumi/random RandomPassword resource instead of hardcoded credentials | Secure credential generation with SSM SecureString storage |
+| Environment-aware RDS sizing | Database instance class scales with environment (db.t4g.micro → db.t4g.large → db.m6g.xlarge) | Cost-optimized database for dev/staging, HA for production |
+| PostgreSQL 16 for new RDS instances | Using latest PostgreSQL major version for new installations | Modern features and performance improvements |
+| SSM SecureString for all DB credentials | Password and connection URL stored as SecureString with KMS encryption | Secure credential storage without hardcoding |
+| Multi-AZ only for production | Dev/staging use single-AZ for cost savings, prod uses multi-AZ for HA | Balance between cost and availability |
+| Customer-managed KMS for SSM | Use customer-managed key instead of AWS default for better control and compliance visibility | KMS key with annual rotation for all SecureString parameters |
+| KMS decrypt permissions via inline policies | Attach inline IAM policies to Lambda/ECS roles for kms:Decrypt and kms:GenerateDataKey* | Compute roles can decrypt SSM parameters encrypted with customer key |
+| KMS alias naming convention | alias/viberator-{environment}-ssm for consistent cross-environment reference | Easy identification in CloudTrail and compliance reports |
+| Centralized logging component pattern | Single createLogging() function for all CloudWatch log groups with environment-based retention defaults | Consistent log management: dev=7, staging=30, prod=90 days |
+| HTTP-only ALB for MVP with optional HTTPS | Load balancer defaults to HTTP, HTTPS requires ACM certificate ARN | Simplifies dev setup, production can add certificate |
+| Backend ECS service reuses worker cluster | Single ECS cluster hosts both worker and backend tasks | Cost-effective versus separate clusters |
+| ALB target group port 80, backend port 3000 | SSL termination at ALB, container uses internal port | Simplifies certificate management |
+| Auto-scaling targets: CPU 70%, Memory 80% | Target tracking policies with 300s cooldown | Balances responsiveness with stability |
+| Frontend S3+CloudFront with OAC | Origin Access Control instead of public S3 bucket for security | S3 bucket blocks all public access, CloudFront is only entry point |
+| CloudFront price class by environment | PriceClass_100 for dev/staging, All for production | Optimizes costs while maintaining global reach for prod |
+| SPA routing via CloudFront error responses | Returns 200 with /index.html for 403/404 errors | Supports Next.js client-side routing without custom routes |
+| SSM parameters for frontend build config | API URL and CDN URL stored in SSM for CI/CD injection | NEXT_PUBLIC_ variables embedded during static build |
+| Mermaid diagrams for infrastructure docs | Renders in GitHub without external dependencies, easy to update | Architecture, network, data flow, and security diagrams in README |
+| .yaml.example pattern for Pulumi configs | Actual config files gitignored, examples show all options with comments | Clear separation of template vs sensitive configuration |
+| Single comprehensive README | 667-line document covering all aspects of infrastructure | Easier to maintain than split documentation, fully searchable |
+| Multi-stage Docker build for production | Separate builder and production stages for minimal runtime image | Dockerfile.prod uses node:20-alpine, TypeScript compiled at build time |
+| Non-root container user | Run as nodejs (uid 1001) instead of root for security | Production Dockerfile creates and uses non-root user |
+| Exclude test files from TypeScript compilation | Added src/**/__tests__/** and src/test/** to tsconfig exclude | Prevents dev dependency requirement in production Docker builds |
+| AWS Amplify SSR over S3+CloudFront static export | Bypasses Next.js 15 static export limitations with dynamic routes | Full SSR with Lambda@Edge, image optimization enabled |
+| force-dynamic route segment config | Ensures all pages render dynamically at request time | Data fetched at request time, not build time |
+| Amplify build configuration with amplify.yml | PreBuild/build/postBuild phases for CI/CD | Git-based deployment with automatic Lambda@Edge setup |
+| GitHub Actions for Amplify deployment | OIDC auth with aws amplify start-deployment CLI | Automated dev deployment, manual staging/prod with approval gates |
+| Amplify polling for deployment verification | Wait loop with aws amplify get-job status checks | Confirms deployment completion before marking success |
+| Monorepo path filtering for CI/CD | Workflows trigger on specific path patterns | Only builds affected workspaces on changes |
+| Pulumi preview on PR | Infrastructure changes show pulumi preview as PR comments | Dev stack as baseline for preview comparisons |
+| Automated dev Pulumi deployment | Infrastructure deploys to dev on main merge | pulumi up runs automatically for dev stack |
+| Manual prod Pulumi deployment | Prod requires workflow_dispatch with approval | Production infrastructure changes are intentional |
+| Pulumi concurrency control | Prevents simultaneous pulumi operations | group: pulumi-${{ github.workflow }} |
+| Remove unused S3+CloudFront frontend infrastructure | Amplify SSR is actual deployment method, Pulumi code never deployed | Saves $15-20/month, aligns infrastructure with production |
+| Separate OIDC provider for Amplify deployment | Creates distinct OpenID Connect provider and IAM role for Amplify (not reuse Pulumi OIDC) | Separation of concerns between infrastructure provisioning and application deployment |
+| WEB_COMPUTE platform for Amplify SSR | platform: "WEB_COMPUTE" enables Next.js SSR with Lambda@Edge | Full SSR support instead of static hosting |
+| Auto-branch creation disabled for security | enableAutoBranchCreation: false prevents unauthorized branches | Only explicitly configured branches can be deployed |
+| GitHub Actions-driven Amplify builds | enableAutoBuild: false builds via GitHub Actions workflows | Consistent with existing CI/CD approach |
+| SSM for Amplify configuration storage | Parameters follow /viberator/{environment}/amplify/* pattern | CI/CD can fetch app ID, branch, region at deployment time |
+| Direct loadBalancer interpolation in Amplify | Use pulumi.interpolate`http://${loadBalancer.albDnsName}` directly to avoid forward reference | Amplify component receives backend URL without TypeScript error |
+| SSM-driven CI/CD configuration for Amplify | GitHub Actions workflows read Amplify config from SSM parameters instead of hardcoded secrets | Pulumi is single source of truth for Amplify provisioning, workflows automatically adapt to IaC changes |
+| Production workflow exits on missing SSM | Production deployment fails with error if SSM parameters not found (no graceful degradation) | Production requires IaC provisioning, prevents silent failures |
+| Dynamic region parameterization in workflows | Amplify workflows use --region "$REGION" from SSM instead of hardcoded region | Supports Amplify apps in any AWS region, cross-region deployments |
 
 ### Roadmap Evolution
 
@@ -127,6 +185,8 @@ Recent decisions affecting current work:
 - Phase 4.2 inserted after Phase 4.1: Testing (URGENT)
 - Phase 4.3 inserted after Phase 4.2: Application organization and structural refactoring (URGENT)
 - Phase 4.4 inserted after Phase 4.3: E2E flow verification and infrastructure setup (URGENT)
+- Phase 11.1 inserted after Phase 11: Remove unused frontend infrastructure (URGENT)
+- Phase 11.2 inserted after Phase 11.1: Amplify Frontend Infrastructure - Pulumi provisions Amplify app for frontend SSR deployment (URGENT) - COMPLETE
 
 ### Pending Todos
 
@@ -134,11 +194,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Frontend static build requires backend running on port 8888 (expected behavior for SSR with data fetching)
+- ~~Frontend SSR deployment requires Amplify app setup in AWS Console (manual step)~~ (RESOLVED - Pulumi components created in Phase 11.2)
+- Pulumi CLI not installed locally - required before AWS infrastructure deployment
+- ~~Phase 10 S3+CloudFront frontend infrastructure unused due to Amplify SSR approach~~ (RESOLVED - removed in Phase 11.1)
 
 ## Session Continuity
 
-Last session: 2026-01-22
-Stopped at: Completed 09-03-PLAN.md - Local Development Documentation
+Last session: 2026-01-23
+Stopped at: Phase 11.2 Plan 03 Complete - GitHub Actions workflows read Amplify config from SSM, infrastructure documented
 Resume file: None
-Phase 9 (Local Development) COMPLETE - 3 of 3 plans complete
+Phase 11.2 COMPLETE - All Amplify infrastructure automated and documented, ready for Phase 12

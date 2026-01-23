@@ -10,11 +10,11 @@ import { PencilIcon } from '@heroicons/react/16/solid'
 import { notFound } from 'next/navigation'
 import { ClankerActions } from './clanker-actions'
 
-interface ClankerPageProps {
-  params: Promise<{ slug: string }>
+export const generateStaticParams = async () => {
+  return []
 }
 
-export default async function ClankerPage({ params }: ClankerPageProps) {
+export default async function ClankerPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const clanker = await getClankerBySlug(slug)
 

@@ -1,6 +1,36 @@
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as path from "path";
+import * as pulumi from "@pulumi/pulumi";
+import { createVpc, type VpcConfig } from "../components/vpc";
+
+// Get stack configuration
+const config = new pulumi.Config();
+const environment = pulumi.getStack();
+const vpcCidr = config.get("vpcCidr") || "10.0.0.0/16";
+const singleNatGateway = config.getBoolean("singleNatGateway") ?? (environment !== "prod");
+const backendPort = config.getNumber("backendPort") || 3000;
+
+// Create VPC networking
+const vpcOutputs = createVpc("viberator", {
+  vpcCidr,
+  availabilityZones: ["us-east-1a", "us-east-1b"],
+  singleNatGateway,
+  environment,
+  projectName: "viberator",
+  backendPort,
+});
+
+// Export VPC outputs
+export const vpcId = vpcOutputs.vpcId;
+export const publicSubnetIds = vpcOutputs.publicSubnetIds;
+export const privateSubnetIds = vpcOutputs.privateSubnetIds;
+export const natGatewayIds = vpcOutputs.natGatewayIds;
+export const natGatewayPublicIps = vpcOutputs.natGatewayPublicIps;
+export const internetGatewayId = vpcOutputs.internetGatewayId;
+export const backendSecurityGroupId = vpcOutputs.backendSecurityGroupId;
+export const rdsSecurityGroupId = vpcOutputs.rdsSecurityGroupId;
+export const workerSecurityGroupId = vpcOutputs.workerSecurityGroupId;
 
 // Create an ECR repository
 const repo = new awsx.ecr.Repository("viberator-repo", {
@@ -91,11 +121,12 @@ new aws.lambda.EventSourceMapping("viberator-sqs-trigger", {
 // ========== ECS Worker Infrastructure ==========
 // ECS cluster for running ephemeral workers
 const cluster = new aws.ecs.Cluster("viberator-ecs-cluster", {
-  settings: {
-
-    name: "containerInsights",
-    value: "enabled",
-  },
+  settings: [
+    {
+      name: "containerInsights",
+      value: "enabled",
+    },
+  ],
 });
 
 // Build and publish the ECS worker container image

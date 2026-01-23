@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Multi-Tenant Security Foundation** - Cloud-agnostic credential storage interface with AWS SSM provider implementation
 - [x] **Phase 2: Result Callback** - Workers POST results to platform API
 - [x] **Phase 3: Worker Configuration** - Workers receive config via payload (no platform API calls)
-- [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers
+- [x] **Phase 4: Worker Execution** - Platform invokes Lambda/ECS/Docker workers asynchronously via AWS SDK with retry logic
 - [x] **Phase 4.1: Allow Frontend to Invoke Workers** - Frontend initiates jobs from tickets (INSERTED)
 - [x] **Phase 4.2: Testing** - Pragmatic testing for worker execution flow (INSERTED)
 - [x] **Phase 4.3: Application organization and structural refactoring** - Code organization improvements (INSERTED)
@@ -25,8 +25,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Clanker Runtime Status** - Workers POST heartbeat and progress updates
 - [x] **Phase 8: Webhook Provider Architecture** - Provider-agnostic webhook integration with GitHub as first implementation
 - [x] **Phase 9: Local Development** - Docker compose environment for local development
-- [ ] **Phase 10: AWS Infrastructure** - Pulumi stack provisions cloud resources and AWS credential provider
-- [ ] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
+- [x] **Phase 10: AWS Infrastructure** - Pulumi stack provisions complete AWS infrastructure
+- [x] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
+- [x] **Phase 11.1: Remove Unused Frontend Infrastructure** - Clean up deprecated S3+CloudFront static hosting (INSERTED)
+- [x] **Phase 11.2: Amplify Frontend Infrastructure** - Pulumi provisions Amplify app for frontend SSR deployment (INSERTED)
 - [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
 ## Phase Details
@@ -387,15 +389,38 @@ Plans:
 
 ### Phase 10: AWS Infrastructure
 
-**Goal**: Pulumi stack provisions complete AWS infrastructure.
+**Goal**: Pulumi stack provisions complete AWS infrastructure for production deployment.
 
 **Depends on**: Phase 9
 
 **Requirements**: DEP-01
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. Pulumi infrastructure at `infrastructure/` with multi-stack support (dev/staging/prod)
+2. VPC with public/private subnets across 2 AZs, NAT gateways for private egress
+3. RDS PostgreSQL in private subnets with credentials in SSM
+4. S3 bucket for file uploads with encryption and lifecycle policies
+5. KMS key for SSM parameter encryption
+6. CloudWatch log groups for all compute resources
+7. ECS Fargate service for backend API with Application Load Balancer
+8. S3+CloudFront for frontend static hosting (unused - see Phase 11)
+9. Worker infrastructure (Lambda and ECS) configured
+10. Comprehensive documentation for deployment and operations
 
-**Status**: Not started
+**Plans**: 9 plans in 5 waves
+
+**Status**: Complete (2026-01-23)
+
+Plans:
+- [x] 10-01-PLAN.md — Reorganize Pulumi infrastructure to proper location with multi-stack support (dev/staging/prod)
+- [x] 10-02-PLAN.md — Create VPC networking with public/private subnets, NAT gateways, and security groups
+- [x] 10-03-PLAN.md — Create RDS PostgreSQL with subnet group, parameter group, and SSM credential storage
+- [x] 10-04-PLAN.md — Create S3 bucket for file uploads with encryption and lifecycle policies
+- [x] 10-05-PLAN.md — Create KMS key for SSM parameter encryption
+- [x] 10-06-PLAN.md — Create CloudWatch log groups with retention policies
+- [x] 10-07-PLAN.md — Create ECS Fargate service and Application Load Balancer for backend API
+- [x] 10-08-PLAN.md — Create S3+CloudFront for frontend static hosting
+- [x] 10-09-PLAN.md — Complete infrastructure wiring and create comprehensive documentation
 
 ---
 
@@ -407,9 +432,98 @@ Plans:
 
 **Requirements**: DEP-02, DEP-03, DEP-04
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. Production Dockerfile builds optimized backend container image
+2. Frontend builds for Amplify SSR deployment (dynamic rendering, not static export)
+3. GitHub Actions CI runs tests on PRs
+4. Backend deploys to ECS with migrations on push to main (dev)
+5. Frontend deploys to Amplify on push to main (dev)
+6. Prod deployments require manual trigger with approval
+7. Pulumi preview runs on infrastructure PRs
+8. Pulumi up runs for dev infrastructure on merge to main
+9. OIDC authentication used for all AWS access
+10. Two environments: dev (auto-deploy) and prod (manual with approval)
 
-**Status**: Not started
+**Plans**: 5 plans in 3 waves
+
+**Status**: Complete (2026-01-23)
+
+Plans:
+- [x] 11-01-PLAN.md — Create production Dockerfile for backend with multi-stage build
+- [x] 11-02-PLAN.md — Configure Next.js for Amplify SSR deployment
+- [x] 11-03-PLAN.md — Verify and finalize GitHub Actions workflows for backend CI/CD
+- [x] 11-04-PLAN.md — Create GitHub Actions workflows for frontend CI/CD
+- [x] 11-05-PLAN.md — Create GitHub Actions workflows for Pulumi infrastructure
+
+**Notes**:
+- Frontend deployment uses AWS Amplify SSR (not S3+CloudFront static export) to support Next.js 15 dynamic routes
+- Phase 10's S3+CloudFront frontend infrastructure remains but is unused
+- Backend CI/CD workflows verified (CI, dev, prod with OIDC)
+- Pulumi workflows created (preview, dev, prod)
+
+---
+
+### Phase 11.1: Remove Unused Frontend Infrastructure (INSERTED)
+
+**Goal**: Remove the unused S3+CloudFront frontend static hosting infrastructure from Pulumi stack, since Amplify SSR is now the deployment method.
+
+**Depends on**: Phase 11
+
+**Requirements**: None (cleanup/technical debt)
+
+**Success Criteria** (what must be TRUE):
+1. S3 bucket for frontend static hosting removed from Pulumi stack
+2. CloudFront distribution removed from Pulumi stack
+3. CloudFront OAC (Origin Access Control) removed from Pulumi stack
+4. SSM parameters for frontend CDN URL removed (no longer needed)
+5. Pulumi up succeeds without errors
+6. Documentation updated to reflect Amplify-only deployment
+
+**Plans**: 1 plan in 1 wave
+
+**Status**: Complete (2026-01-23)
+
+Plans:
+- [x] 11.1-01-PLAN.md — Remove S3+CloudFront frontend infrastructure from Pulumi stack
+
+**Details**:
+Phase 10 created S3+CloudFront infrastructure for static hosting, but Phase 11 switched to Amplify SSR for Next.js 15 dynamic route support. The static hosting resources are now unused and should be removed to:
+- Reduce AWS costs (~$15-20/month for CloudFront)
+- Avoid confusion about deployment method
+- Simplify infrastructure maintenance
+
+---
+
+### Phase 11.2: Amplify Frontend Infrastructure (INSERTED)
+
+**Goal**: Pulumi provisions AWS Amplify app and related infrastructure for frontend SSR deployment.
+
+**Depends on**: Phase 11.1
+
+**Requirements**: None (urgent insertion - Amplify infrastructure)
+
+**Success Criteria** (what must be TRUE):
+1. Pulumi Amplify component provisions Amplify app with proper branch settings
+2. IAM role with OIDC provider for GitHub Actions deployment
+3. SSM parameters store Amplify app ID, branch name, and region
+4. Environment variables configured for Amplify build (API URL from SSM)
+5. Auto-branch creation disabled for security
+6. Documentation updated for Amplify infrastructure provisioning
+
+**Plans**: 3 plans in 3 waves
+
+**Status**: Complete (2026-01-23)
+
+Plans:
+- [x] 11.2-01-PLAN.md — Create Amplify OIDC and frontend components
+- [x] 11.2-02-PLAN.md — Integrate Amplify components into main Pulumi stack
+- [x] 11.2-03-PLAN.md — Update GitHub Actions workflows and documentation
+
+**Details**:
+Phase 11 configured Amplify SSR deployment, but the Amplify app itself must be created manually in the AWS Console. This phase adds Pulumi infrastructure to provision the Amplify app programmatically, enabling:
+- Infrastructure-as-Code for complete AWS stack
+- Reproducible deployments across environments
+- No manual console steps for new environments
 
 ---
 
@@ -417,10 +531,34 @@ Plans:
 
 **Goal**: Provider-based secret management for all deployment targets.
 
-**Depends on**: Phase 11
+**Depends on**: Phase 11.2
 
 **Requirements**: DEP-05
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. SecretProvider interface defines getSecret/putSecret/deleteSecret operations for deployment-time secrets
+2. SsmSecretProvider implements SecretProvider using /viberator/{environment}/{category}/{key} path hierarchy
+3. Pulumi secrets component provisions SSM parameters for all deployment configurations
+4. GitHub Actions workflows use environment-specific secrets without hardcoded values
+5. Documentation covers GitHub environment setup, SSM configuration, and troubleshooting
 
-**Status**: Not started
+**SecretProvider Interface Pattern**:
+```typescript
+interface SecretProvider {
+  getSecret(environment: string, key: string): Promise<string | null>
+  putSecret(environment: string, key: string, value: string, options?: SecretOptions): Promise<void>
+  deleteSecret(environment: string, key: string): Promise<void>
+  isAvailable(): Promise<boolean>
+}
+```
+
+**Plans**: 5 plans in 3 waves
+
+**Status**: Planning
+
+Plans:
+- [ ] 12-01-PLAN.md — Create SecretProvider interface and SsmSecretProvider implementation
+- [ ] 12-02-PLAN.md — Create Pulumi secrets component for SSM parameter provisioning
+- [ ] 12-03-PLAN.md — Update backend deployment workflows to use centralized secrets
+- [ ] 12-04-PLAN.md — Update frontend deployment workflows to use centralized secrets
+- [ ] 12-05-PLAN.md — Create deployment secrets documentation and GitHub quick reference

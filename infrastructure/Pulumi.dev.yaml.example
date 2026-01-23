@@ -1,0 +1,30 @@
+# Development stack configuration
+# Copy this file to Pulumi.dev.yaml and update with your values
+# Usage: pulumi stack select dev
+
+encryptionsalt:
+  - v1:YOUR_SALT_HERE
+
+config:
+  # AWS region for all resources
+  aws:region: us-east-1
+  viberator:awsRegion: us-east-1
+
+  # Environment name (dev, staging, prod)
+  # Affects resource naming, log retention, and cost optimizations
+  viberator:environment: dev
+
+  # Enable Fargate Spot for cost savings (70% discount)
+  # Workers may be interrupted with 2-minute notice
+  viberator:enableSpot: "true"
+
+  # Enable ECS Container Insights for enhanced monitoring
+  # Adds CloudWatch metrics for CPU/memory, network, storage
+  viberator:containerInsights: "true"
+
+  # Database configuration (optional - defaults shown)
+  # Valid instance classes: db.t4g.micro, db.t4g.large, db.m6g.xlarge, etc.
+  # viberator:dbInstanceClass: db.t4g.micro
+  # viberator:dbAllocatedStorage: 20
+  # viberator:singleNatGateway: "true"
+  # viberator:logRetentionDays: 7

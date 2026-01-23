@@ -1,0 +1,130 @@
+# Backend Production Deployment Workflow
+# Manually deploys backend to production environment with approval gate
+name: Deploy Backend (Production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to confirm production deployment'
+        required: true
+        default: 'NO'
+        type: choice
+        options:
+          - NO
+          - YES
+
+permissions:
+  id-token: write   # Required for OIDC authentication
+  contents: read    # Required for checkout
+
+env:
+  AWS_REGION: us-east-1
+  ENVIRONMENT: prod
+  ECS_CLUSTER: prod-viberator-cluster
+  ECS_SERVICE: prod-viberator-backend
+  ECR_REPOSITORY: viberator-backend
+
+jobs:
+  confirm-deployment:
+    name: Confirm Deployment
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm != 'YES'
+    steps:
+      - name: Abort deployment
+        run: |
+          echo "::error::Deployment aborted. Please set 'confirm' to YES to proceed."
+          exit 1
+
+  deploy:
+    name: Build and Deploy to Production
+    runs-on: ubuntu-latest
+    needs: confirm-deployment
+    if: github.event.inputs.confirm == 'YES'
+    environment:
+      name: prod
+      url: https://${{ env.ECS_CLUSTER }}.elb.${{ env.AWS_REGION }}.amazonaws.com
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: platform/backend/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Get DATABASE_URL from SSM
+        id: get-db-url
+        run: |
+          DB_URL=$(aws ssm get-parameter \
+            --name "/viberator/${{ env.ENVIRONMENT }}/database/url" \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text)
+          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
+
+      - name: Run database migrations
+        run: |
+          npm ci --legacy-peer-deps
+          npm run migrate:latest -w @viberator/platform-backend
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Register new task definition
+        id: register-task
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_SERVICE }} \
+            --query 'taskDefinition' \
+            --output json)
+          echo "$TASK_DEF" > task-definition.json
+          # Update image URI in task definition
+          NEW_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          jq --arg image "$NEW_IMAGE" '.containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
+          # Register new task definition revision
+          aws ecs register-task-definition \
+            --cli-input-json file://task-definition-updated.json > task-definition-registered.json
+          NEW_TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' task-definition-registered.json)
+          echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service with extended stability wait
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.register-task.outputs.task_definition_arn }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          # Production uses longer wait times for safety
+
+      - name: Deployment summary
+        run: |
+          echo "### Deployed to Production :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service:** ${{ env.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster:** ${{ env.ECS_CLUSTER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Task Definition:** ${{ steps.register-task.outputs.task_definition_arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo " Deployment completed successfully. Monitor logs in CloudWatch." >> $GITHUB_STEP_SUMMARY

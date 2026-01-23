@@ -1,0 +1,7 @@
+# Production environment configuration
+# High availability: NAT gateways in both AZs
+config:
+  viberator-infra:vpcCidr: 10.0.0.0/16
+  viberator-infra:singleNatGateway: false
+  viberator-infra:backendPort: 3000
+  aws:region: us-east-1

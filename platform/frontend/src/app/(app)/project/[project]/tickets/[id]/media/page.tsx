@@ -5,6 +5,10 @@ import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getTicketDetai
 import { ArrowLeftIcon } from '@heroicons/react/20/solid'
 import { notFound } from 'next/navigation'
 
+export const generateStaticParams = async () => {
+  return []
+}
+
 export default async function TicketDetailPage({ params }: { params: Promise<{ project: string; id: string }> }) {
   const { project, id } = await params
   const ticket = await getTicketDetails(id)

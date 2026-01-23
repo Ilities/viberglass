@@ -5,6 +5,11 @@ import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { formatSeverity, formatTicketSystem, formatTimestamp, getRecentTickets, getTicketStats } from '@/data'
 
+// Enable static export with dynamic params
+export const generateStaticParams = async () => {
+  return []
+}
+
 export default async function Home({ params }: { params: Promise<{ project: string }> }) {
   const { project } = await params
   const [tickets, stats] = await Promise.all([getRecentTickets(project), getTicketStats()])

@@ -1,0 +1,193 @@
+# Frontend deployment workflow for production environment
+# Manual trigger via workflow_dispatch with approval gate
+
+name: Deploy Frontend (Production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Deployment reason'
+        required: true
+        type: string
+      version:
+        description: 'Version/tag to deploy (leave empty for current main)'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Production (Amplify)
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      url: ${{ steps.amplify.outputs.appUrl }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version || 'main' }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Get Production backend URL from Pulumi stack
+        id: pulumi-outputs
+        run: |
+          # Get backend URL from Pulumi stack output (or SSM parameter)
+          API_URL=$(aws ssm get-parameter \
+            --name "/viberator/prod/frontend/apiUrl" \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text 2>/dev/null || echo "https://api.viberator.internal")
+
+          echo "backendUrl=$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Build frontend with environment variables
+        run: npm run build -w @viberator/frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.pulumi-outputs.outputs.backendUrl }}
+
+      - name: Start Amplify deployment
+        id: amplify
+        run: |
+          # Get Amplify configuration from SSM (provisioned by Pulumi)
+          APP_ID=$(aws ssm get-parameter \
+            --name "/viberator/prod/amplify/appId" \
+            --query Parameter.Value \
+            --output text)
+
+          BRANCH_NAME=$(aws ssm get-parameter \
+            --name "/viberator/prod/amplify/branchName" \
+            --query Parameter.Value \
+            --output text)
+
+          REGION=$(aws ssm get-parameter \
+            --name "/viberator/prod/amplify/region" \
+            --query Parameter.Value \
+            --output text)
+
+          if [ -z "$APP_ID" ]; then
+            echo "::error::Amplify app ID not found in SSM. Run pulumi up for prod stack first."
+            exit 1
+          fi
+
+          echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME, region: $REGION"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Version: ${{ inputs.version || 'main branch' }}"
+
+          # Trigger Amplify deployment using AWS CLI
+          DEPLOYMENT_ID=$(aws amplify start-deployment \
+            --app-id "$APP_ID" \
+            --branch-name "$BRANCH_NAME" \
+            --region "$REGION" \
+            --source-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --query 'jobSummary.id' \
+            --output text)
+
+          echo "Deployment started with ID: $DEPLOYMENT_ID"
+          echo "deploymentId=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "deploymentTriggered=true" >> $GITHUB_OUTPUT
+          echo "amplifyRegion=$REGION" >> $GITHUB_OUTPUT
+
+          # Get the app URL for environment linking
+          APP_URL=$(aws amplify get-app \
+            --app-id "$APP_ID" \
+            --region "$REGION" \
+            --query 'app.defaultDomain' \
+            --output text)
+
+          echo "appUrl=https://$APP_URL" >> $GITHUB_OUTPUT
+
+      - name: Wait for Amplify deployment to complete
+        if: steps.amplify.outputs.deploymentTriggered == 'true'
+        run: |
+          # Get Amplify configuration from SSM (provisioned by Pulumi)
+          APP_ID=$(aws ssm get-parameter \
+            --name "/viberator/prod/amplify/appId" \
+            --query Parameter.Value \
+            --output text)
+
+          BRANCH_NAME=$(aws ssm get-parameter \
+            --name "/viberator/prod/amplify/branchName" \
+            --query Parameter.Value \
+            --output text)
+
+          REGION=$(aws ssm get-parameter \
+            --name "/viberator/prod/amplify/region" \
+            --query Parameter.Value \
+            --output text)
+
+          DEPLOYMENT_ID=${{ steps.amplify.outputs.deploymentId }}
+
+          echo "Waiting for deployment $DEPLOYMENT_ID to complete..."
+          TIMEOUT=900  # 15 minutes for prod
+          ELAPSED=0
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            STATUS=$(aws amplify get-job \
+              --app-id "$APP_ID" \
+              --branch-name "$BRANCH_NAME" \
+              --region "$REGION" \
+              --job-id "$DEPLOYMENT_ID" \
+              --query 'job.summary.status' \
+              --output text)
+
+            echo "Current status: $STATUS"
+
+            if [ "$STATUS" = "SUCCEED" ]; then
+              echo "✓ Production deployment succeeded"
+              exit 0
+            elif [ "$STATUS" = "FAIL" ]; then
+              echo "✗ Production deployment failed"
+              aws amplify get-job \
+                --app-id "$APP_ID" \
+                --branch-name "$BRANCH_NAME" \
+                --region "$REGION" \
+                --job-id "$DEPLOYMENT_ID" \
+                --query 'job.summary' \
+                --output table
+              exit 1
+            elif [ "$STATUS" = "TIMEDOUT" ]; then
+              echo "✗ Production deployment timed out"
+              exit 1
+            fi
+
+            sleep 15
+            ELAPSED=$((ELAPSED + 15))
+          done
+
+          echo "::error::Production deployment wait timed out after $TIMEOUT seconds"
+          exit 1
+
+      - name: Deployment summary
+        if: steps.amplify.outputs.deploymentTriggered == 'true'
+        run: |
+          echo "### :white_check_mark: Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **App URL** | ${{ steps.amplify.outputs.appUrl }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployment ID** | ${{ steps.amplify.outputs.deploymentId }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Reason** | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ inputs.version || 'main branch' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployed by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please verify the production deployment at: ${{ steps.amplify.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY
