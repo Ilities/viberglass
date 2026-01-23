@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: Local Development** - Docker compose environment for local development
 - [x] **Phase 10: AWS Infrastructure** - Pulumi stack provisions complete AWS infrastructure
 - [x] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
-- [ ] **Phase 11.1: Remove Unused Frontend Infrastructure** - Clean up deprecated S3+CloudFront static hosting (INSERTED)
+- [x] **Phase 11.1: Remove Unused Frontend Infrastructure** - Clean up deprecated S3+CloudFront static hosting (INSERTED)
 - [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
 ## Phase Details
@@ -480,10 +480,10 @@ Plans:
 
 **Plans**: 1 plan in 1 wave
 
-**Status**: Planned (2026-01-23)
+**Status**: Complete (2026-01-23)
 
 Plans:
-- [ ] 11.1-01-PLAN.md — Remove S3+CloudFront frontend infrastructure from Pulumi stack
+- [x] 11.1-01-PLAN.md — Remove S3+CloudFront frontend infrastructure from Pulumi stack
 
 **Details**:
 Phase 10 created S3+CloudFront infrastructure for static hosting, but Phase 11 switched to Amplify SSR for Next.js 15 dynamic route support. The static hosting resources are now unused and should be removed to:

@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 11.1 Complete
+**Current focus:** Phase 12: Secret Management
 
 ## Current Position
 
-Phase: 11.1 of 12 (Remove Unused Frontend Infrastructure) — COMPLETE
-Plan: 1 of 1
-Status: Phase 11.1 complete - S3+CloudFront frontend infrastructure removed
-Last activity: 2026-01-23 — Removed unused frontend infrastructure (250 lines)
+Phase: 12 of 12 (Secret Management) — Planning
+Plan: 0 of 5
+Status: Phase 11.1 complete, ready to plan Phase 12 (Secret Management)
+Last activity: 2026-01-23 — Phase 11.1 complete, S3+CloudFront infrastructure removed
 
 Progress: [██████████] 93% of v1.0
 
