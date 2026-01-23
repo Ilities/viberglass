@@ -15,12 +15,14 @@ This infrastructure provisions all AWS resources required to run Viberator in pr
 - **Queue** - SQS queue with dead-letter queue for job processing
 - **Workers** - Lambda and ECS Fargate for job execution
 - **Backend** - ECS Fargate service with Application Load Balancer
+- **Amplify** - Frontend SSR hosting with GitHub Actions deployment
 
 ## Architecture
 
 ```mermaid
 graph TB
-    User[User] --> ALB[Application Load Balancer]
+    User[User] --> Amplify[Amplify Frontend]
+    Amplify --> ALB[Application Load Balancer]
     ALB --> Backend[ECS Backend Service]
     Backend --> RDS[(RDS PostgreSQL)]
     Backend --> S3[(S3 Uploads)]
@@ -29,11 +31,15 @@ graph TB
     Lambda --> SSM[SSM Parameters]
     WorkerECS --> SSM
     Backend --> SSM
+    Amplify --> SSM
+    GitHubActions[GitHub Actions] -. triggers .-> Amplify
     SSM -. encrypted with .-> KMS[KMS Key]
 
     style RDS fill:#f9f,stroke:#333,stroke-width:2px
     style S3 fill:#f96,stroke:#333,stroke-width:2px
     style KMS fill:#9f9,stroke:#333,stroke-width:2px
+    style Amplify fill:#ff9,stroke:#333,stroke-width:2px
+    style GitHubActions fill:#99f,stroke:#333,stroke-width:2px
 ```
 
 ## Network Diagram
@@ -267,6 +273,14 @@ pulumi stack output
 | `albDnsName` | Application Load Balancer DNS name |
 | `albArn` | ALB ARN |
 | `albTargetGroupArn` | ALB target group ARN |
+| `amplifyAppId` | Amplify application ID |
+| `amplifyAppArn` | Amplify application ARN |
+| `amplifyDefaultDomain` | Amplify app default domain |
+| `amplifyBranchName` | Amplify branch name |
+| `amplifyOidcRoleArn` | IAM role ARN for GitHub Actions |
+| `amplifySsmAppIdPath` | SSM path for app ID |
+| `amplifySsmBranchNamePath` | SSM path for branch name |
+| `amplifySsmRegionPath` | SSM path for region |
 
 ## Configuration
 
@@ -483,6 +497,30 @@ Creates backend service:
 | Dev | 256/512 MB | 1 | 3 |
 | Prod | 512/1024 MB | 2 | 10 |
 
+### Amplify Frontend Component (`components/amplify-frontend.ts`)
+
+Creates AWS Amplify application for SSR frontend hosting with:
+
+- Amplify App with WEB_COMPUTE platform for Next.js SSR
+- Main/production branch configuration
+- Build spec for Next.js with .next output directory
+- Environment variables (NEXT_PUBLIC_API_URL from backend)
+- Auto-branch creation disabled for security
+- SSM parameters for app ID, branch name, and region
+
+**SSM Parameters:**
+- `/viberator/{environment}/amplify/appId` - Amplify app ID
+- `/viberator/{environment}/amplify/branchName` - Deployment branch name
+- `/viberator/{environment}/amplify/region` - AWS region
+
+### Amplify OIDC Component (`components/amplify-oidc.ts`)
+
+Creates IAM OpenID Connect provider and role for GitHub Actions:
+
+- OIDC provider trusting GitHub's token.actions.githubusercontent.com
+- IAM role with assume role policy for GitHub repo
+- Permissions for Amplify deployment and SSM parameter reading
+
 ## Deployment
 
 ### Building Container Images
@@ -529,18 +567,20 @@ pulumi up --target-replacements '[{"urn":"urn:pulumi:dev::viberator::aws:ecs/ser
 
 ### Frontend Deployment
 
-Frontend deployment uses AWS Amplify SSR:
+Frontend is deployed via AWS Amplify SSR:
 
-1. Connect GitHub repository to Amplify
-2. Configure build settings:
-   - Build command: `npm run build`
-   - Base directory: `/platform/frontend`
-   - Start command: `npm run start`
-3. Set environment variables:
-   - `NEXT_PUBLIC_API_URL`: Backend API endpoint from pulumi output
-4. Deploy on push to main branch
+1. Amplify app is provisioned by Pulumi (see `components/amplify-frontend.ts`)
+2. GitHub Actions workflows read Amplify config from SSM parameters
+3. On push to main, workflow triggers Amplify deployment using `aws amplify start-deployment`
+4. Amplify builds Next.js app with `npm run build` and deploys .next output
 
-See `.github/workflows/deploy-frontend.yml` for automated CI/CD deployment.
+**Configuration:**
+- Platform: WEB_COMPUTE (SSR)
+- Build output: .next directory
+- Environment variable: NEXT_PUBLIC_API_URL (from backend ALB)
+- Branch: `main` (dev), `production` (prod)
+
+See `.github/workflows/deploy-frontend-dev.yml` and `.github/workflows/deploy-frontend-prod.yml` for CI/CD automation.
 
 ## Troubleshooting
 
@@ -601,6 +641,11 @@ aws configure
 - Check `singleNatGateway` config
 - Consider removing NAT if workers don't need internet
 
+**Amplify Deployment Fails**
+- Run `pulumi up` to ensure Amplify app and SSM parameters exist
+- Verify SSM parameters: `aws ssm get-parameter --name /viberator/dev/amplify/appId`
+- Check GitHub Actions has OIDC role: `aws iam get-role --role-name dev-amplify-github-actions-role`
+
 ## Cost Management
 
 ### Monthly Cost Estimates (us-east-1)
@@ -646,6 +691,9 @@ Credentials are stored in SSM Parameter Store with KMS encryption:
 /viberator/dev/db/password - SecureString (encrypted)
 /viberator/dev/db/url - SecureString (encrypted)
 /viberator/dev/db/host - SecureString (encrypted)
+/viberator/dev/amplify/appId - Standard string
+/viberator/dev/amplify/branchName - Standard string
+/viberator/dev/amplify/region - Standard string
 ```
 
 ### KMS Key
