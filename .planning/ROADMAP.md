@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 10: AWS Infrastructure** - Pulumi stack provisions complete AWS infrastructure
 - [x] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
 - [x] **Phase 11.1: Remove Unused Frontend Infrastructure** - Clean up deprecated S3+CloudFront static hosting (INSERTED)
-- [ ] **Phase 11.2: Amplify Frontend Infrastructure** - Pulumi provisions Amplify app for frontend SSR deployment (INSERTED)
+- [x] **Phase 11.2: Amplify Frontend Infrastructure** - Pulumi provisions Amplify app for frontend SSR deployment (INSERTED)
 - [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
 ## Phase Details
@@ -512,12 +512,12 @@ Phase 10 created S3+CloudFront infrastructure for static hosting, but Phase 11 s
 
 **Plans**: 3 plans in 3 waves
 
-**Status**: Planning
+**Status**: Complete (2026-01-23)
 
 Plans:
-- [ ] 11.2-01-PLAN.md — Create Amplify OIDC and frontend components
-- [ ] 11.2-02-PLAN.md — Integrate Amplify components into main Pulumi stack
-- [ ] 11.2-03-PLAN.md — Update GitHub Actions workflows and documentation
+- [x] 11.2-01-PLAN.md — Create Amplify OIDC and frontend components
+- [x] 11.2-02-PLAN.md — Integrate Amplify components into main Pulumi stack
+- [x] 11.2-03-PLAN.md — Update GitHub Actions workflows and documentation
 
 **Details**:
 Phase 11 configured Amplify SSR deployment, but the Amplify app itself must be created manually in the AWS Console. This phase adds Pulumi infrastructure to provision the Amplify app programmatically, enabling:
