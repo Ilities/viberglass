@@ -28,6 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 10: AWS Infrastructure** - Pulumi stack provisions complete AWS infrastructure
 - [x] **Phase 11: Deployment Process** - CI/CD pipeline and environment-specific configs
 - [x] **Phase 11.1: Remove Unused Frontend Infrastructure** - Clean up deprecated S3+CloudFront static hosting (INSERTED)
+- [ ] **Phase 11.2: Amplify Frontend Infrastructure** - Pulumi provisions Amplify app for frontend SSR deployment (INSERTED)
 - [ ] **Phase 12: Secret Management** - Provider-based secret management for all deployment targets
 
 ## Phase Details
@@ -493,11 +494,44 @@ Phase 10 created S3+CloudFront infrastructure for static hosting, but Phase 11 s
 
 ---
 
+### Phase 11.2: Amplify Frontend Infrastructure (INSERTED)
+
+**Goal**: Pulumi provisions AWS Amplify app and related infrastructure for frontend SSR deployment.
+
+**Depends on**: Phase 11.1
+
+**Requirements**: None (urgent insertion - Amplify infrastructure)
+
+**Success Criteria** (what must be TRUE):
+1. Pulumi Amplify component provisions Amplify app with proper branch settings
+2. IAM role with OIDC provider for GitHub Actions deployment
+3. SSM parameters store Amplify app ID, branch name, and region
+4. Environment variables configured for Amplify build (API URL from SSM)
+5. Auto-branch creation disabled for security
+6. Documentation updated for Amplify infrastructure provisioning
+
+**Plans**: 3 plans in 3 waves
+
+**Status**: Planning
+
+Plans:
+- [ ] 11.2-01-PLAN.md — Create Amplify OIDC and frontend components
+- [ ] 11.2-02-PLAN.md — Integrate Amplify components into main Pulumi stack
+- [ ] 11.2-03-PLAN.md — Update GitHub Actions workflows and documentation
+
+**Details**:
+Phase 11 configured Amplify SSR deployment, but the Amplify app itself must be created manually in the AWS Console. This phase adds Pulumi infrastructure to provision the Amplify app programmatically, enabling:
+- Infrastructure-as-Code for complete AWS stack
+- Reproducible deployments across environments
+- No manual console steps for new environments
+
+---
+
 ### Phase 12: Secret Management
 
 **Goal**: Provider-based secret management for all deployment targets.
 
-**Depends on**: Phase 11
+**Depends on**: Phase 11.2
 
 **Requirements**: DEP-05
 
