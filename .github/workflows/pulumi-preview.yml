@@ -1,0 +1,59 @@
+# Pulumi Preview Workflow
+# Runs Pulumi preview on infrastructure changes and posts results as PR comment
+
+name: Pulumi Preview
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/**'
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pulumi-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Pulumi Preview (dev stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Install Pulumi CLI
+        uses: pulumi/setup-pulumi@v3
+
+      - name: Install infrastructure dependencies
+        working-directory: infrastructure
+        run: npm ci
+
+      - name: Run Pulumi preview
+        uses: pulumi/actions@v6
+        with:
+          command: preview
+          stack-name: dev
+          work-dir: infrastructure
+          comment-on-pr: true
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
