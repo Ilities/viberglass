@@ -62,23 +62,36 @@ jobs:
       - name: Start Amplify deployment
         id: amplify
         run: |
-          # Get Amplify app ID and branch from secrets
-          APP_ID=${{ secrets.DEV_AMPLIFY_APP_ID }}
-          BRANCH_NAME=${{ secrets.DEV_AMPLIFY_BRANCH || 'main' }}
+          # Get Amplify configuration from SSM (provisioned by Pulumi)
+          APP_ID=$(aws ssm get-parameter \
+            --name "/viberator/dev/amplify/appId" \
+            --query Parameter.Value \
+            --output text)
+
+          BRANCH_NAME=$(aws ssm get-parameter \
+            --name "/viberator/dev/amplify/branchName" \
+            --query Parameter.Value \
+            --output text)
+
+          REGION=$(aws ssm get-parameter \
+            --name "/viberator/dev/amplify/region" \
+            --query Parameter.Value \
+            --output text)
 
           if [ -z "$APP_ID" ]; then
-            echo "::warning::DEV_AMPLIFY_APP_ID not set. Skipping Amplify deployment trigger."
+            echo "::warning::Amplify app ID not found in SSM. Run pulumi up first."
             echo "deploymentTriggered=false" >> $GITHUB_OUTPUT
             echo "appUrl=https://dev.example.com" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME"
+          echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME, region: $REGION"
 
           # Trigger Amplify deployment using AWS CLI
           DEPLOYMENT_ID=$(aws amplify start-deployment \
             --app-id "$APP_ID" \
             --branch-name "$BRANCH_NAME" \
+            --region "$REGION" \
             --source-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --query 'jobSummary.id' \
             --output text)
@@ -86,10 +99,12 @@ jobs:
           echo "Deployment started with ID: $DEPLOYMENT_ID"
           echo "deploymentId=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
           echo "deploymentTriggered=true" >> $GITHUB_OUTPUT
+          echo "amplifyRegion=$REGION" >> $GITHUB_OUTPUT
 
           # Get the app URL for environment linking
           APP_URL=$(aws amplify get-app \
             --app-id "$APP_ID" \
+            --region "$REGION" \
             --query 'app.defaultDomain' \
             --output text)
 
@@ -98,8 +113,22 @@ jobs:
       - name: Wait for Amplify deployment to complete
         if: steps.amplify.outputs.deploymentTriggered == 'true'
         run: |
-          APP_ID=${{ secrets.DEV_AMPLIFY_APP_ID }}
-          BRANCH_NAME=${{ secrets.DEV_AMPLIFY_BRANCH || 'main' }}
+          # Get Amplify configuration from SSM (provisioned by Pulumi)
+          APP_ID=$(aws ssm get-parameter \
+            --name "/viberator/dev/amplify/appId" \
+            --query Parameter.Value \
+            --output text)
+
+          BRANCH_NAME=$(aws ssm get-parameter \
+            --name "/viberator/dev/amplify/branchName" \
+            --query Parameter.Value \
+            --output text)
+
+          REGION=$(aws ssm get-parameter \
+            --name "/viberator/dev/amplify/region" \
+            --query Parameter.Value \
+            --output text)
+
           DEPLOYMENT_ID=${{ steps.amplify.outputs.deploymentId }}
 
           echo "Waiting for deployment $DEPLOYMENT_ID to complete..."
@@ -110,6 +139,7 @@ jobs:
             STATUS=$(aws amplify get-job \
               --app-id "$APP_ID" \
               --branch-name "$BRANCH_NAME" \
+              --region "$REGION" \
               --job-id "$DEPLOYMENT_ID" \
               --query 'job.summary.status' \
               --output text)
@@ -124,6 +154,7 @@ jobs:
               aws amplify get-job \
                 --app-id "$APP_ID" \
                 --branch-name "$BRANCH_NAME" \
+                --region "$REGION" \
                 --job-id "$DEPLOYMENT_ID" \
                 --query 'job.summary' \
                 --output table
