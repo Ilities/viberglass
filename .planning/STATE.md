@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 12 of 12 (Secret Management)
-Plan: 1 of 1
-Status: Phase 12 Plan 01 COMPLETE - Deployment secret provider interface and SSM implementation created
-Last activity: 2026-01-23 — Created SecretProvider interface and SsmSecretProvider with SSM Parameter Store backend
+Plan: 2 of 2
+Status: Phase 12 Plan 02 COMPLETE - Pulumi secrets component for SSM parameter management
+Last activity: 2026-01-23 — Created Pulumi secrets component with SecureString encryption, integrated into infrastructure stack
 
-Progress: [█████████░] 95% of v1.0
+Progress: [█████████░] 96% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 90
+- Total plans completed: 91
 - Average duration: ~4 minutes
-- Total execution time: 5.6 hours
+- Total execution time: 5.7 hours
 
 **By Phase:**
 
@@ -45,7 +45,7 @@ Progress: [█████████░] 95% of v1.0
 | 11 | 5 | 5 | 3m |
 | 11.1 | 1 | 1 | 3m |
 | 11.2 | 3 | 3 | 3m |
-| 12 | 1 | 1 | 2m |
+| 12 | 2 | 2 | 3m |
 
 **Recent Trend:**
 - Last 5 plans: 3m, 4m, 1m, 3m, 5m
@@ -184,6 +184,11 @@ Recent decisions affecting current work:
 | SecureString default for deployment secrets | putSecret defaults to secure=true with KMS encryption, optional secure=false for plain strings | Most deployment values are sensitive, default to secure storage |
 | SecretCategory enum for organization | database, frontend, amplify, ecs, lambda categories for deployment secret organization | Structured SSM parameter hierarchy for easy navigation |
 | isAvailable() tests SSM access | Lists parameters with prefix to verify AWS credentials work, returns false on auth errors | Graceful provider availability checking for CI/CD workflows |
+| Separate kmsKeyId parameter in DeploymentSecretsOptions | InfrastructureConfig doesn't include kmsKeyId, added as separate parameter | Avoids modifying core config interface for component-specific needs |
+| SSM parameter keyId property for KMS encryption | Pulumi aws.ssm.Parameter uses keyId (not kmsKeyId) for KMS key reference | Correct property name for SecureString encryption |
+| Pulumi secrets component placement | Secrets creation after all dependencies (VPC, ALB, ECR, ECS) to avoid forward references | Infrastructure code order matches resource dependency graph |
+| SSM parameter naming by category | /viberator/{environment}/{category}/{key} with categories: database, frontend, amplify, ecs, deployment | Organized parameter hierarchy for easy navigation and workflow references |
+| SecureString vs String type selection | SecureString for sensitive (database URLs, OIDC roles), String for non-sensitive (API URLs, region) | KMS encryption only applied to values that need it, cost-optimized |
 
 ### Roadmap Evolution
 
@@ -207,6 +212,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 12 Plan 01 Complete - SecretProvider interface and SsmSecretProvider created with SSM Parameter Store backend
+Stopped at: Phase 12 Plan 02 Complete - Pulumi secrets component with SSM parameter management
 Resume file: None
-Phase 12 Plan 01 COMPLETE - Deployment secret provider pattern established, ready for CI/CD integration
+Phase 12 COMPLETE - All secret management infrastructure in place, ready for Phase 13: Deployment Workflows
