@@ -15,7 +15,6 @@ This infrastructure provisions all AWS resources required to run Viberator in pr
 - **Queue** - SQS queue with dead-letter queue for job processing
 - **Workers** - Lambda and ECS Fargate for job execution
 - **Backend** - ECS Fargate service with Application Load Balancer
-- **Frontend** - S3 + CloudFront for static hosting (pending)
 
 ## Architecture
 
@@ -25,9 +24,6 @@ graph TB
     ALB --> Backend[ECS Backend Service]
     Backend --> RDS[(RDS PostgreSQL)]
     Backend --> S3[(S3 Uploads)]
-    User --> CloudFront[CloudFront Distribution]
-    CloudFront --> FrontendS3[(S3 Frontend)]
-    FrontendS3 --> ALB
     Queue[SQS Queue] --> Lambda[Lambda Worker]
     Queue --> WorkerECS[ECS Workers]
     Lambda --> SSM[SSM Parameters]
@@ -93,23 +89,20 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant User
-    participant CloudFront as CloudFront
     participant ALB as Application LB
     participant Backend as ECS Backend
     participant RDS as PostgreSQL
     participant SQS as Job Queue
     participant Worker as Lambda/ECS Worker
 
-    User->>CloudFront: HTTP Request
-    CloudFront->>ALB: Forward Request
+    User->>ALB: HTTP Request
     ALB->>Backend: Route to Target
     Backend->>RDS: Query Data
     RDS-->>Backend: Return Results
     Backend->>SQS: Enqueue Job
     SQS-->>Backend: Job Queued
     Backend-->>ALB: JSON Response
-    ALB-->>CloudFront: Response
-    CloudFront-->>User: HTTP Response
+    ALB-->>User: HTTP Response
 
     Note over SQS,Worker: Async Processing
     SQS->>Worker: Trigger/Send Message
@@ -534,13 +527,20 @@ pulumi up
 pulumi up --target-replacements '[{"urn":"urn:pulumi:dev::viberator::aws:ecs/service:Service::dev-viberator-backend-service","forceNew":true}]'
 ```
 
-### Frontend Deployment (Pending)
+### Frontend Deployment
 
-Frontend deployment will use S3 + CloudFront:
+Frontend deployment uses AWS Amplify SSR:
 
-1. Build static export: `npm run build` in `platform/frontend`
-2. Sync to S3: `aws s3 sync out/ s3://$(pulumi stack output frontendBucketName)`
-3. Invalidate CloudFront: `aws cloudfront create-invalidation --distribution-id $(pulumi stack output frontendDistributionId) --paths "/*"`
+1. Connect GitHub repository to Amplify
+2. Configure build settings:
+   - Build command: `npm run build`
+   - Base directory: `/platform/frontend`
+   - Start command: `npm run start`
+3. Set environment variables:
+   - `NEXT_PUBLIC_API_URL`: Backend API endpoint from pulumi output
+4. Deploy on push to main branch
+
+See `.github/workflows/deploy-frontend.yml` for automated CI/CD deployment.
 
 ## Troubleshooting
 
