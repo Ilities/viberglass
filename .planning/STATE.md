@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 11 of 12 (Deployment Process) — In Progress
-Plan: 03 of 5 (Backend CI/CD Workflows)
-Status: Plan 03 complete - Backend CI/CD pipeline verified
-Last activity: 2026-01-23 — Backend deployment workflows with OIDC authentication verified
+Plan: 05 of 6 (Pulumi CI/CD Workflows)
+Status: Plan 05 complete - Pulumi CI/CD pipeline created
+Last activity: 2026-01-23 — Pulumi CI/CD workflows with preview, dev, and prod deployment
 
-Progress: [█████████░] 86% of v1.0
+Progress: [█████████░] 88% of v1.0
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 78
+- Total plans completed: 80
 - Average duration: ~4 minutes
-- Total execution time: 4.9 hours
+- Total execution time: 5.0 hours
 
 **By Phase:**
 
@@ -42,7 +42,7 @@ Progress: [█████████░] 86% of v1.0
 | 08 | 5 | 5 | 4m |
 | 09 | 3 | 3 | 2m |
 | 10 | 9 | 9 | 6m |
-| 11 | 3 | 5 | 3m |
+| 11 | 5 | 6 | 3m |
 
 **Recent Trend:**
 - Last 5 plans: 4m, 2m, 3m, 4m, 2m
@@ -162,6 +162,10 @@ Recent decisions affecting current work:
 | GitHub Actions for Amplify deployment | OIDC auth with aws amplify start-deployment CLI | Automated dev deployment, manual staging/prod with approval gates |
 | Amplify polling for deployment verification | Wait loop with aws amplify get-job status checks | Confirms deployment completion before marking success |
 | Monorepo path filtering for CI/CD | Workflows trigger on specific path patterns | Only builds affected workspaces on changes |
+| Pulumi preview on PR | Infrastructure changes show pulumi preview as PR comments | Dev stack as baseline for preview comparisons |
+| Automated dev Pulumi deployment | Infrastructure deploys to dev on main merge | pulumi up runs automatically for dev stack |
+| Manual prod Pulumi deployment | Prod requires workflow_dispatch with approval | Production infrastructure changes are intentional |
+| Pulumi concurrency control | Prevents simultaneous pulumi operations | group: pulumi-${{ github.workflow }} |
 
 ### Roadmap Evolution
 
@@ -183,6 +187,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed Phase 11 Plan 03 (Backend CI/CD Workflows) - GitHub Actions verification
+Stopped at: Completed Phase 11 Plan 05 (Pulumi CI/CD Workflows)
 Resume file: None
-Phase 11 Plan 03 COMPLETE - Backend CI/CD pipeline verified (no code changes needed)
+Phase 11 Plan 05 COMPLETE - Pulumi CI/CD pipeline created (3 workflows: preview, dev, prod)
