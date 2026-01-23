@@ -463,6 +463,30 @@ Plans:
 
 **Requirements**: DEP-05
 
-**Plans**: 0 plans
+**Success Criteria** (what must be TRUE):
+1. SecretProvider interface defines getSecret/putSecret/deleteSecret operations for deployment-time secrets
+2. SsmSecretProvider implements SecretProvider using /viberator/{environment}/{category}/{key} path hierarchy
+3. Pulumi secrets component provisions SSM parameters for all deployment configurations
+4. GitHub Actions workflows use environment-specific secrets without hardcoded values
+5. Documentation covers GitHub environment setup, SSM configuration, and troubleshooting
 
-**Status**: Not started
+**SecretProvider Interface Pattern**:
+```typescript
+interface SecretProvider {
+  getSecret(environment: string, key: string): Promise<string | null>
+  putSecret(environment: string, key: string, value: string, options?: SecretOptions): Promise<void>
+  deleteSecret(environment: string, key: string): Promise<void>
+  isAvailable(): Promise<boolean>
+}
+```
+
+**Plans**: 5 plans in 3 waves
+
+**Status**: Planning
+
+Plans:
+- [ ] 12-01-PLAN.md — Create SecretProvider interface and SsmSecretProvider implementation
+- [ ] 12-02-PLAN.md — Create Pulumi secrets component for SSM parameter provisioning
+- [ ] 12-03-PLAN.md — Update backend deployment workflows to use centralized secrets
+- [ ] 12-04-PLAN.md — Update frontend deployment workflows to use centralized secrets
+- [ ] 12-05-PLAN.md — Create deployment secrets documentation and GitHub quick reference
