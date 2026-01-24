@@ -4,6 +4,16 @@
 
 An agent orchestrator and ticket management platform. Users create bug tickets that coding agents automatically fix, with results flowing back through the system. Supports projects spanning multiple repositories, integration with common SCMs and legacy ticketing systems, and configurable clankers (instruction sets) that define how agents run.
 
+## Current Milestone: v1.1 Branding Update
+
+**Goal:** Rename the platform from "Viberator" to "Viberglass" while keeping workers/agents called "Viberators."
+
+**Target changes:**
+- Repository rename: viberator → viberglass
+- Platform branding: All UI, docs, and code references to platform become "Viberglass"
+- Worker branding: Agent executor components remain "Viberators"
+- Infrastructure: Amplify app, resource names, stack identifiers
+
 ## Core Value
 
 Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
@@ -58,7 +68,12 @@ Users can create tickets that coding agents automatically fix, with the entire f
 
 <!-- Current scope. Building toward these. -->
 
-None — v1.0 complete, awaiting next milestone definition.
+**v1.1 Branding — Viberglass platform, Viberator workers:**
+- [ ] Rename platform references from "Viberator" to "Viberglass"
+- [ ] Keep worker/agent references as "Viberators"
+- [ ] Update all documentation, code references, and infrastructure naming
+- [ ] Rename GitHub repository
+- [ ] Rename Amplify app in AWS and Pulumi code
 
 ### Out of Scope
 
@@ -100,4 +115,4 @@ None — v1.0 complete, awaiting next milestone definition.
 | SSM for credential storage | Multi-tenant secure credential access | — Pending |
 
 ---
-*Last updated: 2026-01-23 after v1.0 milestone*
+*Last updated: 2026-01-24 after starting v1.1 milestone*
