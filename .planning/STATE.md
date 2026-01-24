@@ -2,53 +2,31 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-23)
+See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** v1.0 MVP complete — awaiting next milestone definition
+**Current focus:** v1.1 Branding Update — Rename platform to "Viberglass", keep workers as "Viberators"
 
 ## Current Position
 
-Phase: v1.0 MVP COMPLETE
-Status: All 16 phases (95 plans) executed and verified
-Last activity: 2026-01-23 — v1.0 milestone completed
+Phase: v1.1 milestone initialized, requirements pending
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-24 — v1.1 milestone started
 
-Progress: [█████████] 100% of v1.0
+Progress: [░░░░░░░░░░] 0% of v1.1
 
 ## Performance Metrics
 
-**Velocity:**
+**v1.0 Velocity (previous milestone):**
 - Total plans completed: 95
 - Average duration: ~4 minutes
 - Total execution time: 6.7 hours
 
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01 | 5 | 5 | 4m |
-| 02 | 2 | 2 | 2m |
-| 03 | 3 | 3 | 3m |
-| 04 | 4 | 4 | 3m |
-| 04.1 | 4 | 4 | 5m |
-| 04.2 | 3 | 3 | 6m |
-| 04.3 | 4 | 4 | 3m |
-| 04.4 | 2 | 2 | 10m |
-| 05 | 3 | 3 | 4m |
-| 06 | 2 | 2 | 3m |
-| 07 | 4 | 4 | 2.5m |
-| 08 | 5 | 5 | 4m |
-| 09 | 3 | 3 | 2m |
-| 10 | 9 | 9 | 6m |
-| 11 | 5 | 5 | 3m |
-| 11.1 | 1 | 1 | 3m |
-| 11.2 | 3 | 3 | 3m |
-| 12 | 5 | 5 | 3m |
-
-**Recent Trend:**
-- Last 5 plans: 3m, 4m, 1m, 3m, 5m
-- Trend: Stable
+**v1.1 Metrics:**
+- Plans completed: 0
+- Progress: Not started
 
 ## Accumulated Context
 
@@ -57,31 +35,26 @@ Progress: [█████████] 100% of v1.0
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-All milestone decisions documented in milestone archive.
+- Branding split: Platform = Viberglass, Workers = Viberators (v1.1)
 
 ### Roadmap Evolution
 
-- Phase 4.1 inserted after Phase 4: Allow frontend to invoke workers and initiate jobs (URGENT)
-- Phase 4.2 inserted after Phase 4.1: Testing (URGENT)
-- Phase 4.3 inserted after Phase 4.2: Application organization and structural refactoring (URGENT)
-- Phase 4.4 inserted after Phase 4.3: E2E flow verification and infrastructure setup (URGENT)
-- Phase 11.1 inserted after Phase 11: Remove unused frontend infrastructure (URGENT)
-- Phase 11.2 inserted after Phase 11.1: Amplify Frontend Infrastructure - Pulumi provisions Amplify app for frontend SSR deployment (URGENT) - COMPLETE
+v1.0 complete (phases 1-12, 95 plans).
+v1.1 roadmap pending.
 
 ### Pending Todos
 
-None — v1.0 complete.
+- Define v1.1 requirements
+- Create v1.1 roadmap phases
 
 ### Blockers/Concerns
 
-None — v1.0 shipped successfully.
+None
 
 ## Session Continuity
 
-Last session: 2026-01-23
-Stopped at: v1.0 milestone complete
-Resume file: None
-v1.0 MVP SHIPPED — All phases complete, ready for next milestone definition
+Current session: 2026-01-24
+Status: v1.1 milestone initialized, entering requirements definition
 
 ## Milestone Archive
 
@@ -90,4 +63,6 @@ v1.0 MVP archived to:
 - .planning/milestones/v1.0-REQUIREMENTS.md
 - .planning/MILESTONES.md
 
-For current roadmap and requirements, run `/gsd:new-milestone` to define next milestone.
+For current roadmap and requirements, see:
+- .planning/REQUIREMENTS.md (pending)
+- .planning/ROADMAP.md (pending)
