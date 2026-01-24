@@ -18,12 +18,12 @@ Branding update: Platform becomes "Viberglass", workers remain "Viberators."
 
 ### Code References (CODE)
 
-- [ ] **CODE-01**: Frontend UI text displays "Viberglass" for platform name
-- [ ] **CODE-02**: Frontend UI text displays "Viberators" for worker/agent references
-- [ ] **CODE-03**: API response labels use "Viberglass" for platform references
-- [ ] **CODE-04**: TypeScript class names for platform components updated if needed
-- [ ] **CODE-05**: Environment variable prefixes updated (VIBERGLASS_*)
-- [ ] **CODE-06**: Worker code retains "Viberator" naming for agent executor classes
+- [x] **CODE-01**: Frontend UI text displays "Viberglass" for platform name
+- [x] **CODE-02**: Frontend UI text displays "Viberators" for worker/agent references
+- [x] **CODE-03**: API response labels use "Viberglass" for platform references
+- [x] **CODE-04**: TypeScript class names for platform components updated if needed
+- [x] **CODE-05**: Environment variable prefixes updated (VIBERGLASS_*)
+- [x] **CODE-06**: Worker code retains "Viberator" naming for agent executor classes
 
 ### Infrastructure (INFRA)
 
@@ -70,12 +70,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOCS-04 | Phase 13 | Complete |
 | DOCS-05 | Phase 13 | Complete |
 | DOCS-06 | Phase 13 | Complete |
-| CODE-01 | Phase 14 | Pending |
-| CODE-02 | Phase 14 | Pending |
-| CODE-03 | Phase 14 | Pending |
-| CODE-04 | Phase 14 | Pending |
-| CODE-05 | Phase 14 | Pending |
-| CODE-06 | Phase 14 | Pending |
+| CODE-01 | Phase 14 | Complete |
+| CODE-02 | Phase 14 | Complete |
+| CODE-03 | Phase 14 | Complete |
+| CODE-04 | Phase 14 | Complete |
+| CODE-05 | Phase 14 | Complete |
+| CODE-06 | Phase 14 | Complete |
 | INFRA-01 | Phase 15 | Pending |
 | INFRA-02 | Phase 15 | Pending |
 | INFRA-03 | Phase 15 | Pending |
