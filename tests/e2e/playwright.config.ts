@@ -29,13 +29,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run dev --prefix ../platform/frontend',
+      command: 'npm run dev --prefix ../apps/platform-frontend',
       port: 3000,
       timeout: 120000,
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'npm run dev --prefix ../platform/backend',
+      command: 'npm run dev --prefix ../apps/platform-backend',
       port: 3001,
       timeout: 120000,
       reuseExistingServer: !process.env.CI,

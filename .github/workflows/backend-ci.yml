@@ -5,7 +5,7 @@ name: Backend CI
 on:
   pull_request:
     paths:
-      - 'platform/backend/**'
+      - 'apps/platform-backend/**'
       - 'packages/types/**'
       - '.github/workflows/backend-ci.yml'
 
@@ -28,7 +28,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Run unit tests
-        run: npm run test:unit -w @viberator/platform-backend
+        run: npm run test:unit -w @viberglass/platform-backend
 
       - name: TypeScript compilation check
-        run: npm run build -w @viberator/platform-backend
+        run: npm run build -w @viberglass/platform-backend

@@ -9,7 +9,7 @@ The Viberator platform uses **ephemeral workers** that process a single job and 
 ### 1. Local Docker Worker
 **Best for:** Development, testing, and on-premises deployments
 
-- **Dockerfile:** `infrastructure/docker/viberator-docker-worker.Dockerfile`
+- **Dockerfile:** `infra/viberator/docker/viberator-docker-worker.Dockerfile`
 - **Build:** `npm run docker:build:local`
 - **Runtime:** Runs a single job from CLI arguments and exits
 
@@ -25,9 +25,9 @@ docker run --rm \
 ### 2. AWS ECS Worker
 **Best for:** Production workloads requiring longer execution times or more resources
 
-- **Dockerfile:** `infrastructure/docker/viberator-ecs-worker.Dockerfile`
+- **Dockerfile:** `infra/viberator/docker/viberator-ecs-worker.Dockerfile`
 - **Build:** `npm run docker:build:ecs`
-- **Infrastructure:** Deployed via Pulumi (`infrastructure/infra/index.ts`)
+- **Infrastructure:** Deployed via Pulumi (`infra/viberator/index.ts`)
 - **Resources:** 2 vCPU, 4GB RAM (configurable)
 - **Runtime:** Run via ECS RunTask API
 
@@ -56,7 +56,7 @@ await ecs.runTask({
 ### 3. AWS Lambda Worker
 **Best for:** Quick jobs under 15 minutes, event-driven processing
 
-- **Dockerfile:** `infrastructure/docker/viberator-lambda.Dockerfile`
+- **Dockerfile:** `infra/viberator/docker/viberator-lambda.Dockerfile`
 - **Build:** `npm run docker:build:lambda`
 - **Infrastructure:** Deployed via Pulumi
 - **Resources:** Up to 2GB RAM, 15 min timeout
@@ -163,7 +163,7 @@ npm run docker:build:ecs
 npm run docker:build:lambda
 
 # Test with docker-compose
-cd infrastructure
+cd infra/viberator
 docker-compose build worker
 docker-compose run --rm worker \
   --job-data '{"id":"test","tenantId":"local","repository":"https://github.com/user/repo","task":"Fix bug"}'
@@ -173,20 +173,20 @@ docker-compose run --rm worker \
 
 ### Local Docker
 ```bash
-docker build -f infrastructure/docker/viberator-docker-worker.Dockerfile -t viberator-worker:local .
+docker build -f infra/viberator/docker/viberator-docker-worker.Dockerfile -t viberator-worker:local .
 docker run --rm viberator-worker:local --job-data '{...}'
 ```
 
 ### AWS ECS
 ```bash
-cd infrastructure/infra
+cd infra/viberator
 pulumi up
 # Exported values: ecsClusterArn, ecsTaskDefinitionArn
 ```
 
 ### AWS Lambda
 ```bash
-cd infrastructure/infra
+cd infra/viberator
 pulumi up
 # Automatically triggered from SQS queue
 ```
