@@ -1,4 +1,4 @@
-# Project Milestones: Viberator
+# Project Milestones: Viberglass
 
 ## v1.0 MVP (Shipped: 2026-01-23)
 
