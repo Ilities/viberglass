@@ -5,7 +5,7 @@ import type {
   PaginatedResponse,
   Project,
   UpdateProjectRequest,
-} from '@viberator/types'
+} from '@viberglass/types'
 
 export async function getProjects(limit: number = 50, offset: number = 0): Promise<Project[]> {
   const response = await fetch(`${API_BASE_URL}/api/projects?limit=${limit}&offset=${offset}`)
@@ -82,4 +82,4 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 // Re-export types for convenience
-export type { Project, CreateProjectRequest, UpdateProjectRequest } from '@viberator/types'
+export type { CreateProjectRequest, Project, UpdateProjectRequest } from '@viberglass/types'

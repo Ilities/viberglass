@@ -1,11 +1,10 @@
 import { ConfigManager } from "./config/ConfigManager";
 import { AgentOrchestrator } from "./orchestrator/AgentOrchestrator";
-import { AgentFactory } from "./agents";
-import { BugReport, Ticket, ProjectSettings, Configuration } from "./types";
-import { createLogger, format, transports, Logger } from "winston";
+import { BugReport, Configuration, ProjectSettings, Ticket } from "./types";
+import { createLogger, format, Logger, transports } from "winston";
 import express, { Request, Response } from "express";
 
-class VibugViberator {
+class ViberglassViberator {
   private config!: Configuration;
   private logger: Logger;
   private orchestrator!: AgentOrchestrator;
@@ -20,7 +19,7 @@ class VibugViberator {
         process.env.LOG_FORMAT === "text" ? format.simple() : format.json(),
       transports: [
         new transports.Console(),
-        new transports.File({ filename: "vibug-viberator.log" }),
+        new transports.File({ filename: "viberglass-viberator.log" }),
       ],
     });
 
@@ -30,7 +29,7 @@ class VibugViberator {
 
   async initialize(): Promise<void> {
     try {
-      this.logger.info("Initializing Vibug Viberator...");
+      this.logger.info("Initializing Viberator...");
 
       // Initialize configuration manager
       this.configManager = new ConfigManager(this.logger);
@@ -48,17 +47,21 @@ class VibugViberator {
 
       // Initialize orchestrator with agent configs
       const agentConfigs = this.configManager.getAgentConfigs();
-      this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger);
+      this.orchestrator = new AgentOrchestrator(
+        agentConfigs,
+        this.logger,
+        this.configManager,
+      );
 
       // Setup API routes
       this.setupRoutes();
 
-      this.logger.info("Vibug Viberator initialized successfully", {
+      this.logger.info("Viberator initialized successfully", {
         agents: agentConfigs.map((a) => a.name),
         maxConcurrentJobs: this.config.execution.maxConcurrentJobs,
       });
     } catch (error) {
-      this.logger.error("Failed to initialize Vibug Viberator", { error });
+      this.logger.error("Failed to initialize Viberator", { error });
       throw error;
     }
   }
@@ -260,11 +263,15 @@ class VibugViberator {
   ): Promise<string> {
     try {
       // Select appropriate agent
-      const selectedAgent = await this.orchestrator.selectAgent(
-        bugReport,
-        ticket,
-        projectSettings,
-      );
+      const agentName =
+        projectSettings.agentName || projectSettings.preferredAgents?.[0];
+      if (!agentName) {
+        throw new Error(
+          "projectSettings.agentName or projectSettings.preferredAgents[0] is required to select an agent",
+        );
+      }
+
+      const selectedAgent = await this.orchestrator.selectAgent(agentName);
 
       this.logger.info("Agent selected for execution", {
         bugId: bugReport.id,
@@ -308,7 +315,7 @@ class VibugViberator {
     const port = process.env.PORT || 3000;
 
     this.app.listen(port, () => {
-      this.logger.info(`Vibug Viberator server started on port ${port}`);
+      this.logger.info(`Viberator server started on port ${port}`);
     });
   }
 
@@ -326,7 +333,8 @@ class VibugViberator {
           process.env.STEPS_TO_REPRODUCE || "Steps to reproduce the bug",
         expectedBehavior: process.env.EXPECTED_BEHAVIOR || "Expected behavior",
         actualBehavior: process.env.ACTUAL_BEHAVIOR || "Actual behavior",
-        severity: (process.env.BUG_SEVERITY as BugReport["severity"]) || "medium",
+        severity:
+          (process.env.BUG_SEVERITY as BugReport["severity"]) || "medium",
         language: process.env.LANGUAGE || "javascript",
       };
 
@@ -334,11 +342,17 @@ class VibugViberator {
         repoUrl: process.env.REPO_URL || "",
         branch: process.env.BRANCH || "main",
         testingRequired: process.env.TESTING_REQUIRED === "true",
+        agentName: process.env.AGENT_NAME as ProjectSettings["agentName"],
       };
 
       if (!projectSettings.repoUrl) {
         throw new Error(
           "REPO_URL environment variable is required for CLI mode",
+        );
+      }
+      if (!projectSettings.agentName) {
+        throw new Error(
+          "AGENT_NAME environment variable is required for CLI mode",
         );
       }
 
@@ -361,7 +375,7 @@ class VibugViberator {
 
 // Main execution
 async function main(): Promise<void> {
-  const viberator = new VibugViberator();
+  const viberator = new ViberglassViberator();
 
   try {
     await viberator.initialize();
@@ -373,7 +387,7 @@ async function main(): Promise<void> {
       await viberator.start();
     }
   } catch (error) {
-    console.error("Failed to start Vibug Viberator:", error);
+    console.error("Failed to start Viberator:", error);
     process.exit(1);
   }
 }
@@ -394,4 +408,4 @@ if (require.main === module) {
   main().catch(console.error);
 }
 
-export { VibugViberator };
+export { ViberglassViberator };

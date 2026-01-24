@@ -72,7 +72,7 @@ platform/backend/src/
 ```typescript
 // Source: Based on CONTEXT.md decisions and existing CredentialProvider pattern
 
-import { Clanker } from '@viberator/types';
+import { Clanker } from '@viberglass/types';
 import { JobData } from '../types/Job';
 
 /**

@@ -1,4 +1,4 @@
-# Vibug Viberator - AI Agent Orchestrator
+# Viberglass - AI Agent Orchestrator
 
 A containerized AI agent orchestrator that executes various AI coding CLI tools based on configurations for automated bug fixing.
 
@@ -28,19 +28,19 @@ A containerized AI agent orchestrator that executes various AI coding CLI tools 
 1. **Clone and build the container:**
 ```bash
 git clone <repository-url>
-cd vibug-viberator
+cd viberglass-viberator
 cp .env.example .env
 # Edit .env with your API keys and configuration
-docker build -t vibug-viberator .
+docker build -t viberglass-viberator .
 ```
 
 2. **Run the worker:**
 ```bash
 docker run -d \
-  --name vibug-viberator-worker \
+  --name viberglass-viberator-worker \
   --env-file .env \
   -e REDIS_HOST=your-redis-host \
-  vibug-viberator npm run start:worker
+  viberglass-viberator npm run start:worker
 ```
 
 ### Local Development
@@ -86,7 +86,7 @@ LOG_FORMAT=json         # json or text
 
 # AWS SSM Integration
 AWS_REGION=us-west-2
-SSM_PARAMETER_PATH=/vibug-viberator
+SSM_PARAMETER_PATH=/viberglass-viberator
 
 # Execution Settings
 MAX_CONCURRENT_JOBS=3
@@ -100,10 +100,10 @@ For production deployments, store sensitive configuration in AWS SSM:
 
 ```bash
 # Example SSM parameters
-/vibug-viberator/agents/claude-code/apiKey
-/vibug-viberator/agents/qwen-cli/apiKey
-/vibug-viberator/logging/level
-/vibug-viberator/execution/maxConcurrentJobs
+/viberglass-viberator/agents/claude-code/apiKey
+/viberglass-viberator/agents/qwen-cli/apiKey
+/viberglass-viberator/logging/level
+/viberglass-viberator/execution/maxConcurrentJobs
 ```
 
 ## API Access
@@ -175,7 +175,7 @@ docker run --rm --env-file .env \
   -e EXPECTED_BEHAVIOR="App should start normally" \
   -e ACTUAL_BEHAVIOR="ModuleNotFoundError: No module named 'auth'" \
   -e TESTING_REQUIRED=true \
-  vibug-viberator
+  viberglass-viberator
 ```
 
 ### Example 2: JavaScript/React Bug Fix
@@ -187,7 +187,7 @@ docker run --rm --env-file .env \
   -e LANGUAGE=javascript \
   -e BUG_DESCRIPTION="React component not rendering" \
   -e BUG_SEVERITY=medium \
-  vibug-viberator
+  viberglass-viberator
 ```
 
 ### Example 3: Using the Platform Backend API
@@ -298,7 +298,7 @@ The system provides comprehensive logging:
 
 Enable debug logging:
 ```bash
-docker run --env-file .env -e LOG_LEVEL=debug vibug-viberator
+docker run --env-file .env -e LOG_LEVEL=debug viberglass-viberator
 ```
 
 ## Contributing

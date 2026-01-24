@@ -1,6 +1,5 @@
 'use client'
 
-import { Toaster } from 'sonner'
 import { Avatar } from '@/components/avatar'
 import {
   Dropdown,
@@ -30,6 +29,7 @@ import {
 import { BugAntIcon, Cog6ToothIcon, ExclamationTriangleIcon, HomeIcon } from '@heroicons/react/20/solid'
 import { useParams, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { Toaster } from 'sonner'
 
 function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
   const pathname = usePathname()
@@ -55,7 +55,7 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
       <DropdownDivider />
       {projects.map((p) => (
         <DropdownItem key={p.id} href={`/project/${p.slug}`}>
-          {p.slug === 'viberator' ? (
+          {p.slug === 'viberglass' ? (
             <Avatar slot="icon" src="/teams/viberator.svg" />
           ) : (
             <Avatar slot="icon" initials={p.name.substring(0, 2).toUpperCase()} className="bg-purple-500 text-white" />
@@ -156,6 +156,9 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                 </NavbarItem>
                 <NavbarItem href="/clankers" current={pathname.startsWith(`/clankers`)}>
                   Clankers
+                </NavbarItem>
+                <NavbarItem href="/secrets" current={pathname.startsWith(`/secrets`)}>
+                  Secrets
                 </NavbarItem>
               </NavbarSection>
             ) : null}

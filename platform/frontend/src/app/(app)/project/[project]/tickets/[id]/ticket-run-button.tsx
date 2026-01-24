@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { PlayIcon } from '@heroicons/react/20/solid'
 import { Button } from '@/components/button'
 import { RunTicketModal } from '@/components/run-ticket-modal'
-import type { Ticket, Clanker } from '@viberator/types'
+import { PlayIcon } from '@heroicons/react/20/solid'
+import type { Clanker, Ticket } from '@viberglass/types'
+import { useState } from 'react'
 
 interface TicketRunButtonProps {
   ticket: Ticket

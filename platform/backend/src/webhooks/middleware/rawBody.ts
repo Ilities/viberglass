@@ -9,14 +9,15 @@
  * BEFORE any standard express.json() middleware.
  */
 
-import type { RequestHandler } from 'express';
+import type { RequestHandler } from "express";
+import bodyParser from "body-parser";
 
 /**
  * Configuration for raw body middleware
  */
 export interface RawBodyMiddlewareConfig {
   /** Content type to parse as raw buffer (default: application/json) */
-  type?: string | string[] | RegExp;
+  type?: string | string[];
   /** Maximum request body size (default: 10mb) */
   limit?: string | number;
 }
@@ -45,14 +46,14 @@ export interface ExtendedRequest extends Express.Request {
  * ```
  */
 export function rawBodyMiddleware(
-  config: RawBodyMiddlewareConfig = {}
+  config: RawBodyMiddlewareConfig = {},
 ): RequestHandler {
-  const { type = 'application/json', limit = '10mb' } = config;
+  const { type = "application/json", limit = "10mb" } = config;
 
-  // Use express.raw() to capture body as buffer
-  const raw = require('express').raw({ type, limit });
+  // Use body-parser raw() to capture body as buffer
+  const rawParser = bodyParser.raw({ type, limit });
 
-  return raw;
+  return rawParser;
 }
 
 /**
@@ -65,7 +66,7 @@ export function rawBodyMiddleware(
  * @returns Express middleware function
  */
 export function rawBodyStorageMiddleware(
-  config: RawBodyMiddlewareConfig = {}
+  config: RawBodyMiddlewareConfig = {},
 ): RequestHandler {
   const raw = rawBodyMiddleware(config);
 
@@ -95,7 +96,7 @@ export function rawBodyStorageMiddleware(
  * @returns Express middleware function
  */
 export function rawBodyWithJsonFallback(
-  config: RawBodyMiddlewareConfig = {}
+  config: RawBodyMiddlewareConfig = {},
 ): RequestHandler {
   return (req, res, next) => {
     const extendedReq = req as ExtendedRequest;
@@ -113,7 +114,7 @@ export function rawBodyWithJsonFallback(
       // Try to parse as JSON for convenience
       // Signature middleware will re-parse after verification
       try {
-        const jsonStr = extendedReq.rawBody.toString('utf8');
+        const jsonStr = extendedReq.rawBody.toString("utf8");
         (req as any).parsedBody = JSON.parse(jsonStr);
       } catch {
         // JSON parsing failed, but raw body is captured

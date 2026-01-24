@@ -3,12 +3,11 @@
 import { Button } from '@/components/button'
 import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Divider } from '@/components/divider'
-import { Field, Label, Description } from '@/components/fieldset'
+import { Description, Field, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Text } from '@/components/text'
-import type { Metadata } from 'next'
 import { useState } from 'react'
 
 interface TicketingSettingsClientProps {
@@ -75,12 +74,7 @@ export function TicketingSettingsClient({ project }: TicketingSettingsClientProp
                   <div className="sm:col-span-2">
                     <Field>
                       <Label>Personal Access Token</Label>
-                      <Input
-                        type="password"
-                        aria-label="GitHub Token"
-                        name="github_token"
-                        placeholder="ghp_..."
-                      />
+                      <Input type="password" aria-label="GitHub Token" name="github_token" placeholder="ghp_..." />
                     </Field>
                   </div>
                 </div>
@@ -107,12 +101,7 @@ export function TicketingSettingsClient({ project }: TicketingSettingsClientProp
                   </Field>
                   <Field>
                     <Label>API Token</Label>
-                    <Input
-                      type="password"
-                      aria-label="Jira Token"
-                      name="jira_token"
-                      placeholder="ATATT3xFfGF0..."
-                    />
+                    <Input type="password" aria-label="Jira Token" name="jira_token" placeholder="ATATT3xFfGF0..." />
                   </Field>
                 </div>
               </div>
@@ -141,8 +130,13 @@ export function TicketingSettingsClient({ project }: TicketingSettingsClientProp
               </div>
             )}
 
-            {(selectedSystem === 'gitlab' || selectedSystem === 'azure' || selectedSystem === 'asana' || selectedSystem === 'trello' || selectedSystem === 'monday' || selectedSystem === 'clickup') && (
-              <div className="text-center py-8">
+            {(selectedSystem === 'gitlab' ||
+              selectedSystem === 'azure' ||
+              selectedSystem === 'asana' ||
+              selectedSystem === 'trello' ||
+              selectedSystem === 'monday' ||
+              selectedSystem === 'clickup') && (
+              <div className="py-8 text-center">
                 <Text className="text-zinc-500">Configuration for {selectedSystem} is not yet implemented.</Text>
               </div>
             )}
@@ -177,7 +171,7 @@ export function TicketingSettingsClient({ project }: TicketingSettingsClientProp
           <Field>
             <Label>Issue Labels/Tags</Label>
             <Description>Default labels to apply to created issues.</Description>
-            <Input aria-label="Issue Labels" name="default_labels" defaultValue="bug,vibug" />
+            <Input aria-label="Issue Labels" name="default_labels" defaultValue="bug,viberglass" />
           </Field>
 
           <div className="mt-6">

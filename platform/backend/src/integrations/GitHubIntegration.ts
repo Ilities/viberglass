@@ -7,7 +7,7 @@ import {
   ExternalTicketUpdate,
   Ticket,
   WebhookEvent,
-} from "@viberator/types";
+} from "@viberglass/types";
 
 interface GitHubIssue {
   id: number;
@@ -38,7 +38,7 @@ export class GitHubIntegration extends BasePMIntegration {
       headers: {
         Authorization: `token ${this.config.token}`,
         Accept: "application/vnd.github.v3+json",
-        "User-Agent": "vibug-receiver/1.0",
+        "User-Agent": "viberglass-receiver/1.0",
       },
     });
   }

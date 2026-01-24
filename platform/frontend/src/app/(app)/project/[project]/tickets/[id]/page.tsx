@@ -2,10 +2,11 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableRow } from '@/components/table'
-import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getTicketDetails, getClankersList } from '@/data'
-import { TicketRunButton } from './ticket-run-button'
-import { ArrowLeftIcon, EyeIcon, SparklesIcon } from '@heroicons/react/20/solid'
+import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
+import { ArrowLeftIcon, EyeIcon } from '@heroicons/react/20/solid'
 import { notFound } from 'next/navigation'
+import { EnhanceFixButton } from './enhance-fix-button'
+import { TicketRunButton } from './ticket-run-button'
 
 export const generateStaticParams = async () => {
   return []
@@ -53,10 +54,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ p
         </div>
         <div className="flex gap-2">
           <TicketRunButton ticket={ticket} clankers={clankers} project={project} />
-          <Button href={`/project/${project}/enhance?id=${ticket.id}`} color="blue">
-            <SparklesIcon className="h-5 w-5" />
-            Enhance & Fix
-          </Button>
+          <EnhanceFixButton href={`/project/${project}/enhance?id=${ticket.id}`} />
           {ticket.screenshot && (
             <Button href={`/project/${project}/tickets/${ticket.id}/media`} plain>
               <EyeIcon className="h-5 w-5" />
@@ -73,7 +71,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ p
             <p className="text-zinc-700 dark:text-zinc-300">{ticket.description}</p>
           </div>
 
-          {ticket.metadata.errors && ticket.metadata.errors.length > 0 && (
+          {Array.isArray(ticket.metadata?.errors) && ticket.metadata.errors.length > 0 && (
             <>
               <Subheading className="mt-8">JavaScript Errors</Subheading>
               <div className="mt-4 space-y-4">
@@ -129,34 +127,36 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ p
               <TableRow>
                 <TableCell className="font-medium">Browser</TableCell>
                 <TableCell>
-                  {ticket.metadata.browser?.name} {ticket.metadata.browser?.version}
+                  {ticket.metadata?.browser?.name} {ticket.metadata?.browser?.version}
                 </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">OS</TableCell>
                 <TableCell>
-                  {ticket.metadata?.os?.name} {ticket.metadata.os?.version}
+                  {ticket.metadata?.os?.name} {ticket.metadata?.os?.version}
                 </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Screen Size</TableCell>
                 <TableCell>
-                  {ticket.metadata.screen?.width}×{ticket.metadata.screen?.height}
+                  {ticket.metadata?.screen?.width}×{ticket.metadata?.screen?.height}
                 </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Viewport</TableCell>
                 <TableCell>
-                  {ticket.metadata.screen?.viewportWidth}×{ticket.metadata.screen?.viewportHeight}
+                  {ticket.metadata?.screen?.viewportWidth}×{ticket.metadata?.screen?.viewportHeight}
                 </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Page URL</TableCell>
-                <TableCell className="break-all">{ticket.metadata.pageUrl}</TableCell>
+                <TableCell className="break-all">{ticket.metadata?.pageUrl}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Timestamp</TableCell>
-                <TableCell>{new Date(ticket.metadata.timestamp).toLocaleString()}</TableCell>
+                <TableCell>
+                  {ticket.metadata?.timestamp ? new Date(ticket.metadata.timestamp).toLocaleString() : '—'}
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>

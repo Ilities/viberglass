@@ -4,17 +4,14 @@ export async function up(db: Kysely<any>): Promise<void> {
   // Create webhook_provider_configs table
   await db.schema
     .createTable("webhook_provider_configs")
-    .addColumn("id", "varchar(255)", (col) => col.primaryKey())
-    .addColumn("project_id", "varchar(255)", (col) =>
-      col
-        .references("projects.id")
-        .onDelete("cascade")
-        .unique(),
+    .addColumn("id", "uuid", (col) =>
+      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+    )
+    .addColumn("project_id", "uuid", (col) =>
+      col.references("projects.id").onDelete("cascade").unique(),
     )
     .addColumn("provider", "varchar(50)", (col) =>
-      col
-        .notNull()
-        .check(sql`provider IN ('github', 'jira')`),
+      col.notNull().check(sql`provider IN ('github', 'jira')`),
     )
     .addColumn("provider_project_id", "varchar(255)")
     .addColumn("secret_location", "varchar(20)", (col) =>
@@ -46,9 +43,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createTable("webhook_delivery_attempts")
     .addColumn("id", "varchar(255)", (col) => col.primaryKey())
     .addColumn("provider", "varchar(50)", (col) =>
-      col
-        .notNull()
-        .check(sql`provider IN ('github', 'jira')`),
+      col.notNull().check(sql`provider IN ('github', 'jira')`),
     )
     .addColumn("delivery_id", "varchar(255)", (col) => col.notNull().unique())
     .addColumn("event_type", "varchar(100)", (col) => col.notNull())
@@ -121,20 +116,14 @@ export async function down(db: Kysely<any>): Promise<void> {
   await db.schema
     .dropIndex("idx_webhook_delivery_attempts_created_at")
     .execute();
-  await db.schema
-    .dropIndex("idx_webhook_delivery_attempts_status")
-    .execute();
+  await db.schema.dropIndex("idx_webhook_delivery_attempts_status").execute();
   await db.schema
     .dropIndex("idx_webhook_delivery_attempts_delivery_id")
     .execute();
 
   // Drop indexes for webhook_provider_configs
-  await db.schema
-    .dropIndex("idx_webhook_provider_configs_active")
-    .execute();
-  await db.schema
-    .dropIndex("idx_webhook_provider_configs_provider")
-    .execute();
+  await db.schema.dropIndex("idx_webhook_provider_configs_active").execute();
+  await db.schema.dropIndex("idx_webhook_provider_configs_provider").execute();
   await db.schema
     .dropIndex("idx_webhook_provider_configs_project_id")
     .execute();

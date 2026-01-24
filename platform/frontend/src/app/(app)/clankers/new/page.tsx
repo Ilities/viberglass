@@ -6,8 +6,10 @@ import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
+import { MultiSelect } from '@/components/multi-select'
 import { createClanker, getDeploymentStrategies } from '@/service/api/clanker-api'
-import type { ConfigFileInput, DeploymentStrategy } from '@viberator/types'
+import { getSecrets, type Secret } from '@/service/api/secret-api'
+import type { AgentType, ConfigFileInput, DeploymentStrategy } from '@viberglass/types'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -26,17 +28,24 @@ export default function NewClankerPage() {
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>('')
   const [configFiles, setConfigFiles] = useState<Record<string, string>>({})
   const [customConfigFileName, setCustomConfigFileName] = useState('')
+  const [secrets, setSecrets] = useState<Secret[]>([])
+  const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>('claude-code')
+  const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
 
   useEffect(() => {
-    async function loadStrategies() {
+    async function loadData() {
       try {
-        const strategies = await getDeploymentStrategies()
+        const [strategies, secretsData] = await Promise.all([
+          getDeploymentStrategies(),
+          getSecrets(100, 0),
+        ])
         setDeploymentStrategies(strategies)
+        setSecrets(secretsData)
       } catch (err) {
-        console.error('Failed to load deployment strategies:', err)
+        console.error('Failed to load data:', err)
       }
     }
-    loadStrategies()
+    loadData()
   }, [])
 
   const selectedStrategy = deploymentStrategies.find((s) => s.id === selectedStrategyId)
@@ -98,6 +107,8 @@ export default function NewClankerPage() {
         deploymentStrategyId: selectedStrategyId || null,
         deploymentConfig,
         configFiles: configFilesArray,
+        agent: selectedAgent || null,
+        secretIds: selectedSecretIds,
       })
       router.push(`/clankers/${clanker.slug}`)
     } catch (err) {
@@ -175,6 +186,33 @@ export default function NewClankerPage() {
                 </Field>
               </>
             )}
+
+            <Field>
+              <Label>Agent</Label>
+              <Description>Select which AI agent to use for this clanker.</Description>
+              <Select name="agent" value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value as AgentType)}>
+                <option value="claude-code">Claude Code (Recommended)</option>
+                <option value="qwen-cli">Qwen CLI</option>
+                <option value="qwen-api">Qwen API</option>
+                <option value="codex">OpenAI Codex</option>
+                <option value="gemini-cli">Gemini CLI</option>
+                <option value="mistral-vibe">Mistral Vibe</option>
+              </Select>
+            </Field>
+
+            <MultiSelect
+              label="Secrets"
+              description="Select which secrets should be available to this clanker during execution."
+              options={secrets.map((secret) => ({
+                id: secret.id,
+                label: secret.name,
+                description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
+              }))}
+              value={selectedSecretIds}
+              onChange={setSelectedSecretIds}
+              emptyMessage="No secrets available. Create secrets first in the Settings section."
+              searchable={true}
+            />
           </FieldGroup>
         </Fieldset>
 

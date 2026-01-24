@@ -14,6 +14,8 @@ import {
   progressUpdateSchema,
   logEntrySchema,
   logBatchSchema,
+  secretSchema,
+  updateSecretSchema,
 } from "./schemas";
 
 /**
@@ -59,6 +61,8 @@ export const validateRunTicket = createValidator(runTicketSchema);
 export const validateProgressUpdate = createValidator(progressUpdateSchema);
 export const validateLogEntry = createValidator(logEntrySchema);
 export const validateLogBatch = createValidator(logBatchSchema);
+export const validateCreateSecret = createValidator(secretSchema);
+export const validateUpdateSecret = createValidator(updateSecretSchema);
 
 // Custom validators with special logic
 

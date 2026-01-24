@@ -48,6 +48,21 @@ router.get("/by-slug/:slug", async (req, res) => {
 // POST /api/clankers - Create a new clanker
 router.post("/", validateCreateClanker, async (req, res) => {
   try {
+    // Validate that secrets exist if secretIds are provided
+    if (req.body.secretIds && req.body.secretIds.length > 0) {
+      try {
+        await clankerService.validateSecretsExist(req.body.secretIds);
+      } catch (validationError) {
+        return res.status(400).json({
+          error: "Validation error",
+          message:
+            validationError instanceof Error
+              ? validationError.message
+              : "Invalid secret IDs",
+        });
+      }
+    }
+
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
   } catch (error) {
@@ -80,6 +95,21 @@ router.put(
       const clanker = await clankerService.getClanker(req.params.id);
       if (!clanker) {
         return res.status(404).json({ error: "Clanker not found" });
+      }
+
+      // Validate that secrets exist if secretIds are provided
+      if (req.body.secretIds && req.body.secretIds.length > 0) {
+        try {
+          await clankerService.validateSecretsExist(req.body.secretIds);
+        } catch (validationError) {
+          return res.status(400).json({
+            error: "Validation error",
+            message:
+              validationError instanceof Error
+                ? validationError.message
+                : "Invalid secret IDs",
+          });
+        }
       }
 
       const updatedClanker = await clankerService.updateClanker(

@@ -5,7 +5,7 @@ import {
   Project,
   Ticket,
   WebhookEvent,
-} from "@viberator/types";
+} from "@viberglass/types";
 
 // Backend-specific interface for PM Integration implementations
 export interface CustomFieldMapping {

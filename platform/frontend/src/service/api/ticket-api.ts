@@ -7,7 +7,7 @@ import type {
   TicketListParams,
   UpdateTicketRequest,
   WebhookStatus,
-} from '@viberator/types'
+} from '@viberglass/types'
 
 // Tickets API
 export async function getTickets(params: TicketListParams = {}): Promise<Ticket[]> {
@@ -117,4 +117,4 @@ export async function triggerAutoFix(ticketId: string, ticketSystem: string, rep
 }
 
 // Re-export types for convenience
-export type { AutoFixStatus, Severity, Ticket, TicketListParams, UpdateTicketRequest } from '@viberator/types'
+export type { AutoFixStatus, Severity, Ticket, TicketListParams, UpdateTicketRequest } from '@viberglass/types'

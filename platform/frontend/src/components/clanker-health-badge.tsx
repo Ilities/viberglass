@@ -1,6 +1,6 @@
 import { Badge } from '@/components/badge'
-import { CheckCircleIcon, XCircleIcon, QuestionMarkCircleIcon } from '@heroicons/react/20/solid'
-import type { ClankerHealthStatus } from '@viberator/types'
+import { CheckCircleIcon, QuestionMarkCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import type { ClankerHealthStatus } from '@viberglass/types'
 
 const healthConfig = {
   healthy: {
@@ -22,7 +22,7 @@ const healthConfig = {
 
 export interface ClankerHealthBadgeProps {
   health: ClankerHealthStatus
-  showChecks?: boolean  // Show detailed checks in a tooltip
+  showChecks?: boolean // Show detailed checks in a tooltip
 }
 
 /**

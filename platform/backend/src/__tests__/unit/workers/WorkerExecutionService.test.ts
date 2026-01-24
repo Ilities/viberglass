@@ -10,24 +10,30 @@
  * Note: Simple status updates are covered by integration tests.
  */
 
-import { WorkerExecutionService } from '../../../workers/WorkerExecutionService';
-import { WorkerError, ErrorClassification } from '../../../workers/errors/WorkerError';
-import { JobService } from '../../../services/JobService';
-import { getWorkerInvokerFactory, resetWorkerInvokerFactory } from '../../../workers/WorkerInvokerFactory';
-import type { Clanker } from '@viberator/types';
-import type { JobData } from '../../../types/Job';
-import type { WorkerInvoker } from '../../../workers/WorkerInvoker';
+import { WorkerExecutionService } from "../../../workers/WorkerExecutionService";
+import {
+  WorkerError,
+  ErrorClassification,
+} from "../../../workers/errors/WorkerError";
+import { JobService } from "../../../services/JobService";
+import {
+  getWorkerInvokerFactory,
+  resetWorkerInvokerFactory,
+} from "../../../workers/WorkerInvokerFactory";
+import type { Clanker } from "@viberglass/types";
+import type { JobData } from "../../../types/Job";
+import type { WorkerInvoker } from "../../../workers/WorkerInvoker";
 
 // Mock JobService
-jest.mock('../../../services/JobService');
+jest.mock("../../../services/JobService");
 
 // Mock WorkerInvokerFactory
-jest.mock('../../../workers/WorkerInvokerFactory', () => ({
+jest.mock("../../../workers/WorkerInvokerFactory", () => ({
   getWorkerInvokerFactory: jest.fn(),
   resetWorkerInvokerFactory: jest.fn(),
 }));
 
-describe('WorkerExecutionService', () => {
+describe("WorkerExecutionService", () => {
   let service: WorkerExecutionService;
   let mockJobService: jest.Mocked<JobService>;
   let mockInvoker: jest.Mocked<WorkerInvoker>;
@@ -41,26 +47,26 @@ describe('WorkerExecutionService', () => {
 
     // Mock job data
     mockJob = {
-      id: 'job-123',
-      tenantId: 'tenant-456',
-      repository: 'https://github.com/test/repo',
-      task: 'Fix the bug',
+      id: "job-123",
+      tenantId: "tenant-456",
+      repository: "https://github.com/test/repo",
+      task: "Fix the bug",
       timestamp: Date.now(),
     };
 
     // Mock clanker with lambda deployment strategy
     mockClanker = {
-      id: 'clanker-789',
-      name: 'Test Clanker',
-      slug: 'test-clanker',
-      status: 'active',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
+      id: "clanker-789",
+      name: "Test Clanker",
+      slug: "test-clanker",
+      status: "active",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
       deploymentStrategy: {
-        id: 'strategy-1',
-        name: 'lambda',
-        description: 'Lambda deployment',
-        createdAt: '2024-01-01T00:00:00Z',
+        id: "strategy-1",
+        name: "lambda",
+        description: "Lambda deployment",
+        createdAt: "2024-01-01T00:00:00Z",
       },
       configFiles: [],
     };
@@ -74,7 +80,7 @@ describe('WorkerExecutionService', () => {
 
     // Mock WorkerInvoker
     mockInvoker = {
-      name: 'lambda',
+      name: "lambda",
       invoke: jest.fn(),
       isAvailable: jest.fn().mockResolvedValue(true),
     };
@@ -92,14 +98,16 @@ describe('WorkerExecutionService', () => {
     jest.useRealTimers();
   });
 
-  describe('Retry Logic - Transient Errors', () => {
-    it('should retry once with exponential backoff on transient error', async () => {
+  describe("Retry Logic - Transient Errors", () => {
+    it("should retry once with exponential backoff on transient error", async () => {
       // First call fails with transient error, second succeeds
       mockInvoker.invoke
-        .mockRejectedValueOnce(new WorkerError('Rate limit exceeded', ErrorClassification.TRANSIENT))
+        .mockRejectedValueOnce(
+          new WorkerError("Rate limit exceeded", ErrorClassification.TRANSIENT),
+        )
         .mockResolvedValueOnce({
-          executionId: 'exec-123',
-          workerType: 'lambda',
+          executionId: "exec-123",
+          workerType: "lambda",
         });
 
       const executePromise = service.executeJob(mockJob, mockClanker);
@@ -121,14 +129,18 @@ describe('WorkerExecutionService', () => {
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(2);
     });
 
-    it('should succeed after multiple transient retries with exponential backoff', async () => {
+    it("should succeed after multiple transient retries with exponential backoff", async () => {
       // Fail twice, succeed on third attempt
       mockInvoker.invoke
-        .mockRejectedValueOnce(new WorkerError('Network error', ErrorClassification.TRANSIENT))
-        .mockRejectedValueOnce(new WorkerError('Timeout', ErrorClassification.TRANSIENT))
+        .mockRejectedValueOnce(
+          new WorkerError("Network error", ErrorClassification.TRANSIENT),
+        )
+        .mockRejectedValueOnce(
+          new WorkerError("Timeout", ErrorClassification.TRANSIENT),
+        )
         .mockResolvedValueOnce({
-          executionId: 'exec-456',
-          workerType: 'lambda',
+          executionId: "exec-456",
+          workerType: "lambda",
         });
 
       const executePromise = service.executeJob(mockJob, mockClanker);
@@ -144,8 +156,11 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(3);
     });
 
-    it('should exhaust retries and fail after maxRetries transient errors', async () => {
-      const transientError = new WorkerError('Service unavailable', ErrorClassification.TRANSIENT);
+    it("should exhaust retries and fail after maxRetries transient errors", async () => {
+      const transientError = new WorkerError(
+        "Service unavailable",
+        ErrorClassification.TRANSIENT,
+      );
 
       // Always fail with transient error
       mockInvoker.invoke.mockRejectedValue(transientError);
@@ -165,8 +180,11 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(4);
     });
 
-    it('should mark job as failed when max retries exhausted', async () => {
-      const transientError = new WorkerError('Always failing', ErrorClassification.TRANSIENT);
+    it("should mark job as failed when max retries exhausted", async () => {
+      const transientError = new WorkerError(
+        "Always failing",
+        ErrorClassification.TRANSIENT,
+      );
       mockInvoker.invoke.mockRejectedValue(transientError);
 
       const executePromise = service.executeJob(mockJob, mockClanker);
@@ -179,17 +197,17 @@ describe('WorkerExecutionService', () => {
 
       // Should have called updateJobStatus with 'failed' at the end
       const failedCalls = mockJobService.updateJobStatus.mock.calls.filter(
-        call => call[1] === 'failed'
+        (call) => call[1] === "failed",
       );
       expect(failedCalls.length).toBeGreaterThan(0);
     });
   });
 
-  describe('Retry Logic - Permanent Errors', () => {
-    it('should fail immediately on permanent error without retry', async () => {
+  describe("Retry Logic - Permanent Errors", () => {
+    it("should fail immediately on permanent error without retry", async () => {
       const permanentError = new WorkerError(
-        'Invalid credentials',
-        ErrorClassification.PERMANENT
+        "Invalid credentials",
+        ErrorClassification.PERMANENT,
       );
 
       mockInvoker.invoke.mockRejectedValue(permanentError);
@@ -201,22 +219,22 @@ describe('WorkerExecutionService', () => {
 
       expect(result.success).toBe(false);
       expect(result.attempts).toBe(1); // Single attempt only
-      expect(result.error).toContain('Invalid credentials');
+      expect(result.error).toContain("Invalid credentials");
 
       // Should only have been called once (no retries)
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(1);
     });
 
-    it('should not advance timers for permanent error', async () => {
+    it("should not advance timers for permanent error", async () => {
       const permanentError = new WorkerError(
-        'Configuration error',
-        ErrorClassification.PERMANENT
+        "Configuration error",
+        ErrorClassification.PERMANENT,
       );
 
       mockInvoker.invoke.mockRejectedValue(permanentError);
 
       // Spy on setTimeout to verify no backoff delay
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const setTimeoutSpy = jest.spyOn(global, "setTimeout");
 
       const executePromise = service.executeJob(mockJob, mockClanker);
       await executePromise;
@@ -228,10 +246,10 @@ describe('WorkerExecutionService', () => {
       setTimeoutSpy.mockRestore();
     });
 
-    it('should mark job as failed on permanent error', async () => {
+    it("should mark job as failed on permanent error", async () => {
       const permanentError = new WorkerError(
-        'Access denied',
-        ErrorClassification.PERMANENT
+        "Access denied",
+        ErrorClassification.PERMANENT,
       );
 
       mockInvoker.invoke.mockRejectedValue(permanentError);
@@ -239,23 +257,25 @@ describe('WorkerExecutionService', () => {
       await service.executeJob(mockJob, mockClanker);
 
       const failedCalls = mockJobService.updateJobStatus.mock.calls.filter(
-        call => call[1] === 'failed'
+        (call) => call[1] === "failed",
       );
       expect(failedCalls.length).toBe(1);
       const failedCall = failedCalls[0];
       if (failedCall?.[2]?.errorMessage) {
-        expect(failedCall[2].errorMessage).toContain('Access denied');
+        expect(failedCall[2].errorMessage).toContain("Access denied");
       }
     });
   });
 
-  describe('Backoff Calculation', () => {
-    it('should use baseDelayMs (1000ms) for first retry', async () => {
+  describe("Backoff Calculation", () => {
+    it("should use baseDelayMs (1000ms) for first retry", async () => {
       mockInvoker.invoke
-        .mockRejectedValueOnce(new WorkerError('Error 1', ErrorClassification.TRANSIENT))
+        .mockRejectedValueOnce(
+          new WorkerError("Error 1", ErrorClassification.TRANSIENT),
+        )
         .mockResolvedValueOnce({
-          executionId: 'exec-1',
-          workerType: 'lambda',
+          executionId: "exec-1",
+          workerType: "lambda",
         });
 
       const executePromise = service.executeJob(mockJob, mockClanker);
@@ -271,14 +291,20 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(2);
     });
 
-    it('should double delay each retry (exponential backoff)', async () => {
+    it("should double delay each retry (exponential backoff)", async () => {
       mockInvoker.invoke
-        .mockRejectedValueOnce(new WorkerError('Error 1', ErrorClassification.TRANSIENT))
-        .mockRejectedValueOnce(new WorkerError('Error 2', ErrorClassification.TRANSIENT))
-        .mockRejectedValueOnce(new WorkerError('Error 3', ErrorClassification.TRANSIENT))
+        .mockRejectedValueOnce(
+          new WorkerError("Error 1", ErrorClassification.TRANSIENT),
+        )
+        .mockRejectedValueOnce(
+          new WorkerError("Error 2", ErrorClassification.TRANSIENT),
+        )
+        .mockRejectedValueOnce(
+          new WorkerError("Error 3", ErrorClassification.TRANSIENT),
+        )
         .mockResolvedValueOnce({
-          executionId: 'exec-1',
-          workerType: 'lambda',
+          executionId: "exec-1",
+          workerType: "lambda",
         });
 
       const executePromise = service.executeJob(mockJob, mockClanker);
@@ -304,7 +330,7 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(4);
     });
 
-    it('should cap backoff delay at maxDelayMs', async () => {
+    it("should cap backoff delay at maxDelayMs", async () => {
       // Create service with small maxDelayMs for testing
       const customService = new WorkerExecutionService({
         maxRetries: 10,
@@ -314,13 +340,21 @@ describe('WorkerExecutionService', () => {
 
       // Make it fail many times to test backoff cap
       mockInvoker.invoke
-        .mockRejectedValueOnce(new WorkerError('Error 1', ErrorClassification.TRANSIENT))
-        .mockRejectedValueOnce(new WorkerError('Error 2', ErrorClassification.TRANSIENT))
-        .mockRejectedValueOnce(new WorkerError('Error 3', ErrorClassification.TRANSIENT))
-        .mockRejectedValueOnce(new WorkerError('Error 4', ErrorClassification.TRANSIENT))
+        .mockRejectedValueOnce(
+          new WorkerError("Error 1", ErrorClassification.TRANSIENT),
+        )
+        .mockRejectedValueOnce(
+          new WorkerError("Error 2", ErrorClassification.TRANSIENT),
+        )
+        .mockRejectedValueOnce(
+          new WorkerError("Error 3", ErrorClassification.TRANSIENT),
+        )
+        .mockRejectedValueOnce(
+          new WorkerError("Error 4", ErrorClassification.TRANSIENT),
+        )
         .mockResolvedValueOnce({
-          executionId: 'exec-1',
-          workerType: 'lambda',
+          executionId: "exec-1",
+          workerType: "lambda",
         });
 
       // Recreate factory for custom service
@@ -346,7 +380,7 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(5);
     });
 
-    it('should allow custom baseDelayMs and maxDelayMs', async () => {
+    it("should allow custom baseDelayMs and maxDelayMs", async () => {
       const customService = new WorkerExecutionService({
         maxRetries: 2,
         baseDelayMs: 500, // 500ms base
@@ -354,11 +388,15 @@ describe('WorkerExecutionService', () => {
       });
 
       mockInvoker.invoke
-        .mockRejectedValueOnce(new WorkerError('Error 1', ErrorClassification.TRANSIENT))
-        .mockRejectedValueOnce(new WorkerError('Error 2', ErrorClassification.TRANSIENT))
+        .mockRejectedValueOnce(
+          new WorkerError("Error 1", ErrorClassification.TRANSIENT),
+        )
+        .mockRejectedValueOnce(
+          new WorkerError("Error 2", ErrorClassification.TRANSIENT),
+        )
         .mockResolvedValueOnce({
-          executionId: 'exec-1',
-          workerType: 'lambda',
+          executionId: "exec-1",
+          workerType: "lambda",
         });
 
       (getWorkerInvokerFactory as jest.Mock).mockReturnValue(mockFactory);
@@ -376,10 +414,10 @@ describe('WorkerExecutionService', () => {
     });
   });
 
-  describe('Max Retries Configuration', () => {
-    it('should use default maxRetries of 3', async () => {
+  describe("Max Retries Configuration", () => {
+    it("should use default maxRetries of 3", async () => {
       mockInvoker.invoke.mockRejectedValue(
-        new WorkerError('Always failing', ErrorClassification.TRANSIENT)
+        new WorkerError("Always failing", ErrorClassification.TRANSIENT),
       );
 
       const executePromise = service.executeJob(mockJob, mockClanker);
@@ -393,13 +431,13 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(4);
     });
 
-    it('should respect custom maxRetries configuration', async () => {
+    it("should respect custom maxRetries configuration", async () => {
       const customService = new WorkerExecutionService({
         maxRetries: 1, // Only 1 retry
       });
 
       mockInvoker.invoke.mockRejectedValue(
-        new WorkerError('Always failing', ErrorClassification.TRANSIENT)
+        new WorkerError("Always failing", ErrorClassification.TRANSIENT),
       );
 
       (getWorkerInvokerFactory as jest.Mock).mockReturnValue(mockFactory);
@@ -413,13 +451,13 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(2); // 1 initial + 1 retry
     });
 
-    it('should allow maxRetries of 0 (no retries)', async () => {
+    it("should allow maxRetries of 0 (no retries)", async () => {
       const customService = new WorkerExecutionService({
         maxRetries: 0,
       });
 
       mockInvoker.invoke.mockRejectedValue(
-        new WorkerError('Always failing', ErrorClassification.TRANSIENT)
+        new WorkerError("Always failing", ErrorClassification.TRANSIENT),
       );
 
       (getWorkerInvokerFactory as jest.Mock).mockReturnValue(mockFactory);
@@ -432,9 +470,9 @@ describe('WorkerExecutionService', () => {
     });
   });
 
-  describe('Unknown Error Types', () => {
-    it('should treat non-WorkerError as permanent and fail immediately', async () => {
-      const genericError = new Error('Some unknown error');
+  describe("Unknown Error Types", () => {
+    it("should treat non-WorkerError as permanent and fail immediately", async () => {
+      const genericError = new Error("Some unknown error");
       mockInvoker.invoke.mockRejectedValue(genericError);
 
       const executePromise = service.executeJob(mockJob, mockClanker);
@@ -445,91 +483,101 @@ describe('WorkerExecutionService', () => {
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(1);
     });
 
-    it('should mark job as failed on unknown error type', async () => {
-      const genericError = new TypeError('Type error occurred');
+    it("should mark job as failed on unknown error type", async () => {
+      const genericError = new TypeError("Type error occurred");
       mockInvoker.invoke.mockRejectedValue(genericError);
 
       await service.executeJob(mockJob, mockClanker);
 
       const failedCalls = mockJobService.updateJobStatus.mock.calls.filter(
-        call => call[1] === 'failed'
+        (call) => call[1] === "failed",
       );
       expect(failedCalls.length).toBe(1);
     });
   });
 
-  describe('Successful Execution', () => {
-    it('should return execution result on success', async () => {
+  describe("Successful Execution", () => {
+    it("should return execution result on success", async () => {
       mockInvoker.invoke.mockResolvedValue({
-        executionId: 'exec-success-123',
-        workerType: 'lambda',
+        executionId: "exec-success-123",
+        workerType: "lambda",
       });
 
       const result = await service.executeJob(mockJob, mockClanker);
 
       expect(result.success).toBe(true);
-      expect(result.executionId).toBe('exec-success-123');
-      expect(result.workerType).toBe('lambda');
+      expect(result.executionId).toBe("exec-success-123");
+      expect(result.workerType).toBe("lambda");
       expect(result.attempts).toBe(1);
     });
 
-    it('should store executionId in job progress on success', async () => {
+    it("should store executionId in job progress on success", async () => {
       mockInvoker.invoke.mockResolvedValue({
-        executionId: 'exec-xyz-789',
-        workerType: 'lambda',
+        executionId: "exec-xyz-789",
+        workerType: "lambda",
       });
 
       await service.executeJob(mockJob, mockClanker);
 
       // Find the updateJobStatus call that includes executionId
       const successCalls = mockJobService.updateJobStatus.mock.calls.filter(
-        call => call[1] === 'active' && call[2]?.progress?.executionId
+        (call) => call[1] === "active" && call[2]?.progress?.executionId,
       );
 
       expect(successCalls.length).toBe(1);
       const successCall = successCalls[0];
       if (successCall?.[2]?.progress) {
-        expect(successCall[2].progress.executionId).toBe('exec-xyz-789');
-        expect(successCall[2].progress.workerType).toBe('lambda');
+        expect(successCall[2].progress.executionId).toBe("exec-xyz-789");
+        expect(successCall[2].progress.workerType).toBe("lambda");
       }
     });
   });
 
-  describe('Execution Status Flow', () => {
-    it('should mark job as active before invocation', async () => {
+  describe("Execution Status Flow", () => {
+    it("should mark job as active before invocation", async () => {
       mockInvoker.invoke.mockResolvedValue({
-        executionId: 'exec-1',
-        workerType: 'lambda',
+        executionId: "exec-1",
+        workerType: "lambda",
       });
 
       await service.executeJob(mockJob, mockClanker);
 
       // First call should be to mark as active
-      expect(mockJobService.updateJobStatus).toHaveBeenNthCalledWith(1, mockJob.id, 'active', {
-        progress: {
-          message: 'Invoking worker',
-          timestamp: expect.any(Number),
+      expect(mockJobService.updateJobStatus).toHaveBeenNthCalledWith(
+        1,
+        mockJob.id,
+        "active",
+        {
+          progress: {
+            message: "Invoking worker",
+            timestamp: expect.any(Number),
+          },
         },
-      });
+      );
     });
 
-    it('should update job progress with executionId after successful invocation', async () => {
+    it("should update job progress with executionId after successful invocation", async () => {
       mockInvoker.invoke.mockResolvedValue({
-        executionId: 'exec-abc',
-        workerType: 'lambda',
+        executionId: "exec-abc",
+        workerType: "lambda",
       });
 
       await service.executeJob(mockJob, mockClanker);
 
       // Second call should include execution details
-      expect(mockJobService.updateJobStatus).toHaveBeenNthCalledWith(2, mockJob.id, 'active', {
-        progress: {
-          message: 'Worker invoked successfully',
-          executionId: 'exec-abc',
-          workerType: 'lambda',
-          timestamp: expect.any(Number),
+      expect(mockJobService.updateJobStatus).toHaveBeenNthCalledWith(
+        2,
+        mockJob.id,
+        "active",
+        {
+          progress: {
+            message: "Worker invoked successfully",
+            executionId: "exec-abc",
+            workerType: "lambda",
+            timestamp: expect.any(Number),
+          },
         },
-      });
+      );
     });
   });
 });

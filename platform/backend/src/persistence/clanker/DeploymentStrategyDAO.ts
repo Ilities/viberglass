@@ -4,11 +4,11 @@ import type {
   DeploymentStrategy,
   CreateDeploymentStrategyRequest,
   UpdateDeploymentStrategyRequest,
-} from "@viberator/types";
+} from "@viberglass/types";
 
 export class DeploymentStrategyDAO {
   async createDeploymentStrategy(
-    request: CreateDeploymentStrategyRequest
+    request: CreateDeploymentStrategyRequest,
   ): Promise<DeploymentStrategy> {
     const id = uuidv4();
     const timestamp = new Date();
@@ -43,7 +43,7 @@ export class DeploymentStrategyDAO {
   }
 
   async getDeploymentStrategyByName(
-    name: string
+    name: string,
   ): Promise<DeploymentStrategy | null> {
     const row = await db
       .selectFrom("deployment_strategies")
@@ -58,7 +58,7 @@ export class DeploymentStrategyDAO {
 
   async updateDeploymentStrategy(
     id: string,
-    updates: UpdateDeploymentStrategyRequest
+    updates: UpdateDeploymentStrategyRequest,
   ): Promise<DeploymentStrategy> {
     const updateData: Record<string, unknown> = {};
 

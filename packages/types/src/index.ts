@@ -1,5 +1,5 @@
 /**
- * @viberator/types - Shared TypeScript types for Viberglass platform
+ * @viberglass/types - Shared TypeScript types for Viberglass platform
  */
 
 // Common types
@@ -16,3 +16,6 @@ export * from './externalTicket'
 
 // Clanker types
 export * from './clanker'
+
+// Secret types
+export * from './secret'

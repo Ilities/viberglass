@@ -12,6 +12,7 @@ import webhooksRouter from "./routes/webhooks";
 import clankersRouter from "./routes/clankers";
 import deploymentStrategiesRouter from "./routes/deployment-strategies";
 import jobsRouter from "./routes/jobs";
+import secretsRouter from "./routes/secrets";
 
 const app = express();
 
@@ -65,12 +66,13 @@ app.use("/api/webhooks", webhooksRouter);
 app.use("/api/clankers", clankersRouter);
 app.use("/api/deployment-strategies", deploymentStrategiesRouter);
 app.use("/api/jobs", jobsRouter);
+app.use("/api/secrets", secretsRouter);
 
 // API documentation endpoint
 app.get("/api/docs", (req, res) => {
   const docs = {
     version: "1.0.0",
-    title: "ViBug Receiver API",
+    title: "Viberglass Receiver API",
     description: "Ticket capture and PM system integration API",
     endpoints: {
       "POST /api/tickets": {

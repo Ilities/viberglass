@@ -9,7 +9,7 @@ import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
 import { createTicket } from '@/service/api/ticket-api'
-import type { CreateTicketRequest, Severity } from '@viberator/types'
+import type { CreateTicketRequest, Severity } from '@viberglass/types'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 

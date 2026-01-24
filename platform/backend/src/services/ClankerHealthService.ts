@@ -1,16 +1,16 @@
-import type { Clanker } from '@viberator/types';
-import type { ClankerHealthStatus } from '@viberator/types';
-import { getWorkerInvokerFactory } from '../workers/WorkerInvokerFactory';
-import { createChildLogger } from '../config/logger';
+import type { Clanker } from "@viberglass/types";
+import type { ClankerHealthStatus } from "@viberglass/types";
+import { getWorkerInvokerFactory } from "../workers/WorkerInvokerFactory";
+import { createChildLogger } from "../config/logger";
 
-const logger = createChildLogger({ service: 'ClankerHealthService' });
+const logger = createChildLogger({ service: "ClankerHealthService" });
 
 export class ClankerHealthService {
   constructor() {}
 
   async checkClankerHealth(clanker: Clanker): Promise<ClankerHealthStatus> {
     const checks = {
-      resourceExists: true,  // We found it in DB
+      resourceExists: true, // We found it in DB
       deploymentConfigured: false,
       invokerAvailable: false,
     };
@@ -20,9 +20,9 @@ export class ClankerHealthService {
       return {
         clankerId: clanker.id,
         isHealthy: false,
-        status: 'unhealthy',
+        status: "unhealthy",
         checks,
-        message: 'Deployment strategy or configuration not set',
+        message: "Deployment strategy or configuration not set",
         lastChecked: new Date().toISOString(),
       };
     }
@@ -34,7 +34,7 @@ export class ClankerHealthService {
       const invoker = factory.getInvokerForClanker(clanker);
       checks.invokerAvailable = await invoker.isAvailable();
     } catch (error) {
-      logger.warn('Failed to get invoker for clanker', {
+      logger.warn("Failed to get invoker for clanker", {
         clankerId: clanker.id,
         error: error instanceof Error ? error.message : error,
       });
@@ -46,9 +46,9 @@ export class ClankerHealthService {
     return {
       clankerId: clanker.id,
       isHealthy,
-      status: isHealthy ? 'healthy' : 'unhealthy',
+      status: isHealthy ? "healthy" : "unhealthy",
       checks,
-      message: isHealthy ? 'Clanker is ready' : 'Invoker unavailable',
+      message: isHealthy ? "Clanker is ready" : "Invoker unavailable",
       lastChecked: new Date().toISOString(),
     };
   }

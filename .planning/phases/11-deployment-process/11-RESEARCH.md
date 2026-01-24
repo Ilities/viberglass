@@ -421,7 +421,7 @@ COPY packages/types ./packages/types
 COPY platform/backend ./platform/backend
 
 # Build TypeScript
-RUN npm run build --workspace=@viberator/types
+RUN npm run build --workspace=@viberglass/types
 RUN npm run build --workspace=@viberator/platform-backend
 
 # Production stage

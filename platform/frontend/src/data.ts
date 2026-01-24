@@ -1,15 +1,19 @@
+import {
+  getClankerBySlug as apiGetClankerBySlug,
+  getClankers as apiGetClankers,
+  getDeploymentStrategies as apiGetDeploymentStrategies,
+} from '@/service/api/clanker-api'
+import { getProjectBySlug as apiGetProjectBySlug, getProjects as apiGetProjects } from '@/service/api/project-api'
+import { getTickets } from '@/service/api/ticket-api'
 import type {
-  Ticket,
-  Project,
-  Severity,
   AutoFixStatus,
   Clanker,
   ClankerStatus,
-  DeploymentStrategy
-} from '@viberator/types'
-import { getTickets } from '@/service/api/ticket-api'
-import { getProjects as apiGetProjects, getProjectBySlug as apiGetProjectBySlug } from '@/service/api/project-api'
-import { getClankers as apiGetClankers, getClankerBySlug as apiGetClankerBySlug, getDeploymentStrategies as apiGetDeploymentStrategies } from '@/service/api/clanker-api'
+  DeploymentStrategy,
+  Project,
+  Severity,
+  Ticket,
+} from '@viberglass/types'
 
 // Extended ticket with computed status for UI
 export interface TicketSummary {
@@ -100,4 +104,4 @@ export async function getTicketStats() {
 export * from './lib/formatters'
 
 // Re-export types for convenience
-export type { Ticket, Project, Severity, AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy }
+export type { AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy, Project, Severity, Ticket }

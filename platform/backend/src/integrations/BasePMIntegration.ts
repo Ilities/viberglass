@@ -9,7 +9,7 @@ import {
   ExternalTicketUpdate,
   Ticket,
   WebhookEvent,
-} from "@viberator/types";
+} from "@viberglass/types";
 
 export abstract class BasePMIntegration implements PMIntegration {
   protected credentials: AuthCredentials;

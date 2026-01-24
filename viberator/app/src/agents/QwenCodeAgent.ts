@@ -1,6 +1,6 @@
-import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext, ExecutionResult } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import { BaseAgent } from "./BaseAgent";
+import { ExecutionContext } from "../types";
 import axios from "axios";
 import * as path from "path";
 

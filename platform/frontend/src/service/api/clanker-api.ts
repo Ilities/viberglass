@@ -8,7 +8,7 @@ import type {
   DeploymentStrategy,
   PaginatedResponse,
   UpdateClankerRequest,
-} from '@viberator/types'
+} from '@viberglass/types'
 
 // Clanker API functions
 
@@ -146,9 +146,12 @@ export async function getConfigFile(clankerId: string, fileType: string): Promis
 }
 
 export async function deleteConfigFile(clankerId: string, fileType: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${clankerId}/config-files/${encodeURIComponent(fileType)}`, {
-    method: 'DELETE',
-  })
+  const response = await fetch(
+    `${API_BASE_URL}/api/clankers/${clankerId}/config-files/${encodeURIComponent(fileType)}`,
+    {
+      method: 'DELETE',
+    }
+  )
   if (!response.ok) {
     throw new Error('Failed to delete config file')
   }
@@ -194,8 +197,8 @@ export type {
   Clanker,
   ClankerConfigFile,
   ClankerHealthStatus,
-  CreateClankerRequest,
-  UpdateClankerRequest,
-  DeploymentStrategy,
   ConfigFileInput,
-} from '@viberator/types'
+  CreateClankerRequest,
+  DeploymentStrategy,
+  UpdateClankerRequest,
+} from '@viberglass/types'

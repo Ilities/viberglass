@@ -5,7 +5,7 @@ import {
   CreateTicketRequest,
   UpdateTicketRequest,
   MediaAsset,
-} from "@viberator/types";
+} from "@viberglass/types";
 
 export class TicketDAO {
   async createTicket(

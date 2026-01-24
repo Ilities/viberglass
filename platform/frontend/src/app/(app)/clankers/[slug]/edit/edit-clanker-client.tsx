@@ -1,16 +1,18 @@
 'use client'
 
 import { Button } from '@/components/button'
-import { Field, FieldGroup, Fieldset, Label, Description } from '@/components/fieldset'
+import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
+import { MultiSelect } from '@/components/multi-select'
 import { getClankerBySlug } from '@/data'
-import { updateClanker, getDeploymentStrategies } from '@/service/api/clanker-api'
+import { getDeploymentStrategies, updateClanker } from '@/service/api/clanker-api'
+import { getSecrets, type Secret } from '@/service/api/secret-api'
+import type { AgentType, Clanker, ConfigFileInput, DeploymentStrategy } from '@viberglass/types'
 import { notFound, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import type { Clanker, DeploymentStrategy, ConfigFileInput } from '@viberator/types'
 
 const DEFAULT_CONFIG_FILE_TYPES = [
   { type: 'claude.md', label: 'Claude.md', placeholder: '# Claude Configuration\n\nYou are a helpful assistant...' },
@@ -32,12 +34,16 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>('')
   const [configFiles, setConfigFiles] = useState<Record<string, string>>({})
   const [customConfigFileName, setCustomConfigFileName] = useState('')
+  const [secrets, setSecrets] = useState<Secret[]>([])
+  const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>('')
+  const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
 
   useEffect(() => {
     async function loadData() {
-      const [clankerData, strategies] = await Promise.all([
+      const [clankerData, strategies, secretsData] = await Promise.all([
         getClankerBySlug(slug),
         getDeploymentStrategies(),
+        getSecrets(100, 0),
       ])
 
       if (!clankerData) {
@@ -46,7 +52,10 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
 
       setClanker(clankerData)
       setDeploymentStrategies(strategies)
+      setSecrets(secretsData)
       setSelectedStrategyId(clankerData.deploymentStrategyId || '')
+      setSelectedAgent(clankerData.agent || 'claude-code')
+      setSelectedSecretIds(clankerData.secretIds || [])
 
       const files: Record<string, string> = {}
       for (const file of clankerData.configFiles) {
@@ -98,14 +107,14 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
     if (selectedStrategy) {
       if (selectedStrategy.name === 'docker') {
         newDeploymentConfig = {
-          containerImage: formData.get('containerImage') as string || '',
+          containerImage: (formData.get('containerImage') as string) || '',
           ports: (deploymentConfig?.ports as Record<string, number>) || {},
           environmentVariables: (deploymentConfig?.environmentVariables as Record<string, string>) || {},
         }
       } else if (selectedStrategy.name === 'ecs') {
         newDeploymentConfig = {
-          clusterArn: formData.get('clusterArn') as string || '',
-          taskDefinitionArn: formData.get('taskDefinitionArn') as string || '',
+          clusterArn: (formData.get('clusterArn') as string) || '',
+          taskDefinitionArn: (formData.get('taskDefinitionArn') as string) || '',
           subnetIds: (deploymentConfig?.subnetIds as string[]) || [],
           securityGroupIds: (deploymentConfig?.securityGroupIds as string[]) || [],
         }
@@ -119,6 +128,8 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
         deploymentStrategyId: selectedStrategyId || null,
         deploymentConfig: newDeploymentConfig,
         configFiles: configFilesArray,
+        agent: selectedAgent || null,
+        secretIds: selectedSecretIds,
       })
       router.push(`/clankers/${updated.slug}`)
     } catch (err) {
@@ -217,6 +228,33 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
                 </Field>
               </>
             )}
+
+            <Field>
+              <Label>Agent</Label>
+              <Description>Select which AI agent to use for this clanker.</Description>
+              <Select name="agent" value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value as AgentType)}>
+                <option value="claude-code">Claude Code (Recommended)</option>
+                <option value="qwen-cli">Qwen CLI</option>
+                <option value="qwen-api">Qwen API</option>
+                <option value="codex">OpenAI Codex</option>
+                <option value="gemini-cli">Gemini CLI</option>
+                <option value="mistral-vibe">Mistral Vibe</option>
+              </Select>
+            </Field>
+
+            <MultiSelect
+              label="Secrets"
+              description="Select which secrets should be available to this clanker during execution."
+              options={secrets.map((secret) => ({
+                id: secret.id,
+                label: secret.name,
+                description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
+              }))}
+              value={selectedSecretIds}
+              onChange={setSelectedSecretIds}
+              emptyMessage="No secrets available. Create secrets first in the Settings section."
+              searchable={true}
+            />
           </FieldGroup>
         </Fieldset>
 

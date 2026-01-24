@@ -28,7 +28,7 @@ COPY packages/types ./packages/types
 COPY platform/backend ./platform/backend
 
 # Build shared types package first (required by backend)
-RUN npm run build -w @viberator/types
+RUN npm run build -w @viberglass/types
 
 # Build backend (TypeScript compilation)
 RUN npm run build -w @viberator/platform-backend

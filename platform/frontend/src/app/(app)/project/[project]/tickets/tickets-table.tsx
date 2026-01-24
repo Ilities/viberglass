@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { PlayIcon } from '@heroicons/react/16/solid'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { RunTicketModal } from '@/components/run-ticket-modal'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { formatAutoFixStatus, formatSeverity, formatTimestamp, type TicketSummary } from '@/data'
-import type { Ticket, Clanker } from '@viberator/types'
+import { PlayIcon } from '@heroicons/react/16/solid'
+import type { Clanker, Ticket } from '@viberglass/types'
+import { useState } from 'react'
 
 interface TicketsTableProps {
   tickets: TicketSummary[]
@@ -51,9 +51,7 @@ export function TicketsTable({ tickets, fullTickets, clankers, project }: Ticket
             <TableRow key={ticket.id} href={`/project/${project}/tickets/${ticket.id}`}>
               <TableCell className="font-medium">{ticket.title}</TableCell>
               <TableCell>
-                <Badge className={formatSeverity(ticket.severity).color}>
-                  {formatSeverity(ticket.severity).label}
-                </Badge>
+                <Badge className={formatSeverity(ticket.severity).color}>{formatSeverity(ticket.severity).label}</Badge>
               </TableCell>
               <TableCell>{ticket.category}</TableCell>
               <TableCell>
@@ -80,9 +78,7 @@ export function TicketsTable({ tickets, fullTickets, clankers, project }: Ticket
                   <span className="text-zinc-400">-</span>
                 )}
               </TableCell>
-              <TableCell className="text-zinc-500 dark:text-zinc-400">
-                {formatTimestamp(ticket.timestamp)}
-              </TableCell>
+              <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(ticket.timestamp)}</TableCell>
               <TableCell>
                 <Button
                   plain

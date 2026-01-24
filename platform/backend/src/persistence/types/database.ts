@@ -150,6 +150,8 @@ export interface ClankersTable {
   description: string | null;
   deployment_strategy_id: string | null;
   deployment_config: Json | null;
+  agent: string | null;
+  secret_ids: Generated<Json>;
   status: Generated<"active" | "inactive" | "deploying" | "failed">;
   status_message: string | null;
   created_at: Generated<Timestamp>;
@@ -228,6 +230,16 @@ export interface WebhookDeliveryAttemptsTable {
   processed_at: Timestamp | null;
 }
 
+export interface SecretsTable {
+  id: Generated<string>;
+  name: string;
+  secret_location: "env" | "database" | "ssm";
+  secret_path: string | null;
+  secret_value_encrypted: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -243,4 +255,5 @@ export interface Database {
   job_log_lines: JobLogLinesTable;
   webhook_provider_configs: WebhookProviderConfigsTable;
   webhook_delivery_attempts: WebhookDeliveryAttemptsTable;
+  secrets: SecretsTable;
 }

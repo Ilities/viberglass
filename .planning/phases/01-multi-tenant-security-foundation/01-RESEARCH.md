@@ -62,7 +62,7 @@ platform/backend/src/
 
 viberator/app/src/
 ├── credentials/
-│   ├── CredentialProvider.ts       # Shared interface (or use @viberator/types package)
+│   ├── CredentialProvider.ts       # Shared interface (or use @viberglass/types package)
 │   └── providers/                  # Reuse or symlink to backend providers
 ```
 

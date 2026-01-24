@@ -14,10 +14,15 @@ export type {
   TicketMetadata,
   Ticket,
   UpdateTicketRequest,
-} from '@viberator/types';
+} from "@viberglass/types";
 
 // Backend-specific types for ticket creation
-import type { TicketMetadata, Severity, TicketSystem, Annotation } from '@viberator/types';
+import type {
+  TicketMetadata,
+  Severity,
+  TicketSystem,
+  Annotation,
+} from "@viberglass/types";
 
 export interface CreateTicketRequest {
   projectId: string;

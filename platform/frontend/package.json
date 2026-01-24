@@ -1,5 +1,5 @@
 {
-  "name": "@viberator/frontend",
+  "name": "@viberglass/frontend",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -15,7 +15,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.6",
     "@heroicons/react": "^2.2.0",
-    "@viberator/types": "*",
+    "@viberglass/types": "*",
     "clsx": "^2.1.1",
     "motion": "^12.23.11",
     "next": "^15",

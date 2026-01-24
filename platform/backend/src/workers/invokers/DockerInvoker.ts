@@ -1,11 +1,12 @@
 import Docker from "dockerode";
-import type { Clanker } from "@viberator/types";
+import type { Clanker } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import fs from "fs";
 import { PassThrough } from "stream";
 import { createChildLogger } from "../../config/logger";
+import { SecretResolutionService } from "../../services/SecretResolutionService";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
@@ -19,6 +20,7 @@ interface DockerDeploymentConfig {
 export class DockerInvoker implements WorkerInvoker {
   readonly name = "DockerInvoker";
   private docker: Docker;
+  private secretResolutionService: SecretResolutionService;
 
   constructor(config?: { socketPath?: string; host?: string; port?: number }) {
     this.docker = new Docker({
@@ -26,9 +28,13 @@ export class DockerInvoker implements WorkerInvoker {
       host: config?.host,
       port: config?.port,
     });
+    this.secretResolutionService = new SecretResolutionService();
   }
 
   async invoke(job: JobData, clanker: Clanker): Promise<InvocationResult> {
+    logger.debug(
+      `Invoking job ${job.id} with Docker invoker with config: \n${JSON.stringify(clanker.deploymentConfig, null, 2)}`,
+    );
     const dockerConfig = clanker.deploymentConfig as unknown as
       | DockerDeploymentConfig
       | undefined;
@@ -41,6 +47,20 @@ export class DockerInvoker implements WorkerInvoker {
     }
 
     const payload = this.buildPayload(job, clanker);
+
+    let secretEnvironment: Record<string, string> = {};
+    try {
+      secretEnvironment =
+        await this.secretResolutionService.resolveSecretsForClanker(
+          clanker.secretIds || [],
+        );
+    } catch (error) {
+      throw new WorkerError(
+        `Secret resolution failed: ${(error as Error).message}`,
+        ErrorClassification.PERMANENT,
+        error,
+      );
+    }
 
     try {
       // Create container with unique name
@@ -78,7 +98,10 @@ export class DockerInvoker implements WorkerInvoker {
           `TENANT_ID=${job.tenantId}`,
           `JOB_ID=${job.id}`,
           `PLATFORM_API_URL=${platformApiUrl}`,
-          ...this.formatEnvironmentVars(dockerConfig.environmentVariables),
+          ...this.formatEnvironmentVars({
+            ...secretEnvironment,
+            ...dockerConfig.environmentVariables,
+          }),
         ],
         Cmd: ["node", "dist/cli-worker.js", "--job-data", jsonPayload],
         HostConfig: {

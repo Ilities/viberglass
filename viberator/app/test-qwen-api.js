@@ -69,7 +69,7 @@ async function testQwenAPI() {
           repoUrl: '', // Will be ignored for this test
           branch: 'main',
           testingRequired: false,
-          preferredAgents: ['qwen-api'] // Prefer Qwen API
+          agentName: 'qwen-api' // Use Qwen API explicitly
         }
       }, {
         headers: {

@@ -1,13 +1,8 @@
-import { BaseAgent } from "./BaseAgent";
-import { AgentConfig, ExecutionContext, ExecutionResult } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import { BaseAgent } from "./BaseAgent";
+import { AgentConfig, ExecutionContext } from "../types";
 import { Logger } from "winston";
 import * as path from "path";
-import { query } from "@anthropic-ai/claude-agent-sdk";
-import type {
-  SDKMessage,
-  SDKResultMessage,
-} from "@anthropic-ai/claude-agent-sdk";
 
 export class ClaudeCodeAgent extends BaseAgent {
   constructor(config: AgentConfig, logger: Logger) {
@@ -57,14 +52,22 @@ export class ClaudeCodeAgent extends BaseAgent {
       }
 
       let result;
+
       try {
+        const env: NodeJS.ProcessEnv = {
+          ...process.env,
+          ANTHROPIC_API_KEY: this.config.apiKey!,
+          CLAUDE_CODE_NON_INTERACTIVE: "true",
+        };
+
+        // Pass custom base URL if configured
+        if (this.config.endpoint) {
+          env.ANTHROPIC_BASE_URL = this.config.endpoint;
+        }
+
         result = await this.executeCommand("claude", args, {
           cwd: repoDir, // Execute directly inside the repo directory
-          env: {
-            ...process.env,
-            ANTHROPIC_API_KEY: this.config.apiKey!,
-            CLAUDE_CODE_NON_INTERACTIVE: "true",
-          },
+          env,
           timeout: this.config.executionTimeLimit * 1000,
         });
       } catch (cmdError: any) {

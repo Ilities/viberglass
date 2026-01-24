@@ -100,7 +100,7 @@
 ```
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=vibug_receiver
+DB_NAME=viberglass_receiver
 DB_USER=postgres
 DB_PASSWORD=your_password
 DB_SSL=false
@@ -110,7 +110,7 @@ REDIS_PASSWORD=
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
-AWS_S3_BUCKET=vibug-media
+AWS_S3_BUCKET=viberglass-media
 PORT=3000
 API_KEY_SECRET=your_api_key_secret
 ```
@@ -134,7 +134,7 @@ MAX_CONCURRENT_JOBS=3
 DEFAULT_TIMEOUT=2700
 RETRY_ATTEMPTS=2
 AWS_REGION=us-west-2
-SSM_PARAMETER_PATH=/vibug-viberator
+SSM_PARAMETER_PATH=/viberglass-viberator
 CLAUDE_CODE_API_KEY=your_claude_api_key_here
 QWEN_CLI_API_KEY=your_qwen_api_key_here
 ```

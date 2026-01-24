@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Button } from '@/components/button'
+import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { runTicket } from '@/service/api/job-api'
-import type { Ticket, Clanker } from '@viberator/types'
+import type { Clanker, Ticket } from '@viberglass/types'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface RunTicketModalProps {
   ticket: Ticket | null
@@ -68,21 +68,15 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
             <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Ticket</h4>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{ticket.title}</p>
             {ticket.description && (
-              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500 line-clamp-3">
-                {ticket.description}
-              </p>
+              <p className="mt-2 line-clamp-3 text-sm text-zinc-500 dark:text-zinc-500">{ticket.description}</p>
             )}
           </div>
 
           {/* Clanker Selection */}
           <div>
-            <h4 className="text-sm font-medium text-zinc-900 dark:text-white mb-2">Select Clanker</h4>
+            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Select Clanker</h4>
             {activeClankers.length > 0 ? (
-              <Listbox
-                value={selectedClanker}
-                onChange={setSelectedClanker}
-                placeholder="Select a clanker..."
-              >
+              <Listbox value={selectedClanker} onChange={setSelectedClanker} placeholder="Select a clanker...">
                 {activeClankers.map((clanker) => (
                   <ListboxOption key={clanker.id} value={clanker}>
                     <ListboxLabel>{clanker.name}</ListboxLabel>

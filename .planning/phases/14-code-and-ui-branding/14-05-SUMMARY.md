@@ -28,7 +28,7 @@ key-decisions:
   - "CODE-04 is N/A - no platform component classes need renaming"
   - "CODE-05 is N/A - no VIBERATOR_ prefixed environment variables exist"
   - "Future platform-scoped env vars should use VIBERGLASS_ prefix"
-  - "Worker classes (ViberatorWorker, VibugViberator) are correctly named per branding split"
+  - "Worker classes (ViberatorWorker, ViberglassViberator) are correctly named per branding split"
 
 patterns-established: []
 
@@ -77,7 +77,7 @@ Each task was committed atomically:
 - Searched for `class.*Viberator` in `platform/backend/src/` - **no results found**
 - Found classes with "Viberator" naming in `viberator/app/`:
   - `ViberatorWorker` in `viberator/app/src/workers/viberator.ts`
-  - `VibugViberator` in `viberator/app/src/index.ts`
+  - `ViberglassViberator` in `viberator/app/src/index.ts`
 
 **Conclusion:** These are WORKER classes, not platform components. Per CODE-06 (worker naming), worker classes should retain "Viberator" terminology. No renaming is required.
 

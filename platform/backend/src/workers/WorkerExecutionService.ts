@@ -1,16 +1,16 @@
-import type { Clanker } from '@viberator/types';
-import type { JobData } from '../types/Job';
-import { getWorkerInvokerFactory } from './WorkerInvokerFactory';
-import { WorkerError } from './errors/WorkerError';
-import { JobService } from '../services/JobService';
-import { createChildLogger } from '../config/logger';
+import type { Clanker } from "@viberglass/types";
+import type { JobData } from "../types/Job";
+import { getWorkerInvokerFactory } from "./WorkerInvokerFactory";
+import { WorkerError } from "./errors/WorkerError";
+import { JobService } from "../services/JobService";
+import { createChildLogger } from "../config/logger";
 
-const logger = createChildLogger({ service: 'WorkerExecutionService' });
+const logger = createChildLogger({ service: "WorkerExecutionService" });
 
 export interface ExecutionConfig {
-  maxRetries?: number;          // Default: 3
-  baseDelayMs?: number;         // Default: 1000 (1 second)
-  maxDelayMs?: number;          // Default: 30000 (30 seconds)
+  maxRetries?: number; // Default: 3
+  baseDelayMs?: number; // Default: 1000 (1 second)
+  maxDelayMs?: number; // Default: 30000 (30 seconds)
 }
 
 export interface ExecutionResult {
@@ -43,9 +43,9 @@ export class WorkerExecutionService {
     let attempts = 0;
 
     // Mark job as active before invocation
-    await this.jobService.updateJobStatus(job.id, 'active', {
+    await this.jobService.updateJobStatus(job.id, "active", {
       progress: {
-        message: 'Invoking worker',
+        message: "Invoking worker",
         timestamp: Date.now(),
       },
     });
@@ -58,16 +58,16 @@ export class WorkerExecutionService {
         const result = await invoker.invoke(job, clanker);
 
         // Success - store execution ID on job
-        await this.jobService.updateJobStatus(job.id, 'active', {
+        await this.jobService.updateJobStatus(job.id, "active", {
           progress: {
-            message: 'Worker invoked successfully',
+            message: "Worker invoked successfully",
             executionId: result.executionId,
             workerType: result.workerType,
             timestamp: Date.now(),
           },
         });
 
-        logger.info('Job invoked successfully', {
+        logger.info("Job invoked successfully", {
           jobId: job.id,
           executionId: result.executionId,
           workerType: result.workerType,
@@ -80,7 +80,6 @@ export class WorkerExecutionService {
           workerType: result.workerType,
           attempts,
         };
-
       } catch (error) {
         lastError = error as Error;
 
@@ -88,7 +87,7 @@ export class WorkerExecutionService {
         if (error instanceof WorkerError) {
           if (error.isPermanent) {
             // Permanent error - fail immediately
-            logger.error('Permanent error, not retrying', {
+            logger.error("Permanent error, not retrying", {
               jobId: job.id,
               error: error.message,
               attempts,
@@ -106,7 +105,7 @@ export class WorkerExecutionService {
           // Transient error - retry with backoff
           if (attempts <= this.config.maxRetries) {
             const delay = this.calculateBackoff(attempts);
-            logger.warn('Transient error, retrying', {
+            logger.warn("Transient error, retrying", {
               jobId: job.id,
               error: error.message,
               attempt: attempts,
@@ -117,7 +116,7 @@ export class WorkerExecutionService {
           }
         } else {
           // Unknown error type - treat as permanent
-          logger.error('Unknown error type', {
+          logger.error("Unknown error type", {
             jobId: job.id,
             error: (error as Error).message,
             attempts,
@@ -136,7 +135,7 @@ export class WorkerExecutionService {
 
     // Exhausted retries
     const errorMessage = `Worker invocation failed after ${attempts} attempts: ${lastError?.message}`;
-    logger.error('Exhausted retries', {
+    logger.error("Exhausted retries", {
       jobId: job.id,
       error: errorMessage,
       attempts,
@@ -157,13 +156,16 @@ export class WorkerExecutionService {
     return Math.min(delay, this.config.maxDelayMs);
   }
 
-  private async markJobFailed(jobId: string, errorMessage: string): Promise<void> {
-    await this.jobService.updateJobStatus(jobId, 'failed', {
+  private async markJobFailed(
+    jobId: string,
+    errorMessage: string,
+  ): Promise<void> {
+    await this.jobService.updateJobStatus(jobId, "failed", {
       errorMessage,
     });
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

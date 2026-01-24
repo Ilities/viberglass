@@ -8,23 +8,26 @@
  * - Other errors default to PERMANENT
  */
 
-import { DockerInvoker } from '../../../../workers/invokers/DockerInvoker';
-import { WorkerError, ErrorClassification } from '../../../../workers/errors/WorkerError';
-import type { Clanker } from '@viberator/types';
-import type { JobData } from '../../../../types/Job';
-import Docker from 'dockerode';
+import { DockerInvoker } from "../../../../workers/invokers/DockerInvoker";
+import {
+  WorkerError,
+  ErrorClassification,
+} from "../../../../workers/errors/WorkerError";
+import type { Clanker } from "@viberglass/types";
+import type { JobData } from "../../../../types/Job";
+import Docker from "dockerode";
 
 // Mock dockerode
 const mockCreateContainer = jest.fn();
 const mockPing = jest.fn();
-jest.mock('dockerode', () => {
+jest.mock("dockerode", () => {
   return jest.fn().mockImplementation(() => ({
     createContainer: mockCreateContainer,
     ping: mockPing,
   }));
 });
 
-describe('DockerInvoker', () => {
+describe("DockerInvoker", () => {
   let invoker: DockerInvoker;
   let mockJob: JobData;
   let mockClanker: Clanker;
@@ -36,44 +39,44 @@ describe('DockerInvoker', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    invoker = new DockerInvoker({ socketPath: '/var/run/docker.sock' });
+    invoker = new DockerInvoker({ socketPath: "/var/run/docker.sock" });
 
     // Setup mock container
     mockContainer = {
       start: jest.fn().mockResolvedValue(undefined),
-      id: 'container-abc123',
+      id: "container-abc123",
     };
 
     // Setup mock job
     mockJob = {
-      id: 'job-123',
-      tenantId: 'tenant-abc',
-      repository: 'https://github.com/user/repo',
-      task: 'Fix the bug in auth module',
-      branch: 'fix/auth-bug',
-      baseBranch: 'main',
+      id: "job-123",
+      tenantId: "tenant-abc",
+      repository: "https://github.com/user/repo",
+      task: "Fix the bug in auth module",
+      branch: "fix/auth-bug",
+      baseBranch: "main",
       context: {
-        stepsToReproduce: '1. Login\n2. Click profile',
-        expectedBehavior: 'Profile loads',
-        actualBehavior: 'Error 500',
+        stepsToReproduce: "1. Login\n2. Click profile",
+        expectedBehavior: "Profile loads",
+        actualBehavior: "Error 500",
       },
       timestamp: Date.now(),
     };
 
     // Setup mock clanker with Docker config
     mockClanker = {
-      id: 'clanker-1',
-      name: 'Docker Fixer',
-      slug: 'docker-fixer',
-      description: 'Fixes bugs via Docker',
-      status: 'active',
+      id: "clanker-1",
+      name: "Docker Fixer",
+      slug: "docker-fixer",
+      description: "Fixes bugs via Docker",
+      status: "active",
       configFiles: [],
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {
-        containerImage: 'viberator/worker:latest',
+        containerImage: "viberator/worker:latest",
         environmentVariables: {
-          NODE_ENV: 'production',
+          NODE_ENV: "production",
         },
       },
     };
@@ -82,37 +85,39 @@ describe('DockerInvoker', () => {
     mockPing.mockResolvedValue(true);
   });
 
-  describe('invoke() - error classification', () => {
-    describe('transient connection errors', () => {
-      it('should classify ECONNREFUSED as TRANSIENT', async () => {
-        const error = new Error('ECONNREFUSED 127.0.0.1:2375') as any;
-        error.code = 'ECONNREFUSED';
+  describe("invoke() - error classification", () => {
+    describe("transient connection errors", () => {
+      it("should classify ECONNREFUSED as TRANSIENT", async () => {
+        const error = new Error("ECONNREFUSED 127.0.0.1:2375") as any;
+        error.code = "ECONNREFUSED";
         mockCreateContainer.mockRejectedValueOnce(error);
 
         const resultPromise = invoker.invoke(mockJob, mockClanker);
 
         await expect(resultPromise).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
-          name: 'WorkerError',
+          name: "WorkerError",
         });
 
         await expect(resultPromise).rejects.toThrow(
-          /Docker daemon connection failed \(transient\)/
+          /Docker daemon connection failed \(transient\)/,
         );
       });
 
-      it('should classify ETIMEDOUT as TRANSIENT', async () => {
-        const error = new Error('ETIMEDOUT 127.0.0.1:2375') as any;
-        error.code = 'ETIMEDOUT';
+      it("should classify ETIMEDOUT as TRANSIENT", async () => {
+        const error = new Error("ETIMEDOUT 127.0.0.1:2375") as any;
+        error.code = "ETIMEDOUT";
         mockCreateContainer.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
         });
       });
 
-      it('should classify socket hang up as TRANSIENT', async () => {
-        const error = new Error('socket hang up') as any;
+      it("should classify socket hang up as TRANSIENT", async () => {
+        const error = new Error("socket hang up") as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
         const resultPromise = invoker.invoke(mockJob, mockClanker);
@@ -122,25 +127,27 @@ describe('DockerInvoker', () => {
         });
 
         await expect(resultPromise).rejects.toThrow(
-          /Docker daemon connection failed \(transient\)/
+          /Docker daemon connection failed \(transient\)/,
         );
       });
 
-      it('should classify connect ENOENT as TRANSIENT', async () => {
-        const error = new Error('connect ENOENT /var/run/docker.sock') as any;
-        error.code = 'ENOENT';
+      it("should classify connect ENOENT as TRANSIENT", async () => {
+        const error = new Error("connect ENOENT /var/run/docker.sock") as any;
+        error.code = "ENOENT";
         mockCreateContainer.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
         });
       });
     });
 
-    describe('transient container conflicts', () => {
+    describe("transient container conflicts", () => {
       it('should classify container name Conflict with "already in use" as TRANSIENT', async () => {
         const error = new Error(
-          'Conflict. The container name "/viberator-job-job-123" is already in use'
+          'Conflict. The container name "/viberator-job-job-123" is already in use',
         ) as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
@@ -148,200 +155,232 @@ describe('DockerInvoker', () => {
 
         await expect(resultPromise).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
-          name: 'WorkerError',
+          name: "WorkerError",
         });
 
         await expect(resultPromise).rejects.toThrow(
-          /Container name collision \(transient\)/
+          /Container name collision \(transient\)/,
         );
       });
 
-      it('should classify conflict errors containing both keywords as TRANSIENT', async () => {
-        const error = new Error('Conflict: container name already in use') as any;
+      it("should classify conflict errors containing both keywords as TRANSIENT", async () => {
+        const error = new Error(
+          "Conflict: container name already in use",
+        ) as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
         });
       });
 
       it('should classify conflict without "already in use" as PERMANENT', async () => {
-        const error = new Error('Conflict: some other conflict') as any;
+        const error = new Error("Conflict: some other conflict") as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
       });
     });
 
-    describe('permanent errors', () => {
-      it('should classify image not found error as PERMANENT', async () => {
-        const error = new Error('Error: No such image: viberator/worker:latest') as any;
+    describe("permanent errors", () => {
+      it("should classify image not found error as PERMANENT", async () => {
+        const error = new Error(
+          "Error: No such image: viberator/worker:latest",
+        ) as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
-          name: 'WorkerError',
+          name: "WorkerError",
         });
 
         await expect(invoker.invoke(mockJob, mockClanker)).rejects.toThrow(
-          /Docker container failed \(permanent\)/
+          /Docker container failed \(permanent\)/,
         );
       });
 
-      it('should classify invalid image name error as PERMANENT', async () => {
-        const error = new Error('invalid reference format') as any;
+      it("should classify invalid image name error as PERMANENT", async () => {
+        const error = new Error("invalid reference format") as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
       });
 
-      it('should classify unknown errors as PERMANENT (safe default)', async () => {
-        const error = new Error('Some unknown docker error') as any;
+      it("should classify unknown errors as PERMANENT (safe default)", async () => {
+        const error = new Error("Some unknown docker error") as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
       });
 
-      it('should preserve original error in cause property', async () => {
-        const originalError = new Error('ECONNREFUSED 127.0.0.1:2375') as any;
-        originalError.code = 'ECONNREFUSED';
+      it("should preserve original error in cause property", async () => {
+        const originalError = new Error("ECONNREFUSED 127.0.0.1:2375") as any;
+        originalError.code = "ECONNREFUSED";
         mockCreateContainer.mockRejectedValueOnce(originalError);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
           cause: originalError,
         });
       });
 
-      it('should include error message in WorkerError message', async () => {
-        const error = new Error('No such image: viberator/worker:latest') as any;
+      it("should include error message in WorkerError message", async () => {
+        const error = new Error(
+          "No such image: viberator/worker:latest",
+        ) as any;
         mockCreateContainer.mockRejectedValueOnce(error);
 
         await expect(invoker.invoke(mockJob, mockClanker)).rejects.toThrow(
-          /No such image: viberator\/worker:latest/
+          /No such image: viberator\/worker:latest/,
         );
       });
     });
 
-    describe('configuration errors', () => {
-      it('should throw PERMANENT error when containerImage is missing', async () => {
+    describe("configuration errors", () => {
+      it("should throw PERMANENT error when containerImage is missing", async () => {
         const clankerWithoutImage: Clanker = {
           ...mockClanker,
           deploymentConfig: {},
         };
 
-        await expect(invoker.invoke(mockJob, clankerWithoutImage)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, clankerWithoutImage),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
-          name: 'WorkerError',
+          name: "WorkerError",
         });
 
-        await expect(invoker.invoke(mockJob, clankerWithoutImage)).rejects.toThrow(
-          /Docker container image required/
-        );
+        await expect(
+          invoker.invoke(mockJob, clankerWithoutImage),
+        ).rejects.toThrow(/Docker container image required/);
       });
 
-      it('should throw PERMANENT error when deploymentConfig is null', async () => {
+      it("should throw PERMANENT error when deploymentConfig is null", async () => {
         const clankerWithNullConfig: Clanker = {
           ...mockClanker,
           deploymentConfig: null,
         };
 
-        await expect(invoker.invoke(mockJob, clankerWithNullConfig)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, clankerWithNullConfig),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
       });
 
-      it('should throw PERMANENT error when deploymentConfig is undefined', async () => {
+      it("should throw PERMANENT error when deploymentConfig is undefined", async () => {
         const clankerWithUndefinedConfig: Clanker = {
           ...mockClanker,
           deploymentConfig: undefined,
         };
 
-        await expect(invoker.invoke(mockJob, clankerWithUndefinedConfig)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, clankerWithUndefinedConfig),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
       });
 
-      it('should throw PERMANENT error when containerImage is empty string', async () => {
+      it("should throw PERMANENT error when containerImage is empty string", async () => {
         const clankerWithEmptyImage: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            containerImage: '',
+            containerImage: "",
           },
         };
 
-        await expect(invoker.invoke(mockJob, clankerWithEmptyImage)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, clankerWithEmptyImage),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
       });
     });
 
-    describe('container start errors', () => {
-      it('should classify errors during container start based on error message', async () => {
+    describe("container start errors", () => {
+      it("should classify errors during container start based on error message", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 
-        const error = new Error('ECONNREFUSED during container start') as any;
-        error.code = 'ECONNREFUSED';
+        const error = new Error("ECONNREFUSED during container start") as any;
+        error.code = "ECONNREFUSED";
         mockContainer.start.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
         });
       });
 
-      it('should classify non-connection start errors as PERMANENT', async () => {
+      it("should classify non-connection start errors as PERMANENT", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 
-        const error = new Error('Cannot start container: invalid config') as any;
+        const error = new Error(
+          "Cannot start container: invalid config",
+        ) as any;
         mockContainer.start.mockRejectedValueOnce(error);
 
-        await expect(invoker.invoke(mockJob, mockClanker)).rejects.toMatchObject({
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
           classification: ErrorClassification.PERMANENT,
         });
       });
     });
 
-    describe('success cases', () => {
-      it('should successfully create and start container', async () => {
+    describe("success cases", () => {
+      it("should successfully create and start container", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 
         const result = await invoker.invoke(mockJob, mockClanker);
 
-        expect(result.executionId).toBe('container-abc123');
-        expect(result.workerType).toBe('docker');
+        expect(result.executionId).toBe("container-abc123");
+        expect(result.workerType).toBe("docker");
         expect(mockCreateContainer).toHaveBeenCalledWith(
           expect.objectContaining({
-            Image: 'viberator/worker:latest',
-            name: 'viberator-job-job-123',
+            Image: "viberator/worker:latest",
+            name: "viberator-job-job-123",
             Env: expect.arrayContaining([
-              expect.stringContaining('JOB_PAYLOAD='),
-              expect.stringContaining('TENANT_ID=tenant-abc'),
-              expect.stringContaining('JOB_ID=job-123'),
-              expect.stringContaining('NODE_ENV=production'),
+              expect.stringContaining("JOB_PAYLOAD="),
+              expect.stringContaining("TENANT_ID=tenant-abc"),
+              expect.stringContaining("JOB_ID=job-123"),
+              expect.stringContaining("NODE_ENV=production"),
             ]),
             HostConfig: expect.objectContaining({
               AutoRemove: true,
-              NetworkMode: 'bridge',
+              NetworkMode: "bridge",
             }),
-          })
+          }),
         );
         expect(mockContainer.start).toHaveBeenCalledTimes(1);
       });
 
-      it('should use custom network mode when provided', async () => {
+      it("should use custom network mode when provided", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 
         const clankerWithNetwork: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            ...mockClanker.deploymentConfig as any,
-            networkMode: 'host',
+            ...(mockClanker.deploymentConfig as any),
+            networkMode: "host",
           },
         };
 
@@ -350,19 +389,19 @@ describe('DockerInvoker', () => {
         expect(mockCreateContainer).toHaveBeenCalledWith(
           expect.objectContaining({
             HostConfig: expect.objectContaining({
-              NetworkMode: 'host',
+              NetworkMode: "host",
             }),
-          })
+          }),
         );
       });
 
-      it('should handle empty environment variables', async () => {
+      it("should handle empty environment variables", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 
         const clankerWithoutEnv: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            containerImage: 'viberator/worker:latest',
+            containerImage: "viberator/worker:latest",
           },
         };
 
@@ -371,16 +410,16 @@ describe('DockerInvoker', () => {
         expect(mockCreateContainer).toHaveBeenCalled();
       });
 
-      it('should include custom environment variables in container', async () => {
+      it("should include custom environment variables in container", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 
         const clankerWithEnv: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            containerImage: 'viberator/worker:latest',
+            containerImage: "viberator/worker:latest",
             environmentVariables: {
-              CUSTOM_VAR: 'custom-value',
-              ANOTHER_VAR: 'another-value',
+              CUSTOM_VAR: "custom-value",
+              ANOTHER_VAR: "another-value",
             },
           },
         };
@@ -390,17 +429,17 @@ describe('DockerInvoker', () => {
         expect(mockCreateContainer).toHaveBeenCalledWith(
           expect.objectContaining({
             Env: expect.arrayContaining([
-              expect.stringContaining('CUSTOM_VAR=custom-value'),
-              expect.stringContaining('ANOTHER_VAR=another-value'),
+              expect.stringContaining("CUSTOM_VAR=custom-value"),
+              expect.stringContaining("ANOTHER_VAR=another-value"),
             ]),
-          })
+          }),
         );
       });
     });
   });
 
-  describe('isAvailable()', () => {
-    it('should return true when Docker daemon is reachable', async () => {
+  describe("isAvailable()", () => {
+    it("should return true when Docker daemon is reachable", async () => {
       mockPing.mockResolvedValueOnce(true);
 
       const result = await invoker.isAvailable();
@@ -408,8 +447,8 @@ describe('DockerInvoker', () => {
       expect(result).toBe(true);
     });
 
-    it('should return false when Docker daemon is not reachable', async () => {
-      mockPing.mockRejectedValueOnce(new Error('Cannot connect'));
+    it("should return false when Docker daemon is not reachable", async () => {
+      mockPing.mockRejectedValueOnce(new Error("Cannot connect"));
 
       const result = await invoker.isAvailable();
 
@@ -417,28 +456,30 @@ describe('DockerInvoker', () => {
     });
   });
 
-  describe('name property', () => {
-    it('should have correct invoker name', () => {
-      expect(invoker.name).toBe('DockerInvoker');
+  describe("name property", () => {
+    it("should have correct invoker name", () => {
+      expect(invoker.name).toBe("DockerInvoker");
     });
   });
 
-  describe('constructor', () => {
-    it('should use default socket path when not provided', () => {
+  describe("constructor", () => {
+    it("should use default socket path when not provided", () => {
       const defaultInvoker = new DockerInvoker();
 
       expect(defaultInvoker).toBeInstanceOf(DockerInvoker);
     });
 
-    it('should use custom socket path when provided', () => {
-      const customInvoker = new DockerInvoker({ socketPath: '/custom/docker.sock' });
+    it("should use custom socket path when provided", () => {
+      const customInvoker = new DockerInvoker({
+        socketPath: "/custom/docker.sock",
+      });
 
       expect(customInvoker).toBeInstanceOf(DockerInvoker);
     });
 
-    it('should use host and port when provided', () => {
+    it("should use host and port when provided", () => {
       const remoteInvoker = new DockerInvoker({
-        host: '192.168.1.1',
+        host: "192.168.1.1",
         port: 2376,
       });
 

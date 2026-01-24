@@ -14,8 +14,8 @@ To run the backend of this application, you need the following services and conf
 ### 1. Database Setup
 Create a PostgreSQL database and initialize the schema:
 ```bash
-createdb vibug_receiver
-psql -d vibug_receiver -f backend/src/config/database.sql
+createdb viberglass_receiver
+psql -d viberglass_receiver -f backend/src/config/database.sql
 ```
 
 
@@ -49,7 +49,7 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: vibug_receiver
+      POSTGRES_DB: viberglass_receiver
       POSTGRES_PASSWORD: your_password
     ports:
       - "5432:5432"
