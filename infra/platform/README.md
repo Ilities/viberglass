@@ -189,6 +189,36 @@ export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_DEFAULT_REGION=us-east-1
 ```
 
+## Pulumi State Backend
+
+Before running Pulumi, set up an S3 bucket to store the state file securely.
+
+### Setup S3 Backend
+
+```bash
+# Run the setup script (default: viberglass-pulumi-state in us-east-1)
+./setup-pulumi-state.sh
+
+# Or specify custom bucket name and region
+./setup-pulumi-state.sh my-pulumi-state eu-west-1
+```
+
+This script creates an S3 bucket with:
+- Versioning enabled
+- Server-side encryption (AES-256)
+- Public access blocked
+- Lifecycle policy (old versions expire after 90 days)
+
+### Configure Pulumi to Use S3 Backend
+
+```bash
+# Login to the S3 backend
+pulumi login s3://viberglass-pulumi-state
+
+# Or set as environment variable
+export PULUMI_BACKEND_URL=s3://viberglass-pulumi-state
+```
+
 ## Quick Start
 
 ### 1. Install Dependencies
