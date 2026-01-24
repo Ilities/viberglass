@@ -332,7 +332,7 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'Viberator-Webhook/1.0',
+        'User-Agent': 'Viberglass-Webhook/1.0',
       },
     });
   }
