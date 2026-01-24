@@ -5,6 +5,7 @@ import type {
   PaginatedResponse,
   Ticket,
   TicketListParams,
+  TicketStats,
   UpdateTicketRequest,
   WebhookStatus,
 } from '@viberglass/types'
@@ -18,6 +19,18 @@ export async function getTickets(params: TicketListParams = {}): Promise<Ticket[
     throw new Error('Failed to fetch tickets')
   }
   const data: PaginatedResponse<Ticket> = await response.json()
+  return data.data
+}
+
+export async function getTicketStats(params: { projectId?: string; projectSlug?: string } = {}): Promise<TicketStats> {
+  const { projectId, projectSlug } = params
+  const query = projectSlug ? `projectSlug=${projectSlug}` : projectId ? `projectId=${projectId}` : ''
+  const url = query ? `${API_BASE_URL}/api/tickets/stats?${query}` : `${API_BASE_URL}/api/tickets/stats`
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error('Failed to fetch ticket stats')
+  }
+  const data: ApiResponse<TicketStats> = await response.json()
   return data.data
 }
 
