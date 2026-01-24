@@ -5,7 +5,7 @@ import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "../../services/ClankerProvisioningService";
 import { FileUploadService, upload } from "../../services/FileUploadService";
 import { JobService } from "../../services/JobService";
-import { WorkerExecutionService } from "../../workers/WorkerExecutionService";
+import { WorkerExecutionService } from "../../workers";
 import {
   validateCreateTicket,
   validateUpdateTicket,
@@ -67,7 +67,9 @@ router.post(
         data: ticket,
       });
     } catch (error) {
-      logger.error('Error creating ticket', { error: error instanceof Error ? error.message : error });
+      logger.error("Error creating ticket", {
+        error: error instanceof Error ? error.message : error,
+      });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to create ticket",
@@ -75,6 +77,49 @@ router.post(
     }
   },
 );
+
+// GET /api/tickets/stats - Get ticket stats (optionally by project)
+router.get("/stats", async (req, res) => {
+  try {
+    const projectId = req.query.projectId as string | undefined;
+    const projectSlug = req.query.projectSlug as string | undefined;
+
+    let targetProjectId = projectId;
+
+    if (projectSlug) {
+      const project = await projectService.findByName(projectSlug);
+      if (!project) {
+        return res.status(404).json({
+          error: "Project not found",
+        });
+      }
+      targetProjectId = project.id;
+    } else if (projectId) {
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(projectId)) {
+        return res.status(400).json({
+          error: "Invalid projectId format",
+        });
+      }
+    }
+
+    const stats = await ticketService.getTicketStats(targetProjectId);
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    logger.error("Error fetching ticket stats", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to fetch ticket stats",
+    });
+  }
+});
 
 // GET /api/tickets/:id - Get a specific ticket
 router.get("/:id", validateUuidParam("id"), async (req, res) => {
@@ -92,7 +137,9 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
       data: ticket,
     });
   } catch (error) {
-    logger.error('Error fetching ticket', { error: error instanceof Error ? error.message : error });
+    logger.error("Error fetching ticket", {
+      error: error instanceof Error ? error.message : error,
+    });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch ticket",
@@ -127,7 +174,9 @@ router.put(
         data: updatedTicket,
       });
     } catch (error) {
-      logger.error('Error updating ticket', { error: error instanceof Error ? error.message : error });
+      logger.error("Error updating ticket", {
+        error: error instanceof Error ? error.message : error,
+      });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to update ticket",
@@ -152,7 +201,9 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
       message: "Ticket deleted successfully",
     });
   } catch (error) {
-    logger.error('Error deleting ticket', { error: error instanceof Error ? error.message : error });
+    logger.error("Error deleting ticket", {
+      error: error instanceof Error ? error.message : error,
+    });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to delete ticket",
@@ -212,7 +263,9 @@ router.get("/", async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error('Error fetching tickets', { error: error instanceof Error ? error.message : error });
+    logger.error("Error fetching tickets", {
+      error: error instanceof Error ? error.message : error,
+    });
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch tickets",
@@ -261,7 +314,9 @@ router.get(
         },
       });
     } catch (error) {
-      logger.error('Error generating signed URL', { error: error instanceof Error ? error.message : error });
+      logger.error("Error generating signed URL", {
+        error: error instanceof Error ? error.message : error,
+      });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to generate signed URL",
@@ -291,7 +346,7 @@ router.post(
       // Get project by ticket.projectId
       const project = await projectService.getProject(ticket.projectId);
       if (!project) {
-        logger.error('Project not found for ticket', {
+        logger.error("Project not found for ticket", {
           ticketId,
           projectId: ticket.projectId,
         });
@@ -305,7 +360,8 @@ router.post(
       if (!project.repositoryUrl) {
         return res.status(400).json({
           error: "Project has no repository configured",
-          message: "Please configure a repository URL for this project before running tickets",
+          message:
+            "Please configure a repository URL for this project before running tickets",
         });
       }
 
@@ -380,7 +436,7 @@ router.post(
       workerExecutionService
         .executeJob(jobData, clanker)
         .then((result) => {
-          logger.info('Worker invoked successfully', {
+          logger.info("Worker invoked successfully", {
             ticketId,
             jobId,
             clankerId,
@@ -388,7 +444,7 @@ router.post(
           });
         })
         .catch((error) => {
-          logger.error('Worker invocation failed', {
+          logger.error("Worker invocation failed", {
             ticketId,
             jobId,
             clankerId,
@@ -405,7 +461,9 @@ router.post(
         },
       });
     } catch (error) {
-      logger.error('Error running ticket', { error: error instanceof Error ? error.message : error });
+      logger.error("Error running ticket", {
+        error: error instanceof Error ? error.message : error,
+      });
       res.status(500).json({
         error: "Internal server error",
         message: "Failed to run ticket",
