@@ -4,6 +4,7 @@ import { JobData, JobResult } from "../types/Job";
 import { sql } from "kysely";
 import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
+import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -17,9 +18,11 @@ export interface SubmitJobOptions {
 
 export class JobService {
   private feedbackService?: FeedbackService;
+  private ticketDAO: TicketDAO;
 
   constructor(feedbackService?: FeedbackService) {
     this.feedbackService = feedbackService;
+    this.ticketDAO = new TicketDAO();
   }
   async submitJob(
     data: JobData,
@@ -53,6 +56,12 @@ export class JobService {
       ticketId: options?.ticketId,
       clankerId: options?.clankerId,
     });
+
+    if (options?.ticketId) {
+      await this.updateTicketAutoFixStatus(options.ticketId, {
+        autoFixStatus: "pending",
+      });
+    }
 
     return {
       jobId,
@@ -95,9 +104,7 @@ export class JobService {
 
     logger.info("Job status updated", { jobId, status, ...updates });
 
-    // Post result back to webhook provider on completion
-    if ((status === "completed" || status === "failed") && this.feedbackService && updates.result) {
-      // Fetch job details to get ticketId and repository
+    if (status === "active" || status === "completed" || status === "failed") {
       const job = await db
         .selectFrom("jobs")
         .select(["id", "ticket_id", "repository", "status"])
@@ -105,27 +112,79 @@ export class JobService {
         .executeTakeFirst();
 
       if (job?.ticket_id) {
-        // Post result to webhook provider asynchronously
-        // Don't fail the job completion if posting fails
-        this.feedbackService
-          .postJobResult(
-            {
-              id: job.id,
-              ticketId: job.ticket_id,
-              status: job.status as "completed" | "failed",
-              result: updates.result,
-              repository: job.repository || undefined,
-            },
-            updates.result
-          )
-          .catch((error) => {
-            logger.error(`Failed to post result for job ${jobId} to webhook provider`, {
-              error: error instanceof Error ? error.message : String(error),
-              jobId,
-              ticketId: job.ticket_id,
-            });
-          });
+        const ticketUpdate =
+          status === "active"
+            ? {
+                autoFixStatus: "in_progress" as const,
+              }
+            : status === "completed"
+              ? {
+                  autoFixStatus: "completed" as const,
+                  pullRequestUrl: updates.result?.pullRequestUrl,
+                }
+              : {
+                  autoFixStatus: "failed" as const,
+                };
+
+        await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
       }
+
+      // Post result back to webhook provider on completion
+      if (
+        (status === "completed" || status === "failed") &&
+        this.feedbackService &&
+        updates.result
+      ) {
+        if (job?.ticket_id) {
+          // Post result to webhook provider asynchronously
+          // Don't fail the job completion if posting fails
+          this.feedbackService
+            .postJobResult(
+              {
+                id: job.id,
+                ticketId: job.ticket_id,
+                status: job.status as "completed" | "failed",
+                result: updates.result,
+                repository: job.repository || undefined,
+              },
+              updates.result,
+            )
+            .catch((error) => {
+              logger.error(
+                `Failed to post result for job ${jobId} to webhook provider`,
+                {
+                  error:
+                    error instanceof Error ? error.message : String(error),
+                  jobId,
+                  ticketId: job.ticket_id,
+                },
+              );
+            });
+        }
+      }
+    }
+
+  }
+
+  private async updateTicketAutoFixStatus(
+    ticketId: string,
+    updates: {
+      autoFixStatus: "pending" | "in_progress" | "completed" | "failed";
+      pullRequestUrl?: string;
+    },
+  ): Promise<void> {
+    try {
+      await this.ticketDAO.updateTicket(ticketId, {
+        autoFixStatus: updates.autoFixStatus,
+        ...(updates.pullRequestUrl
+          ? { pullRequestUrl: updates.pullRequestUrl }
+          : {}),
+      });
+    } catch (error) {
+      logger.warn("Failed to update ticket auto-fix status", {
+        ticketId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
