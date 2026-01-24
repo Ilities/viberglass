@@ -72,13 +72,13 @@ Plans:
   4. SSM parameter paths use /viberglass/ prefix
   5. ECS task definitions and Lambda functions use "viberglass" naming
   6. RDS instances use "viberglass" identifier prefix
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 15-01: Update Pulumi stack names and Amplify app configuration
-- [ ] 15-02: Update CloudWatch and SSM resource naming
-- [ ] 15-03: Update ECS, Lambda, and RDS resource naming
-- [ ] 15-04: Deploy infrastructure changes to each environment
+- [x] 15-01-PLAN.md — Update Pulumi stack names and Amplify app configuration
+- [x] 15-02-PLAN.md — Update CloudWatch and SSM resource naming
+- [x] 15-03-PLAN.md — Update ECS, Lambda, and RDS resource naming
+- [x] 15-04-PLAN.md — Deploy infrastructure changes to each environment
 
 #### Phase 16: Repository Migration
 **Goal**: GitHub repository renamed with all references updated
@@ -105,7 +105,7 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 | 1-12 | v1.0 | 95/95 | Complete | 2026-01-23 |
 | 13. Documentation Branding | v1.1 | 4/4 | Complete | 2026-01-24 |
 | 14. Code and UI Branding | v1.1 | 5/5 | Complete | 2026-01-24 |
-| 15. Infrastructure Renaming | v1.1 | 0/4 | Not started | - |
+| 15. Infrastructure Renaming | v1.1 | 4/4 | Complete | 2026-01-24 |
 | 16. Repository Migration | v1.1 | 0/3 | Not started | - |
 
-**Overall Progress:** [███░░░░░░░] 22.22% (104/117 plans complete)
+**Overall Progress:** [████░░░░░░] 27.35% (108/117 plans complete)
