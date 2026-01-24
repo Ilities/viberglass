@@ -80,7 +80,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: platform/backend/Dockerfile.prod
+          file: apps/platform-backend/Dockerfile.prod
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
@@ -102,7 +102,7 @@ jobs:
       - name: Run database migrations
         run: |
           npm ci --legacy-peer-deps
-          npm run migrate:latest -w @viberator/platform-backend
+          npm run migrate:latest -w @viberglass/platform-backend
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 

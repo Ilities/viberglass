@@ -35,12 +35,13 @@ Thumbs.db
 .output.txt
 
 # Pulumi
-infrastructure/infra/bin/
+infra/platform/bin/
+infra/viberator/bin/
 .pulumi/
 
 # Frontend specific
-platform/frontend/.next/
-platform/frontend/out/
+apps/platform-frontend/.next*
+apps/platform-frontend/out/
 
 # Temporary files
 *.swp

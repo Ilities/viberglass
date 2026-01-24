@@ -60,7 +60,7 @@ npm run build
 npm run dev:worker
 ```
 
-> For HTTP API access, use the [platform/backend](../../platform/backend) service instead.
+> For HTTP API access, use the [apps/platform-backend](../../apps/platform-backend) service instead.
 
 ## Configuration
 
@@ -108,9 +108,9 @@ For production deployments, store sensitive configuration in AWS SSM:
 
 ## API Access
 
-The HTTP API for submitting jobs and checking status is now provided by the **platform/backend** service.
+The HTTP API for submitting jobs and checking status is now provided by the **apps/platform-backend** service.
 
-### API Endpoints (via platform/backend)
+### API Endpoints (via apps/platform-backend)
 
 #### Submit Job
 ```http
@@ -192,10 +192,10 @@ docker run --rm --env-file .env \
 
 ### Example 3: Using the Platform Backend API
 
-The HTTP API is now provided by the platform/backend service:
+The HTTP API is now provided by the apps/platform-backend service:
 
 ```bash
-# Start the platform backend first (see platform/backend/README.md)
+# Start the platform backend first (see apps/platform-backend/README.md)
 # Then submit jobs to the worker:
 
 curl -X POST http://localhost:3000/api/jobs \
@@ -245,7 +245,7 @@ This will queue the job for processing by the viberator worker.
 
 ### Execution Flow
 
-1. **Job Submission**: HTTP API receives job request via platform/backend
+1. **Job Submission**: HTTP API receives job request via apps/platform-backend
 2. **Queueing**: Job is added to Redis queue
 3. **Worker Processing**: Worker picks up job from queue
 4. **Configuration Loading**: Load from environment and AWS SSM

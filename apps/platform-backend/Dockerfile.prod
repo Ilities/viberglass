@@ -17,7 +17,7 @@ RUN apk add --no-cache python3 make g++
 # Copy workspace package files first for better Docker caching
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/
-COPY platform/backend/package*.json ./platform/backend/
+COPY apps/platform-backend/package*.json ./apps/platform-backend/
 
 # Install all workspace dependencies
 # --legacy-peer-deps required for npm workspace compatibility
@@ -25,13 +25,13 @@ RUN npm ci --legacy-peer-deps
 
 # Copy source files
 COPY packages/types ./packages/types
-COPY platform/backend ./platform/backend
+COPY apps/platform-backend ./apps/platform-backend
 
 # Build shared types package first (required by backend)
 RUN npm run build -w @viberglass/types
 
 # Build backend (TypeScript compilation)
-RUN npm run build -w @viberator/platform-backend
+RUN npm run build -w @viberglass/platform-backend
 
 # ==========================================
 # Stage 2: Production Runtime
@@ -52,14 +52,14 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy package files
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/
-COPY platform/backend/package*.json ./platform/backend/
+COPY apps/platform-backend/package*.json ./apps/platform-backend/
 
 # Install only production dependencies
 RUN npm ci --legacy-peer-deps --production && \
     npm cache clean --force
 
 # Copy compiled backend output from builder stage
-COPY --from=builder /build/platform/backend/dist ./dist
+COPY --from=builder /build/apps/platform-backend/dist ./dist
 
 # Copy shared types package (required at runtime for type imports)
 COPY --from=builder /build/packages/types/dist ./packages/types/dist

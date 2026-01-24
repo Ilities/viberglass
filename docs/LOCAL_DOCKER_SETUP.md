@@ -55,9 +55,9 @@ newgrp docker
 The worker container contains the ViberatorWorker that runs coding agents.
 
 ```bash
-# Build from the infrastructure directory (where Dockerfile is located)
-cd /path/to/viberator/viberator/infrastructure
-docker build -f docker/viberator-docker-worker.Dockerfile -t viberator-worker:local ../app
+# Build from the repo root so the Dockerfile can access apps/viberator
+cd /path/to/viberator
+docker build -f infra/viberator/docker/viberator-docker-worker.Dockerfile -t viberator-worker:local .
 ```
 
 **Verify image exists:**
@@ -75,7 +75,7 @@ docker images | grep viberator-worker
 
 Using Docker Compose (recommended):
 ```bash
-cd /path/to/viberator/platform/backend
+cd /path/to/viberator/apps/platform-backend
 docker-compose up -d postgres
 ```
 
@@ -87,7 +87,7 @@ psql postgres -c "SELECT version();"
 ### 2.2 Run Database Migrations
 
 ```bash
-cd /path/to/viberator/platform/backend
+cd /path/to/viberator/apps/platform-backend
 npm install
 npm run db:migrate
 ```
@@ -97,7 +97,7 @@ Expected output: `Migrations completed successfully`
 ### 2.3 Start Backend
 
 ```bash
-cd /path/to/viberator/platform/backend
+cd /path/to/viberator/apps/platform-backend
 npm run dev
 ```
 
@@ -112,7 +112,7 @@ curl http://localhost:8888/health
 ### 2.4 Start Frontend (New Terminal)
 
 ```bash
-cd /path/to/viberator/platform/frontend
+cd /path/to/viberator/apps/platform-frontend
 npm install
 npm run dev
 ```
@@ -279,8 +279,8 @@ docker run --rm alpine ping -c 1 host.docker.internal
 
 **Solution:** Rebuild the image:
 ```bash
-cd /path/to/viberator/viberator/infrastructure
-docker build -f docker/viberator-docker-worker.Dockerfile -t viberator-worker:local ../app
+cd /path/to/viberator
+docker build -f infra/viberator/docker/viberator-docker-worker.Dockerfile -t viberator-worker:local .
 ```
 
 **Verify:** `docker images | grep viberator-worker`
@@ -366,13 +366,13 @@ If job exists but status didn't update:
 **Start all services:**
 ```bash
 # Terminal 1: Database
-cd platform/backend && docker-compose up -d postgres
+cd apps/platform-backend && docker-compose up -d postgres
 
 # Terminal 2: Backend
-cd platform/backend && npm run dev
+cd apps/platform-backend && npm run dev
 
 # Terminal 3: Frontend
-cd platform/frontend && npm run dev
+cd apps/platform-frontend && npm run dev
 ```
 
 **Stop all services:**
@@ -386,8 +386,8 @@ docker ps -q --filter "name=viberator-job" | xargs -r docker stop
 
 **Rebuild worker image:**
 ```bash
-cd viberator/infrastructure
-docker build -f docker/viberator-docker-worker.Dockerfile -t viberator-worker:local ../app
+cd /path/to/viberator
+docker build -f infra/viberator/docker/viberator-docker-worker.Dockerfile -t viberator-worker:local .
 ```
 
 ---

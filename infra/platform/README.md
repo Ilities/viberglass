@@ -530,8 +530,8 @@ Images are built automatically by Pulumi using `awsx.ecr.Image`:
 ```typescript
 const backendImage = new awsx.ecr.Image("backend", {
   repositoryUrl: repositoryUrl,
-  context: path.join(__dirname, "../platform/backend"),
-  dockerfile: path.join(__dirname, "../platform/backend/Dockerfile"),
+  context: path.join(__dirname, "../apps/platform-backend"),
+  dockerfile: path.join(__dirname, "../apps/platform-backend/Dockerfile"),
   platform: "linux/amd64",
 });
 ```
@@ -545,7 +545,7 @@ aws ecr get-login-password --region us-east-1 | \
   $(pulumi stack output repositoryUrl)
 
 # Build image
-docker build -t viberator-backend platform/backend
+docker build -t viberator-backend apps/platform-backend
 
 # Tag image
 docker tag viberator-backend:latest \

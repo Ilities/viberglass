@@ -20,13 +20,13 @@ For comprehensive secret management documentation, see [docs/DEPLOYMENT_SECRETS.
 
 ```bash
 # Backend deploys on these paths:
-platform/backend/**
+apps/platform-backend/**
 packages/types/**
 .github/workflows/deploy-backend-dev.yml
-platform/backend/Dockerfile.prod
+apps/platform-backend/Dockerfile.prod
 
 # Frontend deploys on these paths:
-platform/frontend/**
+apps/platform-frontend/**
 packages/types/**
 .github/workflows/deploy-frontend-dev.yml
 ```

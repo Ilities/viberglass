@@ -5,11 +5,12 @@
   "description": "Viberglass monorepo - AI Agent Orchestrator and Platform",
   "workspaces": [
     "packages/types",
-    "viberator/app",
-    "viberator/infrastructure/infra",
-    "platform/backend",
-    "platform/frontend",
-    "e2e-tests"
+    "apps/viberator",
+    "apps/platform-backend",
+    "apps/platform-frontend",
+    "infra/viberator",
+    "infra/platform",
+    "tests/e2e"
   ],
   "scripts": {
     "dev": "concurrently -n be,fe \"npm run dev -w @viberglass/platform-backend\" \"npm run dev -w @viberglass/frontend\"",
@@ -19,9 +20,9 @@
     "test": "npm run test:unit --workspaces --if-present",
     "test:unit": "npm run test:unit --workspaces --if-present",
     "test:integration": "npm run test:integration --workspaces --if-present",
-    "test:e2e": "npm run test -w @viberglass/e2e-tests",
-    "test:e2e:setup": "npm run setup:services -w @viberglass/e2e-tests",
-    "test:e2e:teardown": "npm run teardown:services -w @viberglass/e2e-tests",
+    "test:e2e": "npm run test -w @viberator/e2e-tests",
+    "test:e2e:setup": "npm run setup:services -w @viberator/e2e-tests",
+    "test:e2e:teardown": "npm run teardown:services -w @viberator/e2e-tests",
     "platform:dev": "concurrently -n be,fe \"npm run dev -w @viberglass/platform-backend\" \"npm run dev -w @viberglass/frontend\"",
     "platform:build": "concurrently -n be,fe \"npm run build -w @viberglass/platform-backend\" \"npm run build -w @viberglass/frontend\"",
     "platform:start": "concurrently -n be,fe \"npm run start -w @viberglass/platform-backend\" \"npm run start -w @viberglass/frontend\"",
@@ -32,8 +33,8 @@
     "frontend:dev": "npm run dev -w @viberglass/frontend",
     "frontend:build": "npm run build -w @viberglass/frontend",
     "frontend:start": "npm run start -w @viberglass/frontend",
-    "infra:up": "npm run up -w @viberglass/infra",
-    "infra:preview": "npm run preview -w @viberglass/infra"
+    "infra:up": "npm run up -w @viberator/infra",
+    "infra:preview": "npm run preview -w @viberator/infra"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

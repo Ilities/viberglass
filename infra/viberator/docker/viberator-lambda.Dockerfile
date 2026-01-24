@@ -1,10 +1,10 @@
 # Use the official AWS Lambda Node.js base image
 FROM public.ecr.aws/lambda/nodejs:24 AS builder
 WORKDIR /app
-COPY package*.json ./
+COPY apps/viberator/package*.json ./
 RUN npm install && npm install -g tsup
-COPY . .
-COPY tsup.config.lambda.ts ./tsup.config.ts
+COPY apps/viberator/. .
+COPY apps/viberator/tsup.config.lambda.ts ./tsup.config.ts
 RUN npm run build
 
 FROM public.ecr.aws/lambda/nodejs:24

@@ -2,7 +2,7 @@
  * Cloud-agnostic credential storage interface
  * All credential providers must implement this contract
  *
- * Following the pattern established in viberator/app/src/scm/types.ts
+ * Following the pattern established in apps/viberator/src/scm/types.ts
  * for SCM authentication providers.
  */
 export interface CredentialProvider {

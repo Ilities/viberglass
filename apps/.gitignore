@@ -13,8 +13,8 @@ npm-debug.log*
 
 # Dependency directories
 node_modules/
-backend/node_modules/
-frontend/node_modules/
+platform-backend/node_modules/
+platform-frontend/node_modules/
 
 # Environment variables
 .env
@@ -24,9 +24,9 @@ frontend/node_modules/
 # Build output
 dist/
 build/
-backend/dist/
-frontend/.next/
-frontend/out/
+platform-backend/dist/
+platform-frontend/.next*
+platform-frontend/out/
 
 # System files
 .DS_Store

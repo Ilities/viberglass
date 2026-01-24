@@ -40,7 +40,7 @@ For worker setup and local Docker clankers, see [LOCAL_DOCKER_SETUP.md](./LOCAL_
 
 ## Hot-Reload
 
-Code changes in `platform/backend` or `platform/frontend` automatically reload.
+Code changes in `apps/platform-backend` or `apps/platform-frontend` automatically reload.
 
 - Source files are mounted as volumes from your host
 - No need to rebuild images when editing code
