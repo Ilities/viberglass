@@ -103,7 +103,7 @@ export interface DeploymentSecretsOutputs {
  *
  * Sensitive values use SecureString type with KMS encryption, while
  * non-sensitive values use String type. All parameters follow the naming
- * convention: /viberator/{environment}/{category}/{key}
+ * convention: /viberglass/{environment}/{category}/{key}
  *
  * @param options - Configuration options for secrets
  * @returns SSM parameter ARNs and paths for workflow references
@@ -120,12 +120,16 @@ export function createDeploymentSecrets(
     value: pulumi.Input<string>,
     type: "SecureString" | "String"
   ) => {
-    return new aws.ssm.Parameter(`${env}-viberator-${name}`, {
-      name: `/viberator/${env}/${name}`,
+    const oldLogicalName = `${env}-viberator-${name}`;
+    const newLogicalName = `${env}-viberglass-${name}`;
+    return new aws.ssm.Parameter(newLogicalName, {
+      name: `/viberglass/${env}/${name}`,
       type: type,
       value: value,
       keyId: type === "SecureString" ? options.kmsKeyId : undefined,
       tags: config.tags,
+    }, {
+      aliases: [{ name: oldLogicalName }],
     });
   };
 
