@@ -52,12 +52,13 @@ Plans:
   3. API responses use "Viberglass" for platform references
   4. Environment variables use VIBERGLASS_ prefix instead of VIBERATOR_
   5. Worker classes retain "Viberator" in their names (BaseAgent, etc.)
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 14-01: Update frontend UI text and labels
-- [ ] 14-02: Update API response structures and labels
-- [ ] 14-03: Update environment variable prefixes throughout codebase
+- [ ] 14-01-PLAN.md — Update frontend UI metadata and logo (Viberglass platform name)
+- [ ] 14-02-PLAN.md — Update API webhook User-Agent headers (Viberglass-Webhook)
+- [ ] 14-03-PLAN.md — Update UI text for worker references (Viberators terminology)
+- [ ] 14-04-PLAN.md — Update backend and infrastructure README branding
 
 #### Phase 15: Infrastructure Renaming
 **Goal**: AWS infrastructure resources use viberglass naming
@@ -102,8 +103,8 @@ Phases execute in numeric order: 13 → 14 → 15 → 16
 |-------|-----------|----------------|--------|-----------|
 | 1-12 | v1.0 | 95/95 | Complete | 2026-01-23 |
 | 13. Documentation Branding | v1.1 | 4/4 | Complete | 2026-01-24 |
-| 14. Code and UI Branding | v1.1 | 0/3 | Not started | - |
+| 14. Code and UI Branding | v1.1 | 0/4 | Not started | - |
 | 15. Infrastructure Renaming | v1.1 | 0/4 | Not started | - |
 | 16. Repository Migration | v1.1 | 0/3 | Not started | - |
 
-**Overall Progress:** [██░░░░░░░░] 19.13% (99/115 plans complete)
+**Overall Progress:** [██░░░░░░░░] 18.61% (99/116 plans complete)
