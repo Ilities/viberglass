@@ -65,7 +65,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: platform/backend/Dockerfile.dev
+      dockerfile: apps/platform-backend/Dockerfile.dev
     container_name: viberator-dev-backend
     environment:
       # Database
@@ -87,10 +87,10 @@ services:
       - "8888:8888"
     volumes:
       # Mount source with cached mode for better performance on macOS/Windows
-      - ./platform/backend:/app/platform/backend:cached
+      - ./apps/platform-backend:/app/apps/platform-backend:cached
       - ./packages/types:/app/packages/types:cached
       # Preserve container's node_modules (prevents architecture mismatch)
-      - /app/platform/backend/node_modules
+      - /app/apps/platform-backend/node_modules
       - /app/node_modules
     depends_on:
       postgres:
@@ -105,7 +105,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: platform/frontend/Dockerfile.dev
+      dockerfile: apps/platform-frontend/Dockerfile.dev
     container_name: viberator-dev-frontend
     environment:
       # Backend API URL (from host perspective)
@@ -117,13 +117,13 @@ services:
       - "3000:3000"
     volumes:
       # Mount source with cached mode for better performance
-      - ./platform/frontend:/app/platform/frontend:cached
+      - ./apps/platform-frontend:/app/apps/platform-frontend:cached
       - ./packages/types:/app/packages/types:cached
       # Preserve container's node_modules
-      - /app/platform/frontend/node_modules
+      - /app/apps/platform-frontend/node_modules
       - /app/node_modules
       # Preserve Next.js build cache
-      - /app/platform/frontend/.next
+      - /app/apps/platform-frontend/.next
     depends_on:
       backend:
         condition: service_started

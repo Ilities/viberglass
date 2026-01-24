@@ -1,13 +1,14 @@
-# Local Docker Worker - Ephemeral CLI-based worker
+# ECS Worker - Ephemeral CLI-based worker for AWS ECS
 # This container runs a single job and exits
+# Optimized for AWS ECS with Fargate
 
 # Build stage
 FROM node:24-slim AS builder
 WORKDIR /app
-COPY package*.json ./
-COPY tsup.config.ts ./
+COPY apps/viberator/package*.json ./
+COPY apps/viberator/tsup.config.ts ./
 RUN npm install && npm install -g tsup
-COPY . .
+COPY apps/viberator/. .
 RUN npm run build
 
 # Production stage
@@ -23,7 +24,7 @@ RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 # Install Claude Code globally
 RUN npm install -g @anthropic-ai/claude-code
 
-COPY package*.json ./
+COPY apps/viberator/package*.json ./
 RUN npm install --omit=dev
 
 # Copy built files from builder
@@ -40,5 +41,5 @@ USER viberator
 ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
-# Default command shows help
+# Default command shows help (ECS overrides this with actual job data)
 CMD ["node", "dist/cli-worker.js", "--help"]

@@ -6,7 +6,7 @@ Follow this test structure convention when creating or moving tests in this code
 
 1. **Unit Tests** - Place next to the file being tested (co-located)
 2. **Integration Tests** - Place in `__tests__/integration/` directory within the package
-3. **E2E Tests** - Place in the separate `e2e-tests/` package
+3. **E2E Tests** - Place in the separate `tests/e2e/` package
 
 ## File Naming Conventions
 
@@ -31,7 +31,7 @@ src/
 
 ### Integration Test
 ```
-platform/backend/
+apps/platform-backend/
   src/
     services/
       UserService.ts
@@ -44,7 +44,7 @@ platform/backend/
 
 ### E2E Test
 ```
-e2e-tests/
+tests/e2e/
   tests/
     auth.e2e.test.ts
     workflows.e2e.test.ts
@@ -54,14 +54,14 @@ e2e-tests/
 
 1. **Creating unit tests**: Place the `.test.ts` file next to the source file
 2. **Creating integration tests**: Place in `__tests__/integration/` directory
-3. **Creating E2E tests**: Place in `e2e-tests/tests/` directory
+3. **Creating E2E tests**: Place in `tests/e2e/tests/` directory
 
 ## Moving Existing Tests
 
 If you encounter tests in the wrong location:
 - Move unit tests from `__tests__/unit/` to be co-located with their source files
 - Ensure integration tests are in `__tests__/integration/`
-- E2E tests should already be in `e2e-tests/`
+- E2E tests should already be in `tests/e2e/`
 
 ## Test Type Guidelines
 

@@ -145,14 +145,14 @@ aws ecr get-login-password \
 ### 1.3 Build and Push Image
 
 ```bash
-# Navigate to infrastructure directory (where Dockerfile is)
-cd /path/to/viberator/viberator/infrastructure
+# Build from repo root so the Dockerfile can access apps/viberator
+cd /path/to/viberator
 
 # Build image
 docker build \
-  -f docker/viberator-docker-worker.Dockerfile \
+  -f infra/viberator/docker/viberator-docker-worker.Dockerfile \
   -t $REPO_URI:latest \
-  ../app
+  .
 
 # Push to ECR
 docker push $REPO_URI:latest
