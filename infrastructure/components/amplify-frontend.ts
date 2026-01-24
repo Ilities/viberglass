@@ -64,9 +64,9 @@ export function createAmplifyFrontend(
   const framework = options.framework ?? "Next.js - SSR";
 
   // Create Amplify app with SSR support
-  const app = new aws.amplify.App(`${config.environment}-viberator-frontend`, {
-    name: `${config.environment}-viberator-frontend`,
-    description: `Viberator frontend - ${config.environment} environment`,
+  const app = new aws.amplify.App(`${config.environment}-viberglass-frontend`, {
+    name: `${config.environment}-viberglass-frontend`,
+    description: `Viberglass frontend - ${config.environment} environment`,
     platform: "WEB_COMPUTE", // CRITICAL: Required for SSR support
     buildSpec: `version: 1
 backend:
@@ -93,7 +93,7 @@ backend:
 
   // Create Amplify branch
   const branch = new aws.amplify.Branch(
-    `${config.environment}-viberator-frontend-branch`,
+    `${config.environment}-viberglass-frontend-branch`,
     {
       appId: app.id,
       branchName: branchName,
@@ -108,9 +108,14 @@ backend:
   );
 
   // Define SSM parameter paths
-  const ssmAppIdPath = `/viberator/${config.environment}/amplify/appId`;
-  const ssmBranchNamePath = `/viberator/${config.environment}/amplify/branchName`;
-  const ssmRegionPath = `/viberator/${config.environment}/amplify/region`;
+  const ssmAppIdPath = `/viberglass/${config.environment}/amplify/appId`;
+  const ssmBranchNamePath = `/viberglass/${config.environment}/amplify/branchName`;
+  const ssmRegionPath = `/viberglass/${config.environment}/amplify/region`;
+
+  // Define old SSM parameter paths for aliases (backward compatibility)
+  const oldSsmAppIdPath = `/viberator/${config.environment}/amplify/appId`;
+  const oldSsmBranchNamePath = `/viberator/${config.environment}/amplify/branchName`;
+  const oldSsmRegionPath = `/viberator/${config.environment}/amplify/region`;
 
   // Create SSM parameter for app ID
   const ssmAppId = new aws.ssm.Parameter(ssmAppIdPath, {
@@ -131,6 +136,28 @@ backend:
   // Create SSM parameter for region
   const ssmRegion = new aws.ssm.Parameter(ssmRegionPath, {
     name: ssmRegionPath,
+    value: config.awsRegion,
+    type: "String",
+    tags: config.tags,
+  });
+
+  // Create alias SSM parameters for backward compatibility
+  const oldSsmAppId = new aws.ssm.Parameter(oldSsmAppIdPath, {
+    name: oldSsmAppIdPath,
+    value: app.id,
+    type: "String",
+    tags: config.tags,
+  });
+
+  const oldSsmBranchName = new aws.ssm.Parameter(oldSsmBranchNamePath, {
+    name: oldSsmBranchNamePath,
+    value: branchName,
+    type: "String",
+    tags: config.tags,
+  });
+
+  const oldSsmRegion = new aws.ssm.Parameter(oldSsmRegionPath, {
+    name: oldSsmRegionPath,
     value: config.awsRegion,
     type: "String",
     tags: config.tags,
