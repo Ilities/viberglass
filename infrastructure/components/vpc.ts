@@ -63,7 +63,7 @@ export class VpcComponent {
       privateSubnetCidrs = ["10.0.10.0/24", "10.0.11.0/24"],
       singleNatGateway = false,
       environment,
-      projectName = "viberator",
+      projectName = "viberglass",
       backendPort = 3000,
     } = config;
 
