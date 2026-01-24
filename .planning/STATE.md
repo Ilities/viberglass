@@ -2,20 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-19)
+See: .planning/PROJECT.md (updated 2026-01-23)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-**Current focus:** Phase 12: Secret Management
+**Current focus:** v1.0 MVP complete — awaiting next milestone definition
 
 ## Current Position
 
-Phase: 12 of 12 (Secret Management) — PHASE COMPLETE
-Plan: 5 of 5
-Status: Phase 12 Plan 05 COMPLETE - Deployment secrets documentation created
-Last activity: 2026-01-23 — Created comprehensive deployment secrets documentation (docs/DEPLOYMENT_SECRETS.md) and GitHub deployment quick reference (.github/DEPLOYMENT.md)
+Phase: v1.0 MVP COMPLETE
+Status: All 16 phases (95 plans) executed and verified
+Last activity: 2026-01-23 — v1.0 milestone completed
 
-Progress: [█████████░] 100% of v1.0
+Progress: [█████████] 100% of v1.0
 
 ## Performance Metrics
 
@@ -45,13 +44,11 @@ Progress: [█████████░] 100% of v1.0
 | 11 | 5 | 5 | 3m |
 | 11.1 | 1 | 1 | 3m |
 | 11.2 | 3 | 3 | 3m |
-| 12 | 5 | 5 | 10.2m |
+| 12 | 5 | 5 | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 5m, 3m, 5m, 4m, 44m
-- Trend: Documentation phase takes longer (expected)
-
-*Updated after each plan completion*
+- Last 5 plans: 3m, 4m, 1m, 3m, 5m
+- Trend: Stable
 
 ## Accumulated Context
 
@@ -60,147 +57,7 @@ Progress: [█████████░] 100% of v1.0
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Pragmatic testing approach | Focus on complex logic (error classification, retry), skip trivial tests | 134 tests for worker execution flow |
-| Validation factory pattern | Single createValidator() function reduces 285 lines to ~80 | DRY middleware code |
-| crypto.randomUUID() for IDs | Replaces deprecated substr(), cryptographically secure | Modern ID generation |
-| Error propagation over mock fallbacks | Silent error swallowing masks real problems | Proper UI error states |
-| Type safety over 'as any' | Enable better IDE support and compile-time checking | Proper type definitions |
-| Formatting utilities separation | Separates data access from presentation logic | Cleaner architecture with lib/formatters.ts |
-| getTicketStats() placeholder | Keep function with zeros rather than break UI | TODO for future API endpoint |
-| AgentCLIResult intermediate type | Extends ExecutionResult with optional cost without breaking existing types | Type-safe agent cost propagation |
-| Indexed access type pattern | Use Type['field'] for literal casts instead of duplicate type definitions | DRY type-safe casts |
-| @viberator/types for shared types | Import from types package instead of local models for cross-package compatibility | FileUploadService import fixed |
-| Cross-platform Docker networking | Document host.docker.internal (Mac/Win) vs 172.17.0.1 (Linux) for container-to-host | Local Docker Setup guide covers all platforms |
-| Fargate Spot for non-production | 70% cost savings for development/staging environments | AWS ECS Setup recommends Spot for dev workloads |
-| Dan Abramov's useInterval pattern | useRef stores callback to prevent stale closures, interval continues without reset | Declarative intervals with proper cleanup |
-| Page Visibility API for polling | Pauses polling when tab hidden (document.hidden) to save bandwidth/server resources | usePolling hook automatically pauses/resumes |
-| Status change detection for toasts | Track previousStatus to only notify on changes, not initial load | useJobStatus shows toasts only when jobs transition to terminal states |
-| 3-second polling interval | Balances freshness with server load | useJobStatus polls getJob every 3 seconds |
-| Params guard pattern for useParams | Check useParams values before use to handle initial render edge case | Job detail page guards undefined jobId with loading state |
-| Animated status indicators | Use motion/react with conditional animation for visual feedback | JobStatusIndicator pulses when job is active + polling |
-| Three-tier clanker health checks | resourceExists (DB), deploymentConfigured (strategy+config), invokerAvailable (connectivity) | ClankerHealthService validates all three before marking healthy |
-| Server-client component separation | Keep main page as server component, use client components for interactivity | ClankerHealth is a client component while page.tsx remains server component for SSR |
-| UUID primary keys for new tables | Consistent with modern PostgreSQL practices, better than varchar for performance | job_progress_updates and job_log_lines use uuid |
-| ON DELETE CASCADE foreign keys | Automatic cleanup when jobs are deleted prevents orphaned records | progress and log tables cascade on job deletion |
-| Partial index on last_heartbeat | Optimizes stale job queries without index bloat, only indexes active jobs | idx_jobs_last_heartbeat has WHERE status = 'active' |
-| Separated progress from log tables | Different query patterns (history vs streaming) warrant separate storage | job_progress_updates for timeline, job_log_lines for streaming |
-| Transaction for progress updates | Atomic heartbeat + history insert prevents data races between concurrent progress calls | JobService.recordProgress() uses db.transaction().execute() |
-| JSON.stringify for jsonb columns | Kysely requires string serialization for JSON columns, matching existing pattern | recordProgress() and recordLog() use JSON.stringify() |
-| Heartbeat monitoring with grace period | Jobs that stop sending heartbeats are automatically failed after 5 minutes | HeartbeatSweeper runs every 60 seconds checking last_heartbeat < grace period |
-| Worker callback retry pattern | All worker callbacks use exponential backoff with 429/5xx retry, non-retryable 4xx fail fast | CallbackClient sendResult/sendProgress/sendLog all share retry logic |
-| Differential timeouts for callbacks | Results: 30s, Progress: 10s, Logs: 5s - reflects priority of each callback type | Prevents worker blocking on low-priority log delivery |
-| Logs reversed to chronological order | DESC query from database reversed for UI readability (oldest to newest) | LogViewer shows logs in chronological order |
-| 5 minute stale threshold | Matches HeartbeatSweeper grace period for consistency between backend and frontend | isJobStale() uses same 5 minute threshold |
-| Live indicator only when active and polling | Visual feedback only meaningful when job is actively running and polling is enabled | LogViewer live indicator checks isPolling && status === 'active' |
-| ProgressTimeline returns null for queued | Queued jobs have no progress yet, hiding component is cleaner than empty state | ProgressTimeline component returns null for currentStatus === 'queued' |
-| Nullable project_id for webhook configs | Allows tenant-level default configurations without being bound to a specific project | webhook_provider_configs.project_id is nullable with ON DELETE CASCADE |
-| api_token_encrypted in provider config | Stores outbound API credentials (GitHub PAT, Jira API token) alongside webhook config | Simplifies credential management for posting results back to platforms |
-| Unique delivery_id for webhook deduplication | Database-level unique constraint prevents duplicate webhook processing from retries | webhook_delivery_attempts.delivery_id has unique constraint |
-| Check constraints for webhook enums | provider and status fields use CHECK constraints for type safety at database level | `provider IN ('github', 'jira')` and `status IN ('pending', 'processing', 'succeeded', 'failed')` |
-| Abstract class for WebhookProvider | Enables shared utility logic in BaseWebhookProvider while maintaining type safety | All providers extend BaseWebhookProvider for common parsing/formatting |
-| crypto.timingSafeEqual() for HMAC | Per GitHub security guidelines, prevents timing attack vulnerabilities | SignatureValidator always uses timing-safe comparison |
-| express.raw() before JSON parsing | Signature verification requires exact raw bytes from request | Raw body middleware must run before signature middleware |
-| x-github-delivery for deduplication | GitHub provides unique delivery ID for each webhook attempt | Used as deduplicationId in ParsedWebhookEvent |
-| Bearer token auth for GitHub API | Modern authentication using GitHub PATs with Bearer prefix | GitHubWebhookProvider uses Authorization: Bearer {token} |
-| Graceful undefined from provider routing | Returns undefined for unknown providers instead of throwing | ProviderRegistry.getProviderForHeaders returns undefined |
-| Kysely jsonb columns require JSON.stringify with 'as any' | Type system strictness requires workaround for jsonb inserts | WebhookConfigDAO and WebhookDeliveryDAO use this pattern |
-| AES-256-GCM for webhook secret encryption | Provides authenticated encryption with integrity verification | WebhookSecretService uses crypto.createCipheriv with aes-256-gcm |
-| timingSafeEqual for secret verification | Prevents timing attack vulnerabilities when comparing secrets | WebhookSecretService.verifySecret uses crypto.timingSafeEqual |
-| BigInt handling for Kysely aggregates | count() and numDeletedRows return bigint, need typeof check | WebhookDeliveryDAO converts safely with Number() |
-| WebhookService orchestration pattern | Service coordinates registry, DAOs, deduplication, secret service, ticket/job creation | Single entry point for webhook processing |
-| FeedbackService best-effort posting | Errors posting results don't fail job completion; logged for manual retry | Graceful degradation for outbound API calls |
-| Optional FeedbackService in JobService | Constructor parameter optional for backward compatibility | Gradual migration for result feedback |
-| Tenant resolution from webhook config | Webhook routes use default tenant; actual tenant from config mapping | Allows webhooks without X-Tenant-Id header |
-| Top-level /webhooks path for management | Webhook management at top-level path for global configurations | Not project-specific, allows tenant-level default configs |
-| Auto-refresh for failed delivery list | Polls every 10 seconds using usePolling hook | Live updates for failed webhook deliveries |
-| Setup instructions after config creation | Shows exact webhook URL, content type, secret after save | User-friendly GitHub/Jira webhook configuration |
-| Workspace-aware Docker builds | Build from monorepo root with proper package.json copying for dependency resolution | Dockerfile.dev copies root package.json first, then workspace packages |
-| node:20-alpine for dev containers | Matches project engines requirement, smaller image size | Dockerfile.dev uses node:20-alpine for both backend and frontend |
-| --legacy-peer-deps for npm install | Required for npm workspace compatibility during container builds | Both Dockerfile.dev files use --legacy-peer-deps flag |
-| Docker Compose healthcheck ordering | Backend waits for postgres/redis health before starting, prevents connection errors | depends_on with condition: service_healthy |
-| Anonymous node_modules volume | Prevents host architecture mismatch by preserving container's node_modules | /app/node_modules volume in docker-compose |
-| CHOKIDAR_USEPOLLING for containers | File watching in Docker requires polling on some hosts (macOS/Windows) | Set in all dev service environments |
-| No version attribute in compose | version field is obsolete in modern Docker Compose v2 | docker-compose.yml uses native format |
-| Documentation-first developer onboarding | README provides quick start, docs/LOCAL_DEVELOPMENT.md provides detailed guide | New developers can start with single command |
-| Legacy file deprecation pattern | Add deprecation notice header instead of deleting files | Backward compatibility maintained while guiding to new approach |
-| Top-level infrastructure/ directory | More intuitive location, removes awkward viberator/infrastructure/infra/ nesting | Pulumi project at repo root with modular components |
-| Modular component architecture | Each AWS resource type in its own file with factory function | Component pattern for registry, queue, worker-lambda, worker-ecs |
-| Pulumi stack configuration templates | .yaml.example files tracked in git, actual .yaml files gitignored | Clear separation of template vs. sensitive config |
-| Resource naming pattern | ${environment}-viberator-{resource} for all AWS resources | Easily identifiable resources across environments |
-| getConfig() centralization | Single function loads all Pulumi config with type safety | Consistent config access across components |
-| Old infrastructure preservation | Keep viberator/infrastructure/infra/ during migration for rollback safety | Allows rollback if issues with new structure |
-| Single NAT gateway for non-production | Reduces AWS costs by ~$30/month per NAT gateway | Dev/staging use single NAT, prod uses multi-NAT for HA |
-| Component-based VPC pattern | Reusable VpcComponent class encapsulates all networking resources | VPC, subnets, NAT gateways, and security groups in one component |
-| Security group references over CIDR | Inter-service communication uses SG references instead of CIDR blocks | Better security posture for RDS-worker-backend communication |
-| S3 lifecycle policies by environment | Dev: 90-day expiration, Staging: version cleanup, Prod: Glacier archiving | Cost-optimized storage tiering based on environment |
-| AES-256 for S3 encryption | Server-side encryption with bucket key enabled for cost optimization | Secure file storage with minimal KMS cost |
-| Random password generation for RDS | Use pulumi/random RandomPassword resource instead of hardcoded credentials | Secure credential generation with SSM SecureString storage |
-| Environment-aware RDS sizing | Database instance class scales with environment (db.t4g.micro → db.t4g.large → db.m6g.xlarge) | Cost-optimized database for dev/staging, HA for production |
-| PostgreSQL 16 for new RDS instances | Using latest PostgreSQL major version for new installations | Modern features and performance improvements |
-| SSM SecureString for all DB credentials | Password and connection URL stored as SecureString with KMS encryption | Secure credential storage without hardcoding |
-| Multi-AZ only for production | Dev/staging use single-AZ for cost savings, prod uses multi-AZ for HA | Balance between cost and availability |
-| Customer-managed KMS for SSM | Use customer-managed key instead of AWS default for better control and compliance visibility | KMS key with annual rotation for all SecureString parameters |
-| KMS decrypt permissions via inline policies | Attach inline IAM policies to Lambda/ECS roles for kms:Decrypt and kms:GenerateDataKey* | Compute roles can decrypt SSM parameters encrypted with customer key |
-| KMS alias naming convention | alias/viberator-{environment}-ssm for consistent cross-environment reference | Easy identification in CloudTrail and compliance reports |
-| Centralized logging component pattern | Single createLogging() function for all CloudWatch log groups with environment-based retention defaults | Consistent log management: dev=7, staging=30, prod=90 days |
-| HTTP-only ALB for MVP with optional HTTPS | Load balancer defaults to HTTP, HTTPS requires ACM certificate ARN | Simplifies dev setup, production can add certificate |
-| Backend ECS service reuses worker cluster | Single ECS cluster hosts both worker and backend tasks | Cost-effective versus separate clusters |
-| ALB target group port 80, backend port 3000 | SSL termination at ALB, container uses internal port | Simplifies certificate management |
-| Auto-scaling targets: CPU 70%, Memory 80% | Target tracking policies with 300s cooldown | Balances responsiveness with stability |
-| Frontend S3+CloudFront with OAC | Origin Access Control instead of public S3 bucket for security | S3 bucket blocks all public access, CloudFront is only entry point |
-| CloudFront price class by environment | PriceClass_100 for dev/staging, All for production | Optimizes costs while maintaining global reach for prod |
-| SPA routing via CloudFront error responses | Returns 200 with /index.html for 403/404 errors | Supports Next.js client-side routing without custom routes |
-| SSM parameters for frontend build config | API URL and CDN URL stored in SSM for CI/CD injection | NEXT_PUBLIC_ variables embedded during static build |
-| Mermaid diagrams for infrastructure docs | Renders in GitHub without external dependencies, easy to update | Architecture, network, data flow, and security diagrams in README |
-| .yaml.example pattern for Pulumi configs | Actual config files gitignored, examples show all options with comments | Clear separation of template vs sensitive configuration |
-| Single comprehensive README | 667-line document covering all aspects of infrastructure | Easier to maintain than split documentation, fully searchable |
-| Multi-stage Docker build for production | Separate builder and production stages for minimal runtime image | Dockerfile.prod uses node:20-alpine, TypeScript compiled at build time |
-| Non-root container user | Run as nodejs (uid 1001) instead of root for security | Production Dockerfile creates and uses non-root user |
-| Exclude test files from TypeScript compilation | Added src/**/__tests__/** and src/test/** to tsconfig exclude | Prevents dev dependency requirement in production Docker builds |
-| AWS Amplify SSR over S3+CloudFront static export | Bypasses Next.js 15 static export limitations with dynamic routes | Full SSR with Lambda@Edge, image optimization enabled |
-| force-dynamic route segment config | Ensures all pages render dynamically at request time | Data fetched at request time, not build time |
-| Amplify build configuration with amplify.yml | PreBuild/build/postBuild phases for CI/CD | Git-based deployment with automatic Lambda@Edge setup |
-| GitHub Actions for Amplify deployment | OIDC auth with aws amplify start-deployment CLI | Automated dev deployment, manual staging/prod with approval gates |
-| Amplify polling for deployment verification | Wait loop with aws amplify get-job status checks | Confirms deployment completion before marking success |
-| Monorepo path filtering for CI/CD | Workflows trigger on specific path patterns | Only builds affected workspaces on changes |
-| Pulumi preview on PR | Infrastructure changes show pulumi preview as PR comments | Dev stack as baseline for preview comparisons |
-| Automated dev Pulumi deployment | Infrastructure deploys to dev on main merge | pulumi up runs automatically for dev stack |
-| Manual prod Pulumi deployment | Prod requires workflow_dispatch with approval | Production infrastructure changes are intentional |
-| Pulumi concurrency control | Prevents simultaneous pulumi operations | group: pulumi-${{ github.workflow }} |
-| Remove unused S3+CloudFront frontend infrastructure | Amplify SSR is actual deployment method, Pulumi code never deployed | Saves $15-20/month, aligns infrastructure with production |
-| Separate OIDC provider for Amplify deployment | Creates distinct OpenID Connect provider and IAM role for Amplify (not reuse Pulumi OIDC) | Separation of concerns between infrastructure provisioning and application deployment |
-| WEB_COMPUTE platform for Amplify SSR | platform: "WEB_COMPUTE" enables Next.js SSR with Lambda@Edge | Full SSR support instead of static hosting |
-| Auto-branch creation disabled for security | enableAutoBranchCreation: false prevents unauthorized branches | Only explicitly configured branches can be deployed |
-| GitHub Actions-driven Amplify builds | enableAutoBuild: false builds via GitHub Actions workflows | Consistent with existing CI/CD approach |
-| SSM for Amplify configuration storage | Parameters follow /viberator/{environment}/amplify/* pattern | CI/CD can fetch app ID, branch, region at deployment time |
-| Direct loadBalancer interpolation in Amplify | Use pulumi.interpolate`http://${loadBalancer.albDnsName}` directly to avoid forward reference | Amplify component receives backend URL without TypeScript error |
-| SSM-driven CI/CD configuration for Amplify | GitHub Actions workflows read Amplify config from SSM parameters instead of hardcoded secrets | Pulumi is single source of truth for Amplify provisioning, workflows automatically adapt to IaC changes |
-| Production workflow exits on missing SSM | Production deployment fails with error if SSM parameters not found (no graceful degradation) | Production requires IaC provisioning, prevents silent failures |
-| Dynamic region parameterization in workflows | Amplify workflows use --region "$REGION" from SSM instead of hardcoded region | Supports Amplify apps in any AWS region, cross-region deployments |
-| Environment-first API for deployment secrets | getSecret(environment, key) instead of tenant-first get(tenantId, key) from Phase 1 | Deployment secrets are environment-scoped, not tenant-scoped |
-| Deployment secrets path hierarchy | /viberator/{environment}/{category}/{key} for deployment secrets vs /viberator/tenants/{tenantId}/{key} for tenant credentials | Clear separation between deployment-time CI/CD secrets and runtime tenant data |
-| SecureString default for deployment secrets | putSecret defaults to secure=true with KMS encryption, optional secure=false for plain strings | Most deployment values are sensitive, default to secure storage |
-| SecretCategory enum for organization | database, frontend, amplify, ecs, lambda categories for deployment secret organization | Structured SSM parameter hierarchy for easy navigation |
-| isAvailable() tests SSM access | Lists parameters with prefix to verify AWS credentials work, returns false on auth errors | Graceful provider availability checking for CI/CD workflows |
-| Separate kmsKeyId parameter in DeploymentSecretsOptions | InfrastructureConfig doesn't include kmsKeyId, added as separate parameter | Avoids modifying core config interface for component-specific needs |
-| SSM parameter keyId property for KMS encryption | Pulumi aws.ssm.Parameter uses keyId (not kmsKeyId) for KMS key reference | Correct property name for SecureString encryption |
-| Pulumi secrets component placement | Secrets creation after all dependencies (VPC, ALB, ECR, ECS) to avoid forward references | Infrastructure code order matches resource dependency graph |
-| SSM parameter naming by category | /viberator/{environment}/{category}/{key} with categories: database, frontend, amplify, ecs, deployment | Organized parameter hierarchy for easy navigation and workflow references |
-| SecureString vs String type selection | SecureString for sensitive (database URLs, OIDC roles), String for non-sensitive (API URLs, region) | KMS encryption only applied to values that need it, cost-optimized |
-| AWS credentials before SSM fetch in workflows | SSM parameter fetch must happen after aws-actions/configure-aws-credentials step | Authentication required for SSM API calls |
-| Fallback values for SSM parameter fetch | Use || echo 'default' pattern for graceful degradation if Pulumi hasn't created parameters yet | Prevents workflow failures during initial infrastructure setup |
-| GitHub environment directive for secret isolation | Add environment: dev/staging/prod to workflow jobs for environment-specific secret injection | Each environment uses its own AWS_ROLE_ARN and other secrets |
-| Staging workflow creation | Created new deploy-backend-staging.yml workflow since it didn't exist | Follows same pattern as dev/prod with staging-specific paths |
-| SSM-based Amplify config in workflows | Keep fetching Amplify config from SSM (not GitHub secrets) for frontend deployments | Pulumi is single source of truth; workflows adapt to IaC changes automatically |
-| Remove hardcoded fallback URLs | Fail-fast on missing SSM parameters instead of using placeholder values | Prevents broken deployments from misconfiguration |
-| Dynamic region fetching from SSM | Fetch AWS region from /viberator/{env}/deployment/region instead of hardcoded us-east-1 | Supports multi-region deployments without workflow changes |
-| Consolidated config fetching in workflows | Single get-config step for region and backend URL instead of separate steps | Cleaner workflow structure, fewer SSM API calls |
-| Frontend staging workflow creation | Created new deploy-frontend-staging.yml workflow (was missing from Phase 11-04) | Completes deployment workflow set: dev, staging, prod |
-| Documentation-first approach | Comprehensive setup guide created before enabling production deployments | Teams can maintain secret configuration without guessing |
-| Clear separation of deployment vs runtime secrets | Documentation distinguishes deployment secrets (Phase 12) from tenant credentials (Phase 1) | Proper security boundaries and access patterns |
-| Comprehensive troubleshooting guide | Six common issues documented with symptoms, causes, and solutions | Reduces time to resolution for secret-related deployment issues |
+All milestone decisions documented in milestone archive.
 
 ### Roadmap Evolution
 
@@ -213,17 +70,24 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+None — v1.0 complete.
 
 ### Blockers/Concerns
 
-- ~~Frontend SSR deployment requires Amplify app setup in AWS Console (manual step)~~ (RESOLVED - Pulumi components created in Phase 11.2)
-- Pulumi CLI not installed locally - required before AWS infrastructure deployment
-- ~~Phase 10 S3+CloudFront frontend infrastructure unused due to Amplify SSR approach~~ (RESOLVED - removed in Phase 11.1)
+None — v1.0 shipped successfully.
 
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Phase 12 Plan 05 Complete - Deployment secrets documentation created and approved
+Stopped at: v1.0 milestone complete
 Resume file: None
-Next: Phase 12 COMPLETE - All secret management plans finished (01-05). Project ready for v1.0 release (Phase 13 not defined in roadmap).
+v1.0 MVP SHIPPED — All phases complete, ready for next milestone definition
+
+## Milestone Archive
+
+v1.0 MVP archived to:
+- .planning/milestones/v1.0-ROADMAP.md
+- .planning/milestones/v1.0-REQUIREMENTS.md
+- .planning/MILESTONES.md
+
+For current roadmap and requirements, run `/gsd:new-milestone` to define next milestone.
