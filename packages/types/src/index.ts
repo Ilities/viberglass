@@ -1,5 +1,5 @@
 /**
- * @viberator/types - Shared TypeScript types for Viberator platform
+ * @viberator/types - Shared TypeScript types for Viberglass platform
  */
 
 // Common types
