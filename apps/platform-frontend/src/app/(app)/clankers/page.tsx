@@ -19,13 +19,17 @@ export default async function ClankersPage() {
         </Button>
       </div>
 
-      <Subheading className="mt-8">Active clankers</Subheading>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+        Creating a clanker saves its configuration. Use Start on a clanker to provision it and update its status.
+      </div>
+
+      <Subheading className="mt-8">Clankers</Subheading>
 
       {clankers.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
           <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No clankers yet</h3>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Create your first clanker to coordinate tasks, triage issues, and automate workflows.
+            Create your first clanker to coordinate tasks, then start it when you are ready to provision.
           </p>
           <Button href="/clankers/new" color="brand" className="mt-6">
             <PlusIcon />
@@ -57,7 +61,13 @@ export default async function ClankersPage() {
 
                 <div className="mt-6 grid grid-cols-2 gap-4 border-t border-zinc-950/5 pt-4 dark:border-white/5">
                   <div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">Status</div>
                     <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
+                    {clanker.statusMessage && (
+                      <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        {clanker.statusMessage}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-sm font-medium text-brand-burnt-orange">

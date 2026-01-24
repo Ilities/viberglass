@@ -2,6 +2,7 @@ import express from "express";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
+import { ClankerProvisioningService } from "../../services/ClankerProvisioningService";
 import { FileUploadService, upload } from "../../services/FileUploadService";
 import { JobService } from "../../services/JobService";
 import { WorkerExecutionService } from "../../workers/WorkerExecutionService";
@@ -19,6 +20,7 @@ const router = express.Router();
 const ticketService = new TicketDAO();
 const projectService = new ProjectDAO();
 const clankerService = new ClankerDAO();
+const provisioningService = new ClankerProvisioningService();
 const fileUploadService = new FileUploadService();
 const jobService = new JobService();
 const workerExecutionService = new WorkerExecutionService();
@@ -315,6 +317,22 @@ router.post(
         });
       }
 
+      const availability =
+        await provisioningService.resolveAvailabilityStatus(clanker);
+      const currentStatus = availability.status;
+      const currentStatusMessage = availability.statusMessage ?? null;
+
+      if (
+        availability.status !== clanker.status ||
+        (clanker.statusMessage ?? null) !== currentStatusMessage
+      ) {
+        await clankerService.updateStatus(
+          clanker.id,
+          availability.status,
+          currentStatusMessage,
+        );
+      }
+
       // Validate clanker has deploymentStrategyId and status is 'active'
       if (!clanker.deploymentStrategyId) {
         return res.status(400).json({
@@ -323,10 +341,10 @@ router.post(
         });
       }
 
-      if (clanker.status !== "active") {
+      if (currentStatus !== "active") {
         return res.status(400).json({
           error: "Clanker not ready",
-          message: `Selected clanker is ${clanker.status}. Only active clankers can run jobs.`,
+          message: `Selected clanker is ${currentStatus}. Only active clankers can run jobs.`,
         });
       }
 

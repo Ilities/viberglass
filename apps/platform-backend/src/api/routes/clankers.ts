@@ -1,6 +1,8 @@
 import express from "express";
+import type { Clanker } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
+import { ClankerProvisioningService } from "../../services/ClankerProvisioningService";
 import {
   validateCreateClanker,
   validateUpdateClanker,
@@ -11,6 +13,24 @@ import logger from "../../config/logger";
 const router = express.Router();
 const clankerService = new ClankerDAO();
 const healthService = new ClankerHealthService();
+const provisioningService = new ClankerProvisioningService();
+
+async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
+  const availability =
+    await provisioningService.resolveAvailabilityStatus(clanker);
+  const currentMessage = clanker.statusMessage ?? null;
+  const nextMessage = availability.statusMessage ?? null;
+
+  if (availability.status === clanker.status && currentMessage === nextMessage) {
+    return clanker;
+  }
+
+  return clankerService.updateStatus(
+    clanker.id,
+    availability.status,
+    nextMessage,
+  );
+}
 
 // GET /api/clankers - List all clankers
 router.get("/", async (req, res) => {
@@ -19,11 +39,14 @@ router.get("/", async (req, res) => {
     const offset = parseInt(req.query.offset as string) || 0;
 
     const clankers = await clankerService.listClankers(limit, offset);
+    const refreshed = await Promise.all(
+      clankers.map((clanker) => refreshClankerStatus(clanker)),
+    );
 
     res.json({
       success: true,
-      data: clankers,
-      pagination: { limit, offset, count: clankers.length },
+      data: refreshed,
+      pagination: { limit, offset, count: refreshed.length },
     });
   } catch (error) {
     logger.error('Error fetching clankers', { error: error instanceof Error ? error.message : error });
@@ -38,7 +61,8 @@ router.get("/by-slug/:slug", async (req, res) => {
     if (!clanker) {
       return res.status(404).json({ error: "Clanker not found" });
     }
-    res.json({ success: true, data: clanker });
+    const refreshed = await refreshClankerStatus(clanker);
+    res.json({ success: true, data: refreshed });
   } catch (error) {
     logger.error('Error fetching clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
@@ -78,7 +102,8 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
     if (!clanker) {
       return res.status(404).json({ error: "Clanker not found" });
     }
-    res.json({ success: true, data: clanker });
+    const refreshed = await refreshClankerStatus(clanker);
+    res.json({ success: true, data: refreshed });
   } catch (error) {
     logger.error('Error fetching clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
@@ -116,7 +141,8 @@ router.put(
         req.params.id,
         req.body
       );
-      res.json({ success: true, data: updatedClanker });
+      const refreshed = await refreshClankerStatus(updatedClanker);
+      res.json({ success: true, data: refreshed });
     } catch (error) {
       logger.error('Error updating clanker', { error: error instanceof Error ? error.message : error });
       res.status(500).json({ error: "Internal server error" });
@@ -159,22 +185,32 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
       "Starting clanker..."
     );
 
-    // TODO: Implement actual deployment logic based on deployment strategy
-    // For now, we'll just set it to active after a brief delay simulation
-    setTimeout(async () => {
-      try {
-        await clankerService.updateStatus(req.params.id, "active", null);
-      } catch (err) {
-        logger.error('Error setting clanker to active', { error: err instanceof Error ? err.message : err });
-        await clankerService.updateStatus(
-          req.params.id,
-          "failed",
-          "Failed to start clanker"
-        );
-      }
-    }, 1000);
-
-    res.json({ success: true, data: updatedClanker });
+    try {
+      const provisioned =
+        await provisioningService.provisionClanker(updatedClanker);
+      const finalClanker = await clankerService.updateClanker(
+        updatedClanker.id,
+        {
+          deploymentConfig:
+            provisioned.deploymentConfig ??
+            updatedClanker.deploymentConfig ??
+            null,
+          status: provisioned.status,
+          statusMessage: provisioned.statusMessage ?? null,
+        }
+      );
+      res.json({ success: true, data: finalClanker });
+    } catch (provisioningError) {
+      const message =
+        provisioningError instanceof Error
+          ? provisioningError.message
+          : "Provisioning failed";
+      await clankerService.updateStatus(req.params.id, "failed", message);
+      res.status(500).json({
+        error: "Failed to provision clanker resources",
+        message,
+      });
+    }
   } catch (error) {
     logger.error('Error starting clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
@@ -215,7 +251,8 @@ router.get('/:id/health', validateUuidParam('id'), async (req, res) => {
       return res.status(404).json({ error: 'Clanker not found' });
     }
 
-    const health = await healthService.checkClankerHealth(clanker);
+    const refreshed = await refreshClankerStatus(clanker);
+    const health = await healthService.checkClankerHealth(refreshed);
     res.json({ success: true, data: health });
   } catch (error) {
     logger.error('Error checking clanker health', { error: error instanceof Error ? error.message : error });

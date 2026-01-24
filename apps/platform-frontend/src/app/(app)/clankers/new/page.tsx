@@ -121,6 +121,10 @@ export default function NewClankerPage() {
     <>
       <Heading>Create New Clanker</Heading>
       <Subheading className="mt-2">Configure a new agent worker for your Viberator tasks.</Subheading>
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+        Creating a clanker stores its settings only. Use the Start action on the clanker page when you are ready to
+        provision it.
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
         {error && (
