@@ -32,7 +32,7 @@ export class ClankerHealthService {
     const factory = getWorkerInvokerFactory();
     try {
       const invoker = factory.getInvokerForClanker(clanker);
-      checks.invokerAvailable = await invoker.isAvailable();
+      checks.invokerAvailable = await invoker.isAvailable(clanker);
     } catch (error) {
       logger.warn('Failed to get invoker for clanker', {
         clankerId: clanker.id,

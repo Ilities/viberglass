@@ -1,4 +1,4 @@
-import { LambdaClient, InvokeCommand, InvokeCommandOutput } from '@aws-sdk/client-lambda';
+import { LambdaClient, InvokeCommand, InvokeCommandOutput, GetFunctionCommand } from '@aws-sdk/client-lambda';
 import type { Clanker } from '@viberator/types';
 import type { JobData } from '../../types/Job';
 import { WorkerInvoker, InvocationResult } from '../WorkerInvoker';
@@ -6,6 +6,10 @@ import { WorkerError, ErrorClassification } from '../errors/WorkerError';
 import { createChildLogger } from '../../config/logger';
 
 const logger = createChildLogger({ invoker: 'Lambda' });
+
+// Cache for function availability to avoid repeated checks
+const functionAvailabilityCache = new Map<string, { exists: boolean; timestamp: number }>();
+const CACHE_TTL = 60000; // 1 minute
 
 interface LambdaDeploymentConfig {
   functionName?: string;
@@ -115,7 +119,56 @@ export class LambdaInvoker implements WorkerInvoker {
     };
   }
 
-  async isAvailable(): Promise<boolean> {
-    return this.client !== undefined;
+  async isAvailable(clanker?: Clanker): Promise<boolean> {
+    if (this.client === undefined) {
+      return false;
+    }
+
+    // If clanker is provided, check if the function exists
+    if (clanker) {
+      const functionName = this.getFunctionName(clanker);
+      if (!functionName) {
+        return false;
+      }
+
+      return await this.checkFunctionExists(functionName);
+    }
+
+    return true;
+  }
+
+  private async checkFunctionExists(functionName: string): Promise<boolean> {
+    // Check cache first
+    const cached = functionAvailabilityCache.get(functionName);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.exists;
+    }
+
+    try {
+      const command = new GetFunctionCommand({
+        FunctionName: functionName,
+      });
+
+      await this.client.send(command);
+
+      // Function exists - cache the result
+      functionAvailabilityCache.set(functionName, { exists: true, timestamp: Date.now() });
+      return true;
+    } catch (error) {
+      const err = error as { $metadata?: { httpStatusCode?: number } };
+
+      // ResourceNotFoundException means function doesn't exist (404)
+      if (err.$metadata?.httpStatusCode === 404) {
+        functionAvailabilityCache.set(functionName, { exists: false, timestamp: Date.now() });
+        return false;
+      }
+
+      // Other errors (auth, throttling, etc.) - don't cache, treat as unavailable
+      logger.warn('Failed to check Lambda function existence', {
+        functionName,
+        error: error instanceof Error ? error.message : error,
+      });
+      return false;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { ECSClient, RunTaskCommand, RunTaskCommandOutput } from '@aws-sdk/client-ecs';
+import { ECSClient, RunTaskCommand, RunTaskCommandOutput, DescribeClustersCommand, DescribeTaskDefinitionCommand } from '@aws-sdk/client-ecs';
 import type { Clanker } from '@viberator/types';
 import type { JobData } from '../../types/Job';
 import { WorkerInvoker, InvocationResult } from '../WorkerInvoker';
@@ -6,6 +6,10 @@ import { WorkerError, ErrorClassification } from '../errors/WorkerError';
 import { createChildLogger } from '../../config/logger';
 
 const logger = createChildLogger({ invoker: 'ECS' });
+
+// Cache for resource availability to avoid repeated checks
+const resourceAvailabilityCache = new Map<string, { exists: boolean; timestamp: number }>();
+const CACHE_TTL = 60000; // 1 minute
 
 interface EcsDeploymentConfig {
   clusterArn: string;
@@ -152,7 +156,101 @@ export class EcsInvoker implements WorkerInvoker {
     };
   }
 
-  async isAvailable(): Promise<boolean> {
-    return this.client !== undefined;
+  async isAvailable(clanker?: Clanker): Promise<boolean> {
+    if (this.client === undefined) {
+      return false;
+    }
+
+    // If clanker is provided, check if the cluster and task definition exist
+    if (clanker) {
+      const ecsConfig = clanker.deploymentConfig as unknown as EcsDeploymentConfig | undefined;
+
+      if (!ecsConfig?.clusterArn || !ecsConfig?.taskDefinitionArn) {
+        return false;
+      }
+
+      const clusterExists = await this.checkClusterExists(ecsConfig.clusterArn);
+      if (!clusterExists) {
+        return false;
+      }
+
+      const taskDefExists = await this.checkTaskDefinitionExists(ecsConfig.taskDefinitionArn);
+      return taskDefExists;
+    }
+
+    return true;
+  }
+
+  private async checkClusterExists(clusterArn: string): Promise<boolean> {
+    // Check cache first
+    const cacheKey = `cluster:${clusterArn}`;
+    const cached = resourceAvailabilityCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.exists;
+    }
+
+    try {
+      const command = new DescribeClustersCommand({
+        clusters: [clusterArn],
+      });
+
+      const response = await this.client.send(command);
+      const exists = !!(response.clusters && response.clusters.length > 0 && response.clusters[0].status === 'ACTIVE');
+
+      // Cache the result
+      resourceAvailabilityCache.set(cacheKey, { exists, timestamp: Date.now() });
+      return exists;
+    } catch (error) {
+      const err = error as { $metadata?: { httpStatusCode?: number } };
+
+      // ClusterNotFoundException means cluster doesn't exist (400)
+      if (err.$metadata?.httpStatusCode === 400) {
+        resourceAvailabilityCache.set(cacheKey, { exists: false, timestamp: Date.now() });
+        return false;
+      }
+
+      // Other errors (auth, throttling, etc.) - don't cache, treat as unavailable
+      logger.warn('Failed to check ECS cluster existence', {
+        clusterArn,
+        error: error instanceof Error ? error.message : error,
+      });
+      return false;
+    }
+  }
+
+  private async checkTaskDefinitionExists(taskDefArn: string): Promise<boolean> {
+    // Check cache first
+    const cacheKey = `taskdef:${taskDefArn}`;
+    const cached = resourceAvailabilityCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.exists;
+    }
+
+    try {
+      const command = new DescribeTaskDefinitionCommand({
+        taskDefinition: taskDefArn,
+      });
+
+      await this.client.send(command);
+
+      // Task definition exists - cache the result
+      resourceAvailabilityCache.set(cacheKey, { exists: true, timestamp: Date.now() });
+      return true;
+    } catch (error) {
+      const err = error as { $metadata?: { httpStatusCode?: number } };
+
+      // ResourceNotFoundException means task definition doesn't exist (400)
+      if (err.$metadata?.httpStatusCode === 400) {
+        resourceAvailabilityCache.set(cacheKey, { exists: false, timestamp: Date.now() });
+        return false;
+      }
+
+      // Other errors (auth, throttling, etc.) - don't cache, treat as unavailable
+      logger.warn('Failed to check ECS task definition existence', {
+        taskDefArn,
+        error: error instanceof Error ? error.message : error,
+      });
+      return false;
+    }
   }
 }

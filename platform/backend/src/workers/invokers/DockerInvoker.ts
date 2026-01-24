@@ -9,6 +9,10 @@ import { createChildLogger } from "../../config/logger";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
+// Cache for image availability to avoid repeated checks
+const imageAvailabilityCache = new Map<string, boolean>();
+const CACHE_TTL = 60000; // 1 minute
+
 interface DockerDeploymentConfig {
   containerImage: string;
   environmentVariables?: Record<string, string>;
@@ -171,11 +175,60 @@ export class DockerInvoker implements WorkerInvoker {
     };
   }
 
-  async isAvailable(): Promise<boolean> {
+  async isAvailable(clanker?: Clanker): Promise<boolean> {
     try {
       await this.docker.ping();
-      return true;
     } catch {
+      return false;
+    }
+
+    // If clanker is provided, check if the image exists locally
+    if (clanker) {
+      const dockerConfig = clanker.deploymentConfig as unknown as
+        | DockerDeploymentConfig
+        | undefined;
+
+      if (!dockerConfig?.containerImage) {
+        return false;
+      }
+
+      return await this.checkImageExists(dockerConfig.containerImage);
+    }
+
+    return true;
+  }
+
+  private async checkImageExists(imageName: string): Promise<boolean> {
+    // Check cache first
+    const cached = imageAvailabilityCache.get(imageName);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    try {
+      const images = await this.docker.listImages();
+      const exists = images.some(img => {
+        const tags = img.RepoTags || [];
+        // Check exact match or with/without latest tag
+        return tags.includes(imageName) ||
+               tags.includes(`${imageName}:latest`) ||
+               imageName === `${img.Id.substring(0, 12)}` ||
+               imageName.startsWith(`${img.Id.substring(0, 12)}:`) ||
+               tags.some(tag => tag.includes(imageName.split(':')[0]) &&
+                            (!imageName.includes(':') || tag === imageName));
+      });
+
+      // Cache the result
+      imageAvailabilityCache.set(imageName, exists);
+      // Invalidate cache after TTL
+      setTimeout(() => imageAvailabilityCache.delete(imageName), CACHE_TTL);
+
+      return exists;
+    } catch (error) {
+      logger.warn("Failed to check Docker image existence", {
+        imageName,
+        error: error instanceof Error ? error.message : error,
+      });
       return false;
     }
   }

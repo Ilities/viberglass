@@ -20,6 +20,7 @@ export interface WorkerInvoker {
 
   /**
    * Check if this invoker is properly configured
+   * @param clanker - Optional clanker to check specific resource availability
    */
-  isAvailable(): Promise<boolean>;
+  isAvailable(clanker?: Clanker): Promise<boolean>;
 }
