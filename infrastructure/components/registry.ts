@@ -32,7 +32,7 @@ export interface RegistryOutputs {
  * easier development environment cleanup.
  */
 export function createRegistry(options: RegistryOptions): RegistryOutputs {
-  const repo = new awsx.ecr.Repository(`${options.config.environment}-viberator-repo`, {
+  const repo = new awsx.ecr.Repository(`${options.config.environment}-viberglass-repo`, {
     forceDelete: options.forceDelete ?? true,
     tags: options.config.tags,
   });

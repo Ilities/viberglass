@@ -44,7 +44,7 @@ export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutpu
 
   // Create OpenID Connect provider for GitHub Actions
   const oidcProvider = new aws.iam.OpenIdConnectProvider(
-    `${config.environment}-viberator-github-oidc`,
+    `${config.environment}-viberglass-github-oidc`,
     {
       url: "https://token.actions.githubusercontent.com",
       clientIdLists: ["sts.amazonaws.com"],
@@ -54,7 +54,7 @@ export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutpu
 
   // Create IAM role that GitHub Actions can assume
   const role = new aws.iam.Role(
-    `${config.environment}-viberator-amplify-github-actions-role`,
+    `${config.environment}-viberglass-amplify-github-actions-role`,
     {
       assumeRolePolicy: pulumi.interpolate`{
         "Version": "2012-10-17",
@@ -82,7 +82,7 @@ export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutpu
 
   // Create IAM role policy with Amplify permissions
   const rolePolicy = new aws.iam.RolePolicy(
-    `${config.environment}-viberator-amplify-github-actions-policy`,
+    `${config.environment}-viberglass-amplify-github-actions-policy`,
     {
       role: role.id,
       policy: JSON.stringify({
