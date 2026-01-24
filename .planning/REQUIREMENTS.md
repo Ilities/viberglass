@@ -9,12 +9,12 @@ Branding update: Platform becomes "Viberglass", workers remain "Viberators."
 
 ### Documentation (DOCS)
 
-- [ ] **DOCS-01**: PROJECT.md header updated from "# Viberator" to "# Viberglass"
-- [ ] **DOCS-02**: README.md updated with new platform name (Viberglass) and worker name (Viberators)
-- [ ] **DOCS-03**: Package.json `name` field updated to "viberglass"
-- [ ] **DOCS-04**: Package.json `description` field references Viberglass platform
-- [ ] **DOCS-05**: All inline code comments referring to platform updated to "Viberglass"
-- [ ] **DOCS-06**: MILESTONES.md updated with new branding for v1.1+ entries
+- [x] **DOCS-01**: PROJECT.md header updated from "# Viberator" to "# Viberglass"
+- [x] **DOCS-02**: README.md updated with new platform name (Viberglass) and worker name (Viberators)
+- [x] **DOCS-03**: Package.json `name` field updated to "viberglass"
+- [x] **DOCS-04**: Package.json `description` field references Viberglass platform
+- [x] **DOCS-05**: All inline code comments referring to platform updated to "Viberglass"
+- [x] **DOCS-06**: MILESTONES.md updated with new branding for v1.1+ entries
 
 ### Code References (CODE)
 
@@ -22,7 +22,7 @@ Branding update: Platform becomes "Viberglass", workers remain "Viberators."
 - [ ] **CODE-02**: Frontend UI text displays "Viberators" for worker/agent references
 - [ ] **CODE-03**: API response labels use "Viberglass" for platform references
 - [ ] **CODE-04**: TypeScript class names for platform components updated if needed
-- [ ] **CODE-05**: Environment variable prefixes updated (VIBEGLASS_*)
+- [ ] **CODE-05**: Environment variable prefixes updated (VIBERGLASS_*)
 - [ ] **CODE-06**: Worker code retains "Viberator" naming for agent executor classes
 
 ### Infrastructure (INFRA)
@@ -64,12 +64,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DOCS-01 | Phase 13 | Pending |
-| DOCS-02 | Phase 13 | Pending |
-| DOCS-03 | Phase 13 | Pending |
-| DOCS-04 | Phase 13 | Pending |
-| DOCS-05 | Phase 13 | Pending |
-| DOCS-06 | Phase 13 | Pending |
+| DOCS-01 | Phase 13 | Complete |
+| DOCS-02 | Phase 13 | Complete |
+| DOCS-03 | Phase 13 | Complete |
+| DOCS-04 | Phase 13 | Complete |
+| DOCS-05 | Phase 13 | Complete |
+| DOCS-06 | Phase 13 | Complete |
 | CODE-01 | Phase 14 | Pending |
 | CODE-02 | Phase 14 | Pending |
 | CODE-03 | Phase 14 | Pending |
