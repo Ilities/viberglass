@@ -71,13 +71,13 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
     } as aws.types.input.ecs.ClusterSetting);
   }
 
-  const cluster = new aws.ecs.Cluster(`${options.config.environment}-viberator-ecs-cluster`, {
+  const cluster = new aws.ecs.Cluster(`${options.config.environment}-viberglass-ecs-cluster`, {
     settings: clusterSettings,
     tags: options.config.tags,
   });
 
   // Build and publish the ECS worker container image
-  const ecsImage = new awsx.ecr.Image(`${options.config.environment}-viberator-ecs-worker-image`, {
+  const ecsImage = new awsx.ecr.Image(`${options.config.environment}-viberglass-ecs-worker-image`, {
     repositoryUrl: options.repositoryUrl,
     context: contextPath,
     dockerfile: dockerfilePath,
@@ -85,20 +85,20 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
   });
 
   // IAM role for ECS task execution (pulls images, writes logs)
-  const ecsTaskExecutionRole = new aws.iam.Role(`${options.config.environment}-viberator-ecs-task-exec-role`, {
+  const ecsTaskExecutionRole = new aws.iam.Role(`${options.config.environment}-viberglass-ecs-task-exec-role`, {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
       Service: "ecs-tasks.amazonaws.com",
     }),
     tags: options.config.tags,
   });
 
-  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-ecs-task-exec-basic`, {
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberglass-ecs-task-exec-basic`, {
     role: ecsTaskExecutionRole.name,
     policyArn: "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
   });
 
   // IAM role for ECS task (for SSM access)
-  const ecsTaskRole = new aws.iam.Role(`${options.config.environment}-viberator-ecs-task-role`, {
+  const ecsTaskRole = new aws.iam.Role(`${options.config.environment}-viberglass-ecs-task-role`, {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
       Service: "ecs-tasks.amazonaws.com",
     }),
@@ -106,21 +106,21 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
   });
 
   // SSM policy for tenant-aware credential access
-  const ssmPolicy = new aws.iam.Policy(`${options.config.environment}-viberator-ecs-ssm-policy`, {
+  const ssmPolicy = new aws.iam.Policy(`${options.config.environment}-viberglass-ecs-ssm-policy`, {
     policy: {
       Version: "2012-10-17",
       Statement: [
         {
           Action: ["ssm:GetParameter", "ssm:GetParameters"],
           Effect: "Allow",
-          Resource: `arn:aws:ssm:${options.config.awsRegion}:*:parameter/viberator/tenants/*`,
+          Resource: `arn:aws:ssm:${options.config.awsRegion}:*:parameter/viberglass/tenants/*`,
         },
       ],
     },
     tags: options.config.tags,
   });
 
-  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-ecs-task-ssm`, {
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberglass-ecs-task-ssm`, {
     role: ecsTaskRole.name,
     policyArn: ssmPolicy.arn,
   });
@@ -130,8 +130,8 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
   // This reference will be passed in from parent stack
 
   // Container definition for the worker
-  const workerContainer = new aws.ecs.TaskDefinition(`${options.config.environment}-viberator-ecs-worker`, {
-    family: `${options.config.environment}-viberator-worker`,
+  const workerContainer = new aws.ecs.TaskDefinition(`${options.config.environment}-viberglass-ecs-worker`, {
+    family: `${options.config.environment}-viberglass-worker`,
     networkMode: "awsvpc",
     requiresCompatibilities: ["FARGATE"],
     cpu: cpu,
@@ -154,21 +154,24 @@ export function createWorkerEcs(options: WorkerEcsOptions): WorkerEcsOutputs {
         environment: [
           { name: "NODE_ENV", value: "production" },
           { name: "WORK_DIR", value: "/tmp/viberator-work" },
-          { name: "TENANT_CONFIG_PATH_PREFIX", value: "/viberator/tenants" },
+          { name: "TENANT_CONFIG_PATH_PREFIX", value: "/viberglass/tenants" },
         ],
         secrets: [
           {
             name: "GITHUB_TOKEN",
-            valueFrom: `arn:aws:ssm:${options.config.awsRegion}:::parameter/viberator/tenants/${"${tenantId}"}/GITHUB_TOKEN`,
+            valueFrom: `arn:aws:ssm:${options.config.awsRegion}:::parameter/viberglass/tenants/${"${tenantId}"}/GITHUB_TOKEN`,
           },
           {
             name: "CLAUDE_CODE_API_KEY",
-            valueFrom: `arn:aws:ssm:${options.config.awsRegion}:::parameter/viberator/tenants/${"${tenantId}"}/CLAUDE_CODE_API_KEY`,
+            valueFrom: `arn:aws:ssm:${options.config.awsRegion}:::parameter/viberglass/tenants/${"${tenantId}"}/CLAUDE_CODE_API_KEY`,
           },
         ],
       },
     ])}`,
     tags: options.config.tags,
+  },
+  {
+    aliases: [{ name: `${options.config.environment}-viberator-ecs-worker` }],
   });
 
   return {

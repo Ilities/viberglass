@@ -37,14 +37,14 @@ export interface KmsOutputs {
  * sensitive configuration like database passwords and API keys.
  */
 export function createKmsKey(options: KmsOptions): KmsOutputs {
-  const aliasName = `alias/viberator-${options.config.environment}-ssm`;
+  const aliasName = `alias/viberglass-${options.config.environment}-ssm`;
   const callerIdentity = aws.getCallerIdentity({});
 
   // Get account ID for root policy statement
   const accountId = callerIdentity.then(id => id.accountId);
 
   // Create KMS key with automatic rotation
-  const key = new aws.kms.Key(`${options.config.environment}-viberator-ssm-key`, {
+  const key = new aws.kms.Key(`${options.config.environment}-viberglass-ssm-key`, {
     description: `Viberator SSM encryption key for ${options.config.environment}`,
     enableKeyRotation: true,
     tags: options.config.tags,
@@ -84,13 +84,13 @@ export function createKmsKey(options: KmsOptions): KmsOutputs {
     );
 
   // Apply the key policy
-  new aws.kms.KeyPolicy(`${options.config.environment}-viberator-ssm-key-policy`, {
+  new aws.kms.KeyPolicy(`${options.config.environment}-viberglass-ssm-key-policy`, {
     keyId: key.id,
     policy: keyPolicyDocument,
   });
 
   // Create alias for easy reference
-  new aws.kms.Alias(`${options.config.environment}-viberator-ssm-alias`, {
+  new aws.kms.Alias(`${options.config.environment}-viberglass-ssm-alias`, {
     name: aliasName,
     targetKeyId: key.id,
   });

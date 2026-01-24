@@ -1,82 +1,51 @@
-# Requirements: Viberator
+# Requirements: Viberator v1.1 Branding Update
 
-**Defined:** 2026-01-19
+**Defined:** 2026-01-24
 **Core Value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
-## v1 Requirements
+## v1.1 Requirements
 
-Requirements for initial release. Each maps to roadmap phases.
+Branding update: Platform becomes "Viberglass", workers remain "Viberators."
 
-### Worker Execution
+### Documentation (DOCS)
 
-- [x] **EXEC-01**: Platform invokes Lambda worker asynchronously via AWS SDK
-- [x] **EXEC-02**: Platform starts ECS task worker via RunTask API
-- [x] **EXEC-03**: Platform starts local Docker worker via docker run
-- [x] **EXEC-04**: Platform handles worker execution failures with retry logic
+- [x] **DOCS-01**: PROJECT.md header updated from "# Viberator" to "# Viberglass"
+- [x] **DOCS-02**: README.md updated with new platform name (Viberglass) and worker name (Viberators)
+- [x] **DOCS-03**: Package.json `name` field updated to "viberglass"
+- [x] **DOCS-04**: Package.json `description` field references Viberglass platform
+- [x] **DOCS-05**: All inline code comments referring to platform updated to "Viberglass"
+- [x] **DOCS-06**: MILESTONES.md updated with new branding for v1.1+ entries
 
-### Result Callback
+### Code References (CODE)
 
-- [x] **CB-01**: Worker POSTs execution result to platform API endpoint on completion
-- [x] **CB-02**: Platform updates job status in database (queued, running, completed, failed)
-- [x] **CB-03**: Result payload includes commit SHA, PR URL, error message, logs
-- [x] **CB-04**: Frontend polls and displays current job status to user
+- [x] **CODE-01**: Frontend UI text displays "Viberglass" for platform name
+- [x] **CODE-02**: Frontend UI text displays "Viberators" for worker/agent references
+- [x] **CODE-03**: API response labels use "Viberglass" for platform references
+- [x] **CODE-04**: TypeScript class names for platform components updated if needed
+- [x] **CODE-05**: Environment variable prefixes updated (VIBERGLASS_*)
+- [x] **CODE-06**: Worker code retains "Viberator" naming for agent executor classes
 
-### Webhook Triggers
+### Infrastructure (INFRA)
 
-- [x] **WEB-01**: Platform receives and validates GitHub webhook events
-- [x] **WEB-02**: Webhook payload creates ticket (if project configured for auto-fix)
-- [x] **WEB-03**: Ticket creation triggers worker execution
-- [x] **WEB-04**: Webhook signature verification prevents unauthorized requests
+- [ ] **INFRA-01**: Amplify app name changed from "viberator" to "viberglass"
+- [ ] **INFRA-02**: Pulumi stack name updated to "viberglass-{environment}"
+- [ ] **INFRA-03**: CloudWatch log groups use "viberglass" prefix
+- [ ] **INFRA-04**: SSM parameter paths use /viberglass/ prefix
+- [ ] **INFRA-05**: ECS task definitions use "viberglass" family name
+- [ ] **INFRA-06**: Lambda function names use "viberglass" prefix
+- [ ] **INFRA-07**: RDS instance identifiers use "viberglass" prefix
 
-### Worker Configuration
+### Repository (REPO)
 
-- [x] **WRK-01**: Worker fetches SCM credentials from configured CredentialProvider using tenantId
-- [x] **WRK-02**: Worker gets clanker configuration from invocation payload
-- [x] **WRK-03**: Worker injects environment variables from clanker config into agent execution
-- [x] **WRK-04**: Worker retrieves instruction files (agents.md) from clanker config
-- [x] **WRK-05**: Worker authenticates git operations using SCM provider URLs
+- [ ] **REPO-01**: GitHub repository renamed from "viberator" to "viberglass"
+- [ ] **REPO-02**: Root directory references updated in any path-sensitive configs
+- [ ] **REPO-03**: CI/CD workflows updated with new repository name references
 
-### Clanker Status Display
+## v2+ Requirements
 
-- [x] **STAT-01**: Platform displays clanker static status (resource exists, connected, ready)
-- [x] **STAT-02**: Worker POSTs heartbeat to platform API during task execution
-- [x] **STAT-03**: Worker POSTs progress updates to platform API
-- [x] **STAT-04**: Platform stores and displays runtime status history
-- [x] **STAT-05**: Frontend shows real-time status updates for active clankers
+Deferred to future milestone. Tracked but not in current roadmap.
 
-### Local Development
-
-- [x] **DEV-01**: Docker compose configuration starts all services locally
-- [x] **DEV-02**: Local workers execute jobs directly (no queue required)
-- [x] **DEV-03**: Development documentation explains local setup
-
-### Production Deployment
-
-- [x] **DEP-01**: Pulumi stack provisions complete AWS infrastructure
-- [x] **DEP-02**: Deployment process documented for all components
-- [x] **DEP-03**: Environment-specific configuration (dev, staging, prod)
-- [x] **DEP-04**: CI/CD pipeline builds and deploys container images
-- [x] **DEP-05**: Secret management uses provider pattern supporting multiple backends
-
-### Multi-Tenant Security
-
-- [x] **SEC-01**: CredentialProvider interface defines cloud-agnostic credential storage
-- [x] **SEC-02**: Workers isolate operations by tenantId
-- [x] **SEC-03**: API validates tenant access to resources
-- [x] **SEC-04**: No credentials in environment variables or code
-
-## v2 Requirements
-
-Deferred to future release. Tracked but not in current roadmap.
-
-### Advanced Features
-
-- **STAT-06**: Real-time status via WebSocket/SSE instead of polling
-- **EXEC-05**: SQS queue for high-volume scenarios
-- **DEP-06**: Blue-green deployment strategy for zero-downtime updates
-- **WEB-05**: Support for GitLab and Bitbucket webhooks
-- **DEP-07**: Azure Key Vault credential provider implementation
-- **DEP-08**: GCP Secret Manager credential provider implementation
+(None — all branding in v1.1)
 
 ## Out of Scope
 
@@ -84,79 +53,45 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Job queue (Bull/Redis) | Direct API calls simpler for this milestone |
-| User authentication | Open API for this milestone, defer to v2 |
-| Real-time WebSocket | API polling sufficient for v1, defer real-time |
-| Custom agent implementations | Existing factory agents sufficient |
-| Advanced clanker types | Focus on Docker/ECS, defer Lambda specifics |
-
-**Note:** Multi-cloud credential providers are supported via the provider interface pattern. Azure and GCP providers will be implemented in v2, but the architecture ensures no AWS lock-in.
+| Worker renaming | Workers must stay called "Viberators" — this is the brand split |
+| Database migration | No data schema changes needed for naming update |
+| API endpoint paths | Endpoint paths can remain /api/v1/ — no breaking changes |
+| Breaking changes to integrators | External integrators see no functional change |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-### Phase Mapping
-
-| Phase | Requirements |
-|-------|--------------|
-| 1 - Multi-Tenant Security Foundation | SEC-01, SEC-02, SEC-03, SEC-04 |
-| 2 - Result Callback | CB-01, CB-02, CB-03 |
-| 3 - Worker Configuration | WRK-01, WRK-02, WRK-03, WRK-04, WRK-05 |
-| 4 - Worker Execution | EXEC-01, EXEC-02, EXEC-03, EXEC-04 |
-| 5 - Job Status Polling | CB-04 |
-| 6 - Clanker Static Status | STAT-01 |
-| 7 - Clanker Runtime Status | STAT-02, STAT-03, STAT-04, STAT-05 |
-| 8 - Webhook Triggers | WEB-01, WEB-02, WEB-03, WEB-04 |
-| 9 - Local Development | DEV-01, DEV-02, DEV-03 |
-| 10 - AWS Infrastructure | DEP-01 |
-| 11 - Deployment Process | DEP-02, DEP-03, DEP-04 |
-| 12 - Secret Management | DEP-05 |
-
-### Requirement Tracking
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXEC-01 | Phase 4 | Complete |
-| EXEC-02 | Phase 4 | Complete |
-| EXEC-03 | Phase 4 | Complete |
-| EXEC-04 | Phase 4 | Complete |
-| CB-01 | Phase 2 | Complete |
-| CB-02 | Phase 2 | Complete |
-| CB-03 | Phase 2 | Complete |
-| CB-04 | Phase 5 | Complete |
-| WEB-01 | Phase 8 | Complete |
-| WEB-02 | Phase 8 | Complete |
-| WEB-03 | Phase 8 | Complete |
-| WEB-04 | Phase 8 | Complete |
-| WRK-01 | Phase 3 | Complete |
-| WRK-02 | Phase 3 | Complete |
-| WRK-03 | Phase 3 | Complete |
-| WRK-04 | Phase 3 | Complete |
-| WRK-05 | Phase 3 | Complete |
-| STAT-01 | Phase 6 | Complete |
-| STAT-02 | Phase 7 | Complete |
-| STAT-03 | Phase 7 | Complete |
-| STAT-04 | Phase 7 | Complete |
-| STAT-05 | Phase 7 | Complete |
-| DEV-01 | Phase 9 | Complete |
-| DEV-02 | Phase 9 | Complete |
-| DEV-03 | Phase 9 | Complete |
-| DEP-01 | Phase 10 | Complete |
-| DEP-02 | Phase 11 | Complete |
-| DEP-03 | Phase 11 | Complete |
-| DEP-04 | Phase 11 | Complete |
-| DEP-05 | Phase 12 | Complete |
-| SEC-01 | Phase 1 | Complete |
-| SEC-02 | Phase 1 | Complete |
-| SEC-03 | Phase 1 | Complete |
-| SEC-04 | Phase 1 | Complete |
+| DOCS-01 | Phase 13 | Complete |
+| DOCS-02 | Phase 13 | Complete |
+| DOCS-03 | Phase 13 | Complete |
+| DOCS-04 | Phase 13 | Complete |
+| DOCS-05 | Phase 13 | Complete |
+| DOCS-06 | Phase 13 | Complete |
+| CODE-01 | Phase 14 | Complete |
+| CODE-02 | Phase 14 | Complete |
+| CODE-03 | Phase 14 | Complete |
+| CODE-04 | Phase 14 | Complete |
+| CODE-05 | Phase 14 | Complete |
+| CODE-06 | Phase 14 | Complete |
+| INFRA-01 | Phase 15 | Pending |
+| INFRA-02 | Phase 15 | Pending |
+| INFRA-03 | Phase 15 | Pending |
+| INFRA-04 | Phase 15 | Pending |
+| INFRA-05 | Phase 15 | Pending |
+| INFRA-06 | Phase 15 | Pending |
+| INFRA-07 | Phase 15 | Pending |
+| REPO-01 | Phase 16 | Pending |
+| REPO-02 | Phase 16 | Pending |
+| REPO-03 | Phase 16 | Pending |
 
 **Coverage:**
-- v1 requirements: 29 total
-- Mapped to phases: 29
-- Unmapped: 0
+- v1.1 requirements: 22 total
+- Mapped to phases: 22
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-01-19*
-*Last updated: 2026-01-19 after roadmap revision (cloud-agnostic provider pattern)*
+*Requirements defined: 2026-01-24*
+*Last updated: 2026-01-24 after initial definition*

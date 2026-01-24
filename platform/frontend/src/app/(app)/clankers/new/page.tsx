@@ -109,7 +109,7 @@ export default function NewClankerPage() {
   return (
     <>
       <Heading>Create New Clanker</Heading>
-      <Subheading className="mt-2">Configure a new agent worker for your viberator tasks.</Subheading>
+      <Subheading className="mt-2">Configure a new agent worker for your Viberator tasks.</Subheading>
 
       <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
         {error && (

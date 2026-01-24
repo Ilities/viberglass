@@ -1,5 +1,5 @@
 /**
- * Common types used across the Viberator platform
+ * Common types used across the Viberglass platform
  */
 
 // Severity levels for bug reports

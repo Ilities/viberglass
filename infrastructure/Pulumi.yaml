@@ -1,6 +1,6 @@
-name: viberator
+name: viberglass
 runtime: nodejs
-description: Viberator AWS Infrastructure
+description: Viberglass AWS Infrastructure
 
 # Stack configuration templates
 # Each stack (dev, staging, prod) will have its own Pulumi.{stack}.yaml

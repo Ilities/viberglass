@@ -1,12 +1,22 @@
-# Viberator
+# Viberglass
 
 ## What This Is
 
-An agent orchestrator and ticket management platform. Users create bug tickets that coding agents automatically fix, with results flowing back through the system. Supports projects spanning multiple repositories, integration with common SCMs and legacy ticketing systems, and configurable clankers (instruction sets) that define how agents run.
+An agent orchestrator and ticket management platform. Users create bug tickets that coding agents (called Viberators) automatically fix, with results flowing back through the system. Supports projects spanning multiple repositories, integration with common SCMs and legacy ticketing systems, and configurable clankers (instruction sets) that define how agents run.
+
+## Current Milestone: v1.1 Branding Update
+
+**Goal:** Rename the platform from "Viberator" to "Viberglass" while keeping workers/agents called "Viberators."
+
+**Target changes:**
+- Repository rename: viberator → viberglass
+- Platform branding: All UI, docs, and code references to platform become "Viberglass"
+- Worker branding: Agent executor components remain "Viberators"
+- Infrastructure: Amplify app, resource names, stack identifiers
 
 ## Core Value
 
-Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
+Users can create tickets that coding agents (Viberators) automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
 ## Requirements
 
@@ -14,49 +24,75 @@ Users can create tickets that coding agents automatically fix, with the entire f
 
 <!-- Shipped and confirmed valuable. -->
 
-- ✓ **Monorepo architecture** — npm workspaces with orchestrator, platform backend, platform frontend
-- ✓ **Agent factory** — Multiple AI agent implementations (Claude Code, Qwen, Codex, Mistral, Gemini)
-- ✓ **SCM authentication** — GitHub, GitLab, Bitbucket URL authentication
-- ✓ **Ticket CRUD** — Create, read, update, delete tickets with media assets
-- ✓ **Project CRUD** — Create, read, update, delete projects spanning multiple repositories
-- ✓ **Clanker CRUD** — Create, read, update, delete clanker configurations
-- ✓ **Deployment strategy CRUD** — Create, read, update, delete deployment strategies
-- ✓ **Job queue infrastructure** — Bull/Redis-backed job queue foundation
-- ✓ **Worker execution** — Ephemeral workers run in AWS Lambda and local Docker
-- ✓ **Persistence layer** — PostgreSQL with Kysely query builder
-- ✓ **Frontend framework** — Next.js 15 with app router and Headless UI components
-- ✓ **Infrastructure as Code** — Pulumi stack for ECR, ECS, Lambda, SQS, IAM
+<details>
+<summary>v1.0 MVP — Shipped 2026-01-23</summary>
+
+**Worker Execution:**
+- ✓ Platform invokes Lambda/ECS/Docker workers asynchronously via AWS SDK
+- ✓ Platform handles worker execution failures with retry logic
+- ✓ Workers POST execution results to platform API
+- ✓ Workers fetch SCM credentials from SSM, load clanker configs
+
+**Result Callback:**
+- ✓ Workers POST results back to platform API with job status updates
+- ✓ Frontend polls and displays current job status
+
+**Webhook Triggers:**
+- ✓ Platform receives and validates GitHub webhook events
+- ✓ Webhook signature verification prevents unauthorized requests
+- ✓ Webhook payload creates tickets and triggers worker execution
+
+**Clanker Status:**
+- ✓ Platform displays clanker static status (resource exists, connected, ready)
+- ✓ Workers POST heartbeat and progress updates during execution
+- ✓ Frontend shows real-time status updates
+
+**Local Development:**
+- ✓ Docker compose environment starts all services locally
+- ✓ Development documentation explains local setup
+
+**Production Deployment:**
+- ✓ Pulumi stack provisions complete AWS infrastructure
+- ✓ CI/CD pipeline builds and deploys container images
+- ✓ Environment-specific configuration (dev, staging, prod)
+- ✓ Secret management uses provider pattern
+
+**Multi-Tenant Security:**
+- ✓ CredentialProvider interface defines cloud-agnostic credential storage
+- ✓ Workers isolate operations by tenantId
+- ✓ API validates tenant access to resources
+
+</details>
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] **Job queue integration** — Platform creates jobs, workers pick them up via SQS/Bull
-- [ ] **Result callback** — Workers post results back to platform API, job status updates
-- [ ] **Webhook triggers** — GitHub webhooks create tickets and trigger agent execution
-- [ ] **Worker configuration** — Workers fetch SCM credentials from SSM, load clanker configs
-- [ ] **Clanker status display** — Static (resource ready) and runtime (heartbeat/progress via API)
-- [ ] **End-to-end flow** — User creates ticket → agent fixes bug → PR created → status updated
-- [ ] **Local development environment** — Docker compose or similar for local development
-- [ ] **Production deployment strategy** — Clear path to deploy entire system to AWS
+**v1.1 Branding — Viberglass platform, Viberator workers:**
+- [ ] Rename platform references from "Viberator" to "Viberglass"
+- [ ] Keep worker/agent references as "Viberators"
+- [ ] Update all documentation, code references, and infrastructure naming
+- [ ] Rename GitHub repository
+- [ ] Rename Amplify app in AWS and Pulumi code
 
 ### Out of Scope
 
 <!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
 
-- **User authentication** — Platform is currently open, no auth in this milestone
-- **Real-time status via WebSocket** — Using polling/POST for status updates, defer WebSocket
-- **Multi-cloud support** — AWS only for this milestone
-- **Custom agent implementations** — Only existing factory agents (Claude, Qwen, etc.)
-- **Advanced clanker types** — Focus on Docker and ECS clankers first, defer Lambda/Fargate specifics
+- **User authentication** — Open API for v1.0, defer to future milestone
+- **Real-time WebSocket** — Polling sufficient for v1.0
+- **Multi-cloud credential providers** — Azure Key Vault, GCP Secret Manager deferred to v2.0
+- **SQS job queue** — Direct API calls simpler for current architecture
 
 ## Context
 
-**Current state:** Individual components work in isolation. CRUD operations function for tickets, projects, and clankers. Agents execute correctly. Workers run in Lambda and Docker locally. However, the integration plumbing is missing—jobs created by the platform aren't picked up by workers, results don't flow back, webhooks don't trigger flows, and worker configuration is incomplete.
+**Current state:** v1.0 MVP shipped. Complete integration of worker execution flow, webhook triggers, multi-tenant security, CI/CD deployment, and secret management.
 
-**Technical environment:** TypeScript 5.x, Node.js 20+, PostgreSQL 13+, Redis 6+, AWS (ECS Fargate, Lambda, SQS, S3, SSM), Pulumi for infrastructure.
+**Shipped:** 2026-01-23
 
-**Clanker concept:** Clankers are instruction sets, not physical entities. Users configure runtime definitions (Docker images, ECS task definitions) with environment variables, agent instructions (agents.md), and secret management. Clankers have static status (resource ready) and runtime status (heartbeat/progress updates posted to API). Projects have default clankers with per-ticket override capability.
+**Technical environment:** TypeScript 5.x, Node.js 20+, PostgreSQL 16+, AWS (ECS Fargate, Lambda, SSM, KMS, Amplify), Pulumi for infrastructure, GitHub Actions with OIDC.
+
+**Clanker concept:** Clankers are instruction sets configured by users. Workers execute agents based on clanker configuration with credentials fetched from SSM. Status flows back via heartbeat/progress updates.
 
 ## Constraints
 
@@ -79,4 +115,4 @@ Users can create tickets that coding agents automatically fix, with the entire f
 | SSM for credential storage | Multi-tenant secure credential access | — Pending |
 
 ---
-*Last updated: 2026-01-19 after initialization*
+*Last updated: 2026-01-24 after starting v1.1 milestone*

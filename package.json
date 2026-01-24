@@ -1,8 +1,8 @@
 {
-  "name": "viberator-monorepo",
+  "name": "viberglass-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "Viberator monorepo - AI Agent Orchestrator and Platform",
+  "description": "Viberglass monorepo - AI Agent Orchestrator and Platform",
   "workspaces": [
     "packages/types",
     "viberator/app",

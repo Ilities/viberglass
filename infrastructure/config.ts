@@ -105,7 +105,7 @@ export function getConfig(): InfrastructureConfig {
     logRetentionDays: finalLogRetentionDays,
     tags: {
       Environment: environment,
-      Project: "viberator",
+      Project: "viberglass",
       ManagedBy: "pulumi",
     },
   };

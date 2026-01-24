@@ -1,6 +1,6 @@
-# Viberator AWS Infrastructure
+# Viberglass AWS Infrastructure
 
-Pulumi-based AWS infrastructure for Viberator - a platform where users create tickets that coding agents automatically fix.
+Pulumi-based AWS infrastructure for Viberglass - a platform where users create tickets that coding agents automatically fix.
 
 ## Overview
 
