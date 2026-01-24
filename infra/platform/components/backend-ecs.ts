@@ -90,7 +90,7 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
   const desiredCount = options.desiredCount ?? 1;
   const minTasks = options.minTasks ?? 1;
   const maxTasks = options.maxTasks ?? 3;
-  const contextPath = options.contextPath ?? path.join(__dirname, "../../platform/backend");
+  const contextPath = options.contextPath ?? path.join(__dirname, "../../apps/platform-backend");
   const dockerfilePath = options.dockerfilePath ?? path.join(contextPath, "Dockerfile");
 
   // Build and publish the backend container image

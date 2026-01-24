@@ -37,18 +37,21 @@ For complete setup instructions, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVE
 
 ```
 viberglass/
-├── platform/
-│   ├── backend/     # Express API server
-│   └── frontend/    # Next.js web UI
-├── viberator/
-│   ├── app/         # Viberator worker implementation
-│   └── infrastructure/  # Docker infrastructure
+├── apps/
+│   ├── platform-backend/   # Express API server
+│   ├── platform-frontend/  # Next.js web UI
+│   └── viberator/          # Viberator worker implementation
 ├── packages/
-│   └── types/       # Shared TypeScript types
-└── docker-compose.yml   # Local development environment
+│   └── types/              # Shared TypeScript types
+├── infra/
+│   ├── platform/           # Platform infrastructure (Pulumi)
+│   └── viberator/          # Viberator infrastructure (Pulumi + Docker)
+├── tests/
+│   └── e2e/                # Playwright E2E tests
+└── docker-compose.yml      # Local development environment
 ```
 
-**Note:** The repository is `viberglass` (the platform), with `viberator/app` containing the worker/agent components (Viberators).
+**Note:** The repository is `viberglass` (the platform), with `apps/viberator` containing the worker/agent components (Viberators).
 
 ## Core Features
 

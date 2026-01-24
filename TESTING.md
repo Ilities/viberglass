@@ -14,7 +14,7 @@ The project has three layers of tests:
 
 ```
 viberator/
-├── viberator/app/
+├── apps/viberator/
 │   ├── src/
 │   │   ├── agents/
 │   │   │   ├── AgentFactory.ts
@@ -25,7 +25,7 @@ viberator/
 │   │   └── __tests__/
 │   │       └── integration/              # Integration tests only
 │   └── jest.config.js
-├── platform/backend/
+├── apps/platform-backend/
 │   ├── src/
 │   │   ├── services/
 │   │   │   ├── UserService.ts
@@ -35,7 +35,7 @@ viberator/
 │   │       └── helpers/                  # Test utilities
 │   ├── jest.config.js
 │   └── jest.integration.config.js
-├── platform/frontend/
+├── apps/platform-frontend/
 │   ├── app/
 │   │   └── page.tsx
 │   │   └── page.test.tsx                 # Unit tests co-located
@@ -44,7 +44,7 @@ viberator/
 │   │   └── Button.test.tsx               # Unit tests co-located
 │   ├── jest.config.js
 │   └── jest.setup.js
-└── e2e-tests/                            # Separate E2E test package
+└── tests/e2e/                            # Separate E2E test package
     ├── tests/                            # Playwright E2E tests
     ├── playwright/
     │   ├── fixtures.ts                   # Custom test fixtures
@@ -66,7 +66,7 @@ viberator/
   - Pattern: `*.integration.test.ts`
   - Test database operations, API endpoints with testcontainers
 
-- **E2E Tests**: Place in separate `e2e-tests/tests/` package
+- **E2E Tests**: Place in separate `tests/e2e/tests/` package
   - Pattern: `FeatureName.e2e.test.ts`
   - Test full user flows across the stack
 
@@ -82,14 +82,14 @@ npm run test:unit
 
 # Run unit tests for a specific package
 npm run test:unit -w @viberator/orchestrator
-npm run test:unit -w @viberator/platform-backend
-npm run test:unit -w @viberator/frontend
+npm run test:unit -w @viberglass/platform-backend
+npm run test:unit -w @viberglass/frontend
 
 # Run unit tests in watch mode
-npm run test:watch -w @viberator/platform-backend
+npm run test:watch -w @viberglass/platform-backend
 
 # Run unit tests with coverage
-npm run test:coverage -w @viberator/platform-backend
+npm run test:coverage -w @viberglass/platform-backend
 ```
 
 ### Writing Unit Tests
@@ -134,7 +134,7 @@ Integration tests use Jest with testcontainers to test API endpoints and databas
 npm run test:integration
 
 # Run integration tests for a specific package
-npm run test:integration -w @viberator/platform-backend
+npm run test:integration -w @viberglass/platform-backend
 ```
 
 ### Writing Integration Tests
@@ -277,14 +277,14 @@ The E2E test stack includes:
 
 ### Jest Configuration Files
 
-- `viberator/app/jest.config.js` - Orchestrator unit tests
-- `platform/backend/jest.config.js` - Backend unit tests
-- `platform/backend/jest.integration.config.js` - Backend integration tests
-- `platform/frontend/jest.config.js` - Frontend unit tests
+- `apps/viberator/jest.config.js` - Orchestrator unit tests
+- `apps/platform-backend/jest.config.js` - Backend unit tests
+- `apps/platform-backend/jest.integration.config.js` - Backend integration tests
+- `apps/platform-frontend/jest.config.js` - Frontend unit tests
 
 ### Playwright Configuration
 
-- `e2e-tests/playwright.config.ts` - Playwright configuration
+- `tests/e2e/playwright.config.ts` - Playwright configuration
 
 ## Dependencies
 

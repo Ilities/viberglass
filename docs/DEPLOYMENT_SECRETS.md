@@ -260,7 +260,7 @@ aws ssm get-parameters-by-path \
 
 ## Pulumi Integration
 
-The `createDeploymentSecrets()` component in `infrastructure/components/secrets.ts` provisions all SSM parameters automatically.
+The `createDeploymentSecrets()` component in `infra/platform/components/secrets.ts` provisions all SSM parameters automatically.
 
 ### Setting Secret Values via Pulumi Config
 
@@ -541,7 +541,7 @@ User: arn:aws:sts::111111111111:assumed-role/... is not authorized to perform: s
 
 2. Or via Pulumi (recommended - already configured):
    ```typescript
-   // infrastructure/components/backend-ecs.ts
+   // infra/platform/components/backend-ecs.ts
    const backendService = new aws.ecs.Service(..., {
      forceNewDeployment: true,  // Always on
    });
@@ -769,7 +769,7 @@ OIDC eliminates credential rotation for access keys, but role permissions should
 
 - **[Phase 1: Multi-Tenant Security Foundation](../.planning/phases/01-multi-tenant-security-foundation/01-04-SUMMARY.md)** - Runtime tenant credential management (GitHub PATs, Jira tokens)
 - **[GitHub Deployment Quick Reference](../.github/DEPLOYMENT.md)** - Deployment commands and workflow usage
-- **[Infrastructure README](../infrastructure/README.md)** - Pulumi component documentation
+- **[Infrastructure README](../infra/platform/README.md)** - Pulumi component documentation
 - **[AWS ECS Setup Guide](AWS_ECS_SETUP.md)** - Backend deployment infrastructure
 - **[Local Docker Setup](LOCAL_DOCKER_SETUP.md)** - Local development environment
 

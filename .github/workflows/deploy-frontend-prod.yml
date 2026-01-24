@@ -74,7 +74,7 @@ jobs:
           echo "NEXT_PUBLIC_API_URL=$API_URL" >> $GITHUB_ENV
 
       - name: Build frontend with environment variables
-        run: npm run build -w @viberator/frontend
+        run: npm run build -w @viberglass/frontend
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.get-config.outputs.backendUrl }}
 
