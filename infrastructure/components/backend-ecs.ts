@@ -94,7 +94,7 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
   const dockerfilePath = options.dockerfilePath ?? path.join(contextPath, "Dockerfile");
 
   // Build and publish the backend container image
-  const backendImage = new awsx.ecr.Image(`${options.config.environment}-viberator-backend-image`, {
+  const backendImage = new awsx.ecr.Image(`${options.config.environment}-viberglass-backend-image`, {
     repositoryUrl: options.repositoryUrl,
     context: contextPath,
     dockerfile: dockerfilePath,
@@ -103,7 +103,7 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
 
   // IAM role for ECS task execution (pulls images, writes logs)
   const backendTaskExecutionRole = new aws.iam.Role(
-    `${options.config.environment}-viberator-backend-task-exec-role`,
+    `${options.config.environment}-viberglass-backend-task-exec-role`,
     {
       assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
         Service: "ecs-tasks.amazonaws.com",
@@ -112,14 +112,14 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
     }
   );
 
-  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-backend-task-exec-basic`, {
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberglass-backend-task-exec-basic`, {
     role: backendTaskExecutionRole.name,
     policyArn: "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
   });
 
   // IAM role for backend task (for SSM, S3, KMS access)
   const backendTaskRole = new aws.iam.Role(
-    `${options.config.environment}-viberator-backend-task-role`,
+    `${options.config.environment}-viberglass-backend-task-role`,
     {
       assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
         Service: "ecs-tasks.amazonaws.com",
@@ -129,7 +129,7 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
   );
 
   // SSM policy for database credentials
-  const ssmPolicy = new aws.iam.Policy(`${options.config.environment}-viberator-backend-ssm-policy`, {
+  const ssmPolicy = new aws.iam.Policy(`${options.config.environment}-viberglass-backend-ssm-policy`, {
     policy: {
       Version: "2012-10-17",
       Statement: [
@@ -146,13 +146,13 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
     tags: options.config.tags,
   });
 
-  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-backend-task-ssm`, {
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberglass-backend-task-ssm`, {
     role: backendTaskRole.name,
     policyArn: ssmPolicy.arn,
   });
 
   // CloudWatch Logs policy
-  const logsPolicy = new aws.iam.Policy(`${options.config.environment}-viberator-backend-logs-policy`, {
+  const logsPolicy = new aws.iam.Policy(`${options.config.environment}-viberglass-backend-logs-policy`, {
     policy: {
       Version: "2012-10-17",
       Statement: [
@@ -166,14 +166,14 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
     tags: options.config.tags,
   });
 
-  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberator-backend-task-logs`, {
+  new aws.iam.RolePolicyAttachment(`${options.config.environment}-viberglass-backend-task-logs`, {
     role: backendTaskRole.name,
     policyArn: logsPolicy.arn,
   });
 
   // ECS Execute Command policy (for debugging)
   const executeCommandPolicy = new aws.iam.RolePolicy(
-    `${options.config.environment}-viberator-backend-exec-command`,
+    `${options.config.environment}-viberglass-backend-exec-command`,
     {
       role: backendTaskRole.name,
       policy: {
@@ -191,9 +191,9 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
 
   // Backend task definition
   const backendTaskDefinition = new aws.ecs.TaskDefinition(
-    `${options.config.environment}-viberator-backend`,
+    `${options.config.environment}-viberglass-backend`,
     {
-      family: `${options.config.environment}-viberator-backend`,
+      family: `${options.config.environment}-viberglass-backend`,
       networkMode: "awsvpc",
       requiresCompatibilities: ["FARGATE"],
       cpu: cpu,
@@ -202,7 +202,7 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
       taskRoleArn: backendTaskRole.arn,
       containerDefinitions: pulumi.interpolate`${JSON.stringify([
         {
-          name: "viberator-backend",
+          name: "viberglass-backend",
           image: backendImage.imageUri,
           essential: true,
           portMappings: [
@@ -240,6 +240,9 @@ export function createBackendEcs(options: BackendEcsOptions): BackendEcsOutputs 
         },
       ])}`,
       tags: options.config.tags,
+    },
+    {
+      aliases: [{ name: `${options.config.environment}-viberator-backend` }],
     }
   );
 
@@ -276,8 +279,8 @@ export function createBackendService(
   const containerPort = options.containerPort ?? 3000;
 
   // ECS Service
-  const backendService = new aws.ecs.Service(`${options.config.environment}-viberator-backend-service`, {
-    name: `${options.config.environment}-viberator-backend`,
+  const backendService = new aws.ecs.Service(`${options.config.environment}-viberglass-backend-service`, {
+    name: `${options.config.environment}-viberglass-backend`,
     cluster: options.clusterArn,
     taskDefinition: options.taskDefinitionArn,
     desiredCount: desiredCount,
@@ -291,7 +294,7 @@ export function createBackendService(
     loadBalancers: [
       {
         targetGroupArn: options.targetGroupArn,
-        containerName: "viberator-backend",
+        containerName: "viberglass-backend",
         containerPort: containerPort,
       },
     ],
@@ -301,7 +304,7 @@ export function createBackendService(
 
   // Auto-scaling target
   const scalingTarget = new aws.appautoscaling.Target(
-    `${options.config.environment}-viberator-backend-scaling-target`,
+    `${options.config.environment}-viberglass-backend-scaling-target`,
     {
       maxCapacity: maxTasks,
       minCapacity: minTasks,
@@ -313,7 +316,7 @@ export function createBackendService(
 
   // CPU-based scaling policy
   const cpuScalingPolicy = new aws.appautoscaling.Policy(
-    `${options.config.environment}-viberator-backend-cpu-scaling`,
+    `${options.config.environment}-viberglass-backend-cpu-scaling`,
     {
       policyType: "TargetTrackingScaling",
       resourceId: scalingTarget.resourceId,
@@ -333,7 +336,7 @@ export function createBackendService(
 
   // Memory-based scaling policy
   const memoryScalingPolicy = new aws.appautoscaling.Policy(
-    `${options.config.environment}-viberator-backend-memory-scaling`,
+    `${options.config.environment}-viberglass-backend-memory-scaling`,
     {
       policyType: "TargetTrackingScaling",
       resourceId: scalingTarget.resourceId,
