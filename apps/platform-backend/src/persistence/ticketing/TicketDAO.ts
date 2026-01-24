@@ -1,10 +1,12 @@
 import { v4 as uuidv4 } from "uuid";
 import db from "../config/database";
+import { sql } from "kysely";
 import {
   Ticket,
   CreateTicketRequest,
   UpdateTicketRequest,
   MediaAsset,
+  TicketStats,
 } from "@viberglass/types";
 
 export class TicketDAO {
@@ -206,6 +208,93 @@ export class TicketDAO {
       .execute();
 
     return rows.map((row) => this.mapRowToTicket(row));
+  }
+
+  async getTicketStats(projectId?: string): Promise<TicketStats> {
+    const baseQuery = projectId
+      ? db.selectFrom("tickets as t").where("t.project_id", "=", projectId)
+      : db.selectFrom("tickets as t");
+
+    const statsRow = await baseQuery
+      .select([
+        sql<string>`COUNT(*)`.as("total"),
+        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NOT NULL)`.as(
+          "resolved",
+        ),
+        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND t.auto_fix_status = 'in_progress')`.as(
+          "in_progress",
+        ),
+        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND (t.auto_fix_status IS NULL OR t.auto_fix_status <> 'in_progress'))`.as(
+          "open",
+        ),
+        sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_requested IS TRUE)`.as(
+          "auto_fix_requested",
+        ),
+        sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_status = 'completed')`.as(
+          "auto_fix_completed",
+        ),
+        sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_status = 'failed')`.as(
+          "auto_fix_failed",
+        ),
+        sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_status = 'pending' OR (t.auto_fix_requested IS TRUE AND t.auto_fix_status IS NULL))`.as(
+          "auto_fix_pending",
+        ),
+      ])
+      .executeTakeFirst();
+
+    const severityRows = await baseQuery
+      .select(["t.severity", sql<string>`COUNT(*)`.as("count")])
+      .groupBy("t.severity")
+      .execute();
+
+    const categoryRows = await baseQuery
+      .select(["t.category", sql<string>`COUNT(*)`.as("count")])
+      .groupBy("t.category")
+      .execute();
+
+    const bySeverity = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+    };
+
+    for (const row of severityRows) {
+      const key = row.severity as keyof typeof bySeverity;
+      if (key in bySeverity) {
+        bySeverity[key] = parseInt(row.count || "0");
+      }
+    }
+
+    const byCategory: Record<string, number> = {};
+    for (const row of categoryRows) {
+      if (!row.category) continue;
+      byCategory[row.category] = parseInt(row.count || "0");
+    }
+
+    const total = parseInt(statsRow?.total || "0");
+    const resolved = parseInt(statsRow?.resolved || "0");
+    const inProgress = parseInt(statsRow?.in_progress || "0");
+    const open = parseInt(statsRow?.open || "0");
+    const autoFixRequested = parseInt(statsRow?.auto_fix_requested || "0");
+    const autoFixCompleted = parseInt(statsRow?.auto_fix_completed || "0");
+    const autoFixPending = parseInt(statsRow?.auto_fix_pending || "0");
+    const autoFixFailed = parseInt(statsRow?.auto_fix_failed || "0");
+
+    return {
+      total,
+      open,
+      resolved,
+      inProgress,
+      bySeverity,
+      byCategory,
+      autoFixStats: {
+        requested: autoFixRequested,
+        completed: autoFixCompleted,
+        pending: autoFixPending,
+        failed: autoFixFailed,
+      },
+    };
   }
 
   private toISOString(date: Date | string): string {
