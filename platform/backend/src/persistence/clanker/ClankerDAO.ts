@@ -8,7 +8,7 @@ import type {
   ClankerStatus,
   DeploymentStrategy,
   ConfigFileInput,
-} from "@viberator/types";
+} from "@viberglass/types";
 
 const slugify = (text: string) =>
   text
@@ -37,6 +37,8 @@ export class ClankerDAO {
         deployment_config: request.deploymentConfig
           ? JSON.stringify(request.deploymentConfig)
           : null,
+        agent: request.agent || "claude-code",
+        secret_ids: JSON.stringify(request.secretIds || []),
         status: "inactive",
         status_message: null,
         created_at: timestamp,
@@ -58,7 +60,7 @@ export class ClankerDAO {
       .leftJoin(
         "deployment_strategies",
         "deployment_strategies.id",
-        "clankers.deployment_strategy_id"
+        "clankers.deployment_strategy_id",
       )
       .select([
         "clankers.id",
@@ -67,6 +69,8 @@ export class ClankerDAO {
         "clankers.description",
         "clankers.deployment_strategy_id",
         "clankers.deployment_config",
+        "clankers.agent",
+        "clankers.secret_ids",
         "clankers.status",
         "clankers.status_message",
         "clankers.created_at",
@@ -93,7 +97,7 @@ export class ClankerDAO {
       .leftJoin(
         "deployment_strategies",
         "deployment_strategies.id",
-        "clankers.deployment_strategy_id"
+        "clankers.deployment_strategy_id",
       )
       .select([
         "clankers.id",
@@ -102,6 +106,8 @@ export class ClankerDAO {
         "clankers.description",
         "clankers.deployment_strategy_id",
         "clankers.deployment_config",
+        "clankers.agent",
+        "clankers.secret_ids",
         "clankers.status",
         "clankers.status_message",
         "clankers.created_at",
@@ -122,7 +128,10 @@ export class ClankerDAO {
     return this.mapRowToClanker(row, configFiles);
   }
 
-  async updateClanker(id: string, updates: UpdateClankerRequest): Promise<Clanker> {
+  async updateClanker(
+    id: string,
+    updates: UpdateClankerRequest,
+  ): Promise<Clanker> {
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
     };
@@ -139,6 +148,9 @@ export class ClankerDAO {
       updateData.deployment_config = updates.deploymentConfig
         ? JSON.stringify(updates.deploymentConfig)
         : null;
+    if (updates.agent !== undefined) updateData.agent = updates.agent;
+    if (updates.secretIds !== undefined)
+      updateData.secret_ids = JSON.stringify(updates.secretIds);
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.statusMessage !== undefined)
       updateData.status_message = updates.statusMessage;
@@ -163,7 +175,7 @@ export class ClankerDAO {
       .leftJoin(
         "deployment_strategies",
         "deployment_strategies.id",
-        "clankers.deployment_strategy_id"
+        "clankers.deployment_strategy_id",
       )
       .select([
         "clankers.id",
@@ -172,6 +184,8 @@ export class ClankerDAO {
         "clankers.description",
         "clankers.deployment_strategy_id",
         "clankers.deployment_config",
+        "clankers.agent",
+        "clankers.secret_ids",
         "clankers.status",
         "clankers.status_message",
         "clankers.created_at",
@@ -204,7 +218,7 @@ export class ClankerDAO {
   async updateStatus(
     id: string,
     status: ClankerStatus,
-    statusMessage?: string | null
+    statusMessage?: string | null,
   ): Promise<Clanker> {
     await db
       .updateTable("clankers")
@@ -233,7 +247,7 @@ export class ClankerDAO {
 
   async getConfigFile(
     clankerId: string,
-    fileType: string
+    fileType: string,
   ): Promise<ClankerConfigFile | null> {
     const row = await db
       .selectFrom("clanker_config_files")
@@ -249,7 +263,7 @@ export class ClankerDAO {
 
   async upsertConfigFiles(
     clankerId: string,
-    configFiles: ConfigFileInput[]
+    configFiles: ConfigFileInput[],
   ): Promise<void> {
     // Delete existing config files not in the new list
     const newFileTypes = configFiles.map((f) => f.fileType);
@@ -347,6 +361,13 @@ export class ClankerDAO {
             : row.deployment_config
           : null,
       configFiles,
+      agent: row.agent || null,
+      secretIds:
+        row.secret_ids != null
+          ? typeof row.secret_ids === "string"
+            ? JSON.parse(row.secret_ids)
+            : row.secret_ids
+          : [],
       status: row.status,
       statusMessage: row.status_message || null,
       createdAt:
@@ -375,5 +396,38 @@ export class ClankerDAO {
           ? row.updated_at.toISOString()
           : row.updated_at,
     };
+  }
+
+  // Validation methods
+  validateSecretIds(secretIds: string[]): void {
+    if (!Array.isArray(secretIds)) {
+      throw new Error("secretIds must be an array");
+    }
+
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const id of secretIds) {
+      if (!uuidRegex.test(id)) {
+        throw new Error(`Invalid secret ID format: ${id}`);
+      }
+    }
+  }
+
+  async validateSecretsExist(secretIds: string[]): Promise<void> {
+    if (secretIds.length === 0) return;
+
+    this.validateSecretIds(secretIds);
+
+    const secrets = await db
+      .selectFrom("secrets")
+      .select("id")
+      .where("id", "in", secretIds)
+      .execute();
+
+    if (secrets.length !== secretIds.length) {
+      const found = secrets.map((s) => s.id);
+      const missing = secretIds.filter((id) => !found.includes(id));
+      throw new Error(`Secrets not found: ${missing.join(", ")}`);
+    }
   }
 }

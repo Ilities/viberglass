@@ -156,6 +156,11 @@ export const clankerSchema = Joi.object({
   deploymentStrategyId: Joi.string().uuid().allow(null).optional(),
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
+  agent: Joi.string()
+    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "gemini-cli", "mistral-vibe")
+    .allow(null)
+    .optional(),
+  secretIds: Joi.array().items(Joi.string().uuid()).optional(),
 });
 
 export const updateClankerSchema = Joi.object({
@@ -164,6 +169,11 @@ export const updateClankerSchema = Joi.object({
   deploymentStrategyId: Joi.string().uuid().allow(null).optional(),
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
+  agent: Joi.string()
+    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "gemini-cli", "mistral-vibe")
+    .allow(null)
+    .optional(),
+  secretIds: Joi.array().items(Joi.string().uuid()).optional(),
   status: Joi.string().valid("active", "inactive", "deploying", "failed").optional(),
   statusMessage: Joi.string().allow(null, "").optional(),
 });
@@ -216,4 +226,20 @@ export const logBatchSchema = Joi.object({
     .min(1)
     .max(100) // Limit batch size to 100 logs
     .required(),
+});
+
+const secretNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+export const secretSchema = Joi.object({
+  name: Joi.string().pattern(secretNamePattern).min(1).max(255).required(),
+  secretLocation: Joi.string().valid("env", "database", "ssm").required(),
+  secretPath: Joi.string().max(500).allow(null, "").optional(),
+  secretValue: Joi.string().allow("").optional(),
+});
+
+export const updateSecretSchema = Joi.object({
+  name: Joi.string().pattern(secretNamePattern).min(1).max(255).optional(),
+  secretLocation: Joi.string().valid("env", "database", "ssm").optional(),
+  secretPath: Joi.string().max(500).allow(null, "").optional(),
+  secretValue: Joi.string().allow("").optional(),
 });

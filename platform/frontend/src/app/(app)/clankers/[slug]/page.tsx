@@ -6,6 +6,7 @@ import { Divider } from '@/components/divider'
 import { Heading, Subheading } from '@/components/heading'
 import { ClankerHealth } from './clanker-health'
 import { getClankerBySlug, formatClankerStatus, formatDeploymentStrategy } from '@/data'
+import { getSecret } from '@/service/api/secret-api'
 import { PencilIcon } from '@heroicons/react/16/solid'
 import { notFound } from 'next/navigation'
 import { ClankerActions } from './clanker-actions'
@@ -24,6 +25,18 @@ export default async function ClankerPage({ params }: { params: Promise<{ slug: 
 
   const statusInfo = formatClankerStatus(clanker.status)
   const deploymentConfig = clanker.deploymentConfig as Record<string, unknown> | null
+
+  // Fetch secret details for the clanker
+  const secrets = await Promise.all(
+    (clanker.secretIds || []).map(async (secretId) => {
+      try {
+        return await getSecret(secretId)
+      } catch (error) {
+        console.error(`Failed to fetch secret ${secretId}:`, error)
+        return null
+      }
+    })
+  ).then((results) => results.filter((s) => s !== null))
 
   return (
     <>
@@ -72,6 +85,41 @@ export default async function ClankerPage({ params }: { params: Promise<{ slug: 
                 <span className="ml-2 text-sm text-zinc-500">
                   ({clanker.deploymentStrategy.description})
                 </span>
+              )}
+            </DescriptionDetails>
+
+            <DescriptionTerm>Agent</DescriptionTerm>
+            <DescriptionDetails>
+              {clanker.agent ? (
+                <span className="font-medium">
+                  {clanker.agent === 'claude-code' && 'Claude Code'}
+                  {clanker.agent === 'qwen-cli' && 'Qwen CLI'}
+                  {clanker.agent === 'qwen-api' && 'Qwen API'}
+                  {clanker.agent === 'codex' && 'OpenAI Codex'}
+                  {clanker.agent === 'gemini-cli' && 'Gemini CLI'}
+                  {clanker.agent === 'mistral-vibe' && 'Mistral Vibe'}
+                </span>
+              ) : (
+                <span className="text-zinc-500">Claude Code (default)</span>
+              )}
+            </DescriptionDetails>
+
+            <DescriptionTerm>Secrets</DescriptionTerm>
+            <DescriptionDetails>
+              {secrets.length > 0 ? (
+                <div className="space-y-1">
+                  {secrets.map((secret) => (
+                    <div key={secret.id} className="text-sm">
+                      <span className="font-medium">{secret.name}</span>
+                      <span className="ml-2 text-zinc-500">
+                        ({secret.secretLocation}
+                        {secret.secretPath && ` - ${secret.secretPath}`})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-zinc-500">No secrets configured</span>
               )}
             </DescriptionDetails>
 

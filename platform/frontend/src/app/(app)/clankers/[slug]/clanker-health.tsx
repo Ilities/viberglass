@@ -3,10 +3,10 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { ClankerHealthBadge } from '@/components/clanker-health-badge'
-import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/description-list'
+import { DescriptionDetails, DescriptionTerm } from '@/components/description-list'
 import { getClankerHealth } from '@/service/api/clanker-api'
-import type { ClankerHealthStatus } from '@viberator/types'
 import { ArrowPathIcon } from '@heroicons/react/16/solid'
+import type { ClankerHealthStatus } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 export interface ClankerHealthProps {
@@ -60,9 +60,7 @@ export function ClankerHealth({ clankerId }: ClankerHealthProps) {
           ) : error ? (
             <Badge color="red">Error</Badge>
           ) : (
-            <Badge className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-              Checking...
-            </Badge>
+            <Badge className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">Checking...</Badge>
           )}
           <Button
             plain
@@ -74,12 +72,8 @@ export function ClankerHealth({ clankerId }: ClankerHealthProps) {
             <ArrowPathIcon className={isRefreshing ? 'animate-spin' : ''} />
           </Button>
         </div>
-        {error && (
-          <p className="mt-1 text-sm text-red-600">{error}</p>
-        )}
-        {health && health.message && (
-          <p className="mt-1 text-sm text-zinc-500">{health.message}</p>
-        )}
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {health && health.message && <p className="mt-1 text-sm text-zinc-500">{health.message}</p>}
       </DescriptionDetails>
 
       {health && (

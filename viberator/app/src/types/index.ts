@@ -1,31 +1,8 @@
+import { AgentConfig } from "./agents";
+
+export * from "./agents";
+
 // Core types for the AI Agent Orchestrator
-
-export interface ResourceLimits {
-  maxMemoryMB: number;
-  maxCpuPercent: number;
-  maxDiskSpaceMB: number;
-  maxNetworkRequests: number;
-}
-
-export interface AgentConfig {
-  name:
-    | "claude-code"
-    | "qwen-cli"
-    | "qwen-api"
-    | "codex"
-    | "mistral-vibe"
-    | "gemini-cli";
-  capabilities: string[]; // ['python', 'javascript', 'java', 'typescript', 'go', 'rust']
-  costPerExecution: number;
-  averageSuccessRate: number;
-  executionTimeLimit: number; // seconds
-  resourceLimits: ResourceLimits;
-  apiKey?: string;
-  endpoint?: string;
-  maxTokens?: number;
-  temperature?: number;
-}
-
 export interface BugReport {
   id: string;
   title: string;
@@ -54,12 +31,22 @@ export interface Ticket {
 export interface ProjectSettings {
   repoUrl: string;
   branch: string;
-  preferredAgents?: string[];
+  agentName?: AgentConfig["name"];
+  preferredAgents?: AgentConfig["name"][];
   costLimit?: number;
   timeLimit?: number;
   testingRequired: boolean;
   codingStandards?: string;
   excludeFiles?: string[];
+}
+
+export interface SecretMetadata {
+  id: string;
+  name: string;
+  secretLocation: "env" | "database" | "ssm";
+  secretPath: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ExecutionContext {
@@ -92,6 +79,10 @@ export interface ExecutionContext {
 
   // Timeout
   maxExecutionTime: number; // 30-45 minutes
+
+  // Agent and secrets configuration
+  agent?: string;
+  secrets?: SecretMetadata[];
 }
 
 export interface AgentExecution {

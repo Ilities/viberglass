@@ -72,7 +72,7 @@ Each task was committed atomically:
 
 ## Decisions Made
 
-- **Workspace-aware Docker builds:** Initial attempt to build from individual package directories failed due to `@viberator/types` workspace dependency. Fixed by building from repository root with proper package.json copying for dependency resolution.
+- **Workspace-aware Docker builds:** Initial attempt to build from individual package directories failed due to `@viberglass/types` workspace dependency. Fixed by building from repository root with proper package.json copying for dependency resolution.
 - **node:20-alpine base image:** Selected to match project's `engines.node` requirement and keep image sizes minimal.
 - **--legacy-peer-deps flag:** Required for npm workspace compatibility during `npm install` in container.
 
@@ -82,7 +82,7 @@ Each task was committed atomically:
 
 **1. [Rule 3 - Blocking] Fixed monorepo workspace dependency resolution**
 - **Found during:** Task 1 (Backend Dockerfile.dev build)
-- **Issue:** Initial Dockerfile built from `platform/backend/` context failed because `@viberator/types` workspace dependency couldn't be resolved
+- **Issue:** Initial Dockerfile built from `platform/backend/` context failed because `@viberglass/types` workspace dependency couldn't be resolved
 - **Fix:** Modified Dockerfile.dev to build from monorepo root, copying root package.json first, then backend package.json, running `npm install --legacy-peer-deps` from root
 - **Files modified:** `platform/backend/Dockerfile.dev`, `platform/frontend/Dockerfile.dev`
 - **Verification:** Both images build successfully with workspace dependencies resolved
@@ -95,7 +95,7 @@ Each task was committed atomically:
 
 ## Issues Encountered
 
-- npm install initially failed with `@viberator/types@*` not found error because workspace packages weren't available during isolated build. Resolved by changing build context to repository root and copying workspace packages.
+- npm install initially failed with `@viberglass/types@*` not found error because workspace packages weren't available during isolated build. Resolved by changing build context to repository root and copying workspace packages.
 
 ## User Setup Required
 

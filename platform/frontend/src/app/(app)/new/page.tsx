@@ -8,7 +8,7 @@ import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
-import type { AuthCredentials } from '@viberator/types'
+import type { AuthCredentials } from '@viberglass/types'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 

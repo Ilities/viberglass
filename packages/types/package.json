@@ -1,7 +1,7 @@
 {
-  "name": "@viberator/types",
+  "name": "@viberglass/types",
   "version": "1.0.0",
-  "description": "Shared TypeScript types for Viberator platform",
+  "description": "Shared TypeScript types for Viberglass platform",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

@@ -1,4 +1,4 @@
-# ViBug Receiver - Bug Capture & PM Integration Service
+# Viberglass Receiver - Bug Capture & PM Integration Service
 
 An MVP implementation of a bug capture service that receives automated bug reports from widgets and integrates with project management systems for auto-fix processing.
 
@@ -47,8 +47,8 @@ npm install
 Create PostgreSQL database and run the schema:
 
 ```bash
-createdb vibug_receiver
-psql -d vibug_receiver -f src/config/database.sql
+createdb viberglass_receiver
+psql -d viberglass_receiver -f src/config/database.sql
 ```
 
 ### 3. Environment Configuration
@@ -65,7 +65,7 @@ Edit `.env` with your configuration:
 # Database Configuration
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=vibug_receiver
+DB_NAME=viberglass_receiver
 DB_USER=postgres
 DB_PASSWORD=your_password
 DB_SSL=false
@@ -79,7 +79,7 @@ REDIS_PASSWORD=
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
-AWS_S3_BUCKET=vibug-media
+AWS_S3_BUCKET=viberglass-media
 
 # GitHub Integration
 GITHUB_TOKEN=your_github_token

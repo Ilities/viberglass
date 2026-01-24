@@ -6,7 +6,7 @@ import * as path from "path";
 import { GitService } from "../services/GitService";
 
 // Intermediate type for CLI results that may include optional cost
-type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost"> & {
+export type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost"> & {
   cost?: number;
 };
 

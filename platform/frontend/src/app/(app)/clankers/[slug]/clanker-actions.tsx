@@ -4,7 +4,7 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { deleteClanker, startClanker, stopClanker } from '@/service/api/clanker-api'
 import { PlayIcon, StopIcon, TrashIcon } from '@heroicons/react/16/solid'
-import type { Clanker } from '@viberator/types'
+import type { Clanker } from '@viberglass/types'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 

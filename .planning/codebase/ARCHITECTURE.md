@@ -211,7 +211,7 @@
 
 **Logging:** Winston logger in orchestrator, Morgan middleware in backend, console in workers
 - Format: JSON for production, text for development
-- Destinations: Console, file (vibug-viberator.log)
+- Destinations: Console, file (viberglass-viberator.log)
 
 **Validation:** Joi schemas in `platform/backend/src/api/middleware/schemas.ts`
 - Request validation middleware applied to route handlers

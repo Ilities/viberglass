@@ -1,7 +1,7 @@
-import type { Clanker } from '@viberator/types';
-import type { JobData } from '../types/Job';
+import type { Clanker } from "@viberglass/types";
+import type { JobData } from "../types/Job";
 
-export type WorkerType = 'lambda' | 'ecs' | 'docker';
+export type WorkerType = "lambda" | "ecs" | "docker";
 
 export interface InvocationResult {
   executionId: string; // AWS Request ID, Task ARN, or Container ID

@@ -2,8 +2,9 @@ import {
   SSMClient,
   GetParametersCommand,
   GetParametersByPathCommand,
+  GetParameterCommand,
 } from "@aws-sdk/client-ssm";
-import { Configuration, AgentConfig } from "../types";
+import { Configuration, AgentConfig, SecretMetadata } from "../types";
 import { Logger } from "winston";
 import * as dotenv from "dotenv";
 
@@ -59,6 +60,7 @@ export class ConfigManager {
     return {
       agents: {
         "claude-code": {
+          apiKey: "",
           name: "claude-code",
           capabilities: [
             "python",
@@ -83,6 +85,7 @@ export class ConfigManager {
         },
         "qwen-cli": {
           name: "qwen-cli",
+          apiKey: "",
           capabilities: ["python", "javascript", "typescript", "java", "cpp"],
           costPerExecution: 0.3,
           averageSuccessRate: 0.78,
@@ -98,6 +101,7 @@ export class ConfigManager {
         },
         "qwen-api": {
           name: "qwen-api",
+          apiKey: "",
           capabilities: [
             "python",
             "javascript",
@@ -121,6 +125,7 @@ export class ConfigManager {
         },
         codex: {
           name: "codex",
+          apiKey: "",
           capabilities: [
             "python",
             "javascript",
@@ -144,6 +149,7 @@ export class ConfigManager {
         },
         "mistral-vibe": {
           name: "mistral-vibe",
+          apiKey: "",
           capabilities: ["python", "javascript", "typescript", "rust", "go"],
           costPerExecution: 0.4,
           averageSuccessRate: 0.8,
@@ -159,6 +165,7 @@ export class ConfigManager {
         },
         "gemini-cli": {
           name: "gemini-cli",
+          apiKey: "",
           capabilities: [
             "python",
             "javascript",
@@ -176,7 +183,6 @@ export class ConfigManager {
             maxDiskSpaceMB: 512,
             maxNetworkRequests: 85,
           },
-          maxTokens: 3500,
           temperature: 0.15,
         },
       },
@@ -209,6 +215,21 @@ export class ConfigManager {
       }
     });
 
+    // Special handling for claude-code: support official Claude Code env vars
+    // Priority: CLAUDE_CODE_API_KEY > ANTHROPIC_API_KEY > ANTHROPIC_AUTH_TOKEN
+    if (config.agents["claude-code"]) {
+      if (!config.agents["claude-code"].apiKey) {
+        config.agents["claude-code"].apiKey = (process.env.ANTHROPIC_API_KEY ||
+          process.env.ANTHROPIC_AUTH_TOKEN)!;
+      }
+      if (
+        !config.agents["claude-code"].endpoint &&
+        process.env.ANTHROPIC_BASE_URL
+      ) {
+        config.agents["claude-code"].endpoint = process.env.ANTHROPIC_BASE_URL;
+      }
+    }
+
     // Special handling for qwen-api to check for dedicated API key
     if (process.env.QWEN_API_KEY && config.agents["qwen-api"]) {
       config.agents["qwen-api"].apiKey = process.env.QWEN_API_KEY;
@@ -219,11 +240,13 @@ export class ConfigManager {
 
     // Logging configuration
     if (process.env.LOG_LEVEL) {
-      config.logging.level = process.env.LOG_LEVEL as Configuration["logging"]["level"];
+      config.logging.level = process.env
+        .LOG_LEVEL as Configuration["logging"]["level"];
     }
 
     if (process.env.LOG_FORMAT) {
-      config.logging.format = process.env.LOG_FORMAT as Configuration["logging"]["format"];
+      config.logging.format = process.env
+        .LOG_FORMAT as Configuration["logging"]["format"];
     }
 
     // Execution configuration
@@ -393,5 +416,85 @@ export class ConfigManager {
       this.logger.error("Configuration validation failed", { error });
       return false;
     }
+  }
+
+  /**
+   * Load agent configuration by name
+   */
+  loadAgentConfig(agentName?: string): AgentConfig {
+    const name = agentName || process.env.DEFAULT_AGENT || "claude-code";
+
+    const agentConfig = this.config.agents[name];
+    if (!agentConfig) {
+      this.logger.warn(`Agent ${name} not found, falling back to claude-code`);
+      return this.config.agents["claude-code"];
+    }
+
+    this.logger.info(`Loaded agent configuration for: ${name}`);
+    return agentConfig;
+  }
+
+  /**
+   * Resolve secrets from SSM/env based on metadata (for ECS/Lambda workers)
+   */
+  async resolveSecrets(
+    secretMetadata: SecretMetadata[],
+  ): Promise<Record<string, string>> {
+    const resolved: Record<string, string> = {};
+
+    for (const secret of secretMetadata) {
+      try {
+        if (secret.secretLocation === "env") {
+          // Read from environment variables
+          const value = process.env[secret.name];
+          if (value) {
+            resolved[secret.name] = value;
+            this.logger.debug(`Resolved secret from env: ${secret.name}`);
+          } else {
+            this.logger.warn(`Secret ${secret.name} not found in environment`);
+          }
+        } else if (
+          secret.secretLocation === "ssm" &&
+          secret.secretPath &&
+          this.ssmClient
+        ) {
+          // Fetch from AWS SSM
+          try {
+            const command = new GetParameterCommand({
+              Name: secret.secretPath,
+              WithDecryption: true,
+            });
+            const response = await this.ssmClient.send(command);
+
+            if (response.Parameter?.Value) {
+              resolved[secret.name] = response.Parameter.Value;
+              this.logger.debug(`Resolved secret from SSM: ${secret.name}`);
+            } else {
+              this.logger.warn(
+                `Secret ${secret.name} not found in SSM at path: ${secret.secretPath}`,
+              );
+            }
+          } catch (ssmError) {
+            this.logger.error(
+              `Failed to fetch secret ${secret.name} from SSM`,
+              { error: ssmError },
+            );
+          }
+        } else if (secret.secretLocation === "database") {
+          // Database secrets should already be resolved by the platform
+          // This is a fallback - log a warning
+          this.logger.warn(
+            `Secret ${secret.name} is stored in database but should be resolved by platform`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(`Error resolving secret ${secret.name}`, { error });
+      }
+    }
+
+    this.logger.info(
+      `Resolved ${Object.keys(resolved).length} of ${secretMetadata.length} secrets`,
+    );
+    return resolved;
   }
 }

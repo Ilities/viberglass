@@ -55,7 +55,7 @@ export const BRANDING = {
 The monorepo uses `@viberator/*` package scope across all packages:
 
 ```
-@viberator/types          - Shared types
+@viberglass/types          - Shared types
 @viberator/frontend       - Frontend app
 @viberator/platform-backend - Backend API
 @viberator/orchestrator   - Worker code
@@ -203,10 +203,10 @@ export const metadata: Metadata = {
 **Source:** Multiple files across the codebase
 
 ```typescript
-import type { Clanker } from '@viberator/types';
+import type { Clanker } from '@viberglass/types';
 ```
 
-**Decision needed:** Whether to rename `@viberator/types` to `@viberglass/types`. This has significant impact.
+**Decision needed:** Whether to rename `@viberglass/types` to `@viberglass/types`. This has significant impact.
 
 ## State of the Art
 

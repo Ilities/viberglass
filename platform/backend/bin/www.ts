@@ -8,7 +8,7 @@ import app from "../src/api/app";
 import debugModule from "debug";
 import * as http from "http";
 
-const debug = debugModule("vibug-receiver:server");
+const debug = debugModule("viberglass-receiver:server");
 
 /**
  * Get port from environment and store in Express.

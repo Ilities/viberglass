@@ -511,7 +511,7 @@ Things that couldn't be fully resolved:
 ### What Needs to Be Built
 1. **Backend:** `ClankerHealthService` that orchestrates health checking
 2. **Backend:** New API endpoint `GET /api/clankers/:id/health`
-3. **Shared Types:** `ClankerHealthStatus` interface in `@viberator/types`
+3. **Shared Types:** `ClankerHealthStatus` interface in `@viberglass/types`
 4. **Frontend:** Health badge component for clanker pages
 5. **Frontend:** Optional `useClankerHealth` hook using `usePolling` pattern
 6. **Frontend:** Manual refresh button with loading state

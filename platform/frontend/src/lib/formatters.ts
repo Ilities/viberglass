@@ -1,4 +1,4 @@
-import type { Severity, AutoFixStatus, ClankerStatus, DeploymentStrategy } from '@viberator/types'
+import type { ClankerStatus, DeploymentStrategy } from '@viberglass/types'
 
 // Ticket formatting utilities
 

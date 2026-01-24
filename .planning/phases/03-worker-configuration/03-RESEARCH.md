@@ -75,7 +75,7 @@ packages/types/src/
 // Source: Based on existing CodingJobData in workers/types.ts
 // and Clanker types from packages/types/src/clanker.ts
 
-import { Clanker, ClankerConfigFile } from '@viberator/types';
+import { Clanker, ClankerConfigFile } from '@viberglass/types';
 
 // Base shared fields
 interface BaseWorkerPayload {

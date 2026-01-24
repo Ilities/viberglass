@@ -6,6 +6,15 @@
 // Status of a clanker
 export type ClankerStatus = 'active' | 'inactive' | 'deploying' | 'failed'
 
+// Agent types supported by the system
+export type AgentType =
+  | 'claude-code'
+  | 'qwen-cli'
+  | 'qwen-api'
+  | 'codex'
+  | 'gemini-cli'
+  | 'mistral-vibe'
+
 // Deployment strategy entity
 export interface DeploymentStrategy {
   id: string
@@ -35,6 +44,8 @@ export interface Clanker {
   deploymentStrategy?: DeploymentStrategy | null
   deploymentConfig?: Record<string, unknown> | null
   configFiles: ClankerConfigFile[]
+  agent?: AgentType | null
+  secretIds: string[]
   status: ClankerStatus
   statusMessage?: string | null
   createdAt: string
@@ -54,6 +65,8 @@ export interface CreateClankerRequest {
   deploymentStrategyId?: string | null
   deploymentConfig?: Record<string, unknown> | null
   configFiles?: ConfigFileInput[]
+  agent?: AgentType | null
+  secretIds?: string[]
 }
 
 // Request body for updating a clanker
@@ -63,6 +76,8 @@ export interface UpdateClankerRequest {
   deploymentStrategyId?: string | null
   deploymentConfig?: Record<string, unknown> | null
   configFiles?: ConfigFileInput[]
+  agent?: AgentType | null
+  secretIds?: string[]
   status?: ClankerStatus
   statusMessage?: string | null
 }

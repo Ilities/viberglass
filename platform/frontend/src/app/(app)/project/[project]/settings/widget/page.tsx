@@ -1,7 +1,7 @@
 import { Button } from '@/components/button'
 import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Divider } from '@/components/divider'
-import { Field, Label, Description } from '@/components/fieldset'
+import { Description, Field, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
@@ -106,9 +106,9 @@ export default function WidgetSettingsPage() {
             <Text className="text-sm font-medium text-zinc-950 dark:text-white">Widget Code</Text>
             <Text>Copy this code and add it to your website&apos;s HTML.</Text>
             <div className="rounded-lg bg-zinc-900 p-4">
-              <pre className="text-sm text-zinc-100 overflow-x-auto">
-{`<script>
-  window.ViBugConfig = {
+              <pre className="overflow-x-auto text-sm text-zinc-100">
+                {`<script>
+  window.ViberglassConfig = {
     projectId: "123e4567-e89b-12d3-a456-426614174000",
     position: "bottom-right",
     color: "#3b82f6",
@@ -122,10 +122,12 @@ export default function WidgetSettingsPage() {
     }
   };
 </script>
-<script src="https://cdn.vibug.com/widget.js"></script>`}
+<script src="https://cdn.viberglass.io/widget.js"></script>`}
               </pre>
             </div>
-            <Button type="button" plain>Copy Code</Button>
+            <Button type="button" plain>
+              Copy Code
+            </Button>
           </div>
         </section>
 

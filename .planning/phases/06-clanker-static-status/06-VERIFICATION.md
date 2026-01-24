@@ -56,7 +56,7 @@ notes: "List page health badge was in must_haves frontmatter but not in task bre
 | `ClankerHealthService.ts:32` | `WorkerInvoker.ts` | `invoker.isAvailable()` | WIRED | Async call to invoker connectivity check |
 | `clanker-health.tsx:29` | `clanker-api.ts` | `getClankerHealth(clankerId)` | WIRED | Fetches health from `/api/clankers/${id}/health` |
 | `clanker-health.tsx:59` | `clanker-health-badge.tsx` | `<ClankerHealthBadge health={health} />` | WIRED | Renders badge with fetched health data |
-| `clanker-health-badge.tsx` | `packages/types/src/clanker.ts` | `ClankerHealthStatus` import | WIRED | Type imported from @viberator/types |
+| `clanker-health-badge.tsx` | `packages/types/src/clanker.ts` | `ClankerHealthStatus` import | WIRED | Type imported from @viberglass/types |
 
 ### Requirements Coverage
 

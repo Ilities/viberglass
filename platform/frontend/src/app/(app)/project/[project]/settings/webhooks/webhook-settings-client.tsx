@@ -3,7 +3,7 @@
 import { Button } from '@/components/button'
 import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Divider } from '@/components/divider'
-import { Field, Label, Description } from '@/components/fieldset'
+import { Description, Field, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Text } from '@/components/text'
@@ -21,9 +21,9 @@ export function WebhookSettingsClient({ project }: WebhookSettingsClientProps) {
   })
 
   const toggleSystem = (system: keyof typeof enabledSystems) => {
-    setEnabledSystems(prev => ({
+    setEnabledSystems((prev) => ({
       ...prev,
-      [system]: !prev[system]
+      [system]: !prev[system],
     }))
   }
 
@@ -85,12 +85,10 @@ export function WebhookSettingsClient({ project }: WebhookSettingsClientProps) {
                   <Field>
                     <Label>Webhook URL</Label>
                     <div className="flex gap-2">
-                      <Input
-                        readOnly
-                        value="https://api.vibug.com/api/webhooks/github"
-                        className="flex-1"
-                      />
-                      <Button type="button" plain>Copy</Button>
+                      <Input readOnly value="https://api.viberglass.com/api/webhooks/github" className="flex-1" />
+                      <Button type="button" plain>
+                        Copy
+                      </Button>
                     </div>
                   </Field>
                   <Field>
@@ -138,12 +136,10 @@ export function WebhookSettingsClient({ project }: WebhookSettingsClientProps) {
                     <Field>
                       <Label>Webhook URL</Label>
                       <div className="flex gap-2">
-                        <Input
-                          readOnly
-                          value="https://api.vibug.com/api/webhooks/jira"
-                          className="flex-1"
-                        />
-                        <Button type="button" plain>Copy</Button>
+                        <Input readOnly value="https://api.viberglass.io/api/webhooks/jira" className="flex-1" />
+                        <Button type="button" plain>
+                          Copy
+                        </Button>
                       </div>
                     </Field>
                     <div>
@@ -179,12 +175,10 @@ export function WebhookSettingsClient({ project }: WebhookSettingsClientProps) {
                     <Field>
                       <Label>Webhook URL</Label>
                       <div className="flex gap-2">
-                        <Input
-                          readOnly
-                          value="https://api.vibug.com/api/webhooks/linear"
-                          className="flex-1"
-                        />
-                        <Button type="button" plain>Copy</Button>
+                        <Input readOnly value="https://api.viberglass.io/api/webhooks/linear" className="flex-1" />
+                        <Button type="button" plain>
+                          Copy
+                        </Button>
                       </div>
                     </Field>
                     <div>
