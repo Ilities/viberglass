@@ -19,7 +19,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     <div className="lg:flex lg:gap-8">
       {/* Sidebar Navigation */}
       <aside className="hidden lg:block lg:w-48 lg:flex-none lg:border-r lg:border-zinc-950/10 dark:lg:border-white/10">
-        <nav className="sticky top-0 py-6 pr-6">
+        <nav className="sticky top-16 py-6 pr-6">
           <ul role="list" className="space-y-1">
             {settingsNavigation.map((item) => {
               const isActive = pathname === item.href
