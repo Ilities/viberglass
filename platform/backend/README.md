@@ -90,7 +90,7 @@ docker-compose up --build
 
 ## 🤖 Jobs API (AI Agent Integration)
 
-The backend includes a Jobs API for submitting AI agent tasks (powered by the Viberator worker service):
+The backend includes a Jobs API for submitting AI agent tasks (powered by Viberator workers):
 
 ### Endpoints
 
@@ -121,7 +121,7 @@ curl http://localhost:3000/api/jobs/job_1234567890_abc
 curl http://localhost:3000/api/jobs/stats/queue
 ```
 
-> **Note**: The Jobs API requires the Viberator worker service to be running and connected to Redis. See [viberator/app/README.md](../../viberator/app/README.md) for worker setup.
+> **Note**: The Jobs API requires Viberator workers to be running and connected to Redis. See [viberator/app/README.md](../../viberator/app/README.md) for worker setup.
 
 ## 🔧 Integrations (Optional)
 To enable ticket synchronization, provide API keys in `.env` for:
