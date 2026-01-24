@@ -22,7 +22,7 @@ export function Logo({ className, ...props }: React.ComponentPropsWithoutRef<'sv
       </g>
       {/* Wordmark */}
       <text x="30" y="20" fontFamily="system-ui, -apple-system, sans-serif" fontSize="18" fontWeight="800" letterSpacing="-0.5" fill="currentColor">
-        VIBERATOR
+        VIBERGLASS
       </text>
     </svg>
   )
