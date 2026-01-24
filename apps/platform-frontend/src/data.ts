@@ -4,7 +4,7 @@ import {
   getDeploymentStrategies as apiGetDeploymentStrategies,
 } from '@/service/api/clanker-api'
 import { getProjectBySlug as apiGetProjectBySlug, getProjects as apiGetProjects } from '@/service/api/project-api'
-import { getTickets } from '@/service/api/ticket-api'
+import { getTicketStats as apiGetTicketStats, getTickets } from '@/service/api/ticket-api'
 import type {
   AutoFixStatus,
   Clanker,
@@ -13,6 +13,7 @@ import type {
   Project,
   Severity,
   Ticket,
+  TicketStats,
 } from '@viberglass/types'
 
 // Extended ticket with computed status for UI
@@ -76,28 +77,8 @@ export async function getDeploymentStrategiesList(): Promise<DeploymentStrategy[
   return await apiGetDeploymentStrategies()
 }
 
-// TODO: Implement stats API endpoint - returns placeholder structure until backend is ready
-export async function getTicketStats() {
-  // Placeholder until real API endpoint exists
-  return {
-    total: 0,
-    open: 0,
-    resolved: 0,
-    inProgress: 0,
-    bySeverity: {
-      critical: 0,
-      high: 0,
-      medium: 0,
-      low: 0,
-    },
-    byCategory: {},
-    autoFixStats: {
-      requested: 0,
-      completed: 0,
-      pending: 0,
-      failed: 0,
-    },
-  }
+export async function getTicketStats(projectSlug?: string): Promise<TicketStats> {
+  return await apiGetTicketStats({ projectSlug })
 }
 
 // Re-export formatting utilities for backward compatibility

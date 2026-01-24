@@ -12,7 +12,7 @@ export const generateStaticParams = async () => {
 
 export default async function Home({ params }: { params: Promise<{ project: string }> }) {
   const { project } = await params
-  const [tickets, stats] = await Promise.all([getRecentTickets(project), getTicketStats()])
+  const [tickets, stats] = await Promise.all([getRecentTickets(project), getTicketStats(project)])
 
   return (
     <>
@@ -35,12 +35,6 @@ export default async function Home({ params }: { params: Promise<{ project: stri
         <Stat title="Resolved this week" value={stats.resolved.toString()} change="+15.2%" />
       </div>
       <Subheading className="mt-14">Recent tickets</Subheading>
-      {/* Filter tickets based on search params */}
-      {/*const filteredTickets = tickets.filter((ticket) => {
-        // Use autoFixStatus or similar for status check if 'status' field is missing in TicketListItem
-        if (search && !ticket.title.toLowerCase().includes(search.toLowerCase())) return false
-        return true
-      })*/}
 
       <Table className="mt-4 [--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
         <TableHead>
