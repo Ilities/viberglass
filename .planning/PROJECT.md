@@ -1,8 +1,8 @@
-# Viberator
+# Viberglass
 
 ## What This Is
 
-An agent orchestrator and ticket management platform. Users create bug tickets that coding agents automatically fix, with results flowing back through the system. Supports projects spanning multiple repositories, integration with common SCMs and legacy ticketing systems, and configurable clankers (instruction sets) that define how agents run.
+An agent orchestrator and ticket management platform. Users create bug tickets that coding agents (called Viberators) automatically fix, with results flowing back through the system. Supports projects spanning multiple repositories, integration with common SCMs and legacy ticketing systems, and configurable clankers (instruction sets) that define how agents run.
 
 ## Current Milestone: v1.1 Branding Update
 
@@ -16,7 +16,7 @@ An agent orchestrator and ticket management platform. Users create bug tickets t
 
 ## Core Value
 
-Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
+Users can create tickets that coding agents (Viberators) automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
 
 ## Requirements
 
