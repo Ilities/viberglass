@@ -7,7 +7,7 @@ import * as pulumi from "@pulumi/pulumi";
 export interface LoadBalancerOptions {
   /** Environment name for resource naming */
   environment: string;
-  /** Project name for resource naming (default: "viberator") */
+  /** Project name for resource naming (default: "viberglass") */
   projectName?: string;
   /** VPC ID for the load balancer */
   vpcId: pulumi.Input<string>;
@@ -63,7 +63,7 @@ export interface LoadBalancerOutputs {
  * if a certificate ARN is provided.
  */
 export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOutputs {
-  const projectName = options.projectName ?? "viberator";
+  const projectName = options.projectName ?? "viberglass";
   const backendPort = options.backendPort ?? 80;
   const healthCheckPath = options.healthCheckPath ?? "/health";
 
@@ -76,9 +76,9 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
 
   // 1. Create ALB Security Group
   const albSecurityGroup = new aws.ec2.SecurityGroup(
-    `${options.environment}-viberator-alb-sg`,
+    `${options.environment}-viberglass-alb-sg`,
     {
-      description: "Security group for Viberator Application Load Balancer",
+      description: "Security group for Viberglass Application Load Balancer",
       vpcId: options.vpcId,
       ingress: [
         {
@@ -114,7 +114,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
 
   // Allow traffic from ALB to backend security group
   const albToBackendRule = new aws.ec2.SecurityGroupRule(
-    `${options.environment}-viberator-alb-to-backend`,
+    `${options.environment}-viberglass-alb-to-backend`,
     {
       description: "Allow traffic from ALB to backend",
       type: "egress",
@@ -127,7 +127,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
   );
 
   const backendFromAlbRule = new aws.ec2.SecurityGroupRule(
-    `${options.environment}-viberator-backend-from-alb`,
+    `${options.environment}-viberglass-backend-from-alb`,
     {
       description: "Allow traffic from ALB to backend",
       type: "ingress",
@@ -141,7 +141,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
 
   // 2. Create Target Group
   const targetGroup = new aws.lb.TargetGroup(
-    `${options.environment}-viberator-backend-tg`,
+    `${options.environment}-viberglass-backend-tg`,
     {
       name: `${projectName}-${options.environment}-backend-tg`,
       port: backendPort,
@@ -163,12 +163,15 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
         Name: `${projectName}-${options.environment}-backend-tg`,
         ...defaultTags,
       },
+    },
+    {
+      aliases: [{ name: `${options.environment}-viberator-backend-tg` }],
     }
   );
 
   // 3. Create Application Load Balancer
   const loadBalancer = new aws.lb.LoadBalancer(
-    `${options.environment}-viberator-alb`,
+    `${options.environment}-viberglass-alb`,
     {
       name: `${projectName}-${options.environment}-alb`,
       internal: false, // Internet-facing
@@ -181,12 +184,15 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
         Name: `${projectName}-${options.environment}-alb`,
         ...defaultTags,
       },
+    },
+    {
+      aliases: [{ name: `${options.environment}-viberator-alb` }],
     }
   );
 
   // 4. Create HTTP Listener (port 80)
   const httpListener = new aws.lb.Listener(
-    `${options.environment}-viberator-http-listener`,
+    `${options.environment}-viberglass-http-listener`,
     {
       loadBalancerArn: loadBalancer.arn,
       port: 80,
@@ -215,7 +221,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
   let httpsListener: aws.lb.Listener | undefined;
   if (options.certificateArn) {
     httpsListener = new aws.lb.Listener(
-      `${options.environment}-viberator-https-listener`,
+      `${options.environment}-viberglass-https-listener`,
       {
         loadBalancerArn: loadBalancer.arn,
         port: 443,

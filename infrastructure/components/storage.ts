@@ -8,7 +8,7 @@ import { InfrastructureConfig } from "../config";
 export interface StorageOptions {
   /** Configuration loaded from Pulumi stack */
   config: InfrastructureConfig;
-  /** Prefix for bucket name (default: "viberator-uploads") */
+  /** Prefix for bucket name (default: "viberglass-uploads") */
   bucketPrefix?: string;
   /** Enable versioning (default: false for dev, true for prod/staging) */
   versioningEnabled?: boolean;
@@ -139,7 +139,7 @@ function getLifecycleRules(environment: string): LifecycleRule[] {
  * - User-uploaded files
  */
 export function createStorage(options: StorageOptions): StorageOutputs {
-  const bucketPrefix = options.bucketPrefix ?? "viberator-uploads";
+  const bucketPrefix = options.bucketPrefix ?? "viberglass-uploads";
   const versioningEnabled = options.versioningEnabled ?? options.config.environment !== "dev";
 
   // Generate unique bucket name with random suffix to avoid conflicts
@@ -147,14 +147,17 @@ export function createStorage(options: StorageOptions): StorageOutputs {
   const bucketName = pulumi.interpolate`${options.config.environment}-${bucketPrefix}-${randomSuffix}`;
 
   // Create S3 bucket
-  const bucket = new aws.s3.BucketV2(`${options.config.environment}-viberator-uploads-bucket`, {
+  const bucket = new aws.s3.BucketV2(`${options.config.environment}-viberglass-uploads-bucket`, {
     bucket: bucketName,
     tags: options.config.tags,
+  },
+  {
+    aliases: [{ name: `${options.config.environment}-viberator-uploads-bucket` }],
   });
 
   // Enable server-side encryption with AES256
   const encryption = new aws.s3.BucketServerSideEncryptionConfigurationV2(
-    `${options.config.environment}-viberator-uploads-encryption`,
+    `${options.config.environment}-viberglass-uploads-encryption`,
     {
       bucket: bucket.id,
       rules: [
@@ -170,7 +173,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
 
   // Block all public access
   const publicAccessBlock = new aws.s3.BucketPublicAccessBlock(
-    `${options.config.environment}-viberator-uploads-public-block`,
+    `${options.config.environment}-viberglass-uploads-public-block`,
     {
       bucket: bucket.id,
       blockPublicAcls: true,
@@ -182,7 +185,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
 
   // Configure versioning
   const versioning = new aws.s3.BucketVersioningV2(
-    `${options.config.environment}-viberator-uploads-versioning`,
+    `${options.config.environment}-viberglass-uploads-versioning`,
     {
       bucket: bucket.id,
       versioningConfiguration: {
@@ -266,7 +269,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
   let lifecycleConfiguration: aws.s3.BucketLifecycleConfigurationV2 | undefined;
   if (rules.length > 0) {
     lifecycleConfiguration = new aws.s3.BucketLifecycleConfigurationV2(
-      `${options.config.environment}-viberator-uploads-lifecycle`,
+      `${options.config.environment}-viberglass-uploads-lifecycle`,
       {
         bucket: bucket.id,
         rules: rules,
@@ -275,8 +278,8 @@ export function createStorage(options: StorageOptions): StorageOutputs {
   }
 
   // Create IAM policy for S3 access
-  const s3AccessPolicy = new aws.iam.Policy(`${options.config.environment}-viberator-s3-access-policy`, {
-    name: `${options.config.environment}-viberator-s3-access-policy`,
+  const s3AccessPolicy = new aws.iam.Policy(`${options.config.environment}-viberglass-s3-access-policy`, {
+    name: `${options.config.environment}-viberglass-s3-access-policy`,
     policy: pulumi.interpolate`{
       "Version": "2012-10-17",
       "Statement": [

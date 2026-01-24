@@ -44,16 +44,19 @@ export function createQueue(options: QueueOptions): QueueOutputs {
 
   // Create dead letter queue for failed messages
   const deadLetterQueue = new aws.sqs.Queue(
-    `${options.config.environment}-viberator-worker-dlq`,
+    `${options.config.environment}-viberglass-worker-dlq`,
     {
       visibilityTimeoutSeconds: visibilityTimeout,
       messageRetentionSeconds: messageRetention,
       tags: options.config.tags,
+    },
+    {
+      aliases: [{ name: `${options.config.environment}-viberator-worker-dlq` }],
     }
   );
 
   // Create main worker queue with redrive policy for DLQ
-  const queue = new aws.sqs.Queue(`${options.config.environment}-viberator-worker-queue`, {
+  const queue = new aws.sqs.Queue(`${options.config.environment}-viberglass-worker-queue`, {
     visibilityTimeoutSeconds: visibilityTimeout,
     messageRetentionSeconds: messageRetention,
     redrivePolicy: JSON.stringify({
@@ -61,6 +64,9 @@ export function createQueue(options: QueueOptions): QueueOutputs {
       maxReceiveCount: maxReceiveCount,
     }),
     tags: options.config.tags,
+  },
+  {
+    aliases: [{ name: `${options.config.environment}-viberator-worker-queue` }],
   });
 
   return {
