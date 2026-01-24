@@ -40,7 +40,7 @@ const logging: LoggingOutputs = createLogging({
 });
 
 // Create VPC with public/private subnets, NAT gateways, and security groups
-const vpc: VpcOutputs = createVpc(`${config.environment}-viberator`, {
+const vpc: VpcOutputs = createVpc(`${config.environment}-viberglass`, {
   environment: config.environment,
   singleNatGateway: config.singleNatGateway ?? true,
 });
@@ -96,7 +96,7 @@ const ecsWorker: WorkerEcsOutputs = createWorkerEcs({
 });
 
 // Attach KMS decrypt permission to Lambda worker role
-new aws.iam.RolePolicy(`${config.environment}-viberator-lambda-kms`, {
+new aws.iam.RolePolicy(`${config.environment}-viberglass-lambda-kms`, {
   role: lambdaWorker.lambdaRoleName,
   policy: pulumi.interpolate`{
     "Version": "2012-10-17",
@@ -109,7 +109,7 @@ new aws.iam.RolePolicy(`${config.environment}-viberator-lambda-kms`, {
 });
 
 // Attach KMS decrypt permission to ECS task role
-new aws.iam.RolePolicy(`${config.environment}-viberator-ecs-kms`, {
+new aws.iam.RolePolicy(`${config.environment}-viberglass-ecs-kms`, {
   role: ecsWorker.taskRoleName,
   policy: pulumi.interpolate`{
     "Version": "2012-10-17",
@@ -124,13 +124,13 @@ new aws.iam.RolePolicy(`${config.environment}-viberator-ecs-kms`, {
 // Create S3 storage for file uploads
 const storage: StorageOutputs = createStorage({
   config,
-  bucketPrefix: "viberator-uploads",
+  bucketPrefix: "viberglass-uploads",
   versioningEnabled: config.environment !== "dev",
 });
 
 // Attach S3 access policy to Lambda worker role
 const lambdaS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
-  `${config.environment}-viberator-lambda-s3-access`,
+  `${config.environment}-viberglass-lambda-s3-access`,
   {
     role: lambdaWorker.lambdaRoleName,
     policyArn: storage.accessPolicyArn,
@@ -139,7 +139,7 @@ const lambdaS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
 
 // Attach S3 access policy to ECS task role
 const ecsS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
-  `${config.environment}-viberator-ecs-s3-access`,
+  `${config.environment}-viberglass-ecs-s3-access`,
   {
     role: ecsWorker.taskRoleName,
     policyArn: storage.accessPolicyArn,
@@ -156,7 +156,7 @@ const backendDesiredCount = config.environment === "prod" ? 2 : 1;
 // Create Application Load Balancer for backend API
 const loadBalancer: LoadBalancerOutputs = createLoadBalancer({
   environment: config.environment,
-  projectName: "viberator",
+  projectName: "viberglass",
   vpcId: vpc.vpcId,
   vpcCidr: vpc.vpcCidr,
   publicSubnetIds: vpc.publicSubnetIds,
@@ -209,7 +209,7 @@ const backendService = createBackendService({
 });
 
 // Attach KMS decrypt permission to backend task role
-new aws.iam.RolePolicy(`${config.environment}-viberator-backend-kms`, {
+new aws.iam.RolePolicy(`${config.environment}-viberglass-backend-kms`, {
   role: backendEcs.taskRoleName,
   policy: pulumi.interpolate`{
     "Version": "2012-10-17",
@@ -223,7 +223,7 @@ new aws.iam.RolePolicy(`${config.environment}-viberator-backend-kms`, {
 
 // Attach S3 access policy to backend task role
 const backendS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
-  `${config.environment}-viberator-backend-s3-access`,
+  `${config.environment}-viberglass-backend-s3-access`,
   {
     role: backendEcs.taskRoleName,
     policyArn: storage.accessPolicyArn,
@@ -233,7 +233,7 @@ const backendS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
 // Create OIDC provider for GitHub Actions Amplify deployment
 const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
   config,
-  githubRepository: "ilities/viberator", // TODO: make configurable
+  githubRepository: "ilities/viberglass", // TODO: make configurable
 });
 
 // Create Amplify frontend app and branch
@@ -248,12 +248,12 @@ const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
 const secrets: DeploymentSecretsOutputs = createDeploymentSecrets({
   config,
   kmsKeyId: kms.keyId,
-  databaseUrl: pulumi.interpolate`postgresql://${config.environment}-viberator-db.${vpc.privateSubnetIds[0]}`,
-  databaseHost: pulumi.interpolate`${config.environment}-viberator-db.${vpc.privateSubnetIds[0]}`,
+  databaseUrl: pulumi.interpolate`postgresql://${config.environment}-viberglass-db.${vpc.privateSubnetIds[0]}`,
+  databaseHost: pulumi.interpolate`${config.environment}-viberglass-db.${vpc.privateSubnetIds[0]}`,
   frontendApiUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}/api`,
   amplifyAppId: pulumiConfig.get("amplifyAppId"),
   amplifyBranch: config.environment,
-  ecrRepository: registry.repositoryUrl.apply(url => url.split("/").pop() ?? "viberator-backend"),
+  ecrRepository: registry.repositoryUrl.apply(url => url.split("/").pop() ?? "viberglass-backend"),
   ecsCluster: ecsWorker.clusterName,
   ecsService: backendService.serviceName,
   oidcRoleArn: pulumiConfig.get("oidcRoleArn"),
