@@ -34,12 +34,12 @@ Complete brownfield integration project — agent orchestrator platform with end
   3. Package.json name field shows "viberglass" and description references Viberglass
   4. Code comments referring to the platform say "Viberglass" not "Viberator"
   5. MILESTONES.md v1.1+ entries use new branding terminology
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 13-01: Update project documentation (PROJECT.md, README.md, MILESTONES.md)
-- [ ] 13-02: Update package.json metadata (name, description)
-- [ ] 13-03: Update inline code comments with platform references
+- [ ] 13-01-PLAN.md — Update project documentation (PROJECT.md, README.md, MILESTONES.md)
+- [ ] 13-02-PLAN.md — Update package.json metadata (name, description)
+- [ ] 13-03-PLAN.md — Update inline code comments with platform references
 
 #### Phase 14: Code and UI Branding
 **Goal**: Application code and UI display correct branding
@@ -49,7 +49,7 @@ Plans:
   1. Frontend UI shows "Viberglass" as the platform name in headers/titles
   2. Frontend UI shows "Viberators" when referencing workers/agents
   3. API responses use "Viberglass" for platform references
-  4. Environment variables use VIBEGLASS_ prefix instead of VIBERATOR_
+  4. Environment variables use VIBERGLASS_ prefix instead of VIBERATOR_
   5. Worker classes retain "Viberator" in their names (BaseAgent, etc.)
 **Plans**: TBD
 
