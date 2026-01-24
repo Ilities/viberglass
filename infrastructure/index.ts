@@ -17,7 +17,7 @@ import { createAmplifyFrontend, AmplifyFrontendOutputs } from "./components/ampl
 import { createDeploymentSecrets, DeploymentSecretsOutputs } from "./components/secrets";
 
 /**
- * Viberator Infrastructure Stack
+ * Viberglass Infrastructure Stack
  *
  * This stack creates the AWS infrastructure for running Viberator workers:
  * - ECR repository for container images
@@ -233,7 +233,7 @@ const backendS3PolicyAttachment = new aws.iam.RolePolicyAttachment(
 // Create OIDC provider for GitHub Actions Amplify deployment
 const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
   config,
-  githubRepository: "jussijormanainen/viberator", // TODO: make configurable
+  githubRepository: "ilities/viberator", // TODO: make configurable
 });
 
 // Create Amplify frontend app and branch
