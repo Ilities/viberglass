@@ -50,6 +50,7 @@ Recent decisions affecting current work:
 - [Phase 13 Plan 01]: Root documentation branding pattern established - platform references become "Viberglass", worker/agent references remain "Viberators", v1.0 historical content preserved unchanged
 - [Phase 13 Plan 03]: Code comments updated to reference "Viberglass" for platform, "Viberator" for workers. Only infrastructure/index.ts required changes (other files had no platform references in comments).
 - [Phase 13 Plan 04]: Gap closure — packages/types JSDoc comments updated to "Viberglass platform" and package rebuilt. All Phase 13 success criteria now verified.
+- [Phase 14 Plan 02]: Webhook User-Agent pattern established as "Viberglass-Webhook/1.0" for all external API calls. Base and GitHub webhook providers updated to send Viberglass branding in headers.
 - [Phase 14 Plan 05]: CODE-04 verification - No platform component classes need renaming. ViberatorWorker and VibugViberator are worker classes (correct per branding split).
 - [Phase 14 Plan 05]: CODE-05 verification - No VIBERATOR_ prefixed env vars exist. Lowercase viberator naming is appropriate (PostgreSQL conventions). Future platform-scoped env vars should use VIBERGLASS_ prefix.
 
