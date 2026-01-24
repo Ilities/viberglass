@@ -62,7 +62,7 @@ export function createLogging(options: LoggingOptions): LoggingOutputs {
   const retentionInDays = options.retentionInDays ?? getDefaultRetentionDays(options.environment);
 
   const defaultTags = {
-    Project: "viberator",
+    Project: "viberglass",
     Environment: options.environment,
     ManagedBy: "pulumi",
     ...options.tags,
@@ -70,22 +70,22 @@ export function createLogging(options: LoggingOptions): LoggingOutputs {
 
   // Lambda worker log group
   // Lambda automatically creates logs to /aws/lambda/{function-name}
-  const lambdaLogGroup = new aws.cloudwatch.LogGroup(`${options.environment}-viberator-lambda-logs`, {
-    name: `/aws/lambda/viberator-${options.environment}-worker`,
+  const lambdaLogGroup = new aws.cloudwatch.LogGroup(`${options.environment}-viberglass-lambda-logs`, {
+    name: `/aws/lambda/viberglass-${options.environment}-worker`,
     retentionInDays: retentionInDays,
     tags: defaultTags,
   });
 
   // ECS worker log group
-  const ecsWorkerLogGroup = new aws.cloudwatch.LogGroup(`${options.environment}-viberator-ecs-worker-logs`, {
-    name: `/ecs/viberator-${options.environment}-worker`,
+  const ecsWorkerLogGroup = new aws.cloudwatch.LogGroup(`${options.environment}-viberglass-ecs-worker-logs`, {
+    name: `/ecs/viberglass-${options.environment}-worker`,
     retentionInDays: retentionInDays,
     tags: defaultTags,
   });
 
   // Backend log group
-  const backendLogGroup = new aws.cloudwatch.LogGroup(`${options.environment}-viberator-backend-logs`, {
-    name: `/ecs/viberator-${options.environment}-backend`,
+  const backendLogGroup = new aws.cloudwatch.LogGroup(`${options.environment}-viberglass-backend-logs`, {
+    name: `/ecs/viberglass-${options.environment}-backend`,
     retentionInDays: retentionInDays,
     tags: defaultTags,
   });
