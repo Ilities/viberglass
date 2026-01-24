@@ -29,8 +29,8 @@ const spaceMono = Space_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s - Viberator',
-    default: 'Viberator',
+    template: '%s - Viberglass',
+    default: 'Viberglass',
   },
   description: 'AI-powered bug fixing orchestrator',
 }
