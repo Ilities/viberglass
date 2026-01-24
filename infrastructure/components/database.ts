@@ -27,9 +27,9 @@ export interface DatabaseOptions {
   instanceClass?: string;
   /** Allocated storage in GB (default: 20) */
   allocatedStorage?: number;
-  /** Database name (default: viberator) */
+  /** Database name (default: viberglass) */
   dbName?: string;
-  /** Master username (default: viberator) */
+  /** Master username (default: viberglass) */
   masterUsername?: string;
   /** Enable Multi-AZ deployment (default: false) */
   multiAz?: boolean;
@@ -96,13 +96,16 @@ function createDbSubnetGroup(
   config: InfrastructureConfig,
   privateSubnetIds: pulumi.Output<string[]>
 ): aws.rds.SubnetGroup {
-  const subnetGroupName = `${config.environment}-viberator-db-subnet-group`;
+  const subnetGroupName = `${config.environment}-viberglass-db-subnet-group`;
 
   return new aws.rds.SubnetGroup(subnetGroupName, {
     name: subnetGroupName,
     subnetIds: privateSubnetIds,
-    description: "Viberator database subnet group",
+    description: "Viberglass database subnet group",
     tags: config.tags,
+  },
+  {
+    aliases: [{ name: `${config.environment}-viberator-db-subnet-group` }],
   });
 }
 
@@ -112,12 +115,12 @@ function createDbSubnetGroup(
 function createDbParameterGroup(
   config: InfrastructureConfig
 ): aws.rds.ParameterGroup {
-  const parameterGroupName = `${config.environment}-viberator-db-pg`;
+  const parameterGroupName = `${config.environment}-viberglass-db-pg`;
 
   return new aws.rds.ParameterGroup(parameterGroupName, {
     name: parameterGroupName,
     family: "postgres16",
-    description: "Viberator database parameter group",
+    description: "Viberglass database parameter group",
     parameters: [
       {
         name: "shared_buffers",
@@ -141,6 +144,9 @@ function createDbParameterGroup(
       },
     ],
     tags: config.tags,
+  },
+  {
+    aliases: [{ name: `${config.environment}-viberator-db-pg` }],
   });
 }
 
@@ -160,11 +166,11 @@ function createDatabaseCredentials(
   urlParam: aws.ssm.Parameter;
   hostParam: aws.ssm.Parameter;
 } {
-  const basePath = `/viberator/${config.environment}/database`;
+  const basePath = `/viberglass/${config.environment}/database`;
 
   // Generate random password
   const randomPassword = new random.RandomPassword(
-    `${config.environment}-viberator-db-password`,
+    `${config.environment}-viberglass-db-password`,
     {
       length: 32,
       special: true,
@@ -174,7 +180,7 @@ function createDatabaseCredentials(
 
   // Username parameter (fixed value)
   const usernameParam = new aws.ssm.Parameter(
-    `${config.environment}-viberator-db-username`,
+    `${config.environment}-viberglass-db-username`,
     {
       name: `${basePath}/username`,
       type: "String",
@@ -185,7 +191,7 @@ function createDatabaseCredentials(
 
   // Password parameter (SecureString with KMS encryption)
   const passwordParam = new aws.ssm.Parameter(
-    `${config.environment}-viberator-db-password`,
+    `${config.environment}-viberglass-db-password`,
     {
       name: `${basePath}/password`,
       type: "SecureString",
@@ -197,7 +203,7 @@ function createDatabaseCredentials(
 
   // Connection URL parameter (SecureString with KMS encryption)
   const urlParam = new aws.ssm.Parameter(
-    `${config.environment}-viberator-db-url`,
+    `${config.environment}-viberglass-db-url`,
     {
       name: `${basePath}/url`,
       type: "SecureString",
@@ -209,7 +215,7 @@ function createDatabaseCredentials(
 
   // Host parameter (RDS endpoint)
   const hostParam = new aws.ssm.Parameter(
-    `${config.environment}-viberator-db-host`,
+    `${config.environment}-viberglass-db-host`,
     {
       name: `${basePath}/host`,
       type: "String",
@@ -238,12 +244,12 @@ function createRdsInstance(
   masterPassword: pulumi.Input<string>,
   options: DatabaseOptions
 ): aws.rds.Instance {
-  const instanceName = `${config.environment}-viberator-db`;
+  const instanceName = `${config.environment}-viberglass-db`;
   const instanceClass =
     options.instanceClass ??
     (config.environment === "prod" ? "db.m6g.xlarge" : "db.t4g.micro");
-  const dbName = options.dbName ?? "viberator";
-  const masterUsername = options.masterUsername ?? "viberator";
+  const dbName = options.dbName ?? "viberglass";
+  const masterUsername = options.masterUsername ?? "viberglass";
   const allocatedStorage = options.allocatedStorage ?? 20;
   const multiAz = options.multiAz ?? (config.environment === "prod");
   const backupRetentionPeriod =
@@ -275,15 +281,18 @@ function createRdsInstance(
     skipFinalSnapshot,
     finalSnapshotIdentifier: skipFinalSnapshot
       ? undefined
-      : `${config.environment}-viberator-db-final-snapshot`,
+      : `${config.environment}-viberglass-db-final-snapshot`,
     deletionProtection,
     backupRetentionPeriod,
     monitoringInterval,
     tags: {
       ...config.tags,
       Name: instanceName,
-      Application: "viberator",
+      Application: "viberglass",
     },
+  },
+  {
+    aliases: [{ name: `${config.environment}-viberator-db` }],
   });
 }
 
@@ -308,8 +317,8 @@ export function createDatabase(
     config,
     vpc,
     kmsKeyArn,
-    dbName = "viberator",
-    masterUsername = "viberator",
+    dbName = "viberglass",
+    masterUsername = "viberglass",
   } = options;
 
   // 1. Create DB subnet group
@@ -341,11 +350,11 @@ export function createDatabase(
   );
 
   // 5. Update SSM parameters with actual RDS endpoint
-  const basePath = `/viberator/${config.environment}/database`;
+  const basePath = `/viberglass/${config.environment}/database`;
 
   // Create new URL and host parameters with the actual endpoint
   const urlParam = new aws.ssm.Parameter(
-    `${config.environment}-viberator-db-url-actual`,
+    `${config.environment}-viberglass-db-url-actual`,
     {
       name: `${basePath}/url`,
       type: "SecureString",
@@ -356,7 +365,7 @@ export function createDatabase(
   );
 
   const hostParam = new aws.ssm.Parameter(
-    `${config.environment}-viberator-db-host-actual`,
+    `${config.environment}-viberglass-db-host-actual`,
     {
       name: `${basePath}/host`,
       type: "String",
