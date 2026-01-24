@@ -46,11 +46,14 @@ export class WorkerInvokerFactory {
   }
 
   getInvokerForClanker(clanker: { deploymentStrategy?: { name: string } | null }): WorkerInvoker {
-    const strategyName = clanker.deploymentStrategy?.name?.toLowerCase() as WorkerType;
+    const strategyName = clanker.deploymentStrategy?.name?.toLowerCase();
     if (!strategyName) {
       throw new Error('Clanker has no deployment strategy');
     }
-    return this.getInvoker(strategyName);
+    if (strategyName === "aws-lambda-container") {
+      return this.getInvoker("lambda");
+    }
+    return this.getInvoker(strategyName as WorkerType);
   }
 
   getRegisteredTypes(): WorkerType[] {

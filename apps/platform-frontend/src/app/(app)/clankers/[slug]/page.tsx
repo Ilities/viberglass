@@ -74,6 +74,19 @@ export default async function ClankerPage({ params }: { params: Promise<{ slug: 
               {clanker.statusMessage && (
                 <span className="ml-2 text-sm text-zinc-500">{clanker.statusMessage}</span>
               )}
+              {clanker.status === 'inactive' && (
+                <div className="mt-2 text-sm text-zinc-500">
+                  This clanker has not been started yet. Use Start to provision it.
+                </div>
+              )}
+              {clanker.status === 'deploying' && (
+                <div className="mt-2 text-sm text-zinc-500">Provisioning is in progress. This may take a moment.</div>
+              )}
+              {clanker.status === 'failed' && (
+                <div className="mt-2 text-sm text-zinc-500">
+                  Start the clanker again after updating its configuration.
+                </div>
+              )}
             </DescriptionDetails>
 
             <ClankerHealth clankerId={clanker.id} />
