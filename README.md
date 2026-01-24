@@ -1,6 +1,6 @@
-# Viberator
+# Viberglass
 
-Agent Orchestrator and Ticket Management Platform. Users create bug tickets that coding agents automatically fix, with results flowing back through the system.
+Agent Orchestrator and Ticket Management Platform. Users create bug tickets that coding agents (called Viberators) automatically fix, with results flowing back through the system.
 
 ## Quick Start
 
@@ -8,7 +8,7 @@ Start all services locally with a single command:
 
 ```bash
 # Clone and navigate to repository
-cd viberator
+cd viberglass
 
 # Start all services (postgres, redis, backend, frontend)
 docker compose up
@@ -36,24 +36,26 @@ For complete setup instructions, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVE
 ## Project Structure
 
 ```
-viberator/
+viberglass/
 ├── platform/
 │   ├── backend/     # Express API server
 │   └── frontend/    # Next.js web UI
 ├── viberator/
-│   ├── app/         # Worker implementation
+│   ├── app/         # Viberator worker implementation
 │   └── infrastructure/  # Docker infrastructure
 ├── packages/
 │   └── types/       # Shared TypeScript types
 └── docker-compose.yml   # Local development environment
 ```
 
+**Note:** The repository is `viberglass` (the platform), with `viberator/app` containing the worker/agent components (Viberators).
+
 ## Core Features
 
 - **Multi-repository ticket management** - Create tickets spanning multiple GitHub repositories
-- **Agent execution** - Integration with Claude Code, Qwen, and other AI agents
+- **Agent execution** - Integration with Claude Code, Qwen, and other AI agents (called Viberators)
 - **Clanker configuration** - Define runtime environments (Docker, ECS) with agent instructions
-- **Worker orchestration** - Ephemeral workers in local Docker, AWS Lambda, or ECS Fargate
+- **Viberator orchestration** - Ephemeral workers in local Docker, AWS Lambda, or ECS Fargate
 - **Webhook integration** - GitHub and Jira webhooks trigger ticket creation
 
 ## Requirements
