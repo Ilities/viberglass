@@ -1,4 +1,4 @@
-# Viberator Project Branding Guidelines
+# Viberglass Project Branding Guidelines
 
 ## Brand Colors
 
@@ -151,7 +151,7 @@ a:hover {
 
 ## Brand Concept
 
-Viberator is an orchestrator - the name combines "vibe" (harmony, coordination) with "orchestrator" (conducting multiple services). The logo features sound waves intersecting with a conductor's baton, symbolizing the coordination of multiple services working in harmony.
+Viberglass is an orchestrator platform - the name combines "vibe" (harmony, coordination) with "glass" (transparency, clarity). The logo features sound waves intersecting with a conductor's baton, symbolizing the coordination of multiple services working in harmony with clear visibility into operations.
 
 The color palette reflects this concept:
 - Warm tones evoke brass instruments and orchestra aesthetics
