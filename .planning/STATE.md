@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Users can create tickets that coding agents automatically fix, with the entire flow—ticket creation, agent execution, PR creation, and status updates—working end-to-end.
-**Current focus:** Phase 14 - Code and UI Branding
+**Current focus:** Phase 15 - Infrastructure Renaming
 
 ## Current Position
 
-Phase: 14 of 16 (Code and UI Branding)
-Plan: 5 of 5 in current phase
-Status: Phase complete
-Last activity: 2026-01-24 — Completed Phase 14 (all 5 plans) - Frontend UI, webhook headers, and README branding updated
+Phase: 15 of 16 (Infrastructure Renaming)
+Plan: 2 of 4 in current phase
+Status: In progress
+Last activity: 2026-01-24 — Completed Phase 15 Plan 02 - CloudWatch and SSM resource naming updated to viberglass prefix
 
-Progress: [███░░░░░░░] 22.22% (104/117 plans complete)
+Progress: [███░░░░░░░] 23.93% (105/117 plans complete)
 
 ## Performance Metrics
 
@@ -25,7 +25,7 @@ Progress: [███░░░░░░░] 22.22% (104/117 plans complete)
 
 **v1.1 Milestone (In Progress):**
 - Total plans: 20 (estimated)
-- Complete: 9 (Phase 13: 4, Phase 14: 5)
+- Complete: 10 (Phase 13: 4, Phase 14: 5, Phase 15: 1)
 
 **By Phase:**
 
@@ -34,7 +34,8 @@ Progress: [███░░░░░░░] 22.22% (104/117 plans complete)
 | 1-12 | 95 | Complete |
 | 13 | 4 | Complete |
 | 14 | 5 | Complete |
-| 15-16 | 13 | Not started |
+| 15 | 1 | In progress |
+| 16 | 8 | Not started |
 
 *Updated: 2026-01-24*
 
@@ -55,6 +56,8 @@ Recent decisions affecting current work:
 - [Phase 14 Plan 03]: UI worker terminology updated - "Viberator" properly capitalized in clanker creation page
 - [Phase 14 Plan 04]: Backend and infrastructure README branding updated to distinguish platform from workers; SSM paths and Pulumi stacks preserved for Phase 15
 - [Phase 14 Plan 05]: CODE-04 and CODE-05 verified as N/A - no platform class renames needed (worker classes use "Agent" terminology), no VIBERATOR_ prefixed env vars exist (lowercase naming appropriate for PostgreSQL)
+- [Phase 15 Plan 01]: Pulumi stack and backend service naming updated - backend service renamed from viberator-backend to viberglass-backend, stack outputs updated
+- [Phase 15 Plan 02]: CloudWatch and SSM resource naming updated - log groups use viberglass prefix, SSM parameter paths use /viberglass/ with Pulumi aliases for zero-downtime migration
 
 ### Pending Todos
 
@@ -67,7 +70,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-24
-Stopped at: Completed Phase 14 (all 5 plans) - Code and UI Branding complete, verified (5/5 must-haves)
+Stopped at: Completed Phase 15 Plan 02 - CloudWatch and SSM resource naming updated
 Resume file: None
 
 ## Milestone Archive
