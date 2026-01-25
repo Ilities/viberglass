@@ -43,6 +43,9 @@ infra/viberator/bin/
 apps/platform-frontend/.next*
 apps/platform-frontend/out/
 
+# Slack app
+apps/slack-app/data/
+
 # Temporary files
 *.swp
 *.swo

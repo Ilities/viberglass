@@ -8,6 +8,7 @@
     "apps/viberator",
     "apps/platform-backend",
     "apps/platform-frontend",
+    "apps/slack-app",
     "infra/viberator",
     "infra/platform",
     "tests/e2e"
