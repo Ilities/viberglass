@@ -11,7 +11,8 @@
     "stack:init": "pulumi stack init"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "prettier": "^3.8.1"
   },
   "dependencies": {
     "@pulumi/aws": "^6.0.0",

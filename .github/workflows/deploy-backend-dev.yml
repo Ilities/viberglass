@@ -39,10 +39,10 @@ jobs:
         id: get-config
         run: |
           # Fetch deployment configuration
-          AWS_REGION=$(aws ssm get-parameter --name "/viberator/dev/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "us-east-1")
-          ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberator/dev/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "viberator-backend")
-          ECS_CLUSTER=$(aws ssm get-parameter --name "/viberator/dev/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "dev-viberator-cluster")
-          ECS_SERVICE=$(aws ssm get-parameter --name "/viberator/dev/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "dev-viberator-backend")
+          AWS_REGION=$(aws ssm get-parameter --name "/viberglass/dev/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "us-east-1")
+          ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberglass/dev/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-repo")
+          ECS_CLUSTER=$(aws ssm get-parameter --name "/viberglass/dev/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend-cluster")
+          ECS_SERVICE=$(aws ssm get-parameter --name "/viberglass/dev/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend")
 
           echo "aws_region=$AWS_REGION" >> $GITHUB_OUTPUT
           echo "ecr_repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
@@ -77,7 +77,7 @@ jobs:
         id: get-db-url
         run: |
           DB_URL=$(aws ssm get-parameter \
-            --name "/viberator/${{ env.ENVIRONMENT }}/database/url" \
+            --name "/viberglass/${{ env.ENVIRONMENT }}/database/url" \
             --with-decryption \
             --query Parameter.Value \
             --output text)

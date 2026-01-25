@@ -1,7 +1,0 @@
-# Development environment configuration
-# Cost-optimized: single NAT gateway, minimal resources
-config:
-  viberator-infra:vpcCidr: 10.0.0.0/16
-  viberator-infra:singleNatGateway: true
-  viberator-infra:backendPort: 3000
-  aws:region: us-east-1

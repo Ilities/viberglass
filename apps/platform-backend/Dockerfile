@@ -2,14 +2,24 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-# Copy package files first for better caching
+# Copy root package files for workspace resolution
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Copy workspace package.json files to preserve monorepo structure
+COPY packages/types/package.json ./packages/types/
+COPY apps/platform-backend/package.json ./apps/platform-backend/
 
-# Copy the rest of the source code
-COPY . .
+# Install all dependencies (workspaces will be linked properly)
+RUN npm install --workspace=@viberglass/platform-backend --workspace=@viberglass/types
+
+# Copy types package source and build it
+COPY packages/types ./packages/types
+RUN npm run build --workspace=@viberglass/types
+
+# Copy the backend source code
+COPY apps/platform-backend ./apps/platform-backend
+
+WORKDIR /app/apps/platform-backend
 
 # Expose the port defined in your server.ts
 EXPOSE 3000

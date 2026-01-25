@@ -4,18 +4,54 @@ Pulumi-based AWS infrastructure for Viberglass - a platform where users create t
 
 ## Overview
 
-This infrastructure provisions all AWS resources required to run Viberator in production:
+This infrastructure is organized into three separate Pulumi stacks to enable resource sharing and cost optimization:
+
+### Three-Stack Architecture
+
+```
+infra/
+├── base/              # Shared infrastructure (VPC, KMS, Logging)
+├── platform/          # Backend & Frontend (ECS, ALB, Database, Amplify)
+└── workers/           # Worker infrastructure (Lambda, ECS workers, SQS)
+```
+
+**Stack Dependencies:**
+
+```
+     ┌──────────────┐
+     │    base      │
+     │  (VPC, KMS)  │
+     └──────────────┘
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+┌─────────┐ ┌─────────┐
+│platform │ │ workers │
+│(BE/FE)  │ │(ECS/λ)  │
+└─────────┘ └─────────┘
+```
+
+### Stack Resources
+
+**Base Stack (`infra/base/`):**
 
 - **VPC** - Networking with public/private subnets, NAT gateways, and security groups
-- **Database** - RDS PostgreSQL 16 with automated backups
-- **Storage** - S3 buckets for file uploads with lifecycle policies
 - **KMS** - Customer-managed encryption keys for SSM parameters
 - **Logging** - CloudWatch log groups with environment-specific retention
+
+**Platform Stack (`infra/platform/`):**
+
+- **Database** - RDS PostgreSQL 16 with automated backups
+- **Storage** - S3 buckets for file uploads with lifecycle policies
 - **Registry** - ECR repository for container images
-- **Queue** - SQS queue with dead-letter queue for job processing
-- **Workers** - Lambda and ECS Fargate for job execution
 - **Backend** - ECS Fargate service with Application Load Balancer
 - **Amplify** - Frontend SSR hosting with GitHub Actions deployment
+
+**Workers Stack (`infra/workers/`):**
+
+- **Registry** - ECR repository for worker images
+- **Queue** - SQS queue with dead-letter queue for job processing
+- **Workers** - Lambda and ECS Fargate for job execution
 
 ## Architecture
 
@@ -204,6 +240,7 @@ Before running Pulumi, set up an S3 bucket to store the state file securely.
 ```
 
 This script creates an S3 bucket with:
+
 - Versioning enabled
 - Server-side encryption (AES-256)
 - Public access blocked
@@ -224,23 +261,47 @@ export PULUMI_BACKEND_URL=s3://viberglass-pulumi-state
 ### 1. Install Dependencies
 
 ```bash
-cd infrastructure
-npm install
+# Install dependencies for all stacks
+cd infra/base && npm install
+cd ../platform && npm install
+cd ../workers && npm install
 ```
 
-### 2. Select a Stack
+### 2. Deploy in Order
+
+**Important:** Stacks must be deployed in this order due to dependencies.
+
+#### Step 1: Deploy Base Stack (VPC, KMS, Logging)
 
 ```bash
+cd infra/base
 pulumi stack select dev
+pulumi up
 ```
 
-Available stacks: `dev`, `staging`, `prod`
-
-### 3. Configure the Stack
+#### Step 2: Deploy Platform Stack (Backend, Database, Amplify)
 
 ```bash
-# Set AWS region
-pulumi config set aws:region us-east-1
+cd infra/platform
+pulumi stack select dev
+pulumi up
+```
+
+#### Step 3: Deploy Workers Stack (Lambda, ECS Workers, SQS)
+
+```bash
+cd infra/workers
+pulumi stack select dev
+pulumi up
+```
+
+**Note:** Platform and Workers stacks can be deployed in parallel after Base is complete.
+
+### 3. Configure Stack (if needed)
+
+```bash
+# Set AWS region (already configured in stack files)
+pulumi config set aws:region eu-west-1
 
 # Verify configuration
 pulumi config
@@ -252,11 +313,7 @@ pulumi config
 pulumi preview
 ```
 
-### 5. Deploy
-
-```bash
-pulumi up
-```
+Available stacks per project: `dev`, `prod`
 
 ## Stack Outputs
 
@@ -268,49 +325,52 @@ pulumi stack output
 
 ### Available Outputs
 
-| Output | Description |
-|--------|-------------|
-| `awsRegion` | AWS region where resources are deployed |
-| `environment` | Environment name (dev/staging/prod) |
-| `vpcId` | VPC ID |
-| `vpcCidr` | VPC CIDR block |
-| `publicSubnetIds` | Public subnet IDs |
-| `privateSubnetIds` | Private subnet IDs |
-| `databaseEndpoint` | RDS PostgreSQL endpoint |
-| `databasePort` | Database port (5432) |
-| `databaseSsmUrlPath` | SSM path for DATABASE_URL |
-| `databaseSsmHostPath` | SSM path for database host |
-| `databaseInstanceArn` | RDS instance ARN |
-| `databaseName` | Database name |
-| `repositoryUrl` | ECR repository URL |
-| `repositoryArn` | ECR repository ARN |
-| `queueUrl` | SQS queue URL |
-| `queueArn` | SQS queue ARN |
-| `lambdaArn` | Lambda worker function ARN |
-| `lambdaName` | Lambda worker function name |
-| `ecsClusterArn` | ECS cluster ARN |
-| `ecsClusterName` | ECS cluster name |
-| `ecsTaskDefinitionArn` | ECS worker task definition ARN |
-| `uploadsBucketName` | S3 uploads bucket name |
-| `uploadsBucketArn` | S3 uploads bucket ARN |
-| `kmsKeyId` | KMS key ID |
-| `kmsKeyArn` | KMS key ARN |
-| `lambdaLogGroupName` | Lambda worker log group name |
-| `ecsWorkerLogGroupName` | ECS worker log group name |
-| `backendLogGroupName` | Backend service log group name |
-| `backendUrl` | Backend API URL (ALB DNS name) |
-| `backendServiceArn` | Backend ECS service ARN |
-| `albDnsName` | Application Load Balancer DNS name |
-| `albArn` | ALB ARN |
-| `albTargetGroupArn` | ALB target group ARN |
-| `amplifyAppId` | Amplify application ID |
-| `amplifyAppArn` | Amplify application ARN |
-| `amplifyDefaultDomain` | Amplify app default domain |
-| `amplifyBranchName` | Amplify branch name |
-| `amplifyOidcRoleArn` | IAM role ARN for GitHub Actions |
-| `amplifySsmAppIdPath` | SSM path for app ID |
-| `amplifySsmBranchNamePath` | SSM path for branch name |
-| `amplifySsmRegionPath` | SSM path for region |
+| Output                     | Description                                      |
+| -------------------------- | ------------------------------------------------ |
+| `awsRegion`                | AWS region where resources are deployed          |
+| `environment`              | Environment name (dev/staging/prod)              |
+| `networkMode`              | Network mode (enterprise or standard)            |
+| `vpcId`                    | VPC ID                                           |
+| `vpcCidr`                  | VPC CIDR block                                   |
+| `publicSubnetIds`          | Public subnet IDs                                |
+| `privateSubnetIds`         | Private subnet IDs                               |
+| `databaseEndpoint`         | RDS PostgreSQL endpoint                          |
+| `databasePort`             | Database port (5432)                             |
+| `databaseSsmUrlPath`       | SSM path for DATABASE_URL                        |
+| `databaseSsmHostPath`      | SSM path for database host                       |
+| `databaseInstanceArn`      | RDS instance ARN                                 |
+| `databaseName`             | Database name                                    |
+| `repositoryUrl`            | ECR repository URL                               |
+| `repositoryArn`            | ECR repository ARN                               |
+| `queueUrl`                 | SQS queue URL                                    |
+| `queueArn`                 | SQS queue ARN                                    |
+| `lambdaArn`                | Lambda worker function ARN                       |
+| `lambdaName`               | Lambda worker function name                      |
+| `ecsClusterArn`            | ECS cluster ARN                                  |
+| `ecsClusterName`           | ECS cluster name                                 |
+| `ecsTaskDefinitionArn`     | ECS worker task definition ARN                   |
+| `workerSubnets`            | ECS worker subnet IDs (derived from networkMode) |
+| `workerAssignPublicIp`     | ECS worker public IP setting (true/false)        |
+| `uploadsBucketName`        | S3 uploads bucket name                           |
+| `uploadsBucketArn`         | S3 uploads bucket ARN                            |
+| `kmsKeyId`                 | KMS key ID                                       |
+| `kmsKeyArn`                | KMS key ARN                                      |
+| `lambdaLogGroupName`       | Lambda worker log group name                     |
+| `ecsWorkerLogGroupName`    | ECS worker log group name                        |
+| `backendLogGroupName`      | Backend service log group name                   |
+| `backendUrl`               | Backend API URL (ALB DNS name)                   |
+| `backendServiceArn`        | Backend ECS service ARN                          |
+| `albDnsName`               | Application Load Balancer DNS name               |
+| `albArn`                   | ALB ARN                                          |
+| `albTargetGroupArn`        | ALB target group ARN                             |
+| `amplifyAppId`             | Amplify application ID                           |
+| `amplifyAppArn`            | Amplify application ARN                          |
+| `amplifyDefaultDomain`     | Amplify app default domain                       |
+| `amplifyBranchName`        | Amplify branch name                              |
+| `amplifyOidcRoleArn`       | IAM role ARN for GitHub Actions                  |
+| `amplifySsmAppIdPath`      | SSM path for app ID                              |
+| `amplifySsmBranchNamePath` | SSM path for branch name                         |
+| `amplifySsmRegionPath`     | SSM path for region                              |
 
 ## Configuration
 
@@ -318,37 +378,60 @@ Stack configuration is stored in `Pulumi.{stack}.yaml` files.
 
 ### Configuration Keys
 
-| Config Key | Type | Default | Description |
-|------------|------|---------|-------------|
-| `aws:region` | string | `us-east-1` | AWS region for all resources |
-| `awsRegion` | string | (from aws:region) | Viberator-specific region config |
-| `environment` | string | `dev` | Environment name (dev/staging/prod) |
-| `enableSpot` | bool | `false` | Use Fargate Spot for workers (dev only) |
-| `containerInsights` | bool | `true` | Enable ECS Container Insights |
-| `dbInstanceClass` | string | (per env) | RDS instance class |
-| `dbAllocatedStorage` | number | (per env) | RDS storage in GB |
-| `singleNatGateway` | bool | (per env) | Use single NAT for cost savings |
-| `logRetentionDays` | number | (per env) | CloudWatch log retention |
+**Base Stack (`infra/base/`):**
+
+| Config Key         | Type   | Default           | Description                                                                                       |
+| ------------------ | ------ | ----------------- | ------------------------------------------------------------------------------------------------- |
+| `aws:region`       | string | `eu-west-1`       | AWS region for all resources                                                                      |
+| `awsRegion`        | string | (from aws:region) | Viberglass-specific region config                                                                 |
+| `environment`      | string | `dev`             | Environment name (dev/staging/prod)                                                               |
+| `networkMode`      | string | `enterprise`      | Network mode: `enterprise` (private subnets + NAT) or `standard` (public compute subnets, no NAT) |
+| `singleNatGateway` | bool   | (per env)         | Use single NAT for cost savings                                                                   |
+| `logRetentionDays` | number | (per env)         | CloudWatch log retention                                                                          |
+
+**Platform Stack (`infra/platform/`):**
+
+| Config Key           | Type   | Default           | Description                                        |
+| -------------------- | ------ | ----------------- | -------------------------------------------------- |
+| `aws:region`         | string | `eu-west-1`       | AWS region for all resources                       |
+| `awsRegion`          | string | (from aws:region) | Viberglass-specific region config                  |
+| `environment`        | string | `dev`             | Environment name (dev/staging/prod)                |
+| `baseStack`          | string | **required**      | Base stack reference (e.g., "viberglass-base/dev") |
+| `enableSpot`         | bool   | `false`           | Use Fargate Spot for workers (dev only)            |
+| `containerInsights`  | bool   | `true`            | Enable ECS Container Insights                      |
+| `dbInstanceClass`    | string | (per env)         | RDS instance class                                 |
+| `dbAllocatedStorage` | number | (per env)         | RDS storage in GB                                  |
+
+**Workers Stack (`infra/workers/`):**
+
+| Config Key          | Type   | Default           | Description                                        |
+| ------------------- | ------ | ----------------- | -------------------------------------------------- |
+| `aws:region`        | string | `eu-west-1`       | AWS region for all resources                       |
+| `awsRegion`         | string | (from aws:region) | Viberglass-specific region config                  |
+| `environment`       | string | `dev`             | Environment name (dev/staging/prod)                |
+| `baseStack`         | string | **required**      | Base stack reference (e.g., "viberglass-base/dev") |
+| `enableSpot`        | bool   | `false`           | Use Fargate Spot for workers (dev only)            |
+| `containerInsights` | bool   | `true`            | Enable ECS Container Insights                      |
 
 #### Valid Values Reference
 
 **Database Instance Classes:**
 
-| Instance | vCPU | Memory | Cost/month | Environment |
-|----------|------|--------|------------|-------------|
-| `db.t4g.micro` | 2 | 1 GB | ~$15 | Dev |
-| `db.t4g.large` | 2 | 8 GB | ~$70 | Staging |
-| `db.m6g.xlarge` | 4 | 16 GB | ~$180 | Production |
+| Instance        | vCPU | Memory | Cost/month | Environment |
+| --------------- | ---- | ------ | ---------- | ----------- |
+| `db.t4g.micro`  | 2    | 1 GB   | ~$15       | Dev         |
+| `db.t4g.large`  | 2    | 8 GB   | ~$70       | Staging     |
+| `db.m6g.xlarge` | 4    | 16 GB  | ~$180      | Production  |
 
 **Log Retention Options:**
 
-| Value | Retention | Use Case |
-|-------|-----------|----------|
-| 1 | 1 day | Debugging |
-| 7 | 1 week | Development |
-| 30 | 1 month | Staging |
-| 90 | 3 months | Production |
-| 365 | 1 year | Compliance |
+| Value | Retention | Use Case    |
+| ----- | --------- | ----------- |
+| 1     | 1 day     | Debugging   |
+| 7     | 1 week    | Development |
+| 30    | 1 month   | Staging     |
+| 90    | 3 months  | Production  |
+| 365   | 1 year    | Compliance  |
 
 ### Environment Defaults
 
@@ -357,6 +440,7 @@ Stack configuration is stored in `Pulumi.{stack}.yaml` files.
 ```yaml
 dbInstanceClass: db.t4g.micro
 dbAllocatedStorage: 20
+networkMode: enterprise # set to standard for public compute subnets + no NAT
 singleNatGateway: true
 logRetentionDays: 7
 enableSpot: true
@@ -367,6 +451,7 @@ enableSpot: true
 ```yaml
 dbInstanceClass: db.t4g.large
 dbAllocatedStorage: 50
+networkMode: enterprise # set to standard for public compute subnets + no NAT
 singleNatGateway: true
 logRetentionDays: 30
 enableSpot: false
@@ -377,7 +462,8 @@ enableSpot: false
 ```yaml
 dbInstanceClass: db.m6g.xlarge
 dbAllocatedStorage: 100
-singleNatGateway: false  # Multi-NAT for HA
+networkMode: enterprise # set to standard for public compute subnets + no NAT
+singleNatGateway: false # Multi-NAT for HA
 logRetentionDays: 90
 enableSpot: false
 ```
@@ -411,6 +497,7 @@ Creates a Virtual Private Cloud with:
 - Internet gateway and route tables
 
 **Key Features:**
+
 - Single NAT gateway for dev/staging (cost optimization)
 - Multi-NAT for production (high availability)
 - Security group references for inter-service communication
@@ -425,6 +512,7 @@ Creates an RDS PostgreSQL 16 instance with:
 - KMS encryption for SecureString parameters
 
 **SSM Parameters:**
+
 - `/viberator/{environment}/db/username` - Database user
 - `/viberator/{environment}/db/password` - Database password (encrypted)
 - `/viberator/{environment}/db/url` - Full connection string
@@ -441,11 +529,11 @@ Creates S3 buckets for file uploads with:
 
 **Lifecycle Policies:**
 
-| Environment | Object Expiration | Version Expiration | Transitions |
-|-------------|-------------------|--------------------|------------|
-| Dev | 90 days | 7 days | None |
-| Staging | Never | 90 days | Noncurrent -> IA after 30 days |
-| Prod | Never | 365 days | Current -> IA -> Glacier -> Deep Archive |
+| Environment | Object Expiration | Version Expiration | Transitions                              |
+| ----------- | ----------------- | ------------------ | ---------------------------------------- |
+| Dev         | 90 days           | 7 days             | None                                     |
+| Staging     | Never             | 90 days            | Noncurrent -> IA after 30 days           |
+| Prod        | Never             | 365 days           | Current -> IA -> Glacier -> Deep Archive |
 
 ### KMS Component (`components/kms.ts`)
 
@@ -522,10 +610,10 @@ Creates backend service:
 
 **Auto-scaling by Environment:**
 
-| Environment | CPU/Memory | Min Tasks | Max Tasks |
-|-------------|------------|-----------|-----------|
-| Dev | 256/512 MB | 1 | 3 |
-| Prod | 512/1024 MB | 2 | 10 |
+| Environment | CPU/Memory  | Min Tasks | Max Tasks |
+| ----------- | ----------- | --------- | --------- |
+| Dev         | 256/512 MB  | 1         | 3         |
+| Prod        | 512/1024 MB | 2         | 10        |
 
 ### Amplify Frontend Component (`components/amplify-frontend.ts`)
 
@@ -539,6 +627,7 @@ Creates AWS Amplify application for SSR frontend hosting with:
 - SSM parameters for app ID, branch name, and region
 
 **SSM Parameters:**
+
 - `/viberator/{environment}/amplify/appId` - Amplify app ID
 - `/viberator/{environment}/amplify/branchName` - Deployment branch name
 - `/viberator/{environment}/amplify/region` - AWS region
@@ -605,6 +694,7 @@ Frontend is deployed via AWS Amplify SSR:
 4. Amplify builds Next.js app with `npm run build` and deploys .next output
 
 **Configuration:**
+
 - Platform: WEB_COMPUTE (SSR)
 - Build output: .next directory
 - Environment variable: NEXT_PUBLIC_API_URL (from backend ALB)
@@ -645,33 +735,39 @@ aws ecs execute-command \
 ### Common Issues
 
 **Pulumi Not Found**
+
 ```bash
 curl -fsSL https://get.pulumi.com | sh
 export PATH=$PATH:$HOME/.pulumi/bin
 ```
 
 **AWS Credentials Not Configured**
+
 ```bash
 aws configure
 # Or check: aws sts get-caller-identity
 ```
 
 **Container Build Fails**
+
 - Ensure Docker is running: `docker ps`
 - Check context path in `backend-ecs.ts`
 - Verify Dockerfile exists
 
 **RDS Connection Timeout**
+
 - Check security group allows backend SG on port 5432
 - Verify RDS is in VPC
 - Check backend has SSM permissions
 
 **NAT Gateway Costs**
+
 - Dev uses single NAT gateway (~$30/month)
 - Check `singleNatGateway` config
 - Consider removing NAT if workers don't need internet
 
 **Amplify Deployment Fails**
+
 - Run `pulumi up` to ensure Amplify app and SSM parameters exist
 - Verify SSM parameters: `aws ssm get-parameter --name /viberator/dev/amplify/appId`
 - Check GitHub Actions has OIDC role: `aws iam get-role --role-name dev-amplify-github-actions-role`
@@ -680,19 +776,19 @@ aws configure
 
 ### Monthly Cost Estimates (us-east-1)
 
-| Resource | Dev | Staging | Prod |
-|----------|-----|---------|------|
-| NAT Gateway | $32 | $32 | $64 |
-| RDS (t4g.micro) | $15 | - | - |
-| RDS (t4g.large) | - | $70 | - |
-| RDS (m6g.xlarge) | - | - | $180 |
-| ALB | $18 | $18 | $18 |
-| ECS Backend | $15 | $30 | $60 |
-| ECS Workers | $30 | $60 | $100 |
-| Lambda | $5 | $10 | $20 |
-| S3 Storage | $2 | $5 | $10 |
-| CloudWatch Logs | $5 | $10 | $20 |
-| **Total** | ~$122 | ~$235 | ~$472 |
+| Resource         | Dev   | Staging | Prod  |
+| ---------------- | ----- | ------- | ----- |
+| NAT Gateway      | $32   | $32     | $64   |
+| RDS (t4g.micro)  | $15   | -       | -     |
+| RDS (t4g.large)  | -     | $70     | -     |
+| RDS (m6g.xlarge) | -     | -       | $180  |
+| ALB              | $18   | $18     | $18   |
+| ECS Backend      | $15   | $30     | $60   |
+| ECS Workers      | $30   | $60     | $100  |
+| Lambda           | $5    | $10     | $20   |
+| S3 Storage       | $2    | $5      | $10   |
+| CloudWatch Logs  | $5    | $10     | $20   |
+| **Total**        | ~$122 | ~$235   | ~$472 |
 
 ### Cost-Saving Measures
 
@@ -702,12 +798,23 @@ aws configure
 
 ### Clean Up
 
+**Important:** Destroy stacks in reverse order (workers → platform → base).
+
 ```bash
-# Destroy all resources
+# Destroy workers stack first
+cd infra/workers
 pulumi destroy
 
-# Remove stack
-pulumi stack rm dev
+# Then destroy platform stack
+cd ../platform
+pulumi destroy
+
+# Finally destroy base stack (VPC, KMS, logging)
+cd ../base
+pulumi destroy
+
+# Remove stacks (optional)
+pulumi stack rm dev  # for each stack directory
 ```
 
 ## Security Notes

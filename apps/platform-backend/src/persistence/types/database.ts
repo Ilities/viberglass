@@ -28,11 +28,14 @@ export interface ProjectsTable {
     | "linear"
     | "github"
     | "gitlab"
+    | "bitbucket"
     | "azure"
     | "asana"
     | "trello"
     | "monday"
-    | "clickup";
+    | "clickup"
+    | "shortcut"
+    | "slack";
   credentials: Json;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
@@ -72,11 +75,14 @@ export interface TicketsTable {
     | "linear"
     | "github"
     | "gitlab"
+    | "bitbucket"
     | "azure"
     | "asana"
     | "trello"
     | "monday"
-    | "clickup";
+    | "clickup"
+    | "shortcut"
+    | "slack";
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   pull_request_url: string | null;
@@ -92,11 +98,14 @@ export interface PMIntegrationsTable {
     | "linear"
     | "github"
     | "gitlab"
+    | "bitbucket"
     | "azure"
     | "asana"
     | "trello"
     | "monday"
-    | "clickup";
+    | "clickup"
+    | "shortcut"
+    | "slack";
   config: Json;
   is_active: Generated<boolean>;
   created_at: Generated<Timestamp>;

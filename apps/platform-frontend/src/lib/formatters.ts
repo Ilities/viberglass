@@ -38,11 +38,14 @@ export function formatTicketSystem(system: string): string {
     linear: 'Linear',
     jira: 'Jira',
     gitlab: 'GitLab',
+    bitbucket: 'Bitbucket',
     azure: 'Azure DevOps',
     asana: 'Asana',
     trello: 'Trello',
     monday: 'Monday',
     clickup: 'ClickUp',
+    shortcut: 'Shortcut',
+    slack: 'Slack',
   }
   return systems[system] || system
 }
