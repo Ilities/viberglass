@@ -14,10 +14,6 @@ description: Viberglass AWS Infrastructure
 # Secret types documented below for reference:
 # dev:
 #   secrets:
-#     databaseUrl:
-#       secure: true
-#     databaseHost:
-#       secure: true
 #     frontendApiUrl:
 #       secure: false
 #     amplifyAppId:

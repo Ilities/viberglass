@@ -17,11 +17,14 @@ const ticketSystems = [
   { id: 'linear', name: 'Linear' },
   { id: 'github', name: 'GitHub Issues' },
   { id: 'gitlab', name: 'GitLab Issues' },
+  { id: 'bitbucket', name: 'Bitbucket Issues' },
   { id: 'azure', name: 'Azure DevOps' },
   { id: 'asana', name: 'Asana' },
   { id: 'trello', name: 'Trello' },
   { id: 'monday', name: 'Monday.com' },
   { id: 'clickup', name: 'ClickUp' },
+  { id: 'shortcut', name: 'Shortcut' },
+  { id: 'slack', name: 'Slack' },
 ]
 
 export default function NewProjectPage() {

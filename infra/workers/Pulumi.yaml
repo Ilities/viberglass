@@ -1,0 +1,3 @@
+name: viberglass-workers
+runtime: nodejs
+description: Viberglass Workers Infrastructure (Lambda, ECS, SQS)

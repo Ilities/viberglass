@@ -1,0 +1,19 @@
+# Production stack configuration for base infrastructure
+# Usage: pulumi stack select prod
+
+config:
+  # AWS region for all resources
+  aws:region: eu-west-1
+  viberglass-base:awsRegion: eu-west-1
+
+  # Environment name (dev, staging, prod)
+  viberglass-base:environment: prod
+
+  # Network mode: enterprise (private subnets + NAT) or standard (public compute subnets, no NAT)
+  # viberglass-base:networkMode: "enterprise"
+
+  # Multi-AZ NAT gateways for high availability in prod
+  viberglass-base:singleNatGateway: "false"
+
+  # Log retention in days (default: 90 for prod)
+  # viberglass-base:logRetentionDays: 90

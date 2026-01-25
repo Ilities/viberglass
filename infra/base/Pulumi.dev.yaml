@@ -1,0 +1,19 @@
+# Development stack configuration for base infrastructure
+# Usage: pulumi stack select dev
+
+config:
+  # AWS region for all resources
+  aws:region: eu-west-1
+  viberglass-base:awsRegion: eu-west-1
+  # Environment name (dev, staging, prod)
+  viberglass-base:environment: dev
+
+  # Network mode: enterprise (private subnets + NAT) or standard (public compute subnets, no NAT)
+  # viberglass-base:networkMode: "standard"
+encryptionsalt: v1:A7TRkVJsBEA=:v1:8eGLE7kPzxKkpA58:n17E7Lb8e1WmQIvnt227uc1/qPOOVw==
+
+# Use single NAT gateway for cost savings in dev
+# viberglass-base:singleNatGateway: "true"
+
+# Log retention in days (default: 7 for dev)
+# viberglass-base:logRetentionDays: 7

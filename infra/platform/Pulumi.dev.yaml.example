@@ -7,24 +7,26 @@ encryptionsalt:
 
 config:
   # AWS region for all resources
-  aws:region: us-east-1
-  viberator:awsRegion: us-east-1
+  aws:region: eu-west-1
+  viberglass:awsRegion: eu-west-1
 
   # Environment name (dev, staging, prod)
   # Affects resource naming, log retention, and cost optimizations
-  viberator:environment: dev
+  viberglass:environment: dev
+
+  # Base stack reference (REQUIRED)
+  # Format: organization/<project>/<stack> for S3 backends
+  viberglass:baseStack: organization/viberglass-base/dev
 
   # Enable Fargate Spot for cost savings (70% discount)
   # Workers may be interrupted with 2-minute notice
-  viberator:enableSpot: "true"
+  viberglass:enableSpot: "true"
 
   # Enable ECS Container Insights for enhanced monitoring
   # Adds CloudWatch metrics for CPU/memory, network, storage
-  viberator:containerInsights: "true"
+  viberglass:containerInsights: "true"
 
   # Database configuration (optional - defaults shown)
   # Valid instance classes: db.t4g.micro, db.t4g.large, db.m6g.xlarge, etc.
-  # viberator:dbInstanceClass: db.t4g.micro
-  # viberator:dbAllocatedStorage: 20
-  # viberator:singleNatGateway: "true"
-  # viberator:logRetentionDays: 7
+  # viberglass:dbInstanceClass: db.t4g.micro
+  # viberglass:dbAllocatedStorage: 20

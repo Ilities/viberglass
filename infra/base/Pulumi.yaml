@@ -1,0 +1,3 @@
+name: viberglass-base
+runtime: nodejs
+description: Viberglass Base Infrastructure (VPC, KMS, Logging)

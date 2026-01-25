@@ -9,10 +9,13 @@
     "moduleResolution": "node",
     "noImplicitAny": true,
     "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "*": ["node_modules/*"]
     }
   },
-  "include": ["index.ts", "../components/**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "bin"]
 }
