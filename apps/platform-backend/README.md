@@ -121,7 +121,7 @@ curl http://localhost:3000/api/jobs/job_1234567890_abc
 curl http://localhost:3000/api/jobs/stats/queue
 ```
 
-> **Note**: The Jobs API requires Viberator workers to be running and connected to Redis. See [apps/viberator/README.md](../../apps/viberator/README.md) for worker setup.
+> **Note**: The Jobs API requires Viberator workers to be built and image to be available. See [apps/viberator/README.md](../../apps/viberator/README.md) for worker setup.
 
 ## 🔧 Integrations (Optional)
 To enable ticket synchronization, provide API keys in `.env` for:

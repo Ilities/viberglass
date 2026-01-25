@@ -23,6 +23,8 @@ import { getConfig } from "./config";
 
 // Load configuration from Pulumi stack
 const config = getConfig();
+const slackConfig = new pulumi.Config("slack");
+const slackAppEnabled = slackConfig.getBoolean("enabled") ?? false;
 
 // =============================================================================
 // BASE STACK REFERENCE
@@ -226,6 +228,165 @@ const eventSourceMapping = new aws.lambda.EventSourceMapping(
 );
 
 // =============================================================================
+// SLACK APP LAMBDA
+// =============================================================================
+
+let slackRepository: awsx.ecr.Repository | undefined;
+let slackImage: awsx.ecr.Image | undefined;
+let slackLambdaRole: aws.iam.Role | undefined;
+let slackInstallationsTable: aws.dynamodb.Table | undefined;
+let slackLambda: aws.lambda.Function | undefined;
+let slackFunctionUrl: aws.lambda.FunctionUrl | undefined;
+let slackFunctionUrlPermission: aws.lambda.Permission | undefined;
+
+if (slackAppEnabled) {
+  const slackClientId = slackConfig.require("clientId");
+  const slackClientSecret = slackConfig.requireSecret("clientSecret");
+  const slackSigningSecret = slackConfig.requireSecret("signingSecret");
+  const slackStateSecret = slackConfig.requireSecret("stateSecret");
+  const slackScopes = slackConfig.get("scopes");
+  const slackLogLevel = slackConfig.get("logLevel");
+  const slackAppBaseUrl = slackConfig.get("appBaseUrl");
+
+  slackRepository = new awsx.ecr.Repository(
+    `${config.environment}-viberglass-slack-app-repo`,
+    {
+      forceDelete: true,
+      tags: config.tags,
+    },
+  );
+
+  const slackAppContextPath = path.join(__dirname, "../..");
+  const slackDockerfilePath = path.join(
+    slackAppContextPath,
+    "apps/slack-app/Dockerfile.lambda",
+  );
+
+  slackImage = new awsx.ecr.Image(
+    `${config.environment}-viberglass-slack-app-image`,
+    {
+      repositoryUrl: slackRepository.url,
+      context: slackAppContextPath,
+      dockerfile: slackDockerfilePath,
+      platform: "linux/amd64",
+    },
+  );
+
+  slackInstallationsTable = new aws.dynamodb.Table(
+    `${config.environment}-viberglass-slack-installations`,
+    {
+      billingMode: "PAY_PER_REQUEST",
+      hashKey: "installationId",
+      attributes: [
+        {
+          name: "installationId",
+          type: "S",
+        },
+      ],
+      tags: config.tags,
+    },
+  );
+
+  slackLambdaRole = new aws.iam.Role(
+    `${config.environment}-viberglass-slack-lambda-role`,
+    {
+      assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
+        Service: "lambda.amazonaws.com",
+      }),
+      tags: config.tags,
+    },
+  );
+
+  new aws.iam.RolePolicyAttachment(
+    `${config.environment}-viberglass-slack-lambda-basic-exec`,
+    {
+      role: slackLambdaRole.name,
+      policyArn: aws.iam.ManagedPolicy.AWSLambdaBasicExecutionRole,
+    },
+  );
+
+  const slackDynamoPolicy = new aws.iam.Policy(
+    `${config.environment}-viberglass-slack-dynamo`,
+    {
+      policy: slackInstallationsTable.arn.apply((tableArn) =>
+        JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: ["dynamodb:GetItem", "dynamodb:PutItem"],
+              Resource: tableArn,
+            },
+          ],
+        }),
+      ),
+      tags: config.tags,
+    },
+  );
+
+  new aws.iam.RolePolicyAttachment(
+    `${config.environment}-viberglass-slack-dynamo-attach`,
+    {
+      role: slackLambdaRole.name,
+      policyArn: slackDynamoPolicy.arn,
+    },
+  );
+
+  const slackEnv: Record<string, pulumi.Input<string>> = {
+    NODE_ENV: "production",
+    SLACK_CLIENT_ID: slackClientId,
+    SLACK_CLIENT_SECRET: slackClientSecret,
+    SLACK_SIGNING_SECRET: slackSigningSecret,
+    SLACK_STATE_SECRET: slackStateSecret,
+    SLACK_INSTALLATION_STORE_TABLE: slackInstallationsTable.name,
+  };
+
+  if (slackScopes) {
+    slackEnv.SLACK_SCOPES = slackScopes;
+  }
+  if (slackLogLevel) {
+    slackEnv.SLACK_LOG_LEVEL = slackLogLevel;
+  }
+  if (slackAppBaseUrl) {
+    slackEnv.SLACK_APP_BASE_URL = slackAppBaseUrl;
+  }
+
+  slackLambda = new aws.lambda.Function(
+    `${config.environment}-viberglass-slack-app`,
+    {
+      name: `viberglass-${config.environment}-slack-app`,
+      packageType: "Image",
+      imageUri: slackImage.imageUri,
+      role: slackLambdaRole.arn,
+      timeout: 30,
+      memorySize: 512,
+      environment: {
+        variables: slackEnv,
+      },
+      tags: config.tags,
+    },
+  );
+
+  slackFunctionUrl = new aws.lambda.FunctionUrl(
+    `${config.environment}-viberglass-slack-app-url`,
+    {
+      functionName: slackLambda.name,
+      authorizationType: "NONE",
+    },
+  );
+
+  slackFunctionUrlPermission = new aws.lambda.Permission(
+    `${config.environment}-viberglass-slack-app-url-permission`,
+    {
+      action: "lambda:InvokeFunctionUrl",
+      function: slackLambda.name,
+      principal: "*",
+      functionUrlAuthType: "NONE",
+    },
+  );
+}
+
+// =============================================================================
 // ECS WORKER CLUSTER
 // =============================================================================
 
@@ -406,6 +567,33 @@ export const lambdaImageUri = lambdaImage.imageUri;
 export const lambdaRoleName = lambdaRole.name;
 export const lambdaRoleArn = lambdaRole.arn;
 export const eventSourceMappingId = eventSourceMapping.id;
+
+// Slack app outputs
+export { slackAppEnabled };
+export const slackAppRepositoryUrl = slackRepository
+  ? slackRepository.url
+  : pulumi.output(undefined);
+export const slackAppRepositoryArn = slackRepository
+  ? slackRepository.repository.arn
+  : pulumi.output(undefined);
+export const slackAppImageUri = slackImage
+  ? slackImage.imageUri
+  : pulumi.output(undefined);
+export const slackAppLambdaArn = slackLambda
+  ? slackLambda.arn
+  : pulumi.output(undefined);
+export const slackAppLambdaName = slackLambda
+  ? slackLambda.name
+  : pulumi.output(undefined);
+export const slackAppFunctionUrl = slackFunctionUrl
+  ? slackFunctionUrl.functionUrl
+  : pulumi.output(undefined);
+export const slackInstallationsTableName = slackInstallationsTable
+  ? slackInstallationsTable.name
+  : pulumi.output(undefined);
+export const slackInstallationsTableArn = slackInstallationsTable
+  ? slackInstallationsTable.arn
+  : pulumi.output(undefined);
 
 // ECS outputs
 export const ecsClusterArn = workerCluster.arn;

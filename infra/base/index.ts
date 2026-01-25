@@ -363,6 +363,16 @@ const lambdaLogGroup = new aws.cloudwatch.LogGroup(
   },
 );
 
+// Slack app log group
+const slackAppLogGroup = new aws.cloudwatch.LogGroup(
+  `${config.environment}-viberglass-slack-app-logs`,
+  {
+    name: `/aws/lambda/viberglass-${config.environment}-slack-app`,
+    retentionInDays: config.logRetentionDays,
+    tags: commonTags,
+  },
+);
+
 // ECS worker log group
 const ecsWorkerLogGroup = new aws.cloudwatch.LogGroup(
   `${config.environment}-viberglass-ecs-worker-logs`,
@@ -414,6 +424,8 @@ export const kmsAliasNameOutput = kmsAliasName;
 // Logging outputs
 export const lambdaLogGroupName = lambdaLogGroup.name;
 export const lambdaLogGroupArn = lambdaLogGroup.arn;
+export const slackAppLogGroupName = slackAppLogGroup.name;
+export const slackAppLogGroupArn = slackAppLogGroup.arn;
 export const ecsWorkerLogGroupName = ecsWorkerLogGroup.name;
 export const ecsWorkerLogGroupArn = ecsWorkerLogGroup.arn;
 export const backendLogGroupName = backendLogGroup.name;
