@@ -1,4 +1,7 @@
 import Joi from "joi";
+import { integrationRegistry } from "../../integrations/registry";
+
+const ticketSystemIds = integrationRegistry.listIds();
 
 export const ticketSchema = Joi.object({
   projectId: Joi.string().uuid().required(),
@@ -71,17 +74,7 @@ export const ticketSchema = Joi.object({
     .required(),
   autoFixRequested: Joi.boolean().required(),
   ticketSystem: Joi.string()
-    .valid(
-      "jira",
-      "linear",
-      "github",
-      "gitlab",
-      "azure",
-      "asana",
-      "trello",
-      "monday",
-      "clickup",
-    )
+    .valid(...ticketSystemIds)
     .optional(),
 });
 
@@ -101,17 +94,7 @@ export const updateTicketSchema = Joi.object({
 export const projectSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   ticketSystem: Joi.string()
-    .valid(
-      "jira",
-      "linear",
-      "github",
-      "gitlab",
-      "azure",
-      "asana",
-      "trello",
-      "monday",
-      "clickup",
-    )
+    .valid(...ticketSystemIds)
     .required(),
   credentials: Joi.object().required(),
   webhookUrl: Joi.string().uri().allow(null).optional(),
@@ -124,17 +107,7 @@ export const projectSchema = Joi.object({
 export const updateProjectSchema = Joi.object({
   name: Joi.string().min(1).max(255).optional(),
   ticketSystem: Joi.string()
-    .valid(
-      "jira",
-      "linear",
-      "github",
-      "gitlab",
-      "azure",
-      "asana",
-      "trello",
-      "monday",
-      "clickup",
-    )
+    .valid(...ticketSystemIds)
     .optional(),
   credentials: Joi.object().optional(),
   webhookUrl: Joi.string().uri().allow(null).optional(),

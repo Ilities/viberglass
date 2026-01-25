@@ -39,7 +39,9 @@ export interface AmplifyOidcOutputs {
  * @param options - Configuration options for the OIDC provider and role
  * @returns Outputs containing the provider ARN, role ARN, and role name
  */
-export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutputs {
+export function createAmplifyOidc(
+  options: AmplifyOidcOptions,
+): AmplifyOidcOutputs {
   const { config, githubRepository } = options;
 
   // Create OpenID Connect provider for GitHub Actions
@@ -49,7 +51,7 @@ export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutpu
       url: "https://token.actions.githubusercontent.com",
       clientIdLists: ["sts.amazonaws.com"],
       thumbprintLists: ["6938fd4d98bab03faadb97b34396831e3780aea1"],
-    }
+    },
   );
 
   // Create IAM role that GitHub Actions can assume
@@ -77,7 +79,7 @@ export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutpu
         ]
       }`,
       tags: config.tags,
-    }
+    },
   );
 
   // Create IAM role policy with Amplify permissions
@@ -104,7 +106,7 @@ export function createAmplifyOidc(options: AmplifyOidcOptions): AmplifyOidcOutpu
           },
         ],
       }),
-    }
+    },
   );
 
   return {

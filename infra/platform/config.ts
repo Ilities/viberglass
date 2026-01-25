@@ -9,6 +9,8 @@ export interface InfrastructureConfig {
   awsRegion: string;
   /** Environment name (dev, staging, prod) */
   environment: string;
+  /** Base stack name for StackReference (e.g., "viberglass-base/dev") */
+  baseStack: string;
   /** Whether to use Fargate Spot for cost savings */
   enableSpot: boolean;
   /** Whether to enable ECS Container Insights */
@@ -17,10 +19,6 @@ export interface InfrastructureConfig {
   dbInstanceClass?: string;
   /** Database allocated storage in GB (default per environment) */
   dbAllocatedStorage?: number;
-  /** Use single NAT gateway for cost savings (default: true for dev/staging) */
-  singleNatGateway?: boolean;
-  /** Log retention in days (default: 7 for dev, 30 for staging, 90 for prod) */
-  logRetentionDays?: number;
   /** Common tags applied to all resources */
   tags: {
     Environment: string;
@@ -38,18 +36,15 @@ export function getConfig(): InfrastructureConfig {
 
   const awsRegion = config.require("awsRegion");
   const environment = config.require("environment");
+  const baseStack = config.require("baseStack");
   const enableSpot = config.getBoolean("enableSpot") ?? false;
   const containerInsights = config.getBoolean("containerInsights") ?? true;
   const dbInstanceClass = config.get("dbInstanceClass");
   const dbAllocatedStorage = config.getNumber("dbAllocatedStorage");
-  const singleNatGateway = config.getBoolean("singleNatGateway");
-  const logRetentionDays = config.getNumber("logRetentionDays");
 
   // Set database defaults based on environment
   let finalDbInstanceClass = dbInstanceClass;
   let finalDbAllocatedStorage = dbAllocatedStorage;
-  let finalSingleNatGateway = singleNatGateway;
-  let finalLogRetentionDays = logRetentionDays;
 
   if (!finalDbInstanceClass) {
     switch (environment) {
@@ -77,32 +72,14 @@ export function getConfig(): InfrastructureConfig {
     }
   }
 
-  if (finalSingleNatGateway === undefined) {
-    finalSingleNatGateway = environment !== "prod";
-  }
-
-  if (finalLogRetentionDays === undefined) {
-    switch (environment) {
-      case "prod":
-        finalLogRetentionDays = 90;
-        break;
-      case "staging":
-        finalLogRetentionDays = 30;
-        break;
-      default:
-        finalLogRetentionDays = 7;
-    }
-  }
-
   return {
     awsRegion,
     environment,
+    baseStack,
     enableSpot,
     containerInsights,
     dbInstanceClass: finalDbInstanceClass,
     dbAllocatedStorage: finalDbAllocatedStorage,
-    singleNatGateway: finalSingleNatGateway,
-    logRetentionDays: finalLogRetentionDays,
     tags: {
       Environment: environment,
       Project: "viberglass",

@@ -1,6 +1,6 @@
 import axios from "axios";
-import { BasePMIntegration } from "./BasePMIntegration";
-import { GitHubConfig } from "../models/PMIntegration";
+import { BasePMIntegration } from "../../BasePMIntegration";
+import { GitHubConfig } from "../../../models/PMIntegration";
 import {
   AuthCredentials,
   ExternalTicket,
@@ -34,7 +34,7 @@ export class GitHubIntegration extends BasePMIntegration {
 
   private setupApiClient() {
     this.apiClient = axios.create({
-      baseURL: "https://api.github.com",
+      baseURL: this.config.baseUrl || "https://api.github.com",
       headers: {
         Authorization: `token ${this.config.token}`,
         Accept: "application/vnd.github.v3+json",

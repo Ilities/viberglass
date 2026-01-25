@@ -51,9 +51,37 @@ export interface GitHubConfig extends AuthCredentials {
   labels?: string[];
 }
 
+export interface GitLabConfig extends AuthCredentials {
+  projectId?: string;
+  projectPath?: string;
+  labels?: string[];
+}
+
+export interface BitbucketConfig extends AuthCredentials {
+  workspace: string;
+  repo: string;
+  projectKey?: string;
+}
+
 export interface LinearConfig extends AuthCredentials {
   teamId: string;
   workflowStateId?: string;
+}
+
+export interface MondayConfig extends AuthCredentials {
+  boardId: string;
+  groupId?: string;
+}
+
+export interface ShortcutConfig extends AuthCredentials {
+  projectId?: string;
+  workflowStateId?: string;
+}
+
+export interface SlackConfig extends AuthCredentials {
+  channelId?: string;
+  channelName?: string;
+  channel?: string;
 }
 
 // Auto-fix detection strategies

@@ -121,7 +121,7 @@ For each environment (`dev`, `staging`, `prod`), add these secrets:
 
 ## Initial SSM Setup
 
-SSM parameters are created by Pulumi's `createDeploymentSecrets()` component, but you can also create them manually for testing.
+SSM parameters are created by Pulumi's `createDatabase()` (database connection) and `createDeploymentSecrets()` (non-database) components, but you can also create them manually for testing.
 
 ### Prerequisites
 
@@ -260,19 +260,13 @@ aws ssm get-parameters-by-path \
 
 ## Pulumi Integration
 
-The `createDeploymentSecrets()` component in `infra/platform/components/secrets.ts` provisions all SSM parameters automatically.
+The `createDeploymentSecrets()` component in `infra/platform/components/secrets.ts` provisions non-database SSM parameters. Database connection parameters are created by `createDatabase()` in `infra/platform/components/database.ts`.
 
 ### Setting Secret Values via Pulumi Config
 
 Secret values are set using Pulumi's `--secret` flag:
 
 ```bash
-# Set database URL (encrypted)
-pulumi config set --secret databaseUrl "postgresql://user:pass@host:5432/db"
-
-# Set database host (encrypted)
-pulumi config set --secret databaseHost "db.xxx.us-east-1.rds.amazonaws.com"
-
 # Set non-sensitive values
 pulumi config set frontendApiUrl "https://dev-api.viberator.com"
 pulumi config set amplifyAppId "d1234567890abc"
@@ -305,8 +299,6 @@ const kmsAlias = new aws.kms.Alias(`${env}-viberator-ssm-alias`, {
 const secrets = createDeploymentSecrets({
   config: config,
   kmsKeyId: kmsKey.arn,
-  databaseUrl: databaseUrl,
-  databaseHost: databaseHost,
   frontendApiUrl: frontendApiUrl,
   // ... other options
 });
@@ -318,7 +310,7 @@ To update secret values:
 
 1. **Update Pulumi config:**
    ```bash
-   pulumi config set --secret databaseUrl "new-connection-string"
+   pulumi config set frontendApiUrl "new-api-url"
    ```
 
 2. **Run Pulumi up:**
@@ -769,7 +761,7 @@ OIDC eliminates credential rotation for access keys, but role permissions should
 
 - **[Phase 1: Multi-Tenant Security Foundation](../.planning/phases/01-multi-tenant-security-foundation/01-04-SUMMARY.md)** - Runtime tenant credential management (GitHub PATs, Jira tokens)
 - **[GitHub Deployment Quick Reference](../.github/DEPLOYMENT.md)** - Deployment commands and workflow usage
-- **[Infrastructure README](../infra/platform/README.md)** - Pulumi component documentation
+- **[Infrastructure README](../infra/README.md)** - Pulumi component documentation
 - **[AWS ECS Setup Guide](AWS_ECS_SETUP.md)** - Backend deployment infrastructure
 - **[Local Docker Setup](LOCAL_DOCKER_SETUP.md)** - Local development environment
 
