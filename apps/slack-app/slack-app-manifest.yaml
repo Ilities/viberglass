@@ -1,0 +1,33 @@
+display_information:
+  name: Viberglass
+  description: Viberglass workspace notifications
+  background_color: "#1d1d1d"
+features:
+  bot_user:
+    display_name: Viberglass
+    always_online: false
+  slash_commands:
+    - command: /viberglass
+      url: https://YOUR_PUBLIC_URL/slack/commands
+      description: Viberglass install and setup info
+      should_escape: false
+oauth_config:
+  redirect_urls:
+    - https://YOUR_PUBLIC_URL/slack/oauth_redirect
+  scopes:
+    bot:
+      - chat:write
+      - commands
+      - app_mentions:read
+      - channels:read
+      - groups:read
+      - im:read
+      - mpim:read
+settings:
+  event_subscriptions:
+    request_url: https://YOUR_PUBLIC_URL/slack/events
+    bot_events:
+      - app_mention
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

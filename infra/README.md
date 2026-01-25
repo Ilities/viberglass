@@ -52,6 +52,7 @@ infra/
 - **Registry** - ECR repository for worker images
 - **Queue** - SQS queue with dead-letter queue for job processing
 - **Workers** - Lambda and ECS Fargate for job execution
+- **Slack App** - Lambda + Function URL + DynamoDB installation store
 
 ## Architecture
 
@@ -346,6 +347,9 @@ pulumi stack output
 | `queueArn`                 | SQS queue ARN                                    |
 | `lambdaArn`                | Lambda worker function ARN                       |
 | `lambdaName`               | Lambda worker function name                      |
+| `slackAppFunctionUrl`      | Slack app Lambda Function URL                    |
+| `slackAppLambdaArn`        | Slack app Lambda function ARN                    |
+| `slackInstallationsTableName` | Slack app DynamoDB table name                 |
 | `ecsClusterArn`            | ECS cluster ARN                                  |
 | `ecsClusterName`           | ECS cluster name                                 |
 | `ecsTaskDefinitionArn`     | ECS worker task definition ARN                   |
@@ -412,6 +416,14 @@ Stack configuration is stored in `Pulumi.{stack}.yaml` files.
 | `baseStack`         | string | **required**      | Base stack reference (e.g., "viberglass-base/dev") |
 | `enableSpot`        | bool   | `false`           | Use Fargate Spot for workers (dev only)            |
 | `containerInsights` | bool   | `true`            | Enable ECS Container Insights                      |
+| `slack:enabled`     | bool   | `false`           | Enable Slack app Lambda resources                  |
+| `slack:clientId`    | string | (none)            | Slack app client ID                                |
+| `slack:clientSecret`| string | (none)            | Slack app client secret (secret)                   |
+| `slack:signingSecret`| string | (none)           | Slack signing secret (secret)                      |
+| `slack:stateSecret` | string | (none)            | Slack OAuth state secret (secret)                  |
+| `slack:scopes`      | string | (optional)        | Comma-delimited Slack bot scopes                   |
+| `slack:logLevel`    | string | `info`            | Slack app log level                                |
+| `slack:appBaseUrl`  | string | (optional)        | Public base URL for install links                  |
 
 #### Valid Values Reference
 
@@ -548,9 +560,10 @@ Creates a customer-managed KMS key for:
 
 Creates CloudWatch log groups:
 
-- `/viberator/{environment}/lambda/worker` - Lambda worker logs
-- `/viberator/{environment}/ecs/worker` - ECS worker logs
-- `/viberator/{environment}/backend` - Backend service logs
+- `/aws/lambda/viberglass-{environment}-worker` - Lambda worker logs
+- `/aws/lambda/viberglass-{environment}-slack-app` - Slack app Lambda logs
+- `/ecs/viberglass-{environment}-worker` - ECS worker logs
+- `/ecs/viberglass-{environment}-backend` - Backend service logs
 
 ### Registry Component (`components/registry.ts`)
 

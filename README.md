@@ -40,6 +40,7 @@ viberglass/
 ├── apps/
 │   ├── platform-backend/   # Express API server
 │   ├── platform-frontend/  # Next.js web UI
+│   ├── slack-app/          # Slack app for workspace install
 │   └── viberator/          # Viberator worker implementation
 ├── packages/
 │   └── types/              # Shared TypeScript types
