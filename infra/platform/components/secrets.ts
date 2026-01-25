@@ -10,10 +10,6 @@ export interface DeploymentSecretsOptions {
   config: InfrastructureConfig;
   /** KMS key ID for SecureString encryption */
   kmsKeyId: pulumi.Input<string>;
-  /** Database connection URL (SecureString) */
-  databaseUrl: pulumi.Input<string>;
-  /** Database host endpoint (SecureString) */
-  databaseHost: pulumi.Input<string>;
   /** Frontend API URL (String - not sensitive) */
   frontendApiUrl: pulumi.Input<string>;
   /** Amplify app ID (String - not sensitive) */
@@ -34,26 +30,10 @@ export interface DeploymentSecretsOptions {
  * Deployment secrets component outputs.
  */
 export interface DeploymentSecretsOutputs {
-  /** Database URL parameter ARN */
-  databaseUrlArn: pulumi.Output<string>;
-  /** Database URL parameter path */
-  databaseUrlPath: pulumi.Output<string>;
-  /** Database host parameter ARN */
-  databaseHostArn: pulumi.Output<string>;
-  /** Database host parameter path */
-  databaseHostPath: pulumi.Output<string>;
   /** Frontend API URL parameter ARN */
   frontendApiUrlArn: pulumi.Output<string>;
   /** Frontend API URL parameter path */
   frontendApiUrlPath: pulumi.Output<string>;
-  /** Amplify app ID parameter ARN */
-  amplifyAppIdArn: pulumi.Output<string>;
-  /** Amplify app ID parameter path */
-  amplifyAppIdPath: pulumi.Output<string>;
-  /** Amplify branch parameter ARN */
-  amplifyBranchArn: pulumi.Output<string>;
-  /** Amplify branch parameter path */
-  amplifyBranchPath: pulumi.Output<string>;
   /** ECS cluster parameter ARN */
   ecsClusterArn: pulumi.Output<string>;
   /** ECS cluster parameter path */
@@ -76,11 +56,7 @@ export interface DeploymentSecretsOutputs {
   deploymentEcrRepositoryPath: pulumi.Output<string>;
   /** All SSM parameter paths for easy reference */
   ssmPaths: {
-    databaseUrl: pulumi.Output<string>;
-    databaseHost: pulumi.Output<string>;
     frontendApiUrl: pulumi.Output<string>;
-    amplifyAppId: pulumi.Output<string>;
-    amplifyBranch: pulumi.Output<string>;
     ecsCluster: pulumi.Output<string>;
     ecsService: pulumi.Output<string>;
     region: pulumi.Output<string>;
@@ -95,11 +71,12 @@ export interface DeploymentSecretsOutputs {
  * This function creates SSM Parameter Store parameters for all deployment
  * secrets across the following categories:
  *
- * - **database**: Database connection details (SecureString)
  * - **frontend**: Frontend API URL (String)
  * - **amplify**: Amplify app configuration (String)
  * - **ecs**: ECS cluster and service names (String)
  * - **deployment**: Deployment configuration (mixed)
+ *
+ * Database connection parameters are managed by the database component.
  *
  * Sensitive values use SecureString type with KMS encryption, while
  * non-sensitive values use String type. All parameters follow the naming
@@ -109,7 +86,7 @@ export interface DeploymentSecretsOutputs {
  * @returns SSM parameter ARNs and paths for workflow references
  */
 export function createDeploymentSecrets(
-  options: DeploymentSecretsOptions
+  options: DeploymentSecretsOptions,
 ): DeploymentSecretsOutputs {
   const { config } = options;
   const env = config.environment;
@@ -118,65 +95,65 @@ export function createDeploymentSecrets(
   const createParameter = (
     name: string,
     value: pulumi.Input<string>,
-    type: "SecureString" | "String"
+    type: "SecureString" | "String",
   ) => {
     const oldLogicalName = `${env}-viberator-${name}`;
     const newLogicalName = `${env}-viberglass-${name}`;
-    return new aws.ssm.Parameter(newLogicalName, {
-      name: `/viberglass/${env}/${name}`,
-      type: type,
-      value: value,
-      keyId: type === "SecureString" ? options.kmsKeyId : undefined,
-      tags: config.tags,
-    }, {
-      aliases: [{ name: oldLogicalName }],
-    });
+    return new aws.ssm.Parameter(
+      newLogicalName,
+      {
+        name: `/viberglass/${env}/${name}`,
+        type: type,
+        value: value,
+        keyId: type === "SecureString" ? options.kmsKeyId : undefined,
+        tags: config.tags,
+      },
+      {
+        aliases: [{ name: oldLogicalName }],
+      },
+    );
   };
 
-  // Database secrets (SecureString)
-  const databaseUrl = createParameter("database/url", options.databaseUrl, "SecureString");
-  const databaseHost = createParameter("database/host", options.databaseHost, "SecureString");
-
   // Frontend configuration (String - not sensitive)
-  const frontendApiUrl = createParameter("frontend/apiUrl", options.frontendApiUrl, "String");
-
-  // Amplify configuration (String - not sensitive)
-  const amplifyAppId = createParameter("amplify/appId", options.amplifyAppId ?? "", "String");
-  const amplifyBranch = createParameter("amplify/branch", options.amplifyBranch ?? env, "String");
+  const frontendApiUrl = createParameter(
+    "frontend/apiUrl",
+    options.frontendApiUrl,
+    "String",
+  );
 
   // ECS configuration (String - not sensitive)
-  const ecsCluster = createParameter("ecs/cluster", options.ecsCluster ?? "", "String");
-  const ecsService = createParameter("ecs/service", options.ecsService ?? "", "String");
+  const ecsCluster = createParameter(
+    "ecs/cluster",
+    options.ecsCluster ?? "not-configured",
+    "String",
+  );
+  const ecsService = createParameter(
+    "ecs/service",
+    options.ecsService ?? "not-configured",
+    "String",
+  );
 
   // Deployment configuration (mixed)
-  const deploymentRegion = createParameter("deployment/region", config.awsRegion, "String");
+  const deploymentRegion = createParameter(
+    "deployment/region",
+    config.awsRegion,
+    "String",
+  );
   const deploymentOidcRoleArn = createParameter(
     "deployment/oidcRoleArn",
-    options.oidcRoleArn ?? "",
-    "SecureString"
+    options.oidcRoleArn ?? "not-configured",
+    "SecureString",
   );
   const deploymentEcrRepository = createParameter(
     "deployment/ecrRepository",
-    options.ecrRepository ?? "",
-    "String"
+    options.ecrRepository ?? "not-configured",
+    "String",
   );
 
   return {
-    // Database outputs
-    databaseUrlArn: databaseUrl.arn,
-    databaseUrlPath: databaseUrl.name,
-    databaseHostArn: databaseHost.arn,
-    databaseHostPath: databaseHost.name,
-
     // Frontend outputs
     frontendApiUrlArn: frontendApiUrl.arn,
     frontendApiUrlPath: frontendApiUrl.name,
-
-    // Amplify outputs
-    amplifyAppIdArn: amplifyAppId.arn,
-    amplifyAppIdPath: amplifyAppId.name,
-    amplifyBranchArn: amplifyBranch.arn,
-    amplifyBranchPath: amplifyBranch.name,
 
     // ECS outputs
     ecsClusterArn: ecsCluster.arn,
@@ -194,11 +171,7 @@ export function createDeploymentSecrets(
 
     // All SSM paths for easy reference
     ssmPaths: {
-      databaseUrl: databaseUrl.name,
-      databaseHost: databaseHost.name,
       frontendApiUrl: frontendApiUrl.name,
-      amplifyAppId: amplifyAppId.name,
-      amplifyBranch: amplifyBranch.name,
       ecsCluster: ecsCluster.name,
       ecsService: ecsService.name,
       region: deploymentRegion.name,

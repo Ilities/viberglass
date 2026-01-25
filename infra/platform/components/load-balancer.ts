@@ -62,7 +62,9 @@ export interface LoadBalancerOutputs {
  * For MVP: HTTP-only is acceptable. The HTTPS listener is only created
  * if a certificate ARN is provided.
  */
-export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOutputs {
+export function createLoadBalancer(
+  options: LoadBalancerOptions,
+): LoadBalancerOutputs {
   const projectName = options.projectName ?? "viberglass";
   const backendPort = options.backendPort ?? 80;
   const healthCheckPath = options.healthCheckPath ?? "/health";
@@ -109,7 +111,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
         Name: `${projectName}-${options.environment}-alb-sg`,
         ...defaultTags,
       },
-    }
+    },
   );
 
   // Allow traffic from ALB to backend security group
@@ -123,20 +125,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
       protocol: "tcp",
       securityGroupId: albSecurityGroup.id,
       sourceSecurityGroupId: options.backendSecurityGroupId,
-    }
-  );
-
-  const backendFromAlbRule = new aws.ec2.SecurityGroupRule(
-    `${options.environment}-viberglass-backend-from-alb`,
-    {
-      description: "Allow traffic from ALB to backend",
-      type: "ingress",
-      fromPort: backendPort,
-      toPort: backendPort,
-      protocol: "tcp",
-      securityGroupId: options.backendSecurityGroupId,
-      sourceSecurityGroupId: albSecurityGroup.id,
-    }
+    },
   );
 
   // 2. Create Target Group
@@ -166,7 +155,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
     },
     {
       aliases: [{ name: `${options.environment}-viberator-backend-tg` }],
-    }
+    },
   );
 
   // 3. Create Application Load Balancer
@@ -187,7 +176,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
     },
     {
       aliases: [{ name: `${options.environment}-viberator-alb` }],
-    }
+    },
   );
 
   // 4. Create HTTP Listener (port 80)
@@ -214,7 +203,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
               targetGroupArn: targetGroup.arn,
             },
           ],
-      }
+    },
   );
 
   // 5. Create HTTPS Listener (port 443) - only if certificate provided
@@ -234,7 +223,7 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
             targetGroupArn: targetGroup.arn,
           },
         ],
-      }
+      },
     );
   }
 
@@ -245,7 +234,9 @@ export function createLoadBalancer(options: LoadBalancerOptions): LoadBalancerOu
     targetGroupArn: targetGroup.arn,
     targetGroupName: targetGroup.name,
     albSecurityGroupId: albSecurityGroup.id,
-    httpListenerArn: pulumi.all([httpListener.arn, albToBackendRule.id]).apply(([arn]) => arn),
+    httpListenerArn: pulumi
+      .all([httpListener.arn, albToBackendRule.id])
+      .apply(([arn]) => arn),
     httpsListenerArn: httpsListener?.arn,
   };
 }

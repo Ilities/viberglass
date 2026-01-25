@@ -14,9 +14,9 @@
     "test:integration": "jest --testPathPattern=integration",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "docker:build:local": "docker build -f ../../infra/viberator/docker/viberator-docker-worker.Dockerfile -t viberator-worker:local .",
-    "docker:build:ecs": "docker build -f ../../infra/viberator/docker/viberator-ecs-worker.Dockerfile -t viberator-worker:ecs .",
-    "docker:build:lambda": "docker build -f ../../infra/viberator/docker/viberator-lambda.Dockerfile -t viberator-lambda .",
+    "docker:build:local": "docker build -f ../../infra/workers/docker/viberator-docker-worker.Dockerfile -t viberator-worker:local .",
+    "docker:build:ecs": "docker build -f ../../infra/workers/docker/viberator-ecs-worker.Dockerfile -t viberator-worker:ecs .",
+    "docker:build:lambda": "docker build -f ../../infra/workers/docker/viberator-lambda.Dockerfile -t viberator-lambda .",
     "compose:up": "docker-compose -f ../../infra/viberator/docker-compose.yml up",
     "compose:down": "docker-compose -f ../../infra/viberator/docker-compose.yml down"
   },

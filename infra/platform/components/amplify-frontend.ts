@@ -53,7 +53,7 @@ export interface AmplifyFrontendOutputs {
  * @returns Outputs containing the app configuration and SSM parameter paths
  */
 export function createAmplifyFrontend(
-  options: AmplifyFrontendOptions
+  options: AmplifyFrontendOptions,
 ): AmplifyFrontendOutputs {
   const { config, backendUrl } = options;
 
@@ -104,7 +104,7 @@ backend:
         NEXT_PUBLIC_API_URL: backendUrl,
       },
       tags: config.tags,
-    }
+    },
   );
 
   // Define SSM parameter paths
@@ -123,6 +123,7 @@ backend:
     value: app.id,
     type: "String",
     tags: config.tags,
+    overwrite: true,
   });
 
   // Create SSM parameter for branch name
@@ -131,6 +132,7 @@ backend:
     value: branchName,
     type: "String",
     tags: config.tags,
+    overwrite: true,
   });
 
   // Create SSM parameter for region
@@ -139,6 +141,7 @@ backend:
     value: config.awsRegion,
     type: "String",
     tags: config.tags,
+    overwrite: true,
   });
 
   // Create alias SSM parameters for backward compatibility
@@ -147,6 +150,7 @@ backend:
     value: app.id,
     type: "String",
     tags: config.tags,
+    overwrite: true,
   });
 
   const oldSsmBranchName = new aws.ssm.Parameter(oldSsmBranchNamePath, {
@@ -154,6 +158,7 @@ backend:
     value: branchName,
     type: "String",
     tags: config.tags,
+    overwrite: true,
   });
 
   const oldSsmRegion = new aws.ssm.Parameter(oldSsmRegionPath, {
@@ -161,6 +166,7 @@ backend:
     value: config.awsRegion,
     type: "String",
     tags: config.tags,
+    overwrite: true,
   });
 
   return {

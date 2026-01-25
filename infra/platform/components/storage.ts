@@ -140,20 +140,24 @@ function getLifecycleRules(environment: string): LifecycleRule[] {
  */
 export function createStorage(options: StorageOptions): StorageOutputs {
   const bucketPrefix = options.bucketPrefix ?? "viberglass-uploads";
-  const versioningEnabled = options.versioningEnabled ?? options.config.environment !== "dev";
+  const versioningEnabled =
+    options.versioningEnabled ?? options.config.environment !== "dev";
 
-  // Generate unique bucket name with random suffix to avoid conflicts
-  const randomSuffix = pulumi.interpolate`${pulumi.getStack()}-${Math.random().toString(36).substring(2, 8)}`;
-  const bucketName = pulumi.interpolate`${options.config.environment}-${bucketPrefix}-${randomSuffix}`;
+  const bucketName = pulumi.interpolate`${options.config.environment}-${bucketPrefix}`;
 
   // Create S3 bucket
-  const bucket = new aws.s3.BucketV2(`${options.config.environment}-viberglass-uploads-bucket`, {
-    bucket: bucketName,
-    tags: options.config.tags,
-  },
-  {
-    aliases: [{ name: `${options.config.environment}-viberator-uploads-bucket` }],
-  });
+  const bucket = new aws.s3.BucketV2(
+    `${options.config.environment}-viberglass-uploads-bucket`,
+    {
+      bucket: bucketName,
+      tags: options.config.tags,
+    },
+    {
+      aliases: [
+        { name: `${options.config.environment}-viberator-uploads-bucket` },
+      ],
+    },
+  );
 
   // Enable server-side encryption with AES256
   const encryption = new aws.s3.BucketServerSideEncryptionConfigurationV2(
@@ -168,7 +172,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
           bucketKeyEnabled: true,
         },
       ],
-    }
+    },
   );
 
   // Block all public access
@@ -180,7 +184,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
       blockPublicPolicy: true,
       ignorePublicAcls: true,
       restrictPublicBuckets: true,
-    }
+    },
   );
 
   // Configure versioning
@@ -191,7 +195,7 @@ export function createStorage(options: StorageOptions): StorageOutputs {
       versioningConfiguration: {
         status: versioningEnabled ? "Enabled" : "Suspended",
       },
-    }
+    },
   );
 
   // Get lifecycle rules for environment
@@ -201,11 +205,12 @@ export function createStorage(options: StorageOptions): StorageOutputs {
   const rules: aws.types.input.s3.BucketLifecycleConfigurationV2Rule[] = [];
 
   for (const rule of lifecycleRules) {
-    const lifecycleRule: aws.types.input.s3.BucketLifecycleConfigurationV2Rule = {
-      id: rule.id,
-      status: "Enabled",
-      filter: {}, // Apply to all objects in bucket
-    };
+    const lifecycleRule: aws.types.input.s3.BucketLifecycleConfigurationV2Rule =
+      {
+        id: rule.id,
+        status: "Enabled",
+        filter: {}, // Apply to all objects in bucket
+      };
 
     // Abort incomplete multipart uploads
     if (rule.abortIncompleteMultipartUploadDays !== undefined) {
@@ -239,7 +244,8 @@ export function createStorage(options: StorageOptions): StorageOutputs {
     }
 
     // Current object transitions (IA -> Glacier -> Deep Archive)
-    const transitions: aws.types.input.s3.BucketLifecycleConfigurationV2RuleTransition[] = [];
+    const transitions: aws.types.input.s3.BucketLifecycleConfigurationV2RuleTransition[] =
+      [];
     if (rule.transitionToIaDays !== undefined) {
       transitions.push({
         storageClass: "STANDARD_IA",
@@ -273,14 +279,16 @@ export function createStorage(options: StorageOptions): StorageOutputs {
       {
         bucket: bucket.id,
         rules: rules,
-      }
+      },
     );
   }
 
   // Create IAM policy for S3 access
-  const s3AccessPolicy = new aws.iam.Policy(`${options.config.environment}-viberglass-s3-access-policy`, {
-    name: `${options.config.environment}-viberglass-s3-access-policy`,
-    policy: pulumi.interpolate`{
+  const s3AccessPolicy = new aws.iam.Policy(
+    `${options.config.environment}-viberglass-s3-access-policy`,
+    {
+      name: `${options.config.environment}-viberglass-s3-access-policy`,
+      policy: pulumi.interpolate`{
       "Version": "2012-10-17",
       "Statement": [
         {
@@ -299,8 +307,9 @@ export function createStorage(options: StorageOptions): StorageOutputs {
         }
       ]
     }`,
-    tags: options.config.tags,
-  });
+      tags: options.config.tags,
+    },
+  );
 
   return {
     bucketName: bucket.bucket,
