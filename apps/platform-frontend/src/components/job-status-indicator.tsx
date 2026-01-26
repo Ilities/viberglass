@@ -1,5 +1,5 @@
 import { Badge } from '@/components/badge'
-import { ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { ClockIcon, CheckCircledIcon, CrossCircledIcon } from '@radix-ui/react-icons'
 import { motion } from 'motion/react'
 
 export type JobStatusType = 'queued' | 'active' | 'completed' | 'failed'
@@ -12,7 +12,7 @@ export interface JobStatusIndicatorProps {
 const statusConfig = {
   queued: {
     label: 'Queued',
-    color: 'yellow' as const,
+    color: 'amber' as const,
     icon: ClockIcon,
   },
   active: {
@@ -23,12 +23,12 @@ const statusConfig = {
   completed: {
     label: 'Completed',
     color: 'green' as const,
-    icon: CheckCircleIcon,
+    icon: CheckCircledIcon,
   },
   failed: {
     label: 'Failed',
     color: 'red' as const,
-    icon: XCircleIcon,
+    icon: CrossCircledIcon,
   },
 } as const
 
@@ -49,7 +49,7 @@ export function JobStatusIndicator({ status, isPolling = false }: JobStatusIndic
         animate={shouldAnimate ? { opacity: [1, 0.5, 1] } : {}}
         transition={{ duration: 1.5, repeat: Infinity }}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-4 w-4" data-slot="icon" />
         <span>{label}</span>
         {shouldAnimate && (
           <span className="ml-1 relative flex h-2 w-2">

@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeftIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid'
+import { ArrowLeftIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { ProgressTimeline } from '@/components/progress-timeline'
@@ -75,7 +75,7 @@ export function JobDetailClient({ project, jobId }: JobDetailClientProps) {
         <div className="flex gap-2">
           {job.result?.pullRequestUrl && (
             <Button href={job.result.pullRequestUrl} target="_blank" color="brand">
-              <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+              <ExternalLinkIcon className="h-5 w-5" />
               View Pull Request
             </Button>
           )}
@@ -208,7 +208,7 @@ export function JobDetailClient({ project, jobId }: JobDetailClientProps) {
                   <div className="flex items-center gap-2">
                     <span>{job.lastHeartbeat ? new Date(job.lastHeartbeat).toLocaleString() : 'Never'}</span>
                     {isJobStale(job.lastHeartbeat, job.status) && (
-                      <Badge color="yellow">Stale</Badge>
+                      <Badge color="amber">Stale</Badge>
                     )}
                   </div>
                 </TableCell>

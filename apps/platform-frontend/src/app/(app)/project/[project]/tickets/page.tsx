@@ -2,10 +2,10 @@ import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
-import { formatAutoFixStatus, formatSeverity, formatTimestamp, getRecentTickets, getClankersList } from '@/data'
+import { getClankersList, getRecentTickets } from '@/data'
 import { getTickets } from '@/service/api/ticket-api'
+import { CaretSortIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { TicketsTable } from './tickets-table'
-import { FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 
 export const generateStaticParams = async () => {
   return []
@@ -54,7 +54,6 @@ export default async function TicketsPage({
       <div className="mt-8 flex items-center gap-4">
         <div className="min-w-75 flex-2">
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-zinc-400" />
             <Input
               type="search"
               placeholder="Search tickets..."
@@ -62,23 +61,24 @@ export default async function TicketsPage({
               name="search"
               defaultValue={search}
             />
+            <MagnifyingGlassIcon className="absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-zinc-400" />
           </div>
         </div>
         <Select name="status" defaultValue={status}>
-          <option value="">All Status</option>
+          <option value="all">All Status</option>
           <option value="open">Open</option>
           <option value="resolved">Resolved</option>
           <option value="in_progress">In Progress</option>
         </Select>
         <Select name="severity" defaultValue={severity}>
-          <option value="">All Severities</option>
+          <option value="all">All Severities</option>
           <option value="critical">Critical</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </Select>
         <Button plain>
-          <FunnelIcon className="h-5 w-5" />
+          <CaretSortIcon className="h-5 w-5" />
           Filters
         </Button>
       </div>

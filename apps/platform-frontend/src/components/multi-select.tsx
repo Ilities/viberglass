@@ -1,5 +1,6 @@
 'use client'
 
+import { Checkbox as RadixCheckbox, Text } from '@radix-ui/themes'
 import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { useState } from 'react'
@@ -65,7 +66,7 @@ export function MultiSelect({
             <button
               type="button"
               onClick={handleSelectAll}
-              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
             >
               Select All
             </button>
@@ -73,7 +74,7 @@ export function MultiSelect({
             <button
               type="button"
               onClick={handleDeselectAll}
-              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
             >
               Clear
             </button>
@@ -95,7 +96,9 @@ export function MultiSelect({
 
       <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
         {filteredOptions.length === 0 && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{emptyMessage}</p>
+          <Text as="p" size="2" color="gray">
+            {emptyMessage}
+          </Text>
         )}
 
         {filteredOptions.map((option) => (
@@ -103,19 +106,23 @@ export function MultiSelect({
             key={option.id}
             className={clsx(
               'flex cursor-pointer items-start gap-3 rounded-md p-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800',
-              value.includes(option.id) && 'bg-blue-50 dark:bg-blue-950/20',
+              value.includes(option.id) && 'bg-amber-50 dark:bg-amber-950/20',
             )}
           >
-            <input
-              type="checkbox"
+            <RadixCheckbox
               checked={value.includes(option.id)}
-              onChange={() => handleToggle(option.id)}
-              className="mt-0.5 size-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800"
+              onCheckedChange={() => handleToggle(option.id)}
+              color="amber"
+              mt="1"
             />
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-zinc-900 dark:text-white">{option.label}</div>
+              <Text as="div" size="2" weight="medium">
+                {option.label}
+              </Text>
               {option.description && (
-                <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{option.description}</div>
+                <Text as="div" size="1" color="gray" mt="1">
+                  {option.description}
+                </Text>
               )}
             </div>
           </label>
@@ -123,7 +130,9 @@ export function MultiSelect({
       </div>
 
       {value.length > 0 && (
-        <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{value.length} selected</div>
+        <Text as="p" size="2" color="gray" mt="2">
+          {value.length} selected
+        </Text>
       )}
     </Field>
   )

@@ -30,7 +30,7 @@ const levelConfig: Record<
   { color: Parameters<typeof Badge>[0]['color']; label: string }
 > = {
   info: { color: 'zinc', label: 'INFO' },
-  warn: { color: 'yellow', label: 'WARN' },
+  warn: { color: 'amber', label: 'WARN' },
   error: { color: 'red', label: 'ERROR' },
   debug: { color: 'zinc', label: 'DEBUG' },
 }

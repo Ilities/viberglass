@@ -7,9 +7,9 @@ export function formatSeverity(severity: string): { label: string; color: string
     case 'critical':
       return { label: 'Critical', color: 'bg-red-100 text-red-800' }
     case 'high':
-      return { label: 'High', color: 'bg-orange-100 text-orange-800' }
+      return { label: 'High', color: 'bg-amber-100 text-amber-800' }
     case 'medium':
-      return { label: 'Medium', color: 'bg-yellow-100 text-yellow-800' }
+      return { label: 'Medium', color: 'bg-amber-100 text-amber-800' }
     case 'low':
       return { label: 'Low', color: 'bg-green-100 text-green-800' }
     default:
@@ -22,9 +22,9 @@ export function formatAutoFixStatus(status?: string): { label: string; color: st
     case 'completed':
       return { label: 'Fixed', color: 'bg-green-100 text-green-800' }
     case 'in_progress':
-      return { label: 'Fixing', color: 'bg-blue-100 text-blue-800' }
+      return { label: 'Fixing', color: 'bg-amber-100 text-amber-800' }
     case 'pending':
-      return { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' }
+      return { label: 'Pending', color: 'bg-amber-100 text-amber-800' }
     case 'failed':
       return { label: 'Failed', color: 'bg-red-100 text-red-800' }
     default:

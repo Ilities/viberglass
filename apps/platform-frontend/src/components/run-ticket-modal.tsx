@@ -6,7 +6,7 @@ import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { runTicket } from '@/service/api/job-api'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 interface RunTicketModalProps {
@@ -20,8 +20,21 @@ interface RunTicketModalProps {
 export function RunTicketModal({ ticket, clankers, project, open, onClose }: RunTicketModalProps) {
   const router = useRouter()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
-  const [selectedClanker, setSelectedClanker] = useState<Clanker | null>(activeClankers[0] || null)
+  const [selectedClankerId, setSelectedClankerId] = useState<string>(activeClankers[0]?.id ?? '')
   const [isRunning, setIsRunning] = useState(false)
+
+  useEffect(() => {
+    if (activeClankers.length === 0) {
+      if (selectedClankerId) setSelectedClankerId('')
+      return
+    }
+
+    if (!activeClankers.some((clanker) => clanker.id === selectedClankerId)) {
+      setSelectedClankerId(activeClankers[0].id)
+    }
+  }, [activeClankers, selectedClankerId])
+
+  const selectedClanker = activeClankers.find((clanker) => clanker.id === selectedClankerId) ?? null
 
   // Reset selection when modal opens with new ticket
   // (handled by parent re-mounting or passing key)
@@ -76,9 +89,13 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
           <div>
             <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Select Clanker</h4>
             {activeClankers.length > 0 ? (
-              <Listbox value={selectedClanker} onChange={setSelectedClanker} placeholder="Select a clanker...">
+              <Listbox
+                value={selectedClankerId}
+                onChange={setSelectedClankerId}
+                placeholder="Select a clanker..."
+              >
                 {activeClankers.map((clanker) => (
-                  <ListboxOption key={clanker.id} value={clanker}>
+                  <ListboxOption key={clanker.id} value={clanker.id}>
                     <ListboxLabel>{clanker.name}</ListboxLabel>
                   </ListboxOption>
                 ))}

@@ -7,7 +7,7 @@ import { Heading, Subheading } from '@/components/heading'
 import { ClankerHealth } from './clanker-health'
 import { getClankerBySlug, formatClankerStatus, formatDeploymentStrategy } from '@/data'
 import { getSecret } from '@/service/api/secret-api'
-import { PencilIcon } from '@heroicons/react/16/solid'
+import { Pencil1Icon } from '@radix-ui/react-icons'
 import { notFound } from 'next/navigation'
 import { ClankerActions } from './clanker-actions'
 
@@ -56,7 +56,7 @@ export default async function ClankerPage({ params }: { params: Promise<{ slug: 
         <div className="flex items-center gap-2">
           <ClankerActions clanker={clanker} />
           <Button href={`/clankers/${clanker.slug}/edit`} outline>
-            <PencilIcon />
+            <Pencil1Icon />
             Edit
           </Button>
         </div>
@@ -189,7 +189,7 @@ export default async function ClankerPage({ params }: { params: Promise<{ slug: 
                 No configuration files set up yet.
               </p>
               <Button href={`/clankers/${clanker.slug}/edit`} className="mt-4" outline>
-                <PencilIcon />
+                <Pencil1Icon />
                 Add Configuration
               </Button>
             </div>

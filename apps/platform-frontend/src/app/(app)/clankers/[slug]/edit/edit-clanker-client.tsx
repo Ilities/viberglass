@@ -4,9 +4,9 @@ import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
+import { MultiSelect } from '@/components/multi-select'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
-import { MultiSelect } from '@/components/multi-select'
 import { getClankerBySlug } from '@/data'
 import { getDeploymentStrategies, updateClanker } from '@/service/api/clanker-api'
 import { getSecrets, type Secret } from '@/service/api/secret-api'
@@ -182,9 +182,12 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
               <Select
                 name="deploymentStrategyId"
                 value={selectedStrategyId}
-                onChange={(e) => setSelectedStrategyId(e.target.value)}
+                onChange={(e) => {
+                  console.log(e)
+                  setSelectedStrategyId(e)
+                }}
               >
-                <option value="">Select a deployment strategy...</option>
+                <option value="none">Select a deployment strategy...</option>
                 {deploymentStrategies.map((strategy) => (
                   <option key={strategy.id} value={strategy.id}>
                     {strategy.name.charAt(0).toUpperCase() + strategy.name.slice(1)}
@@ -232,7 +235,7 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
             <Field>
               <Label>Agent</Label>
               <Description>Select which AI agent to use for this clanker.</Description>
-              <Select name="agent" value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value as AgentType)}>
+              <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(value as AgentType)}>
                 <option value="claude-code">Claude Code (Recommended)</option>
                 <option value="qwen-cli">Qwen CLI</option>
                 <option value="qwen-api">Qwen API</option>
