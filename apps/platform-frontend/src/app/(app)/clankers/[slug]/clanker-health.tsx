@@ -5,7 +5,7 @@ import { Button } from '@/components/button'
 import { ClankerHealthBadge } from '@/components/clanker-health-badge'
 import { DescriptionDetails, DescriptionTerm } from '@/components/description-list'
 import { getClankerHealth } from '@/service/api/clanker-api'
-import { ArrowPathIcon } from '@heroicons/react/16/solid'
+import { ReloadIcon } from '@radix-ui/react-icons'
 import type { ClankerHealthStatus } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
@@ -69,7 +69,7 @@ export function ClankerHealth({ clankerId }: ClankerHealthProps) {
             className="text-zinc-500 hover:text-zinc-700"
             aria-label="Refresh health status"
           >
-            <ArrowPathIcon className={isRefreshing ? 'animate-spin' : ''} />
+            <ReloadIcon className={isRefreshing ? 'animate-spin' : ''} />
           </Button>
         </div>
         {error && <p className="mt-1 text-sm text-red-600">{error}</p>}

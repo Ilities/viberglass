@@ -1,20 +1,21 @@
 'use client'
 
+import { Theme as RadixTheme } from '@radix-ui/themes'
 import { createContext, useContext, useEffect, useState } from 'react'
 
-type Theme = 'light' | 'dark'
+type AppTheme = 'light' | 'dark'
 
 interface ThemeContextType {
-  theme: Theme | null
+  theme: AppTheme | null
   toggleTheme: () => void
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme | null>(null)
+  const [theme, setTheme] = useState<AppTheme | null>(null)
 
-  const applyTheme = (newTheme: Theme) => {
+  const applyTheme = (newTheme: AppTheme) => {
     setTheme(newTheme)
     localStorage.setItem('theme', newTheme)
     if (newTheme === 'dark') {
@@ -25,7 +26,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme | null
+    const savedTheme = localStorage.getItem('theme') as AppTheme | null
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     const initialTheme = savedTheme || systemTheme
 
@@ -33,11 +34,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
+    const activeTheme = theme ?? 'light'
+    const newTheme = activeTheme === 'light' ? 'dark' : 'light'
     applyTheme(newTheme)
   }
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      <RadixTheme appearance={theme ?? 'light'} accentColor="amber" grayColor="sand">
+        {children}
+      </RadixTheme>
+    </ThemeContext.Provider>
+  )
 }
 
 export function useTheme() {

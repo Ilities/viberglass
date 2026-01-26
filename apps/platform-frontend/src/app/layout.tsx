@@ -1,5 +1,6 @@
-import { ThemeProvider } from '@/context/theme-context'
+import '@radix-ui/themes/styles.css'
 import '@/styles/tailwind.css'
+import { ThemeProvider } from '@/context/theme-context'
 import type { Metadata } from 'next'
 import { Inter, Orbitron, Space_Mono } from 'next/font/google'
 

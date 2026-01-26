@@ -10,38 +10,84 @@
     --font-mono: var(--font-space-mono), 'Space Mono', monospace;
 
     /* Brand Colors - Primary Palette */
-    --color-brand-burnt-orange: #B7531DFF;
-    --color-brand-golden-brass: #cd7e32;
-    --color-brand-warm-gold: #c9a869;
-    --color-brand-cream: #f5e6d3;
+    --color-brand-burnt-orange: var(--accent-9);
+    --color-brand-golden-brass: var(--accent-10);
+    --color-brand-warm-gold: var(--accent-11);
+    --color-brand-cream: var(--gray-2);
 
     /* Brand Colors - Neutrals */
-    --color-brand-charcoal: #1a1a1a;
-    --color-brand-dark-gray: #282828;
-    --color-brand-light-gray: #e8e8e8;
+    --color-brand-charcoal: var(--gray-12);
+    --color-brand-dark-gray: var(--gray-11);
+    --color-brand-light-gray: var(--gray-3);
 
     /* Semantic color aliases */
-    --color-brand: #B7531DFF;
-    --color-brand-secondary: #cd7e32;
-    --color-brand-accent: #c9a869;
+    --color-brand: var(--accent-9);
+    --color-brand-secondary: var(--accent-10);
+    --color-brand-accent: var(--accent-11);
+}
+
+@layer base {
+    .radix-themes {
+        --color-amber-50: var(--accent-2);
+        --color-amber-100: var(--accent-3);
+        --color-amber-200: var(--accent-4);
+        --color-amber-300: var(--accent-5);
+        --color-amber-400: var(--accent-6);
+        --color-amber-500: var(--accent-9);
+        --color-amber-600: var(--accent-10);
+        --color-amber-700: var(--accent-11);
+        --color-amber-800: var(--accent-12);
+        --color-amber-900: var(--accent-12);
+        --color-amber-950: var(--accent-12);
+    }
+
+    /* Prevent SVG icons from inheriting problematic font properties */
+    svg,
+    [data-slot='icon'] {
+        font-family: system-ui, -apple-system, sans-serif !important;
+        font-feature-settings: normal !important;
+        font-variation-settings: normal !important;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Radix Icons styling - uses stroke instead of fill */
+    [data-slot='icon'] {
+        stroke: currentColor !important;
+        stroke-width: 1.5 !important;
+    }
+
+    [data-slot='icon'][data-filled='true'] {
+        fill: currentColor !important;
+    }
 }
 
 /* Brand gradient utilities */
 @layer utilities {
     .bg-brand-gradient {
-        background: linear-gradient(135deg, #b84608 0%, #cd7e32 100%);
+        background: linear-gradient(135deg, var(--color-brand-burnt-orange) 0%, var(--color-brand-golden-brass) 100%);
     }
 
     .bg-brand-gradient-extended {
-        background: linear-gradient(135deg, #b84608 0%, #cd7e32 50%, #c9a869 100%);
+        background: linear-gradient(
+            135deg,
+            var(--color-brand-burnt-orange) 0%,
+            var(--color-brand-golden-brass) 50%,
+            var(--color-brand-warm-gold) 100%
+        );
     }
 
     .bg-brand-gradient-baton {
-        background: linear-gradient(135deg, #cd7e32 0%, #c9a869 100%);
+        background: linear-gradient(135deg, var(--color-brand-golden-brass) 0%, var(--color-brand-warm-gold) 100%);
     }
 
     .text-brand-gradient {
-        background: linear-gradient(135deg, #b84608 0%, #cd7e32 50%, #c9a869 100%);
+        background: linear-gradient(
+            135deg,
+            var(--color-brand-burnt-orange) 0%,
+            var(--color-brand-golden-brass) 50%,
+            var(--color-brand-warm-gold) 100%
+        );
         background-size: 200% auto;
         -webkit-background-clip: text;
         background-clip: text;
@@ -49,18 +95,18 @@
     }
 
     .border-brand {
-        border-color: rgba(184, 70, 8, 0.2);
+        border-color: color-mix(in srgb, var(--color-brand-burnt-orange) 20%, transparent);
     }
 
     .border-brand-hover {
-        border-color: rgba(184, 70, 8, 0.5);
+        border-color: color-mix(in srgb, var(--color-brand-burnt-orange) 50%, transparent);
     }
 
     .shadow-brand {
-        box-shadow: 0 10px 30px rgba(184, 70, 8, 0.3);
+        box-shadow: 0 10px 30px color-mix(in srgb, var(--color-brand-burnt-orange) 30%, transparent);
     }
 
     .shadow-brand-lg {
-        box-shadow: 0 20px 40px rgba(184, 70, 8, 0.15);
+        box-shadow: 0 20px 40px color-mix(in srgb, var(--color-brand-burnt-orange) 15%, transparent);
     }
 }

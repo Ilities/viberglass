@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/button'
-import { SparklesIcon } from '@heroicons/react/20/solid'
+import { MagicWandIcon } from '@radix-ui/react-icons'
 import { useRouter } from 'next/navigation'
 
 export function EnhanceFixButton({ href }: { href: string }) {
@@ -9,7 +9,7 @@ export function EnhanceFixButton({ href }: { href: string }) {
 
   return (
     <Button color="blue" onClick={() => router.push(href)}>
-      <SparklesIcon className="h-5 w-5" />
+      <MagicWandIcon className="h-5 w-5" data-slot="icon" />
       Enhance & Fix
     </Button>
   )

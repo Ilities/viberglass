@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/button'
 import { RunTicketModal } from '@/components/run-ticket-modal'
-import { PlayIcon } from '@heroicons/react/20/solid'
+import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useState } from 'react'
 

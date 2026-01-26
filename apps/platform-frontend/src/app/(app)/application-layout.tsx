@@ -16,20 +16,26 @@ import { ProjectProvider } from '@/context/project-context'
 import { useTheme } from '@/context/theme-context'
 import { getProjects, Project } from '@/service/api/project-api'
 import {
-  ArrowRightStartOnRectangleIcon,
+  AvatarIcon,
   ChevronDownIcon,
-  Cog8ToothIcon,
-  LightBulbIcon,
+  CrumpledPaperIcon,
+  ExitIcon,
+  GearIcon,
+  HomeIcon,
+  LightningBoltIcon,
+  LockClosedIcon,
   MoonIcon,
   PlusIcon,
-  ShieldCheckIcon,
   SunIcon,
-  UserCircleIcon,
-} from '@heroicons/react/16/solid'
-import { BugAntIcon, Cog6ToothIcon, ExclamationTriangleIcon, HomeIcon } from '@heroicons/react/20/solid'
+} from '@radix-ui/react-icons'
 import { useParams, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
+
+// Wrap Radix icons with data-slot attribute for proper styling
+function Icon({ children }: { children: React.ReactNode }) {
+  return <span data-slot="icon">{children}</span>
+}
 
 function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
   const pathname = usePathname()
@@ -40,15 +46,19 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
   }, [])
 
   return (
-    <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
+    <DropdownMenu className="min-w-80 lg:min-w-64">
       <DropdownItem href={`/`}>
-        <HomeIcon />
+        <Icon>
+          <HomeIcon />
+        </Icon>
         <DropdownLabel>Home</DropdownLabel>
       </DropdownItem>
 
       {pathname !== '/' ? (
         <DropdownItem href={`/project/${projectSlug}/settings`}>
-          <Cog8ToothIcon />
+          <Icon>
+            <GearIcon />
+          </Icon>
           <DropdownLabel>Project Settings</DropdownLabel>
         </DropdownItem>
       ) : null}
@@ -56,7 +66,7 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
       {projects.map((p) => (
         <DropdownItem key={p.id} href={`/project/${p.slug}`}>
           {p.slug === 'viberglass' ? (
-            <Avatar slot="icon" src="/teams/viberator.svg" />
+            <Avatar slot="icon" src="/teams/viberglass.svg" />
           ) : (
             <Avatar slot="icon" initials={p.name.substring(0, 2).toUpperCase()} className="bg-purple-500 text-white" />
           )}
@@ -65,20 +75,24 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
       ))}
       <DropdownDivider />
       <DropdownItem href="/new">
-        <PlusIcon />
+        <Icon>
+          <PlusIcon />
+        </Icon>
         <DropdownLabel>New Project&hellip;</DropdownLabel>
       </DropdownItem>
     </DropdownMenu>
   )
 }
 
-function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' }) {
+function AccountDropdownMenu() {
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <DropdownMenu className="min-w-64" anchor={anchor}>
+    <DropdownMenu className="min-w-64">
       <DropdownItem href="#">
-        <UserCircleIcon />
+        <Icon>
+          <AvatarIcon />
+        </Icon>
         <DropdownLabel>My account</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
@@ -88,21 +102,27 @@ function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' })
           toggleTheme()
         }}
       >
-        {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        <Icon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</Icon>
         <DropdownLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
       <DropdownItem href="#">
-        <ShieldCheckIcon />
+        <Icon>
+          <LockClosedIcon />
+        </Icon>
         <DropdownLabel>Privacy policy</DropdownLabel>
       </DropdownItem>
       <DropdownItem href="#">
-        <LightBulbIcon />
+        <Icon>
+          <LightningBoltIcon />
+        </Icon>
         <DropdownLabel>Share feedback</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
       <DropdownItem href="/login">
-        <ArrowRightStartOnRectangleIcon />
+        <Icon>
+          <ExitIcon />
+        </Icon>
         <DropdownLabel>Sign out</DropdownLabel>
       </DropdownItem>
     </DropdownMenu>
@@ -130,9 +150,11 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
           <Navbar>
             <Dropdown>
               <DropdownButton as={NavbarItem} className="max-lg:hidden">
-                <Avatar src="/teams/viberator.svg" />
+                <Avatar src="/teams/viberglass.svg" />
                 <NavbarLabel>{projectSlug}</NavbarLabel>
-                <ChevronDownIcon />
+                <Icon>
+                  <ChevronDownIcon />
+                </Icon>
               </DropdownButton>
               <ProjectDropdownMenu projectSlug={projectSlug} />
             </Dropdown>
@@ -168,7 +190,7 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                 <DropdownButton as={NavbarItem}>
                   <Avatar src="/users/erica.jpg" square />
                 </DropdownButton>
-                <AccountDropdownMenu anchor="bottom end" />
+                <AccountDropdownMenu />
               </Dropdown>
             </NavbarSection>
           </Navbar>
@@ -180,7 +202,9 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                 <DropdownButton as={SidebarItem}>
                   <Avatar src="/teams/viberator.svg" />
                   <SidebarLabel>{projectSlug}</SidebarLabel>
-                  <ChevronDownIcon />
+                  <Icon>
+                    <ChevronDownIcon />
+                  </Icon>
                 </DropdownButton>
                 <ProjectDropdownMenu projectSlug={projectSlug} />
               </Dropdown>
@@ -189,19 +213,27 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
             <SidebarBody>
               <SidebarSection>
                 <SidebarItem href={basePath} current={pathname === basePath}>
-                  <HomeIcon />
+                  <Icon>
+                    <HomeIcon />
+                  </Icon>
                   <SidebarLabel>Dashboard</SidebarLabel>
                 </SidebarItem>
                 <SidebarItem href={`${basePath}/tickets`} current={pathname.startsWith(`${basePath}/tickets`)}>
-                  <BugAntIcon />
+                  <Icon>
+                    <CrumpledPaperIcon />
+                  </Icon>
                   <SidebarLabel>Bug Reports</SidebarLabel>
                 </SidebarItem>
                 <SidebarItem href={`${basePath}/enhance`} current={pathname.startsWith(`${basePath}/enhance`)}>
-                  <ExclamationTriangleIcon />
+                  <Icon>
+                    <LightningBoltIcon />
+                  </Icon>
                   <SidebarLabel>Enhance & Fix</SidebarLabel>
                 </SidebarItem>
                 <SidebarItem href={`${basePath}/settings`} current={pathname.startsWith(`${basePath}/settings`)}>
-                  <Cog6ToothIcon />
+                  <Icon>
+                    <GearIcon />
+                  </Icon>
                   <SidebarLabel>Settings</SidebarLabel>
                 </SidebarItem>
               </SidebarSection>

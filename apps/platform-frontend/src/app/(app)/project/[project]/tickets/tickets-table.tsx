@@ -5,7 +5,7 @@ import { Button } from '@/components/button'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { formatAutoFixStatus, formatSeverity, formatTimestamp, type TicketSummary } from '@/data'
-import { PlayIcon } from '@heroicons/react/16/solid'
+import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useState } from 'react'
 
@@ -79,7 +79,7 @@ export function TicketsTable({ tickets, fullTickets, clankers, project }: Ticket
                 )}
               </TableCell>
               <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(ticket.timestamp)}</TableCell>
-              <TableCell>
+              <TableCell excludeRowLink>
                 <Button
                   plain
                   onClick={(e) => handleRunClick(ticket, e)}

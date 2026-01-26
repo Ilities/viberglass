@@ -3,7 +3,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { getClankersList, formatClankerStatus, formatDeploymentStrategy } from '@/data'
-import { PlusIcon } from '@heroicons/react/16/solid'
+import { PlusIcon } from '@radix-ui/react-icons'
 import Link from 'next/link'
 
 export default async function ClankersPage() {
@@ -14,7 +14,7 @@ export default async function ClankersPage() {
       <div className="flex items-end justify-between">
         <Heading>Your Clankers</Heading>
         <Button href="/clankers/new" color="brand">
-          <PlusIcon />
+          <PlusIcon data-slot="icon" />
           New Clanker
         </Button>
       </div>
