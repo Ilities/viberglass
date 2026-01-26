@@ -28,12 +28,12 @@ import {
 import { WebhookDeliveryList, DeliverySummary } from '@/components/webhook-delivery-list'
 import {
   PlusIcon,
-  PencilIcon,
+  Pencil1Icon,
   TrashIcon,
-  BeakerIcon,
+  UpdateIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-} from '@heroicons/react/16/solid'
+} from '@radix-ui/react-icons'
 
 export default function WebhooksPage() {
   const router = useRouter()
@@ -213,7 +213,7 @@ export default function WebhooksPage() {
                     onClick={() => router.push(`/webhooks/config/${config.id}/edit`)}
                     className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                   >
-                    <PencilIcon className="h-4 w-4" />
+                    <Pencil1Icon className="h-4 w-4" />
                   </Button>
                   <Button
                     plain
@@ -273,7 +273,7 @@ export default function WebhooksPage() {
                   disabled={testingId === config.id}
                   className="text-sm"
                 >
-                  <BeakerIcon className="h-4 w-4" />
+                  <UpdateIcon className="h-4 w-4" />
                   Test
                 </Button>
               </div>

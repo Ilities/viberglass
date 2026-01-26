@@ -1,13 +1,14 @@
-import * as Headless from '@headlessui/react'
+import { Text as RadixText } from '@radix-ui/themes'
 import clsx from 'clsx'
 import type React from 'react'
+import { FieldProvider, useFieldContext, useRegisterFieldDescription, useRegisterFieldError } from './field-context'
 
 export function Fieldset({
   className,
   ...props
-}: { className?: string } & Omit<Headless.FieldsetProps, 'as' | 'className'>) {
+}: { className?: string } & React.ComponentPropsWithoutRef<'fieldset'>) {
   return (
-    <Headless.Fieldset
+    <fieldset
       {...props}
       className={clsx(className, '*:data-[slot=text]:mt-1 [&>*+[data-slot=control]]:mt-6')}
     />
@@ -17,9 +18,9 @@ export function Fieldset({
 export function Legend({
   className,
   ...props
-}: { className?: string } & Omit<Headless.LegendProps, 'as' | 'className'>) {
+}: { className?: string } & React.ComponentPropsWithoutRef<'legend'>) {
   return (
-    <Headless.Legend
+    <legend
       data-slot="legend"
       {...props}
       className={clsx(
@@ -34,32 +35,47 @@ export function FieldGroup({ className, ...props }: React.ComponentPropsWithoutR
   return <div data-slot="control" {...props} className={clsx(className, 'space-y-8')} />
 }
 
-export function Field({ className, ...props }: { className?: string } & Omit<Headless.FieldProps, 'as' | 'className'>) {
+export function Field({
+  className,
+  disabled,
+  ...props
+}: { className?: string; disabled?: boolean } & React.ComponentPropsWithoutRef<'div'>) {
   return (
-    <Headless.Field
-      {...props}
-      className={clsx(
-        className,
-        '[&>[data-slot=label]+[data-slot=control]]:mt-3',
-        '[&>[data-slot=label]+[data-slot=description]]:mt-1',
-        '[&>[data-slot=description]+[data-slot=control]]:mt-3',
-        '[&>[data-slot=control]+[data-slot=description]]:mt-3',
-        '[&>[data-slot=control]+[data-slot=error]]:mt-3',
-        '*:data-[slot=label]:font-medium'
-      )}
-    />
+    <FieldProvider disabled={disabled}>
+      <div
+        {...props}
+        data-disabled={disabled ? '' : undefined}
+        className={clsx(
+          className,
+          '[&>[data-slot=label]+[data-slot=control]]:mt-3',
+          '[&>[data-slot=label]+[data-slot=description]]:mt-1',
+          '[&>[data-slot=description]+[data-slot=control]]:mt-3',
+          '[&>[data-slot=control]+[data-slot=description]]:mt-3',
+          '[&>[data-slot=control]+[data-slot=error]]:mt-3',
+          '*:data-[slot=label]:font-medium'
+        )}
+      />
+    </FieldProvider>
   )
 }
 
-export function Label({ className, ...props }: { className?: string } & Omit<Headless.LabelProps, 'as' | 'className'>) {
+export function Label({ className, ...props }: { className?: string } & React.ComponentPropsWithoutRef<'label'>) {
+  const context = useFieldContext()
+  const disabled = context?.disabled
+  const htmlFor = props.htmlFor ?? context?.controlId
+  const id = props.id ?? context?.labelId
+
   return (
-    <Headless.Label
+    <RadixText
+      as="label"
+      size="2"
+      weight="medium"
       data-slot="label"
       {...props}
-      className={clsx(
-        className,
-        'text-base/6 text-zinc-950 select-none data-disabled:opacity-50 sm:text-sm/6 dark:text-white'
-      )}
+      id={id}
+      htmlFor={htmlFor}
+      data-disabled={disabled ? '' : undefined}
+      className={clsx(className, 'select-none data-disabled:opacity-50')}
     />
   )
 }
@@ -67,12 +83,20 @@ export function Label({ className, ...props }: { className?: string } & Omit<Hea
 export function Description({
   className,
   ...props
-}: { className?: string } & Omit<Headless.DescriptionProps, 'as' | 'className'>) {
+}: { className?: string } & React.ComponentPropsWithoutRef<'p'>) {
+  const context = useFieldContext()
+  useRegisterFieldDescription()
+
   return (
-    <Headless.Description
+    <RadixText
+      as="p"
+      size="2"
+      color="gray"
       data-slot="description"
       {...props}
-      className={clsx(className, 'text-base/6 text-zinc-500 data-disabled:opacity-50 sm:text-sm/6 dark:text-zinc-400')}
+      id={props.id ?? context?.descriptionId}
+      data-disabled={context?.disabled ? '' : undefined}
+      className={clsx(className, 'data-disabled:opacity-50')}
     />
   )
 }
@@ -80,12 +104,20 @@ export function Description({
 export function ErrorMessage({
   className,
   ...props
-}: { className?: string } & Omit<Headless.DescriptionProps, 'as' | 'className'>) {
+}: { className?: string } & React.ComponentPropsWithoutRef<'p'>) {
+  const context = useFieldContext()
+  useRegisterFieldError()
+
   return (
-    <Headless.Description
+    <RadixText
+      as="p"
+      size="2"
+      color="red"
       data-slot="error"
       {...props}
-      className={clsx(className, 'text-base/6 text-red-600 data-disabled:opacity-50 sm:text-sm/6 dark:text-red-500')}
+      id={props.id ?? context?.errorId}
+      data-disabled={context?.disabled ? '' : undefined}
+      className={clsx(className, 'data-disabled:opacity-50')}
     />
   )
 }

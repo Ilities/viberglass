@@ -2,7 +2,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getTicketDetails } from '@/data'
-import { ArrowLeftIcon } from '@heroicons/react/20/solid'
+import { ArrowLeftIcon } from '@radix-ui/react-icons'
 import { notFound } from 'next/navigation'
 
 export const generateStaticParams = async () => {

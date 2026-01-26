@@ -2,7 +2,7 @@ import { Avatar } from '@/components/avatar'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { getProjectsList } from '@/data'
-import { PlusIcon } from '@heroicons/react/16/solid'
+import { PlusIcon } from '@radix-ui/react-icons'
 import Link from 'next/link'
 
 export default async function RootPage() {
@@ -13,7 +13,7 @@ export default async function RootPage() {
       <div className="flex items-end justify-between">
         <Heading>Your Projects</Heading>
         <Button href="/new" color="brand">
-          <PlusIcon />
+          <PlusIcon data-slot="icon" />
           New Project
         </Button>
       </div>
@@ -27,7 +27,7 @@ export default async function RootPage() {
             Create your first project to start tracking bugs and auto-fixing issues.
           </p>
           <Button href="/new" color="brand" className="mt-6">
-            <PlusIcon />
+            <PlusIcon data-slot="icon" />
             Create Project
           </Button>
         </div>
@@ -37,12 +37,12 @@ export default async function RootPage() {
             <Link
               key={project.id}
               href={`/project/${project.slug}`}
-              className="group relative overflow-hidden rounded-xl border border-zinc-950/10 bg-white p-6 shadow-sm transition-all hover:border-brand-burnt-orange/30 hover:shadow-brand-lg dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30"
+              className="group hover:shadow-brand-lg relative overflow-hidden rounded-xl border border-zinc-950/10 bg-white p-6 shadow-sm transition-all hover:border-brand-burnt-orange/30 dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30"
             >
               <div className="flex items-start gap-4">
                 <Avatar
                   initials={project.name.substring(0, 2).toUpperCase()}
-                  className="size-12 bg-brand-gradient text-brand-charcoal"
+                  className="bg-brand-gradient size-12 text-brand-charcoal"
                 />
                 <div className="min-w-0 flex-1">
                   <h3 className="text-base font-semibold text-zinc-950 dark:text-white">{project.name}</h3>

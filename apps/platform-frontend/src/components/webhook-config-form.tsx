@@ -17,10 +17,10 @@ import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Text } from '@/components/text'
 import {
   ExclamationTriangleIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  ClipboardDocumentIcon,
-} from '@heroicons/react/24/outline'
+  EyeOpenIcon,
+  EyeClosedIcon,
+  ClipboardIcon,
+} from '@radix-ui/react-icons'
 import type {
   WebhookConfig,
   CreateWebhookConfigDTO,
@@ -138,8 +138,8 @@ export function WebhookConfigForm({
           <Description>Select the webhook provider platform</Description>
           <Select
             value={provider}
-            onChange={(e) => {
-              setProvider(e.target.value as WebhookProvider)
+            onChange={(value) => {
+              setProvider(value as WebhookProvider)
               setAllowedEvents([])
             }}
             disabled={isEdit}
@@ -172,7 +172,7 @@ export function WebhookConfigForm({
           <Description>Where to store the webhook secret</Description>
           <Select
             value={secretLocation}
-            onChange={(e) => setSecretLocation(e.target.value as SecretLocation)}
+            onChange={(value) => setSecretLocation(value as SecretLocation)}
           >
             <option value="database">Database (encrypted)</option>
             <option value="ssm">AWS SSM Parameter Store</option>
@@ -203,9 +203,9 @@ export function WebhookConfigForm({
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
               >
                 {showSecret ? (
-                  <EyeSlashIcon className="h-5 w-5" />
+                  <EyeClosedIcon className="h-5 w-5" />
                 ) : (
-                  <EyeIcon className="h-5 w-5" />
+                  <EyeOpenIcon className="h-5 w-5" />
                 )}
               </button>
             </div>
@@ -371,7 +371,7 @@ export function SetupInstructions({
               onClick={() => handleCopyToClipboard(displayUrl, 'Payload URL')}
               className="shrink-0"
             >
-              <ClipboardDocumentIcon className="h-5 w-5" />
+              <ClipboardIcon className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -400,7 +400,7 @@ export function SetupInstructions({
                 onClick={() => handleCopyToClipboard(webhookSecret, 'Secret')}
                 className="shrink-0"
               >
-                <ClipboardDocumentIcon className="h-5 w-5" />
+                <ClipboardIcon className="h-5 w-5" />
               </Button>
             )}
           </div>

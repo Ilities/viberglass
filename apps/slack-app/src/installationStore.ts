@@ -42,7 +42,7 @@ function getKeyFromInstallation(installation: Installation): string {
   throw new Error("Installation is missing a team or enterprise id");
 }
 
-function getKeyFromQuery(query: InstallationQuery): string {
+function getKeyFromQuery(query: InstallationQuery<boolean>): string {
   if (query.isEnterpriseInstall && query.enterpriseId) {
     return `enterprise:${query.enterpriseId}`;
   }
@@ -112,7 +112,7 @@ export function createFileInstallationStore(options: InstallationStoreOptions) {
       current[key] = installation;
       await writeStore(storePath, current);
     },
-    fetchInstallation: async (query: InstallationQuery) => {
+    fetchInstallation: async (query: InstallationQuery<boolean>) => {
       const key = getKeyFromQuery(query);
       const current = await readStore(storePath);
       const installation = current[key];
@@ -143,7 +143,7 @@ export function createDynamoInstallationStore(
         })
         .promise();
     },
-    fetchInstallation: async (query: InstallationQuery) => {
+    fetchInstallation: async (query: InstallationQuery<boolean>) => {
       const installationId = getKeyFromQuery(query);
       const response = await client
         .get({

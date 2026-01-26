@@ -1,40 +1,27 @@
-import clsx from 'clsx'
+import {
+  Code as RadixCode,
+  Link as RadixLink,
+  Strong as RadixStrong,
+  Text as RadixText,
+} from '@radix-ui/themes'
 import { Link } from './link'
 
 export function Text({ className, ...props }: React.ComponentPropsWithoutRef<'p'>) {
-  return (
-    <p
-      data-slot="text"
-      {...props}
-      className={clsx(className, 'text-base/6 text-zinc-500 sm:text-sm/6 dark:text-zinc-400')}
-    />
-  )
+  return <RadixText data-slot="text" as="p" size="2" color="gray" className={className} {...props} />
 }
 
 export function TextLink({ className, ...props }: React.ComponentPropsWithoutRef<typeof Link>) {
   return (
-    <Link
-      {...props}
-      className={clsx(
-        className,
-        'text-zinc-950 underline decoration-zinc-950/50 data-hover:decoration-zinc-950 dark:text-white dark:decoration-white/50 dark:data-hover:decoration-white'
-      )}
-    />
+    <RadixLink asChild>
+      <Link {...props} className={className} />
+    </RadixLink>
   )
 }
 
 export function Strong({ className, ...props }: React.ComponentPropsWithoutRef<'strong'>) {
-  return <strong {...props} className={clsx(className, 'font-medium text-zinc-950 dark:text-white')} />
+  return <RadixStrong className={className} {...props} />
 }
 
 export function Code({ className, ...props }: React.ComponentPropsWithoutRef<'code'>) {
-  return (
-    <code
-      {...props}
-      className={clsx(
-        className,
-        'rounded-sm border border-zinc-950/10 bg-zinc-950/2.5 px-0.5 text-sm font-medium text-zinc-950 sm:text-[0.8125rem] dark:border-white/20 dark:bg-white/5 dark:text-white'
-      )}
-    />
-  )
+  return <RadixCode className={className} {...props} />
 }
