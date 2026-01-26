@@ -3,7 +3,7 @@ import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableRow } from '@/components/table'
 import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
-import { ArrowLeftIcon, EyeIcon } from '@heroicons/react/20/solid'
+import { ArrowLeftIcon, EyeOpenIcon } from '@radix-ui/react-icons'
 import { notFound } from 'next/navigation'
 import { EnhanceFixButton } from './enhance-fix-button'
 import { TicketRunButton } from './ticket-run-button'
@@ -57,7 +57,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ p
           <EnhanceFixButton href={`/project/${project}/enhance?id=${ticket.id}`} />
           {ticket.screenshot && (
             <Button href={`/project/${project}/tickets/${ticket.id}/media`} plain>
-              <EyeIcon className="h-5 w-5" />
+              <EyeOpenIcon className="h-5 w-5" />
               View Screenshots
             </Button>
           )}
@@ -108,7 +108,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ p
                       log.level === 'error'
                         ? 'bg-red-50 text-red-900 dark:bg-red-500/10 dark:text-red-200'
                         : log.level === 'warn'
-                          ? 'bg-yellow-50 text-yellow-900 dark:bg-yellow-500/10 dark:text-yellow-200'
+                          ? 'bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200'
                           : 'bg-gray-50 text-gray-900 dark:bg-white/10 dark:text-zinc-200'
                     }`}
                   >

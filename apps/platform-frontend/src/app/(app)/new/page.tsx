@@ -97,8 +97,8 @@ export default function NewProjectPage() {
           <Field>
             <Label>Ticket System</Label>
             <Description>Which system do you use for tracking bugs?</Description>
-            <Select name="ticket_system" required>
-              <option value="">Select a system...</option>
+            <Select name="ticket_system">
+              <option value="none">Select a system...</option>
               {ticketSystems.map((system) => (
                 <option key={system.id} value={system.id}>
                   {system.name}

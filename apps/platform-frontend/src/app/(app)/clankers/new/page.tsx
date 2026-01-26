@@ -194,7 +194,7 @@ export default function NewClankerPage() {
             <Field>
               <Label>Agent</Label>
               <Description>Select which AI agent to use for this clanker.</Description>
-              <Select name="agent" value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value as AgentType)}>
+              <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(value as AgentType)}>
                 <option value="claude-code">Claude Code (Recommended)</option>
                 <option value="qwen-cli">Qwen CLI</option>
                 <option value="qwen-api">Qwen API</option>

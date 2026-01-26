@@ -20,7 +20,7 @@ import {
   type Secret,
   type SecretLocation,
 } from '@/service/api/secret-api'
-import { PencilIcon, PlusIcon, TrashIcon } from '@heroicons/react/16/solid'
+import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 
 type SecretFormState = {
   name: string
@@ -266,7 +266,7 @@ export default function SecretsPage() {
                       onClick={() => openEditDialog(secret)}
                       className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                     >
-                      <PencilIcon className="h-4 w-4" />
+                      <Pencil1Icon className="h-4 w-4" />
                     </Button>
                     <Button
                       plain
@@ -311,11 +311,11 @@ export default function SecretsPage() {
                   <Description>{locationHelper}</Description>
                   <Select
                     value={formState.secretLocation}
-                    onChange={(event) =>
+                    onChange={(value) =>
                       setFormState((prev) => ({
                         ...prev,
-                        secretLocation: event.target.value as SecretLocation,
-                        secretPath: event.target.value === 'ssm' ? prev.secretPath : '',
+                        secretLocation: value as SecretLocation,
+                        secretPath: value === 'ssm' ? prev.secretPath : '',
                         secretValue: '',
                       }))
                     }

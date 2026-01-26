@@ -5,7 +5,7 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { formatAutoFixStatus, formatSeverity, getTicketDetails } from '@/data'
-import { ClockIcon, PlayIcon, SparklesIcon } from '@heroicons/react/20/solid'
+import { ClockIcon, MagicWandIcon, PlayIcon } from '@radix-ui/react-icons'
 import { notFound } from 'next/navigation'
 
 export const generateStaticParams = async () => {
@@ -140,7 +140,7 @@ export default async function EnhancePage({
             <div>
               <label className="block text-sm font-medium text-zinc-900 dark:text-white">Priority Override</label>
               <Select name="priorityOverride" className="mt-2">
-                <option value="">Use original priority</option>
+                <option value="default">Use original priority</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
@@ -149,12 +149,12 @@ export default async function EnhancePage({
             </div>
 
             <div className="flex gap-4">
-              <Button type="submit" color="blue" className="flex-1">
-                <SparklesIcon className="mr-2 h-5 w-5" />
+              <Button type="submit" color="brand" className="flex-1">
+                <MagicWandIcon className="mr-2 h-5 w-5" />
                 Enhance & Send to AI
               </Button>
               {ticket.id && (
-                <Button type="button" color="green" className="flex-1">
+                <Button type="button" color="lime" className="flex-1">
                   <PlayIcon className="mr-2 h-5 w-5" />
                   Trigger Auto-Fix Now
                 </Button>
@@ -176,7 +176,7 @@ export default async function EnhancePage({
                     </div>
                     <div className="text-sm text-zinc-600 dark:text-zinc-400">
                       {ticket.autoFixStatus === 'completed' && ticket.pullRequestUrl && (
-                        <a href={ticket.pullRequestUrl} className="text-blue-600 hover:underline dark:text-blue-400">
+                        <a href={ticket.pullRequestUrl} className="text-amber-600 hover:underline dark:text-amber-400">
                           View Pull Request
                         </a>
                       )}

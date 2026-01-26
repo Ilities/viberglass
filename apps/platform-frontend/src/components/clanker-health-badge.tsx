@@ -1,22 +1,22 @@
 import { Badge } from '@/components/badge'
-import { CheckCircleIcon, QuestionMarkCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { CheckCircledIcon, QuestionMarkCircledIcon, CrossCircledIcon } from '@radix-ui/react-icons'
 import type { ClankerHealthStatus } from '@viberglass/types'
 
 const healthConfig = {
   healthy: {
     label: 'Healthy',
     color: 'green' as const,
-    icon: CheckCircleIcon,
+    icon: CheckCircledIcon,
   },
   unhealthy: {
     label: 'Unhealthy',
     color: 'red' as const,
-    icon: XCircleIcon,
+    icon: CrossCircledIcon,
   },
   unknown: {
     label: 'Unknown',
     color: 'zinc' as const,
-    icon: QuestionMarkCircleIcon,
+    icon: QuestionMarkCircledIcon,
   },
 } as const
 
@@ -36,7 +36,7 @@ export function ClankerHealthBadge({ health, showChecks = false }: ClankerHealth
 
   return (
     <Badge color={color}>
-      <Icon className="h-4 w-4" />
+      <Icon className="h-4 w-4" data-slot="icon" />
       <span>{label}</span>
     </Badge>
   )

@@ -6,7 +6,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/table'
 import { Text } from '@/components/text'
-import { ChevronDownIcon, ArrowPathIcon } from '@heroicons/react/16/solid'
+import { ChevronDownIcon, ReloadIcon } from '@radix-ui/react-icons'
 import { usePolling } from '@/hooks/usePolling'
 import type { WebhookDelivery, WebhookDeliveryStatus } from '@/service/api/webhook-api'
 
@@ -19,9 +19,9 @@ interface WebhookDeliveryListProps {
 
 type StatusFilter = 'all' | 'pending' | 'processing' | 'failed' | 'succeeded'
 
-const STATUS_COLORS: Record<WebhookDeliveryStatus, 'red' | 'yellow' | 'green' | 'zinc'> = {
-  pending: 'yellow',
-  processing: 'yellow',
+const STATUS_COLORS: Record<WebhookDeliveryStatus, 'red' | 'amber' | 'green' | 'zinc'> = {
+  pending: 'amber',
+  processing: 'amber',
   succeeded: 'green',
   failed: 'red',
 }
@@ -168,7 +168,7 @@ export function WebhookDeliveryList({
             disabled={loading}
             className="text-sm"
           >
-            <ArrowPathIcon className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+            <ReloadIcon className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
             Refresh
           </Button>
         </div>
@@ -230,7 +230,7 @@ export function WebhookDeliveryList({
                       disabled={retryingDelivery === delivery.id}
                       className="text-sm"
                     >
-                      <ArrowPathIcon
+                      <ReloadIcon
                         className={retryingDelivery === delivery.id ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
                       />
                       Retry
