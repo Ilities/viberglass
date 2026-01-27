@@ -113,6 +113,7 @@ export function createBackendEcs(
   const backendTaskExecutionRole = new aws.iam.Role(
     `${options.config.environment}-viberglass-backend-task-exec-role`,
     {
+      name: `${options.config.environment}-viberglass-backend-task-exec-role`,
       assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
         Service: "ecs-tasks.amazonaws.com",
       }),
@@ -133,6 +134,7 @@ export function createBackendEcs(
   const backendTaskRole = new aws.iam.Role(
     `${options.config.environment}-viberglass-backend-task-role`,
     {
+      name: `${options.config.environment}-viberglass-backend-task-role`,
       assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
         Service: "ecs-tasks.amazonaws.com",
       }),
