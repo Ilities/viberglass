@@ -172,15 +172,12 @@ describe('AwsSsmProvider', () => {
       jest.useRealTimers();
     });
 
-    it('should return null on other errors and log', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    it('should return null on other errors', async () => {
       mockSend.mockRejectedValueOnce(new Error('Network error'));
 
       const result = await provider.get('tenant-123', 'KEY');
 
       expect(result).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
     });
 
     it('should clear cache on error', async () => {

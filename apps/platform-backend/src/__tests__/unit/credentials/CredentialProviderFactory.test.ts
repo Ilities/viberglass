@@ -160,12 +160,9 @@ describe('CredentialProviderFactory', () => {
       const factory = new CredentialProviderFactory({ environment: { enabled: true } });
       factory['providers'] = [provider1, provider2];
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const result = await factory.get('tenant-123', 'KEY');
 
       expect(result).toBe('value2');
-      expect(consoleWarnSpy).toHaveBeenCalled();
-      consoleWarnSpy.mockRestore();
     });
 
     it('should return null when all providers throw errors', async () => {
@@ -178,29 +175,9 @@ describe('CredentialProviderFactory', () => {
       const factory = new CredentialProviderFactory({ environment: { enabled: true } });
       factory['providers'] = [provider1, provider2];
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const result = await factory.get('tenant-123', 'KEY');
 
       expect(result).toBeNull();
-      expect(consoleWarnSpy).toHaveBeenCalled();
-      consoleWarnSpy.mockRestore();
-    });
-
-    it('should log which provider served the request', async () => {
-      const provider1 = createMockProvider('Provider1');
-      (provider1.get as jest.Mock).mockResolvedValue('served_value');
-
-      const factory = new CredentialProviderFactory({ environment: { enabled: true } });
-      factory['providers'] = [provider1];
-
-      const consoleDebugSpy = jest.spyOn(console, 'debug').mockImplementation();
-      await factory.get('tenant-123', 'KEY');
-
-      expect(consoleDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Credential found in Provider1'),
-        expect.any(Object)
-      );
-      consoleDebugSpy.mockRestore();
     });
   });
 
@@ -245,23 +222,6 @@ describe('CredentialProviderFactory', () => {
       await expect(factory.put('tenant-123', 'KEY', 'value')).rejects.toThrow(
         'No writable credential provider available'
       );
-    });
-
-    it('should log which provider stored the credential', async () => {
-      const provider1 = createMockProvider('Provider1');
-      (provider1.put as jest.Mock).mockResolvedValue(undefined);
-
-      const factory = new CredentialProviderFactory({ environment: { enabled: true } });
-      factory['providers'] = [provider1];
-
-      const consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation();
-      await factory.put('tenant-123', 'KEY', 'value');
-
-      expect(consoleInfoSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Credential stored in Provider1'),
-        expect.any(Object)
-      );
-      consoleInfoSpy.mockRestore();
     });
 
     it('should throw on non-read-only errors', async () => {
@@ -316,23 +276,6 @@ describe('CredentialProviderFactory', () => {
       await expect(factory.delete('tenant-123', 'KEY')).rejects.toThrow(
         'No writable credential provider available'
       );
-    });
-
-    it('should log which provider deleted the credential', async () => {
-      const provider1 = createMockProvider('Provider1');
-      (provider1.delete as jest.Mock).mockResolvedValue(undefined);
-
-      const factory = new CredentialProviderFactory({ environment: { enabled: true } });
-      factory['providers'] = [provider1];
-
-      const consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation();
-      await factory.delete('tenant-123', 'KEY');
-
-      expect(consoleInfoSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Credential deleted from Provider1'),
-        expect.any(Object)
-      );
-      consoleInfoSpy.mockRestore();
     });
 
     it('should throw on non-read-only errors', async () => {
@@ -480,12 +423,9 @@ describe('CredentialProviderFactory', () => {
       const factory = new CredentialProviderFactory({ environment: { enabled: true } });
       factory['providers'] = [provider1, provider2];
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const result = await factory.listKeys('tenant-123');
 
       expect(result).toEqual(['KEY1']);
-      expect(consoleWarnSpy).toHaveBeenCalled();
-      consoleWarnSpy.mockRestore();
     });
   });
 

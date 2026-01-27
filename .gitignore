@@ -50,3 +50,7 @@ apps/slack-app/data/
 *.swp
 *.swo
 .tmp/
+/tests/e2e/.e2e-state.json
+/tests/e2e/.env.e2e
+/tests/e2e/test-results/
+/tests/e2e/playwright-report/

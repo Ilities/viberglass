@@ -1,41 +1,44 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: "./tests",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: [
-    ['html'],
-    ['list'],
-    ['junit', { outputFile: 'test-results/junit.xml' }],
+    ["html"],
+    ["list"],
+    ["junit", { outputFile: "test-results/junit.xml" }],
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    baseURL: process.env.BASE_URL || "http://localhost:3000",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
     },
   ],
   webServer: [
     {
-      command: 'npm run dev --prefix ../apps/platform-frontend',
+      command: "npm run dev --prefix ../../apps/platform-frontend",
       port: 3000,
       timeout: 120000,
       reuseExistingServer: !process.env.CI,
+      env: {
+        BACKEND_PORT: "3001",
+      },
     },
     {
-      command: 'npm run dev --prefix ../apps/platform-backend',
+      command: "npm run dev --prefix ../../apps/platform-backend",
       port: 3001,
       timeout: 120000,
       reuseExistingServer: !process.env.CI,
