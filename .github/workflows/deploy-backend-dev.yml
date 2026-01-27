@@ -73,23 +73,6 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      - name: Get DATABASE_URL from SSM
-        id: get-db-url
-        run: |
-          DB_URL=$(aws ssm get-parameter \
-            --name "/viberglass/${{ env.ENVIRONMENT }}/database/url" \
-            --with-decryption \
-            --query Parameter.Value \
-            --output text)
-          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
-
-      - name: Run database migrations
-        run: |
-          npm ci --legacy-peer-deps
-          npm run migrate:latest -w @viberglass/platform-backend
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-
       - name: Register new task definition
         id: register-task
         run: |
