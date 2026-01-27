@@ -116,6 +116,7 @@ describe("Worker Execution Integration Tests", () => {
       functionName: "test-lambda-function",
     },
     configFiles: [],
+    secretIds: [],
     ...overrides,
   });
 
