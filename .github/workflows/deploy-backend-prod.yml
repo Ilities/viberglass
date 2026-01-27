@@ -107,13 +107,15 @@ jobs:
           echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
       - name: Update ECS service with extended stability wait
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.register-task.outputs.task_definition_arn }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          # Production uses longer wait times for safety
+        run: |
+          aws ecs update-service \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --service "${{ env.ECS_SERVICE }}" \
+            --task-definition "${{ steps.register-task.outputs.task_definition_arn }}"
+          aws ecs wait services-stable \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}"
+        # Production uses longer wait times for safety
 
       - name: Deployment summary
         run: |
