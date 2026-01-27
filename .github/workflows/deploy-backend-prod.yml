@@ -99,7 +99,7 @@ jobs:
           echo "$TASK_DEF" > task-definition.json
           # Update image URI in task definition
           NEW_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
-          jq --arg image "$NEW_IMAGE" '.containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
+          jq --arg image "$NEW_IMAGE" 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
           # Register new task definition revision
           aws ecs register-task-definition \
             --cli-input-json file://task-definition-updated.json > task-definition-registered.json
