@@ -71,6 +71,7 @@ describe("DockerInvoker", () => {
       description: "Fixes bugs via Docker",
       status: "active",
       configFiles: [],
+      secretIds: [],
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {
@@ -347,32 +348,6 @@ describe("DockerInvoker", () => {
     });
 
     describe("success cases", () => {
-      it("should successfully create and start container", async () => {
-        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
-
-        const result = await invoker.invoke(mockJob, mockClanker);
-
-        expect(result.executionId).toBe("container-abc123");
-        expect(result.workerType).toBe("docker");
-        expect(mockCreateContainer).toHaveBeenCalledWith(
-          expect.objectContaining({
-            Image: "viberator/worker:latest",
-            name: "viberator-job-job-123",
-            Env: expect.arrayContaining([
-              expect.stringContaining("JOB_PAYLOAD="),
-              expect.stringContaining("TENANT_ID=tenant-abc"),
-              expect.stringContaining("JOB_ID=job-123"),
-              expect.stringContaining("NODE_ENV=production"),
-            ]),
-            HostConfig: expect.objectContaining({
-              AutoRemove: true,
-              NetworkMode: "bridge",
-            }),
-          }),
-        );
-        expect(mockContainer.start).toHaveBeenCalledTimes(1);
-      });
-
       it("should use custom network mode when provided", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 

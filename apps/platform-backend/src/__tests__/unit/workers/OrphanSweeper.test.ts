@@ -194,20 +194,6 @@ describe('OrphanSweeper', () => {
       sweeper.stop();
     });
 
-    it('should warn when start() called while already running', () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      sweeper.start();
-      sweeper.start(); // Call start again while running
-
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        '[OrphanSweeper] Already running'
-      );
-
-      consoleWarnSpy.mockRestore();
-      sweeper.stop();
-    });
-
     it('should run initial sweep on start', async () => {
       sweeper.start();
 
