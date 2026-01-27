@@ -47,7 +47,7 @@ jobs:
         run: |
           # Get AWS region from SSM
           AWS_REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/deployment/region" \
+            --name "/viberglass/dev/deployment/region" \
             --query Parameter.Value \
             --output text 2>/dev/null || echo "eu-west-1")
 
@@ -55,12 +55,12 @@ jobs:
 
           # Get backend API URL from SSM
           API_URL=$(aws ssm get-parameter \
-            --name "/viberator/dev/frontend/apiUrl" \
+            --name "/viberglass/dev/frontend/apiUrl" \
             --query Parameter.Value \
             --output text)
 
           if [ -z "$API_URL" ]; then
-            echo "::error::Backend API URL not found in SSM at /viberator/dev/frontend/apiUrl"
+            echo "::error::Backend API URL not found in SSM at /viberglass/dev/frontend/apiUrl"
             exit 1
           fi
 
@@ -77,17 +77,17 @@ jobs:
         run: |
           # Get Amplify configuration from SSM (provisioned by Pulumi)
           APP_ID=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/appId" \
+            --name "/viberglass/dev/amplify/appId" \
             --query Parameter.Value \
             --output text)
 
           BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/branchName" \
+            --name "/viberglass/dev/amplify/branchName" \
             --query Parameter.Value \
             --output text)
 
           REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/region" \
+            --name "/viberglass/dev/amplify/region" \
             --query Parameter.Value \
             --output text)
 
@@ -126,17 +126,17 @@ jobs:
         run: |
           # Get Amplify configuration from SSM (provisioned by Pulumi)
           APP_ID=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/appId" \
+            --name "/viberglass/dev/amplify/appId" \
             --query Parameter.Value \
             --output text)
 
           BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/branchName" \
+            --name "/viberglass/dev/amplify/branchName" \
             --query Parameter.Value \
             --output text)
 
           REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/region" \
+            --name "/viberglass/dev/amplify/region" \
             --query Parameter.Value \
             --output text)
 
