@@ -33,13 +33,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: eu-west-1
 
       - name: Get deployment config from SSM
         id: get-config
         run: |
           # Fetch deployment configuration
-          AWS_REGION=$(aws ssm get-parameter --name "/viberglass/dev/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "us-east-1")
+          AWS_REGION=$(aws ssm get-parameter --name "/viberglass/dev/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "eu-west-1")
           ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberglass/dev/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-repo")
           ECS_CLUSTER=$(aws ssm get-parameter --name "/viberglass/dev/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend-cluster")
           ECS_SERVICE=$(aws ssm get-parameter --name "/viberglass/dev/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend")

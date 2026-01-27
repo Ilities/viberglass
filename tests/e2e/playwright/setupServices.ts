@@ -10,9 +10,9 @@ export async function setupServices() {
 
   // Start PostgreSQL container
   const postgres = await new PostgreSqlContainer("postgres:16-alpine")
-    .withDatabase("viberator")
-    .withUsername("viberator")
-    .withPassword("viberator")
+    .withDatabase("viberglass")
+    .withUsername("viberglass")
+    .withPassword("viberglass")
     .withExposedPorts(5432)
     .start();
 
