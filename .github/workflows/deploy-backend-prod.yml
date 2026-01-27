@@ -112,10 +112,6 @@ jobs:
             --cluster "${{ env.ECS_CLUSTER }}" \
             --service "${{ env.ECS_SERVICE }}" \
             --task-definition "${{ steps.register-task.outputs.task_definition_arn }}"
-          aws ecs wait services-stable \
-            --cluster "${{ env.ECS_CLUSTER }}" \
-            --services "${{ env.ECS_SERVICE }}"
-        # Production uses longer wait times for safety
 
       - name: Deployment summary
         run: |
