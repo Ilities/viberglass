@@ -49,7 +49,7 @@ jobs:
           AWS_REGION=$(aws ssm get-parameter \
             --name "/viberator/dev/deployment/region" \
             --query Parameter.Value \
-            --output text 2>/dev/null || echo "us-east-1")
+            --output text 2>/dev/null || echo "eu-west-1")
 
           echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
 
