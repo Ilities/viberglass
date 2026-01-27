@@ -73,7 +73,7 @@ describe('Database Integration Tests', () => {
         .selectFrom('test_table')
         .where('id', '=', inserted[0].id)
         .selectAll()
-        .executeFirst();
+        .executeTakeFirst();
 
       expect(updated?.name).toBe('Updated Name');
     });
@@ -93,7 +93,7 @@ describe('Database Integration Tests', () => {
       const deleted = await db
         .selectFrom('test_table')
         .where('id', '=', inserted[0].id)
-        .executeFirst();
+        .executeTakeFirst();
 
       expect(deleted).toBeUndefined();
     });
