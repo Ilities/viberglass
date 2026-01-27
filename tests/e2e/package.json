@@ -9,8 +9,8 @@
     "test:debug": "playwright test --debug",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
-    "setup:docker": "docker-compose -f docker/docker-compose.e2e.yaml up -d",
-    "teardown:docker": "docker-compose -f docker/docker-compose.e2e.yaml down -v",
+    "setup:docker": "docker compose -f docker/docker-compose.e2e.yaml up -d",
+    "teardown:docker": "docker compose -f docker/docker-compose.e2e.yaml down -v",
     "setup:services": "tsx playwright/setupServices.ts",
     "teardown:services": "tsx playwright/teardownServices.ts"
   },
