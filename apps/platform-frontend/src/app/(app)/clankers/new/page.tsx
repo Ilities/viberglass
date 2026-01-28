@@ -4,9 +4,10 @@ import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
+import { MultiSelect } from '@/components/multi-select'
+import { SegmentedControl } from '@/components/segmented-control'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
-import { MultiSelect } from '@/components/multi-select'
 import { createClanker, getDeploymentStrategies } from '@/service/api/clanker-api'
 import { getSecrets, type Secret } from '@/service/api/secret-api'
 import type { AgentType, ConfigFileInput, DeploymentStrategy } from '@viberglass/types'
@@ -31,14 +32,12 @@ export default function NewClankerPage() {
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>('claude-code')
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
+  const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [strategies, secretsData] = await Promise.all([
-          getDeploymentStrategies(),
-          getSecrets(100, 0),
-        ])
+        const [strategies, secretsData] = await Promise.all([getDeploymentStrategies(), getSecrets(100, 0)])
         setDeploymentStrategies(strategies)
         setSecrets(secretsData)
       } catch (err) {
@@ -86,16 +85,23 @@ export default function NewClankerPage() {
     if (selectedStrategy) {
       if (selectedStrategy.name === 'docker') {
         deploymentConfig = {
-          containerImage: (formData.get('containerImage') as string) || '',
+          provisioningMode,
+          containerImage: provisioningMode === 'prebuilt' ? ((formData.get('containerImage') as string) || '') : '',
           ports: {},
           environmentVariables: {},
         }
       } else if (selectedStrategy.name === 'ecs') {
         deploymentConfig = {
-          clusterArn: (formData.get('clusterArn') as string) || '',
-          taskDefinitionArn: (formData.get('taskDefinitionArn') as string) || '',
+          provisioningMode,
+          clusterArn: provisioningMode === 'prebuilt' ? ((formData.get('clusterArn') as string) || '') : '',
+          taskDefinitionArn: provisioningMode === 'prebuilt' ? ((formData.get('taskDefinitionArn') as string) || '') : '',
           subnetIds: [],
           securityGroupIds: [],
+        }
+      } else if (selectedStrategy.name === 'aws-lambda-container') {
+        deploymentConfig = {
+          provisioningMode,
+          functionArn: provisioningMode === 'prebuilt' ? ((formData.get('functionArn') as string) || '') : '',
         }
       }
     }
@@ -153,9 +159,12 @@ export default function NewClankerPage() {
               <Select
                 name="deploymentStrategyId"
                 value={selectedStrategyId}
-                onChange={(e) => setSelectedStrategyId(e.target.value)}
+                onChange={(value) => {
+                  setSelectedStrategyId(value)
+                  setProvisioningMode('managed')
+                }}
               >
-                <option value="">Select a deployment strategy...</option>
+                <option value="none">Select a deployment strategy...</option>
                 {deploymentStrategies.map((strategy) => (
                   <option key={strategy.id} value={strategy.id}>
                     {strategy.name.charAt(0).toUpperCase() + strategy.name.slice(1)}
@@ -165,7 +174,22 @@ export default function NewClankerPage() {
               </Select>
             </Field>
 
-            {selectedStrategy?.name === 'docker' && (
+            {selectedStrategy && (
+              <Field>
+                <Label>Provisioning Mode</Label>
+                <Description>Choose whether the platform manages resources or you provide your own.</Description>
+                <SegmentedControl
+                  options={[
+                    { value: 'managed', label: 'Managed' },
+                    { value: 'prebuilt', label: 'Pre-built' },
+                  ]}
+                  value={provisioningMode}
+                  onChange={(v) => setProvisioningMode(v as 'managed' | 'prebuilt')}
+                />
+              </Field>
+            )}
+
+            {selectedStrategy?.name === 'docker' && provisioningMode === 'prebuilt' && (
               <Field>
                 <Label>Container Image</Label>
                 <Description>The Docker image to use for this clanker.</Description>
@@ -173,7 +197,13 @@ export default function NewClankerPage() {
               </Field>
             )}
 
-            {selectedStrategy?.name === 'ecs' && (
+            {selectedStrategy?.name === 'docker' && provisioningMode === 'managed' && (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                Image will be built from the project Dockerfile on start.
+              </div>
+            )}
+
+            {selectedStrategy?.name === 'ecs' && provisioningMode === 'prebuilt' && (
               <>
                 <Field>
                   <Label>Cluster ARN</Label>
@@ -191,11 +221,31 @@ export default function NewClankerPage() {
               </>
             )}
 
+            {selectedStrategy?.name === 'ecs' && provisioningMode === 'managed' && (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                Task definition and cluster config will use platform defaults.
+              </div>
+            )}
+
+            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'prebuilt' && (
+              <Field>
+                <Label>Function ARN</Label>
+                <Description>The ARN of the existing Lambda function.</Description>
+                <Input name="functionArn" placeholder="arn:aws:lambda:us-east-1:123456789:function/my-function" />
+              </Field>
+            )}
+
+            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'managed' && (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                Lambda function will be created on start.
+              </div>
+            )}
+
             <Field>
               <Label>Agent</Label>
               <Description>Select which AI agent to use for this clanker.</Description>
               <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(value as AgentType)}>
-                <option value="claude-code">Claude Code (Recommended)</option>
+                <option value="claude-code">Claude Code</option>
                 <option value="qwen-cli">Qwen CLI</option>
                 <option value="qwen-api">Qwen API</option>
                 <option value="codex">OpenAI Codex</option>

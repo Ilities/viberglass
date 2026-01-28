@@ -3,11 +3,11 @@ import { WebhookService } from '../../webhooks/WebhookService';
 import { FeedbackService } from '../../webhooks/FeedbackService';
 import { ProviderRegistry } from '../../webhooks/registry';
 import { GitHubWebhookProvider } from '../../webhooks/providers/github-provider';
-import { WebhookConfigDAO } from '../../persistence/webhook/WebhookConfigDAO';
+import { WebhookConfigDAO, type WebhookConfig } from '../../persistence/webhook/WebhookConfigDAO';
 import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO';
 import { DeduplicationService } from '../../webhooks/deduplication';
 import { WebhookSecretService } from '../../webhooks/WebhookSecretService';
-import { rawBodyMiddleware } from '../../webhooks/middleware/rawBody';
+import { rawBodyStorageMiddleware } from '../../webhooks/middleware/rawBody';
 import { createSignatureMiddleware } from '../../webhooks/middleware/signature';
 import { SignatureValidatorFactory } from '../../webhooks/validators';
 import { TicketDAO } from '../../persistence/ticketing/TicketDAO';
@@ -23,6 +23,24 @@ const router = express.Router();
 
 let webhookService: WebhookService | null = null;
 let feedbackService: FeedbackService | null = null;
+
+const serializeWebhookConfig = (config: WebhookConfig) => ({
+  id: config.id,
+  projectId: config.projectId,
+  provider: config.provider,
+  providerProjectId: config.providerProjectId,
+  secretLocation: config.secretLocation,
+  secretPath: config.secretPath,
+  webhookSecretEncrypted: config.webhookSecretEncrypted,
+  apiTokenEncrypted: config.apiTokenEncrypted,
+  allowedEvents: config.allowedEvents,
+  autoExecute: config.autoExecute,
+  botUsername: config.botUsername,
+  labelMappings: config.labelMappings,
+  active: config.active,
+  createdAt: config.createdAt,
+  updatedAt: config.updatedAt,
+});
 
 /**
  * Get or initialize webhook service
@@ -138,7 +156,7 @@ async function getSecretForRequest(headers: Record<string, string>): Promise<str
  */
 router.post(
   '/github',
-  rawBodyMiddleware(),
+  rawBodyStorageMiddleware(),
   createSignatureMiddleware({
     validator: SignatureValidatorFactory.forGitHub(),
     getSecret: async () => {
@@ -327,21 +345,14 @@ router.get('/configs', async (req: Request, res: Response) => {
     const configDAO = new WebhookConfigDAO();
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
+    const projectId = req.query.projectId as string | undefined;
 
-    const configs = await configDAO.listActiveConfigs(limit, offset);
+    const configs = projectId
+      ? await configDAO.listConfigsByProject(projectId, limit, offset)
+      : await configDAO.listActiveConfigs(limit, offset);
 
     res.json({
-      configs: configs.map(c => ({
-        id: c.id,
-        provider: c.provider,
-        providerProjectId: c.providerProjectId,
-        projectId: c.projectId,
-        autoExecute: c.autoExecute,
-        botUsername: c.botUsername,
-        allowedEvents: c.allowedEvents,
-        active: c.active,
-        createdAt: c.createdAt,
-      })),
+      configs: configs.map(serializeWebhookConfig),
       count: configs.length,
     });
   } catch (error) {
@@ -366,6 +377,7 @@ router.post('/configs', async (req: Request, res: Response) => {
       providerProjectId: req.body.providerProjectId,
       projectId: req.body.projectId || req.tenantId || null,
       secretLocation: req.body.secretLocation || 'database',
+      secretPath: req.body.secretPath || null,
       webhookSecretEncrypted: req.body.webhookSecret,
       apiTokenEncrypted: req.body.apiToken,
       allowedEvents: req.body.allowedEvents || ['issues', 'issue_comment'],
@@ -375,21 +387,111 @@ router.post('/configs', async (req: Request, res: Response) => {
       active: req.body.active !== false,
     });
 
-    res.status(201).json({
-      id: config.id,
-      provider: config.provider,
-      providerProjectId: config.providerProjectId,
-      projectId: config.projectId,
-      autoExecute: config.autoExecute,
-      botUsername: config.botUsername,
-      allowedEvents: config.allowedEvents,
-      active: config.active,
-      createdAt: config.createdAt,
-    });
+    res.status(201).json(serializeWebhookConfig(config));
   } catch (error) {
     console.error('Error creating webhook config:', error);
     res.status(500).json({
       error: 'Failed to create webhook configuration',
+    });
+  }
+});
+
+/**
+ * PUT /api/webhooks/configs/:id
+ *
+ * Update an existing webhook configuration
+ */
+router.put('/configs/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const configDAO = new WebhookConfigDAO();
+
+    const existing = await configDAO.getConfigById(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Webhook configuration not found' });
+    }
+
+    await configDAO.updateConfig(id, {
+      projectId: req.body.projectId,
+      provider: req.body.provider,
+      providerProjectId: req.body.providerProjectId,
+      secretLocation: req.body.secretLocation,
+      secretPath: req.body.secretPath,
+      webhookSecretEncrypted: req.body.webhookSecret,
+      apiTokenEncrypted: req.body.apiToken,
+      allowedEvents: req.body.allowedEvents,
+      autoExecute: req.body.autoExecute,
+      botUsername: req.body.botUsername,
+      labelMappings: req.body.labelMappings,
+      active: req.body.active,
+    });
+
+    const updated = await configDAO.getConfigById(id);
+    if (!updated) {
+      return res.status(404).json({ error: 'Webhook configuration not found' });
+    }
+
+    res.json(serializeWebhookConfig(updated));
+  } catch (error) {
+    console.error('Error updating webhook config:', error);
+    res.status(500).json({
+      error: 'Failed to update webhook configuration',
+    });
+  }
+});
+
+/**
+ * POST /api/webhooks/configs/:id/test
+ *
+ * Validate a webhook configuration
+ */
+router.post('/configs/:id/test', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const configDAO = new WebhookConfigDAO();
+
+    const config = await configDAO.getConfigById(id);
+    if (!config) {
+      return res.status(404).json({ success: false, message: 'Configuration not found' });
+    }
+
+    if (config.provider !== 'github') {
+      return res.json({
+        success: false,
+        message: `Provider ${config.provider} is not supported for testing yet`,
+      });
+    }
+
+    const providerConfig = {
+      type: config.provider,
+      secretLocation: config.secretLocation,
+      secretPath: config.secretPath || undefined,
+      algorithm: 'sha256' as const,
+      allowedEvents: config.allowedEvents,
+      webhookSecret: config.webhookSecretEncrypted || undefined,
+      apiToken: config.apiTokenEncrypted || undefined,
+      providerProjectId: config.providerProjectId || undefined,
+    };
+
+    const provider = new GitHubWebhookProvider(providerConfig);
+    const isValid = provider.validateConfig(providerConfig);
+
+    if (!isValid) {
+      return res.json({
+        success: false,
+        message: 'Configuration is missing required fields',
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Configuration looks valid',
+    });
+  } catch (error) {
+    console.error('Error testing webhook config:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test webhook configuration',
     });
   }
 });

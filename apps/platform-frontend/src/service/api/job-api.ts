@@ -95,3 +95,60 @@ export async function getJob(jobId: string): Promise<JobStatus> {
 
   return response.json()
 }
+
+export interface JobListItem {
+  jobId: string
+  status: 'queued' | 'active' | 'completed' | 'failed'
+  repository: string
+  task: string
+  tenantId: string
+  createdAt: string
+  processedAt: string | null
+  finishedAt: string | null
+}
+
+export interface JobListResponse {
+  jobs: JobListItem[]
+  count: number
+}
+
+export interface JobQueueStats {
+  queue: string
+  waiting: number
+  active: number
+  completed: number
+  failed: number
+  total: number
+}
+
+/**
+ * List jobs with optional status filter and limit
+ */
+export async function getJobs(params?: { status?: string; limit?: number }): Promise<JobListResponse> {
+  const searchParams = new URLSearchParams()
+  if (params?.status) searchParams.set('status', params.status)
+  if (params?.limit) searchParams.set('limit', params.limit.toString())
+
+  const query = searchParams.toString()
+  const url = query ? `${API_BASE_URL}/api/jobs?${query}` : `${API_BASE_URL}/api/jobs`
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch jobs')
+  }
+
+  return response.json()
+}
+
+/**
+ * Get job queue statistics
+ */
+export async function getJobQueueStats(): Promise<JobQueueStats> {
+  const response = await fetch(`${API_BASE_URL}/api/jobs/stats/queue`)
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch job queue stats')
+  }
+
+  return response.json()
+}

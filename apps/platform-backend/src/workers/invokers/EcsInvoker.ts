@@ -35,11 +35,34 @@ export class EcsInvoker implements WorkerInvoker {
   }
 
   async invoke(job: JobData, clanker: Clanker): Promise<InvocationResult> {
-    const ecsConfig = clanker.deploymentConfig as unknown as
+    const rawConfig = clanker.deploymentConfig as unknown as
       | EcsDeploymentConfig
       | undefined;
 
-    if (!ecsConfig?.clusterArn || !ecsConfig?.taskDefinitionArn) {
+    // Apply env var fallbacks for managed mode
+    const ecsConfig: EcsDeploymentConfig = {
+      clusterArn:
+        rawConfig?.clusterArn ||
+        process.env.VIBERATOR_ECS_CLUSTER_ARN ||
+        "",
+      taskDefinitionArn: rawConfig?.taskDefinitionArn || "",
+      launchType: rawConfig?.launchType,
+      subnetIds:
+        rawConfig?.subnetIds?.length
+          ? rawConfig.subnetIds
+          : (process.env.VIBERATOR_ECS_SUBNET_IDS?.split(",").filter(Boolean) ||
+              []),
+      securityGroupIds:
+        rawConfig?.securityGroupIds?.length
+          ? rawConfig.securityGroupIds
+          : (process.env.VIBERATOR_ECS_SECURITY_GROUP_IDS?.split(",").filter(
+              Boolean,
+            ) || []),
+      assignPublicIp: rawConfig?.assignPublicIp,
+      containerName: rawConfig?.containerName,
+    };
+
+    if (!ecsConfig.clusterArn || !ecsConfig.taskDefinitionArn) {
       throw new WorkerError(
         "ECS cluster ARN and task definition ARN required in clanker deploymentConfig",
         ErrorClassification.PERMANENT,
@@ -55,8 +78,8 @@ export class EcsInvoker implements WorkerInvoker {
         launchType: ecsConfig.launchType || "FARGATE",
         networkConfiguration: {
           awsvpcConfiguration: {
-            subnets: ecsConfig.subnetIds || [],
-            securityGroups: ecsConfig.securityGroupIds || [],
+            subnets: ecsConfig.subnetIds,
+            securityGroups: ecsConfig.securityGroupIds,
             assignPublicIp: ecsConfig.assignPublicIp || "DISABLED",
           },
         },

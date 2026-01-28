@@ -95,3 +95,20 @@ export function formatDeploymentStrategy(strategy: DeploymentStrategy | null | u
 
   return formatters[strategy.name.toLowerCase()] || strategy.name
 }
+
+// Job formatting utilities
+
+export function formatJobStatus(status: string): { label: string; color: 'green' | 'blue' | 'amber' | 'red' | 'zinc' } {
+  switch (status) {
+    case 'completed':
+      return { label: 'Completed', color: 'green' }
+    case 'active':
+      return { label: 'Running', color: 'blue' }
+    case 'queued':
+      return { label: 'Queued', color: 'amber' }
+    case 'failed':
+      return { label: 'Failed', color: 'red' }
+    default:
+      return { label: 'Unknown', color: 'zinc' }
+  }
+}
