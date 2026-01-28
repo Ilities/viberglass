@@ -54,7 +54,7 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
         <DropdownLabel>Home</DropdownLabel>
       </DropdownItem>
 
-      {pathname !== '/' ? (
+      {pathname.startsWith('/project/') ? (
         <DropdownItem href={`/project/${projectSlug}/settings`}>
           <Icon>
             <GearIcon />
@@ -181,6 +181,9 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                 </NavbarItem>
                 <NavbarItem href="/secrets" current={pathname.startsWith(`/secrets`)}>
                   Secrets
+                </NavbarItem>
+                <NavbarItem href="/settings/integrations" current={pathname.startsWith(`/settings/integrations`)}>
+                  Integrations
                 </NavbarItem>
               </NavbarSection>
             ) : null}

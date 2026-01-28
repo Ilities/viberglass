@@ -6,18 +6,21 @@ import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
-import { Textarea } from '@/components/textarea'
 import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
-import type { AuthCredentials } from '@viberglass/types'
+import { getIntegrationConfig, getProjectIntegrations } from '@/service/api/integration-api'
+import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
+import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-const ticketSystems = [
+// All available integrations for reference
+const ALL_INTEGRATIONS = [
+  { id: 'github', name: 'GitHub' },
+  { id: 'gitlab', name: 'GitLab' },
+  { id: 'bitbucket', name: 'Bitbucket' },
   { id: 'jira', name: 'Jira' },
   { id: 'linear', name: 'Linear' },
-  { id: 'github', name: 'GitHub Issues' },
-  { id: 'gitlab', name: 'GitLab Issues' },
-  { id: 'bitbucket', name: 'Bitbucket Issues' },
   { id: 'azure', name: 'Azure DevOps' },
   { id: 'asana', name: 'Asana' },
   { id: 'trello', name: 'Trello' },
@@ -31,7 +34,45 @@ export default function NewProjectPage() {
   const [autoFixEnabled, setAutoFixEnabled] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showAllIntegrations, setShowAllIntegrations] = useState(false)
+  const [configuredIntegrations, setConfiguredIntegrations] = useState<IntegrationSummary[]>([])
+  const [isLoadingIntegrations, setIsLoadingIntegrations] = useState(true)
+  const [integrationLoadError, setIntegrationLoadError] = useState<string | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    let isActive = true
+
+    async function loadIntegrations() {
+      setIsLoadingIntegrations(true)
+      setIntegrationLoadError(null)
+      try {
+        const integrations = await getProjectIntegrations()
+        if (!isActive) return
+        setConfiguredIntegrations(
+          integrations.filter((integration) => integration.configStatus === 'configured')
+        )
+      } catch (loadError) {
+        if (!isActive) return
+        setIntegrationLoadError(
+          loadError instanceof Error ? loadError.message : 'Failed to load integrations'
+        )
+        setConfiguredIntegrations([])
+      } finally {
+        if (isActive) {
+          setIsLoadingIntegrations(false)
+        }
+      }
+    }
+
+    void loadIntegrations()
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  const hasConfiguredIntegrations = configuredIntegrations.length > 0
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -41,23 +82,53 @@ export default function NewProjectPage() {
     const formData = new FormData(event.currentTarget)
 
     try {
-      const credentialsRaw = formData.get('credentials') as string
+      // If using a preconfigured integration, fetch its credentials from the integration settings
+      const ticketSystem = formData.get('ticket_system') as string
       let credentials: AuthCredentials = { type: 'api_key' }
-      try {
+
+      if (ticketSystem && ticketSystem !== 'none') {
+        // If provided, use manual credentials JSON from the form
+        const credentialsRaw = formData.get('credentials') as string
         if (credentialsRaw) {
-          const parsed = JSON.parse(credentialsRaw)
-          credentials = {
-            type: parsed.type || 'api_key',
-            ...parsed,
+          try {
+            const parsed = JSON.parse(credentialsRaw)
+            credentials = {
+              type: parsed.type || 'api_key',
+              ...parsed,
+            }
+          } catch (e) {
+            throw new Error('Invalid JSON in Credentials field')
+          }
+        } else {
+          const integrationConfig = await getIntegrationConfig(
+            undefined,
+            ticketSystem as TicketSystem
+          )
+          if (integrationConfig) {
+            const credentialKeys = [
+              'apiKey',
+              'username',
+              'password',
+              'token',
+              'clientId',
+              'clientSecret',
+              'refreshToken',
+              'baseUrl',
+            ] as const
+            const extracted: AuthCredentials = { type: integrationConfig.authType }
+            credentialKeys.forEach((key) => {
+              if (integrationConfig.values[key] !== undefined) {
+                extracted[key] = integrationConfig.values[key] as AuthCredentials[typeof key]
+              }
+            })
+            credentials = extracted
           }
         }
-      } catch (e) {
-        throw new Error('Invalid JSON in Credentials field')
       }
 
       const projectData: CreateProjectRequest = {
         name: formData.get('name') as string,
-        ticketSystem: formData.get('ticket_system') as CreateProjectRequest['ticketSystem'],
+        ticketSystem: ticketSystem as CreateProjectRequest['ticketSystem'],
         credentials,
         repositoryUrl: formData.get('repository_url') as string,
         autoFixEnabled: autoFixEnabled,
@@ -65,7 +136,7 @@ export default function NewProjectPage() {
           .split(',')
           .map((tag) => tag.trim())
           .filter(Boolean),
-        customFieldMappings: {}, // Default empty for now
+        customFieldMappings: {},
       }
 
       const project = await createProject(projectData)
@@ -77,7 +148,7 @@ export default function NewProjectPage() {
   }
 
   return (
-    <form className="mx-auto max-w-4xl" onSubmit={handleSubmit}>
+    <div className="mx-auto max-w-4xl">
       <Heading>Create New Project</Heading>
 
       {error && (
@@ -86,70 +157,189 @@ export default function NewProjectPage() {
         </div>
       )}
 
-      <Fieldset className="mt-8">
-        <FieldGroup>
-          <Field>
-            <Label>Project Name</Label>
-            <Description>What should we call this project?</Description>
-            <Input name="name" placeholder="e.g. My Awesome App" required />
-          </Field>
-
-          <Field>
-            <Label>Ticket System</Label>
-            <Description>Which system do you use for tracking bugs?</Description>
-            <Select name="ticket_system">
-              <option value="none">Select a system...</option>
-              {ticketSystems.map((system) => (
-                <option key={system.id} value={system.id}>
-                  {system.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field>
-            <Label>Credentials (JSON)</Label>
-            <Description>API keys and configuration for your ticket system.</Description>
-            <Textarea
-              name="credentials"
-              className="font-mono"
-              rows={5}
-              placeholder={'{\n  "api_token": "...",\n  "project_key": "..."\n}'}
-            />
-          </Field>
-
-          <Field>
-            <Label>Repository URL</Label>
-            <Description>The link to your project&apos;s source code.</Description>
-            <Input name="repository_url" type="url" placeholder="https://github.com/org/repo" required />
-          </Field>
-
-          <SwitchField>
-            <Label>Enable Auto-fix</Label>
-            <Description>Allow AI to automatically suggest and create PRs for bug reports.</Description>
-            <Switch name="auto_fix_enabled" checked={autoFixEnabled} onChange={setAutoFixEnabled} />
-          </SwitchField>
-
-          {autoFixEnabled && (
+      <form className="mt-8" onSubmit={handleSubmit}>
+        <Fieldset>
+          <FieldGroup className="space-y-8">
+            {/* Project Name */}
             <Field>
-              <Label>Auto-fix Tags</Label>
-              <Description>
-                Comma-separated tags to trigger automatic fixes (e.g. &quot;bug, high-priority&quot;).
-              </Description>
-              <Input name="auto_fix_tags" placeholder="bug, fix-requested" />
+              <Label>Project Name</Label>
+              <Description>What should we call this project?</Description>
+              <Input name="name" placeholder="e.g. My Awesome App" required />
             </Field>
-          )}
 
-          <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
-            <Button outline href="/">
-              Cancel
-            </Button>
-            <Button type="submit" color="brand" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Project'}
-            </Button>
-          </div>
-        </FieldGroup>
-      </Fieldset>
-    </form>
+            {/* Repository URL */}
+            <Field>
+              <Label>Repository URL</Label>
+              <Description>The link to your project&apos;s source code repository.</Description>
+              <Input
+                name="repository_url"
+                type="url"
+                placeholder="https://github.com/org/repo"
+                required
+              />
+            </Field>
+
+            {/* Integration Selection */}
+            <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <Label className="text-base">Ticketing Integration</Label>
+                  <Description>Select which system to use for bug tracking.</Description>
+                </div>
+                {hasConfiguredIntegrations && (
+                  <Link
+                    href="/settings/integrations"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-burnt-orange hover:underline"
+                  >
+                    <GearIcon className="size-4" />
+                    Manage Integrations
+                  </Link>
+                )}
+              </div>
+
+              {integrationLoadError && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+                  {integrationLoadError}
+                </div>
+              )}
+
+              {isLoadingIntegrations ? (
+                <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+                  Loading integrations...
+                </div>
+              ) : !hasConfiguredIntegrations ? (
+                // No integrations configured - show CTA
+                <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center dark:border-zinc-700 dark:bg-zinc-900">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
+                    <PlusIcon className="size-6 text-zinc-400" />
+                  </div>
+                  <h3 className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">
+                    No integrations configured
+                  </h3>
+                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                    Configure integrations first to enable bug tracking for this project.
+                  </p>
+                  <Button
+                    href="/settings/integrations"
+                    color="brand"
+                    className="mt-4"
+                  >
+                    Configure Integrations
+                  </Button>
+                </div>
+              ) : (
+                // Show configured integrations
+                <>
+                  <Field>
+                    <Select name="ticket_system" defaultValue="none">
+                      <option value="none">Select an integration...</option>
+                      {configuredIntegrations.map((integration) => (
+                        <option key={integration.id} value={integration.id}>
+                          {integration.label} ({integration.category === 'scm' ? 'SCM' : 'Ticketing'})
+                        </option>
+                      ))}
+                    </Select>
+                    <Description className="mt-2">
+                      Only preconfigured integrations are shown.{' '}
+                      <Link
+                        href="/settings/integrations"
+                        className="text-brand-burnt-orange hover:underline"
+                      >
+                        Configure more integrations
+                      </Link>
+                    </Description>
+                  </Field>
+
+                  {/* Advanced: Allow manual credential entry for new integrations */}
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllIntegrations(!showAllIntegrations)}
+                      className="text-sm text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+                    >
+                      {showAllIntegrations ? '−' : '+'} Configure new integration for this project
+                    </button>
+
+                    {showAllIntegrations && (
+                      <div className="mt-4 space-y-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                        <Field>
+                          <Label>Integration Type</Label>
+                          <Select name="ticket_system_manual">
+                            <option value="">Select a system...</option>
+                            {ALL_INTEGRATIONS.map((system) => (
+                              <option key={system.id} value={system.id}>
+                                {system.name}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+
+                        <Field>
+                          <Label>Credentials (JSON)</Label>
+                          <Description>
+                            API keys and configuration for your ticket system.{' '}
+                            <Link
+                              href="/settings/integrations"
+                              className="text-brand-burnt-orange hover:underline"
+                            >
+                              We recommend using preconfigured integrations instead.
+                            </Link>
+                          </Description>
+                          <textarea
+                            name="credentials"
+                            className="font-mono block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-brand-burnt-orange focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange/20 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:focus:ring-brand-burnt-orange/30"
+                            rows={5}
+                            placeholder={'{\n  "token": "ghp_...",\n  "owner": "myorg",\n  "repo": "myproject"\n}'}
+                          />
+                        </Field>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Auto-fix Settings */}
+            <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
+              <SwitchField>
+                <Label className="text-base">Enable Auto-fix</Label>
+                <Description>
+                  Allow AI to automatically suggest and create PRs for bug reports.
+                </Description>
+                <Switch
+                  name="auto_fix_enabled"
+                  checked={autoFixEnabled}
+                  onChange={setAutoFixEnabled}
+                />
+              </SwitchField>
+
+              {autoFixEnabled && (
+                <Field className="mt-4">
+                  <Label>Auto-fix Tags</Label>
+                  <Description>
+                    Comma-separated tags to trigger automatic fixes (e.g. &quot;bug, high-priority&quot;).
+                  </Description>
+                  <Input name="auto_fix_tags" placeholder="bug, fix-requested" />
+                </Field>
+              )}
+            </div>
+
+            {/* Submit Buttons */}
+            <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
+              <Button outline href="/">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                color="brand"
+                disabled={isSubmitting || isLoadingIntegrations || !hasConfiguredIntegrations}
+              >
+                {isSubmitting ? 'Creating...' : 'Create Project'}
+              </Button>
+            </div>
+          </FieldGroup>
+        </Fieldset>
+      </form>
+    </div>
   )
 }

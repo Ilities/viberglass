@@ -5,6 +5,7 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { MultiSelect } from '@/components/multi-select'
+import { SegmentedControl } from '@/components/segmented-control'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { getClankerBySlug } from '@/data'
@@ -37,6 +38,7 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>('')
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
+  const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
 
   useEffect(() => {
     async function loadData() {
@@ -56,6 +58,20 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
       setSelectedStrategyId(clankerData.deploymentStrategyId || '')
       setSelectedAgent(clankerData.agent || 'claude-code')
       setSelectedSecretIds(clankerData.secretIds || [])
+
+      // Infer provisioning mode from existing config
+      const existingConfig = clankerData.deploymentConfig as Record<string, unknown> | null
+      if (existingConfig?.provisioningMode) {
+        setProvisioningMode(existingConfig.provisioningMode as 'managed' | 'prebuilt')
+      } else {
+        // Default to 'prebuilt' if resource identifiers are already populated, 'managed' otherwise
+        const hasResources =
+          !!(existingConfig?.containerImage) ||
+          !!(existingConfig?.clusterArn) ||
+          !!(existingConfig?.taskDefinitionArn) ||
+          !!(existingConfig?.functionArn)
+        setProvisioningMode(hasResources ? 'prebuilt' : 'managed')
+      }
 
       const files: Record<string, string> = {}
       for (const file of clankerData.configFiles) {
@@ -107,16 +123,23 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
     if (selectedStrategy) {
       if (selectedStrategy.name === 'docker') {
         newDeploymentConfig = {
-          containerImage: (formData.get('containerImage') as string) || '',
+          provisioningMode,
+          containerImage: provisioningMode === 'prebuilt' ? ((formData.get('containerImage') as string) || '') : '',
           ports: (deploymentConfig?.ports as Record<string, number>) || {},
           environmentVariables: (deploymentConfig?.environmentVariables as Record<string, string>) || {},
         }
       } else if (selectedStrategy.name === 'ecs') {
         newDeploymentConfig = {
-          clusterArn: (formData.get('clusterArn') as string) || '',
-          taskDefinitionArn: (formData.get('taskDefinitionArn') as string) || '',
+          provisioningMode,
+          clusterArn: provisioningMode === 'prebuilt' ? ((formData.get('clusterArn') as string) || '') : '',
+          taskDefinitionArn: provisioningMode === 'prebuilt' ? ((formData.get('taskDefinitionArn') as string) || '') : '',
           subnetIds: (deploymentConfig?.subnetIds as string[]) || [],
           securityGroupIds: (deploymentConfig?.securityGroupIds as string[]) || [],
+        }
+      } else if (selectedStrategy.name === 'aws-lambda-container') {
+        newDeploymentConfig = {
+          provisioningMode,
+          functionArn: provisioningMode === 'prebuilt' ? ((formData.get('functionArn') as string) || '') : '',
         }
       }
     }
@@ -183,8 +206,8 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
                 name="deploymentStrategyId"
                 value={selectedStrategyId}
                 onChange={(e) => {
-                  console.log(e)
                   setSelectedStrategyId(e)
+                  setProvisioningMode('managed')
                 }}
               >
                 <option value="none">Select a deployment strategy...</option>
@@ -197,7 +220,22 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
               </Select>
             </Field>
 
-            {selectedStrategy?.name === 'docker' && (
+            {selectedStrategy && (
+              <Field>
+                <Label>Provisioning Mode</Label>
+                <Description>Choose whether the platform manages resources or you provide your own.</Description>
+                <SegmentedControl
+                  options={[
+                    { value: 'managed', label: 'Managed' },
+                    { value: 'prebuilt', label: 'Pre-built' },
+                  ]}
+                  value={provisioningMode}
+                  onChange={(v) => setProvisioningMode(v as 'managed' | 'prebuilt')}
+                />
+              </Field>
+            )}
+
+            {selectedStrategy?.name === 'docker' && provisioningMode === 'prebuilt' && (
               <Field>
                 <Label>Container Image</Label>
                 <Description>The Docker image to use for this clanker.</Description>
@@ -209,7 +247,13 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
               </Field>
             )}
 
-            {selectedStrategy?.name === 'ecs' && (
+            {selectedStrategy?.name === 'docker' && provisioningMode === 'managed' && (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                Image will be built from the project Dockerfile on start.
+              </div>
+            )}
+
+            {selectedStrategy?.name === 'ecs' && provisioningMode === 'prebuilt' && (
               <>
                 <Field>
                   <Label>Cluster ARN</Label>
@@ -230,6 +274,30 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
                   />
                 </Field>
               </>
+            )}
+
+            {selectedStrategy?.name === 'ecs' && provisioningMode === 'managed' && (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                Task definition and cluster config will use platform defaults.
+              </div>
+            )}
+
+            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'prebuilt' && (
+              <Field>
+                <Label>Function ARN</Label>
+                <Description>The ARN of the existing Lambda function.</Description>
+                <Input
+                  name="functionArn"
+                  defaultValue={(deploymentConfig?.functionArn as string) || ''}
+                  placeholder="arn:aws:lambda:us-east-1:123456789:function/my-function"
+                />
+              </Field>
+            )}
+
+            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'managed' && (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                Lambda function will be created on start.
+              </div>
             )}
 
             <Field>

@@ -258,6 +258,26 @@ export class WebhookConfigDAO {
     return rows.map((row) => this.mapRowToConfig(row));
   }
 
+  /**
+   * List configurations for a specific project
+   */
+  async listConfigsByProject(
+    projectId: string,
+    limit = 50,
+    offset = 0
+  ): Promise<WebhookConfig[]> {
+    const rows = await db
+      .selectFrom("webhook_provider_configs")
+      .selectAll()
+      .where("project_id", "=", projectId)
+      .orderBy("created_at", "desc")
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    return rows.map((row) => this.mapRowToConfig(row));
+  }
+
   private mapRowToConfig(row: Record<string, unknown>): WebhookConfig {
     return {
       id: String(row.id),
