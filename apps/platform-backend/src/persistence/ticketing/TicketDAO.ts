@@ -166,7 +166,15 @@ export class TicketDAO {
     limit = 50,
     offset = 0,
   ): Promise<Ticket[]> {
-    const rows = await db
+    return this.getTickets(limit, offset, projectId);
+  }
+
+  async getTickets(
+    limit = 50,
+    offset = 0,
+    projectId?: string,
+  ): Promise<Ticket[]> {
+    let query = db
       .selectFrom("tickets as t")
       .leftJoin("media_assets as s", "t.screenshot_id", "s.id")
       .leftJoin("media_assets as r", "t.recording_id", "r.id")
@@ -200,8 +208,13 @@ export class TicketDAO {
         "r.size as recording_size",
         "r.url as recording_url",
         "r.uploaded_at as recording_uploaded_at",
-      ])
-      .where("t.project_id", "=", projectId)
+      ]);
+
+    if (projectId) {
+      query = query.where("t.project_id", "=", projectId);
+    }
+
+    const rows = await query
       .orderBy("t.created_at", "desc")
       .limit(limit)
       .offset(offset)

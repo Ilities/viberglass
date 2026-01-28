@@ -175,13 +175,19 @@ export class ClankerProvisioningService {
       config,
     );
 
+    // For managed mode, persist cluster ARN from env vars so the invoker can find it
+    const clusterArn =
+      config.clusterArn || process.env.VIBERATOR_ECS_CLUSTER_ARN;
+
+    const updatedConfig = { ...config, taskDefinitionArn, clusterArn };
+
     const availability = await this.checkEcsAvailability({
       ...clanker,
-      deploymentConfig: { ...config, taskDefinitionArn },
+      deploymentConfig: updatedConfig,
     });
 
     return {
-      deploymentConfig: { ...config, taskDefinitionArn },
+      deploymentConfig: updatedConfig,
       status: availability.status,
       statusMessage: availability.statusMessage,
     };

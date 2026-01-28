@@ -30,53 +30,36 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: viberator-dev-postgres
+    container_name: viberglass-dev-postgres
     environment:
-      POSTGRES_DB: viberator
-      POSTGRES_USER: viberator
-      POSTGRES_PASSWORD: viberator_dev
+      POSTGRES_DB: viberglass-platform
+      POSTGRES_USER: jussi
+      POSTGRES_PASSWORD: salasana
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U viberator"]
+      test: ["CMD-SHELL", "pg_isready -U jussi"]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - viberator-dev-network
-
-  # Redis (for future Bull queue functionality)
-  redis:
-    image: redis:7-alpine
-    container_name: viberator-dev-redis
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - viberator-dev-network
+      - viberglass-dev-network
 
   # Backend API
   backend:
     build:
       context: .
       dockerfile: apps/platform-backend/Dockerfile.dev
-    container_name: viberator-dev-backend
+    container_name: viberglass-dev-backend
     environment:
       # Database
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: viberator
-      DB_USER: viberator
-      DB_PASSWORD: viberator_dev
-      # Redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      POSTGRES_DB: viberglass-platform
+      POSTGRES_USER: jussi
+      POSTGRES_PASSWORD: salasana
       # Node
       NODE_ENV: development
       PORT: 8888
@@ -95,10 +78,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     networks:
-      - viberator-dev-network
+      - viberglass-dev-network
     restart: unless-stopped
 
   # Frontend (Next.js with HMR)
@@ -106,7 +87,7 @@ services:
     build:
       context: .
       dockerfile: apps/platform-frontend/Dockerfile.dev
-    container_name: viberator-dev-frontend
+    container_name: viberglass-dev-frontend
     environment:
       # Backend API URL (from host perspective)
       NEXT_PUBLIC_API_URL: http://localhost:8888
@@ -128,5 +109,5 @@ services:
       backend:
         condition: service_started
     networks:
-      - viberator-dev-network
+      - viberglass-dev-network
     restart: unless-stopped
