@@ -216,3 +216,10 @@ export const updateSecretSchema = Joi.object({
   secretPath: Joi.string().max(500).allow(null, "").optional(),
   secretValue: Joi.string().allow("").optional(),
 });
+
+export const integrationConfigSchema = Joi.object({
+  authType: Joi.string()
+    .valid("api_key", "oauth", "basic", "token")
+    .required(),
+  values: Joi.object().required(),
+});

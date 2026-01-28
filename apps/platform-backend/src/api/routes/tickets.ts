@@ -211,7 +211,7 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
   }
 });
 
-// GET /api/tickets - Get tickets by project
+// GET /api/tickets - Get tickets, optionally filtered by project
 router.get("/", async (req, res) => {
   try {
     const projectId = req.query.projectId as string;
@@ -219,16 +219,10 @@ router.get("/", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
-    let targetProjectId = projectId;
+    let targetProjectId: string | undefined = projectId;
 
-    if (!projectId && !projectSlug) {
-      return res.status(400).json({
-        error: "Either projectId or projectSlug query parameter is required",
-      });
-    }
-
-    // If slug is provided, resolve it to an ID
     if (projectSlug) {
+      // If slug is provided, resolve it to an ID
       const project = await projectService.findByName(projectSlug);
       if (!project) {
         return res.status(404).json({
@@ -236,21 +230,23 @@ router.get("/", async (req, res) => {
         });
       }
       targetProjectId = project.id;
-    } else {
-      // Validate projectId format if slug wasn't used
+    } else if (projectId) {
+      // Validate projectId format if provided
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(targetProjectId)) {
+      if (!uuidRegex.test(projectId)) {
         return res.status(400).json({
           error: "Invalid projectId format",
         });
       }
+    } else {
+      targetProjectId = undefined;
     }
 
-    const tickets = await ticketService.getTicketsByProject(
-      targetProjectId,
+    const tickets = await ticketService.getTickets(
       limit,
       offset,
+      targetProjectId,
     );
 
     res.json({

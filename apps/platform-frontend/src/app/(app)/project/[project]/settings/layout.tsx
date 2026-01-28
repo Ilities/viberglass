@@ -9,9 +9,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const project = params.project as string
 
   const settingsNavigation = [
-    { name: 'Widget', href: `/project/${project}/settings/widget` },
     { name: 'AI Agent', href: `/project/${project}/settings/ai` },
-    { name: 'Ticketing', href: `/project/${project}/settings/ticketing` },
     { name: 'Webhooks', href: `/project/${project}/settings/webhooks` },
   ]
 

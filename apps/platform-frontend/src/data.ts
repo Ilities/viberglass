@@ -3,6 +3,12 @@ import {
   getClankers as apiGetClankers,
   getDeploymentStrategies as apiGetDeploymentStrategies,
 } from '@/service/api/clanker-api'
+import {
+  getJobs as apiGetJobs,
+  getJobQueueStats as apiGetJobQueueStats,
+  type JobListItem,
+  type JobQueueStats,
+} from '@/service/api/job-api'
 import { getProjectBySlug as apiGetProjectBySlug, getProjects as apiGetProjects } from '@/service/api/project-api'
 import { getTicketStats as apiGetTicketStats, getTickets } from '@/service/api/ticket-api'
 import type {
@@ -19,6 +25,7 @@ import type {
 // Extended ticket with computed status for UI
 export interface TicketSummary {
   id: string
+  projectId: string
   title: string
   severity: Severity
   category: string
@@ -43,6 +50,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
   const tickets = await getTickets({ projectSlug, limit: 10 })
   return tickets.map((ticket) => ({
     id: ticket.id,
+    projectId: ticket.projectId,
     title: ticket.title,
     severity: ticket.severity,
     category: ticket.category,
@@ -81,8 +89,19 @@ export async function getTicketStats(projectSlug?: string): Promise<TicketStats>
   return await apiGetTicketStats({ projectSlug })
 }
 
+// Job functions
+export async function getRecentJobs(): Promise<JobListItem[]> {
+  const response = await apiGetJobs({ limit: 5 })
+  return response.jobs
+}
+
+export async function getJobQueueStats(): Promise<JobQueueStats> {
+  return await apiGetJobQueueStats()
+}
+
 // Re-export formatting utilities for backward compatibility
 export * from './lib/formatters'
 
 // Re-export types for convenience
 export type { AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy, Project, Severity, Ticket }
+export type { JobListItem, JobQueueStats }
