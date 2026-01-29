@@ -7,20 +7,35 @@ import { Description, Field, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Text } from '@/components/text'
+import type { TicketSystem } from '@viberglass/types'
 import { useState } from 'react'
+
+const SUPPORTED_WEBHOOK_SYSTEMS = ['github', 'jira', 'linear'] as const
+type WebhookSystem = (typeof SUPPORTED_WEBHOOK_SYSTEMS)[number]
 
 interface WebhookSettingsClientProps {
   project: string
+  configuredWebhookSystems: TicketSystem[]
+  integrationsLoadError: string | null
 }
 
-export function WebhookSettingsClient({ project }: WebhookSettingsClientProps) {
-  const [enabledSystems, setEnabledSystems] = useState({
-    github: true,
-    jira: false,
-    linear: false,
-  })
+export function WebhookSettingsClient({
+  project,
+  configuredWebhookSystems,
+  integrationsLoadError,
+}: WebhookSettingsClientProps) {
+  const availableSystems = SUPPORTED_WEBHOOK_SYSTEMS.filter((system) =>
+    configuredWebhookSystems.includes(system)
+  )
+  const hasAvailableSystems = availableSystems.length > 0
 
-  const toggleSystem = (system: keyof typeof enabledSystems) => {
+  const [enabledSystems, setEnabledSystems] = useState<Record<WebhookSystem, boolean>>(() => ({
+    github: availableSystems.includes('github'),
+    jira: availableSystems.includes('jira'),
+    linear: availableSystems.includes('linear'),
+  }))
+
+  const toggleSystem = (system: WebhookSystem) => {
     setEnabledSystems((prev) => ({
       ...prev,
       [system]: !prev[system],
@@ -47,32 +62,58 @@ export function WebhookSettingsClient({ project }: WebhookSettingsClientProps) {
             <Text className="text-sm font-medium text-zinc-950 dark:text-white">Enabled Webhook Systems</Text>
             <Text>Select which ticketing systems you want to receive webhooks from.</Text>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <CheckboxField>
-                <Checkbox
-                  checked={enabledSystems.github}
-                  onChange={() => toggleSystem('github')}
-                  name="enable_github_webhooks"
-                />
-                <Label>GitHub</Label>
-              </CheckboxField>
-              <CheckboxField>
-                <Checkbox
-                  checked={enabledSystems.jira}
-                  onChange={() => toggleSystem('jira')}
-                  name="enable_jira_webhooks"
-                />
-                <Label>Jira</Label>
-              </CheckboxField>
-              <CheckboxField>
-                <Checkbox
-                  checked={enabledSystems.linear}
-                  onChange={() => toggleSystem('linear')}
-                  name="enable_linear_webhooks"
-                />
-                <Label>Linear</Label>
-              </CheckboxField>
-            </div>
+            {integrationsLoadError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+                {integrationsLoadError}
+              </div>
+            )}
+
+            {hasAvailableSystems ? (
+              <div className="grid gap-4 sm:grid-cols-3">
+                {availableSystems.includes('github') && (
+                  <CheckboxField>
+                    <Checkbox
+                      checked={enabledSystems.github}
+                      onChange={() => toggleSystem('github')}
+                      name="enable_github_webhooks"
+                    />
+                    <Label>GitHub</Label>
+                  </CheckboxField>
+                )}
+                {availableSystems.includes('jira') && (
+                  <CheckboxField>
+                    <Checkbox
+                      checked={enabledSystems.jira}
+                      onChange={() => toggleSystem('jira')}
+                      name="enable_jira_webhooks"
+                    />
+                    <Label>Jira</Label>
+                  </CheckboxField>
+                )}
+                {availableSystems.includes('linear') && (
+                  <CheckboxField>
+                    <Checkbox
+                      checked={enabledSystems.linear}
+                      onChange={() => toggleSystem('linear')}
+                      name="enable_linear_webhooks"
+                    />
+                    <Label>Linear</Label>
+                  </CheckboxField>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center dark:border-zinc-700 dark:bg-zinc-900">
+                <Text className="text-sm font-semibold text-zinc-950 dark:text-white">
+                  No webhook integrations configured
+                </Text>
+                <Text className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  Configure integrations at the application level to enable webhook options here.
+                </Text>
+                <Button href="/settings/integrations" color="brand" className="mt-4">
+                  Configure Integrations
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">

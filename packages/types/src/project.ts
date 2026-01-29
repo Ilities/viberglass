@@ -4,6 +4,16 @@
 
 import { TicketSystem } from './common'
 
+// Worker settings that can be configured at project level
+export interface ProjectWorkerSettings {
+  maxChanges?: number
+  testRequired?: boolean
+  codingStandards?: string
+  runTests?: boolean
+  testCommand?: string
+  maxExecutionTime?: number
+}
+
 // Authentication credential types
 export type AuthCredentialType = 'api_key' | 'oauth' | 'basic' | 'token'
 
@@ -32,6 +42,9 @@ export interface Project {
   autoFixTags: string[]
   customFieldMappings: Record<string, string>
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
+  workerSettings?: ProjectWorkerSettings | null
   createdAt: string
   updatedAt: string
 }
@@ -46,6 +59,9 @@ export interface CreateProjectRequest {
   autoFixTags?: string[]
   customFieldMappings?: Record<string, string>
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
+  workerSettings?: ProjectWorkerSettings | null
 }
 
 // Request body for updating a project
@@ -58,6 +74,9 @@ export interface UpdateProjectRequest {
   autoFixTags?: string[]
   customFieldMappings?: Record<string, string>
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
+  workerSettings?: ProjectWorkerSettings | null
 }
 
 // Project summary for list views
@@ -68,6 +87,8 @@ export interface ProjectSummary {
   ticketSystem: TicketSystem
   autoFixEnabled: boolean
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
   createdAt: string
   updatedAt: string
   // Stats (computed on frontend or via separate endpoint)

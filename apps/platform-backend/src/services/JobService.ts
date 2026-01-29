@@ -153,8 +153,7 @@ export class JobService {
               logger.error(
                 `Failed to post result for job ${jobId} to webhook provider`,
                 {
-                  error:
-                    error instanceof Error ? error.message : String(error),
+                  error: error instanceof Error ? error.message : String(error),
                   jobId,
                   ticketId: job.ticket_id,
                 },
@@ -163,7 +162,6 @@ export class JobService {
         }
       }
     }
-
   }
 
   private async updateTicketAutoFixStatus(
@@ -255,31 +253,102 @@ export class JobService {
     };
   }
 
-  async listJobs(
-    status?: JobStatus,
-    limit: number = 10,
-  ): Promise<{ jobs: any[]; count: number }> {
+  async listJobs(options?: {
+    status?: JobStatus;
+    limit?: number;
+    projectSlug?: string;
+    ticketId?: string;
+  }): Promise<{ jobs: any[]; count: number }> {
+    const { status, limit = 10, projectSlug, ticketId } = options || {};
+
+    let projectId: string | undefined;
+
+    // If projectSlug is provided, look up the actual project UUID
+    if (projectSlug) {
+      const project = await db
+        .selectFrom("projects")
+        .select("id")
+        .where("slug", "=", projectSlug)
+        .executeTakeFirst();
+
+      if (!project) {
+        return { jobs: [], count: 0 };
+      }
+
+      projectId = project.id;
+    }
+
     let query = db.selectFrom("jobs").selectAll();
 
     if (status) {
       query = query.where("status", "=", status);
     }
 
+    if (ticketId) {
+      query = query.where("ticket_id", "=", ticketId);
+    }
+
+    // When filtering by projectId, we need to join with tickets table
+    // since jobs don't have a direct project_id column
+    if (projectId) {
+      query = query
+        .innerJoin("tickets", "tickets.id", "jobs.ticket_id")
+        .where("tickets.project_id", "=", projectId);
+    }
+
     const jobs = await query
-      .orderBy("created_at", "desc")
+      .orderBy("jobs.created_at", "desc")
       .limit(limit)
       .execute();
 
-    const jobsData = jobs.map((job) => ({
-      jobId: job.id,
-      status: job.status,
-      repository: job.repository,
-      task: job.task,
-      tenantId: job.tenant_id,
-      createdAt: job.created_at,
-      processedAt: job.started_at,
-      finishedAt: job.finished_at,
-    }));
+    // Fetch ticket information for jobs that have ticket_id
+    const ticketIds = jobs
+      .map((job) => job.ticket_id)
+      .filter((id): id is string => id !== null);
+
+    const ticketsMap = new Map<
+      string,
+      { id: string; title: string; externalTicketId: string | null }
+    >();
+
+    if (ticketIds.length > 0) {
+      const tickets = await db
+        .selectFrom("tickets")
+        .select(["id", "title", "external_ticket_id"])
+        .where("id", "in", ticketIds)
+        .execute();
+
+      tickets.forEach((ticket) => {
+        ticketsMap.set(ticket.id, {
+          id: ticket.id,
+          title: ticket.title,
+          externalTicketId: ticket.external_ticket_id,
+        });
+      });
+    }
+
+    const jobsData = jobs.map((job) => {
+      const ticket = job.ticket_id ? ticketsMap.get(job.ticket_id) : null;
+
+      return {
+        jobId: job.id,
+        status: job.status,
+        repository: job.repository,
+        task: job.task,
+        tenantId: job.tenant_id,
+        createdAt: job.created_at,
+        processedAt: job.started_at,
+        finishedAt: job.finished_at,
+        ticketId: job.ticket_id,
+        ticket: ticket
+          ? {
+              id: ticket.id,
+              title: ticket.title,
+              externalTicketId: ticket.externalTicketId,
+            }
+          : null,
+      };
+    });
 
     return { jobs: jobsData, count: jobsData.length };
   }

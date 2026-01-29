@@ -11,5 +11,5 @@ export const generateStaticParams = async () => {
 
 export default async function Settings({ params }: { params: Promise<{ project: string }> }) {
   const { project } = await params
-  redirect(`/project/${project}/settings/ai`)
+  redirect(`/project/${project}/settings/project`)
 }

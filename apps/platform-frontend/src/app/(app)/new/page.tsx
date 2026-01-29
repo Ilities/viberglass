@@ -6,6 +6,7 @@ import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
+import { Textarea } from '@/components/textarea'
 import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
 import { getIntegrationConfig, getProjectIntegrations } from '@/service/api/integration-api'
 import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
@@ -32,6 +33,7 @@ const ALL_INTEGRATIONS = [
 
 export default function NewProjectPage() {
   const [autoFixEnabled, setAutoFixEnabled] = useState(false)
+  const [repositoryUrls, setRepositoryUrls] = useState<string[]>([''])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showAllIntegrations, setShowAllIntegrations] = useState(false)
@@ -74,17 +76,47 @@ export default function NewProjectPage() {
 
   const hasConfiguredIntegrations = configuredIntegrations.length > 0
 
+  const updateRepositoryUrl = (index: number, value: string) => {
+    setRepositoryUrls((prev) => {
+      const next = [...prev]
+      next[index] = value
+      return next
+    })
+  }
+
+  const addRepositoryUrl = () => {
+    setRepositoryUrls((prev) => [...prev, ''])
+  }
+
+  const removeRepositoryUrl = (index: number) => {
+    setRepositoryUrls((prev) => {
+      const next = prev.filter((_, i) => i !== index)
+      return next.length > 0 ? next : ['']
+    })
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSubmitting(true)
     setError(null)
 
     const formData = new FormData(event.currentTarget)
+    const repositoryUrlList = repositoryUrls.map((url) => url.trim()).filter(Boolean)
 
     try {
       // If using a preconfigured integration, fetch its credentials from the integration settings
-      const ticketSystem = formData.get('ticket_system') as string
+      const manualTicketSystem = (formData.get('ticket_system_manual') as string) || ''
+      const configuredTicketSystem = (formData.get('ticket_system') as string) || 'none'
+      const ticketSystem = manualTicketSystem || configuredTicketSystem
       let credentials: AuthCredentials = { type: 'api_key' }
+
+      if (!ticketSystem || ticketSystem === 'none') {
+        throw new Error('Select a ticketing integration to continue')
+      }
+
+      if (repositoryUrlList.length === 0) {
+        throw new Error('Add at least one repository URL to continue')
+      }
 
       if (ticketSystem && ticketSystem !== 'none') {
         // If provided, use manual credentials JSON from the form
@@ -130,12 +162,14 @@ export default function NewProjectPage() {
         name: formData.get('name') as string,
         ticketSystem: ticketSystem as CreateProjectRequest['ticketSystem'],
         credentials,
-        repositoryUrl: formData.get('repository_url') as string,
+        repositoryUrl: repositoryUrlList[0] ?? null,
+        repositoryUrls: repositoryUrlList,
         autoFixEnabled: autoFixEnabled,
         autoFixTags: ((formData.get('auto_fix_tags') as string) || '')
           .split(',')
           .map((tag) => tag.trim())
           .filter(Boolean),
+        agentInstructions: ((formData.get('agent_instructions') as string) || '').trim() || undefined,
         customFieldMappings: {},
       }
 
@@ -167,16 +201,39 @@ export default function NewProjectPage() {
               <Input name="name" placeholder="e.g. My Awesome App" required />
             </Field>
 
-            {/* Repository URL */}
+            {/* Repository URLs */}
             <Field>
-              <Label>Repository URL</Label>
-              <Description>The link to your project&apos;s source code repository.</Description>
-              <Input
-                name="repository_url"
-                type="url"
-                placeholder="https://github.com/org/repo"
-                required
-              />
+              <Label>Repository URLs</Label>
+              <Description>
+                Add one or more repositories for this project. The first URL is used as the default for auto-fix jobs.
+              </Description>
+              <div className="mt-2 space-y-3">
+                {repositoryUrls.map((url, index) => (
+                  <div key={`repository-${index}`} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                      name="repository_urls"
+                      type="url"
+                      aria-label={`Repository URL ${index + 1}`}
+                      placeholder="https://github.com/org/repo"
+                      value={url}
+                      onChange={(event) => updateRepositoryUrl(index, event.target.value)}
+                    />
+                    {repositoryUrls.length > 1 ? (
+                      <Button
+                        type="button"
+                        plain
+                        className="self-start sm:self-center"
+                        onClick={() => removeRepositoryUrl(index)}
+                      >
+                        Remove
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+                <Button type="button" plain onClick={addRepositoryUrl}>
+                  Add another repository
+                </Button>
+              </div>
             </Field>
 
             {/* Integration Selection */}
@@ -323,6 +380,19 @@ export default function NewProjectPage() {
                 </Field>
               )}
             </div>
+
+            {/* Agent Instructions */}
+            <Field>
+              <Label>Additional Agent Instructions</Label>
+              <Description>
+                Provide any extra guidance the AI agent should follow when working on this project.
+              </Description>
+              <Textarea
+                name="agent_instructions"
+                rows={4}
+                placeholder="e.g. Prioritize safety fixes, avoid large refactors, follow internal guidelines..."
+              />
+            </Field>
 
             {/* Submit Buttons */}
             <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
