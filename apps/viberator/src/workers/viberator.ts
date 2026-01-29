@@ -12,6 +12,8 @@ import {
   LambdaPayload,
   EcsPayload,
   DockerPayload,
+  ProjectConfigPayload,
+  JobOverrides,
 } from "./types";
 import { CallbackClient } from "./CallbackClient";
 import { CredentialProvider } from "./CredentialProvider";
@@ -29,6 +31,8 @@ export class ViberatorWorker {
   private credentialProvider?: CredentialProvider;
   private configLoader?: ConfigLoader;
   private clankerConfig?: Record<string, unknown>;
+  private projectConfig?: ProjectConfigPayload;
+  private overrides?: JobOverrides;
   private instructionFiles: Map<string, string> = new Map();
   private fetchedCredentials?: Record<string, string | undefined>;
   private currentJobId?: string;
@@ -95,6 +99,10 @@ export class ViberatorWorker {
             payload as LambdaPayload | EcsPayload
           ).deploymentConfig;
         }
+
+        // Store project config and overrides for configuration merging
+        this.projectConfig = payload.projectConfig;
+        this.overrides = payload.overrides;
 
         // Fetch credentials from SSM
         const credentials = await this.credentialProvider.getCredentials(
@@ -273,6 +281,68 @@ export class ViberatorWorker {
     }
   }
 
+  /**
+   * Merge configuration settings with precedence: override > project > clanker > job settings
+   */
+  private getMergedSettings(jobSettings?: {
+    maxChanges?: number;
+    testRequired?: boolean;
+    codingStandards?: string;
+    runTests?: boolean;
+    testCommand?: string;
+    maxExecutionTime?: number;
+  }): {
+    maxChanges: number;
+    testRequired: boolean;
+    codingStandards?: string;
+    runTests: boolean;
+    testCommand: string;
+    maxExecutionTime: number;
+  } {
+    const clankerSettings =
+      (this.clankerConfig?.settings as typeof jobSettings) || {};
+    const projectSettings = this.projectConfig?.workerSettings || {};
+    const overrideSettings = this.overrides?.settings || {};
+
+    return {
+      maxChanges:
+        overrideSettings.maxChanges ??
+        projectSettings.maxChanges ??
+        clankerSettings.maxChanges ??
+        jobSettings?.maxChanges ??
+        5,
+      testRequired:
+        overrideSettings.testRequired ??
+        projectSettings.testRequired ??
+        clankerSettings.testRequired ??
+        jobSettings?.testRequired ??
+        false,
+      codingStandards:
+        overrideSettings.codingStandards ??
+        projectSettings.codingStandards ??
+        clankerSettings.codingStandards ??
+        jobSettings?.codingStandards,
+      runTests:
+        overrideSettings.runTests ??
+        projectSettings.runTests ??
+        clankerSettings.runTests ??
+        jobSettings?.runTests ??
+        false,
+      testCommand:
+        overrideSettings.testCommand ??
+        projectSettings.testCommand ??
+        clankerSettings.testCommand ??
+        jobSettings?.testCommand ??
+        "npm test",
+      maxExecutionTime:
+        overrideSettings.maxExecutionTime ??
+        projectSettings.maxExecutionTime ??
+        clankerSettings.maxExecutionTime ??
+        jobSettings?.maxExecutionTime ??
+        this.config.execution.defaultTimeout,
+    };
+  }
+
   async executeTask(data: CodingJobData): Promise<JobResult> {
     const startTime = Date.now();
     const { id, repository, task, baseBranch, context, settings } = data;
@@ -306,26 +376,42 @@ export class ViberatorWorker {
       const featureBranch = `fix/${id}`;
       await this.gitService.createBranch(repoDir, featureBranch);
 
+      // Merge settings with precedence: override > project > clanker > job
+      const mergedSettings = this.getMergedSettings(settings);
+
+      // Build task description with additional context from overrides
+      let fullTask = task;
+      if (this.overrides?.additionalContext) {
+        fullTask += `\n\nAdditional Context:\n${this.overrides.additionalContext}`;
+      }
+
+      // Use override reproduction steps if provided, otherwise use context
+      const stepsToReproduce =
+        this.overrides?.reproductionSteps || context?.stepsToReproduce || "";
+
+      // Use override expected behavior if provided, otherwise use context
+      const expectedBehavior =
+        this.overrides?.expectedBehavior || context?.expectedBehavior || "";
+
       const executionContext: ExecutionContext = {
         repoUrl: repository,
         branch: featureBranch,
         baseBranch: baseBranch || "main",
         repoDir: repoDir,
         commitHash: "",
-        bugDescription: task,
-        stepsToReproduce: context?.stepsToReproduce || "",
-        expectedBehavior: context?.expectedBehavior || "",
+        bugDescription: fullTask,
+        stepsToReproduce,
+        expectedBehavior,
         actualBehavior: context?.actualBehavior || "",
         stackTrace: context?.stackTrace,
         consoleErrors: context?.consoleErrors || [],
         affectedFiles: context?.affectedFiles || [],
-        maxChanges: settings?.maxChanges || 5,
-        testRequired: settings?.testRequired || false,
-        codingStandards: settings?.codingStandards,
-        runTests: settings?.runTests || false,
-        testCommand: settings?.testCommand || "npm test",
-        maxExecutionTime:
-          settings?.maxExecutionTime || this.config.execution.defaultTimeout,
+        maxChanges: mergedSettings.maxChanges,
+        testRequired: mergedSettings.testRequired,
+        codingStandards: mergedSettings.codingStandards,
+        runTests: mergedSettings.runTests,
+        testCommand: mergedSettings.testCommand,
+        maxExecutionTime: mergedSettings.maxExecutionTime,
       };
 
       const availableAgents = this.orchestrator.getAvailableAgents();

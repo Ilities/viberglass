@@ -1,12 +1,10 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
-import { Input } from '@/components/input'
-import { Select } from '@/components/select'
-import { Textarea } from '@/components/textarea'
-import { formatAutoFixStatus, formatSeverity, getTicketDetails } from '@/data'
-import { ClockIcon, MagicWandIcon, PlayIcon } from '@radix-ui/react-icons'
+import { formatAutoFixStatus, formatSeverity, getClankersList, getTicketDetails } from '@/data'
+import { ClockIcon } from '@radix-ui/react-icons'
 import { notFound } from 'next/navigation'
+import { EnhanceForm } from './enhance-form'
 
 export const generateStaticParams = async () => {
   return []
@@ -38,7 +36,10 @@ export default async function EnhancePage({
     )
   }
 
-  const ticket = await getTicketDetails(ticketId as string)
+  const [ticket, clankers] = await Promise.all([
+    getTicketDetails(ticketId as string),
+    getClankersList(),
+  ])
 
   if (!ticket) {
     notFound()
@@ -111,56 +112,9 @@ export default async function EnhancePage({
 
         <div>
           <Subheading>Enhance External Ticket</Subheading>
-          <form className="mt-4 space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Additional Context</label>
-              <Textarea
-                rows={4}
-                placeholder="Add any additional context, steps to reproduce, or observations..."
-                className="mt-2"
-                name="additionalContext"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Reproduction Steps</label>
-              <Textarea
-                rows={3}
-                placeholder="Describe the steps to reproduce this issue..."
-                className="mt-2"
-                name="reproductionSteps"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Expected Behavior</label>
-              <Input type="text" placeholder="What should happen instead?" className="mt-2" name="expectedBehavior" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Priority Override</label>
-              <Select name="priorityOverride" className="mt-2">
-                <option value="default">Use original priority</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </Select>
-            </div>
-
-            <div className="flex gap-4">
-              <Button type="submit" color="brand" className="flex-1">
-                <MagicWandIcon className="mr-2 h-5 w-5" />
-                Enhance & Send to AI
-              </Button>
-              {ticket.id && (
-                <Button type="button" color="lime" className="flex-1">
-                  <PlayIcon className="mr-2 h-5 w-5" />
-                  Trigger Auto-Fix Now
-                </Button>
-              )}
-            </div>
-          </form>
+          <div className="mt-4">
+            <EnhanceForm ticket={ticket} clankers={clankers} project={project} />
+          </div>
 
           {ticket.autoFixStatus && (
             <div className="mt-8">

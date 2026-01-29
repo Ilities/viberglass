@@ -42,6 +42,8 @@ export interface ProjectsTable {
   auto_fix_tags: Generated<string[]>;
   custom_field_mappings: Generated<Json>;
   repository_url: string | null;
+  repository_urls: Generated<string[]>;
+  agent_instructions: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

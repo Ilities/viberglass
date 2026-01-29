@@ -3,7 +3,7 @@ import {
   InvokeCommand,
   InvokeCommandOutput,
 } from "@aws-sdk/client-lambda";
-import type { Clanker } from "@viberglass/types";
+import type { Clanker, Project } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
@@ -29,7 +29,11 @@ export class LambdaInvoker implements WorkerInvoker {
     this.secretResolutionService = new SecretResolutionService();
   }
 
-  async invoke(job: JobData, clanker: Clanker): Promise<InvocationResult> {
+  async invoke(
+    job: JobData,
+    clanker: Clanker,
+    project?: Project,
+  ): Promise<InvocationResult> {
     const functionName = this.getFunctionName(clanker);
     if (!functionName) {
       throw new WorkerError(
@@ -38,7 +42,7 @@ export class LambdaInvoker implements WorkerInvoker {
       );
     }
 
-    const payload = await this.buildPayload(job, clanker);
+    const payload = await this.buildPayload(job, clanker, project);
 
     try {
       const command = new InvokeCommand({
@@ -116,7 +120,11 @@ export class LambdaInvoker implements WorkerInvoker {
     return config?.functionArn || config?.functionName;
   }
 
-  private async buildPayload(job: JobData, clanker: Clanker): Promise<object> {
+  private async buildPayload(
+    job: JobData,
+    clanker: Clanker,
+    project?: Project,
+  ): Promise<object> {
     const secretMetadata =
       await this.secretResolutionService.getSecretMetadataForClanker(
         clanker.secretIds || [],
@@ -136,6 +144,16 @@ export class LambdaInvoker implements WorkerInvoker {
       deploymentConfig: clanker.deploymentConfig,
       agent: clanker.agent || "claude-code",
       secrets: secretMetadata,
+      projectConfig: project
+        ? {
+            id: project.id,
+            name: project.name,
+            autoFixTags: project.autoFixTags,
+            customFieldMappings: project.customFieldMappings,
+            workerSettings: project.workerSettings,
+          }
+        : undefined,
+      overrides: job.overrides,
     };
   }
 

@@ -1,4 +1,4 @@
-import type { Clanker } from "@viberglass/types";
+import type { Clanker, Project } from "@viberglass/types";
 import type { JobData } from "../types/Job";
 import { getWorkerInvokerFactory } from "./WorkerInvokerFactory";
 import { WorkerError } from "./errors/WorkerError";
@@ -38,7 +38,11 @@ export class WorkerExecutionService {
    * Execute a job by invoking the appropriate worker
    * Handles retries for transient errors
    */
-  async executeJob(job: JobData, clanker: Clanker): Promise<ExecutionResult> {
+  async executeJob(
+    job: JobData,
+    clanker: Clanker,
+    project?: Project,
+  ): Promise<ExecutionResult> {
     let lastError: Error | undefined;
     let attempts = 0;
 
@@ -55,7 +59,7 @@ export class WorkerExecutionService {
 
       try {
         const invoker = this.factory.getInvokerForClanker(clanker);
-        const result = await invoker.invoke(job, clanker);
+        const result = await invoker.invoke(job, clanker, project);
 
         // Success - store execution ID on job
         await this.jobService.updateJobStatus(job.id, "active", {

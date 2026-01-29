@@ -1,7 +1,23 @@
 import { API_BASE_URL } from '@/lib'
 
+export interface JobOverrides {
+  additionalContext?: string
+  reproductionSteps?: string
+  expectedBehavior?: string
+  priorityOverride?: 'critical' | 'high' | 'medium' | 'low'
+  settings?: {
+    maxChanges?: number
+    testRequired?: boolean
+    codingStandards?: string
+    runTests?: boolean
+    testCommand?: string
+    maxExecutionTime?: number
+  }
+}
+
 export interface RunTicketRequest {
   clankerId: string
+  overrides?: JobOverrides
 }
 
 export interface RunTicketResponse {
@@ -63,13 +79,17 @@ export interface JobStatus {
 /**
  * Run a ticket as a job with the specified clanker
  */
-export async function runTicket(ticketId: string, clankerId: string): Promise<RunTicketResponse> {
+export async function runTicket(
+  ticketId: string,
+  clankerId: string,
+  overrides?: JobOverrides,
+): Promise<RunTicketResponse> {
   const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ clankerId }),
+    body: JSON.stringify({ clankerId, overrides }),
   })
 
   if (!response.ok) {
@@ -96,6 +116,12 @@ export async function getJob(jobId: string): Promise<JobStatus> {
   return response.json()
 }
 
+export interface JobListItemTicket {
+  id: string
+  title: string
+  externalTicketId: string | null
+}
+
 export interface JobListItem {
   jobId: string
   status: 'queued' | 'active' | 'completed' | 'failed'
@@ -105,6 +131,8 @@ export interface JobListItem {
   createdAt: string
   processedAt: string | null
   finishedAt: string | null
+  ticketId: string | null
+  ticket: JobListItemTicket | null
 }
 
 export interface JobListResponse {
@@ -122,12 +150,14 @@ export interface JobQueueStats {
 }
 
 /**
- * List jobs with optional status filter and limit
+ * List jobs with optional status filter, limit, projectSlug, and ticketId
  */
-export async function getJobs(params?: { status?: string; limit?: number }): Promise<JobListResponse> {
+export async function getJobs(params?: { status?: string; limit?: number; projectSlug?: string; ticketId?: string }): Promise<JobListResponse> {
   const searchParams = new URLSearchParams()
   if (params?.status) searchParams.set('status', params.status)
   if (params?.limit) searchParams.set('limit', params.limit.toString())
+  if (params?.projectSlug) searchParams.set('projectSlug', params.projectSlug)
+  if (params?.ticketId) searchParams.set('ticketId', params.ticketId)
 
   const query = searchParams.toString()
   const url = query ? `${API_BASE_URL}/api/jobs?${query}` : `${API_BASE_URL}/api/jobs`

@@ -27,6 +27,7 @@ import {
   MoonIcon,
   PlusIcon,
   SunIcon,
+  ClockIcon,
 } from '@radix-ui/react-icons'
 import { useParams, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -169,6 +170,9 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                 <NavbarItem href={`${basePath}/enhance`} current={pathname.startsWith(`${basePath}/enhance`)}>
                   Enhance & Fix
                 </NavbarItem>
+                <NavbarItem href={`${basePath}/jobs`} current={pathname.startsWith(`${basePath}/jobs`)}>
+                  Jobs
+                </NavbarItem>
               </NavbarSection>
             ) : null}
             {!pathname.startsWith('/project/') ? (
@@ -232,6 +236,12 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                     <LightningBoltIcon />
                   </Icon>
                   <SidebarLabel>Enhance & Fix</SidebarLabel>
+                </SidebarItem>
+                <SidebarItem href={`${basePath}/jobs`} current={pathname.startsWith(`${basePath}/jobs`)}>
+                  <Icon>
+                    <ClockIcon />
+                  </Icon>
+                  <SidebarLabel>Jobs</SidebarLabel>
                 </SidebarItem>
                 <SidebarItem href={`${basePath}/settings`} current={pathname.startsWith(`${basePath}/settings`)}>
                   <Icon>
