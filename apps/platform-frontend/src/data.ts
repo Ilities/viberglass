@@ -95,6 +95,11 @@ export async function getRecentJobs(): Promise<JobListItem[]> {
   return response.jobs
 }
 
+export async function getProjectJobs(projectSlug: string, limit: number = 50): Promise<JobListItem[]> {
+  const response = await apiGetJobs({ projectSlug, limit })
+  return response.jobs
+}
+
 export async function getJobQueueStats(): Promise<JobQueueStats> {
   return await apiGetJobQueueStats()
 }

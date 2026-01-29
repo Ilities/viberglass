@@ -329,7 +329,7 @@ router.post(
   async (req, res) => {
     try {
       const ticketId = req.params.id;
-      const { clankerId } = req.body;
+      const { clankerId, overrides } = req.body;
 
       // Get ticket by id
       const ticket = await ticketService.getTicket(ticketId);
@@ -352,8 +352,16 @@ router.post(
         });
       }
 
-      // Validate project has repositoryUrl
-      if (!project.repositoryUrl) {
+      const repositoryUrls =
+        project.repositoryUrls && project.repositoryUrls.length > 0
+          ? project.repositoryUrls
+          : project.repositoryUrl
+            ? [project.repositoryUrl]
+            : [];
+      const primaryRepository = repositoryUrls[0];
+
+      // Validate project has repository configured
+      if (!primaryRepository) {
         return res.status(400).json({
           error: "Project has no repository configured",
           message:
@@ -407,7 +415,7 @@ router.post(
       const jobData = {
         id: jobId,
         tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
-        repository: project.repositoryUrl,
+        repository: primaryRepository,
         task: `${ticket.title}\n\n${ticket.description}`,
         branch: undefined, // Worker creates branch
         baseBranch: "main",
@@ -419,6 +427,7 @@ router.post(
           testRequired: false,
           maxChanges: 10,
         },
+        overrides,
         timestamp: Date.now(),
       };
 
@@ -430,7 +439,7 @@ router.post(
       // Invoke worker via WorkerExecutionService.executeJob - fire and forget
       // Don't await the result, just log errors
       workerExecutionService
-        .executeJob(jobData, clanker)
+        .executeJob(jobData, clanker, project)
         .then((result) => {
           logger.info("Worker invoked successfully", {
             ticketId,

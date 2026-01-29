@@ -7,6 +7,44 @@
 // ============================================================================
 
 /**
+ * Project configuration passed to workers
+ * Contains project-level settings for worker execution
+ */
+export interface ProjectConfigPayload {
+  id: string;
+  name: string;
+  autoFixTags: string[];
+  customFieldMappings: Record<string, string>;
+  workerSettings?: {
+    maxChanges?: number;
+    testRequired?: boolean;
+    codingStandards?: string;
+    runTests?: boolean;
+    testCommand?: string;
+    maxExecutionTime?: number;
+  };
+}
+
+/**
+ * Override configuration for per-ticket/enhance screen overrides
+ * Highest precedence in configuration hierarchy
+ */
+export interface JobOverrides {
+  additionalContext?: string;
+  reproductionSteps?: string;
+  expectedBehavior?: string;
+  priorityOverride?: "critical" | "high" | "medium" | "low";
+  settings?: {
+    maxChanges?: number;
+    testRequired?: boolean;
+    codingStandards?: string;
+    runTests?: boolean;
+    testCommand?: string;
+    maxExecutionTime?: number;
+  };
+}
+
+/**
  * Shared fields across all worker payload types
  */
 export interface BaseWorkerPayload {
@@ -33,6 +71,8 @@ export interface BaseWorkerPayload {
     testCommand?: string;
     maxExecutionTime?: number;
   };
+  projectConfig?: ProjectConfigPayload;
+  overrides?: JobOverrides;
 }
 
 /**
