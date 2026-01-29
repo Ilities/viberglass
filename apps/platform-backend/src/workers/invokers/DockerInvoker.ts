@@ -1,5 +1,5 @@
 import Docker from "dockerode";
-import type { Clanker } from "@viberglass/types";
+import type { Clanker, Project } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
@@ -31,7 +31,11 @@ export class DockerInvoker implements WorkerInvoker {
     this.secretResolutionService = new SecretResolutionService();
   }
 
-  async invoke(job: JobData, clanker: Clanker): Promise<InvocationResult> {
+  async invoke(
+    job: JobData,
+    clanker: Clanker,
+    project?: Project,
+  ): Promise<InvocationResult> {
     logger.debug(
       `Invoking job ${job.id} with Docker invoker with config: \n${JSON.stringify(clanker.deploymentConfig, null, 2)}`,
     );
@@ -46,7 +50,7 @@ export class DockerInvoker implements WorkerInvoker {
       );
     }
 
-    const payload = this.buildPayload(job, clanker);
+    const payload = this.buildPayload(job, clanker, project);
 
     let secretEnvironment: Record<string, string> = {};
     try {
@@ -177,7 +181,11 @@ export class DockerInvoker implements WorkerInvoker {
     return Object.entries(vars).map(([key, value]) => `${key}=${value}`);
   }
 
-  private buildPayload(job: JobData, clanker: Clanker): object {
+  private buildPayload(
+    job: JobData,
+    clanker: Clanker,
+    project?: Project,
+  ): object {
     return {
       workerType: "docker",
       tenantId: job.tenantId,
@@ -191,6 +199,16 @@ export class DockerInvoker implements WorkerInvoker {
       settings: job.settings,
       instructionFiles: job.context?.instructionFiles ?? [],
       clankerConfig: clanker, // Full config for Docker (no external storage)
+      projectConfig: project
+        ? {
+            id: project.id,
+            name: project.name,
+            autoFixTags: project.autoFixTags,
+            customFieldMappings: project.customFieldMappings,
+            workerSettings: project.workerSettings,
+          }
+        : undefined,
+      overrides: job.overrides,
     };
   }
 

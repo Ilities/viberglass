@@ -11,6 +11,31 @@ const slugify = (text: string) =>
     .replace(/[^\w-]+/g, "") // Remove all non-word chars
     .replace(/--+/g, "-"); // Replace multiple - with single -
 
+const normalizeRepositoryUrls = (
+  repositoryUrls?: string[] | null,
+  repositoryUrl?: string | null,
+) => {
+  const urls = (repositoryUrls ?? [])
+    .map((url) => url?.trim())
+    .filter((url): url is string => Boolean(url));
+
+  if (repositoryUrl) {
+    const trimmed = repositoryUrl.trim();
+    if (trimmed && !urls.includes(trimmed)) {
+      urls.unshift(trimmed);
+    }
+  }
+
+  return Array.from(new Set(urls));
+};
+
+const normalizeAgentInstructions = (instructions?: string | null) => {
+  if (instructions === undefined) return undefined;
+  if (instructions === null) return null;
+  const trimmed = instructions.trim();
+  return trimmed.length > 0 ? instructions : null;
+};
+
 export class ProjectDAO {
   async createProject(
     request: Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">,
@@ -18,6 +43,15 @@ export class ProjectDAO {
     const projectId = uuidv4();
     const timestamp = new Date();
     const slug = slugify(request.name);
+
+    const repositoryUrls = normalizeRepositoryUrls(
+      request.repositoryUrls,
+      request.repositoryUrl,
+    );
+    const agentInstructions = normalizeAgentInstructions(
+      request.agentInstructions,
+    );
+    const primaryRepositoryUrl = repositoryUrls[0] ?? null;
 
     const result = await db
       .insertInto("projects")
@@ -31,7 +65,9 @@ export class ProjectDAO {
         auto_fix_enabled: request.autoFixEnabled,
         auto_fix_tags: request.autoFixTags,
         custom_field_mappings: JSON.stringify(request.customFieldMappings),
-        repository_url: request.repositoryUrl || null,
+        repository_url: primaryRepositoryUrl,
+        repository_urls: repositoryUrls,
+        agent_instructions: agentInstructions,
         created_at: timestamp,
         updated_at: timestamp,
       })
@@ -79,8 +115,22 @@ export class ProjectDAO {
       updateData.custom_field_mappings = JSON.stringify(
         updates.customFieldMappings,
       );
-    if (updates.repositoryUrl !== undefined)
-      updateData.repository_url = updates.repositoryUrl;
+    if (
+      updates.repositoryUrls !== undefined ||
+      updates.repositoryUrl !== undefined
+    ) {
+      const repositoryUrls = normalizeRepositoryUrls(
+        updates.repositoryUrls,
+        updates.repositoryUrl,
+      );
+      updateData.repository_urls = repositoryUrls;
+      updateData.repository_url = repositoryUrls[0] ?? null;
+    }
+    if (updates.agentInstructions !== undefined) {
+      updateData.agent_instructions = normalizeAgentInstructions(
+        updates.agentInstructions,
+      );
+    }
 
     const result = await db
       .updateTable("projects")
@@ -126,6 +176,10 @@ export class ProjectDAO {
           ? JSON.parse(row.custom_field_mappings)
           : row.custom_field_mappings,
       repositoryUrl: row.repository_url || undefined,
+      repositoryUrls: Array.isArray(row.repository_urls)
+        ? row.repository_urls
+        : [],
+      agentInstructions: row.agent_instructions ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

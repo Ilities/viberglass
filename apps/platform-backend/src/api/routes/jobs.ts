@@ -85,8 +85,10 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     const status = req.query.status as JobStatus;
     const limit = parseInt(req.query.limit as string) || 10;
+    const projectSlug = req.query.projectSlug as string | undefined;
+    const ticketId = req.query.ticketId as string | undefined;
 
-    const result = await jobService.listJobs(status, limit);
+    const result = await jobService.listJobs({ status, limit, projectSlug, ticketId });
 
     res.json(result);
   } catch (error) {

@@ -4,6 +4,22 @@ interface InstructionFile {
   mountPath?: string;
 }
 
+// Override configuration for per-ticket/enhance screen overrides
+export interface JobOverrides {
+  additionalContext?: string;
+  reproductionSteps?: string;
+  expectedBehavior?: string;
+  priorityOverride?: "critical" | "high" | "medium" | "low";
+  settings?: {
+    maxChanges?: number;
+    testRequired?: boolean;
+    codingStandards?: string;
+    runTests?: boolean;
+    testCommand?: string;
+    maxExecutionTime?: number;
+  };
+}
+
 export interface JobData {
   id: string;
   tenantId: string;
@@ -28,6 +44,7 @@ export interface JobData {
     testCommand?: string;
     maxExecutionTime?: number;
   };
+  overrides?: JobOverrides;
   timestamp: number;
 }
 
