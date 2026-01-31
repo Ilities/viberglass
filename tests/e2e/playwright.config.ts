@@ -32,16 +32,16 @@ export default defineConfig({
       command: "npm run dev --prefix ../../apps/platform-frontend",
       port: 3000,
       timeout: 120000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       env: {
-        BACKEND_PORT: "3001",
+        BACKEND_PORT: "8888",
       },
     },
     {
       command: "npm run dev --prefix ../../apps/platform-backend",
-      port: 3001,
+      port: 8888,
       timeout: 120000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
     },
   ],
 });
