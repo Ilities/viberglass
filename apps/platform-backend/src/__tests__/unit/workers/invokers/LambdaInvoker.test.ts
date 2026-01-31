@@ -48,7 +48,7 @@ describe("LambdaInvoker", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    invoker = new LambdaInvoker({ region: "us-east-1" });
+    invoker = new LambdaInvoker({ region: "eu-west-1" });
 
     // Setup mock job
     mockJob = {

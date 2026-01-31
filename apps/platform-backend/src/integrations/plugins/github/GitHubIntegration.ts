@@ -257,7 +257,9 @@ export class GitHubIntegration extends BasePMIntegration {
 
     // Add GitHub-specific formatting
     description += `\n## Media Assets\n`;
-    description += `**Screenshot:** [View Screenshot](${bugReport.screenshot.url})\n`;
+    if (bugReport.screenshot) {
+      description += `**Screenshot:** [View Screenshot](${bugReport.screenshot.url})\n`;
+    }
     if (bugReport.recording) {
       description += `**Recording:** [View Recording](${bugReport.recording.url})\n`;
     }

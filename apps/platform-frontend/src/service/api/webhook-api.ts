@@ -1,4 +1,17 @@
+/**
+ * @deprecated Webhook configuration is now managed under individual integrations.
+ * Use the functions in integration-api.ts instead:
+ * - getIntegrationWebhook()
+ * - saveIntegrationWebhook()
+ * - deleteIntegrationWebhook()
+ * - getIntegrationDeliveries()
+ * - retryIntegrationDelivery()
+ *
+ * This file is kept for backward compatibility and will be removed in a future version.
+ */
+
 import { API_BASE_URL } from '@/lib'
+import { apiFetch } from '@/service/api/client'
 
 // Types for webhook configuration and delivery
 
@@ -117,7 +130,7 @@ export async function getWebhookConfigs(projectId?: string): Promise<WebhookConf
     ? `${API_BASE_URL}/api/webhooks/configs?projectId=${projectId}`
     : `${API_BASE_URL}/api/webhooks/configs`
 
-  const response = await fetch(url)
+  const response = await apiFetch(url)
   if (!response.ok) {
     throw new Error('Failed to fetch webhook configurations')
   }
@@ -131,7 +144,7 @@ export async function getWebhookConfigs(projectId?: string): Promise<WebhookConf
 }
 
 export async function createWebhookConfig(config: CreateWebhookConfigDTO): Promise<WebhookConfig> {
-  const response = await fetch(`${API_BASE_URL}/api/webhooks/configs`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/configs`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -165,7 +178,7 @@ export async function createWebhookConfig(config: CreateWebhookConfigDTO): Promi
 }
 
 export async function updateWebhookConfig(id: string, config: UpdateWebhookConfigDTO): Promise<WebhookConfig> {
-  const response = await fetch(`${API_BASE_URL}/api/webhooks/configs/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/configs/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -187,7 +200,7 @@ export async function updateWebhookConfig(id: string, config: UpdateWebhookConfi
 }
 
 export async function deleteWebhookConfig(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/webhooks/configs/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/configs/${id}`, {
     method: 'DELETE',
   })
 
@@ -197,7 +210,7 @@ export async function deleteWebhookConfig(id: string): Promise<void> {
 }
 
 export async function testWebhookConfig(configId: string): Promise<TestResult> {
-  const response = await fetch(`${API_BASE_URL}/api/webhooks/configs/${configId}/test`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/configs/${configId}/test`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -216,7 +229,7 @@ export async function testWebhookConfig(configId: string): Promise<TestResult> {
 }
 
 export async function getFailedDeliveries(limit: number = 50): Promise<WebhookDelivery[]> {
-  const response = await fetch(`${API_BASE_URL}/api/webhooks/deliveries?status=failed&limit=${limit}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/deliveries?status=failed&limit=${limit}`)
   if (!response.ok) {
     throw new Error('Failed to fetch failed deliveries')
   }
@@ -230,7 +243,7 @@ export async function getFailedDeliveries(limit: number = 50): Promise<WebhookDe
 }
 
 export async function retryDelivery(deliveryId: string): Promise<RetryResult> {
-  const response = await fetch(`${API_BASE_URL}/api/webhooks/deliveries/${deliveryId}/retry`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/deliveries/${deliveryId}/retry`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -249,7 +262,7 @@ export async function retryDelivery(deliveryId: string): Promise<RetryResult> {
 }
 
 export async function getDeliveryStatus(): Promise<DeliveryStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/webhooks/status`)
+  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/status`)
   if (!response.ok) {
     throw new Error('Failed to fetch delivery status')
   }

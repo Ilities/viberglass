@@ -5,7 +5,7 @@ import type {
 } from "@viberglass/types";
 import type { PMIntegration } from "../models/PMIntegration";
 
-export type IntegrationCategory = "scm" | "ticketing";
+export type IntegrationCategory = "scm" | "ticketing" | "inbound";
 
 export type IntegrationFieldType =
   | "string"

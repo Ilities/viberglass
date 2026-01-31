@@ -66,10 +66,10 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
       } else {
         // Default to 'prebuilt' if resource identifiers are already populated, 'managed' otherwise
         const hasResources =
-          !!(existingConfig?.containerImage) ||
-          !!(existingConfig?.clusterArn) ||
-          !!(existingConfig?.taskDefinitionArn) ||
-          !!(existingConfig?.functionArn)
+          !!existingConfig?.containerImage ||
+          !!existingConfig?.clusterArn ||
+          !!existingConfig?.taskDefinitionArn ||
+          !!existingConfig?.functionArn
         setProvisioningMode(hasResources ? 'prebuilt' : 'managed')
       }
 
@@ -124,22 +124,22 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
       if (selectedStrategy.name === 'docker') {
         newDeploymentConfig = {
           provisioningMode,
-          containerImage: provisioningMode === 'prebuilt' ? ((formData.get('containerImage') as string) || '') : '',
+          containerImage: provisioningMode === 'prebuilt' ? (formData.get('containerImage') as string) || '' : '',
           ports: (deploymentConfig?.ports as Record<string, number>) || {},
           environmentVariables: (deploymentConfig?.environmentVariables as Record<string, string>) || {},
         }
       } else if (selectedStrategy.name === 'ecs') {
         newDeploymentConfig = {
           provisioningMode,
-          clusterArn: provisioningMode === 'prebuilt' ? ((formData.get('clusterArn') as string) || '') : '',
-          taskDefinitionArn: provisioningMode === 'prebuilt' ? ((formData.get('taskDefinitionArn') as string) || '') : '',
+          clusterArn: provisioningMode === 'prebuilt' ? (formData.get('clusterArn') as string) || '' : '',
+          taskDefinitionArn: provisioningMode === 'prebuilt' ? (formData.get('taskDefinitionArn') as string) || '' : '',
           subnetIds: (deploymentConfig?.subnetIds as string[]) || [],
           securityGroupIds: (deploymentConfig?.securityGroupIds as string[]) || [],
         }
       } else if (selectedStrategy.name === 'aws-lambda-container') {
         newDeploymentConfig = {
           provisioningMode,
-          functionArn: provisioningMode === 'prebuilt' ? ((formData.get('functionArn') as string) || '') : '',
+          functionArn: provisioningMode === 'prebuilt' ? (formData.get('functionArn') as string) || '' : '',
         }
       }
     }
@@ -261,7 +261,7 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
                   <Input
                     name="clusterArn"
                     defaultValue={(deploymentConfig?.clusterArn as string) || ''}
-                    placeholder="arn:aws:ecs:us-east-1:123456789:cluster/my-cluster"
+                    placeholder="arn:aws:ecs:eu-west-1:123456789:cluster/my-cluster"
                   />
                 </Field>
                 <Field>
@@ -270,7 +270,7 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
                   <Input
                     name="taskDefinitionArn"
                     defaultValue={(deploymentConfig?.taskDefinitionArn as string) || ''}
-                    placeholder="arn:aws:ecs:us-east-1:123456789:task-definition/my-task:1"
+                    placeholder="arn:aws:ecs:eu-west-1:123456789:task-definition/my-task:1"
                   />
                 </Field>
               </>
@@ -289,7 +289,7 @@ export function EditClankerClient({ slug }: EditClankerClientProps) {
                 <Input
                   name="functionArn"
                   defaultValue={(deploymentConfig?.functionArn as string) || ''}
-                  placeholder="arn:aws:lambda:us-east-1:123456789:function/my-function"
+                  placeholder="arn:aws:lambda:eu-west-1:123456789:function/my-function"
                 />
               </Field>
             )}

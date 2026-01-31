@@ -4,17 +4,24 @@ import path from "path";
 import cookieParser from "cookie-parser";
 import createError from "http-errors";
 import logger from "../config/logger";
+import passport from "passport";
 
 // Import routes
 import projectsRouter from "./routes/projects";
+import integrationsRouter from "./routes/integrations";
 import ticketsRouter from "./routes/tickets";
 import webhooksRouter from "./routes/webhooks";
 import clankersRouter from "./routes/clankers";
 import deploymentStrategiesRouter from "./routes/deployment-strategies";
 import jobsRouter from "./routes/jobs";
 import secretsRouter from "./routes/secrets";
+import authRouter from "./routes/auth";
+import usersRouter from "./routes/users";
+import { attachAuthContext, requireAuth } from "./middleware/authentication";
+import { configurePassport } from "./auth/passport";
 
 const app = express();
+configurePassport();
 
 // HTTP request logging middleware with Winston
 app.use((req, res, next) => {
@@ -50,6 +57,9 @@ app.use(
   }),
 );
 
+app.use(passport.initialize());
+app.use(attachAuthContext);
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
@@ -61,15 +71,18 @@ app.get("/health", (req, res) => {
 
 // API routes
 app.use("/api/projects", projectsRouter);
+app.use("/api/integrations", integrationsRouter);
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/clankers", clankersRouter);
 app.use("/api/deployment-strategies", deploymentStrategiesRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/secrets", secretsRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/users", usersRouter);
 
 // API documentation endpoint
-app.get("/api/docs", (req, res) => {
+app.get("/api/docs", requireAuth, (req, res) => {
   const docs = {
     version: "1.0.0",
     title: "Viberglass Receiver API",

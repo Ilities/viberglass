@@ -37,6 +37,7 @@ Thumbs.db
 # Pulumi
 infra/platform/bin/
 infra/viberator/bin/
+infra/hetzner/**/bin/
 .pulumi/
 
 # Frontend specific

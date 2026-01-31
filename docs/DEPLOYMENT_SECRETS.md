@@ -56,10 +56,10 @@ All deployment secrets follow this naming pattern:
 
 ```bash
 # Development
-/viberator/dev/database/url          # postgresql://dev-db.xxx.us-east-1.rds.amazonaws.com...
+/viberator/dev/database/url          # postgresql://dev-db.xxx.eu-west-1.rds.amazonaws.com...
 /viberator/dev/frontend/apiUrl       # https://dev-api.viberator.com
 /viberator/dev/amplify/appId         # d1234567890abc
-/viberator/dev/deployment/region     # us-east-1
+/viberator/dev/deployment/region     # eu-west-1
 /viberator/dev/deployment/oidcRoleArn # arn:aws:iam::...:role/ViberatorDeployRole
 
 # Staging
@@ -111,7 +111,7 @@ For each environment (`dev`, `staging`, `prod`), add these secrets:
 **AMPLIFY_APP_ID:**
 - Created by Pulumi's `createAmplifyHosting()` component
 - Find in AWS Console: **Amplify** → **App** → **App settings** → **General** → **App ARN**
-- Extract ID from ARN: `arn:aws:amplify:us-east-1:111111111111:apps/{AMPLIFY_APP_ID}`
+- Extract ID from ARN: `arn:aws:amplify:eu-west-1:111111111111:apps/{AMPLIFY_APP_ID}`
 
 **AMPLIFY_BRANCH:**
 - Defaults to environment name (`dev`, `staging`, `main` for prod)
@@ -147,7 +147,7 @@ SSM parameters are created by Pulumi's `createDatabase()` (database connection) 
 ```bash
 aws ssm put-parameter \
   --name "/viberator/dev/database/url" \
-  --value "postgresql://dbuser:dbpass@dev-db.xxx.us-east-1.rds.amazonaws.com:5432/viberator" \
+  --value "postgresql://dbuser:dbpass@dev-db.xxx.eu-west-1.rds.amazonaws.com:5432/viberator" \
   --type "SecureString" \
   --key-id "alias/viberator-dev-ssm" \
   --overwrite
@@ -157,7 +157,7 @@ aws ssm put-parameter \
 ```bash
 aws ssm put-parameter \
   --name "/viberator/dev/database/host" \
-  --value "dev-db.xxx.us-east-1.rds.amazonaws.com" \
+  --value "dev-db.xxx.eu-west-1.rds.amazonaws.com" \
   --type "SecureString" \
   --key-id "alias/viberator-dev-ssm" \
   --overwrite
@@ -194,7 +194,7 @@ aws ssm put-parameter \
 ```bash
 aws ssm put-parameter \
   --name "/viberator/dev/deployment/region" \
-  --value "us-east-1" \
+  --value "eu-west-1" \
   --type "String" \
   --overwrite
 ```
@@ -273,7 +273,7 @@ pulumi config set amplifyAppId "d1234567890abc"
 pulumi config set ecsCluster "dev-viberator-cluster"
 
 # Set deployment config
-pulumi config set awsRegion "us-east-1"
+pulumi config set awsRegion "eu-west-1"
 pulumi config set --secret oidcRoleArn "arn:aws:iam::...:role/ViberatorDeployRole"
 pulumi config set ecrRepository "viberator-backend"
 ```
@@ -355,7 +355,7 @@ Workflows fetch parameters after AWS authentication:
   uses: aws-actions/configure-aws-credentials@v4
   with:
     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-    aws-region: us-east-1
+    aws-region: eu-west-1
 
 - name: Get deployment config from SSM
   id: get-config
@@ -476,7 +476,7 @@ User: arn:aws:sts::111111111111:assumed-role/... is not authorized to perform: s
        {
          "Effect": "Allow",
          "Action": ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"],
-         "Resource": "arn:aws:ssm:us-east-1:111111111111:parameter/viberator/*"
+         "Resource": "arn:aws:ssm:eu-west-1:111111111111:parameter/viberator/*"
        }
      ]
    }
@@ -740,8 +740,8 @@ OIDC eliminates credential rotation for access keys, but role permissions should
   "Effect": "Allow",
   "Action": ["ssm:GetParameter", "ssm:GetParameters"],
   "Resource": [
-    "arn:aws:ssm:us-east-1:111111111111:parameter/viberator/dev/database/*",
-    "arn:aws:ssm:us-east-1:111111111111:parameter/viberator/dev/frontend/*"
+    "arn:aws:ssm:eu-west-1:111111111111:parameter/viberator/dev/database/*",
+    "arn:aws:ssm:eu-west-1:111111111111:parameter/viberator/dev/frontend/*"
   ]
 }
 ```

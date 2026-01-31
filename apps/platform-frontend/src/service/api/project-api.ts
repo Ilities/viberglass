@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/lib'
+import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
   CreateProjectRequest,
@@ -8,7 +9,7 @@ import type {
 } from '@viberglass/types'
 
 export async function getProjects(limit: number = 50, offset: number = 0): Promise<Project[]> {
-  const response = await fetch(`${API_BASE_URL}/api/projects?limit=${limit}&offset=${offset}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/projects?limit=${limit}&offset=${offset}`)
   if (!response.ok) {
     throw new Error('Failed to fetch projects')
   }
@@ -17,7 +18,7 @@ export async function getProjects(limit: number = 50, offset: number = 0): Promi
 }
 
 export async function getProjectBySlug(slug: string): Promise<Project> {
-  const response = await fetch(`${API_BASE_URL}/api/projects/by-name/${slug}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/by-name/${slug}`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Project not found')
@@ -29,7 +30,7 @@ export async function getProjectBySlug(slug: string): Promise<Project> {
 }
 
 export async function getProject(id: string): Promise<Project> {
-  const response = await fetch(`${API_BASE_URL}/api/projects/${id}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Project not found')
@@ -41,7 +42,7 @@ export async function getProject(id: string): Promise<Project> {
 }
 
 export async function createProject(project: CreateProjectRequest): Promise<Project> {
-  const response = await fetch(`${API_BASE_URL}/api/projects`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -57,7 +58,7 @@ export async function createProject(project: CreateProjectRequest): Promise<Proj
 }
 
 export async function updateProject(id: string, updates: UpdateProjectRequest): Promise<Project> {
-  const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -73,7 +74,7 @@ export async function updateProject(id: string, updates: UpdateProjectRequest): 
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {

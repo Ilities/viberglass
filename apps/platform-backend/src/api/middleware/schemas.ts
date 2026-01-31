@@ -227,3 +227,24 @@ export const integrationConfigSchema = Joi.object({
     .required(),
   values: Joi.object().required(),
 });
+
+const userRoleSchema = Joi.string().valid("admin", "member");
+
+export const registerSchema = Joi.object({
+  email: Joi.string().email().required(),
+  name: Joi.string().min(1).max(255).required(),
+  password: Joi.string().min(8).max(255).required(),
+});
+
+export const createUserSchema = registerSchema.keys({
+  role: userRoleSchema.optional(),
+});
+
+export const loginSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8).max(255).required(),
+});
+
+export const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required(),
+});

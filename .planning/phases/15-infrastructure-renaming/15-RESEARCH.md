@@ -486,12 +486,12 @@ runtime: nodejs
 ```yaml
 # OLD:
 config:
-  viberator:awsRegion: us-east-1
+  viberator:awsRegion: eu-west-1
   viberator:environment: dev
 
 # NEW:
 config:
-  viberglass:awsRegion: us-east-1
+  viberglass:awsRegion: eu-west-1
   viberglass:environment: dev
 ```
 
@@ -647,7 +647,7 @@ description: Viberglass AWS Infrastructure
 
 # Pulumi.{stack}.yaml - Update all config keys
 config:
-  viberglass:awsRegion: us-east-1
+  viberglass:awsRegion: eu-west-1
   viberglass:environment: dev  # or staging/prod
   viberglass:enableSpot: "true"
   # ... etc (all keys)

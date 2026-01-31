@@ -1,4 +1,5 @@
 import { bitbucketPlugin } from "./bitbucket";
+import { customPlugin } from "./custom/custom";
 import { githubPlugin } from "./github/github";
 import { gitlabPlugin } from "./gitlab";
 import { jiraPlugin } from "./jira";
@@ -23,11 +24,13 @@ export const builtInIntegrationPlugins = [
   mondayPlugin,
   shortcutPlugin,
   slackPlugin,
+  customPlugin,
   ...legacyTicketingPlugins,
 ];
 
 export {
   bitbucketPlugin,
+  customPlugin,
   githubPlugin,
   gitlabPlugin,
   jiraPlugin,

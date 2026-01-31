@@ -368,7 +368,9 @@ export class JiraIntegration extends BasePMIntegration {
 
     // Add media assets in Jira's wiki markup format
     description += `\nh2. Media Assets\n\n`;
-    description += `*Screenshot:* [${ticket.screenshot.url}|${ticket.screenshot.url}]\n`;
+    if (ticket.screenshot) {
+      description += `*Screenshot:* [${ticket.screenshot.url}|${ticket.screenshot.url}]\n`;
+    }
     if (ticket.recording) {
       description += `*Recording:* [${ticket.recording.url}|${ticket.recording.url}]\n`;
     }

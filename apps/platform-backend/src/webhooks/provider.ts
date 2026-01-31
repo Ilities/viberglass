@@ -10,7 +10,7 @@ import type { AxiosInstance } from 'axios';
 /**
  * Supported provider types
  */
-export type ProviderType = 'github' | 'jira';
+export type ProviderType = 'github' | 'jira' | 'shortcut' | 'custom';
 
 /**
  * Hash algorithm for signature verification

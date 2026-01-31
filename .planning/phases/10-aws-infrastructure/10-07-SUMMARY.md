@@ -157,7 +157,7 @@ None encountered during this plan execution.
 For production HTTPS support, add the ACM certificate ARN to the Pulumi stack configuration:
 
 ```bash
-pulumi config set --stack dev backendCertificateArn arn:aws:acm:us-east-1:123456789012:certificate/xxxxx
+pulumi config set --stack dev backendCertificateArn arn:aws:acm:eu-west-1:123456789012:certificate/xxxxx
 ```
 
 Then update `infrastructure/index.ts` to pass `certificateArn` to `createLoadBalancer()`.
