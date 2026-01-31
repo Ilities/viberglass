@@ -18,7 +18,7 @@ const s3 = new S3Client({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
   },
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AWS_REGION || "eu-west-1",
 });
 
 const bucketName = process.env.AWS_S3_BUCKET || "viberglass-media";
@@ -73,7 +73,7 @@ export class FileUploadService {
       await s3.send(new PutObjectCommand(uploadParams));
 
       // Construct the S3 URL
-      const region = process.env.AWS_REGION || "us-east-1";
+      const region = process.env.AWS_REGION || "eu-west-1";
       const url = `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
 
       const mediaAsset: MediaAsset = {

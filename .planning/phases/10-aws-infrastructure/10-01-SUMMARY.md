@@ -140,7 +140,7 @@ Before running Pulumi commands:
    ```bash
    export AWS_ACCESS_KEY_ID=your_key
    export AWS_SECRET_ACCESS_KEY=your_secret
-   export AWS_REGION=us-east-1
+   export AWS_REGION=eu-west-1
    ```
 
 ## Next Phase Readiness

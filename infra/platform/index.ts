@@ -248,11 +248,20 @@ const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
 });
 
 // Create Amplify frontend app and branch
+// For production: Connect to GitHub for automatic deployments on push to main
+// For dev: Manual deployment via GitHub Actions (keeps flexibility for testing)
 const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
   config,
   backendUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}`,
   branchName: "main",
   stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
+  // Enable git-based auto-deployment for production
+  ...(config.environment === "prod" && {
+    repository: "https://github.com/ilities/viberglass",
+    // Access token should be stored in AWS Secrets Manager and passed via Pulumi config
+    // pulumi config set --secret amplifyGithubAccessToken <token>
+    accessToken: pulumiConfig.getSecret("amplifyGithubAccessToken"),
+  }),
 });
 
 // =============================================================================

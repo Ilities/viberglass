@@ -101,7 +101,7 @@ export interface Ticket {
   severity: Severity
   category: string
   metadata: TicketMetadata
-  screenshot: MediaAsset
+  screenshot?: MediaAsset
   recording?: MediaAsset
   annotations: Annotation[]
   externalTicketId?: string

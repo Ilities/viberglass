@@ -149,7 +149,7 @@ permissions:
 - uses: aws-actions/configure-aws-credentials@v4
   with:
     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-    aws-region: us-east-1
+    aws-region: eu-west-1
 ```
 
 ### Secret Requirements

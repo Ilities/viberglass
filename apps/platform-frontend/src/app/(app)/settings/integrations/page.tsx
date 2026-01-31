@@ -1,7 +1,7 @@
 import { IntegrationGrid } from '@/components/integration-grid'
 import { Heading, Subheading } from '@/components/heading'
 import { Text } from '@/components/text'
-import { getProjectIntegrations } from '@/service/api/integration-api'
+import { getAllIntegrationSummaries } from '@/service/api/integration-api'
 import type { IntegrationSummary } from '@viberglass/types'
 
 export default async function IntegrationsPage() {
@@ -9,7 +9,7 @@ export default async function IntegrationsPage() {
   let loadError: string | null = null
 
   try {
-    integrations = await getProjectIntegrations()
+    integrations = await getAllIntegrationSummaries()
   } catch (error) {
     loadError = error instanceof Error ? error.message : 'Failed to load integrations'
   }

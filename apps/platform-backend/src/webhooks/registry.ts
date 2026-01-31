@@ -133,6 +133,7 @@ export class ProviderRegistry {
    * Header mappings:
    * - GitHub: x-github-event
    * - Jira: x-atlassian-webhook-identifier
+   * - Shortcut: x-shortcut-signature or x-shortcut-delivery
    * - GitLab: x-gitlab-event
    * - Bitbucket: x-event-key
    *
@@ -151,6 +152,11 @@ export class ProviderRegistry {
       headers['x-atlassian-webhook-timestamp']
     ) {
       return this.get('jira');
+    }
+
+    // Check Shortcut webhooks
+    if (headers['x-shortcut-signature'] || headers['x-shortcut-delivery']) {
+      return this.get('shortcut');
     }
 
     // Check GitLab webhooks
@@ -218,6 +224,10 @@ export class ProviderRegistry {
       case 'jira':
         this.headerMappings.set('x-atlassian-webhook-identifier', name);
         this.headerMappings.set('x-atlassian-webhook-timestamp', name);
+        break;
+      case 'shortcut':
+        this.headerMappings.set('x-shortcut-signature', name);
+        this.headerMappings.set('x-shortcut-delivery', name);
         break;
       case 'gitlab':
         this.headerMappings.set('x-gitlab-event', name);

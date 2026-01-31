@@ -113,7 +113,7 @@ For stricter tenant isolation, IAM policies can restrict to specific tenant pref
 
 | Option | Environment Variable | Default | Purpose |
 |--------|---------------------|---------|---------|
-| `region` | `AWS_REGION` | `us-east-1` | AWS region for SSM |
+| `region` | `AWS_REGION` | `eu-west-1` | AWS region for SSM |
 | `pathPrefix` | `SSM_PARAMETER_PREFIX` | `/viberator/tenants` | Base path for parameters |
 | `endpoint` | none | none | LocalStack endpoint (testing) |
 

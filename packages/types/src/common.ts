@@ -19,6 +19,7 @@ export const TICKET_SYSTEMS = [
   'clickup',
   'shortcut',
   'slack',
+  'custom',
 ] as const
 
 export type TicketSystem = (typeof TICKET_SYSTEMS)[number]

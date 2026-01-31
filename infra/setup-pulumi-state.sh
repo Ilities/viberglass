@@ -14,8 +14,8 @@ echo "Region: $REGION"
 if aws s3 ls "s3://$BUCKET_NAME" 2>/dev/null; then
   echo "Bucket $BUCKET_NAME already exists. Skipping creation."
 else
-  # Create bucket (handling us-east-1 differently)
-  if [ "$REGION" = "us-east-1" ]; then
+  # Create bucket (handling eu-west-1 differently)
+  if [ "$REGION" = "eu-west-1" ]; then
     aws s3api create-bucket \
       --bucket "$BUCKET_NAME" \
       --region "$REGION"

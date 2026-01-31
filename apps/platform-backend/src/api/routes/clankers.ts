@@ -8,12 +8,15 @@ import {
   validateUpdateClanker,
   validateUuidParam,
 } from "../middleware/validation";
+import { requireAuth } from "../middleware/authentication";
 import logger from "../../config/logger";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
 const healthService = new ClankerHealthService();
 const provisioningService = new ClankerProvisioningService();
+
+router.use(requireAuth);
 
 async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
   const availability =

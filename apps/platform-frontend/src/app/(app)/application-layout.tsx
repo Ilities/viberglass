@@ -8,13 +8,16 @@ import {
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
+  DropdownHeader,
 } from '@/components/dropdown'
 import { Navbar, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/components/navbar'
 import { Sidebar, SidebarBody, SidebarHeader, SidebarItem, SidebarLabel, SidebarSection } from '@/components/sidebar'
 import { StackedLayout } from '@/components/stacked-layout'
 import { ProjectProvider } from '@/context/project-context'
+import { useAuth } from '@/context/auth-context'
 import { useTheme } from '@/context/theme-context'
 import { getProjects, Project } from '@/service/api/project-api'
+import type { AuthUser } from '@/service/api/auth-api'
 import {
   AvatarIcon,
   ChevronDownIcon,
@@ -29,13 +32,21 @@ import {
   SunIcon,
   ClockIcon,
 } from '@radix-ui/react-icons'
-import { useParams, usePathname } from 'next/navigation'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 
 // Wrap Radix icons with data-slot attribute for proper styling
 function Icon({ children }: { children: React.ReactNode }) {
   return <span data-slot="icon">{children}</span>
+}
+
+function getInitials(name?: string, email?: string) {
+  const source = (name || '').trim() || (email || '').split('@')[0] || ''
+  const parts = source.split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return ''
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
 
 function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
@@ -85,11 +96,28 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug: string }) {
   )
 }
 
-function AccountDropdownMenu() {
+function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: () => void }) {
   const { theme, toggleTheme } = useTheme()
 
   return (
     <DropdownMenu className="min-w-64">
+      <DropdownHeader>
+        <div className="flex items-center gap-3">
+          <Avatar
+            square
+            src={user.avatarUrl ?? undefined}
+            initials={getInitials(user.name, user.email)}
+            className="size-8 bg-brand-gradient text-brand-charcoal"
+          />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">
+              {user.name}
+            </div>
+            <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.email}</div>
+          </div>
+        </div>
+      </DropdownHeader>
+      <DropdownDivider />
       <DropdownItem href="#">
         <Icon>
           <AvatarIcon />
@@ -120,7 +148,12 @@ function AccountDropdownMenu() {
         <DropdownLabel>Share feedback</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
-      <DropdownItem href="/login">
+      <DropdownItem
+        onClick={(event) => {
+          event.preventDefault()
+          onSignOut()
+        }}
+      >
         <Icon>
           <ExitIcon />
         </Icon>
@@ -131,21 +164,41 @@ function AccountDropdownMenu() {
 }
 
 export function ApplicationLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <ProjectProvider>
-      <ApplicationLayoutContent>{children}</ApplicationLayoutContent>
-    </ProjectProvider>
-  )
+  return <ApplicationLayoutContent>{children}</ApplicationLayoutContent>
 }
 
 function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   const pathname = usePathname()
   const { project: projectSlug } = useParams<{ project: string }>()
+  const { user, status, logout } = useAuth()
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/login')
+    }
+  }, [router, status])
+
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-dvh items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+        Checking your session...
+      </div>
+    )
+  }
+
+  if (status !== 'authenticated' || !user) {
+    return null
+  }
 
   const basePath = `/project/${projectSlug}`
+  const handleSignOut = async () => {
+    await logout()
+    router.replace('/login')
+  }
 
   return (
-    <>
+    <ProjectProvider>
       <StackedLayout
         navbar={
           <Navbar>
@@ -166,9 +219,6 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                 </NavbarItem>
                 <NavbarItem href={`${basePath}/tickets`} current={pathname.startsWith(`${basePath}/tickets`)}>
                   Tickets
-                </NavbarItem>
-                <NavbarItem href={`${basePath}/enhance`} current={pathname.startsWith(`${basePath}/enhance`)}>
-                  Enhance & Fix
                 </NavbarItem>
                 <NavbarItem href={`${basePath}/jobs`} current={pathname.startsWith(`${basePath}/jobs`)}>
                   Jobs
@@ -195,9 +245,14 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
             <NavbarSection>
               <Dropdown>
                 <DropdownButton as={NavbarItem}>
-                  <Avatar src="/users/erica.jpg" square />
+                  <Avatar
+                    square
+                    src={user.avatarUrl ?? undefined}
+                    initials={getInitials(user.name, user.email)}
+                    className="bg-brand-gradient text-brand-charcoal"
+                  />
                 </DropdownButton>
-                <AccountDropdownMenu />
+                <AccountDropdownMenu user={user} onSignOut={handleSignOut} />
               </Dropdown>
             </NavbarSection>
           </Navbar>
@@ -231,12 +286,6 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
                   </Icon>
                   <SidebarLabel>Bug Reports</SidebarLabel>
                 </SidebarItem>
-                <SidebarItem href={`${basePath}/enhance`} current={pathname.startsWith(`${basePath}/enhance`)}>
-                  <Icon>
-                    <LightningBoltIcon />
-                  </Icon>
-                  <SidebarLabel>Enhance & Fix</SidebarLabel>
-                </SidebarItem>
                 <SidebarItem href={`${basePath}/jobs`} current={pathname.startsWith(`${basePath}/jobs`)}>
                   <Icon>
                     <ClockIcon />
@@ -264,6 +313,6 @@ function ApplicationLayoutContent({ children }: { children: React.ReactNode }) {
           duration: 5000,
         }}
       />
-    </>
+    </ProjectProvider>
   )
 }

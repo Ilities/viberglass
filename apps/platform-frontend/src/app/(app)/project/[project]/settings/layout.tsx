@@ -10,7 +10,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   const settingsNavigation = [
     { name: 'Project', href: `/project/${project}/settings/project` },
-    { name: 'Webhooks', href: `/project/${project}/settings/webhooks` },
+    { name: 'Integrations', href: `/project/${project}/settings/integrations` },
   ]
 
   return (

@@ -9,7 +9,7 @@ import db from "../config/database";
  * for failed deliveries.
  */
 
-export type WebhookProvider = "github" | "jira";
+export type WebhookProvider = "github" | "jira" | "shortcut" | "custom";
 export type DeliveryStatus = "pending" | "processing" | "succeeded" | "failed";
 
 /**

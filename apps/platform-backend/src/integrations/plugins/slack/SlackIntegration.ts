@@ -293,7 +293,9 @@ export class SlackIntegration extends BasePMIntegration {
 
     lines.push("");
     lines.push("*Media Assets*");
-    lines.push(`- Screenshot: ${ticket.screenshot.url}`);
+    if (ticket.screenshot) {
+      lines.push(`- Screenshot: ${ticket.screenshot.url}`);
+    }
     if (ticket.recording) {
       lines.push(`- Recording: ${ticket.recording.url}`);
     }

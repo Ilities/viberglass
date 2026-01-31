@@ -97,7 +97,7 @@ Environment-based configuration supporting all deployment scenarios:
 |---------------------|---------|---------|
 | `CREDENTIALS_FILE_PATH` | Path to encrypted file | `.credentials.json` |
 | `CREDENTIALS_ENCRYPTION_KEY` | 64-char hex key for file encryption | Required for FileProvider |
-| `AWS_REGION` | AWS region for SSM | `us-east-1` |
+| `AWS_REGION` | AWS region for SSM | `eu-west-1` |
 | `SSM_PARAMETER_PREFIX` | SSM path prefix | `/viberator/tenants` |
 | `ENABLE_FILE_PROVIDER` | Enable file provider | `true` if key set |
 | `ENABLE_AWS_PROVIDER` | Enable AWS provider | `true` if region set |
@@ -151,7 +151,7 @@ export CREDENTIALS_FILE_PATH="./.credentials.json"
 ### Production (AWS SSM)
 
 ```bash
-export AWS_REGION="us-east-1"
+export AWS_REGION="eu-west-1"
 export SSM_PARAMETER_PREFIX="/viberator/tenants"
 export ENABLE_FILE_PROVIDER="false"
 ```

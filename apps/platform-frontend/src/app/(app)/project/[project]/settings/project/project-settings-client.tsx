@@ -8,7 +8,7 @@ import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
-import { getIntegrationConfig, getProjectIntegrations } from '@/service/api/integration-api'
+import { getIntegrationConfig, getProjectIntegrationSummaries } from '@/service/api/integration-api'
 import { updateProject, type UpdateProjectRequest } from '@/service/api/project-api'
 import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
 import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
@@ -56,10 +56,15 @@ export function ProjectSettingsClient({ project }: ProjectSettingsClientProps) {
     let isActive = true
 
     async function loadIntegrations() {
+      if (!projectData?.id) {
+        setIsLoadingIntegrations(false)
+        return
+      }
+
       setIsLoadingIntegrations(true)
       setIntegrationLoadError(null)
       try {
-        const integrations = await getProjectIntegrations()
+        const integrations = await getProjectIntegrationSummaries(projectData.id)
         if (!isActive) return
         setConfiguredIntegrations(
           integrations.filter((integration) => integration.configStatus === 'configured')
@@ -82,7 +87,7 @@ export function ProjectSettingsClient({ project }: ProjectSettingsClientProps) {
     return () => {
       isActive = false
     }
-  }, [])
+  }, [projectData?.id])
 
   useEffect(() => {
     if (!projectData) return

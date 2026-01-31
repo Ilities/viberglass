@@ -34,7 +34,7 @@ key-files:
 key-decisions:
   - "Keep SSM-based Amplify config (not GitHub secrets) for single source of truth"
   - "Remove hardcoded fallback values to fail fast on misconfiguration"
-  - "Dynamic region fetching from SSM instead of hardcoded us-east-1"
+  - "Dynamic region fetching from SSM instead of hardcoded eu-west-1"
 
 patterns-established:
   - "SSM path pattern: /viberator/{environment}/{category}/{key}"
@@ -99,7 +99,7 @@ Each task was committed atomically:
 
 ### `.github/workflows/deploy-frontend-dev.yml`
 - **Changes:**
-  - Removed hardcoded `us-east-1` region
+  - Removed hardcoded `eu-west-1` region
   - Added region fetching from SSM `/viberator/dev/deployment/region`
   - Removed hardcoded fallback URL `https://dev-api.viberator.internal`
   - Consolidated config fetching into single `get-config` step
@@ -107,7 +107,7 @@ Each task was committed atomically:
 
 ### `.github/workflows/deploy-frontend-prod.yml`
 - **Changes:**
-  - Removed hardcoded `us-east-1` region
+  - Removed hardcoded `eu-west-1` region
   - Added region fetching from SSM `/viberator/prod/deployment/region`
   - Removed hardcoded fallback URL `https://api.viberator.internal`
   - Consolidated config fetching into single `get-config` step
@@ -162,7 +162,7 @@ Amplify Deployment (app URL output for environment linking)
 
 **Decision 3: Dynamic region fetching from SSM**
 - **Rationale:** Supports multi-region deployments without modifying workflow files. Future-proof for deploying Amplify apps to different regions.
-- **Outcome:** AWS region fetched from `/viberator/{env}/deployment/region` with fallback to `us-east-1` only for region parameter.
+- **Outcome:** AWS region fetched from `/viberator/{env}/deployment/region` with fallback to `eu-west-1` only for region parameter.
 
 ## Deviations from Plan
 
@@ -204,8 +204,8 @@ Amplify Deployment (app URL output for environment linking)
 The following SSM parameters must be created by Pulumi (already provisioned in Phase 12-02):
 
 **Dev Environment:**
-- `/viberator/dev/deployment/region` - AWS region (e.g., `us-east-1`)
-- `/viberator/dev/frontend/apiUrl` - Backend API URL (e.g., `http://dev-alb-xxx.us-east-1.elb.amazonaws.com`)
+- `/viberator/dev/deployment/region` - AWS region (e.g., `eu-west-1`)
+- `/viberator/dev/frontend/apiUrl` - Backend API URL (e.g., `http://dev-alb-xxx.eu-west-1.elb.amazonaws.com`)
 - `/viberator/dev/amplify/appId` - Amplify app ID
 - `/viberator/dev/amplify/branchName` - Branch name (e.g., `main`)
 - `/viberator/dev/amplify/region` - Amplify app region
