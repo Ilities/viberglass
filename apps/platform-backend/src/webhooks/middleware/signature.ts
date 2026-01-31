@@ -28,6 +28,8 @@ export interface SignatureMiddlewareConfig {
   projectIdHeader?: string;
   /** Whether to include error details in response (default: false for security) */
   revealErrors?: boolean;
+  /** Whether signature verification is optional (default: false) */
+  optional?: boolean;
 }
 
 /**
@@ -65,17 +67,36 @@ export interface WebhookRequest extends ExtendedRequest {
  * ```
  */
 export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
-  const { validator, getSecret, projectIdHeader, revealErrors = false } = config;
+  const { validator, getSecret, projectIdHeader, revealErrors = false, optional = false } = config;
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const webhookReq = req as WebhookRequest;
 
     try {
+      // Get raw body from request (set by rawBodyMiddleware)
+      const rawBody = webhookReq.rawBody;
+      
       // Extract signature from configured header
       const headerName = validator.getHeaderName();
       const signature = req.headers[headerName] as string | string[] | undefined;
 
       if (!signature) {
+        // If verification is optional, skip to next middleware
+        if (optional && rawBody) {
+          // Still try to parse JSON body
+          try {
+            const jsonStr = rawBody.toString('utf8');
+            req.body = JSON.parse(jsonStr);
+          } catch (parseError) {
+            res.status(400).json({
+              error: revealErrors ? 'Invalid JSON payload' : 'Bad Request',
+            });
+            return;
+          }
+          next();
+          return;
+        }
+        
         const errorMsg = `Missing signature header: ${headerName}`;
         res.status(401).json({
           error: revealErrors ? errorMsg : 'Unauthorized',
@@ -87,8 +108,6 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
       // Handle array header values (Express can return array for duplicate headers)
       const signatureValue = Array.isArray(signature) ? signature[0] : signature;
 
-      // Get raw body from request (set by rawBodyMiddleware)
-      const rawBody = webhookReq.rawBody;
       if (!rawBody || rawBody.length === 0) {
         const errorMsg = 'Missing raw body for signature verification';
         res.status(400).json({
@@ -107,6 +126,21 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
       try {
         secret = await getSecret(projectId);
       } catch (error) {
+        // If verification is optional and secret not found, skip verification
+        if (optional) {
+          try {
+            const jsonStr = rawBody.toString('utf8');
+            req.body = JSON.parse(jsonStr);
+          } catch (parseError) {
+            res.status(400).json({
+              error: revealErrors ? 'Invalid JSON payload' : 'Bad Request',
+            });
+            return;
+          }
+          next();
+          return;
+        }
+        
         res.status(500).json({
           error: revealErrors ? 'Failed to retrieve webhook secret' : 'Internal Server Error',
         });
@@ -114,6 +148,21 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
       }
 
       if (!secret) {
+        // If verification is optional and no secret, skip verification
+        if (optional) {
+          try {
+            const jsonStr = rawBody.toString('utf8');
+            req.body = JSON.parse(jsonStr);
+          } catch (parseError) {
+            res.status(400).json({
+              error: revealErrors ? 'Invalid JSON payload' : 'Bad Request',
+            });
+            return;
+          }
+          next();
+          return;
+        }
+        
         const errorMsg = 'No webhook secret configured';
         res.status(401).json({
           error: revealErrors ? errorMsg : 'Unauthorized',

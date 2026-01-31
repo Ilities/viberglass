@@ -113,7 +113,7 @@ The following items require human verification (cannot be fully verified program
 ### 5. ECR Repository Exists
 
 **Test:** Run `aws ecr describe-repositories --repository-names viberator-backend`
-**Expected:** Repository exists in us-east-1
+**Expected:** Repository exists in eu-west-1
 **Why human:** AWS resource must be created (can be done via Pulumi)
 
 ### Gaps Summary

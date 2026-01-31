@@ -424,7 +424,7 @@ Verified patterns from official sources:
 // Source: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/ssm
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 
-const client = new SSMClient({ region: "us-east-1" });
+const client = new SSMClient({ region: "eu-west-1" });
 const command = new GetParameterCommand({
   Name: "/viberator/tenants/tenant-123/GITHUB_TOKEN",
   WithDecryption: true,

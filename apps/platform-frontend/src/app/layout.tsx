@@ -1,5 +1,6 @@
 import '@radix-ui/themes/styles.css'
 import '@/styles/tailwind.css'
+import { AuthProvider } from '@/context/auth-context'
 import { ThemeProvider } from '@/context/theme-context'
 import type { Metadata } from 'next'
 import { Inter, Orbitron, Space_Mono } from 'next/font/google'
@@ -44,7 +45,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

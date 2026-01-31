@@ -6,7 +6,7 @@ import "../config/env";
 import app from "./app";
 import * as http from "http";
 import * as dotenv from "dotenv";
-import { OrphanSweeper } from "../workers/OrphanSweeper";
+import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
 import logger from "../config/logger";
 

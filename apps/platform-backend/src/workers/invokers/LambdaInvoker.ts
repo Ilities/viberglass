@@ -24,7 +24,7 @@ export class LambdaInvoker implements WorkerInvoker {
 
   constructor(config?: { region?: string }) {
     this.client = new LambdaClient({
-      region: config?.region || process.env.AWS_REGION || "us-east-1",
+      region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
     this.secretResolutionService = new SecretResolutionService();
   }

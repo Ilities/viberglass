@@ -5,8 +5,8 @@
 import type { TicketSystem } from './common'
 import type { AuthCredentialType } from './project'
 
-// Integration category - SCM (source control) or Ticketing (issue tracking)
-export type IntegrationCategory = 'scm' | 'ticketing'
+// Integration category - SCM (source control), Ticketing (issue tracking), or Inbound (receives events)
+export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound'
 
 // Integration field types for dynamic forms
 export type IntegrationFieldType =
@@ -56,6 +56,28 @@ export interface IntegrationMetadata {
   status: 'ready' | 'stub'
 }
 
+// Top-level Integration entity (stored in integrations table)
+export interface Integration {
+  id: string
+  name: string
+  system: TicketSystem
+  authType: AuthCredentialType
+  // Dynamic configuration values based on integration's configFields
+  values: Record<string, unknown>
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// Link between a project and an integration (stored in project_integrations join table)
+export interface ProjectIntegrationLink {
+  id: string
+  projectId: string
+  integrationId: string
+  isPrimary: boolean
+  createdAt: string
+}
+
 // Integration with configuration status for a specific project
 export interface IntegrationSummary extends IntegrationMetadata {
   configStatus: IntegrationConfigStatus
@@ -64,7 +86,9 @@ export interface IntegrationSummary extends IntegrationMetadata {
   errorMessage?: string
 }
 
-// Integration configuration values (stored per project)
+// Integration configuration values stored per project (legacy - will be removed)
+// Now replaced by the top-level Integration entity
+/** @deprecated Use Integration instead */
 export interface IntegrationConfig {
   projectId: string
   integrationId: TicketSystem
@@ -75,7 +99,35 @@ export interface IntegrationConfig {
   updatedAt: string
 }
 
-// Request to configure an integration
+// Request to create a new integration
+export interface CreateIntegrationRequest {
+  name: string
+  system: TicketSystem
+  authType: AuthCredentialType
+  values: Record<string, unknown>
+}
+
+// Request to update an integration
+export interface UpdateIntegrationRequest {
+  name?: string
+  authType?: AuthCredentialType
+  values?: Record<string, unknown>
+  isActive?: boolean
+}
+
+// Request to link an integration to a project
+export interface LinkIntegrationToProjectRequest {
+  integrationId: string
+  isPrimary?: boolean
+}
+
+// Request to unlink an integration from a project
+export interface UnlinkIntegrationFromProjectRequest {
+  integrationId: string
+}
+
+// Request to configure an integration (legacy - use CreateIntegrationRequest or UpdateIntegrationRequest instead)
+/** @deprecated Use CreateIntegrationRequest or UpdateIntegrationRequest instead */
 export interface ConfigureIntegrationRequest {
   authType: AuthCredentialType
   values: Record<string, unknown>
@@ -107,6 +159,7 @@ export const INTEGRATION_ICONS: Record<TicketSystem, string> = {
   clickup: 'clickup',
   shortcut: 'shortcut',
   slack: 'slack',
+  custom: 'custom',
 }
 
 // Integration descriptions (for frontend use)
@@ -123,4 +176,5 @@ export const INTEGRATION_DESCRIPTIONS: Record<TicketSystem, string> = {
   clickup: 'All-in-one productivity platform for issue tracking.',
   shortcut: 'Project management for software teams (formerly Clubhouse).',
   slack: 'Send notifications and create issues directly from Slack channels.',
+  custom: 'Receive tickets from any external system via a simple JSON webhook.',
 }

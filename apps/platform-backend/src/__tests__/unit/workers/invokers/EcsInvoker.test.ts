@@ -34,7 +34,7 @@ describe("EcsInvoker", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    invoker = new EcsInvoker({ region: "us-east-1" });
+    invoker = new EcsInvoker({ region: "eu-west-1" });
 
     // Setup mock job
     mockJob = {
@@ -64,9 +64,9 @@ describe("EcsInvoker", () => {
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {
-        clusterArn: "arn:aws:ecs:us-east-1:123456789:cluster/viberator",
+        clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
         taskDefinitionArn:
-          "arn:aws:ecs:us-east-1:123456789:task-definition/viberator-worker:1",
+          "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
         launchType: "FARGATE",
         subnetIds: ["subnet-123", "subnet-456"],
         securityGroupIds: ["sg-123"],
@@ -82,7 +82,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "AGENT",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         };
@@ -106,7 +106,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "CAPACITY",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         });
@@ -124,7 +124,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "TASK_CAPACITY_LIMIT",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         });
@@ -142,7 +142,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "AGENT",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
               detail: "ECS agent disconnected",
             },
           ],
@@ -161,7 +161,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "RESOURCE",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         };
@@ -185,7 +185,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "ATTRIBUTE",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         });
@@ -203,7 +203,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "MISSING",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         });
@@ -221,7 +221,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "INACTIVE",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         });
@@ -239,7 +239,7 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "UNKNOWN_REASON",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         });
@@ -256,7 +256,7 @@ describe("EcsInvoker", () => {
           $metadata: {},
           failures: [
             {
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-123",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-123",
             },
           ],
         });
@@ -362,7 +362,7 @@ describe("EcsInvoker", () => {
           ...mockClanker,
           deploymentConfig: {
             taskDefinitionArn:
-              "arn:aws:ecs:us-east-1:123456789:task-definition/viberator-worker:1",
+              "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
             subnetIds: ["subnet-123"],
             securityGroupIds: ["sg-123"],
           },
@@ -384,7 +384,7 @@ describe("EcsInvoker", () => {
         const clankerWithoutTaskDef: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            clusterArn: "arn:aws:ecs:us-east-1:123456789:cluster/viberator",
+            clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
             subnetIds: ["subnet-123"],
             securityGroupIds: ["sg-123"],
           },
@@ -475,7 +475,7 @@ describe("EcsInvoker", () => {
           $metadata: {},
           tasks: [
             {
-              taskArn: "arn:aws:ecs:us-east-1:123456789:task/viberator/abc123",
+              taskArn: "arn:aws:ecs:eu-west-1:123456789:task/viberator/abc123",
             },
           ],
           failures: [],
@@ -484,7 +484,7 @@ describe("EcsInvoker", () => {
         const result = await invoker.invoke(mockJob, mockClanker);
 
         expect(result.executionId).toBe(
-          "arn:aws:ecs:us-east-1:123456789:task/viberator/abc123",
+          "arn:aws:ecs:eu-west-1:123456789:task/viberator/abc123",
         );
         expect(result.workerType).toBe("ecs");
       });
@@ -497,11 +497,11 @@ describe("EcsInvoker", () => {
           failures: [
             {
               reason: "AGENT",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-1",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-1",
             },
             {
               reason: "RESOURCE",
-              arn: "arn:aws:ecs:us-east-1:123456789:container-instance/task-2",
+              arn: "arn:aws:ecs:eu-west-1:123456789:container-instance/task-2",
             },
           ],
         });

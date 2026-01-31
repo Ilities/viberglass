@@ -5,10 +5,13 @@ import {
   validateUpdateDeploymentStrategy,
   validateUuidParam,
 } from "../middleware/validation";
+import { requireAuth } from "../middleware/authentication";
 import logger from "../../config/logger";
 
 const router = express.Router();
 const deploymentStrategyService = new DeploymentStrategyDAO();
+
+router.use(requireAuth);
 
 // GET /api/deployment-strategies - List all deployment strategies
 router.get("/", async (req, res) => {

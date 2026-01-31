@@ -30,7 +30,7 @@ export class ConfigLoader {
   constructor(logger: Logger, config?: { region?: string }) {
     this.logger = logger;
     this.s3Client = new S3Client({
-      region: config?.region || process.env.AWS_REGION || "us-east-1",
+      region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
   }
 
@@ -76,12 +76,12 @@ export class ConfigLoader {
         new GetObjectCommand({
           Bucket: bucket,
           Key: key,
-        })
+        }),
       );
 
       // Body.transformToString() from AWS SDK v3
       if (!response.Body) {
-        throw new Error('Empty response body from S3');
+        throw new Error("Empty response body from S3");
       }
       const content = await response.Body.transformToString();
 
@@ -109,7 +109,7 @@ export class ConfigLoader {
    * @returns Array of successfully fetched files
    */
   async fetchInstructionFiles(
-    files: Array<{ fileType: string; s3Url: string }>
+    files: Array<{ fileType: string; s3Url: string }>,
   ): Promise<InstructionFile[]> {
     const results: InstructionFile[] = [];
 
@@ -124,7 +124,7 @@ export class ConfigLoader {
             s3Url: file.s3Url,
           });
         }
-      })
+      }),
     );
 
     this.logger.info("Fetched instruction files from S3", {
@@ -145,7 +145,7 @@ export class ConfigLoader {
    */
   parseConfig(
     content: string,
-    fileType: string
+    fileType: string,
   ): Record<string, unknown> | null {
     try {
       // For markdown files, return as-is with type marker

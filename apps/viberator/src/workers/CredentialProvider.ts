@@ -20,7 +20,10 @@ export class CredentialProvider {
   private pathPrefix: string;
   private logger: Logger;
 
-  constructor(logger: Logger, config?: { region?: string; pathPrefix?: string }) {
+  constructor(
+    logger: Logger,
+    config?: { region?: string; pathPrefix?: string },
+  ) {
     this.logger = logger;
     this.pathPrefix =
       config?.pathPrefix ||
@@ -28,7 +31,7 @@ export class CredentialProvider {
       "/viberator/tenants";
 
     this.ssmClient = new SSMClient({
-      region: config?.region || process.env.AWS_REGION || "us-east-1",
+      region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
 
     this.cache = new Map();
@@ -41,7 +44,7 @@ export class CredentialProvider {
    * Example: github_token -> GITHUB_TOKEN
    */
   private keyToEnvVar(key: string): string {
-    return key.toUpperCase().replace(/-/g, '_');
+    return key.toUpperCase().replace(/-/g, "_");
   }
 
   /**
@@ -56,7 +59,7 @@ export class CredentialProvider {
    */
   async getCredential(
     tenantId: string,
-    key: string
+    key: string,
   ): Promise<string | undefined> {
     const envVar = this.keyToEnvVar(key);
 
@@ -81,7 +84,7 @@ export class CredentialProvider {
         new GetParameterCommand({
           Name: parameterName,
           WithDecryption: true,
-        })
+        }),
       );
 
       const value = response.Parameter?.Value;
@@ -116,14 +119,14 @@ export class CredentialProvider {
    */
   async getCredentials(
     tenantId: string,
-    keys: string[]
+    keys: string[],
   ): Promise<Record<string, string | undefined>> {
     const results: Record<string, string | undefined> = {};
 
     await Promise.all(
       keys.map(async (key) => {
         results[key] = await this.getCredential(tenantId, key);
-      })
+      }),
     );
 
     return results;
@@ -139,7 +142,7 @@ export class CredentialProvider {
    */
   validateRequired(
     credentials: Record<string, string | undefined>,
-    required: string[]
+    required: string[],
   ): { valid: boolean; missing: string[] } {
     const missing = required.filter((key) => !credentials[key]);
 

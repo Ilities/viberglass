@@ -10,7 +10,7 @@ import type { Database } from "../types/database";
  */
 
 export type SecretLocation = "database" | "ssm" | "env";
-export type WebhookProvider = "github" | "jira";
+export type WebhookProvider = "github" | "jira" | "shortcut" | "custom";
 
 /**
  * Webhook configuration as stored in database
@@ -20,6 +20,7 @@ export interface WebhookConfig {
   projectId: string | null;
   provider: WebhookProvider;
   providerProjectId: string | null;
+  integrationId: string | null;
   secretLocation: SecretLocation;
   secretPath: string | null;
   webhookSecretEncrypted: string | null;
@@ -40,6 +41,7 @@ export interface CreateWebhookConfigDTO {
   projectId: string | null;
   provider: WebhookProvider;
   providerProjectId?: string | null;
+  integrationId?: string | null;
   secretLocation?: SecretLocation;
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
@@ -58,6 +60,7 @@ export interface UpdateWebhookConfigDTO {
   projectId?: string | null;
   provider?: WebhookProvider;
   providerProjectId?: string | null;
+  integrationId?: string | null;
   secretLocation?: SecretLocation;
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
@@ -84,11 +87,12 @@ export class WebhookConfigDAO {
         project_id: dto.projectId,
         provider: dto.provider,
         provider_project_id: dto.providerProjectId ?? null,
+        integration_id: dto.integrationId ?? null,
         secret_location: dto.secretLocation ?? "database",
         secret_path: dto.secretPath ?? null,
         webhook_secret_encrypted: dto.webhookSecretEncrypted ?? null,
         api_token_encrypted: dto.apiTokenEncrypted ?? null,
-        allowed_events: dto.allowedEvents ?? [],
+        allowed_events: JSON.stringify(dto.allowedEvents ?? []) as any, // Kysely jsonb column requires string
         auto_execute: dto.autoExecute ?? false,
         bot_username: dto.botUsername ?? null,
         label_mappings: JSON.stringify(
@@ -152,6 +156,9 @@ export class WebhookConfigDAO {
     if (updates.providerProjectId !== undefined) {
       updateData.provider_project_id = updates.providerProjectId;
     }
+    if (updates.integrationId !== undefined) {
+      updateData.integration_id = updates.integrationId;
+    }
     if (updates.secretLocation !== undefined) {
       updateData.secret_location = updates.secretLocation;
     }
@@ -165,7 +172,7 @@ export class WebhookConfigDAO {
       updateData.api_token_encrypted = updates.apiTokenEncrypted;
     }
     if (updates.allowedEvents !== undefined) {
-      updateData.allowed_events = updates.allowedEvents;
+      updateData.allowed_events = JSON.stringify(updates.allowedEvents) as any; // Kysely jsonb column requires string
     }
     if (updates.autoExecute !== undefined) {
       updateData.auto_execute = updates.autoExecute;
@@ -199,6 +206,22 @@ export class WebhookConfigDAO {
       .executeTakeFirst();
 
     return (result.numDeletedRows ?? 0) > 0;
+  }
+
+  /**
+   * Get webhook configuration by integration ID
+   */
+  async getByIntegrationId(integrationId: string): Promise<WebhookConfig | null> {
+    const row = await db
+      .selectFrom("webhook_provider_configs")
+      .selectAll()
+      .where("integration_id", "=", integrationId)
+      .where("active", "=", true)
+      .executeTakeFirst();
+
+    if (!row) return null;
+
+    return this.mapRowToConfig(row);
   }
 
   /**
@@ -286,6 +309,7 @@ export class WebhookConfigDAO {
       providerProjectId: row.provider_project_id
         ? String(row.provider_project_id)
         : null,
+      integrationId: row.integration_id ? String(row.integration_id) : null,
       secretLocation: row.secret_location as SecretLocation,
       secretPath: row.secret_path ? String(row.secret_path) : null,
       webhookSecretEncrypted: row.webhook_secret_encrypted
