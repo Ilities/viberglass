@@ -4,11 +4,14 @@ import {
   validateUpdateSecret,
   validateUuidParam,
 } from "../middleware/validation";
+import { requireAuth } from "../middleware/authentication";
 import { SecretService } from "../../services/SecretService";
 import logger from "../../config/logger";
 
 const router = express.Router();
 const secretService = new SecretService();
+
+router.use(requireAuth);
 
 const isClientError = (error: Error): boolean => {
   const message = error.message.toLowerCase();

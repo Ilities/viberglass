@@ -18,7 +18,7 @@ const logger = createChildLogger({ service: "ClankerProvisioningService" });
 
 const DEFAULT_LOCAL_DOCKER_IMAGE = "viberator-worker:local";
 const DEFAULT_DOCKERFILE_PATH =
-  "infra/viberator/docker/viberator-docker-worker.Dockerfile";
+  "infra/workers/docker/viberator-docker-worker.Dockerfile";
 
 interface DockerDeploymentConfig {
   containerImage?: string;
@@ -74,11 +74,11 @@ export class ClankerProvisioningService {
   private docker: Docker;
   private ecsClient: ECSClient;
   private lambdaClient: LambdaClient;
-  private repoRoot: string;
+  private readonly repoRoot: string;
 
   constructor() {
     this.docker = new Docker({ socketPath: "/var/run/docker.sock" });
-    const region = process.env.AWS_REGION || "us-east-1";
+    const region = process.env.AWS_REGION || "eu-west-1";
     this.ecsClient = new ECSClient({ region });
     this.lambdaClient = new LambdaClient({ region });
     this.repoRoot = path.resolve(__dirname, "../../../../");
@@ -111,7 +111,9 @@ export class ClankerProvisioningService {
     }
   }
 
-  async resolveAvailabilityStatus(clanker: Clanker): Promise<AvailabilityResult> {
+  async resolveAvailabilityStatus(
+    clanker: Clanker,
+  ): Promise<AvailabilityResult> {
     const strategy = this.normalizeStrategyName(
       clanker.deploymentStrategy?.name,
     );
@@ -170,10 +172,7 @@ export class ClankerProvisioningService {
 
   private async provisionEcs(clanker: Clanker): Promise<ProvisioningResult> {
     const config = (clanker.deploymentConfig || {}) as EcsProvisioningConfig;
-    const taskDefinitionArn = await this.ensureTaskDefinition(
-      clanker,
-      config,
-    );
+    const taskDefinitionArn = await this.ensureTaskDefinition(clanker, config);
 
     // For managed mode, persist cluster ARN from env vars so the invoker can find it
     const clusterArn =
@@ -221,8 +220,10 @@ export class ClankerProvisioningService {
     const dockerfile = path.resolve(this.repoRoot, DEFAULT_DOCKERFILE_PATH);
     const dockerfileRelative = path.relative(this.repoRoot, dockerfile);
     const tar = require("tar-fs") as {
-      pack: (cwd: string, options?: { ignore?: (name: string) => boolean }) =>
-        NodeJS.ReadableStream;
+      pack: (
+        cwd: string,
+        options?: { ignore?: (name: string) => boolean },
+      ) => NodeJS.ReadableStream;
     };
 
     logger.info("Building Docker image for clanker", {
@@ -299,9 +300,10 @@ export class ClankerProvisioningService {
     const containerImage =
       config.containerImage || process.env.VIBERATOR_ECS_CONTAINER_IMAGE;
     const logGroup =
-      config.logGroup || process.env.VIBERATOR_ECS_LOG_GROUP || "/ecs/viberator-worker";
-    const region =
-      config.region || process.env.AWS_REGION || "us-east-1";
+      config.logGroup ||
+      process.env.VIBERATOR_ECS_LOG_GROUP ||
+      "/ecs/viberator-worker";
+    const region = config.region || process.env.AWS_REGION || "eu-west-1";
 
     if (!executionRoleArn || !taskRoleArn || !containerImage) {
       throw new Error(
@@ -366,14 +368,11 @@ export class ClankerProvisioningService {
         throw error;
       }
       if (explicitArn) {
-        throw new Error(
-          `Lambda function not found for ARN: ${explicitArn}`,
-        );
+        throw new Error(`Lambda function not found for ARN: ${explicitArn}`);
       }
     }
 
-    const imageUri =
-      config.imageUri || process.env.VIBERATOR_LAMBDA_IMAGE_URI;
+    const imageUri = config.imageUri || process.env.VIBERATOR_LAMBDA_IMAGE_URI;
     const roleArn = config.roleArn || process.env.VIBERATOR_LAMBDA_ROLE_ARN;
     if (!imageUri || !roleArn) {
       throw new Error("Lambda creation requires imageUri and roleArn");

@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/lib'
+import { apiFetch } from '@/service/api/client'
 
 export interface JobOverrides {
   additionalContext?: string
@@ -84,7 +85,7 @@ export async function runTicket(
   clankerId: string,
   overrides?: JobOverrides,
 ): Promise<RunTicketResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}/run`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -104,7 +105,7 @@ export async function runTicket(
  * Get job status and details
  */
 export async function getJob(jobId: string): Promise<JobStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/jobs/${jobId}`)
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -161,7 +162,7 @@ export async function getJobs(params?: { status?: string; limit?: number; projec
 
   const query = searchParams.toString()
   const url = query ? `${API_BASE_URL}/api/jobs?${query}` : `${API_BASE_URL}/api/jobs`
-  const response = await fetch(url)
+  const response = await apiFetch(url)
 
   if (!response.ok) {
     throw new Error('Failed to fetch jobs')
@@ -174,7 +175,7 @@ export async function getJobs(params?: { status?: string; limit?: number; projec
  * Get job queue statistics
  */
 export async function getJobQueueStats(): Promise<JobQueueStats> {
-  const response = await fetch(`${API_BASE_URL}/api/jobs/stats/queue`)
+  const response = await apiFetch(`${API_BASE_URL}/api/jobs/stats/queue`)
 
   if (!response.ok) {
     throw new Error('Failed to fetch job queue stats')

@@ -14,18 +14,28 @@ import {
   CheckCircledIcon,
   CircleIcon,
   ExclamationTriangleIcon,
+  CopyIcon,
   GitHubLogoIcon,
 } from '@radix-ui/react-icons'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
-  configureIntegration,
-  getIntegrationConfig,
-  getProjectIntegrations,
-  testIntegrationConnection,
+  createIntegration,
+  updateIntegration,
+  getIntegration,
+  getAllIntegrationSummaries,
+  testIntegration,
+  getIntegrationWebhook,
+  saveIntegrationWebhook,
+  deleteIntegrationWebhook,
+  getIntegrationDeliveries,
+  retryIntegrationDelivery,
+  type IntegrationWebhookConfig,
+  type IntegrationWebhookDelivery,
 } from '@/service/api/integration-api'
-import type { IntegrationConfig, IntegrationSummary } from '@viberglass/types'
+import type { Integration, IntegrationSummary } from '@viberglass/types'
 
 // Icon mapping (same as in integration-card.tsx)
 const INTEGRATION_ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -41,6 +51,7 @@ const INTEGRATION_ICON_COMPONENTS: Record<string, React.ComponentType<{ classNam
   clickup: ClickUpIcon,
   shortcut: ShortcutIcon,
   slack: SlackIcon,
+  custom: CustomIcon,
 }
 
 // Placeholder icons
@@ -132,22 +143,43 @@ function SlackIcon({ className }: { className?: string }) {
   )
 }
 
+function CustomIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 3v18M3 12h18M5.64 5.64l12.72 12.72M5.64 18.36L18.36 5.64" />
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  )
+}
+
 
 export default function IntegrationDetailPage() {
   const router = useRouter()
   const { integrationId } = useParams<{ integrationId: string }>()
 
   const [integration, setIntegration] = useState<IntegrationSummary | null>(null)
-  const [config, setConfig] = useState<IntegrationConfig | null>(null)
+  const [existingIntegration, setExistingIntegration] = useState<Integration | null>(null)
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
+  // Webhook state
+  const [webhookConfig, setWebhookConfig] = useState<IntegrationWebhookConfig | null>(null)
+  const [isLoadingWebhook, setIsLoadingWebhook] = useState(false)
+  const [showSecret, setShowSecret] = useState(false)
+  const [deliveries, setDeliveries] = useState<IntegrationWebhookDelivery[]>([])
+  const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(false)
+  const [autoExecute, setAutoExecute] = useState(false)
+  const [isSavingWebhook, setIsSavingWebhook] = useState(false)
+
+  // Get the integration ID for webhook operations
+  const integrationEntityId = existingIntegration?.id
+
   const initialValues = useMemo(
-    () => (config?.values as Record<string, unknown>) || {},
-    [config]
+    () => (existingIntegration?.values as Record<string, unknown>) || {},
+    [existingIntegration]
   )
 
   useEffect(() => {
@@ -158,27 +190,30 @@ export default function IntegrationDetailPage() {
       setLoadError(null)
 
       try {
-        const integrations = await getProjectIntegrations()
+        const integrations = await getAllIntegrationSummaries()
         if (!isActive) return
 
         const selected = integrations.find((item) => item.id === integrationId)
         setIntegration(selected || null)
 
         if (selected?.configStatus === 'configured') {
-          const integrationConfig = await getIntegrationConfig(
-            undefined,
-            integrationId as TicketSystem
-          )
+          // Find the existing integration by system type
+          const allIntegrations = await import('@/service/api/integration-api').then(m => m.getIntegrations())
           if (!isActive) return
-          setConfig(integrationConfig)
+          const existing = allIntegrations.find(i => i.system === integrationId)
+          if (existing) {
+            const fullIntegration = await getIntegration(existing.id)
+            if (!isActive) return
+            setExistingIntegration(fullIntegration)
+          }
         } else {
-          setConfig(null)
+          setExistingIntegration(null)
         }
       } catch (error) {
         if (!isActive) return
         setLoadError(error instanceof Error ? error.message : 'Failed to load integration')
         setIntegration(null)
-        setConfig(null)
+        setExistingIntegration(null)
       } finally {
         if (isActive) {
           setIsPageLoading(false)
@@ -196,6 +231,47 @@ export default function IntegrationDetailPage() {
       isActive = false
     }
   }, [integrationId])
+
+  // Load webhook config when integration is loaded
+  useEffect(() => {
+    let isActive = true
+
+    async function loadWebhookData() {
+      if (!integrationEntityId) {
+        setWebhookConfig(null)
+        setDeliveries([])
+        return
+      }
+
+      setIsLoadingWebhook(true)
+      try {
+        const config = await getIntegrationWebhook(undefined, integrationId as TicketSystem)
+        if (!isActive) return
+        
+        setWebhookConfig(config)
+        if (config) {
+          setAutoExecute(config.autoExecute)
+          
+          // Load deliveries
+          const deliveryData = await getIntegrationDeliveries(undefined, integrationId as TicketSystem)
+          if (!isActive) return
+          setDeliveries(deliveryData)
+        }
+      } catch (error) {
+        console.error('Failed to load webhook config:', error)
+      } finally {
+        if (isActive) {
+          setIsLoadingWebhook(false)
+        }
+      }
+    }
+
+    void loadWebhookData()
+
+    return () => {
+      isActive = false
+    }
+  }, [integrationEntityId, integrationId])
 
   if (isPageLoading) {
     return (
@@ -267,10 +343,22 @@ export default function IntegrationDetailPage() {
   const handleSubmit = async (values: { authType: AuthCredentialType; values: Record<string, unknown> }) => {
     setIsLoading(true)
     try {
-      await configureIntegration(undefined, integrationId as TicketSystem, {
-        authType: values.authType,
-        values: values.values,
-      })
+      if (existingIntegration) {
+        // Update existing integration
+        await updateIntegration(existingIntegration.id, {
+          name: existingIntegration.name,
+          authType: values.authType,
+          values: values.values,
+        })
+      } else {
+        // Create new integration
+        await createIntegration({
+          name: `${integration?.label || integrationId} Integration`,
+          system: integrationId as TicketSystem,
+          authType: values.authType,
+          values: values.values,
+        })
+      }
 
       router.push('/settings/integrations')
     } catch (error) {
@@ -284,15 +372,18 @@ export default function IntegrationDetailPage() {
     setIsTesting(true)
     setTestResult(null)
     try {
-      const result = await testIntegrationConnection(
-        undefined,
-        integrationId as TicketSystem,
-        {
-          authType: values.authType,
-          values: values.values,
-        }
-      )
-      setTestResult(result)
+      if (existingIntegration) {
+        // Test existing integration
+        const result = await testIntegration(existingIntegration.id)
+        setTestResult(result)
+      } else {
+        // For new integrations, we can't test without creating first
+        // Update the integration temporarily with new values and test
+        setTestResult({
+          success: false,
+          message: 'Save the integration first to test the connection',
+        })
+      }
     } catch (error) {
       setTestResult({
         success: false,
@@ -306,6 +397,120 @@ export default function IntegrationDetailPage() {
   const handleCancel = () => {
     router.push('/settings/integrations')
   }
+
+  // Webhook handlers
+  const handleGenerateSecret = async () => {
+    if (!integrationEntityId) return
+    
+    setIsSavingWebhook(true)
+    try {
+      const config = await saveIntegrationWebhook(
+        undefined,
+        integrationId as TicketSystem,
+        {
+          generateSecret: true,
+          autoExecute,
+        }
+      )
+      setWebhookConfig(config)
+      toast.success('Webhook configured successfully')
+    } catch (error) {
+      console.error('Failed to generate webhook secret:', error)
+      toast.error('Failed to setup webhook', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    } finally {
+      setIsSavingWebhook(false)
+    }
+  }
+
+  const handleSaveWebhook = async () => {
+    if (!integrationEntityId || !webhookConfig) return
+    
+    setIsSavingWebhook(true)
+    try {
+      const config = await saveIntegrationWebhook(
+        undefined,
+        integrationId as TicketSystem,
+        {
+          autoExecute,
+        }
+      )
+      setWebhookConfig(config)
+      toast.success('Webhook settings saved')
+    } catch (error) {
+      console.error('Failed to save webhook config:', error)
+      toast.error('Failed to save webhook settings', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    } finally {
+      setIsSavingWebhook(false)
+    }
+  }
+
+  const handleDeleteWebhook = async () => {
+    if (!integrationEntityId) return
+    
+    if (!confirm('Are you sure you want to remove the webhook configuration?')) {
+      return
+    }
+    
+    setIsSavingWebhook(true)
+    try {
+      await deleteIntegrationWebhook(undefined, integrationId as TicketSystem)
+      setWebhookConfig(null)
+      toast.success('Webhook removed successfully')
+    } catch (error) {
+      console.error('Failed to delete webhook:', error)
+      toast.error('Failed to remove webhook', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    } finally {
+      setIsSavingWebhook(false)
+    }
+  }
+
+  const handleCopyWebhookUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Webhook URL copied to clipboard')
+    } catch (error) {
+      console.error('Failed to copy URL:', error)
+      toast.error('Failed to copy URL')
+    }
+  }
+
+  const handleRefreshDeliveries = async () => {
+    if (!integrationEntityId) return
+    
+    setIsLoadingDeliveries(true)
+    try {
+      const data = await getIntegrationDeliveries(undefined, integrationId as TicketSystem)
+      setDeliveries(data)
+    } catch (error) {
+      console.error('Failed to refresh deliveries:', error)
+      toast.error('Failed to refresh deliveries')
+    } finally {
+      setIsLoadingDeliveries(false)
+    }
+  }
+
+  const handleRetryDelivery = async (deliveryId: string) => {
+    if (!integrationEntityId) return
+    
+    try {
+      await retryIntegrationDelivery(undefined, integrationId as TicketSystem, deliveryId)
+      toast.success('Delivery retry initiated')
+      // Refresh the deliveries list
+      void handleRefreshDeliveries()
+    } catch (error) {
+      console.error('Failed to retry delivery:', error)
+      toast.error('Failed to retry delivery')
+    }
+  }
+
+  // Check if integration supports webhooks (for now, GitHub, Jira, and custom)
+  const supportsWebhooks = integrationId === 'github' || integrationId === 'jira' || integrationId === 'custom'
 
   // If integration is a stub, show coming soon message
   if (integration.status === 'stub') {
@@ -379,6 +584,8 @@ export default function IntegrationDetailPage() {
             </Badge>
             {integration.category === 'scm' ? (
               <Badge color="blue">SCM</Badge>
+            ) : integration.category === 'inbound' ? (
+              <Badge color="teal">Inbound</Badge>
             ) : (
               <Badge color="purple">Ticketing</Badge>
             )}
@@ -394,7 +601,7 @@ export default function IntegrationDetailPage() {
           <IntegrationConfigForm
             integration={integration}
             initialValues={initialValues}
-            initialAuthType={config?.authType}
+            initialAuthType={existingIntegration?.authType}
             onSubmit={handleSubmit}
             onTest={handleTest}
             onCancel={handleCancel}
@@ -404,6 +611,222 @@ export default function IntegrationDetailPage() {
           />
         </div>
       </section>
+
+      {/* Webhook Section - only for integrations that support webhooks */}
+      {supportsWebhooks && integration.configStatus === 'configured' && (
+        <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
+          <Subheading>Inbound Webhook</Subheading>
+          <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Configure a webhook to receive events from {integration.label}.
+          </Text>
+
+          {isLoadingWebhook ? (
+            <div className="mt-4 text-sm text-zinc-500">Loading webhook configuration...</div>
+          ) : !webhookConfig ? (
+            <div className="mt-4">
+              <Button
+                color="brand"
+                onClick={handleGenerateSecret}
+                disabled={isSavingWebhook}
+              >
+                {isSavingWebhook ? 'Setting up...' : 'Setup Webhook'}
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {/* Webhook URL */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-900 dark:text-white">
+                  Webhook URL
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={webhookConfig.webhookUrl}
+                    className="flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  />
+                  <Button
+                    color="zinc"
+                    onClick={() => handleCopyWebhookUrl(webhookConfig.webhookUrl)}
+                    title="Copy to clipboard"
+                  >
+                    <CopyIcon className="size-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Webhook Secret */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-900 dark:text-white">
+                  Webhook Secret
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    type={showSecret ? 'text' : 'password'}
+                    readOnly
+                    value={webhookConfig.webhookSecret || '(hidden)'}
+                    className="flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  />
+                  <Button
+                    color="zinc"
+                    onClick={() => setShowSecret(!showSecret)}
+                  >
+                    {showSecret ? 'Hide' : 'Show'}
+                  </Button>
+                  <Button
+                    color="zinc"
+                    onClick={handleGenerateSecret}
+                    disabled={isSavingWebhook}
+                  >
+                    Regenerate
+                  </Button>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Use this secret to verify webhook signatures. Keep it secure.
+                </p>
+              </div>
+
+              {/* Auto-execute toggle */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="autoExecute"
+                  checked={autoExecute}
+                  onChange={(e) => setAutoExecute(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-600 dark:border-zinc-700"
+                />
+                <label htmlFor="autoExecute" className="text-sm text-zinc-900 dark:text-white">
+                  Auto-execute fixes on webhook events
+                </label>
+                {(autoExecute !== webhookConfig.autoExecute) && (
+                  <Button
+                    color="brand"
+                    size="small"
+                    onClick={handleSaveWebhook}
+                    disabled={isSavingWebhook}
+                  >
+                    {isSavingWebhook ? 'Saving...' : 'Save'}
+                  </Button>
+                )}
+              </div>
+
+              {/* Custom Webhook payload documentation */}
+              {integrationId === 'custom' && (
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
+                  <p className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
+                    Expected Payload Format
+                  </p>
+                  <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">
+{`{
+  "title": "string (required)",
+  "description": "string (required)",
+  "severity": "low | medium | high | critical (optional)",
+  "category": "string (optional, default: 'bug')",
+  "externalId": "string (optional, for deduplication)",
+  "url": "string (optional, link back to source)"
+}`}
+                  </pre>
+                  <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                    Send POST requests to the webhook URL with the payload above.
+                    Include <code className="rounded bg-zinc-200 px-1 py-0.5 dark:bg-zinc-700">X-Webhook-Signature-256: sha256=&lt;hmac&gt;</code> header for signature verification.
+                  </p>
+                </div>
+              )}
+
+              {/* Delete webhook button */}
+              <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                <Button
+                  color="red"
+                  onClick={handleDeleteWebhook}
+                  disabled={isSavingWebhook}
+                >
+                  Remove Webhook
+                </Button>
+              </div>
+
+              {/* Delivery History */}
+              <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                    Recent Deliveries
+                  </h4>
+                  <Button
+                    color="zinc"
+                    size="small"
+                    onClick={handleRefreshDeliveries}
+                    disabled={isLoadingDeliveries}
+                  >
+                    {isLoadingDeliveries ? 'Refreshing...' : 'Refresh'}
+                  </Button>
+                </div>
+
+                {deliveries.length === 0 ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    No webhook deliveries yet.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-zinc-50 text-xs uppercase text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+                        <tr>
+                          <th className="px-3 py-2">Event</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Ticket</th>
+                          <th className="px-3 py-2">Time</th>
+                          <th className="px-3 py-2"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {deliveries.map((delivery) => (
+                          <tr key={delivery.id} className="border-b border-zinc-200 dark:border-zinc-800">
+                            <td className="px-3 py-2">{delivery.eventType}</td>
+                            <td className="px-3 py-2">
+                              <Badge
+                                color={
+                                  delivery.status === 'succeeded'
+                                    ? 'green'
+                                    : delivery.status === 'failed'
+                                      ? 'red'
+                                      : 'amber'
+                                }
+                              >
+                                {delivery.status}
+                              </Badge>
+                              {delivery.errorMessage && (
+                                <span className="ml-2 text-xs text-red-600 dark:text-red-400">
+                                  {delivery.errorMessage}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {delivery.ticketId || '-'}
+                            </td>
+                            <td className="px-3 py-2 text-zinc-500">
+                              {new Date(delivery.createdAt).toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2">
+                              {delivery.status === 'failed' && (
+                                <Button
+                                  color="zinc"
+                                  size="small"
+                                  onClick={() => handleRetryDelivery(delivery.id)}
+                                >
+                                  Retry
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

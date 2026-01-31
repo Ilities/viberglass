@@ -3,6 +3,7 @@ import { JobService } from "../../services/JobService";
 import type { JobStatus } from "../../services/JobService";
 import { JobData } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
+import { requireAuth } from "../middleware/authentication";
 import {
   validateResultCallback,
   validateProgressUpdate,
@@ -14,6 +15,8 @@ import logger from "../../config/logger";
 
 const router = Router();
 const jobService = new JobService();
+
+router.use(requireAuth);
 
 router.post("/", async (req: Request, res: Response) => {
   try {

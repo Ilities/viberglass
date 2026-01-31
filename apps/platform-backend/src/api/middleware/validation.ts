@@ -1,5 +1,6 @@
 import Joi from "joi";
 import { Request, Response, NextFunction } from "express";
+import type { MulterError } from "multer";
 import {
   ticketSchema,
   projectSchema,
@@ -17,6 +18,10 @@ import {
   secretSchema,
   updateSecretSchema,
   integrationConfigSchema,
+  registerSchema,
+  createUserSchema,
+  loginSchema,
+  forgotPasswordSchema,
 } from "./schemas";
 
 /**
@@ -65,6 +70,10 @@ export const validateLogBatch = createValidator(logBatchSchema);
 export const validateCreateSecret = createValidator(secretSchema);
 export const validateUpdateSecret = createValidator(updateSecretSchema);
 export const validateIntegrationConfig = createValidator(integrationConfigSchema);
+export const validateRegister = createValidator(registerSchema);
+export const validateCreateUser = createValidator(createUserSchema);
+export const validateLogin = createValidator(loginSchema);
+export const validateForgotPassword = createValidator(forgotPasswordSchema);
 
 // Custom validators with special logic
 
@@ -126,4 +135,90 @@ export const validateFileUploads = (
   }
 
   next();
+};
+
+/**
+ * Middleware to parse JSON string fields in multipart form data.
+ * When using multer, text fields that should be objects arrive as strings.
+ * This middleware parses known JSON fields back to objects.
+ */
+export const parseMultipartJsonFields = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const jsonFields = ["metadata", "annotations"];
+
+  for (const field of jsonFields) {
+    if (req.body[field] && typeof req.body[field] === "string") {
+      try {
+        req.body[field] = JSON.parse(req.body[field]);
+      } catch (error) {
+        return res.status(400).json({
+          error: "Validation error",
+          details: [
+            {
+              field: field,
+              message: `Invalid JSON format for ${field}`,
+            },
+          ],
+        });
+      }
+    }
+  }
+
+  // Also parse autoFixRequested if it's a string
+  if (req.body.autoFixRequested && typeof req.body.autoFixRequested === "string") {
+    req.body.autoFixRequested = req.body.autoFixRequested === "true";
+  }
+
+  next();
+};
+
+/**
+ * Error handler for multer errors.
+ * Converts multer errors to JSON responses instead of HTML stack traces.
+ */
+export const handleMulterError = (
+  err: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  // Check if it's a multer error
+  if (err.name === "MulterError") {
+    const multerError = err as MulterError;
+    
+    let message = "File upload error";
+    
+    switch (multerError.code) {
+      case "LIMIT_FILE_SIZE":
+        message = "File too large. Maximum file size is 10MB.";
+        break;
+      case "LIMIT_FILE_COUNT":
+        message = "Too many files uploaded.";
+        break;
+      case "LIMIT_UNEXPECTED_FILE":
+        message = `Unexpected field: ${multerError.field}. Expected 'screenshot' or 'recording'.`;
+        break;
+      default:
+        message = multerError.message;
+    }
+    
+    return res.status(400).json({
+      error: "File upload error",
+      message: message,
+    });
+  }
+
+  // Handle "Invalid file type" error from multer fileFilter
+  if (err.message && err.message.includes("Invalid file type")) {
+    return res.status(400).json({
+      error: "File upload error",
+      message: err.message,
+    });
+  }
+
+  // Pass other errors to the next handler
+  next(err);
 };

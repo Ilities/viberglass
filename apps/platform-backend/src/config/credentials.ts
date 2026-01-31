@@ -1,4 +1,4 @@
-import { CredentialProviderFactory } from '../credentials/CredentialProviderFactory';
+import { CredentialProviderFactory } from "../credentials/CredentialProviderFactory";
 
 /**
  * Credential system configuration
@@ -11,7 +11,7 @@ import { CredentialProviderFactory } from '../credentials/CredentialProviderFact
  * Environment variables:
  * - CREDENTIALS_FILE_PATH: Path to encrypted file (default: .credentials.json)
  * - CREDENTIALS_ENCRYPTION_KEY: 64-char hex string for file encryption
- * - AWS_REGION: AWS region for SSM (default: us-east-1)
+ * - AWS_REGION: AWS region for SSM (default: eu-west-1)
  * - SSM_PARAMETER_PREFIX: SSM path prefix (default: /viberator/tenants)
  * - ENABLE_FILE_PROVIDER: Enable file provider (default: true if key set)
  * - ENABLE_AWS_PROVIDER: Enable AWS provider (default: true if region set)
@@ -42,7 +42,8 @@ export function loadCredentialConfig(): CredentialConfig {
 
   // File provider configuration
   const hasEncryptionKey = !!process.env.CREDENTIALS_ENCRYPTION_KEY;
-  const enableFile = process.env.ENABLE_FILE_PROVIDER !== 'false' && hasEncryptionKey;
+  const enableFile =
+    process.env.ENABLE_FILE_PROVIDER !== "false" && hasEncryptionKey;
 
   if (enableFile) {
     config.file = {
@@ -54,7 +55,7 @@ export function loadCredentialConfig(): CredentialConfig {
 
   // AWS SSM provider configuration
   const hasAwsRegion = !!process.env.AWS_REGION;
-  const enableAws = process.env.ENABLE_AWS_PROVIDER !== 'false' && hasAwsRegion;
+  const enableAws = process.env.ENABLE_AWS_PROVIDER !== "false" && hasAwsRegion;
 
   if (enableAws) {
     config.aws = {

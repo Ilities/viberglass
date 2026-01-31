@@ -43,12 +43,9 @@ export default async function TicketsPage({
     <>
       <div className="flex items-end justify-between">
         <Heading>Tickets</Heading>
-        <div className="flex gap-4">
-          <Button href={`/project/${project}/enhance`}>Enhance & Auto-Fix</Button>
-          <Button href={`/project/${project}/tickets/create`} color="brand">
-            Create
-          </Button>
-        </div>
+        <Button href={`/project/${project}/tickets/create`} color="brand">
+          Create
+        </Button>
       </div>
 
       <div className="mt-8 flex items-center gap-4">

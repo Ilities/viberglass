@@ -12,7 +12,10 @@ import {
   validateUuidParam,
   validateFileUploads,
   validateRunTicket,
+  parseMultipartJsonFields,
+  handleMulterError,
 } from "../middleware/validation";
+import { requireAuth } from "../middleware/authentication";
 import { randomUUID } from "crypto";
 import logger from "../../config/logger";
 
@@ -25,6 +28,8 @@ const fileUploadService = new FileUploadService();
 const jobService = new JobService();
 const workerExecutionService = new WorkerExecutionService();
 
+router.use(requireAuth);
+
 // POST /api/tickets - Create a new ticket
 router.post(
   "/",
@@ -33,6 +38,7 @@ router.post(
     { name: "recording", maxCount: 1 },
   ]),
   validateFileUploads,
+  parseMultipartJsonFields,
   validateCreateTicket,
   async (req, res) => {
     try {
@@ -40,15 +46,16 @@ router.post(
       let screenshotAsset;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       if (files) {
-        const screenshotFile = files.screenshot[0];
-        const recordingFile = files.recording ? files.recording[0] : undefined;
+        const screenshotFile = files.screenshot?.[0];
+        const recordingFile = files.recording?.[0];
 
-        // Upload screenshot
-        screenshotAsset =
-          await fileUploadService.uploadScreenshot(screenshotFile);
+        // Upload screenshot if present
+        if (screenshotFile) {
+          screenshotAsset =
+            await fileUploadService.uploadScreenshot(screenshotFile);
+        }
 
         // Upload recording if present
-
         if (recordingFile) {
           recordingAsset =
             await fileUploadService.uploadRecording(recordingFile);
@@ -77,6 +84,9 @@ router.post(
     }
   },
 );
+
+// Apply multer error handler to the route
+router.use("/", handleMulterError);
 
 // GET /api/tickets/stats - Get ticket stats (optionally by project)
 router.get("/stats", async (req, res) => {
@@ -288,9 +298,9 @@ router.get(
       let mediaAsset;
 
       // Find the requested media asset
-      if (ticket.screenshot.id === mediaId) {
+      if (ticket.screenshot?.id === mediaId) {
         mediaAsset = ticket.screenshot;
-      } else if (ticket.recording && ticket.recording.id === mediaId) {
+      } else if (ticket.recording?.id === mediaId) {
         mediaAsset = ticket.recording;
       } else {
         return res.status(404).json({

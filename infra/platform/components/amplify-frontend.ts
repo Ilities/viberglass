@@ -16,6 +16,10 @@ export interface AmplifyFrontendOptions {
   framework?: string;
   /** Amplify stage (default: "PRODUCTION" for prod, "DEVELOPMENT" otherwise) */
   stage?: string;
+  /** GitHub repository URL (e.g., "https://github.com/owner/repo") - enables auto-deployment */
+  repository?: string;
+  /** GitHub OAuth token for repository access (SecretString in AWS Secrets Manager) */
+  accessToken?: pulumi.Input<string>;
 }
 
 /**
@@ -49,43 +53,67 @@ export interface AmplifyFrontendOutputs {
  * CRITICAL: The platform must be "WEB_COMPUTE" (not "WEB") to support SSR.
  * CRITICAL: Auto-branch creation is disabled for security.
  *
+ * When repository is provided, Amplify will automatically deploy on git pushes.
+ * When repository is not provided, deployments must be triggered manually via AWS CLI.
+ *
  * @param options - Configuration options for the Amplify app and branch
  * @returns Outputs containing the app configuration and SSM parameter paths
  */
 export function createAmplifyFrontend(
   options: AmplifyFrontendOptions,
 ): AmplifyFrontendOutputs {
-  const { config, backendUrl } = options;
+  const { config, backendUrl, repository, accessToken } = options;
 
   const isProd = config.environment === "prod";
   const branchName = options.branchName ?? (isProd ? "production" : "main");
   const stage = options.stage ?? (isProd ? "PRODUCTION" : "DEVELOPMENT");
   const framework = options.framework ?? "Next.js - SSR";
+  
+  // Enable auto-build when repository is connected (git-based deployment)
+  const enableAutoBuild = !!repository;
 
   const app = new aws.amplify.App(`${config.environment}-viberglass-frontend`, {
     name: `${config.environment}-viberglass-frontend`,
     description: `Viberglass frontend - ${config.environment} environment`,
     platform: "WEB_COMPUTE", // Required for SSR support
+    // Build spec for monorepo: install all deps, build shared packages, build frontend
     buildSpec: `version: 1
-backend:
+frontend:
   phases:
     preBuild:
       commands:
+        # Install all dependencies (required for monorepo workspace support)
         - npm ci --legacy-peer-deps
+        # Build shared packages first (types, etc.)
+        - npm run build -w @viberglass/types
     build:
       commands:
-        - npm run build
+        # Build only the frontend package
+        - npm run build -w @viberglass/frontend
+    postBuild:
+      commands:
+        # Verify build output
+        - ls -la apps/platform-frontend/.next || ls -la .next
+        - echo "Build completed successfully"
   artifacts:
-    baseDirectory: .next
+    # The .next directory is at the workspace root after build
+    baseDirectory: apps/platform-frontend/.next
     files:
       - '**/*'
   cache:
     paths:
-      - node_modules/**/*`,
+      - node_modules/**/*
+      - apps/platform-frontend/.next/cache/**/*`,
     environmentVariables: {
       NEXT_PUBLIC_API_URL: backendUrl,
     },
     enableAutoBranchCreation: false, // Security: Disable auto-branch creation
+    // Enable Git-based auto-deployment when repository is provided
+    ...(repository && {
+      repository,
+      accessToken,
+      enableBasicAuth: false,
+    }),
     tags: config.tags,
   });
 
@@ -96,7 +124,7 @@ backend:
       branchName: branchName,
       stage: stage,
       framework: framework,
-      enableAutoBuild: false, // Build via GitHub Actions
+      enableAutoBuild: enableAutoBuild, // Auto-build when connected to git
       environmentVariables: {
         NEXT_PUBLIC_API_URL: backendUrl,
       },

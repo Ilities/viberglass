@@ -1,37 +1,42 @@
 # Frontend deployment workflow for production environment
-# Manual trigger via workflow_dispatch with approval gate
+# Uses Git-based auto-deployment with GitHub environment approval gate
+#
+# HOW IT WORKS:
+# 1. Push to main branch triggers this workflow
+# 2. The workflow requires approval via the 'prod' GitHub environment
+# 3. Once approved, Amplify's git integration automatically builds and deploys
+# 4. This workflow runs tests/validation while Amplify handles the actual deployment
 
 name: Deploy Frontend (Production)
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/platform-frontend/**'
+      - 'packages/types/**'
+      - '.github/workflows/deploy-frontend-prod.yml'
+      - 'package*.json'
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Deployment reason'
-        required: true
-        type: string
-      version:
-        description: 'Version/tag to deploy (leave empty for current main)'
+        description: 'Deployment reason (for manual trigger)'
         required: false
-        default: ''
+        type: string
+        default: 'Manual deployment'
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy to Production (Amplify)
+  # Pre-deployment checks - run tests and validation
+  validate:
+    name: Validate Production Deployment
     runs-on: ubuntu-latest
-    environment:
-      name: prod
-      url: ${{ steps.amplify.outputs.appUrl }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.version || 'main' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -42,53 +47,41 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Build shared packages
+        run: npm run build -w @viberglass/types
+
+      - name: Lint frontend
+        run: npm run lint -w @viberglass/frontend
+
+      - name: Build frontend (validation)
+        run: npm run build -w @viberglass/frontend
+        env:
+          # Use a placeholder API URL for build validation
+          NEXT_PUBLIC_API_URL: https://api.placeholder.local
+
+  # Production deployment approval gate
+  # This job requires manual approval via GitHub environment protection rules
+  deploy:
+    name: Approve Production Deployment
+    runs-on: ubuntu-latest
+    needs: validate
+    environment:
+      name: prod
+      url: ${{ steps.get-url.outputs.appUrl }}
+
+    steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: eu-west-1
 
-      - name: Get deployment config from SSM
-        id: get-config
+      - name: Get Amplify app URL
+        id: get-url
         run: |
-          # Get AWS region from SSM
-          AWS_REGION=$(aws ssm get-parameter \
-            --name "/viberglass/prod/deployment/region" \
-            --query Parameter.Value \
-            --output text 2>/dev/null || echo "eu-west-1")
-
-          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
-
-          # Get backend API URL from SSM
-          API_URL=$(aws ssm get-parameter \
-            --name "/viberglass/prod/frontend/apiUrl" \
-            --query Parameter.Value \
-            --output text)
-
-          if [ -z "$API_URL" ]; then
-            echo "::error::Backend API URL not found in SSM at /viberglass/prod/frontend/apiUrl"
-            exit 1
-          fi
-
-          echo "backendUrl=$API_URL" >> $GITHUB_OUTPUT
-          echo "NEXT_PUBLIC_API_URL=$API_URL" >> $GITHUB_ENV
-
-      - name: Build frontend with environment variables
-        run: npm run build -w @viberglass/frontend
-        env:
-          NEXT_PUBLIC_API_URL: ${{ steps.get-config.outputs.backendUrl }}
-
-      - name: Start Amplify deployment
-        id: amplify
-        run: |
-          # Get Amplify configuration from SSM (provisioned by Pulumi)
+          # Get Amplify configuration from SSM
           APP_ID=$(aws ssm get-parameter \
             --name "/viberglass/prod/amplify/appId" \
-            --query Parameter.Value \
-            --output text)
-
-          BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberglass/prod/amplify/branchName" \
             --query Parameter.Value \
             --output text)
 
@@ -97,49 +90,27 @@ jobs:
             --query Parameter.Value \
             --output text)
 
-          if [ -z "$APP_ID" ] || [ -z "$BRANCH_NAME" ] || [ -z "$REGION" ]; then
-            echo "::error::Amplify configuration not found in SSM. Run pulumi up first."
-            exit 1
+          if [ -n "$APP_ID" ] && [ -n "$REGION" ]; then
+            APP_URL=$(aws amplify get-app \
+              --app-id "$APP_ID" \
+              --region "$REGION" \
+              --query 'app.defaultDomain' \
+              --output text)
+            echo "appUrl=https://$APP_URL" >> $GITHUB_OUTPUT
+          else
+            echo "appUrl=https://prod.viberglass.app" >> $GITHUB_OUTPUT
           fi
 
-          echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME, region: $REGION"
-          echo "Reason: ${{ inputs.reason }}"
-          echo "Version: ${{ inputs.version || 'main branch' }}"
-
-          # Trigger Amplify deployment using AWS CLI
-          DEPLOYMENT_ID=$(aws amplify start-deployment \
-            --app-id "$APP_ID" \
-            --branch-name "$BRANCH_NAME" \
-            --region "$REGION" \
-            --source-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --query 'jobSummary.id' \
-            --output text)
-
-          echo "Deployment started with ID: $DEPLOYMENT_ID"
-          echo "deploymentId=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-          echo "deploymentTriggered=true" >> $GITHUB_OUTPUT
-          echo "amplifyRegion=$REGION" >> $GITHUB_OUTPUT
-
-          # Get the app URL for environment linking
-          APP_URL=$(aws amplify get-app \
-            --app-id "$APP_ID" \
-            --region "$REGION" \
-            --query 'app.defaultDomain' \
-            --output text)
-
-          echo "appUrl=https://$APP_URL" >> $GITHUB_OUTPUT
-
       - name: Deployment summary
-        if: steps.amplify.outputs.deploymentTriggered == 'true'
         run: |
-          echo "### :white_check_mark: Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "### :rocket: Production Deployment Approved" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **App URL** | ${{ steps.amplify.outputs.appUrl }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Deployment ID** | ${{ steps.amplify.outputs.deploymentId }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Reason** | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Version** | ${{ inputs.version || 'main branch' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Deployed by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App URL** | ${{ steps.get-url.outputs.appUrl }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Approved by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Please verify the production deployment at: ${{ steps.amplify.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY
+          echo "> :information_source: Amplify will automatically build and deploy from git." >> $GITHUB_STEP_SUMMARY
+          echo "> Monitor the deployment at: ${{ steps.get-url.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY

@@ -151,7 +151,7 @@ describe("Worker Execution Integration Tests", () => {
       $metadata: { requestId: `integration-test-ecs-${Date.now()}` },
       tasks: [
         {
-          taskArn: `arn:aws:ecs:us-east-1:123456789:task/test-${Date.now()}`,
+          taskArn: `arn:aws:ecs:eu-west-1:123456789:task/test-${Date.now()}`,
         },
       ],
       failures: [],
@@ -234,9 +234,9 @@ describe("Worker Execution Integration Tests", () => {
           createdAt: "2024-01-01T00:00:00Z",
         },
         deploymentConfig: {
-          clusterArn: "arn:aws:ecs:us-east-1:123456789:cluster/test-cluster",
+          clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/test-cluster",
           taskDefinitionArn:
-            "arn:aws:ecs:us-east-1:123456789:task-definition/test-task",
+            "arn:aws:ecs:eu-west-1:123456789:task-definition/test-task",
           subnetIds: ["subnet-1"],
           securityGroupIds: ["sg-1"],
         },

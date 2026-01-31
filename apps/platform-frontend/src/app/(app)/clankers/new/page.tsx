@@ -86,22 +86,22 @@ export default function NewClankerPage() {
       if (selectedStrategy.name === 'docker') {
         deploymentConfig = {
           provisioningMode,
-          containerImage: provisioningMode === 'prebuilt' ? ((formData.get('containerImage') as string) || '') : '',
+          containerImage: provisioningMode === 'prebuilt' ? (formData.get('containerImage') as string) || '' : '',
           ports: {},
           environmentVariables: {},
         }
       } else if (selectedStrategy.name === 'ecs') {
         deploymentConfig = {
           provisioningMode,
-          clusterArn: provisioningMode === 'prebuilt' ? ((formData.get('clusterArn') as string) || '') : '',
-          taskDefinitionArn: provisioningMode === 'prebuilt' ? ((formData.get('taskDefinitionArn') as string) || '') : '',
+          clusterArn: provisioningMode === 'prebuilt' ? (formData.get('clusterArn') as string) || '' : '',
+          taskDefinitionArn: provisioningMode === 'prebuilt' ? (formData.get('taskDefinitionArn') as string) || '' : '',
           subnetIds: [],
           securityGroupIds: [],
         }
       } else if (selectedStrategy.name === 'aws-lambda-container') {
         deploymentConfig = {
           provisioningMode,
-          functionArn: provisioningMode === 'prebuilt' ? ((formData.get('functionArn') as string) || '') : '',
+          functionArn: provisioningMode === 'prebuilt' ? (formData.get('functionArn') as string) || '' : '',
         }
       }
     }
@@ -208,14 +208,14 @@ export default function NewClankerPage() {
                 <Field>
                   <Label>Cluster ARN</Label>
                   <Description>The ARN of the ECS cluster.</Description>
-                  <Input name="clusterArn" placeholder="arn:aws:ecs:us-east-1:123456789:cluster/my-cluster" />
+                  <Input name="clusterArn" placeholder="arn:aws:ecs:eu-west-1:123456789:cluster/my-cluster" />
                 </Field>
                 <Field>
                   <Label>Task Definition ARN</Label>
                   <Description>The ARN of the ECS task definition.</Description>
                   <Input
                     name="taskDefinitionArn"
-                    placeholder="arn:aws:ecs:us-east-1:123456789:task-definition/my-task:1"
+                    placeholder="arn:aws:ecs:eu-west-1:123456789:task-definition/my-task:1"
                   />
                 </Field>
               </>
@@ -231,7 +231,7 @@ export default function NewClankerPage() {
               <Field>
                 <Label>Function ARN</Label>
                 <Description>The ARN of the existing Lambda function.</Description>
-                <Input name="functionArn" placeholder="arn:aws:lambda:us-east-1:123456789:function/my-function" />
+                <Input name="functionArn" placeholder="arn:aws:lambda:eu-west-1:123456789:function/my-function" />
               </Field>
             )}
 

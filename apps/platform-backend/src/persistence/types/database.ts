@@ -1,4 +1,5 @@
 import type { ColumnType } from "kysely";
+import type { UserRole } from "./user";
 
 export type Generated<T> =
   T extends ColumnType<infer S, infer I, infer U>
@@ -35,7 +36,8 @@ export interface ProjectsTable {
     | "monday"
     | "clickup"
     | "shortcut"
-    | "slack";
+    | "slack"
+    | "custom";
   credentials: Json;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
@@ -84,7 +86,8 @@ export interface TicketsTable {
     | "monday"
     | "clickup"
     | "shortcut"
-    | "slack";
+    | "slack"
+    | "custom";
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   pull_request_url: string | null;
@@ -92,9 +95,9 @@ export interface TicketsTable {
   updated_at: Generated<Timestamp>;
 }
 
-export interface PMIntegrationsTable {
+export interface IntegrationsTable {
   id: Generated<string>;
-  project_id: string;
+  name: string;
   system:
     | "jira"
     | "linear"
@@ -107,11 +110,20 @@ export interface PMIntegrationsTable {
     | "monday"
     | "clickup"
     | "shortcut"
-    | "slack";
+    | "slack"
+    | "custom";
   config: Json;
   is_active: Generated<boolean>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
+}
+
+export interface ProjectIntegrationsTable {
+  id: Generated<string>;
+  project_id: string;
+  integration_id: string;
+  is_primary: Generated<boolean>;
+  created_at: Generated<Timestamp>;
 }
 
 export interface WebhookEventsTable {
@@ -212,8 +224,9 @@ export interface JobLogLinesTable {
 export interface WebhookProviderConfigsTable {
   id: Generated<string>;
   project_id: string | null;
-  provider: "github" | "jira";
+  provider: "github" | "jira" | "shortcut" | "custom";
   provider_project_id: string | null;
+  integration_id: string | null;
   secret_location: "database" | "ssm" | "env";
   secret_path: string | null;
   webhook_secret_encrypted: string | null;
@@ -229,7 +242,7 @@ export interface WebhookProviderConfigsTable {
 
 export interface WebhookDeliveryAttemptsTable {
   id: Generated<string>;
-  provider: "github" | "jira";
+  provider: "github" | "jira" | "shortcut" | "custom";
   delivery_id: string;
   event_type: string;
   status: "pending" | "processing" | "succeeded" | "failed";
@@ -251,11 +264,32 @@ export interface SecretsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface UsersTable {
+  id: Generated<string>;
+  email: string;
+  name: string;
+  password_hash: string;
+  avatar_url: string | null;
+  role: UserRole;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface UserSessionsTable {
+  id: Generated<string>;
+  user_id: string;
+  token_hash: string;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+  revoked_at: Timestamp | null;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
   tickets: TicketsTable;
-  pm_integrations: PMIntegrationsTable;
+  integrations: IntegrationsTable;
+  project_integrations: ProjectIntegrationsTable;
   webhook_events: WebhookEventsTable;
   auto_fix_queue: AutoFixQueueTable;
   deployment_strategies: DeploymentStrategiesTable;
@@ -267,4 +301,6 @@ export interface Database {
   webhook_provider_configs: WebhookProviderConfigsTable;
   webhook_delivery_attempts: WebhookDeliveryAttemptsTable;
   secrets: SecretsTable;
+  users: UsersTable;
+  user_sessions: UserSessionsTable;
 }

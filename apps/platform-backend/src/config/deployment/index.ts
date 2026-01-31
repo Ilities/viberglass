@@ -24,7 +24,7 @@
  * ```typescript
  * import { SsmSecretProvider, SecretCategory } from './config/deployment';
  *
- * const provider = new SsmSecretProvider({ region: 'us-east-1' });
+ * const provider = new SsmSecretProvider({ region: 'eu-west-1' });
  *
  * // Store database URL for dev environment
  * await provider.putSecret('dev', 'database.url', 'postgresql://...', {
@@ -40,8 +40,12 @@
  */
 
 // Core interface
-export { SecretProvider, SecretOptions, SecretCategory } from './SecretProvider.js';
+export {
+  SecretProvider,
+  SecretOptions,
+  SecretCategory,
+} from "./SecretProvider.js";
 
 // SSM implementation
-export { SsmSecretProvider } from './SsmSecretProvider.js';
-export type { SsmSecretProviderOptions } from './SsmSecretProvider.js';
+export { SsmSecretProvider } from "./SsmSecretProvider.js";
+export type { SsmSecretProviderOptions } from "./SsmSecretProvider.js";

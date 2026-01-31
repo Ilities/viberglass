@@ -29,7 +29,7 @@ export class EcsInvoker implements WorkerInvoker {
 
   constructor(config?: { region?: string }) {
     this.client = new ECSClient({
-      region: config?.region || process.env.AWS_REGION || "us-east-1",
+      region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
     this.secretResolutionService = new SecretResolutionService();
   }
@@ -46,22 +46,18 @@ export class EcsInvoker implements WorkerInvoker {
     // Apply env var fallbacks for managed mode
     const ecsConfig: EcsDeploymentConfig = {
       clusterArn:
-        rawConfig?.clusterArn ||
-        process.env.VIBERATOR_ECS_CLUSTER_ARN ||
-        "",
+        rawConfig?.clusterArn || process.env.VIBERATOR_ECS_CLUSTER_ARN || "",
       taskDefinitionArn: rawConfig?.taskDefinitionArn || "",
       launchType: rawConfig?.launchType,
-      subnetIds:
-        rawConfig?.subnetIds?.length
-          ? rawConfig.subnetIds
-          : (process.env.VIBERATOR_ECS_SUBNET_IDS?.split(",").filter(Boolean) ||
-              []),
-      securityGroupIds:
-        rawConfig?.securityGroupIds?.length
-          ? rawConfig.securityGroupIds
-          : (process.env.VIBERATOR_ECS_SECURITY_GROUP_IDS?.split(",").filter(
-              Boolean,
-            ) || []),
+      subnetIds: rawConfig?.subnetIds?.length
+        ? rawConfig.subnetIds
+        : process.env.VIBERATOR_ECS_SUBNET_IDS?.split(",").filter(Boolean) ||
+          [],
+      securityGroupIds: rawConfig?.securityGroupIds?.length
+        ? rawConfig.securityGroupIds
+        : process.env.VIBERATOR_ECS_SECURITY_GROUP_IDS?.split(",").filter(
+            Boolean,
+          ) || [],
       assignPublicIp: rawConfig?.assignPublicIp,
       containerName: rawConfig?.containerName,
     };

@@ -78,7 +78,7 @@ REDIS_PASSWORD=
 # AWS S3 Configuration (for media storage)
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_REGION=us-east-1
+AWS_REGION=eu-west-1
 AWS_S3_BUCKET=viberglass-media
 
 # GitHub Integration

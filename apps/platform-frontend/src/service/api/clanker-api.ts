@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/lib'
+import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
   Clanker,
@@ -13,7 +14,7 @@ import type {
 // Clanker API functions
 
 export async function getClankers(limit: number = 50, offset: number = 0): Promise<Clanker[]> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers?limit=${limit}&offset=${offset}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers?limit=${limit}&offset=${offset}`)
   if (!response.ok) {
     throw new Error('Failed to fetch clankers')
   }
@@ -22,7 +23,7 @@ export async function getClankers(limit: number = 50, offset: number = 0): Promi
 }
 
 export async function getClankerBySlug(slug: string): Promise<Clanker> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/by-slug/${slug}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/by-slug/${slug}`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Clanker not found')
@@ -34,7 +35,7 @@ export async function getClankerBySlug(slug: string): Promise<Clanker> {
 }
 
 export async function getClanker(id: string): Promise<Clanker> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${id}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Clanker not found')
@@ -46,7 +47,7 @@ export async function getClanker(id: string): Promise<Clanker> {
 }
 
 export async function createClanker(clanker: CreateClankerRequest): Promise<Clanker> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -62,7 +63,7 @@ export async function createClanker(clanker: CreateClankerRequest): Promise<Clan
 }
 
 export async function updateClanker(id: string, updates: UpdateClankerRequest): Promise<Clanker> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -78,7 +79,7 @@ export async function updateClanker(id: string, updates: UpdateClankerRequest): 
 }
 
 export async function deleteClanker(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {
@@ -87,7 +88,7 @@ export async function deleteClanker(id: string): Promise<void> {
 }
 
 export async function startClanker(id: string): Promise<Clanker> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${id}/start`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/start`, {
     method: 'POST',
   })
   if (!response.ok) {
@@ -99,7 +100,7 @@ export async function startClanker(id: string): Promise<Clanker> {
 }
 
 export async function stopClanker(id: string): Promise<Clanker> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${id}/stop`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/stop`, {
     method: 'POST',
   })
   if (!response.ok) {
@@ -111,7 +112,7 @@ export async function stopClanker(id: string): Promise<Clanker> {
 }
 
 export async function getClankerHealth(id: string): Promise<ClankerHealthStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${id}/health`)
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/health`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Clanker not found')
@@ -125,7 +126,7 @@ export async function getClankerHealth(id: string): Promise<ClankerHealthStatus>
 // Config file API functions
 
 export async function getConfigFiles(clankerId: string): Promise<ClankerConfigFile[]> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${clankerId}/config-files`)
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${clankerId}/config-files`)
   if (!response.ok) {
     throw new Error('Failed to fetch config files')
   }
@@ -134,7 +135,7 @@ export async function getConfigFiles(clankerId: string): Promise<ClankerConfigFi
 }
 
 export async function getConfigFile(clankerId: string, fileType: string): Promise<ClankerConfigFile> {
-  const response = await fetch(`${API_BASE_URL}/api/clankers/${clankerId}/config-files/${encodeURIComponent(fileType)}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${clankerId}/config-files/${encodeURIComponent(fileType)}`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Config file not found')
@@ -146,7 +147,7 @@ export async function getConfigFile(clankerId: string, fileType: string): Promis
 }
 
 export async function deleteConfigFile(clankerId: string, fileType: string): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/clankers/${clankerId}/config-files/${encodeURIComponent(fileType)}`,
     {
       method: 'DELETE',
@@ -160,7 +161,7 @@ export async function deleteConfigFile(clankerId: string, fileType: string): Pro
 // Deployment Strategy API functions
 
 export async function getDeploymentStrategies(): Promise<DeploymentStrategy[]> {
-  const response = await fetch(`${API_BASE_URL}/api/deployment-strategies`)
+  const response = await apiFetch(`${API_BASE_URL}/api/deployment-strategies`)
   if (!response.ok) {
     throw new Error('Failed to fetch deployment strategies')
   }
@@ -169,7 +170,7 @@ export async function getDeploymentStrategies(): Promise<DeploymentStrategy[]> {
 }
 
 export async function getDeploymentStrategy(id: string): Promise<DeploymentStrategy> {
-  const response = await fetch(`${API_BASE_URL}/api/deployment-strategies/${id}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/deployment-strategies/${id}`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Deployment strategy not found')
@@ -181,7 +182,7 @@ export async function getDeploymentStrategy(id: string): Promise<DeploymentStrat
 }
 
 export async function getDeploymentStrategyByName(name: string): Promise<DeploymentStrategy> {
-  const response = await fetch(`${API_BASE_URL}/api/deployment-strategies/by-name/${encodeURIComponent(name)}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/deployment-strategies/by-name/${encodeURIComponent(name)}`)
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Deployment strategy not found')

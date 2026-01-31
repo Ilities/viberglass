@@ -146,7 +146,7 @@ None (documentation only)
 ### Dev Environment ✅
 
 **Stack Outputs:**
-- AWS region: us-east-1
+- AWS region: eu-west-1
 - Environment: dev
 - Resource names: All using "viberglass" prefix
 

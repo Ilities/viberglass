@@ -111,7 +111,10 @@ export class SecretService {
     return this.toMetadata(record);
   }
 
-  async updateSecret(id: string, updates: SecretUpdate): Promise<SecretMetadata> {
+  async updateSecret(
+    id: string,
+    updates: SecretUpdate,
+  ): Promise<SecretMetadata> {
     const existing = await this.secretDao.getSecret(id);
     if (!existing) {
       throw new Error("Secret not found");
@@ -260,7 +263,7 @@ export class SecretService {
   private getSsmClient(): SSMClient {
     if (!this.ssmClient) {
       this.ssmClient = new SSMClient({
-        region: process.env.AWS_REGION || "us-east-1",
+        region: process.env.AWS_REGION || "eu-west-1",
       });
     }
     return this.ssmClient;
@@ -343,9 +346,7 @@ export class SecretService {
       }
     }
 
-    throw new Error(
-      `Secret value is required for SSM storage at ${nextPath}`,
-    );
+    throw new Error(`Secret value is required for SSM storage at ${nextPath}`);
   }
 
   private getEncryptionKey(): Buffer {

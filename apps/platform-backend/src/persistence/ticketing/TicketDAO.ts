@@ -315,14 +315,17 @@ export class TicketDAO {
   }
 
   private mapRowToTicket(row: any): Ticket {
-    const screenshot: MediaAsset = {
-      id: row.screenshot_id,
-      filename: row.screenshot_filename,
-      mimeType: row.screenshot_mime_type,
-      size: Number(row.screenshot_size),
-      url: row.screenshot_url,
-      uploadedAt: this.toISOString(row.screenshot_uploaded_at),
-    };
+    let screenshot: MediaAsset | undefined;
+    if (row.screenshot_id) {
+      screenshot = {
+        id: row.screenshot_id,
+        filename: row.screenshot_filename,
+        mimeType: row.screenshot_mime_type,
+        size: Number(row.screenshot_size),
+        url: row.screenshot_url,
+        uploadedAt: this.toISOString(row.screenshot_uploaded_at),
+      };
+    }
 
     let recording: MediaAsset | undefined;
     if (row.recording_id) {

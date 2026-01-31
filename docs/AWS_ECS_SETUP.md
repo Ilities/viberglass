@@ -28,7 +28,7 @@ Viberator Platform        AWS ECS              Fargate Task
 ```
 
 **Cost considerations:**
-- Fargate pricing: ~$0.040/hour for 1 vCPU, 2GB (us-east-1)
+- Fargate pricing: ~$0.040/hour for 1 vCPU, 2GB (eu-west-1)
 - Per-job cost: Most tickets complete in 5-15 minutes
 - Estimated cost: ~$0.01-$0.03 per ticket
 - Use Fargate Spot for 70% savings (development/staging)
@@ -118,7 +118,7 @@ Create an IAM policy with these permissions and attach to the platform's IAM rol
 
 ```bash
 # Set your region and account ID
-AWS_REGION="us-east-1"
+AWS_REGION="eu-west-1"
 AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
 # Create ECR repository
@@ -393,8 +393,8 @@ echo "Security Group ID: $SG_ID"
 3. **Deployment Config** (JSON):
    ```json
    {
-     "clusterArn": "arn:aws:ecs:us-east-1:123456789012:cluster/viberator-workers",
-     "taskDefinitionArn": "arn:aws:ecs:us-east-1:123456789012:task-definition/viberator-worker:1",
+     "clusterArn": "arn:aws:ecs:eu-west-1:123456789012:cluster/viberator-workers",
+     "taskDefinitionArn": "arn:aws:ecs:eu-west-1:123456789012:task-definition/viberator-worker:1",
      "subnetIds": ["subnet-xxx", "subnet-yyy", "subnet-zzz"],
      "securityGroupIds": ["sg-xxx"],
      "launchType": "FARGATE",
@@ -617,11 +617,11 @@ Check the repository for a new pull request created by the worker.
 
 **Build and push image:**
 ```bash
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region eu-west-1 | \
+  docker login --username AWS --password-stdin 123456789.dkr.ecr.eu-west-1.amazonaws.com
 
-docker build -t 123456789.dkr.ecr.us-east-1.amazonaws.com/viberator-worker:latest .
-docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/viberator-worker:latest
+docker build -t 123456789.dkr.ecr.eu-west-1.amazonaws.com/viberator-worker:latest .
+docker push 123456789.dkr.ecr.eu-west-1.amazonaws.com/viberator-worker:latest
 ```
 
 **Update credentials:**

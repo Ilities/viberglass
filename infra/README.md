@@ -223,7 +223,7 @@ aws configure
 # Or set environment variables
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
-export AWS_DEFAULT_REGION=us-east-1
+export AWS_DEFAULT_REGION=eu-west-1
 ```
 
 ## Pulumi State Backend
@@ -233,7 +233,7 @@ Before running Pulumi, set up an S3 bucket to store the state file securely.
 ### Setup S3 Backend
 
 ```bash
-# Run the setup script (default: viberglass-pulumi-state in us-east-1)
+# Run the setup script (default: viberglass-pulumi-state in eu-west-1)
 ./setup-pulumi-state.sh
 
 # Or specify custom bucket name and region
@@ -395,16 +395,17 @@ Stack configuration is stored in `Pulumi.{stack}.yaml` files.
 
 **Platform Stack (`infra/platform/`):**
 
-| Config Key           | Type   | Default           | Description                                        |
-| -------------------- | ------ | ----------------- | -------------------------------------------------- |
-| `aws:region`         | string | `eu-west-1`       | AWS region for all resources                       |
-| `awsRegion`          | string | (from aws:region) | Viberglass-specific region config                  |
-| `environment`        | string | `dev`             | Environment name (dev/staging/prod)                |
-| `baseStack`          | string | **required**      | Base stack reference (e.g., "viberglass-base/dev") |
-| `enableSpot`         | bool   | `false`           | Use Fargate Spot for workers (dev only)            |
-| `containerInsights`  | bool   | `true`            | Enable ECS Container Insights                      |
-| `dbInstanceClass`    | string | (per env)         | RDS instance class                                 |
-| `dbAllocatedStorage` | number | (per env)         | RDS storage in GB                                  |
+| Config Key                  | Type   | Default           | Description                                        |
+| --------------------------- | ------ | ----------------- | -------------------------------------------------- |
+| `aws:region`                | string | `eu-west-1`       | AWS region for all resources                       |
+| `awsRegion`                 | string | (from aws:region) | Viberglass-specific region config                  |
+| `environment`               | string | `dev`             | Environment name (dev/staging/prod)                |
+| `baseStack`                 | string | **required**      | Base stack reference (e.g., "viberglass-base/dev") |
+| `enableSpot`                | bool   | `false`           | Use Fargate Spot for workers (dev only)            |
+| `containerInsights`         | bool   | `true`            | Enable ECS Container Insights                      |
+| `dbInstanceClass`           | string | (per env)         | RDS instance class                                 |
+| `dbAllocatedStorage`        | number | (per env)         | RDS storage in GB                                  |
+| `amplifyGithubAccessToken`  | string | (none)            | GitHub token for Amplify auto-deployment (secret)  |
 
 **Workers Stack (`infra/workers/`):**
 
@@ -672,7 +673,7 @@ const backendImage = new awsx.ecr.Image("backend", {
 
 ```bash
 # Login to ECR
-aws ecr get-login-password --region us-east-1 | \
+aws ecr get-login-password --region eu-west-1 | \
   docker login --username AWS --password-stdin \
   $(pulumi stack output repositoryUrl)
 
@@ -699,21 +700,57 @@ pulumi up --target-replacements '[{"urn":"urn:pulumi:dev::viberator::aws:ecs/ser
 
 ### Frontend Deployment
 
-Frontend is deployed via AWS Amplify SSR:
+Frontend is deployed via AWS Amplify SSR with environment-specific deployment strategies:
 
-1. Amplify app is provisioned by Pulumi (see `components/amplify-frontend.ts`)
-2. GitHub Actions workflows read Amplify config from SSM parameters
-3. On push to main, workflow triggers Amplify deployment using `aws amplify start-deployment`
-4. Amplify builds Next.js app with `npm run build` and deploys .next output
+#### Development Environment
+
+- **Trigger**: Push to `main` branch
+- **Method**: GitHub Actions triggers Amplify deployment via AWS CLI
+- **Build**: Built in GitHub Actions, deployed to Amplify
+
+#### Production Environment
+
+- **Trigger**: Push to `main` branch with GitHub environment approval gate
+- **Method**: Git-based auto-deployment (Amplify connects directly to GitHub)
+- **Build**: Built by Amplify on AWS infrastructure
+- **Benefits**: Faster builds, native Amplify git integration, automatic rollbacks
 
 **Configuration:**
 
 - Platform: WEB_COMPUTE (SSR)
 - Build output: .next directory
 - Environment variable: NEXT_PUBLIC_API_URL (from backend ALB)
-- Branch: `main` (dev), `production` (prod)
+- Branch: `main` (all environments)
 
-See `.github/workflows/deploy-frontend-dev.yml` and `.github/workflows/deploy-frontend-prod.yml` for CI/CD automation.
+#### Setting Up Production Auto-Deployment
+
+For production auto-deployment to work, you need to configure a GitHub access token:
+
+1. **Create a GitHub Personal Access Token**:
+   ```bash
+   # Go to GitHub Settings → Developer settings → Personal access tokens
+   # Create a token with 'repo' scope for private repositories
+   # or 'public_repo' for public repositories
+   ```
+
+2. **Configure the token in Pulumi** (for production stack only):
+   ```bash
+   cd infra/platform
+   pulumi stack select prod
+   pulumi config set --secret amplifyGithubAccessToken ghp_your_token_here
+   ```
+
+3. **Deploy the updated infrastructure**:
+   ```bash
+   pulumi up
+   ```
+
+4. **Verify the connection**:
+   - Go to AWS Amplify Console
+   - Select your production app
+   - Check that the repository is connected and showing "Connected" status
+
+See `.github/workflows/deploy-frontend-dev.yml` and `.github/workflows/deploy-frontend-prod.yml` for CI/CD automation details.
 
 ## Troubleshooting
 
@@ -787,7 +824,7 @@ aws configure
 
 ## Cost Management
 
-### Monthly Cost Estimates (us-east-1)
+### Monthly Cost Estimates (eu-west-1)
 
 | Resource         | Dev   | Staging | Prod  |
 | ---------------- | ----- | ------- | ----- |
@@ -844,6 +881,8 @@ Credentials are stored in SSM Parameter Store with KMS encryption:
 /viberator/dev/amplify/appId - Standard string
 /viberator/dev/amplify/branchName - Standard string
 /viberator/dev/amplify/region - Standard string
+/viberator/dev/frontend/apiUrl - Standard string
+/viberator/dev/deployment/region - Standard string
 ```
 
 ### KMS Key

@@ -40,7 +40,7 @@ key-decisions:
   - "Error classification enables retry logic: transient (throttling, 5xx) vs permanent (config errors)"
 
 patterns-established:
-  - "Pattern 1: AWS SDK v3 client instantiation with region fallback (config -> env -> us-east-1)"
+  - "Pattern 1: AWS SDK v3 client instantiation with region fallback (config -> env -> eu-west-1)"
   - "Pattern 2: Error classification via error name checking against known transient error lists"
   - "Pattern 3: Payload building with job data and clanker deployment config"
 

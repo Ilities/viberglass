@@ -1,15 +1,15 @@
-import { CredentialProvider } from '../CredentialProvider';
+import { CredentialProvider } from "../CredentialProvider";
 import {
   SSMClient,
   GetParameterCommand,
   PutParameterCommand,
   DeleteParameterCommand,
   GetParametersByPathCommand,
-} from '@aws-sdk/client-ssm';
-import { defaultProvider } from '@aws-sdk/credential-provider-node';
-import { createChildLogger } from '../../config/logger';
+} from "@aws-sdk/client-ssm";
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
+import { createChildLogger } from "../../config/logger";
 
-const logger = createChildLogger({ component: 'AwsSsmProvider' });
+const logger = createChildLogger({ component: "AwsSsmProvider" });
 
 /**
  * AWS SSM Parameter Store credential provider
@@ -26,7 +26,7 @@ const logger = createChildLogger({ component: 'AwsSsmProvider' });
  * - Tenant/key sanitization prevents path traversal attacks
  */
 export class AwsSsmProvider implements CredentialProvider {
-  readonly name = 'AwsSsmProvider';
+  readonly name = "AwsSsmProvider";
 
   private client: SSMClient;
   private pathPrefix: string;
@@ -38,18 +38,19 @@ export class AwsSsmProvider implements CredentialProvider {
     pathPrefix?: string;
     endpoint?: string; // For LocalStack testing
   }) {
-    this.pathPrefix = config.pathPrefix ||
+    this.pathPrefix =
+      config.pathPrefix ||
       process.env.SSM_PARAMETER_PREFIX ||
-      '/viberator/tenants';
+      "/viberator/tenants";
 
     // Ensure path prefix doesn't end with slash
-    if (this.pathPrefix.endsWith('/')) {
+    if (this.pathPrefix.endsWith("/")) {
       this.pathPrefix = this.pathPrefix.slice(0, -1);
     }
 
     // Initialize SSM client with credential chain
     this.client = new SSMClient({
-      region: config.region || process.env.AWS_REGION || 'us-east-1',
+      region: config.region || process.env.AWS_REGION || "eu-west-1",
       endpoint: config.endpoint, // For LocalStack
       credentialDefaultProvider: defaultProvider,
     });
@@ -62,8 +63,8 @@ export class AwsSsmProvider implements CredentialProvider {
   private buildPath(tenantId: string, key: string): string {
     // Validate tenantId doesn't contain path traversal or SSM-incompatible characters
     // SSM allows alphanumeric, hyphen, underscore, dot, and forward slash
-    const safeTenantId = tenantId.replace(/[^a-zA-Z0-9_.-]/g, '-');
-    const safeKey = key.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const safeTenantId = tenantId.replace(/[^a-zA-Z0-9_.-]/g, "-");
+    const safeKey = key.replace(/[^a-zA-Z0-9_.-]/g, "_");
 
     return `${this.pathPrefix}/${safeTenantId}/${safeKey}`;
   }
@@ -85,7 +86,7 @@ export class AwsSsmProvider implements CredentialProvider {
         new GetParameterCommand({
           Name: path,
           WithDecryption: true,
-        })
+        }),
       );
 
       const value = response.Parameter?.Value ?? null;
@@ -101,12 +102,12 @@ export class AwsSsmProvider implements CredentialProvider {
       return value;
     } catch (error) {
       const errorName = (error as { name?: string }).name;
-      if (errorName === 'ParameterNotFound') {
+      if (errorName === "ParameterNotFound") {
         return null;
       }
 
       // Log error but don't expose details
-      logger.error('Failed to get parameter', { path });
+      logger.error("Failed to get parameter", { path });
 
       // Clear cache on error
       this.cache.delete(path);
@@ -126,9 +127,9 @@ export class AwsSsmProvider implements CredentialProvider {
         new PutParameterCommand({
           Name: path,
           Value: value,
-          Type: 'SecureString',
+          Type: "SecureString",
           Overwrite: true,
-        })
+        }),
       );
 
       // Update cache
@@ -137,8 +138,10 @@ export class AwsSsmProvider implements CredentialProvider {
         expiry: Date.now() + this.ttl,
       });
     } catch (error) {
-      logger.error('Failed to put parameter', { path });
-      throw new Error(`Failed to store credential in SSM: ${(error as Error).message}`);
+      logger.error("Failed to put parameter", { path });
+      throw new Error(
+        `Failed to store credential in SSM: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -152,21 +155,23 @@ export class AwsSsmProvider implements CredentialProvider {
       await this.client.send(
         new DeleteParameterCommand({
           Name: path,
-        })
+        }),
       );
 
       // Clear cache
       this.cache.delete(path);
     } catch (error) {
       const errorName = (error as { name?: string }).name;
-      if (errorName === 'ParameterNotFound') {
+      if (errorName === "ParameterNotFound") {
         // Already deleted, consider this a success
         this.cache.delete(path);
         return;
       }
 
-      logger.error('Failed to delete parameter', { path });
-      throw new Error(`Failed to delete credential from SSM: ${(error as Error).message}`);
+      logger.error("Failed to delete parameter", { path });
+      throw new Error(
+        `Failed to delete credential from SSM: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -181,18 +186,18 @@ export class AwsSsmProvider implements CredentialProvider {
         new GetParameterCommand({
           Name: `${this.pathPrefix}/.healthcheck`,
           WithDecryption: false,
-        })
+        }),
       );
       return true;
     } catch (error) {
       // ParameterNotFound is OK (proves connectivity)
       const errorName = (error as { name?: string }).name;
-      if (errorName === 'ParameterNotFound') {
+      if (errorName === "ParameterNotFound") {
         return true;
       }
 
       // Other errors mean SSM is not accessible
-      logger.warn('SSM not accessible', { error: (error as Error).message });
+      logger.warn("SSM not accessible", { error: (error as Error).message });
       return false;
     }
   }
@@ -202,7 +207,7 @@ export class AwsSsmProvider implements CredentialProvider {
    * Uses GetParametersByPath for efficient listing
    */
   async listKeys(tenantId: string): Promise<string[]> {
-    const safeTenantId = tenantId.replace(/[^a-zA-Z0-9_.-]/g, '-');
+    const safeTenantId = tenantId.replace(/[^a-zA-Z0-9_.-]/g, "-");
     const tenantPath = `${this.pathPrefix}/${safeTenantId}`;
 
     try {
@@ -211,7 +216,7 @@ export class AwsSsmProvider implements CredentialProvider {
           Path: tenantPath,
           Recursive: false,
           MaxResults: 50, // Reasonable limit
-        })
+        }),
       );
 
       if (!response.Parameters) {
@@ -219,15 +224,15 @@ export class AwsSsmProvider implements CredentialProvider {
       }
 
       // Extract just the key names (last component of path)
-      return response.Parameters
-        .map((param) => param.Name?.split('/').pop())
-        .filter((key): key is string => !!key);
+      return response.Parameters.map((param) =>
+        param.Name?.split("/").pop(),
+      ).filter((key): key is string => !!key);
     } catch (error) {
       const errorName = (error as { name?: string }).name;
-      if (errorName === 'ParameterNotFound') {
+      if (errorName === "ParameterNotFound") {
         return [];
       }
-      logger.error('Failed to list keys for tenant', { tenantId });
+      logger.error("Failed to list keys for tenant", { tenantId });
       return [];
     }
   }

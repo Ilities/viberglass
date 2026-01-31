@@ -119,7 +119,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: eu-west-1
       - run: npm install
         working-directory: infrastructure
       - uses: pulumi/actions@v6
@@ -159,7 +159,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: eu-west-1
 
       - name: Login to ECR
         id: login-ecr
@@ -228,7 +228,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: eu-west-1
 
       - name: Sync to S3
         run: |
@@ -370,7 +370,7 @@ permissions:
   uses: aws-actions/configure-aws-credentials@v4
   with:
     role-to-assume: arn:aws:iam::123456789012:role/GitHubActions-Viberator
-    aws-region: us-east-1
+    aws-region: eu-west-1
 ```
 
 ### IAM Trust Policy for OIDC

@@ -267,7 +267,9 @@ export class ShortcutIntegration extends BasePMIntegration {
     let description = super.formatBugReportDescription(ticket);
 
     description += `\n## Media Assets\n`;
-    description += `**Screenshot:** [View Screenshot](${ticket.screenshot.url})\n`;
+    if (ticket.screenshot) {
+      description += `**Screenshot:** [View Screenshot](${ticket.screenshot.url})\n`;
+    }
     if (ticket.recording) {
       description += `**Recording:** [View Recording](${ticket.recording.url})\n`;
     }
