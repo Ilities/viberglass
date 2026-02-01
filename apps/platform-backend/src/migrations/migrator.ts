@@ -8,6 +8,7 @@ import {
 } from "kysely";
 import { Pool } from "pg";
 import * as dotenv from "dotenv";
+import logger from "../config/logger";
 
 dotenv.config();
 
@@ -64,8 +65,11 @@ const dbConfig = process.env.DATABASE_URL
       password: process.env.DB_PASSWORD || "salasana",
     };
 
-async function migrateToLatest() {
-  const db = new Kysely<any>({
+/**
+ * Creates a database connection for migrations
+ */
+function createMigrationDb() {
+  return new Kysely<any>({
     dialect: new PostgresDialect({
       pool: new Pool({
         host: dbConfig.host,
@@ -78,36 +82,65 @@ async function migrateToLatest() {
       }),
     }),
   });
+}
+
+/**
+ * Runs database migrations to the latest version.
+ * This can be called during application startup when RUN_MIGRATIONS_ON_STARTUP is enabled.
+ * 
+ * @returns Promise that resolves when migrations are complete
+ * @throws Error if migrations fail
+ */
+export async function migrateToLatest(): Promise<void> {
+  const db = createMigrationDb();
 
   const migrator = new Migrator({
     db,
     provider: new FileMigrationProvider({
       fs,
       path,
+      // Use compiled migrations in dist folder (migrations are compiled to JS)
       migrationFolder: path.join(__dirname),
     }),
   });
+
+  logger.info("Starting database migrations...");
 
   const { error, results } = await migrator.migrateToLatest();
 
   results?.forEach((it) => {
     if (it.status === "Success") {
-      console.log(
-        `✅ Migration "${it.migrationName}" was executed successfully`,
-      );
+      logger.info(`Migration "${it.migrationName}" executed successfully`);
     } else if (it.status === "Error") {
-      console.error(`❌ Failed to execute migration "${it.migrationName}"`);
+      logger.error(`Failed to execute migration "${it.migrationName}"`);
     }
   });
 
   if (error) {
-    console.error("❌ Failed to migrate");
-    console.error(error);
-    process.exit(1);
+    logger.error("Database migration failed", { error });
+    await db.destroy();
+    throw error;
   }
 
   await db.destroy();
-  console.log("✅ All migrations completed successfully");
+  logger.info("All database migrations completed successfully");
 }
 
-migrateToLatest();
+/**
+ * CLI entry point for running migrations standalone.
+ * Usage: npx ts-node migrations/migrator.ts
+ */
+async function main() {
+  try {
+    await migrateToLatest();
+    process.exit(0);
+  } catch (error) {
+    console.error("Migration failed:", error);
+    process.exit(1);
+  }
+}
+
+// Run main if this file is executed directly
+if (require.main === module) {
+  main();
+}
