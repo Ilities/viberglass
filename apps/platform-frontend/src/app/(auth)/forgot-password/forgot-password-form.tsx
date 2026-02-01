@@ -71,7 +71,7 @@ export function ForgotPasswordForm() {
         {isSubmitting ? 'Sending...' : 'Reset password'}
       </Button>
       <Text>
-        Don't have an account?{' '}
+        Don&apos;t have an account?{' '}
         <TextLink href="/register">
           <Strong>Sign up</Strong>
         </TextLink>
