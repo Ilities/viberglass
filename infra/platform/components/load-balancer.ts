@@ -17,8 +17,12 @@ export interface LoadBalancerOptions {
   vpcCidr: pulumi.Input<string>;
   /** Backend security group ID for allowing traffic from ALB */
   backendSecurityGroupId: pulumi.Input<string>;
-  /** ACM certificate ARN for HTTPS (optional - HTTP-only for MVP) */
+  /** ACM certificate ARN for HTTPS (optional - will create cert if apiDomain provided) */
   certificateArn?: pulumi.Input<string> | undefined;
+  /** API domain name for ACM certificate and Route53 alias (e.g., "api.viberglass.io") */
+  apiDomain?: pulumi.Input<string> | undefined;
+  /** Route 53 hosted zone ID for DNS validation and alias record */
+  route53ZoneId?: pulumi.Input<string> | undefined;
   /** Backend port for target group (default: 80, assumes SSL termination at ALB) */
   backendPort?: number;
   /** Health check path (default: /health) */
@@ -47,6 +51,10 @@ export interface LoadBalancerOutputs {
   httpListenerArn: pulumi.Output<string>;
   /** HTTPS listener ARN (undefined if no certificate) */
   httpsListenerArn: pulumi.Output<string> | undefined;
+  /** ACM certificate ARN (if created or provided) */
+  certificateArn: pulumi.Output<string> | undefined;
+  /** API domain name (if configured) */
+  apiDomain: pulumi.Output<string> | undefined;
 }
 
 /**
@@ -58,9 +66,8 @@ export interface LoadBalancerOutputs {
  * - Target group with health checks on /health
  * - HTTP listener (redirects to HTTPS if certificate provided)
  * - HTTPS listener (forwards to target group if certificate provided)
- *
- * For MVP: HTTP-only is acceptable. The HTTPS listener is only created
- * if a certificate ARN is provided.
+ * - ACM certificate with DNS validation (if apiDomain and route53ZoneId provided)
+ * - Route53 alias record for API domain (if apiDomain and route53ZoneId provided)
  */
 export function createLoadBalancer(
   options: LoadBalancerOptions,
@@ -75,6 +82,57 @@ export function createLoadBalancer(
     ManagedBy: "pulumi",
     ...options.tags,
   };
+
+  // Create ACM certificate and Route53 records if apiDomain and route53ZoneId are provided
+  let certificate: aws.acm.Certificate | undefined;
+  let certificateValidation: aws.acm.CertificateValidation | undefined;
+  let apiDomainOutput: pulumi.Output<string> | undefined;
+
+  if (options.apiDomain && options.route53ZoneId) {
+    apiDomainOutput = pulumi.output(options.apiDomain);
+
+    certificate = new aws.acm.Certificate(
+      `${options.environment}-viberglass-api-cert`,
+      {
+        domainName: options.apiDomain,
+        validationMethod: "DNS",
+        tags: {
+          Name: `${projectName}-${options.environment}-api-cert`,
+          ...defaultTags,
+        },
+      },
+    );
+
+    // Create Route53 validation record
+    const validationOption = certificate.domainValidationOptions[0];
+    const certValidationRecord = new aws.route53.Record(
+      `${options.environment}-viberglass-api-cert-validation`,
+      {
+        zoneId: options.route53ZoneId,
+        name: validationOption.resourceRecordName,
+        type: validationOption.resourceRecordType,
+        records: [validationOption.resourceRecordValue],
+        ttl: 60,
+      },
+    );
+
+    // Wait for certificate validation
+    certificateValidation = new aws.acm.CertificateValidation(
+      `${options.environment}-viberglass-api-cert-validation`,
+      {
+        certificateArn: certificate.arn,
+        validationRecordFqdns: [certValidationRecord.fqdn],
+      },
+    );
+  }
+
+  // Use provided certificate ARN or the validated certificate ARN
+  const certificateArn = options.certificateArn ?? certificate?.arn;
+
+  // Certificate must be validated before HTTPS listener can be created
+  const validatedCertificateArn = certificateValidation
+    ? certificateValidation.certificateArn
+    : options.certificateArn ?? certificate?.arn;
 
   // 1. Create ALB Security Group
   const albSecurityGroup = new aws.ec2.SecurityGroup(
@@ -186,7 +244,7 @@ export function createLoadBalancer(
       loadBalancerArn: loadBalancer.arn,
       port: 80,
       protocol: "HTTP",
-      defaultActions: options.certificateArn
+      defaultActions: certificateArn
         ? [
             {
               type: "redirect",
@@ -206,16 +264,16 @@ export function createLoadBalancer(
     },
   );
 
-  // 5. Create HTTPS Listener (port 443) - only if certificate provided
+  // 5. Create HTTPS Listener (port 443) - only if certificate is validated
   let httpsListener: aws.lb.Listener | undefined;
-  if (options.certificateArn) {
+  if (validatedCertificateArn) {
     httpsListener = new aws.lb.Listener(
       `${options.environment}-viberglass-https-listener`,
       {
         loadBalancerArn: loadBalancer.arn,
         port: 443,
         protocol: "HTTPS",
-        certificateArn: options.certificateArn,
+        certificateArn: validatedCertificateArn,
         sslPolicy: "ELBSecurityPolicy-TLS-1-2-2017-01", // Modern TLS policy
         defaultActions: [
           {
@@ -223,6 +281,29 @@ export function createLoadBalancer(
             targetGroupArn: targetGroup.arn,
           },
         ],
+      },
+    );
+  }
+
+  // 6. Create Route53 alias record for API domain (if configured)
+  if (options.apiDomain && options.route53ZoneId) {
+    new aws.route53.Record(
+      `${options.environment}-viberglass-api-alias`,
+      {
+        zoneId: options.route53ZoneId,
+        name: options.apiDomain,
+        type: "A",
+        aliases: [
+          {
+            name: loadBalancer.dnsName,
+            zoneId: loadBalancer.zoneId,
+            evaluateTargetHealth: true,
+          },
+        ],
+      },
+      // Ensure HTTPS listener is created first if we have a certificate
+      {
+        dependsOn: httpsListener ? [httpsListener] : [],
       },
     );
   }
@@ -238,5 +319,7 @@ export function createLoadBalancer(
       .all([httpListener.arn, albToBackendRule.id])
       .apply(([arn]) => arn),
     httpsListenerArn: httpsListener?.arn,
+    certificateArn: certificate?.arn,
+    apiDomain: apiDomainOutput,
   };
 }
