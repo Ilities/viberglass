@@ -68,7 +68,7 @@ export function createAmplifyFrontend(
   const branchName = options.branchName ?? (isProd ? "production" : "main");
   const stage = options.stage ?? (isProd ? "PRODUCTION" : "DEVELOPMENT");
   const framework = options.framework ?? "Next.js - SSR";
-  
+
   // Enable auto-build when repository is connected (git-based deployment)
   const enableAutoBuild = !!repository;
 
@@ -106,6 +106,7 @@ frontend:
       - apps/platform-frontend/.next/cache/**/*`,
     environmentVariables: {
       NEXT_PUBLIC_API_URL: backendUrl,
+      AMPLIFY_MONOREPO_APP_ROOT: "apps/platform-frontend",
     },
     enableAutoBranchCreation: false, // Security: Disable auto-branch creation
     // Enable Git-based auto-deployment when repository is provided
@@ -127,6 +128,7 @@ frontend:
       enableAutoBuild: enableAutoBuild, // Auto-build when connected to git
       environmentVariables: {
         NEXT_PUBLIC_API_URL: backendUrl,
+        AMPLIFY_MONOREPO_APP_ROOT: "apps/platform-frontend",
       },
       tags: config.tags,
     },
