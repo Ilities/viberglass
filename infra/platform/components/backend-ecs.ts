@@ -269,6 +269,7 @@ export function createBackendEcs(
                 { name: "NODE_ENV", value: "production" },
                 { name: "PORT", value: containerPort.toString() },
                 { name: "AWS_REGION", value: options.config.awsRegion },
+                { name: "DB_SSL", value: "true" },
               ],
               secrets: [
                 {
