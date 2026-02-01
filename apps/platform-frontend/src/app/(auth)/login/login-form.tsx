@@ -81,7 +81,7 @@ export function LoginForm() {
         {isSubmitting ? 'Logging in...' : 'Login'}
       </Button>
       <Text>
-        Don't have an account?{' '}
+        Don&apos;t have an account?{' '}
         <TextLink href="/register">
           <Strong>Sign up</Strong>
         </TextLink>
