@@ -247,21 +247,46 @@ app.get("/api/docs", requireAuth, (req, res) => {
 
 // Catch 404 and forward to error handler
 app.use((req, res, next) => {
+  // Log 404 errors with request details for debugging
+  logger.warn("Route not found", {
+    method: req.method,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    path: req.path,
+    ip: req.ip,
+    userAgent: req.get("user-agent"),
+  });
   next(createError(404));
 });
 
 // Error handler
-app.use((err: any, req: express.Request, res: express.Response) => {
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   // Set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
 
-  // Log error
-  logger.error("Application error", {
+  // Log error with more context for 404s
+  const logData: Record<string, unknown> = {
     message: err.message,
     stack: err.stack,
     status: err.status,
-  });
+  };
+  
+  if (err.status === 404) {
+    logData.method = req.method;
+    logData.url = req.url;
+    logData.originalUrl = req.originalUrl;
+    logData.path = req.path;
+    logData.routes = req.app._router?.stack
+      ?.filter((layer: any) => layer.route || layer.name === 'router')
+      ?.map((layer: any) => ({
+        name: layer.name,
+        regexp: layer.regexp?.toString(),
+        path: layer.route?.path,
+      }));
+  }
+  
+  logger.error("Application error", logData);
 
   // Send error response
   if (req.path.startsWith("/api/")) {
