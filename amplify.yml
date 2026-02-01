@@ -1,0 +1,41 @@
+# AWS Amplify build configuration for Next.js 15 SSR deployment
+# Docs: https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html
+#
+# NOTE: This file is used when Amplify is connected to a Git repository (auto-deployment).
+# For manual deployments via GitHub Actions, the buildSpec is defined in Pulumi.
+
+version: 1
+applications:
+  - appRoot: apps/platform-frontend
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            # Install all dependencies (required for monorepo workspace support)
+            - npm ci --legacy-peer-deps
+            # Build shared packages first (types, etc.)
+            - npm run build -w @viberglass/types
+
+        build:
+          commands:
+            # Build only the frontend package
+            - npm run build -w @viberglass/frontend
+
+        postBuild:
+          commands:
+            # Verify build output structure
+            - ls -la .next
+            - echo "Build completed successfully"
+
+      artifacts:
+        # The .next directory is at the workspace path after build
+        baseDirectory: .next
+        files:
+          - "**/*"
+
+      cache:
+        paths:
+          - node_modules/**/*
+          - .next/cache/**/*
+# Amplify automatically detects Next.js and configures Lambda@Edge
+# No custom rewrites/redirects needed for Next.js SSR
