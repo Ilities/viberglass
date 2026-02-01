@@ -35,6 +35,36 @@ function getFailureMessage(info: PassportInfo, fallback: string): string {
 function authenticateRequest(options: AuthOptions) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!isAuthEnabled()) {
+      // Inject mock admin user for E2E tests / local dev
+      const mockUser = {
+        id: "mock-user-id",
+        email: "mock@example.com",
+        name: "Mock Admin",
+        avatarUrl: null,
+        role: "admin" as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const mockSession = {
+        id: "mock-session-id",
+        userId: mockUser.id,
+        tokenHash: "mock-token-hash",
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 86400000), // 24h
+        revokedAt: null,
+      };
+
+      const mockContext: AuthContext = {
+        user: mockUser,
+        session: mockSession,
+        roles: ["admin"],
+        permissions: [],
+      };
+
+      req.auth = mockContext;
+      req.user = mockContext;
+
       next();
       return;
     }

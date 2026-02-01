@@ -140,6 +140,29 @@ const loadBalancer: LoadBalancerOutputs = createLoadBalancer({
   backendPort: 80,
 });
 
+// =============================================================================
+// AMPLIFY FRONTEND (create first so backend can use its domain for CORS)
+// =============================================================================
+
+// Create OIDC provider for GitHub Actions Amplify deployment
+const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
+  config,
+  githubRepository: "ilities/viberglass",
+});
+
+// Create Amplify frontend app and branch
+// For production: Connect to GitHub for automatic deployments on push to main
+// For dev: Manual deployment via GitHub Actions (keeps flexibility for testing)
+const repository = "https://github.com/ilities/viberglass";
+const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
+  config,
+  backendUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}`,
+  branchName: "main",
+  repository: repository,
+  accessToken: pulumiConfig.getSecret("amplifyGithubAccessToken"),
+  stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
+});
+
 // Create ECS cluster for backend (separate from workers)
 const clusterSettings: aws.types.input.ecs.ClusterSetting[] = [];
 if (config.containerInsights) {
@@ -157,7 +180,7 @@ const backendCluster = new aws.ecs.Cluster(
   },
 );
 
-// Create backend ECS task definition
+// Create backend ECS task definition with CORS allowed origins from Amplify
 const backendEcs: BackendEcsOutputs = createBackendEcs({
   config,
   repositoryUrl: registry.repositoryUrl,
@@ -176,6 +199,8 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   minTasks: backendMinTasks,
   maxTasks: backendMaxTasks,
   assignPublicIp: backendAssignPublicIp,
+  // Allow requests from the Amplify frontend domain
+  allowedOrigins: pulumi.interpolate`https://${amplifyFrontend.defaultDomain}`,
 });
 
 // Create backend ECS service
@@ -236,29 +261,6 @@ new aws.iam.RolePolicyAttachment(
     policyArn: storage.accessPolicyArn,
   },
 );
-
-// =============================================================================
-// AMPLIFY FRONTEND
-// =============================================================================
-
-// Create OIDC provider for GitHub Actions Amplify deployment
-const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
-  config,
-  githubRepository: "ilities/viberglass",
-});
-
-// Create Amplify frontend app and branch
-// For production: Connect to GitHub for automatic deployments on push to main
-// For dev: Manual deployment via GitHub Actions (keeps flexibility for testing)
-const repository = "https://github.com/ilities/viberglass";
-const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
-  config,
-  backendUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}`,
-  branchName: "main",
-  repository: repository,
-  accessToken: pulumiConfig.getSecret("amplifyGithubAccessToken"),
-  stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
-});
 
 // =============================================================================
 // DEPLOYMENT SECRETS
