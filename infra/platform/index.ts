@@ -254,14 +254,9 @@ const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
   config,
   backendUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}`,
   branchName: "main",
+  repository: "https://github.com/ilities/viberglass",
+  accessToken: pulumiConfig.getSecret("amplifyGithubAccessToken"),
   stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
-  // Enable git-based auto-deployment for production
-  ...(config.environment === "prod" && {
-    repository: "https://github.com/ilities/viberglass",
-    // Access token should be stored in AWS Secrets Manager and passed via Pulumi config
-    // pulumi config set --secret amplifyGithubAccessToken <token>
-    accessToken: pulumiConfig.getSecret("amplifyGithubAccessToken"),
-  }),
 });
 
 // =============================================================================
