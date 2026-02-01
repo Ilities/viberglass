@@ -72,51 +72,16 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.get-config.outputs.backendUrl }}
 
-      - name: Start Amplify deployment
-        id: amplify
+      - name: Deployment summary
         run: |
-          # Get Amplify configuration from SSM (provisioned by Pulumi)
-          APP_ID=$(aws ssm get-parameter \
-            --name "/viberglass/dev/amplify/appId" \
-            --query Parameter.Value \
-            --output text)
-
-          BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberglass/dev/amplify/branchName" \
-            --query Parameter.Value \
-            --output text)
-
-          REGION=$(aws ssm get-parameter \
-            --name "/viberglass/dev/amplify/region" \
-            --query Parameter.Value \
-            --output text)
-
-          if [ -z "$APP_ID" ] || [ -z "$BRANCH_NAME" ] || [ -z "$REGION" ]; then
-            echo "::error::Amplify configuration not found in SSM. Run pulumi up first."
-            exit 1
-          fi
-
-          echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME, region: $REGION"
-
-          # Trigger Amplify deployment using AWS CLI
-          DEPLOYMENT_ID=$(aws amplify start-deployment \
-            --app-id "$APP_ID" \
-            --branch-name "$BRANCH_NAME" \
-            --region "$REGION" \
-            --source-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --query 'jobSummary.id' \
-            --output text)
-
-          echo "Deployment started with ID: $DEPLOYMENT_ID"
-          echo "deploymentId=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-          echo "deploymentTriggered=true" >> $GITHUB_OUTPUT
-          echo "amplifyRegion=$REGION" >> $GITHUB_OUTPUT
-
-          # Get the app URL for environment linking
-          APP_URL=$(aws amplify get-app \
-            --app-id "$APP_ID" \
-            --region "$REGION" \
-            --query 'app.defaultDomain' \
-            --output text)
-
-          echo "appUrl=https://$APP_URL" >> $GITHUB_OUTPUT
+          echo "### :rocket: Dev Deployment Triggered" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **App URL** | ${{ steps.get-url.outputs.appUrl }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Approved by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> :information_source: Amplify will automatically build and deploy from git." >> $GITHUB_STEP_SUMMARY
+          echo "> Monitor the deployment at: ${{ steps.get-url.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY
