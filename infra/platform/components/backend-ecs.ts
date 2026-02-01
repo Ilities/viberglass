@@ -45,6 +45,8 @@ export interface BackendEcsOptions {
   dockerfilePath?: string;
   /** Build context for docker build */
   contextPath?: string;
+  /** Allowed CORS origins (comma-separated). Defaults to localhost for development. */
+  allowedOrigins?: pulumi.Input<string>;
 }
 
 /**
@@ -273,6 +275,10 @@ export function createBackendEcs(
                 { name: "AWS_REGION", value: options.config.awsRegion },
                 { name: "DB_SSL", value: "true" },
                 { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
+                { 
+                  name: "ALLOWED_ORIGINS", 
+                  value: options.allowedOrigins ?? "http://localhost:3000",
+                },
               ],
               secrets: [
                 {
