@@ -248,8 +248,9 @@ export function createBackendEcs(
           backendImage.imageUri,
           options.logGroupName,
           options.databaseSsm.urlPathArn,
+          options.allowedOrigins ?? "http://localhost:3000",
         ])
-        .apply(([imageUri, logGroupName, databaseUrlPath]) =>
+        .apply(([imageUri, logGroupName, databaseUrlPath, allowedOrigins]) =>
           JSON.stringify([
             {
               name: "viberglass-backend",
@@ -275,9 +276,9 @@ export function createBackendEcs(
                 { name: "AWS_REGION", value: options.config.awsRegion },
                 { name: "DB_SSL", value: "true" },
                 { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
-                { 
-                  name: "ALLOWED_ORIGINS", 
-                  value: options.allowedOrigins ?? "http://localhost:3000",
+                {
+                  name: "ALLOWED_ORIGINS",
+                  value: allowedOrigins,
                 },
               ],
               secrets: [
