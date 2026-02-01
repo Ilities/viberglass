@@ -6,7 +6,7 @@
 # Stage 1: Build
 # Compiles TypeScript and builds workspace dependencies
 # ==========================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 # Set working directory
 WORKDIR /build
@@ -37,7 +37,7 @@ RUN npm run build -w @viberglass/platform-backend
 # Stage 2: Production Runtime
 # Minimal image with only compiled code and production dependencies
 # ==========================================
-FROM node:20-alpine AS production
+FROM node:24-alpine AS production
 
 # Install curl for health checks
 RUN apk add --no-cache curl
