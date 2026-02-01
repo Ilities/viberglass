@@ -138,6 +138,8 @@ const loadBalancer: LoadBalancerOutputs = createLoadBalancer({
   backendSecurityGroupId: backendSecurityGroupId,
   healthCheckPath: "/health",
   backendPort: 80,
+  apiDomain: config.apiDomain,
+  route53ZoneId: config.route53ZoneId,
 });
 
 // =============================================================================
@@ -156,11 +158,15 @@ const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
 const repository = "https://github.com/ilities/viberglass";
 const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
   config,
-  backendUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}`,
+  backendUrl: config.apiDomain
+    ? pulumi.interpolate`https://${config.apiDomain}`
+    : pulumi.interpolate`http://${loadBalancer.albDnsName}`,
   branchName: "main",
   repository: repository,
   accessToken: pulumiConfig.getSecret("amplifyGithubAccessToken"),
   stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
+  customDomain: config.appDomain,
+  route53ZoneId: config.route53ZoneId,
 });
 
 // Create ECS cluster for backend (separate from workers)
@@ -199,8 +205,10 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   minTasks: backendMinTasks,
   maxTasks: backendMaxTasks,
   assignPublicIp: backendAssignPublicIp,
-  // Allow requests from the Amplify frontend domain
-  allowedOrigins: pulumi.interpolate`https://${amplifyFrontend.defaultDomain}`,
+  // Allow requests from the Amplify frontend domain (custom domain if set, otherwise default)
+  allowedOrigins: config.appDomain
+    ? pulumi.interpolate`https://${config.appDomain}`
+    : pulumi.interpolate`https://${amplifyFrontend.defaultDomain}`,
 });
 
 // Create backend ECS service
@@ -270,7 +278,9 @@ new aws.iam.RolePolicyAttachment(
 const secrets: DeploymentSecretsOutputs = createDeploymentSecrets({
   config,
   kmsKeyId: kmsKeyId,
-  frontendApiUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}/api`,
+  frontendApiUrl: config.apiDomain
+    ? pulumi.interpolate`https://${config.apiDomain}/api`
+    : pulumi.interpolate`http://${loadBalancer.albDnsName}/api`,
   amplifyAppId: pulumiConfig.get("amplifyAppId"),
   amplifyBranch: config.environment,
   ecrRepository: registry.repositoryUrl.apply(
@@ -313,7 +323,9 @@ export const uploadsBucketArn = storage.bucketArn;
 export const uploadsAccessPolicyArn = storage.accessPolicyArn;
 
 // Backend outputs
-export const backendUrl = pulumi.interpolate`http://${loadBalancer.albDnsName}`;
+export const backendUrl = config.apiDomain
+  ? pulumi.interpolate`https://${config.apiDomain}`
+  : pulumi.interpolate`http://${loadBalancer.albDnsName}`;
 export const backendClusterArn = backendCluster.arn;
 export const backendClusterName = backendCluster.name;
 export const backendServiceArn = backendService.serviceArn;
@@ -331,11 +343,16 @@ export const albArn = loadBalancer.albArn;
 export const albTargetGroupArn = loadBalancer.targetGroupArn;
 export const albTargetGroupName = loadBalancer.targetGroupName;
 export const albSecurityGroupId = loadBalancer.albSecurityGroupId;
+export const albCertificateArn = loadBalancer.certificateArn;
+export const apiDomain = loadBalancer.apiDomain;
 
 // Amplify outputs
 export const amplifyAppId = amplifyFrontend.appId;
 export const amplifyAppArn = amplifyFrontend.appArn;
 export const amplifyDefaultDomain = amplifyFrontend.defaultDomain;
+export const amplifyCustomDomain = amplifyFrontend.customDomain;
+export const amplifyCustomDomainUrl = amplifyFrontend.customDomainUrl;
+export const amplifyCustomDomainDnsRecords = amplifyFrontend.customDomainDnsRecords;
 export const amplifyBranchName = amplifyFrontend.branchName;
 export const amplifyOidcRoleArn = amplifyOidc.roleArn;
 export const amplifySsmAppIdPath = amplifyFrontend.ssmAppIdPath;
