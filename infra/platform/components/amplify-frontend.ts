@@ -20,6 +20,22 @@ export interface AmplifyFrontendOptions {
   repository?: string;
   /** GitHub OAuth token for repository access (SecretString in AWS Secrets Manager) */
   accessToken?: pulumi.Input<string>;
+  /** Custom domain name (e.g., "app.viberglass.io") - configures Amplify custom domain */
+  customDomain?: pulumi.Input<string>;
+  /** Route 53 hosted zone ID for creating custom domain DNS records */
+  route53ZoneId?: pulumi.Input<string>;
+}
+
+/**
+ * Route53 record details for Amplify custom domain.
+ */
+export interface AmplifyDnsRecord {
+  /** Record name */
+  name: pulumi.Input<string>;
+  /** Record type */
+  type: pulumi.Input<string>;
+  /** Record value */
+  value: pulumi.Input<string>;
 }
 
 /**
@@ -32,6 +48,12 @@ export interface AmplifyFrontendOutputs {
   appArn: pulumi.Output<string>;
   /** Default domain for the app */
   defaultDomain: pulumi.Output<string>;
+  /** Custom domain name (if configured) */
+  customDomain: pulumi.Output<string> | undefined;
+  /** CloudFront distribution URL for custom domain */
+  customDomainUrl: pulumi.Output<string> | undefined;
+  /** DNS records to create for custom domain (if not using Route53) */
+  customDomainDnsRecords: pulumi.Output<AmplifyDnsRecord[]> | undefined;
   /** Branch name */
   branchName: string;
   /** SSM parameter path for app ID */
@@ -91,12 +113,13 @@ applications:
 export function createAmplifyFrontend(
   options: AmplifyFrontendOptions,
 ): AmplifyFrontendOutputs {
-  const { config, backendUrl, repository, accessToken } = options;
+  const { config, backendUrl, repository, accessToken, route53ZoneId } = options;
 
   const isProd = config.environment === "prod";
   const branchName = options.branchName ?? (isProd ? "production" : "main");
   const stage = options.stage ?? (isProd ? "PRODUCTION" : "DEVELOPMENT");
   const framework = options.framework ?? "Next.js - SSR";
+  const customDomain = options.customDomain;
 
   // Enable auto-build when repository is connected (git-based deployment)
   const enableAutoBuild = !!repository;
@@ -167,10 +190,84 @@ export function createAmplifyFrontend(
     overwrite: true,
   });
 
+  // Configure custom domain if provided
+  let amplifyDomain: aws.amplify.DomainAssociation | undefined;
+  let customDomainOutput: pulumi.Output<string> | undefined;
+  let dnsRecordsOutput: pulumi.Output<AmplifyDnsRecord[]> | undefined;
+
+  if (customDomain) {
+    customDomainOutput = pulumi.output(customDomain);
+    amplifyDomain = new aws.amplify.DomainAssociation(
+      `${config.environment}-viberglass-frontend-domain`,
+      {
+        appId: app.id,
+        domainName: customDomain,
+        subDomains: [
+          {
+            branchName: branch.branchName,
+            prefix: "", // Root domain (e.g., app.viberglass.io)
+          },
+        ],
+        // Enable auto-subdomain creation for feature branches (optional)
+        enableAutoSubDomain: false,
+      },
+    );
+
+    // Get DNS records that need to be created
+    dnsRecordsOutput = pulumi
+      .all([amplifyDomain.arn, amplifyDomain.certificateVerificationDnsRecord])
+      .apply(([, certRecord]) => {
+        const records: AmplifyDnsRecord[] = [];
+
+        // Certificate validation record (CNAME)
+        if (certRecord) {
+          // Parse the certificate record which is in format: "name type value"
+          const parts = certRecord.split(" ");
+          if (parts.length >= 3) {
+            records.push({
+              name: parts[0],
+              type: parts[1],
+              value: parts.slice(2).join(" "),
+            });
+          }
+        }
+
+        // CloudFront alias record (CNAME for root domain)
+        records.push({
+          name: customDomain,
+          type: "CNAME",
+          value: app.defaultDomain,
+        });
+
+        return records;
+      });
+
+    // Create Route53 alias record if zone ID is provided
+    // Note: Amplify automatically manages the ACM certificate validation record
+    // We only need to create the CNAME alias for the custom domain
+    if (route53ZoneId) {
+      new aws.route53.Record(
+        `${config.environment}-viberglass-app-alias`,
+        {
+          zoneId: route53ZoneId,
+          name: customDomain,
+          type: "CNAME",
+          records: [app.defaultDomain],
+          ttl: 300,
+        },
+      );
+    }
+  }
+
   return {
     appId: app.id,
     appArn: app.arn,
     defaultDomain: app.defaultDomain,
+    customDomain: customDomainOutput,
+    customDomainUrl: customDomainOutput
+      ? pulumi.interpolate`https://${customDomainOutput}`
+      : undefined,
+    customDomainDnsRecords: dnsRecordsOutput,
     branchName: branchName,
     ssmAppIdPath,
     ssmBranchNamePath,

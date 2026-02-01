@@ -26,6 +26,30 @@ config:
   # Adds CloudWatch metrics for CPU/memory, network, storage
   viberglass:containerInsights: "true"
 
+  # =============================================================================
+  # CUSTOM DOMAIN CONFIGURATION (Route53)
+  # =============================================================================
+  #
+  # Prerequisites:
+  #   1. Create a Route53 hosted zone for your domain (e.g., viberglass.io)
+  #   2. Get the hosted zone ID from AWS Console -> Route53 -> Hosted zones
+  #   3. Update your domain registrar to use Route53 nameservers
+  #
+  # Configuration:
+  #   Set these values and run `pulumi up` - everything is automated:
+  #
+  # viberglass:apiDomain: api.viberglass.io
+  # viberglass:appDomain: app.viberglass.io
+  # viberglass:route53ZoneId: Z1234567890ABC
+  #
+  # What gets created automatically:
+  #   - ACM certificate for api.viberglass.io (DNS validated)
+  #   - Route53 alias record: api.viberglass.io -> ALB
+  #   - HTTPS listener on ALB (port 443)
+  #   - Amplify custom domain for app.viberglass.io
+  #   - Route53 CNAME record: app.viberglass.io -> CloudFront
+  #   - Route53 validation record for Amplify SSL certificate
+
   # Database configuration (optional - defaults shown)
   # Valid instance classes: db.m6g.xlarge, db.m6g.2xlarge, etc.
   # viberglass:dbInstanceClass: db.m6g.xlarge
