@@ -99,6 +99,7 @@ export function createBackendEcs(
     path.join(contextPath, "apps/platform-backend/Dockerfile.prod");
 
   // Build and publish the backend container image
+  // Always use 'latest' tag so external CI/CD and local builds align
   const backendImage = new awsx.ecr.Image(
     `${options.config.environment}-viberglass-backend-image`,
     {
@@ -106,6 +107,7 @@ export function createBackendEcs(
       context: contextPath,
       dockerfile: dockerfilePath,
       platform: "linux/amd64",
+      imageTag: "latest",
     },
   );
 
@@ -270,6 +272,7 @@ export function createBackendEcs(
                 { name: "PORT", value: containerPort.toString() },
                 { name: "AWS_REGION", value: options.config.awsRegion },
                 { name: "DB_SSL", value: "true" },
+                { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
               ],
               secrets: [
                 {

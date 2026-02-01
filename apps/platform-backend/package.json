@@ -11,7 +11,7 @@
     "test:integration": "jest --testPathPattern=integration",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "migrate:latest": "tsx migrations/migrator.ts"
+    "migrate:latest": "tsx src/migrations/migrator.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ecs": "^3.971.0",
