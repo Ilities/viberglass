@@ -2,7 +2,7 @@
 # This container runs the backend API with hot-reload support via nodemon
 # NOTE: Build from repository root for workspace dependencies: docker build -f apps/platform-backend/Dockerfile.dev .
 
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
