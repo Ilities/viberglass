@@ -42,6 +42,9 @@ export default defineConfig({
       port: 8888,
       timeout: 120000,
       reuseExistingServer: true,
+      env: {
+        AUTH_ENABLED: "false",
+      },
     },
   ],
 });
