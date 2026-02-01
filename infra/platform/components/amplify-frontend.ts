@@ -110,6 +110,7 @@ export function createAmplifyFrontend(
     environmentVariables: {
       NEXT_PUBLIC_API_URL: backendUrl,
       AMPLIFY_MONOREPO_APP_ROOT: "apps/platform-frontend",
+      NEXT_TELEMETRY_DISABLED: "1",
     },
     enableAutoBranchCreation: false, // Security: Disable auto-branch creation
     // Enable Git-based auto-deployment when repository is provided
@@ -132,6 +133,7 @@ export function createAmplifyFrontend(
       environmentVariables: {
         NEXT_PUBLIC_API_URL: backendUrl,
         AMPLIFY_MONOREPO_APP_ROOT: "apps/platform-frontend",
+        NEXT_TELEMETRY_DISABLED: "1",
       },
       tags: config.tags,
     },
