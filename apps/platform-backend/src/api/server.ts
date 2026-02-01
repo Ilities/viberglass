@@ -90,7 +90,7 @@ function onListening(): void {
 
   // Log configuration status
   logger.debug("Configuration status", {
-    database: process.env.DB_HOST ? "✓" : "✗ (using defaults)",
+    database: (process.env.DATABASE_URL || process.env.DB_HOST) ? "✓" : "✗ (using defaults)",
     redis: process.env.REDIS_HOST ? "✓" : "✗ (using defaults)",
     awsS3: process.env.AWS_ACCESS_KEY_ID ? "✓" : "✗ (not configured)",
     githubToken: process.env.GITHUB_TOKEN ? "✓" : "✗ (not configured)",
