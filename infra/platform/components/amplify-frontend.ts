@@ -42,6 +42,35 @@ export interface AmplifyFrontendOutputs {
   ssmRegionPath: string;
 }
 
+const buildSpec = `version: 1
+applications:
+- appRoot: apps/platform-frontend
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # Install all dependencies (required for monorepo workspace support)
+        - npm ci --legacy-peer-deps
+        # Build shared packages first (types, etc.)
+        - npm run build -w @viberglass/types
+    build:
+      commands:
+        # Build only the frontend package
+        - npm run build -w @viberglass/frontend
+    postBuild:
+      commands:
+        # Verify build output
+        - ls -la .next
+        - echo "Build completed successfully"
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*`;
+
 /**
  * Creates an Amplify app and branch for frontend deployment with SSR support.
  *
@@ -77,33 +106,7 @@ export function createAmplifyFrontend(
     description: `Viberglass frontend - ${config.environment} environment`,
     platform: "WEB_COMPUTE", // Required for SSR support
     // Build spec for monorepo: install all deps, build shared packages, build frontend
-    buildSpec: `version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        # Install all dependencies (required for monorepo workspace support)
-        - npm ci --legacy-peer-deps
-        # Build shared packages first (types, etc.)
-        - npm run build -w @viberglass/types
-    build:
-      commands:
-        # Build only the frontend package
-        - npm run build -w @viberglass/frontend
-    postBuild:
-      commands:
-        # Verify build output
-        - ls -la apps/platform-frontend/.next || ls -la .next
-        - echo "Build completed successfully"
-  artifacts:
-    # The .next directory is at the workspace root after build
-    baseDirectory: apps/platform-frontend/.next
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-      - apps/platform-frontend/.next/cache/**/*`,
+    buildSpec: buildSpec,
     environmentVariables: {
       NEXT_PUBLIC_API_URL: backendUrl,
       AMPLIFY_MONOREPO_APP_ROOT: "apps/platform-frontend",
