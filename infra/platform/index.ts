@@ -250,11 +250,12 @@ const amplifyOidc: AmplifyOidcOutputs = createAmplifyOidc({
 // Create Amplify frontend app and branch
 // For production: Connect to GitHub for automatic deployments on push to main
 // For dev: Manual deployment via GitHub Actions (keeps flexibility for testing)
+const repository = "https://github.com/ilities/viberglass";
 const amplifyFrontend: AmplifyFrontendOutputs = createAmplifyFrontend({
   config,
   backendUrl: pulumi.interpolate`http://${loadBalancer.albDnsName}`,
   branchName: "main",
-  repository: "https://github.com/ilities/viberglass",
+  repository: repository,
   accessToken: pulumiConfig.getSecret("amplifyGithubAccessToken"),
   stage: config.environment === "prod" ? "PRODUCTION" : "DEVELOPMENT",
 });
