@@ -257,6 +257,26 @@ pulumi login s3://viberglass-pulumi-state
 export PULUMI_BACKEND_URL=s3://viberglass-pulumi-state
 ```
 
+### Configure platform stack GitHub credentials
+
+* Go to GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
+* Click "Generate new token"
+* Set repository access to "Only select repositories" and choose your repo
+* Under "Repository permissions":
+
+- Administration: Read and write
+- Contents: Read-only
+- Metadata: Read-only (auto-selected)
+- Webhooks: Read and write
+
+Set the token as a Pulumi secret:
+
+```bash
+cd infra/platform
+pulumi config set --secret amplifyGithubAccessToken github_pat_XXXXXXXXXXXXXXXXXXXX
+```
+
+
 ## Quick Start
 
 ### 1. Install Dependencies
