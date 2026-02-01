@@ -19,6 +19,12 @@ export interface InfrastructureConfig {
   dbInstanceClass?: string;
   /** Database allocated storage in GB (default per environment) */
   dbAllocatedStorage?: number;
+  /** API domain name (e.g., "api.viberglass.io") - creates ACM cert and HTTPS listener */
+  apiDomain?: string;
+  /** Frontend domain name (e.g., "app.viberglass.io") - configures Amplify custom domain */
+  appDomain?: string;
+  /** Route 53 hosted zone ID for DNS validation and alias records (required if apiDomain is set) */
+  route53ZoneId?: string;
   /** Common tags applied to all resources */
   tags: {
     Environment: string;
@@ -41,6 +47,9 @@ export function getConfig(): InfrastructureConfig {
   const containerInsights = config.getBoolean("containerInsights") ?? true;
   const dbInstanceClass = config.get("dbInstanceClass");
   const dbAllocatedStorage = config.getNumber("dbAllocatedStorage");
+  const apiDomain = config.get("apiDomain");
+  const appDomain = config.get("appDomain");
+  const route53ZoneId = config.get("route53ZoneId");
 
   // Set database defaults based on environment
   let finalDbInstanceClass = dbInstanceClass;
@@ -80,6 +89,9 @@ export function getConfig(): InfrastructureConfig {
     containerInsights,
     dbInstanceClass: finalDbInstanceClass,
     dbAllocatedStorage: finalDbAllocatedStorage,
+    apiDomain,
+    appDomain,
+    route53ZoneId,
     tags: {
       Environment: environment,
       Project: "viberglass",
