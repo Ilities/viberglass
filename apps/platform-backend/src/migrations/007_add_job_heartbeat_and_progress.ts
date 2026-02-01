@@ -66,7 +66,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createIndex("idx_jobs_last_heartbeat")
     .on("jobs")
-    .column("last_heartbeat")
+    .columns(["last_heartbeat"])
     .where("status", "=", "active")
     .execute();
 }

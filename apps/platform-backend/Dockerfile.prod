@@ -59,6 +59,7 @@ RUN npm ci --legacy-peer-deps --production && \
     npm cache clean --force
 
 # Copy compiled backend output from builder stage
+# Includes dist/migrations with compiled migration files
 COPY --from=builder /build/apps/platform-backend/dist ./dist
 
 # Copy shared types package (required at runtime for type imports)
