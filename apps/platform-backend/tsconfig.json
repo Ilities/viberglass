@@ -22,7 +22,6 @@
     "dist",
     "**/*.test.ts",
     "src/**/__tests__/**",
-    "src/test/**",
-    "src/migrations/**"
+    "src/test/**"
   ]
 }
