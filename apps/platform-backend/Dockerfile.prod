@@ -21,7 +21,8 @@ COPY apps/platform-backend/package*.json ./apps/platform-backend/
 
 # Install all workspace dependencies
 # --legacy-peer-deps required for npm workspace compatibility
-RUN npm ci --legacy-peer-deps
+# --ignore-scripts prevents root postinstall (next telemetry disable) from failing
+RUN npm ci --legacy-peer-deps --ignore-scripts
 
 # Copy source files
 COPY packages/types ./packages/types
@@ -55,7 +56,8 @@ COPY packages/types/package*.json ./packages/types/
 COPY apps/platform-backend/package*.json ./apps/platform-backend/
 
 # Install only production dependencies
-RUN npm ci --legacy-peer-deps --production && \
+# --ignore-scripts prevents root postinstall (next telemetry disable) from failing
+RUN npm ci --legacy-peer-deps --production --ignore-scripts && \
     npm cache clean --force
 
 # Copy compiled backend output from builder stage
