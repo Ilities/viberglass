@@ -62,13 +62,11 @@ export async function up(db: Kysely<any>): Promise<void> {
     .columns(["job_id", "created_at"])
     .execute();
 
-  // Create index for stale job queries
-  await db.schema
-    .createIndex("idx_jobs_last_heartbeat")
-    .on("jobs")
-    .columns(["last_heartbeat"])
-    .where("status", "=", "active")
-    .execute();
+  // Create index for stale job queries (partial index for active jobs only)
+  await sql`
+    CREATE INDEX idx_jobs_last_heartbeat ON jobs (last_heartbeat)
+    WHERE status = 'active'
+  `.execute(db);
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
