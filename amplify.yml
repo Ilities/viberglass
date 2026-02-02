@@ -1,4 +1,4 @@
-# AWS Amplify build configuration for Next.js 15 SSR deployment
+# AWS Amplify build configuration for Next.js 15 static export deployment
 # Docs: https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html
 #
 # NOTE: This file is used when Amplify is connected to a Git repository (auto-deployment).
@@ -18,18 +18,17 @@ applications:
 
         build:
           commands:
-            # Build only the frontend package
+            # Build the frontend package as static export
             - npm run build -w @viberglass/frontend
 
         postBuild:
           commands:
-            # Verify build output structure
-            - ls -la .next
-            - echo "Build completed successfully"
+            # Verify static build output
+            - ls -la out
+            - echo "Static build completed successfully"
 
       artifacts:
-        # The .next directory is at the workspace path after build
-        baseDirectory: .next
+        baseDirectory: out
         files:
           - "**/*"
 
@@ -37,5 +36,3 @@ applications:
         paths:
           - node_modules/**/*
           - .next/cache/**/*
-# Amplify automatically detects Next.js and configures Lambda@Edge
-# No custom rewrites/redirects needed for Next.js SSR
