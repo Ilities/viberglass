@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prebuild": "next telemetry disable",
+    "postinstall": "next telemetry disable",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "serve": "npx serve out",
     "lint": "next lint",
     "test": "jest",
     "test:unit": "jest --testPathPattern=unit",

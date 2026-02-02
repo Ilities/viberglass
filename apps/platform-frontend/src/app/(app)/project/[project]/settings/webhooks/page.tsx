@@ -1,13 +1,9 @@
-import { redirect } from 'next/navigation'
+import { WebhooksRedirectClient } from './webhooks-redirect-client'
 
-/**
- * Redirect page for old project webhooks route.
- * Webhooks are now configured under individual integrations.
- */
-export default function ProjectWebhooksRedirectPage() {
-  redirect('/settings/integrations')
+export async function generateStaticParams() {
+  return [{ project: '_' }]
 }
 
-export const generateStaticParams = async () => {
-  return []
+export default function ProjectWebhooksRedirectPage() {
+  return <WebhooksRedirectClient />
 }

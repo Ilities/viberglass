@@ -12,7 +12,7 @@ export interface AmplifyFrontendOptions {
   backendUrl: pulumi.Input<string>;
   /** Branch name (default: "production" for prod, "main" otherwise) */
   branchName?: string;
-  /** Frontend framework (default: "Next.js - SSR") */
+  /** Frontend framework (default: "Next.js - Static") */
   framework?: string;
   /** Amplify stage (default: "PRODUCTION" for prod, "DEVELOPMENT" otherwise) */
   stage?: string;
@@ -77,15 +77,15 @@ applications:
             - npm run build -w @viberglass/types
         build:
           commands:
-            # Build only the frontend package
+            # Build the frontend package as static export
             - npm run build -w @viberglass/frontend
         postBuild:
           commands:
-            # Verify build output
-            - ls -la .next
-            - echo "Build completed successfully"
+            # Verify static build output
+            - ls -la out
+            - echo "Static build completed successfully"
       artifacts:
-        baseDirectory: .next
+        baseDirectory: out
         files:
           - '**/*'
       cache:
@@ -94,14 +94,14 @@ applications:
           - .next/cache/**/*`;
 
 /**
- * Creates an Amplify app and branch for frontend deployment with SSR support.
+ * Creates an Amplify app and branch for static frontend deployment.
  *
  * This component creates:
- * 1. An Amplify app configured for Next.js SSR with WEB_COMPUTE platform
+ * 1. An Amplify app configured for Next.js static export with WEB platform
  * 2. An Amplify branch with environment-specific configuration
  * 3. SSM parameters storing the app configuration for CI/CD access
  *
- * CRITICAL: The platform must be "WEB_COMPUTE" (not "WEB") to support SSR.
+ * CRITICAL: The platform is "WEB" for static hosting (no SSR).
  * CRITICAL: Auto-branch creation is disabled for security.
  *
  * When repository is provided, Amplify will automatically deploy on git pushes.
@@ -118,7 +118,7 @@ export function createAmplifyFrontend(
   const isProd = config.environment === "prod";
   const branchName = options.branchName ?? (isProd ? "production" : "main");
   const stage = options.stage ?? (isProd ? "PRODUCTION" : "DEVELOPMENT");
-  const framework = options.framework ?? "Next.js - SSR";
+  const framework = options.framework ?? "Next.js - Static";
   const customDomain = options.customDomain;
 
   // Enable auto-build when repository is connected (git-based deployment)
@@ -127,7 +127,7 @@ export function createAmplifyFrontend(
   const app = new aws.amplify.App(`${config.environment}-viberglass-frontend`, {
     name: `${config.environment}-viberglass-frontend`,
     description: `Viberglass frontend - ${config.environment} environment`,
-    platform: "WEB_COMPUTE", // Required for SSR support
+    platform: "WEB", // Static hosting (no SSR)
     // Build spec for monorepo: install all deps, build shared packages, build frontend
     buildSpec: buildSpec,
     environmentVariables: {
@@ -136,6 +136,16 @@ export function createAmplifyFrontend(
       NEXT_TELEMETRY_DISABLED: "1",
     },
     enableAutoBranchCreation: false, // Security: Disable auto-branch creation
+    // SPA fallback: serve index.html for any path that doesn't match a static file.
+    // Required because dynamic routes (e.g. /project/<slug>/tickets) are client-rendered
+    // and only placeholder HTML files are generated at build time.
+    customRules: [
+      {
+        source: "/<*>",
+        target: "/index.html",
+        status: "404-200",
+      },
+    ],
     // Enable Git-based auto-deployment when repository is provided
     ...(repository && {
       repository,
