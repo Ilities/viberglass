@@ -1,7 +1,7 @@
 import { JobDetailClient } from './job-detail-client'
 
-export const generateStaticParams = async () => {
-  return []
+export async function generateStaticParams() {
+  return [{ project: '_', jobId: '_' }]
 }
 
 export default async function JobDetailPage({ params }: { params: Promise<{ project: string; jobId: string }> }) {

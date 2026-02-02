@@ -1,11 +1,10 @@
-import { redirect } from 'next/navigation'
+import { IntegrationRedirectClient } from './integration-redirect-client'
 
-interface IntegrationRedirectProps {
-  params: {
-    integrationId: string
-  }
+export async function generateStaticParams() {
+  return [{ project: '_', integrationId: '_' }]
 }
 
-export default function IntegrationRedirect({ params }: IntegrationRedirectProps) {
-  redirect(`/settings/integrations/${params.integrationId}`)
+export default async function IntegrationRedirect({ params }: { params: Promise<{ integrationId: string }> }) {
+  const { integrationId } = await params
+  return <IntegrationRedirectClient integrationId={integrationId} />
 }
