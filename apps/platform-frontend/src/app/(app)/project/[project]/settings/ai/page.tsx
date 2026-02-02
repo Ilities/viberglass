@@ -1,15 +1,10 @@
-import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
+import { AIRedirectClient } from './ai-redirect-client'
 
-export const metadata: Metadata = {
-  title: 'Project Settings',
-}
-
-export const generateStaticParams = async () => {
-  return []
+export async function generateStaticParams() {
+  return [{ project: '_' }]
 }
 
 export default async function AISettingsPage({ params }: { params: Promise<{ project: string }> }) {
   const { project } = await params
-  redirect(`/project/${project}/settings/project`)
+  return <AIRedirectClient project={project} />
 }

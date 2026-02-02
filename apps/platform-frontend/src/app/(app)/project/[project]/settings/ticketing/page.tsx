@@ -1,7 +1,7 @@
 import { TicketingSettingsClient } from './ticketing-settings-client'
 
-export const generateStaticParams = async () => {
-  return []
+export async function generateStaticParams() {
+  return [{ project: '_' }]
 }
 
 export default async function TicketingSettingsPage({ params }: { params: Promise<{ project: string }> }) {
