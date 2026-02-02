@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: 'Project Settings',
 }
 
-export const generateStaticParams = async () => {
-  return []
+export async function generateStaticParams() {
+  return [{ project: '_' }]
 }
 
 export default async function ProjectSettingsPage({

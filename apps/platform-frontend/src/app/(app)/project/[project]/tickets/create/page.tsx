@@ -1,7 +1,7 @@
 import { CreateTicketClient } from './create-ticket-client'
 
-export const generateStaticParams = async () => {
-  return []
+export async function generateStaticParams() {
+  return [{ project: '_' }]
 }
 
 export default async function CreateTicketPage({ params }: { params: Promise<{ project: string }> }) {
