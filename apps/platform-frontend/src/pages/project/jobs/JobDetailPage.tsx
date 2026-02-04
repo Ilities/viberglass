@@ -56,7 +56,7 @@ export function JobDetailPage() {
         <Subheading>Output</Subheading>
         <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
           <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-            {job.output || 'No output yet'}
+            {job.result ? JSON.stringify(job.result, null, 2) : 'No output yet'}
           </pre>
         </div>
       </div>

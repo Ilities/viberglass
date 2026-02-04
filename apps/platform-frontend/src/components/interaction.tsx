@@ -81,11 +81,13 @@ export function useDataInteraction({
       onPointerUp,
       onFocus,
       onBlur,
+      onKeyDown: undefined as unknown as React.KeyboardEventHandler<HTMLElement>,
+      onKeyUp: undefined as unknown as React.KeyboardEventHandler<HTMLElement>,
     },
   }
 }
 
-export function composeEventHandlers<T>(
+export function composeEventHandlers<T extends { defaultPrevented?: boolean }>(
   theirHandler: ((event: T) => void) | undefined,
   ourHandler: (event: T) => void
 ): (event: T) => void {

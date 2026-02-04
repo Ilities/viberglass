@@ -16,7 +16,7 @@ interface EnhanceFormProps {
 
 export function EnhanceForm({ ticket, clankers, project }: EnhanceFormProps) {
   const navigate = useNavigate()
-  const [selectedClankerId, setSelectedClankerId] = useState('')
+  const [selectedClankerId, setSelectedClankerId] = useState('__placeholder__')
   const [prompt, setPrompt] = useState('')
   const [isRunning, setIsRunning] = useState(false)
 
@@ -25,16 +25,16 @@ export function EnhanceForm({ ticket, clankers, project }: EnhanceFormProps) {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
 
-    if (!selectedClankerId) {
+    if (!selectedClankerId || selectedClankerId === '__placeholder__') {
       toast.error('Please select a clanker')
       return
     }
 
     setIsRunning(true)
     try {
-      const job = await runTicket(ticket.id, selectedClankerId, prompt || undefined)
+      const job = await runTicket(ticket.id, selectedClankerId, prompt ? { additionalContext: prompt } : undefined)
       toast.success('Enhancement started successfully')
-      navigate(`/project/${project}/jobs/${job.id}`)
+      navigate(`/project/${project}/jobs/${job.data.jobId}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to start enhancement')
       setIsRunning(false)
@@ -48,7 +48,7 @@ export function EnhanceForm({ ticket, clankers, project }: EnhanceFormProps) {
           <Field>
             <Label>Clanker</Label>
             <Select value={selectedClankerId} onChange={(value) => setSelectedClankerId(value)} required>
-              <option value="">Select a clanker...</option>
+              <option value="__placeholder__">Select a clanker...</option>
               {activeClankers.map((clanker) => (
                 <option key={clanker.id} value={clanker.id}>
                   {clanker.name} {clanker.description && `(${clanker.description})`}

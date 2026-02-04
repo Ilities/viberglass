@@ -2,10 +2,12 @@ import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
+  AuthCredentialType,
   ConfigureIntegrationRequest,
   CreateIntegrationRequest,
   Integration,
   IntegrationConfig,
+  IntegrationFieldType,
   IntegrationSummary,
   ProjectIntegrationLink,
   TestIntegrationResponse,
@@ -232,11 +234,11 @@ export interface AvailableIntegrationType {
   label: string
   category: 'scm' | 'ticketing' | 'inbound'
   description: string
-  authTypes: string[]
+  authTypes: AuthCredentialType[]
   configFields: Array<{
     key: string
     label: string
-    type: string
+    type: IntegrationFieldType
     required?: boolean
     description?: string
     options?: Array<{ label: string; value: string }>
