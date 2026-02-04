@@ -6,7 +6,7 @@ import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
-import { getIntegrationConfig, getProjectIntegrations } from '@/service/api/integration-api'
+import { getIntegrationConfig, getAllIntegrationSummaries } from '@/service/api/integration-api'
 import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
 import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
@@ -47,7 +47,7 @@ export function NewProjectPage() {
       setIsLoadingIntegrations(true)
       setIntegrationLoadError(null)
       try {
-        const integrations = await getProjectIntegrations()
+        const integrations = await getAllIntegrationSummaries()
         if (!isActive) return
         setConfiguredIntegrations(
           integrations.filter((integration) => integration.configStatus === 'configured')
@@ -103,7 +103,8 @@ export function NewProjectPage() {
 
     try {
       // If using a preconfigured integration, fetch its credentials from the integration settings
-      const manualTicketSystem = (formData.get('ticket_system_manual') as string) || ''
+      const manualTicketSystemRaw = formData.get('ticket_system_manual') as string || '__placeholder__'
+      const manualTicketSystem = manualTicketSystemRaw === '__placeholder__' ? '' : manualTicketSystemRaw
       const configuredTicketSystem = (formData.get('ticket_system') as string) || 'none'
       const ticketSystem = manualTicketSystem || configuredTicketSystem
       let credentials: AuthCredentials = { type: 'api_key' }
@@ -215,6 +216,8 @@ export function NewProjectPage() {
                       placeholder="https://github.com/org/repo"
                       value={url}
                       onChange={(event) => updateRepositoryUrl(index, event.target.value)}
+                      className="flex-1 min-w-0"
+                      style={{ width: '100%' }}
                     />
                     {repositoryUrls.length > 1 ? (
                       <Button
@@ -319,8 +322,8 @@ export function NewProjectPage() {
                       <div className="mt-4 space-y-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
                         <Field>
                           <Label>Integration Type</Label>
-                          <Select name="ticket_system_manual">
-                            <option value="">Select a system...</option>
+                          <Select name="ticket_system_manual" defaultValue="__placeholder__">
+                            <option value="__placeholder__">Select a system...</option>
                             {ALL_INTEGRATIONS.map((system) => (
                               <option key={system.id} value={system.id}>
                                 {system.name}

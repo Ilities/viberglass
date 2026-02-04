@@ -55,20 +55,26 @@ type ButtonProps = (
   | { color?: ButtonColor; outline?: never; plain?: never }
   | { color?: never; outline: true; plain?: never }
   | { color?: never; outline?: never; plain: true }
-) & { className?: string; children: React.ReactNode } & (
+) & { className?: string; children: React.ReactNode; size?: 'small' | 'medium' | 'large' } & (
     | ({ href?: never } & React.ButtonHTMLAttributes<HTMLButtonElement>)
     | ({ href: string; disabled?: boolean } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
   )
 
+const sizeClasses = {
+  small: 'px-2 py-1 text-xs',
+  medium: 'px-4 py-2 text-sm',
+  large: 'px-6 py-3 text-base',
+}
+
 export const Button = forwardRef(function Button(
-  { color, outline, plain, className, children, ...props }: ButtonProps,
+  { color, outline, plain, className, children, size, ...props }: ButtonProps,
   ref: React.ForwardedRef<HTMLElement>
 ) {
   const { variant, color: mappedColor } = getVariantAndColor(color, outline, plain)
   const isLink = typeof props.href === 'string'
 
   const gradientClass = color === 'brand/gradient' ? 'bg-brand-gradient' : undefined
-  const combinedClassName = clsx(className, gradientClass) || undefined
+  const combinedClassName = clsx(className, gradientClass, size && sizeClasses[size]) || undefined
 
   if (isLink) {
     return (
