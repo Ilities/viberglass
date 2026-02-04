@@ -19,8 +19,8 @@ export function TicketsPage() {
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const status = searchParams.get('status') ?? ''
-  const severity = searchParams.get('severity') ?? ''
+  const status = searchParams.get('status') ?? 'all'
+  const severity = searchParams.get('severity') ?? 'all'
   const search = searchParams.get('search') ?? ''
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export function TicketsPage() {
   }
 
   const filteredTickets = tickets.filter((ticket) => {
-    if (status && ticket.status !== status) return false
-    if (severity && ticket.severity !== severity) return false
+    if (status !== 'all' && ticket.status !== status) return false
+    if (severity !== 'all' && ticket.severity !== severity) return false
     if (search && !ticket.title.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
@@ -81,13 +81,13 @@ export function TicketsPage() {
           </div>
         </div>
         <Select name="status" defaultValue={status}>
-          <option value="">All Status</option>
+          <option value="all">All Status</option>
           <option value="open">Open</option>
           <option value="resolved">Resolved</option>
           <option value="in_progress">In Progress</option>
         </Select>
         <Select name="severity" defaultValue={severity}>
-          <option value="">All Severities</option>
+          <option value="all">All Severities</option>
           <option value="critical">Critical</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>

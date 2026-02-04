@@ -1,8 +1,8 @@
 import { Heading as RadixHeading } from '@radix-ui/themes'
 
-type HeadingProps = { level?: 1 | 2 | 3 | 4 | 5 | 6 } & React.ComponentPropsWithoutRef<
+type HeadingProps = { level?: 1 | 2 | 3 | 4 | 5 | 6 } & Omit<React.ComponentPropsWithoutRef<
   'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
->
+>, 'color'>
 
 export function Heading({ className, level = 1, ...props }: HeadingProps) {
   return (

@@ -321,12 +321,11 @@ function IntegrationLinkCard({ integration, onLink, onUnlink, isLoading }: Integ
       <div className="mt-4 flex items-center gap-2">
         {integration.isLinked ? (
           <Button
-            color="red"
             outline
             size="small"
             onClick={onUnlink}
             disabled={isLoading}
-            className="w-full"
+            className="w-full text-red-600 border-red-600 hover:bg-red-50"
           >
             <LinkBreakIcon className="mr-2 h-4 w-4" />
             {isLoading ? 'Unlinking...' : 'Unlink'}

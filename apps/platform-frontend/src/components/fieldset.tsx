@@ -59,7 +59,7 @@ export function Field({
   )
 }
 
-export function Label({ className, ...props }: { className?: string } & React.ComponentPropsWithoutRef<'label'>) {
+export function Label({ className, ...props }: { className?: string } & Omit<React.ComponentPropsWithoutRef<'label'>, 'color'>) {
   const context = useFieldContext()
   const disabled = context?.disabled
   const htmlFor = props.htmlFor ?? context?.controlId
@@ -83,7 +83,7 @@ export function Label({ className, ...props }: { className?: string } & React.Co
 export function Description({
   className,
   ...props
-}: { className?: string } & React.ComponentPropsWithoutRef<'p'>) {
+}: { className?: string } & Omit<React.ComponentPropsWithoutRef<'p'>, 'color'>) {
   const context = useFieldContext()
   useRegisterFieldDescription()
 
@@ -104,7 +104,7 @@ export function Description({
 export function ErrorMessage({
   className,
   ...props
-}: { className?: string } & React.ComponentPropsWithoutRef<'p'>) {
+}: { className?: string } & Omit<React.ComponentPropsWithoutRef<'p'>, 'color'>) {
   const context = useFieldContext()
   useRegisterFieldError()
 

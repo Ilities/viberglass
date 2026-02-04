@@ -15,7 +15,7 @@ export function JobsPage() {
   const [jobs, setJobs] = useState<JobListItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const status = searchParams.get('status') ?? ''
+  const status = searchParams.get('status') ?? 'all'
   const search = searchParams.get('search') ?? ''
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function JobsPage() {
   }
 
   const filteredJobs = jobs.filter((job) => {
-    if (status && job.status !== status) return false
+    if (status !== 'all' && job.status !== status) return false
     if (search) {
       const searchLower = search.toLowerCase()
       const matchesTask = job.task.toLowerCase().includes(searchLower)
@@ -69,7 +69,7 @@ export function JobsPage() {
           </div>
         </div>
         <Select name="status" defaultValue={status}>
-          <option value="">All Status</option>
+          <option value="all">All Status</option>
           <option value="queued">Queued</option>
           <option value="active">Running</option>
           <option value="completed">Completed</option>

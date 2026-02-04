@@ -10,7 +10,7 @@ export const Textarea = forwardRef(function Textarea(
     ...props
   }: { className?: string; resizable?: boolean; invalid?: boolean } & Omit<
     React.ComponentPropsWithoutRef<'textarea'>,
-    'className'
+    'className' | 'color'
   >,
   ref: React.ForwardedRef<HTMLTextAreaElement>
 ) {
@@ -26,6 +26,7 @@ export const Textarea = forwardRef(function Textarea(
       .filter(Boolean)
       .join(' ') || undefined
 
+  const { defaultValue, value, ...otherProps } = props
   return (
     <span data-slot="control">
       <RadixTextArea
@@ -37,7 +38,9 @@ export const Textarea = forwardRef(function Textarea(
         aria-invalid={isInvalid || undefined}
         disabled={disabled}
         className={className}
-        {...props}
+        defaultValue={typeof defaultValue === 'string' ? defaultValue : undefined}
+        value={typeof value === 'string' ? value : undefined}
+        {...otherProps}
       />
     </span>
   )

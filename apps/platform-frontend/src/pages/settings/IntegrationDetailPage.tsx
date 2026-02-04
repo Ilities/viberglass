@@ -176,7 +176,7 @@ export function IntegrationDetailPage() {
   const integrationEntityId = existingIntegration?.id
 
   const initialValues = useMemo(
-    () => (existingIntegration?.values as Record<string, unknown>) || {},
+    () => (existingIntegration?.values as Record<string, string | number | boolean | string[]>) || {},
     [existingIntegration]
   )
 
@@ -315,7 +315,7 @@ export function IntegrationDetailPage() {
     )
   }
 
-  const IconComponent = INTEGRATION_ICON_COMPONENTS[integrationId] || CircleIcon
+  const IconComponent = (integrationId ? INTEGRATION_ICON_COMPONENTS[integrationId] : undefined) || CircleIcon
 
   const statusConfig = {
     configured: {

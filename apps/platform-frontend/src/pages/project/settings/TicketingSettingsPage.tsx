@@ -41,7 +41,7 @@ export function TicketingSettingsPage() {
               aria-label="Ticketing System"
               name="primary_system"
               value={selectedSystem}
-              onChange={(e) => setSelectedSystem(e.target.value)}
+              onChange={(value) => setSelectedSystem(value)}
             >
               <option value="github">GitHub Issues</option>
               <option value="linear">Linear</option>
