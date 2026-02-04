@@ -1,5 +1,3 @@
-'use client'
-
 import { Button } from '@/components/button'
 import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'

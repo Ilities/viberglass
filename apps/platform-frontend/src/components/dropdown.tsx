@@ -1,5 +1,3 @@
-'use client'
-
 import { DropdownMenu as RadixDropdownMenu } from '@radix-ui/themes'
 import clsx from 'clsx'
 import React, { JSX } from 'react'

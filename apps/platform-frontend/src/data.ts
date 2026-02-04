@@ -5,9 +5,11 @@ import {
 } from '@/service/api/clanker-api'
 import {
   getJobs as apiGetJobs,
+  getJob as apiGetJob,
   getJobQueueStats as apiGetJobQueueStats,
   type JobListItem,
   type JobQueueStats,
+  type JobStatus,
 } from '@/service/api/job-api'
 import { getProjectBySlug as apiGetProjectBySlug, getProjects as apiGetProjects } from '@/service/api/project-api'
 import { getTicketStats as apiGetTicketStats, getTickets } from '@/service/api/ticket-api'
@@ -104,9 +106,17 @@ export async function getJobQueueStats(): Promise<JobQueueStats> {
   return await apiGetJobQueueStats()
 }
 
+export async function getJobDetails(jobId: string): Promise<JobStatus | null> {
+  try {
+    return await apiGetJob(jobId)
+  } catch {
+    return null
+  }
+}
+
 // Re-export formatting utilities for backward compatibility
 export * from './lib/formatters'
 
 // Re-export types for convenience
-export type { AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy, Project, Severity, Ticket }
-export type { JobListItem, JobQueueStats }
+export type { AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy, Project, Severity, Ticket, TicketStats }
+export type { JobListItem, JobQueueStats, JobStatus }

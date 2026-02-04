@@ -1,1 +1,1 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${process.env.BACKEND_PORT ?? 8888}`
+export const API_BASE_URL = import.meta.env.VITE_API_URL || `http://localhost:${import.meta.env.VITE_BACKEND_PORT ?? 8888}`
