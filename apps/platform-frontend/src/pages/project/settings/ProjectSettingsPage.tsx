@@ -39,7 +39,7 @@ export function ProjectSettingsPage() {
   const { project: projectData, isLoading: isProjectLoading, error: projectError } = useProject()
   const [name, setName] = useState('')
   const [ticketSystem, setTicketSystem] = useState<string>('none')
-  const [manualTicketSystem, setManualTicketSystem] = useState('')
+  const [manualTicketSystem, setManualTicketSystem] = useState('__placeholder__')
   const [autoFixEnabled, setAutoFixEnabled] = useState(false)
   const [autoFixTags, setAutoFixTags] = useState('')
   const [repositoryUrls, setRepositoryUrls] = useState<string[]>([''])
@@ -94,7 +94,7 @@ export function ProjectSettingsPage() {
     if (!projectData) return
     setName(projectData.name ?? '')
     setTicketSystem(projectData.ticketSystem ?? 'none')
-    setManualTicketSystem('')
+    setManualTicketSystem('__placeholder__')
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
     setAgentInstructions(projectData.agentInstructions ?? '')
@@ -133,7 +133,7 @@ export function ProjectSettingsPage() {
     setShowAllIntegrations((prev) => {
       const next = !prev
       if (!next) {
-        setManualTicketSystem('')
+        setManualTicketSystem('__placeholder__')
         setCredentialsJson('')
       }
       return next
@@ -151,7 +151,7 @@ export function ProjectSettingsPage() {
     if (!projectData) return
     setName(projectData.name ?? '')
     setTicketSystem(projectData.ticketSystem ?? 'none')
-    setManualTicketSystem('')
+    setManualTicketSystem('__placeholder__')
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
     setAgentInstructions(projectData.agentInstructions ?? '')
@@ -266,7 +266,7 @@ export function ProjectSettingsPage() {
             ? [updatedProject.repositoryUrl]
             : ['']
       )
-      setManualTicketSystem('')
+      setManualTicketSystem('__placeholder__')
       setCredentialsJson('')
       setShowAllIntegrations(false)
     } catch (submitError: any) {
@@ -353,6 +353,8 @@ export function ProjectSettingsPage() {
                         placeholder="https://github.com/org/repo"
                         value={url}
                         onChange={(event) => updateRepositoryUrl(index, event.target.value)}
+                        className="flex-1 min-w-0"
+                        style={{ width: '100%' }}
                       />
                       {repositoryUrls.length > 1 ? (
                         <Button
@@ -420,7 +422,7 @@ export function ProjectSettingsPage() {
                       <Select
                         name="ticket_system"
                         value={ticketSystem}
-                        onChange={(event) => setTicketSystem(event.target.value)}
+                        onChange={(value) => setTicketSystem(value)}
                       >
                         <option value="none">Select an integration...</option>
                         {configuredIntegrations.map((integration) => (
@@ -459,9 +461,9 @@ export function ProjectSettingsPage() {
                             <Select
                               name="ticket_system_manual"
                               value={manualTicketSystem}
-                              onChange={(event) => setManualTicketSystem(event.target.value)}
+                              onChange={(value) => setManualTicketSystem(value)}
                             >
-                              <option value="">Select a system...</option>
+                              <option value="__placeholder__">Select a system...</option>
                               {ALL_INTEGRATIONS.map((system) => (
                                 <option key={system.id} value={system.id}>
                                   {system.name}

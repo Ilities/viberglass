@@ -17,7 +17,7 @@ export function Avatar({
   alt = '',
   className,
   ...props
-}: AvatarProps & React.ComponentPropsWithoutRef<'span'>) {
+}: AvatarProps & Omit<React.ComponentPropsWithoutRef<'span'>, 'color'>) {
   return (
     <RadixAvatar
       data-slot="avatar"

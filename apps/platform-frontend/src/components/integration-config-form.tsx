@@ -201,10 +201,10 @@ export function IntegrationConfigForm({
         return (
           <Select
             name={field.key}
-            value={(value as string) || ''}
-            onChange={(val) => handleFieldChange(field.key, val)}
+            value={(value as string) || '__placeholder__'}
+            onChange={(val) => handleFieldChange(field.key, val === '__placeholder__' ? '' : val)}
           >
-            <option value="">Select...</option>
+            <option value="__placeholder__">Select...</option>
             {field.options?.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}

@@ -63,7 +63,7 @@ export function TicketMediaPage() {
         <Subheading>Screenshot</Subheading>
         <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
           <img
-            src={ticket.screenshot}
+            src={ticket.screenshot.url}
             alt="Ticket screenshot"
             className="max-w-full rounded-lg"
           />

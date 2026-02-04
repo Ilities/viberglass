@@ -66,6 +66,7 @@ export function Select({
   invalid,
   name,
   id,
+  required,
 }: {
   value?: string
   defaultValue?: string
@@ -77,6 +78,7 @@ export function Select({
   invalid?: boolean
   name?: string
   id?: string
+  required?: boolean
 }) {
   const fieldContext = useFieldContext()
   const isDisabled = disabled ?? fieldContext?.disabled
@@ -99,6 +101,7 @@ export function Select({
         onValueChange={onChange}
         disabled={isDisabled}
         name={name}
+        required={required}
       >
         <RadixSelect.Trigger
           id={id ?? fieldContext?.controlId}
