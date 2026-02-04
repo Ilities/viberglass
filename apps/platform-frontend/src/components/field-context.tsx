@@ -1,5 +1,3 @@
-'use client'
-
 import React, { createContext, useContext, useEffect, useId, useMemo, useState } from 'react'
 
 type FieldContextValue = {

@@ -1,5 +1,3 @@
-'use client'
-
 import { Button as RadixButton } from '@radix-ui/themes'
 import clsx from 'clsx'
 import React, { forwardRef } from 'react'

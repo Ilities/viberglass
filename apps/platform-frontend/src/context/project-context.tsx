@@ -1,7 +1,5 @@
-'use client'
-
 import { getProjectBySlug, Project } from '@/service/api/project-api'
-import { useParams } from 'next/navigation'
+import { useParams } from 'react-router-dom'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 
 interface ProjectContextType {

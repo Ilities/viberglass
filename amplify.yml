@@ -1,4 +1,4 @@
-# AWS Amplify build configuration for Next.js 15 static export deployment
+# AWS Amplify build configuration for Vite + React static export deployment
 # Docs: https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html
 #
 # NOTE: This file is used when Amplify is connected to a Git repository (auto-deployment).
@@ -24,15 +24,14 @@ applications:
         postBuild:
           commands:
             # Verify static build output
-            - ls -la out
+            - ls -la dist
             - echo "Static build completed successfully"
 
       artifacts:
-        baseDirectory: out
+        baseDirectory: dist
         files:
           - "**/*"
 
       cache:
         paths:
           - node_modules/**/*
-          - .next/cache/**/*

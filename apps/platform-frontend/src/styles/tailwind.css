@@ -3,11 +3,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    /* Fonts - using CSS variables from next/font */
-    --font-sans: var(--font-inter), Inter, sans-serif;
-    --font-sans--font-feature-settings: 'cv11';
-    --font-display: var(--font-orbitron), 'Orbitron', sans-serif;
-    --font-mono: var(--font-space-mono), 'Space Mono', monospace;
+    /* Fonts - Google Fonts loaded via <link> in index.html */
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-display: 'Orbitron', sans-serif;
+    --font-mono: 'Space Mono', monospace;
 
     /* Brand Colors - Primary Palette */
     --color-brand-burnt-orange: var(--accent-9);

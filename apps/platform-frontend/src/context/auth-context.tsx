@@ -1,5 +1,3 @@
-'use client'
-
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { getCurrentUser, login as loginApi, logout as logoutApi, register as registerApi } from '@/service/api/auth-api'
 import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken } from '@/service/auth-storage'
@@ -8,7 +6,7 @@ import type { AuthUser } from '@/service/api/auth-api'
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
 const AUTH_ENABLED =
-  process.env.NEXT_PUBLIC_AUTH_ENABLED !== 'false' && process.env.NEXT_PUBLIC_AUTH_ENABLED !== '0'
+  import.meta.env.VITE_AUTH_ENABLED !== 'false' && import.meta.env.VITE_AUTH_ENABLED !== '0'
 
 const AUTH_DISABLED_USER: AuthUser = {
   id: 'auth-disabled',
