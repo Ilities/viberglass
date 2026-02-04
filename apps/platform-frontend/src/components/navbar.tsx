@@ -1,5 +1,3 @@
-'use client'
-
 import clsx from 'clsx'
 import { LayoutGroup, motion } from 'motion/react'
 import React, { forwardRef, useId } from 'react'

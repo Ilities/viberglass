@@ -1,5 +1,3 @@
-'use client'
-
 import { IntegrationCard, IntegrationCardSkeleton } from '@/components/integration-card'
 import type { IntegrationSummary } from '@viberglass/types'
 

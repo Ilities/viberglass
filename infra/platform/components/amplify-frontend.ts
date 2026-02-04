@@ -12,7 +12,7 @@ export interface AmplifyFrontendOptions {
   backendUrl: pulumi.Input<string>;
   /** Branch name (default: "production" for prod, "main" otherwise) */
   branchName?: string;
-  /** Frontend framework (default: "Next.js - Static") */
+  /** Frontend framework (default: "Web") */
   framework?: string;
   /** Amplify stage (default: "PRODUCTION" for prod, "DEVELOPMENT" otherwise) */
   stage?: string;
@@ -82,22 +82,21 @@ applications:
         postBuild:
           commands:
             # Verify static build output
-            - ls -la out
+            - ls -la dist
             - echo "Static build completed successfully"
       artifacts:
-        baseDirectory: out
+        baseDirectory: dist
         files:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
-          - .next/cache/**/*`;
+          - node_modules/**/*`;
 
 /**
  * Creates an Amplify app and branch for static frontend deployment.
  *
  * This component creates:
- * 1. An Amplify app configured for Next.js static export with WEB platform
+ * 1. An Amplify app configured for Vite + React static export with WEB platform
  * 2. An Amplify branch with environment-specific configuration
  * 3. SSM parameters storing the app configuration for CI/CD access
  *
@@ -118,7 +117,7 @@ export function createAmplifyFrontend(
   const isProd = config.environment === "prod";
   const branchName = options.branchName ?? (isProd ? "production" : "main");
   const stage = options.stage ?? (isProd ? "PRODUCTION" : "DEVELOPMENT");
-  const framework = options.framework ?? "Next.js - Static";
+  const framework = options.framework ?? "Web";
   const customDomain = options.customDomain;
 
   // Enable auto-build when repository is connected (git-based deployment)
@@ -131,9 +130,8 @@ export function createAmplifyFrontend(
     // Build spec for monorepo: install all deps, build shared packages, build frontend
     buildSpec: buildSpec,
     environmentVariables: {
-      NEXT_PUBLIC_API_URL: backendUrl,
+      VITE_API_URL: backendUrl,
       AMPLIFY_MONOREPO_APP_ROOT: "apps/platform-frontend",
-      NEXT_TELEMETRY_DISABLED: "1",
     },
     enableAutoBranchCreation: false, // Security: Disable auto-branch creation
     // SPA fallback: serve index.html for any path that doesn't match a static file.
@@ -164,9 +162,8 @@ export function createAmplifyFrontend(
       framework: framework,
       enableAutoBuild: enableAutoBuild, // Auto-build when connected to git
       environmentVariables: {
-        NEXT_PUBLIC_API_URL: backendUrl,
+        VITE_API_URL: backendUrl,
         AMPLIFY_MONOREPO_APP_ROOT: "apps/platform-frontend",
-        NEXT_TELEMETRY_DISABLED: "1",
       },
       tags: config.tags,
     },

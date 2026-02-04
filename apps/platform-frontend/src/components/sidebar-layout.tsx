@@ -1,5 +1,3 @@
-'use client'
-
 import * as Dialog from '@radix-ui/react-dialog'
 import { HamburgerMenuIcon, Cross2Icon } from '@radix-ui/react-icons'
 import { motion } from 'motion/react'

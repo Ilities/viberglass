@@ -1,5 +1,3 @@
-'use client'
-
 import * as Dialog from '@radix-ui/react-dialog'
 import clsx from 'clsx'
 import { LayoutGroup, motion } from 'motion/react'
