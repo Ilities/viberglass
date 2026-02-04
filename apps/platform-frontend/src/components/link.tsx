@@ -1,9 +1,10 @@
-import NextLink, { type LinkProps } from 'next/link'
+import { Link as RouterLink, type LinkProps as RouterLinkProps } from 'react-router-dom'
 import React, { forwardRef } from 'react'
 import { composeEventHandlers, useDataInteraction } from './interaction'
 
 export const Link = forwardRef(function Link(
   {
+    href,
     disabled,
     focusOnHover,
     onClick,
@@ -17,14 +18,15 @@ export const Link = forwardRef(function Link(
     onBlur,
     tabIndex,
     ...props
-  }: LinkProps & React.ComponentPropsWithoutRef<'a'> & { disabled?: boolean; focusOnHover?: boolean },
+  }: { href: string } & Omit<RouterLinkProps, 'to'> & React.ComponentPropsWithoutRef<'a'> & { disabled?: boolean; focusOnHover?: boolean },
   ref: React.ForwardedRef<HTMLAnchorElement>
 ) {
   const { dataAttributes, eventHandlers } = useDataInteraction({ disabled, focusOnHover })
 
   return (
-    <NextLink
+    <RouterLink
       {...props}
+      to={href}
       ref={ref}
       {...dataAttributes}
       aria-disabled={disabled ? true : undefined}

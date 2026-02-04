@@ -1,5 +1,3 @@
-'use client'
-
 import { Select as RadixSelect } from '@radix-ui/themes'
 import React from 'react'
 import { useFieldContext } from './field-context'

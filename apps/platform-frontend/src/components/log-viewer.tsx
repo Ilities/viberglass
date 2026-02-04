@@ -1,5 +1,3 @@
-'use client'
-
 import { Badge } from '@/components/badge'
 import { Subheading } from '@/components/heading'
 import type { LogEntry } from '@/service/api/job-api'

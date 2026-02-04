@@ -1,5 +1,3 @@
-'use client'
-
 import { Badge } from '@/components/badge'
 import type { IntegrationSummary, TicketSystem } from '@viberglass/types'
 import {
@@ -8,7 +6,7 @@ import {
   ExclamationTriangleIcon,
   GitHubLogoIcon,
 } from '@radix-ui/react-icons'
-import Link from 'next/link'
+import { Link } from '@/components/link'
 
 // Icon mapping for integrations
 const INTEGRATION_ICON_COMPONENTS: Record<

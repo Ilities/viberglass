@@ -1,11 +1,9 @@
-'use client'
-
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { runTicket } from '@/service/api/job-api'
 import type { Clanker, Ticket } from '@viberglass/types'
-import { useRouter } from 'next/navigation'
+import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -18,7 +16,7 @@ interface RunTicketModalProps {
 }
 
 export function RunTicketModal({ ticket, clankers, project, open, onClose }: RunTicketModalProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const [selectedClankerId, setSelectedClankerId] = useState<string>(activeClankers[0]?.id ?? '')
   const [isRunning, setIsRunning] = useState(false)
@@ -52,12 +50,12 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
         description: `Running "${ticket.title}" with ${selectedClanker.name}`,
         action: {
           label: 'View Job',
-          onClick: () => router.push(`/project/${project}/jobs/${jobId}`),
+          onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
         },
       })
 
       // Navigate to job page
-      router.push(`/project/${project}/jobs/${jobId}`)
+      navigate(`/project/${project}/jobs/${jobId}`)
       onClose()
     } catch (error) {
       console.error('Failed to run ticket:', error)

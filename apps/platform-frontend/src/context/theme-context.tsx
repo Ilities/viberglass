@@ -1,5 +1,3 @@
-'use client'
-
 import { Theme as RadixTheme } from '@radix-ui/themes'
 import { createContext, useContext, useEffect, useState } from 'react'
 

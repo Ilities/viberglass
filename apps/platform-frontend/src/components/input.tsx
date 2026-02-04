@@ -1,5 +1,3 @@
-'use client'
-
 import { TextField } from '@radix-ui/themes'
 import React, { forwardRef } from 'react'
 import { useFieldContext } from './field-context'

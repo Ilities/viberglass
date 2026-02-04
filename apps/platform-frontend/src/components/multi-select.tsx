@@ -1,5 +1,3 @@
-'use client'
-
 import { Checkbox as RadixCheckbox, Text } from '@radix-ui/themes'
 import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'

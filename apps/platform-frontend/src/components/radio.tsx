@@ -1,5 +1,3 @@
-'use client'
-
 import { RadioGroup as RadixRadioGroup } from '@radix-ui/themes'
 import clsx from 'clsx'
 import type React from 'react'
