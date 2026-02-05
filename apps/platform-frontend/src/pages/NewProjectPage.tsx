@@ -6,7 +6,7 @@ import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
-import { getIntegrationConfig, getAllIntegrationSummaries } from '@/service/api/integration-api'
+import { getIntegrations, getAllIntegrationSummaries } from '@/service/api/integration-api'
 import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
 import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
@@ -131,11 +131,10 @@ export function NewProjectPage() {
             throw new Error('Invalid JSON in Credentials field')
           }
         } else {
-          const integrationConfig = await getIntegrationConfig(
-            undefined,
-            ticketSystem as TicketSystem
-          )
-          if (integrationConfig) {
+          // Use the new integration API to fetch the integration by system type
+          const integrations = await getIntegrations(ticketSystem as TicketSystem)
+          if (integrations.length > 0) {
+            const integration = integrations[0]
             const credentialKeys = [
               'apiKey',
               'username',
@@ -146,13 +145,15 @@ export function NewProjectPage() {
               'refreshToken',
               'baseUrl',
             ] as const
-            const extracted: AuthCredentials = { type: integrationConfig.authType }
+            const extracted: AuthCredentials = { type: integration.authType }
             credentialKeys.forEach((key) => {
-              if (integrationConfig.values[key] !== undefined) {
-                extracted[key] = integrationConfig.values[key] as AuthCredentials[typeof key]
+              if (integration.values[key] !== undefined) {
+                extracted[key] = integration.values[key] as AuthCredentials[typeof key]
               }
             })
             credentials = extracted
+          } else {
+            throw new Error(`No configured integration found for ${ticketSystem}. Please configure an integration first.`)
           }
         }
       }
