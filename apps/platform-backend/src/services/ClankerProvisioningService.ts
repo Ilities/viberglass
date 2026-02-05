@@ -20,6 +20,67 @@ const DEFAULT_LOCAL_DOCKER_IMAGE = "viberator-worker:local";
 const DEFAULT_DOCKERFILE_PATH =
   "infra/workers/docker/viberator-docker-worker.Dockerfile";
 
+// Worker image mappings based on agent type and task type
+interface WorkerImageMapping {
+  docker?: string;
+  ecs?: string;
+  lambda?: string;
+}
+
+// Get the appropriate worker image based on clanker configuration
+function getWorkerImageForClanker(
+  clanker: Clanker,
+  strategy: "docker" | "ecs" | "lambda",
+): string | undefined {
+  const agentType = clanker.agent;
+  const deploymentConfig = clanker.deploymentConfig as Record<string, unknown>;
+
+  // If explicitly configured, use that
+  const explicitImage =
+    strategy === "docker"
+      ? (deploymentConfig?.containerImage as string)
+      : strategy === "ecs"
+        ? (deploymentConfig?.containerImage as string)
+        : (deploymentConfig?.imageUri as string);
+
+  if (explicitImage) {
+    return explicitImage;
+  }
+
+  // Auto-select based on agent type if available in environment
+  const imagePrefix = process.env.VIBERATOR_WORKER_IMAGE_PREFIX || "";
+  const registry = process.env.VIBERATOR_WORKER_REGISTRY || "";
+
+  // Agent-specific images
+  if (agentType === "qwen-cli" || agentType === "qwen-api") {
+    return buildImageUrl(registry, imagePrefix, "qwen", strategy);
+  }
+  if (agentType === "gemini-cli") {
+    return buildImageUrl(registry, imagePrefix, "gemini", strategy);
+  }
+  if (agentType === "mistral-vibe") {
+    return buildImageUrl(registry, imagePrefix, "mistral", strategy);
+  }
+  if (agentType === "codex") {
+    return buildImageUrl(registry, imagePrefix, "codex", strategy);
+  }
+
+  // Default to multi-agent image for flexibility
+  return buildImageUrl(registry, imagePrefix, "multi-agent", strategy);
+}
+
+function buildImageUrl(
+  registry: string,
+  prefix: string,
+  suffix: string,
+  strategy: "docker" | "ecs" | "lambda",
+): string {
+  const parts = [registry, prefix, `viberator-worker-${suffix}`].filter(
+    Boolean,
+  );
+  return parts.join("/");
+}
+
 interface DockerDeploymentConfig {
   containerImage?: string;
   environmentVariables?: Record<string, string>;
@@ -154,7 +215,10 @@ export class ClankerProvisioningService {
 
   private async provisionDocker(clanker: Clanker): Promise<ProvisioningResult> {
     const config = (clanker.deploymentConfig || {}) as DockerDeploymentConfig;
-    const containerImage = config.containerImage || DEFAULT_LOCAL_DOCKER_IMAGE;
+    const containerImage =
+      config.containerImage ||
+      getWorkerImageForClanker(clanker, "docker") ||
+      DEFAULT_LOCAL_DOCKER_IMAGE;
 
     await this.buildDockerImage(containerImage);
 
@@ -172,6 +236,15 @@ export class ClankerProvisioningService {
 
   private async provisionEcs(clanker: Clanker): Promise<ProvisioningResult> {
     const config = (clanker.deploymentConfig || {}) as EcsProvisioningConfig;
+
+    // Auto-select container image if not specified
+    if (!config.containerImage) {
+      const selectedImage = getWorkerImageForClanker(clanker, "ecs");
+      if (selectedImage) {
+        config.containerImage = selectedImage;
+      }
+    }
+
     const taskDefinitionArn = await this.ensureTaskDefinition(clanker, config);
 
     // For managed mode, persist cluster ARN from env vars so the invoker can find it
@@ -194,6 +267,15 @@ export class ClankerProvisioningService {
 
   private async provisionLambda(clanker: Clanker): Promise<ProvisioningResult> {
     const config = (clanker.deploymentConfig || {}) as LambdaProvisioningConfig;
+
+    // Auto-select image URI if not specified
+    if (!config.imageUri) {
+      const selectedImage = getWorkerImageForClanker(clanker, "lambda");
+      if (selectedImage) {
+        config.imageUri = selectedImage;
+      }
+    }
+
     const functionInfo = await this.ensureLambdaFunction(clanker, config);
 
     const availability = await this.checkLambdaAvailability({
