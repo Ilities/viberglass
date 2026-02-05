@@ -8,7 +8,7 @@ import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
-import { getIntegrationConfig, getProjectIntegrationSummaries } from '@/service/api/integration-api'
+import { getIntegrations, getProjectIntegrationSummaries } from '@/service/api/integration-api'
 import { updateProject, type UpdateProjectRequest } from '@/service/api/project-api'
 import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
 import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
@@ -206,17 +206,16 @@ export function ProjectSettingsPage() {
           throw new Error('Invalid JSON in Credentials field')
         }
       } else if (selectedTicketSystem !== projectData.ticketSystem) {
-        const integrationConfig = await getIntegrationConfig(
-          undefined,
-          selectedTicketSystem as TicketSystem
-        )
+        // Use the new integration API to fetch the integration by system type
+        const integrationList = await getIntegrations(selectedTicketSystem as TicketSystem)
 
-        if (!integrationConfig) {
+        if (integrationList.length === 0) {
           throw new Error(
             'No credentials found for the selected integration. Provide credentials manually.'
           )
         }
 
+        const integration = integrationList[0]
         const credentialKeys = [
           'apiKey',
           'username',
@@ -227,10 +226,10 @@ export function ProjectSettingsPage() {
           'refreshToken',
           'baseUrl',
         ] as const
-        const extracted: AuthCredentials = { type: integrationConfig.authType }
+        const extracted: AuthCredentials = { type: integration.authType }
         credentialKeys.forEach((key) => {
-          if (integrationConfig.values[key] !== undefined) {
-            extracted[key] = integrationConfig.values[key] as AuthCredentials[typeof key]
+          if (integration.values[key] !== undefined) {
+            extracted[key] = integration.values[key] as AuthCredentials[typeof key]
           }
         })
         credentialsUpdate = extracted
