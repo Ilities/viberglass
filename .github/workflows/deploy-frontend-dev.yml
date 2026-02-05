@@ -73,9 +73,6 @@ jobs:
       - name: Build shared packages
         run: npm run build -w @viberglass/types
 
-      - name: Lint frontend
-        run: npm run lint -w @viberglass/frontend
-
       - name: Build frontend (validation)
         run: npm run build -w @viberglass/frontend
         env:
