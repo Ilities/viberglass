@@ -67,7 +67,16 @@ jobs:
           echo "backendUrl=$API_URL" >> $GITHUB_OUTPUT
           echo "NEXT_PUBLIC_API_URL=$API_URL" >> $GITHUB_ENV
 
-      - name: Build frontend with environment variables
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build shared packages
+        run: npm run build -w @viberglass/types
+
+      - name: Lint frontend
+        run: npm run lint -w @viberglass/frontend
+
+      - name: Build frontend (validation)
         run: npm run build -w @viberglass/frontend
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.get-config.outputs.backendUrl }}
