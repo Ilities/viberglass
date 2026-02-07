@@ -4,7 +4,6 @@ import { Button } from '@/components/button'
 import { DescriptionList, DescriptionTerm, DescriptionDetails } from '@/components/description-list'
 import { Divider } from '@/components/divider'
 import { Heading, Subheading } from '@/components/heading'
-import { ClankerHealth } from './clanker-health'
 import { getClankerBySlug, formatClankerStatus, formatDeploymentStrategy } from '@/data'
 import { getSecret } from '@/service/api/secret-api'
 import type { Secret } from '@/service/api/secret-api'
@@ -112,8 +111,6 @@ export function ClankerDetailPage() {
                 </div>
               )}
             </DescriptionDetails>
-
-            <ClankerHealth clankerId={clanker.id} />
 
             <DescriptionTerm>Deployment Strategy</DescriptionTerm>
             <DescriptionDetails>
