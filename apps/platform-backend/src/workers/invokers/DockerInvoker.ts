@@ -69,6 +69,15 @@ export class DockerInvoker implements WorkerInvoker {
     try {
       // Create container with unique name
       const jsonPayload = JSON.stringify(payload);
+      const workerSsmEnvironment: Record<string, string> = {
+        SECRETS_SSM_PREFIX:
+          process.env.SECRETS_SSM_PREFIX || "/viberator/secrets",
+      };
+
+      if (process.env.SSM_PARAMETER_PREFIX) {
+        workerSsmEnvironment.SSM_PARAMETER_PREFIX =
+          process.env.SSM_PARAMETER_PREFIX;
+      }
 
       // Determine platform API URL for Docker container
       // Priority: env var > host network mode > bridge network with host.docker.internal
@@ -103,6 +112,7 @@ export class DockerInvoker implements WorkerInvoker {
           `JOB_ID=${job.id}`,
           `PLATFORM_API_URL=${platformApiUrl}`,
           ...this.formatEnvironmentVars({
+            ...workerSsmEnvironment,
             ...secretEnvironment,
             ...dockerConfig.environmentVariables,
           }),

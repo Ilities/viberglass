@@ -134,6 +134,7 @@ export interface JobListItem {
   finishedAt: string | null
   ticketId: string | null
   ticket: JobListItemTicket | null
+  projectSlug?: string
 }
 
 export interface JobListResponse {

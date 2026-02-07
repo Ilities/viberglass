@@ -201,6 +201,7 @@ export interface JobsTable {
   clanker_id: string | null;
   last_heartbeat: Generated<Timestamp> | null;
   last_heartbeat_grace_period_seconds: Generated<number>;
+  callback_token: Generated<string>;
 }
 
 export interface JobProgressUpdatesTable {

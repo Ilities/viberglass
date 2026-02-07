@@ -9,7 +9,7 @@ import { ExternalLinkIcon } from '@radix-ui/react-icons'
 
 interface JobsTableProps {
   jobs: JobListItem[]
-  project: string
+  project?: string
 }
 
 function formatDuration(start: string | null, end: string | null): string {
@@ -45,12 +45,15 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
         </TableRow>
       </TableHead>
       <TableBody>
-        {jobs.map((job) => (
-          <TableRow
-            key={job.jobId}
-            href={`/project/${project}/jobs/${job.jobId}`}
-            title={`View job ${job.jobId}`}
-          >
+        {jobs.map((job) => {
+          const jobProject = job.projectSlug || project
+          if (!jobProject) return null
+          return (
+            <TableRow
+              key={job.jobId}
+              href={`/project/${jobProject}/jobs/${job.jobId}`}
+              title={`View job ${job.jobId}`}
+            >
             <TableCell>
               <JobStatusIndicator status={job.status} />
             </TableCell>
@@ -85,7 +88,8 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
               {formatTimestamp(job.createdAt)}
             </TableCell>
           </TableRow>
-        ))}
+          )
+        })}
       </TableBody>
     </Table>
   )

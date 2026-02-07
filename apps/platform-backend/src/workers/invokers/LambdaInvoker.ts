@@ -144,6 +144,7 @@ export class LambdaInvoker implements WorkerInvoker {
       deploymentConfig: clanker.deploymentConfig,
       agent: clanker.agent || "claude-code",
       secrets: secretMetadata,
+      callbackToken: job.callbackToken,
       projectConfig: project
         ? {
             id: project.id,

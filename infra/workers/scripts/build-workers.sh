@@ -14,7 +14,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Navigate to repo root (script is at infra/workers/scripts/, go up 3 levels)
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 DOCKER_DIR="$REPO_ROOT/infra/workers/docker"
 TAG="${2:-latest}"
 REGISTRY="${VIBERATOR_WORKER_REGISTRY:-}"

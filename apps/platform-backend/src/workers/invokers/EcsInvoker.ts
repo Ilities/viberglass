@@ -75,7 +75,18 @@ export class EcsInvoker implements WorkerInvoker {
     const environment = [
       { name: "TENANT_ID", value: job.tenantId },
       { name: "JOB_ID", value: job.id },
+      {
+        name: "SECRETS_SSM_PREFIX",
+        value: process.env.SECRETS_SSM_PREFIX || "/viberator/secrets",
+      },
     ];
+
+    if (process.env.SSM_PARAMETER_PREFIX) {
+      environment.push({
+        name: "SSM_PARAMETER_PREFIX",
+        value: process.env.SSM_PARAMETER_PREFIX,
+      });
+    }
 
     if (process.env.PLATFORM_API_URL) {
       environment.push({
@@ -234,6 +245,7 @@ export class EcsInvoker implements WorkerInvoker {
       settings: job.settings,
       instructionFiles: job.context?.instructionFiles ?? [],
       requiredCredentials,
+      callbackToken: job.callbackToken,
       clankerConfig: clanker,
       projectConfig: project
         ? {

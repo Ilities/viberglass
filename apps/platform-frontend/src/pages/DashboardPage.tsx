@@ -302,8 +302,10 @@ export function DashboardPage() {
                 <TableBody>
                   {recentJobs.map((job) => {
                     const statusInfo = formatJobStatus(job.status)
+                    const jobProject = job.projectSlug
+                    if (!jobProject) return null
                     return (
-                      <TableRow key={job.jobId} href={`/jobs/${job.jobId}`} title={`Job ${job.jobId}`}>
+                      <TableRow key={job.jobId} href={`/project/${jobProject}/jobs/${job.jobId}`} title={`Job ${job.jobId}`}>
                         <TableCell>
                           <Badge color={statusInfo.color}>{statusInfo.label}</Badge>
                         </TableCell>
