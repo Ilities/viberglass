@@ -438,6 +438,40 @@ describe("EcsInvoker", () => {
     });
 
     describe("response edge cases", () => {
+      it("should pass CLI job-data command override to ECS container", async () => {
+        mockSend.mockResolvedValueOnce({
+          $metadata: {},
+          tasks: [
+            {
+              taskArn: "arn:aws:ecs:eu-west-1:123456789:task/viberator/abc123",
+            },
+          ],
+          failures: [],
+        });
+
+        await invoker.invoke(mockJob, mockClanker);
+
+        expect(mockSend).toHaveBeenCalledTimes(1);
+        const runTaskInput = mockSend.mock.calls[0][0].input;
+        const override = runTaskInput.overrides.containerOverrides[0];
+
+        expect(override.name).toBe("worker");
+        expect(override.command.slice(0, 3)).toEqual([
+          "node",
+          "dist/cli-worker.js",
+          "--job-data",
+        ]);
+
+        const payload = JSON.parse(override.command[3]);
+        expect(payload.workerType).toBe("docker");
+        expect(payload.jobId).toBe(mockJob.id);
+        expect(payload.tenantId).toBe(mockJob.tenantId);
+        expect(payload.repository).toBe(mockJob.repository);
+        expect(payload.task).toBe(mockJob.task);
+        expect(payload.requiredCredentials).toEqual([]);
+        expect(payload.instructionFiles).toEqual([]);
+      });
+
       it("should throw TRANSIENT error when no task ARN returned", async () => {
         mockSend.mockResolvedValueOnce({
           $metadata: {},
