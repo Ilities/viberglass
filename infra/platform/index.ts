@@ -242,6 +242,7 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   desiredCount: backendDesiredCount,
   minTasks: backendMinTasks,
   maxTasks: backendMaxTasks,
+  imageTag: config.backendImageTag,
   assignPublicIp: backendAssignPublicIp,
   // Allow requests from the Amplify frontend domain (custom domain if set, otherwise default)
   allowedOrigins: config.appDomain
