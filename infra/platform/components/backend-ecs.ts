@@ -153,7 +153,7 @@ export function createBackendEcs(
     },
   );
 
-  // SSM policy for database credentials
+  // SSM policy for database credentials and secrets management
   const ssmPolicy = new aws.iam.Policy(
     `${options.config.environment}-viberglass-backend-ssm-policy`,
     {
@@ -167,6 +167,11 @@ export function createBackendEcs(
               options.databaseSsm.urlPathArn,
               options.databaseSsm.hostPathArn,
             ],
+          },
+          {
+            Action: ["ssm:PutParameter", "ssm:GetParameter"],
+            Effect: "Allow",
+            Resource: `arn:aws:ssm:${options.config.awsRegion}:*:parameter/viberator/secrets/*`,
           },
         ],
       },
