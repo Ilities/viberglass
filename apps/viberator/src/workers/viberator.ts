@@ -76,11 +76,12 @@ export class ViberatorWorker {
       this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger);
       this.gitService = new GitService(this.logger);
 
-      // Initialize callback client
+      // Initialize callback client with callback token for authentication
       this.callbackClient = new CallbackClient(this.logger, {
         platformUrl: process.env.PLATFORM_API_URL,
         maxRetries: 3,
         retryDelay: 1000,
+        callbackToken: payload?.callbackToken,
       });
 
       if (!fs.existsSync(this.workDir)) {

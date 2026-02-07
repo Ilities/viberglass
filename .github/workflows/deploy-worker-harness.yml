@@ -1,0 +1,125 @@
+# Worker Harness Images CI/CD Workflow
+# Automatically builds and pushes worker harness images when Dockerfiles change
+name: Deploy Worker Harness Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/workers/docker/**'
+      - 'apps/viberator/**'
+      - '.github/workflows/deploy-worker-harness.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      harness:
+        description: 'Harness type (or "all" for all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - claude
+          - multi-agent
+          - qwen
+          - gemini
+          - mistral
+          - codex
+          - testing
+          - deployment
+          - fullstack
+      image_tag:
+        description: 'Image tag (default: latest)'
+        required: false
+        default: 'latest'
+        type: string
+
+permissions:
+  id-token: write   # Required for OIDC authentication
+  contents: read    # Required for checkout
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  deploy-dev:
+    name: Build and Push Harness Images (Dev)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'dev'
+    environment:
+      name: dev
+      url: https://console.aws.amazon.com/ecr
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get AWS account ID
+        id: account-id
+        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push harness images
+        env:
+          ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+          HARNESS: ${{ github.event.inputs.harness || 'all' }}
+        run: |
+          ./infra/workers/scripts/setup-harness-images.sh dev "$HARNESS"
+
+  deploy-prod:
+    name: Build and Push Harness Images (Production)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'prod'
+    environment:
+      name: prod
+      url: https://console.aws.amazon.com/ecr
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get AWS account ID
+        id: account-id
+        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push harness images
+        env:
+          ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+          HARNESS: ${{ github.event.inputs.harness || 'all' }}
+        run: |
+          ./infra/workers/scripts/setup-harness-images.sh prod "$HARNESS"

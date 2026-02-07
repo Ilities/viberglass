@@ -46,6 +46,23 @@ Before starting, ensure you have:
 | **ECS access** | `aws ecs list-clusters` | IAM permissions required |
 | **SSM access** | `aws ssm get-parameters-by-path` | IAM permissions required |
 | **VPC** | `aws ec2 describe-vpcs` | Existing VPC with public subnets |
+| **Worker Harness Images** | See below | **[Worker Harness Images Setup](WORKER_HARNESS_IMAGES.md)** |
+
+### Worker Harness Images
+
+For using specialized clankers (multi-agent, testing, deployment, etc.), you need to set up worker harness images:
+
+```bash
+# One-command setup for all harness images
+./infra/workers/scripts/setup-harness-images.sh dev
+```
+
+**Required harness types:**
+- `multi-agent` - For clankers using multiple collaborating agents
+- `testing` - For test execution clankers
+- `deployment` - For deployment automation clankers
+
+See [Worker Harness Images Setup](WORKER_HARNESS_IMAGES.md) for complete documentation.
 
 **Verify AWS access:**
 ```bash

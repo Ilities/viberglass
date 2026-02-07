@@ -71,6 +71,7 @@ See [Productionization Status](docs/PRODUCTIONIZATION_STATUS.md) for complete de
 | [Productionization Status](docs/PRODUCTIONIZATION_STATUS.md) | Complete production-readiness checklist |
 | [Local Development](docs/LOCAL_DEVELOPMENT.md) | Docker Compose setup guide |
 | [Local Docker Clanker Setup](docs/LOCAL_DOCKER_SETUP.md) | Worker containers and local execution |
+| [Worker Harness Images](docs/WORKER_HARNESS_IMAGES.md) | **Setup worker harness images (multi-agent, etc.)** |
 | [AWS ECS Setup](docs/AWS_ECS_SETUP.md) | AWS SaaS deployment |
 | [Database Migrations](docs/operations/database-migrations.md) | Production migration procedures |
 | [Disaster Recovery](docs/operations/disaster-recovery.md) | Recovery procedures and RTO/RPO |
