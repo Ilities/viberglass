@@ -17,9 +17,7 @@ import logger from "../../config/logger";
 const router = Router();
 const jobService = new JobService();
 
-router.use(requireAuth);
-
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       repository,
@@ -64,7 +62,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:jobId", async (req: Request, res: Response) => {
+router.get("/:jobId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
     const job = await jobService.getJobStatus(jobId);
@@ -85,7 +83,7 @@ router.get("/:jobId", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const status = req.query.status as JobStatus;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -105,7 +103,7 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:jobId", async (req: Request, res: Response) => {
+router.delete("/:jobId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
     const result = await jobService.deleteJob(jobId);
@@ -127,7 +125,7 @@ router.delete("/:jobId", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/stats/queue", async (req: Request, res: Response) => {
+router.get("/stats/queue", requireAuth, async (req: Request, res: Response) => {
   try {
     const stats = await jobService.getQueueStats();
 

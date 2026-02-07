@@ -410,6 +410,25 @@ describe("DockerInvoker", () => {
           }),
         );
       });
+
+      it("should include callback token in worker payload", async () => {
+        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+
+        const jobWithCallbackToken: JobData = {
+          ...mockJob,
+          callbackToken: "cb-token-123",
+        };
+
+        await invoker.invoke(jobWithCallbackToken, mockClanker);
+
+        const createContainerCall = mockCreateContainer.mock.calls[0][0];
+        const payloadArg = createContainerCall.Cmd[
+          createContainerCall.Cmd.indexOf("--job-data") + 1
+        ];
+        const payload = JSON.parse(payloadArg);
+
+        expect(payload.callbackToken).toBe("cb-token-123");
+      });
     });
   });
 
