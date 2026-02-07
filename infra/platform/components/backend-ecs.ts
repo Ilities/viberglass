@@ -124,6 +124,12 @@ export function createBackendEcs(
       platform: "linux/amd64",
       imageTag: imageTag,
     },
+    {
+      // Keep previously published images when Pulumi replaces this resource.
+      // Without this, replacement cleanup can remove a digest referenced by a
+      // newly registered task definition when content is unchanged.
+      retainOnDelete: true,
+    },
   );
   const backendImageUri = pulumi.interpolate`${options.repositoryUrl}:${imageTag}`;
 
