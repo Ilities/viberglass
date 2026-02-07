@@ -55,6 +55,7 @@ export interface BackendEcsOptions {
     clusterArn?: pulumi.Input<string>;
     subnetIds?: pulumi.Input<string[]>;
     securityGroupId?: pulumi.Input<string>;
+    logGroupName?: pulumi.Input<string>;
   };
 }
 
@@ -323,6 +324,7 @@ export function createBackendEcs(
           workerCluster: options.worker?.clusterArn ?? "",
           workerSubnets: options.worker?.subnetIds ?? [],
           workerSecurityGroup: options.worker?.securityGroupId ?? "",
+          workerLogGroup: options.worker?.logGroupName ?? "",
         })
         .apply(({
           imageUri,
@@ -335,6 +337,7 @@ export function createBackendEcs(
           workerCluster,
           workerSubnets,
           workerSecurityGroup,
+          workerLogGroup,
         }) => {
           const normalizedWorkerImage = Array.isArray(workerImage)
             ? workerImage[0]
@@ -402,6 +405,12 @@ export function createBackendEcs(
             envVars.push({
               name: "VIBERATOR_ECS_SECURITY_GROUP_IDS",
               value: workerSecurityGroup,
+            });
+          }
+          if (workerLogGroup) {
+            envVars.push({
+              name: "VIBERATOR_ECS_LOG_GROUP",
+              value: workerLogGroup,
             });
           }
 
