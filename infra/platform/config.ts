@@ -117,7 +117,7 @@ export function getConfig(): InfrastructureConfig {
 
 function getCurrentGitSha(): string | undefined {
   try {
-    return execSync("git rev-parse --short=12 HEAD", {
+    return execSync("git rev-parse HEAD", {
       stdio: ["ignore", "pipe", "ignore"],
     })
       .toString()
