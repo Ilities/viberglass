@@ -1,4 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
+import { execSync } from "child_process";
 
 /**
  * Infrastructure configuration loaded from Pulumi stack config.
@@ -27,6 +28,8 @@ export interface InfrastructureConfig {
   appDomain?: string;
   /** Route 53 hosted zone ID for DNS validation and alias records (required if apiDomain is set) */
   route53ZoneId?: string;
+  /** Backend container image tag used for ECS task definitions (defaults to current Git SHA) */
+  backendImageTag: string;
   /** Common tags applied to all resources */
   tags: {
     Environment: string;
@@ -53,6 +56,13 @@ export function getConfig(): InfrastructureConfig {
   const apiDomain = config.get("apiDomain");
   const appDomain = config.get("appDomain");
   const route53ZoneId = config.get("route53ZoneId");
+  const backendImageTag =
+    config.get("backendImageTag") ??
+    process.env.BACKEND_IMAGE_TAG ??
+    process.env.GITHUB_SHA ??
+    process.env.CI_COMMIT_SHA ??
+    getCurrentGitSha() ??
+    "latest";
 
   // Set database defaults based on environment
   let finalDbInstanceClass = dbInstanceClass;
@@ -96,10 +106,23 @@ export function getConfig(): InfrastructureConfig {
     apiDomain,
     appDomain,
     route53ZoneId,
+    backendImageTag,
     tags: {
       Environment: environment,
       Project: "viberglass",
       ManagedBy: "pulumi",
     },
   };
+}
+
+function getCurrentGitSha(): string | undefined {
+  try {
+    return execSync("git rev-parse --short=12 HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return undefined;
+  }
 }
