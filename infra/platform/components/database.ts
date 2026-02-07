@@ -230,7 +230,7 @@ function createRdsInstance(
   const allocatedStorage = options.allocatedStorage ?? 20;
   const multiAz = options.multiAz ?? config.environment === "prod";
   const backupRetentionPeriod =
-    options.backupRetentionPeriod ?? (config.environment === "prod" ? 7 : 1);
+    options.backupRetentionPeriod ?? (config.environment === "prod" ? 30 : 7);
   const deletionProtection =
     options.deletionProtection ?? config.environment === "prod";
   const skipFinalSnapshot =
@@ -263,6 +263,8 @@ function createRdsInstance(
         : `${config.environment}-viberglass-db-final-snapshot`,
       deletionProtection,
       backupRetentionPeriod,
+      enabledCloudwatchLogsExports: ["postgresql", "upgrade"],
+      copyTagsToSnapshot: true,
       monitoringInterval,
       tags: {
         ...config.tags,

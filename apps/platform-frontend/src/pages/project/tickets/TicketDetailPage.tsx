@@ -4,17 +4,24 @@ import { Heading, Subheading } from '@/components/heading'
 import { Table, TableBody, TableCell, TableRow } from '@/components/table'
 import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
 import type { Clanker, Ticket } from '@viberglass/types'
-import { ArrowLeftIcon, EyeOpenIcon } from '@radix-ui/react-icons'
-import { useParams } from 'react-router-dom'
+import { ArrowLeftIcon, EyeOpenIcon, Pencil1Icon, TrashIcon } from '@radix-ui/react-icons'
+import { useParams, useNavigate } from 'react-router-dom'
 import { EnhanceFixButton } from './enhance-fix-button'
 import { TicketRunButton } from './ticket-run-button'
 import { useEffect, useState } from 'react'
+import { deleteTicket, updateTicket } from '@/service/api/ticket-api'
+import { toast } from 'sonner'
+import { EditTicketDialog } from './edit-ticket-dialog'
+import { DeleteTicketDialog } from './delete-ticket-dialog'
 
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
+  const navigate = useNavigate()
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -74,6 +81,14 @@ export function TicketDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setIsEditDialogOpen(true)} outline>
+            <Pencil1Icon className="h-4 w-4" />
+            Edit
+          </Button>
+          <Button onClick={() => setIsDeleteDialogOpen(true)} color="red">
+            <TrashIcon className="h-4 w-4" />
+            Delete
+          </Button>
           <TicketRunButton ticket={ticket} clankers={clankers} project={project!} />
           <EnhanceFixButton href={`/project/${project}/enhance?id=${ticket.id}`} />
           {ticket.screenshot && (
@@ -183,6 +198,37 @@ export function TicketDetailPage() {
           </Table>
         </div>
       </div>
+
+      <EditTicketDialog
+        ticket={ticket}
+        open={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        onSave={async (updates) => {
+          try {
+            const updatedTicket = await updateTicket(ticket.id, updates)
+            setTicket(updatedTicket)
+            setIsEditDialogOpen(false)
+            toast.success('Ticket updated successfully')
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update ticket')
+          }
+        }}
+      />
+
+      <DeleteTicketDialog
+        ticket={ticket}
+        open={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={async () => {
+          try {
+            await deleteTicket(ticket.id)
+            toast.success('Ticket deleted successfully')
+            navigate(`/project/${project}/tickets`)
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to delete ticket')
+          }
+        }}
+      />
     </>
   )
 }

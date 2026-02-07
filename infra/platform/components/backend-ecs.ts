@@ -47,6 +47,13 @@ export interface BackendEcsOptions {
   contextPath?: string;
   /** Allowed CORS origins (comma-separated). Defaults to localhost for development. */
   allowedOrigins?: pulumi.Input<string>;
+  /** Worker infrastructure values for clanker ECS provisioning (optional) */
+  worker?: {
+    executionRoleArn?: pulumi.Input<string>;
+    taskRoleArn?: pulumi.Input<string>;
+    imageUri?: pulumi.Input<string>;
+    clusterArn?: pulumi.Input<string>;
+  };
 }
 
 /**
@@ -232,6 +239,60 @@ export function createBackendEcs(
     },
   );
 
+  // ECS Worker Management policy (for Clanker dynamic task provisioning)
+  const ecsWorkerPolicy = new aws.iam.RolePolicy(
+    `${options.config.environment}-viberglass-backend-ecs-worker`,
+    {
+      role: backendTaskRole.name,
+      policy: pulumi
+        .all([
+          options.worker?.executionRoleArn ?? "",
+          options.worker?.taskRoleArn ?? "",
+        ])
+        .apply(([execRoleArn, taskRoleArn]) => {
+          const passRoleResources: string[] = [];
+          if (execRoleArn) passRoleResources.push(execRoleArn);
+          if (taskRoleArn) passRoleResources.push(taskRoleArn);
+
+          const statements: any[] = [
+            {
+              Effect: "Allow",
+              Action: [
+                "ecs:RegisterTaskDefinition",
+                "ecs:DeregisterTaskDefinition",
+                "ecs:DescribeTaskDefinition",
+                "ecs:ListTaskDefinitions",
+                "ecs:RunTask",
+                "ecs:StopTask",
+                "ecs:DescribeTasks",
+                "ecs:ListTasks",
+              ],
+              Resource: "*",
+            },
+          ];
+
+          // Only add PassRole statement if worker roles are provided
+          if (passRoleResources.length > 0) {
+            statements.push({
+              Effect: "Allow",
+              Action: "iam:PassRole",
+              Resource: passRoleResources,
+              Condition: {
+                StringEquals: {
+                  "iam:PassedToService": "ecs-tasks.amazonaws.com",
+                },
+              },
+            });
+          }
+
+          return JSON.stringify({
+            Version: "2012-10-17",
+            Statement: statements,
+          });
+        }),
+    },
+  );
+
   // Backend task definition
   const backendTaskDefinition = new aws.ecs.TaskDefinition(
     `${options.config.environment}-viberglass-backend`,
@@ -249,9 +310,60 @@ export function createBackendEcs(
           options.logGroupName,
           options.databaseSsm.urlPathArn,
           options.allowedOrigins ?? "http://localhost:3000",
+          options.worker?.executionRoleArn ?? "",
+          options.worker?.taskRoleArn ?? "",
+          options.worker?.imageUri ?? "",
+          options.worker?.clusterArn ?? "",
         ])
-        .apply(([imageUri, logGroupName, databaseUrlPath, allowedOrigins]) =>
-          JSON.stringify([
+        .apply(([
+          imageUri,
+          logGroupName,
+          databaseUrlPath,
+          allowedOrigins,
+          workerExecRole,
+          workerTaskRole,
+          workerImage,
+          workerCluster,
+        ]) => {
+          const envVars = [
+            { name: "NODE_ENV", value: "production" },
+            { name: "PORT", value: containerPort.toString() },
+            { name: "AWS_REGION", value: options.config.awsRegion },
+            { name: "DB_SSL", value: "true" },
+            { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
+            {
+              name: "ALLOWED_ORIGINS",
+              value: allowedOrigins,
+            },
+          ];
+
+          // Add worker environment variables if provided
+          if (workerExecRole) {
+            envVars.push({
+              name: "VIBERATOR_ECS_EXECUTION_ROLE_ARN",
+              value: workerExecRole,
+            });
+          }
+          if (workerTaskRole) {
+            envVars.push({
+              name: "VIBERATOR_ECS_TASK_ROLE_ARN",
+              value: workerTaskRole,
+            });
+          }
+          if (workerImage) {
+            envVars.push({
+              name: "VIBERATOR_ECS_CONTAINER_IMAGE",
+              value: workerImage,
+            });
+          }
+          if (workerCluster) {
+            envVars.push({
+              name: "VIBERATOR_ECS_CLUSTER_ARN",
+              value: workerCluster,
+            });
+          }
+
+          return JSON.stringify([
             {
               name: "viberglass-backend",
               image: imageUri,
@@ -270,17 +382,7 @@ export function createBackendEcs(
                   "awslogs-stream-prefix": "backend",
                 },
               },
-              environment: [
-                { name: "NODE_ENV", value: "production" },
-                { name: "PORT", value: containerPort.toString() },
-                { name: "AWS_REGION", value: options.config.awsRegion },
-                { name: "DB_SSL", value: "true" },
-                { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
-                {
-                  name: "ALLOWED_ORIGINS",
-                  value: allowedOrigins,
-                },
-              ],
+              environment: envVars,
               secrets: [
                 {
                   name: "DATABASE_URL",
@@ -298,8 +400,8 @@ export function createBackendEcs(
                 startPeriod: 60,
               },
             },
-          ]),
-        ),
+          ]);
+        }),
       tags: options.config.tags,
     },
     {

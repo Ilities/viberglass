@@ -17,14 +17,11 @@ import { useTheme } from '@/context/theme-context'
 import { getProjects, Project } from '@/service/api/project-api'
 import type { AuthUser } from '@/service/api/auth-api'
 import {
-  AvatarIcon,
   ChevronDownIcon,
   CrumpledPaperIcon,
   ExitIcon,
   GearIcon,
   HomeIcon,
-  LightningBoltIcon,
-  LockClosedIcon,
   MoonIcon,
   PlusIcon,
   SunIcon,
@@ -116,13 +113,6 @@ function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: (
         </div>
       </DropdownHeader>
       <DropdownDivider />
-      <DropdownItem href="#">
-        <Icon>
-          <AvatarIcon />
-        </Icon>
-        <DropdownLabel>My account</DropdownLabel>
-      </DropdownItem>
-      <DropdownDivider />
       <DropdownItem
         onClick={(e) => {
           e.preventDefault()
@@ -131,19 +121,6 @@ function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: (
       >
         <Icon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</Icon>
         <DropdownLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</DropdownLabel>
-      </DropdownItem>
-      <DropdownDivider />
-      <DropdownItem href="#">
-        <Icon>
-          <LockClosedIcon />
-        </Icon>
-        <DropdownLabel>Privacy policy</DropdownLabel>
-      </DropdownItem>
-      <DropdownItem href="#">
-        <Icon>
-          <LightningBoltIcon />
-        </Icon>
-        <DropdownLabel>Share feedback</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
       <DropdownItem

@@ -11,6 +11,8 @@ export interface InfrastructureConfig {
   environment: string;
   /** Base stack name for StackReference (e.g., "viberglass-base/dev") */
   baseStack: string;
+  /** Worker stack name for StackReference (e.g., "viberglass-workers/dev") - optional for clanker ECS provisioning */
+  workerStack?: string;
   /** Whether to use Fargate Spot for cost savings */
   enableSpot: boolean;
   /** Whether to enable ECS Container Insights */
@@ -43,6 +45,7 @@ export function getConfig(): InfrastructureConfig {
   const awsRegion = config.require("awsRegion");
   const environment = config.require("environment");
   const baseStack = config.require("baseStack");
+  const workerStack = config.get("workerStack");
   const enableSpot = config.getBoolean("enableSpot") ?? false;
   const containerInsights = config.getBoolean("containerInsights") ?? true;
   const dbInstanceClass = config.get("dbInstanceClass");
@@ -85,6 +88,7 @@ export function getConfig(): InfrastructureConfig {
     awsRegion,
     environment,
     baseStack,
+    workerStack,
     enableSpot,
     containerInsights,
     dbInstanceClass: finalDbInstanceClass,
