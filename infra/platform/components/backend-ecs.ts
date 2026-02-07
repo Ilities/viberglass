@@ -45,6 +45,8 @@ export interface BackendEcsOptions {
   dockerfilePath?: string;
   /** Build context for docker build */
   contextPath?: string;
+  /** Image tag for backend container (e.g., commit SHA) */
+  imageTag?: pulumi.Input<string>;
   /** Allowed CORS origins (comma-separated). Defaults to localhost for development. */
   allowedOrigins?: pulumi.Input<string>;
   /** Worker infrastructure values for clanker ECS provisioning (optional) */
@@ -106,12 +108,13 @@ export function createBackendEcs(
   const minTasks = options.minTasks ?? 1;
   const maxTasks = options.maxTasks ?? 3;
   const contextPath = options.contextPath ?? path.join(__dirname, "../../..");
+  const imageTag = options.imageTag ?? "latest";
   const dockerfilePath =
     options.dockerfilePath ??
     path.join(contextPath, "apps/platform-backend/Dockerfile.prod");
 
   // Build and publish the backend container image
-  // Always use 'latest' tag so external CI/CD and local builds align
+  // Use an immutable tag (typically commit SHA) to avoid stale/missing digests
   const backendImage = new awsx.ecr.Image(
     `${options.config.environment}-viberglass-backend-image`,
     {
@@ -119,9 +122,10 @@ export function createBackendEcs(
       context: contextPath,
       dockerfile: dockerfilePath,
       platform: "linux/amd64",
-      imageTag: "latest",
+      imageTag: imageTag,
     },
   );
+  const backendImageUri = pulumi.interpolate`${options.repositoryUrl}:${imageTag}`;
 
   // IAM role for ECS task execution (pulls images, writes logs)
   const backendTaskExecutionRole = new aws.iam.Role(
@@ -314,7 +318,7 @@ export function createBackendEcs(
       taskRoleArn: backendTaskRole.arn,
       containerDefinitions: pulumi
         .all({
-          imageUri: backendImage.imageUri,
+          imageUri: backendImageUri,
           logGroupName: options.logGroupName,
           databaseUrlPath: options.databaseSsm.urlPathArn,
           allowedOrigins: options.allowedOrigins ?? "http://localhost:3000",
@@ -456,6 +460,7 @@ export function createBackendEcs(
       tags: options.config.tags,
     },
     {
+      dependsOn: [backendImage],
       aliases: [{ name: `${options.config.environment}-viberator-backend` }],
     },
   );
@@ -467,7 +472,7 @@ export function createBackendEcs(
     executionRoleName: backendTaskExecutionRole.name,
     taskRoleArn: backendTaskRole.arn,
     taskRoleName: backendTaskRole.name,
-    imageUri: backendImage.imageUri,
+    imageUri: backendImageUri,
     serviceArn: pulumi.output(""),
     serviceName: pulumi.output(""),
   };

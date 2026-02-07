@@ -26,6 +26,10 @@ config:
   # Adds CloudWatch metrics for CPU/memory, network, storage
   viberglass:containerInsights: "true"
 
+  # Backend image tag used by ECS task definitions.
+  # Set this from CI (recommended: commit SHA) for immutable deployments.
+  # viberglass:backendImageTag: 9f1a2b3c4d5e
+
   # =============================================================================
   # CUSTOM DOMAIN CONFIGURATION (Route53)
   # =============================================================================
