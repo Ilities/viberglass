@@ -454,6 +454,73 @@ new aws.iam.RolePolicyAttachment(
   },
 );
 
+// CloudWatch Logs policy for ECS task execution role
+const ecsLogsPolicy = new aws.iam.Policy(
+  `${config.environment}-viberglass-ecs-logs-policy`,
+  {
+    policy: ecsWorkerLogGroupName.apply((logGroupName) =>
+      JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: ["logs:CreateLogStream", "logs:PutLogEvents"],
+            Effect: "Allow",
+            Resource: `arn:aws:logs:${config.awsRegion}:*:log-group:${logGroupName}:*`,
+          },
+        ],
+      }),
+    ),
+    tags: config.tags,
+  },
+);
+
+new aws.iam.RolePolicyAttachment(
+  `${config.environment}-viberglass-ecs-task-exec-logs`,
+  {
+    role: ecsTaskExecutionRole.name,
+    policyArn: ecsLogsPolicy.arn,
+  },
+);
+
+// SSM policy for ECS task execution role (to read secrets during container startup)
+const ecsExecutionSsmPolicy = new aws.iam.Policy(
+  `${config.environment}-viberglass-ecs-exec-ssm-policy`,
+  {
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: ["ssm:GetParameter", "ssm:GetParameters"],
+          Effect: "Allow",
+          Resource: `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/tenants/*`,
+        },
+      ],
+    },
+    tags: config.tags,
+  },
+);
+
+new aws.iam.RolePolicyAttachment(
+  `${config.environment}-viberglass-ecs-task-exec-ssm`,
+  {
+    role: ecsTaskExecutionRole.name,
+    policyArn: ecsExecutionSsmPolicy.arn,
+  },
+);
+
+// KMS decrypt permission for ECS task execution role
+new aws.iam.RolePolicy(`${config.environment}-viberglass-ecs-exec-kms`, {
+  role: ecsTaskExecutionRole.name,
+  policy: pulumi.interpolate`{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt", "kms:GenerateDataKey*"],
+      "Resource": "${kmsKeyArn}"
+    }]
+  }`,
+});
+
 // IAM role for ECS task (for SSM access)
 const ecsTaskRole = new aws.iam.Role(
   `${config.environment}-viberglass-ecs-task-role`,
