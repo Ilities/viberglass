@@ -49,6 +49,8 @@ export interface BackendEcsOptions {
   imageTag?: pulumi.Input<string>;
   /** Allowed CORS origins (comma-separated). Defaults to localhost for development. */
   allowedOrigins?: pulumi.Input<string>;
+  /** Platform API URL for worker callbacks (e.g., "https://api.viberglass.io") */
+  platformApiUrl?: pulumi.Input<string>;
   /** Worker infrastructure values for clanker ECS provisioning (optional) */
   worker?: {
     executionRoleArn?: pulumi.Input<string>;
@@ -328,6 +330,7 @@ export function createBackendEcs(
           logGroupName: options.logGroupName,
           databaseUrlPath: options.databaseSsm.urlPathArn,
           allowedOrigins: options.allowedOrigins ?? "http://localhost:3000",
+          platformApiUrl: options.platformApiUrl ?? "",
           workerExecRole: options.worker?.executionRoleArn ?? "",
           workerTaskRole: options.worker?.taskRoleArn ?? "",
           workerImage: options.worker?.imageUri ?? "",
@@ -341,6 +344,7 @@ export function createBackendEcs(
           logGroupName,
           databaseUrlPath,
           allowedOrigins,
+          platformApiUrl,
           workerExecRole,
           workerTaskRole,
           workerImage,
@@ -367,6 +371,14 @@ export function createBackendEcs(
               value: allowedOrigins,
             },
           ];
+
+          // Add platform API URL for worker callbacks (SEC-05)
+          if (platformApiUrl) {
+            envVars.push({
+              name: "PLATFORM_API_URL",
+              value: platformApiUrl,
+            });
+          }
 
           // Add worker environment variables if provided
           if (workerExecRole) {

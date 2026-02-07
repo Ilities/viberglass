@@ -3,6 +3,7 @@ import { JobService } from "../../services/JobService";
 import type { JobStatus } from "../../services/JobService";
 import { JobData } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
+import { validateCallbackToken } from "../middleware/callbackTokenValidation";
 import { requireAuth } from "../middleware/authentication";
 import {
   validateResultCallback,
@@ -144,6 +145,7 @@ router.get("/stats/queue", async (req: Request, res: Response) => {
 router.post(
   "/:jobId/result",
   tenantMiddleware,
+  validateCallbackToken,
   validateResultCallback,
   async (req: Request, res: Response) => {
     try {
@@ -206,6 +208,7 @@ router.post(
 router.post(
   "/:jobId/progress",
   tenantMiddleware,
+  validateCallbackToken,
   validateProgressUpdate,
   async (req: Request, res: Response) => {
     try {
@@ -244,6 +247,7 @@ router.post(
 router.post(
   "/:jobId/logs",
   tenantMiddleware,
+  validateCallbackToken,
   validateLogEntry,
   async (req: Request, res: Response) => {
     try {
@@ -281,6 +285,7 @@ router.post(
 router.post(
   "/:jobId/logs/batch",
   tenantMiddleware,
+  validateCallbackToken,
   validateLogBatch,
   async (req: Request, res: Response) => {
     try {

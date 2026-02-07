@@ -25,6 +25,13 @@ import { getConfig } from "./config";
 const config = getConfig();
 const slackConfig = new pulumi.Config("slack");
 const slackAppEnabled = slackConfig.getBoolean("enabled") ?? false;
+const tenantConfigPathPrefix = "/viberator/tenants";
+const workerSsmParameterArns = [
+  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/tenants/*`,
+  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberator/tenants/*`,
+  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/secrets/*`,
+  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberator/secrets/*`,
+];
 
 // =============================================================================
 // BASE STACK REFERENCE
@@ -175,7 +182,7 @@ const lambdaSsmPolicy = new aws.iam.Policy(
         {
           Action: ["ssm:GetParameter", "ssm:GetParameters"],
           Effect: "Allow",
-          Resource: `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/tenants/*`,
+          Resource: workerSsmParameterArns,
         },
       ],
     },
@@ -220,7 +227,8 @@ const workerLambda = new aws.lambda.Function(
         NODE_ENV: "production",
         LOG_FORMAT: "json",
         CLAUDE_CONFIG_DIR: "/tmp/config",
-        TENANT_CONFIG_PATH_PREFIX: "/viberglass/tenants",
+        SECRETS_SSM_PREFIX: "/viberator/secrets",
+        TENANT_CONFIG_PATH_PREFIX: tenantConfigPathPrefix,
       },
     },
     tags: config.tags,
@@ -492,7 +500,7 @@ const ecsExecutionSsmPolicy = new aws.iam.Policy(
         {
           Action: ["ssm:GetParameter", "ssm:GetParameters"],
           Effect: "Allow",
-          Resource: `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/tenants/*`,
+          Resource: workerSsmParameterArns,
         },
       ],
     },
@@ -542,7 +550,7 @@ const ecsSsmPolicy = new aws.iam.Policy(
         {
           Action: ["ssm:GetParameter", "ssm:GetParameters"],
           Effect: "Allow",
-          Resource: `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/tenants/*`,
+          Resource: workerSsmParameterArns,
         },
       ],
     },
@@ -601,9 +609,10 @@ const workerTaskDefinition = new aws.ecs.TaskDefinition(
             environment: [
               { name: "NODE_ENV", value: "production" },
               { name: "WORK_DIR", value: "/tmp/viberator-work" },
+              { name: "SECRETS_SSM_PREFIX", value: "/viberator/secrets" },
               {
                 name: "TENANT_CONFIG_PATH_PREFIX",
-                value: "/viberglass/tenants",
+                value: tenantConfigPathPrefix,
               },
             ],
           },
