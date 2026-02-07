@@ -5,6 +5,7 @@ import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "../../services/ClankerProvisioningService";
 import { FileUploadService, upload } from "../../services/FileUploadService";
 import { JobService } from "../../services/JobService";
+import { JobData } from "../../types/Job";
 import { WorkerExecutionService } from "../../workers";
 import {
   validateCreateTicket,
@@ -422,7 +423,7 @@ router.post(
       const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
       // Create job via JobService.submitJob with ticket and clanker references
-      const jobData = {
+      const jobData: JobData = {
         id: jobId,
         tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
         repository: primaryRepository,
@@ -441,10 +442,13 @@ router.post(
         timestamp: Date.now(),
       };
 
-      await jobService.submitJob(jobData, {
+      const submitResult = await jobService.submitJob(jobData, {
         ticketId: ticket.id,
         clankerId: clanker.id,
       });
+
+      // Attach callback token for worker authentication
+      jobData.callbackToken = submitResult.callbackToken;
 
       // Invoke worker via WorkerExecutionService.executeJob - fire and forget
       // Don't await the result, just log errors

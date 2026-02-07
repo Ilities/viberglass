@@ -28,6 +28,7 @@ export interface JobData {
   branch?: string;
   baseBranch?: string;
   context?: {
+    ticketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
@@ -46,6 +47,8 @@ export interface JobData {
   };
   overrides?: JobOverrides;
   timestamp: number;
+  /** Callback token for authenticating worker callbacks (set after job creation) */
+  callbackToken?: string;
 }
 
 export interface JobResult {

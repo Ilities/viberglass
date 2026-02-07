@@ -16,6 +16,7 @@ export class CallbackClient {
   private apiUrl: string;
   private maxRetries: number;
   private retryDelay: number;
+  private callbackToken?: string;
 
   constructor(
     private logger: Logger,
@@ -23,6 +24,7 @@ export class CallbackClient {
       platformUrl?: string;
       maxRetries?: number;
       retryDelay?: number;
+      callbackToken?: string;
     } = {},
   ) {
     this.apiUrl =
@@ -31,6 +33,21 @@ export class CallbackClient {
       "http://localhost:8888";
     this.maxRetries = config.maxRetries || 3;
     this.retryDelay = config.retryDelay || 1000;
+    this.callbackToken = config.callbackToken;
+  }
+
+  /**
+   * Build common headers for callback requests
+   */
+  private buildHeaders(tenantId: string): Record<string, string> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Tenant-Id": tenantId,
+    };
+    if (this.callbackToken) {
+      headers["X-Callback-Token"] = this.callbackToken;
+    }
+    return headers;
   }
 
   async sendResult(
@@ -52,10 +69,7 @@ export class CallbackClient {
 
         const response = await fetch(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Tenant-Id": tenantId,
-          },
+          headers: this.buildHeaders(tenantId),
           body: JSON.stringify({
             ...result,
             logs: result.logs
@@ -175,10 +189,7 @@ export class CallbackClient {
 
         const response = await fetch(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Tenant-Id": tenantId,
-          },
+          headers: this.buildHeaders(tenantId),
           body: JSON.stringify({
             step: progress.step || null,
             message: this.redactSensitiveInfo(progress.message),
@@ -305,10 +316,7 @@ export class CallbackClient {
 
         const response = await fetch(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Tenant-Id": tenantId,
-          },
+          headers: this.buildHeaders(tenantId),
           body: JSON.stringify({
             level: log.level,
             message: this.redactSensitiveInfo(log.message),
@@ -441,10 +449,7 @@ export class CallbackClient {
 
         const response = await fetch(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Tenant-Id": tenantId,
-          },
+          headers: this.buildHeaders(tenantId),
           body: JSON.stringify({
             logs: externalLogs.map((log) => ({
               level: log.level,

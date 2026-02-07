@@ -4,9 +4,9 @@ import { Logger } from "winston";
 /**
  * CredentialProvider for worker-side credential fetching from SSM
  *
- * Fetches tenant credentials from SSM Parameter Store using platform AWS credentials.
- * Path structure: /prefix/{tenantId}/{key}
- * Example: /viberator/tenants/tenant-123/GITHUB_TOKEN
+ * Fetches credentials from SSM Parameter Store using platform AWS credentials.
+ * Supports both tenant-scoped (/prefix/{tenantId}/{key}) and global
+ * (/prefix/{key}) path structures based on environment configuration.
  *
  * Features:
  * - 5-minute cache to reduce SSM API calls
@@ -18,17 +18,36 @@ export class CredentialProvider {
   private cache: Map<string, { value: string; expiry: number }>;
   private readonly ttl: number;
   private pathPrefix: string;
+  private readonly tenantScopedPath: boolean;
   private logger: Logger;
 
   constructor(
     logger: Logger,
-    config?: { region?: string; pathPrefix?: string },
+    config?: { region?: string; pathPrefix?: string; tenantScopedPath?: boolean },
   ) {
     this.logger = logger;
-    this.pathPrefix =
-      config?.pathPrefix ||
-      process.env.TENANT_CONFIG_PATH_PREFIX ||
-      "/viberator/tenants";
+    const tenantPathPrefix =
+      config?.pathPrefix || process.env.SSM_PARAMETER_PREFIX;
+    const legacyTenantPathPrefix = process.env.TENANT_CONFIG_PATH_PREFIX;
+    const hasConfiguredSecretsPrefix =
+      typeof process.env.SECRETS_SSM_PREFIX === "string" &&
+      process.env.SECRETS_SSM_PREFIX.trim().length > 0;
+    const secretsPathPrefix =
+      process.env.SECRETS_SSM_PREFIX || "/viberator/secrets";
+
+    if (tenantPathPrefix) {
+      this.tenantScopedPath = config?.tenantScopedPath ?? true;
+      this.pathPrefix = this.normalizePrefix(tenantPathPrefix);
+    } else if (hasConfiguredSecretsPrefix) {
+      this.tenantScopedPath = config?.tenantScopedPath ?? false;
+      this.pathPrefix = this.normalizePrefix(secretsPathPrefix);
+    } else if (legacyTenantPathPrefix) {
+      this.tenantScopedPath = config?.tenantScopedPath ?? true;
+      this.pathPrefix = this.normalizePrefix(legacyTenantPathPrefix);
+    } else {
+      this.tenantScopedPath = config?.tenantScopedPath ?? false;
+      this.pathPrefix = this.normalizePrefix(secretsPathPrefix);
+    }
 
     this.ssmClient = new SSMClient({
       region: config?.region || process.env.AWS_REGION || "eu-west-1",
@@ -38,6 +57,12 @@ export class CredentialProvider {
     this.ttl = 1000 * 60 * 5; // 5 minutes
   }
 
+  private normalizePrefix(prefix: string): string {
+    const trimmed = prefix.trim();
+    const prefixed = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    return prefixed.replace(/\/+$/, "");
+  }
+
   /**
    * Transform credential key to environment variable name
    * Converts lowercase/kebab-case to UPPERCASE_WITH_UNDERSCORES
@@ -45,6 +70,17 @@ export class CredentialProvider {
    */
   private keyToEnvVar(key: string): string {
     return key.toUpperCase().replace(/-/g, "_");
+  }
+
+  private buildParameterName(tenantId: string, key: string): string {
+    const safeKey = key.replace(/[^a-zA-Z0-9_.-]/g, "_");
+
+    if (!this.tenantScopedPath) {
+      return `${this.pathPrefix}/${safeKey}`;
+    }
+
+    const safeTenantId = tenantId.replace(/[^a-zA-Z0-9_.-]/g, "-");
+    return `${this.pathPrefix}/${safeTenantId}/${safeKey}`;
   }
 
   /**
@@ -70,7 +106,7 @@ export class CredentialProvider {
     }
 
     // Fall back to SSM for AWS workers (Lambda/ECS)
-    const parameterName = `${this.pathPrefix}/${tenantId}/${key}`;
+    const parameterName = this.buildParameterName(tenantId, key);
 
     // Check cache first
     const cached = this.cache.get(parameterName);

@@ -73,6 +73,8 @@ export interface BaseWorkerPayload {
   };
   projectConfig?: ProjectConfigPayload;
   overrides?: JobOverrides;
+  /** Callback token for authenticating worker callbacks to the platform */
+  callbackToken?: string;
 }
 
 /**
