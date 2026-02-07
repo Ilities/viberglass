@@ -70,6 +70,19 @@ export class EcsInvoker implements WorkerInvoker {
     }
 
     const payload = await this.buildPayload(job, clanker, project);
+    const payloadJson = JSON.stringify(payload);
+    const containerName = ecsConfig.containerName || "worker";
+    const environment = [
+      { name: "TENANT_ID", value: job.tenantId },
+      { name: "JOB_ID", value: job.id },
+    ];
+
+    if (process.env.PLATFORM_API_URL) {
+      environment.push({
+        name: "PLATFORM_API_URL",
+        value: process.env.PLATFORM_API_URL,
+      });
+    }
 
     try {
       const command = new RunTaskCommand({
@@ -86,12 +99,14 @@ export class EcsInvoker implements WorkerInvoker {
         overrides: {
           containerOverrides: [
             {
-              name: ecsConfig.containerName || "worker",
-              environment: [
-                { name: "JOB_PAYLOAD", value: JSON.stringify(payload) },
-                { name: "TENANT_ID", value: job.tenantId },
-                { name: "JOB_ID", value: job.id },
+              name: containerName,
+              command: [
+                "node",
+                "dist/cli-worker.js",
+                "--job-data",
+                payloadJson,
               ],
+              environment,
             },
           ],
         },
@@ -101,7 +116,7 @@ export class EcsInvoker implements WorkerInvoker {
         jobId: job.id,
         cluster: ecsConfig.clusterArn,
         taskDefinition: ecsConfig.taskDefinitionArn,
-        containerName: ecsConfig.containerName || "worker",
+        containerName,
         subnetCount: ecsConfig.subnetIds.length,
         securityGroupCount: ecsConfig.securityGroupIds.length,
       });
@@ -204,9 +219,10 @@ export class EcsInvoker implements WorkerInvoker {
       await this.secretResolutionService.getSecretMetadataForClanker(
         clanker.secretIds || [],
       );
+    const requiredCredentials = secretMetadata.map((secret) => secret.name);
 
     return {
-      workerType: "ecs",
+      workerType: "docker",
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,
@@ -216,9 +232,9 @@ export class EcsInvoker implements WorkerInvoker {
       baseBranch: job.baseBranch,
       context: job.context,
       settings: job.settings,
-      deploymentConfig: clanker.deploymentConfig,
-      agent: clanker.agent || "claude-code",
-      secrets: secretMetadata,
+      instructionFiles: job.context?.instructionFiles ?? [],
+      requiredCredentials,
+      clankerConfig: clanker,
       projectConfig: project
         ? {
             id: project.id,
