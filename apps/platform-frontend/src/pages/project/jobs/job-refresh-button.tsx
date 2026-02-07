@@ -1,9 +1,13 @@
 import { Button } from '@/components/button'
 import { ReloadIcon } from '@radix-ui/react-icons'
 
-export function JobRefreshButton({ onRefresh }: { onRefresh: () => void }) {
+interface JobRefreshButtonProps {
+  onRefresh: () => void
+}
+
+export function JobRefreshButton({ onRefresh }: JobRefreshButtonProps) {
   return (
-    <Button plain onClick={() => window.location.reload()}>
+    <Button plain onClick={onRefresh}>
       <ReloadIcon className="h-4 w-4" />
       Refresh
     </Button>
