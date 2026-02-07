@@ -44,6 +44,16 @@ const workerSecurityGroupId = baseStack.getOutput(
   "workerSecurityGroupId",
 ) as pulumi.Output<string>;
 const kmsKeyArn = baseStack.getOutput("kmsKeyArn") as pulumi.Output<string>;
+
+// Validate that required base stack outputs exist
+kmsKeyArn.apply(arn => {
+  if (!arn) {
+    throw new Error(
+      "kmsKeyArn output is not available from the base stack. " +
+      "Please ensure the base stack has been deployed and exports 'kmsKeyArn'."
+    );
+  }
+});
 const lambdaLogGroupName = baseStack.getOutput(
   "lambdaLogGroupName",
 ) as pulumi.Output<string>;
@@ -109,9 +119,9 @@ const workerQueue = new aws.sqs.Queue(
 // =============================================================================
 
 // Build paths for Lambda worker image
-const contextPath = path.join(__dirname, "../../viberator");
+const contextPath = path.join(__dirname, "../..");
 const lambdaDockerfilePath = path.join(
-  contextPath,
+  __dirname,
   "docker/viberator-lambda.Dockerfile",
 );
 
@@ -409,7 +419,7 @@ const workerCluster = new aws.ecs.Cluster(
 
 // Build paths for ECS worker image
 const ecsDockerfilePath = path.join(
-  contextPath,
+  __dirname,
   "docker/viberator-ecs-worker.Dockerfile",
 );
 

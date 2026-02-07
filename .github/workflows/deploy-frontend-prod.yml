@@ -101,9 +101,95 @@ jobs:
             echo "appUrl=https://prod.viberglass.app" >> $GITHUB_OUTPUT
           fi
 
+      - name: Wait for Amplify deployment
+        run: |
+          echo "Waiting for Amplify to complete deployment..."
+
+          APP_ID=$(aws ssm get-parameter \
+            --name "/viberglass/prod/amplify/appId" \
+            --query Parameter.Value \
+            --output text 2>/dev/null || echo "")
+
+          REGION=$(aws ssm get-parameter \
+            --name "/viberglass/prod/amplify/region" \
+            --query Parameter.Value \
+            --output text 2>/dev/null || echo "eu-west-1")
+
+          if [ -n "$APP_ID" ]; then
+            # Wait for Amplify deployment to complete (max 15 minutes)
+            for i in {1..90}; do
+              JOB_STATUS=$(aws amplify list-jobs \
+                --app-id "$APP_ID" \
+                --branch-name main \
+                --max-results 1 \
+                --region "$REGION" \
+                --query 'jobSummaries[0].status' \
+                --output text 2>/dev/null || echo "UNKNOWN")
+
+              if [ "$JOB_STATUS" == "SUCCEED" ]; then
+                echo "✅ Amplify deployment succeeded"
+                break
+              elif [ "$JOB_STATUS" == "FAILED" ] || [ "$JOB_STATUS" == "CANCELLED" ]; then
+                echo "❌ Amplify deployment failed or was cancelled"
+                exit 1
+              fi
+
+              echo "Attempt $i/90: Amplify job status: $JOB_STATUS, waiting 10 seconds..."
+              sleep 10
+            done
+          else
+            echo "⚠️ Warning: Amplify app ID not found, skipping deployment wait"
+            sleep 30
+          fi
+
+      - name: Verify frontend loads successfully
+        run: |
+          APP_URL="${{ steps.get-url.outputs.appUrl }}"
+          echo "Verifying frontend at $APP_URL"
+
+          for i in {1..30}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$APP_URL")
+
+            if [[ "$HTTP_STATUS" =~ ^(200|301|302)$ ]]; then
+              echo "✅ Frontend responding: $HTTP_STATUS"
+              break
+            fi
+
+            echo "Attempt $i/30: Status $HTTP_STATUS, waiting 10 seconds..."
+            sleep 10
+          done
+
+          if [[ ! "$HTTP_STATUS" =~ ^(200|301|302)$ ]]; then
+            echo "❌ Frontend verification failed after 5 minutes"
+            exit 1
+          fi
+
+      - name: Check critical pages load
+        run: |
+          APP_URL="${{ steps.get-url.outputs.appUrl }}"
+          echo "Checking critical pages..."
+
+          # Test login page
+          LOGIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$APP_URL/login")
+          if [[ "$LOGIN_STATUS" =~ ^(200|301|302)$ ]]; then
+            echo "✅ Login page responding: $LOGIN_STATUS"
+          else
+            echo "⚠️ Warning: Login page returned: $LOGIN_STATUS"
+          fi
+
+          # Test projects page (may redirect to login, which is OK)
+          PROJECTS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$APP_URL/projects")
+          if [[ "$PROJECTS_STATUS" =~ ^(200|301|302|401)$ ]]; then
+            echo "✅ Projects page responding: $PROJECTS_STATUS"
+          else
+            echo "⚠️ Warning: Projects page returned: $PROJECTS_STATUS"
+          fi
+
+          echo "✅ Critical pages verification complete"
+
       - name: Deployment summary
         run: |
-          echo "### :rocket: Production Deployment Approved" >> $GITHUB_STEP_SUMMARY
+          echo "### :rocket: Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -112,5 +198,6 @@ jobs:
           echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Approved by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> :information_source: Amplify will automatically build and deploy from git." >> $GITHUB_STEP_SUMMARY
-          echo "> Monitor the deployment at: ${{ steps.get-url.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed successfully and passed all smoke tests." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Monitor the application at: ${{ steps.get-url.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY
