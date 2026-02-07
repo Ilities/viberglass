@@ -98,6 +98,8 @@ let workerExecutionRoleArn: pulumi.Output<string> | undefined;
 let workerTaskRoleArn: pulumi.Output<string> | undefined;
 let workerImageUri: pulumi.Output<string> | undefined;
 let workerClusterArn: pulumi.Output<string> | undefined;
+let workerSubnetIds: pulumi.Output<string[]> | undefined;
+let workerSecurityGroupId: pulumi.Output<string> | undefined;
 
 if (config.workerStack) {
   const workerStack = new pulumi.StackReference(config.workerStack);
@@ -113,6 +115,12 @@ if (config.workerStack) {
   workerClusterArn = workerStack.getOutput("ecsClusterArn") as pulumi.Output<
     string
   >;
+  workerSubnetIds = workerStack.getOutput("workerSubnets") as pulumi.Output<
+    string[]
+  >;
+  workerSecurityGroupId = workerStack.getOutput(
+    "workerSecurityGroup",
+  ) as pulumi.Output<string>;
 }
 
 // =============================================================================
@@ -243,6 +251,8 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
         taskRoleArn: workerTaskRoleArn,
         imageUri: workerImageUri,
         clusterArn: workerClusterArn,
+        subnetIds: workerSubnetIds,
+        securityGroupId: workerSecurityGroupId,
       }
     : undefined,
 });

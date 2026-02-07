@@ -97,6 +97,15 @@ export class EcsInvoker implements WorkerInvoker {
         },
       });
 
+      logger.debug("Invoking ECS task", {
+        jobId: job.id,
+        cluster: ecsConfig.clusterArn,
+        taskDefinition: ecsConfig.taskDefinitionArn,
+        containerName: ecsConfig.containerName || "worker",
+        subnetCount: ecsConfig.subnetIds.length,
+        securityGroupCount: ecsConfig.securityGroupIds.length,
+      });
+
       const response: RunTaskCommandOutput = await this.client.send(command);
 
       // Check for failures in response
@@ -159,8 +168,15 @@ export class EcsInvoker implements WorkerInvoker {
   }
 
   private classifyError(error: unknown): WorkerError {
-    const err = error as { name?: string; message?: string };
+    const err = error as { name?: string; message?: string; $metadata?: any };
     const errorName = err.name || "";
+
+    // Log full error details for debugging
+    logger.error("ECS invocation error", {
+      errorName,
+      message: err.message,
+      metadata: err.$metadata,
+    });
 
     // Transient errors
     if (errorName === "ServerException") {
