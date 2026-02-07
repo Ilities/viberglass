@@ -1,7 +1,8 @@
 #!/bin/bash
-# One-stop script to set up and publish all worker harness images to ECR
-# Usage: ./setup-harness-images.sh [environment]
+# One-stop script to set up and publish worker harness images to ECR
+# Usage: ./setup-harness-images.sh [environment] [harness-type]
 #   environment: dev | prod (default: dev)
+#   harness-type: multi-agent | claude | qwen | gemini | mistral | codex | testing | deployment | fullstack | all (default: multi-agent)
 
 set -e
 
@@ -16,6 +17,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 ENVIRONMENT="${1:-dev}"
+HARNESS_TYPE="${2:-multi-agent}"
 REGION="${AWS_REGION:-eu-west-1}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
@@ -181,7 +183,7 @@ Arguments:
   environment   Target environment (default: dev)
                 Options: dev, prod
 
-  image-type    Type of worker image to build (default: all)
+  image-type    Type of worker image to build (default: multi-agent)
                 Options: all, claude, multi-agent, qwen, gemini, mistral,
                          codex, testing, deployment, fullstack
 
@@ -190,7 +192,8 @@ Environment Variables:
   IMAGE_TAG      Image tag/version (default: latest)
 
 Examples:
-  $0 dev                    # Build and push all harness images for dev
+  $0 dev                    # Build and push multi-agent harness image for dev (default)
+  $0 dev all                # Build and push all harness images for dev
   $0 prod multi-agent       # Build and push only multi-agent for prod
   IMAGE_TAG=v1.0.0 $0 dev   # Build and push with specific tag
 
@@ -200,9 +203,7 @@ EOF
 }
 
 main() {
-    local image_type="${2:-all}"
-
-    if [ "$image_type" = "-h" ] || [ "$image_type" = "--help" ]; then
+    if [ "$HARNESS_TYPE" = "-h" ] || [ "$HARNESS_TYPE" = "--help" ]; then
         show_usage
         exit 0
     fi
@@ -213,6 +214,7 @@ main() {
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
     echo ""
     log_info "Environment: $ENVIRONMENT"
+    log_info "Harness Type: $HARNESS_TYPE"
     log_info "Region: $REGION"
     log_info "ECR Registry: $ECR_REGISTRY"
     log_info "Image Tag: $IMAGE_TAG"
@@ -223,15 +225,15 @@ main() {
     login_ecr
     echo ""
 
-    if [ "$image_type" = "all" ]; then
+    if [ "$HARNESS_TYPE" = "all" ]; then
         build_all
-    elif [ -n "${HARNESS_IMAGES[$image_type]}" ]; then
+    elif [ -n "${HARNESS_IMAGES[$HARNESS_TYPE]}" ]; then
         # Create repository for the specific image
-        create_repository "${HARNESS_IMAGES[$image_type]}"
+        create_repository "${HARNESS_IMAGES[$HARNESS_TYPE]}"
         echo ""
-        build_and_push_image "$image_type"
+        build_and_push_image "$HARNESS_TYPE"
     else
-        log_error "Unknown harness type: $image_type"
+        log_error "Unknown harness type: $HARNESS_TYPE"
         echo ""
         show_usage
         exit 1
