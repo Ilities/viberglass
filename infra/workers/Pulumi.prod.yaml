@@ -11,7 +11,7 @@ config:
 
   # Base stack reference (REQUIRED)
   # Format: <organization>/<project>/<stack> or <project>/<stack>
-  viberglass-workers:baseStack: viberglass-base/prod
+  viberglass-workers:baseStack: organization/viberglass-base/prod
 
   # Enable Fargate Spot for cost savings (70% discount)
   # Disabled for production to ensure consistent performance

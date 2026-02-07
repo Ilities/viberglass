@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import path from "path";
 import cookieParser from "cookie-parser";
 import createError from "http-errors";
@@ -19,9 +20,23 @@ import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
 import { attachAuthContext, requireAuth } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
+import { generalApiLimiter, authLimiter, webhookLimiter } from "./middleware/rateLimiting";
+import { maliciousRequestBlocker, suspiciousIpTracker } from "./middleware/maliciousRequestBlocker";
 
 const app = express();
 configurePassport();
+
+// Security headers with helmet
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Allow inline scripts for Next.js
+    crossOriginEmbedderPolicy: false, // Allow embedding from same origin
+  }),
+);
+
+// Block malicious/bot scanning requests early
+app.use(maliciousRequestBlocker);
+app.use(suspiciousIpTracker);
 
 // HTTP request logging middleware with Winston
 app.use((req, res, next) => {
@@ -41,19 +56,34 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "10mb" })); // Increased limit for file uploads
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "../public")));
 
-// CORS configuration
+// CORS configuration - strict for production, permissive for development
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
+  "http://localhost:3000",
+  "http://localhost:3001",
+];
+
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(",") || [
-      "http://localhost:3000",
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn("CORS blocked request from unauthorized origin", { origin });
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
     optionsSuccessStatus: 200,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Id"],
   }),
 );
 
@@ -68,6 +98,11 @@ app.get("/health", (req, res) => {
     version: "1.0.0",
   });
 });
+
+// Rate limiting for API routes
+app.use("/api/auth", authLimiter); // Strict rate limit for auth
+app.use("/api/webhooks", webhookLimiter); // Lenient limit for webhooks
+app.use("/api", generalApiLimiter); // General limit for all other API routes
 
 // API routes
 app.use("/api/projects", projectsRouter);

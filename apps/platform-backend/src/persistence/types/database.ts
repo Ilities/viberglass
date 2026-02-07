@@ -284,6 +284,15 @@ export interface UserSessionsTable {
   revoked_at: Timestamp | null;
 }
 
+export interface UserProjectsTable {
+  id: Generated<string>;
+  user_id: string;
+  project_id: string;
+  role: string;
+  created_at: Generated<Timestamp>;
+  updated_at: Timestamp | null;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -303,4 +312,5 @@ export interface Database {
   secrets: SecretsTable;
   users: UsersTable;
   user_sessions: UserSessionsTable;
+  user_projects: UserProjectsTable;
 }

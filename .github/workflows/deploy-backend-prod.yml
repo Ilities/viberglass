@@ -113,6 +113,99 @@ jobs:
             --service "${{ env.ECS_SERVICE }}" \
             --task-definition "${{ steps.register-task.outputs.task_definition_arn }}"
 
+      - name: Wait for ECS service to stabilize
+        run: |
+          echo "Waiting for ECS service to reach stable state..."
+          aws ecs wait services-stable \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}"
+          echo "ECS service is stable"
+
+      - name: Get ALB endpoint
+        id: get-alb
+        run: |
+          # Get ALB DNS from SSM or ECS service
+          ALB_DNS=$(aws ssm get-parameter \
+            --name "/viberglass/prod/alb/dns" \
+            --query Parameter.Value \
+            --output text 2>/dev/null || echo "")
+
+          if [ -z "$ALB_DNS" ]; then
+            echo "Warning: ALB DNS not found in SSM, using cluster name"
+            ALB_DNS="${{ env.ECS_CLUSTER }}.elb.${{ env.AWS_REGION }}.amazonaws.com"
+          fi
+
+          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
+          echo "API_URL=https://$ALB_DNS" >> $GITHUB_ENV
+
+      - name: Verify backend health endpoint
+        run: |
+          echo "Verifying backend health at ${{ env.API_URL }}/health"
+
+          for i in {1..30}; do
+            if curl -f -s "${{ env.API_URL }}/health"; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i/30 failed, waiting 10 seconds..."
+            sleep 10
+          done
+
+          echo "❌ Health check failed after 5 minutes"
+          exit 1
+
+      - name: Test critical API endpoints
+        run: |
+          echo "Testing critical API endpoints..."
+
+          # Test projects endpoint (should return 200 or 401, not 5xx)
+          PROJECT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/projects" \
+            -H "X-Tenant-Id: smoke-test")
+
+          if [[ "$PROJECT_STATUS" =~ ^(200|401|403)$ ]]; then
+            echo "✅ Projects endpoint responding: $PROJECT_STATUS"
+          else
+            echo "❌ Projects endpoint returned unexpected status: $PROJECT_STATUS"
+            exit 1
+          fi
+
+          # Test API version endpoint
+          VERSION_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/version")
+
+          if [[ "$VERSION_STATUS" =~ ^(200)$ ]]; then
+            echo "✅ Version endpoint responding: $VERSION_STATUS"
+          else
+            echo "❌ Version endpoint returned unexpected status: $VERSION_STATUS"
+            exit 1
+          fi
+
+          echo "✅ All critical endpoints responding correctly"
+
+      - name: Check ECS task count
+        run: |
+          echo "Verifying ECS task count..."
+
+          RUNNING_TASKS=$(aws ecs describe-services \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}" \
+            --query 'services[0].runningCount' \
+            --output text)
+
+          DESIRED_TASKS=$(aws ecs describe-services \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}" \
+            --query 'services[0].desiredCount' \
+            --output text)
+
+          echo "Running tasks: $RUNNING_TASKS"
+          echo "Desired tasks: $DESIRED_TASKS"
+
+          if [ "$RUNNING_TASKS" -ge "$DESIRED_TASKS" ]; then
+            echo "✅ Task count is healthy"
+          else
+            echo "⚠️ Warning: Running tasks ($RUNNING_TASKS) is less than desired ($DESIRED_TASKS)"
+          fi
+
       - name: Deployment summary
         run: |
           echo "### Deployed to Production :rocket:" >> $GITHUB_STEP_SUMMARY
@@ -121,5 +214,8 @@ jobs:
           echo "- **Service:** ${{ env.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Cluster:** ${{ env.ECS_CLUSTER }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Task Definition:** ${{ steps.register-task.outputs.task_definition_arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **API URL:** ${{ env.API_URL }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo " Deployment completed successfully. Monitor logs in CloudWatch." >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed successfully and passed all smoke tests." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Monitor logs in CloudWatch: https://console.aws.amazon.com/cloudwatch" >> $GITHUB_STEP_SUMMARY
