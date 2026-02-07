@@ -53,6 +53,8 @@ export interface BackendEcsOptions {
     taskRoleArn?: pulumi.Input<string>;
     imageUri?: pulumi.Input<string>;
     clusterArn?: pulumi.Input<string>;
+    subnetIds?: pulumi.Input<string[]>;
+    securityGroupId?: pulumi.Input<string>;
   };
 }
 
@@ -310,17 +312,19 @@ export function createBackendEcs(
       executionRoleArn: backendTaskExecutionRole.arn,
       taskRoleArn: backendTaskRole.arn,
       containerDefinitions: pulumi
-        .all([
-          backendImage.imageUri,
-          options.logGroupName,
-          options.databaseSsm.urlPathArn,
-          options.allowedOrigins ?? "http://localhost:3000",
-          options.worker?.executionRoleArn ?? "",
-          options.worker?.taskRoleArn ?? "",
-          options.worker?.imageUri ?? "",
-          options.worker?.clusterArn ?? "",
-        ])
-        .apply(([
+        .all({
+          imageUri: backendImage.imageUri,
+          logGroupName: options.logGroupName,
+          databaseUrlPath: options.databaseSsm.urlPathArn,
+          allowedOrigins: options.allowedOrigins ?? "http://localhost:3000",
+          workerExecRole: options.worker?.executionRoleArn ?? "",
+          workerTaskRole: options.worker?.taskRoleArn ?? "",
+          workerImage: options.worker?.imageUri ?? "",
+          workerCluster: options.worker?.clusterArn ?? "",
+          workerSubnets: options.worker?.subnetIds ?? [],
+          workerSecurityGroup: options.worker?.securityGroupId ?? "",
+        })
+        .apply(({
           imageUri,
           logGroupName,
           databaseUrlPath,
@@ -329,7 +333,16 @@ export function createBackendEcs(
           workerTaskRole,
           workerImage,
           workerCluster,
-        ]) => {
+          workerSubnets,
+          workerSecurityGroup,
+        }) => {
+          const normalizedWorkerImage = Array.isArray(workerImage)
+            ? workerImage[0]
+            : workerImage;
+          const normalizedWorkerSubnets = Array.isArray(workerSubnets)
+            ? workerSubnets
+            : [];
+
           const envVars = [
             { name: "NODE_ENV", value: "production" },
             { name: "PORT", value: containerPort.toString() },
@@ -358,13 +371,37 @@ export function createBackendEcs(
           if (workerImage) {
             envVars.push({
               name: "VIBERATOR_ECS_CONTAINER_IMAGE",
-              value: workerImage,
+              value: normalizedWorkerImage,
             });
+
+            // Extract ECR registry from image URI for auto-selecting worker images
+            // Example: "123456.dkr.ecr.region.amazonaws.com/repo:tag" -> "123456.dkr.ecr.region.amazonaws.com"
+            const registryMatch = normalizedWorkerImage.match(
+              /^([^\/]+\.dkr\.ecr\.[^\/]+\.amazonaws\.com)/,
+            );
+            if (registryMatch) {
+              envVars.push({
+                name: "VIBERATOR_WORKER_REGISTRY",
+                value: registryMatch[1],
+              });
+            }
           }
           if (workerCluster) {
             envVars.push({
               name: "VIBERATOR_ECS_CLUSTER_ARN",
               value: workerCluster,
+            });
+          }
+          if (normalizedWorkerSubnets.length > 0) {
+            envVars.push({
+              name: "VIBERATOR_ECS_SUBNET_IDS",
+              value: normalizedWorkerSubnets.join(","),
+            });
+          }
+          if (workerSecurityGroup) {
+            envVars.push({
+              name: "VIBERATOR_ECS_SECURITY_GROUP_IDS",
+              value: workerSecurityGroup,
             });
           }
 
