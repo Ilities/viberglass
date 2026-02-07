@@ -89,6 +89,33 @@ const backendAssignPublicIp = networkMode.apply(
 );
 
 // =============================================================================
+// WORKER STACK REFERENCE (OPTIONAL)
+// =============================================================================
+
+// Reference the worker stack for clanker ECS provisioning
+// If workerStack is not configured, clankers will need manual task definition configuration
+let workerExecutionRoleArn: pulumi.Output<string> | undefined;
+let workerTaskRoleArn: pulumi.Output<string> | undefined;
+let workerImageUri: pulumi.Output<string> | undefined;
+let workerClusterArn: pulumi.Output<string> | undefined;
+
+if (config.workerStack) {
+  const workerStack = new pulumi.StackReference(config.workerStack);
+  workerExecutionRoleArn = workerStack.getOutput(
+    "ecsExecutionRoleArn",
+  ) as pulumi.Output<string>;
+  workerTaskRoleArn = workerStack.getOutput(
+    "ecsTaskRoleArn",
+  ) as pulumi.Output<string>;
+  workerImageUri = workerStack.getOutput("ecsImageUri") as pulumi.Output<
+    string
+  >;
+  workerClusterArn = workerStack.getOutput("ecsClusterArn") as pulumi.Output<
+    string
+  >;
+}
+
+// =============================================================================
 // PLATFORM INFRASTRUCTURE
 // =============================================================================
 
@@ -209,6 +236,15 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   allowedOrigins: config.appDomain
     ? pulumi.interpolate`https://${config.appDomain}`
     : pulumi.interpolate`https://${amplifyFrontend.defaultDomain}`,
+  // Pass worker infrastructure values for clanker ECS provisioning
+  worker: workerExecutionRoleArn
+    ? {
+        executionRoleArn: workerExecutionRoleArn,
+        taskRoleArn: workerTaskRoleArn,
+        imageUri: workerImageUri,
+        clusterArn: workerClusterArn,
+      }
+    : undefined,
 });
 
 // Create backend ECS service
