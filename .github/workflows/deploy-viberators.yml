@@ -83,7 +83,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
           IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
-          HARNESS: ${{ github.event.inputs.harness || 'all' }}
+          HARNESS: ${{ github.event.inputs.harness || 'multi-agent' }}
         run: |
           ./infra/workers/scripts/setup-harness-images.sh dev "$HARNESS"
 
