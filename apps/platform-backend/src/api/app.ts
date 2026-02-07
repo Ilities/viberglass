@@ -26,6 +26,10 @@ import { maliciousRequestBlocker, suspiciousIpTracker } from "./middleware/malic
 const app = express();
 configurePassport();
 
+// Trust proxy headers when running behind ALB/load balancer
+// Required for accurate client IP detection in rate limiting and logging
+app.set('trust proxy', true);
+
 // Security headers with helmet
 app.use(
   helmet({
