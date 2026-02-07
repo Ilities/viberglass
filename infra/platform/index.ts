@@ -75,6 +75,9 @@ const kmsKeyArn = baseStack.getOutput("kmsKeyArn") as pulumi.Output<string>;
 const backendLogGroupName = baseStack.getOutput(
   "backendLogGroupName",
 ) as pulumi.Output<string>;
+const ecsWorkerLogGroupName = baseStack.getOutput(
+  "ecsWorkerLogGroupName",
+) as pulumi.Output<string>;
 const baseNetworkMode = baseStack.getOutput("networkMode") as pulumi.Output<
   string | undefined
 >;
@@ -253,6 +256,7 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
         clusterArn: workerClusterArn,
         subnetIds: workerSubnetIds,
         securityGroupId: workerSecurityGroupId,
+        logGroupName: ecsWorkerLogGroupName,
       }
     : undefined,
 });
