@@ -64,31 +64,12 @@ export class ViberatorWorker {
     try {
       this.logger.info("Initializing Viberator Coding Worker...");
 
-      const configManager = new ConfigManager(this.logger);
-      this.config = await configManager.loadConfiguration();
-      this.logger.level = this.config.logging.level;
-
-      // Initialize credential provider and config loader
+      // Initialize credential provider and config loader first
       this.credentialProvider = new CredentialProvider(this.logger);
       this.configLoader = new ConfigLoader(this.logger);
 
-      const agentConfigs = configManager.getAgentConfigs();
-      this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger);
-      this.gitService = new GitService(this.logger);
-
-      // Initialize callback client with callback token for authentication
-      this.callbackClient = new CallbackClient(this.logger, {
-        platformUrl: process.env.PLATFORM_API_URL,
-        maxRetries: 3,
-        retryDelay: 1000,
-        callbackToken: payload?.callbackToken,
-      });
-
-      if (!fs.existsSync(this.workDir)) {
-        fs.mkdirSync(this.workDir, { recursive: true });
-      }
-
-      // Process payload if provided
+      // Process payload and fetch credentials BEFORE loading config
+      // This ensures SSM credentials are in process.env when ConfigManager runs
       if (payload) {
         // Store deployment config based on worker type
         if (payload.workerType === "docker") {
@@ -117,6 +98,35 @@ export class ViberatorWorker {
           credentials,
           payload.requiredCredentials || [],
         );
+
+        // Inject credentials into process.env BEFORE loading config
+        // This allows ConfigManager to pick up SSM credentials (e.g., ANTHROPIC_API_KEY)
+        this.injectEnvironmentVars(credentials);
+      }
+
+      // Now load config - it will pick up any SSM credentials from process.env
+      const configManager = new ConfigManager(this.logger);
+      this.config = await configManager.loadConfiguration();
+      this.logger.level = this.config.logging.level;
+
+      const agentConfigs = configManager.getAgentConfigs();
+      this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger);
+      this.gitService = new GitService(this.logger);
+
+      // Initialize callback client with callback token for authentication
+      this.callbackClient = new CallbackClient(this.logger, {
+        platformUrl: process.env.PLATFORM_API_URL,
+        maxRetries: 3,
+        retryDelay: 1000,
+        callbackToken: payload?.callbackToken,
+      });
+
+      if (!fs.existsSync(this.workDir)) {
+        fs.mkdirSync(this.workDir, { recursive: true });
+      }
+
+      // Continue processing payload if provided
+      if (payload) {
 
         // Load instruction files based on worker type
         if (payload.workerType === "lambda" || payload.workerType === "ecs") {
@@ -163,7 +173,7 @@ export class ViberatorWorker {
         this.logger.info("Worker payload processed", {
           tenantId: payload.tenantId,
           workerType: payload.workerType,
-          credentialsFetched: Object.keys(credentials).length,
+          credentialsFetched: Object.keys(this.fetchedCredentials || {}).length,
           instructionFilesLoaded: this.instructionFiles.size,
         });
       }
