@@ -23,7 +23,7 @@ on:
       harness:
         description: 'Harness type (or "all" for all)'
         required: true
-        default: 'all'
+        default: 'multi-agent'
         type: choice
         options:
           - all
