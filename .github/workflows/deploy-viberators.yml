@@ -1,6 +1,6 @@
 # Worker Harness Images CI/CD Workflow
 # Automatically builds and pushes worker harness images when Dockerfiles change
-name: Deploy Worker Harness Images
+name: Deploy Viberator Worker Images
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
     paths:
       - 'infra/workers/docker/**'
       - 'apps/viberator/**'
-      - '.github/workflows/deploy-worker-harness.yml'
+      - 'deploy-viberators.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -21,7 +21,7 @@ on:
           - dev
           - prod
       harness:
-        description: 'Harness type (or "all" for all)'
+        description: 'Viberator type (or "all" for all)'
         required: true
         default: 'multi-agent'
         type: choice
@@ -51,7 +51,7 @@ env:
 
 jobs:
   deploy-dev:
-    name: Build and Push Harness Images (Dev)
+    name: Build and Push Viberators (Dev)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'dev'
     environment:
@@ -79,7 +79,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push harness images
+      - name: Build and push viberator images
         env:
           ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
           IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
@@ -88,7 +88,7 @@ jobs:
           ./infra/workers/scripts/setup-harness-images.sh dev "$HARNESS"
 
   deploy-prod:
-    name: Build and Push Harness Images (Production)
+    name: Build and Push Viberator Images (Production)
     runs-on: ubuntu-latest
     if: github.event.inputs.environment == 'prod'
     environment:
@@ -116,7 +116,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push harness images
+      - name: Build and push viberator images
         env:
           ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
           IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
