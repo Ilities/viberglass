@@ -7,7 +7,7 @@ import { composeEventHandlers, useDataInteraction } from './interaction'
 import { Link } from './link'
 
 export function Sidebar({ className, ...props }: React.ComponentPropsWithoutRef<'nav'>) {
-  return <nav {...props} className={clsx(className, 'flex h-full min-h-0 flex-col')} />
+  return <nav {...props} className={clsx(className, 'app-sidebar-panel flex h-full min-h-0 flex-col')} />
 }
 
 export function SidebarHeader({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
@@ -16,7 +16,7 @@ export function SidebarHeader({ className, ...props }: React.ComponentPropsWitho
       {...props}
       className={clsx(
         className,
-        'flex flex-col border-b border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
+        'flex flex-col border-b border-zinc-950/10 p-4 dark:border-white/10 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
       )}
     />
   )
@@ -40,7 +40,7 @@ export function SidebarFooter({ className, ...props }: React.ComponentPropsWitho
       {...props}
       className={clsx(
         className,
-        'flex flex-col border-t border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
+        'flex flex-col border-t border-zinc-950/10 p-4 dark:border-white/10 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
       )}
     />
   )
@@ -86,7 +86,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
 ) {
   let classes = clsx(
     // Base
-    'flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-950 sm:py-2 sm:text-sm/5',
+    'sidebar-item flex w-full items-center gap-3 border border-transparent px-2 py-2.5 text-left text-base/6 font-semibold tracking-[0.01em] text-zinc-950 sm:py-2 sm:text-sm/5',
     // Leading icon/icon-only (Radix icons use stroke)
     '*:data-[slot=icon]:size-6 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:stroke-zinc-500 sm:*:data-[slot=icon]:size-5',
     // Trailing icon (down chevron or similar)
@@ -94,15 +94,15 @@ export const SidebarItem = forwardRef(function SidebarItem(
     // Avatar
     '*:data-[slot=avatar]:-m-0.5 *:data-[slot=avatar]:size-7 sm:*:data-[slot=avatar]:size-6',
     // Hover
-    'data-hover:bg-zinc-950/5 data-hover:*:data-[slot=icon]:stroke-zinc-950',
+    'data-hover:border-zinc-950/12 data-hover:bg-zinc-950/5 data-hover:*:data-[slot=icon]:stroke-zinc-950',
     // Active
-    'data-active:bg-zinc-950/5 data-active:*:data-[slot=icon]:stroke-zinc-950',
+    'data-active:border-zinc-950/20 data-active:bg-zinc-950/10 data-active:*:data-[slot=icon]:stroke-zinc-950',
     // Current
     'data-current:*:data-[slot=icon]:stroke-zinc-950',
     // Dark mode
     'dark:text-white dark:*:data-[slot=icon]:stroke-zinc-400',
-    'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:stroke-white',
-    'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:stroke-white',
+    'dark:data-hover:border-white/20 dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:stroke-white',
+    'dark:data-active:border-white/30 dark:data-active:bg-white/10 dark:data-active:*:data-[slot=icon]:stroke-white',
     'dark:data-current:*:data-[slot=icon]:stroke-white'
   )
 
@@ -166,7 +166,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
       {current && (
         <motion.span
           layoutId="current-indicator"
-          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
+          className="absolute inset-y-2 -left-4 w-1 bg-brand-golden-brass"
         />
       )}
       {closeOnSelect ? <Dialog.Close asChild>{itemContent}</Dialog.Close> : itemContent}

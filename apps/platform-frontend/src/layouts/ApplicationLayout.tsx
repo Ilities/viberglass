@@ -75,7 +75,11 @@ function ProjectDropdownMenu({ projectSlug }: { projectSlug?: string }) {
           {p.slug === 'viberglass' ? (
             <Avatar slot="icon" src="/teams/viberglass.svg" />
           ) : (
-            <Avatar slot="icon" initials={p.name.substring(0, 2).toUpperCase()} className="bg-purple-500 text-white" />
+            <Avatar
+              slot="icon"
+              initials={p.name.substring(0, 2).toUpperCase()}
+              className="bg-brand-gradient text-brand-charcoal"
+            />
           )}
           <DropdownLabel>{p.name}</DropdownLabel>
         </DropdownItem>
