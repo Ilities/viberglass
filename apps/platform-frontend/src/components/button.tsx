@@ -61,9 +61,9 @@ type ButtonProps = (
   )
 
 const sizeClasses = {
-  small: 'px-2 py-1 text-xs',
-  medium: 'px-4 py-2 text-sm',
-  large: 'px-6 py-3 text-base',
+  small: 'px-2 py-1 text-xs font-medium',
+  medium: 'px-4 py-2 text-sm font-medium',
+  large: 'px-6 py-3 text-base font-medium',
 }
 
 export const Button = forwardRef(function Button(
@@ -76,7 +76,7 @@ export const Button = forwardRef(function Button(
   const gradientClass = color === 'brand/gradient' ? 'bg-brand-gradient' : undefined
   const combinedClassName =
     clsx(
-      'ui-action-button font-semibold tracking-[0.01em] transition-transform duration-150 active:translate-x-px active:translate-y-px',
+      'ui-action-button font-medium tracking-[0.01em] transition-all duration-150 ease-out active:translate-x-px active:translate-y-px',
       className,
       gradientClass,
       size && sizeClasses[size]

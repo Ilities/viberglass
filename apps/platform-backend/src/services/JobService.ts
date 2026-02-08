@@ -55,6 +55,9 @@ export class JobService {
         ticket_id: options?.ticketId || null,
         clanker_id: options?.clankerId || null,
         callback_token: callbackToken,
+        bootstrap_payload: data.bootstrapPayload
+          ? JSON.stringify(data.bootstrapPayload)
+          : null,
         created_at: new Date(),
       })
       .execute();
@@ -429,6 +432,11 @@ export class JobService {
         baseBranch: job.base_branch,
         context: job.context,
         settings: job.settings,
+        bootstrapPayload:
+          typeof job.bootstrap_payload === "string"
+            ? JSON.parse(job.bootstrap_payload)
+            : job.bootstrap_payload,
+        callbackToken: job.callback_token,
         timestamp: job.created_at?.getTime() || Date.now(),
       },
     };
@@ -640,5 +648,49 @@ export class JobService {
       .executeTakeFirst();
 
     return job?.callback_token ?? null;
+  }
+
+  /**
+   * Persist or replace bootstrap payload for a job.
+   */
+  async saveBootstrapPayload(
+    jobId: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    await db
+      .updateTable("jobs")
+      .set({
+        bootstrap_payload: JSON.stringify(payload),
+      })
+      .where("id", "=", jobId)
+      .execute();
+  }
+
+  /**
+   * Retrieve bootstrap payload and tenant binding for worker bootstrap flow.
+   */
+  async getBootstrapPayload(jobId: string): Promise<{
+    tenantId: string;
+    payload: Record<string, unknown> | null;
+  } | null> {
+    const job = await db
+      .selectFrom("jobs")
+      .select(["tenant_id", "bootstrap_payload"])
+      .where("id", "=", jobId)
+      .executeTakeFirst();
+
+    if (!job) {
+      return null;
+    }
+
+    const parsedPayload =
+      typeof job.bootstrap_payload === "string"
+        ? (JSON.parse(job.bootstrap_payload) as Record<string, unknown>)
+        : (job.bootstrap_payload as Record<string, unknown> | null);
+
+    return {
+      tenantId: job.tenant_id,
+      payload: parsedPayload,
+    };
   }
 }

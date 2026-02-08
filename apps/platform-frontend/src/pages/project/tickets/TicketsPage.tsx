@@ -1,12 +1,12 @@
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
-import { Input } from '@/components/input'
+import { SearchInput } from '@/components/search-input'
 import { Select } from '@/components/select'
 import { getClankersList, getRecentTickets } from '@/data'
 import { getTickets } from '@/service/api/ticket-api'
 import type { Clanker, TicketSummary } from '@/data'
 import type { Ticket } from '@viberglass/types'
-import { CaretSortIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
+import { CaretSortIcon } from '@radix-ui/react-icons'
 import { TicketsTable } from './tickets-table'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -69,16 +69,11 @@ export function TicketsPage() {
 
       <div className="mt-8 flex items-center gap-4">
         <div className="min-w-75 flex-2">
-          <div className="relative">
-            <Input
-              type="search"
-              placeholder="Search tickets..."
-              className="pl-10"
-              name="search"
-              defaultValue={search}
-            />
-            <MagnifyingGlassIcon className="absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-          </div>
+          <SearchInput
+            placeholder="Search tickets..."
+            name="search"
+            defaultValue={search}
+          />
         </div>
         <Select name="status" defaultValue={status}>
           <option value="all">All Status</option>

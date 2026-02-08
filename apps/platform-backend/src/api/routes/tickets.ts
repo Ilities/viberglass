@@ -1,12 +1,11 @@
 import express from "express";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
-import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
-import { ClankerProvisioningService } from "../../services/ClankerProvisioningService";
 import { FileUploadService, upload } from "../../services/FileUploadService";
-import { JobService } from "../../services/JobService";
-import { JobData } from "../../types/Job";
-import { WorkerExecutionService } from "../../workers";
+import {
+  TicketExecutionService,
+  InlineInstructionFile,
+} from "../../services/TicketExecutionService";
 import {
   validateCreateTicket,
   validateUpdateTicket,
@@ -17,21 +16,16 @@ import {
   handleMulterError,
 } from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
-import { randomUUID } from "crypto";
 import logger from "../../config/logger";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
 const projectService = new ProjectDAO();
-const clankerService = new ClankerDAO();
-const provisioningService = new ClankerProvisioningService();
 const fileUploadService = new FileUploadService();
-const jobService = new JobService();
-const workerExecutionService = new WorkerExecutionService();
-
-router.use(requireAuth);
+const ticketExecutionService = new TicketExecutionService();
 
 // POST /api/tickets - Create a new ticket
+router.use(requireAuth);
 router.post(
   "/",
   upload.fields([
@@ -340,152 +334,30 @@ router.post(
   async (req, res) => {
     try {
       const ticketId = req.params.id;
-      const { clankerId, overrides } = req.body;
-
-      // Get ticket by id
-      const ticket = await ticketService.getTicket(ticketId);
-      if (!ticket) {
-        return res.status(404).json({
-          error: "Ticket not found",
-        });
-      }
-
-      // Get project by ticket.projectId
-      const project = await projectService.getProject(ticket.projectId);
-      if (!project) {
-        logger.error("Project not found for ticket", {
-          ticketId,
-          projectId: ticket.projectId,
-        });
-        return res.status(500).json({
-          error: "Data integrity issue",
-          message: "Associated project not found",
-        });
-      }
-
-      const repositoryUrls =
-        project.repositoryUrls && project.repositoryUrls.length > 0
-          ? project.repositoryUrls
-          : project.repositoryUrl
-            ? [project.repositoryUrl]
-            : [];
-      const primaryRepository = repositoryUrls[0];
-
-      // Validate project has repository configured
-      if (!primaryRepository) {
-        return res.status(400).json({
-          error: "Project has no repository configured",
-          message:
-            "Please configure a repository URL for this project before running tickets",
-        });
-      }
-
-      // Get clanker by clankerId
-      const clanker = await clankerService.getClanker(clankerId);
-      if (!clanker) {
-        return res.status(404).json({
-          error: "Clanker not found",
-        });
-      }
-
-      const availability =
-        await provisioningService.resolveAvailabilityStatus(clanker);
-      const currentStatus = availability.status;
-      const currentStatusMessage = availability.statusMessage ?? null;
-
-      if (
-        availability.status !== clanker.status ||
-        (clanker.statusMessage ?? null) !== currentStatusMessage
-      ) {
-        await clankerService.updateStatus(
-          clanker.id,
-          availability.status,
-          currentStatusMessage,
-        );
-      }
-
-      // Validate clanker has deploymentStrategyId and status is 'active'
-      if (!clanker.deploymentStrategyId) {
-        return res.status(400).json({
-          error: "Clanker not ready",
-          message: "Selected clanker has no deployment strategy configured",
-        });
-      }
-
-      if (currentStatus !== "active") {
-        return res.status(400).json({
-          error: "Clanker not ready",
-          message: `Selected clanker is ${currentStatus}. Only active clankers can run jobs.`,
-        });
-      }
-
-      // Generate jobId
-      const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
-
-      // Create job via JobService.submitJob with ticket and clanker references
-      const jobData: JobData = {
-        id: jobId,
-        tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
-        repository: primaryRepository,
-        task: `${ticket.title}\n\n${ticket.description}`,
-        branch: undefined, // Worker creates branch
-        baseBranch: "main",
-        context: {
-          ticketId: ticket.id,
-          stepsToReproduce: ticket.description,
-        },
-        settings: {
-          testRequired: false,
-          maxChanges: 10,
-        },
-        overrides,
-        timestamp: Date.now(),
-      };
-
-      const submitResult = await jobService.submitJob(jobData, {
-        ticketId: ticket.id,
-        clankerId: clanker.id,
-      });
-
-      // Attach callback token for worker authentication
-      jobData.callbackToken = submitResult.callbackToken;
-
-      // Invoke worker via WorkerExecutionService.executeJob - fire and forget
-      // Don't await the result, just log errors
-      workerExecutionService
-        .executeJob(jobData, clanker, project)
-        .then((result) => {
-          logger.info("Worker invoked successfully", {
-            ticketId,
-            jobId,
-            clankerId,
-            executionId: result.executionId,
-          });
-        })
-        .catch((error) => {
-          logger.error("Worker invocation failed", {
-            ticketId,
-            jobId,
-            clankerId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
+      const result = await ticketExecutionService.runTicket(ticketId, req.body);
 
       // Return 202 Accepted immediately
       return res.status(202).json({
         success: true,
-        data: {
-          jobId,
-          status: "active",
-        },
+        data: result,
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error("Error running ticket", {
         error: error instanceof Error ? error.message : error,
       });
-      res.status(500).json({
-        error: "Internal server error",
-        message: "Failed to run ticket",
+
+      const errorMessage = error.message || "Failed to run ticket";
+      const statusCode = errorMessage.includes("not found")
+        ? 404
+        : errorMessage.includes("no repository") ||
+            errorMessage.includes("not ready") ||
+            errorMessage.includes("Only active")
+          ? 400
+          : 500;
+
+      res.status(statusCode).json({
+        error: statusCode === 500 ? "Internal server error" : "Bad request",
+        message: errorMessage,
       });
     }
   },

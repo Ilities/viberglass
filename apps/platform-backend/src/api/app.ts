@@ -20,7 +20,6 @@ import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
 import { attachAuthContext, requireAuth } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
-import { generalApiLimiter, webhookLimiter } from "./middleware/rateLimiting";
 import {
   maliciousRequestBlocker,
   suspiciousIpTracker,
@@ -108,10 +107,6 @@ app.get("/health", (req, res) => {
     version: "1.0.0",
   });
 });
-
-// Rate limiting for API routes
-app.use("/api/webhooks", webhookLimiter); // Lenient limit for webhooks
-app.use("/api", generalApiLimiter); // General limit for all other API routes
 
 // API routes
 app.use("/api/projects", projectsRouter);

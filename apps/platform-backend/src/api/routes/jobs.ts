@@ -103,6 +103,47 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+router.get(
+  "/:jobId/bootstrap",
+  tenantMiddleware,
+  validateCallbackToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const tenantId = req.tenantId!;
+
+      const bootstrap = await jobService.getBootstrapPayload(jobId);
+      if (!bootstrap) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      if (bootstrap.tenantId !== tenantId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      if (!bootstrap.payload) {
+        return res.status(404).json({
+          error: "Bootstrap payload not found",
+          message: "No bootstrap payload was stored for this job",
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: bootstrap.payload,
+      });
+    } catch (error) {
+      logger.error("Failed to fetch job bootstrap payload", {
+        error: error instanceof Error ? error.message : String(error),
+        jobId: req.params.jobId,
+      });
+      return res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
+    }
+  },
+);
+
 router.delete("/:jobId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;

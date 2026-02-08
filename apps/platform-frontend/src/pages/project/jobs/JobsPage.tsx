@@ -1,10 +1,9 @@
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
-import { Input } from '@/components/input'
+import { SearchInput } from '@/components/search-input'
 import { Select } from '@/components/select'
 import { getProjectJobs } from '@/data'
 import type { JobListItem } from '@/data'
-import { MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { JobsTable } from './jobs-table'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -63,10 +62,11 @@ export function JobsPage() {
 
       <div className="mt-8 flex items-center gap-4">
         <div className="min-w-75 flex-2">
-          <div className="relative">
-            <Input type="search" placeholder="Search jobs..." className="pl-10" name="search" defaultValue={search} />
-            <MagnifyingGlassIcon className="absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-          </div>
+          <SearchInput
+            placeholder="Search jobs..."
+            name="search"
+            defaultValue={search}
+          />
         </div>
         <Select name="status" defaultValue={status}>
           <option value="all">All Status</option>

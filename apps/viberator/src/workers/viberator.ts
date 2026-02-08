@@ -354,6 +354,58 @@ export class ViberatorWorker {
     };
   }
 
+  private resolveInstructionTargetPath(
+    repoDir: string,
+    fileType: string,
+  ): string | null {
+    const normalized = path
+      .normalize(fileType.replace(/\\/g, "/"))
+      .replace(/^(\.\.(\/|\\|$))+/, "");
+
+    if (!normalized || path.isAbsolute(normalized)) {
+      return null;
+    }
+
+    const targetPath = path.resolve(repoDir, normalized);
+    const resolvedRepoDir = path.resolve(repoDir);
+
+    if (
+      targetPath !== resolvedRepoDir &&
+      !targetPath.startsWith(`${resolvedRepoDir}${path.sep}`)
+    ) {
+      return null;
+    }
+
+    return targetPath;
+  }
+
+  private async materializeInstructionFiles(repoDir: string): Promise<void> {
+    if (this.instructionFiles.size === 0) {
+      return;
+    }
+
+    const gitExcludePath = path.join(repoDir, ".git", "info", "exclude");
+    let excludeAppend = "";
+
+    for (const [fileType, content] of this.instructionFiles.entries()) {
+      const targetPath = this.resolveInstructionTargetPath(repoDir, fileType);
+      if (!targetPath) {
+        this.logger.warn("Skipping unsafe instruction file path", { fileType });
+        continue;
+      }
+
+      await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.promises.writeFile(targetPath, content, "utf-8");
+
+      const relativePath = path.relative(repoDir, targetPath).replace(/\\/g, "/");
+      excludeAppend += `\n${relativePath}`;
+    }
+
+    if (excludeAppend) {
+      await fs.promises.appendFile(gitExcludePath, excludeAppend, "utf-8");
+    }
+  }
+
   async executeTask(data: CodingJobData): Promise<JobResult> {
     const startTime = Date.now();
     const { id, repository, task, baseBranch, context, settings } = data;
@@ -386,6 +438,13 @@ export class ViberatorWorker {
       await this.sendProgress("branch", "Creating feature branch");
       const featureBranch = `fix/${id}`;
       await this.gitService.createBranch(repoDir, featureBranch);
+
+      if (this.instructionFiles.size > 0) {
+        await this.sendProgress("instructions", "Applying instruction files", {
+          count: this.instructionFiles.size,
+        });
+        await this.materializeInstructionFiles(repoDir);
+      }
 
       // Merge settings with precedence: override > project > clanker > job
       const mergedSettings = this.getMergedSettings(settings);
