@@ -23,10 +23,10 @@ export function SettingsLayout() {
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className={`group flex gap-x-3 rounded-md px-3 py-2 text-sm leading-6 font-semibold transition-colors ${
+                    className={`group flex gap-x-3 border px-3 py-2 text-sm leading-6 font-semibold tracking-[0.01em] transition-colors ${
                       isActive
-                        ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
-                        : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'
+                        ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                        : 'border-transparent text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-950 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-white'
                     } `}
                   >
                     {item.name}

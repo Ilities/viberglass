@@ -74,7 +74,13 @@ export const Button = forwardRef(function Button(
   const isLink = typeof props.href === 'string'
 
   const gradientClass = color === 'brand/gradient' ? 'bg-brand-gradient' : undefined
-  const combinedClassName = clsx(className, gradientClass, size && sizeClasses[size]) || undefined
+  const combinedClassName =
+    clsx(
+      'ui-action-button font-semibold tracking-[0.01em] transition-transform duration-150 active:translate-x-px active:translate-y-px',
+      className,
+      gradientClass,
+      size && sizeClasses[size]
+    ) || undefined
 
   if (isLink) {
     return (
