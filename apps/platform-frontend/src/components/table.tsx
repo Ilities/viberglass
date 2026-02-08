@@ -25,7 +25,7 @@ export function Table({
       <div className="flow-root">
         <div {...props} className={clsx(className, '-mx-(--gutter) overflow-x-auto whitespace-nowrap')}>
           <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
-            <RadixTable.Root size={dense ? '1' : '2'} variant={striped ? 'surface' : 'ghost'}>
+            <RadixTable.Root size={dense ? '1' : '2'} variant={striped ? 'surface' : 'ghost'} className="ui-data-table">
               {children}
             </RadixTable.Root>
           </div>
@@ -60,7 +60,7 @@ export function TableRow({
     <TableRowContext.Provider value={{ href, target, title }}>
       <RadixTable.Row
         {...props}
-        className={clsx(className, href && 'cursor-pointer hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5')}
+        className={clsx(className, href && 'cursor-pointer hover:bg-zinc-950/5 dark:hover:bg-white/5')}
       />
     </TableRowContext.Provider>
   )

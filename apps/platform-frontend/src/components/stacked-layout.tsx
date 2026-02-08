@@ -25,7 +25,7 @@ function MobileSidebar({ open, close, children }: React.PropsWithChildren<{ open
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/30 transition data-[state=closed]:opacity-0 data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:ease-out data-[state=closed]:ease-in lg:hidden" />
         <Dialog.Content className="fixed inset-y-0 w-full max-w-80 p-2 transition duration-300 ease-in-out data-[state=closed]:-translate-x-full lg:hidden">
-          <div className="flex h-full flex-col rounded-lg bg-white shadow-xs ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="mobile-drawer-frame flex h-full flex-col">
             <div className="-mb-3 px-4 pt-3">
               <Dialog.Close asChild>
                 <NavbarItem aria-label="Close navigation">
@@ -49,14 +49,14 @@ export function StackedLayout({
   let [showSidebar, setShowSidebar] = useState(false)
 
   return (
-    <div className="relative isolate flex min-h-svh w-full flex-col bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950">
+    <div className="app-canvas relative isolate flex min-h-svh w-full flex-col bg-transparent">
       {/* Sidebar on mobile */}
       <MobileSidebar open={showSidebar} close={() => setShowSidebar(false)}>
         {sidebar}
       </MobileSidebar>
 
       {/* Navbar */}
-      <header className="flex items-center px-4">
+      <header className="app-topbar flex items-center px-4">
         <div className="py-2.5 lg:hidden">
           <NavbarItem onClick={() => setShowSidebar(true)} aria-label="Open navigation">
             <OpenMenuIcon />
@@ -66,8 +66,8 @@ export function StackedLayout({
       </header>
 
       {/* Content */}
-      <main className="flex flex-1 flex-col pb-2 lg:px-2">
-        <div className="grow p-6 lg:rounded-lg lg:bg-white lg:p-10 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10">
+      <main className="flex flex-1 flex-col px-3 pt-3 pb-3">
+        <div className="app-frame grow p-6 lg:p-10">
           <div className="mx-auto max-w-6xl">{children}</div>
         </div>
       </main>

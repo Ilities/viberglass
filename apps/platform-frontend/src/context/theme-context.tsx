@@ -39,7 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <RadixTheme appearance={theme ?? 'light'} accentColor="amber" grayColor="sand">
+      <RadixTheme appearance={theme ?? 'light'} accentColor="amber" grayColor="sand" radius="none">
         {children}
       </RadixTheme>
     </ThemeContext.Provider>
