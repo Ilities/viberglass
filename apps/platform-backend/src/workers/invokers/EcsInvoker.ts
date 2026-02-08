@@ -69,8 +69,11 @@ export class EcsInvoker implements WorkerInvoker {
       );
     }
 
-    const payload = await this.buildPayload(job, clanker, project);
+    const payload = job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
     const payloadJson = JSON.stringify(payload);
+    const canUseJobRef = Boolean(
+      job.bootstrapPayload && job.callbackToken && process.env.PLATFORM_API_URL,
+    );
     const containerName = ecsConfig.containerName || "worker";
     const environment = [
       { name: "TENANT_ID", value: job.tenantId },
@@ -95,6 +98,13 @@ export class EcsInvoker implements WorkerInvoker {
       });
     }
 
+    if (canUseJobRef && job.callbackToken) {
+      environment.push({
+        name: "CALLBACK_TOKEN",
+        value: job.callbackToken,
+      });
+    }
+
     try {
       const command = new RunTaskCommand({
         cluster: ecsConfig.clusterArn,
@@ -111,12 +121,9 @@ export class EcsInvoker implements WorkerInvoker {
           containerOverrides: [
             {
               name: containerName,
-              command: [
-                "node",
-                "dist/cli-worker.js",
-                "--job-data",
-                payloadJson,
-              ],
+              command: canUseJobRef
+                ? ["node", "dist/cli-worker.js", "--job-ref", job.id]
+                : ["node", "dist/cli-worker.js", "--job-data", payloadJson],
               environment,
             },
           ],
@@ -130,6 +137,7 @@ export class EcsInvoker implements WorkerInvoker {
         containerName,
         subnetCount: ecsConfig.subnetIds.length,
         securityGroupCount: ecsConfig.securityGroupIds.length,
+        payloadMode: canUseJobRef ? "job-ref" : "inline",
       });
 
       const response: RunTaskCommandOutput = await this.client.send(command);

@@ -4,14 +4,10 @@ import { Button } from '@/components/button'
 import { Divider } from '@/components/divider'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
-import {
-  AsciiWhale,
-  AsciiRobot,
-  AsciiGalaxy,
-  AsciiSpaceship,
-  RetroSeparator,
-} from '@/components/retro-decorations'
+import { Link } from '@/components/link'
+import { AsciiGalaxy, AsciiRobot, AsciiSpaceship, AsciiWhale, RetroSeparator } from '@/components/retro-decorations'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
+import type { Clanker, ClankerStatus, JobListItem, JobQueueStats, Project, TicketStats, TicketSummary } from '@/data'
 import {
   formatJobStatus,
   formatSeverity,
@@ -23,10 +19,7 @@ import {
   getRecentTickets,
   getTicketStats,
 } from '@/data'
-import type { Clanker, ClankerStatus, JobListItem, JobQueueStats, Project, TicketStats } from '@/data'
-import type { TicketSummary } from '@/data'
 import { PlusIcon } from '@radix-ui/react-icons'
-import { Link } from '@/components/link'
 import { useEffect, useState } from 'react'
 
 function DashboardStat({ title, value, subtitle }: { title: string; value: string; subtitle?: string }) {
@@ -35,9 +28,7 @@ function DashboardStat({ title, value, subtitle }: { title: string; value: strin
       <Divider />
       <div className="mt-6 text-lg/6 font-medium text-zinc-950 sm:text-sm/6 dark:text-white">{title}</div>
       <div className="mt-3 text-3xl/8 font-semibold text-zinc-950 sm:text-2xl/8 dark:text-white">{value}</div>
-      {subtitle && (
-        <div className="mt-3 text-sm/6 text-zinc-500 sm:text-xs/6 dark:text-zinc-400">{subtitle}</div>
-      )}
+      {subtitle && <div className="mt-3 text-sm/6 text-zinc-500 sm:text-xs/6 dark:text-zinc-400">{subtitle}</div>}
     </div>
   )
 }
@@ -51,20 +42,22 @@ function EmptyState({
 }: {
   title: string
   description: string
-  href: string
-  actionLabel: string
+  href?: string
+  actionLabel?: string
   asciiArt?: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900 hover-lift">
+    <div className="hover-lift rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
       <RetroSeparator className="mb-4" />
-      {asciiArt && <div className="flex justify-center mb-4 float">{asciiArt}</div>}
-      <h3 className="text-sm font-semibold text-zinc-950 dark:text-white font-mono">{title}</h3>
-      <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">{description}</p>
-      <Button href={href} color="brand" className="mt-4 hover-grow">
-        <PlusIcon data-slot="icon" />
-        {actionLabel}
-      </Button>
+      {asciiArt && <div className="float mb-4 flex justify-center">{asciiArt}</div>}
+      <h3 className="font-mono text-sm font-semibold text-zinc-950 dark:text-white">{title}</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
+      {href && (
+        <Button href={href} color="brand" className="hover-grow mt-4">
+          <PlusIcon data-slot="icon" />
+          {actionLabel}
+        </Button>
+      )}
       <RetroSeparator className="mt-4" />
     </div>
   )
@@ -170,7 +163,7 @@ export function DashboardPage() {
                   <Link
                     key={project.id}
                     href={`/project/${project.slug}`}
-                    className="flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 hover-lift dark:border-white/10 dark:bg-zinc-900 slide-up"
+                    className="hover-lift slide-up flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <Avatar
@@ -180,8 +173,8 @@ export function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-zinc-950 dark:text-white">{project.name}</div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {project.ticketSystem.charAt(0).toUpperCase() + project.ticketSystem.slice(1)} &middot;{' '}
-                        Auto-fix {project.autoFixEnabled ? 'on' : 'off'}
+                        {project.ticketSystem.charAt(0).toUpperCase() + project.ticketSystem.slice(1)} &middot; Auto-fix{' '}
+                        {project.autoFixEnabled ? 'on' : 'off'}
                       </div>
                     </div>
                   </Link>
@@ -220,7 +213,7 @@ export function DashboardPage() {
                   <Link
                     key={clanker.id}
                     href={`/clankers/${clanker.slug}`}
-                    className="flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 hover-lift dark:border-white/10 dark:bg-zinc-900 slide-up"
+                    className="hover-lift slide-up flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <Avatar
@@ -282,13 +275,21 @@ export function DashboardPage() {
                       >
                         <TableCell className="max-w-[200px] truncate font-medium">{ticket.title}</TableCell>
                         <TableCell>
-                          <Badge color={ticket.severity === 'critical' ? 'red' : ticket.severity === 'high' ? 'orange' : ticket.severity === 'medium' ? 'amber' : 'green'}>
+                          <Badge
+                            color={
+                              ticket.severity === 'critical'
+                                ? 'red'
+                                : ticket.severity === 'high'
+                                  ? 'orange'
+                                  : ticket.severity === 'medium'
+                                    ? 'amber'
+                                    : 'green'
+                            }
+                          >
                             {severityInfo.label}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-zinc-500 dark:text-zinc-400">
-                          {project?.name ?? '\u2014'}
-                        </TableCell>
+                        <TableCell className="text-zinc-500 dark:text-zinc-400">{project?.name ?? '\u2014'}</TableCell>
                         <TableCell className="text-zinc-500 dark:text-zinc-400">
                           {formatTimestamp(ticket.timestamp)}
                         </TableCell>
@@ -310,8 +311,6 @@ export function DashboardPage() {
                 <EmptyState
                   title="[ TIME IS AN ILLUSION ]"
                   description="No jobs are currently running. Deep Thought took 7.5 million years to compute the answer. Your jobs will probably be faster. Probably."
-                  href="/new"
-                  actionLabel="Create Project"
                   asciiArt={<AsciiGalaxy />}
                 />
               </div>
@@ -330,13 +329,15 @@ export function DashboardPage() {
                     const jobProject = job.projectSlug
                     if (!jobProject) return null
                     return (
-                      <TableRow key={job.jobId} href={`/project/${jobProject}/jobs/${job.jobId}`} title={`Job ${job.jobId}`}>
+                      <TableRow
+                        key={job.jobId}
+                        href={`/project/${jobProject}/jobs/${job.jobId}`}
+                        title={`Job ${job.jobId}`}
+                      >
                         <TableCell>
                           <Badge color={statusInfo.color}>{statusInfo.label}</Badge>
                         </TableCell>
-                        <TableCell className="max-w-[200px] truncate font-medium">
-                          {job.repository}
-                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate font-medium">{job.repository}</TableCell>
                         <TableCell className="text-zinc-500 dark:text-zinc-400">
                           {formatTimestamp(job.createdAt)}
                         </TableCell>

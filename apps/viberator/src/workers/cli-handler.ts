@@ -13,6 +13,7 @@ import { DockerPayload, CodingJobData, JobResult } from "./types";
 interface CliArgs {
   jobData?: string;
   "job-file"?: string;
+  "job-ref"?: string;
   help?: boolean;
 }
 
@@ -29,6 +30,10 @@ function parseArgs(args: string[]): CliArgs {
       case "--job-file":
       case "-f":
         parsed["job-file"] = args[++i];
+        break;
+      case "--job-ref":
+      case "-r":
+        parsed["job-ref"] = args[++i];
         break;
       case "--help":
       case "-h":
@@ -50,6 +55,7 @@ Usage:
 Options:
   -j, --job-data <json>    Job data as JSON string (DockerPayload format)
   -f, --job-file <path>    Path to JSON file containing job data
+  -r, --job-ref <jobId>    Fetch job bootstrap payload from platform API by job ID
   -h, --help               Show this help message
 
 Examples:
@@ -59,10 +65,16 @@ Examples:
   # File input
   worker --job-file /tmp/job.json
 
+  # Reference input (recommended for ECS/Fargate)
+  worker --job-ref job_1739123456789_a1b2c3d4
+
 Environment Variables:
   WORK_DIR                  Working directory (default: /tmp/viberator-work)
   LOG_LEVEL                 Log level (default: info)
   CONFIG_PATH               Path to configuration file
+  PLATFORM_API_URL          Base URL for platform callbacks/bootstrap API
+  CALLBACK_TOKEN            Callback token for bootstrap/result/progress auth
+  TENANT_ID                 Tenant identifier used for bootstrap auth header
 
 Docker Credential Flow:
   Credentials are passed via environment variables at container start (docker run -e GITHUB_TOKEN=...).
@@ -77,12 +89,54 @@ async function loadJobData(args: CliArgs): Promise<DockerPayload> {
     return JSON.parse(content);
   }
 
+  if (args["job-ref"]) {
+    const callbackToken = process.env.CALLBACK_TOKEN;
+    if (!callbackToken) {
+      throw new Error(
+        "Missing CALLBACK_TOKEN environment variable for --job-ref bootstrap fetch.",
+      );
+    }
+
+    const platformApiUrl =
+      process.env.PLATFORM_API_URL || "http://localhost:8888";
+    const tenantId = process.env.TENANT_ID || "api-server";
+    const endpoint = `${platformApiUrl}/api/jobs/${encodeURIComponent(args["job-ref"])}/bootstrap`;
+
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Callback-Token": callbackToken,
+        "X-Tenant-Id": tenantId,
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message =
+        (errorBody && (errorBody.error || errorBody.message)) ||
+        response.statusText;
+      throw new Error(
+        `Failed to fetch bootstrap payload for ${args["job-ref"]}: ${message}`,
+      );
+    }
+
+    const parsed = await response.json();
+    if (!parsed?.data) {
+      throw new Error(
+        `Bootstrap response for ${args["job-ref"]} did not include payload data.`,
+      );
+    }
+
+    return parsed.data as DockerPayload;
+  }
+
   if (args.jobData) {
     return JSON.parse(args.jobData);
   }
 
   throw new Error(
-    "No job data provided. Use --job-data or --job-file argument.",
+    "No job data provided. Use --job-data, --job-file, or --job-ref argument.",
   );
 }
 

@@ -46,6 +46,8 @@ export interface JobData {
     maxExecutionTime?: number;
   };
   overrides?: JobOverrides;
+  /** Optional worker bootstrap payload persisted for ref-based invocation */
+  bootstrapPayload?: Record<string, unknown>;
   timestamp: number;
   /** Callback token for authenticating worker callbacks (set after job creation) */
   callbackToken?: string;

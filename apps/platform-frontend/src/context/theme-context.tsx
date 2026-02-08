@@ -1,16 +1,23 @@
 import { Theme as RadixTheme } from '@radix-ui/themes'
 import { createContext, useContext, useEffect, useState } from 'react'
+import type { AccentColor } from '@/lib/project-colors'
 
 type AppTheme = 'light' | 'dark'
 
 interface ThemeContextType {
   theme: AppTheme | null
   toggleTheme: () => void
+  accentColor: AccentColor
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+interface ThemeProviderProps {
+  children: React.ReactNode
+  accentColor?: AccentColor
+}
+
+export function ThemeProvider({ children, accentColor = 'amber' }: ThemeProviderProps) {
   const [theme, setTheme] = useState<AppTheme | null>(null)
 
   const applyTheme = (newTheme: AppTheme) => {
@@ -38,8 +45,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <RadixTheme appearance={theme ?? 'light'} accentColor="amber" grayColor="sand" radius="none">
+    <ThemeContext.Provider value={{ theme, toggleTheme, accentColor }}>
+      <RadixTheme appearance={theme ?? 'light'} accentColor={accentColor} grayColor="sand" radius="none">
         {children}
       </RadixTheme>
     </ThemeContext.Provider>

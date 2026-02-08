@@ -429,6 +429,34 @@ describe("DockerInvoker", () => {
 
         expect(payload.callbackToken).toBe("cb-token-123");
       });
+
+      it("should use job-ref command and callback token env when bootstrap payload is available", async () => {
+        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+
+        const jobWithBootstrap: JobData = {
+          ...mockJob,
+          callbackToken: "cb-token-456",
+          bootstrapPayload: {
+            workerType: "docker",
+            jobId: mockJob.id,
+            tenantId: mockJob.tenantId,
+          },
+        };
+
+        await invoker.invoke(jobWithBootstrap, mockClanker);
+
+        const createContainerCall = mockCreateContainer.mock.calls[0][0];
+
+        expect(createContainerCall.Cmd).toEqual([
+          "node",
+          "dist/cli-worker.js",
+          "--job-ref",
+          mockJob.id,
+        ]);
+        expect(createContainerCall.Env).toEqual(
+          expect.arrayContaining([expect.stringContaining("CALLBACK_TOKEN=cb-token-456")]),
+        );
+      });
     });
   });
 
