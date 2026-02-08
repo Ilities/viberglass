@@ -50,6 +50,10 @@ export class CodexAgent extends BaseAgent {
       }
 
       const changedFiles = await this.getChangedFiles(repoDir);
+
+      // Read PR description from file (before cleanup)
+      const pullRequestDescription = await this.readPRDescription(repoDir);
+
       let cliOutput: any = {};
       try {
         cliOutput = JSON.parse(result.stdout);
@@ -66,6 +70,7 @@ export class CodexAgent extends BaseAgent {
         changedFiles,
         commitHash: cliOutput.commit,
         pullRequestUrl: cliOutput.pr_url,
+        pullRequestDescription,
         testResults: cliOutput.test_results,
       };
     } catch (error) {

@@ -39,6 +39,7 @@ import { EnhancePage } from '@/pages/project/enhance/EnhancePage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
+import { UsersPage } from '@/pages/settings/UsersPage'
 import { ProjectSettingsPage } from '@/pages/project/settings/ProjectSettingsPage'
 import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegrationsPage'
 import { TicketingSettingsPage } from '@/pages/project/settings/TicketingSettingsPage'
@@ -71,6 +72,7 @@ export function AppRoutes() {
         {/* Settings */}
         <Route path="/settings/integrations" element={<IntegrationsPage />} />
         <Route path="/settings/integrations/:integrationId" element={<IntegrationDetailPage />} />
+        <Route path="/settings/users" element={<UsersPage />} />
 
         {/* Project routes */}
         <Route path="/project/:project" element={<ProjectHomePage />} />

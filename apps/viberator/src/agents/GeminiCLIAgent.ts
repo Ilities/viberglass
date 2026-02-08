@@ -56,6 +56,9 @@ export class GeminiCLIAgent extends BaseAgent {
 
       const changedFiles = await this.getChangedFiles(repoDir);
 
+      // Read PR description from file (before cleanup)
+      const pullRequestDescription = await this.readPRDescription(repoDir);
+
       let cliOutput: any = {};
       try {
         const jsonMatch = result.stdout.match(/\{[\s\S]*\}/);
@@ -73,6 +76,7 @@ export class GeminiCLIAgent extends BaseAgent {
         changedFiles,
         commitHash: cliOutput.commitHash || cliOutput.commit,
         pullRequestUrl: cliOutput.pullRequestUrl || cliOutput.pr_url,
+        pullRequestDescription,
       };
     } catch (error) {
       await this.cleanup(workDir);
