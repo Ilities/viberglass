@@ -240,6 +240,10 @@ export const createUserSchema = registerSchema.keys({
   role: userRoleSchema.optional(),
 });
 
+export const updateUserRoleSchema = Joi.object({
+  role: userRoleSchema.required(),
+});
+
 export const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(8).max(255).required(),

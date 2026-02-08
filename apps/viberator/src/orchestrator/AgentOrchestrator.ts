@@ -231,10 +231,26 @@ INSTRUCTIONS:
 3. Identify the root cause
 4. Implement a minimal fix
 5. ${context.runTests ? "Run tests to verify the fix" : "Verify the fix manually"}
-6. Create a pull request with:
-   - Clear commit message
-   - Description of the fix
-   - Testing evidence
+
+IMPORTANT: After completing your fix, you MUST output a pull request description in the following format.
+Write this to a file called PR_DESCRIPTION.md in the repository root:
+
+\`\`\`markdown
+## Summary
+[Brief description of what this PR does]
+
+## Problem
+[Description of the bug/issue being fixed]
+
+## Solution
+[Explanation of how you fixed it]
+
+## Changes Made
+[List of key changes]
+
+## Testing
+[How the fix was verified]
+\`\`\`
 
 Please proceed with fixing this bug.
 `;

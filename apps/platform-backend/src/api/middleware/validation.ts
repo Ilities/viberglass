@@ -20,6 +20,7 @@ import {
   integrationConfigSchema,
   registerSchema,
   createUserSchema,
+  updateUserRoleSchema,
   loginSchema,
   forgotPasswordSchema,
 } from "./schemas";
@@ -72,6 +73,7 @@ export const validateUpdateSecret = createValidator(updateSecretSchema);
 export const validateIntegrationConfig = createValidator(integrationConfigSchema);
 export const validateRegister = createValidator(registerSchema);
 export const validateCreateUser = createValidator(createUserSchema);
+export const validateUpdateUserRole = createValidator(updateUserRoleSchema);
 export const validateLogin = createValidator(loginSchema);
 export const validateForgotPassword = createValidator(forgotPasswordSchema);
 
