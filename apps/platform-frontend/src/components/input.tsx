@@ -43,7 +43,7 @@ export const Input = forwardRef(function Input(
         aria-describedby={describedBy}
         aria-invalid={isInvalid || undefined}
         disabled={disabled}
-        className="w-full"
+        className="ui-control-input w-full"
         type={type as React.ComponentProps<typeof TextField.Root>['type']}
         size={size as React.ComponentProps<typeof TextField.Root>['size']}
         defaultValue={typeof defaultValue === 'string' || typeof defaultValue === 'number' ? defaultValue : undefined}

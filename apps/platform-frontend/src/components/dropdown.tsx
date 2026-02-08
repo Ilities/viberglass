@@ -31,7 +31,7 @@ export function DropdownMenu({
   className,
   ...props
 }: { className?: string } & Omit<React.ComponentPropsWithoutRef<typeof RadixDropdownMenu.Content>, 'className'>) {
-  return <RadixDropdownMenu.Content className={className} {...props} />
+  return <RadixDropdownMenu.Content className={clsx('ui-menu-content', className)} {...props} />
 }
 
 export function DropdownItem({
@@ -41,9 +41,11 @@ export function DropdownItem({
   | ({ href?: never } & React.ButtonHTMLAttributes<HTMLButtonElement>)
   | ({ href: string } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
 )) {
+  const itemClassName = clsx('ui-menu-item', className)
+
   if (typeof props.href === 'string') {
     return (
-      <RadixDropdownMenu.Item asChild className={className}>
+      <RadixDropdownMenu.Item asChild className={itemClassName}>
         <Link {...props} />
       </RadixDropdownMenu.Item>
     )
@@ -51,7 +53,7 @@ export function DropdownItem({
 
   const { disabled, type, ...buttonProps } = props as React.ButtonHTMLAttributes<HTMLButtonElement>
   return (
-    <RadixDropdownMenu.Item asChild disabled={disabled} className={className}>
+    <RadixDropdownMenu.Item asChild disabled={disabled} className={itemClassName}>
       <button {...buttonProps} type={type ?? 'button'} disabled={disabled} />
     </RadixDropdownMenu.Item>
   )
