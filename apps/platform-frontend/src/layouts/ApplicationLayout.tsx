@@ -171,6 +171,7 @@ function ApplicationLayoutContent() {
   }
 
   const basePath = `/project/${projectSlug}`
+  const isAdmin = user.role === 'admin'
   const handleSignOut = async () => {
     await logout()
     navigate('/login', { replace: true })
@@ -218,6 +219,11 @@ function ApplicationLayoutContent() {
                 <NavbarItem href="/settings/integrations" current={pathname.startsWith(`/settings/integrations`)}>
                   Integrations
                 </NavbarItem>
+                {isAdmin ? (
+                  <NavbarItem href="/settings/users" current={pathname.startsWith(`/settings/users`)}>
+                    Users
+                  </NavbarItem>
+                ) : null}
               </NavbarSection>
             ) : null}
             <NavbarSpacer />

@@ -101,6 +101,7 @@ export interface ExecutionResult {
   changedFiles: string[];
   commitHash?: string;
   pullRequestUrl?: string;
+  pullRequestDescription?: string;
   testResults?: TestResult[];
   errorMessage?: string;
   executionTime: number;

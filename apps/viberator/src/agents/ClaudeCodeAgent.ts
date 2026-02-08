@@ -88,6 +88,9 @@ export class ClaudeCodeAgent extends BaseAgent {
       // Get changed files
       const changedFiles = await this.getChangedFiles(repoDir);
 
+      // Read PR description from file (before cleanup)
+      const pullRequestDescription = await this.readPRDescription(repoDir);
+
       // Parse results
       let cliOutput: any = {};
       try {
@@ -109,6 +112,7 @@ export class ClaudeCodeAgent extends BaseAgent {
         changedFiles,
         commitHash: cliOutput.commitHash || cliOutput.commit,
         pullRequestUrl: cliOutput.pullRequestUrl || cliOutput.pr_url,
+        pullRequestDescription,
         testResults: cliOutput.testResults,
       };
     } catch (error) {
