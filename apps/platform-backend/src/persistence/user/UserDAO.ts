@@ -23,6 +23,16 @@ export interface PublicUser {
 }
 
 export class UserDAO {
+  async listUsers(): Promise<PublicUser[]> {
+    const rows = await db
+      .selectFrom("users")
+      .selectAll()
+      .orderBy("created_at", "asc")
+      .execute();
+
+    return rows.map((row) => this.mapPublicUser(row));
+  }
+
   async findByEmail(email: string): Promise<UserRecord | null> {
     const row = await db
       .selectFrom("users")
@@ -45,6 +55,32 @@ export class UserDAO {
     if (!row) return null;
 
     return this.mapPublicUser(row);
+  }
+
+  async updateUserRole(id: string, role: UserRole): Promise<PublicUser | null> {
+    const row = await db
+      .updateTable("users")
+      .set({
+        role,
+        updated_at: new Date(),
+      })
+      .where("id", "=", id)
+      .returningAll()
+      .executeTakeFirst();
+
+    if (!row) return null;
+
+    return this.mapPublicUser(row);
+  }
+
+  async countByRole(role: UserRole): Promise<number> {
+    const row = await db
+      .selectFrom("users")
+      .select((eb) => eb.fn.count<string>("id").as("count"))
+      .where("role", "=", role)
+      .executeTakeFirstOrThrow();
+
+    return Number(row.count);
   }
 
   async createUser(input: {

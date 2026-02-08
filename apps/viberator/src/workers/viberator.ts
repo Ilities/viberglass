@@ -456,6 +456,7 @@ export class ViberatorWorker {
         featureBranch,
         baseBranch || "main",
         task,
+        result.pullRequestDescription,
       );
 
       await this.sendProgress("cleanup", "Cleaning up workspace");
