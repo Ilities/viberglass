@@ -1,5 +1,6 @@
 import { Stat } from '@/components/stat'
 import { Badge } from '@/components/badge'
+import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
@@ -7,6 +8,45 @@ import { formatSeverity, formatTicketSystem, formatTimestamp, getRecentTickets, 
 import type { TicketSummary, TicketStats } from '@/data'
 import { useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  const greetings = {
+    morning: [
+      'Don\'t Panic',
+      'The Guide says you\'re doing fine',
+      'Another day in this wholly remarkable universe',
+      'Tea first, then bugs',
+    ],
+    afternoon: [
+      'Time is an illusion',
+      'Halfway through another improbable day',
+      'The universe is big. Really big',
+      'Mostly harmless progress',
+    ],
+    evening: [
+      'The ships hung in the sky much as bricks don\'t',
+      'Evening approaches with alarming regularity',
+      'Almost time for a Pan Galactic Gargle Blaster',
+      'The Answer is still 42',
+    ],
+    night: [
+      'Share and Enjoy',
+      'Life. Don\'t talk to me about life',
+      'Here you are, brain the size of a planet',
+      'So it goes, in the late hours',
+    ],
+  }
+
+  let timeOfDay: keyof typeof greetings
+  if (hour >= 5 && hour < 12) timeOfDay = 'morning'
+  else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon'
+  else if (hour >= 17 && hour < 21) timeOfDay = 'evening'
+  else timeOfDay = 'night'
+
+  const options = greetings[timeOfDay]
+  return options[Math.floor(Math.random() * options.length)]
+}
 
 export function ProjectHomePage() {
   const { project } = useParams<{ project: string }>()
@@ -24,17 +64,15 @@ export function ProjectHomePage() {
     loadData()
   }, [project])
 
+  const [greeting] = useState(getGreeting)
+
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-zinc-500 dark:text-zinc-400">Loading...</div>
-      </div>
-    )
+    return <FunLoading retro />
   }
 
   return (
     <>
-      <Heading>Good morning, Developer</Heading>
+      <Heading className="bounce-in">{greeting}, Developer</Heading>
       <div className="mt-8 flex items-end justify-between">
         <Subheading>Overview</Subheading>
         <div>
