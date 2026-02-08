@@ -127,6 +127,28 @@ const configFileSchema = Joi.object({
   content: Joi.string().required(),
 });
 
+const runInstructionFileSchema = Joi.object({
+  fileType: Joi.string().min(1).max(200).required(),
+  content: Joi.string().max(200000).required(),
+});
+
+const runTicketOverridesSchema = Joi.object({
+  additionalContext: Joi.string().max(10000).optional(),
+  reproductionSteps: Joi.string().max(10000).optional(),
+  expectedBehavior: Joi.string().max(10000).optional(),
+  priorityOverride: Joi.string()
+    .valid("critical", "high", "medium", "low")
+    .optional(),
+  settings: Joi.object({
+    maxChanges: Joi.number().integer().min(1).max(200).optional(),
+    testRequired: Joi.boolean().optional(),
+    codingStandards: Joi.string().max(5000).optional(),
+    runTests: Joi.boolean().optional(),
+    testCommand: Joi.string().max(1000).optional(),
+    maxExecutionTime: Joi.number().integer().min(1).max(86400).optional(),
+  }).optional(),
+}).optional();
+
 export const clankerSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   description: Joi.string().allow(null, "").optional(),
@@ -180,6 +202,11 @@ export const resultCallbackSchema = Joi.object({
 
 export const runTicketSchema = Joi.object({
   clankerId: Joi.string().uuid().required(),
+  overrides: runTicketOverridesSchema,
+  instructionFiles: Joi.array()
+    .items(runInstructionFileSchema)
+    .max(20)
+    .optional(),
 });
 
 // Progress update schema for worker progress reporting

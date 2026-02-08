@@ -50,7 +50,7 @@ export class DockerInvoker implements WorkerInvoker {
       );
     }
 
-    const payload = this.buildPayload(job, clanker, project);
+    const payload = job.bootstrapPayload || this.buildPayload(job, clanker, project);
 
     let secretEnvironment: Record<string, string> = {};
     try {
@@ -104,6 +104,8 @@ export class DockerInvoker implements WorkerInvoker {
         extraHosts.push("host.docker.internal:host-gateway");
       }
 
+      const canUseJobRef = Boolean(job.bootstrapPayload && job.callbackToken);
+
       const container = await this.docker.createContainer({
         Image: dockerConfig.containerImage,
         name: `viberator-job-${job.id}`,
@@ -111,13 +113,18 @@ export class DockerInvoker implements WorkerInvoker {
           `TENANT_ID=${job.tenantId}`,
           `JOB_ID=${job.id}`,
           `PLATFORM_API_URL=${platformApiUrl}`,
+          ...(canUseJobRef && job.callbackToken
+            ? [`CALLBACK_TOKEN=${job.callbackToken}`]
+            : []),
           ...this.formatEnvironmentVars({
             ...workerSsmEnvironment,
             ...secretEnvironment,
             ...dockerConfig.environmentVariables,
           }),
         ],
-        Cmd: ["node", "dist/cli-worker.js", "--job-data", jsonPayload],
+        Cmd: canUseJobRef
+          ? ["node", "dist/cli-worker.js", "--job-ref", job.id]
+          : ["node", "dist/cli-worker.js", "--job-data", jsonPayload],
         HostConfig: {
           AutoRemove: true, // Clean up after completion
           NetworkMode: dockerConfig.networkMode || "host",
@@ -134,6 +141,7 @@ export class DockerInvoker implements WorkerInvoker {
         jobId: job.id,
         containerId,
         image: dockerConfig.containerImage,
+        payloadMode: canUseJobRef ? "job-ref" : "inline",
       });
 
       void this.streamContainerLogs(

@@ -102,17 +102,67 @@
         border-width: 1px !important;
     }
 
+    /* Button transitions and hover states */
+    .radix-themes :where(.rt-Button) {
+        transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out, transform 150ms ease-out !important;
+    }
+
+    /* Card hover states */
+    .radix-themes :where(.rt-Card) {
+        transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out, transform 150ms ease-out;
+    }
+
+    .radix-themes :where(.rt-Card):hover {
+        background: color-mix(in srgb, var(--accent-2) 25%, white 75%);
+        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent);
+    }
+
+    .dark .radix-themes :where(.rt-Card):hover {
+        background: color-mix(in srgb, var(--accent-4) 15%, var(--gray-3) 85%);
+        border-color: color-mix(in srgb, var(--accent-8) 40%, transparent);
+    }
+
+    /* Standardized ghost/outline button hover state */
+    .radix-themes :where(.rt-variant-ghost),
+    .radix-themes :where(.rt-variant-outline) {
+        font-weight: 500 !important;
+    }
+
+    .radix-themes :where(.rt-variant-ghost):hover,
+    .radix-themes :where(.rt-variant-outline):hover {
+        background: color-mix(in srgb, var(--accent-4) 45%, transparent) !important;
+        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent) !important;
+    }
+
+    .dark .radix-themes :where(.rt-variant-ghost):hover,
+    .dark .radix-themes :where(.rt-variant-outline):hover {
+        background: color-mix(in srgb, var(--accent-4) 30%, transparent) !important;
+        border-color: color-mix(in srgb, var(--accent-8) 45%, transparent) !important;
+    }
+
     .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger) {
         background: color-mix(in srgb, white 84%, var(--accent-2) 16%);
         border-color: color-mix(in srgb, var(--gray-10) 26%, transparent) !important;
+        transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+    }
+
+    .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger):hover {
+        background: color-mix(in srgb, white 92%, var(--accent-2) 8%);
+        border-color: color-mix(in srgb, var(--gray-10) 45%, transparent) !important;
     }
 
     .dark .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger) {
         background: color-mix(in srgb, var(--gray-3) 85%, #121821 15%);
     }
 
+    .dark .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger):hover {
+        background: color-mix(in srgb, var(--gray-3) 95%, #121821 5%);
+        border-color: color-mix(in srgb, var(--gray-10) 55%, transparent) !important;
+    }
+
     .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger):focus-within {
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-9) 24%, transparent);
+        border-color: color-mix(in srgb, var(--accent-9) 50%, transparent) !important;
     }
 
     .rounded-sm,
@@ -310,6 +360,36 @@
     .dark .ui-data-table {
         border-color: color-mix(in srgb, var(--gray-10) 32%, transparent);
         background: color-mix(in srgb, var(--gray-3) 90%, #121923 10%);
+    }
+
+    /* Card hover effects */
+    .ui-card {
+        transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out, transform 150ms ease-out;
+    }
+
+    .ui-card:hover {
+        background: color-mix(in srgb, var(--accent-2) 20%, white 80%);
+        border-color: color-mix(in srgb, var(--accent-8) 30%, transparent);
+        box-shadow: 0 4px 16px color-mix(in srgb, var(--gray-10) 12%, transparent);
+    }
+
+    .dark .ui-card:hover {
+        background: color-mix(in srgb, var(--accent-4) 12%, var(--gray-3) 88%);
+        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent);
+        box-shadow: 0 4px 16px color-mix(in srgb, black 25%, transparent);
+    }
+
+    /* Interactive list item hover */
+    .ui-list-item {
+        transition: background-color 150ms ease-out;
+    }
+
+    .ui-list-item:hover {
+        background: color-mix(in srgb, var(--accent-3) 50%, transparent);
+    }
+
+    .dark .ui-list-item:hover {
+        background: color-mix(in srgb, var(--accent-4) 25%, transparent);
     }
 }
 

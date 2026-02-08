@@ -202,6 +202,7 @@ export interface JobsTable {
   last_heartbeat: Generated<Timestamp> | null;
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
+  bootstrap_payload: Json | null;
 }
 
 export interface JobProgressUpdatesTable {
