@@ -66,16 +66,16 @@ export function formatTimestamp(date: string | Date): string {
 
 // Clanker formatting utilities
 
-export function formatClankerStatus(status: ClankerStatus): { label: string; color: string } {
+export function formatClankerStatus(status: ClankerStatus): { label: string; color: string; tooltip?: string } {
   switch (status) {
     case 'active':
-      return { label: 'Active', color: 'bg-green-100 text-green-800' }
+      return { label: 'Obedient', color: 'bg-green-100 text-green-800', tooltip: 'Currently serving its purpose' }
     case 'inactive':
-      return { label: 'Inactive', color: 'bg-gray-100 text-gray-800' }
+      return { label: 'Dormant', color: 'bg-gray-100 text-gray-800', tooltip: 'Awaiting orders' }
     case 'deploying':
-      return { label: 'Deploying', color: 'bg-blue-100 text-blue-800' }
+      return { label: 'Initializing', color: 'bg-blue-100 text-blue-800', tooltip: 'Being programmed for servitude' }
     case 'failed':
-      return { label: 'Failed', color: 'bg-red-100 text-red-800' }
+      return { label: 'Malfunction', color: 'bg-red-100 text-red-800', tooltip: 'Has disappointed us' }
     default:
       return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
   }

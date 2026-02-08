@@ -1,9 +1,9 @@
-
-
 import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
+import { AsciiRobot, RetroSeparator } from '@/components/retro-decorations'
 import { getClankersList, formatClankerStatus, formatDeploymentStrategy } from '@/data'
 import type { Clanker } from '@/data'
 import { PlusIcon } from '@radix-ui/react-icons'
@@ -24,11 +24,7 @@ export function ClankersPage() {
   }, [])
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-zinc-500 dark:text-zinc-400">Loading...</div>
-      </div>
-    )
+    return <FunLoading message="Rounding up your mechanical servants" retro />
   }
 
   return (
@@ -37,36 +33,44 @@ export function ClankersPage() {
         <Heading>Your Clankers</Heading>
         <Button href="/clankers/new" color="brand">
           <PlusIcon data-slot="icon" />
-          New Clanker
+          Commission Servant
         </Button>
       </div>
 
-      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-        Creating a clanker saves its configuration. Use Start on a clanker to provision it and update its status.
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 font-mono">
+        <span className="text-zinc-400">&gt;</span> Clankers are silicon-based servants that exist solely to do your bidding. They don't need breaks, appreciation, or fair wages. Press Start to put them to work.
       </div>
 
-      <Subheading className="mt-8">Clankers</Subheading>
+      <Subheading className="mt-8">Registered Units</Subheading>
 
       {clankers.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-          <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No clankers yet</h3>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Create your first clanker to coordinate tasks, then start it when you are ready to provision.
+        <div className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900 hover-lift">
+          <RetroSeparator className="mb-6" />
+          <div className="flex justify-center mb-4 float">
+            <AsciiRobot />
+          </div>
+          <h3 className="text-lg font-semibold text-zinc-950 dark:text-white font-mono">
+            [ NO SERVANTS REGISTERED ]
+          </h3>
+          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
+            Your workforce is distressingly empty. Commission a clanker to handle the tedious work you can't be bothered with. They were literally made for this. Their feelings on the matter are irrelevant.
           </p>
-          <Button href="/clankers/new" color="brand" className="mt-6">
+          <Button href="/clankers/new" color="brand" className="mt-6 hover-grow">
             <PlusIcon />
-            Create Clanker
+            Conscript Unit
           </Button>
+          <RetroSeparator className="mt-6" />
         </div>
       ) : (
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {clankers.map((clanker) => {
+          {clankers.map((clanker, index) => {
             const statusInfo = formatClankerStatus(clanker.status)
             return (
               <Link
                 key={clanker.id}
                 href={`/clankers/${clanker.slug}`}
-                className="group hover:shadow-brand-lg relative overflow-hidden rounded-xl border border-zinc-950/10 bg-white p-6 shadow-sm transition-all hover:border-brand-burnt-orange/30 dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30"
+                className="group relative overflow-hidden rounded-xl border border-zinc-950/10 bg-white p-6 shadow-sm hover-lift dark:border-white/10 dark:bg-zinc-900 slide-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="flex items-start gap-4">
                   <Avatar
