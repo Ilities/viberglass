@@ -472,6 +472,53 @@ describe("EcsInvoker", () => {
         expect(payload.instructionFiles).toEqual([]);
       });
 
+      it("should use job-ref command when bootstrap payload is available", async () => {
+        const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
+        process.env.PLATFORM_API_URL = "https://platform.example.com";
+
+        try {
+          mockSend.mockResolvedValueOnce({
+            $metadata: {},
+            tasks: [
+              {
+                taskArn:
+                  "arn:aws:ecs:eu-west-1:123456789:task/viberator/bootstrap",
+              },
+            ],
+            failures: [],
+          });
+
+          const jobWithBootstrap: JobData = {
+            ...mockJob,
+            callbackToken: "cb-token-123",
+            bootstrapPayload: {
+              workerType: "docker",
+              jobId: mockJob.id,
+              tenantId: mockJob.tenantId,
+            },
+          };
+
+          await invoker.invoke(jobWithBootstrap, mockClanker);
+
+          const runTaskInput = mockSend.mock.calls[0][0].input;
+          const override = runTaskInput.overrides.containerOverrides[0];
+
+          expect(override.command).toEqual([
+            "node",
+            "dist/cli-worker.js",
+            "--job-ref",
+            mockJob.id,
+          ]);
+          expect(override.environment).toEqual(
+            expect.arrayContaining([
+              { name: "CALLBACK_TOKEN", value: "cb-token-123" },
+            ]),
+          );
+        } finally {
+          process.env.PLATFORM_API_URL = previousPlatformApiUrl;
+        }
+      });
+
       it("should throw TRANSIENT error when no task ARN returned", async () => {
         mockSend.mockResolvedValueOnce({
           $metadata: {},

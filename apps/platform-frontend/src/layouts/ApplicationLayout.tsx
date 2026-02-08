@@ -12,6 +12,7 @@ import { Navbar, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/
 import { Sidebar, SidebarBody, SidebarHeader, SidebarItem, SidebarLabel, SidebarSection } from '@/components/sidebar'
 import { StackedLayout } from '@/components/stacked-layout'
 import { ProjectProvider } from '@/context/project-context'
+import { ProjectTheme } from '@/context/project-theme'
 import { useAuth } from '@/context/auth-context'
 import { useTheme } from '@/context/theme-context'
 import { getProjects, Project } from '@/service/api/project-api'
@@ -179,8 +180,9 @@ function ApplicationLayoutContent() {
 
   return (
     <ProjectProvider>
-      <StackedLayout
-        navbar={
+      <ProjectTheme>
+        <StackedLayout
+          navbar={
           <Navbar>
             <Dropdown>
               <DropdownButton as={NavbarItem} className="max-lg:hidden">
@@ -287,17 +289,18 @@ function ApplicationLayoutContent() {
             </SidebarBody>
           </Sidebar>
         }
-      >
-        <Outlet />
-      </StackedLayout>
-      <Toaster
-        position="bottom-right"
-        richColors
-        closeButton
-        toastOptions={{
-          duration: 5000,
-        }}
-      />
+        >
+          <Outlet />
+        </StackedLayout>
+        <Toaster
+          position="bottom-right"
+          richColors
+          closeButton
+          toastOptions={{
+            duration: 5000,
+          }}
+        />
+      </ProjectTheme>
     </ProjectProvider>
   )
 }

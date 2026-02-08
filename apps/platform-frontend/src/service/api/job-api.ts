@@ -19,6 +19,10 @@ export interface JobOverrides {
 export interface RunTicketRequest {
   clankerId: string
   overrides?: JobOverrides
+  instructionFiles?: Array<{
+    fileType: string
+    content: string
+  }>
 }
 
 export interface RunTicketResponse {
@@ -84,13 +88,14 @@ export async function runTicket(
   ticketId: string,
   clankerId: string,
   overrides?: JobOverrides,
+  instructionFiles?: Array<{ fileType: string; content: string }>,
 ): Promise<RunTicketResponse> {
   const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ clankerId, overrides }),
+    body: JSON.stringify({ clankerId, overrides, instructionFiles }),
   })
 
   if (!response.ok) {

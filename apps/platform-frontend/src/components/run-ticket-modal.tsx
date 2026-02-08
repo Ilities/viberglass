@@ -20,6 +20,7 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const [selectedClankerId, setSelectedClankerId] = useState<string>(activeClankers[0]?.id ?? '')
   const [isRunning, setIsRunning] = useState(false)
+  const [extraInstructions, setExtraInstructions] = useState('')
 
   useEffect(() => {
     if (activeClankers.length === 0) {
@@ -42,7 +43,11 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
 
     setIsRunning(true)
     try {
-      const response = await runTicket(ticket.id, selectedClanker.id)
+      const instructionFiles = extraInstructions.trim().length > 0
+        ? [{ fileType: 'AGENTS.md', content: extraInstructions.trim() }]
+        : undefined
+
+      const response = await runTicket(ticket.id, selectedClanker.id, undefined, instructionFiles)
       const jobId = response.data.jobId
 
       // Show toast with link
@@ -108,6 +113,20 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
                 </Button>
               </div>
             )}
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Extra Instructions (Optional)</h4>
+            <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+              Saved as <code>AGENTS.md</code> for this run only.
+            </p>
+            <textarea
+              value={extraInstructions}
+              onChange={(event) => setExtraInstructions(event.target.value)}
+              rows={5}
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              placeholder="Add temporary instructions for this job..."
+            />
           </div>
         </div>
       </DialogBody>
