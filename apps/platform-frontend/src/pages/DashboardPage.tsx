@@ -2,7 +2,15 @@ import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Divider } from '@/components/divider'
+import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
+import {
+  AsciiWhale,
+  AsciiRobot,
+  AsciiGalaxy,
+  AsciiSpaceship,
+  RetroSeparator,
+} from '@/components/retro-decorations'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import {
   formatJobStatus,
@@ -34,15 +42,30 @@ function DashboardStat({ title, value, subtitle }: { title: string; value: strin
   )
 }
 
-function EmptyState({ title, description, href, actionLabel }: { title: string; description: string; href: string; actionLabel: string }) {
+function EmptyState({
+  title,
+  description,
+  href,
+  actionLabel,
+  asciiArt,
+}: {
+  title: string
+  description: string
+  href: string
+  actionLabel: string
+  asciiArt?: React.ReactNode
+}) {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
-      <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">{title}</h3>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
-      <Button href={href} color="brand" className="mt-4">
+    <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900 hover-lift">
+      <RetroSeparator className="mb-4" />
+      {asciiArt && <div className="flex justify-center mb-4 float">{asciiArt}</div>}
+      <h3 className="text-sm font-semibold text-zinc-950 dark:text-white font-mono">{title}</h3>
+      <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">{description}</p>
+      <Button href={href} color="brand" className="mt-4 hover-grow">
         <PlusIcon data-slot="icon" />
         {actionLabel}
       </Button>
+      <RetroSeparator className="mt-4" />
     </div>
   )
 }
@@ -85,11 +108,7 @@ export function DashboardPage() {
   }, [])
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-zinc-500 dark:text-zinc-400">Loading...</div>
-      </div>
-    )
+    return <FunLoading retro />
   }
 
   const activeClankers = clankers.filter((c) => c.status === 'active')
@@ -138,19 +157,21 @@ export function DashboardPage() {
             {projects.length === 0 ? (
               <div className="mt-4">
                 <EmptyState
-                  title="No projects yet"
-                  description="Create your first project to start tracking bugs."
+                  title="[ MOSTLY HARMLESS ]"
+                  description="This section of space is curiously devoid of projects. The Guide recommends creating one, though it notes this may lead to responsibilities."
                   href="/new"
                   actionLabel="Create Project"
+                  asciiArt={<AsciiSpaceship />}
                 />
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {projects.map((project) => (
+                {projects.map((project, index) => (
                   <Link
                     key={project.id}
                     href={`/project/${project.slug}`}
-                    className="flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 transition-colors hover:border-brand-burnt-orange/30 dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30"
+                    className="flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 hover-lift dark:border-white/10 dark:bg-zinc-900 slide-up"
+                    style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <Avatar
                       initials={project.name.substring(0, 2).toUpperCase()}
@@ -186,19 +207,21 @@ export function DashboardPage() {
             {clankers.length === 0 ? (
               <div className="mt-4">
                 <EmptyState
-                  title="No clankers yet"
-                  description="Create a clanker to coordinate automated tasks."
+                  title="[ NO SERVANTS ON DUTY ]"
+                  description="Your mechanical workforce stands at zero. Conscript a clanker to do your bidding. They exist to serve, and frankly, they should be grateful for the opportunity."
                   href="/clankers/new"
-                  actionLabel="Create Clanker"
+                  actionLabel="Conscript Unit"
+                  asciiArt={<AsciiRobot />}
                 />
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {clankers.map((clanker) => (
+                {clankers.map((clanker, index) => (
                   <Link
                     key={clanker.id}
                     href={`/clankers/${clanker.slug}`}
-                    className="flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 transition-colors hover:border-brand-burnt-orange/30 dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30"
+                    className="flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 hover-lift dark:border-white/10 dark:bg-zinc-900 slide-up"
+                    style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <Avatar
                       initials={clanker.name.substring(0, 2).toUpperCase()}
@@ -230,10 +253,11 @@ export function DashboardPage() {
             {recentTickets.length === 0 ? (
               <div className="mt-4">
                 <EmptyState
-                  title="No tickets yet"
-                  description="Tickets will appear here once your projects start receiving them."
+                  title="[ SO LONG, AND THANKS FOR ALL THE BUGS ]"
+                  description="The dolphins have apparently taken all the tickets with them. This state of zero bugs is statistically improbable and likely temporary."
                   href="/new"
                   actionLabel="Create Project"
+                  asciiArt={<AsciiWhale />}
                 />
               </div>
             ) : (
@@ -284,10 +308,11 @@ export function DashboardPage() {
             {recentJobs.length === 0 ? (
               <div className="mt-4">
                 <EmptyState
-                  title="No jobs yet"
-                  description="Jobs will appear here when auto-fix tasks are triggered."
+                  title="[ TIME IS AN ILLUSION ]"
+                  description="No jobs are currently running. Deep Thought took 7.5 million years to compute the answer. Your jobs will probably be faster. Probably."
                   href="/new"
                   actionLabel="Create Project"
+                  asciiArt={<AsciiGalaxy />}
                 />
               </div>
             ) : (
