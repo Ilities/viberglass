@@ -20,8 +20,11 @@ import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
 import { attachAuthContext, requireAuth } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
-import { generalApiLimiter, authLimiter, webhookLimiter } from "./middleware/rateLimiting";
-import { maliciousRequestBlocker, suspiciousIpTracker } from "./middleware/maliciousRequestBlocker";
+import { generalApiLimiter, webhookLimiter } from "./middleware/rateLimiting";
+import {
+  maliciousRequestBlocker,
+  suspiciousIpTracker,
+} from "./middleware/maliciousRequestBlocker";
 
 const app = express();
 configurePassport();
@@ -29,7 +32,7 @@ configurePassport();
 // Trust proxy headers when running behind ALB/load balancer
 // Required for accurate client IP detection in rate limiting and logging
 // Set to 1 to trust only the first proxy (ALB) - more secure than 'true'
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 // Security headers with helmet
 app.use(
@@ -81,7 +84,9 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        logger.warn("CORS blocked request from unauthorized origin", { origin });
+        logger.warn("CORS blocked request from unauthorized origin", {
+          origin,
+        });
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -105,7 +110,6 @@ app.get("/health", (req, res) => {
 });
 
 // Rate limiting for API routes
-app.use("/api/auth", authLimiter); // Strict rate limit for auth
 app.use("/api/webhooks", webhookLimiter); // Lenient limit for webhooks
 app.use("/api", generalApiLimiter); // General limit for all other API routes
 
@@ -300,46 +304,53 @@ app.use((req, res, next) => {
 });
 
 // Error handler
-app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  // Set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    // Set locals, only providing error in development
+    res.locals.message = err.message;
+    res.locals.error = req.app.get("env") === "development" ? err : {};
 
-  // Log error with more context for 404s
-  const logData: Record<string, unknown> = {
-    message: err.message,
-    stack: err.stack,
-    status: err.status,
-  };
-  
-  if (err.status === 404) {
-    logData.method = req.method;
-    logData.url = req.url;
-    logData.originalUrl = req.originalUrl;
-    logData.path = req.path;
-    logData.routes = req.app._router?.stack
-      ?.filter((layer: any) => layer.route || layer.name === 'router')
-      ?.map((layer: any) => ({
-        name: layer.name,
-        regexp: layer.regexp?.toString(),
-        path: layer.route?.path,
-      }));
-  }
-  
-  logger.error("Application error", logData);
+    // Log error with more context for 404s
+    const logData: Record<string, unknown> = {
+      message: err.message,
+      stack: err.stack,
+      status: err.status,
+    };
 
-  // Send error response
-  if (req.path.startsWith("/api/")) {
-    // API error response
-    res.status(err.status || 500).json({
-      error: err.message || "Internal server error",
-      ...(req.app.get("env") === "development" && { stack: err.stack }),
-    });
-  } else {
-    // Render the error page for web requests
-    res.status(err.status || 500);
-    res.render("error");
-  }
-});
+    if (err.status === 404) {
+      logData.method = req.method;
+      logData.url = req.url;
+      logData.originalUrl = req.originalUrl;
+      logData.path = req.path;
+      logData.routes = req.app._router?.stack
+        ?.filter((layer: any) => layer.route || layer.name === "router")
+        ?.map((layer: any) => ({
+          name: layer.name,
+          regexp: layer.regexp?.toString(),
+          path: layer.route?.path,
+        }));
+    }
+
+    logger.error("Application error", logData);
+
+    // Send error response
+    if (req.path.startsWith("/api/")) {
+      // API error response
+      res.status(err.status || 500).json({
+        error: err.message || "Internal server error",
+        ...(req.app.get("env") === "development" && { stack: err.stack }),
+      });
+    } else {
+      // Render the error page for web requests
+      res.status(err.status || 500);
+      res.render("error");
+    }
+  },
+);
 
 export default app;
