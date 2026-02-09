@@ -1,5 +1,5 @@
-import * as request from "supertest";
-import app from "../api/server";
+import request from "supertest";
+import app from "../api/app";
 import logger from "../config/logger";
 
 describe("API Endpoints", () => {

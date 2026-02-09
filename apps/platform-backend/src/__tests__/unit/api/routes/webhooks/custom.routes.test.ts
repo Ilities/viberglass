@@ -78,6 +78,17 @@ describe("custom webhook routes", () => {
       ticketId: "ticket-1",
       deliveryId: "delivery-1",
     });
+    expect(mockDeliveryDAO.checkDeliveryExists).toHaveBeenCalledWith(
+      "delivery-1",
+      "cfg-1",
+    );
+    expect(mockDeliveryDAO.recordDeliveryAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "custom",
+        webhookConfigId: "cfg-1",
+        deliveryId: "delivery-1",
+      }),
+    );
     expect(mockTicketDAO.createTicket).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Whitespace Sensitive",
