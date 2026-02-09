@@ -134,6 +134,7 @@ export class ProviderRegistry {
    * - GitHub: x-github-event
    * - Jira: x-atlassian-webhook-identifier
    * - Shortcut: x-shortcut-signature or x-shortcut-delivery
+   * - Custom: x-webhook-signature-256 or x-webhook-delivery-id
    * - GitLab: x-gitlab-event
    * - Bitbucket: x-event-key
    *
@@ -149,7 +150,9 @@ export class ProviderRegistry {
     // Check Jira webhooks
     if (
       headers['x-atlassian-webhook-identifier'] ||
-      headers['x-atlassian-webhook-timestamp']
+      headers['x-atlassian-webhook-timestamp'] ||
+      headers['x-atlassian-webhook-signature'] ||
+      headers['x-hub-signature']
     ) {
       return this.get('jira');
     }
@@ -157,6 +160,11 @@ export class ProviderRegistry {
     // Check Shortcut webhooks
     if (headers['x-shortcut-signature'] || headers['x-shortcut-delivery']) {
       return this.get('shortcut');
+    }
+
+    // Check Custom webhooks
+    if (headers['x-webhook-signature-256'] || headers['x-webhook-delivery-id']) {
+      return this.get('custom');
     }
 
     // Check GitLab webhooks
@@ -224,10 +232,16 @@ export class ProviderRegistry {
       case 'jira':
         this.headerMappings.set('x-atlassian-webhook-identifier', name);
         this.headerMappings.set('x-atlassian-webhook-timestamp', name);
+        this.headerMappings.set('x-atlassian-webhook-signature', name);
+        this.headerMappings.set('x-hub-signature', name);
         break;
       case 'shortcut':
         this.headerMappings.set('x-shortcut-signature', name);
         this.headerMappings.set('x-shortcut-delivery', name);
+        break;
+      case 'custom':
+        this.headerMappings.set('x-webhook-signature-256', name);
+        this.headerMappings.set('x-webhook-delivery-id', name);
         break;
       case 'gitlab':
         this.headerMappings.set('x-gitlab-event', name);
