@@ -17,6 +17,28 @@ interface CliArgs {
   help?: boolean;
 }
 
+function readStringField(
+  value: unknown,
+  field: "error" | "message",
+): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const candidate = record[field];
+  return typeof candidate === "string" ? candidate : undefined;
+}
+
+function readDataField<T>(value: unknown): T | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (record["data"] as T | undefined) ?? undefined;
+}
+
 function parseArgs(args: string[]): CliArgs {
   const parsed: CliArgs = {};
 
@@ -112,23 +134,25 @@ async function loadJobData(args: CliArgs): Promise<DockerPayload> {
     });
 
     if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({}));
+      const errorBody: unknown = await response.json().catch(() => undefined);
       const message =
-        (errorBody && (errorBody.error || errorBody.message)) ||
+        readStringField(errorBody, "error") ??
+        readStringField(errorBody, "message") ??
         response.statusText;
       throw new Error(
         `Failed to fetch bootstrap payload for ${args["job-ref"]}: ${message}`,
       );
     }
 
-    const parsed = await response.json();
-    if (!parsed?.data) {
+    const parsed: unknown = await response.json();
+    const data = readDataField<DockerPayload>(parsed);
+    if (!data) {
       throw new Error(
         `Bootstrap response for ${args["job-ref"]} did not include payload data.`,
       );
     }
 
-    return parsed.data as DockerPayload;
+    return data;
   }
 
   if (args.jobData) {
