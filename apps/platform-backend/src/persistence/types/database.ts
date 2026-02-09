@@ -246,6 +246,7 @@ export interface WebhookProviderConfigsTable {
 export interface WebhookDeliveryAttemptsTable {
   id: Generated<string>;
   provider: "github" | "jira" | "shortcut" | "custom";
+  webhook_config_id: string | null;
   delivery_id: string;
   event_type: string;
   status: "pending" | "processing" | "succeeded" | "failed";

@@ -247,6 +247,35 @@ export class WebhookConfigDAO {
   }
 
   /**
+   * Get config by integration + config ID with optional direction/active filters.
+   * Useful for deterministic instance-scoped API operations.
+   */
+  async getByIntegrationAndConfigId(
+    integrationId: string,
+    configId: string,
+    options?: { direction?: WebhookDirection; activeOnly?: boolean },
+  ): Promise<WebhookConfig | null> {
+    let query = db
+      .selectFrom("webhook_provider_configs")
+      .selectAll()
+      .where("integration_id", "=", integrationId)
+      .where("id", "=", configId);
+
+    if (options?.activeOnly ?? false) {
+      query = query.where("active", "=", true);
+    }
+
+    if (options?.direction) {
+      query = query.where("direction", "=", options.direction as any);
+    }
+
+    const row = await query.executeTakeFirst();
+    if (!row) return null;
+
+    return this.mapRowToConfig(row);
+  }
+
+  /**
    * List webhook configurations by integration ID
    */
   async listByIntegrationId(
