@@ -143,29 +143,52 @@ export class JobService {
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
       }
 
-      // Post result back to webhook provider on completion
-      if (
-        (status === "completed" || status === "failed") &&
-        this.feedbackService &&
-        updates.result
-      ) {
-        if (job?.ticket_id) {
-          // Post result to webhook provider asynchronously
-          // Don't fail the job completion if posting fails
+      if (this.feedbackService && job?.ticket_id) {
+        if (status === "active") {
+          // Emit job-started outbound event asynchronously.
           this.feedbackService
-            .postJobResult(
+            .postJobStarted({
+              id: job.id,
+              ticketId: job.ticket_id,
+              status: "active",
+              repository: job.repository || undefined,
+            })
+            .catch((error) => {
+              logger.error(
+                `Failed to post job-started event for job ${jobId} to outbound webhook`,
+                {
+                  error: error instanceof Error ? error.message : String(error),
+                  jobId,
+                  ticketId: job.ticket_id,
+                },
+              );
+            });
+        }
+
+        if (status === "completed" || status === "failed") {
+          // Emit job-ended outbound event asynchronously.
+          const outboundResult: JobResult =
+            updates.result ?? {
+              success: status === "completed",
+              changedFiles: [],
+              executionTime: 0,
+              errorMessage: updates.errorMessage,
+            };
+
+          this.feedbackService
+            .postJobEnded(
               {
                 id: job.id,
                 ticketId: job.ticket_id,
-                status: job.status as "completed" | "failed",
-                result: updates.result,
+                status,
+                result: outboundResult,
                 repository: job.repository || undefined,
               },
-              updates.result,
+              outboundResult,
             )
             .catch((error) => {
               logger.error(
-                `Failed to post result for job ${jobId} to webhook provider`,
+                `Failed to post job-ended event for job ${jobId} to outbound webhook`,
                 {
                   error: error instanceof Error ? error.message : String(error),
                   jobId,

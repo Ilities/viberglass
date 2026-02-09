@@ -1,9 +1,13 @@
 /**
  * @deprecated Webhook configuration is now managed under individual integrations.
  * Use the functions in integration-api.ts instead:
- * - getIntegrationWebhook()
- * - saveIntegrationWebhook()
- * - deleteIntegrationWebhook()
+ * - getIntegrationInboundWebhooks()
+ * - createIntegrationInboundWebhook()
+ * - updateIntegrationInboundWebhook()
+ * - deleteIntegrationInboundWebhook()
+ * - getIntegrationOutboundWebhook()
+ * - saveIntegrationOutboundWebhook()
+ * - deleteIntegrationOutboundWebhook()
  * - getIntegrationDeliveries()
  * - retryIntegrationDelivery()
  *
