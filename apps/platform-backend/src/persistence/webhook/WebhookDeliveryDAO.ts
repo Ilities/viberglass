@@ -18,6 +18,7 @@ export type DeliveryStatus = "pending" | "processing" | "succeeded" | "failed";
 export interface WebhookDeliveryAttempt {
   id: string;
   provider: WebhookProvider;
+  webhookConfigId: string | null;
   deliveryId: string;
   eventType: string;
   status: DeliveryStatus;
@@ -34,10 +35,18 @@ export interface WebhookDeliveryAttempt {
  */
 export interface CreateDeliveryAttemptDTO {
   provider: WebhookProvider;
+  webhookConfigId?: string | null;
   deliveryId: string;
   eventType: string;
   payload: Record<string, unknown>;
   status?: DeliveryStatus;
+}
+
+export interface ListDeliveryAttemptsOptions {
+  statuses?: DeliveryStatus[];
+  limit?: number;
+  offset?: number;
+  sortOrder?: "asc" | "desc";
 }
 
 export class WebhookDeliveryDAO {
@@ -45,12 +54,20 @@ export class WebhookDeliveryDAO {
    * Check if a delivery with the given delivery_id already exists
    * Used for idempotency checking before processing webhooks
    */
-  async checkDeliveryExists(deliveryId: string): Promise<boolean> {
-    const result = await db
+  async checkDeliveryExists(
+    deliveryId: string,
+    webhookConfigId?: string,
+  ): Promise<boolean> {
+    let query = db
       .selectFrom("webhook_delivery_attempts")
       .select("id")
-      .where("delivery_id", "=", deliveryId)
-      .executeTakeFirst();
+      .where("delivery_id", "=", deliveryId);
+
+    if (webhookConfigId !== undefined) {
+      query = query.where("webhook_config_id", "=", webhookConfigId);
+    }
+
+    const result = await query.executeTakeFirst();
 
     return result !== undefined;
   }
@@ -71,6 +88,7 @@ export class WebhookDeliveryDAO {
         .values({
           id,
           provider: dto.provider,
+          webhook_config_id: dto.webhookConfigId ?? null,
           delivery_id: dto.deliveryId,
           event_type: dto.eventType,
           status: dto.status ?? "processing",
@@ -86,21 +104,15 @@ export class WebhookDeliveryDAO {
 
       return this.mapRowToDeliveryAttempt(result);
     } catch (error: unknown) {
-      // Check for unique constraint violation on delivery_id
-      if (
-        error instanceof Error &&
-        error.message.includes("unique constraint") &&
-        error.message.includes("delivery_id")
-      ) {
+      if (this.isDeliveryIdUniqueViolation(error)) {
         // Delivery already exists, return existing record
-        const existing = await db
-          .selectFrom("webhook_delivery_attempts")
-          .selectAll()
-          .where("delivery_id", "=", dto.deliveryId)
-          .executeTakeFirst();
+        const existing = await this.getDeliveryByDeliveryId(
+          dto.deliveryId,
+          dto.webhookConfigId ?? undefined,
+        );
 
         if (existing) {
-          return this.mapRowToDeliveryAttempt(existing);
+          return existing;
         }
       }
       throw error;
@@ -126,12 +138,38 @@ export class WebhookDeliveryDAO {
    * Get delivery attempt by delivery_id
    */
   async getDeliveryByDeliveryId(
-    deliveryId: string
+    deliveryId: string,
+    webhookConfigId?: string,
+  ): Promise<WebhookDeliveryAttempt | null> {
+    let query = db
+      .selectFrom("webhook_delivery_attempts")
+      .selectAll()
+      .where("delivery_id", "=", deliveryId);
+
+    if (webhookConfigId !== undefined) {
+      query = query.where("webhook_config_id", "=", webhookConfigId);
+    }
+
+    const row = await query.executeTakeFirst();
+
+    if (!row) return null;
+
+    return this.mapRowToDeliveryAttempt(row);
+  }
+
+  /**
+   * Get delivery attempt by ID scoped to webhook config.
+   * Useful for config-specific retry flows.
+   */
+  async getDeliveryByIdForConfig(
+    id: string,
+    webhookConfigId: string,
   ): Promise<WebhookDeliveryAttempt | null> {
     const row = await db
       .selectFrom("webhook_delivery_attempts")
       .selectAll()
-      .where("delivery_id", "=", deliveryId)
+      .where("id", "=", id)
+      .where("webhook_config_id", "=", webhookConfigId)
       .executeTakeFirst();
 
     if (!row) return null;
@@ -140,19 +178,53 @@ export class WebhookDeliveryDAO {
   }
 
   /**
+   * List deliveries for a single webhook config with optional status filters.
+   */
+  async listDeliveriesByConfig(
+    webhookConfigId: string,
+    options: ListDeliveryAttemptsOptions = {},
+  ): Promise<WebhookDeliveryAttempt[]> {
+    const limit = options.limit ?? 50;
+    const offset = options.offset ?? 0;
+    const sortOrder = options.sortOrder ?? "desc";
+
+    let query = db
+      .selectFrom("webhook_delivery_attempts")
+      .selectAll()
+      .where("webhook_config_id", "=", webhookConfigId);
+
+    if (options.statuses && options.statuses.length > 0) {
+      query = query.where("status", "in", options.statuses as DeliveryStatus[]);
+    }
+
+    const rows = await query
+      .orderBy("created_at", sortOrder)
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    return rows.map((row) => this.mapRowToDeliveryAttempt(row));
+  }
+
+  /**
    * Get pending or failed deliveries for manual retry
    * Returns oldest deliveries first
    */
   async getPendingDeliveries(
-    limit = 50
+    limit = 50,
+    webhookConfigId?: string,
   ): Promise<WebhookDeliveryAttempt[]> {
-    const rows = await db
+    let query = db
       .selectFrom("webhook_delivery_attempts")
       .selectAll()
       .where("status", "in", ["pending", "failed"])
-      .orderBy("created_at", "asc")
-      .limit(limit)
-      .execute();
+      .orderBy("created_at", "asc");
+
+    if (webhookConfigId !== undefined) {
+      query = query.where("webhook_config_id", "=", webhookConfigId);
+    }
+
+    const rows = await query.limit(limit).execute();
 
     return rows.map((row) => this.mapRowToDeliveryAttempt(row));
   }
@@ -162,16 +234,21 @@ export class WebhookDeliveryDAO {
    */
   async getFailedDeliveriesByProvider(
     provider: WebhookProvider,
-    limit = 50
+    limit = 50,
+    webhookConfigId?: string,
   ): Promise<WebhookDeliveryAttempt[]> {
-    const rows = await db
+    let query = db
       .selectFrom("webhook_delivery_attempts")
       .selectAll()
       .where("provider", "=", provider)
       .where("status", "=", "failed")
-      .orderBy("created_at", "desc")
-      .limit(limit)
-      .execute();
+      .orderBy("created_at", "desc");
+
+    if (webhookConfigId !== undefined) {
+      query = query.where("webhook_config_id", "=", webhookConfigId);
+    }
+
+    const rows = await query.limit(limit).execute();
 
     return rows.map((row) => this.mapRowToDeliveryAttempt(row));
   }
@@ -201,17 +278,23 @@ export class WebhookDeliveryDAO {
   async updateDeliveryStatusByDeliveryId(
     deliveryId: string,
     status: "succeeded" | "failed",
-    errorMessage?: string
+    errorMessage?: string,
+    webhookConfigId?: string,
   ): Promise<void> {
-    await db
+    let query = db
       .updateTable("webhook_delivery_attempts")
       .set({
         status,
         error_message: errorMessage ?? null,
         processed_at: new Date(),
       })
-      .where("delivery_id", "=", deliveryId)
-      .execute();
+      .where("delivery_id", "=", deliveryId);
+
+    if (webhookConfigId !== undefined) {
+      query = query.where("webhook_config_id", "=", webhookConfigId);
+    }
+
+    await query.execute();
   }
 
   /**
@@ -221,16 +304,22 @@ export class WebhookDeliveryDAO {
   async linkDeliveryToTicket(
     deliveryId: string,
     ticketId: string,
-    projectId: string
+    projectId: string,
+    webhookConfigId?: string,
   ): Promise<void> {
-    await db
+    let query = db
       .updateTable("webhook_delivery_attempts")
       .set({
         ticket_id: ticketId,
         project_id: projectId,
       })
-      .where("delivery_id", "=", deliveryId)
-      .execute();
+      .where("delivery_id", "=", deliveryId);
+
+    if (webhookConfigId !== undefined) {
+      query = query.where("webhook_config_id", "=", webhookConfigId);
+    }
+
+    await query.execute();
   }
 
   /**
@@ -312,6 +401,9 @@ export class WebhookDeliveryDAO {
     return {
       id: String(row.id),
       provider: row.provider as WebhookProvider,
+      webhookConfigId: row.webhook_config_id
+        ? String(row.webhook_config_id)
+        : null,
       deliveryId: String(row.delivery_id),
       eventType: String(row.event_type),
       status: row.status as DeliveryStatus,
@@ -325,5 +417,18 @@ export class WebhookDeliveryDAO {
       createdAt: row.created_at as Date,
       processedAt: row.processed_at ? (row.processed_at as Date) : null,
     };
+  }
+
+  private isDeliveryIdUniqueViolation(error: unknown): boolean {
+    if (!error || typeof error !== "object") {
+      return false;
+    }
+
+    const dbError = error as { code?: string; message?: string };
+    if (dbError.code !== "23505") {
+      return false;
+    }
+
+    return (dbError.message ?? "").includes("delivery_id");
   }
 }

@@ -1,5 +1,6 @@
 import type {
   CreateDeliveryAttemptDTO,
+  WebhookProvider,
   WebhookDeliveryAttempt,
 } from "../persistence/webhook/WebhookDeliveryDAO";
 import { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
@@ -25,8 +26,14 @@ export class DeduplicationService {
    * Check if a delivery should be processed
    * Returns false if delivery_id was already processed
    */
-  async shouldProcessDelivery(deliveryId: string): Promise<DeliveryCheckResult> {
-    const existing = await this.deliveryDAO.getDeliveryByDeliveryId(deliveryId);
+  async shouldProcessDelivery(
+    deliveryId: string,
+    webhookConfigId?: string,
+  ): Promise<DeliveryCheckResult> {
+    const existing = await this.deliveryDAO.getDeliveryByDeliveryId(
+      deliveryId,
+      webhookConfigId,
+    );
 
     if (!existing) {
       return { shouldProcess: true };
@@ -60,19 +67,23 @@ export class DeduplicationService {
   async recordDeliverySuccess(
     deliveryId: string,
     ticketId?: string,
-    projectId?: string
+    projectId?: string,
+    webhookConfigId?: string,
   ): Promise<void> {
     if (ticketId && projectId) {
       await this.deliveryDAO.linkDeliveryToTicket(
         deliveryId,
         ticketId,
-        projectId
+        projectId,
+        webhookConfigId,
       );
     }
 
     await this.deliveryDAO.updateDeliveryStatusByDeliveryId(
       deliveryId,
-      "succeeded"
+      "succeeded",
+      undefined,
+      webhookConfigId,
     );
   }
 
@@ -98,7 +109,8 @@ export class DeduplicationService {
    */
   async recordDeliveryFailure(
     deliveryId: string,
-    error: Error | string
+    error: Error | string,
+    webhookConfigId?: string,
   ): Promise<void> {
     const errorMessage =
       typeof error === "string" ? error : error.message || "Unknown error";
@@ -106,7 +118,8 @@ export class DeduplicationService {
     await this.deliveryDAO.updateDeliveryStatusByDeliveryId(
       deliveryId,
       "failed",
-      errorMessage
+      errorMessage,
+      webhookConfigId,
     );
   }
 
@@ -134,8 +147,8 @@ export class DeduplicationService {
    * Get failed deliveries by provider
    */
   async getFailedDeliveriesByProvider(
-    provider: "github" | "jira",
-    limit = 50
+    provider: WebhookProvider,
+    limit = 50,
   ): Promise<WebhookDeliveryAttempt[]> {
     return await this.deliveryDAO.getFailedDeliveriesByProvider(provider, limit);
   }
@@ -158,12 +171,16 @@ export class DeduplicationService {
     }>
   ): Promise<{ processed: boolean; delivery: WebhookDeliveryAttempt; result?: T }> {
     // Check if already processed
-    const check = await this.shouldProcessDelivery(dto.deliveryId);
+    const check = await this.shouldProcessDelivery(
+      dto.deliveryId,
+      dto.webhookConfigId ?? undefined,
+    );
 
     if (!check.shouldProcess) {
       // Get existing delivery
       const existing = await this.deliveryDAO.getDeliveryByDeliveryId(
-        dto.deliveryId
+        dto.deliveryId,
+        dto.webhookConfigId ?? undefined,
       );
       if (!existing) {
         throw new Error("Delivery not found after shouldProcessDelivery returned false");
