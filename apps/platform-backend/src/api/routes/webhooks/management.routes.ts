@@ -5,11 +5,15 @@
  */
 
 import express, { Request, Response } from 'express';
-import { WebhookConfigDAO } from '../../../persistence/webhook/WebhookConfigDAO';
+import {
+  WebhookConfigDAO,
+  type WebhookProvider,
+} from '../../../persistence/webhook/WebhookConfigDAO';
 import { WebhookDeliveryDAO } from '../../../persistence/webhook/WebhookDeliveryDAO';
 import type { WebhookService } from '../../../webhooks/WebhookService';
+import { respondWithWebhookResult } from './routeHelpers';
 
-const router = express.Router();
+const SHORTCUT_PROVIDER: WebhookProvider = 'shortcut';
 
 /**
  * Serialize webhook config for API response
@@ -52,6 +56,8 @@ const serializeWebhookConfig = (config: {
  * Create management routes
  */
 export function createManagementRoutes(getWebhookService: () => WebhookService) {
+  const router = express.Router();
+
   /**
    * GET /api/webhooks/status
    *
@@ -69,7 +75,8 @@ export function createManagementRoutes(getWebhookService: () => WebhookService) 
       // Get delivery stats by provider
       const githubStats = await deliveryDAO.getDeliveryStatsByProvider('github');
       const jiraStats = await deliveryDAO.getDeliveryStatsByProvider('jira');
-      const shortcutStats = await deliveryDAO.getDeliveryStatsByProvider('shortcut' as import('../../../persistence/webhook/WebhookConfigDAO').WebhookProvider);
+      const shortcutStats =
+        await deliveryDAO.getDeliveryStatsByProvider(SHORTCUT_PROVIDER);
 
       // Get active configurations
       const configs = await configDAO.listActiveConfigs(10);
@@ -86,7 +93,7 @@ export function createManagementRoutes(getWebhookService: () => WebhookService) 
             stats: jiraStats,
           },
           shortcut: {
-            configured: configs.some((c) => c.provider === ('shortcut' as import('../../../persistence/webhook/WebhookConfigDAO').WebhookProvider)),
+            configured: configs.some((c) => c.provider === SHORTCUT_PROVIDER),
             stats: shortcutStats,
           },
           custom: {
@@ -300,31 +307,13 @@ export function createManagementRoutes(getWebhookService: () => WebhookService) 
       const service = getWebhookService();
 
       const result = await service.retryDelivery(deliveryId);
-
-      switch (result.status) {
-        case 'processed':
-          return res.status(200).json({
-            message: 'Webhook retried successfully',
-            ticketId: result.ticketId,
-            jobId: result.jobId,
-          });
-
-        case 'duplicate':
-          return res.status(200).json({
-            message: 'Delivery already succeeded',
-          });
-
-        case 'failed':
-          return res.status(400).json({
-            error: 'Retry failed',
-            reason: result.reason,
-          });
-
-        default:
-          return res.status(500).json({
-            error: 'Unknown retry status',
-          });
-      }
+      return respondWithWebhookResult(res, result, {
+        duplicateMessage: 'Delivery already succeeded',
+        includeExistingId: false,
+        failedError: 'Retry failed',
+        failedStatusCode: 400,
+        unknownError: 'Unknown retry status',
+      });
     } catch (error) {
       console.error('Error retrying webhook delivery:', error);
       res.status(500).json({
@@ -347,5 +336,3 @@ export function createManagementRoutes(getWebhookService: () => WebhookService) 
 
   return router;
 }
-
-export default router;

@@ -70,8 +70,8 @@ export class ClaudeCodeAgent extends BaseAgent {
           env,
           timeout: this.config.executionTimeLimit * 1000,
         });
-      } catch (cmdError: any) {
-        if (cmdError.code === "ENOENT") {
+      } catch (cmdError) {
+        if (this.isCommandNotFoundError(cmdError)) {
           throw new Error(
             "The 'claude' CLI was not found. Install it with: npm install -g @anthropic-ai/claude-code",
           );
@@ -92,17 +92,7 @@ export class ClaudeCodeAgent extends BaseAgent {
       const pullRequestDescription = await this.readPRDescription(repoDir);
 
       // Parse results
-      let cliOutput: any = {};
-      try {
-        const jsonMatch = result.stdout.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          cliOutput = JSON.parse(jsonMatch[0]);
-        } else {
-          cliOutput = JSON.parse(result.stdout);
-        }
-      } catch {
-        this.logger.warn("Could not parse execution output as JSON");
-      }
+      const cliOutput = this.parseCliOutput(result.stdout);
 
       // Clean up
       await this.cleanup(workDir);
@@ -110,69 +100,16 @@ export class ClaudeCodeAgent extends BaseAgent {
       return {
         success: true,
         changedFiles,
-        commitHash: cliOutput.commitHash || cliOutput.commit,
-        pullRequestUrl: cliOutput.pullRequestUrl || cliOutput.pr_url,
+        commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
+        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
         pullRequestDescription,
-        testResults: cliOutput.testResults,
+        testResults: Array.isArray(cliOutput.testResults)
+          ? cliOutput.testResults
+          : undefined,
       };
     } catch (error) {
       await this.cleanup(workDir);
       throw error;
     }
-  }
-
-  private formatStreamJson(stdout: string): string {
-    const lines = stdout.split("\n").filter((line) => line.trim());
-    let output = "";
-    let currentToolUse: string | null = null;
-
-    for (const line of lines) {
-      try {
-        const data = JSON.parse(line);
-
-        // Handle text deltas (Assistant talking)
-        if (data.type === "stream_event" && data.event?.delta?.text) {
-          output += data.event.delta.text;
-        }
-
-        // Handle Tool Use starts
-        if (
-          data.type === "stream_event" &&
-          data.event?.content_block?.type === "tool_use"
-        ) {
-          currentToolUse = data.event.content_block.name;
-          output += `\n[Tool Use: ${currentToolUse}]\n`;
-        }
-
-        // Handle Tool Input deltas (the JSON being built for the tool)
-        if (
-          data.type === "stream_event" &&
-          data.event?.delta?.type === "input_json_delta"
-        ) {
-          // You can optionally print the JSON delta here,
-          // but often it's too noisy for "pretty" output
-        }
-
-        // Handle Tool Results (User response to assistant)
-        if (
-          data.type === "user" &&
-          data.message?.content?.[0]?.type === "tool_result"
-        ) {
-          const result = data.message.content[0].content;
-          output += `\n[Tool Result]:\n${result}\n`;
-        }
-      } catch (e) {
-        // If it's not JSON, it might be raw output, append as is
-        output += line + "\n";
-      }
-    }
-    return output.trim();
-  }
-
-  private extractCommitHash(text: string): string | undefined {
-    const match =
-      text.match(/commit ([a-f0-9]{40})/i) ||
-      text.match(/committed as ([a-f0-9]{7,40})/i);
-    return match ? match[1] : undefined;
   }
 }

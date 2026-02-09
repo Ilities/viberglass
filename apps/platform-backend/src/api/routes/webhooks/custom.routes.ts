@@ -11,8 +11,6 @@ import { WebhookDeliveryDAO } from '../../../persistence/webhook/WebhookDelivery
 import { TicketDAO } from '../../../persistence/ticketing/TicketDAO';
 import { CustomWebhookProvider } from '../../../webhooks/providers/custom-provider';
 
-const router = express.Router();
-
 /**
  * POST /api/webhooks/custom/:configId
  *
@@ -33,6 +31,8 @@ const router = express.Router();
  * - X-Webhook-Signature-256: sha256=<hex_digest> (HMAC-SHA256 of body)
  */
 export function createCustomRoutes() {
+  const router = express.Router();
+
   router.post(
     '/:configId',
     express.json(),
@@ -153,5 +153,3 @@ export function createCustomRoutes() {
 
   return router;
 }
-
-export default router;

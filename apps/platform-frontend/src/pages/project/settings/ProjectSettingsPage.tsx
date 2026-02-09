@@ -8,6 +8,15 @@ import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
+import {
+  extractCredentialsFromIntegration,
+  getErrorMessage,
+  getInitialRepositoryUrls,
+  MANUAL_INTEGRATION_PLACEHOLDER,
+  normalizeRepositoryUrls,
+  parseCredentialsJson,
+  resolveManualTicketSystem,
+} from '@/lib/project-form'
 import { getIntegrations, getProjectIntegrationSummaries } from '@/service/api/integration-api'
 import { updateProject, type UpdateProjectRequest } from '@/service/api/project-api'
 import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
@@ -39,7 +48,7 @@ export function ProjectSettingsPage() {
   const { project: projectData, isLoading: isProjectLoading, error: projectError } = useProject()
   const [name, setName] = useState('')
   const [ticketSystem, setTicketSystem] = useState<string>('none')
-  const [manualTicketSystem, setManualTicketSystem] = useState('__placeholder__')
+  const [manualTicketSystem, setManualTicketSystem] = useState(MANUAL_INTEGRATION_PLACEHOLDER)
   const [autoFixEnabled, setAutoFixEnabled] = useState(false)
   const [autoFixTags, setAutoFixTags] = useState('')
   const [repositoryUrls, setRepositoryUrls] = useState<string[]>([''])
@@ -94,17 +103,11 @@ export function ProjectSettingsPage() {
     if (!projectData) return
     setName(projectData.name ?? '')
     setTicketSystem(projectData.ticketSystem ?? 'none')
-    setManualTicketSystem('__placeholder__')
+    setManualTicketSystem(MANUAL_INTEGRATION_PLACEHOLDER)
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
     setAgentInstructions(projectData.agentInstructions ?? '')
-    const existingUrls =
-      projectData.repositoryUrls && projectData.repositoryUrls.length > 0
-        ? projectData.repositoryUrls
-        : projectData.repositoryUrl
-          ? [projectData.repositoryUrl]
-          : ['']
-    setRepositoryUrls(existingUrls.length > 0 ? existingUrls : [''])
+    setRepositoryUrls(getInitialRepositoryUrls(projectData))
     setCredentialsJson('')
   }, [projectData])
 
@@ -133,7 +136,7 @@ export function ProjectSettingsPage() {
     setShowAllIntegrations((prev) => {
       const next = !prev
       if (!next) {
-        setManualTicketSystem('__placeholder__')
+        setManualTicketSystem(MANUAL_INTEGRATION_PLACEHOLDER)
         setCredentialsJson('')
       }
       return next
@@ -151,17 +154,11 @@ export function ProjectSettingsPage() {
     if (!projectData) return
     setName(projectData.name ?? '')
     setTicketSystem(projectData.ticketSystem ?? 'none')
-    setManualTicketSystem('__placeholder__')
+    setManualTicketSystem(MANUAL_INTEGRATION_PLACEHOLDER)
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
     setAgentInstructions(projectData.agentInstructions ?? '')
-    const existingUrls =
-      projectData.repositoryUrls && projectData.repositoryUrls.length > 0
-        ? projectData.repositoryUrls
-        : projectData.repositoryUrl
-          ? [projectData.repositoryUrl]
-          : ['']
-    setRepositoryUrls(existingUrls.length > 0 ? existingUrls : [''])
+    setRepositoryUrls(getInitialRepositoryUrls(projectData))
     setCredentialsJson('')
     setShowAllIntegrations(false)
     setError(null)
@@ -176,8 +173,9 @@ export function ProjectSettingsPage() {
     setError(null)
     setSuccess(null)
 
-    const repositoryUrlList = repositoryUrls.map((url) => url.trim()).filter(Boolean)
-    const selectedTicketSystem = manualTicketSystem || ticketSystem
+    const repositoryUrlList = normalizeRepositoryUrls(repositoryUrls)
+    const selectedTicketSystem =
+      resolveManualTicketSystem(manualTicketSystem) || ticketSystem
 
     try {
       if (!name.trim()) {
@@ -197,12 +195,8 @@ export function ProjectSettingsPage() {
 
       if (credentialsRaw) {
         try {
-          const parsed = JSON.parse(credentialsRaw)
-          credentialsUpdate = {
-            type: parsed.type || 'api_key',
-            ...parsed,
-          }
-        } catch (parseError) {
+          credentialsUpdate = parseCredentialsJson(credentialsRaw)
+        } catch {
           throw new Error('Invalid JSON in Credentials field')
         }
       } else if (selectedTicketSystem !== projectData.ticketSystem) {
@@ -216,23 +210,7 @@ export function ProjectSettingsPage() {
         }
 
         const integration = integrationList[0]
-        const credentialKeys = [
-          'apiKey',
-          'username',
-          'password',
-          'token',
-          'clientId',
-          'clientSecret',
-          'refreshToken',
-          'baseUrl',
-        ] as const
-        const extracted: AuthCredentials = { type: integration.authType }
-        credentialKeys.forEach((key) => {
-          if (integration.values[key] !== undefined) {
-            extracted[key] = integration.values[key] as AuthCredentials[typeof key]
-          }
-        })
-        credentialsUpdate = extracted
+        credentialsUpdate = extractCredentialsFromIntegration(integration)
       }
 
       const updates: UpdateProjectRequest = {
@@ -258,18 +236,12 @@ export function ProjectSettingsPage() {
       setAutoFixEnabled(Boolean(updatedProject.autoFixEnabled))
       setAutoFixTags(updatedProject.autoFixTags?.join(', ') ?? '')
       setAgentInstructions(updatedProject.agentInstructions ?? '')
-      setRepositoryUrls(
-        updatedProject.repositoryUrls && updatedProject.repositoryUrls.length > 0
-          ? updatedProject.repositoryUrls
-          : updatedProject.repositoryUrl
-            ? [updatedProject.repositoryUrl]
-            : ['']
-      )
-      setManualTicketSystem('__placeholder__')
+      setRepositoryUrls(getInitialRepositoryUrls(updatedProject))
+      setManualTicketSystem(MANUAL_INTEGRATION_PLACEHOLDER)
       setCredentialsJson('')
       setShowAllIntegrations(false)
-    } catch (submitError: any) {
-      setError(submitError.message || 'Failed to update project')
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, 'Failed to update project'))
     } finally {
       setIsSubmitting(false)
     }
@@ -462,7 +434,7 @@ export function ProjectSettingsPage() {
                               value={manualTicketSystem}
                               onChange={(value) => setManualTicketSystem(value)}
                             >
-                              <option value="__placeholder__">Select a system...</option>
+                              <option value={MANUAL_INTEGRATION_PLACEHOLDER}>Select a system...</option>
                               {ALL_INTEGRATIONS.map((system) => (
                                 <option key={system.id} value={system.id}>
                                   {system.name}

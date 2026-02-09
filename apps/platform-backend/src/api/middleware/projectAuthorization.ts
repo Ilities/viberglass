@@ -32,6 +32,50 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+interface UserProjectAccessRecord {
+  project_id: string;
+  role: string;
+}
+
+function extractProjectId(req: AuthenticatedRequest): string | undefined {
+  return (
+    (req.params.projectId as string | undefined) ||
+    (req.params.project_id as string | undefined) ||
+    (req.body.project_id as string | undefined) ||
+    (req.query.project_id as string | undefined)
+  );
+}
+
+function extractTicketId(req: AuthenticatedRequest): string | undefined {
+  return (
+    (req.params.ticketId as string | undefined) ||
+    (req.params.ticket_id as string | undefined) ||
+    (req.body.ticket_id as string | undefined)
+  );
+}
+
+async function findUserProjectAccess(
+  userId: string,
+  projectId: string,
+): Promise<UserProjectAccessRecord | undefined> {
+  return await db
+    .selectFrom("user_projects")
+    .select(["project_id", "role"])
+    .where("user_id", "=", userId)
+    .where("project_id", "=", projectId)
+    .executeTakeFirst();
+}
+
+async function findTicketProjectId(ticketId: string): Promise<string | undefined> {
+  const ticket = await db
+    .selectFrom("tickets")
+    .select("project_id")
+    .where("id", "=", ticketId)
+    .executeTakeFirst();
+
+  return ticket?.project_id;
+}
+
 /**
  * Require that the user has access to the project
  *
@@ -53,11 +97,7 @@ export async function requireProjectAccess(
     }
 
     // Extract project ID from request
-    const projectId =
-      req.params.projectId ||
-      req.params.project_id ||
-      req.body.project_id ||
-      req.query.project_id;
+    const projectId = extractProjectId(req);
 
     if (!projectId) {
       res.status(400).json({
@@ -68,12 +108,7 @@ export async function requireProjectAccess(
     }
 
     // Check if user has access to this project
-    const userProject = await db
-      .selectFrom("user_projects")
-      .select(["project_id", "role"])
-      .where("user_id", "=", req.user.id)
-      .where("project_id", "=", projectId as string)
-      .executeTakeFirst();
+    const userProject = await findUserProjectAccess(req.user.id, projectId);
 
     if (!userProject) {
       res.status(403).json({
@@ -85,7 +120,7 @@ export async function requireProjectAccess(
 
     // Attach project access info to request for downstream handlers
     req.projectAccess = {
-      projectId: projectId as string,
+      projectId,
       role: userProject.role,
     };
 
@@ -160,8 +195,7 @@ export async function requireTicketProjectAccess(
     }
 
     // Extract ticket ID from request
-    const ticketId =
-      req.params.ticketId || req.params.ticket_id || req.body.ticket_id;
+    const ticketId = extractTicketId(req);
 
     if (!ticketId) {
       res.status(400).json({
@@ -172,13 +206,9 @@ export async function requireTicketProjectAccess(
     }
 
     // Look up ticket's project
-    const ticket = await db
-      .selectFrom("tickets")
-      .select("project_id")
-      .where("id", "=", ticketId as string)
-      .executeTakeFirst();
+    const projectId = await findTicketProjectId(ticketId);
 
-    if (!ticket) {
+    if (!projectId) {
       res.status(404).json({
         error: "Not Found",
         message: "Ticket not found",
@@ -187,12 +217,7 @@ export async function requireTicketProjectAccess(
     }
 
     // Check if user has access to the ticket's project
-    const userProject = await db
-      .selectFrom("user_projects")
-      .select(["project_id", "role"])
-      .where("user_id", "=", req.user.id)
-      .where("project_id", "=", ticket.project_id)
-      .executeTakeFirst();
+    const userProject = await findUserProjectAccess(req.user.id, projectId);
 
     if (!userProject) {
       res.status(403).json({
@@ -204,7 +229,7 @@ export async function requireTicketProjectAccess(
 
     // Attach project access info
     req.projectAccess = {
-      projectId: ticket.project_id,
+      projectId,
       role: userProject.role,
     };
 
@@ -226,14 +251,7 @@ export async function userHasProjectAccess(
   userId: string,
   projectId: string,
 ): Promise<boolean> {
-  const userProject = await db
-    .selectFrom("user_projects")
-    .select("id")
-    .where("user_id", "=", userId)
-    .where("project_id", "=", projectId)
-    .executeTakeFirst();
-
-  return !!userProject;
+  return !!(await findUserProjectAccess(userId, projectId));
 }
 
 /**
