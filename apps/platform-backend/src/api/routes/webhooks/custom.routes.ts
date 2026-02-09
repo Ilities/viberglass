@@ -10,6 +10,7 @@ import { WebhookConfigDAO } from '../../../persistence/webhook/WebhookConfigDAO'
 import { WebhookDeliveryDAO } from '../../../persistence/webhook/WebhookDeliveryDAO';
 import { TicketDAO } from '../../../persistence/ticketing/TicketDAO';
 import { CustomWebhookProvider } from '../../../webhooks/providers/custom-provider';
+import { getRequestRawBody } from './routeHelpers';
 
 /**
  * POST /api/webhooks/custom/:configId
@@ -35,7 +36,6 @@ export function createCustomRoutes() {
 
   router.post(
     '/:configId',
-    express.json(),
     async (req: Request, res: Response) => {
       try {
         const { configId } = req.params;
@@ -51,7 +51,10 @@ export function createCustomRoutes() {
 
         // Verify signature if a secret is configured
         if (config.webhookSecretEncrypted) {
-          const signature = req.headers['x-webhook-signature-256'] as string;
+          const signatureHeader = req.headers['x-webhook-signature-256'];
+          const signature = Array.isArray(signatureHeader)
+            ? signatureHeader[0]
+            : signatureHeader;
           if (!signature) {
             return res.status(401).json({ error: 'Missing X-Webhook-Signature-256 header' });
           }
@@ -64,7 +67,7 @@ export function createCustomRoutes() {
             webhookSecret: config.webhookSecretEncrypted,
           });
 
-          const bodyBuffer = Buffer.from(JSON.stringify(req.body));
+          const bodyBuffer = getRequestRawBody(req);
           const isValid = provider.verifySignature(bodyBuffer, signature, config.webhookSecretEncrypted);
           if (!isValid) {
             return res.status(401).json({ error: 'Invalid webhook signature' });

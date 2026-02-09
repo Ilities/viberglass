@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import createError from "http-errors";
 import logger from "../config/logger";
 import passport from "passport";
+import type { ExtendedRequest } from "../webhooks/middleware/rawBody";
 
 // Import routes
 import projectsRouter from "./routes/projects";
@@ -63,7 +64,17 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "10mb" }));
+app.use(
+  express.json({
+    limit: "10mb",
+    verify: (req, _res, buf) => {
+      const request = req as unknown as ExtendedRequest & { url?: string };
+      if ((request.url || "").startsWith("/api/webhooks")) {
+        request.rawBody = Buffer.from(buf);
+      }
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "../public")));

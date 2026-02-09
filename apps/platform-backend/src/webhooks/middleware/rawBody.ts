@@ -71,6 +71,13 @@ export function rawBodyStorageMiddleware(
   const raw = rawBodyMiddleware(config);
 
   return (req, res, next) => {
+    const extendedReq = req as ExtendedRequest;
+
+    // Respect app-level raw body capture if already present.
+    if (extendedReq.rawBody && extendedReq.rawBody.length > 0) {
+      return next();
+    }
+
     // First, parse raw body
     raw(req, res, (err) => {
       if (err) {
@@ -78,8 +85,9 @@ export function rawBodyStorageMiddleware(
       }
 
       // Store raw body on request for signature middleware
-      const extendedReq = req as ExtendedRequest;
-      extendedReq.rawBody = req.body as Buffer;
+      if (Buffer.isBuffer(req.body)) {
+        extendedReq.rawBody = req.body;
+      }
 
       next();
     });
@@ -101,6 +109,17 @@ export function rawBodyWithJsonFallback(
   return (req, res, next) => {
     const extendedReq = req as ExtendedRequest;
 
+    // If raw body is already available, avoid reparsing and just try JSON decode.
+    if (extendedReq.rawBody && extendedReq.rawBody.length > 0) {
+      try {
+        const jsonStr = extendedReq.rawBody.toString("utf8");
+        req.body = JSON.parse(jsonStr);
+      } catch {
+        (req as any).parsedBody = null;
+      }
+      return next();
+    }
+
     // Capture raw body first
     const raw = rawBodyMiddleware(config);
     raw(req, res, (err) => {
@@ -109,7 +128,11 @@ export function rawBodyWithJsonFallback(
       }
 
       // Store raw body
-      extendedReq.rawBody = req.body as Buffer;
+      if (!Buffer.isBuffer(req.body)) {
+        (req as any).parsedBody = null;
+        return next();
+      }
+      extendedReq.rawBody = req.body;
 
       // Try to parse as JSON for convenience
       // Signature middleware will re-parse after verification

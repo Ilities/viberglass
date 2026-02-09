@@ -77,6 +77,17 @@ export interface WebhookServiceConfig {
   defaultTenantId?: string;
 }
 
+export interface WebhookProcessingOptions {
+  /** Optional explicit provider override from route context */
+  providerName?: "github" | "jira" | "shortcut" | "custom";
+  /** Optional direct config lookup hint */
+  configId?: string;
+  /** Optional integration-scoped lookup hint */
+  integrationId?: string;
+  /** Optional provider project identifier hint */
+  providerProjectId?: string;
+}
+
 /**
  * Internal event processing result
  */
@@ -123,13 +134,18 @@ export class WebhookService {
    * @returns Processing result with status and created resource IDs
    */
   async processWebhook(
-    headers: Record<string, string>,
+    headers: Record<string, string | string[] | undefined>,
     payload: unknown,
     rawBody: Buffer,
     tenantId?: string,
+    options: WebhookProcessingOptions = {},
   ): Promise<WebhookProcessingResult> {
+    const normalizedHeaders = this.normalizeHeaders(headers);
+
     // 1. Route to provider
-    const provider = this.registry.getProviderForHeaders(headers);
+    const provider = options.providerName
+      ? this.registry.get(options.providerName)
+      : this.registry.getProviderForHeaders(normalizedHeaders);
     if (!provider) {
       return {
         status: "ignored",
@@ -140,7 +156,7 @@ export class WebhookService {
     // 2. Parse event
     let event: ParsedWebhookEvent;
     try {
-      event = provider.parseEvent(payload, headers);
+      event = provider.parseEvent(payload, normalizedHeaders);
     } catch (error) {
       return {
         status: "ignored",
@@ -149,7 +165,11 @@ export class WebhookService {
     }
 
     // 3. Resolve webhook configuration
-    const dbConfig = await this.resolveConfig(event);
+    const dbConfig = await this.resolveConfig(event, {
+      providerName: provider.name as "github" | "jira" | "shortcut" | "custom",
+      tenantId,
+      ...options,
+    });
     if (!dbConfig) {
       return {
         status: "ignored",
@@ -176,16 +196,23 @@ export class WebhookService {
     const providerConfig = this.toProviderConfig(dbConfig, provider.name);
 
     // 4. Verify signature
-    const secret = await this.secretService.getSecret(providerConfig, tenantId);
-    const signatureHeader = this.getSignatureHeader(provider.name, headers);
-    if (
-      !signatureHeader ||
-      !provider.verifySignature(rawBody, signatureHeader, secret)
-    ) {
-      await this.recordFailedDelivery(event, dbConfig, "Invalid signature");
+    const signatureResult = await this.verifySignature({
+      provider,
+      providerConfig,
+      providerName: provider.name,
+      headers: normalizedHeaders,
+      rawBody,
+      tenantId,
+    });
+    if (!signatureResult.valid) {
+      await this.recordFailedDelivery(
+        event,
+        dbConfig,
+        signatureResult.reason ?? "Invalid signature",
+      );
       return {
         status: "rejected",
-        reason: "Invalid signature",
+        reason: signatureResult.reason ?? "Invalid signature",
       };
     }
 
@@ -295,9 +322,27 @@ export class WebhookService {
     try {
       // Parse and process the event
       const event = provider.parseEvent(delivery.payload, {
-        "x-github-event":
-          delivery.provider === "github" ? delivery.eventType : "",
-        "x-github-delivery": delivery.deliveryId,
+        ...(delivery.provider === "github"
+          ? {
+              "x-github-event": delivery.eventType,
+              "x-github-delivery": delivery.deliveryId,
+            }
+          : {}),
+        ...(delivery.provider === "jira"
+          ? {
+              "x-atlassian-webhook-identifier": delivery.deliveryId,
+            }
+          : {}),
+        ...(delivery.provider === "shortcut"
+          ? {
+              "x-shortcut-delivery": delivery.deliveryId,
+            }
+          : {}),
+        ...(delivery.provider === "custom"
+          ? {
+              "x-webhook-delivery-id": delivery.deliveryId,
+            }
+          : {}),
       });
 
       const result = await this.processProviderEvent(
@@ -340,24 +385,79 @@ export class WebhookService {
    */
   private async resolveConfig(
     event: ParsedWebhookEvent,
+    options: {
+      providerName: "github" | "jira" | "shortcut" | "custom";
+      tenantId?: string;
+      configId?: string;
+      integrationId?: string;
+      providerProjectId?: string;
+    },
   ): Promise<WebhookConfig | null> {
-    // Try by repository ID (GitHub) or project ID (Jira)
-    if (event.metadata.repositoryId) {
+    if (options.configId) {
+      const directConfig = await this.configDAO.getConfigById(options.configId);
+      if (
+        directConfig &&
+        directConfig.direction === "inbound" &&
+        directConfig.provider === options.providerName
+      ) {
+        return directConfig;
+      }
+    }
+
+    if (options.integrationId) {
+      const integrationConfig = await this.configDAO.getByIntegrationId(
+        options.integrationId,
+        "inbound",
+      );
+      if (
+        integrationConfig &&
+        integrationConfig.provider === options.providerName
+      ) {
+        return integrationConfig;
+      }
+    }
+
+    const providerProjectIds = new Set<string>();
+    for (const candidate of [
+      options.providerProjectId,
+      event.metadata.repositoryId,
+      event.metadata.projectId,
+    ]) {
+      if (candidate) {
+        providerProjectIds.add(candidate);
+      }
+    }
+
+    for (const providerProjectId of providerProjectIds) {
       const config = await this.configDAO.getActiveConfigByProviderProject(
-        "github",
-        event.metadata.repositoryId,
+        options.providerName,
+        providerProjectId,
         "inbound",
       );
       if (config) return config;
     }
 
-    // Try by project ID from metadata
+    const tenantProjectCandidates = new Set<string>();
+    if (options.tenantId) {
+      tenantProjectCandidates.add(options.tenantId);
+    }
     if (event.metadata.projectId) {
-      const config = await this.configDAO.getConfigByProjectId(
-        event.metadata.projectId,
+      tenantProjectCandidates.add(event.metadata.projectId);
+    }
+
+    for (const projectId of tenantProjectCandidates) {
+      const projectConfigs = await this.configDAO.listConfigsByProject(
+        projectId,
+        50,
+        0,
         "inbound",
       );
-      if (config) return config;
+      const providerConfig = projectConfigs.find(
+        (config) => config.active && config.provider === options.providerName,
+      );
+      if (providerConfig) {
+        return providerConfig;
+      }
     }
 
     return null;
@@ -367,15 +467,15 @@ export class WebhookService {
    * Resolve webhook configuration by provider type
    */
   private async resolveConfigFromProvider(
-    provider: string,
+    provider: WebhookConfig["provider"],
   ): Promise<WebhookConfig | null> {
     const configs = await this.configDAO.listConfigsByProvider(
-      provider as WebhookConfig["provider"],
-      1,
+      provider,
+      50,
       0,
       "inbound",
     );
-    return configs[0] || null;
+    return configs.find((config) => config.active) || null;
   }
 
   /**
@@ -429,10 +529,100 @@ export class WebhookService {
       case "github":
         return headers["x-hub-signature-256"] || headers["x-hub-signature"];
       case "jira":
-        return headers["x-hub-signature"];
+        return (
+          headers["x-atlassian-webhook-signature"] ||
+          headers["x-hub-signature"]
+        );
+      case "shortcut":
+        return headers["x-shortcut-signature"];
+      case "custom":
+        return headers["x-webhook-signature-256"];
       default:
         return undefined;
     }
+  }
+
+  private async verifySignature(params: {
+    provider: WebhookProvider;
+    providerConfig: WebhookProviderConfig;
+    providerName: string;
+    headers: Record<string, string>;
+    rawBody: Buffer;
+    tenantId?: string;
+  }): Promise<{ valid: boolean; reason?: string }> {
+    const {
+      provider,
+      providerConfig,
+      providerName,
+      headers,
+      rawBody,
+      tenantId,
+    } = params;
+
+    const signatureHeader = this.getSignatureHeader(providerName, headers);
+
+    let secret: string | undefined;
+    try {
+      secret = await this.secretService.getSecret(providerConfig, tenantId);
+    } catch {
+      // GitHub always requires signature verification.
+      if (providerName === "github") {
+        return {
+          valid: false,
+          reason: "Webhook secret is not configured",
+        };
+      }
+
+      // For optional-signature providers, allow unsigned requests when no secret exists.
+      if (!signatureHeader) {
+        return { valid: true };
+      }
+
+      return {
+        valid: false,
+        reason: "Webhook secret is not configured",
+      };
+    }
+
+    if (!secret) {
+      if (providerName === "github" || signatureHeader) {
+        return {
+          valid: false,
+          reason: "Webhook secret is not configured",
+        };
+      }
+      return { valid: true };
+    }
+
+    if (!signatureHeader) {
+      return {
+        valid: false,
+        reason: "Missing signature header",
+      };
+    }
+
+    if (!provider.verifySignature(rawBody, signatureHeader, secret)) {
+      return {
+        valid: false,
+        reason: "Invalid signature",
+      };
+    }
+
+    return { valid: true };
+  }
+
+  private normalizeHeaders(
+    headers: Record<string, string | string[] | undefined>,
+  ): Record<string, string> {
+    const normalized: Record<string, string> = {};
+    for (const [rawKey, rawValue] of Object.entries(headers)) {
+      if (typeof rawValue === "string") {
+        normalized[rawKey.toLowerCase()] = rawValue;
+      } else if (Array.isArray(rawValue) && rawValue.length > 0) {
+        normalized[rawKey.toLowerCase()] = rawValue[0];
+      }
+    }
+    return normalized;
   }
 
   /**
@@ -476,6 +666,9 @@ export class WebhookService {
 
       case "shortcut":
         return await this.processShortcutEvent(event, config, tenantId);
+
+      case "custom":
+        return await this.processCustomEvent(event, config, tenantId);
 
       default:
         return result;
@@ -1060,6 +1253,70 @@ export class WebhookService {
           result.jobId = jobResult.jobId;
         }
       }
+    }
+
+    return result;
+  }
+
+  /**
+   * Process custom webhook event
+   */
+  private async processCustomEvent(
+    event: ParsedWebhookEvent,
+    config: WebhookConfig,
+    tenantId?: string,
+  ): Promise<EventProcessingResult> {
+    const result: EventProcessingResult = {};
+
+    if (!tenantId && !config.projectId) {
+      throw new Error("No project linked to this webhook configuration");
+    }
+
+    const resolvedTenantId =
+      tenantId || config.projectId || this.config.defaultTenantId || "default";
+    result.projectId = resolvedTenantId;
+
+    if (event.eventType !== "ticket_created") {
+      return result;
+    }
+
+    const payload = event.payload as {
+      title: string;
+      description: string;
+      severity?: string;
+      category?: string;
+      externalId?: string;
+      url?: string;
+    };
+
+    const severityCandidates: Severity[] = ["low", "medium", "high", "critical"];
+    const severity = severityCandidates.includes(payload.severity as Severity)
+      ? (payload.severity as Severity)
+      : "medium";
+
+    const ticket = await this.ticketDAO.createTicket({
+      projectId: resolvedTenantId,
+      title: payload.title,
+      description: payload.description,
+      severity,
+      category: payload.category || "bug",
+      metadata: this.createTicketMetadata({
+        externalTicketId: payload.externalId,
+        externalTicketUrl: payload.url,
+        webhookConfigId: config.id,
+        provider: "custom",
+      }),
+      annotations: [] as Annotation[],
+      ticketSystem: "custom",
+      autoFixRequested: config.autoExecute,
+    });
+    result.ticketId = ticket.id;
+
+    if (payload.externalId || payload.url) {
+      await this.ticketDAO.updateTicket(ticket.id, {
+        externalTicketId: payload.externalId || undefined,
+        externalTicketUrl: payload.url || undefined,
+      });
     }
 
     return result;
