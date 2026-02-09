@@ -346,6 +346,7 @@ export class WebhookService {
       const config = await this.configDAO.getActiveConfigByProviderProject(
         "github",
         event.metadata.repositoryId,
+        "inbound",
       );
       if (config) return config;
     }
@@ -354,6 +355,7 @@ export class WebhookService {
     if (event.metadata.projectId) {
       const config = await this.configDAO.getConfigByProjectId(
         event.metadata.projectId,
+        "inbound",
       );
       if (config) return config;
     }
@@ -367,7 +369,12 @@ export class WebhookService {
   private async resolveConfigFromProvider(
     provider: string,
   ): Promise<WebhookConfig | null> {
-    const configs = await this.configDAO.listActiveConfigs(1);
+    const configs = await this.configDAO.listConfigsByProvider(
+      provider as WebhookConfig["provider"],
+      1,
+      0,
+      "inbound",
+    );
     return configs[0] || null;
   }
 

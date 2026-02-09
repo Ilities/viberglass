@@ -1,7 +1,7 @@
 import express from 'express'
 import crypto from 'crypto'
 import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../persistence/integrations'
-import { WebhookConfigDAO } from '../../persistence/webhook/WebhookConfigDAO'
+import { WebhookConfigDAO, type WebhookProvider } from '../../persistence/webhook/WebhookConfigDAO'
 import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO'
 import { requireAuth } from '../middleware/authentication'
 import logger from '../../config/logger'
@@ -14,6 +14,118 @@ const integrationDAO = new IntegrationDAO()
 const projectLinkDAO = new ProjectIntegrationLinkDAO()
 const webhookConfigDAO = new WebhookConfigDAO()
 const webhookDeliveryDAO = new WebhookDeliveryDAO()
+
+function mapSystemToWebhookProvider(system: string): WebhookProvider | null {
+  if (system === 'github' || system === 'jira' || system === 'shortcut' || system === 'custom') {
+    return system
+  }
+  return null
+}
+
+function getDefaultInboundEvents(provider: WebhookProvider): string[] {
+  switch (provider) {
+    case 'github':
+      return ['issues', 'issue_comment']
+    case 'jira':
+      return ['issue_created', 'issue_updated', 'comment_created']
+    case 'shortcut':
+      return ['story_created', 'story_updated', 'comment_created']
+    case 'custom':
+      return ['ticket_created']
+    default:
+      return ['*']
+  }
+}
+
+function getDefaultOutboundEvents(): string[] {
+  return ['job_started', 'job_ended']
+}
+
+function getProviderProjectIdFromIntegration(
+  provider: WebhookProvider,
+  integrationValues: Record<string, unknown>,
+): string | null {
+  if (provider === 'github') {
+    const owner = typeof integrationValues.owner === 'string' ? integrationValues.owner : null
+    const repo = typeof integrationValues.repo === 'string' ? integrationValues.repo : null
+    if (owner && repo) {
+      return `${owner}/${repo}`
+    }
+    return null
+  }
+
+  if (provider === 'jira') {
+    const projectKey =
+      typeof integrationValues.projectKey === 'string' ? integrationValues.projectKey : null
+    return projectKey
+  }
+
+  if (provider === 'shortcut') {
+    const projectId =
+      typeof integrationValues.projectId === 'string'
+        ? integrationValues.projectId
+        : typeof integrationValues.projectId === 'number'
+          ? String(integrationValues.projectId)
+          : null
+    return projectId
+  }
+
+  return null
+}
+
+function serializeInboundWebhookConfig(
+  config: {
+    id: string
+    provider: WebhookProvider
+    allowedEvents: string[]
+    autoExecute: boolean
+    active: boolean
+    webhookSecretEncrypted: string | null
+    createdAt: Date
+    updatedAt: Date
+  },
+  includeSecret?: string,
+) {
+  return {
+    id: config.id,
+    provider: config.provider,
+    webhookUrl:
+      config.provider === 'custom'
+        ? `/api/webhooks/custom/${config.id}`
+        : `/api/webhooks/${config.provider}`,
+    events: config.allowedEvents,
+    autoExecute: config.autoExecute,
+    active: config.active,
+    hasSecret: Boolean(config.webhookSecretEncrypted),
+    webhookSecret: includeSecret,
+    createdAt: config.createdAt,
+    updatedAt: config.updatedAt,
+  }
+}
+
+function serializeOutboundWebhookConfig(
+  config: {
+    id: string
+    provider: WebhookProvider
+    allowedEvents: string[]
+    active: boolean
+    apiTokenEncrypted: string | null
+    providerProjectId: string | null
+    createdAt: Date
+    updatedAt: Date
+  },
+) {
+  return {
+    id: config.id,
+    provider: config.provider,
+    events: config.allowedEvents,
+    active: config.active,
+    hasApiToken: Boolean(config.apiTokenEncrypted),
+    providerProjectId: config.providerProjectId,
+    createdAt: config.createdAt,
+    updatedAt: config.updatedAt,
+  }
+}
 
 router.use(requireAuth)
 
@@ -386,39 +498,33 @@ router.get('/types/available', async (req, res) => {
 // ============================================================================
 
 /**
- * GET /api/integrations/:id/webhook - Get webhook config for an integration
+ * GET /api/integrations/:id/webhooks/inbound - List inbound webhook configs
  */
-router.get('/:id/webhook', async (req, res) => {
+router.get('/:id/webhooks/inbound', async (req, res) => {
   try {
     const integration = await integrationDAO.getIntegration(req.params.id)
     if (!integration) {
       return res.status(404).json({ error: 'Integration not found' })
     }
 
-    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integration.id)
-
-    if (!webhookConfig) {
-      return res.json({ success: true, data: null })
+    const provider = mapSystemToWebhookProvider(integration.system)
+    if (!provider) {
+      return res.status(400).json({ error: 'Integration does not support webhooks' })
     }
+
+    const inboundConfigs = await webhookConfigDAO.listByIntegrationId(integration.id, {
+      direction: 'inbound',
+      activeOnly: false,
+    })
 
     res.json({
       success: true,
-      data: {
-        id: webhookConfig.id,
-        provider: webhookConfig.provider,
-        webhookUrl: webhookConfig.provider === 'custom'
-          ? `/api/webhooks/custom/${webhookConfig.id}`
-          : `/api/webhooks/${webhookConfig.provider}`,
-        allowedEvents: webhookConfig.allowedEvents,
-        autoExecute: webhookConfig.autoExecute,
-        active: webhookConfig.active,
-        hasSecret: Boolean(webhookConfig.webhookSecretEncrypted),
-        createdAt: webhookConfig.createdAt,
-        updatedAt: webhookConfig.updatedAt,
-      },
+      data: inboundConfigs
+        .filter((config) => config.provider === provider)
+        .map((config) => serializeInboundWebhookConfig(config)),
     })
   } catch (error) {
-    logger.error('Error fetching integration webhook config', {
+    logger.error('Error listing inbound webhook configs', {
       error: error instanceof Error ? error.message : error,
     })
     res.status(500).json({ error: 'Internal server error' })
@@ -426,13 +532,81 @@ router.get('/:id/webhook', async (req, res) => {
 })
 
 /**
- * PUT /api/integrations/:id/webhook - Create or update webhook config
+ * POST /api/integrations/:id/webhooks/inbound - Create inbound webhook config
  */
-router.put('/:id/webhook', async (req, res) => {
+router.post('/:id/webhooks/inbound', async (req, res) => {
   try {
     const integration = await integrationDAO.getIntegration(req.params.id)
     if (!integration) {
       return res.status(404).json({ error: 'Integration not found' })
+    }
+
+    const provider = mapSystemToWebhookProvider(integration.system)
+    if (!provider) {
+      return res.status(400).json({ error: 'Integration does not support inbound webhooks' })
+    }
+
+    const body = req.body as {
+      projectId?: string
+      allowedEvents?: string[]
+      autoExecute?: boolean
+      webhookSecret?: string
+      generateSecret?: boolean
+      providerProjectId?: string
+      active?: boolean
+    }
+
+    let webhookSecret = body.webhookSecret
+    if (body.generateSecret) {
+      webhookSecret = crypto.randomBytes(32).toString('hex')
+    }
+
+    const projectLinks = await projectLinkDAO.getIntegrationProjects(integration.id)
+    const projectId = body.projectId || (projectLinks.length > 0 ? projectLinks[0].projectId : null)
+    const providerProjectId =
+      body.providerProjectId ||
+      getProviderProjectIdFromIntegration(provider, integration.values) ||
+      null
+
+    const created = await webhookConfigDAO.createConfig({
+      projectId,
+      provider,
+      direction: 'inbound',
+      integrationId: integration.id,
+      providerProjectId,
+      allowedEvents: body.allowedEvents || getDefaultInboundEvents(provider),
+      autoExecute: body.autoExecute ?? false,
+      webhookSecretEncrypted: webhookSecret || null,
+      secretLocation: 'database',
+      active: body.active ?? true,
+    })
+
+    res.status(201).json({
+      success: true,
+      data: serializeInboundWebhookConfig(created, webhookSecret || undefined),
+    })
+  } catch (error) {
+    logger.error('Error creating inbound webhook config', {
+      error: error instanceof Error ? error.message : error,
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * PUT /api/integrations/:id/webhooks/inbound/:configId - Update inbound webhook config
+ */
+router.put('/:id/webhooks/inbound/:configId', async (req, res) => {
+  try {
+    const integration = await integrationDAO.getIntegration(req.params.id)
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' })
+    }
+
+    const { configId } = req.params
+    const existing = await webhookConfigDAO.getConfigById(configId)
+    if (!existing || existing.integrationId !== integration.id || existing.direction !== 'inbound') {
+      return res.status(404).json({ error: 'Inbound webhook configuration not found' })
     }
 
     const body = req.body as {
@@ -440,83 +614,34 @@ router.put('/:id/webhook', async (req, res) => {
       autoExecute?: boolean
       webhookSecret?: string
       generateSecret?: boolean
+      providerProjectId?: string
+      active?: boolean
     }
 
-    // Generate a secret if requested
     let webhookSecret = body.webhookSecret
     if (body.generateSecret) {
       webhookSecret = crypto.randomBytes(32).toString('hex')
     }
 
-    // Determine provider type based on integration system
-    const provider = integration.system === 'custom' ? 'custom' as const : integration.system as 'github' | 'jira'
-
-    // Get the first linked project for projectId (required by DAO)
-    const projectLinks = await projectLinkDAO.getIntegrationProjects(integration.id)
-    const projectId = projectLinks.length > 0 ? projectLinks[0].projectId : 'global'
-
-    // Check if webhook config already exists
-    const existing = await webhookConfigDAO.getByIntegrationId(integration.id)
-
-    if (existing) {
-      await webhookConfigDAO.updateConfig(existing.id, {
-        allowedEvents: body.allowedEvents,
-        autoExecute: body.autoExecute,
-        webhookSecretEncrypted: webhookSecret,
-        active: true,
-      })
-
-      const updated = await webhookConfigDAO.getConfigById(existing.id)
-      return res.json({
-        success: true,
-        data: {
-          id: updated!.id,
-          provider: updated!.provider,
-          webhookUrl: updated!.provider === 'custom'
-            ? `/api/webhooks/custom/${updated!.id}`
-            : `/api/webhooks/${updated!.provider}`,
-          allowedEvents: updated!.allowedEvents,
-          autoExecute: updated!.autoExecute,
-          active: updated!.active,
-          hasSecret: Boolean(updated!.webhookSecretEncrypted),
-          webhookSecret: webhookSecret || undefined,
-          createdAt: updated!.createdAt,
-          updatedAt: updated!.updatedAt,
-        },
-      })
-    }
-
-    // Create new webhook config
-    const newConfig = await webhookConfigDAO.createConfig({
-      projectId,
-      provider,
-      integrationId: integration.id,
-      allowedEvents: body.allowedEvents || ['ticket_created'],
-      autoExecute: body.autoExecute ?? false,
-      webhookSecretEncrypted: webhookSecret || null,
-      secretLocation: 'database',
-      active: true,
+    await webhookConfigDAO.updateConfig(configId, {
+      providerProjectId: body.providerProjectId,
+      allowedEvents: body.allowedEvents,
+      autoExecute: body.autoExecute,
+      webhookSecretEncrypted: webhookSecret,
+      active: body.active,
     })
+
+    const updated = await webhookConfigDAO.getConfigById(configId)
+    if (!updated) {
+      return res.status(404).json({ error: 'Inbound webhook configuration not found' })
+    }
 
     res.json({
       success: true,
-      data: {
-        id: newConfig.id,
-        provider: newConfig.provider,
-        webhookUrl: newConfig.provider === 'custom'
-          ? `/api/webhooks/custom/${newConfig.id}`
-          : `/api/webhooks/${newConfig.provider}`,
-        allowedEvents: newConfig.allowedEvents,
-        autoExecute: newConfig.autoExecute,
-        active: newConfig.active,
-        hasSecret: Boolean(newConfig.webhookSecretEncrypted),
-        webhookSecret: webhookSecret || undefined,
-        createdAt: newConfig.createdAt,
-        updatedAt: newConfig.updatedAt,
-      },
+      data: serializeInboundWebhookConfig(updated, webhookSecret || undefined),
     })
   } catch (error) {
-    logger.error('Error saving integration webhook config', {
+    logger.error('Error updating inbound webhook config', {
       error: error instanceof Error ? error.message : error,
     })
     res.status(500).json({ error: 'Internal server error' })
@@ -524,25 +649,149 @@ router.put('/:id/webhook', async (req, res) => {
 })
 
 /**
- * DELETE /api/integrations/:id/webhook - Remove webhook config
+ * DELETE /api/integrations/:id/webhooks/inbound/:configId - Delete inbound webhook config
  */
-router.delete('/:id/webhook', async (req, res) => {
+router.delete('/:id/webhooks/inbound/:configId', async (req, res) => {
   try {
     const integration = await integrationDAO.getIntegration(req.params.id)
     if (!integration) {
       return res.status(404).json({ error: 'Integration not found' })
     }
 
-    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integration.id)
+    const { configId } = req.params
+    const existing = await webhookConfigDAO.getConfigById(configId)
+    if (!existing || existing.integrationId !== integration.id || existing.direction !== 'inbound') {
+      return res.status(404).json({ error: 'Inbound webhook configuration not found' })
+    }
 
+    await webhookConfigDAO.deleteConfig(configId)
+    res.status(204).send()
+  } catch (error) {
+    logger.error('Error deleting inbound webhook config', {
+      error: error instanceof Error ? error.message : error,
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * GET /api/integrations/:id/webhooks/outbound - Get outbound webhook config
+ */
+router.get('/:id/webhooks/outbound', async (req, res) => {
+  try {
+    const integration = await integrationDAO.getIntegration(req.params.id)
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' })
+    }
+
+    const outboundConfig = await webhookConfigDAO.getByIntegrationId(integration.id, 'outbound')
+    if (!outboundConfig) {
+      return res.json({ success: true, data: null })
+    }
+
+    res.json({
+      success: true,
+      data: serializeOutboundWebhookConfig(outboundConfig),
+    })
+  } catch (error) {
+    logger.error('Error fetching outbound webhook config', {
+      error: error instanceof Error ? error.message : error,
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * PUT /api/integrations/:id/webhooks/outbound - Create or update outbound webhook config
+ */
+router.put('/:id/webhooks/outbound', async (req, res) => {
+  try {
+    const integration = await integrationDAO.getIntegration(req.params.id)
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' })
+    }
+
+    const provider = mapSystemToWebhookProvider(integration.system)
+    if (!provider || provider === 'custom') {
+      return res.status(400).json({ error: 'Integration does not support outbound webhook events' })
+    }
+
+    const body = req.body as {
+      projectId?: string
+      events?: string[]
+      apiToken?: string
+      providerProjectId?: string
+      active?: boolean
+    }
+
+    const projectLinks = await projectLinkDAO.getIntegrationProjects(integration.id)
+    const projectId = body.projectId || (projectLinks.length > 0 ? projectLinks[0].projectId : null)
+    const providerProjectId =
+      body.providerProjectId ||
+      getProviderProjectIdFromIntegration(provider, integration.values) ||
+      null
+
+    const existing = await webhookConfigDAO.getByIntegrationId(integration.id, 'outbound')
+
+    if (existing) {
+      await webhookConfigDAO.updateConfig(existing.id, {
+        providerProjectId,
+        allowedEvents: body.events,
+        apiTokenEncrypted: body.apiToken,
+        active: body.active,
+      })
+
+      const updated = await webhookConfigDAO.getConfigById(existing.id)
+      return res.json({
+        success: true,
+        data: serializeOutboundWebhookConfig(updated!),
+      })
+    }
+
+    const created = await webhookConfigDAO.createConfig({
+      projectId,
+      provider,
+      direction: 'outbound',
+      integrationId: integration.id,
+      providerProjectId,
+      allowedEvents: body.events || getDefaultOutboundEvents(),
+      apiTokenEncrypted: body.apiToken || null,
+      autoExecute: false,
+      secretLocation: 'database',
+      active: body.active ?? true,
+    })
+
+    res.status(201).json({
+      success: true,
+      data: serializeOutboundWebhookConfig(created),
+    })
+  } catch (error) {
+    logger.error('Error saving outbound webhook config', {
+      error: error instanceof Error ? error.message : error,
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * DELETE /api/integrations/:id/webhooks/outbound - Remove outbound webhook config
+ */
+router.delete('/:id/webhooks/outbound', async (req, res) => {
+  try {
+    const integration = await integrationDAO.getIntegration(req.params.id)
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' })
+    }
+
+    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integration.id, 'outbound')
     if (!webhookConfig) {
-      return res.status(404).json({ error: 'Webhook configuration not found' })
+      return res.status(404).json({ error: 'Outbound webhook configuration not found' })
     }
 
     await webhookConfigDAO.deleteConfig(webhookConfig.id)
     res.status(204).send()
   } catch (error) {
-    logger.error('Error deleting integration webhook config', {
+    logger.error('Error deleting outbound webhook config', {
       error: error instanceof Error ? error.message : error,
     })
     res.status(500).json({ error: 'Internal server error' })
@@ -562,14 +811,14 @@ router.get('/:id/deliveries', async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50
     const offset = parseInt(req.query.offset as string) || 0
 
-    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integration.id)
+    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integration.id, 'inbound')
 
     if (!webhookConfig) {
       return res.json({ success: true, data: [], pagination: { limit, offset, count: 0 } })
     }
 
     // Get deliveries for this provider
-    const provider = webhookConfig.provider as 'github' | 'jira' | 'custom'
+    const provider = webhookConfig.provider
     const allDeliveries = await webhookDeliveryDAO.getFailedDeliveriesByProvider(provider, limit)
 
     // Filter to this integration's project(s)
