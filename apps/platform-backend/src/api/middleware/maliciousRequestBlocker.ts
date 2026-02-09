@@ -153,47 +153,52 @@ const BLOCKED_PATTERNS = [
   /^\/(upload|uploads|file|files|image|images)\/\.\./i,  // Upload path traversal
 ];
 
+type BlockReason =
+  | { reason: "blocked_path" }
+  | { reason: "blocked_pattern"; pattern: string };
+
+function getBlockReason(path: string, originalUrl: string): BlockReason | null {
+  const normalizedPath = path.toLowerCase();
+  const normalizedUrl = originalUrl.toLowerCase();
+
+  if (BLOCKED_PATHS.has(path) || BLOCKED_PATHS.has(normalizedPath)) {
+    return { reason: "blocked_path" };
+  }
+
+  for (const pattern of BLOCKED_PATTERNS) {
+    if (pattern.test(path) || pattern.test(normalizedUrl)) {
+      return { reason: "blocked_pattern", pattern: pattern.toString() };
+    }
+  }
+
+  return null;
+}
+
 /**
  * Middleware to block malicious/bot scanning requests
  * Returns 444 (Nginx-style connection close) for blocked requests
  */
 export function maliciousRequestBlocker(req: Request, res: Response, next: NextFunction): void {
-  const path = req.path.toLowerCase();
-  const originalUrl = req.originalUrl.toLowerCase();
-  
-  // Check exact path matches
-  if (BLOCKED_PATHS.has(req.path) || BLOCKED_PATHS.has(path)) {
+  const blockReason = getBlockReason(req.path, req.originalUrl);
+
+  if (blockReason) {
     logger.warn("Blocked malicious request", {
       ip: req.ip,
       method: req.method,
       path: req.path,
+      originalUrl: req.originalUrl,
       userAgent: req.get("user-agent"),
-      reason: "blocked_path",
+      reason: blockReason.reason,
+      ...(blockReason.reason === "blocked_pattern"
+        ? { pattern: blockReason.pattern }
+        : {}),
     });
-    
+
     // Return 444-like response (drop connection without response body)
     res.status(404).end();
     return;
   }
-  
-  // Check pattern matches
-  for (const pattern of BLOCKED_PATTERNS) {
-    if (pattern.test(req.path) || pattern.test(originalUrl)) {
-      logger.warn("Blocked malicious request", {
-        ip: req.ip,
-        method: req.method,
-        path: req.path,
-        originalUrl: req.originalUrl,
-        userAgent: req.get("user-agent"),
-        reason: "blocked_pattern",
-        pattern: pattern.toString(),
-      });
-      
-      res.status(404).end();
-      return;
-    }
-  }
-  
+
   next();
 }
 
@@ -206,8 +211,8 @@ const SUSPICIOUS_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const SUSPICIOUS_THRESHOLD = 5; // Block after 5 suspicious requests
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Cleanup every 10 minutes
 
-// Cleanup old entries periodically
-setInterval(() => {
+// Cleanup old entries periodically without pinning Node's event loop.
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [ip, data] of suspiciousIps.entries()) {
     if (now - data.firstSeen > SUSPICIOUS_WINDOW_MS) {
@@ -215,24 +220,18 @@ setInterval(() => {
     }
   }
 }, CLEANUP_INTERVAL_MS);
+cleanupTimer.unref();
 
 export function suspiciousIpTracker(req: Request, res: Response, next: NextFunction): void {
   const ip = req.ip || "unknown";
-  const path = req.path.toLowerCase();
-  
-  // Check if this looks like a scanning attempt
-  const isSuspicious = 
-    BLOCKED_PATHS.has(req.path) ||
-    BLOCKED_PATHS.has(path) ||
-    BLOCKED_PATTERNS.some(p => p.test(req.path) || p.test(req.originalUrl));
-  
-  if (isSuspicious) {
+
+  if (getBlockReason(req.path, req.originalUrl)) {
     const now = Date.now();
     const existing = suspiciousIps.get(ip);
-    
+
     if (existing) {
       existing.count++;
-      
+
       // Block IP if threshold reached
       if (existing.count >= SUSPICIOUS_THRESHOLD && !existing.blocked) {
         existing.blocked = true;
@@ -245,7 +244,7 @@ export function suspiciousIpTracker(req: Request, res: Response, next: NextFunct
     } else {
       suspiciousIps.set(ip, { count: 1, firstSeen: now, blocked: false });
     }
-    
+
     // If IP is blocked, return 403
     const ipData = suspiciousIps.get(ip);
     if (ipData?.blocked) {
@@ -253,7 +252,7 @@ export function suspiciousIpTracker(req: Request, res: Response, next: NextFunct
       return;
     }
   }
-  
+
   next();
 }
 

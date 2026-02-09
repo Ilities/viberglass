@@ -1,5 +1,5 @@
 import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext, ExecutionResult } from "../types";
+import { ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
 import * as path from "path";
 
@@ -54,24 +54,19 @@ export class CodexAgent extends BaseAgent {
       // Read PR description from file (before cleanup)
       const pullRequestDescription = await this.readPRDescription(repoDir);
 
-      let cliOutput: any = {};
-      try {
-        cliOutput = JSON.parse(result.stdout);
-      } catch {
-        this.logger.warn("Could not parse Codex CLI output", {
-          stdout: result.stdout,
-        });
-      }
+      const cliOutput = this.parseCliOutput(result.stdout);
 
       await this.cleanup(workDir);
 
       return {
         success: true,
         changedFiles,
-        commitHash: cliOutput.commit,
-        pullRequestUrl: cliOutput.pr_url,
+        commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
+        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
         pullRequestDescription,
-        testResults: cliOutput.test_results,
+        testResults: Array.isArray(cliOutput.test_results)
+          ? cliOutput.test_results
+          : undefined,
       };
     } catch (error) {
       await this.cleanup(workDir);

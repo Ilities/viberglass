@@ -7,6 +7,7 @@ import fs from "fs";
 import { PassThrough } from "stream";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
+import { buildWorkerProjectConfig } from "./projectConfig";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
@@ -218,15 +219,7 @@ export class DockerInvoker implements WorkerInvoker {
       callbackToken: job.callbackToken,
       instructionFiles: job.context?.instructionFiles ?? [],
       clankerConfig: clanker, // Full config for Docker (no external storage)
-      projectConfig: project
-        ? {
-            id: project.id,
-            name: project.name,
-            autoFixTags: project.autoFixTags,
-            customFieldMappings: project.customFieldMappings,
-            workerSettings: project.workerSettings,
-          }
-        : undefined,
+      projectConfig: buildWorkerProjectConfig(project),
       overrides: job.overrides,
     };
   }

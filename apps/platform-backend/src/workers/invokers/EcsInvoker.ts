@@ -9,6 +9,7 @@ import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
+import { buildWorkerProjectConfig } from "./projectConfig";
 
 const logger = createChildLogger({ invoker: "ECS" });
 
@@ -255,15 +256,7 @@ export class EcsInvoker implements WorkerInvoker {
       requiredCredentials,
       callbackToken: job.callbackToken,
       clankerConfig: clanker,
-      projectConfig: project
-        ? {
-            id: project.id,
-            name: project.name,
-            autoFixTags: project.autoFixTags,
-            customFieldMappings: project.customFieldMappings,
-            workerSettings: project.workerSettings,
-          }
-        : undefined,
+      projectConfig: buildWorkerProjectConfig(project),
       overrides: job.overrides,
     };
   }

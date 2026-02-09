@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { HTMLAttributes } from 'react'
 
 type InteractionState = {
   hover: boolean
   focus: boolean
   active: boolean
 }
+
+type InteractionHandlers = Pick<
+  HTMLAttributes<HTMLElement>,
+  | 'onPointerEnter'
+  | 'onPointerLeave'
+  | 'onPointerDown'
+  | 'onPointerUp'
+  | 'onFocus'
+  | 'onBlur'
+  | 'onKeyDown'
+  | 'onKeyUp'
+>
 
 export function useDataInteraction({
   disabled,
@@ -67,6 +80,17 @@ export function useDataInteraction({
     }
   }, [isDisabled])
 
+  const eventHandlers: InteractionHandlers = {
+    onPointerEnter,
+    onPointerLeave,
+    onPointerDown,
+    onPointerUp,
+    onFocus,
+    onBlur,
+    onKeyDown: undefined,
+    onKeyUp: undefined,
+  }
+
   return {
     dataAttributes: {
       'data-hover': state.hover ? '' : undefined,
@@ -74,27 +98,18 @@ export function useDataInteraction({
       'data-active': state.active ? '' : undefined,
       'data-disabled': isDisabled ? '' : undefined,
     },
-    eventHandlers: {
-      onPointerEnter,
-      onPointerLeave,
-      onPointerDown,
-      onPointerUp,
-      onFocus,
-      onBlur,
-      onKeyDown: undefined as unknown as React.KeyboardEventHandler<HTMLElement>,
-      onKeyUp: undefined as unknown as React.KeyboardEventHandler<HTMLElement>,
-    },
+    eventHandlers,
   }
 }
 
 export function composeEventHandlers<T extends { defaultPrevented?: boolean }>(
   theirHandler: ((event: T) => void) | undefined,
-  ourHandler: (event: T) => void
+  ourHandler: ((event: T) => void) | undefined
 ): (event: T) => void {
   return (event) => {
     theirHandler?.(event)
     if (!event.defaultPrevented) {
-      ourHandler(event)
+      ourHandler?.(event)
     }
   }
 }

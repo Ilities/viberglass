@@ -1,4 +1,3 @@
-import { IntegrationGrid } from '@/components/integration-grid'
 import { Heading, Subheading } from '@/components/heading'
 import { Text } from '@/components/text'
 import { useProject } from '@/context/project-context'
@@ -16,7 +15,6 @@ import {
   CheckCircledIcon,
   PlusIcon,
 } from '@radix-ui/react-icons'
-import { Link } from '@/components/link'
 
 // Custom icons since they're not in radix-ui
 function LinkIcon({ className }: { className?: string }) {
@@ -42,6 +40,7 @@ interface IntegrationWithLinkStatus extends IntegrationSummary {
   isLinked: boolean
   linkId?: string
   isPrimary?: boolean
+  integrationEntityId: string
 }
 
 export function ProjectIntegrationsPage() {
@@ -228,9 +227,9 @@ export function ProjectIntegrationsPage() {
               <IntegrationLinkCard
                 key={integration.id}
                 integration={integration}
-                onLink={() => handleLinkIntegration((integration as unknown as Record<string, string>).integrationEntityId)}
-                onUnlink={() => handleUnlinkIntegration((integration as unknown as Record<string, string>).integrationEntityId)}
-                isLoading={actionInProgress === (integration as unknown as Record<string, string>).integrationEntityId}
+                onLink={() => handleLinkIntegration(integration.integrationEntityId)}
+                onUnlink={() => handleUnlinkIntegration(integration.integrationEntityId)}
+                isLoading={actionInProgress === integration.integrationEntityId}
               />
             ))}
           </div>

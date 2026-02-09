@@ -6,9 +6,8 @@ import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO
 import { requireAuth } from '../middleware/authentication'
 import logger from '../../config/logger'
 import { integrationRegistry } from '../../integrations/registry'
-import type { TicketSystem } from '@viberglass/types'
+import type { AuthCredentials, TicketSystem } from '@viberglass/types'
 import { INTEGRATION_DESCRIPTIONS } from '@viberglass/types'
-import type { Integration } from '@viberglass/types'
 
 const router = express.Router()
 const integrationDAO = new IntegrationDAO()
@@ -190,11 +189,11 @@ router.post('/:id/test', async (req, res) => {
     const config = {
       type: integration.authType,
       ...integration.values,
-    }
+    } as AuthCredentials & Record<string, unknown>
 
     try {
-      const integrationInstance = plugin.createIntegration(config as any)
-      await integrationInstance.authenticate(config as any)
+      const integrationInstance = plugin.createIntegration(config)
+      await integrationInstance.authenticate(config)
 
       res.json({
         success: true,

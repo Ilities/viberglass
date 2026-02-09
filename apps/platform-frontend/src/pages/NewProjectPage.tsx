@@ -5,9 +5,18 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
+import {
+  extractCredentialsFromIntegration,
+  getErrorMessage,
+  MANUAL_INTEGRATION_PLACEHOLDER,
+  normalizeRepositoryUrls,
+  parseCredentialsJson,
+  resolveManualTicketSystem,
+  type LegacyAuthCredentials,
+} from '@/lib/project-form'
 import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
 import { getIntegrations, getAllIntegrationSummaries } from '@/service/api/integration-api'
-import type { AuthCredentials, IntegrationSummary, TicketSystem } from '@viberglass/types'
+import type { IntegrationSummary, TicketSystem } from '@viberglass/types'
 import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
 import { useNavigate } from 'react-router-dom'
@@ -99,15 +108,16 @@ export function NewProjectPage() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-    const repositoryUrlList = repositoryUrls.map((url) => url.trim()).filter(Boolean)
+    const repositoryUrlList = normalizeRepositoryUrls(repositoryUrls)
 
     try {
       // If using a preconfigured integration, fetch its credentials from the integration settings
-      const manualTicketSystemRaw = formData.get('ticket_system_manual') as string || '__placeholder__'
-      const manualTicketSystem = manualTicketSystemRaw === '__placeholder__' ? '' : manualTicketSystemRaw
+      const manualTicketSystem = resolveManualTicketSystem(
+        formData.get('ticket_system_manual')?.toString() ?? MANUAL_INTEGRATION_PLACEHOLDER
+      )
       const configuredTicketSystem = (formData.get('ticket_system') as string) || 'none'
       const ticketSystem = manualTicketSystem || configuredTicketSystem
-      let credentials: AuthCredentials = { type: 'api_key' }
+      let credentials: LegacyAuthCredentials = { type: 'api_key' }
 
       if (!ticketSystem || ticketSystem === 'none') {
         throw new Error('Select a ticketing integration to continue')
@@ -122,12 +132,8 @@ export function NewProjectPage() {
         const credentialsRaw = formData.get('credentials') as string
         if (credentialsRaw) {
           try {
-            const parsed = JSON.parse(credentialsRaw)
-            credentials = {
-              type: parsed.type || 'api_key',
-              ...parsed,
-            }
-          } catch (e) {
+            credentials = parseCredentialsJson(credentialsRaw)
+          } catch {
             throw new Error('Invalid JSON in Credentials field')
           }
         } else {
@@ -135,23 +141,7 @@ export function NewProjectPage() {
           const integrations = await getIntegrations(ticketSystem as TicketSystem)
           if (integrations.length > 0) {
             const integration = integrations[0]
-            const credentialKeys = [
-              'apiKey',
-              'username',
-              'password',
-              'token',
-              'clientId',
-              'clientSecret',
-              'refreshToken',
-              'baseUrl',
-            ] as const
-            const extracted: AuthCredentials = { type: integration.authType }
-            credentialKeys.forEach((key) => {
-              if (integration.values[key] !== undefined) {
-                extracted[key] = integration.values[key] as AuthCredentials[typeof key]
-              }
-            })
-            credentials = extracted
+            credentials = extractCredentialsFromIntegration(integration)
           } else {
             throw new Error(`No configured integration found for ${ticketSystem}. Please configure an integration first.`)
           }
@@ -175,8 +165,8 @@ export function NewProjectPage() {
 
       const project = await createProject(projectData)
       navigate(`/project/${project.slug}`)
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred')
+    } catch (err) {
+      setError(getErrorMessage(err, 'An unexpected error occurred'))
       setIsSubmitting(false)
     }
   }
@@ -323,8 +313,11 @@ export function NewProjectPage() {
                       <div className="mt-4 space-y-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
                         <Field>
                           <Label>Integration Type</Label>
-                          <Select name="ticket_system_manual" defaultValue="__placeholder__">
-                            <option value="__placeholder__">Select a system...</option>
+                          <Select
+                            name="ticket_system_manual"
+                            defaultValue={MANUAL_INTEGRATION_PLACEHOLDER}
+                          >
+                            <option value={MANUAL_INTEGRATION_PLACEHOLDER}>Select a system...</option>
                             {ALL_INTEGRATIONS.map((system) => (
                               <option key={system.id} value={system.id}>
                                 {system.name}

@@ -69,7 +69,7 @@ export interface CodexConfig extends BaseAgentConfig {
   approvalPolicy?: "untrusted" | "on-failure" | "on-request" | "never";
   sandboxMode?: "read-only" | "workspace-write" | "danger-full-access";
   provider?: "openai" | "proxy" | "ollama" | "mistral" | string;
-  mcpServers?: Record<string, any>; // MCP server configuration
+  mcpServers?: Record<string, unknown>; // MCP server configuration
 }
 
 // Google Gemini configuration
