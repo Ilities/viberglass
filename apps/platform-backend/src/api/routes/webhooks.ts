@@ -10,6 +10,7 @@ import { ProviderRegistry } from '../../webhooks/registry';
 import { GitHubWebhookProvider } from '../../webhooks/providers/github-provider';
 import { JiraWebhookProvider } from '../../webhooks/providers/jira-provider';
 import { ShortcutWebhookProvider } from '../../webhooks/providers/shortcut-provider';
+import { CustomWebhookProvider } from '../../webhooks/providers/custom-provider';
 import { WebhookConfigDAO } from '../../persistence/webhook/WebhookConfigDAO';
 import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO';
 import { DeduplicationService } from '../../webhooks/deduplication';
@@ -69,6 +70,15 @@ function getWebhookService(): WebhookService {
       allowedEvents: ['story_created', 'story_updated', 'comment_created'],
     });
     registry.register(shortcutProvider);
+
+    // Register Custom provider (inbound-only)
+    const customProvider = new CustomWebhookProvider({
+      type: 'custom',
+      secretLocation: 'database',
+      algorithm: 'sha256',
+      allowedEvents: ['ticket_created'],
+    });
+    registry.register(customProvider);
 
     // Initialize DAOs
     const configDAO = new WebhookConfigDAO();
