@@ -1,5 +1,5 @@
 import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext, ExecutionResult } from "../types";
+import { ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
 import * as path from "path";
 
@@ -68,23 +68,15 @@ export class MistralVibeAgent extends BaseAgent {
 
       const changedFiles = await this.getChangedFiles(repoDir);
 
-      let cliOutput: any = {};
-      try {
-        const jsonMatch = result.stdout.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          cliOutput = JSON.parse(jsonMatch[0]);
-        }
-      } catch {
-        // Ignore if no JSON found
-      }
+      const cliOutput = this.parseCliOutput(result.stdout);
 
       await this.cleanup(workDir);
 
       return {
         success: true,
         changedFiles,
-        commitHash: cliOutput.commitHash || cliOutput.commit,
-        pullRequestUrl: cliOutput.pullRequestUrl || cliOutput.pr_url,
+        commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
+        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
       };
     } catch (error) {
       await this.cleanup(workDir);

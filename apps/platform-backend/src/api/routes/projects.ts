@@ -314,7 +314,7 @@ router.post(
       } as AuthCredentials & Record<string, unknown>;
 
       try {
-        const integration = plugin.createIntegration(config as any);
+        const integration = plugin.createIntegration(config);
         await integration.authenticate(config);
 
         const response: TestIntegrationResponse = {

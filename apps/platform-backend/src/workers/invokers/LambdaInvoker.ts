@@ -9,6 +9,7 @@ import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
+import { buildWorkerProjectConfig } from "./projectConfig";
 
 const logger = createChildLogger({ invoker: "Lambda" });
 
@@ -145,15 +146,7 @@ export class LambdaInvoker implements WorkerInvoker {
       agent: clanker.agent || "claude-code",
       secrets: secretMetadata,
       callbackToken: job.callbackToken,
-      projectConfig: project
-        ? {
-            id: project.id,
-            name: project.name,
-            autoFixTags: project.autoFixTags,
-            customFieldMappings: project.customFieldMappings,
-            workerSettings: project.workerSettings,
-          }
-        : undefined,
+      projectConfig: buildWorkerProjectConfig(project),
       overrides: job.overrides,
     };
   }

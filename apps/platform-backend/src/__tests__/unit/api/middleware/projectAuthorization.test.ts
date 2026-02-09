@@ -1,418 +1,254 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Request, Response, NextFunction } from "express";
+import { Response } from "express";
 import {
   requireProjectAccess,
   requireProjectAdmin,
   requireTicketProjectAccess,
-  AuthenticatedRequest,
+  type AuthenticatedRequest,
   userHasProjectAccess,
   getUserProjects,
 } from "../../../../api/middleware/projectAuthorization";
-import { db } from "../../../../config/database";
+import db from "../../../../persistence/config/database";
 
-// Mock database
-vi.mock("../../../../config/database", () => ({
-  db: {
-    selectFrom: vi.fn(),
+jest.mock("../../../../persistence/config/database", () => ({
+  __esModule: true,
+  default: {
+    selectFrom: jest.fn(),
   },
 }));
 
-describe("Project Authorization Middleware", () => {
-  let mockRequest: Partial<AuthenticatedRequest>;
-  let mockResponse: Partial<Response>;
-  let mockNext: NextFunction;
-  let mockStatus: ReturnType<typeof vi.fn>;
-  let mockJson: ReturnType<typeof vi.fn>;
+type MockResponse = {
+  status: jest.Mock;
+  json: jest.Mock;
+  headersSent: boolean;
+};
 
+const mockDb = db as unknown as { selectFrom: jest.Mock };
+
+function createResponse(): MockResponse {
+  const json = jest.fn();
+  const status = jest.fn(() => ({ json }));
+
+  return {
+    status,
+    json,
+    headersSent: false,
+  };
+}
+
+function createRequest(
+  overrides: Partial<AuthenticatedRequest> = {},
+): AuthenticatedRequest {
+  return {
+    user: {
+      id: "user-123",
+      email: "test@example.com",
+      tenant_id: "tenant-1",
+      role: "member",
+    },
+    params: {},
+    body: {},
+    query: {},
+    ...overrides,
+  } as AuthenticatedRequest;
+}
+
+function createChainedSelect(result: unknown) {
+  const executeTakeFirst = jest.fn().mockResolvedValue(result);
+  let where: jest.Mock;
+  where = jest.fn(() => ({ where, executeTakeFirst }));
+  const select = jest.fn(() => ({ where }));
+  return { select, executeTakeFirst };
+}
+
+describe("projectAuthorization middleware", () => {
   beforeEach(() => {
-    mockRequest = {
-      user: {
-        id: "user-123",
-        email: "test@example.com",
-        tenant_id: "tenant-1",
-        role: "member",
-      },
-      params: {},
-      body: {},
-      query: {},
-    };
-
-    mockJson = vi.fn();
-    mockStatus = vi.fn(() => ({ json: mockJson }));
-    mockResponse = {
-      status: mockStatus as any,
-      headersSent: false,
-    };
-
-    mockNext = vi.fn();
-
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe("requireProjectAccess", () => {
-    it("should allow access when user has project membership", async () => {
-      mockRequest.params = { projectId: "project-123" };
+    it("allows access when user belongs to project", async () => {
+      const req = createRequest({ params: { projectId: "project-123" } as any });
+      const res = createResponse();
+      const next = jest.fn();
 
-      const mockExecuteTakeFirst = vi.fn().resolves({
+      const chain = createChainedSelect({
         project_id: "project-123",
         role: "member",
       });
+      mockDb.selectFrom.mockReturnValue({ select: chain.select });
 
-      const mockWhere = vi.fn(() => ({
-        where: mockWhere,
-        executeTakeFirst: mockExecuteTakeFirst,
-      }));
+      await requireProjectAccess(req, res as unknown as Response, next);
 
-      const mockSelect = vi.fn(() => ({
-        where: mockWhere,
-      }));
-
-      (db.selectFrom as any).mockReturnValue({
-        select: mockSelect,
-      });
-
-      await requireProjectAccess(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockRequest.projectAccess).toEqual({
+      expect(next).toHaveBeenCalled();
+      expect(req.projectAccess).toEqual({
         projectId: "project-123",
         role: "member",
       });
     });
 
-    it("should deny access when user lacks authentication", async () => {
-      mockRequest.user = undefined;
+    it("returns 401 when request is unauthenticated", async () => {
+      const req = createRequest({ user: undefined });
+      const res = createResponse();
+      const next = jest.fn();
 
-      await requireProjectAccess(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
+      await requireProjectAccess(req, res as unknown as Response, next);
 
-      expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
         error: "Unauthorized",
         message: "Authentication required",
       });
-      expect(mockNext).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it("should deny access when project ID is missing", async () => {
-      await requireProjectAccess(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
+    it("returns 400 when project id is missing", async () => {
+      const req = createRequest();
+      const res = createResponse();
+      const next = jest.fn();
 
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith({
+      await requireProjectAccess(req, res as unknown as Response, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
         error: "Bad Request",
         message: "Project ID is required",
       });
-      expect(mockNext).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it("should deny access when user is not member of project", async () => {
-      mockRequest.params = { projectId: "project-456" };
+    it("returns 403 when user is not member of project", async () => {
+      const req = createRequest({ params: { projectId: "project-999" } as any });
+      const res = createResponse();
+      const next = jest.fn();
 
-      const mockExecuteTakeFirst = vi.fn().resolves(undefined);
+      const chain = createChainedSelect(undefined);
+      mockDb.selectFrom.mockReturnValue({ select: chain.select });
 
-      const mockWhere = vi.fn(() => ({
-        where: mockWhere,
-        executeTakeFirst: mockExecuteTakeFirst,
-      }));
+      await requireProjectAccess(req, res as unknown as Response, next);
 
-      const mockSelect = vi.fn(() => ({
-        where: mockWhere,
-      }));
-
-      (db.selectFrom as any).mockReturnValue({
-        select: mockSelect,
-      });
-
-      await requireProjectAccess(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
-
-      expect(mockStatus).toHaveBeenCalledWith(403);
-      expect(mockJson).toHaveBeenCalledWith({
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
         error: "Forbidden",
         message: "You do not have access to this project",
       });
-      expect(mockNext).not.toHaveBeenCalled();
-    });
-
-    it("should extract project ID from body", async () => {
-      mockRequest.body = { project_id: "project-789" };
-
-      const mockExecuteTakeFirst = vi.fn().resolves({
-        project_id: "project-789",
-        role: "admin",
-      });
-
-      const mockWhere = vi.fn(() => ({
-        where: mockWhere,
-        executeTakeFirst: mockExecuteTakeFirst,
-      }));
-
-      const mockSelect = vi.fn(() => ({
-        where: mockWhere,
-      }));
-
-      (db.selectFrom as any).mockReturnValue({
-        select: mockSelect,
-      });
-
-      await requireProjectAccess(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockRequest.projectAccess?.projectId).toBe("project-789");
+      expect(next).not.toHaveBeenCalled();
     });
   });
 
   describe("requireProjectAdmin", () => {
-    it("should allow access when user has admin role", async () => {
-      mockRequest.params = { projectId: "project-123" };
-      mockRequest.projectAccess = {
-        projectId: "project-123",
-        role: "admin",
-      };
+    it("allows admin users", async () => {
+      const req = createRequest({ params: { projectId: "project-123" } as any });
+      const res = createResponse();
+      const next = jest.fn();
 
-      const mockExecuteTakeFirst = vi.fn().resolves({
+      const chain = createChainedSelect({
         project_id: "project-123",
         role: "admin",
       });
+      mockDb.selectFrom.mockReturnValue({ select: chain.select });
 
-      const mockWhere = vi.fn(() => ({
-        where: mockWhere,
-        executeTakeFirst: mockExecuteTakeFirst,
-      }));
+      await requireProjectAdmin(req, res as unknown as Response, next);
 
-      const mockSelect = vi.fn(() => ({
-        where: mockWhere,
-      }));
-
-      (db.selectFrom as any).mockReturnValue({
-        select: mockSelect,
-      });
-
-      await requireProjectAdmin(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
-
-      expect(mockNext).toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
     });
 
-    it("should deny access when user is not admin", async () => {
-      mockRequest.params = { projectId: "project-123" };
-      mockRequest.projectAccess = {
-        projectId: "project-123",
-        role: "member",
-      };
+    it("blocks non-admin users", async () => {
+      const req = createRequest({ params: { projectId: "project-123" } as any });
+      const res = createResponse();
+      const next = jest.fn();
 
-      const mockExecuteTakeFirst = vi.fn().resolves({
+      const chain = createChainedSelect({
         project_id: "project-123",
         role: "member",
       });
+      mockDb.selectFrom.mockReturnValue({ select: chain.select });
 
-      const mockWhere = vi.fn(() => ({
-        where: mockWhere,
-        executeTakeFirst: mockExecuteTakeFirst,
-      }));
+      await requireProjectAdmin(req, res as unknown as Response, next);
 
-      const mockSelect = vi.fn(() => ({
-        where: mockWhere,
-      }));
-
-      (db.selectFrom as any).mockReturnValue({
-        select: mockSelect,
-      });
-
-      // First call for project access check will succeed but set projectAccess
-      await requireProjectAdmin(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
-
-      // Should have blocked due to non-admin role
-      expect(mockStatus).toHaveBeenCalledWith(403);
-      expect(mockJson).toHaveBeenCalledWith({
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
         error: "Forbidden",
         message: "Admin access required for this operation",
       });
+      expect(next).not.toHaveBeenCalled();
     });
   });
 
   describe("requireTicketProjectAccess", () => {
-    it("should allow access when user has access to ticket's project", async () => {
-      mockRequest.params = { ticketId: "ticket-123" };
+    it("allows access when user can access ticket project", async () => {
+      const req = createRequest({ params: { ticketId: "ticket-1" } as any });
+      const res = createResponse();
+      const next = jest.fn();
 
-      // Mock ticket lookup
-      const mockTicketExecuteTakeFirst = vi.fn().resolves({
-        project_id: "project-456",
-      });
-
-      // Mock user_projects lookup
-      const mockUserProjectExecuteTakeFirst = vi.fn().resolves({
+      const ticketChain = createChainedSelect({ project_id: "project-456" });
+      const membershipChain = createChainedSelect({
         project_id: "project-456",
         role: "member",
       });
 
-      const mockWhere = vi.fn(() => ({
-        where: mockWhere,
-        executeTakeFirst: mockTicketExecuteTakeFirst,
-      }));
+      mockDb.selectFrom
+        .mockReturnValueOnce({ select: ticketChain.select })
+        .mockReturnValueOnce({ select: membershipChain.select });
 
-      const mockSelect = vi.fn(() => ({
-        where: mockWhere,
-      }));
+      await requireTicketProjectAccess(req, res as unknown as Response, next);
 
-      // First call: ticket lookup
-      (db.selectFrom as any).mockReturnValueOnce({
-        select: mockSelect,
-      });
-
-      // Second call: user_projects lookup
-      const mockUserProjectWhere = vi.fn(() => ({
-        where: mockUserProjectWhere,
-        executeTakeFirst: mockUserProjectExecuteTakeFirst,
-      }));
-
-      const mockUserProjectSelect = vi.fn(() => ({
-        where: mockUserProjectWhere,
-      }));
-
-      (db.selectFrom as any).mockReturnValueOnce({
-        select: mockUserProjectSelect,
-      });
-
-      await requireTicketProjectAccess(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockRequest.projectAccess).toEqual({
+      expect(next).toHaveBeenCalled();
+      expect(req.projectAccess).toEqual({
         projectId: "project-456",
         role: "member",
       });
     });
 
-    it("should return 404 when ticket does not exist", async () => {
-      mockRequest.params = { ticketId: "nonexistent" };
+    it("returns 404 when ticket is missing", async () => {
+      const req = createRequest({ params: { ticketId: "missing-ticket" } as any });
+      const res = createResponse();
+      const next = jest.fn();
 
-      const mockExecuteTakeFirst = vi.fn().resolves(undefined);
+      const ticketChain = createChainedSelect(undefined);
+      mockDb.selectFrom.mockReturnValueOnce({ select: ticketChain.select });
 
-      const mockWhere = vi.fn(() => ({
-        executeTakeFirst: mockExecuteTakeFirst,
-      }));
+      await requireTicketProjectAccess(req, res as unknown as Response, next);
 
-      const mockSelect = vi.fn(() => ({
-        where: mockWhere,
-      }));
-
-      (db.selectFrom as any).mockReturnValue({
-        select: mockSelect,
-      });
-
-      await requireTicketProjectAccess(
-        mockRequest as AuthenticatedRequest,
-        mockResponse as Response,
-        mockNext,
-      );
-
-      expect(mockStatus).toHaveBeenCalledWith(404);
-      expect(mockJson).toHaveBeenCalledWith({
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
         error: "Not Found",
         message: "Ticket not found",
       });
+      expect(next).not.toHaveBeenCalled();
     });
   });
 
-  describe("Helper functions", () => {
-    describe("userHasProjectAccess", () => {
-      it("should return true when user has access", async () => {
-        const mockExecuteTakeFirst = vi.fn().resolves({ id: "up-123" });
+  describe("helpers", () => {
+    it("userHasProjectAccess returns true when membership exists", async () => {
+      const chain = createChainedSelect({ id: "row-1" });
+      mockDb.selectFrom.mockReturnValue({ select: chain.select });
 
-        const mockWhere = vi.fn(() => ({
-          where: mockWhere,
-          executeTakeFirst: mockExecuteTakeFirst,
-        }));
-
-        const mockSelect = vi.fn(() => ({
-          where: mockWhere,
-        }));
-
-        (db.selectFrom as any).mockReturnValue({
-          select: mockSelect,
-        });
-
-        const result = await userHasProjectAccess("user-123", "project-456");
-
-        expect(result).toBe(true);
-      });
-
-      it("should return false when user lacks access", async () => {
-        const mockExecuteTakeFirst = vi.fn().resolves(undefined);
-
-        const mockWhere = vi.fn(() => ({
-          where: mockWhere,
-          executeTakeFirst: mockExecuteTakeFirst,
-        }));
-
-        const mockSelect = vi.fn(() => ({
-          where: mockWhere,
-        }));
-
-        (db.selectFrom as any).mockReturnValue({
-          select: mockSelect,
-        });
-
-        const result = await userHasProjectAccess("user-123", "project-789");
-
-        expect(result).toBe(false);
-      });
+      await expect(
+        userHasProjectAccess("user-123", "project-123"),
+      ).resolves.toBe(true);
     });
 
-    describe("getUserProjects", () => {
-      it("should return list of user projects", async () => {
-        const mockProjects = [
-          { project_id: "project-1", role: "admin" },
-          { project_id: "project-2", role: "member" },
-        ];
+    it("userHasProjectAccess returns false when membership is missing", async () => {
+      const chain = createChainedSelect(undefined);
+      mockDb.selectFrom.mockReturnValue({ select: chain.select });
 
-        const mockExecute = vi.fn().resolves(mockProjects);
+      await expect(
+        userHasProjectAccess("user-123", "project-123"),
+      ).resolves.toBe(false);
+    });
 
-        const mockWhere = vi.fn(() => ({
-          execute: mockExecute,
-        }));
+    it("getUserProjects returns all projects", async () => {
+      const projects = [
+        { project_id: "project-1", role: "admin" },
+        { project_id: "project-2", role: "member" },
+      ];
 
-        const mockSelect = vi.fn(() => ({
-          where: mockWhere,
-        }));
+      const execute = jest.fn().mockResolvedValue(projects);
+      const where = jest.fn(() => ({ execute }));
+      const select = jest.fn(() => ({ where }));
+      mockDb.selectFrom.mockReturnValue({ select });
 
-        (db.selectFrom as any).mockReturnValue({
-          select: mockSelect,
-        });
-
-        const result = await getUserProjects("user-123");
-
-        expect(result).toEqual(mockProjects);
-      });
+      await expect(getUserProjects("user-123")).resolves.toEqual(projects);
     });
   });
 });

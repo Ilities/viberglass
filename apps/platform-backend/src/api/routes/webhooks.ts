@@ -34,7 +34,6 @@ const router = express.Router();
  * All services are created lazily on first request to allow for proper dependency injection
  */
 let webhookService: WebhookService | null = null;
-let feedbackService: FeedbackService | null = null;
 
 /**
  * Get or initialize webhook service
@@ -79,14 +78,13 @@ function getWebhookService(): WebhookService {
     const secretService = new WebhookSecretService(credentialProvider);
     const ticketDAO = new TicketDAO();
 
-    // Initialize JobService without feedback initially (will be set later)
-    const jobService = new JobService();
-
     // Initialize services
-    feedbackService = new FeedbackService(registry, configDAO, secretService);
-
-    // Update JobService with feedback service
-    jobService.constructor(feedbackService);
+    const feedbackService = new FeedbackService(
+      registry,
+      configDAO,
+      secretService,
+    );
+    const jobService = new JobService(feedbackService);
 
     // Initialize webhook service
     webhookService = new WebhookService(
