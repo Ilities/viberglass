@@ -1,28 +1,29 @@
 /**
  * Feedback service for outbound webhook calls
  *
- * Posts job results back to webhook providers (GitHub, Jira, etc.)
- * when jobs complete. This handles the "result feedback" flow where
- * job completion results are posted as comments and labels on the
- * originating issue/ticket.
- *
- * The service is designed to be called from JobService when a job
- * reaches terminal status (completed or failed).
+ * Emits outbound job lifecycle events to configured providers when jobs start
+ * and finish.
  */
 
 import type { ProviderRegistry } from './registry';
 import type { WebhookConfigDAO, WebhookConfig } from '../persistence/webhook/WebhookConfigDAO';
 import type { WebhookSecretService } from './WebhookSecretService';
-import type { WebhookProvider, WebhookProviderConfig, WebhookResult } from './provider';
+import type {
+  WebhookProvider,
+  WebhookProviderConfig,
+  WebhookResult,
+  ProviderType,
+} from './provider';
 import type { JobResult } from '../types/Job';
+import { TicketDAO } from '../persistence/ticketing/TicketDAO';
 
 /**
- * Job with ticket reference for result posting
+ * Job with ticket reference for outbound event posting
  */
 export interface JobWithTicket {
   id: string;
   ticketId?: string;
-  status: 'completed' | 'failed';
+  status: 'active' | 'completed' | 'failed';
   result?: JobResult;
   repository?: string;
 }
@@ -37,6 +38,8 @@ export interface FeedbackResult {
   error?: string;
 }
 
+export type OutboundWebhookEventType = 'job_started' | 'job_ended';
+
 /**
  * Feedback service configuration
  */
@@ -48,123 +51,54 @@ export interface FeedbackServiceConfig {
 }
 
 /**
- * Service for posting job results back to webhook providers
- *
- * When a job completes, this service:
- * 1. Resolves the ticket associated with the job
- * 2. Fetches the webhook configuration used to create the ticket
- * 3. Loads the provider for the configuration
- * 4. Posts a formatted comment to the external ticket
- * 5. Updates labels based on success/failure
+ * Internal resolved outbound target
+ */
+interface OutboundTarget {
+  config: WebhookConfig;
+  externalTicketId?: string;
+}
+
+/**
+ * Service for posting outbound webhook events
  */
 export class FeedbackService {
+  private ticketDAO: TicketDAO;
+
   constructor(
     private registry: ProviderRegistry,
     private configDAO: WebhookConfigDAO,
     private secretService: WebhookSecretService,
     private config: FeedbackServiceConfig = {}
-  ) {}
+  ) {
+    this.ticketDAO = new TicketDAO();
+  }
 
   /**
-   * Post job result back to webhook provider
-   *
-   * This is the main entry point called by JobService when a job completes.
-   *
-   * @param job - Job with ticket reference
-   * @param result - Job execution result
-   * @returns Feedback result
+   * Compatibility alias for legacy callers.
+   * Sends job-ended event with result payload.
    */
   async postJobResult(job: JobWithTicket, result: JobResult): Promise<FeedbackResult> {
-    const feedbackResult: FeedbackResult = {
-      success: false,
-    };
+    return this.postJobEnded(job, result);
+  }
 
-    try {
-      // 1. Resolve ticket
-      if (!job.ticketId) {
-        return {
-          success: true, // Not an error - just nothing to post to
-          error: 'No ticket associated with job',
-        };
-      }
+  /**
+   * Post job-started event to outbound webhook provider
+   */
+  async postJobStarted(job: JobWithTicket): Promise<FeedbackResult> {
+    return this.postJobEvent(job, 'job_started');
+  }
 
-      // 2. Resolve webhook config from ticket metadata
-      // Note: In a real implementation, we'd fetch the ticket and get webhookConfigId
-      // For now, we'll use the repository to find the config
-      const config = await this.resolveConfigFromJob(job);
-      if (!config) {
-        return {
-          success: true, // Not an error - webhook may not be configured
-          error: 'No webhook configuration found for job',
-        };
-      }
-
-      // 3. Get provider
-      const provider = this.registry.get(config.provider);
-      if (!provider) {
-        return {
-          success: false,
-          error: `Provider '${config.provider}' not registered`,
-        };
-      }
-
-      // 4. Load API token
-      const providerConfig = this.toProviderConfig(config, provider.name);
-      const apiToken = await this.secretService.getApiToken(providerConfig);
-
-      // 5. Extract external ticket ID from job context
-      const externalTicketId = this.extractExternalTicketId(job, config);
-      if (!externalTicketId) {
-        return {
-          success: true, // Not an error - may not have external ticket
-          error: 'No external ticket ID found',
-        };
-      }
-
-      // 6. Create WebhookResult from JobResult
-      const webhookResult: WebhookResult = {
-        success: result.success,
-        action: 'comment',
-        targetId: externalTicketId,
-        commitHash: result.commitHash,
-        pullRequestUrl: result.pullRequestUrl,
-        errorMessage: result.errorMessage,
-        details: this.formatResultDetails(result),
-      };
-
-      // 7. Update provider config with API token for outbound calls
-      const providerWithToken = this.updateProviderConfig(
-        provider as any,
-        providerConfig,
-        apiToken
-      );
-
-      // 8. Post result (comment + labels)
-      await providerWithToken.postResult(externalTicketId, webhookResult);
-
-      feedbackResult.success = true;
-      feedbackResult.commentPosted = true;
-      feedbackResult.labelsUpdated = true;
-
-      return feedbackResult;
-    } catch (error) {
-      // Log errors but don't fail the job completion
-      console.error(`[FeedbackService] Failed to post result for job ${job.id}:`, error);
-
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
+  /**
+   * Post job-ended event to outbound webhook provider
+   */
+  async postJobEnded(job: JobWithTicket, result: JobResult): Promise<FeedbackResult> {
+    return this.postJobEvent(job, 'job_ended', result);
   }
 
   /**
    * Retry posting result for a ticket
    *
    * Manual retry endpoint for failed feedback posts.
-   *
-   * @param ticketId - Internal ticket ID
-   * @returns Feedback result
    */
   async retryPostResult(ticketId: string): Promise<FeedbackResult> {
     const feedbackResult: FeedbackResult = {
@@ -172,14 +106,11 @@ export class FeedbackService {
     };
 
     try {
-      // Find webhook config associated with ticket
-      // In a real implementation, this would query the ticket
-      // For now, try to find an active config
-      const configs = await this.configDAO.listActiveConfigs(1);
+      const configs = await this.configDAO.listActiveConfigs(1, 0, 'outbound');
       if (!configs[0]) {
         return {
           success: false,
-          error: 'No webhook configuration found',
+          error: 'No outbound webhook configuration found',
         };
       }
 
@@ -192,12 +123,7 @@ export class FeedbackService {
         };
       }
 
-      // Load API token
-      const providerConfig = this.toProviderConfig(config, provider.name);
-      const apiToken = await this.secretService.getApiToken(providerConfig);
-
-      // The external ticket ID and result would come from ticket metadata
-      // For now, return a placeholder result
+      // Placeholder behavior retained; retry endpoint is not fully wired to ticket metadata.
       feedbackResult.success = true;
       return feedbackResult;
     } catch (error) {
@@ -211,21 +137,209 @@ export class FeedbackService {
   }
 
   /**
-   * Resolve webhook config from job
+   * Main outbound event poster
    */
-  private async resolveConfigFromJob(job: JobWithTicket): Promise<WebhookConfig | null> {
-    // Try to find config by repository (for GitHub)
-    if (job.repository) {
-      const config = await this.configDAO.getActiveConfigByProviderProject(
-        'github',
-        job.repository
+  private async postJobEvent(
+    job: JobWithTicket,
+    eventType: OutboundWebhookEventType,
+    result?: JobResult,
+  ): Promise<FeedbackResult> {
+    const feedbackResult: FeedbackResult = {
+      success: false,
+    };
+
+    try {
+      if (!job.ticketId) {
+        return {
+          success: true,
+          error: 'No ticket associated with job',
+        };
+      }
+
+      const target = await this.resolveOutboundTarget(job);
+      if (!target?.config) {
+        return {
+          success: true,
+          error: 'No outbound webhook configuration found for job',
+        };
+      }
+
+      if (!target.externalTicketId) {
+        return {
+          success: true,
+          error: 'No external ticket ID found',
+        };
+      }
+
+      if (!this.isEventEnabled(target.config.allowedEvents, eventType)) {
+        return {
+          success: true,
+          error: `Outbound event '${eventType}' is not enabled`,
+        };
+      }
+
+      if (target.config.provider === 'custom') {
+        return {
+          success: false,
+          error: 'Custom provider does not support outbound posting',
+        };
+      }
+
+      const provider = this.registry.get(target.config.provider);
+      if (!provider) {
+        return {
+          success: false,
+          error: `Provider '${target.config.provider}' not registered`,
+        };
+      }
+
+      const providerConfig = this.toProviderConfig(target.config, provider.name);
+      const apiToken = await this.secretService.getApiToken(providerConfig);
+      const providerWithToken = this.updateProviderConfig(
+        provider as WebhookProvider & { config?: WebhookProviderConfig },
+        providerConfig,
+        apiToken,
       );
-      if (config) return config;
+
+      if (eventType === 'job_started') {
+        await providerWithToken.postComment(
+          target.externalTicketId,
+          this.formatJobStartedComment(job),
+        );
+        feedbackResult.success = true;
+        feedbackResult.commentPosted = true;
+        feedbackResult.labelsUpdated = false;
+        return feedbackResult;
+      }
+
+      const webhookResult: WebhookResult = {
+        success: result?.success ?? false,
+        action: 'comment',
+        targetId: target.externalTicketId,
+        commitHash: result?.commitHash,
+        pullRequestUrl: result?.pullRequestUrl,
+        errorMessage: result?.errorMessage,
+        details: result ? this.formatResultDetails(result) : 'Job ended',
+      };
+
+      await providerWithToken.postResult(target.externalTicketId, webhookResult);
+
+      feedbackResult.success = true;
+      feedbackResult.commentPosted = true;
+      feedbackResult.labelsUpdated = true;
+
+      return feedbackResult;
+    } catch (error) {
+      console.error(
+        `[FeedbackService] Failed to post outbound event '${eventType}' for job ${job.id}:`,
+        error,
+      );
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Resolve outbound config and external ticket from job/ticket metadata
+   */
+  private async resolveOutboundTarget(job: JobWithTicket): Promise<OutboundTarget | null> {
+    if (!job.ticketId) {
+      return null;
     }
 
-    // Fall back to first active config
-    const configs = await this.configDAO.listActiveConfigs(1);
-    return configs[0] || null;
+    const ticket = await this.ticketDAO.getTicket(job.ticketId);
+    if (!ticket) {
+      return null;
+    }
+
+    const metadata = (ticket.metadata || {}) as unknown as Record<string, unknown>;
+    const metadataExternalTicketId = metadata.externalTicketId;
+    const externalTicketId =
+      ticket.externalTicketId ||
+      (typeof metadataExternalTicketId === 'string'
+        ? metadataExternalTicketId
+        : typeof metadataExternalTicketId === 'number'
+          ? String(metadataExternalTicketId)
+          : undefined);
+
+    const metadataWebhookConfigId = metadata.webhookConfigId;
+    const inboundConfigId =
+      typeof metadataWebhookConfigId === 'string' ? metadataWebhookConfigId : undefined;
+
+    if (inboundConfigId) {
+      const inboundConfig = await this.configDAO.getConfigById(inboundConfigId);
+
+      if (inboundConfig?.integrationId) {
+        const outboundByIntegration = await this.configDAO.getByIntegrationId(
+          inboundConfig.integrationId,
+          'outbound',
+        );
+
+        if (outboundByIntegration) {
+          return { config: outboundByIntegration, externalTicketId };
+        }
+      }
+
+      if (inboundConfig?.providerProjectId) {
+        const outboundByProviderProject =
+          await this.configDAO.getActiveConfigByProviderProject(
+            inboundConfig.provider,
+            inboundConfig.providerProjectId,
+            'outbound',
+          );
+
+        if (outboundByProviderProject) {
+          return { config: outboundByProviderProject, externalTicketId };
+        }
+      }
+    }
+
+    if (job.repository) {
+      const outboundFromRepository = await this.configDAO.getActiveConfigByProviderProject(
+        'github',
+        job.repository,
+        'outbound',
+      );
+
+      if (outboundFromRepository) {
+        return { config: outboundFromRepository, externalTicketId };
+      }
+    }
+
+    const ticketProvider = this.toWebhookProviderType(ticket.ticketSystem);
+
+    if (ticket.projectId) {
+      const projectConfigs = await this.configDAO.listConfigsByProject(
+        ticket.projectId,
+        20,
+        0,
+        'outbound',
+      );
+
+      const matchingProjectConfig = projectConfigs.find((cfg) => {
+        if (!ticketProvider) {
+          return true;
+        }
+        return cfg.provider === ticketProvider;
+      });
+
+      if (matchingProjectConfig) {
+        return { config: matchingProjectConfig, externalTicketId };
+      }
+    }
+
+    const fallbacks = await this.configDAO.listActiveConfigs(1, 0, 'outbound');
+    if (!fallbacks[0]) {
+      return null;
+    }
+
+    return {
+      config: fallbacks[0],
+      externalTicketId,
+    };
   }
 
   /**
@@ -250,9 +364,8 @@ export class FeedbackService {
   private updateProviderConfig(
     provider: WebhookProvider & { config?: WebhookProviderConfig },
     baseConfig: WebhookProviderConfig,
-    apiToken: string
+    apiToken: string,
   ): WebhookProvider {
-    // Update the provider's config with the API token
     if (provider.config) {
       provider.config = {
         ...baseConfig,
@@ -263,26 +376,34 @@ export class FeedbackService {
   }
 
   /**
-   * Extract external ticket ID from job
+   * Check outbound event subscription
    */
-  private extractExternalTicketId(job: JobWithTicket, config: WebhookConfig): string | undefined {
-    // In a real implementation, this would fetch the ticket and extract
-    // external_ticket_id from metadata. For now, try to extract from
-    // job context or use a placeholder.
-
-    // The job result may contain issue information
-    if (job.result && (job.result as any).issueNumber) {
-      return String((job.result as any).issueNumber);
+  private isEventEnabled(allowedEvents: string[] | undefined, event: OutboundWebhookEventType): boolean {
+    if (!allowedEvents || allowedEvents.length === 0) {
+      return true;
     }
 
-    // Extract from job context if available
-    // @ts-ignore - context may have additional fields
-    if (job.result?.context?.issueNumber) {
-      // @ts-ignore
-      return String(job.result.context.issueNumber);
-    }
+    return allowedEvents.some((allowed) => {
+      if (allowed === '*') return true;
+      if (allowed === event) return true;
+      if (allowed.endsWith('*')) {
+        const prefix = allowed.slice(0, -1);
+        return event.startsWith(prefix);
+      }
+      return false;
+    });
+  }
 
-    return undefined;
+  /**
+   * Build a lightweight started-event comment body
+   */
+  private formatJobStartedComment(job: JobWithTicket): string {
+    return [
+      '## 🚀 Job Started',
+      '',
+      `**Job ID:** ${job.id}`,
+      `**Started At:** ${new Date().toISOString()}`,
+    ].join('\n');
   }
 
   /**
@@ -306,5 +427,12 @@ export class FeedbackService {
     }
 
     return parts.join('\n') || 'Job completed';
+  }
+
+  private toWebhookProviderType(system: string): ProviderType | undefined {
+    if (system === 'github' || system === 'jira' || system === 'shortcut' || system === 'custom') {
+      return system;
+    }
+    return undefined;
   }
 }
