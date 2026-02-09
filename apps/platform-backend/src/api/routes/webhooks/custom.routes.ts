@@ -93,7 +93,7 @@ export function createCustomRoutes() {
           crypto.randomUUID();
 
         // Check for duplicate delivery
-        const exists = await deliveryDAO.checkDeliveryExists(deliveryId);
+        const exists = await deliveryDAO.checkDeliveryExists(deliveryId, config.id);
         if (exists) {
           return res.status(200).json({ message: 'Duplicate delivery', deliveryId });
         }
@@ -101,6 +101,7 @@ export function createCustomRoutes() {
         // Record the delivery attempt
         const delivery = await deliveryDAO.recordDeliveryAttempt({
           provider: 'custom',
+          webhookConfigId: config.id,
           deliveryId,
           eventType: 'ticket_created',
           payload: body as Record<string, unknown>,

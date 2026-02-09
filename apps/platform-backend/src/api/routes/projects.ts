@@ -590,18 +590,31 @@ router.get('/:projectId/integrations/:integrationId/deliveries', async (req, res
       return res.json({ success: true, data: [], pagination: { limit, offset, count: 0 } });
     }
 
-    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integrationRecord.id, 'inbound');
+    const inboundConfigs = await webhookConfigDAO.listByIntegrationId(integrationRecord.id, {
+      direction: 'inbound',
+      activeOnly: false,
+    });
 
-    if (!webhookConfig) {
+    if (inboundConfigs.length === 0) {
       return res.json({ success: true, data: [], pagination: { limit, offset, count: 0 } });
     }
 
-    // Get deliveries for this project and provider
-    const provider = webhookConfig.provider as 'github' | 'jira' | 'custom';
-    const allDeliveries = await webhookDeliveryDAO.getFailedDeliveriesByProvider(provider, limit);
+    const fetchLimit = limit + offset;
+    const deliverySets = await Promise.all(
+      inboundConfigs.map((config) =>
+        webhookDeliveryDAO.listDeliveriesByConfig(config.id, {
+          limit: fetchLimit,
+          offset: 0,
+          sortOrder: 'desc',
+        })
+      )
+    );
 
-    // Filter to this project
-    const deliveries = allDeliveries.filter(d => d.projectId === projectId);
+    const deliveries = deliverySets
+      .flat()
+      .filter(d => d.projectId === projectId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(offset, offset + limit);
 
     res.json({
       success: true,
@@ -631,11 +644,33 @@ router.get('/:projectId/integrations/:integrationId/deliveries', async (req, res
  */
 router.post('/:projectId/integrations/:integrationId/deliveries/:deliveryId/retry', async (req, res) => {
   try {
-    const { deliveryId } = req.params;
+    const { projectId, integrationId, deliveryId } = req.params;
+
+    const integrationRecord = await integrationConfigDAO.getConfig(
+      projectId,
+      integrationId as TicketSystem
+    );
+
+    if (!integrationRecord) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    const inboundConfigs = await webhookConfigDAO.listByIntegrationId(integrationRecord.id, {
+      direction: 'inbound',
+      activeOnly: false,
+    });
+    if (inboundConfigs.length === 0) {
+      return res.status(404).json({ error: 'Webhook configuration not found' });
+    }
 
     const delivery = await webhookDeliveryDAO.getDeliveryById(deliveryId);
     if (!delivery) {
       return res.status(404).json({ error: 'Delivery not found' });
+    }
+
+    const inboundConfigIds = new Set(inboundConfigs.map((config) => config.id));
+    if (!delivery.webhookConfigId || !inboundConfigIds.has(delivery.webhookConfigId)) {
+      return res.status(404).json({ error: 'Delivery not found for this integration' });
     }
 
     if (delivery.status === 'succeeded') {

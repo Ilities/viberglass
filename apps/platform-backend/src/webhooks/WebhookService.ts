@@ -218,7 +218,10 @@ export class WebhookService {
 
     // 5. Check deduplication
     const { shouldProcess, existingId } =
-      await this.deduplication.shouldProcessDelivery(event.deduplicationId);
+      await this.deduplication.shouldProcessDelivery(
+        event.deduplicationId,
+        dbConfig.id,
+      );
     if (!shouldProcess) {
       return {
         status: "duplicate",
@@ -230,6 +233,7 @@ export class WebhookService {
     // 6. Record delivery start
     const delivery = await this.deduplication.recordDeliveryStart({
       provider: provider.name as any,
+      webhookConfigId: dbConfig.id,
       deliveryId: event.deduplicationId,
       eventType: event.eventType,
       payload: payload as Record<string, unknown>,
@@ -310,7 +314,9 @@ export class WebhookService {
     }
 
     // Get config
-    const dbConfig = await this.resolveConfigFromProvider(delivery.provider);
+    const dbConfig = delivery.webhookConfigId
+      ? await this.configDAO.getConfigById(delivery.webhookConfigId)
+      : await this.resolveConfigFromProvider(delivery.provider);
     if (!dbConfig) {
       return {
         status: "failed",
@@ -636,6 +642,7 @@ export class WebhookService {
     try {
       const delivery = await this.deduplication.recordDeliveryStart({
         provider: config.provider as any,
+        webhookConfigId: config.id,
         deliveryId: event.deduplicationId,
         eventType: event.eventType,
         payload: event.payload as Record<string, unknown>,

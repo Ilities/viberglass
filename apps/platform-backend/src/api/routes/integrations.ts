@@ -604,8 +604,10 @@ router.put('/:id/webhooks/inbound/:configId', async (req, res) => {
     }
 
     const { configId } = req.params
-    const existing = await webhookConfigDAO.getConfigById(configId)
-    if (!existing || existing.integrationId !== integration.id || existing.direction !== 'inbound') {
+    const existing = await webhookConfigDAO.getByIntegrationAndConfigId(integration.id, configId, {
+      direction: 'inbound',
+    })
+    if (!existing) {
       return res.status(404).json({ error: 'Inbound webhook configuration not found' })
     }
 
@@ -659,8 +661,10 @@ router.delete('/:id/webhooks/inbound/:configId', async (req, res) => {
     }
 
     const { configId } = req.params
-    const existing = await webhookConfigDAO.getConfigById(configId)
-    if (!existing || existing.integrationId !== integration.id || existing.direction !== 'inbound') {
+    const existing = await webhookConfigDAO.getByIntegrationAndConfigId(integration.id, configId, {
+      direction: 'inbound',
+    })
+    if (!existing) {
       return res.status(404).json({ error: 'Inbound webhook configuration not found' })
     }
 
@@ -811,20 +815,30 @@ router.get('/:id/deliveries', async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50
     const offset = parseInt(req.query.offset as string) || 0
 
-    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integration.id, 'inbound')
+    const inboundConfigs = await webhookConfigDAO.listByIntegrationId(integration.id, {
+      direction: 'inbound',
+      activeOnly: false,
+    })
 
-    if (!webhookConfig) {
+    if (inboundConfigs.length === 0) {
       return res.json({ success: true, data: [], pagination: { limit, offset, count: 0 } })
     }
 
-    // Get deliveries for this provider
-    const provider = webhookConfig.provider
-    const allDeliveries = await webhookDeliveryDAO.getFailedDeliveriesByProvider(provider, limit)
+    const fetchLimit = limit + offset
+    const deliverySets = await Promise.all(
+      inboundConfigs.map((config) =>
+        webhookDeliveryDAO.listDeliveriesByConfig(config.id, {
+          limit: fetchLimit,
+          offset: 0,
+          sortOrder: 'desc',
+        }),
+      ),
+    )
 
-    // Filter to this integration's project(s)
-    const projectLinks = await projectLinkDAO.getIntegrationProjects(integration.id)
-    const projectIds = new Set(projectLinks.map(link => link.projectId))
-    const deliveries = allDeliveries.filter(d => (d.projectId && projectIds.has(d.projectId)) || projectIds.size === 0)
+    const deliveries = deliverySets
+      .flat()
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(offset, offset + limit)
 
     res.json({
       success: true,
@@ -850,10 +864,22 @@ router.post('/:id/deliveries/:deliveryId/retry', async (req, res) => {
     }
 
     const { deliveryId } = req.params
+    const inboundConfigs = await webhookConfigDAO.listByIntegrationId(integration.id, {
+      direction: 'inbound',
+      activeOnly: false,
+    })
+    if (inboundConfigs.length === 0) {
+      return res.status(404).json({ error: 'Inbound webhook configuration not found for integration' })
+    }
 
     const delivery = await webhookDeliveryDAO.getDeliveryById(deliveryId)
     if (!delivery) {
       return res.status(404).json({ error: 'Delivery not found' })
+    }
+
+    const inboundConfigIds = new Set(inboundConfigs.map((config) => config.id))
+    if (!delivery.webhookConfigId || !inboundConfigIds.has(delivery.webhookConfigId)) {
+      return res.status(404).json({ error: 'Delivery not found for this integration' })
     }
 
     // Reset status for retry by updating to failed with a retry message

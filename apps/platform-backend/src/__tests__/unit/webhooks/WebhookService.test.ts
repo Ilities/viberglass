@@ -168,6 +168,10 @@ describe("WebhookService", () => {
       "shortcut-project-1",
       "inbound",
     );
+    expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
+      "shortcut-delivery-1",
+      "cfg-shortcut",
+    );
     expect(mocks.configDAO.getActiveConfigByProviderProject).not.toHaveBeenCalledWith(
       "github",
       expect.anything(),
