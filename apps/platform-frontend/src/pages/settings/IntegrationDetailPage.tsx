@@ -1,39 +1,37 @@
-import { Button } from '@/components/button'
-import { IntegrationConfigForm } from '@/components/integration-config-form'
 import { Badge } from '@/components/badge'
+import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
+import { IntegrationConfigForm } from '@/components/integration-config-form'
+import { Link } from '@/components/link'
 import { Text } from '@/components/text'
 import {
-  type AuthCredentialType,
-  type TicketSystem,
-} from '@viberglass/types'
+  createIntegration,
+  deleteIntegrationWebhook,
+  getAllIntegrationSummaries,
+  getIntegration,
+  getIntegrationDeliveries,
+  getIntegrations,
+  getIntegrationWebhook,
+  retryIntegrationDelivery,
+  saveIntegrationWebhook,
+  testIntegration,
+  updateIntegration,
+  type IntegrationWebhookConfig,
+  type IntegrationWebhookDelivery,
+} from '@/service/api/integration-api'
 import {
   ArrowLeftIcon,
   CheckCircledIcon,
   CircleIcon,
-  ExclamationTriangleIcon,
   CopyIcon,
+  ExclamationTriangleIcon,
   GitHubLogoIcon,
 } from '@radix-ui/react-icons'
-import { Link } from '@/components/link'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
-import {
-  createIntegration,
-  updateIntegration,
-  getIntegration,
-  getAllIntegrationSummaries,
-  testIntegration,
-  getIntegrationWebhook,
-  saveIntegrationWebhook,
-  deleteIntegrationWebhook,
-  getIntegrationDeliveries,
-  retryIntegrationDelivery,
-  type IntegrationWebhookConfig,
-  type IntegrationWebhookDelivery,
-} from '@/service/api/integration-api'
 import type { Integration, IntegrationSummary } from '@viberglass/types'
+import { type AuthCredentialType, type TicketSystem } from '@viberglass/types'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 // Icon mapping (same as in integration-card.tsx)
 const INTEGRATION_ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -150,7 +148,6 @@ function CustomIcon({ className }: { className?: string }) {
   )
 }
 
-
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
   const { integrationId } = useParams<{ integrationId: string }>()
@@ -196,9 +193,9 @@ export function IntegrationDetailPage() {
 
         if (selected?.configStatus === 'configured') {
           // Find the existing integration by system type
-          const allIntegrations = await import('@/service/api/integration-api').then(m => m.getIntegrations())
+          const allIntegrations = await getIntegrations()
           if (!isActive) return
-          const existing = allIntegrations.find(i => i.system === integrationId)
+          const existing = allIntegrations.find((i) => i.system === integrationId)
           if (existing) {
             const fullIntegration = await getIntegration(existing.id)
             if (!isActive) return
@@ -284,9 +281,7 @@ export function IntegrationDetailPage() {
       <div className="p-6 lg:p-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-900/20">
           <ExclamationTriangleIcon className="mx-auto size-12 text-red-500" />
-          <h2 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-400">
-            Failed to Load Integration
-          </h2>
+          <h2 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-400">Failed to Load Integration</h2>
           <p className="mt-2 text-red-700 dark:text-red-300">{loadError}</p>
           <Button href="/settings/integrations" color="brand" className="mt-6">
             Back to Integrations
@@ -301,12 +296,8 @@ export function IntegrationDetailPage() {
       <div className="p-6 lg:p-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-900/20">
           <ExclamationTriangleIcon className="mx-auto size-12 text-red-500" />
-          <h2 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-400">
-            Integration Not Found
-          </h2>
-          <p className="mt-2 text-red-700 dark:text-red-300">
-            The integration you are looking for does not exist.
-          </p>
+          <h2 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-400">Integration Not Found</h2>
+          <p className="mt-2 text-red-700 dark:text-red-300">The integration you are looking for does not exist.</p>
           <Button href="/settings/integrations" color="brand" className="mt-6">
             Back to Integrations
           </Button>
@@ -402,14 +393,10 @@ export function IntegrationDetailPage() {
 
     setIsSavingWebhook(true)
     try {
-      const config = await saveIntegrationWebhook(
-        undefined,
-        integrationId as TicketSystem,
-        {
-          generateSecret: true,
-          autoExecute,
-        }
-      )
+      const config = await saveIntegrationWebhook(undefined, integrationId as TicketSystem, {
+        generateSecret: true,
+        autoExecute,
+      })
       setWebhookConfig(config)
       toast.success('Webhook configured successfully')
     } catch (error) {
@@ -427,13 +414,9 @@ export function IntegrationDetailPage() {
 
     setIsSavingWebhook(true)
     try {
-      const config = await saveIntegrationWebhook(
-        undefined,
-        integrationId as TicketSystem,
-        {
-          autoExecute,
-        }
-      )
+      const config = await saveIntegrationWebhook(undefined, integrationId as TicketSystem, {
+        autoExecute,
+      })
       setWebhookConfig(config)
       toast.success('Webhook settings saved')
     } catch (error) {
@@ -543,9 +526,7 @@ export function IntegrationDetailPage() {
         {/* Coming Soon Message */}
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-900 dark:bg-amber-900/20">
           <ExclamationTriangleIcon className="mx-auto size-12 text-amber-500" />
-          <h2 className="mt-4 text-lg font-semibold text-amber-900 dark:text-amber-400">
-            Coming Soon
-          </h2>
+          <h2 className="mt-4 text-lg font-semibold text-amber-900 dark:text-amber-400">Coming Soon</h2>
           <p className="mt-2 text-amber-700 dark:text-amber-300">
             The {integration.label} integration is currently under development. Check back soon!
           </p>
@@ -570,7 +551,7 @@ export function IntegrationDetailPage() {
 
       {/* Header */}
       <div className="flex items-start gap-6">
-        <div className="flex size-16 items-center justify-center rounded-xl bg-brand-gradient text-white">
+        <div className="bg-brand-gradient flex size-16 items-center justify-center rounded-xl text-white">
           <IconComponent className="size-8" />
         </div>
         <div className="flex-1">
@@ -622,11 +603,7 @@ export function IntegrationDetailPage() {
             <div className="mt-4 text-sm text-zinc-500">Loading webhook configuration...</div>
           ) : !webhookConfig ? (
             <div className="mt-4">
-              <Button
-                color="brand"
-                onClick={handleGenerateSecret}
-                disabled={isSavingWebhook}
-              >
+              <Button color="brand" onClick={handleGenerateSecret} disabled={isSavingWebhook}>
                 {isSavingWebhook ? 'Setting up...' : 'Setup Webhook'}
               </Button>
             </div>
@@ -634,9 +611,7 @@ export function IntegrationDetailPage() {
             <div className="mt-4 space-y-4">
               {/* Webhook URL */}
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">
-                  Webhook URL
-                </label>
+                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook URL</label>
                 <div className="mt-1 flex gap-2">
                   <input
                     type="text"
@@ -656,9 +631,7 @@ export function IntegrationDetailPage() {
 
               {/* Webhook Secret */}
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">
-                  Webhook Secret
-                </label>
+                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook Secret</label>
                 <div className="mt-1 flex gap-2">
                   <input
                     type={showSecret ? 'text' : 'password'}
@@ -666,17 +639,10 @@ export function IntegrationDetailPage() {
                     value={webhookConfig.webhookSecret || '(hidden)'}
                     className="flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                   />
-                  <Button
-                    color="zinc"
-                    onClick={() => setShowSecret(!showSecret)}
-                  >
+                  <Button color="zinc" onClick={() => setShowSecret(!showSecret)}>
                     {showSecret ? 'Hide' : 'Show'}
                   </Button>
-                  <Button
-                    color="zinc"
-                    onClick={handleGenerateSecret}
-                    disabled={isSavingWebhook}
-                  >
+                  <Button color="zinc" onClick={handleGenerateSecret} disabled={isSavingWebhook}>
                     Regenerate
                   </Button>
                 </div>
@@ -692,18 +658,13 @@ export function IntegrationDetailPage() {
                   id="autoExecute"
                   checked={autoExecute}
                   onChange={(e) => setAutoExecute(e.target.checked)}
-                  className="h-4 w-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-600 dark:border-zinc-700"
+                  className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
                 />
                 <label htmlFor="autoExecute" className="text-sm text-zinc-900 dark:text-white">
                   Auto-execute fixes on webhook events
                 </label>
-                {(autoExecute !== webhookConfig.autoExecute) && (
-                  <Button
-                    color="brand"
-                    size="small"
-                    onClick={handleSaveWebhook}
-                    disabled={isSavingWebhook}
-                  >
+                {autoExecute !== webhookConfig.autoExecute && (
+                  <Button color="brand" size="small" onClick={handleSaveWebhook} disabled={isSavingWebhook}>
                     {isSavingWebhook ? 'Saving...' : 'Save'}
                   </Button>
                 )}
@@ -712,11 +673,9 @@ export function IntegrationDetailPage() {
               {/* Custom Webhook payload documentation */}
               {integrationId === 'custom' && (
                 <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
-                  <p className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
-                    Expected Payload Format
-                  </p>
+                  <p className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Expected Payload Format</p>
                   <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">
-{`{
+                    {`{
   "title": "string (required)",
   "description": "string (required)",
   "severity": "low | medium | high | critical (optional)",
@@ -726,47 +685,37 @@ export function IntegrationDetailPage() {
 }`}
                   </pre>
                   <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                    Send POST requests to the webhook URL with the payload above.
-                    Include <code className="rounded bg-zinc-200 px-1 py-0.5 dark:bg-zinc-700">X-Webhook-Signature-256: sha256=&lt;hmac&gt;</code> header for signature verification.
+                    Send POST requests to the webhook URL with the payload above. Include{' '}
+                    <code className="rounded bg-zinc-200 px-1 py-0.5 dark:bg-zinc-700">
+                      X-Webhook-Signature-256: sha256=&lt;hmac&gt;
+                    </code>{' '}
+                    header for signature verification.
                   </p>
                 </div>
               )}
 
               {/* Delete webhook button */}
-              <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                <Button
-                  color="red"
-                  onClick={handleDeleteWebhook}
-                  disabled={isSavingWebhook}
-                >
+              <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                <Button color="red" onClick={handleDeleteWebhook} disabled={isSavingWebhook}>
                   Remove Webhook
                 </Button>
               </div>
 
               {/* Delivery History */}
-              <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                    Recent Deliveries
-                  </h4>
-                  <Button
-                    color="zinc"
-                    size="small"
-                    onClick={handleRefreshDeliveries}
-                    disabled={isLoadingDeliveries}
-                  >
+              <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Recent Deliveries</h4>
+                  <Button color="zinc" size="small" onClick={handleRefreshDeliveries} disabled={isLoadingDeliveries}>
                     {isLoadingDeliveries ? 'Refreshing...' : 'Refresh'}
                   </Button>
                 </div>
 
                 {deliveries.length === 0 ? (
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    No webhook deliveries yet.
-                  </p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">No webhook deliveries yet.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-zinc-50 text-xs uppercase text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-zinc-50 text-xs text-zinc-700 uppercase dark:bg-zinc-800 dark:text-zinc-400">
                         <tr>
                           <th className="px-3 py-2">Event</th>
                           <th className="px-3 py-2">Status</th>
@@ -797,19 +746,11 @@ export function IntegrationDetailPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-3 py-2">
-                              {delivery.ticketId || '-'}
-                            </td>
-                            <td className="px-3 py-2 text-zinc-500">
-                              {new Date(delivery.createdAt).toLocaleString()}
-                            </td>
+                            <td className="px-3 py-2">{delivery.ticketId || '-'}</td>
+                            <td className="px-3 py-2 text-zinc-500">{new Date(delivery.createdAt).toLocaleString()}</td>
                             <td className="px-3 py-2">
                               {delivery.status === 'failed' && (
-                                <Button
-                                  color="zinc"
-                                  size="small"
-                                  onClick={() => handleRetryDelivery(delivery.id)}
-                                >
+                                <Button color="zinc" size="small" onClick={() => handleRetryDelivery(delivery.id)}>
                                   Retry
                                 </Button>
                               )}
