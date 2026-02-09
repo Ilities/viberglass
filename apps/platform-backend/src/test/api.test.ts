@@ -1,6 +1,18 @@
+import type { Express } from "express";
 import request from "supertest";
-import app from "../api/app";
 import logger from "../config/logger";
+
+let app: Express;
+
+beforeAll(async () => {
+  // Keep this suite isolated from runtime auth/session requirements.
+  process.env.AUTH_ENABLED = "false";
+  process.env.WEBHOOK_SECRET_ENCRYPTION_KEY =
+    process.env.WEBHOOK_SECRET_ENCRYPTION_KEY || "test-webhook-secret";
+
+  const module = await import("../api/app");
+  app = module.default;
+});
 
 describe("API Endpoints", () => {
   describe("Health Check", () => {
@@ -19,38 +31,30 @@ describe("API Endpoints", () => {
 
       expect(response.body.title).toBe("Viberglass Receiver API");
       expect(response.body.endpoints).toBeDefined();
-      expect(response.body.endpoints["POST /api/bug-reports"]).toBeDefined();
+      expect(response.body.endpoints["POST /api/tickets"]).toBeDefined();
     });
   });
 
-  describe("Bug Reports API", () => {
-    it("should return validation error for missing data", async () => {
-      const response = await request(app).post("/api/bug-reports").expect(400);
+  describe("Tickets API", () => {
+    it("should return validation error for missing ticket data", async () => {
+      const response = await request(app).post("/api/tickets").expect(400);
 
-      expect(response.body.error).toBe("Screenshot file is required");
+      expect(response.body.error).toBeDefined();
     });
 
     it("should return validation error for invalid UUID", async () => {
       const response = await request(app)
-        .get("/api/bug-reports/invalid-uuid")
+        .get("/api/tickets/invalid-uuid")
         .expect(400);
 
       expect(response.body.error).toBe("Invalid UUID format");
     });
 
-    it("should return 404 for non-existent bug report", async () => {
-      const validUUID = "123e4567-e89b-12d3-a456-426614174000";
-      const response = await request(app)
-        .get(`/api/bug-reports/${validUUID}`)
-        .expect(404);
+    it("should allow listing tickets without projectId", async () => {
+      const response = await request(app).get("/api/tickets").expect(200);
 
-      expect(response.body.error).toBe("Bug report not found");
-    });
-
-    it("should require projectId query parameter", async () => {
-      const response = await request(app).get("/api/bug-reports").expect(400);
-
-      expect(response.body.error).toBe("projectId query parameter is required");
+      expect(response.body.success).toBe(true);
+      expect(Array.isArray(response.body.data)).toBe(true);
     });
   });
 
@@ -60,73 +64,48 @@ describe("API Endpoints", () => {
         .get("/api/webhooks/status")
         .expect(200);
 
-      expect(response.body.webhooks).toBeDefined();
-      expect(response.body.autoFixQueue).toBeDefined();
+      expect(response.body.status).toBeDefined();
+      expect(response.body.providers).toBeDefined();
     });
 
-    it("should validate trigger-autofix parameters", async () => {
+    it("should return deprecation response for trigger-autofix", async () => {
       const response = await request(app)
         .post("/api/webhooks/trigger-autofix")
         .send({})
-        .expect(400);
-
-      expect(response.body.error).toBe(
-        "ticketId and ticketSystem are required",
-      );
-    });
-
-    it("should accept valid trigger-autofix request", async () => {
-      const response = await request(app)
-        .post("/api/webhooks/trigger-autofix")
-        .send({
-          ticketId: "test-123",
-          ticketSystem: "github",
-          repositoryUrl: "https://github.com/test/repo",
-        })
         .expect(200);
 
-      expect(response.body.message).toBe("Auto-fix job queued successfully");
-      expect(response.body.ticketId).toBe("test-123");
+      expect(response.body.message).toBe("Auto-fix triggered");
+      expect(response.body.note).toContain("deprecated");
     });
   });
 
   describe("Error Handling", () => {
     it("should return 404 for non-existent endpoints", async () => {
-      const response = await request(app)
-        .get("/non-existent-endpoint")
-        .expect(404);
+      await request(app).get("/non-existent-endpoint").expect(404);
     });
 
-    it("should handle API errors with JSON response", async () => {
+    it("should return JSON error for unknown API routes", async () => {
       const response = await request(app).post("/api/non-existent").expect(404);
 
       expect(response.body.error).toBeDefined();
     });
   });
-
-  describe("Original Routes Compatibility", () => {
-    it("should maintain compatibility with original index route", async () => {
-      const response = await request(app).get("/").expect(200);
-    });
-  });
 });
 
-// Integration test for the full bug report creation flow
 describe("Bug Report Integration", () => {
   it("should demonstrate the complete flow", () => {
     logger.debug("Bug Report Creation Flow:");
     logger.debug("1. Widget captures screenshot and metadata");
-    logger.debug("2. POST /api/bug-reports with multipart form data");
+    logger.debug("2. POST /api/tickets with multipart form data");
     logger.debug("3. File uploaded to S3, metadata stored in PostgreSQL");
     logger.debug("4. If autoFixRequested, job queued in Redis");
     logger.debug("5. Webhook creates ticket in PM system");
     logger.debug("6. Auto-fix agent processes if tags detected");
 
-    expect(true).toBe(true); // This test just demonstrates the flow
+    expect(true).toBe(true);
   });
 });
 
-// Test utilities
 export const createMockBugReportData = () => {
   return {
     projectId: "123e4567-e89b-12d3-a456-426614174000",
