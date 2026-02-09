@@ -4,15 +4,20 @@ import {
   getDeploymentStrategies as apiGetDeploymentStrategies,
 } from '@/service/api/clanker-api'
 import {
-  getJobs as apiGetJobs,
   getJob as apiGetJob,
   getJobQueueStats as apiGetJobQueueStats,
+  getJobs as apiGetJobs,
   type JobListItem,
   type JobQueueStats,
   type JobStatus,
 } from '@/service/api/job-api'
 import { getProjectBySlug as apiGetProjectBySlug, getProjects as apiGetProjects } from '@/service/api/project-api'
-import { getTicketStats as apiGetTicketStats, getTickets } from '@/service/api/ticket-api'
+import {
+  getTicketStats as apiGetTicketStats,
+  getTicket,
+  getTickets,
+  triggerAutoFix as triggerTicketAutoFix,
+} from '@/service/api/ticket-api'
 import type {
   AutoFixStatus,
   Clanker,
@@ -65,13 +70,11 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
 }
 
 export async function getTicketDetails(id: string): Promise<Ticket | null> {
-  const { getTicket } = await import('@/service/api/ticket-api')
   return await getTicket(id)
 }
 
 export async function triggerAutoFix(ticketId: string, ticketSystem: string, repositoryUrl?: string): Promise<void> {
-  const { triggerAutoFix: apiTriggerAutoFix } = await import('@/service/api/ticket-api')
-  await apiTriggerAutoFix(ticketId, ticketSystem, repositoryUrl)
+  await triggerTicketAutoFix(ticketId, ticketSystem, repositoryUrl)
 }
 
 // Clanker functions
@@ -118,5 +121,16 @@ export async function getJobDetails(jobId: string): Promise<JobStatus | null> {
 export * from './lib/formatters'
 
 // Re-export types for convenience
-export type { AutoFixStatus, Clanker, ClankerStatus, DeploymentStrategy, Project, Severity, Ticket, TicketStats }
-export type { JobListItem, JobQueueStats, JobStatus }
+export type {
+  AutoFixStatus,
+  Clanker,
+  ClankerStatus,
+  DeploymentStrategy,
+  JobListItem,
+  JobQueueStats,
+  JobStatus,
+  Project,
+  Severity,
+  Ticket,
+  TicketStats,
+}
