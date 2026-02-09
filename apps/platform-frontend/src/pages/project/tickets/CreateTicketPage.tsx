@@ -98,8 +98,8 @@ export function CreateTicketPage() {
 
       const ticket = await createTicket(ticketData, screenshotFile || undefined, recordingFile || undefined)
       navigate(`/project/${project}/tickets/${ticket.id}`)
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
       setIsSubmitting(false)
     }
   }

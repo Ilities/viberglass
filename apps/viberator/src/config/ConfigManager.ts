@@ -339,15 +339,25 @@ export class ConfigManager {
   /**
    * Set nested value in object
    */
-  private setNestedValue(obj: any, path: string, value: string) {
+  private setNestedValue(
+    obj: Record<string, unknown>,
+    path: string,
+    value: string,
+  ): void {
     const keys = path.split(".");
-    let current = obj;
+    let current: Record<string, unknown> = obj;
 
     for (let i = 0; i < keys.length - 1; i++) {
-      if (!(keys[i] in current)) {
-        current[keys[i]] = {};
+      const key = keys[i];
+      const existing = current[key];
+      if (
+        typeof existing !== "object" ||
+        existing === null ||
+        Array.isArray(existing)
+      ) {
+        current[key] = {};
       }
-      current = current[keys[i]];
+      current = current[key] as Record<string, unknown>;
     }
 
     const finalKey = keys[keys.length - 1];

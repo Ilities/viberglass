@@ -162,10 +162,6 @@ export class GitService {
           "Unable to retrieve authentication token from SCMAuthFactory",
         );
       }
-      if (!token) {
-        throw new Error("GITHUB_TOKEN is not defined in environment variables");
-      }
-
       this.logger.info("Creating pull request via GitHub API", {
         repo: `${owner}/${repo}`,
         head: sourceBranch,
@@ -201,9 +197,9 @@ export class GitService {
         id: response.data.id,
       });
       return prUrl;
-    } catch (error: any) {
+    } catch (error) {
       let errorMessage = "Unknown error";
-      let details = null;
+      let details: unknown = null;
 
       if (axios.isAxiosError(error)) {
         errorMessage = error.response?.data?.message || error.message;

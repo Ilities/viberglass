@@ -5,6 +5,31 @@ import * as fs from "fs";
 import * as path from "path";
 import { GitService } from "../services/GitService";
 
+type JsonObject = Record<string, unknown>;
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getObjectField(
+  value: unknown,
+  key: string,
+): JsonObject | undefined {
+  if (!isJsonObject(value)) {
+    return undefined;
+  }
+  const field = value[key];
+  return isJsonObject(field) ? field : undefined;
+}
+
+function getStringField(value: unknown, key: string): string | undefined {
+  if (!isJsonObject(value)) {
+    return undefined;
+  }
+  const field = value[key];
+  return typeof field === "string" ? field : undefined;
+}
+
 // Intermediate type for CLI results that may include optional cost
 export type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost"> & {
   cost?: number;
@@ -250,47 +275,103 @@ export abstract class BaseAgent {
   }
 
   /**
+   * Parse structured JSON output returned by agent CLIs.
+   * Some CLIs print plain JSON while others include surrounding logs.
+   */
+  protected parseCliOutput(stdout: string): JsonObject {
+    const direct = this.tryParseJsonObject(stdout);
+    if (direct) {
+      return direct;
+    }
+
+    const jsonMatch = stdout.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return {};
+    }
+
+    return this.tryParseJsonObject(jsonMatch[0]) ?? {};
+  }
+
+  protected getCliString(
+    cliOutput: JsonObject,
+    ...keys: string[]
+  ): string | undefined {
+    for (const key of keys) {
+      const value = cliOutput[key];
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  protected isCommandNotFoundError(error: unknown): boolean {
+    if (!isJsonObject(error)) {
+      return false;
+    }
+    return error.code === "ENOENT";
+  }
+
+  private tryParseJsonObject(raw: string): JsonObject | null {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return isJsonObject(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Format and print stream event data to stdout
    * @param data
    * @private
    */
-  private formatAndPrintStreamEvent(data: any): void {
+  private formatAndPrintStreamEvent(data: unknown): void {
+    const dataType = getStringField(data, "type");
+    const event = getObjectField(data, "event");
+    const message = getObjectField(data, "message");
+
     // 1. Assistant Text deltas
-    if (data.type === "stream_event" && data.event?.delta?.text) {
-      process.stdout.write(data.event.delta.text);
+    const delta = getObjectField(event, "delta");
+    const deltaText = getStringField(delta, "text");
+    if (dataType === "stream_event" && deltaText) {
+      process.stdout.write(deltaText);
       return;
     }
 
     // 2. Tool Use starts (e.g., Grep, Edit)
-    if (
-      data.type === "stream_event" &&
-      data.event?.content_block?.type === "tool_use"
-    ) {
+    const contentBlock = getObjectField(event, "content_block");
+    if (dataType === "stream_event" && getStringField(contentBlock, "type") === "tool_use") {
+      const toolName = getStringField(contentBlock, "name") ?? "unknown";
       process.stdout.write(
-        `\n\x1b[34m[Agent Tool: ${data.event.content_block.name}]\x1b[0m `,
+        `\n\x1b[34m[Agent Tool: ${toolName}]\x1b[0m `,
       );
       return;
     }
 
     // 3. Tool Input deltas (the JSON arguments being typed out)
-    if (data.type === "stream_event" && data.event?.delta?.partial_json) {
+    if (dataType === "stream_event" && getStringField(delta, "partial_json")) {
       // Optional: print tool arguments in gray
       // process.stdout.write(`\x1b[90m${data.event.delta.partial_json}\x1b[0m`);
       return;
     }
 
     // 4. Tool Results (the outcome of the command)
-    if (
-      data.type === "user" &&
-      data.message?.content?.[0]?.type === "tool_result"
-    ) {
-      const result = data.message.content[0].content;
-      process.stdout.write(`\n\x1b[32m[Result]:\x1b[0m\n${result}\n`);
+    const messageContent = Array.isArray(message?.content)
+      ? message.content
+      : undefined;
+    const firstMessageContent = messageContent?.[0];
+    const toolResultType = getStringField(firstMessageContent, "type");
+    const toolResultContent = isJsonObject(firstMessageContent)
+      ? firstMessageContent.content
+      : undefined;
+    if (dataType === "user" && toolResultType === "tool_result" && toolResultContent !== undefined) {
+      process.stdout.write(`\n\x1b[32m[Result]:\x1b[0m\n${String(toolResultContent)}\n`);
       return;
     }
 
     // 5. Final message stop / summaries
-    if (data.type === "stream_event" && data.event?.type === "message_stop") {
+    if (dataType === "stream_event" && getStringField(event, "type") === "message_stop") {
       process.stdout.write("\n");
       return;
     }
