@@ -399,7 +399,8 @@ router.get('/:projectId/integrations/:integrationId/webhook', async (req, res) =
     }
 
     const webhookConfig = await webhookConfigDAO.getByIntegrationId(
-      integrationRecord.id
+      integrationRecord.id,
+      'inbound'
     );
 
     if (!webhookConfig) {
@@ -470,7 +471,7 @@ router.put('/:projectId/integrations/:integrationId/webhook', async (req, res) =
     const provider = integrationId === 'custom' ? 'custom' as const : integrationId as 'github' | 'jira';
 
     // Check if webhook config already exists
-    const existing = await webhookConfigDAO.getByIntegrationId(integrationRecord.id);
+    const existing = await webhookConfigDAO.getByIntegrationId(integrationRecord.id, 'inbound');
 
     if (existing) {
       await webhookConfigDAO.updateConfig(existing.id, {
@@ -554,7 +555,7 @@ router.delete('/:projectId/integrations/:integrationId/webhook', async (req, res
       return res.status(404).json({ error: 'Integration not found' });
     }
 
-    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integrationRecord.id);
+    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integrationRecord.id, 'inbound');
 
     if (!webhookConfig) {
       return res.status(404).json({ error: 'Webhook configuration not found' });
@@ -589,7 +590,7 @@ router.get('/:projectId/integrations/:integrationId/deliveries', async (req, res
       return res.json({ success: true, data: [], pagination: { limit, offset, count: 0 } });
     }
 
-    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integrationRecord.id);
+    const webhookConfig = await webhookConfigDAO.getByIntegrationId(integrationRecord.id, 'inbound');
 
     if (!webhookConfig) {
       return res.json({ success: true, data: [], pagination: { limit, offset, count: 0 } });

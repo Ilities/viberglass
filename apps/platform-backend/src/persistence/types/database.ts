@@ -227,6 +227,7 @@ export interface WebhookProviderConfigsTable {
   id: Generated<string>;
   project_id: string | null;
   provider: "github" | "jira" | "shortcut" | "custom";
+  direction: Generated<"inbound" | "outbound">;
   provider_project_id: string | null;
   integration_id: string | null;
   secret_location: "database" | "ssm" | "env";

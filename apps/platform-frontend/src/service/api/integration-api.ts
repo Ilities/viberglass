@@ -452,18 +452,29 @@ export async function testIntegrationConnection(
 }
 
 // ============================================================================
-// Webhook configuration under integrations (legacy - will be moved)
+// Webhook configuration under integrations
 // ============================================================================
 
-export interface IntegrationWebhookConfig {
+export interface IntegrationInboundWebhookConfig {
   id: string
   provider: string
   webhookUrl: string
-  allowedEvents: string[]
+  events: string[]
   autoExecute: boolean
   active: boolean
   hasSecret: boolean
   webhookSecret?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface IntegrationOutboundWebhookConfig {
+  id: string
+  provider: string
+  events: string[]
+  active: boolean
+  hasApiToken: boolean
+  providerProjectId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -480,103 +491,239 @@ export interface IntegrationWebhookDelivery {
 }
 
 /**
- * Get webhook config for an integration
+ * Resolve first configured integration entity by system type
  */
-export async function getIntegrationWebhook(
-  _projectId: string | undefined,
-  integrationId: TicketSystem
-): Promise<IntegrationWebhookConfig | null> {
-  // First get the integration by system type to get its ID
+async function getIntegrationEntityBySystem(integrationId: TicketSystem): Promise<Integration | null> {
   const integrations = await getIntegrations(integrationId)
   if (integrations.length === 0) {
     return null
   }
-  
-  const integration = integrations[0]
+
+  return integrations[0]
+}
+
+/**
+ * List inbound webhook configs for an integration
+ */
+export async function getIntegrationInboundWebhooks(
+  integrationId: TicketSystem
+): Promise<IntegrationInboundWebhookConfig[]> {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
+    return []
+  }
+
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/${integration.id}/webhook`
+    `${API_BASE_URL}/api/integrations/${integration.id}/webhooks/inbound`
   )
   if (!response.ok) {
-    throw new Error('Failed to fetch webhook config')
+    throw new Error('Failed to fetch inbound webhooks')
   }
-  const data: ApiResponse<IntegrationWebhookConfig | null> = await response.json()
+  const data: ApiResponse<IntegrationInboundWebhookConfig[]> = await response.json()
   return data.data
 }
 
 /**
- * Create or update webhook config for an integration
+ * Create inbound webhook config for an integration
  */
-export async function saveIntegrationWebhook(
-  _projectId: string | undefined,
+export async function createIntegrationInboundWebhook(
   integrationId: TicketSystem,
   config: {
-    allowedEvents?: string[]
+    events?: string[]
     autoExecute?: boolean
     webhookSecret?: string
     generateSecret?: boolean
+    providerProjectId?: string
+    projectId?: string
+    active?: boolean
   }
-): Promise<IntegrationWebhookConfig> {
-  // First get the integration by system type to get its ID
-  const integrations = await getIntegrations(integrationId)
-  if (integrations.length === 0) {
+): Promise<IntegrationInboundWebhookConfig> {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
     throw new Error('Integration not found')
   }
-  
-  const integration = integrations[0]
+
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/${integration.id}/webhook`,
+    `${API_BASE_URL}/api/integrations/${integration.id}/webhooks/inbound`,
     {
-      method: 'PUT',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
+      body: JSON.stringify({
+        allowedEvents: config.events,
+        autoExecute: config.autoExecute,
+        webhookSecret: config.webhookSecret,
+        generateSecret: config.generateSecret,
+        providerProjectId: config.providerProjectId,
+        projectId: config.projectId,
+        active: config.active,
+      }),
     }
   )
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to save webhook config')
+    throw new Error(error.message || 'Failed to create inbound webhook')
   }
-  const data: ApiResponse<IntegrationWebhookConfig> = await response.json()
+  const data: ApiResponse<IntegrationInboundWebhookConfig> = await response.json()
   return data.data
 }
 
 /**
- * Delete webhook config for an integration
+ * Update inbound webhook config
  */
-export async function deleteIntegrationWebhook(
-  _projectId: string | undefined,
-  integrationId: TicketSystem
-): Promise<void> {
-  // First get the integration by system type to get its ID
-  const integrations = await getIntegrations(integrationId)
-  if (integrations.length === 0) {
+export async function updateIntegrationInboundWebhook(
+  integrationId: TicketSystem,
+  configId: string,
+  config: {
+    events?: string[]
+    autoExecute?: boolean
+    webhookSecret?: string
+    generateSecret?: boolean
+    providerProjectId?: string
+    active?: boolean
+  }
+): Promise<IntegrationInboundWebhookConfig> {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
     throw new Error('Integration not found')
   }
-  
-  const integration = integrations[0]
+
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/${integration.id}/webhook`,
+    `${API_BASE_URL}/api/integrations/${integration.id}/webhooks/inbound/${configId}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allowedEvents: config.events,
+        autoExecute: config.autoExecute,
+        webhookSecret: config.webhookSecret,
+        generateSecret: config.generateSecret,
+        providerProjectId: config.providerProjectId,
+        active: config.active,
+      }),
+    }
+  )
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || 'Failed to update inbound webhook')
+  }
+  const data: ApiResponse<IntegrationInboundWebhookConfig> = await response.json()
+  return data.data
+}
+
+/**
+ * Delete inbound webhook config for an integration
+ */
+export async function deleteIntegrationInboundWebhook(
+  integrationId: TicketSystem,
+  configId: string
+): Promise<void> {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
+    throw new Error('Integration not found')
+  }
+
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/integrations/${integration.id}/webhooks/inbound/${configId}`,
     { method: 'DELETE' }
   )
   if (!response.ok) {
-    throw new Error('Failed to delete webhook config')
+    throw new Error('Failed to delete inbound webhook')
   }
 }
 
 /**
- * Get delivery history for an integration's webhook
+ * Get outbound webhook config for an integration
+ */
+export async function getIntegrationOutboundWebhook(
+  integrationId: TicketSystem
+): Promise<IntegrationOutboundWebhookConfig | null> {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
+    return null
+  }
+
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/integrations/${integration.id}/webhooks/outbound`
+  )
+  if (!response.ok) {
+    throw new Error('Failed to fetch outbound webhook')
+  }
+  const data: ApiResponse<IntegrationOutboundWebhookConfig | null> = await response.json()
+  return data.data
+}
+
+/**
+ * Create or update outbound webhook config for an integration
+ */
+export async function saveIntegrationOutboundWebhook(
+  integrationId: TicketSystem,
+  config: {
+    events?: string[]
+    apiToken?: string
+    providerProjectId?: string
+    projectId?: string
+    active?: boolean
+  }
+): Promise<IntegrationOutboundWebhookConfig> {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
+    throw new Error('Integration not found')
+  }
+
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/integrations/${integration.id}/webhooks/outbound`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        events: config.events,
+        apiToken: config.apiToken,
+        providerProjectId: config.providerProjectId,
+        projectId: config.projectId,
+        active: config.active,
+      }),
+    }
+  )
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || 'Failed to save outbound webhook')
+  }
+  const data: ApiResponse<IntegrationOutboundWebhookConfig> = await response.json()
+  return data.data
+}
+
+/**
+ * Delete outbound webhook config for an integration
+ */
+export async function deleteIntegrationOutboundWebhook(
+  integrationId: TicketSystem
+): Promise<void> {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
+    throw new Error('Integration not found')
+  }
+
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/integrations/${integration.id}/webhooks/outbound`,
+    { method: 'DELETE' }
+  )
+  if (!response.ok) {
+    throw new Error('Failed to delete outbound webhook')
+  }
+}
+
+/**
+ * Get inbound delivery history for an integration
  */
 export async function getIntegrationDeliveries(
-  _projectId: string | undefined,
   integrationId: TicketSystem,
   limit: number = 50
 ): Promise<IntegrationWebhookDelivery[]> {
-  // First get the integration by system type to get its ID
-  const integrations = await getIntegrations(integrationId)
-  if (integrations.length === 0) {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
     return []
   }
-  
-  const integration = integrations[0]
+
   const response = await apiFetch(
     `${API_BASE_URL}/api/integrations/${integration.id}/deliveries?limit=${limit}`
   )
@@ -591,17 +738,14 @@ export async function getIntegrationDeliveries(
  * Retry a failed delivery
  */
 export async function retryIntegrationDelivery(
-  _projectId: string | undefined,
   integrationId: TicketSystem,
   deliveryId: string
 ): Promise<void> {
-  // First get the integration by system type to get its ID
-  const integrations = await getIntegrations(integrationId)
-  if (integrations.length === 0) {
+  const integration = await getIntegrationEntityBySystem(integrationId)
+  if (!integration) {
     throw new Error('Integration not found')
   }
-  
-  const integration = integrations[0]
+
   const response = await apiFetch(
     `${API_BASE_URL}/api/integrations/${integration.id}/deliveries/${deliveryId}/retry`,
     { method: 'POST' }
