@@ -8,14 +8,14 @@
  * @see https://docs.github.com/en/rest
  */
 
-import axios, { type AxiosInstance } from 'axios';
-import crypto from 'crypto';
-import { BaseWebhookProvider } from './base-provider';
+import axios, { type AxiosInstance } from "axios";
+import crypto from "crypto";
+import { BaseWebhookProvider } from "./base-provider";
 import type {
   ParsedWebhookEvent,
   WebhookProviderConfig,
   WebhookResult,
-} from '../provider';
+} from "../provider";
 
 /**
  * GitHub webhook payload types
@@ -86,8 +86,8 @@ interface GitHubLabel {
 /**
  * Default labels for success/failure states
  */
-const DEFAULT_SUCCESS_LABEL = 'fix-submitted';
-const DEFAULT_FAILURE_LABEL = 'fix-failed';
+const DEFAULT_SUCCESS_LABEL = "fix-submitted";
+const DEFAULT_FAILURE_LABEL = "fix-failed";
 
 /**
  * GitHub webhook provider
@@ -98,7 +98,7 @@ const DEFAULT_FAILURE_LABEL = 'fix-failed';
  * - Outbound API calls for comments and labels
  */
 export class GitHubWebhookProvider extends BaseWebhookProvider {
-  readonly name = 'github';
+  readonly name = "github";
 
   constructor(config: WebhookProviderConfig) {
     super(config);
@@ -113,21 +113,21 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
    */
   parseEvent(
     payload: unknown,
-    headers: Record<string, string>
+    headers: Record<string, string>,
   ): ParsedWebhookEvent {
-    const eventType = headers['x-github-event'] as string;
-    const deliveryId = headers['x-github-delivery'] as string;
+    const eventType = headers["x-github-event"] as string;
+    const deliveryId = headers["x-github-delivery"] as string;
 
     if (!eventType) {
-      throw new Error('Missing x-github-event header');
+      throw new Error("Missing x-github-event header");
     }
 
     if (!deliveryId) {
-      throw new Error('Missing x-github-delivery header');
+      throw new Error("Missing x-github-delivery header");
     }
 
     if (!this.isRecord(payload)) {
-      throw new Error('GitHub payload must be a JSON object');
+      throw new Error("GitHub payload must be a JSON object");
     }
     const payloadObj = payload as Record<string, unknown>;
     this.validatePayloadForSupportedEvent(eventType, payloadObj);
@@ -135,7 +135,7 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
     // Build metadata
     const metadata = this.buildMetadata(payloadObj);
     const action =
-      typeof payloadObj.action === 'string' ? payloadObj.action : undefined;
+      typeof payloadObj.action === "string" ? payloadObj.action : undefined;
 
     // Override with GitHub-specific metadata
     if (payloadObj.repository) {
@@ -163,7 +163,7 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
     }
 
     return {
-      provider: 'github',
+      provider: "github",
       eventType: this.toScopedEventType(eventType, action),
       deduplicationId: deliveryId,
       timestamp: this.extractTimestamp(payloadObj),
@@ -185,33 +185,33 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   ): void {
     const repository = payload.repository as { full_name?: string } | undefined;
     if (
-      (eventType === 'issues' || eventType === 'issue_comment') &&
+      (eventType === "issues" || eventType === "issue_comment") &&
       !repository?.full_name
     ) {
       throw new Error("Missing required field 'repository.full_name'");
     }
 
-    if (eventType === 'issues') {
+    if (eventType === "issues") {
       const issue = payload.issue as { number?: number } | undefined;
-      if (typeof issue?.number !== 'number') {
+      if (typeof issue?.number !== "number") {
         throw new Error("Missing required field 'issue.number'");
       }
     }
 
-    if (eventType === 'issue_comment') {
+    if (eventType === "issue_comment") {
       const issue = payload.issue as { number?: number } | undefined;
       const comment = payload.comment as { id?: number } | undefined;
-      if (typeof issue?.number !== 'number') {
+      if (typeof issue?.number !== "number") {
         throw new Error("Missing required field 'issue.number'");
       }
-      if (typeof comment?.id !== 'number') {
+      if (typeof comment?.id !== "number") {
         throw new Error("Missing required field 'comment.id'");
       }
     }
   }
 
   private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
+    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
   /**
@@ -227,7 +227,7 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
    */
   verifySignature(payload: Buffer, signature: string, secret: string): boolean {
     // Strip prefix if present
-    const receivedSignature = signature.startsWith('sha256=')
+    const receivedSignature = signature.startsWith("sha256=")
       ? signature.slice(7)
       : signature;
 
@@ -237,13 +237,13 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
     }
 
     // Compute expected signature
-    const hmac = crypto.createHmac('sha256', secret);
+    const hmac = crypto.createHmac("sha256", secret);
     hmac.update(payload);
-    const expectedSignature = hmac.digest('hex');
+    const expectedSignature = hmac.digest("hex");
 
     // Use timing-safe comparison
-    const receivedBuf = Buffer.from(receivedSignature, 'hex');
-    const expectedBuf = Buffer.from(expectedSignature, 'hex');
+    const receivedBuf = Buffer.from(receivedSignature, "hex");
+    const expectedBuf = Buffer.from(expectedSignature, "hex");
 
     if (receivedBuf.length !== expectedBuf.length) {
       return false;
@@ -258,7 +258,7 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
    * @returns Array of event types this provider handles
    */
   getSupportedEvents(): string[] {
-    return ['issues.opened', 'issue_comment.created'];
+    return ["issues.opened", "issue_comment.created"];
   }
 
   /**
@@ -268,7 +268,7 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
    * @returns True if valid
    */
   validateConfig(config: WebhookProviderConfig): boolean {
-    if (!config.webhookSecret && config.secretLocation === 'database') {
+    if (!config.webhookSecret && config.secretLocation === "database") {
       return false;
     }
 
@@ -280,11 +280,9 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
       return false;
     }
 
-    if (!Array.isArray(config.allowedEvents) || config.allowedEvents.length === 0) {
-      return false;
-    }
-
-    return true;
+    return !(
+      !Array.isArray(config.allowedEvents) || config.allowedEvents.length === 0
+    );
   }
 
   /**
@@ -296,12 +294,12 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   async postComment(issueNumber: string, body: string): Promise<void> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
     await client.post(
       `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
-      { body }
+      { body },
     );
   }
 
@@ -315,35 +313,55 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   async updateLabels(
     issueNumber: string,
     add: string[],
-    remove: string[]
+    remove: string[],
   ): Promise<void> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
     // First, get current labels
     const issueResponse = await client.get(
-      `/repos/${owner}/${repo}/issues/${issueNumber}`
+      `/repos/${owner}/${repo}/issues/${issueNumber}`,
     );
 
-    const issue = issueResponse.data as { labels: Array<{ name: string }> };
-    const currentLabels = new Set(issue.labels.map((l) => l.name));
+    const issue = issueResponse.data as { labels?: Array<{ name: string }> };
+    const currentLabelsByKey = new Map<string, string>();
 
-    // Remove labels in the remove list
-    for (const label of remove) {
-      currentLabels.delete(label);
+    for (const label of issue.labels || []) {
+      const key = this.normalizeLabelName(label.name);
+      if (!key || currentLabelsByKey.has(key)) {
+        continue;
+      }
+      currentLabelsByKey.set(key, label.name);
     }
 
-    // Add labels in the add list
+    // Remove labels in the remove list (case-insensitive)
+    for (const label of remove) {
+      const key = this.normalizeLabelName(label);
+      if (!key) {
+        continue;
+      }
+      currentLabelsByKey.delete(key);
+    }
+
+    // Add labels in the add list (preserve existing label casing if present)
     for (const label of add) {
-      currentLabels.add(label);
+      const key = this.normalizeLabelName(label);
+      if (!key || currentLabelsByKey.has(key)) {
+        continue;
+      }
+      currentLabelsByKey.set(key, label);
     }
 
     // Update labels via API
     await client.put(`/repos/${owner}/${repo}/issues/${issueNumber}/labels`, {
-      labels: Array.from(currentLabels),
+      labels: Array.from(currentLabelsByKey.values()),
     });
+  }
+
+  private normalizeLabelName(label: string): string {
+    return label.trim().toLowerCase();
   }
 
   /**
@@ -370,16 +388,16 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
    * @returns Configured axios instance
    */
   protected createHttpClient(): AxiosInstance {
-    const apiBaseUrl = this.config.apiBaseUrl || 'https://api.github.com';
-    const token = this.config.apiToken || '';
+    const apiBaseUrl = this.config.apiBaseUrl || "https://api.github.com";
+    const token = this.config.apiToken || "";
 
     return axios.create({
       baseURL: apiBaseUrl,
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'Viberglass-Webhook/1.0',
-        'X-GitHub-Api-Version': '2022-11-28',
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "Viberglass-Webhook/1.0",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
       timeout: 30000, // 30 second timeout
     });
@@ -397,7 +415,7 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   }> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
     const response = await client.get(`/repos/${owner}/${repo}`);
@@ -413,11 +431,13 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   async isIssueOpen(issueNumber: string): Promise<boolean> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
-    const response = await client.get(`/repos/${owner}/${repo}/issues/${issueNumber}`);
-    return response.data.state === 'open';
+    const response = await client.get(
+      `/repos/${owner}/${repo}/issues/${issueNumber}`,
+    );
+    return response.data.state === "open";
   }
 
   /**
@@ -428,11 +448,11 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   async closeIssue(issueNumber: string): Promise<void> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
     await client.patch(`/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      state: 'closed',
+      state: "closed",
     });
   }
 
@@ -444,11 +464,11 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   async reopenIssue(issueNumber: string): Promise<void> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
     await client.patch(`/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      state: 'open',
+      state: "open",
     });
   }
 
@@ -461,12 +481,15 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
   async addAssignees(issueNumber: string, assignees: string[]): Promise<void> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
-    await client.post(`/repos/${owner}/${repo}/issues/${issueNumber}/assignees`, {
-      assignees,
-    });
+    await client.post(
+      `/repos/${owner}/${repo}/issues/${issueNumber}/assignees`,
+      {
+        assignees,
+      },
+    );
   }
 
   /**
@@ -482,11 +505,11 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
     title: string,
     body: string,
     head: string,
-    base: string = 'main'
+    base: string = "main",
   ): Promise<string> {
     const client = this.getHttpClient();
     const { owner, repo } = this.parseProjectId(
-      this.config.providerProjectId || ''
+      this.config.providerProjectId || "",
     );
 
     const response = await client.post(`/repos/${owner}/${repo}/pulls`, {

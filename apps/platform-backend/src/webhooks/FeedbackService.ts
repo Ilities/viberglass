@@ -16,6 +16,21 @@ import type {
 } from './provider';
 import type { JobResult } from '../types/Job';
 import { TicketDAO } from '../persistence/ticketing/TicketDAO';
+import { createChildLogger } from '../config/logger';
+import {
+  type OutboundTarget,
+  buildProviderProjectCandidates,
+  createOutboundTarget,
+  filterConfigsByProvider,
+  formatJobStartedComment,
+  formatResultDetails,
+  getRetryDelayMs,
+  isTransientProviderError,
+  requiresProviderProjectId,
+  resolveExternalTicketId,
+  selectDeterministicConfig,
+  sleep,
+} from './feedback-helpers';
 
 /**
  * Job with ticket reference for outbound event posting
@@ -50,13 +65,9 @@ export interface FeedbackServiceConfig {
   timeout?: number;
 }
 
-/**
- * Internal resolved outbound target
- */
-interface OutboundTarget {
-  config: WebhookConfig;
-  externalTicketId?: string;
-}
+const logger = createChildLogger({ service: 'FeedbackService' });
+
+const GITHUB_MAX_ATTEMPTS = 3;
 
 /**
  * Service for posting outbound webhook events
@@ -127,7 +138,10 @@ export class FeedbackService {
       feedbackResult.success = true;
       return feedbackResult;
     } catch (error) {
-      console.error(`[FeedbackService] Failed to retry result for ticket ${ticketId}:`, error);
+      logger.error('Failed to retry result for ticket', {
+        ticketId,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       return {
         success: false,
@@ -193,19 +207,41 @@ export class FeedbackService {
         };
       }
 
-      const providerConfig = this.toProviderConfig(target.config, provider.name);
+      const providerConfig = this.toProviderConfig(target.config, target.providerProjectId);
+
+      if (!providerConfig.providerProjectId && requiresProviderProjectId(target.config.provider)) {
+        return {
+          success: false,
+          error: `Provider '${target.config.provider}' outbound configuration requires providerProjectId`,
+        };
+      }
+
       const apiToken = await this.secretService.getApiToken(providerConfig);
-      const providerWithToken = this.updateProviderConfig(
-        provider as WebhookProvider & { config?: WebhookProviderConfig },
-        providerConfig,
+      if (!apiToken?.trim()) {
+        return {
+          success: false,
+          error: `Provider '${target.config.provider}' API token is missing`,
+        };
+      }
+
+      const providerWithToken = this.createProviderInstance(provider, {
+        ...providerConfig,
         apiToken,
-      );
+      });
 
       if (eventType === 'job_started') {
-        await providerWithToken.postComment(
-          target.externalTicketId,
-          this.formatJobStartedComment(job),
-        );
+        await this.executeWithRetry({
+          provider: target.config.provider,
+          eventType,
+          job,
+          externalTicketId: target.externalTicketId,
+          operation: () =>
+            providerWithToken.postComment(
+              target.externalTicketId!,
+              formatJobStartedComment(job.id),
+            ),
+        });
+
         feedbackResult.success = true;
         feedbackResult.commentPosted = true;
         feedbackResult.labelsUpdated = false;
@@ -219,10 +255,16 @@ export class FeedbackService {
         commitHash: result?.commitHash,
         pullRequestUrl: result?.pullRequestUrl,
         errorMessage: result?.errorMessage,
-        details: result ? this.formatResultDetails(result) : 'Job ended',
+        details: result ? formatResultDetails(result) : 'Job ended',
       };
 
-      await providerWithToken.postResult(target.externalTicketId, webhookResult);
+      await this.executeWithRetry({
+        provider: target.config.provider,
+        eventType,
+        job,
+        externalTicketId: target.externalTicketId,
+        operation: () => providerWithToken.postResult(target.externalTicketId!, webhookResult),
+      });
 
       feedbackResult.success = true;
       feedbackResult.commentPosted = true;
@@ -230,10 +272,12 @@ export class FeedbackService {
 
       return feedbackResult;
     } catch (error) {
-      console.error(
-        `[FeedbackService] Failed to post outbound event '${eventType}' for job ${job.id}:`,
-        error,
-      );
+      logger.error('Failed to post outbound event', {
+        eventType,
+        jobId: job.id,
+        ticketId: job.ticketId,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       return {
         success: false,
@@ -256,96 +300,147 @@ export class FeedbackService {
     }
 
     const metadata = (ticket.metadata || {}) as unknown as Record<string, unknown>;
-    const metadataExternalTicketId = metadata.externalTicketId;
-    const externalTicketId =
-      ticket.externalTicketId ||
-      (typeof metadataExternalTicketId === 'string'
-        ? metadataExternalTicketId
-        : typeof metadataExternalTicketId === 'number'
-          ? String(metadataExternalTicketId)
-          : undefined);
+    const externalTicketId = resolveExternalTicketId(
+      ticket.externalTicketId,
+      metadata.externalTicketId,
+      metadata.issueKey,
+      metadata.issueNumber,
+    );
 
     const metadataWebhookConfigId = metadata.webhookConfigId;
     const inboundConfigId =
       typeof metadataWebhookConfigId === 'string' ? metadataWebhookConfigId : undefined;
 
+    const metadataProvider = this.toWebhookProviderType(
+      typeof metadata.provider === 'string' ? metadata.provider : '',
+    );
+    const ticketProvider = this.toWebhookProviderType(ticket.ticketSystem);
+    const outboundProvider = metadataProvider ?? ticketProvider;
+
     if (inboundConfigId) {
       const inboundConfig = await this.configDAO.getConfigById(inboundConfigId);
+      const providerProjectCandidates = buildProviderProjectCandidates(metadata, {
+        jobRepository: job.repository,
+        inboundProviderProjectId: inboundConfig?.providerProjectId || undefined,
+      });
 
       if (inboundConfig?.integrationId) {
+        const outboundIntegrationConfigs = await this.configDAO.listByIntegrationId(
+          inboundConfig.integrationId,
+          {
+            direction: 'outbound',
+            activeOnly: true,
+          },
+        );
+
+        const matchingIntegrationConfig = selectDeterministicConfig(
+          filterConfigsByProvider(outboundIntegrationConfigs, outboundProvider),
+          providerProjectCandidates,
+        );
+        if (matchingIntegrationConfig) {
+          return createOutboundTarget(
+            matchingIntegrationConfig,
+            externalTicketId,
+            providerProjectCandidates,
+          );
+        }
+
         const outboundByIntegration = await this.configDAO.getByIntegrationId(
           inboundConfig.integrationId,
           'outbound',
         );
 
-        if (outboundByIntegration) {
-          return { config: outboundByIntegration, externalTicketId };
+        if (outboundByIntegration && (!outboundProvider || outboundByIntegration.provider === outboundProvider)) {
+          return createOutboundTarget(
+            outboundByIntegration,
+            externalTicketId,
+            providerProjectCandidates,
+          );
         }
       }
 
-      if (inboundConfig?.providerProjectId) {
-        const outboundByProviderProject =
-          await this.configDAO.getActiveConfigByProviderProject(
-            inboundConfig.provider,
-            inboundConfig.providerProjectId,
+      if (outboundProvider && outboundProvider !== 'custom') {
+        for (const providerProjectId of providerProjectCandidates) {
+          const outboundByProviderProject = await this.configDAO.getActiveConfigByProviderProject(
+            outboundProvider,
+            providerProjectId,
             'outbound',
           );
 
-        if (outboundByProviderProject) {
-          return { config: outboundByProviderProject, externalTicketId };
+          if (outboundByProviderProject) {
+            return createOutboundTarget(
+              outboundByProviderProject,
+              externalTicketId,
+              providerProjectCandidates,
+            );
+          }
         }
       }
     }
 
-    if (job.repository) {
-      const outboundFromRepository = await this.configDAO.getActiveConfigByProviderProject(
-        'github',
-        job.repository,
-        'outbound',
-      );
+    const providerProjectCandidates = buildProviderProjectCandidates(metadata, {
+      jobRepository: job.repository,
+    });
 
-      if (outboundFromRepository) {
-        return { config: outboundFromRepository, externalTicketId };
+    if (outboundProvider && outboundProvider !== 'custom') {
+      for (const providerProjectId of providerProjectCandidates) {
+        const outboundFromProviderProject = await this.configDAO.getActiveConfigByProviderProject(
+          outboundProvider,
+          providerProjectId,
+          'outbound',
+        );
+
+        if (outboundFromProviderProject) {
+          return createOutboundTarget(
+            outboundFromProviderProject,
+            externalTicketId,
+            providerProjectCandidates,
+          );
+        }
       }
     }
-
-    const ticketProvider = this.toWebhookProviderType(ticket.ticketSystem);
 
     if (ticket.projectId) {
       const projectConfigs = await this.configDAO.listConfigsByProject(
         ticket.projectId,
-        20,
+        50,
         0,
         'outbound',
       );
 
-      const matchingProjectConfig = projectConfigs.find((cfg) => {
-        if (!ticketProvider) {
-          return true;
-        }
-        return cfg.provider === ticketProvider;
-      });
+      const matchingProjectConfig = selectDeterministicConfig(
+        filterConfigsByProvider(projectConfigs, outboundProvider),
+        providerProjectCandidates,
+      );
 
       if (matchingProjectConfig) {
-        return { config: matchingProjectConfig, externalTicketId };
+        return createOutboundTarget(
+          matchingProjectConfig,
+          externalTicketId,
+          providerProjectCandidates,
+        );
       }
     }
 
-    const fallbacks = await this.configDAO.listActiveConfigs(1, 0, 'outbound');
-    if (!fallbacks[0]) {
+    const fallbacks = await this.configDAO.listActiveConfigs(50, 0, 'outbound');
+    const fallbackConfig = selectDeterministicConfig(
+      filterConfigsByProvider(fallbacks, outboundProvider),
+      providerProjectCandidates,
+    );
+    if (!fallbackConfig) {
       return null;
     }
 
-    return {
-      config: fallbacks[0],
-      externalTicketId,
-    };
+    return createOutboundTarget(fallbackConfig, externalTicketId, providerProjectCandidates);
   }
 
   /**
    * Convert DB config to provider config
    */
-  private toProviderConfig(dbConfig: WebhookConfig, providerName: string): WebhookProviderConfig {
+  private toProviderConfig(
+    dbConfig: WebhookConfig,
+    providerProjectId?: string,
+  ): WebhookProviderConfig {
     return {
       type: dbConfig.provider,
       secretLocation: dbConfig.secretLocation,
@@ -354,25 +449,22 @@ export class FeedbackService {
       allowedEvents: dbConfig.allowedEvents,
       webhookSecret: dbConfig.webhookSecretEncrypted || undefined,
       apiToken: dbConfig.apiTokenEncrypted || undefined,
-      providerProjectId: dbConfig.providerProjectId || undefined,
+      providerProjectId: dbConfig.providerProjectId || providerProjectId || undefined,
     };
   }
 
   /**
-   * Update provider configuration with API token
+   * Build an isolated provider instance for outbound calls.
+   * Avoids mutating the shared registry provider state.
    */
-  private updateProviderConfig(
-    provider: WebhookProvider & { config?: WebhookProviderConfig },
-    baseConfig: WebhookProviderConfig,
-    apiToken: string,
+  private createProviderInstance(
+    provider: WebhookProvider,
+    providerConfig: WebhookProviderConfig,
   ): WebhookProvider {
-    if (provider.config) {
-      provider.config = {
-        ...baseConfig,
-        apiToken,
-      };
-    }
-    return provider;
+    const ProviderConstructor = provider.constructor as new (
+      config: WebhookProviderConfig,
+    ) => WebhookProvider;
+    return new ProviderConstructor(providerConfig);
   }
 
   /**
@@ -394,45 +486,47 @@ export class FeedbackService {
     });
   }
 
-  /**
-   * Build a lightweight started-event comment body
-   */
-  private formatJobStartedComment(job: JobWithTicket): string {
-    return [
-      '## 🚀 Job Started',
-      '',
-      `**Job ID:** ${job.id}`,
-      `**Started At:** ${new Date().toISOString()}`,
-    ].join('\n');
-  }
-
-  /**
-   * Format result details for posting
-   */
-  private formatResultDetails(result: JobResult): string {
-    const parts: string[] = [];
-
-    parts.push(`Success: ${result.success}`);
-
-    if (result.executionTime) {
-      parts.push(`Execution time: ${result.executionTime}ms`);
-    }
-
-    if (result.changedFiles && result.changedFiles.length > 0) {
-      parts.push(`Files changed: ${result.changedFiles.length}`);
-    }
-
-    if (result.branch) {
-      parts.push(`Branch: ${result.branch}`);
-    }
-
-    return parts.join('\n') || 'Job completed';
-  }
-
   private toWebhookProviderType(system: string): ProviderType | undefined {
     if (system === 'github' || system === 'jira' || system === 'shortcut' || system === 'custom') {
       return system;
     }
     return undefined;
+  }
+
+  private async executeWithRetry(params: {
+    provider: ProviderType;
+    eventType: OutboundWebhookEventType;
+    job: JobWithTicket;
+    externalTicketId: string;
+    operation: () => Promise<void>;
+  }): Promise<void> {
+    const maxAttempts = params.provider === 'github' ? GITHUB_MAX_ATTEMPTS : 1;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await params.operation();
+        return;
+      } catch (error) {
+        const shouldRetry = attempt < maxAttempts && isTransientProviderError(error);
+        if (!shouldRetry) {
+          throw error;
+        }
+
+        const delayMs = getRetryDelayMs(attempt);
+        logger.warn('Transient outbound provider failure; retrying', {
+          provider: params.provider,
+          eventType: params.eventType,
+          jobId: params.job.id,
+          ticketId: params.job.ticketId,
+          externalTicketId: params.externalTicketId,
+          attempt,
+          maxAttempts,
+          delayMs,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        await sleep(delayMs);
+      }
+    }
   }
 }
