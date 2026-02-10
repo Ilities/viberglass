@@ -167,7 +167,7 @@ export function useIntegrationWebhookSettings({
     void loadDeliveriesForConfig(integrationEntityId, selectedInboundConfigId, false)
   }, [integrationEntityId, loadDeliveriesForConfig, selectedInboundConfigId])
 
-  const handleGenerateSecret = async () => {
+  const handleGenerateSecret = async (providerProjectId?: string) => {
     if (!integrationEntityId) {
       return
     }
@@ -184,11 +184,13 @@ export function useIntegrationWebhookSettings({
             generateSecret: true,
             events: inboundEvents,
             autoExecute,
+            providerProjectId,
           })
         : await createIntegrationInboundWebhook(integrationEntityId, {
             generateSecret: true,
             events: inboundEvents.length > 0 ? inboundEvents : undefined,
             autoExecute: false,
+            providerProjectId,
           })
 
       setInboundWebhooks((prev) => {
@@ -211,7 +213,7 @@ export function useIntegrationWebhookSettings({
     }
   }
 
-  const handleCreateInboundWebhook = async () => {
+  const handleCreateInboundWebhook = async (providerProjectId?: string) => {
     if (!integrationEntityId) {
       return
     }
@@ -221,6 +223,7 @@ export function useIntegrationWebhookSettings({
       const config = await createIntegrationInboundWebhook(integrationEntityId, {
         generateSecret: true,
         autoExecute: false,
+        providerProjectId,
       })
       setInboundWebhooks((prev) => [...prev, config])
       setSelectedInboundConfigId(config.id)
@@ -235,7 +238,7 @@ export function useIntegrationWebhookSettings({
     }
   }
 
-  const handleSaveInboundWebhook = async () => {
+  const handleSaveInboundWebhook = async (providerProjectId?: string) => {
     if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
@@ -253,6 +256,7 @@ export function useIntegrationWebhookSettings({
         {
           events: inboundEvents,
           autoExecute,
+          providerProjectId,
         }
       )
       setInboundWebhooks((prev) => prev.map((item) => (item.id === config.id ? config : item)))
@@ -295,7 +299,7 @@ export function useIntegrationWebhookSettings({
     }
   }
 
-  const handleSaveOutboundWebhook = async () => {
+  const handleSaveOutboundWebhook = async (providerProjectId?: string) => {
     if (!integrationEntityId) {
       return
     }
@@ -315,6 +319,7 @@ export function useIntegrationWebhookSettings({
         {
           events,
           apiToken: outboundApiToken.trim() || undefined,
+          providerProjectId,
         },
         outboundWebhook?.id
       )
