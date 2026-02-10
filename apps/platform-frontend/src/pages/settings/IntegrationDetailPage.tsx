@@ -30,9 +30,12 @@ import {
 import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
 import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
+import { JiraInboundWebhookSection } from './integration-detail/JiraInboundWebhookSection'
+import { JiraOutboundWebhookSection } from './integration-detail/JiraOutboundWebhookSection'
 import { OutboundWebhookSection } from './integration-detail/OutboundWebhookSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
+import { toast } from 'sonner'
 
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
@@ -51,6 +54,7 @@ export function IntegrationDetailPage() {
   const integrationSystem = integrationType?.id
   const isConfigured = Boolean(existingIntegration)
   const isGithubIntegration = integrationSystem === 'github'
+  const isJiraIntegration = integrationSystem === 'jira'
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
@@ -80,6 +84,28 @@ export function IntegrationDetailPage() {
 
     return null
   }, [initialValues, isGithubIntegration, webhook.outboundWebhook?.providerProjectId])
+
+  const jiraProjectKey = useMemo(() => {
+    if (!isJiraIntegration) {
+      return null
+    }
+
+    const projectKey = typeof initialValues.projectKey === 'string' ? initialValues.projectKey.trim() : ''
+    return projectKey || null
+  }, [initialValues.projectKey, isJiraIntegration])
+
+  const jiraProjectMapping = useMemo(() => {
+    if (!isJiraIntegration) {
+      return null
+    }
+
+    const fromWebhookConfig = webhook.outboundWebhook?.providerProjectId
+    if (typeof fromWebhookConfig === 'string' && fromWebhookConfig.trim().length > 0) {
+      return fromWebhookConfig.trim()
+    }
+
+    return jiraProjectKey
+  }, [isJiraIntegration, jiraProjectKey, webhook.outboundWebhook?.providerProjectId])
 
   useEffect(() => {
     let isActive = true
@@ -259,6 +285,58 @@ export function IntegrationDetailPage() {
     navigate('/settings/integrations')
   }
 
+  const requireJiraProjectKey = (): string | null => {
+    if (jiraProjectKey) {
+      return jiraProjectKey
+    }
+
+    toast.error('Jira project key is required before saving webhook settings', {
+      description: 'Set the Project Key in Configuration and save the integration first.',
+    })
+    return null
+  }
+
+  const handleJiraCreateInboundWebhook = () => {
+    const projectKey = requireJiraProjectKey()
+    if (!projectKey) {
+      return
+    }
+
+    void webhook.handleCreateInboundWebhook(projectKey)
+  }
+
+  const handleJiraGenerateSecret = () => {
+    const projectKey = requireJiraProjectKey()
+    if (!projectKey) {
+      return
+    }
+
+    void webhook.handleGenerateSecret(projectKey)
+  }
+
+  const handleJiraSaveInboundWebhook = () => {
+    const projectKey = requireJiraProjectKey()
+    if (!projectKey) {
+      return
+    }
+
+    void webhook.handleSaveInboundWebhook(projectKey)
+  }
+
+  const handleJiraSaveOutboundWebhook = () => {
+    const projectMapping = jiraProjectMapping || requireJiraProjectKey()
+    if (!projectMapping) {
+      return
+    }
+
+    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
+      toast.error('Jira API token is required to create outbound webhook settings')
+      return
+    }
+
+    void webhook.handleSaveOutboundWebhook(projectMapping)
+  }
+
   if (integrationType.status === 'stub') {
     return (
       <div className="space-y-8 p-6 lg:p-8">
@@ -344,8 +422,9 @@ export function IntegrationDetailPage() {
         </div>
       </section>
 
-      {isConfigured && capabilities.supportsInboundWebhooks && (
-        isGithubIntegration ? (
+      {isConfigured &&
+        capabilities.supportsInboundWebhooks &&
+        (isGithubIntegration ? (
           <GitHubInboundWebhookSection
             autoExecute={webhook.autoExecute}
             deliveries={webhook.deliveries}
@@ -367,6 +446,33 @@ export function IntegrationDetailPage() {
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
             onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
+            onToggleInboundEvent={webhook.handleToggleInboundEvent}
+            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
+          />
+        ) : isJiraIntegration ? (
+          <JiraInboundWebhookSection
+            autoExecute={webhook.autoExecute}
+            deliveries={webhook.deliveries}
+            hasInboundChanges={webhook.hasInboundChanges}
+            inboundEvents={webhook.inboundEvents}
+            inboundWebhooks={webhook.inboundWebhooks}
+            isLoadingDeliveries={webhook.isLoadingDeliveries}
+            isLoadingWebhook={webhook.isLoadingWebhook}
+            isSavingWebhook={webhook.isSavingWebhook}
+            jiraProjectKey={jiraProjectKey}
+            selectedInboundConfig={webhook.selectedInboundConfig}
+            selectedInboundConfigId={webhook.selectedInboundConfigId}
+            showSecret={webhook.showSecret}
+            onAutoExecuteChange={webhook.setAutoExecute}
+            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
+            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
+            onCreateInboundWebhook={handleJiraCreateInboundWebhook}
+            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
+            onGenerateSecret={handleJiraGenerateSecret}
+            onRefreshDeliveries={webhook.handleRefreshDeliveries}
+            onRetryDelivery={webhook.handleRetryDelivery}
+            onSaveWebhook={handleJiraSaveInboundWebhook}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleInboundEvent={webhook.handleToggleInboundEvent}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
@@ -395,11 +501,11 @@ export function IntegrationDetailPage() {
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
-        )
-      )}
+        ))}
 
-      {isConfigured && capabilities.supportsOutboundWebhooks && (
-        isGithubIntegration ? (
+      {isConfigured &&
+        capabilities.supportsOutboundWebhooks &&
+        (isGithubIntegration ? (
           <GitHubOutboundWebhookSection
             emitJobEnded={webhook.emitJobEnded}
             emitJobStarted={webhook.emitJobStarted}
@@ -413,6 +519,21 @@ export function IntegrationDetailPage() {
             onEmitJobStartedChange={webhook.setEmitJobStarted}
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
             onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
+          />
+        ) : isJiraIntegration ? (
+          <JiraOutboundWebhookSection
+            emitJobEnded={webhook.emitJobEnded}
+            emitJobStarted={webhook.emitJobStarted}
+            hasOutboundChanges={webhook.hasOutboundChanges}
+            isSavingWebhook={webhook.isSavingWebhook}
+            outboundApiToken={webhook.outboundApiToken}
+            outboundWebhook={webhook.outboundWebhook}
+            projectMapping={jiraProjectMapping}
+            onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
+            onEmitJobEndedChange={webhook.setEmitJobEnded}
+            onEmitJobStartedChange={webhook.setEmitJobStarted}
+            onOutboundApiTokenChange={webhook.setOutboundApiToken}
+            onSaveOutboundWebhook={handleJiraSaveOutboundWebhook}
           />
         ) : (
           <OutboundWebhookSection
@@ -428,8 +549,7 @@ export function IntegrationDetailPage() {
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
             onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
           />
-        )
-      )}
+        ))}
     </div>
   )
 }
