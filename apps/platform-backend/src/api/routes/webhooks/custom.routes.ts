@@ -9,7 +9,7 @@ import crypto from 'crypto';
 import { WebhookConfigDAO } from '../../../persistence/webhook/WebhookConfigDAO';
 import { WebhookDeliveryDAO } from '../../../persistence/webhook/WebhookDeliveryDAO';
 import { TicketDAO } from '../../../persistence/ticketing/TicketDAO';
-import { CustomWebhookProvider } from '../../../webhooks/providers/custom-provider';
+import { CustomWebhookProvider } from '../../../webhooks/providers/CustomWebhookProvider';
 import { getRequestRawBody } from './routeHelpers';
 
 /**

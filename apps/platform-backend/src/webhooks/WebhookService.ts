@@ -5,8 +5,7 @@
  * - Provider routing via registry
  * - Signature verification
  * - Deduplication checking
- * - Ticket creation
- * - Optional job execution
+ * - Event processing delegation to InboundEventProcessors
  *
  * This is the main entry point for processing incoming webhooks from
  * external platforms like GitHub and Jira.
@@ -16,40 +15,17 @@ import type {
   ParsedWebhookEvent,
   WebhookProvider,
   WebhookProviderConfig,
-  WebhookResult,
-} from "./provider";
-import type { ProviderRegistry } from "./registry";
+  ProviderType,
+} from "./WebhookProvider";
+import type { ProviderRegistry } from "./ProviderRegistry";
 import type {
   WebhookConfigDAO,
   WebhookConfig,
 } from "../persistence/webhook/WebhookConfigDAO";
 import type { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
-import type { DeduplicationService } from "./deduplication";
+import type { DeduplicationService } from "./DeduplicationService";
 import type { WebhookSecretService } from "./WebhookSecretService";
-import type { TicketDAO } from "../persistence/ticketing/TicketDAO";
-import type { JobService } from "../services/JobService";
-import type {
-  CreateTicketRequest,
-  Severity,
-  TicketMetadata,
-  Annotation,
-} from "@viberglass/types";
-import type { JobData } from "../types/Job";
-import { randomUUID } from "crypto";
-
-/**
- * Extended job context for webhook-originated jobs
- */
-interface WebhookJobContext {
-  ticketId?: string;
-  issueNumber?: number;
-  issueKey?: string;
-  issueUrl?: string;
-  issueBody?: string;
-  triggeredBy?: string;
-  commentBody?: string;
-  stepsToReproduce?: string;
-}
+import type { InboundEventProcessorResolver, EventProcessingResult } from "./InboundEventProcessorResolver";
 
 /**
  * Result of webhook processing
@@ -89,16 +65,6 @@ export interface WebhookProcessingOptions {
 }
 
 /**
- * Internal event processing result
- */
-interface EventProcessingResult {
-  ticketId?: string;
-  jobId?: string;
-  projectId?: string;
-  ignoredReason?: string;
-}
-
-/**
  * Webhook processing service
  *
  * Orchestrates the complete webhook flow from receiving an event
@@ -111,8 +77,7 @@ export class WebhookService {
     private deliveryDAO: WebhookDeliveryDAO,
     private deduplication: DeduplicationService,
     private secretService: WebhookSecretService,
-    private ticketDAO: TicketDAO,
-    private jobService: JobService,
+    private processorResolver: InboundEventProcessorResolver,
     private config: WebhookServiceConfig = {},
   ) {}
 
@@ -127,12 +92,6 @@ export class WebhookService {
    * 5. Deduplication check
    * 6. Event processing (ticket creation, optional job creation)
    * 7. Delivery tracking
-   *
-   * @param headers - HTTP headers from webhook request
-   * @param payload - Parsed webhook payload
-   * @param rawBody - Raw request body for signature verification
-   * @param tenantId - Optional tenant ID (inferred from config if not provided)
-   * @returns Processing result with status and created resource IDs
    */
   async processWebhook(
     headers: Record<string, string | string[] | undefined>,
@@ -211,11 +170,7 @@ export class WebhookService {
     });
     if (!signatureResult.valid) {
       const reason = `Rejected: ${signatureResult.reason ?? "Invalid signature"}`;
-      await this.recordFailedDelivery(
-        event,
-        dbConfig,
-        reason,
-      );
+      await this.recordFailedDelivery(event, dbConfig, reason);
       return {
         status: "rejected",
         reason: signatureResult.reason ?? "Invalid signature",
@@ -257,7 +212,6 @@ export class WebhookService {
           result.projectId,
         );
       } else {
-        // No ticket created, just mark as succeeded
         await this.deliveryDAO.updateDeliveryStatus(delivery.id, "succeeded");
       }
 
@@ -274,7 +228,6 @@ export class WebhookService {
         jobId: result.jobId,
       };
     } catch (error) {
-      // Record failure
       await this.deduplication.recordDeliveryFailureById(
         delivery.id,
         error instanceof Error ? error : new Error(String(error)),
@@ -308,7 +261,6 @@ export class WebhookService {
       };
     }
 
-    // Don't retry already successful deliveries
     if (delivery.status === "succeeded") {
       return {
         status: "duplicate",
@@ -317,7 +269,6 @@ export class WebhookService {
       };
     }
 
-    // Get provider
     const provider = this.registry.get(delivery.provider);
     if (!provider) {
       return {
@@ -326,7 +277,6 @@ export class WebhookService {
       };
     }
 
-    // Get config
     const dbConfig = delivery.webhookConfigId
       ? await this.configDAO.getConfigById(delivery.webhookConfigId)
       : await this.resolveConfigFromProvider(delivery.provider);
@@ -337,9 +287,7 @@ export class WebhookService {
       };
     }
 
-    // Re-process the event
     try {
-      // Parse and process the event
       const event = provider.parseEvent(delivery.payload, {
         ...(delivery.provider === "github"
           ? {
@@ -367,13 +315,8 @@ export class WebhookService {
           : {}),
       });
 
-      const result = await this.processProviderEvent(
-        event,
-        dbConfig,
-        undefined,
-      );
+      const result = await this.processProviderEvent(event, dbConfig, undefined);
 
-      // Record success
       if (result.ticketId && result.projectId) {
         await this.deduplication.recordDeliverySuccessById(
           delivery.id,
@@ -569,9 +512,6 @@ export class WebhookService {
     return sorted[0];
   }
 
-  /**
-   * Resolve webhook configuration by provider type
-   */
   private async resolveConfigFromProvider(
     provider: WebhookConfig["provider"],
   ): Promise<WebhookConfig | null> {
@@ -584,12 +524,7 @@ export class WebhookService {
     return configs.find((config) => config.active) || null;
   }
 
-  /**
-   * Convert DB config to provider config
-   */
-  private toProviderConfig(
-    dbConfig: WebhookConfig,
-  ): WebhookProviderConfig {
+  private toProviderConfig(dbConfig: WebhookConfig): WebhookProviderConfig {
     return {
       type: dbConfig.provider,
       secretLocation: dbConfig.secretLocation,
@@ -602,12 +537,9 @@ export class WebhookService {
     };
   }
 
-  /**
-   * Check if event type is allowed by configuration
-   */
   private isEventAllowed(event: ParsedWebhookEvent, config: WebhookConfig): boolean {
     if (!config.allowedEvents || config.allowedEvents.length === 0) {
-      return true; // No restriction
+      return true;
     }
 
     const allowedEvents = new Set(config.allowedEvents);
@@ -639,13 +571,9 @@ export class WebhookService {
     if (provider === "github") {
       return storedEventType.split(".")[0];
     }
-
     return storedEventType;
   }
 
-  /**
-   * Get signature header for provider
-   */
   private getSignatureHeader(
     providerName: string,
     headers: Record<string, string>,
@@ -690,7 +618,6 @@ export class WebhookService {
     try {
       secret = await this.secretService.getSecret(providerConfig, tenantId);
     } catch {
-      // GitHub always requires signature verification.
       if (providerName === "github") {
         return {
           valid: false,
@@ -698,7 +625,6 @@ export class WebhookService {
         };
       }
 
-      // For optional-signature providers, allow unsigned requests when no secret exists.
       if (!signatureHeader) {
         return { valid: true };
       }
@@ -750,9 +676,6 @@ export class WebhookService {
     return normalized;
   }
 
-  /**
-   * Record a failed delivery attempt
-   */
   private async recordFailedDelivery(
     event: ParsedWebhookEvent,
     config: WebhookConfig,
@@ -781,806 +704,19 @@ export class WebhookService {
   }
 
   /**
-   * Process provider-specific event
-   * Handles ticket creation and optional job execution
+   * Process provider-specific event via the InboundEventProcessorResolver
    */
   private async processProviderEvent(
     event: ParsedWebhookEvent,
     config: WebhookConfig,
     tenantId?: string,
   ): Promise<EventProcessingResult> {
-    const result: EventProcessingResult = {};
-
-    switch (event.provider) {
-      case "github":
-        return await this.processGitHubEvent(event, config, tenantId);
-
-      case "jira":
-        return await this.processJiraEvent(event, config, tenantId);
-
-      case "shortcut":
-        return await this.processShortcutEvent(event, config, tenantId);
-
-      case "custom":
-        return await this.processCustomEvent(event, config, tenantId);
-
-      default:
-        return result;
-    }
-  }
-
-  /**
-   * Create minimal ticket metadata for webhook-originated tickets
-   */
-  private createTicketMetadata(
-    baseData: Record<string, unknown>,
-  ): TicketMetadata {
-    return {
-      timestamp: new Date().toISOString(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      ...baseData,
-    };
-  }
-
-  /**
-   * Process GitHub webhook event
-   */
-  private async processGitHubEvent(
-    event: ParsedWebhookEvent,
-    config: WebhookConfig,
-    tenantId?: string,
-  ): Promise<EventProcessingResult> {
-    const result: EventProcessingResult = {};
-
-    // Project linkage should prefer explicit webhook config linkage first.
-    const resolvedProjectId =
-      config.projectId || tenantId || this.config.defaultTenantId || "default";
-    result.projectId = resolvedProjectId;
-
-    const baseEventType = event.eventType.split(".")[0];
-
-    // Handle issues.opened events
-    if (baseEventType === "issues") {
-      const payload = event.payload as {
-        action?: string;
-        issue?: {
-          number: number;
-          title: string;
-          body?: string;
-          html_url: string;
-          user: { login: string };
-          state: string;
-          labels?: Array<{ name: string }>;
-        };
-        repository?: {
-          full_name: string;
-          owner: { login: string };
-          name: string;
-        };
-        installation?: {
-          id: number;
-        };
-        sender?: {
-          login: string;
-        };
-      };
-
-      const action = payload?.action || event.metadata.action;
-      if (action === "opened" && payload?.issue) {
-        // Determine severity based on issue labels/content
-        let severity: Severity = "low";
-        const labels = payload.issue.labels;
-        if (labels) {
-          const labelNames = labels.map((l) => l.name.toLowerCase());
-          if (
-            labelNames.some(
-              (l) => l.includes("critical") || l.includes("urgent"),
-            )
-          ) {
-            severity = "critical";
-          } else if (
-            labelNames.some(
-              (l) => l.includes("high") || l.includes("important"),
-            )
-          ) {
-            severity = "high";
-          } else if (labelNames.some((l) => l.includes("medium"))) {
-            severity = "medium";
-          }
-        }
-
-        // Create ticket
-        const ticketRequest: CreateTicketRequest = {
-          projectId: resolvedProjectId,
-          title: payload.issue.title,
-          description: payload.issue.body || "",
-          severity,
-          category: "bug",
-          metadata: this.createTicketMetadata({
-            externalTicketId: String(payload.issue.number),
-            externalTicketUrl: payload.issue.html_url,
-            webhookConfigId: config.id,
-            provider: "github",
-            repository: payload.repository?.full_name,
-            sender: payload.sender?.login,
-            issueState: payload.issue.state,
-            eventType: event.eventType,
-            eventAction: action,
-            deliveryId: event.deduplicationId,
-            integrationId: config.integrationId,
-            providerProjectId: config.providerProjectId,
-            installationId: payload.installation?.id?.toString(),
-          }),
-          annotations: [],
-          autoFixRequested: config.autoExecute,
-          ticketSystem: "github",
-        };
-
-        const ticket = await this.ticketDAO.createTicket(ticketRequest);
-        result.ticketId = ticket.id;
-
-        // Create job if auto_execute is enabled
-        if (config.autoExecute) {
-          const webhookContext: WebhookJobContext = {
-            ticketId: ticket.id,
-            issueNumber: payload.issue.number,
-            issueUrl: payload.issue.html_url,
-            issueBody: payload.issue.body,
-            stepsToReproduce: `Issue URL: ${payload.issue.html_url}\nIssue number: ${payload.issue.number}`,
-          };
-
-          const jobData: JobData = {
-            id: randomUUID(),
-            tenantId: resolvedProjectId,
-            repository: payload.repository?.full_name || "",
-            task: `Fix issue: ${payload.issue.title}`,
-            context: webhookContext as any, // WebhookJobContext extends JobData['context']
-            settings: {
-              runTests: true,
-            },
-            timestamp: Date.now(),
-          };
-
-          const jobResult = await this.jobService.submitJob(jobData, {
-            ticketId: ticket.id,
-          });
-          result.jobId = jobResult.jobId;
-        }
-      }
-    }
-
-    // Handle issue_comment.created events
-    if (baseEventType === "issue_comment") {
-      const payload = event.payload as {
-        action?: string;
-        issue?: {
-          number: number;
-          title: string;
-          body?: string;
-          html_url?: string;
-        };
-        comment?: {
-          id: number;
-          body?: string;
-          user: { login: string };
-          created_at: string;
-          updated_at: string;
-        };
-        repository?: {
-          full_name: string;
-        };
-        sender?: {
-          login: string;
-        };
-      };
-
-      const action = payload?.action || event.metadata.action;
-      if (action !== "created") {
-        return result;
-      }
-
-      // Check if comment mentions bot and contains trigger keywords.
-      if (config.botUsername && payload?.comment) {
-        const normalizedBotUsername = config.botUsername.toLowerCase();
-        const commentAuthor =
-          payload.comment.user?.login?.toLowerCase() ||
-          payload.sender?.login?.toLowerCase() ||
-          "";
-        if (commentAuthor === normalizedBotUsername) {
-          return result;
-        }
-
-        const commentBody = payload.comment.body?.toLowerCase() || "";
-        const mentionsBot =
-          commentBody.includes(`@${normalizedBotUsername}`) ||
-          commentBody.includes(normalizedBotUsername);
-
-        const hasTriggerKeyword =
-          commentBody.includes("fix this") ||
-          commentBody.includes("fix it") ||
-          commentBody.includes("auto fix") ||
-          commentBody.includes("autofix");
-
-        if (mentionsBot && hasTriggerKeyword) {
-          // Create ticket
-          const ticketRequest: CreateTicketRequest = {
-            projectId: resolvedProjectId,
-            title: payload.issue?.title || `Issue ${payload.issue?.number}`,
-            description: payload.comment?.body || "",
-            severity: "medium",
-            category: "bug",
-            metadata: this.createTicketMetadata({
-              externalTicketId: String(payload.issue?.number),
-              externalTicketUrl: payload.issue?.html_url,
-              webhookConfigId: config.id,
-              provider: "github",
-              repository: payload.repository?.full_name,
-              commentId: payload.comment.id.toString(),
-              triggeredByComment: true,
-              sender: payload.sender?.login,
-              eventType: event.eventType,
-              eventAction: action,
-              deliveryId: event.deduplicationId,
-              integrationId: config.integrationId,
-              providerProjectId: config.providerProjectId,
-            }),
-            annotations: [],
-            autoFixRequested: true,
-            ticketSystem: "github",
-          };
-
-          const ticket = await this.ticketDAO.createTicket(ticketRequest);
-          result.ticketId = ticket.id;
-
-          // Always create job for bot-triggered requests
-          const webhookContext: WebhookJobContext = {
-            ticketId: ticket.id,
-            issueNumber: payload.issue?.number,
-            triggeredBy: "bot-command",
-            commentBody: payload.comment?.body?.substring(0, 500),
-            stepsToReproduce: `Triggered by bot comment: ${payload.comment?.body?.substring(0, 200)}`,
-          };
-
-          const jobData: JobData = {
-            id: randomUUID(),
-            tenantId: resolvedProjectId,
-            repository: payload.repository?.full_name || "",
-            task: `Fix issue: ${payload.issue?.title}`,
-            context: webhookContext as any, // WebhookJobContext extends JobData['context']
-            settings: {
-              runTests: true,
-            },
-            timestamp: Date.now(),
-          };
-
-          const jobResult = await this.jobService.submitJob(jobData, {
-            ticketId: ticket.id,
-          });
-          result.jobId = jobResult.jobId;
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Process Jira webhook event
-   */
-  private async processJiraEvent(
-    event: ParsedWebhookEvent,
-    config: WebhookConfig,
-    tenantId?: string,
-  ): Promise<EventProcessingResult> {
-    const result: EventProcessingResult = {};
-
-    // Project linkage should prefer explicit webhook config linkage first.
-    const resolvedTenantId =
-      config.projectId || tenantId || this.config.defaultTenantId || "default";
-    result.projectId = resolvedTenantId;
-
-    if (event.eventType !== "issue_created" && event.eventType !== "comment_created") {
-      const scopedEventType = event.metadata.action
-        ? `${event.eventType}.${event.metadata.action}`
-        : event.eventType;
-      result.ignoredReason = `Unsupported Jira event action '${scopedEventType}'`;
-      return result;
-    }
-
-    if (event.eventType === "issue_created") {
-      const payload = event.payload as {
-        issue?: {
-          key: string;
-          fields: {
-            summary: string;
-            description?: unknown;
-            priority?: { name: string };
-            issuetype: { name: string };
-          };
-        };
-        user?: {
-          displayName: string;
-        };
-      };
-
-      if (payload?.issue?.fields?.summary) {
-        // Determine severity based on priority
-        let severity: Severity = "medium";
-        const priorityName = payload.issue.fields.priority?.name?.toLowerCase() || "";
-        if (priorityName.includes("highest") || priorityName.includes("critical")) {
-          severity = "critical";
-        } else if (priorityName.includes("high")) {
-          severity = "high";
-        } else if (priorityName.includes("low")) {
-          severity = "low";
-        }
-
-        const description = this.extractJiraTextContent(
-          payload.issue.fields.description,
-        );
-
-        // Create ticket
-        const ticketRequest: CreateTicketRequest = {
-          projectId: resolvedTenantId,
-          title: payload.issue.fields.summary,
-          description,
-          severity,
-          category: "bug",
-          metadata: this.createTicketMetadata({
-            externalTicketId: payload.issue.key,
-            webhookConfigId: config.id,
-            provider: "jira",
-            sender: payload.user?.displayName || event.metadata.sender,
-            issueType: payload.issue.fields.issuetype.name,
-            eventType: event.eventType,
-            eventAction: event.metadata.action,
-            deliveryId: event.deduplicationId,
-            integrationId: config.integrationId,
-            providerProjectId: config.providerProjectId,
-            jiraProjectKey:
-              event.metadata.repositoryId ||
-              this.extractJiraProjectKey(payload.issue.key),
-          }),
-          annotations: [],
-          autoFixRequested: config.autoExecute,
-          ticketSystem: "jira",
-        };
-
-        const ticket = await this.ticketDAO.createTicket(ticketRequest);
-        result.ticketId = ticket.id;
-
-        // Create job if auto_execute is enabled
-        if (config.autoExecute) {
-          const webhookContext: WebhookJobContext = {
-            ticketId: ticket.id,
-            issueKey: payload.issue.key,
-            stepsToReproduce: `Jira Issue: ${payload.issue.key}`,
-          };
-
-          const jobData: JobData = {
-            id: randomUUID(),
-            tenantId: resolvedTenantId,
-            repository:
-              event.metadata.repositoryId ||
-              this.extractJiraProjectKey(payload.issue.key) ||
-              "",
-            task: `Fix Jira issue: ${payload.issue.fields.summary}`,
-            context: webhookContext as any,
-            settings: {
-              runTests: true,
-            },
-            timestamp: Date.now(),
-          };
-
-          const jobResult = await this.jobService.submitJob(jobData, {
-            ticketId: ticket.id,
-          });
-          result.jobId = jobResult.jobId;
-        }
-      }
-    }
-
-    // Handle comment_created events for bot mentions
-    if (event.eventType === "comment_created") {
-      const payload = event.payload as {
-        issue?: {
-          key: string;
-          fields: {
-            summary: string;
-          };
-        };
-        comment?: {
-          id?: string;
-          body?: unknown;
-          author: {
-            displayName: string;
-          };
-        };
-      };
-
-      const commentBody = this.extractJiraTextContent(payload?.comment?.body);
-      if (config.botUsername && payload?.comment && commentBody) {
-        const normalizedBody = commentBody.toLowerCase();
-        const normalizedBotUsername = config.botUsername.toLowerCase();
-        const mentionsBot =
-          normalizedBody.includes(`@${normalizedBotUsername}`) ||
-          normalizedBody.includes(normalizedBotUsername);
-
-        const hasTriggerKeyword =
-          normalizedBody.includes("fix this") ||
-          normalizedBody.includes("fix it") ||
-          normalizedBody.includes("auto fix") ||
-          normalizedBody.includes("autofix");
-
-        if (mentionsBot && hasTriggerKeyword) {
-          const ticketRequest: CreateTicketRequest = {
-            projectId: resolvedTenantId,
-            title: payload.issue?.fields.summary || `Jira Issue ${payload.issue?.key}`,
-            description: commentBody,
-            severity: "medium",
-            category: "bug",
-            metadata: this.createTicketMetadata({
-              externalTicketId: payload.issue?.key,
-              webhookConfigId: config.id,
-              provider: "jira",
-              triggeredByComment: true,
-              sender: payload.comment.author.displayName,
-              commentId: payload.comment.id,
-              eventType: event.eventType,
-              eventAction: event.metadata.action,
-              deliveryId: event.deduplicationId,
-              integrationId: config.integrationId,
-              providerProjectId: config.providerProjectId,
-              jiraProjectKey:
-                event.metadata.repositoryId ||
-                this.extractJiraProjectKey(payload.issue?.key),
-            }),
-            annotations: [],
-            autoFixRequested: true,
-            ticketSystem: "jira",
-          };
-
-          const ticket = await this.ticketDAO.createTicket(ticketRequest);
-          result.ticketId = ticket.id;
-
-          // Always create job for bot-triggered requests
-          const webhookContext: WebhookJobContext = {
-            ticketId: ticket.id,
-            issueKey: payload.issue?.key,
-            triggeredBy: "bot-command",
-            commentBody: commentBody.substring(0, 500),
-            stepsToReproduce: `Triggered by Jira comment on ${payload.issue?.key}`,
-          };
-
-          const jobData: JobData = {
-            id: randomUUID(),
-            tenantId: resolvedTenantId,
-            repository:
-              event.metadata.repositoryId ||
-              this.extractJiraProjectKey(payload.issue?.key) ||
-              "",
-            task: `Fix Jira issue: ${payload.issue?.fields.summary}`,
-            context: webhookContext as any,
-            settings: {
-              runTests: true,
-            },
-            timestamp: Date.now(),
-          };
-
-          const jobResult = await this.jobService.submitJob(jobData, {
-            ticketId: ticket.id,
-          });
-          result.jobId = jobResult.jobId;
-        }
-      }
-    }
-
-    return result;
-  }
-
-  private extractJiraProjectKey(issueKey?: string): string | undefined {
-    if (!issueKey) {
-      return undefined;
-    }
-
-    const separatorIndex = issueKey.indexOf("-");
-    if (separatorIndex <= 0) {
-      return undefined;
-    }
-
-    return issueKey.slice(0, separatorIndex);
-  }
-
-  private extractJiraTextContent(value: unknown): string {
-    if (typeof value === "string") {
-      return value;
-    }
-
-    if (value === null || value === undefined) {
-      return "";
-    }
-
-    if (typeof value !== "object") {
-      return String(value);
-    }
-
-    const parts: string[] = [];
-    this.collectJiraTextNodes(value, parts);
-    const flattened = parts.join(" ").replace(/\s+/g, " ").trim();
-    if (flattened.length > 0) {
-      return flattened;
-    }
-
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "";
-    }
-  }
-
-  private collectJiraTextNodes(value: unknown, parts: string[]): void {
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (trimmed.length > 0) {
-        parts.push(trimmed);
-      }
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        this.collectJiraTextNodes(item, parts);
-      }
-      return;
-    }
-
-    if (typeof value !== "object" || value === null) {
-      return;
-    }
-
-    const record = value as Record<string, unknown>;
-    if (typeof record.text === "string") {
-      this.collectJiraTextNodes(record.text, parts);
-    }
-
-    if (Array.isArray(record.content)) {
-      this.collectJiraTextNodes(record.content, parts);
-    }
-  }
-
-  /**
-   * Process Shortcut webhook event
-   */
-  private async processShortcutEvent(
-    event: ParsedWebhookEvent,
-    config: WebhookConfig,
-    tenantId?: string,
-  ): Promise<EventProcessingResult> {
-    const result: EventProcessingResult = {};
-
-    // Resolve tenant ID
-    const resolvedTenantId =
-      tenantId || this.config.defaultTenantId || config.projectId || "default";
-    result.projectId = resolvedTenantId;
-
-    // Handle story_created events
-    if (event.eventType === "story_created") {
-      const payload = event.payload as {
-        data?: {
-          id: number;
-          name: string;
-          description?: string;
-          story_type: "feature" | "bug" | "chore";
-          workflow_state?: { name: string };
-          project?: { name: string };
-          app_url: string;
-        };
-      };
-
-      if (payload?.data) {
-        // Map story type to severity
-        let severity: Severity = "medium";
-        switch (payload.data.story_type) {
-          case "bug":
-            severity = "high";
-            break;
-          case "feature":
-            severity = "medium";
-            break;
-          case "chore":
-            severity = "low";
-            break;
-        }
-
-        // Create ticket
-        const ticketRequest: CreateTicketRequest = {
-          projectId: resolvedTenantId,
-          title: payload.data.name,
-          description: payload.data.description || "",
-          severity,
-          category: payload.data.story_type === "bug" ? "bug" : "feature",
-          metadata: this.createTicketMetadata({
-            externalTicketId: payload.data.id.toString(),
-            externalTicketUrl: payload.data.app_url,
-            webhookConfigId: config.id,
-            provider: "shortcut",
-            storyType: payload.data.story_type,
-            project: payload.data.project?.name,
-            workflowState: payload.data.workflow_state?.name,
-          }),
-          annotations: [],
-          autoFixRequested: config.autoExecute && payload.data.story_type === "bug",
-          ticketSystem: "shortcut",
-        };
-
-        const ticket = await this.ticketDAO.createTicket(ticketRequest);
-        result.ticketId = ticket.id;
-
-        // Create job if auto_execute is enabled and it's a bug
-        if (config.autoExecute && payload.data.story_type === "bug") {
-          const webhookContext: WebhookJobContext = {
-            ticketId: ticket.id,
-            issueNumber: payload.data.id,
-            issueUrl: payload.data.app_url,
-            stepsToReproduce: `Shortcut Story: ${payload.data.app_url}`,
-          };
-
-          const jobData: JobData = {
-            id: randomUUID(),
-            tenantId: resolvedTenantId,
-            repository: payload.data.project?.name || "",
-            task: `Fix Shortcut story: ${payload.data.name}`,
-            context: webhookContext as any,
-            settings: {
-              runTests: true,
-            },
-            timestamp: Date.now(),
-          };
-
-          const jobResult = await this.jobService.submitJob(jobData, {
-            ticketId: ticket.id,
-          });
-          result.jobId = jobResult.jobId;
-        }
-      }
-    }
-
-    // Handle comment_created events for bot mentions
-    if (event.eventType === "comment_created") {
-      const payload = event.payload as {
-        data?: {
-          story_id: number;
-          text: string;
-          author_id: string;
-        };
-      };
-
-      if (config.botUsername && payload?.data) {
-        const commentBody = payload.data.text.toLowerCase();
-        const mentionsBot =
-          commentBody.includes(`@${config.botUsername.toLowerCase()}`) ||
-          commentBody.includes(config.botUsername.toLowerCase());
-
-        const hasTriggerKeyword =
-          commentBody.includes("fix this") ||
-          commentBody.includes("fix it") ||
-          commentBody.includes("auto fix") ||
-          commentBody.includes("autofix");
-
-        if (mentionsBot && hasTriggerKeyword) {
-          const ticketRequest: CreateTicketRequest = {
-            projectId: resolvedTenantId,
-            title: `Shortcut Comment on Story ${payload.data.story_id}`,
-            description: payload.data.text,
-            severity: "medium",
-            category: "bug",
-            metadata: this.createTicketMetadata({
-              externalTicketId: payload.data.story_id.toString(),
-              webhookConfigId: config.id,
-              provider: "shortcut",
-              triggeredByComment: true,
-            }),
-            annotations: [],
-            autoFixRequested: true,
-            ticketSystem: "shortcut",
-          };
-
-          const ticket = await this.ticketDAO.createTicket(ticketRequest);
-          result.ticketId = ticket.id;
-
-          // Always create job for bot-triggered requests
-          const webhookContext: WebhookJobContext = {
-            ticketId: ticket.id,
-            issueNumber: payload.data.story_id,
-            triggeredBy: "bot-command",
-            commentBody: payload.data.text.substring(0, 500),
-            stepsToReproduce: `Triggered by Shortcut comment on story ${payload.data.story_id}`,
-          };
-
-          const jobData: JobData = {
-            id: randomUUID(),
-            tenantId: resolvedTenantId,
-            repository: "",
-            task: `Fix Shortcut story from comment: ${payload.data.story_id}`,
-            context: webhookContext as any,
-            settings: {
-              runTests: true,
-            },
-            timestamp: Date.now(),
-          };
-
-          const jobResult = await this.jobService.submitJob(jobData, {
-            ticketId: ticket.id,
-          });
-          result.jobId = jobResult.jobId;
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Process custom webhook event
-   */
-  private async processCustomEvent(
-    event: ParsedWebhookEvent,
-    config: WebhookConfig,
-    tenantId?: string,
-  ): Promise<EventProcessingResult> {
-    const result: EventProcessingResult = {};
-
-    if (!tenantId && !config.projectId) {
-      throw new Error("No project linked to this webhook configuration");
-    }
-
-    const resolvedTenantId =
-      tenantId || config.projectId || this.config.defaultTenantId || "default";
-    result.projectId = resolvedTenantId;
-
-    if (event.eventType !== "ticket_created") {
-      return result;
-    }
-
-    const payload = event.payload as {
-      title: string;
-      description: string;
-      severity?: string;
-      category?: string;
-      externalId?: string;
-      url?: string;
-    };
-
-    const severityCandidates: Severity[] = ["low", "medium", "high", "critical"];
-    const severity = severityCandidates.includes(payload.severity as Severity)
-      ? (payload.severity as Severity)
-      : "medium";
-
-    const ticket = await this.ticketDAO.createTicket({
-      projectId: resolvedTenantId,
-      title: payload.title,
-      description: payload.description,
-      severity,
-      category: payload.category || "bug",
-      metadata: this.createTicketMetadata({
-        externalTicketId: payload.externalId,
-        externalTicketUrl: payload.url,
-        webhookConfigId: config.id,
-        provider: "custom",
-      }),
-      annotations: [] as Annotation[],
-      ticketSystem: "custom",
-      autoFixRequested: config.autoExecute,
+    const processor = this.processorResolver.resolve(event.provider as ProviderType);
+    return processor.process({
+      event,
+      config,
+      tenantId,
+      defaultTenantId: this.config.defaultTenantId,
     });
-    result.ticketId = ticket.id;
-
-    if (payload.externalId || payload.url) {
-      await this.ticketDAO.updateTicket(ticket.id, {
-        externalTicketId: payload.externalId || undefined,
-        externalTicketUrl: payload.url || undefined,
-      });
-    }
-
-    return result;
   }
 }

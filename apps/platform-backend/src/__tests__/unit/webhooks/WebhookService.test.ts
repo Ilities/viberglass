@@ -1,5 +1,6 @@
 import { WebhookService } from "../../../webhooks/WebhookService";
-import type { ParsedWebhookEvent, WebhookProvider } from "../../../webhooks/provider";
+import { createDefaultInboundEventProcessorResolver } from "../../../webhooks/InboundEventProcessorResolver";
+import type { ParsedWebhookEvent, WebhookProvider } from "../../../webhooks/WebhookProvider";
 import type { WebhookConfig } from "../../../persistence/webhook/WebhookConfigDAO";
 
 type ProviderName = "github" | "jira" | "shortcut" | "custom";
@@ -275,14 +276,19 @@ describe("WebhookService", () => {
       submitJob: jest.fn().mockResolvedValue({ jobId: "job-1" }),
     };
 
+    // Create the processor resolver with the mocked dependencies
+    const processorResolver = createDefaultInboundEventProcessorResolver(
+      ticketDAO as any,
+      jobService as any,
+    );
+
     const service = new WebhookService(
       registry as any,
       configDAO as any,
       deliveryDAO as any,
       deduplication as any,
       secretService as any,
-      ticketDAO as any,
-      jobService as any,
+      processorResolver,
       {
         defaultTenantId: "tenant-default",
       },

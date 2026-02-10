@@ -1,2 +1,2 @@
 export * from "./JiraIntegration";
-export { jiraPlugin } from "./jira";
+export { jiraPlugin } from "./jiraUtils";

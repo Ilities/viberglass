@@ -10,12 +10,12 @@
 
 import axios, { type AxiosInstance } from "axios";
 import crypto from "crypto";
-import { BaseWebhookProvider } from "./base-provider";
+import { BaseWebhookProvider } from "./BaseWebhookProvider";
 import type {
   ParsedWebhookEvent,
   WebhookProviderConfig,
   WebhookResult,
-} from "../provider";
+} from "../WebhookProvider";
 
 /**
  * GitHub webhook payload types

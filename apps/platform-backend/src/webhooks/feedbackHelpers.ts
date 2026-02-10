@@ -1,11 +1,12 @@
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
 import type { JobResult } from "../types/Job";
-import type { ProviderType } from "./provider";
+import type { ProviderType } from "./WebhookProvider";
 
 export interface OutboundTarget {
   config: WebhookConfig;
   externalTicketId?: string;
   providerProjectId?: string;
+  apiBaseUrl?: string;
 }
 
 const TRANSIENT_NETWORK_ERROR_CODES = new Set([
@@ -16,6 +17,8 @@ const TRANSIENT_NETWORK_ERROR_CODES = new Set([
   "ENOTFOUND",
   "ECONNREFUSED",
 ]);
+
+const JIRA_ISSUE_KEY_PATTERN = /\b([A-Z][A-Z0-9]+-\d+)\b/i;
 
 export function requiresProviderProjectId(provider: ProviderType): boolean {
   return provider === "github" || provider === "jira";
@@ -30,6 +33,42 @@ export function resolveExternalTicketId(...candidates: Array<unknown>): string |
       return String(candidate);
     }
   }
+  return undefined;
+}
+
+export function resolveJiraIssueKey(...candidates: Array<unknown>): string | undefined {
+  for (const candidate of candidates) {
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      continue;
+    }
+
+    const text = toNonEmptyString(candidate);
+    if (!text) {
+      continue;
+    }
+
+    const normalizedDirect = normalizeJiraIssueKey(text);
+    if (normalizedDirect) {
+      return normalizedDirect;
+    }
+
+    const fromUrl = extractJiraIssueKeyFromUrl(text);
+    if (fromUrl) {
+      return fromUrl;
+    }
+  }
+
+  return undefined;
+}
+
+export function resolveJiraApiBaseUrl(...candidates: Array<unknown>): string | undefined {
+  for (const candidate of candidates) {
+    const apiBaseUrl = normalizeJiraApiBaseUrl(candidate);
+    if (apiBaseUrl) {
+      return apiBaseUrl;
+    }
+  }
+
   return undefined;
 }
 
@@ -71,11 +110,13 @@ export function createOutboundTarget(
   config: WebhookConfig,
   externalTicketId: string | undefined,
   providerProjectCandidates: string[],
+  overrides?: { apiBaseUrl?: string },
 ): OutboundTarget {
   return {
     config,
     externalTicketId,
     providerProjectId: config.providerProjectId || providerProjectCandidates[0],
+    apiBaseUrl: overrides?.apiBaseUrl,
   };
 }
 
@@ -189,6 +230,90 @@ function toNonEmptyString(value: unknown): string | undefined {
     return String(value);
   }
   return undefined;
+}
+
+function normalizeJiraIssueKey(value: string): string | undefined {
+  const match = value.match(JIRA_ISSUE_KEY_PATTERN);
+  if (!match?.[1]) {
+    return undefined;
+  }
+  return match[1].toUpperCase();
+}
+
+function extractJiraIssueKeyFromUrl(value: string): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return undefined;
+  }
+
+  const queryCandidates = [
+    url.searchParams.get("selectedIssue"),
+    url.searchParams.get("issueKey"),
+    url.searchParams.get("key"),
+  ];
+  for (const queryCandidate of queryCandidates) {
+    if (!queryCandidate) {
+      continue;
+    }
+    const normalized = normalizeJiraIssueKey(queryCandidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const segments = url.pathname.split("/").filter(Boolean);
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index]?.toLowerCase();
+    const nextSegment = segments[index + 1];
+    if (
+      (segment === "browse" || segment === "issue" || segment === "issues") &&
+      nextSegment
+    ) {
+      const normalized = normalizeJiraIssueKey(nextSegment);
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+
+  return normalizeJiraIssueKey(url.pathname);
+}
+
+function normalizeJiraApiBaseUrl(candidate: unknown): string | undefined {
+  const raw = toNonEmptyString(candidate);
+  if (!raw) {
+    return undefined;
+  }
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return undefined;
+  }
+
+  const pathname = trimTrailingSlash(url.pathname);
+  const restMatch = pathname.match(/^(.*)\/rest\/api\/([^/]+)(?:\/.*)?$/i);
+  if (restMatch) {
+    const contextPath = trimTrailingSlash(restMatch[1] || "");
+    const apiVersion = restMatch[2];
+    return `${url.origin}${contextPath}/rest/api/${apiVersion}`;
+  }
+
+  const browseMatch = pathname.match(/^(.*)\/browse\/[^/]+$/i);
+  if (browseMatch) {
+    const contextPath = trimTrailingSlash(browseMatch[1] || "");
+    return `${url.origin}${contextPath}/rest/api/3`;
+  }
+
+  const contextPath = pathname === "/" ? "" : pathname;
+  return `${url.origin}${contextPath}/rest/api/3`;
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
 }
 
 function pickPreferredConfig(configs: WebhookConfig[]): WebhookConfig | null {

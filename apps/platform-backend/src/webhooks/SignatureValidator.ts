@@ -9,7 +9,7 @@
  */
 
 import crypto from 'crypto';
-import { HashAlgorithm } from './provider';
+import { HashAlgorithm } from './WebhookProvider';
 
 /**
  * Configuration for signature validator
