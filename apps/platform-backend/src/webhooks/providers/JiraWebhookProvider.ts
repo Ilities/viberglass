@@ -10,12 +10,12 @@
 
 import axios, { type AxiosInstance } from 'axios';
 import crypto from 'crypto';
-import { BaseWebhookProvider } from './base-provider';
+import { BaseWebhookProvider } from './BaseWebhookProvider';
 import type {
   ParsedWebhookEvent,
   WebhookProviderConfig,
   WebhookResult,
-} from '../provider';
+} from '../WebhookProvider';
 
 /**
  * Jira webhook payload types
@@ -124,6 +124,7 @@ interface JiraCommentPayload {
  */
 const DEFAULT_SUCCESS_LABEL = 'fix-submitted';
 const DEFAULT_FAILURE_LABEL = 'fix-failed';
+const DEFAULT_JIRA_API_VERSION = '3';
 
 /**
  * Jira webhook provider
@@ -435,13 +436,16 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
    */
   async postComment(issueKey: string, body: string): Promise<void> {
     const client = this.getHttpClient();
-    
-    // Convert markdown to simple ADF (Atlassian Document Format)
-    const adfBody = this.markdownToAdf(body);
+    const encodedIssueKey = this.encodeIssueKey(issueKey);
 
-    await client.post(`/issue/${issueKey}/comment`, {
-      body: adfBody,
-    });
+    try {
+      const adfBody = this.markdownToAdf(body);
+      await client.post(`/issue/${encodedIssueKey}/comment`, {
+        body: adfBody,
+      });
+    } catch (error) {
+      this.handleApiError(error, `Failed to post Jira comment for issue ${issueKey}`);
+    }
   }
 
   /**
@@ -457,27 +461,49 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
     remove: string[]
   ): Promise<void> {
     const client = this.getHttpClient();
+    const encodedIssueKey = this.encodeIssueKey(issueKey);
 
-    // First, get current issue to retrieve existing labels
-    const issueResponse = await client.get(`/issue/${issueKey}?fields=labels`);
-    const currentLabels = new Set(issueResponse.data.fields.labels || []);
+    try {
+      const issueResponse = await client.get(`/issue/${encodedIssueKey}`, {
+        params: {
+          fields: 'labels',
+        },
+      });
 
-    // Remove labels
-    for (const label of remove) {
-      currentLabels.delete(label);
+      const issueData = issueResponse.data as { fields?: { labels?: string[] } };
+      const currentLabelsByKey = new Map<string, string>();
+      for (const label of issueData.fields?.labels || []) {
+        const key = this.normalizeLabelName(label);
+        if (!key || currentLabelsByKey.has(key)) {
+          continue;
+        }
+        currentLabelsByKey.set(key, label);
+      }
+
+      for (const label of remove) {
+        const key = this.normalizeLabelName(label);
+        if (!key) {
+          continue;
+        }
+        currentLabelsByKey.delete(key);
+      }
+
+      for (const label of add) {
+        const key = this.normalizeLabelName(label);
+        if (!key || currentLabelsByKey.has(key)) {
+          continue;
+        }
+        currentLabelsByKey.set(key, label);
+      }
+
+      await client.put(`/issue/${encodedIssueKey}`, {
+        fields: {
+          labels: Array.from(currentLabelsByKey.values()),
+        },
+      });
+    } catch (error) {
+      this.handleApiError(error, `Failed to update Jira labels for issue ${issueKey}`);
     }
-
-    // Add labels
-    for (const label of add) {
-      currentLabels.add(label);
-    }
-
-    // Update labels
-    await client.put(`/issue/${issueKey}`, {
-      fields: {
-        labels: Array.from(currentLabels),
-      },
-    });
   }
 
   /**
@@ -489,13 +515,33 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
    * @param result - Execution result
    */
   async postResult(issueKey: string, result: WebhookResult): Promise<void> {
-    // Format and post comment
     const commentBody = this.formatCommentBody(result);
     await this.postComment(issueKey, commentBody);
 
-    // Update labels based on result
-    const { add, remove } = this.formatLabels(result.success);
-    await this.updateLabels(issueKey, add, remove);
+    const outboundSettings = this.resolveOutboundSettings();
+
+    if (!outboundSettings.skipLabelUpdates) {
+      const { add, remove } = this.formatLabels(result.success, {
+        success: outboundSettings.successLabel,
+        failure: outboundSettings.failureLabel,
+      });
+      await this.updateLabels(issueKey, add, remove);
+    }
+
+    const transitionId = result.success
+      ? outboundSettings.successTransitionId
+      : outboundSettings.failureTransitionId;
+    if (transitionId) {
+      await this.transitionIssue(issueKey, transitionId);
+      return;
+    }
+
+    const statusName = result.success
+      ? outboundSettings.successStatus
+      : outboundSettings.failureStatus;
+    if (statusName) {
+      await this.transitionIssueByStatus(issueKey, statusName);
+    }
   }
 
   /**
@@ -504,7 +550,7 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
    * @returns Configured axios instance
    */
   protected createHttpClient(): AxiosInstance {
-    const apiBaseUrl = this.config.apiBaseUrl || 'https://api.atlassian.com/ex/jira';
+    const apiBaseUrl = this.resolveApiBaseUrl();
     const token = this.config.apiToken || '';
 
     return axios.create({
@@ -513,6 +559,7 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        'User-Agent': 'Viberglass-Webhook/1.0',
       },
       timeout: 30000,
     });
@@ -523,52 +570,116 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
    * Basic conversion for common markdown elements
    */
   private markdownToAdf(markdown: string): Record<string, unknown> {
-    // Simple conversion - for production, consider using a proper markdown-to-ADF library
     const lines = markdown.split('\n');
     const content: Array<Record<string, unknown>> = [];
+    let listItems: Array<Record<string, unknown>> = [];
+
+    const flushList = () => {
+      if (listItems.length === 0) {
+        return;
+      }
+
+      content.push({
+        type: 'bulletList',
+        content: listItems,
+      });
+      listItems = [];
+    };
 
     for (const line of lines) {
-      if (line.startsWith('## ')) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        flushList();
+        continue;
+      }
+
+      const isBullet = trimmed.startsWith('- ') || trimmed.startsWith('* ');
+      if (isBullet) {
+        listItems.push({
+          type: 'listItem',
+          content: [
+            {
+              type: 'paragraph',
+              content: this.toAdfInlineTextNodes(trimmed.slice(2)),
+            },
+          ],
+        });
+        continue;
+      }
+
+      flushList();
+
+      if (trimmed.startsWith('## ')) {
         content.push({
           type: 'heading',
           attrs: { level: 2 },
-          content: [{ type: 'text', text: line.slice(3) }],
+          content: this.toAdfInlineTextNodes(trimmed.slice(3)),
         });
-      } else if (line.startsWith('**') && line.endsWith('**')) {
+      } else {
         content.push({
           type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: line.replace(/\*\*/g, ''),
-              marks: [{ type: 'strong' }],
-            },
-          ],
-        });
-      } else if (line.startsWith('`') && line.endsWith('`')) {
-        content.push({
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: line.replace(/`/g, ''),
-              marks: [{ type: 'code' }],
-            },
-          ],
-        });
-      } else if (line.trim()) {
-        content.push({
-          type: 'paragraph',
-          content: [{ type: 'text', text: line }],
+          content: this.toAdfInlineTextNodes(trimmed),
         });
       }
     }
+
+    flushList();
 
     return {
       type: 'doc',
       version: 1,
       content,
     };
+  }
+
+  private toAdfInlineTextNodes(text: string): Array<Record<string, unknown>> {
+    const nodes: Array<Record<string, unknown>> = [];
+    const tokenPattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null = tokenPattern.exec(text);
+
+    while (match) {
+      if (match.index > lastIndex) {
+        nodes.push({
+          type: 'text',
+          text: text.slice(lastIndex, match.index),
+        });
+      }
+
+      const token = match[0];
+      if (token.startsWith('**') && token.endsWith('**')) {
+        nodes.push({
+          type: 'text',
+          text: token.slice(2, -2),
+          marks: [{ type: 'strong' }],
+        });
+      } else if (token.startsWith('`') && token.endsWith('`')) {
+        nodes.push({
+          type: 'text',
+          text: token.slice(1, -1),
+          marks: [{ type: 'code' }],
+        });
+      }
+
+      lastIndex = match.index + token.length;
+      match = tokenPattern.exec(text);
+    }
+
+    if (lastIndex < text.length) {
+      nodes.push({
+        type: 'text',
+        text: text.slice(lastIndex),
+      });
+    }
+
+    if (nodes.length === 0) {
+      nodes.push({
+        type: 'text',
+        text,
+      });
+    }
+
+    return nodes;
   }
 
   /**
@@ -583,19 +694,24 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
     labels: string[];
   }> {
     const client = this.getHttpClient();
-    const response = await client.get(`/issue/${issueKey}`);
-    const issue = response.data;
+    const encodedIssueKey = this.encodeIssueKey(issueKey);
+    try {
+      const response = await client.get(`/issue/${encodedIssueKey}`);
+      const issue = response.data;
 
-    return {
-      key: issue.key,
-      summary: issue.fields.summary,
-      description: typeof issue.fields.description === 'string' 
-        ? issue.fields.description 
-        : undefined,
-      status: issue.fields.status?.name,
-      priority: issue.fields.priority?.name,
-      labels: issue.fields.labels || [],
-    };
+      return {
+        key: issue.key,
+        summary: issue.fields.summary,
+        description: typeof issue.fields.description === 'string'
+          ? issue.fields.description
+          : undefined,
+        status: issue.fields.status?.name,
+        priority: issue.fields.priority?.name,
+        labels: issue.fields.labels || [],
+      };
+    } catch (error) {
+      this.handleApiError(error, `Failed to fetch Jira issue ${issueKey}`);
+    }
   }
 
   /**
@@ -603,9 +719,52 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
    */
   async transitionIssue(issueKey: string, transitionId: string): Promise<void> {
     const client = this.getHttpClient();
-    await client.post(`/issue/${issueKey}/transitions`, {
-      transition: { id: transitionId },
-    });
+    const encodedIssueKey = this.encodeIssueKey(issueKey);
+
+    try {
+      await client.post(`/issue/${encodedIssueKey}/transitions`, {
+        transition: { id: transitionId },
+      });
+    } catch (error) {
+      this.handleApiError(
+        error,
+        `Failed to transition Jira issue ${issueKey} with transition '${transitionId}'`,
+      );
+    }
+  }
+
+  async transitionIssueByStatus(issueKey: string, statusName: string): Promise<void> {
+    const client = this.getHttpClient();
+    const encodedIssueKey = this.encodeIssueKey(issueKey);
+
+    try {
+      const transitionsResponse = await client.get(`/issue/${encodedIssueKey}/transitions`);
+      const transitions = (transitionsResponse.data as {
+        transitions?: Array<{ id: string; to?: { name?: string } }>;
+      }).transitions || [];
+      const normalizedStatusName = statusName.trim().toLowerCase();
+      const transition = transitions.find((candidate) => {
+        const transitionName = candidate.to?.name?.trim().toLowerCase();
+        return transitionName === normalizedStatusName;
+      });
+
+      if (!transition?.id) {
+        throw new Error(
+          `No Jira transition found for status '${statusName}' on issue ${issueKey}`,
+        );
+      }
+
+      await client.post(`/issue/${encodedIssueKey}/transitions`, {
+        transition: {
+          id: transition.id,
+        },
+      });
+    } catch (error) {
+      this.handleApiError(
+        error,
+        `Failed to transition Jira issue ${issueKey} to status '${statusName}'`,
+      );
+    }
   }
 
   /**
@@ -613,8 +772,153 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
    */
   async assignIssue(issueKey: string, accountId: string): Promise<void> {
     const client = this.getHttpClient();
-    await client.put(`/issue/${issueKey}/assignee`, {
-      accountId,
-    });
+    const encodedIssueKey = this.encodeIssueKey(issueKey);
+
+    try {
+      await client.put(`/issue/${encodedIssueKey}/assignee`, {
+        accountId,
+      });
+    } catch (error) {
+      this.handleApiError(error, `Failed to assign Jira issue ${issueKey}`);
+    }
+  }
+
+  private resolveApiBaseUrl(): string {
+    const mapping = this.getProviderLabelMappings();
+    const configuredApiBaseUrl =
+      this.config.apiBaseUrl ||
+      this.readString(mapping, 'apiBaseUrl') ||
+      this.readString(mapping, 'instanceUrl');
+    if (!configuredApiBaseUrl) {
+      throw new Error(
+        "Jira outbound provider requires 'apiBaseUrl' or 'instanceUrl' configuration",
+      );
+    }
+
+    return this.normalizeJiraApiBaseUrl(configuredApiBaseUrl);
+  }
+
+  private normalizeJiraApiBaseUrl(value: string): string {
+    let parsed: URL;
+    try {
+      parsed = new URL(value);
+    } catch {
+      throw new Error(`Invalid Jira API base URL: ${value}`);
+    }
+
+    const pathname = parsed.pathname.replace(/\/+$/, '');
+    const restMatch = pathname.match(/^(.*)\/rest\/api\/([^/]+)(?:\/.*)?$/i);
+    if (restMatch) {
+      const contextPath = (restMatch[1] || '').replace(/\/+$/, '');
+      const apiVersion = restMatch[2];
+      return `${parsed.origin}${contextPath}/rest/api/${apiVersion}`;
+    }
+
+    const browseMatch = pathname.match(/^(.*)\/browse\/[^/]+$/i);
+    if (browseMatch) {
+      const contextPath = (browseMatch[1] || '').replace(/\/+$/, '');
+      return `${parsed.origin}${contextPath}/rest/api/${DEFAULT_JIRA_API_VERSION}`;
+    }
+
+    const contextPath = pathname === '/' ? '' : pathname;
+    return `${parsed.origin}${contextPath}/rest/api/${DEFAULT_JIRA_API_VERSION}`;
+  }
+
+  private resolveOutboundSettings(): {
+    successLabel: string;
+    failureLabel: string;
+    skipLabelUpdates: boolean;
+    successTransitionId?: string;
+    failureTransitionId?: string;
+    successStatus?: string;
+    failureStatus?: string;
+  } {
+    const mapping = this.getProviderLabelMappings();
+    const labelsMapping = this.toRecord(mapping?.labels);
+    const transitionsMapping = this.toRecord(mapping?.transitions);
+    const statusesMapping = this.toRecord(mapping?.statuses);
+
+    const updateLabels = this.readBoolean(mapping, 'updateLabels');
+    const skipLabelUpdates =
+      this.readBoolean(mapping, 'skipLabelUpdates') ??
+      (typeof updateLabels === 'boolean' ? !updateLabels : false);
+
+    return {
+      successLabel:
+        this.readString(mapping, 'successLabel') ||
+        this.readString(labelsMapping, 'success') ||
+        DEFAULT_SUCCESS_LABEL,
+      failureLabel:
+        this.readString(mapping, 'failureLabel') ||
+        this.readString(labelsMapping, 'failure') ||
+        DEFAULT_FAILURE_LABEL,
+      skipLabelUpdates,
+      successTransitionId:
+        this.readString(mapping, 'successTransitionId') ||
+        this.readString(transitionsMapping, 'successId') ||
+        this.readString(transitionsMapping, 'success'),
+      failureTransitionId:
+        this.readString(mapping, 'failureTransitionId') ||
+        this.readString(transitionsMapping, 'failureId') ||
+        this.readString(transitionsMapping, 'failure'),
+      successStatus:
+        this.readString(mapping, 'successStatus') ||
+        this.readString(statusesMapping, 'success'),
+      failureStatus:
+        this.readString(mapping, 'failureStatus') ||
+        this.readString(statusesMapping, 'failure'),
+    };
+  }
+
+  private getProviderLabelMappings(): Record<string, unknown> | undefined {
+    const root = this.toRecord(this.config.labelMappings);
+    const nestedJira = this.toRecord(root?.jira);
+    return nestedJira || root;
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> | undefined {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return undefined;
+    }
+    return value as Record<string, unknown>;
+  }
+
+  private readString(
+    source: Record<string, unknown> | undefined,
+    key: string,
+  ): string | undefined {
+    if (!source) {
+      return undefined;
+    }
+    const value = source[key];
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const normalized = value.trim();
+    return normalized || undefined;
+  }
+
+  private readBoolean(
+    source: Record<string, unknown> | undefined,
+    key: string,
+  ): boolean | undefined {
+    if (!source) {
+      return undefined;
+    }
+    const value = source[key];
+    return typeof value === 'boolean' ? value : undefined;
+  }
+
+  private encodeIssueKey(issueKey: string): string {
+    const normalizedIssueKey = issueKey.trim();
+    if (!normalizedIssueKey) {
+      throw new Error('Jira issue key is required');
+    }
+    return encodeURIComponent(normalizedIssueKey);
+  }
+
+  private normalizeLabelName(label: string): string {
+    return label.trim().toLowerCase();
   }
 }

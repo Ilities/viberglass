@@ -6,18 +6,25 @@
  */
 
 import express from 'express';
-import { ProviderRegistry } from '../../webhooks/registry';
-import { GitHubWebhookProvider } from '../../webhooks/providers/github-provider';
-import { JiraWebhookProvider } from '../../webhooks/providers/jira-provider';
-import { ShortcutWebhookProvider } from '../../webhooks/providers/shortcut-provider';
-import { CustomWebhookProvider } from '../../webhooks/providers/custom-provider';
+import { ProviderRegistry } from '../../webhooks/ProviderRegistry';
+import { GitHubWebhookProvider } from '../../webhooks/providers/GitHubWebhookProvider';
+import { JiraWebhookProvider } from '../../webhooks/providers/JiraWebhookProvider';
+import { ShortcutWebhookProvider } from '../../webhooks/providers/ShortcutWebhookProvider';
+import { CustomWebhookProvider } from '../../webhooks/providers/CustomWebhookProvider';
 import { WebhookConfigDAO } from '../../persistence/webhook/WebhookConfigDAO';
 import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO';
-import { DeduplicationService } from '../../webhooks/deduplication';
+import { DeduplicationService } from '../../webhooks/DeduplicationService';
 import { WebhookSecretService } from '../../webhooks/WebhookSecretService';
 import { TicketDAO } from '../../persistence/ticketing/TicketDAO';
 import { JobService } from '../../services/JobService';
 import { FeedbackService } from '../../webhooks/FeedbackService';
+import { FeedbackOutboundConfigResolver } from '../../webhooks/feedback/FeedbackOutboundConfigResolver';
+import { FeedbackOutboundContextResolver } from '../../webhooks/feedback/FeedbackOutboundContextResolver';
+import { FeedbackEventDispatcher } from '../../webhooks/feedback/FeedbackEventDispatcher';
+import { FeedbackOutboundTargetResolver } from '../../webhooks/feedback/FeedbackOutboundTargetResolver';
+import { FeedbackRetryExecutor } from '../../webhooks/feedback/FeedbackRetryExecutor';
+import { createDefaultFeedbackProviderBehaviorResolver } from '../../webhooks/feedback/provider-behaviors';
+import { createDefaultInboundEventProcessorResolver } from '../../webhooks/InboundEventProcessorResolver';
 import { getCredentialFactory } from '../../config/credentials';
 import { WebhookService } from '../../webhooks/WebhookService';
 import {
@@ -87,14 +94,42 @@ function getWebhookService(): WebhookService {
     const credentialProvider = getCredentialFactory();
     const secretService = new WebhookSecretService(credentialProvider);
     const ticketDAO = new TicketDAO();
+    const providerBehaviorResolver = createDefaultFeedbackProviderBehaviorResolver();
+    const outboundContextResolver = new FeedbackOutboundContextResolver(
+      ticketDAO,
+      providerBehaviorResolver,
+    );
+    const outboundConfigResolver = new FeedbackOutboundConfigResolver(
+      configDAO,
+      providerBehaviorResolver,
+    );
+    const outboundTargetResolver = new FeedbackOutboundTargetResolver(
+      outboundContextResolver,
+      outboundConfigResolver,
+      providerBehaviorResolver,
+    );
+    const retryExecutor = new FeedbackRetryExecutor();
+    const eventDispatcher = new FeedbackEventDispatcher(
+      registry,
+      secretService,
+      outboundTargetResolver,
+      retryExecutor,
+      providerBehaviorResolver,
+    );
 
     // Initialize services
     const feedbackService = new FeedbackService(
       registry,
       configDAO,
-      secretService,
+      eventDispatcher,
     );
     const jobService = new JobService(feedbackService);
+
+    // Initialize inbound event processor resolver
+    const inboundProcessorResolver = createDefaultInboundEventProcessorResolver(
+      ticketDAO,
+      jobService,
+    );
 
     // Initialize webhook service
     webhookService = new WebhookService(
@@ -103,8 +138,7 @@ function getWebhookService(): WebhookService {
       deliveryDAO,
       deduplication,
       secretService,
-      ticketDAO,
-      jobService,
+      inboundProcessorResolver,
       {
         enableAutoExecute: true,
         defaultTenantId: process.env.DEFAULT_TENANT_ID || 'default',

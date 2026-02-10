@@ -7,12 +7,12 @@
 
 import crypto from 'crypto';
 import type { AxiosInstance } from 'axios';
-import { BaseWebhookProvider } from './base-provider';
+import { BaseWebhookProvider } from './BaseWebhookProvider';
 import type {
   ParsedWebhookEvent,
   WebhookProviderConfig,
   WebhookResult,
-} from '../provider';
+} from '../WebhookProvider';
 
 export class CustomWebhookProvider extends BaseWebhookProvider {
   readonly name = 'custom';
