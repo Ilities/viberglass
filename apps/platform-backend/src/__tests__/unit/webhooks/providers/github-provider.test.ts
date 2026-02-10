@@ -1,15 +1,23 @@
 import crypto from "crypto";
+import axios from "axios";
 import { GitHubWebhookProvider } from "../../../../webhooks/providers/github-provider";
 
+jest.mock("axios");
+
 describe("GitHubWebhookProvider", () => {
-  const provider = new GitHubWebhookProvider({
-    type: "github",
-    secretLocation: "database",
-    algorithm: "sha256",
-    allowedEvents: ["issues.opened", "issue_comment.created"],
-    webhookSecret: "secret",
-    apiToken: "token",
-    providerProjectId: "acme/repo",
+  let provider: GitHubWebhookProvider;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    provider = new GitHubWebhookProvider({
+      type: "github",
+      secretLocation: "database",
+      algorithm: "sha256",
+      allowedEvents: ["issues.opened", "issue_comment.created"],
+      webhookSecret: "secret",
+      apiToken: "token",
+      providerProjectId: "acme/repo",
+    });
   });
 
   it("parses issues webhook as an action-scoped event", () => {
@@ -126,5 +134,37 @@ describe("GitHubWebhookProvider", () => {
     expect(provider.verifySignature(rawBody, signature, "wrong-secret")).toBe(
       false,
     );
+  });
+
+  it("updates labels against current issue labels without clobbering unrelated labels", async () => {
+    const client = {
+      get: jest.fn().mockResolvedValue({
+        data: {
+          labels: [
+            { name: "bug" },
+            { name: "Fix-Submitted" },
+            { name: "needs-triage" },
+          ],
+        },
+      }),
+      put: jest.fn().mockResolvedValue({}),
+      post: jest.fn(),
+      patch: jest.fn(),
+    };
+
+    (axios.create as jest.Mock).mockReturnValue(client as any);
+
+    await provider.updateLabels("42", ["fix-failed"], ["fix-submitted"]);
+
+    expect(client.get).toHaveBeenCalledWith("/repos/acme/repo/issues/42");
+    expect(client.put).toHaveBeenCalledWith(
+      "/repos/acme/repo/issues/42/labels",
+      expect.objectContaining({
+        labels: expect.arrayContaining(["bug", "needs-triage", "fix-failed"]),
+      }),
+    );
+
+    const putPayload = client.put.mock.calls[0][1] as { labels: string[] };
+    expect(putPayload.labels).not.toContain("Fix-Submitted");
   });
 });
