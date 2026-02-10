@@ -114,6 +114,93 @@ function createGitHubIssueCommentEvent(action: string): ParsedWebhookEvent {
   };
 }
 
+function createJiraIssueCreatedEvent(): ParsedWebhookEvent {
+  return {
+    provider: "jira",
+    eventType: "issue_created",
+    deduplicationId: "jira-delivery-issue-1",
+    timestamp: "2026-02-09T00:00:00.000Z",
+    payload: {
+      webhookEvent: "jira:issue_created",
+      issue: {
+        key: "OPS-42",
+        fields: {
+          summary: "Login outage",
+          description: "Production login endpoint returns 500",
+          priority: { name: "High" },
+          issuetype: { name: "Bug" },
+          project: { key: "OPS", id: "10001" },
+        },
+      },
+      user: {
+        displayName: "Alice Reporter",
+      },
+    },
+    metadata: {
+      repositoryId: "OPS",
+      projectId: "10001",
+      issueKey: "OPS-42",
+      sender: "Alice Reporter",
+    },
+  };
+}
+
+function createJiraCommentCreatedEvent(): ParsedWebhookEvent {
+  return {
+    provider: "jira",
+    eventType: "comment_created",
+    deduplicationId: "jira-delivery-comment-1",
+    timestamp: "2026-02-09T00:00:00.000Z",
+    payload: {
+      webhookEvent: "comment_created",
+      issue: {
+        key: "OPS-42",
+        fields: {
+          summary: "Login outage",
+        },
+      },
+      comment: {
+        id: "9001",
+        body: "@viberator fix this now",
+        author: {
+          displayName: "Bob Commenter",
+        },
+      },
+    },
+    metadata: {
+      repositoryId: "OPS",
+      issueKey: "OPS-42",
+      commentId: "9001",
+      sender: "Bob Commenter",
+    },
+  };
+}
+
+function createUnsupportedJiraIssueUpdateEvent(): ParsedWebhookEvent {
+  return {
+    provider: "jira",
+    eventType: "issue_updated",
+    deduplicationId: "jira-delivery-unsupported-1",
+    timestamp: "2026-02-09T00:00:00.000Z",
+    payload: {
+      webhookEvent: "jira:issue_updated",
+      issue_event_type_name: "issue_assigned",
+      issue: {
+        key: "OPS-99",
+        fields: {
+          summary: "Assignment change",
+        },
+      },
+    },
+    metadata: {
+      repositoryId: "OPS",
+      issueKey: "OPS-99",
+      action: "issue_assigned",
+      sender: "workflow-bot",
+    },
+  };
+}
+
 function createProvider(
   providerName: ProviderName,
   event: ParsedWebhookEvent,
@@ -255,7 +342,31 @@ describe("WebhookService", () => {
   });
 
   it("uses Jira signature headers consistently for verification", async () => {
-    const event = createEvent("jira", { repositoryId: "jira-project-1" });
+    const event: ParsedWebhookEvent = {
+      provider: "jira",
+      eventType: "comment_created",
+      deduplicationId: "jira-delivery-signature-1",
+      timestamp: "2026-02-09T00:00:00.000Z",
+      payload: {
+        issue: {
+          key: "jira-project-1-1",
+          fields: {
+            summary: "Signature validation test",
+          },
+        },
+        comment: {
+          id: "1",
+          body: "no bot command",
+          author: {
+            displayName: "Tester",
+          },
+        },
+      },
+      metadata: {
+        repositoryId: "jira-project-1",
+        issueKey: "jira-project-1-1",
+      },
+    };
     const { service, providerFixture } = createHarness({
       providerName: "jira",
       event,
@@ -347,7 +458,31 @@ describe("WebhookService", () => {
   it("allows unsigned Jira deliveries when no secret is configured", async () => {
     const config = createConfig("jira");
     config.webhookSecretEncrypted = null;
-    const event = createEvent("jira", { repositoryId: "jira-project-1" });
+    const event: ParsedWebhookEvent = {
+      provider: "jira",
+      eventType: "comment_created",
+      deduplicationId: "jira-delivery-unsigned-1",
+      timestamp: "2026-02-09T00:00:00.000Z",
+      payload: {
+        issue: {
+          key: "jira-project-1-2",
+          fields: {
+            summary: "Unsigned Jira test",
+          },
+        },
+        comment: {
+          id: "2",
+          body: "no bot command",
+          author: {
+            displayName: "Tester",
+          },
+        },
+      },
+      metadata: {
+        repositoryId: "jira-project-1",
+        issueKey: "jira-project-1-2",
+      },
+    };
     const { service, providerFixture, mocks } = createHarness({
       providerName: "jira",
       event,
@@ -369,6 +504,140 @@ describe("WebhookService", () => {
 
     expect(result.status).toBe("processed");
     expect(providerFixture.verifySignature).not.toHaveBeenCalled();
+  });
+
+  it("creates Jira ticket for issue_created and prefers config project linkage", async () => {
+    const config = createConfig("jira");
+    config.allowedEvents = ["issue_created"];
+    config.autoExecute = false;
+    config.projectId = "project-from-config";
+    config.providerProjectId = "OPS";
+
+    const event = createJiraIssueCreatedEvent();
+    const { service, mocks } = createHarness({
+      providerName: "jira",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-atlassian-webhook-signature": "sha256=jira-signature",
+      },
+      event.payload,
+      rawBody,
+      "tenant-from-header",
+      { providerName: "jira" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-from-config",
+        title: "Login outage",
+        autoFixRequested: false,
+      }),
+    );
+    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+  });
+
+  it("creates Jira ticket and job for bot-triggered comment_created flow", async () => {
+    const config = createConfig("jira");
+    config.allowedEvents = ["comment_created"];
+    config.botUsername = "viberator";
+
+    const event = createJiraCommentCreatedEvent();
+    const { service, mocks } = createHarness({
+      providerName: "jira",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-atlassian-webhook-signature": "sha256=jira-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "jira" },
+    );
+
+    expect(result).toEqual({
+      status: "processed",
+      ticketId: "ticket-1",
+      jobId: "job-1",
+    });
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Login outage",
+        autoFixRequested: true,
+      }),
+    );
+    expect(mocks.jobService.submitJob).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores unsupported Jira issue actions with explicit reason", async () => {
+    const config = createConfig("jira");
+    config.allowedEvents = ["*"];
+    config.providerProjectId = "OPS";
+
+    const event = createUnsupportedJiraIssueUpdateEvent();
+    const { service, mocks } = createHarness({
+      providerName: "jira",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-atlassian-webhook-signature": "sha256=jira-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "jira" },
+    );
+
+    expect(result.status).toBe("ignored");
+    expect(result.reason).toContain("issue_updated.issue_assigned");
+    expect(mocks.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
+    expect(mocks.ticketDAO.createTicket).not.toHaveBeenCalled();
+  });
+
+  it("resolves Jira config from issue key project prefix when metadata lacks project IDs", async () => {
+    const config = createConfig("jira");
+    config.providerProjectId = "OPS";
+    config.allowedEvents = ["issue_created"];
+
+    const event = {
+      ...createJiraIssueCreatedEvent(),
+      metadata: {
+        issueKey: "OPS-42",
+      },
+    };
+    const { service, mocks } = createHarness({
+      providerName: "jira",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-atlassian-webhook-signature": "sha256=jira-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "jira" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
+      "jira",
+      "OPS",
+      "inbound",
+    );
   });
 
   it("creates GitHub ticket for issues.opened and links to config project deterministically", async () => {
