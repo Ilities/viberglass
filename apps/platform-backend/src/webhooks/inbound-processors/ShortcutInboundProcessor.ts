@@ -33,6 +33,7 @@ interface ShortcutStoryPayload {
     description?: string;
     story_type: 'feature' | 'bug' | 'chore';
     workflow_state?: { name: string };
+    project_id?: number;
     project?: { name: string };
     app_url: string;
   };
@@ -66,6 +67,11 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       tenantId || defaultTenantId || config.projectId || 'default';
     result.projectId = resolvedTenantId;
 
+    if (event.eventType !== 'story_created' && event.eventType !== 'comment_created') {
+      result.ignoredReason = `Unsupported Shortcut event '${event.eventType}'`;
+      return result;
+    }
+
     if (event.eventType === 'story_created') {
       return this.processStoryCreated(event, config, resolvedTenantId, result);
     }
@@ -98,12 +104,21 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       severity,
       category: payload.data.story_type === 'bug' ? 'bug' : 'feature',
       metadata: this.createTicketMetadata({
+        ...this.createBaseMetadata(event, config),
         externalTicketId: payload.data.id.toString(),
         externalTicketUrl: payload.data.app_url,
-        webhookConfigId: config.id,
-        provider: 'shortcut',
+        storyId: payload.data.id.toString(),
+        shortcutStoryId: payload.data.id.toString(),
+        issueNumber: payload.data.id,
         storyType: payload.data.story_type,
-        project: payload.data.project?.name,
+        projectId: payload.data.project_id?.toString() || event.metadata.projectId,
+        project: payload.data.project?.name || event.metadata.repositoryId,
+        repository: payload.data.project?.name || event.metadata.repositoryId,
+        repositoryId: event.metadata.repositoryId || payload.data.project?.name,
+        providerProjectId:
+          payload.data.project_id?.toString() ||
+          config.providerProjectId ||
+          event.metadata.projectId,
         workflowState: payload.data.workflow_state?.name,
       }),
       annotations: [],
@@ -159,9 +174,15 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       severity: 'medium',
       category: 'bug',
       metadata: this.createTicketMetadata({
+        ...this.createBaseMetadata(event, config),
         externalTicketId: payload.data.story_id.toString(),
-        webhookConfigId: config.id,
-        provider: 'shortcut',
+        storyId: payload.data.story_id.toString(),
+        shortcutStoryId: payload.data.story_id.toString(),
+        issueNumber: payload.data.story_id,
+        projectId: event.metadata.projectId,
+        repository: event.metadata.repositoryId,
+        repositoryId: event.metadata.repositoryId,
+        providerProjectId: config.providerProjectId || event.metadata.projectId,
         triggeredByComment: true,
       }),
       annotations: [],
@@ -183,7 +204,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     const jobData: JobData = {
       id: randomUUID(),
       tenantId: resolvedTenantId,
-      repository: '',
+      repository: event.metadata.repositoryId || config.providerProjectId || '',
       task: `Fix Shortcut story from comment: ${payload.data.story_id}`,
       context: webhookContext as any,
       settings: {
@@ -248,6 +269,21 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       timestamp: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       ...baseData,
+    };
+  }
+
+  private createBaseMetadata(
+    event: ParsedWebhookEvent,
+    config: InboundEventContext['config'],
+  ): Record<string, unknown> {
+    return {
+      webhookConfigId: config.id,
+      provider: 'shortcut',
+      eventType: event.eventType,
+      eventAction: event.metadata.action,
+      deliveryId: event.deduplicationId,
+      integrationId: config.integrationId,
+      providerProjectId: config.providerProjectId,
     };
   }
 }

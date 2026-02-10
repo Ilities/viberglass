@@ -114,6 +114,53 @@ class MockJiraProvider extends WebhookProvider {
   }
 }
 
+class MockShortcutProvider extends WebhookProvider {
+  readonly name = "shortcut";
+
+  static readonly postCommentMock = jest.fn<Promise<void>, [string, string]>();
+  static readonly updateLabelsMock = jest.fn<Promise<void>, [string, string[], string[]]>();
+  static readonly postResultMock = jest.fn<Promise<void>, [string, WebhookResult]>();
+
+  parseEvent(
+    _payload: unknown,
+    _headers: Record<string, string>,
+  ): ParsedWebhookEvent {
+    throw new Error("parseEvent is not used in FeedbackService tests");
+  }
+
+  verifySignature(_payload: Buffer, _signature: string, _secret: string): boolean {
+    return true;
+  }
+
+  getSupportedEvents(): string[] {
+    return [];
+  }
+
+  validateConfig(_config: WebhookProviderConfig): boolean {
+    return true;
+  }
+
+  async postComment(storyId: string, body: string): Promise<void> {
+    await MockShortcutProvider.postCommentMock(storyId, body);
+  }
+
+  async updateLabels(
+    storyId: string,
+    add: string[],
+    remove: string[],
+  ): Promise<void> {
+    await MockShortcutProvider.updateLabelsMock(storyId, add, remove);
+  }
+
+  async postResult(storyId: string, result: WebhookResult): Promise<void> {
+    await MockShortcutProvider.postResultMock(storyId, result);
+  }
+
+  protected createHttpClient(): AxiosInstance {
+    throw new Error("HTTP client is not used in FeedbackService tests");
+  }
+}
+
 function createConfig(
   overrides: Partial<WebhookConfig> = {},
 ): WebhookConfig {
@@ -180,6 +227,9 @@ describe("FeedbackService", () => {
     MockJiraProvider.postCommentMock.mockReset();
     MockJiraProvider.updateLabelsMock.mockReset();
     MockJiraProvider.postResultMock.mockReset();
+    MockShortcutProvider.postCommentMock.mockReset();
+    MockShortcutProvider.updateLabelsMock.mockReset();
+    MockShortcutProvider.postResultMock.mockReset();
 
     provider = new MockGitHubProvider({
       type: "github",
@@ -536,5 +586,63 @@ describe("FeedbackService", () => {
       error: "No external ticket ID found",
     });
     expect(MockJiraProvider.postCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves Shortcut story id from metadata and dispatches outbound job_started", async () => {
+    provider = new MockShortcutProvider({
+      type: "shortcut",
+      secretLocation: "database",
+      algorithm: "sha256",
+      allowedEvents: ["*"],
+      apiToken: "template-token",
+      providerProjectId: "77",
+    });
+
+    const shortcutInboundConfig = createConfig({
+      id: "inbound-shortcut-1",
+      provider: "shortcut",
+      direction: "inbound",
+      providerProjectId: "77",
+    });
+    const shortcutOutboundConfig = createConfig({
+      id: "outbound-shortcut-1",
+      provider: "shortcut",
+      direction: "outbound",
+      providerProjectId: "77",
+    });
+
+    mockConfigDAO.getConfigById.mockResolvedValue(shortcutInboundConfig);
+    mockConfigDAO.getByIntegrationId.mockResolvedValue(shortcutOutboundConfig);
+    mockConfigDAO.listByIntegrationId.mockResolvedValue([shortcutOutboundConfig]);
+    mockConfigDAO.listConfigsByProject.mockResolvedValue([shortcutOutboundConfig]);
+    mockConfigDAO.listActiveConfigs.mockResolvedValue([shortcutOutboundConfig]);
+
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: "ticket-shortcut-1",
+      projectId: "project-1",
+      ticketSystem: "shortcut",
+      metadata: {
+        webhookConfigId: "inbound-shortcut-1",
+        provider: "shortcut",
+        shortcutStoryId: "303",
+      },
+    } as any);
+
+    const result = await service.postJobStarted({
+      id: "job-shortcut-1",
+      ticketId: "ticket-shortcut-1",
+      status: "active",
+    });
+
+    expect(result.success).toBe(true);
+    expect(MockShortcutProvider.postCommentMock).toHaveBeenCalledWith(
+      "303",
+      expect.stringContaining("Job Started"),
+    );
+    expect(mockSecretService.getApiToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "shortcut",
+      }),
+    );
   });
 });

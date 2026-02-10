@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isActive) return
         setUser(currentUser)
         setStatus('authenticated')
-      } catch (error) {
+      } catch {
         if (!isActive) return
         clearStoredAuthToken()
         setUser(null)

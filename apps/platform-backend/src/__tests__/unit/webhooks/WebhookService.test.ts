@@ -330,7 +330,7 @@ describe("WebhookService", () => {
       { providerName: "shortcut" },
     );
 
-    expect(result.status).toBe("processed");
+    expect(result.status).toBe("ignored");
     expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
       "shortcut",
       "shortcut-project-1",
@@ -343,6 +343,55 @@ describe("WebhookService", () => {
     expect(mocks.configDAO.getActiveConfigByProviderProject).not.toHaveBeenCalledWith(
       "github",
       expect.anything(),
+      "inbound",
+    );
+  });
+
+  it("resolves Shortcut config candidates from issue key when project metadata is absent", async () => {
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_created",
+      deduplicationId: "shortcut-delivery-story-1",
+      timestamp: "2026-02-09T00:00:00.000Z",
+      payload: {
+        object_type: "story",
+        action: "create",
+        data: {
+          id: 321,
+          name: "Broken flow",
+          story_type: "bug",
+          app_url: "https://app.shortcut.com/acme/story/321",
+        },
+      },
+      metadata: {
+        issueKey: "321",
+      },
+    };
+    const config = createConfig("shortcut");
+    config.providerProjectId = "321";
+    config.allowedEvents = ["story_created"];
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-story-1",
+        "x-shortcut-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
+      "shortcut",
+      "321",
       "inbound",
     );
   });

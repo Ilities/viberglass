@@ -14,7 +14,7 @@ export function NavbarDivider({ className, ...props }: React.ComponentPropsWitho
 }
 
 export function NavbarSection({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
-  let id = useId()
+  const id = useId()
 
   return (
     <LayoutGroup id={id}>
@@ -39,7 +39,7 @@ export const NavbarItem = forwardRef(function NavbarItem(
   ),
   ref: React.ForwardedRef<HTMLAnchorElement | HTMLButtonElement>
 ) {
-  let classes = clsx(
+  const classes = clsx(
     // Base
     'navbar-item relative flex min-w-0 items-center gap-2 border border-transparent px-2.5 py-1.5 text-left text-base/6 font-semibold tracking-[0.01em] text-zinc-950 sm:text-sm/5',
     // Leading icon/icon-only (Radix icons use stroke)

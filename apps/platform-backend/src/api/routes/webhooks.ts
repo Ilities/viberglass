@@ -9,7 +9,10 @@ import express from 'express';
 import { ProviderRegistry } from '../../webhooks/ProviderRegistry';
 import { GitHubWebhookProvider } from '../../webhooks/providers/GitHubWebhookProvider';
 import { JiraWebhookProvider } from '../../webhooks/providers/JiraWebhookProvider';
-import { ShortcutWebhookProvider } from '../../webhooks/providers/ShortcutWebhookProvider';
+import {
+  ShortcutWebhookProvider,
+  createShortcutWebhookProviderDependencies,
+} from '../../webhooks/providers/ShortcutWebhookProvider';
 import { CustomWebhookProvider } from '../../webhooks/providers/CustomWebhookProvider';
 import { WebhookConfigDAO } from '../../persistence/webhook/WebhookConfigDAO';
 import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO';
@@ -75,7 +78,7 @@ function getWebhookService(): WebhookService {
       secretLocation: 'database',
       algorithm: 'sha256',
       allowedEvents: ['story_created', 'story_updated', 'comment_created'],
-    });
+    }, createShortcutWebhookProviderDependencies());
     registry.register(shortcutProvider);
 
     // Register Custom provider (inbound-only)

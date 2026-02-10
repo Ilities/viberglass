@@ -348,7 +348,7 @@ interface SetupInstructionsProps {
 
 export function SetupInstructions({
   provider,
-  providerProjectId,
+  providerProjectId: _providerProjectId,
   webhookUrl,
   webhookSecret,
   allowedEvents,

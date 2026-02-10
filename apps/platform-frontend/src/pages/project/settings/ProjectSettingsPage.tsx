@@ -39,10 +39,6 @@ const ALL_INTEGRATIONS = [
   { id: 'slack', name: 'Slack' },
 ] as const
 
-interface ProjectSettingsClientProps {
-  project: string
-}
-
 export function ProjectSettingsPage() {
   const { project } = useParams<{ project: string }>()
   const { project: projectData, isLoading: isProjectLoading, error: projectError } = useProject()
