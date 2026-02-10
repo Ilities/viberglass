@@ -1,8 +1,11 @@
-import { IntegrationCard, IntegrationCardSkeleton } from '@/components/integration-card'
-import type { IntegrationSummary } from '@viberglass/types'
+import {
+  IntegrationCard,
+  IntegrationCardSkeleton,
+  type IntegrationCardData,
+} from '@/components/integration-card'
 
 interface IntegrationGridProps {
-  integrations: IntegrationSummary[]
+  integrations: IntegrationCardData[]
   hrefBase?: string
   isLoading?: boolean
 }
@@ -34,7 +37,11 @@ export function IntegrationGrid({ integrations, hrefBase = '/settings/integratio
     const statusOrder = { configured: 0, not_configured: 1, stub: 2 }
     const statusDiff = statusOrder[a.configStatus] - statusOrder[b.configStatus]
     if (statusDiff !== 0) return statusDiff
-    return a.label.localeCompare(b.label)
+    const leftLabel = a.integrationName || a.label
+    const rightLabel = b.integrationName || b.label
+    const labelDiff = leftLabel.localeCompare(rightLabel)
+    if (labelDiff !== 0) return labelDiff
+    return a.id.localeCompare(b.id)
   })
 
   return (

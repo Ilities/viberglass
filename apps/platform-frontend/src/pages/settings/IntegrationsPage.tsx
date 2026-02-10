@@ -1,20 +1,31 @@
+import type { IntegrationCardData } from '@/components/integration-card'
 import { IntegrationGrid } from '@/components/integration-grid'
 import { Heading, Subheading } from '@/components/heading'
 import { Text } from '@/components/text'
-import { getAllIntegrationSummaries } from '@/service/api/integration-api'
-import type { IntegrationSummary } from '@viberglass/types'
+import { getIntegrationSettingsListItems } from '@/service/api/integration-api'
 import { useEffect, useState } from 'react'
 
 export function IntegrationsPage() {
-  const [integrations, setIntegrations] = useState<IntegrationSummary[]>([])
+  const [integrations, setIntegrations] = useState<IntegrationCardData[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await getAllIntegrationSummaries()
-        setIntegrations(data)
+        const data = await getIntegrationSettingsListItems()
+        setIntegrations(
+          data.map((integration) => ({
+            id: integration.id,
+            system: integration.system,
+            label: integration.label,
+            category: integration.category,
+            description: integration.description,
+            configStatus: integration.configStatus,
+            integrationEntityId: integration.integrationEntityId,
+            integrationName: integration.integrationName,
+          }))
+        )
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : 'Failed to load integrations')
       }
@@ -32,7 +43,10 @@ export function IntegrationsPage() {
   }
 
   const configuredCount = integrations.filter((i) => i.configStatus === 'configured').length
-  const readyCount = integrations.filter((i) => i.status === 'ready').length
+  const availableCount = integrations.filter((i) => i.configStatus === 'not_configured').length
+  const readyCount = new Set(
+    integrations.filter((i) => i.configStatus !== 'stub').map((i) => i.system)
+  ).size
 
   return (
     <div className="space-y-8 p-6 lg:p-8">
@@ -59,7 +73,7 @@ export function IntegrationsPage() {
         </div>
         <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
           <div className="text-2xl font-semibold text-zinc-950 dark:text-white">
-            {integrations.length - configuredCount}
+            {availableCount}
           </div>
           <div className="text-sm text-zinc-500 dark:text-zinc-400">Available</div>
         </div>

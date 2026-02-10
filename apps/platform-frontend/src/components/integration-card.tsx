@@ -5,20 +5,44 @@ import {
   getIntegrationStatusConfig,
 } from '@/components/integration-visuals'
 import { Link } from '@/components/link'
-import type { IntegrationSummary } from '@viberglass/types'
+import type {
+  IntegrationCategory,
+  IntegrationConfigStatus,
+  TicketSystem,
+} from '@viberglass/types'
+
+export interface IntegrationCardData {
+  id: string
+  system: TicketSystem
+  label: string
+  category: IntegrationCategory
+  description: string
+  configStatus: IntegrationConfigStatus
+  integrationEntityId?: string
+  integrationName?: string
+}
 
 interface IntegrationCardProps {
-  integration: IntegrationSummary
+  integration: IntegrationCardData
   hrefBase?: string
 }
 
 export function IntegrationCard({ integration, hrefBase = '/settings/integrations' }: IntegrationCardProps) {
-  const IconComponent = getIntegrationIcon(integration.id)
+  const IconComponent = getIntegrationIcon(integration.system)
   const status = getIntegrationStatusConfig(integration.configStatus)
   const category = getIntegrationCategoryConfig(integration.category)
   const StatusIcon = status.icon
   const basePath = hrefBase.endsWith('/') ? hrefBase.slice(0, -1) : hrefBase
-  const href = `${basePath}/${integration.id}`
+  const href = integration.integrationEntityId
+    ? `${basePath}/${integration.integrationEntityId}`
+    : `${basePath}/new/${integration.system}`
+  const cardTitle = integration.integrationName || integration.label
+  const cardAction =
+    integration.configStatus === 'configured'
+      ? 'Manage'
+      : integration.configStatus === 'stub'
+        ? 'View'
+        : 'Configure'
 
   return (
     <Link
@@ -38,16 +62,19 @@ export function IntegrationCard({ integration, hrefBase = '/settings/integration
 
       <div className="flex-1">
         <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold text-zinc-950 dark:text-white">{integration.label}</h3>
+          <h3 className="text-base font-semibold text-zinc-950 dark:text-white">{cardTitle}</h3>
           <Badge color={category.color} className="text-xs">
             {category.label}
           </Badge>
         </div>
+        {integration.integrationName && (
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{integration.label}</p>
+        )}
         <p className="mt-2 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">{integration.description}</p>
       </div>
 
       <div className="mt-4 flex items-center gap-2 text-sm font-medium text-brand-burnt-orange">
-        <span>{integration.configStatus === 'configured' ? 'Manage' : 'Configure'}</span>
+        <span>{cardAction}</span>
         <span aria-hidden="true">→</span>
       </div>
     </Link>
