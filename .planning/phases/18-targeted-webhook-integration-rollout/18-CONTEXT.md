@@ -65,4 +65,5 @@ The documents include:
 - Introducing new external integration providers beyond Jira/Shortcut/GitHub/Custom.
 - Reworking unrelated project/integration management UX outside webhook-related paths.
 - Replacing existing job orchestration semantics.
+- No need to keep compatibility with old implementation. Everything is unused
 
