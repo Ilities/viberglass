@@ -1,12 +1,12 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { Heading, Subheading } from '@/components/heading'
+import { IntegrationConfigForm } from '@/components/integration-config-form'
 import {
   getIntegrationCategoryConfig,
   getIntegrationIcon,
   getIntegrationStatusConfig,
 } from '@/components/integration-visuals'
-import { IntegrationConfigForm } from '@/components/integration-config-form'
-import { Heading, Subheading } from '@/components/heading'
 import { Link } from '@/components/link'
 import { Text } from '@/components/text'
 import {
@@ -22,25 +22,29 @@ import { ArrowLeftIcon } from '@radix-ui/react-icons'
 import type { AuthCredentialType, Integration, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
+import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
+import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
 import {
   IntegrationDetailErrorState,
   IntegrationDetailLoadingState,
   IntegrationDetailNotFoundState,
 } from './integration-detail/IntegrationDetailStates'
-import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
-import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
-import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
 import { JiraInboundWebhookSection } from './integration-detail/JiraInboundWebhookSection'
 import { JiraOutboundWebhookSection } from './integration-detail/JiraOutboundWebhookSection'
 import { OutboundWebhookSection } from './integration-detail/OutboundWebhookSection'
+import { ShortcutInboundWebhookSection } from './integration-detail/ShortcutInboundWebhookSection'
+import { ShortcutOutboundWebhookSection } from './integration-detail/ShortcutOutboundWebhookSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
-import { toast } from 'sonner'
 
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
-  const { integrationEntityId: integrationEntityIdParam, integrationSystem: integrationSystemParam } =
-    useParams<{ integrationEntityId?: string; integrationSystem?: string }>()
+  const { integrationEntityId: integrationEntityIdParam, integrationSystem: integrationSystemParam } = useParams<{
+    integrationEntityId?: string
+    integrationSystem?: string
+  }>()
 
   const [integrationType, setIntegrationType] = useState<AvailableIntegrationType | null>(null)
   const [existingIntegration, setExistingIntegration] = useState<Integration | null>(null)
@@ -55,6 +59,7 @@ export function IntegrationDetailPage() {
   const isConfigured = Boolean(existingIntegration)
   const isGithubIntegration = integrationSystem === 'github'
   const isJiraIntegration = integrationSystem === 'jira'
+  const isShortcutIntegration = integrationSystem === 'shortcut'
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
@@ -106,6 +111,36 @@ export function IntegrationDetailPage() {
 
     return jiraProjectKey
   }, [isJiraIntegration, jiraProjectKey, webhook.outboundWebhook?.providerProjectId])
+
+  const shortcutProjectId = useMemo(() => {
+    if (!isShortcutIntegration) {
+      return null
+    }
+
+    const value = initialValues.projectId
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim()
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value)
+    }
+
+    return null
+  }, [initialValues.projectId, isShortcutIntegration])
+
+  const shortcutProjectMapping = useMemo(() => {
+    if (!isShortcutIntegration) {
+      return null
+    }
+
+    const fromWebhookConfig = webhook.outboundWebhook?.providerProjectId
+    if (typeof fromWebhookConfig === 'string' && fromWebhookConfig.trim().length > 0) {
+      return fromWebhookConfig.trim()
+    }
+
+    return shortcutProjectId
+  }, [isShortcutIntegration, shortcutProjectId, webhook.outboundWebhook?.providerProjectId])
 
   useEffect(() => {
     let isActive = true
@@ -218,10 +253,7 @@ export function IntegrationDetailPage() {
   const category = getIntegrationCategoryConfig(integrationType.category)
   const StatusIcon = status.icon
 
-  const handleSubmit = async (values: {
-    authType: AuthCredentialType
-    values: Record<string, unknown>
-  }) => {
+  const handleSubmit = async (values: { authType: AuthCredentialType; values: Record<string, unknown> }) => {
     if (!integrationSystem) {
       return
     }
@@ -253,10 +285,7 @@ export function IntegrationDetailPage() {
     }
   }
 
-  const handleTest = async (_values: {
-    authType: AuthCredentialType
-    values: Record<string, unknown>
-  }) => {
+  const handleTest = async (_values: { authType: AuthCredentialType; values: Record<string, unknown> }) => {
     setIsTesting(true)
     setTestResult(null)
 
@@ -335,6 +364,27 @@ export function IntegrationDetailPage() {
     }
 
     void webhook.handleSaveOutboundWebhook(projectMapping)
+  }
+
+  const handleShortcutCreateInboundWebhook = () => {
+    void webhook.handleCreateInboundWebhook(shortcutProjectId || undefined)
+  }
+
+  const handleShortcutGenerateSecret = () => {
+    void webhook.handleGenerateSecret(shortcutProjectId || undefined)
+  }
+
+  const handleShortcutSaveInboundWebhook = () => {
+    void webhook.handleSaveInboundWebhook(shortcutProjectId || undefined)
+  }
+
+  const handleShortcutSaveOutboundWebhook = () => {
+    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
+      toast.error('Shortcut API token is required to create outbound webhook settings')
+      return
+    }
+
+    void webhook.handleSaveOutboundWebhook(shortcutProjectMapping || undefined)
   }
 
   if (integrationType.status === 'stub') {
@@ -477,6 +527,33 @@ export function IntegrationDetailPage() {
             onToggleInboundEvent={webhook.handleToggleInboundEvent}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
+        ) : isShortcutIntegration ? (
+          <ShortcutInboundWebhookSection
+            autoExecute={webhook.autoExecute}
+            deliveries={webhook.deliveries}
+            hasInboundChanges={webhook.hasInboundChanges}
+            inboundEvents={webhook.inboundEvents}
+            inboundWebhooks={webhook.inboundWebhooks}
+            isLoadingDeliveries={webhook.isLoadingDeliveries}
+            isLoadingWebhook={webhook.isLoadingWebhook}
+            isSavingWebhook={webhook.isSavingWebhook}
+            selectedInboundConfig={webhook.selectedInboundConfig}
+            selectedInboundConfigId={webhook.selectedInboundConfigId}
+            shortcutProjectId={shortcutProjectId}
+            showSecret={webhook.showSecret}
+            onAutoExecuteChange={webhook.setAutoExecute}
+            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
+            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
+            onCreateInboundWebhook={handleShortcutCreateInboundWebhook}
+            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
+            onGenerateSecret={handleShortcutGenerateSecret}
+            onRefreshDeliveries={webhook.handleRefreshDeliveries}
+            onRetryDelivery={webhook.handleRetryDelivery}
+            onSaveWebhook={handleShortcutSaveInboundWebhook}
+            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
+            onToggleInboundEvent={webhook.handleToggleInboundEvent}
+            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
+          />
         ) : (
           <InboundWebhookSection
             autoExecute={webhook.autoExecute}
@@ -534,6 +611,21 @@ export function IntegrationDetailPage() {
             onEmitJobStartedChange={webhook.setEmitJobStarted}
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
             onSaveOutboundWebhook={handleJiraSaveOutboundWebhook}
+          />
+        ) : isShortcutIntegration ? (
+          <ShortcutOutboundWebhookSection
+            emitJobEnded={webhook.emitJobEnded}
+            emitJobStarted={webhook.emitJobStarted}
+            hasOutboundChanges={webhook.hasOutboundChanges}
+            isSavingWebhook={webhook.isSavingWebhook}
+            outboundApiToken={webhook.outboundApiToken}
+            outboundWebhook={webhook.outboundWebhook}
+            projectMapping={shortcutProjectMapping}
+            onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
+            onEmitJobEndedChange={webhook.setEmitJobEnded}
+            onEmitJobStartedChange={webhook.setEmitJobStarted}
+            onOutboundApiTokenChange={webhook.setOutboundApiToken}
+            onSaveOutboundWebhook={handleShortcutSaveOutboundWebhook}
           />
         ) : (
           <OutboundWebhookSection
