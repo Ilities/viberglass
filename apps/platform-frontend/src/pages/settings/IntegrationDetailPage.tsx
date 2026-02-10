@@ -27,6 +27,8 @@ import {
   IntegrationDetailLoadingState,
   IntegrationDetailNotFoundState,
 } from './integration-detail/IntegrationDetailStates'
+import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
+import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
 import { OutboundWebhookSection } from './integration-detail/OutboundWebhookSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
@@ -48,6 +50,7 @@ export function IntegrationDetailPage() {
   const integrationEntityId = existingIntegration?.id
   const integrationSystem = integrationType?.id
   const isConfigured = Boolean(existingIntegration)
+  const isGithubIntegration = integrationSystem === 'github'
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
@@ -59,6 +62,24 @@ export function IntegrationDetailPage() {
     () => (existingIntegration?.values as Record<string, string | number | boolean | string[]>) || {},
     [existingIntegration]
   )
+  const githubRepositoryMapping = useMemo(() => {
+    if (!isGithubIntegration) {
+      return null
+    }
+
+    const fromWebhookConfig = webhook.outboundWebhook?.providerProjectId
+    if (typeof fromWebhookConfig === 'string' && fromWebhookConfig.trim().length > 0) {
+      return fromWebhookConfig.trim()
+    }
+
+    const owner = typeof initialValues.owner === 'string' ? initialValues.owner.trim() : ''
+    const repo = typeof initialValues.repo === 'string' ? initialValues.repo.trim() : ''
+    if (owner && repo) {
+      return `${owner}/${repo}`
+    }
+
+    return null
+  }, [initialValues, isGithubIntegration, webhook.outboundWebhook?.providerProjectId])
 
   useEffect(() => {
     let isActive = true
@@ -324,45 +345,90 @@ export function IntegrationDetailPage() {
       </section>
 
       {isConfigured && capabilities.supportsInboundWebhooks && (
-        <InboundWebhookSection
-          autoExecute={webhook.autoExecute}
-          deliveries={webhook.deliveries}
-          hasInboundChanges={webhook.hasInboundChanges}
-          inboundWebhooks={webhook.inboundWebhooks}
-          isLoadingDeliveries={webhook.isLoadingDeliveries}
-          isLoadingWebhook={webhook.isLoadingWebhook}
-          isSavingWebhook={webhook.isSavingWebhook}
-          selectedInboundConfig={webhook.selectedInboundConfig}
-          selectedInboundConfigId={webhook.selectedInboundConfigId}
-          showCustomPayloadHelp={capabilities.showCustomInboundPayloadHelp}
-          showSecret={webhook.showSecret}
-          onAutoExecuteChange={webhook.setAutoExecute}
-          onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-          onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
-          onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-          onGenerateSecret={webhook.handleGenerateSecret}
-          onRefreshDeliveries={webhook.handleRefreshDeliveries}
-          onRetryDelivery={webhook.handleRetryDelivery}
-          onSaveWebhook={webhook.handleSaveInboundWebhook}
-          onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-          onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
-        />
+        isGithubIntegration ? (
+          <GitHubInboundWebhookSection
+            autoExecute={webhook.autoExecute}
+            deliveries={webhook.deliveries}
+            hasInboundChanges={webhook.hasInboundChanges}
+            inboundEvents={webhook.inboundEvents}
+            inboundWebhooks={webhook.inboundWebhooks}
+            isLoadingDeliveries={webhook.isLoadingDeliveries}
+            isLoadingWebhook={webhook.isLoadingWebhook}
+            isSavingWebhook={webhook.isSavingWebhook}
+            selectedInboundConfig={webhook.selectedInboundConfig}
+            selectedInboundConfigId={webhook.selectedInboundConfigId}
+            showSecret={webhook.showSecret}
+            onAutoExecuteChange={webhook.setAutoExecute}
+            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
+            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
+            onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
+            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
+            onGenerateSecret={webhook.handleGenerateSecret}
+            onRefreshDeliveries={webhook.handleRefreshDeliveries}
+            onRetryDelivery={webhook.handleRetryDelivery}
+            onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
+            onToggleInboundEvent={webhook.handleToggleInboundEvent}
+            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
+          />
+        ) : (
+          <InboundWebhookSection
+            autoExecute={webhook.autoExecute}
+            deliveries={webhook.deliveries}
+            hasInboundChanges={webhook.hasInboundChanges}
+            inboundWebhooks={webhook.inboundWebhooks}
+            isLoadingDeliveries={webhook.isLoadingDeliveries}
+            isLoadingWebhook={webhook.isLoadingWebhook}
+            isSavingWebhook={webhook.isSavingWebhook}
+            selectedInboundConfig={webhook.selectedInboundConfig}
+            selectedInboundConfigId={webhook.selectedInboundConfigId}
+            showCustomPayloadHelp={capabilities.showCustomInboundPayloadHelp}
+            showSecret={webhook.showSecret}
+            onAutoExecuteChange={webhook.setAutoExecute}
+            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
+            onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
+            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
+            onGenerateSecret={webhook.handleGenerateSecret}
+            onRefreshDeliveries={webhook.handleRefreshDeliveries}
+            onRetryDelivery={webhook.handleRetryDelivery}
+            onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
+            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
+          />
+        )
       )}
 
       {isConfigured && capabilities.supportsOutboundWebhooks && (
-        <OutboundWebhookSection
-          emitJobEnded={webhook.emitJobEnded}
-          emitJobStarted={webhook.emitJobStarted}
-          hasOutboundChanges={webhook.hasOutboundChanges}
-          isSavingWebhook={webhook.isSavingWebhook}
-          outboundApiToken={webhook.outboundApiToken}
-          outboundWebhook={webhook.outboundWebhook}
-          onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
-          onEmitJobEndedChange={webhook.setEmitJobEnded}
-          onEmitJobStartedChange={webhook.setEmitJobStarted}
-          onOutboundApiTokenChange={webhook.setOutboundApiToken}
-          onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
-        />
+        isGithubIntegration ? (
+          <GitHubOutboundWebhookSection
+            emitJobEnded={webhook.emitJobEnded}
+            emitJobStarted={webhook.emitJobStarted}
+            hasOutboundChanges={webhook.hasOutboundChanges}
+            isSavingWebhook={webhook.isSavingWebhook}
+            outboundApiToken={webhook.outboundApiToken}
+            outboundWebhook={webhook.outboundWebhook}
+            repositoryMapping={githubRepositoryMapping}
+            onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
+            onEmitJobEndedChange={webhook.setEmitJobEnded}
+            onEmitJobStartedChange={webhook.setEmitJobStarted}
+            onOutboundApiTokenChange={webhook.setOutboundApiToken}
+            onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
+          />
+        ) : (
+          <OutboundWebhookSection
+            emitJobEnded={webhook.emitJobEnded}
+            emitJobStarted={webhook.emitJobStarted}
+            hasOutboundChanges={webhook.hasOutboundChanges}
+            isSavingWebhook={webhook.isSavingWebhook}
+            outboundApiToken={webhook.outboundApiToken}
+            outboundWebhook={webhook.outboundWebhook}
+            onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
+            onEmitJobEndedChange={webhook.setEmitJobEnded}
+            onEmitJobStartedChange={webhook.setEmitJobStarted}
+            onOutboundApiTokenChange={webhook.setOutboundApiToken}
+            onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
+          />
+        )
       )}
     </div>
   )
