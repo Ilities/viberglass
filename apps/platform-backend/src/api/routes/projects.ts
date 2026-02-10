@@ -12,7 +12,7 @@ import {
 } from '../middleware/validation';
 import { requireAuth } from '../middleware/authentication';
 import logger from '../../config/logger';
-import { integrationRegistry } from '../../integrations/registry';
+import { integrationRegistry } from '../../integrations/TicketingIntegrationRegistry';
 import type { IntegrationFieldDefinition as PluginFieldDefinition } from '../../integrations/plugin';
 import type {
   AuthCredentials,

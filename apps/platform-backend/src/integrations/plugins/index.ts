@@ -1,6 +1,6 @@
 import { bitbucketPlugin } from "./bitbucket";
-import { customPlugin } from "./custom/custom";
-import { githubPlugin } from "./github/github";
+import { customPlugin } from "./custom/customUtils";
+import { githubPlugin } from "./github/githubUtils";
 import { gitlabPlugin } from "./gitlab";
 import { jiraPlugin } from "./jira";
 import {
@@ -12,8 +12,8 @@ import {
 } from "./legacy";
 import { linearPlugin } from "./linear";
 import { mondayPlugin } from "./monday";
-import { shortcutPlugin } from "./shortcut/shortcut";
-import { slackPlugin } from "./slack/slack";
+import { shortcutPlugin } from "./shortcut/shortcutUtils";
+import { slackPlugin } from "./slack/slackUtils";
 
 export const builtInIntegrationPlugins = [
   githubPlugin,

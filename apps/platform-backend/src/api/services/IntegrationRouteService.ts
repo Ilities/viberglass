@@ -4,7 +4,7 @@ import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../persistence/int
 import { WebhookConfigDAO, type WebhookProvider } from '../../persistence/webhook/WebhookConfigDAO'
 import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO'
 import logger from '../../config/logger'
-import { integrationRegistry } from '../../integrations/registry'
+import { integrationRegistry } from '../../integrations/TicketingIntegrationRegistry'
 import type { AuthCredentials, TicketSystem } from '@viberglass/types'
 import { INTEGRATION_DESCRIPTIONS } from '@viberglass/types'
 
