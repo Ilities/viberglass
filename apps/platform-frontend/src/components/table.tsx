@@ -76,9 +76,9 @@ export function TableCell({
   excludeRowLink = false,
   ...props
 }: React.ComponentPropsWithoutRef<typeof RadixTable.Cell> & { excludeRowLink?: boolean }) {
-  let { href, target, title } = useContext(TableRowContext)
-  let shouldLink = href && !excludeRowLink
-  let [cellRef, setCellRef] = useState<HTMLElement | null>(null)
+  const { href, target, title } = useContext(TableRowContext)
+  const shouldLink = href && !excludeRowLink
+  const [cellRef, setCellRef] = useState<HTMLElement | null>(null)
 
   return (
     <RadixTable.Cell

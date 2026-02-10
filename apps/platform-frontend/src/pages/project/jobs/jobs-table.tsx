@@ -5,7 +5,6 @@ import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { formatTimestamp } from '@/data'
 import { JobListItem } from '@/service/api/job-api'
-import { ExternalLinkIcon } from '@radix-ui/react-icons'
 
 interface JobsTableProps {
   jobs: JobListItem[]

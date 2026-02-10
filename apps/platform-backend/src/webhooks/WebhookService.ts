@@ -443,6 +443,7 @@ export class WebhookService {
       event.metadata.repositoryId,
       event.metadata.projectId,
       jiraIssueProjectKey,
+      ...this.extractShortcutProviderProjectCandidates(event),
     ]) {
       if (candidate && !candidates.includes(candidate)) {
         candidates.push(candidate);
@@ -464,6 +465,51 @@ export class WebhookService {
     }
 
     return event.metadata.issueKey.slice(0, separatorIndex);
+  }
+
+  private extractShortcutProviderProjectCandidates(
+    event: ParsedWebhookEvent,
+  ): string[] {
+    if (event.provider !== "shortcut") {
+      return [];
+    }
+
+    const payload = event.payload as {
+      data?: {
+        id?: number | string;
+        story_id?: number | string;
+        project_id?: number | string;
+        project?: { id?: number | string; name?: string };
+      };
+      refs?: Array<{ id?: number | string; entity_type?: string }>;
+    };
+
+    const data = payload?.data;
+    const refs = Array.isArray(payload?.refs) ? payload.refs : [];
+    const referencedStory = refs.find((ref) => ref.entity_type === "story");
+    const candidates: Array<string | undefined> = [
+      this.normalizeCandidate(event.metadata.issueKey),
+      this.normalizeCandidate(data?.project_id),
+      this.normalizeCandidate(data?.project?.id),
+      this.normalizeCandidate(data?.project?.name),
+      this.normalizeCandidate(data?.story_id),
+      this.normalizeCandidate(data?.id),
+      this.normalizeCandidate(referencedStory?.id),
+    ];
+
+    return candidates.filter((candidate): candidate is string => Boolean(candidate));
+  }
+
+  private normalizeCandidate(value: unknown): string | undefined {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const normalized = value.trim();
+    return normalized || undefined;
   }
 
   private selectDeterministicConfig(
