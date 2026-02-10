@@ -126,10 +126,16 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
       throw new Error('Missing x-github-delivery header');
     }
 
+    if (!this.isRecord(payload)) {
+      throw new Error('GitHub payload must be a JSON object');
+    }
     const payloadObj = payload as Record<string, unknown>;
+    this.validatePayloadForSupportedEvent(eventType, payloadObj);
 
     // Build metadata
     const metadata = this.buildMetadata(payloadObj);
+    const action =
+      typeof payloadObj.action === 'string' ? payloadObj.action : undefined;
 
     // Override with GitHub-specific metadata
     if (payloadObj.repository) {
@@ -147,8 +153,8 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
       metadata.commentId = comment.id?.toString();
     }
 
-    if (payloadObj.action) {
-      metadata.action = payloadObj.action as string;
+    if (action) {
+      metadata.action = action;
     }
 
     if (payloadObj.sender) {
@@ -158,12 +164,54 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
 
     return {
       provider: 'github',
-      eventType,
+      eventType: this.toScopedEventType(eventType, action),
       deduplicationId: deliveryId,
       timestamp: this.extractTimestamp(payloadObj),
       payload,
       metadata,
     };
+  }
+
+  private toScopedEventType(eventType: string, action?: string): string {
+    if (!action) {
+      return eventType;
+    }
+    return `${eventType}.${action}`;
+  }
+
+  private validatePayloadForSupportedEvent(
+    eventType: string,
+    payload: Record<string, unknown>,
+  ): void {
+    const repository = payload.repository as { full_name?: string } | undefined;
+    if (
+      (eventType === 'issues' || eventType === 'issue_comment') &&
+      !repository?.full_name
+    ) {
+      throw new Error("Missing required field 'repository.full_name'");
+    }
+
+    if (eventType === 'issues') {
+      const issue = payload.issue as { number?: number } | undefined;
+      if (typeof issue?.number !== 'number') {
+        throw new Error("Missing required field 'issue.number'");
+      }
+    }
+
+    if (eventType === 'issue_comment') {
+      const issue = payload.issue as { number?: number } | undefined;
+      const comment = payload.comment as { id?: number } | undefined;
+      if (typeof issue?.number !== 'number') {
+        throw new Error("Missing required field 'issue.number'");
+      }
+      if (typeof comment?.id !== 'number') {
+        throw new Error("Missing required field 'comment.id'");
+      }
+    }
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
   /**
@@ -210,7 +258,7 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
    * @returns Array of event types this provider handles
    */
   getSupportedEvents(): string[] {
-    return ['issues', 'issue_comment', 'pull_request'];
+    return ['issues.opened', 'issue_comment.created'];
   }
 
   /**

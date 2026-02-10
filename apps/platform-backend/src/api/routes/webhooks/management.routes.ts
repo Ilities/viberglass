@@ -165,7 +165,8 @@ export function createManagementRoutes(getWebhookService: () => WebhookService) 
         secretPath: req.body.secretPath || null,
         webhookSecretEncrypted: req.body.webhookSecret,
         apiTokenEncrypted: req.body.apiToken,
-        allowedEvents: req.body.allowedEvents || ['issues', 'issue_comment'],
+        allowedEvents:
+          req.body.allowedEvents || ['issues.opened', 'issue_comment.created'],
         autoExecute: req.body.autoExecute || false,
         botUsername: req.body.botUsername || null,
         labelMappings: req.body.labelMappings || {},

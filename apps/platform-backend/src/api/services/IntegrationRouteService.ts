@@ -18,7 +18,7 @@ function mapSystemToWebhookProvider(system: string): WebhookProvider | null {
 function getDefaultInboundEvents(provider: WebhookProvider): string[] {
   switch (provider) {
     case 'github':
-      return ['issues', 'issue_comment']
+      return ['issues.opened', 'issue_comment.created']
     case 'jira':
       return ['issue_created', 'issue_updated', 'comment_created']
     case 'shortcut':
