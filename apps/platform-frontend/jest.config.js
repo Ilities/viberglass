@@ -1,20 +1,24 @@
-import nextJest from 'next/jest'
-
-const createJestConfig = nextJest({
-  dir: './',
-})
-
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  preset: 'ts-jest/presets/default-esm',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testEnvironment: 'jest-environment-jsdom',
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
-  testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.tsx'],
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: '<rootDir>/tsconfig.json',
+      },
+    ],
+  },
+  testMatch: ['<rootDir>/src/**/*.test.ts', '<rootDir>/src/**/*.test.tsx'],
   collectCoverageFrom: [
-    'app/**/*.{js,jsx,ts,tsx}',
-    'components/**/*.{js,jsx,ts,tsx}',
-    'lib/**/*.{js,jsx,ts,tsx}',
+    'src/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
@@ -24,4 +28,4 @@ const customJestConfig = {
   coverageReporters: ['text', 'lcov', 'html'],
 }
 
-export default createJestConfig(customJestConfig)
+export default customJestConfig
