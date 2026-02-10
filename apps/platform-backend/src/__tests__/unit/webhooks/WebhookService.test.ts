@@ -41,6 +41,79 @@ function createEvent(
   };
 }
 
+function createGitHubIssuesEvent(action: string): ParsedWebhookEvent {
+  return {
+    provider: "github",
+    eventType: `issues.${action}`,
+    deduplicationId: "github-delivery-1",
+    timestamp: "2026-02-09T00:00:00.000Z",
+    payload: {
+      action,
+      issue: {
+        number: 123,
+        title: "Fix login bug",
+        body: "Login fails after reset",
+        html_url: "https://github.com/acme/repo/issues/123",
+        user: { login: "reporter" },
+        state: "open",
+        labels: [{ name: "high" }],
+      },
+      repository: {
+        full_name: "github-project-1",
+        owner: { login: "acme" },
+        name: "repo",
+      },
+      sender: {
+        login: "reporter",
+      },
+    },
+    metadata: {
+      repositoryId: "github-project-1",
+      action,
+      issueKey: "123",
+      sender: "reporter",
+    },
+  };
+}
+
+function createGitHubIssueCommentEvent(action: string): ParsedWebhookEvent {
+  return {
+    provider: "github",
+    eventType: `issue_comment.${action}`,
+    deduplicationId: "github-delivery-comment-1",
+    timestamp: "2026-02-09T00:00:00.000Z",
+    payload: {
+      action,
+      issue: {
+        number: 123,
+        title: "Fix login bug",
+        body: "Login fails after reset",
+        html_url: "https://github.com/acme/repo/issues/123",
+      },
+      comment: {
+        id: 77,
+        body: "@viberator fix this please",
+        user: { login: "alice" },
+        created_at: "2026-02-09T00:00:00.000Z",
+        updated_at: "2026-02-09T00:00:00.000Z",
+      },
+      repository: {
+        full_name: "github-project-1",
+      },
+      sender: {
+        login: "alice",
+      },
+    },
+    metadata: {
+      repositoryId: "github-project-1",
+      action,
+      issueKey: "123",
+      commentId: "77",
+      sender: "alice",
+    },
+  };
+}
+
 function createProvider(
   providerName: ProviderName,
   event: ParsedWebhookEvent,
@@ -86,6 +159,7 @@ describe("WebhookService", () => {
     const configDAO = {
       getConfigById: jest.fn().mockResolvedValue(null),
       getByIntegrationId: jest.fn().mockResolvedValue(null),
+      listByIntegrationId: jest.fn().mockResolvedValue([]),
       getActiveConfigByProviderProject: jest.fn().mockResolvedValue(config),
       listConfigsByProject: jest.fn().mockResolvedValue([]),
       listConfigsByProvider: jest.fn().mockResolvedValue([config]),
@@ -137,6 +211,7 @@ describe("WebhookService", () => {
         deduplication,
         secretService,
         ticketDAO,
+        jobService,
       },
     };
   }
@@ -258,11 +333,14 @@ describe("WebhookService", () => {
       status: "rejected",
       reason: "Invalid signature",
     });
-    expect(mocks.deduplication.shouldProcessDelivery).not.toHaveBeenCalled();
+    expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
+      "github-delivery-1",
+      "cfg-github",
+    );
     expect(mocks.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
     expect(mocks.deduplication.recordDeliveryFailureById).toHaveBeenCalledWith(
       "delivery-row-1",
-      "Invalid signature",
+      "Rejected: Invalid signature",
     );
   });
 
@@ -291,5 +369,202 @@ describe("WebhookService", () => {
 
     expect(result.status).toBe("processed");
     expect(providerFixture.verifySignature).not.toHaveBeenCalled();
+  });
+
+  it("creates GitHub ticket for issues.opened and links to config project deterministically", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issues.opened"];
+    config.autoExecute = false;
+    config.projectId = "project-from-config";
+
+    const event = createGitHubIssuesEvent("opened");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      "tenant-from-header",
+      { providerName: "github" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-from-config",
+        title: "Fix login bug",
+        autoFixRequested: false,
+      }),
+    );
+    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+  });
+
+  it("submits GitHub job automatically for issues.opened when autoExecute is enabled", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issues.opened"];
+    config.autoExecute = true;
+
+    const event = createGitHubIssuesEvent("opened");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "github" },
+    );
+
+    expect(result).toEqual({
+      status: "processed",
+      ticketId: "ticket-1",
+      jobId: "job-1",
+    });
+    expect(mocks.jobService.submitJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: "Fix issue: Fix login bug",
+      }),
+      { ticketId: "ticket-1" },
+    );
+  });
+
+  it("creates ticket and job for bot-triggered issue_comment.created flow", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issue_comment.created"];
+    config.botUsername = "viberator";
+
+    const event = createGitHubIssueCommentEvent("created");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "github" },
+    );
+
+    expect(result).toEqual({
+      status: "processed",
+      ticketId: "ticket-1",
+      jobId: "job-1",
+    });
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Fix login bug",
+        autoFixRequested: true,
+      }),
+    );
+    expect(mocks.jobService.submitJob).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores disallowed GitHub events with delivery diagnostics", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issues.opened"];
+
+    const event = createGitHubIssuesEvent("closed");
+    const { service, mocks, providerFixture } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "github" },
+    );
+
+    expect(result.status).toBe("ignored");
+    expect(result.reason).toContain("not allowed");
+    expect(providerFixture.verifySignature).not.toHaveBeenCalled();
+    expect(mocks.deduplication.recordDeliveryStart).toHaveBeenCalledTimes(1);
+    expect(mocks.deduplication.recordDeliveryFailureById).toHaveBeenCalledWith(
+      "delivery-row-1",
+      expect.stringContaining("issues.closed"),
+    );
+  });
+
+  it("uses integration-scoped config resolution deterministically with provider project match", async () => {
+    const event = createGitHubIssuesEvent("opened");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config: createConfig("github"),
+    });
+
+    const nonMatchingConfig = {
+      ...createConfig("github"),
+      id: "cfg-github-a",
+      providerProjectId: "github-project-2",
+      createdAt: new Date("2026-02-09T00:00:00.000Z"),
+      updatedAt: new Date("2026-02-09T00:00:00.000Z"),
+    };
+    const matchingConfig = {
+      ...createConfig("github"),
+      id: "cfg-github-b",
+      providerProjectId: "github-project-1",
+      createdAt: new Date("2026-02-08T00:00:00.000Z"),
+      updatedAt: new Date("2026-02-08T00:00:00.000Z"),
+      allowedEvents: ["issues.opened"],
+    };
+    mocks.configDAO.listByIntegrationId.mockResolvedValue([
+      nonMatchingConfig,
+      matchingConfig,
+    ]);
+    mocks.configDAO.getActiveConfigByProviderProject.mockResolvedValue(null);
+    mocks.configDAO.listConfigsByProvider.mockResolvedValue([
+      nonMatchingConfig,
+      matchingConfig,
+    ]);
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      {
+        providerName: "github",
+        integrationId: "integration-1",
+      },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.configDAO.listByIntegrationId).toHaveBeenCalledWith(
+      "integration-1",
+      {
+        direction: "inbound",
+        activeOnly: false,
+      },
+    );
+    expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
+      "github-delivery-1",
+      "cfg-github-b",
+    );
+    expect(mocks.configDAO.getActiveConfigByProviderProject).not.toHaveBeenCalled();
   });
 });

@@ -167,7 +167,6 @@ export class WebhookService {
     // 3. Resolve webhook configuration
     const dbConfig = await this.resolveConfig(event, {
       providerName: provider.name as "github" | "jira" | "shortcut" | "custom",
-      tenantId,
       ...options,
     });
     if (!dbConfig) {
@@ -178,22 +177,27 @@ export class WebhookService {
     }
 
     if (!dbConfig.active) {
+      const reason = `Webhook configuration '${dbConfig.id}' is inactive`;
+      await this.recordFailedDelivery(event, dbConfig, reason);
       return {
         status: "ignored",
-        reason: "Webhook configuration is inactive",
+        reason,
       };
     }
 
     // Check if event type is allowed
-    if (!this.isEventAllowed(event.eventType, dbConfig)) {
+    if (!this.isEventAllowed(event, dbConfig)) {
+      const allowedCandidates = this.getAllowedEventCandidates(event).join(", ");
+      const reason = `Event '${allowedCandidates}' not allowed for webhook config '${dbConfig.id}'`;
+      await this.recordFailedDelivery(event, dbConfig, reason);
       return {
         status: "ignored",
-        reason: `Event type '${event.eventType}' not in allowed list`,
+        reason,
       };
     }
 
     // Convert DB config to provider config for signature verification
-    const providerConfig = this.toProviderConfig(dbConfig, provider.name);
+    const providerConfig = this.toProviderConfig(dbConfig);
 
     // 4. Verify signature
     const signatureResult = await this.verifySignature({
@@ -205,10 +209,11 @@ export class WebhookService {
       tenantId,
     });
     if (!signatureResult.valid) {
+      const reason = `Rejected: ${signatureResult.reason ?? "Invalid signature"}`;
       await this.recordFailedDelivery(
         event,
         dbConfig,
-        signatureResult.reason ?? "Invalid signature",
+        reason,
       );
       return {
         status: "rejected",
@@ -330,7 +335,10 @@ export class WebhookService {
       const event = provider.parseEvent(delivery.payload, {
         ...(delivery.provider === "github"
           ? {
-              "x-github-event": delivery.eventType,
+              "x-github-event": this.getRetryEventTypeForProvider(
+                delivery.provider,
+                delivery.eventType,
+              ),
               "x-github-delivery": delivery.deliveryId,
             }
           : {}),
@@ -393,45 +401,52 @@ export class WebhookService {
     event: ParsedWebhookEvent,
     options: {
       providerName: "github" | "jira" | "shortcut" | "custom";
-      tenantId?: string;
       configId?: string;
       integrationId?: string;
       providerProjectId?: string;
     },
   ): Promise<WebhookConfig | null> {
+    const providerProjectIds = this.buildProviderProjectIdCandidates(
+      options.providerProjectId,
+      event,
+    );
+
     if (options.configId) {
       const directConfig = await this.configDAO.getConfigById(options.configId);
-      if (
-        directConfig &&
-        directConfig.direction === "inbound" &&
-        directConfig.provider === options.providerName
-      ) {
-        return directConfig;
+      if (!directConfig) {
+        return null;
       }
+
+      if (directConfig.direction !== "inbound") {
+        return null;
+      }
+
+      if (directConfig.provider !== options.providerName) {
+        return null;
+      }
+
+      if (
+        options.integrationId &&
+        directConfig.integrationId !== options.integrationId
+      ) {
+        return null;
+      }
+
+      return directConfig;
     }
 
     if (options.integrationId) {
-      const integrationConfig = await this.configDAO.getByIntegrationId(
+      const integrationConfigs = await this.configDAO.listByIntegrationId(
         options.integrationId,
-        "inbound",
+        {
+          direction: "inbound",
+          activeOnly: false,
+        },
       );
-      if (
-        integrationConfig &&
-        integrationConfig.provider === options.providerName
-      ) {
-        return integrationConfig;
-      }
-    }
-
-    const providerProjectIds = new Set<string>();
-    for (const candidate of [
-      options.providerProjectId,
-      event.metadata.repositoryId,
-      event.metadata.projectId,
-    ]) {
-      if (candidate) {
-        providerProjectIds.add(candidate);
-      }
+      const providerConfigs = integrationConfigs.filter(
+        (config) => config.provider === options.providerName,
+      );
+      return this.selectDeterministicConfig(providerConfigs, providerProjectIds);
     }
 
     for (const providerProjectId of providerProjectIds) {
@@ -443,30 +458,83 @@ export class WebhookService {
       if (config) return config;
     }
 
-    const tenantProjectCandidates = new Set<string>();
-    if (options.tenantId) {
-      tenantProjectCandidates.add(options.tenantId);
-    }
     if (event.metadata.projectId) {
-      tenantProjectCandidates.add(event.metadata.projectId);
-    }
-
-    for (const projectId of tenantProjectCandidates) {
       const projectConfigs = await this.configDAO.listConfigsByProject(
-        projectId,
+        event.metadata.projectId,
         50,
         0,
         "inbound",
       );
-      const providerConfig = projectConfigs.find(
-        (config) => config.active && config.provider === options.providerName,
+      const providerConfigs = projectConfigs.filter(
+        (config) => config.provider === options.providerName,
       );
-      if (providerConfig) {
-        return providerConfig;
-      }
+      return this.selectDeterministicConfig(providerConfigs, providerProjectIds);
     }
 
     return null;
+  }
+
+  private buildProviderProjectIdCandidates(
+    explicitProviderProjectId: string | undefined,
+    event: ParsedWebhookEvent,
+  ): string[] {
+    const candidates: string[] = [];
+    for (const candidate of [
+      explicitProviderProjectId,
+      event.metadata.repositoryId,
+      event.metadata.projectId,
+    ]) {
+      if (candidate && !candidates.includes(candidate)) {
+        candidates.push(candidate);
+      }
+    }
+    return candidates;
+  }
+
+  private selectDeterministicConfig(
+    configs: WebhookConfig[],
+    providerProjectIds: string[],
+  ): WebhookConfig | null {
+    if (configs.length === 0) {
+      return null;
+    }
+
+    for (const providerProjectId of providerProjectIds) {
+      const matches = configs.filter(
+        (config) => config.providerProjectId === providerProjectId,
+      );
+      if (matches.length > 0) {
+        return this.pickPreferredConfig(matches);
+      }
+    }
+
+    return this.pickPreferredConfig(configs);
+  }
+
+  private pickPreferredConfig(configs: WebhookConfig[]): WebhookConfig | null {
+    if (configs.length === 0) {
+      return null;
+    }
+
+    const sorted = [...configs].sort((a, b) => {
+      if (a.active !== b.active) {
+        return a.active ? -1 : 1;
+      }
+
+      const updatedAtDelta = b.updatedAt.getTime() - a.updatedAt.getTime();
+      if (updatedAtDelta !== 0) {
+        return updatedAtDelta;
+      }
+
+      const createdAtDelta = b.createdAt.getTime() - a.createdAt.getTime();
+      if (createdAtDelta !== 0) {
+        return createdAtDelta;
+      }
+
+      return b.id.localeCompare(a.id);
+    });
+
+    return sorted[0];
   }
 
   /**
@@ -489,7 +557,6 @@ export class WebhookService {
    */
   private toProviderConfig(
     dbConfig: WebhookConfig,
-    providerName: string,
   ): WebhookProviderConfig {
     return {
       type: dbConfig.provider,
@@ -506,22 +573,42 @@ export class WebhookService {
   /**
    * Check if event type is allowed by configuration
    */
-  private isEventAllowed(eventType: string, config: WebhookConfig): boolean {
+  private isEventAllowed(event: ParsedWebhookEvent, config: WebhookConfig): boolean {
     if (!config.allowedEvents || config.allowedEvents.length === 0) {
       return true; // No restriction
     }
 
-    // Check for exact match or wildcard pattern
-    return config.allowedEvents.some((allowed) => {
-      if (allowed === "*") return true;
-      if (allowed === eventType) return true;
-      // Support wildcard prefixes (e.g., 'issue_*')
-      if (allowed.endsWith("*")) {
-        const prefix = allowed.slice(0, -1);
-        return eventType.startsWith(prefix);
-      }
-      return false;
-    });
+    const allowedEvents = new Set(config.allowedEvents);
+    if (allowedEvents.has("*")) {
+      return true;
+    }
+
+    const candidates = this.getAllowedEventCandidates(event);
+    return candidates.some((candidate) => allowedEvents.has(candidate));
+  }
+
+  private getAllowedEventCandidates(event: ParsedWebhookEvent): string[] {
+    const candidates = new Set<string>([event.eventType]);
+    const dotIndex = event.eventType.indexOf(".");
+
+    if (dotIndex > 0) {
+      candidates.add(event.eventType.slice(0, dotIndex));
+    } else if (event.metadata.action) {
+      candidates.add(`${event.eventType}.${event.metadata.action}`);
+    }
+
+    return Array.from(candidates);
+  }
+
+  private getRetryEventTypeForProvider(
+    provider: WebhookConfig["provider"],
+    storedEventType: string,
+  ): string {
+    if (provider === "github") {
+      return storedEventType.split(".")[0];
+    }
+
+    return storedEventType;
   }
 
   /**
@@ -640,6 +727,14 @@ export class WebhookService {
     reason: string,
   ): Promise<void> {
     try {
+      const { shouldProcess } = await this.deduplication.shouldProcessDelivery(
+        event.deduplicationId,
+        config.id,
+      );
+      if (!shouldProcess) {
+        return;
+      }
+
       const delivery = await this.deduplication.recordDeliveryStart({
         provider: config.provider as any,
         webhookConfigId: config.id,
@@ -705,13 +800,15 @@ export class WebhookService {
   ): Promise<EventProcessingResult> {
     const result: EventProcessingResult = {};
 
-    // Resolve tenant ID
-    const resolvedTenantId =
-      tenantId || this.config.defaultTenantId || config.projectId || "default";
-    result.projectId = resolvedTenantId;
+    // Project linkage should prefer explicit webhook config linkage first.
+    const resolvedProjectId =
+      config.projectId || tenantId || this.config.defaultTenantId || "default";
+    result.projectId = resolvedProjectId;
 
-    // Handle issues events
-    if (event.eventType === "issues") {
+    const baseEventType = event.eventType.split(".")[0];
+
+    // Handle issues.opened events
+    if (baseEventType === "issues") {
       const payload = event.payload as {
         action?: string;
         issue?: {
@@ -721,24 +818,26 @@ export class WebhookService {
           html_url: string;
           user: { login: string };
           state: string;
+          labels?: Array<{ name: string }>;
         };
         repository?: {
           full_name: string;
           owner: { login: string };
           name: string;
         };
+        installation?: {
+          id: number;
+        };
         sender?: {
           login: string;
         };
       };
 
-      // Only process 'opened' action for ticket creation
-      if (payload?.action === "opened" && payload?.issue) {
+      const action = payload?.action || event.metadata.action;
+      if (action === "opened" && payload?.issue) {
         // Determine severity based on issue labels/content
         let severity: Severity = "low";
-        const labels = (payload.issue as any).labels as
-          | Array<{ name: string }>
-          | undefined;
+        const labels = payload.issue.labels;
         if (labels) {
           const labelNames = labels.map((l) => l.name.toLowerCase());
           if (
@@ -760,7 +859,7 @@ export class WebhookService {
 
         // Create ticket
         const ticketRequest: CreateTicketRequest = {
-          projectId: resolvedTenantId,
+          projectId: resolvedProjectId,
           title: payload.issue.title,
           description: payload.issue.body || "",
           severity,
@@ -773,6 +872,12 @@ export class WebhookService {
             repository: payload.repository?.full_name,
             sender: payload.sender?.login,
             issueState: payload.issue.state,
+            eventType: event.eventType,
+            eventAction: action,
+            deliveryId: event.deduplicationId,
+            integrationId: config.integrationId,
+            providerProjectId: config.providerProjectId,
+            installationId: payload.installation?.id?.toString(),
           }),
           annotations: [],
           autoFixRequested: config.autoExecute,
@@ -794,7 +899,7 @@ export class WebhookService {
 
           const jobData: JobData = {
             id: randomUUID(),
-            tenantId: resolvedTenantId,
+            tenantId: resolvedProjectId,
             repository: payload.repository?.full_name || "",
             task: `Fix issue: ${payload.issue.title}`,
             context: webhookContext as any, // WebhookJobContext extends JobData['context']
@@ -812,14 +917,15 @@ export class WebhookService {
       }
     }
 
-    // Handle issue_comment events
-    if (event.eventType === "issue_comment") {
+    // Handle issue_comment.created events
+    if (baseEventType === "issue_comment") {
       const payload = event.payload as {
         action?: string;
         issue?: {
           number: number;
           title: string;
           body?: string;
+          html_url?: string;
         };
         comment?: {
           id: number;
@@ -836,12 +942,26 @@ export class WebhookService {
         };
       };
 
-      // Check if comment mentions bot and contains trigger keywords
+      const action = payload?.action || event.metadata.action;
+      if (action !== "created") {
+        return result;
+      }
+
+      // Check if comment mentions bot and contains trigger keywords.
       if (config.botUsername && payload?.comment) {
+        const normalizedBotUsername = config.botUsername.toLowerCase();
+        const commentAuthor =
+          payload.comment.user?.login?.toLowerCase() ||
+          payload.sender?.login?.toLowerCase() ||
+          "";
+        if (commentAuthor === normalizedBotUsername) {
+          return result;
+        }
+
         const commentBody = payload.comment.body?.toLowerCase() || "";
         const mentionsBot =
-          commentBody.includes(`@${config.botUsername}`) ||
-          commentBody.includes(config.botUsername.toLowerCase());
+          commentBody.includes(`@${normalizedBotUsername}`) ||
+          commentBody.includes(normalizedBotUsername);
 
         const hasTriggerKeyword =
           commentBody.includes("fix this") ||
@@ -852,19 +972,25 @@ export class WebhookService {
         if (mentionsBot && hasTriggerKeyword) {
           // Create ticket
           const ticketRequest: CreateTicketRequest = {
-            projectId: resolvedTenantId,
+            projectId: resolvedProjectId,
             title: payload.issue?.title || `Issue ${payload.issue?.number}`,
             description: payload.comment?.body || "",
             severity: "medium",
             category: "bug",
             metadata: this.createTicketMetadata({
               externalTicketId: String(payload.issue?.number),
+              externalTicketUrl: payload.issue?.html_url,
               webhookConfigId: config.id,
               provider: "github",
               repository: payload.repository?.full_name,
               commentId: payload.comment.id.toString(),
               triggeredByComment: true,
               sender: payload.sender?.login,
+              eventType: event.eventType,
+              eventAction: action,
+              deliveryId: event.deduplicationId,
+              integrationId: config.integrationId,
+              providerProjectId: config.providerProjectId,
             }),
             annotations: [],
             autoFixRequested: true,
@@ -885,7 +1011,7 @@ export class WebhookService {
 
           const jobData: JobData = {
             id: randomUUID(),
-            tenantId: resolvedTenantId,
+            tenantId: resolvedProjectId,
             repository: payload.repository?.full_name || "",
             task: `Fix issue: ${payload.issue?.title}`,
             context: webhookContext as any, // WebhookJobContext extends JobData['context']

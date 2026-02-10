@@ -34,7 +34,7 @@ interface WebhookConfigFormProps {
   isSubmitting?: boolean
 }
 
-const GITHUB_ALLOWED_EVENTS = ['issues', 'issue_comment', 'pull_request', 'push'] as const
+const GITHUB_ALLOWED_EVENTS = ['issues.opened', 'issue_comment.created'] as const
 const JIRA_ALLOWED_EVENTS = ['issue_created', 'issue_updated', 'issue_deleted'] as const
 
 export function WebhookConfigForm({
@@ -51,7 +51,9 @@ export function WebhookConfigForm({
   )
   const [webhookSecret, setWebhookSecret] = useState('')
   const [showSecret, setShowSecret] = useState(false)
-  const [allowedEvents, setAllowedEvents] = useState<string[]>(config?.allowedEvents || ['issues'])
+  const [allowedEvents, setAllowedEvents] = useState<string[]>(
+    config?.allowedEvents || ['issues.opened']
+  )
   const [autoExecute, setAutoExecute] = useState(config?.autoExecute ?? false)
   const [botUsername, setBotUsername] = useState(config?.botUsername || '')
   const [active, setActive] = useState(config?.active ?? true)
