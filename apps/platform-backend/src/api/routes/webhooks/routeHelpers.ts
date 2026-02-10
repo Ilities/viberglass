@@ -4,7 +4,7 @@ import type { ExtendedRequest } from '../../../webhooks/middleware/rawBody';
 import {
   SignatureValidatorFactory,
   type SignatureValidator,
-} from '../../../webhooks/validators';
+} from '../../../webhooks/SignatureValidator';
 
 export interface WebhookResultResponseOptions {
   duplicateMessage?: string;

@@ -1,5 +1,5 @@
 export * from "./plugin";
-export * from "./registry";
+export * from "./TicketingIntegrationRegistry";
 export * from "./plugins";
 export * from "./UnimplementedIntegration";
 export * from "./plugins/github/GitHubIntegration";

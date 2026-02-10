@@ -44,6 +44,8 @@ export interface WebhookProviderConfig {
   providerProjectId?: string;
   /** Optional GitHub/GitLab API base URL for self-hosted instances */
   apiBaseUrl?: string;
+  /** Provider-specific behavior overrides (labels, transitions, etc.) */
+  labelMappings?: Record<string, unknown>;
 }
 
 /**

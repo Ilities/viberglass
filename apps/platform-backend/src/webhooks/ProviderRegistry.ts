@@ -6,7 +6,7 @@
  * request headers.
  */
 
-import type { WebhookProvider } from './provider';
+import type { WebhookProvider } from './WebhookProvider';
 
 /**
  * Registry for webhook providers

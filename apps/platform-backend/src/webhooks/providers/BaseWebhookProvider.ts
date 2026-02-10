@@ -10,8 +10,8 @@ import type {
   WebhookEventMetadata,
   WebhookProviderConfig,
   WebhookResult,
-} from '../provider';
-import { WebhookProvider as AbstractWebhookProvider } from '../provider';
+} from '../WebhookProvider';
+import { WebhookProvider as AbstractWebhookProvider } from '../WebhookProvider';
 import type { AxiosInstance } from 'axios';
 
 /**

@@ -1,2 +1,2 @@
-export { customPlugin } from "./custom";
+export { customPlugin } from "./customUtils";
 export { CustomInboundIntegration } from "./CustomInboundIntegration";

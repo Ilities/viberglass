@@ -8,7 +8,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { SignatureValidator } from '../validators';
+import { SignatureValidator } from '../SignatureValidator';
 import type { ExtendedRequest } from './rawBody';
 
 /**

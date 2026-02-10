@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import axios from "axios";
-import { GitHubWebhookProvider } from "../../../../webhooks/providers/github-provider";
+import { GitHubWebhookProvider } from "../../../../webhooks/providers/GitHubWebhookProvider";
 
 jest.mock("axios");
 

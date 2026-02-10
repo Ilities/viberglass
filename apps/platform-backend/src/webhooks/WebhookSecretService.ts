@@ -1,6 +1,6 @@
 import * as crypto from "node:crypto";
 import type { CredentialProvider } from "../credentials/CredentialProvider";
-import type { SecretLocation, WebhookProviderConfig } from "./provider";
+import type { SecretLocation, WebhookProviderConfig } from "./WebhookProvider";
 
 /**
  * Webhook secret service
