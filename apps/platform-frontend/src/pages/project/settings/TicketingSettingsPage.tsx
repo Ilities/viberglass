@@ -10,12 +10,8 @@ import { Select } from '@/components/select'
 import { Text } from '@/components/text'
 import { useState } from 'react'
 
-interface TicketingSettingsClientProps {
-  project: string
-}
-
 export function TicketingSettingsPage() {
-  const { project } = useParams<{ project: string }>()
+  const { project: _project } = useParams<{ project: string }>()
   const [selectedSystem, setSelectedSystem] = useState('github')
 
   return (

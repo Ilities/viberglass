@@ -46,7 +46,7 @@ interface IntegrationWithLinkStatus extends IntegrationSummary {
 export function ProjectIntegrationsPage() {
   const { project: projectData, isLoading: isProjectLoading } = useProject()
   const [integrations, setIntegrations] = useState<IntegrationWithLinkStatus[]>([])
-  const [availableGlobalIntegrations, setAvailableGlobalIntegrations] = useState<Integration[]>([])
+  const [_availableGlobalIntegrations, setAvailableGlobalIntegrations] = useState<Integration[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)

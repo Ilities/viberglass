@@ -46,7 +46,7 @@ export function StackedLayout({
   sidebar,
   children,
 }: React.PropsWithChildren<{ navbar: React.ReactNode; sidebar: React.ReactNode }>) {
-  let [showSidebar, setShowSidebar] = useState(false)
+  const [showSidebar, setShowSidebar] = useState(false)
 
   return (
     <div className="app-canvas relative isolate flex min-h-svh w-full flex-col bg-transparent">

@@ -10,9 +10,9 @@ import type {
   WebhookEventMetadata,
   WebhookProviderConfig,
   WebhookResult,
-} from '../WebhookProvider';
-import { WebhookProvider as AbstractWebhookProvider } from '../WebhookProvider';
-import type { AxiosInstance } from 'axios';
+} from "../WebhookProvider";
+import { WebhookProvider } from "../WebhookProvider";
+import type { AxiosInstance } from "axios";
 
 /**
  * GitHub webhook payload structure
@@ -63,7 +63,7 @@ type GenericPayload = Record<string, unknown>;
  * Providers can extend this to get shared functionality for
  * payload parsing, metadata extraction, and message formatting.
  */
-export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
+export abstract class BaseWebhookProvider extends WebhookProvider {
   constructor(config: WebhookProviderConfig) {
     super(config);
   }
@@ -75,7 +75,9 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
    * @param payload - Webhook payload
    * @returns Repository identifier (e.g., 'owner/repo') or undefined
    */
-  protected extractRepositoryFromPayload(payload: GenericPayload): string | undefined {
+  protected extractRepositoryFromPayload(
+    payload: GenericPayload,
+  ): string | undefined {
     const repo = (payload as GitHubWebhookPayload).repository;
     return repo?.full_name;
   }
@@ -147,7 +149,9 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
       return user.name;
     }
 
-    const actor = payload.actor as { login?: string; name?: string } | undefined;
+    const actor = payload.actor as
+      | { login?: string; name?: string }
+      | undefined;
     if (actor?.login) {
       return actor.login;
     }
@@ -236,8 +240,8 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
    * @returns Formatted markdown comment body
    */
   protected formatCommentBody(result: WebhookResult): string {
-    const status = result.success ? 'Success' : 'Failed';
-    const icon = result.success ? '✅' : '❌';
+    const status = result.success ? "Success" : "Failed";
+    const icon = result.success ? "✅" : "❌";
 
     let body = `## ${icon} ${status}\n\n`;
 
@@ -271,10 +275,10 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
    */
   protected formatLabels(
     success: boolean,
-    customLabels?: { success: string; failure: string }
+    customLabels?: { success: string; failure: string },
   ): { add: string[]; remove: string[] } {
-    const successLabel = customLabels?.success || 'fix-submitted';
-    const failureLabel = customLabels?.failure || 'fix-failed';
+    const successLabel = customLabels?.success || "fix-submitted";
+    const failureLabel = customLabels?.failure || "fix-failed";
 
     if (success) {
       return {
@@ -297,7 +301,7 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
    */
   protected escapeMarkdown(text: string): string {
     // Escape characters that have special meaning in markdown
-    return text.replace(/([\\`*_{}[\]()#+\-.!|])/g, '\\$1');
+    return text.replace(/([\\`*_{}[\]()#+\-.!|])/g, "\\$1");
   }
 
   /**
@@ -307,14 +311,14 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
    * @returns Object with owner and repo properties
    */
   protected parseProjectId(projectId: string): { owner: string; repo: string } {
-    const parts = projectId.split('/');
+    const parts = projectId.split("/");
 
     if (parts.length >= 2) {
-      return { owner: parts[0], repo: parts.slice(1).join('/') };
+      return { owner: parts[0], repo: parts.slice(1).join("/") };
     }
 
     // Single value, treat as repo with no owner path
-    return { owner: '', repo: parts[0] };
+    return { owner: "", repo: parts[0] };
   }
 
   /**
@@ -324,15 +328,18 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
    * @param token - Authentication token
    * @returns Configured axios instance
    */
-  protected createAuthenticatedClient(baseUrl: string, token: string): AxiosInstance {
-    const axios = require('axios');
+  protected createAuthenticatedClient(
+    baseUrl: string,
+    token: string,
+  ): AxiosInstance {
+    const axios = require("axios");
 
     return axios.create({
       baseURL: baseUrl,
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'Viberglass-Webhook/1.0',
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "Viberglass-Webhook/1.0",
       },
     });
   }
@@ -361,6 +368,6 @@ export abstract class BaseWebhookProvider extends AbstractWebhookProvider {
       throw new Error(`${context}: No response received`);
     }
 
-    throw new Error(`${context}: ${axiosError.message || 'Unknown error'}`);
+    throw new Error(`${context}: ${axiosError.message || "Unknown error"}`);
   }
 }
