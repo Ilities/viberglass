@@ -12,18 +12,15 @@ import {
   type IntegrationOutboundWebhookConfig,
   type IntegrationWebhookDelivery,
 } from '@/service/api/integration-api'
-import type { TicketSystem } from '@viberglass/types'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 interface UseIntegrationWebhookSettingsArgs {
   integrationEntityId?: string
-  integrationId?: TicketSystem
 }
 
 export function useIntegrationWebhookSettings({
   integrationEntityId,
-  integrationId,
 }: UseIntegrationWebhookSettingsArgs) {
   const [inboundWebhooks, setInboundWebhooks] = useState<IntegrationInboundWebhookConfig[]>([])
   const [selectedInboundConfigId, setSelectedInboundConfigId] = useState<string | null>(null)
@@ -47,7 +44,7 @@ export function useIntegrationWebhookSettings({
     let isActive = true
 
     async function loadWebhookData() {
-      if (!integrationEntityId || !integrationId) {
+      if (!integrationEntityId) {
         setIsLoadingWebhook(false)
         setInboundWebhooks([])
         setSelectedInboundConfigId(null)
@@ -63,10 +60,9 @@ export function useIntegrationWebhookSettings({
 
       setIsLoadingWebhook(true)
       try {
-        const [inboundConfigs, outboundConfig, deliveryData] = await Promise.all([
-          getIntegrationInboundWebhooks(integrationId),
-          getIntegrationOutboundWebhook(integrationId),
-          getIntegrationDeliveries(integrationId),
+        const [inboundConfigs, outboundConfig] = await Promise.all([
+          getIntegrationInboundWebhooks(integrationEntityId),
+          getIntegrationOutboundWebhook(integrationEntityId),
         ])
 
         if (!isActive) {
@@ -82,7 +78,6 @@ export function useIntegrationWebhookSettings({
         })
 
         setOutboundWebhook(outboundConfig)
-        setDeliveries(deliveryData)
 
         const selectedInbound = inboundConfigs[0]
         if (selectedInbound) {
@@ -114,7 +109,7 @@ export function useIntegrationWebhookSettings({
     return () => {
       isActive = false
     }
-  }, [integrationEntityId, integrationId])
+  }, [integrationEntityId])
 
   useEffect(() => {
     if (selectedInboundConfig) {
@@ -122,19 +117,56 @@ export function useIntegrationWebhookSettings({
     }
   }, [selectedInboundConfig])
 
+  const loadDeliveriesForConfig = useCallback(
+    async (
+      targetIntegrationEntityId: string,
+      targetInboundConfigId: string,
+      showLoadingState: boolean
+    ) => {
+      if (showLoadingState) {
+        setIsLoadingDeliveries(true)
+      }
+
+      try {
+        const data = await getIntegrationDeliveries(
+          targetIntegrationEntityId,
+          targetInboundConfigId
+        )
+        setDeliveries(data)
+      } catch (error) {
+        console.error('Failed to load deliveries:', error)
+        setDeliveries([])
+      } finally {
+        if (showLoadingState) {
+          setIsLoadingDeliveries(false)
+        }
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    if (!integrationEntityId || !selectedInboundConfigId) {
+      setDeliveries([])
+      return
+    }
+
+    void loadDeliveriesForConfig(integrationEntityId, selectedInboundConfigId, false)
+  }, [integrationEntityId, loadDeliveriesForConfig, selectedInboundConfigId])
+
   const handleGenerateSecret = async () => {
-    if (!integrationEntityId || !integrationId) {
+    if (!integrationEntityId) {
       return
     }
 
     setIsSavingWebhook(true)
     try {
       const config = selectedInboundConfig
-        ? await updateIntegrationInboundWebhook(integrationId, selectedInboundConfig.id, {
+        ? await updateIntegrationInboundWebhook(integrationEntityId, selectedInboundConfig.id, {
             generateSecret: true,
             autoExecute,
           })
-        : await createIntegrationInboundWebhook(integrationId, {
+        : await createIntegrationInboundWebhook(integrationEntityId, {
             generateSecret: true,
             autoExecute: false,
           })
@@ -160,13 +192,13 @@ export function useIntegrationWebhookSettings({
   }
 
   const handleCreateInboundWebhook = async () => {
-    if (!integrationEntityId || !integrationId) {
+    if (!integrationEntityId) {
       return
     }
 
     setIsSavingWebhook(true)
     try {
-      const config = await createIntegrationInboundWebhook(integrationId, {
+      const config = await createIntegrationInboundWebhook(integrationEntityId, {
         generateSecret: true,
         autoExecute: false,
       })
@@ -184,14 +216,14 @@ export function useIntegrationWebhookSettings({
   }
 
   const handleSaveInboundWebhook = async () => {
-    if (!integrationEntityId || !integrationId || !selectedInboundConfig) {
+    if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
 
     setIsSavingWebhook(true)
     try {
       const config = await updateIntegrationInboundWebhook(
-        integrationId,
+        integrationEntityId,
         selectedInboundConfig.id,
         {
           autoExecute,
@@ -210,7 +242,7 @@ export function useIntegrationWebhookSettings({
   }
 
   const handleDeleteInboundWebhook = async () => {
-    if (!integrationEntityId || !integrationId || !selectedInboundConfig) {
+    if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
 
@@ -221,7 +253,7 @@ export function useIntegrationWebhookSettings({
     setIsSavingWebhook(true)
     try {
       const removedId = selectedInboundConfig.id
-      await deleteIntegrationInboundWebhook(integrationId, removedId)
+      await deleteIntegrationInboundWebhook(integrationEntityId, removedId)
 
       const nextConfigs = inboundWebhooks.filter((item) => item.id !== removedId)
       setInboundWebhooks(nextConfigs)
@@ -238,7 +270,7 @@ export function useIntegrationWebhookSettings({
   }
 
   const handleSaveOutboundWebhook = async () => {
-    if (!integrationEntityId || !integrationId) {
+    if (!integrationEntityId) {
       return
     }
 
@@ -252,10 +284,14 @@ export function useIntegrationWebhookSettings({
 
     setIsSavingWebhook(true)
     try {
-      const config = await saveIntegrationOutboundWebhook(integrationId, {
-        events,
-        apiToken: outboundApiToken.trim() || undefined,
-      })
+      const config = await saveIntegrationOutboundWebhook(
+        integrationEntityId,
+        {
+          events,
+          apiToken: outboundApiToken.trim() || undefined,
+        },
+        outboundWebhook?.id
+      )
       setOutboundWebhook(config)
       setOutboundApiToken('')
       toast.success('Outbound webhook settings saved')
@@ -270,7 +306,7 @@ export function useIntegrationWebhookSettings({
   }
 
   const handleDeleteOutboundWebhook = async () => {
-    if (!integrationEntityId || !integrationId || !outboundWebhook) {
+    if (!integrationEntityId || !outboundWebhook) {
       return
     }
 
@@ -280,7 +316,7 @@ export function useIntegrationWebhookSettings({
 
     setIsSavingWebhook(true)
     try {
-      await deleteIntegrationOutboundWebhook(integrationId)
+      await deleteIntegrationOutboundWebhook(integrationEntityId, outboundWebhook.id)
       setOutboundWebhook(null)
       setEmitJobStarted(true)
       setEmitJobEnded(true)
@@ -312,29 +348,30 @@ export function useIntegrationWebhookSettings({
   }
 
   const handleRefreshDeliveries = async () => {
-    if (!integrationEntityId || !integrationId) {
+    if (!integrationEntityId || !selectedInboundConfig) {
+      setDeliveries([])
       return
     }
 
-    setIsLoadingDeliveries(true)
     try {
-      const data = await getIntegrationDeliveries(integrationId)
-      setDeliveries(data)
+      await loadDeliveriesForConfig(integrationEntityId, selectedInboundConfig.id, true)
     } catch (error) {
       console.error('Failed to refresh deliveries:', error)
       toast.error('Failed to refresh deliveries')
-    } finally {
-      setIsLoadingDeliveries(false)
     }
   }
 
   const handleRetryDelivery = async (deliveryId: string) => {
-    if (!integrationEntityId || !integrationId) {
+    if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
 
     try {
-      await retryIntegrationDelivery(integrationId, deliveryId)
+      await retryIntegrationDelivery(
+        integrationEntityId,
+        selectedInboundConfig.id,
+        deliveryId
+      )
       toast.success('Delivery retry initiated')
       void handleRefreshDeliveries()
     } catch (error) {

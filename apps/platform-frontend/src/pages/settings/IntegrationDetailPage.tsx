@@ -11,19 +11,15 @@ import { Link } from '@/components/link'
 import { Text } from '@/components/text'
 import {
   createIntegration,
-  getAllIntegrationSummaries,
+  getAvailableIntegrationTypes,
   getIntegration,
   getIntegrations,
   testIntegration,
   updateIntegration,
+  type AvailableIntegrationType,
 } from '@/service/api/integration-api'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
-import type {
-  AuthCredentialType,
-  Integration,
-  IntegrationSummary,
-  TicketSystem,
-} from '@viberglass/types'
+import type { AuthCredentialType, Integration, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -38,10 +34,10 @@ import { useIntegrationWebhookSettings } from './integration-detail/useIntegrati
 
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
-  const { integrationId: integrationIdParam } = useParams<{ integrationId: string }>()
-  const integrationId = integrationIdParam as TicketSystem | undefined
+  const { integrationEntityId: integrationEntityIdParam, integrationSystem: integrationSystemParam } =
+    useParams<{ integrationEntityId?: string; integrationSystem?: string }>()
 
-  const [integration, setIntegration] = useState<IntegrationSummary | null>(null)
+  const [integrationType, setIntegrationType] = useState<AvailableIntegrationType | null>(null)
   const [existingIntegration, setExistingIntegration] = useState<Integration | null>(null)
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -50,13 +46,14 @@ export function IntegrationDetailPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const integrationEntityId = existingIntegration?.id
+  const integrationSystem = integrationType?.id
+  const isConfigured = Boolean(existingIntegration)
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
-    integrationId,
   })
 
-  const capabilities = getIntegrationDetailCapabilities(integrationId)
+  const capabilities = getIntegrationDetailCapabilities(integrationSystem)
 
   const initialValues = useMemo(
     () => (existingIntegration?.values as Record<string, string | number | boolean | string[]>) || {},
@@ -67,8 +64,10 @@ export function IntegrationDetailPage() {
     let isActive = true
 
     async function loadIntegration() {
-      if (!integrationId) {
+      if (!integrationEntityIdParam && !integrationSystemParam) {
         setIsPageLoading(false)
+        setIntegrationType(null)
+        setExistingIntegration(null)
         return
       }
 
@@ -76,35 +75,61 @@ export function IntegrationDetailPage() {
       setLoadError(null)
 
       try {
-        const integrations = await getAllIntegrationSummaries()
+        const availableTypes = await getAvailableIntegrationTypes()
         if (!isActive) {
           return
         }
 
-        const selected = integrations.find((item) => item.id === integrationId)
-        setIntegration(selected || null)
+        const typeMap = new Map(availableTypes.map((type) => [type.id, type]))
 
-        if (selected?.configStatus !== 'configured') {
+        if (integrationSystemParam) {
+          const type = typeMap.get(integrationSystemParam as TicketSystem)
+          setIntegrationType(type || null)
           setExistingIntegration(null)
           return
         }
 
-        const configuredIntegrations = await getIntegrations(integrationId)
-        if (!isActive) {
-          return
-        }
-
-        const activeIntegration = configuredIntegrations[0]
-        if (!activeIntegration) {
+        if (!integrationEntityIdParam) {
+          setIntegrationType(null)
           setExistingIntegration(null)
           return
         }
 
-        const fullIntegration = await getIntegration(activeIntegration.id)
+        const legacyType = typeMap.get(integrationEntityIdParam as TicketSystem)
+        if (legacyType) {
+          const integrations = await getIntegrations(legacyType.id)
+          if (!isActive) {
+            return
+          }
+
+          if (integrations.length === 1) {
+            navigate(`/settings/integrations/${integrations[0].id}`, { replace: true })
+            return
+          }
+
+          if (integrations.length === 0) {
+            navigate(`/settings/integrations/new/${legacyType.id}`, { replace: true })
+            return
+          }
+
+          navigate('/settings/integrations', { replace: true })
+          return
+        }
+
+        const fullIntegration = await getIntegration(integrationEntityIdParam)
         if (!isActive) {
           return
         }
 
+        const type = typeMap.get(fullIntegration.system)
+        if (!type) {
+          setIntegrationType(null)
+          setExistingIntegration(null)
+          setLoadError(`Unsupported integration system: ${fullIntegration.system}`)
+          return
+        }
+
+        setIntegrationType(type)
         setExistingIntegration(fullIntegration)
       } catch (error) {
         if (!isActive) {
@@ -112,7 +137,7 @@ export function IntegrationDetailPage() {
         }
 
         setLoadError(error instanceof Error ? error.message : 'Failed to load integration')
-        setIntegration(null)
+        setIntegrationType(null)
         setExistingIntegration(null)
       } finally {
         if (isActive) {
@@ -126,7 +151,7 @@ export function IntegrationDetailPage() {
     return () => {
       isActive = false
     }
-  }, [integrationId])
+  }, [integrationEntityIdParam, integrationSystemParam, navigate])
 
   if (isPageLoading) {
     return <IntegrationDetailLoadingState />
@@ -136,42 +161,44 @@ export function IntegrationDetailPage() {
     return <IntegrationDetailErrorState message={loadError} />
   }
 
-  if (!integration) {
+  if (!integrationType) {
     return <IntegrationDetailNotFoundState />
   }
 
-  const IconComponent = getIntegrationIcon(integration.id)
-  const status = getIntegrationStatusConfig(integration.configStatus)
-  const category = getIntegrationCategoryConfig(integration.category)
+  const configStatus = integrationType.status === 'stub' ? 'stub' : isConfigured ? 'configured' : 'not_configured'
+  const IconComponent = getIntegrationIcon(integrationType.id)
+  const status = getIntegrationStatusConfig(configStatus)
+  const category = getIntegrationCategoryConfig(integrationType.category)
   const StatusIcon = status.icon
 
   const handleSubmit = async (values: {
     authType: AuthCredentialType
     values: Record<string, unknown>
   }) => {
-    if (!integrationId) {
+    if (!integrationSystem) {
       return
     }
 
     setIsSavingConfig(true)
 
     try {
-      if (existingIntegration) {
-        await updateIntegration(existingIntegration.id, {
-          name: existingIntegration.name,
-          authType: values.authType,
-          values: values.values,
-        })
-      } else {
-        await createIntegration({
-          name: `${integration.label} Integration`,
-          system: integrationId,
-          authType: values.authType,
-          values: values.values,
-        })
-      }
+      const savedIntegration = existingIntegration
+        ? await updateIntegration(existingIntegration.id, {
+            name: existingIntegration.name,
+            authType: values.authType,
+            values: values.values,
+          })
+        : await createIntegration({
+            name: `${integrationType.label} Integration`,
+            system: integrationSystem,
+            authType: values.authType,
+            values: values.values,
+          })
 
-      navigate('/settings/integrations')
+      setExistingIntegration(savedIntegration)
+      navigate(`/settings/integrations/${savedIntegration.id}`, {
+        replace: !existingIntegration,
+      })
     } catch (error) {
       console.error('Failed to save integration configuration:', error)
     } finally {
@@ -211,7 +238,7 @@ export function IntegrationDetailPage() {
     navigate('/settings/integrations')
   }
 
-  if (integration.status === 'stub') {
+  if (integrationType.status === 'stub') {
     return (
       <div className="space-y-8 p-6 lg:p-8">
         <Link
@@ -228,13 +255,13 @@ export function IntegrationDetailPage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <Heading>{integration.label}</Heading>
+              <Heading>{integrationType.label}</Heading>
               <Badge color="amber">
                 <StatusIcon className="mr-1 inline-block size-3" />
                 {status.label}
               </Badge>
             </div>
-            <Text className="mt-2 max-w-2xl">{integration.description}</Text>
+            <Text className="mt-2 max-w-2xl">{integrationType.description}</Text>
           </div>
         </div>
 
@@ -242,7 +269,7 @@ export function IntegrationDetailPage() {
           <StatusIcon className="mx-auto size-12 text-amber-500" />
           <h2 className="mt-4 text-lg font-semibold text-amber-900 dark:text-amber-400">Coming Soon</h2>
           <p className="mt-2 text-amber-700 dark:text-amber-300">
-            The {integration.label} integration is currently under development. Check back soon!
+            The {integrationType.label} integration is currently under development. Check back soon!
           </p>
           <Button href="/settings/integrations" color="brand" className="mt-6">
             Back to Integrations
@@ -268,14 +295,14 @@ export function IntegrationDetailPage() {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <Heading>{integration.label}</Heading>
+            <Heading>{integrationType.label}</Heading>
             <Badge color={status.color}>
               <StatusIcon className="mr-1 inline-block size-3" />
               {status.label}
             </Badge>
             <Badge color={category.color}>{category.label}</Badge>
           </div>
-          <Text className="mt-2 max-w-2xl">{integration.description}</Text>
+          <Text className="mt-2 max-w-2xl">{integrationType.description}</Text>
         </div>
       </div>
 
@@ -283,7 +310,7 @@ export function IntegrationDetailPage() {
         <Subheading>Configuration</Subheading>
         <div className="mt-6">
           <IntegrationConfigForm
-            integration={integration}
+            integration={integrationType}
             initialValues={initialValues}
             initialAuthType={existingIntegration?.authType}
             onSubmit={handleSubmit}
@@ -296,7 +323,7 @@ export function IntegrationDetailPage() {
         </div>
       </section>
 
-      {capabilities.supportsInboundWebhooks && integration.configStatus === 'configured' && (
+      {isConfigured && capabilities.supportsInboundWebhooks && (
         <InboundWebhookSection
           autoExecute={webhook.autoExecute}
           deliveries={webhook.deliveries}
@@ -322,7 +349,7 @@ export function IntegrationDetailPage() {
         />
       )}
 
-      {capabilities.supportsOutboundWebhooks && integration.configStatus === 'configured' && (
+      {isConfigured && capabilities.supportsOutboundWebhooks && (
         <OutboundWebhookSection
           emitJobEnded={webhook.emitJobEnded}
           emitJobStarted={webhook.emitJobStarted}
