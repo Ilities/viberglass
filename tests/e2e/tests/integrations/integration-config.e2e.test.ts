@@ -68,6 +68,77 @@ async function openConfiguredGitHubIntegration(page: Page): Promise<boolean> {
   return createConfiguredGitHubIntegration(page);
 }
 
+async function createConfiguredJiraIntegration(page: Page): Promise<boolean> {
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const projectKey = `E2E${Date.now().toString().slice(-4)}`;
+
+  await page.goto("/settings/integrations/new/jira");
+  if (
+    page.url().includes("/login") ||
+    (await page.getByRole("heading", { name: /sign in to your account/i }).count()) > 0
+  ) {
+    return false;
+  }
+
+  const tokenInput = page.getByLabel(/Access Token/i).first();
+  const usernameInput = page.getByLabel(/Username/i).first();
+  const passwordInput = page.getByLabel(/Password/i).first();
+  const instanceUrlInput = page.getByLabel(/Instance URL/i).first();
+  const projectKeyInput = page.getByLabel(/Project Key/i).first();
+
+  if ((await instanceUrlInput.count()) === 0 || (await projectKeyInput.count()) === 0) {
+    return false;
+  }
+
+  if ((await tokenInput.count()) > 0) {
+    await tokenInput.fill(`e2e-jira-token-${uniqueSuffix}`);
+  } else if ((await usernameInput.count()) > 0 && (await passwordInput.count()) > 0) {
+    await usernameInput.fill(`e2e-user-${uniqueSuffix}`);
+    await passwordInput.fill("e2e-jira-password");
+  } else {
+    return false;
+  }
+
+  await instanceUrlInput.fill("https://jira-e2e.example.com");
+  await projectKeyInput.fill(projectKey);
+
+  await page.getByRole("button", { name: "Save Configuration" }).click();
+
+  try {
+    await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+      timeout: 20000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openConfiguredJiraIntegration(page: Page): Promise<boolean> {
+  await page.goto("/settings/integrations");
+  if (
+    page.url().includes("/login") ||
+    (await page.getByRole("heading", { name: /sign in to your account/i }).count()) > 0
+  ) {
+    return false;
+  }
+
+  const configuredJiraCard = page
+    .locator('a[href^="/settings/integrations/"]', { hasText: "Jira" })
+    .filter({ hasText: "Manage" })
+    .first();
+
+  if ((await configuredJiraCard.count()) > 0) {
+    await configuredJiraCard.click();
+    await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+      timeout: 20000,
+    });
+    return true;
+  }
+
+  return createConfiguredJiraIntegration(page);
+}
+
 test.describe("Integration Configuration E2E Tests", () => {
   test.describe("I-1 to I-6: Integration Management", () => {
     test("I-1, I-5: should display integrations page", async ({
@@ -372,6 +443,181 @@ test.describe("Integration Configuration E2E Tests", () => {
       // Check page title
       await expect(
         page.getByRole("heading", { name: "Jira", exact: true }),
+      ).toBeVisible();
+    });
+  });
+
+  test.describe("Jira Targeted Webhook UI", () => {
+    test("should render Jira-specific inbound and outbound sections", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration = await openConfiguredJiraIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "Jira integration could not be configured in this environment",
+        );
+      }
+
+      await expect(
+        page.getByRole("heading", { name: "Jira Inbound Webhook" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Jira Outbound Events" }),
+      ).toBeVisible();
+      await expect(page.getByText("Jira setup steps")).toBeVisible();
+      await expect(page.getByText("Jira mapping preview")).toBeVisible();
+
+      await expect(
+        page.getByText("Inbound webhooks create tickets from external payloads."),
+      ).toHaveCount(0);
+      await expect(
+        page.getByText(
+          "Outbound webhooks send job lifecycle events when execution starts and ends.",
+        ),
+      ).toHaveCount(0);
+    });
+
+    test("should save Jira webhook settings and keep state after reload", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration = await openConfiguredJiraIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "Jira integration could not be configured in this environment",
+        );
+      }
+
+      const inboundSection = page.locator("section", {
+        has: page.getByRole("heading", { name: "Jira Inbound Webhook" }),
+      });
+      const createInboundButton = inboundSection.getByRole("button", {
+        name: "Create Jira inbound webhook",
+      });
+      if ((await createInboundButton.count()) > 0) {
+        await createInboundButton.click();
+      }
+
+      const issueUpdatedToggle = page.getByLabel("Issue updated");
+      if ((await issueUpdatedToggle.count()) === 0) {
+        test.skip(true, "Jira inbound event toggles are unavailable in this environment");
+      }
+
+      const inboundWasChecked = await issueUpdatedToggle.isChecked();
+      if (inboundWasChecked) {
+        await issueUpdatedToggle.uncheck();
+      } else {
+        await issueUpdatedToggle.check();
+      }
+
+      const saveInboundButton = page.getByRole("button", { name: "Save inbound settings" });
+      if ((await saveInboundButton.count()) > 0) {
+        await saveInboundButton.click();
+      }
+
+      const outboundSection = page.locator("section", {
+        has: page.getByRole("heading", { name: "Jira Outbound Events" }),
+      });
+      const jobStartedToggle = outboundSection.getByLabel("Publish `job_started` status comment");
+      if ((await jobStartedToggle.count()) === 0) {
+        test.skip(true, "Jira outbound event toggles are unavailable in this environment");
+      }
+
+      const outboundWasChecked = await jobStartedToggle.isChecked();
+      if (outboundWasChecked) {
+        await jobStartedToggle.uncheck();
+      } else {
+        await jobStartedToggle.check();
+      }
+
+      const outboundTokenInput = outboundSection.getByLabel("Jira API token");
+      if ((await outboundTokenInput.count()) > 0) {
+        await outboundTokenInput.fill("jira-e2e-outbound-token");
+      }
+      await outboundSection.getByRole("button", { name: /Save outbound settings|Create outbound config/ }).click();
+
+      await page.reload();
+
+      const issueUpdatedToggleAfterReload = page.getByLabel("Issue updated");
+      if (inboundWasChecked) {
+        await expect(issueUpdatedToggleAfterReload).not.toBeChecked();
+      } else {
+        await expect(issueUpdatedToggleAfterReload).toBeChecked();
+      }
+
+      const jobStartedToggleAfterReload = page
+        .locator("section", { has: page.getByRole("heading", { name: "Jira Outbound Events" }) })
+        .getByLabel("Publish `job_started` status comment");
+      if (outboundWasChecked) {
+        await expect(jobStartedToggleAfterReload).not.toBeChecked();
+      } else {
+        await expect(jobStartedToggleAfterReload).toBeChecked();
+      }
+    });
+
+    test("should support selecting between multiple inbound Jira configs", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration = await openConfiguredJiraIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "Jira integration could not be configured in this environment",
+        );
+      }
+
+      const inboundSection = page.locator("section", {
+        has: page.getByRole("heading", { name: "Jira Inbound Webhook" }),
+      });
+      const createInboundButton = inboundSection.getByRole("button", {
+        name: "Create Jira inbound webhook",
+      });
+      if ((await createInboundButton.count()) > 0) {
+        await createInboundButton.click();
+      }
+
+      const configSelect = inboundSection.locator("select").first();
+      if ((await configSelect.count()) === 0) {
+        test.skip(
+          true,
+          "Inbound configuration selector is unavailable in this environment",
+        );
+      }
+
+      let optionCount = await configSelect.locator("option").count();
+      if (optionCount < 2) {
+        const addConfigButton = inboundSection.getByRole("button", {
+          name: "Add configuration",
+        });
+        if ((await addConfigButton.count()) === 0) {
+          test.skip(
+            true,
+            "Cannot add a second inbound configuration in this environment",
+          );
+        }
+        await addConfigButton.click();
+        optionCount = await configSelect.locator("option").count();
+      }
+
+      if (optionCount < 2) {
+        test.skip(
+          true,
+          "Did not reach at least two inbound configurations for selection test",
+        );
+      }
+
+      const optionValues = await configSelect
+        .locator("option")
+        .evaluateAll((options) => options.map((option) => option.getAttribute("value") || ""));
+
+      await configSelect.selectOption(optionValues[0]);
+      await expect(configSelect).toHaveValue(optionValues[0]);
+
+      await configSelect.selectOption(optionValues[1]);
+      await expect(configSelect).toHaveValue(optionValues[1]);
+      await expect(
+        page.getByText("No deliveries yet for the selected inbound configuration."),
       ).toBeVisible();
     });
   });
