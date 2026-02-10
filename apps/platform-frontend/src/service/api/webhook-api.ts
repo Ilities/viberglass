@@ -160,7 +160,7 @@ export async function createWebhookConfig(config: CreateWebhookConfigDTO): Promi
       secretLocation: config.secretLocation || 'database',
       webhookSecret: config.webhookSecret || null,
       apiToken: config.apiToken || null,
-      allowedEvents: config.allowedEvents || ['issues', 'issue_comment'],
+      allowedEvents: config.allowedEvents || ['issues.opened', 'issue_comment.created'],
       autoExecute: config.autoExecute || false,
       botUsername: config.botUsername || null,
       labelMappings: config.labelMappings || {},
