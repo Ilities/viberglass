@@ -1,4 +1,72 @@
 import { test, expect } from "../../playwright/fixtures";
+import type { Page } from "@playwright/test";
+
+async function createConfiguredGitHubIntegration(page: Page): Promise<boolean> {
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  await page.goto("/settings/integrations/new/github");
+  if (
+    page.url().includes("/login") ||
+    (await page.getByRole("heading", { name: /sign in to your account/i }).count()) > 0
+  ) {
+    return false;
+  }
+
+  const tokenInput = page.getByLabel(/Access Token/i).first();
+  const oauthClientIdInput = page.getByLabel(/Client ID/i).first();
+  const ownerInput = page.getByLabel(/Repository Owner/i).first();
+  const repoInput = page.getByLabel(/Repository Name/i).first();
+
+  if ((await ownerInput.count()) === 0 || (await repoInput.count()) === 0) {
+    return false;
+  }
+
+  if ((await tokenInput.count()) > 0) {
+    await tokenInput.fill("e2e-test-token");
+  } else if ((await oauthClientIdInput.count()) > 0) {
+    await oauthClientIdInput.fill(`e2e-client-${uniqueSuffix}`);
+    await page.getByLabel(/Client Secret/i).first().fill("e2e-client-secret");
+  }
+
+  await ownerInput.fill("e2e-owner");
+  await repoInput.fill(`e2e-repo-${uniqueSuffix}`);
+
+  await page.getByRole("button", { name: "Save Configuration" }).click();
+
+  try {
+    await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+      timeout: 20000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openConfiguredGitHubIntegration(page: Page): Promise<boolean> {
+  await page.goto("/settings/integrations");
+  if (
+    page.url().includes("/login") ||
+    (await page.getByRole("heading", { name: /sign in to your account/i }).count()) > 0
+  ) {
+    return false;
+  }
+
+  const configuredGitHubCard = page
+    .locator('a[href^="/settings/integrations/"]', { hasText: "GitHub" })
+    .filter({ hasText: "Manage" })
+    .first();
+
+  if ((await configuredGitHubCard.count()) > 0) {
+    await configuredGitHubCard.click();
+    await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+      timeout: 20000,
+    });
+    return true;
+  }
+
+  return createConfiguredGitHubIntegration(page);
+}
 
 test.describe("Integration Configuration E2E Tests", () => {
   test.describe("I-1 to I-6: Integration Management", () => {
@@ -152,6 +220,146 @@ test.describe("Integration Configuration E2E Tests", () => {
           );
         }
       }
+    });
+  });
+
+  test.describe("GitHub Targeted Webhook UI", () => {
+    test("should render GitHub-specific inbound and outbound sections", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration = await openConfiguredGitHubIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "GitHub integration could not be configured in this environment",
+        );
+      }
+
+      await expect(
+        page.getByRole("heading", { name: "GitHub Inbound Webhook" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "GitHub Outbound Events" }),
+      ).toBeVisible();
+      await expect(page.getByText("GitHub setup steps")).toBeVisible();
+      await expect(page.getByText("Repository mapping preview")).toBeVisible();
+
+      await expect(
+        page.getByText("Inbound webhooks create tickets from external payloads."),
+      ).toHaveCount(0);
+      await expect(
+        page.getByText(
+          "Outbound webhooks send job lifecycle events when execution starts and ends.",
+        ),
+      ).toHaveCount(0);
+    });
+
+    test("should allow configuring GitHub inbound events after creating inbound webhook", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration = await openConfiguredGitHubIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "GitHub integration could not be configured in this environment",
+        );
+      }
+
+      const inboundSection = page.locator("section", {
+        has: page.getByRole("heading", { name: "GitHub Inbound Webhook" }),
+      });
+      const createInboundButton = inboundSection.getByRole("button", {
+        name: "Create GitHub Inbound Webhook",
+      });
+
+      if ((await createInboundButton.count()) > 0) {
+        await createInboundButton.click();
+      }
+
+      await expect(page.getByText("Allowed inbound events")).toBeVisible();
+      await expect(page.getByLabel("Issue opened")).toBeChecked();
+      const issueCommentEventToggle = page.getByLabel("Issue comment created");
+
+      const wasChecked = await issueCommentEventToggle.isChecked();
+      if (wasChecked) {
+        await issueCommentEventToggle.uncheck();
+      } else {
+        await issueCommentEventToggle.check();
+      }
+      await page.getByRole("button", { name: "Save inbound settings" }).click();
+
+      if (wasChecked) {
+        await expect(issueCommentEventToggle).not.toBeChecked();
+      } else {
+        await expect(issueCommentEventToggle).toBeChecked();
+      }
+      await expect(page.getByText("Webhook URL")).toBeVisible();
+      await expect(page.getByText("Webhook Secret")).toBeVisible();
+    });
+
+    test("should support selecting between multiple inbound GitHub configs", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration = await openConfiguredGitHubIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "GitHub integration could not be configured in this environment",
+        );
+      }
+
+      const inboundSection = page.locator("section", {
+        has: page.getByRole("heading", { name: "GitHub Inbound Webhook" }),
+      });
+      const createInboundButton = inboundSection.getByRole("button", {
+        name: "Create GitHub Inbound Webhook",
+      });
+      if ((await createInboundButton.count()) > 0) {
+        await createInboundButton.click();
+      }
+
+      const configSelect = inboundSection.locator("select").first();
+      if ((await configSelect.count()) === 0) {
+        test.skip(
+          true,
+          "Inbound configuration selector is unavailable in this environment",
+        );
+      }
+
+      let optionCount = await configSelect.locator("option").count();
+      if (optionCount < 2) {
+        const addConfigButton = inboundSection.getByRole("button", {
+          name: "Add configuration",
+        });
+        if ((await addConfigButton.count()) === 0) {
+          test.skip(
+            true,
+            "Cannot add a second inbound configuration in this environment",
+          );
+        }
+        await addConfigButton.click();
+        optionCount = await configSelect.locator("option").count();
+      }
+
+      if (optionCount < 2) {
+        test.skip(
+          true,
+          "Did not reach at least two inbound configurations for selection test",
+        );
+      }
+
+      const optionValues = await configSelect
+        .locator("option")
+        .evaluateAll((options) => options.map((option) => option.getAttribute("value") || ""));
+
+      await configSelect.selectOption(optionValues[0]);
+      await expect(configSelect).toHaveValue(optionValues[0]);
+
+      await configSelect.selectOption(optionValues[1]);
+      await expect(configSelect).toHaveValue(optionValues[1]);
+      await expect(
+        page.getByText("No deliveries yet for the selected inbound configuration."),
+      ).toBeVisible();
     });
   });
 

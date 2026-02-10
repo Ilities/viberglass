@@ -19,6 +19,17 @@ interface UseIntegrationWebhookSettingsArgs {
   integrationEntityId?: string
 }
 
+function areEventListsEqual(left: string[], right: string[]): boolean {
+  const normalizedLeft = Array.from(new Set(left)).sort()
+  const normalizedRight = Array.from(new Set(right)).sort()
+
+  if (normalizedLeft.length !== normalizedRight.length) {
+    return false
+  }
+
+  return normalizedLeft.every((event, index) => event === normalizedRight[index])
+}
+
 export function useIntegrationWebhookSettings({
   integrationEntityId,
 }: UseIntegrationWebhookSettingsArgs) {
@@ -30,6 +41,7 @@ export function useIntegrationWebhookSettings({
   const [deliveries, setDeliveries] = useState<IntegrationWebhookDelivery[]>([])
   const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(false)
   const [autoExecute, setAutoExecute] = useState(false)
+  const [inboundEvents, setInboundEvents] = useState<string[]>([])
   const [emitJobStarted, setEmitJobStarted] = useState(true)
   const [emitJobEnded, setEmitJobEnded] = useState(true)
   const [outboundApiToken, setOutboundApiToken] = useState('')
@@ -52,6 +64,7 @@ export function useIntegrationWebhookSettings({
         setDeliveries([])
         setShowSecret(false)
         setAutoExecute(false)
+        setInboundEvents([])
         setEmitJobStarted(true)
         setEmitJobEnded(true)
         setOutboundApiToken('')
@@ -78,11 +91,7 @@ export function useIntegrationWebhookSettings({
         })
 
         setOutboundWebhook(outboundConfig)
-
-        const selectedInbound = inboundConfigs[0]
-        if (selectedInbound) {
-          setAutoExecute(selectedInbound.autoExecute)
-        }
+        setInboundEvents(inboundConfigs[0]?.events || [])
 
         if (outboundConfig) {
           const enabled = new Set(outboundConfig.events)
@@ -114,6 +123,10 @@ export function useIntegrationWebhookSettings({
   useEffect(() => {
     if (selectedInboundConfig) {
       setAutoExecute(selectedInboundConfig.autoExecute)
+      setInboundEvents(selectedInboundConfig.events)
+    } else {
+      setAutoExecute(false)
+      setInboundEvents([])
     }
   }, [selectedInboundConfig])
 
@@ -159,15 +172,22 @@ export function useIntegrationWebhookSettings({
       return
     }
 
+    if (selectedInboundConfig && inboundEvents.length === 0) {
+      toast.error('Select at least one inbound event')
+      return
+    }
+
     setIsSavingWebhook(true)
     try {
       const config = selectedInboundConfig
         ? await updateIntegrationInboundWebhook(integrationEntityId, selectedInboundConfig.id, {
             generateSecret: true,
+            events: inboundEvents,
             autoExecute,
           })
         : await createIntegrationInboundWebhook(integrationEntityId, {
             generateSecret: true,
+            events: inboundEvents.length > 0 ? inboundEvents : undefined,
             autoExecute: false,
           })
 
@@ -220,12 +240,18 @@ export function useIntegrationWebhookSettings({
       return
     }
 
+    if (inboundEvents.length === 0) {
+      toast.error('Select at least one inbound event')
+      return
+    }
+
     setIsSavingWebhook(true)
     try {
       const config = await updateIntegrationInboundWebhook(
         integrationEntityId,
         selectedInboundConfig.id,
         {
+          events: inboundEvents,
           autoExecute,
         }
       )
@@ -347,6 +373,34 @@ export function useIntegrationWebhookSettings({
     }
   }
 
+  const handleCopyWebhookSecret = async () => {
+    if (!selectedInboundConfig?.webhookSecret) {
+      toast.error('Webhook secret is hidden. Regenerate it to copy a new value.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(selectedInboundConfig.webhookSecret)
+      toast.success('Webhook secret copied to clipboard')
+    } catch (error) {
+      console.error('Failed to copy secret:', error)
+      toast.error('Failed to copy webhook secret')
+    }
+  }
+
+  const handleToggleInboundEvent = (eventType: string, enabled: boolean) => {
+    setInboundEvents((previous) => {
+      if (enabled) {
+        if (previous.includes(eventType)) {
+          return previous
+        }
+        return [...previous, eventType]
+      }
+
+      return previous.filter((event) => event !== eventType)
+    })
+  }
+
   const handleRefreshDeliveries = async () => {
     if (!integrationEntityId || !selectedInboundConfig) {
       setDeliveries([])
@@ -381,7 +435,8 @@ export function useIntegrationWebhookSettings({
   }
 
   const hasInboundChanges = selectedInboundConfig
-    ? autoExecute !== selectedInboundConfig.autoExecute
+    ? autoExecute !== selectedInboundConfig.autoExecute ||
+      !areEventListsEqual(inboundEvents, selectedInboundConfig.events)
     : false
 
   const hasOutboundChanges = outboundWebhook
@@ -397,6 +452,7 @@ export function useIntegrationWebhookSettings({
     emitJobStarted,
     hasInboundChanges,
     hasOutboundChanges,
+    inboundEvents,
     inboundWebhooks,
     isLoadingDeliveries,
     isLoadingWebhook,
@@ -411,6 +467,7 @@ export function useIntegrationWebhookSettings({
     setEmitJobStarted,
     setOutboundApiToken,
     setShowSecret,
+    handleCopyWebhookSecret,
     handleCopyWebhookUrl,
     handleCreateInboundWebhook,
     handleDeleteInboundWebhook,
@@ -421,5 +478,6 @@ export function useIntegrationWebhookSettings({
     handleSaveInboundWebhook,
     handleSaveOutboundWebhook,
     handleSelectInboundWebhook,
+    handleToggleInboundEvent,
   }
 }
