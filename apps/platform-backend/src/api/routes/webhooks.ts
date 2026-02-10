@@ -49,7 +49,7 @@ function getWebhookService(): WebhookService {
       type: 'github',
       secretLocation: 'database',
       algorithm: 'sha256',
-      allowedEvents: ['issues', 'issue_comment'],
+      allowedEvents: ['issues.opened', 'issue_comment.created'],
     });
     registry.register(githubProvider);
 

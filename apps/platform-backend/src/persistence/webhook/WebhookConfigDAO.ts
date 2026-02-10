@@ -128,7 +128,10 @@ export class WebhookConfigDAO {
 
     query = query.where("direction", "=", direction as any);
 
-    const row = await query.orderBy("created_at", "desc").executeTakeFirst();
+    const row = await query
+      .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
+      .executeTakeFirst();
 
     if (!row) return null;
 
@@ -239,7 +242,10 @@ export class WebhookConfigDAO {
       query = query.where("direction", "=", direction as any);
     }
 
-    const row = await query.orderBy("created_at", "desc").executeTakeFirst();
+    const row = await query
+      .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
+      .executeTakeFirst();
 
     if (!row) return null;
 
@@ -295,7 +301,10 @@ export class WebhookConfigDAO {
       query = query.where("direction", "=", options.direction as any);
     }
 
-    const rows = await query.orderBy("created_at", "desc").execute();
+    const rows = await query
+      .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
+      .execute();
     return rows.map((row) => this.mapRowToConfig(row));
   }
 
@@ -315,6 +324,8 @@ export class WebhookConfigDAO {
       .where("direction", "=", direction as any)
       .where("provider_project_id", "=", providerProjectId)
       .where("active", "=", true)
+      .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
       .executeTakeFirst();
 
     if (!row) return null;
@@ -342,6 +353,7 @@ export class WebhookConfigDAO {
 
     const rows = await query
       .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
       .limit(limit)
       .offset(offset)
       .execute();
@@ -368,6 +380,7 @@ export class WebhookConfigDAO {
 
     const rows = await query
       .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
       .limit(limit)
       .offset(offset)
       .execute();
@@ -395,6 +408,7 @@ export class WebhookConfigDAO {
 
     const rows = await query
       .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
       .limit(limit)
       .offset(offset)
       .execute();
