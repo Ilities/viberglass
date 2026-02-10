@@ -95,6 +95,7 @@ interface EventProcessingResult {
   ticketId?: string;
   jobId?: string;
   projectId?: string;
+  ignoredReason?: string;
 }
 
 /**
@@ -260,6 +261,13 @@ export class WebhookService {
         await this.deliveryDAO.updateDeliveryStatus(delivery.id, "succeeded");
       }
 
+      if (result.ignoredReason) {
+        return {
+          status: "ignored",
+          reason: result.ignoredReason,
+        };
+      }
+
       return {
         status: "processed",
         ticketId: result.ticketId,
@@ -376,6 +384,13 @@ export class WebhookService {
         await this.deliveryDAO.updateDeliveryStatus(delivery.id, "succeeded");
       }
 
+      if (result.ignoredReason) {
+        return {
+          status: "ignored",
+          reason: result.ignoredReason,
+        };
+      }
+
       return {
         status: "processed",
         ticketId: result.ticketId,
@@ -479,16 +494,33 @@ export class WebhookService {
     event: ParsedWebhookEvent,
   ): string[] {
     const candidates: string[] = [];
+    const jiraIssueProjectKey = this.extractJiraProjectKeyFromIssue(event);
     for (const candidate of [
       explicitProviderProjectId,
       event.metadata.repositoryId,
       event.metadata.projectId,
+      jiraIssueProjectKey,
     ]) {
       if (candidate && !candidates.includes(candidate)) {
         candidates.push(candidate);
       }
     }
     return candidates;
+  }
+
+  private extractJiraProjectKeyFromIssue(
+    event: ParsedWebhookEvent,
+  ): string | undefined {
+    if (event.provider !== "jira" || !event.metadata.issueKey) {
+      return undefined;
+    }
+
+    const separatorIndex = event.metadata.issueKey.indexOf("-");
+    if (separatorIndex <= 0) {
+      return undefined;
+    }
+
+    return event.metadata.issueKey.slice(0, separatorIndex);
   }
 
   private selectDeterministicConfig(
@@ -1042,19 +1074,26 @@ export class WebhookService {
   ): Promise<EventProcessingResult> {
     const result: EventProcessingResult = {};
 
-    // Resolve tenant ID
+    // Project linkage should prefer explicit webhook config linkage first.
     const resolvedTenantId =
-      tenantId || this.config.defaultTenantId || config.projectId || "default";
+      config.projectId || tenantId || this.config.defaultTenantId || "default";
     result.projectId = resolvedTenantId;
 
-    // Handle issue_created events
+    if (event.eventType !== "issue_created" && event.eventType !== "comment_created") {
+      const scopedEventType = event.metadata.action
+        ? `${event.eventType}.${event.metadata.action}`
+        : event.eventType;
+      result.ignoredReason = `Unsupported Jira event action '${scopedEventType}'`;
+      return result;
+    }
+
     if (event.eventType === "issue_created") {
       const payload = event.payload as {
         issue?: {
           key: string;
           fields: {
             summary: string;
-            description?: string | { type: string; content: unknown[] };
+            description?: unknown;
             priority?: { name: string };
             issuetype: { name: string };
           };
@@ -1064,7 +1103,7 @@ export class WebhookService {
         };
       };
 
-      if (payload?.issue) {
+      if (payload?.issue?.fields?.summary) {
         // Determine severity based on priority
         let severity: Severity = "medium";
         const priorityName = payload.issue.fields.priority?.name?.toLowerCase() || "";
@@ -1076,15 +1115,9 @@ export class WebhookService {
           severity = "low";
         }
 
-        // Extract description text (handle both string and ADF format)
-        let description = "";
-        const descField = payload.issue.fields.description;
-        if (typeof descField === "string") {
-          description = descField;
-        } else if (descField && typeof descField === "object") {
-          // Simple ADF text extraction (for production, use proper ADF parsing)
-          description = JSON.stringify(descField);
-        }
+        const description = this.extractJiraTextContent(
+          payload.issue.fields.description,
+        );
 
         // Create ticket
         const ticketRequest: CreateTicketRequest = {
@@ -1097,8 +1130,16 @@ export class WebhookService {
             externalTicketId: payload.issue.key,
             webhookConfigId: config.id,
             provider: "jira",
-            sender: payload.user?.displayName,
+            sender: payload.user?.displayName || event.metadata.sender,
             issueType: payload.issue.fields.issuetype.name,
+            eventType: event.eventType,
+            eventAction: event.metadata.action,
+            deliveryId: event.deduplicationId,
+            integrationId: config.integrationId,
+            providerProjectId: config.providerProjectId,
+            jiraProjectKey:
+              event.metadata.repositoryId ||
+              this.extractJiraProjectKey(payload.issue.key),
           }),
           annotations: [],
           autoFixRequested: config.autoExecute,
@@ -1119,7 +1160,10 @@ export class WebhookService {
           const jobData: JobData = {
             id: randomUUID(),
             tenantId: resolvedTenantId,
-            repository: payload.issue.key.split("-")[0] || "",
+            repository:
+              event.metadata.repositoryId ||
+              this.extractJiraProjectKey(payload.issue.key) ||
+              "",
             task: `Fix Jira issue: ${payload.issue.fields.summary}`,
             context: webhookContext as any,
             settings: {
@@ -1146,30 +1190,33 @@ export class WebhookService {
           };
         };
         comment?: {
-          body: string;
+          id?: string;
+          body?: unknown;
           author: {
             displayName: string;
           };
         };
       };
 
-      if (config.botUsername && payload?.comment) {
-        const commentBody = payload.comment.body.toLowerCase();
+      const commentBody = this.extractJiraTextContent(payload?.comment?.body);
+      if (config.botUsername && payload?.comment && commentBody) {
+        const normalizedBody = commentBody.toLowerCase();
+        const normalizedBotUsername = config.botUsername.toLowerCase();
         const mentionsBot =
-          commentBody.includes(`@${config.botUsername.toLowerCase()}`) ||
-          commentBody.includes(config.botUsername.toLowerCase());
+          normalizedBody.includes(`@${normalizedBotUsername}`) ||
+          normalizedBody.includes(normalizedBotUsername);
 
         const hasTriggerKeyword =
-          commentBody.includes("fix this") ||
-          commentBody.includes("fix it") ||
-          commentBody.includes("auto fix") ||
-          commentBody.includes("autofix");
+          normalizedBody.includes("fix this") ||
+          normalizedBody.includes("fix it") ||
+          normalizedBody.includes("auto fix") ||
+          normalizedBody.includes("autofix");
 
         if (mentionsBot && hasTriggerKeyword) {
           const ticketRequest: CreateTicketRequest = {
             projectId: resolvedTenantId,
             title: payload.issue?.fields.summary || `Jira Issue ${payload.issue?.key}`,
-            description: payload.comment.body,
+            description: commentBody,
             severity: "medium",
             category: "bug",
             metadata: this.createTicketMetadata({
@@ -1178,6 +1225,15 @@ export class WebhookService {
               provider: "jira",
               triggeredByComment: true,
               sender: payload.comment.author.displayName,
+              commentId: payload.comment.id,
+              eventType: event.eventType,
+              eventAction: event.metadata.action,
+              deliveryId: event.deduplicationId,
+              integrationId: config.integrationId,
+              providerProjectId: config.providerProjectId,
+              jiraProjectKey:
+                event.metadata.repositoryId ||
+                this.extractJiraProjectKey(payload.issue?.key),
             }),
             annotations: [],
             autoFixRequested: true,
@@ -1192,14 +1248,17 @@ export class WebhookService {
             ticketId: ticket.id,
             issueKey: payload.issue?.key,
             triggeredBy: "bot-command",
-            commentBody: payload.comment.body.substring(0, 500),
+            commentBody: commentBody.substring(0, 500),
             stepsToReproduce: `Triggered by Jira comment on ${payload.issue?.key}`,
           };
 
           const jobData: JobData = {
             id: randomUUID(),
             tenantId: resolvedTenantId,
-            repository: payload.issue?.key?.split("-")[0] || "",
+            repository:
+              event.metadata.repositoryId ||
+              this.extractJiraProjectKey(payload.issue?.key) ||
+              "",
             task: `Fix Jira issue: ${payload.issue?.fields.summary}`,
             context: webhookContext as any,
             settings: {
@@ -1217,6 +1276,76 @@ export class WebhookService {
     }
 
     return result;
+  }
+
+  private extractJiraProjectKey(issueKey?: string): string | undefined {
+    if (!issueKey) {
+      return undefined;
+    }
+
+    const separatorIndex = issueKey.indexOf("-");
+    if (separatorIndex <= 0) {
+      return undefined;
+    }
+
+    return issueKey.slice(0, separatorIndex);
+  }
+
+  private extractJiraTextContent(value: unknown): string {
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    if (typeof value !== "object") {
+      return String(value);
+    }
+
+    const parts: string[] = [];
+    this.collectJiraTextNodes(value, parts);
+    const flattened = parts.join(" ").replace(/\s+/g, " ").trim();
+    if (flattened.length > 0) {
+      return flattened;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+
+  private collectJiraTextNodes(value: unknown, parts: string[]): void {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        parts.push(trimmed);
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        this.collectJiraTextNodes(item, parts);
+      }
+      return;
+    }
+
+    if (typeof value !== "object" || value === null) {
+      return;
+    }
+
+    const record = value as Record<string, unknown>;
+    if (typeof record.text === "string") {
+      this.collectJiraTextNodes(record.text, parts);
+    }
+
+    if (Array.isArray(record.content)) {
+      this.collectJiraTextNodes(record.content, parts);
+    }
   }
 
   /**
