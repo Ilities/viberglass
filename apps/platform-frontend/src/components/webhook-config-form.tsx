@@ -19,6 +19,10 @@ import {
   EyeClosedIcon,
   ClipboardIcon,
 } from '@radix-ui/react-icons'
+import {
+  DEFAULT_WEBHOOK_PROVIDER_DEFINITIONS,
+  type WebhookProviderFormDefinition,
+} from '@/components/webhook-provider-definitions'
 import type {
   WebhookConfig,
   CreateWebhookConfigDTO,
@@ -29,22 +33,27 @@ import type {
 interface WebhookConfigFormProps {
   projectId?: string
   config?: WebhookConfig
+  providerDefinitions?: readonly WebhookProviderFormDefinition[]
   onSave: (config: WebhookConfig) => void
   onCancel: () => void
   isSubmitting?: boolean
 }
 
-const GITHUB_ALLOWED_EVENTS = ['issues.opened', 'issue_comment.created'] as const
-const JIRA_ALLOWED_EVENTS = ['issue_created', 'issue_updated', 'issue_deleted'] as const
-
 export function WebhookConfigForm({
   projectId,
   config,
+  providerDefinitions,
   onSave,
   onCancel,
   isSubmitting = false,
 }: WebhookConfigFormProps) {
-  const [provider, setProvider] = useState<WebhookProvider>(config?.provider || 'github')
+  const resolvedProviderDefinitions = resolveProviderDefinitions(providerDefinitions)
+  const providerDefinitionsById = buildProviderDefinitionMap(resolvedProviderDefinitions)
+  const fallbackProvider = resolvedProviderDefinitions[0]?.id || 'github'
+  const initialProvider =
+    config?.provider && providerDefinitionsById.has(config.provider) ? config.provider : fallbackProvider
+
+  const [provider, setProvider] = useState<WebhookProvider>(initialProvider)
   const [providerProjectId, setProviderProjectId] = useState(config?.providerProjectId || '')
   const [secretLocation, setSecretLocation] = useState<SecretLocation>(
     config?.secretLocation || 'database'
@@ -52,7 +61,10 @@ export function WebhookConfigForm({
   const [webhookSecret, setWebhookSecret] = useState('')
   const [showSecret, setShowSecret] = useState(false)
   const [allowedEvents, setAllowedEvents] = useState<string[]>(
-    config?.allowedEvents || ['issues.opened']
+    config?.allowedEvents ||
+      getProviderDefaultEvents(
+        providerDefinitionsById.get(initialProvider)
+      )
   )
   const [autoExecute, setAutoExecute] = useState(config?.autoExecute ?? false)
   const [botUsername, setBotUsername] = useState(config?.botUsername || '')
@@ -80,13 +92,21 @@ export function WebhookConfigForm({
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {}
+    const providerDefinition = providerDefinitionsById.get(provider)
+
+    if (!providerDefinition) {
+      newErrors.provider = 'Selected provider is not supported'
+    }
 
     if (!providerProjectId.trim()) {
       newErrors.providerProjectId = 'Provider project ID is required'
     }
 
-    if (provider === 'github' && !/^[\w-]+\/[\w.-]+$/.test(providerProjectId)) {
-      newErrors.providerProjectId = 'Must be in format: owner/repo'
+    if (!newErrors.providerProjectId && providerDefinition?.validateProjectId) {
+      const providerProjectIdError = providerDefinition.validateProjectId(providerProjectId.trim())
+      if (providerProjectIdError) {
+        newErrors.providerProjectId = providerProjectIdError
+      }
     }
 
     if (!isEdit && !webhookSecret.trim()) {
@@ -128,7 +148,12 @@ export function WebhookConfigForm({
     onSave(dto as WebhookConfig)
   }
 
-  const currentEvents = provider === 'github' ? GITHUB_ALLOWED_EVENTS : JIRA_ALLOWED_EVENTS
+  const currentProviderDefinition = providerDefinitionsById.get(provider)
+  const currentEvents = currentProviderDefinition?.allowedEvents || []
+  const providerProjectIdLabel = currentProviderDefinition?.projectIdLabel || 'Provider Project ID'
+  const providerProjectIdDescription =
+    currentProviderDefinition?.projectIdDescription || 'Provider-specific project identifier'
+  const providerProjectIdPlaceholder = currentProviderDefinition?.projectIdPlaceholder || ''
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -139,27 +164,30 @@ export function WebhookConfigForm({
           <Select
             value={provider}
             onChange={(value) => {
-              setProvider(value as WebhookProvider)
-              setAllowedEvents([])
+              const selectedProvider = value as WebhookProvider
+              setProvider(selectedProvider)
+              setAllowedEvents(
+                getProviderDefaultEvents(providerDefinitionsById.get(selectedProvider))
+              )
             }}
             disabled={isEdit}
           >
-            <option value="github">GitHub</option>
-            <option value="jira">Jira</option>
+            {resolvedProviderDefinitions.map((definition) => (
+              <option key={definition.id} value={definition.id}>
+                {definition.label}
+              </option>
+            ))}
           </Select>
+          {errors.provider && <ErrorMessage>{errors.provider}</ErrorMessage>}
         </Field>
 
         <Field>
-          <Label>Provider Project ID</Label>
-          <Description>
-            {provider === 'github'
-              ? 'GitHub repository in format: owner/repo (e.g., facebook/react)'
-              : 'Jira project key (e.g., PROJ)'}
-          </Description>
+          <Label>{providerProjectIdLabel}</Label>
+          <Description>{providerProjectIdDescription}</Description>
           <Input
             value={providerProjectId}
             onChange={(e) => setProviderProjectId(e.target.value)}
-            placeholder={provider === 'github' ? 'owner/repo' : 'PROJ'}
+            placeholder={providerProjectIdPlaceholder}
             invalid={!!errors.providerProjectId}
           />
           {errors.providerProjectId && (
@@ -315,6 +343,7 @@ interface SetupInstructionsProps {
   webhookUrl?: string
   webhookSecret?: string
   allowedEvents: string[]
+  providerDefinitions?: readonly WebhookProviderFormDefinition[]
 }
 
 export function SetupInstructions({
@@ -323,7 +352,14 @@ export function SetupInstructions({
   webhookUrl,
   webhookSecret,
   allowedEvents,
+  providerDefinitions,
 }: SetupInstructionsProps) {
+  const resolvedProviderDefinitions = resolveProviderDefinitions(providerDefinitions)
+  const providerDefinition = buildProviderDefinitionMap(resolvedProviderDefinitions).get(provider)
+  const providerLabel = providerDefinition?.label || provider
+  const providerTargetLabel = providerDefinition?.setupInstructions?.targetLabel || providerLabel
+  const providerTip = providerDefinition?.setupInstructions?.tip
+
   const handleCopyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
     toast.success(`${label} copied`, {
@@ -347,11 +383,10 @@ export function SetupInstructions({
         </div>
         <div className="min-w-0 flex-1">
           <Text className="text-sm font-semibold text-zinc-950 dark:text-white">
-            Setup Instructions for {provider === 'github' ? 'GitHub' : 'Jira'}
+            Setup Instructions for {providerLabel}
           </Text>
           <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Configure your {provider === 'github' ? 'GitHub repository' : 'Jira project'} webhook
-            settings:
+            Configure your {providerTargetLabel} webhook settings:
           </Text>
         </div>
       </div>
@@ -415,17 +450,38 @@ export function SetupInstructions({
           </code>
         </div>
 
-        {provider === 'github' && (
+        {providerTip && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
             <Text className="text-sm text-amber-800 dark:text-amber-200">
-              <strong>Tip:</strong> In GitHub, go to Settings &gt; Webhooks &gt; Add webhook to
-              configure these settings.
+              <strong>Tip:</strong> {providerTip}
             </Text>
           </div>
         )}
       </div>
     </div>
   )
+}
+
+function resolveProviderDefinitions(
+  providerDefinitions?: readonly WebhookProviderFormDefinition[]
+): readonly WebhookProviderFormDefinition[] {
+  return providerDefinitions?.length
+    ? providerDefinitions
+    : DEFAULT_WEBHOOK_PROVIDER_DEFINITIONS
+}
+
+function buildProviderDefinitionMap(
+  providerDefinitions: readonly WebhookProviderFormDefinition[]
+): Map<WebhookProvider, WebhookProviderFormDefinition> {
+  return new Map(providerDefinitions.map((definition) => [definition.id, definition]))
+}
+
+function getProviderDefaultEvents(
+  providerDefinition?: WebhookProviderFormDefinition
+): string[] {
+  const defaultEvents =
+    providerDefinition?.defaultAllowedEvents || providerDefinition?.allowedEvents || []
+  return [...defaultEvents]
 }
 
 function formatEventName(event: string): string {
