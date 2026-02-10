@@ -38,3 +38,7 @@ Phase 18 is complete when:
 4. Deprecated generic webhook paths are removed or hard-deprecated with no active callers.
 5. Updated tests and docs reflect the new integration-specific operating model.
 
+
+## Notes
+
+Don't keep compatibility with old implementation. Everything is unused
