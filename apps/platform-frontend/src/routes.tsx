@@ -71,7 +71,14 @@ export function AppRoutes() {
 
         {/* Settings */}
         <Route path="/settings/integrations" element={<IntegrationsPage />} />
-        <Route path="/settings/integrations/:integrationId" element={<IntegrationDetailPage />} />
+        <Route
+          path="/settings/integrations/new/:integrationSystem"
+          element={<IntegrationDetailPage />}
+        />
+        <Route
+          path="/settings/integrations/:integrationEntityId"
+          element={<IntegrationDetailPage />}
+        />
         <Route path="/settings/users" element={<UsersPage />} />
 
         {/* Project routes */}
