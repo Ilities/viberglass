@@ -4,7 +4,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/table'
 import { Text } from '@/components/text'
-import { ChevronDownIcon, ReloadIcon } from '@radix-ui/react-icons'
+import { ReloadIcon } from '@radix-ui/react-icons'
 import { usePolling } from '@/hooks/usePolling'
 import type { WebhookDelivery, WebhookDeliveryStatus } from '@/service/api/webhook-api'
 
@@ -79,7 +79,7 @@ export function WebhookDeliveryList({
     return delivery.status === statusFilter
   })
 
-  const failedCount = deliveries.filter((d) => d.status === 'failed').length
+  const _failedCount = deliveries.filter((d) => d.status === 'failed').length
 
   async function handleRetry(deliveryId: string) {
     setRetryingDelivery(deliveryId)

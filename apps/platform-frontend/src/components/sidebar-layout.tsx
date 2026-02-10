@@ -40,7 +40,7 @@ export function SidebarLayout({
   sidebar,
   children,
 }: React.PropsWithChildren<{ navbar: React.ReactNode; sidebar: React.ReactNode }>) {
-  let [showSidebar, setShowSidebar] = useState(false)
+  const [showSidebar, setShowSidebar] = useState(false)
 
   return (
     <div className="app-canvas relative isolate flex min-h-svh w-full bg-transparent max-lg:flex-col">

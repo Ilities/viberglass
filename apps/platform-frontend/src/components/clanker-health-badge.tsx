@@ -31,7 +31,7 @@ export interface ClankerHealthBadgeProps {
  * Shows the current health status with appropriate color and icon.
  * Can optionally show detailed health checks.
  */
-export function ClankerHealthBadge({ health, showChecks = false }: ClankerHealthBadgeProps) {
+export function ClankerHealthBadge({ health, showChecks: _showChecks = false }: ClankerHealthBadgeProps) {
   const { label, color, icon: Icon } = healthConfig[health.status]
 
   return (

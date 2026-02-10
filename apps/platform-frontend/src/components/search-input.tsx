@@ -12,7 +12,7 @@ interface SearchInputProps extends Omit<React.ComponentPropsWithoutRef<'input'>,
 }
 
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
-  function SearchInput({ placeholder = 'Search...', className, ...props }, ref) {
+  function SearchInput({ placeholder = 'Search...', className: _className, ...props }, ref) {
     return (
       <div className="relative h-9">
         <Input

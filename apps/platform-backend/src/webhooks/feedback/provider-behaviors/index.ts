@@ -3,6 +3,7 @@ import { DefaultFeedbackProviderBehavior } from './DefaultFeedbackProviderBehavi
 import { FeedbackProviderBehaviorResolver } from './FeedbackProviderBehaviorResolver';
 import { GitHubFeedbackProviderBehavior } from './GitHubFeedbackProviderBehavior';
 import { JiraFeedbackProviderBehavior } from './JiraFeedbackProviderBehavior';
+import { ShortcutFeedbackProviderBehavior } from './ShortcutFeedbackProviderBehavior';
 
 export { FeedbackProviderBehaviorResolver } from './FeedbackProviderBehaviorResolver';
 export type {
@@ -16,6 +17,7 @@ export function createDefaultFeedbackProviderBehaviorResolver(): FeedbackProvide
     new DefaultFeedbackProviderBehavior(),
     new GitHubFeedbackProviderBehavior(),
     new JiraFeedbackProviderBehavior(),
+    new ShortcutFeedbackProviderBehavior(),
     new CustomFeedbackProviderBehavior(),
   ]);
 }
