@@ -167,9 +167,10 @@ All supporting tests validate components that enable the Main E2E Flow.
 | I-1 | Create integration | POST `/api/integrations` | Integration created | Main Flow Step 2 |
 | I-2 | Link to project | POST `/api/integrations/project/:id/link` | Link created | Main Flow Step 2 |
 | I-3 | Test connection | POST `/api/integrations/:id/test` | Connection successful | Main Flow Step 2 |
-| I-4 | Configure webhook | PUT `/api/integrations/:id/webhook` | Webhook URL returned | Main Flow Step 3 |
+| I-4 | Configure targeted inbound webhook | POST `/api/integrations/:id/webhooks/inbound` | Inbound config + webhook URL returned | Main Flow Step 3 |
 | I-5 | List available types | GET `/api/integrations/types/available` | All integrations listed | UI support |
 | I-6 | Set primary integration | PUT primary endpoint | Primary flag set | Default behavior |
+| I-7 | Configure targeted outbound webhook | POST `/api/integrations/:id/webhooks/outbound` | Outbound config persisted for integration instance | Main Flow Step 16 |
 
 ### 3.3 Ticket Management
 
@@ -222,7 +223,7 @@ All supporting tests validate components that enable the Main E2E Flow.
 | W-6 | Shortcut webhook | POST `/api/webhooks/shortcut` | Ticket created | Main Flow Step 6 |
 | W-7 | Custom webhook | POST `/api/webhooks/custom/:id` | Ticket created | Extensibility |
 | W-8 | Delivery logging | All webhooks logged | Delivery record created | Observability |
-| W-9 | Failed delivery retry | POST retry endpoint | Delivery re-attempted | Reliability |
+| W-9 | Failed delivery retry | POST `/api/integrations/:id/webhooks/inbound/:configId/deliveries/:deliveryId/retry` | Delivery re-attempted | Reliability |
 
 ### 3.7 Feedback Loop
 
@@ -273,7 +274,7 @@ All supporting tests validate components that enable the Main E2E Flow.
 | UI-4 | Job logs | Click job row | Log stream displayed | Observability |
 | UI-5 | Create ticket form | Navigate to enhance page | Form with media upload | Manual flow |
 | UI-6 | Integration settings | Configure integration | Connection test UI | Main Flow Step 2 |
-| UI-7 | Webhook configuration | Webhook settings page | URL and secret display | Main Flow Step 3 |
+| UI-7 | Integration-targeted webhook configuration | `/settings/integrations/:integrationId` inbound/outbound sections | Provider-specific URL, secret, events, and deliveries | Main Flow Step 3 |
 | UI-8 | Clanker management | Clanker list/start/stop | Status and health visible | Main Flow Step 4 |
 | UI-9 | Responsive layout | Various viewports | Mobile-friendly | UX |
 | UI-10 | Cross-browser | Chrome, Firefox, Safari | All features work | Compatibility |
@@ -293,6 +294,7 @@ All supporting tests validate components that enable the Main E2E Flow.
 | E-W-5 | Replay attack | Reused delivery ID | Deduplicated/rejected |
 | E-W-6 | Integration not found | Webhook for deleted integration | 404, logged |
 | E-W-7 | Rate limiting | Too many webhooks | 429 Too Many Requests |
+| E-W-8 | Removed legacy webhook routes | Call removed `/api/webhooks/configs` or project-scoped webhook routes | 404 Not Found |
 
 ### 4.2 Job Execution Errors
 
@@ -508,10 +510,17 @@ npm run test:e2e:teardown
 | `/api/clankers/:id/stop` | POST | Stop clanker |
 | `/api/integrations` | GET, POST | Manage integrations |
 | `/api/integrations/:id/test` | POST | Test connection |
-| `/api/integrations/:id/webhook` | PUT | Configure webhook |
+| `/api/integrations/:id/webhooks/inbound` | GET, POST | List/create inbound webhook configs |
+| `/api/integrations/:id/webhooks/inbound/:configId` | PUT, DELETE | Update/delete inbound webhook config |
+| `/api/integrations/:id/webhooks/inbound/:configId/deliveries` | GET | List inbound deliveries for targeted config |
+| `/api/integrations/:id/webhooks/inbound/:configId/deliveries/:deliveryId/retry` | POST | Retry inbound delivery for targeted config |
+| `/api/integrations/:id/webhooks/outbound` | GET, POST | List/create outbound webhook configs |
+| `/api/integrations/:id/webhooks/outbound/:configId` | GET, PUT, DELETE | Manage outbound webhook config |
+| `/api/integrations/:id/webhooks/outbound/:configId/deliveries` | GET | List outbound deliveries for targeted config |
 | `/api/webhooks/github` | POST | GitHub webhook receiver |
 | `/api/webhooks/jira` | POST | Jira webhook receiver |
 | `/api/webhooks/shortcut` | POST | Shortcut webhook receiver |
+| `/api/webhooks/custom/:configId` | POST | Custom webhook receiver |
 | `/api/secrets` | GET, POST | Manage secrets |
 
 ---

@@ -194,22 +194,17 @@ app.get("/api/docs", requireAuth, (req, res) => {
           "X-Hub-Signature-256": "GitHub signature",
         },
       },
-      "POST /api/webhooks/linear": {
-        description: "Linear webhook endpoint",
-      },
       "POST /api/webhooks/jira": {
         description: "Jira webhook endpoint",
       },
+      "POST /api/webhooks/shortcut": {
+        description: "Shortcut webhook endpoint",
+      },
+      "POST /api/webhooks/custom/:configId": {
+        description: "Custom webhook endpoint for a specific inbound config",
+      },
       "GET /api/webhooks/status": {
         description: "Get webhook processing status",
-      },
-      "POST /api/webhooks/trigger-autofix": {
-        description: "Manually trigger auto-fix for a ticket",
-        parameters: {
-          ticketId: "ID of the external ticket",
-          ticketSystem: "PM system name",
-          repositoryUrl: "Optional repository URL",
-        },
       },
       "POST /api/jobs": {
         description: "Submit a job for AI agent execution",
