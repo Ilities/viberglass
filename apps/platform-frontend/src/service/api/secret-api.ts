@@ -63,4 +63,4 @@ export async function deleteSecret(id: string): Promise<void> {
   }
 }
 
-export type { CreateSecretRequest, Secret, UpdateSecretRequest } from '@viberglass/types'
+export type { CreateSecretRequest, Secret, SecretLocation, UpdateSecretRequest } from '@viberglass/types'

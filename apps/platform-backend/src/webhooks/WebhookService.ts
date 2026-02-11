@@ -22,10 +22,16 @@ import type {
   WebhookConfigDAO,
   WebhookConfig,
 } from "../persistence/webhook/WebhookConfigDAO";
-import type { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
+import type {
+  WebhookDeliveryAttempt,
+  WebhookDeliveryDAO,
+} from "../persistence/webhook/WebhookDeliveryDAO";
 import type { DeduplicationService } from "./DeduplicationService";
 import type { WebhookSecretService } from "./WebhookSecretService";
 import type { InboundEventProcessorResolver, EventProcessingResult } from "./InboundEventProcessorResolver";
+import { createChildLogger } from "../config/logger";
+
+const logger = createChildLogger({ service: "WebhookService" });
 
 /**
  * Result of webhook processing
@@ -62,6 +68,11 @@ export interface WebhookProcessingOptions {
   integrationId?: string;
   /** Optional provider project identifier hint */
   providerProjectId?: string;
+}
+
+export interface RetryDeliveryOptions {
+  deliveryAttemptId?: string;
+  webhookConfigId?: string;
 }
 
 /**
@@ -252,8 +263,11 @@ export class WebhookService {
   /**
    * Retry a failed webhook delivery
    */
-  async retryDelivery(deliveryId: string): Promise<WebhookProcessingResult> {
-    const delivery = await this.deliveryDAO.getDeliveryByDeliveryId(deliveryId);
+  async retryDelivery(
+    deliveryId: string,
+    options: RetryDeliveryOptions = {},
+  ): Promise<WebhookProcessingResult> {
+    const delivery = await this.resolveRetryDelivery(deliveryId, options);
     if (!delivery) {
       return {
         status: "failed",
@@ -286,6 +300,14 @@ export class WebhookService {
         reason: "Webhook configuration not found",
       };
     }
+
+    logger.info("Webhook retry attempt started", {
+      deliveryAttemptId: delivery.id,
+      deliveryId: delivery.deliveryId,
+      webhookConfigId: delivery.webhookConfigId,
+      provider: delivery.provider,
+      status: delivery.status,
+    });
 
     try {
       const event = provider.parseEvent(delivery.payload, {
@@ -328,11 +350,28 @@ export class WebhookService {
       }
 
       if (result.ignoredReason) {
+        logger.info("Webhook retry attempt ignored", {
+          deliveryAttemptId: delivery.id,
+          deliveryId: delivery.deliveryId,
+          webhookConfigId: delivery.webhookConfigId,
+          provider: delivery.provider,
+          reason: result.ignoredReason,
+        });
+
         return {
           status: "ignored",
           reason: result.ignoredReason,
         };
       }
+
+      logger.info("Webhook retry attempt processed", {
+        deliveryAttemptId: delivery.id,
+        deliveryId: delivery.deliveryId,
+        webhookConfigId: delivery.webhookConfigId,
+        provider: delivery.provider,
+        ticketId: result.ticketId,
+        jobId: result.jobId,
+      });
 
       return {
         status: "processed",
@@ -340,16 +379,51 @@ export class WebhookService {
         jobId: result.jobId,
       };
     } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : "Unknown error";
       await this.deduplication.recordDeliveryFailureById(
         delivery.id,
         error instanceof Error ? error : new Error(String(error)),
       );
 
+      logger.warn("Webhook retry attempt failed", {
+        deliveryAttemptId: delivery.id,
+        deliveryId: delivery.deliveryId,
+        webhookConfigId: delivery.webhookConfigId,
+        provider: delivery.provider,
+        reason,
+      });
+
       return {
         status: "failed",
-        reason: error instanceof Error ? error.message : "Unknown error",
+        reason,
       };
     }
+  }
+
+  private async resolveRetryDelivery(
+    deliveryId: string,
+    options: RetryDeliveryOptions,
+  ): Promise<WebhookDeliveryAttempt | null> {
+    if (options.deliveryAttemptId && options.webhookConfigId) {
+      return this.deliveryDAO.getDeliveryByIdForConfig(
+        options.deliveryAttemptId,
+        options.webhookConfigId,
+      );
+    }
+
+    if (options.deliveryAttemptId) {
+      return this.deliveryDAO.getDeliveryById(options.deliveryAttemptId);
+    }
+
+    if (options.webhookConfigId) {
+      return this.deliveryDAO.getDeliveryByDeliveryId(
+        deliveryId,
+        options.webhookConfigId,
+      );
+    }
+
+    return this.deliveryDAO.getDeliveryByDeliveryId(deliveryId);
   }
 
   /**
