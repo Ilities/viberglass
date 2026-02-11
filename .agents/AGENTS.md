@@ -10,6 +10,13 @@ These rules are mandatory for all backend changes in this repository.
 4. Follow Spring/Nest-style structure: clear module boundaries, interfaces/contracts, focused services.
 5. For utility functions, create a dedicated file and expose them as named exports.
 
+## Dead Code Policy (Mandatory)
+
+1. Do not keep dead code, unused wrappers, or compatibility facades after refactors.
+2. If a class/file has no references in the codebase, delete it in the same change.
+3. Do not preserve old APIs “just in case” unless the task explicitly requires backward compatibility.
+4. Prefer hard cleanup over transitional layers when there are zero callers.
+
 ## File Naming Convention
 
 1. **Class files**: Use PascalCase matching the primary exported class name.
