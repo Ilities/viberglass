@@ -41,6 +41,7 @@ export function useIntegrationWebhookSettings({
   const [deliveries, setDeliveries] = useState<IntegrationWebhookDelivery[]>([])
   const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(false)
   const [autoExecute, setAutoExecute] = useState(false)
+  const [inboundActive, setInboundActive] = useState(true)
   const [inboundEvents, setInboundEvents] = useState<string[]>([])
   const [emitJobStarted, setEmitJobStarted] = useState(true)
   const [emitJobEnded, setEmitJobEnded] = useState(true)
@@ -64,6 +65,7 @@ export function useIntegrationWebhookSettings({
         setDeliveries([])
         setShowSecret(false)
         setAutoExecute(false)
+        setInboundActive(true)
         setInboundEvents([])
         setEmitJobStarted(true)
         setEmitJobEnded(true)
@@ -123,9 +125,11 @@ export function useIntegrationWebhookSettings({
   useEffect(() => {
     if (selectedInboundConfig) {
       setAutoExecute(selectedInboundConfig.autoExecute)
+      setInboundActive(selectedInboundConfig.active)
       setInboundEvents(selectedInboundConfig.events)
     } else {
       setAutoExecute(false)
+      setInboundActive(true)
       setInboundEvents([])
     }
   }, [selectedInboundConfig])
@@ -184,12 +188,14 @@ export function useIntegrationWebhookSettings({
             generateSecret: true,
             events: inboundEvents,
             autoExecute,
+            active: inboundActive,
             providerProjectId,
           })
         : await createIntegrationInboundWebhook(integrationEntityId, {
             generateSecret: true,
             events: inboundEvents.length > 0 ? inboundEvents : undefined,
             autoExecute: false,
+            active: true,
             providerProjectId,
           })
 
@@ -223,6 +229,7 @@ export function useIntegrationWebhookSettings({
       const config = await createIntegrationInboundWebhook(integrationEntityId, {
         generateSecret: true,
         autoExecute: false,
+        active: true,
         providerProjectId,
       })
       setInboundWebhooks((prev) => [...prev, config])
@@ -256,6 +263,7 @@ export function useIntegrationWebhookSettings({
         {
           events: inboundEvents,
           autoExecute,
+          active: inboundActive,
           providerProjectId,
         }
       )
@@ -441,6 +449,7 @@ export function useIntegrationWebhookSettings({
 
   const hasInboundChanges = selectedInboundConfig
     ? autoExecute !== selectedInboundConfig.autoExecute ||
+      inboundActive !== selectedInboundConfig.active ||
       !areEventListsEqual(inboundEvents, selectedInboundConfig.events)
     : false
 
@@ -457,6 +466,7 @@ export function useIntegrationWebhookSettings({
     emitJobStarted,
     hasInboundChanges,
     hasOutboundChanges,
+    inboundActive,
     inboundEvents,
     inboundWebhooks,
     isLoadingDeliveries,
@@ -470,6 +480,7 @@ export function useIntegrationWebhookSettings({
     setAutoExecute,
     setEmitJobEnded,
     setEmitJobStarted,
+    setInboundActive,
     setOutboundApiToken,
     setShowSecret,
     handleCopyWebhookSecret,
