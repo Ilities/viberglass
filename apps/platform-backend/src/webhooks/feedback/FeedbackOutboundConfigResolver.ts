@@ -8,7 +8,7 @@ import {
 import type { FeedbackProviderBehaviorResolver } from './provider-behaviors';
 import type { FeedbackOutboundContext } from './FeedbackOutboundContextResolver';
 
-interface ResolvedConfig {
+export interface ResolvedConfig {
   config: WebhookConfig;
   providerProjectCandidates: string[];
 }
@@ -20,6 +20,20 @@ export class FeedbackOutboundConfigResolver {
   ) {}
 
   async resolve(context: FeedbackOutboundContext): Promise<ResolvedConfig | null> {
+    const resolved = await this.resolveAll(context);
+    return resolved[0] || null;
+  }
+
+  async resolveAll(context: FeedbackOutboundContext): Promise<ResolvedConfig[]> {
+    if (context.outboundProvider === 'custom') {
+      return this.resolveAllCustom(context);
+    }
+
+    const resolved = await this.resolveSingle(context);
+    return resolved ? [resolved] : [];
+  }
+
+  private async resolveSingle(context: FeedbackOutboundContext): Promise<ResolvedConfig | null> {
     if (context.inboundConfigId) {
       const inboundConfig = await this.configDAO.getConfigById(context.inboundConfigId);
       const candidates = buildProviderProjectCandidates(context.metadata, {
@@ -134,6 +148,67 @@ export class FeedbackOutboundConfigResolver {
       config: providerProjectMatch,
       providerProjectCandidates,
     };
+  }
+
+  private async resolveAllCustom(context: FeedbackOutboundContext): Promise<ResolvedConfig[]> {
+    const inboundConfig = context.inboundConfigId
+      ? await this.configDAO.getConfigById(context.inboundConfigId)
+      : null;
+    const providerProjectCandidates = buildProviderProjectCandidates(context.metadata, {
+      jobRepository: context.jobRepository,
+      inboundProviderProjectId: inboundConfig?.providerProjectId || undefined,
+    });
+
+    if (inboundConfig?.integrationId) {
+      const outboundIntegrationConfigs = await this.configDAO.listByIntegrationId(
+        inboundConfig.integrationId,
+        {
+          direction: 'outbound',
+          activeOnly: true,
+        },
+      );
+      const integrationTargets = this.mapActiveProviderConfigs(
+        outboundIntegrationConfigs,
+        'custom',
+        providerProjectCandidates,
+      );
+      if (integrationTargets.length > 0) {
+        return integrationTargets;
+      }
+    }
+
+    if (context.projectId) {
+      const projectConfigs = await this.configDAO.listConfigsByProject(
+        context.projectId,
+        50,
+        0,
+        'outbound',
+      );
+      const projectTargets = this.mapActiveProviderConfigs(
+        projectConfigs,
+        'custom',
+        providerProjectCandidates,
+      );
+      if (projectTargets.length > 0) {
+        return projectTargets;
+      }
+    }
+
+    const fallbackConfigs = await this.configDAO.listActiveConfigs(50, 0, 'outbound');
+    return this.mapActiveProviderConfigs(fallbackConfigs, 'custom', providerProjectCandidates);
+  }
+
+  private mapActiveProviderConfigs(
+    configs: WebhookConfig[],
+    provider: ProviderType,
+    providerProjectCandidates: string[],
+  ): ResolvedConfig[] {
+    return configs
+      .filter((config) => config.provider === provider && config.active)
+      .map((config) => ({
+        config,
+        providerProjectCandidates,
+      }));
   }
 
   private async resolveByProviderProject(

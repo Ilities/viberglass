@@ -24,6 +24,9 @@ import { FeedbackService } from '../../webhooks/FeedbackService';
 import { FeedbackOutboundConfigResolver } from '../../webhooks/feedback/FeedbackOutboundConfigResolver';
 import { FeedbackOutboundContextResolver } from '../../webhooks/feedback/FeedbackOutboundContextResolver';
 import { FeedbackEventDispatcher } from '../../webhooks/feedback/FeedbackEventDispatcher';
+import { CustomOutboundTargetDispatcher } from '../../webhooks/feedback/CustomOutboundTargetDispatcher';
+import { FeedbackDeliveryTracker } from '../../webhooks/feedback/FeedbackDeliveryTracker';
+import { FeedbackTargetDispatchRunner } from '../../webhooks/feedback/FeedbackTargetDispatchRunner';
 import { FeedbackOutboundTargetResolver } from '../../webhooks/feedback/FeedbackOutboundTargetResolver';
 import { FeedbackRetryExecutor } from '../../webhooks/feedback/FeedbackRetryExecutor';
 import { createDefaultFeedbackProviderBehaviorResolver } from '../../webhooks/feedback/provider-behaviors';
@@ -112,12 +115,19 @@ function getWebhookService(): WebhookService {
       providerBehaviorResolver,
     );
     const retryExecutor = new FeedbackRetryExecutor();
-    const eventDispatcher = new FeedbackEventDispatcher(
+    const customDispatcher = new CustomOutboundTargetDispatcher();
+    const deliveryTracker = new FeedbackDeliveryTracker(deliveryDAO);
+    const targetRunner = new FeedbackTargetDispatchRunner(
       registry,
       secretService,
-      outboundTargetResolver,
       retryExecutor,
       providerBehaviorResolver,
+      customDispatcher,
+      deliveryTracker,
+    );
+    const eventDispatcher = new FeedbackEventDispatcher(
+      outboundTargetResolver,
+      targetRunner,
     );
 
     // Initialize services

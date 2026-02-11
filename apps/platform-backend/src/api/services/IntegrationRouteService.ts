@@ -7,6 +7,11 @@ import logger from '../../config/logger'
 import { integrationRegistry } from '../../integrations/TicketingIntegrationRegistry'
 import type { AuthCredentials, TicketSystem } from '@viberglass/types'
 import { INTEGRATION_DESCRIPTIONS } from '@viberglass/types'
+import {
+  parseCustomOutboundTargetConfig,
+  readCustomOutboundTargetConfig,
+  toPublicCustomOutboundTargetConfig,
+} from '../../webhooks/feedback/customOutboundTargetConfig'
 
 function mapSystemToWebhookProvider(system: string): WebhookProvider | null {
   if (system === 'github' || system === 'jira' || system === 'shortcut' || system === 'custom') {
@@ -104,10 +109,16 @@ function serializeOutboundWebhookConfig(
     active: boolean
     apiTokenEncrypted: string | null
     providerProjectId: string | null
+    outboundTargetConfig?: Record<string, unknown> | null
     createdAt: Date
     updatedAt: Date
   },
 ) {
+  const customTarget =
+    config.provider === 'custom'
+      ? readCustomOutboundTargetConfig(config.outboundTargetConfig || null)
+      : null
+
   return {
     id: config.id,
     provider: config.provider,
@@ -115,6 +126,7 @@ function serializeOutboundWebhookConfig(
     active: config.active,
     hasApiToken: Boolean(config.apiTokenEncrypted),
     providerProjectId: config.providerProjectId,
+    ...(customTarget ? toPublicCustomOutboundTargetConfig(customTarget) : {}),
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
   }
@@ -159,6 +171,31 @@ function parseNonNegativeInt(value: string | undefined, fallback: number): numbe
   }
 
   return parsed
+}
+
+function parseCustomOutboundTargetConfigOrError(
+  body: unknown,
+  options: {
+    existing?: Record<string, unknown> | null
+    requireNameAndUrl?: boolean
+  } = {},
+): { config?: Record<string, unknown>; error?: string } {
+  const existingConfig = options.existing
+    ? readCustomOutboundTargetConfig(options.existing)
+    : null
+  const parsed = parseCustomOutboundTargetConfig(body, {
+    existing: existingConfig,
+    requireNameAndUrl: options.requireNameAndUrl ?? false,
+  })
+  if (!parsed.config) {
+    return {
+      error: parsed.error || 'Invalid custom outbound target configuration',
+    }
+  }
+
+  return {
+    config: parsed.config as unknown as Record<string, unknown>,
+  }
 }
 
 export class IntegrationRouteService {
@@ -653,7 +690,7 @@ export class IntegrationRouteService {
       }
 
       const provider = mapSystemToWebhookProvider(integration.system)
-      if (!provider || provider === 'custom') {
+      if (!provider) {
         return res.status(400).json({ error: 'Integration does not support outbound webhook events' })
       }
 
@@ -684,7 +721,7 @@ export class IntegrationRouteService {
       }
 
       const provider = mapSystemToWebhookProvider(integration.system)
-      if (!provider || provider === 'custom') {
+      if (!provider) {
         return res.status(400).json({ error: 'Integration does not support outbound webhook events' })
       }
 
@@ -694,6 +731,15 @@ export class IntegrationRouteService {
         apiToken?: string
         providerProjectId?: string
         active?: boolean
+        outboundTargetConfig?: Record<string, unknown>
+        name?: string
+        targetUrl?: string
+        method?: string
+        headers?: Record<string, string>
+        auth?: Record<string, unknown>
+        signingSecret?: string | null
+        signatureAlgorithm?: string
+        retryPolicy?: Record<string, unknown>
       }
 
       const existingConfigs = await this.webhookConfigDAO.listByIntegrationId(integration.id, {
@@ -701,10 +747,18 @@ export class IntegrationRouteService {
         activeOnly: false,
       })
 
-      if (existingConfigs.some((config) => config.provider === provider)) {
+      if (provider !== 'custom' && existingConfigs.some((config) => config.provider === provider)) {
         return res.status(409).json({
           error: 'Outbound webhook configuration already exists for this integration/provider',
         })
+      }
+
+      const customOutboundTargetConfig: { config?: Record<string, unknown> | null; error?: string } =
+        provider === 'custom'
+          ? parseCustomOutboundTargetConfigOrError(body, { requireNameAndUrl: true })
+          : { config: null }
+      if (provider === 'custom' && customOutboundTargetConfig.error) {
+        return res.status(400).json({ error: customOutboundTargetConfig.error })
       }
 
       const projectLinks = await this.projectLinkDAO.getIntegrationProjects(integration.id)
@@ -721,7 +775,9 @@ export class IntegrationRouteService {
         integrationId: integration.id,
         providerProjectId,
         allowedEvents: body.events || getDefaultOutboundEvents(),
-        apiTokenEncrypted: body.apiToken || null,
+        apiTokenEncrypted: provider === 'custom' ? null : body.apiToken || null,
+        outboundTargetConfig:
+          provider === 'custom' ? customOutboundTargetConfig.config || null : null,
         autoExecute: false,
         secretLocation: 'database',
         active: body.active ?? true,
@@ -774,7 +830,7 @@ export class IntegrationRouteService {
       }
 
       const provider = mapSystemToWebhookProvider(integration.system)
-      if (!provider || provider === 'custom') {
+      if (!provider) {
         return res.status(400).json({ error: 'Integration does not support outbound webhook events' })
       }
 
@@ -797,12 +853,34 @@ export class IntegrationRouteService {
         apiToken?: string
         providerProjectId?: string
         active?: boolean
+        outboundTargetConfig?: Record<string, unknown>
+        name?: string
+        targetUrl?: string
+        method?: string
+        headers?: Record<string, string>
+        auth?: Record<string, unknown>
+        signingSecret?: string | null
+        signatureAlgorithm?: string
+        retryPolicy?: Record<string, unknown>
+      }
+
+      const customOutboundTargetConfig: { config?: Record<string, unknown> | null; error?: string } =
+        provider === 'custom'
+          ? parseCustomOutboundTargetConfigOrError(body, {
+              existing: existing.outboundTargetConfig || null,
+              requireNameAndUrl: true,
+            })
+          : { config: null }
+      if (provider === 'custom' && customOutboundTargetConfig.error) {
+        return res.status(400).json({ error: customOutboundTargetConfig.error })
       }
 
       await this.webhookConfigDAO.updateConfig(configId, {
         allowedEvents: body.events,
-        apiTokenEncrypted: body.apiToken,
+        apiTokenEncrypted: provider === 'custom' ? undefined : body.apiToken,
         providerProjectId: body.providerProjectId,
+        outboundTargetConfig:
+          provider === 'custom' ? customOutboundTargetConfig.config || null : undefined,
         active: body.active,
       })
 
