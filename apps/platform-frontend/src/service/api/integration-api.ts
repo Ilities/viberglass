@@ -533,6 +533,7 @@ export interface IntegrationInboundWebhookConfig {
   active: boolean
   hasSecret: boolean
   webhookSecret?: string
+  projectId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -544,6 +545,7 @@ export interface IntegrationOutboundWebhookConfig {
   active: boolean
   hasApiToken: boolean
   providerProjectId: string | null
+  projectId?: string | null
   name?: string
   targetUrl?: string
   method?: 'POST' | 'PUT' | 'PATCH'
@@ -664,6 +666,7 @@ export async function updateIntegrationInboundWebhook(
     webhookSecret?: string
     generateSecret?: boolean
     providerProjectId?: string
+    projectId?: string
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -678,6 +681,7 @@ export async function updateIntegrationInboundWebhook(
         webhookSecret: config.webhookSecret,
         generateSecret: config.generateSecret,
         providerProjectId: config.providerProjectId,
+        projectId: config.projectId,
         active: config.active,
       }),
     }
