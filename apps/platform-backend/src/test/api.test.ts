@@ -68,14 +68,28 @@ describe("API Endpoints", () => {
       expect(response.body.providers).toBeDefined();
     });
 
-    it("should return deprecation response for trigger-autofix", async () => {
-      const response = await request(app)
-        .post("/api/webhooks/trigger-autofix")
-        .send({})
-        .expect(200);
+    it("should return 404 for removed generic webhook management routes", async () => {
+      await request(app).get("/api/webhooks/configs").expect(404);
+      await request(app).post("/api/webhooks/configs").send({ provider: "github" }).expect(404);
+      await request(app).put("/api/webhooks/configs/cfg-1").send({}).expect(404);
+      await request(app).delete("/api/webhooks/configs/cfg-1").expect(404);
+      await request(app).get("/api/webhooks/deliveries").expect(404);
+      await request(app).post("/api/webhooks/deliveries/d-1/retry").expect(404);
+      await request(app).post("/api/webhooks/trigger-autofix").send({}).expect(404);
+    });
 
-      expect(response.body.message).toBe("Auto-fix triggered");
-      expect(response.body.note).toContain("deprecated");
+    it("should return 404 for removed project-scoped webhook routes", async () => {
+      await request(app).get("/api/projects/proj-1/integrations/github/webhook").expect(404);
+      await request(app)
+        .put("/api/projects/proj-1/integrations/github/webhook")
+        .send({})
+        .expect(404);
+      await request(app).delete("/api/projects/proj-1/integrations/github/webhook").expect(404);
+      await request(app).get("/api/projects/proj-1/integrations/github/deliveries").expect(404);
+      await request(app)
+        .post("/api/projects/proj-1/integrations/github/deliveries/delivery-1/retry")
+        .send({})
+        .expect(404);
     });
   });
 

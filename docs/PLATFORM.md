@@ -197,7 +197,8 @@ Configure webhooks in your PM systems:
 
 - **GitHub**: `POST /api/webhooks/github`
 - **Jira**: `POST /api/webhooks/jira`
-- **Linear**: `POST /api/webhooks/linear`
+- **Shortcut**: `POST /api/webhooks/shortcut`
+- **Custom**: `POST /api/webhooks/custom/:configId`
 
 ### API Documentation
 
@@ -286,10 +287,10 @@ Monitor the `auto_fix_queue` table for processing status.
 2. Configure `JIRA_BASE_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
 3. Set up webhook in Jira admin
 
-#### Linear
-1. Generate API key in Linear settings
-2. Set `LINEAR_API_KEY` environment variable
-3. Configure webhook in Linear team settings
+#### Shortcut
+1. Generate API key in Shortcut settings
+2. Set `SHORTCUT_API_KEY` environment variable
+3. Configure webhook in Shortcut workspace settings
 
 ### Auto-Fix Detection
 
