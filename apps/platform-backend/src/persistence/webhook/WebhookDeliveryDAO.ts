@@ -424,11 +424,24 @@ export class WebhookDeliveryDAO {
       return false;
     }
 
-    const dbError = error as { code?: string; message?: string };
+    const dbError = error as {
+      code?: string;
+      message?: string;
+      detail?: string;
+      constraint?: string;
+    };
     if (dbError.code !== "23505") {
       return false;
     }
 
-    return (dbError.message ?? "").includes("delivery_id");
+    const searchable = [
+      dbError.message ?? "",
+      dbError.detail ?? "",
+      dbError.constraint ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return searchable.includes("delivery_id");
   }
 }
