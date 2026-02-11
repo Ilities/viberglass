@@ -16,7 +16,6 @@ import {
   getTicketStats as apiGetTicketStats,
   getTicket,
   getTickets,
-  triggerAutoFix as triggerTicketAutoFix,
 } from '@/service/api/ticket-api'
 import type {
   AutoFixStatus,
@@ -71,10 +70,6 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
 
 export async function getTicketDetails(id: string): Promise<Ticket | null> {
   return await getTicket(id)
-}
-
-export async function triggerAutoFix(ticketId: string, ticketSystem: string, repositoryUrl?: string): Promise<void> {
-  await triggerTicketAutoFix(ticketId, ticketSystem, repositoryUrl)
 }
 
 // Clanker functions

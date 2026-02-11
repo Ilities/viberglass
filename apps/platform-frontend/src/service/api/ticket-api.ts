@@ -142,24 +142,5 @@ export async function getWebhookStatus(): Promise<WebhookStatus> {
   return data.data
 }
 
-// Auto-fix API
-export async function triggerAutoFix(ticketId: string, ticketSystem: string, repositoryUrl?: string): Promise<void> {
-  const response = await apiFetch(`${API_BASE_URL}/api/webhooks/trigger-autofix`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      ticketId,
-      ticketSystem,
-      repositoryUrl,
-    }),
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to trigger auto-fix')
-  }
-}
-
 // Re-export types for convenience
 export type { AutoFixStatus, Severity, Ticket, TicketListParams, UpdateTicketRequest } from '@viberglass/types'
