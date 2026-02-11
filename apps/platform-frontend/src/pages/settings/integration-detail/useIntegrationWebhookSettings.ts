@@ -30,9 +30,7 @@ function areEventListsEqual(left: string[], right: string[]): boolean {
   return normalizedLeft.every((event, index) => event === normalizedRight[index])
 }
 
-export function useIntegrationWebhookSettings({
-  integrationEntityId,
-}: UseIntegrationWebhookSettingsArgs) {
+export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegrationWebhookSettingsArgs) {
   const [inboundWebhooks, setInboundWebhooks] = useState<IntegrationInboundWebhookConfig[]>([])
   const [selectedInboundConfigId, setSelectedInboundConfigId] = useState<string | null>(null)
   const [outboundWebhook, setOutboundWebhook] = useState<IntegrationOutboundWebhookConfig | null>(null)
@@ -135,20 +133,13 @@ export function useIntegrationWebhookSettings({
   }, [selectedInboundConfig])
 
   const loadDeliveriesForConfig = useCallback(
-    async (
-      targetIntegrationEntityId: string,
-      targetInboundConfigId: string,
-      showLoadingState: boolean
-    ) => {
+    async (targetIntegrationEntityId: string, targetInboundConfigId: string, showLoadingState: boolean) => {
       if (showLoadingState) {
         setIsLoadingDeliveries(true)
       }
 
       try {
-        const data = await getIntegrationDeliveries(
-          targetIntegrationEntityId,
-          targetInboundConfigId
-        )
+        const data = await getIntegrationDeliveries(targetIntegrationEntityId, targetInboundConfigId)
         setDeliveries(data)
       } catch (error) {
         console.error('Failed to load deliveries:', error)
@@ -257,16 +248,12 @@ export function useIntegrationWebhookSettings({
 
     setIsSavingWebhook(true)
     try {
-      const config = await updateIntegrationInboundWebhook(
-        integrationEntityId,
-        selectedInboundConfig.id,
-        {
-          events: inboundEvents,
-          autoExecute,
-          active: inboundActive,
-          providerProjectId,
-        }
-      )
+      const config = await updateIntegrationInboundWebhook(integrationEntityId, selectedInboundConfig.id, {
+        events: inboundEvents,
+        autoExecute,
+        active: inboundActive,
+        providerProjectId,
+      })
       setInboundWebhooks((prev) => prev.map((item) => (item.id === config.id ? config : item)))
       toast.success('Inbound webhook settings saved')
     } catch (error) {
@@ -434,16 +421,19 @@ export function useIntegrationWebhookSettings({
     }
 
     try {
-      await retryIntegrationDelivery(
-        integrationEntityId,
-        selectedInboundConfig.id,
-        deliveryId
+      const result = await retryIntegrationDelivery(integrationEntityId, selectedInboundConfig.id, deliveryId)
+      toast.success(
+        result.retry.status === 'processed' ? 'Delivery retried successfully' : 'Delivery retry completed',
+        {
+          description: result.retry.reason,
+        }
       )
-      toast.success('Delivery retry initiated')
       void handleRefreshDeliveries()
     } catch (error) {
       console.error('Failed to retry delivery:', error)
-      toast.error('Failed to retry delivery')
+      toast.error('Failed to retry delivery', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
     }
   }
 
@@ -457,7 +447,7 @@ export function useIntegrationWebhookSettings({
     ? emitJobStarted !== outboundWebhook.events.includes('job_started') ||
       emitJobEnded !== outboundWebhook.events.includes('job_ended') ||
       outboundApiToken.trim().length > 0
-    : emitJobStarted !== true || emitJobEnded !== true || outboundApiToken.trim().length > 0
+    : !emitJobStarted || !emitJobEnded || outboundApiToken.trim().length > 0
 
   return {
     autoExecute,

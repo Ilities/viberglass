@@ -118,9 +118,12 @@ describe('Custom webhook sections', () => {
           deliveries: [
             {
               id: 'delivery-1',
+              provider: 'custom',
+              webhookConfigId: 'cfg-custom-1',
               deliveryId: 'custom-delivery-1',
               eventType: 'ticket_created',
               status: 'failed',
+              retryable: true,
               errorMessage: 'Signature mismatch',
               ticketId: null,
               createdAt: '2026-02-10T00:00:00.000Z',
