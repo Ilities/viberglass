@@ -544,8 +544,33 @@ export interface IntegrationOutboundWebhookConfig {
   active: boolean
   hasApiToken: boolean
   providerProjectId: string | null
+  name?: string
+  targetUrl?: string
+  method?: 'POST' | 'PUT' | 'PATCH'
+  headers?: Record<string, string>
+  auth?: {
+    type: 'none' | 'bearer' | 'basic' | 'header'
+    username?: string
+    headerName?: string
+    hasToken?: boolean
+    hasPassword?: boolean
+    hasHeaderValue?: boolean
+  }
+  hasSigningSecret?: boolean
+  signatureAlgorithm?: 'sha256' | 'sha1' | null
+  retryPolicy?: {
+    maxAttempts: number
+    backoffMs: number
+    maxBackoffMs: number
+  }
   createdAt: string
   updatedAt: string
+}
+
+export interface IntegrationOutboundWebhookTestResult {
+  success: boolean
+  message: string
+  statusCode?: number
 }
 
 export interface IntegrationWebhookDelivery {
@@ -702,6 +727,25 @@ export async function saveIntegrationOutboundWebhook(
     providerProjectId?: string
     projectId?: string
     active?: boolean
+    name?: string
+    targetUrl?: string
+    method?: 'POST' | 'PUT' | 'PATCH'
+    headers?: Record<string, string>
+    auth?: {
+      type: 'none' | 'bearer' | 'basic' | 'header'
+      token?: string
+      username?: string
+      password?: string
+      headerName?: string
+      headerValue?: string
+    }
+    signingSecret?: string | null
+    signatureAlgorithm?: 'sha256' | 'sha1'
+    retryPolicy?: {
+      maxAttempts: number
+      backoffMs: number
+      maxBackoffMs: number
+    }
   },
   configId?: string
 ): Promise<IntegrationOutboundWebhookConfig> {
@@ -720,6 +764,14 @@ export async function saveIntegrationOutboundWebhook(
         providerProjectId: config.providerProjectId,
         projectId: config.projectId,
         active: config.active,
+        name: config.name,
+        targetUrl: config.targetUrl,
+        method: config.method,
+        headers: config.headers,
+        auth: config.auth,
+        signingSecret: config.signingSecret,
+        signatureAlgorithm: config.signatureAlgorithm,
+        retryPolicy: config.retryPolicy,
       }),
     }
   )
@@ -729,6 +781,64 @@ export async function saveIntegrationOutboundWebhook(
   }
   const data: ApiResponse<IntegrationOutboundWebhookConfig> = await response.json()
   return data.data
+}
+
+export async function testIntegrationOutboundWebhook(
+  integrationEntityId: string,
+  configId: string,
+  eventType?: 'job_started' | 'job_ended'
+): Promise<IntegrationOutboundWebhookTestResult> {
+  const endpointPaths = [
+    `${API_BASE_URL}/api/integrations/${integrationEntityId}/webhooks/outbound/${configId}/test`,
+    `${API_BASE_URL}/api/integrations/${integrationEntityId}/webhooks/outbound/${configId}/test-send`,
+  ]
+
+  let lastResponse: Response | null = null
+  for (const endpoint of endpointPaths) {
+    const response = await apiFetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventType ? { eventType } : {}),
+    })
+
+    if (response.status === 404) {
+      lastResponse = response
+      continue
+    }
+
+    const payload = await response.json().catch(() => ({} as Record<string, unknown>))
+    if (!response.ok) {
+      return {
+        success: false,
+        message:
+          (typeof payload.message === 'string' && payload.message) ||
+          (typeof payload.error === 'string' && payload.error) ||
+          'Test send failed',
+        statusCode: response.status,
+      }
+    }
+
+    const data =
+      payload &&
+      typeof payload === 'object' &&
+      'data' in payload &&
+      payload.data &&
+      typeof payload.data === 'object'
+        ? (payload.data as Record<string, unknown>)
+        : payload
+
+    return {
+      success: data?.success === true,
+      message: typeof data?.message === 'string' && data.message ? data.message : 'Test send completed',
+      statusCode: response.status,
+    }
+  }
+
+  return {
+    success: false,
+    message: 'Test send endpoint is not available',
+    statusCode: lastResponse?.status,
+  }
 }
 
 /**
