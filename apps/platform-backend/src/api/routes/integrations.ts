@@ -47,6 +47,10 @@ router.post('/:id/webhooks/outbound', integrationRouteService.createOutboundWebh
 router.get('/:id/webhooks/outbound/:configId', integrationRouteService.getOutboundWebhookConfig)
 router.put('/:id/webhooks/outbound/:configId', integrationRouteService.updateOutboundWebhookConfig)
 router.delete('/:id/webhooks/outbound/:configId', integrationRouteService.deleteOutboundWebhookConfig)
+router.get(
+  '/:id/webhooks/outbound/:configId/deliveries',
+  integrationRouteService.listOutboundWebhookDeliveries,
+)
 
 router.get(
   '/:id/webhooks/inbound/:configId/deliveries',

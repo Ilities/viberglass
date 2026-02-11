@@ -18,7 +18,9 @@ const mockWebhookConfigDAO = {
 const mockWebhookDeliveryDAO = {
   listDeliveriesByConfig: jest.fn(),
   getDeliveryByIdForConfig: jest.fn(),
-  updateDeliveryStatus: jest.fn(),
+}
+const mockWebhookService = {
+  retryDelivery: jest.fn(),
 }
 
 jest.mock('../../../../api/middleware/authentication', () => ({
@@ -38,6 +40,10 @@ jest.mock('../../../../persistence/webhook/WebhookDeliveryDAO', () => ({
   WebhookDeliveryDAO: jest.fn(() => mockWebhookDeliveryDAO),
 }))
 
+jest.mock('../../../../webhooks/webhookServiceFactory', () => ({
+  getWebhookService: jest.fn(() => mockWebhookService),
+}))
+
 import integrationsRouter from '../../../../api/routes/integrations'
 
 describe('integration webhook routes (instance/config-scoped)', () => {
@@ -55,7 +61,7 @@ describe('integration webhook routes (instance/config-scoped)', () => {
     mockWebhookConfigDAO.deleteConfig.mockReset()
     mockWebhookDeliveryDAO.listDeliveriesByConfig.mockReset()
     mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockReset()
-    mockWebhookDeliveryDAO.updateDeliveryStatus.mockReset()
+    mockWebhookService.retryDelivery.mockReset()
 
     app = express()
     app.use(express.json())
@@ -91,6 +97,7 @@ describe('integration webhook routes (instance/config-scoped)', () => {
       .expect(200)
 
     expect(mockWebhookDeliveryDAO.listDeliveriesByConfig).toHaveBeenCalledWith('cfg-1', {
+      statuses: undefined,
       limit: 10,
       offset: 2,
       sortOrder: 'desc',
@@ -102,8 +109,52 @@ describe('integration webhook routes (instance/config-scoped)', () => {
         webhookConfigId: 'cfg-1',
         deliveryId: 'delivery-1',
         eventType: 'issues',
+        retryable: true,
       }),
     ])
+  })
+
+  it('applies explicit status filters when listing config-scoped deliveries', async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: 'int-1',
+      system: 'github',
+    })
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: 'cfg-1',
+      direction: 'inbound',
+    })
+    mockWebhookDeliveryDAO.listDeliveriesByConfig.mockResolvedValue([])
+
+    await request(app)
+      .get('/api/integrations/int-1/webhooks/inbound/cfg-1/deliveries?statuses=failed,processing')
+      .expect(200)
+
+    expect(mockWebhookDeliveryDAO.listDeliveriesByConfig).toHaveBeenCalledWith('cfg-1', {
+      statuses: ['failed', 'processing'],
+      limit: 50,
+      offset: 0,
+      sortOrder: 'desc',
+    })
+  })
+
+  it('rejects invalid delivery status filters', async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: 'int-1',
+      system: 'github',
+    })
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: 'cfg-1',
+      direction: 'inbound',
+    })
+
+    const response = await request(app)
+      .get('/api/integrations/int-1/webhooks/inbound/cfg-1/deliveries?statuses=failed,unknown')
+      .expect(400)
+
+    expect(response.body).toEqual({
+      error: 'Invalid delivery statuses: unknown',
+    })
+    expect(mockWebhookDeliveryDAO.listDeliveriesByConfig).not.toHaveBeenCalled()
   })
 
   it('retries delivery only within the targeted webhook config', async () => {
@@ -117,9 +168,21 @@ describe('integration webhook routes (instance/config-scoped)', () => {
     })
     mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockResolvedValue({
       id: 'delivery-row-1',
+      provider: 'github',
+      webhookConfigId: 'cfg-1',
+      deliveryId: 'delivery-1',
+      eventType: 'issues.opened',
       status: 'failed',
+      errorMessage: 'first failure',
+      ticketId: null,
+      createdAt: new Date('2026-02-09T10:00:00.000Z'),
+      processedAt: new Date('2026-02-09T10:00:01.000Z'),
     })
-    mockWebhookDeliveryDAO.updateDeliveryStatus.mockResolvedValue(undefined)
+    mockWebhookService.retryDelivery.mockResolvedValue({
+      status: 'processed',
+      ticketId: 'ticket-1',
+      jobId: 'job-1',
+    })
 
     const response = await request(app)
       .post('/api/integrations/int-1/webhooks/inbound/cfg-1/deliveries/delivery-row-1/retry')
@@ -129,15 +192,31 @@ describe('integration webhook routes (instance/config-scoped)', () => {
       'delivery-row-1',
       'cfg-1',
     )
-    expect(mockWebhookDeliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith(
-      'delivery-row-1',
-      'failed',
-      'Marked for retry - please check provider webhook settings',
+    expect(mockWebhookService.retryDelivery).toHaveBeenCalledWith(
+      'delivery-1',
+      {
+        deliveryAttemptId: 'delivery-row-1',
+        webhookConfigId: 'cfg-1',
+      },
     )
+    expect(mockWebhookDeliveryDAO.getDeliveryByIdForConfig).toHaveBeenCalledTimes(2)
     expect(response.body).toEqual(
       expect.objectContaining({
         success: true,
-        message: 'Delivery retry initiated',
+        message: 'Delivery retried successfully',
+      }),
+    )
+    expect(response.body.data).toEqual(
+      expect.objectContaining({
+        delivery: expect.objectContaining({
+          id: 'delivery-row-1',
+          deliveryId: 'delivery-1',
+        }),
+        retry: expect.objectContaining({
+          status: 'processed',
+          ticketId: 'ticket-1',
+          jobId: 'job-1',
+        }),
       }),
     )
   })
@@ -160,8 +239,51 @@ describe('integration webhook routes (instance/config-scoped)', () => {
       .post('/api/integrations/int-1/webhooks/inbound/cfg-1/deliveries/delivery-row-1/retry')
       .expect(409)
 
-    expect(response.body).toEqual({ error: 'Successful deliveries cannot be retried' })
-    expect(mockWebhookDeliveryDAO.updateDeliveryStatus).not.toHaveBeenCalled()
+    expect(response.body).toEqual({ error: 'Only failed deliveries can be retried' })
+    expect(mockWebhookService.retryDelivery).not.toHaveBeenCalled()
+  })
+
+  it('returns retry failure details when provider retry fails', async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: 'int-1',
+      system: 'github',
+    })
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: 'cfg-1',
+      direction: 'inbound',
+    })
+    mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockResolvedValue({
+      id: 'delivery-row-1',
+      provider: 'github',
+      webhookConfigId: 'cfg-1',
+      deliveryId: 'delivery-1',
+      eventType: 'issues.opened',
+      status: 'failed',
+      errorMessage: 'initial error',
+      ticketId: null,
+      createdAt: new Date('2026-02-09T10:00:00.000Z'),
+      processedAt: new Date('2026-02-09T10:00:01.000Z'),
+    })
+    mockWebhookService.retryDelivery.mockResolvedValue({
+      status: 'failed',
+      reason: 'Invalid payload',
+    })
+
+    const response = await request(app)
+      .post('/api/integrations/int-1/webhooks/inbound/cfg-1/deliveries/delivery-row-1/retry')
+      .expect(422)
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        error: 'Retry failed',
+        reason: 'Invalid payload',
+      }),
+    )
+    expect(response.body.data.delivery).toEqual(
+      expect.objectContaining({
+        id: 'delivery-row-1',
+      }),
+    )
   })
 
   it('lists outbound configs independently for multiple same-provider integration instances', async () => {
@@ -209,6 +331,49 @@ describe('integration webhook routes (instance/config-scoped)', () => {
 
     expect(first.body.data).toEqual([expect.objectContaining({ id: 'outbound-1' })])
     expect(second.body.data).toEqual([expect.objectContaining({ id: 'outbound-2' })])
+  })
+
+  it('lists outbound delivery history using the same delivery contract', async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: 'int-1',
+      system: 'github',
+    })
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: 'outbound-1',
+      direction: 'outbound',
+    })
+    mockWebhookDeliveryDAO.listDeliveriesByConfig.mockResolvedValue([
+      {
+        id: 'delivery-outbound-1',
+        provider: 'github',
+        webhookConfigId: 'outbound-1',
+        deliveryId: 'delivery-1',
+        eventType: 'job_started',
+        status: 'succeeded',
+        errorMessage: null,
+        ticketId: 'ticket-1',
+        createdAt: new Date('2026-02-09T10:00:00.000Z'),
+        processedAt: new Date('2026-02-09T10:00:01.000Z'),
+      },
+    ])
+
+    const response = await request(app)
+      .get('/api/integrations/int-1/webhooks/outbound/outbound-1/deliveries?status=succeeded')
+      .expect(200)
+
+    expect(mockWebhookDeliveryDAO.listDeliveriesByConfig).toHaveBeenCalledWith('outbound-1', {
+      statuses: ['succeeded'],
+      limit: 50,
+      offset: 0,
+      sortOrder: 'desc',
+    })
+    expect(response.body.data).toEqual([
+      expect.objectContaining({
+        id: 'delivery-outbound-1',
+        status: 'succeeded',
+        retryable: false,
+      }),
+    ])
   })
 
   it('enforces deterministic single outbound config creation per integration/provider', async () => {
