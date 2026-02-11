@@ -235,6 +235,225 @@ describe('integration webhook routes (instance/config-scoped)', () => {
     expect(mockWebhookConfigDAO.createConfig).not.toHaveBeenCalled()
   })
 
+  it('lists multiple custom outbound targets for a custom integration', async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: 'int-custom',
+      system: 'custom',
+      values: {},
+    })
+    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([
+      {
+        id: 'outbound-custom-2',
+        provider: 'custom',
+        allowedEvents: ['job_started'],
+        active: false,
+        apiTokenEncrypted: null,
+        providerProjectId: null,
+        outboundTargetConfig: {
+          name: 'Slack sink',
+          targetUrl: 'https://hooks.example.com/slack',
+          method: 'POST',
+          headers: { 'x-env': 'dev' },
+          auth: { type: 'header', headerName: 'x-token', headerValue: 'secret' },
+          signingSecret: 'signing-secret',
+          signatureAlgorithm: 'sha256',
+          retryPolicy: { maxAttempts: 3, backoffMs: 250, maxBackoffMs: 2000 },
+        },
+        createdAt: new Date('2026-02-09T10:00:00.000Z'),
+        updatedAt: new Date('2026-02-09T10:01:00.000Z'),
+      },
+      {
+        id: 'outbound-custom-1',
+        provider: 'custom',
+        allowedEvents: ['job_ended'],
+        active: true,
+        apiTokenEncrypted: null,
+        providerProjectId: null,
+        outboundTargetConfig: {
+          name: 'Audit sink',
+          targetUrl: 'https://hooks.example.com/audit',
+          method: 'POST',
+          headers: {},
+          auth: { type: 'none' },
+          signatureAlgorithm: 'sha256',
+          retryPolicy: { maxAttempts: 1, backoffMs: 250, maxBackoffMs: 2000 },
+        },
+        createdAt: new Date('2026-02-09T09:00:00.000Z'),
+        updatedAt: new Date('2026-02-09T09:01:00.000Z'),
+      },
+      {
+        id: 'outbound-github-noise',
+        provider: 'github',
+        allowedEvents: ['job_ended'],
+        active: true,
+        apiTokenEncrypted: 'token-1',
+        providerProjectId: 'acme/repo',
+        createdAt: new Date('2026-02-09T08:00:00.000Z'),
+        updatedAt: new Date('2026-02-09T08:01:00.000Z'),
+      },
+    ])
+
+    const response = await request(app)
+      .get('/api/integrations/int-custom/webhooks/outbound')
+      .expect(200)
+
+    expect(mockWebhookConfigDAO.listByIntegrationId).toHaveBeenCalledWith('int-custom', {
+      direction: 'outbound',
+      activeOnly: false,
+    })
+    expect(response.body.data).toEqual([
+      expect.objectContaining({
+        id: 'outbound-custom-2',
+        provider: 'custom',
+        name: 'Slack sink',
+        targetUrl: 'https://hooks.example.com/slack',
+        hasSigningSecret: true,
+      }),
+      expect.objectContaining({
+        id: 'outbound-custom-1',
+        provider: 'custom',
+        name: 'Audit sink',
+        targetUrl: 'https://hooks.example.com/audit',
+        hasSigningSecret: false,
+      }),
+    ])
+  })
+
+  it('creates multiple custom outbound targets without single-config restriction', async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: 'int-custom',
+      system: 'custom',
+      values: {},
+    })
+    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([
+      {
+        id: 'outbound-existing',
+        provider: 'custom',
+      },
+    ])
+    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([])
+    mockWebhookConfigDAO.createConfig
+      .mockResolvedValueOnce({
+        id: 'outbound-custom-1',
+        provider: 'custom',
+        allowedEvents: ['job_started'],
+        active: true,
+        apiTokenEncrypted: null,
+        providerProjectId: null,
+        outboundTargetConfig: {
+          name: 'Slack sink',
+          targetUrl: 'https://hooks.example.com/slack',
+          method: 'POST',
+          headers: {},
+          auth: { type: 'none' },
+          signatureAlgorithm: 'sha256',
+          retryPolicy: { maxAttempts: 1, backoffMs: 250, maxBackoffMs: 2000 },
+        },
+        createdAt: new Date('2026-02-09T10:00:00.000Z'),
+        updatedAt: new Date('2026-02-09T10:01:00.000Z'),
+      })
+      .mockResolvedValueOnce({
+        id: 'outbound-custom-2',
+        provider: 'custom',
+        allowedEvents: ['job_ended'],
+        active: true,
+        apiTokenEncrypted: null,
+        providerProjectId: null,
+        outboundTargetConfig: {
+          name: 'Audit sink',
+          targetUrl: 'https://hooks.example.com/audit',
+          method: 'PATCH',
+          headers: {},
+          auth: { type: 'none' },
+          signatureAlgorithm: 'sha256',
+          retryPolicy: { maxAttempts: 2, backoffMs: 300, maxBackoffMs: 2000 },
+        },
+        createdAt: new Date('2026-02-09T11:00:00.000Z'),
+        updatedAt: new Date('2026-02-09T11:01:00.000Z'),
+      })
+
+    const first = await request(app)
+      .post('/api/integrations/int-custom/webhooks/outbound')
+      .send({
+        name: 'Slack sink',
+        targetUrl: 'https://hooks.example.com/slack',
+        events: ['job_started'],
+      })
+      .expect(201)
+
+    const second = await request(app)
+      .post('/api/integrations/int-custom/webhooks/outbound')
+      .send({
+        name: 'Audit sink',
+        targetUrl: 'https://hooks.example.com/audit',
+        method: 'PATCH',
+        events: ['job_ended'],
+        retryPolicy: { maxAttempts: 2, backoffMs: 300, maxBackoffMs: 2000 },
+      })
+      .expect(201)
+
+    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledTimes(2)
+    expect(mockWebhookConfigDAO.createConfig).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        provider: 'custom',
+        direction: 'outbound',
+        integrationId: 'int-custom',
+        outboundTargetConfig: expect.objectContaining({
+          name: 'Slack sink',
+          targetUrl: 'https://hooks.example.com/slack',
+        }),
+      }),
+    )
+    expect(mockWebhookConfigDAO.createConfig).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        provider: 'custom',
+        direction: 'outbound',
+        integrationId: 'int-custom',
+        outboundTargetConfig: expect.objectContaining({
+          name: 'Audit sink',
+          targetUrl: 'https://hooks.example.com/audit',
+          method: 'PATCH',
+        }),
+      }),
+    )
+    expect(first.body.data).toEqual(
+      expect.objectContaining({
+        id: 'outbound-custom-1',
+        name: 'Slack sink',
+      }),
+    )
+    expect(second.body.data).toEqual(
+      expect.objectContaining({
+        id: 'outbound-custom-2',
+        name: 'Audit sink',
+        method: 'PATCH',
+      }),
+    )
+  })
+
+  it('rejects custom outbound target creation when target URL is missing', async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: 'int-custom',
+      system: 'custom',
+      values: {},
+    })
+    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([])
+
+    const response = await request(app)
+      .post('/api/integrations/int-custom/webhooks/outbound')
+      .send({
+        name: 'Invalid target',
+      })
+      .expect(400)
+
+    expect(response.body).toEqual({
+      error: 'Custom outbound target URL is required',
+    })
+    expect(mockWebhookConfigDAO.createConfig).not.toHaveBeenCalled()
+  })
+
   it('lists multiple custom inbound webhook configs for the same integration', async () => {
     mockIntegrationDAO.getIntegration.mockResolvedValue({
       id: 'int-custom',

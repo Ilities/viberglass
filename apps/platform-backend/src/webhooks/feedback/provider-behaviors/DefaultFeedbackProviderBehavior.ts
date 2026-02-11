@@ -19,6 +19,14 @@ export class DefaultFeedbackProviderBehavior implements FeedbackProviderBehavior
     return `Provider '${provider}' does not support outbound posting`;
   }
 
+  requiresExternalTicketId(): boolean {
+    return true;
+  }
+
+  requiresApiToken(): boolean {
+    return true;
+  }
+
   requiresProviderProjectId(): boolean {
     return false;
   }

@@ -31,6 +31,7 @@ export interface WebhookConfig {
   autoExecute: boolean;
   botUsername: string | null;
   labelMappings: Record<string, unknown>;
+  outboundTargetConfig?: Record<string, unknown> | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -53,6 +54,7 @@ export interface CreateWebhookConfigDTO {
   autoExecute?: boolean;
   botUsername?: string | null;
   labelMappings?: Record<string, unknown>;
+  outboundTargetConfig?: Record<string, unknown> | null;
   active?: boolean;
 }
 
@@ -73,6 +75,7 @@ export interface UpdateWebhookConfigDTO {
   autoExecute?: boolean;
   botUsername?: string | null;
   labelMappings?: Record<string, unknown>;
+  outboundTargetConfig?: Record<string, unknown> | null;
   active?: boolean;
 }
 
@@ -103,6 +106,9 @@ export class WebhookConfigDAO {
         label_mappings: JSON.stringify(
           dto.labelMappings ?? {},
         ) as any, // Kysely jsonb column requires string
+        outbound_target_config: dto.outboundTargetConfig
+          ? (JSON.stringify(dto.outboundTargetConfig) as any)
+          : null,
         active: dto.active ?? true,
         created_at: timestamp,
         updated_at: timestamp,
@@ -201,6 +207,11 @@ export class WebhookConfigDAO {
       updateData.label_mappings = JSON.stringify(
         updates.labelMappings,
       ) as any; // Kysely jsonb column requires string
+    }
+    if (updates.outboundTargetConfig !== undefined) {
+      updateData.outbound_target_config = updates.outboundTargetConfig
+        ? (JSON.stringify(updates.outboundTargetConfig) as any)
+        : null;
     }
     if (updates.active !== undefined) {
       updateData.active = updates.active;
@@ -442,6 +453,12 @@ export class WebhookConfigDAO {
         typeof row.label_mappings === "string"
           ? JSON.parse(row.label_mappings)
           : (row.label_mappings as Record<string, unknown>),
+      outboundTargetConfig:
+        typeof row.outbound_target_config === "string"
+          ? (JSON.parse(row.outbound_target_config) as Record<string, unknown>)
+          : row.outbound_target_config
+            ? (row.outbound_target_config as Record<string, unknown>)
+            : null,
       active: Boolean(row.active),
       createdAt: row.created_at as Date,
       updatedAt: row.updated_at as Date,
