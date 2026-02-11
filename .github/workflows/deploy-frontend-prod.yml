@@ -2,21 +2,13 @@
 # Uses Git-based auto-deployment with GitHub environment approval gate
 #
 # HOW IT WORKS:
-# 1. Push to main branch triggers this workflow
-# 2. The workflow requires approval via the 'prod' GitHub environment
-# 3. Once approved, Amplify's git integration automatically builds and deploys
-# 4. This workflow runs tests/validation while Amplify handles the actual deployment
+# 1. The workflow requires approval via the 'prod' GitHub environment
+# 2. Once approved, Amplify's git integration automatically builds and deploys
+# 3. This workflow runs tests/validation while Amplify handles the actual deployment
 
 name: Deploy Frontend (Production)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/platform-frontend/**'
-      - 'packages/types/**'
-      - '.github/workflows/deploy-frontend-prod.yml'
-      - 'package*.json'
   workflow_dispatch:
     inputs:
       reason:

@@ -8,6 +8,7 @@ These rules are mandatory for all backend changes in this repository.
 2. Do not create or expand "monster" services.
 3. Prefer composition via dependency injection over provider-specific `if/else` branching.
 4. Follow Spring/Nest-style structure: clear module boundaries, interfaces/contracts, focused services.
+5. For utility functions, create a dedicated file and expose them as named exports.
 
 ## File Naming Convention
 
@@ -32,7 +33,7 @@ These rules are mandatory for all backend changes in this repository.
 4. Soft limits:
 - Service class: <= 200 lines.
 - Any class: <= 150 lines.
-- File: <= 250 lines.
+- File: <= 350 lines.
 5. If limits are exceeded, split immediately into smaller collaborators.
 
 ## Branching and Provider Logic

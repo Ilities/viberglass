@@ -205,13 +205,19 @@ export function isTransientProviderError(error: unknown): boolean {
 
 export function getRetryDelayMs(
   attempt: number,
+  options: {
+    baseDelayMs?: number;
+    maxDelayMs?: number;
+  } = {},
   nodeEnv: string | undefined = process.env.NODE_ENV,
 ): number {
   if (nodeEnv === "test") {
     return 0;
   }
 
-  return Math.min(2000, 250 * 2 ** (attempt - 1));
+  const baseDelayMs = options.baseDelayMs ?? 250;
+  const maxDelayMs = options.maxDelayMs ?? 2000;
+  return Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
 }
 
 export async function sleep(ms: number): Promise<void> {

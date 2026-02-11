@@ -1,32 +1,17 @@
 import { createChildLogger } from '../../config/logger';
 import type { JobResult } from '../../types/Job';
-import {
-  formatJobStartedComment,
-  formatResultDetails,
-  type OutboundTarget,
-} from '../feedbackHelpers';
-import type { WebhookResult } from '../WebhookProvider';
-import type { ProviderRegistry } from '../ProviderRegistry';
-import type { WebhookSecretService } from '../WebhookSecretService';
-import {
-  createProviderInstance,
-  isEventEnabled,
-  toProviderConfig,
-} from './FeedbackDispatchUtils';
+import type { OutboundTarget } from '../feedbackHelpers';
+import { isEventEnabled } from './FeedbackDispatchUtils';
 import { FeedbackOutboundTargetResolver } from './FeedbackOutboundTargetResolver';
-import type { FeedbackProviderBehaviorResolver } from './provider-behaviors';
-import { FeedbackRetryExecutor } from './FeedbackRetryExecutor';
+import { FeedbackTargetDispatchRunner } from './FeedbackTargetDispatchRunner';
 import type { FeedbackResult, JobWithTicket, OutboundWebhookEventType } from './types';
 
 const logger = createChildLogger({ service: 'FeedbackEventDispatcher' });
 
 export class FeedbackEventDispatcher {
   constructor(
-    private registry: ProviderRegistry,
-    private secretService: WebhookSecretService,
     private targetResolver: FeedbackOutboundTargetResolver,
-    private retryExecutor: FeedbackRetryExecutor,
-    private providerBehaviors: FeedbackProviderBehaviorResolver,
+    private targetRunner: FeedbackTargetDispatchRunner,
   ) {}
 
   async dispatch(
@@ -34,8 +19,6 @@ export class FeedbackEventDispatcher {
     eventType: OutboundWebhookEventType,
     result?: JobResult,
   ): Promise<FeedbackResult> {
-    let target: OutboundTarget | null = null;
-
     try {
       if (!job.ticketId) {
         return {
@@ -44,122 +27,78 @@ export class FeedbackEventDispatcher {
         };
       }
 
-      target = await this.targetResolver.resolve(job);
-      if (!target?.config) {
+      const targets = await this.targetResolver.resolveAll(job);
+      if (targets.length === 0) {
         return {
           success: true,
           error: 'No outbound webhook configuration found for job',
         };
       }
 
-      if (!target.externalTicketId) {
-        return {
-          success: true,
-          error: 'No external ticket ID found',
-        };
-      }
-      const externalTicketId = target.externalTicketId;
-
-      if (!isEventEnabled(target.config.allowedEvents, eventType)) {
-        return {
-          success: true,
-          error: `Outbound event '${eventType}' is not enabled`,
-        };
-      }
-
-      const behavior = this.providerBehaviors.resolve(target.config.provider);
-      if (!behavior.supportsOutboundPosting()) {
-        return {
-          success: false,
-          error: behavior.unsupportedOutboundPostingMessage(target.config.provider),
-        };
-      }
-
-      const provider = this.registry.get(target.config.provider);
-      if (!provider) {
-        return {
-          success: false,
-          error: `Provider '${target.config.provider}' not registered`,
-        };
-      }
-
-      const providerConfig = toProviderConfig(
-        target.config,
-        target.providerProjectId,
-        target.apiBaseUrl,
+      const enabledTargets = targets.filter((target) =>
+        isEventEnabled(target.config.allowedEvents, eventType),
       );
-      if (!providerConfig.providerProjectId && behavior.requiresProviderProjectId()) {
-        return {
-          success: false,
-          error: `Provider '${target.config.provider}' outbound configuration requires providerProjectId`,
-        };
-      }
-
-      const providerConfigError = behavior.validateProviderConfig(providerConfig);
-      if (providerConfigError) {
-        return {
-          success: false,
-          error: providerConfigError,
-        };
-      }
-
-      const apiToken = await this.secretService.getApiToken(providerConfig);
-      if (!apiToken?.trim()) {
-        return {
-          success: false,
-          error: `Provider '${target.config.provider}' API token is missing`,
-        };
-      }
-
-      const providerWithToken = createProviderInstance(provider, {
-        ...providerConfig,
-        apiToken,
-      });
-
-      if (eventType === 'job_started') {
-        await this.retryExecutor.execute({
-          provider: target.config.provider,
-          maxAttempts: behavior.maxRetryAttempts(),
-          eventType,
-          job,
-          externalTicketId,
-          operation: () =>
-            providerWithToken.postComment(externalTicketId, formatJobStartedComment(job.id)),
-        });
-
+      if (enabledTargets.length === 0) {
         return {
           success: true,
-          commentPosted: true,
-          labelsUpdated: false,
+          error: `Outbound event '${eventType}' is not enabled for any target`,
         };
       }
 
-      const webhookResult: WebhookResult = {
-        success: result?.success ?? false,
-        action: 'comment',
-        targetId: externalTicketId,
-        commitHash: result?.commitHash,
-        pullRequestUrl: result?.pullRequestUrl,
-        errorMessage: result?.errorMessage,
-        details: result ? formatResultDetails(result) : 'Job ended',
-      };
+      let successCount = 0;
+      const failures: string[] = [];
+      const skippedReasons: string[] = [];
 
-      await this.retryExecutor.execute({
-        provider: target.config.provider,
-        maxAttempts: behavior.maxRetryAttempts(),
-        eventType,
-        job,
-        externalTicketId,
-        operation: () => providerWithToken.postResult(externalTicketId, webhookResult),
-      });
+      for (const target of enabledTargets) {
+        const dispatchOutcome = await this.targetRunner.dispatchToTarget(
+          target,
+          job,
+          eventType,
+          result,
+        );
+        if (dispatchOutcome.skipped) {
+          if (dispatchOutcome.error) {
+            skippedReasons.push(dispatchOutcome.error);
+          }
+          continue;
+        }
+        if (dispatchOutcome.error) {
+          failures.push(dispatchOutcome.error);
+          continue;
+        }
+        successCount += 1;
+      }
+
+      if (successCount === 0 && failures.length === 0 && skippedReasons.length > 0) {
+        return {
+          success: true,
+          error: skippedReasons[0],
+        };
+      }
+
+      if (failures.length === 0) {
+        return {
+          success: true,
+          commentPosted: successCount > 0,
+          labelsUpdated: eventType === 'job_ended' && successCount > 0,
+        };
+      }
+
+      if (successCount > 0) {
+        return {
+          success: false,
+          commentPosted: true,
+          labelsUpdated: eventType === 'job_ended',
+          error: `${failures.length} outbound target(s) failed; first error: ${failures[0]}`,
+        };
+      }
 
       return {
-        success: true,
-        commentPosted: true,
-        labelsUpdated: true,
+        success: false,
+        error: failures[0],
       };
     } catch (error) {
-      return createDispatchFailure(error, job, eventType, target);
+      return createDispatchFailure(error, job, eventType, null);
     }
   }
 }

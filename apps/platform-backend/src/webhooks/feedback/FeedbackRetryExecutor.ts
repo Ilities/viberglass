@@ -11,6 +11,8 @@ interface RetryParams {
   eventType: OutboundWebhookEventType;
   job: JobWithTicket;
   externalTicketId: string;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
   operation: () => Promise<void>;
 }
 
@@ -26,7 +28,10 @@ export class FeedbackRetryExecutor {
         const transientFailure = isTransientProviderError(error);
         const shouldRetry = attempt < maxAttempts && transientFailure;
         if (shouldRetry) {
-          const delayMs = getRetryDelayMs(attempt);
+          const delayMs = getRetryDelayMs(attempt, {
+            baseDelayMs: params.baseDelayMs,
+            maxDelayMs: params.maxDelayMs,
+          });
           logger.warn('Transient outbound provider failure; retrying', {
             provider: params.provider,
             eventType: params.eventType,
