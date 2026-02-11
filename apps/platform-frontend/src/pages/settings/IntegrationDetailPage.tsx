@@ -18,6 +18,7 @@ import {
   updateIntegration,
   type AvailableIntegrationType,
 } from '@/service/api/integration-api'
+import { getProjects, type Project } from '@/service/api/project-api'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
 import type { AuthCredentialType, Integration, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
@@ -55,6 +56,8 @@ export function IntegrationDetailPage() {
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [projects, setProjects] = useState<Project[] | null>(null)
+  const [isAutoCreating, setIsAutoCreating] = useState(false)
 
   const integrationEntityId = existingIntegration?.id
   const integrationSystem = integrationType?.id
@@ -171,6 +174,32 @@ export function IntegrationDetailPage() {
           const type = typeMap.get(integrationSystemParam as TicketSystem)
           setIntegrationType(type || null)
           setExistingIntegration(null)
+
+          // Auto-create Custom Webhook integration when visiting the new page
+          if (integrationSystemParam === 'custom' && type) {
+            setIsAutoCreating(true)
+            try {
+              const autoName = `Custom Webhook ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`
+              const newIntegration = await createIntegration({
+                name: autoName,
+                system: 'custom',
+                authType: 'api_key',
+                values: {},
+              })
+              if (!isActive) {
+                return
+              }
+              navigate(`/settings/integrations/${newIntegration.id}`, { replace: true })
+              return
+            } catch (error) {
+              console.error('Failed to auto-create custom integration:', error)
+              setLoadError(error instanceof Error ? error.message : 'Failed to create custom integration')
+            } finally {
+              if (isActive) {
+                setIsAutoCreating(false)
+              }
+            }
+          }
           return
         }
 
@@ -216,6 +245,18 @@ export function IntegrationDetailPage() {
 
         setIntegrationType(type)
         setExistingIntegration(fullIntegration)
+
+        // Load projects for custom integration
+        if (fullIntegration.system === 'custom') {
+          try {
+            const loadedProjects = await getProjects()
+            if (isActive) {
+              setProjects(loadedProjects)
+            }
+          } catch (projectError) {
+            console.error('Failed to load projects:', projectError)
+          }
+        }
       } catch (error) {
         if (!isActive) {
           return
@@ -238,7 +279,7 @@ export function IntegrationDetailPage() {
     }
   }, [integrationEntityIdParam, integrationSystemParam, navigate])
 
-  if (isPageLoading) {
+  if (isPageLoading || isAutoCreating) {
     return <IntegrationDetailLoadingState />
   }
 
@@ -458,24 +499,26 @@ export function IntegrationDetailPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-        <Subheading>Configuration</Subheading>
-        <div className="mt-6">
-          <IntegrationConfigForm
-            integration={integrationType}
-            initialValues={initialValues}
-            initialAuthType={existingIntegration?.authType}
-            onSubmit={handleSubmit}
-            onTest={handleTest}
-            onCancel={handleCancel}
-            isLoading={isSavingConfig}
-            isTesting={isTesting}
-            testResult={testResult}
-          />
-        </div>
-      </section>
+      {!isCustomIntegration && (
+        <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
+          <Subheading>Configuration</Subheading>
+          <div className="mt-6">
+            <IntegrationConfigForm
+              integration={integrationType}
+              initialValues={initialValues}
+              initialAuthType={existingIntegration?.authType}
+              onSubmit={handleSubmit}
+              onTest={handleTest}
+              onCancel={handleCancel}
+              isLoading={isSavingConfig}
+              isTesting={isTesting}
+              testResult={testResult}
+            />
+          </div>
+        </section>
+      )}
 
-      {isConfigured &&
+      {(isConfigured || isCustomIntegration) &&
         capabilities.supportsInboundWebhooks &&
         (isGithubIntegration ? (
           <GitHubInboundWebhookSection
@@ -567,19 +610,22 @@ export function IntegrationDetailPage() {
             isLoadingDeliveries={webhook.isLoadingDeliveries}
             isLoadingWebhook={webhook.isLoadingWebhook}
             isSavingWebhook={webhook.isSavingWebhook}
+            projects={projects}
             selectedInboundConfig={webhook.selectedInboundConfig}
             selectedInboundConfigId={webhook.selectedInboundConfigId}
+            selectedProjectId={webhook.selectedInboundProjectId}
             showSecret={webhook.showSecret}
             onAutoExecuteChange={webhook.setAutoExecute}
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
+            onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(undefined, projectId)}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
             onGenerateSecret={webhook.handleGenerateSecret}
             onInboundActiveChange={webhook.setInboundActive}
+            onProjectChange={webhook.setSelectedInboundProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSaveWebhook={() => webhook.handleSaveInboundWebhook(undefined, webhook.selectedInboundProjectId)}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
@@ -609,7 +655,7 @@ export function IntegrationDetailPage() {
           />
         ))}
 
-      {isConfigured &&
+      {(isConfigured || isCustomIntegration) &&
         capabilities.supportsOutboundWebhooks &&
         (isGithubIntegration ? (
           <GitHubOutboundWebhookSection
@@ -657,7 +703,7 @@ export function IntegrationDetailPage() {
             onSaveOutboundWebhook={handleShortcutSaveOutboundWebhook}
           />
         ) : isCustomIntegration ? (
-          <CustomOutboundWebhookSection integrationEntityId={integrationEntityId} />
+          <CustomOutboundWebhookSection integrationEntityId={integrationEntityId} projects={projects} />
         ) : (
           <OutboundWebhookSection
             emitJobEnded={webhook.emitJobEnded}

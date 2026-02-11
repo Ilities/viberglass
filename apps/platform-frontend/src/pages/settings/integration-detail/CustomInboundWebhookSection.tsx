@@ -18,16 +18,19 @@ interface CustomInboundWebhookSectionProps {
   isLoadingDeliveries: boolean
   isLoadingWebhook: boolean
   isSavingWebhook: boolean
+  projects: Array<{ id: string; name: string }> | null
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
   selectedInboundConfigId: string | null
+  selectedProjectId: string | null
   showSecret: boolean
   onAutoExecuteChange: (value: boolean) => void
   onCopyWebhookSecret: () => void
   onCopyWebhookUrl: (url: string) => void
-  onCreateInboundWebhook: () => void
+  onCreateInboundWebhook: (projectId: string | null) => void
   onDeleteInboundWebhook: () => void
   onGenerateSecret: () => void
   onInboundActiveChange: (value: boolean) => void
+  onProjectChange: (projectId: string | null) => void
   onRefreshDeliveries: () => void
   onRetryDelivery: (deliveryId: string) => void
   onSaveWebhook: () => void
@@ -53,8 +56,10 @@ export function CustomInboundWebhookSection({
   isLoadingDeliveries,
   isLoadingWebhook,
   isSavingWebhook,
+  projects,
   selectedInboundConfig,
   selectedInboundConfigId,
+  selectedProjectId,
   showSecret,
   onAutoExecuteChange,
   onCopyWebhookSecret,
@@ -63,6 +68,7 @@ export function CustomInboundWebhookSection({
   onDeleteInboundWebhook,
   onGenerateSecret,
   onInboundActiveChange,
+  onProjectChange,
   onRefreshDeliveries,
   onRetryDelivery,
   onSaveWebhook,
@@ -92,7 +98,7 @@ export function CustomInboundWebhookSection({
       ) : (
         <div className="mt-4 space-y-4">
           {inboundWebhooks.length === 0 ? (
-            <Button color="brand" onClick={onCreateInboundWebhook} disabled={isSavingWebhook}>
+            <Button color="brand" onClick={() => onCreateInboundWebhook(selectedProjectId)} disabled={isSavingWebhook}>
               {isSavingWebhook ? 'Setting up...' : 'Create custom inbound endpoint'}
             </Button>
           ) : (
@@ -100,7 +106,7 @@ export function CustomInboundWebhookSection({
               <div className="space-y-2">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-medium text-zinc-900 dark:text-white">Inbound endpoints</p>
-                  <Button color="zinc" size="small" onClick={onCreateInboundWebhook} disabled={isSavingWebhook}>
+                  <Button color="zinc" size="small" onClick={() => onCreateInboundWebhook(selectedProjectId)} disabled={isSavingWebhook}>
                     Add
                   </Button>
                 </div>
@@ -133,6 +139,29 @@ export function CustomInboundWebhookSection({
 
               {selectedInboundConfig ? (
                 <div className="space-y-4">
+                  {projects && projects.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-900 dark:text-white">
+                        Link to Project
+                      </label>
+                      <select
+                        value={selectedProjectId ?? ''}
+                        onChange={(event) => onProjectChange(event.target.value || null)}
+                        className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      >
+                        <option value="">Global (all projects)</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        Tickets from this webhook will be assigned to the selected project.
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook URL</label>
                     <div className="mt-1 flex gap-2">

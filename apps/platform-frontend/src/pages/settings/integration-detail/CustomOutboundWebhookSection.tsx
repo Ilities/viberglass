@@ -43,6 +43,7 @@ interface FormState {
   active: boolean
   emitJobStarted: boolean
   emitJobEnded: boolean
+  projectId: string | null
 }
 
 interface FormErrors {
@@ -62,6 +63,7 @@ interface TestResultSummary extends IntegrationOutboundWebhookTestResult {
 
 interface CustomOutboundWebhookSectionProps {
   integrationEntityId?: string
+  projects?: Array<{ id: string; name: string }> | null
 }
 
 const DEFAULT_FORM: FormState = {
@@ -83,6 +85,7 @@ const DEFAULT_FORM: FormState = {
   active: true,
   emitJobStarted: true,
   emitJobEnded: true,
+  projectId: null,
 }
 
 function createHeaderId(): string {
@@ -124,6 +127,7 @@ function toFormState(config: IntegrationOutboundWebhookConfig): FormState {
     active: config.active,
     emitJobStarted: config.events.includes('job_started'),
     emitJobEnded: config.events.includes('job_ended'),
+    projectId: config.projectId ?? null,
   }
 }
 
@@ -159,6 +163,7 @@ function formatEventSummary(events: string[]): string {
 
 export function CustomOutboundWebhookSection({
   integrationEntityId,
+  projects,
 }: CustomOutboundWebhookSectionProps) {
   const [destinations, setDestinations] = useState<IntegrationOutboundWebhookConfig[]>([])
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null)
@@ -421,6 +426,7 @@ export function CustomOutboundWebhookSection({
           headers,
           method: form.method,
           name: form.name.trim(),
+          projectId: form.projectId ?? undefined,
           retryPolicy: {
             maxAttempts: Number(form.retryMaxAttempts),
             backoffMs: Number(form.retryBackoffMs),
@@ -622,6 +628,29 @@ export function CustomOutboundWebhookSection({
               />
               {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
             </div>
+
+            {projects && projects.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-zinc-900 dark:text-white">
+                  Link to Project
+                </label>
+                <select
+                  value={form.projectId ?? ''}
+                  onChange={(event) => updateForm('projectId', event.target.value || null)}
+                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                >
+                  <option value="">Global (all projects)</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Events from this destination will be linked to the selected project.
+                </p>
+              </div>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
