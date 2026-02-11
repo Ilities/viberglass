@@ -4,10 +4,14 @@ export class CustomFeedbackProviderBehavior extends DefaultFeedbackProviderBehav
   readonly provider = 'custom';
 
   override supportsOutboundPosting(): boolean {
+    return true;
+  }
+
+  override requiresExternalTicketId(): boolean {
     return false;
   }
 
-  override unsupportedOutboundPostingMessage(): string {
-    return 'Custom provider does not support outbound posting';
+  override requiresApiToken(): boolean {
+    return false;
   }
 }

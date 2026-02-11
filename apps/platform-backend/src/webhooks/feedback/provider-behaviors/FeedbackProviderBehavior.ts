@@ -17,6 +17,8 @@ export interface FeedbackProviderBehavior {
   readonly provider: ProviderType | 'default';
   supportsOutboundPosting(): boolean;
   unsupportedOutboundPostingMessage(provider: ProviderType): string;
+  requiresExternalTicketId(): boolean;
+  requiresApiToken(): boolean;
   requiresProviderProjectId(): boolean;
   maxRetryAttempts(): number;
   resolveExternalTicketId(context: ExternalTicketResolutionContext): string | undefined;

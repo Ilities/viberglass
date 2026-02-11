@@ -238,6 +238,7 @@ export interface WebhookProviderConfigsTable {
   auto_execute: Generated<boolean>;
   bot_username: string | null;
   label_mappings: Generated<JsonObject>;
+  outbound_target_config: JsonObject | null;
   active: Generated<boolean>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;

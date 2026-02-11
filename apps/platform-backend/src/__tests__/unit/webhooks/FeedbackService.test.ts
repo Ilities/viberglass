@@ -8,6 +8,9 @@ import { FeedbackService } from "../../../webhooks/FeedbackService";
 import { FeedbackOutboundConfigResolver } from "../../../webhooks/feedback/FeedbackOutboundConfigResolver";
 import { FeedbackOutboundContextResolver } from "../../../webhooks/feedback/FeedbackOutboundContextResolver";
 import { FeedbackEventDispatcher } from "../../../webhooks/feedback/FeedbackEventDispatcher";
+import { CustomOutboundTargetDispatcher } from "../../../webhooks/feedback/CustomOutboundTargetDispatcher";
+import { FeedbackDeliveryTracker } from "../../../webhooks/feedback/FeedbackDeliveryTracker";
+import { FeedbackTargetDispatchRunner } from "../../../webhooks/feedback/FeedbackTargetDispatchRunner";
 import { FeedbackOutboundTargetResolver } from "../../../webhooks/feedback/FeedbackOutboundTargetResolver";
 import { FeedbackRetryExecutor } from "../../../webhooks/feedback/FeedbackRetryExecutor";
 import { createDefaultFeedbackProviderBehaviorResolver } from "../../../webhooks/feedback/provider-behaviors";
@@ -186,6 +189,10 @@ function createConfig(
     autoExecute: overrides.autoExecute ?? false,
     botUsername: overrides.botUsername ?? null,
     labelMappings: overrides.labelMappings || {},
+    outboundTargetConfig:
+      overrides.outboundTargetConfig === undefined
+        ? null
+        : overrides.outboundTargetConfig,
     active: overrides.active ?? true,
     createdAt: overrides.createdAt || timestamp,
     updatedAt: overrides.updatedAt || timestamp,
@@ -206,6 +213,11 @@ describe("FeedbackService", () => {
     listActiveConfigs: jest.Mock;
   };
   let mockSecretService: { getApiToken: jest.Mock };
+  let mockDeliveryDAO: {
+    recordDeliveryAttempt: jest.Mock;
+    updateDeliveryStatus: jest.Mock;
+  };
+  let customDispatchRequest: jest.Mock;
 
   const inboundConfig = createConfig({
     id: "inbound-1",
@@ -256,6 +268,13 @@ describe("FeedbackService", () => {
     mockSecretService = {
       getApiToken: jest.fn().mockResolvedValue("gh-api-token"),
     };
+    mockDeliveryDAO = {
+      recordDeliveryAttempt: jest.fn().mockImplementation(async (dto: { deliveryId: string }) => ({
+        id: `delivery-${dto.deliveryId}`,
+      })),
+      updateDeliveryStatus: jest.fn().mockResolvedValue(undefined),
+    };
+    customDispatchRequest = jest.fn().mockResolvedValue({ status: 200 });
 
     mockRegistry = {
       get: jest.fn(() => provider),
@@ -276,12 +295,21 @@ describe("FeedbackService", () => {
       providerBehaviorResolver,
     );
     const retryExecutor = new FeedbackRetryExecutor();
-    const eventDispatcher = new FeedbackEventDispatcher(
+    const customDispatcher = new CustomOutboundTargetDispatcher({
+      request: customDispatchRequest,
+    } as any);
+    const deliveryTracker = new FeedbackDeliveryTracker(mockDeliveryDAO as any);
+    const targetRunner = new FeedbackTargetDispatchRunner(
       mockRegistry as unknown as ProviderRegistry,
       mockSecretService as unknown as WebhookSecretService,
-      targetResolver,
       retryExecutor,
       providerBehaviorResolver,
+      customDispatcher,
+      deliveryTracker,
+    );
+    const eventDispatcher = new FeedbackEventDispatcher(
+      targetResolver,
+      targetRunner,
     );
 
     service = new FeedbackService(
@@ -644,5 +672,135 @@ describe("FeedbackService", () => {
         type: "shortcut",
       }),
     );
+  });
+
+  it("fans out custom outbound dispatch to multiple targets with failure isolation", async () => {
+    const customInboundConfig = createConfig({
+      id: "inbound-custom-1",
+      provider: "custom",
+      direction: "inbound",
+      providerProjectId: null,
+      integrationId: "integration-custom-1",
+    });
+    const customOutboundOne = createConfig({
+      id: "outbound-custom-1",
+      provider: "custom",
+      direction: "outbound",
+      providerProjectId: null,
+      integrationId: "integration-custom-1",
+      outboundTargetConfig: {
+        name: "Target One",
+        targetUrl: "https://hooks.example.com/one",
+        method: "POST",
+        headers: {},
+        auth: { type: "none" },
+        signatureAlgorithm: "sha256",
+        retryPolicy: { maxAttempts: 1, backoffMs: 250, maxBackoffMs: 2000 },
+      },
+    });
+    const customOutboundTwo = createConfig({
+      id: "outbound-custom-2",
+      provider: "custom",
+      direction: "outbound",
+      providerProjectId: null,
+      integrationId: "integration-custom-1",
+      outboundTargetConfig: {
+        name: "Target Two",
+        targetUrl: "https://hooks.example.com/two",
+        method: "POST",
+        headers: {},
+        auth: { type: "none" },
+        signatureAlgorithm: "sha256",
+        retryPolicy: { maxAttempts: 1, backoffMs: 250, maxBackoffMs: 2000 },
+      },
+    });
+
+    mockConfigDAO.getConfigById.mockResolvedValue(customInboundConfig);
+    mockConfigDAO.listByIntegrationId.mockResolvedValue([customOutboundOne, customOutboundTwo]);
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: "ticket-custom-1",
+      projectId: "project-1",
+      ticketSystem: "custom",
+      metadata: {
+        webhookConfigId: "inbound-custom-1",
+        provider: "custom",
+      },
+    } as any);
+
+    customDispatchRequest
+      .mockResolvedValueOnce({ status: 200 })
+      .mockRejectedValueOnce(new Error("Target Two unavailable"));
+
+    const result = await service.postJobStarted({
+      id: "job-custom-1",
+      ticketId: "ticket-custom-1",
+      status: "active",
+    });
+
+    expect(customDispatchRequest).toHaveBeenCalledTimes(2);
+    expect(mockDeliveryDAO.recordDeliveryAttempt).toHaveBeenCalledTimes(2);
+    expect(mockDeliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith(
+      expect.any(String),
+      "succeeded",
+    );
+    expect(mockDeliveryDAO.updateDeliveryStatus).toHaveBeenCalledWith(
+      expect.any(String),
+      "failed",
+      expect.stringContaining("Target Two unavailable"),
+    );
+    expect(result.success).toBe(false);
+    expect(result.commentPosted).toBe(true);
+    expect(result.error).toContain("1 outbound target(s) failed");
+  });
+
+  it("filters custom outbound dispatch by allowed events", async () => {
+    const customInboundConfig = createConfig({
+      id: "inbound-custom-2",
+      provider: "custom",
+      direction: "inbound",
+      providerProjectId: null,
+      integrationId: "integration-custom-2",
+    });
+    const endedOnlyTarget = createConfig({
+      id: "outbound-custom-3",
+      provider: "custom",
+      direction: "outbound",
+      providerProjectId: null,
+      integrationId: "integration-custom-2",
+      allowedEvents: ["job_ended"],
+      outboundTargetConfig: {
+        name: "Ended Only",
+        targetUrl: "https://hooks.example.com/ended",
+        method: "POST",
+        headers: {},
+        auth: { type: "none" },
+        signatureAlgorithm: "sha256",
+        retryPolicy: { maxAttempts: 1, backoffMs: 250, maxBackoffMs: 2000 },
+      },
+    });
+
+    mockConfigDAO.getConfigById.mockResolvedValue(customInboundConfig);
+    mockConfigDAO.listByIntegrationId.mockResolvedValue([endedOnlyTarget]);
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: "ticket-custom-2",
+      projectId: "project-1",
+      ticketSystem: "custom",
+      metadata: {
+        webhookConfigId: "inbound-custom-2",
+        provider: "custom",
+      },
+    } as any);
+
+    const result = await service.postJobStarted({
+      id: "job-custom-2",
+      ticketId: "ticket-custom-2",
+      status: "active",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      error: "Outbound event 'job_started' is not enabled for any target",
+    });
+    expect(customDispatchRequest).not.toHaveBeenCalled();
   });
 });

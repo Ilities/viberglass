@@ -15,17 +15,28 @@ export class FeedbackOutboundTargetResolver {
   ) {}
 
   async resolve(job: JobWithTicket): Promise<OutboundTarget | null> {
+    const targets = await this.resolveAll(job);
+    return targets[0] || null;
+  }
+
+  async resolveAll(job: JobWithTicket): Promise<OutboundTarget[]> {
     const context = await this.contextResolver.resolve(job);
     if (!context) {
-      return null;
+      return [];
     }
 
-    const resolvedConfig = await this.configResolver.resolve(context);
-    if (!resolvedConfig) {
-      return null;
+    const resolvedConfigs = await this.configResolver.resolveAll(context);
+    if (resolvedConfigs.length === 0) {
+      return [];
     }
 
-    return this.createTarget(context, resolvedConfig.config, resolvedConfig.providerProjectCandidates);
+    return resolvedConfigs.map((resolvedConfig) =>
+      this.createTarget(
+        context,
+        resolvedConfig.config,
+        resolvedConfig.providerProjectCandidates,
+      ),
+    );
   }
 
   private createTarget(
