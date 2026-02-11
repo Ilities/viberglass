@@ -23,6 +23,7 @@ import type { AuthCredentialType, Integration, TicketSystem } from '@viberglass/
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
 import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
 import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
@@ -60,6 +61,7 @@ export function IntegrationDetailPage() {
   const isGithubIntegration = integrationSystem === 'github'
   const isJiraIntegration = integrationSystem === 'jira'
   const isShortcutIntegration = integrationSystem === 'shortcut'
+  const isCustomIntegration = integrationSystem === 'custom'
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
@@ -552,6 +554,32 @@ export function IntegrationDetailPage() {
             onSaveWebhook={handleShortcutSaveInboundWebhook}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleInboundEvent={webhook.handleToggleInboundEvent}
+            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
+          />
+        ) : isCustomIntegration ? (
+          <CustomInboundWebhookSection
+            autoExecute={webhook.autoExecute}
+            deliveries={webhook.deliveries}
+            hasInboundChanges={webhook.hasInboundChanges}
+            inboundActive={webhook.inboundActive}
+            inboundWebhooks={webhook.inboundWebhooks}
+            isLoadingDeliveries={webhook.isLoadingDeliveries}
+            isLoadingWebhook={webhook.isLoadingWebhook}
+            isSavingWebhook={webhook.isSavingWebhook}
+            selectedInboundConfig={webhook.selectedInboundConfig}
+            selectedInboundConfigId={webhook.selectedInboundConfigId}
+            showSecret={webhook.showSecret}
+            onAutoExecuteChange={webhook.setAutoExecute}
+            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
+            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
+            onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
+            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
+            onGenerateSecret={webhook.handleGenerateSecret}
+            onInboundActiveChange={webhook.setInboundActive}
+            onRefreshDeliveries={webhook.handleRefreshDeliveries}
+            onRetryDelivery={webhook.handleRetryDelivery}
+            onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
         ) : (
