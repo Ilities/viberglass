@@ -575,13 +575,26 @@ export interface IntegrationOutboundWebhookTestResult {
 
 export interface IntegrationWebhookDelivery {
   id: string
+  provider: string
+  webhookConfigId: string | null
   deliveryId: string
   eventType: string
   status: 'pending' | 'processing' | 'succeeded' | 'failed'
+  retryable: boolean
   errorMessage: string | null
   ticketId: string | null
   createdAt: string
   processedAt: string | null
+}
+
+export interface IntegrationWebhookRetryResult {
+  delivery: IntegrationWebhookDelivery
+  retry: {
+    status: 'processed' | 'ignored' | 'failed' | 'duplicate'
+    reason?: string
+    ticketId?: string
+    jobId?: string
+  }
 }
 
 /**
@@ -863,13 +876,48 @@ export async function deleteIntegrationOutboundWebhook(
 export async function getIntegrationDeliveries(
   integrationEntityId: string,
   inboundConfigId: string,
-  limit: number = 50
+  options: {
+    limit?: number
+    statuses?: Array<'pending' | 'processing' | 'succeeded' | 'failed'>
+  } = {}
 ): Promise<IntegrationWebhookDelivery[]> {
+  const limit = options.limit ?? 50
+  const query = new URLSearchParams({ limit: String(limit) })
+  if (options.statuses && options.statuses.length > 0) {
+    query.set('statuses', options.statuses.join(','))
+  }
+
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/${integrationEntityId}/webhooks/inbound/${inboundConfigId}/deliveries?limit=${limit}`
+    `${API_BASE_URL}/api/integrations/${integrationEntityId}/webhooks/inbound/${inboundConfigId}/deliveries?${query.toString()}`
   )
   if (!response.ok) {
-    throw new Error('Failed to fetch deliveries')
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to fetch deliveries')
+  }
+  const data: ApiResponse<IntegrationWebhookDelivery[]> = await response.json()
+  return data.data
+}
+
+export async function getIntegrationOutboundDeliveries(
+  integrationEntityId: string,
+  outboundConfigId: string,
+  options: {
+    limit?: number
+    statuses?: Array<'pending' | 'processing' | 'succeeded' | 'failed'>
+  } = {}
+): Promise<IntegrationWebhookDelivery[]> {
+  const limit = options.limit ?? 50
+  const query = new URLSearchParams({ limit: String(limit) })
+  if (options.statuses && options.statuses.length > 0) {
+    query.set('statuses', options.statuses.join(','))
+  }
+
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/integrations/${integrationEntityId}/webhooks/outbound/${outboundConfigId}/deliveries?${query.toString()}`
+  )
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to fetch outbound deliveries')
   }
   const data: ApiResponse<IntegrationWebhookDelivery[]> = await response.json()
   return data.data
@@ -882,14 +930,17 @@ export async function retryIntegrationDelivery(
   integrationEntityId: string,
   inboundConfigId: string,
   deliveryId: string
-): Promise<void> {
+): Promise<IntegrationWebhookRetryResult> {
   const response = await apiFetch(
     `${API_BASE_URL}/api/integrations/${integrationEntityId}/webhooks/inbound/${inboundConfigId}/deliveries/${deliveryId}/retry`,
     { method: 'POST' }
   )
   if (!response.ok) {
-    throw new Error('Failed to retry delivery')
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.reason || error.message || error.error || 'Failed to retry delivery')
   }
+  const data: ApiResponse<IntegrationWebhookRetryResult> = await response.json()
+  return data.data
 }
 
 // Re-export types for convenience

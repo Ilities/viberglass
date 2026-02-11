@@ -152,12 +152,13 @@ export function CreateTicketPage() {
             <Label>Screenshot (Optional)</Label>
             <Description>Upload a screenshot to help illustrate the issue. PNG, JPG, GIF, or WebP up to 10MB.</Description>
             <div className="mt-2">
-              <Input
+              <input
                 ref={screenshotInputRef}
                 name="screenshot"
                 type="file"
                 accept="image/png,image/jpeg,image/gif,image/webp"
                 onChange={handleScreenshotChange}
+                aria-label="Screenshot"
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/20 dark:file:text-brand-400"
               />
             </div>
@@ -200,12 +201,13 @@ export function CreateTicketPage() {
             <Label>Screen Recording (Optional)</Label>
             <Description>Upload a video recording to demonstrate the issue. MP4, WebM, or QuickTime up to 10MB.</Description>
             <div className="mt-2">
-              <Input
+              <input
                 ref={recordingInputRef}
                 name="recording"
                 type="file"
                 accept="video/mp4,video/webm,video/quicktime"
                 onChange={handleRecordingChange}
+                aria-label="Screen recording"
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/20 dark:file:text-brand-400"
               />
             </div>

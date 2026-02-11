@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import crypto from 'crypto'
 import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../persistence/integrations'
 import { WebhookConfigDAO, type WebhookProvider } from '../../persistence/webhook/WebhookConfigDAO'
-import { WebhookDeliveryDAO } from '../../persistence/webhook/WebhookDeliveryDAO'
+import { WebhookDeliveryDAO, type DeliveryStatus } from '../../persistence/webhook/WebhookDeliveryDAO'
 import logger from '../../config/logger'
 import { integrationRegistry } from '../../integrations/TicketingIntegrationRegistry'
 import type { AuthCredentials, TicketSystem } from '@viberglass/types'
@@ -12,6 +12,7 @@ import {
   readCustomOutboundTargetConfig,
   toPublicCustomOutboundTargetConfig,
 } from '../../webhooks/feedback/customOutboundTargetConfig'
+import { getWebhookService } from '../../webhooks/webhookServiceFactory'
 
 function mapSystemToWebhookProvider(system: string): WebhookProvider | null {
   if (system === 'github' || system === 'jira' || system === 'shortcut' || system === 'custom') {
@@ -153,6 +154,7 @@ function serializeWebhookDelivery(
     deliveryId: delivery.deliveryId,
     eventType: delivery.eventType,
     status: delivery.status,
+    retryable: delivery.status === 'failed',
     errorMessage: delivery.errorMessage,
     ticketId: delivery.ticketId,
     createdAt: delivery.createdAt,
@@ -171,6 +173,48 @@ function parseNonNegativeInt(value: string | undefined, fallback: number): numbe
   }
 
   return parsed
+}
+
+const VALID_DELIVERY_STATUSES: DeliveryStatus[] = ['pending', 'processing', 'succeeded', 'failed']
+
+function parseDeliveryStatuses(query: Request['query']): {
+  statuses?: DeliveryStatus[]
+  invalidValues: string[]
+} {
+  const rawValues = [query.statuses, query.status]
+    .flat()
+    .flatMap((value) => {
+      if (typeof value === 'string') {
+        return value.split(',')
+      }
+
+      if (Array.isArray(value)) {
+        return value.flatMap((nested) =>
+          typeof nested === 'string' ? nested.split(',') : [],
+        )
+      }
+
+      return []
+    })
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+
+  if (rawValues.length === 0) {
+    return { invalidValues: [] }
+  }
+
+  const uniqueValues = Array.from(new Set(rawValues))
+  const invalidValues = uniqueValues.filter(
+    (value) => !VALID_DELIVERY_STATUSES.includes(value as DeliveryStatus),
+  )
+  if (invalidValues.length > 0) {
+    return { invalidValues }
+  }
+
+  return {
+    statuses: uniqueValues as DeliveryStatus[],
+    invalidValues: [],
+  }
 }
 
 function parseCustomOutboundTargetConfigOrError(
@@ -926,6 +970,52 @@ export class IntegrationRouteService {
     }
   }
 
+  listOutboundWebhookDeliveries = async (req: Request, res: Response) => {
+    try {
+      const integration = await this.integrationDAO.getIntegration(req.params.id)
+      if (!integration) {
+        return res.status(404).json({ error: 'Integration not found' })
+      }
+
+      const { configId } = req.params
+      const config = await this.webhookConfigDAO.getByIntegrationAndConfigId(integration.id, configId, {
+        direction: 'outbound',
+      })
+      if (!config) {
+        return res.status(404).json({ error: 'Outbound webhook configuration not found' })
+      }
+
+      const statusFilter = parseDeliveryStatuses(req.query)
+      if (statusFilter.invalidValues.length > 0) {
+        return res.status(400).json({
+          error: `Invalid delivery statuses: ${statusFilter.invalidValues.join(', ')}`,
+        })
+      }
+
+      const limit = parseNonNegativeInt(req.query.limit as string | undefined, 50)
+      const offset = parseNonNegativeInt(req.query.offset as string | undefined, 0)
+      const deliveries = await this.webhookDeliveryDAO.listDeliveriesByConfig(config.id, {
+        statuses: statusFilter.statuses,
+        limit,
+        offset,
+        sortOrder: 'desc',
+      })
+
+      res.json({
+        success: true,
+        data: deliveries.map((delivery) => serializeWebhookDelivery(delivery)),
+        pagination: { limit, offset, count: deliveries.length },
+      })
+    } catch (error) {
+      logger.error('Error listing outbound webhook deliveries', {
+        integrationId: req.params.id,
+        configId: req.params.configId,
+        error: error instanceof Error ? error.message : error,
+      })
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+
   listInboundWebhookDeliveries = async (req: Request, res: Response) => {
     try {
       const integration = await this.integrationDAO.getIntegration(req.params.id)
@@ -941,9 +1031,17 @@ export class IntegrationRouteService {
         return res.status(404).json({ error: 'Inbound webhook configuration not found' })
       }
 
+      const statusFilter = parseDeliveryStatuses(req.query)
+      if (statusFilter.invalidValues.length > 0) {
+        return res.status(400).json({
+          error: `Invalid delivery statuses: ${statusFilter.invalidValues.join(', ')}`,
+        })
+      }
+
       const limit = parseNonNegativeInt(req.query.limit as string | undefined, 50)
       const offset = parseNonNegativeInt(req.query.offset as string | undefined, 0)
       const deliveries = await this.webhookDeliveryDAO.listDeliveriesByConfig(config.id, {
+        statuses: statusFilter.statuses,
         limit,
         offset,
         sortOrder: 'desc',
@@ -956,6 +1054,8 @@ export class IntegrationRouteService {
       })
     } catch (error) {
       logger.error('Error listing webhook deliveries', {
+        integrationId: req.params.id,
+        configId: req.params.configId,
         error: error instanceof Error ? error.message : error,
       })
       res.status(500).json({ error: 'Internal server error' })
@@ -982,26 +1082,95 @@ export class IntegrationRouteService {
         return res.status(404).json({ error: 'Delivery not found for this webhook configuration' })
       }
 
-      if (delivery.status === 'succeeded') {
-        return res.status(409).json({ error: 'Successful deliveries cannot be retried' })
+      if (delivery.status !== 'failed') {
+        return res.status(409).json({ error: 'Only failed deliveries can be retried' })
       }
 
-      await this.webhookDeliveryDAO.updateDeliveryStatus(
-        delivery.id,
-        'failed',
-        'Marked for retry - please check provider webhook settings',
-      )
+      logger.info('Webhook delivery retry requested', {
+        integrationId: integration.id,
+        webhookConfigId: config.id,
+        deliveryAttemptId: delivery.id,
+        provider: delivery.provider,
+        deliveryStatus: delivery.status,
+      })
+
+      const retryResult = await getWebhookService().retryDelivery(delivery.deliveryId, {
+        deliveryAttemptId: delivery.id,
+        webhookConfigId: config.id,
+      })
+
+      const refreshedDelivery =
+        (await this.webhookDeliveryDAO.getDeliveryByIdForConfig(delivery.id, config.id)) || delivery
+
+      if (retryResult.status === 'duplicate') {
+        return res.status(409).json({
+          error: retryResult.reason || 'Delivery already succeeded',
+        })
+      }
+
+      if (retryResult.status === 'failed') {
+        logger.warn('Webhook delivery retry failed', {
+          integrationId: integration.id,
+          webhookConfigId: config.id,
+          deliveryAttemptId: refreshedDelivery.id,
+          provider: refreshedDelivery.provider,
+          reason: retryResult.reason,
+        })
+        return res.status(422).json({
+          error: 'Retry failed',
+          reason: retryResult.reason || 'Unknown retry error',
+          data: {
+            delivery: serializeWebhookDelivery(refreshedDelivery),
+            retry: {
+              status: retryResult.status,
+              reason: retryResult.reason,
+            },
+          },
+        })
+      }
+
+      if (retryResult.status !== 'processed' && retryResult.status !== 'ignored') {
+        logger.error('Webhook delivery retry returned unsupported status', {
+          integrationId: integration.id,
+          webhookConfigId: config.id,
+          deliveryAttemptId: refreshedDelivery.id,
+          provider: refreshedDelivery.provider,
+          retryStatus: retryResult.status,
+        })
+        return res.status(500).json({ error: 'Unsupported retry result status' })
+      }
+
+      logger.info('Webhook delivery retry completed', {
+        integrationId: integration.id,
+        webhookConfigId: config.id,
+        deliveryAttemptId: refreshedDelivery.id,
+        provider: refreshedDelivery.provider,
+        retryStatus: retryResult.status,
+        ticketId: retryResult.ticketId,
+        jobId: retryResult.jobId,
+      })
 
       res.json({
         success: true,
-        message: 'Delivery retry initiated',
+        message:
+          retryResult.status === 'processed'
+            ? 'Delivery retried successfully'
+            : 'Delivery retry completed with no action',
         data: {
-          deliveryId: delivery.id,
-          webhookConfigId: config.id,
+          delivery: serializeWebhookDelivery(refreshedDelivery),
+          retry: {
+            status: retryResult.status,
+            reason: retryResult.reason,
+            ticketId: retryResult.ticketId,
+            jobId: retryResult.jobId,
+          },
         },
       })
     } catch (error) {
       logger.error('Error retrying webhook delivery', {
+        integrationId: req.params.id,
+        configId: req.params.configId,
+        deliveryId: req.params.deliveryId,
         error: error instanceof Error ? error.message : error,
       })
       res.status(500).json({ error: 'Internal server error' })

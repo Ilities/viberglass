@@ -141,9 +141,12 @@ describe('Shortcut webhook sections', () => {
           deliveries: [
             {
               id: 'delivery-1',
+              provider: 'shortcut',
+              webhookConfigId: 'inbound-1',
               deliveryId: 'shortcut-delivery-1',
               eventType: 'story_created',
               status: 'failed',
+              retryable: true,
               errorMessage: 'Signature mismatch',
               ticketId: null,
               createdAt: '2026-02-10T00:00:00.000Z',
