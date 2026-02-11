@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
+import { CustomOutboundWebhookSection } from './integration-detail/CustomOutboundWebhookSection'
 import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
 import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
@@ -655,6 +656,8 @@ export function IntegrationDetailPage() {
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
             onSaveOutboundWebhook={handleShortcutSaveOutboundWebhook}
           />
+        ) : isCustomIntegration ? (
+          <CustomOutboundWebhookSection integrationEntityId={integrationEntityId} />
         ) : (
           <OutboundWebhookSection
             emitJobEnded={webhook.emitJobEnded}

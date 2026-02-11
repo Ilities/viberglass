@@ -30,7 +30,7 @@ const INTEGRATION_CAPABILITIES: Partial<Record<TicketSystem, IntegrationDetailCa
   },
   custom: {
     supportsInboundWebhooks: true,
-    supportsOutboundWebhooks: false,
+    supportsOutboundWebhooks: true,
     showCustomInboundPayloadHelp: true,
   },
 }
