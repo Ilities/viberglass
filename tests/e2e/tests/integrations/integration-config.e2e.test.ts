@@ -230,6 +230,67 @@ async function openConfiguredShortcutIntegration(page: Page): Promise<boolean> {
   return createConfiguredShortcutIntegration(page);
 }
 
+async function createConfiguredCustomIntegration(page: Page): Promise<boolean> {
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  await page.goto("/settings/integrations/new/custom");
+  if (
+    page.url().includes("/login") ||
+    (await page
+      .getByRole("heading", { name: /sign in to your account/i })
+      .count()) > 0
+  ) {
+    return false;
+  }
+
+  const sourceNameInput = page.getByLabel(/Source Name/i).first();
+  const apiKeyInput = page.getByLabel(/API Key/i).first();
+
+  if ((await sourceNameInput.count()) === 0 || (await apiKeyInput.count()) === 0) {
+    return false;
+  }
+
+  await sourceNameInput.fill(`E2E Source ${uniqueSuffix}`);
+  await apiKeyInput.fill(`e2e-custom-key-${uniqueSuffix}`);
+  await page.getByRole("button", { name: "Save Configuration" }).click();
+
+  try {
+    await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+      timeout: 20000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openConfiguredCustomIntegration(page: Page): Promise<boolean> {
+  await page.goto("/settings/integrations");
+  if (
+    page.url().includes("/login") ||
+    (await page
+      .getByRole("heading", { name: /sign in to your account/i })
+      .count()) > 0
+  ) {
+    return false;
+  }
+
+  const configuredCustomCard = page
+    .locator('a[href^="/settings/integrations/"]', { hasText: "Custom" })
+    .filter({ hasText: "Manage" })
+    .first();
+
+  if ((await configuredCustomCard.count()) > 0) {
+    await configuredCustomCard.click();
+    await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+      timeout: 20000,
+    });
+    return true;
+  }
+
+  return createConfiguredCustomIntegration(page);
+}
+
 test.describe("Integration Configuration E2E Tests", () => {
   test.describe("I-1 to I-6: Integration Management", () => {
     test("I-1, I-5: should display integrations page", async ({
@@ -879,6 +940,114 @@ test.describe("Integration Configuration E2E Tests", () => {
     });
   });
 
+  test.describe("Custom Targeted Webhook UI", () => {
+    test("should render custom inbound and outbound sections", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration =
+        await openConfiguredCustomIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "Custom integration could not be configured in this environment",
+        );
+      }
+
+      await expect(
+        page.getByRole("heading", { name: "Custom Inbound Webhooks" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Custom Outbound Destinations" }),
+      ).toBeVisible();
+      await expect(page.getByText("Custom setup steps")).toBeVisible();
+      await expect(
+        page.getByText("destination-specific auth, headers, retry policy"),
+      ).toBeVisible();
+    });
+
+    test("should allow creating targeted custom inbound and outbound webhook configs", async ({
+      authenticatedPage: page,
+    }) => {
+      const hasConfiguredIntegration =
+        await openConfiguredCustomIntegration(page);
+      if (!hasConfiguredIntegration) {
+        test.skip(
+          true,
+          "Custom integration could not be configured in this environment",
+        );
+      }
+
+      const inboundSection = page.locator("section", {
+        has: page.getByRole("heading", { name: "Custom Inbound Webhooks" }),
+      });
+      const createInboundButton = inboundSection.getByRole("button", {
+        name: "Create custom inbound endpoint",
+      });
+      if ((await createInboundButton.count()) > 0) {
+        await createInboundButton.click();
+      }
+
+      await expect(inboundSection.getByText("Webhook URL")).toBeVisible();
+      const autoExecuteToggle = inboundSection.locator("#customInboundAutoExecute");
+      if ((await autoExecuteToggle.count()) > 0) {
+        const wasChecked = await autoExecuteToggle.isChecked();
+        if (wasChecked) {
+          await autoExecuteToggle.uncheck();
+        } else {
+          await autoExecuteToggle.check();
+        }
+
+        const saveInboundButton = inboundSection.getByRole("button", {
+          name: "Save endpoint settings",
+        });
+        if ((await saveInboundButton.count()) > 0) {
+          await saveInboundButton.click();
+        }
+      }
+
+      await expect(
+        inboundSection.getByText("Expected payload format"),
+      ).toBeVisible();
+
+      const outboundSection = page.locator("section", {
+        has: page.getByRole("heading", {
+          name: "Custom Outbound Destinations",
+        }),
+      });
+
+      const destinationNameInput = outboundSection.getByLabel(
+        "Destination name",
+      );
+      const destinationUrlInput = outboundSection.getByLabel("Destination URL");
+      if (
+        (await destinationNameInput.count()) === 0 ||
+        (await destinationUrlInput.count()) === 0
+      ) {
+        test.skip(
+          true,
+          "Custom outbound destination form is unavailable in this environment",
+        );
+      }
+
+      const uniqueSuffix = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+      const destinationName = `E2E Destination ${uniqueSuffix}`;
+      await destinationNameInput.fill(destinationName);
+      await destinationUrlInput.fill(
+        `https://hooks.example.com/viberator/${uniqueSuffix}`,
+      );
+
+      await outboundSection
+        .getByRole("button", { name: /Create destination|Save destination/ })
+        .click();
+
+      await expect(
+        outboundSection.getByLabel("Destination name"),
+      ).toHaveValue(destinationName);
+    });
+  });
+
   test.describe("GitLab Integration Configuration", () => {
     test("should display GitLab integration configuration page", async ({
       authenticatedPage: page,
@@ -889,85 +1058,6 @@ test.describe("Integration Configuration E2E Tests", () => {
       await expect(
         page.getByRole("heading", { name: "GitLab", exact: true }),
       ).toBeVisible();
-    });
-  });
-
-  test.describe("Webhook Configuration", () => {
-    test("I-4: should display webhook configuration in project settings", async ({
-      authenticatedPage: page,
-    }) => {
-      // First navigate to a project
-      await page.goto("/");
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, "No projects found");
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      // Get project slug
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, "Could not extract project slug");
-        return;
-      }
-
-      // Navigate to webhooks settings
-      await page.goto(`/project/${projectSlug}/settings/webhooks`);
-
-      // Check for webhook configuration elements
-      await expect(page.getByText(/Webhook/i));
-    });
-
-    test("should show webhook URL when configured", async ({
-      authenticatedPage: page,
-    }) => {
-      // This test requires a configured integration
-      await page.goto("/");
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, "No projects found");
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      // Get project slug
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (projectSlug) {
-        await page.goto(`/project/${projectSlug}/settings/webhooks`);
-
-        // Look for webhook URL display
-        const webhookUrl = page
-          .locator("text=http")
-          .or(page.locator("code"))
-          .or(page.locator('[class*="monospace"]'));
-        const hasUrl = (await webhookUrl.count()) > 0;
-
-        if (!hasUrl) {
-          // Webhook might not be configured yet - that's OK
-          const noWebhookMessage = page.getByText(/not configured|configure/i);
-          if ((await noWebhookMessage.count()) > 0) {
-            // Webhook not configured - expected state
-            expect(true).toBe(true);
-          }
-        }
-      }
     });
   });
 
