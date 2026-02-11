@@ -16,8 +16,10 @@ export interface InfrastructureConfig {
   workerStack?: string;
   /** Whether to use Fargate Spot for cost savings */
   enableSpot: boolean;
-  /** Whether to enable ECS Container Insights */
+  /** Whether to enable ECS Container Insights (adds ~$5-20/month per cluster) */
   containerInsights: boolean;
+  /** Whether to enable CloudWatch alarms (~$0.10/alarm/month) */
+  enableAlarms: boolean;
   /** Database instance class (default per environment) */
   dbInstanceClass?: string;
   /** Database allocated storage in GB (default per environment) */
@@ -50,7 +52,8 @@ export function getConfig(): InfrastructureConfig {
   const baseStack = config.require("baseStack");
   const workerStack = config.get("workerStack");
   const enableSpot = config.getBoolean("enableSpot") ?? false;
-  const containerInsights = config.getBoolean("containerInsights") ?? true;
+  const containerInsights = config.getBoolean("containerInsights") ?? false;
+  const enableAlarms = config.getBoolean("enableAlarms") ?? false;
   const dbInstanceClass = config.get("dbInstanceClass");
   const dbAllocatedStorage = config.getNumber("dbAllocatedStorage");
   const apiDomain = config.get("apiDomain");
@@ -101,6 +104,7 @@ export function getConfig(): InfrastructureConfig {
     workerStack,
     enableSpot,
     containerInsights,
+    enableAlarms,
     dbInstanceClass: finalDbInstanceClass,
     dbAllocatedStorage: finalDbAllocatedStorage,
     apiDomain,

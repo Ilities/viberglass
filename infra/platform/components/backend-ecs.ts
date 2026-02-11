@@ -29,6 +29,8 @@ export interface BackendEcsOptions {
     urlPathArn: pulumi.Input<string>;
     hostPathArn: pulumi.Input<string>;
   };
+  /** Webhook encryption key SSM parameter ARN */
+  webhookSecretEncryptionKeySsmArn: pulumi.Input<string>;
   /** Task CPU units (256, 512, 1024, 2048, 4096) */
   cpu?: string;
   /** Task memory in MB (512, 1024, 2048, 4096, 8192, 16384) */
@@ -181,6 +183,7 @@ export function createBackendEcs(
             Resource: [
               options.databaseSsm.urlPathArn,
               options.databaseSsm.hostPathArn,
+              options.webhookSecretEncryptionKeySsmArn,
             ],
           },
           {
@@ -329,6 +332,8 @@ export function createBackendEcs(
           imageUri: backendImageUri,
           logGroupName: options.logGroupName,
           databaseUrlPath: options.databaseSsm.urlPathArn,
+          webhookSecretEncryptionKeyPath:
+            options.webhookSecretEncryptionKeySsmArn,
           allowedOrigins: options.allowedOrigins ?? "http://localhost:3000",
           platformApiUrl: options.platformApiUrl ?? "",
           workerExecRole: options.worker?.executionRoleArn ?? "",
@@ -343,6 +348,7 @@ export function createBackendEcs(
           imageUri,
           logGroupName,
           databaseUrlPath,
+          webhookSecretEncryptionKeyPath,
           allowedOrigins,
           platformApiUrl,
           workerExecRole,
@@ -460,6 +466,10 @@ export function createBackendEcs(
                 {
                   name: "DATABASE_URL",
                   valueFrom: databaseUrlPath,
+                },
+                {
+                  name: "WEBHOOK_SECRET_ENCRYPTION_KEY",
+                  valueFrom: webhookSecretEncryptionKeyPath,
                 },
               ],
               healthCheck: {
