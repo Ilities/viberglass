@@ -144,4 +144,55 @@ describe("WebhookDeliveryDAO", () => {
     );
     expect(result?.webhookConfigId).toBe("cfg-custom");
   });
+
+  it("returns existing scoped delivery row on composite delivery unique violation", async () => {
+    const now = new Date("2026-02-09T00:00:00.000Z");
+    const existingRow = {
+      id: "delivery-row-3",
+      provider: "custom",
+      webhook_config_id: "cfg-custom-2",
+      delivery_id: "delivery-shared",
+      event_type: "ticket_created",
+      status: "processing",
+      error_message: null,
+      payload: { title: "Duplicate payload" },
+      project_id: "project-2",
+      ticket_id: null,
+      created_at: now,
+      processed_at: null,
+    };
+
+    const executeTakeFirstOrThrow = jest.fn().mockRejectedValue({
+      code: "23505",
+      constraint: "uq_webhook_delivery_attempts_config_delivery_id",
+      message:
+        'duplicate key value violates unique constraint "uq_webhook_delivery_attempts_config_delivery_id"',
+    });
+    const returningAll = jest.fn(() => ({ executeTakeFirstOrThrow }));
+    const values = jest.fn(() => ({ returningAll }));
+    mockDb.insertInto.mockReturnValue({ values });
+
+    const executeTakeFirst = jest.fn().mockResolvedValue(existingRow);
+    const whereConfig = jest.fn(() => ({ executeTakeFirst }));
+    const whereDelivery = jest.fn(() => ({ where: whereConfig }));
+    const selectAll = jest.fn(() => ({ where: whereDelivery }));
+    mockDb.selectFrom.mockReturnValue({ selectAll });
+
+    const dao = new WebhookDeliveryDAO();
+    const result = await dao.recordDeliveryAttempt({
+      provider: "custom",
+      webhookConfigId: "cfg-custom-2",
+      deliveryId: "delivery-shared",
+      eventType: "ticket_created",
+      payload: { title: "Duplicate payload" },
+    });
+
+    expect(whereDelivery).toHaveBeenCalledWith("delivery_id", "=", "delivery-shared");
+    expect(whereConfig).toHaveBeenCalledWith("webhook_config_id", "=", "cfg-custom-2");
+    expect(result).toMatchObject({
+      id: "delivery-row-3",
+      webhookConfigId: "cfg-custom-2",
+      deliveryId: "delivery-shared",
+    });
+  });
 });
