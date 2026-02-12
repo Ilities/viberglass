@@ -1,6 +1,7 @@
 import { Badge } from '@/components/badge'
 import { Subheading } from '@/components/heading'
 import type { LogEntry } from '@/service/api/job-api'
+import { LayersIcon } from '@radix-ui/react-icons'
 
 export interface LogViewerProps {
   logs: LogEntry[]
@@ -25,12 +26,12 @@ function formatTime(isoString: string): string {
  */
 const levelConfig: Record<
   LogEntry['level'],
-  { color: Parameters<typeof Badge>[0]['color']; label: string }
+  { color: Parameters<typeof Badge>[0]['color']; label: string; bgColor: string }
 > = {
-  info: { color: 'zinc', label: 'INFO' },
-  warn: { color: 'amber', label: 'WARN' },
-  error: { color: 'red', label: 'ERROR' },
-  debug: { color: 'zinc', label: 'DEBUG' },
+  info: { color: 'zinc', label: 'INFO', bgColor: 'bg-[var(--gray-4)]' },
+  warn: { color: 'amber', label: 'WARN', bgColor: 'bg-amber-100 dark:bg-amber-900/30' },
+  error: { color: 'red', label: 'ERROR', bgColor: 'bg-red-100 dark:bg-red-900/30' },
+  debug: { color: 'zinc', label: 'DEBUG', bgColor: 'bg-[var(--gray-4)]' },
 }
 
 /**
@@ -38,43 +39,75 @@ const levelConfig: Record<
  */
 export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
   return (
-    <div className="lg:col-span-3">
-      <div className="flex items-center justify-between">
-        <Subheading>Logs</Subheading>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <Subheading className="flex items-center gap-2">
+          <LayersIcon className="h-5 w-5 text-[var(--accent-9)]" />
+          Execution Logs
+        </Subheading>
         {isConnected && (
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">Live</span>
+            <span className="text-xs font-medium text-green-600">Live</span>
           </div>
         )}
       </div>
 
       {!logs || logs.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">No logs available</p>
+        <div className="flex-1 flex items-center justify-center p-8 text-center">
+          <div className="text-[var(--gray-9)]">
+            <LayersIcon className="h-10 w-10 mx-auto mb-3 text-[var(--gray-6)]" />
+            <p className="text-sm">No logs available</p>
+            <p className="text-xs mt-1 text-[var(--gray-8)]">Logs will appear here once the job starts</p>
+          </div>
         </div>
       ) : (
-        <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-900 dark:border-zinc-700 dark:bg-zinc-950">
-          <pre className="overflow-auto max-h-96 p-4 font-mono text-sm text-zinc-100 dark:text-zinc-100">
-            {logs.map((log) => {
-              const config = levelConfig[log.level]
-              return (
-                <div key={log.id} className="flex gap-3 py-0.5">
-                  <span className="text-zinc-500 select-none">{formatTime(log.createdAt)}</span>
-                  <Badge color={config.color} className="shrink-0">
-                    {config.label}
-                  </Badge>
-                  <span className="flex-1 text-zinc-300">{log.message}</span>
-                  {log.source && (
-                    <span className="text-zinc-600 text-xs shrink-0">({log.source})</span>
-                  )}
-                </div>
-              )
-            })}
-          </pre>
+        <div className="flex-1 overflow-hidden rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] dark:bg-[var(--gray-3)]">
+          <div className="overflow-auto max-h-[600px]">
+            <table className="w-full text-sm">
+              <tbody>
+                {logs.map((log, index) => {
+                  const config = levelConfig[log.level]
+                  const isEven = index % 2 === 0
+                  return (
+                    <tr 
+                      key={log.id} 
+                      className={`
+                        ${isEven ? 'bg-transparent' : 'bg-[var(--gray-3)]/50 dark:bg-[var(--gray-4)]/30'}
+                        hover:bg-[var(--accent-3)]/30 transition-colors
+                      `}
+                    >
+                      <td className="py-2 px-4 text-[var(--gray-8)] tabular-nums text-xs whitespace-nowrap w-20">
+                        {formatTime(log.createdAt)}
+                      </td>
+                      <td className="py-2 px-2 w-16">
+                        <Badge 
+                          color={config.color} 
+                          className={`
+                            text-[10px] px-1.5 py-0.5 font-mono font-bold
+                            ${config.bgColor}
+                          `}
+                        >
+                          {config.label}
+                        </Badge>
+                      </td>
+                      <td className="py-2 px-4 text-[var(--gray-11)]">
+                        {log.message}
+                      </td>
+                      {log.source && (
+                        <td className="py-2 px-4 text-[var(--gray-8)] text-xs whitespace-nowrap text-right">
+                          {log.source}
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

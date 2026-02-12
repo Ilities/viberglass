@@ -3,12 +3,31 @@ import { Heading, Subheading } from '@/components/heading'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { LogViewer } from '@/components/log-viewer'
 import { ProgressTimeline } from '@/components/progress-timeline'
-import { Table, TableBody, TableCell, TableRow } from '@/components/table'
-import { useJobStatus } from '@/hooks/useJobStatus'
-import { ArrowLeftIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
-import { useParams } from 'react-router-dom'
 import { Badge } from '@/components/badge'
+import { InfoItem } from '@/components/info-item'
+import { Section } from '@/components/section'
+import { TabButton } from '@/components/tab-button'
 import { JobRefreshButton } from './job-refresh-button'
+import { useJobStatus } from '@/hooks/useJobStatus'
+import { cn } from '@/lib/utils'
+import { 
+  ArrowLeftIcon, 
+  ExternalLinkIcon, 
+  ClockIcon, 
+  CommitIcon, 
+  CubeIcon,
+  StackIcon,
+  FileTextIcon,
+  ListBulletIcon,
+  CalendarIcon,
+  TimerIcon,
+  CheckCircledIcon,
+  CrossCircledIcon,
+  GearIcon,
+  LightningBoltIcon
+} from '@radix-ui/react-icons'
+import { useParams } from 'react-router-dom'
+import { useState } from 'react'
 
 function formatDuration(start: string | null, end: string | null): string {
   if (!start) return '-'
@@ -17,7 +36,11 @@ function formatDuration(start: string | null, end: string | null): string {
   const durationMs = endTime - startTime
   const seconds = Math.floor(durationMs / 1000)
   const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
 
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`
+  }
   if (minutes > 0) {
     return `${minutes}m ${seconds % 60}s`
   }
@@ -31,14 +54,23 @@ function isJobStale(lastHeartbeat: string | null, status: string): boolean {
   return new Date(lastHeartbeat).getTime() < fiveMinutesAgo
 }
 
+function formatJobId(jobId: string): string {
+  // Show first 8 and last 6 characters
+  if (jobId.length <= 20) return jobId
+  return `${jobId.slice(0, 8)}...${jobId.slice(-6)}`
+}
+
+type TabType = 'overview' | 'timeline' | 'logs'
+
 export function JobDetailPage() {
   const { project, jobId } = useParams<{ project: string; jobId: string }>()
   const { job, isLoading, error, isPolling, refetch } = useJobStatus(jobId)
+  const [activeTab, setActiveTab] = useState<TabType>('overview')
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-zinc-500 dark:text-zinc-400">Loading job details...</div>
+        <div className="text-[var(--gray-9)]">Loading job details...</div>
       </div>
     )
   }
@@ -51,168 +83,277 @@ export function JobDetailPage() {
     )
   }
 
+  const hasResults = job.result && job.result.success
+  const hasError = job.result && !job.result.success
+  const showProgress = job.status === 'active' && job.progress
+
   return (
-    <>
-      <div className="flex items-center gap-4">
+    <div className="h-full flex flex-col">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-4 mb-6">
         <Button href={`/project/${project}/jobs`} plain>
-          <ArrowLeftIcon className="h-5 w-5" />
+          <ArrowLeftIcon className="h-4 w-4" />
           Back to Jobs
         </Button>
       </div>
 
-      <div className="mt-8 flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <Heading>Job {job.jobId}</Heading>
-          <div className="mt-4 flex items-center gap-4">
-            <JobStatusIndicator status={job.status} isPolling={isPolling} />
+      {/* Header Section */}
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            {/* Job Avatar */}
+            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent-4)] to-[var(--accent-3)] text-[var(--accent-11)] shadow-sm">
+              <GearIcon className="h-7 w-7" />
+            </div>
+            
+            <div>
+              <Heading className="text-2xl">Job {formatJobId(job.jobId)}</Heading>
+              <div className="mt-1.5 flex items-center gap-3">
+                <JobStatusIndicator status={job.status} isPolling={isPolling} />
+                {job.data.ticketTitle && (
+                  <span className="text-sm text-[var(--gray-9)]">
+                    Ticket: <span className="text-[var(--gray-11)] font-medium">{job.data.ticketTitle}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {job.result?.pullRequestUrl && (
+              <Button href={job.result.pullRequestUrl} target="_blank" color="brand">
+                <ExternalLinkIcon className="h-4 w-4" />
+                View Pull Request
+              </Button>
+            )}
+            <JobRefreshButton onRefresh={() => void refetch()} />
           </div>
         </div>
-        <div className="flex gap-2">
-          {job.result?.pullRequestUrl && (
-            <Button href={job.result.pullRequestUrl} target="_blank" color="brand">
-              <ExternalLinkIcon className="h-5 w-5" />
-              View Pull Request
-            </Button>
-          )}
-          <JobRefreshButton onRefresh={() => void refetch()} />
+
+        {/* Tab Navigation */}
+        <div className="mt-6 border-b border-[var(--gray-6)]">
+          <div className="flex gap-1">
+            <TabButton 
+              active={activeTab === 'overview'} 
+              onClick={() => setActiveTab('overview')}
+              icon={<FileTextIcon className="h-4 w-4" />}
+            >
+              Overview
+            </TabButton>
+            <TabButton 
+              active={activeTab === 'timeline'} 
+              onClick={() => setActiveTab('timeline')}
+              icon={<ListBulletIcon className="h-4 w-4" />}
+            >
+              Timeline
+            </TabButton>
+            <TabButton 
+              active={activeTab === 'logs'} 
+              onClick={() => setActiveTab('logs')}
+              icon={<StackIcon className="h-4 w-4" />}
+            >
+              Logs
+            </TabButton>
+          </div>
         </div>
       </div>
 
-      <div className="mt-8">
-        <Subheading>Task</Subheading>
-        <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-          <p className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">{job.data.task}</p>
-        </div>
-      </div>
+      {/* Main Content */}
+      <div className="flex-1 min-h-0">
+        <div className="grid gap-6 lg:grid-cols-12 h-full">
+          {/* Left Sidebar - Job Info */}
+          <div className="lg:col-span-4 xl:col-span-3 space-y-1">
+            {/* Job Information Section */}
+            <div className="app-frame rounded-lg p-4">
+              <Section title="Job Information">
+                <InfoItem 
+                  icon={<StackIcon className="h-4 w-4" />}
+                  label="Job ID"
+                  value={<span className="font-mono text-xs">{job.jobId}</span>}
+                />
+                <div className="h-px bg-[var(--gray-6)] mx-1" />
+                <InfoItem 
+                  icon={<CubeIcon className="h-4 w-4" />}
+                  label="Repository"
+                  value={job.data.repository}
+                />
+                <div className="h-px bg-[var(--gray-6)] mx-1" />
+                <InfoItem 
+                  icon={<CommitIcon className="h-4 w-4" />}
+                  label="Base Branch"
+                  value={job.data.baseBranch || 'main'}
+                />
+              </Section>
+            </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        {job.result && (
-          <div className="lg:col-span-2">
-            <Subheading>Results</Subheading>
-            <div className="mt-4 space-y-4">
-              {job.result.success ? (
-                <>
-                  {job.result.branch && (
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-                      <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Branch</h4>
-                      <p className="mt-1 font-mono text-sm text-zinc-600 dark:text-zinc-400">
-                        {job.result.branch}
-                      </p>
+            {/* Execution Section */}
+            <div className="app-frame rounded-lg p-4">
+              <Section title="Execution">
+                <InfoItem 
+                  icon={<CalendarIcon className="h-4 w-4" />}
+                  label="Created"
+                  value={new Date(job.createdAt).toLocaleString()}
+                />
+                {job.processedAt && (
+                  <>
+                    <div className="h-px bg-[var(--gray-6)] mx-1" />
+                    <InfoItem 
+                      icon={<ClockIcon className="h-4 w-4" />}
+                      label="Started"
+                      value={new Date(job.processedAt).toLocaleString()}
+                    />
+                  </>
+                )}
+                {job.finishedAt && (
+                  <>
+                    <div className="h-px bg-[var(--gray-6)] mx-1" />
+                    <InfoItem 
+                      icon={<CheckCircledIcon className="h-4 w-4" />}
+                      label="Finished"
+                      value={new Date(job.finishedAt).toLocaleString()}
+                    />
+                  </>
+                )}
+                <div className="h-px bg-[var(--gray-6)] mx-1" />
+                <InfoItem 
+                  icon={<TimerIcon className="h-4 w-4" />}
+                  label="Duration"
+                  value={formatDuration(job.processedAt, job.finishedAt)}
+                />
+                {job.result?.executionTime && (
+                  <>
+                    <div className="h-px bg-[var(--gray-6)] mx-1" />
+                    <InfoItem 
+                      icon={<TimerIcon className="h-4 w-4" />}
+                      label="Execution Time"
+                      value={`${Math.round(job.result.executionTime / 1000)}s`}
+                    />
+                  </>
+                )}
+              </Section>
+            </div>
+
+            {/* Status Section */}
+            <div className="app-frame rounded-lg p-4">
+              <Section title="Status">
+                <InfoItem 
+                  icon={<LightningBoltIcon className="h-4 w-4" />}
+                  label="Last Heartbeat"
+                  value={
+                    <div className="flex items-center gap-2">
+                      <span>{job.lastHeartbeat ? new Date(job.lastHeartbeat).toLocaleString() : 'Never'}</span>
+                      {isJobStale(job.lastHeartbeat, job.status) && (
+                        <Badge color="amber">Stale</Badge>
+                      )}
                     </div>
-                  )}
-                  {job.result.commitHash && (
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-                      <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Commit</h4>
-                      <p className="mt-1 font-mono text-sm text-zinc-600 dark:text-zinc-400">
-                        {job.result.commitHash}
-                      </p>
-                    </div>
-                  )}
-                  {job.result.changedFiles && job.result.changedFiles.length > 0 && (
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-                      <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                        Changed Files ({job.result.changedFiles.length})
-                      </h4>
-                      <ul className="mt-2 space-y-1">
-                        {job.result.changedFiles.map((file, index) => (
-                          <li key={`${file}-${index}`} className="font-mono text-sm text-zinc-600 dark:text-zinc-400">
-                            {file}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
-                  <h4 className="text-sm font-medium text-red-900 dark:text-red-200">Error</h4>
-                  <p className="mt-1 text-sm text-red-700 dark:text-red-300">
-                    {job.result.errorMessage || job.failedReason || 'Unknown error'}
-                  </p>
-                </div>
-              )}
+                  }
+                />
+              </Section>
             </div>
           </div>
-        )}
 
-        {job.status === 'failed' && !job.result && job.failedReason && (
-          <div className="lg:col-span-2">
-            <Subheading>Error</Subheading>
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
-              <p className="text-sm text-red-700 dark:text-red-300">{job.failedReason}</p>
-            </div>
-          </div>
-        )}
-
-        {job.status === 'active' && job.progress && (
-          <div className="lg:col-span-2">
-            <Subheading>Progress</Subheading>
-            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-500/30 dark:bg-blue-500/10">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                {(job.progress as { message?: string }).message || 'Processing...'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div>
-          <Subheading>Details</Subheading>
-          <Table className="mt-4">
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Job ID</TableCell>
-                <TableCell className="font-mono text-xs">{job.jobId}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Repository</TableCell>
-                <TableCell className="break-all text-sm">{job.data.repository}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Base Branch</TableCell>
-                <TableCell>{job.data.baseBranch || 'main'}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Created</TableCell>
-                <TableCell>{new Date(job.createdAt).toLocaleString()}</TableCell>
-              </TableRow>
-              {job.processedAt && (
-                <TableRow>
-                  <TableCell className="font-medium">Started</TableCell>
-                  <TableCell>{new Date(job.processedAt).toLocaleString()}</TableCell>
-                </TableRow>
-              )}
-              {job.finishedAt && (
-                <TableRow>
-                  <TableCell className="font-medium">Finished</TableCell>
-                  <TableCell>{new Date(job.finishedAt).toLocaleString()}</TableCell>
-                </TableRow>
-              )}
-              <TableRow>
-                <TableCell className="font-medium">Duration</TableCell>
-                <TableCell>{formatDuration(job.processedAt, job.finishedAt)}</TableCell>
-              </TableRow>
-              {job.result?.executionTime && (
-                <TableRow>
-                  <TableCell className="font-medium">Execution Time</TableCell>
-                  <TableCell>{Math.round(job.result.executionTime / 1000)}s</TableCell>
-                </TableRow>
-              )}
-              <TableRow>
-                <TableCell className="font-medium">Last heartbeat</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span>{job.lastHeartbeat ? new Date(job.lastHeartbeat).toLocaleString() : 'Never'}</span>
-                    {isJobStale(job.lastHeartbeat, job.status) && <Badge color="amber">Stale</Badge>}
+          {/* Main Content Area */}
+          <div className="lg:col-span-8 xl:col-span-9">
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Task Section */}
+                <div className="app-frame rounded-lg p-6">
+                  <Subheading className="mb-4 flex items-center gap-2">
+                    <FileTextIcon className="h-5 w-5 text-[var(--accent-9)]" />
+                    Task
+                  </Subheading>
+                  <div className="prose prose-sm max-w-none text-[var(--gray-11)] whitespace-pre-wrap">
+                    {job.data.task}
                   </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                </div>
+
+                {/* Results Section */}
+                {hasResults && (
+                  <div className="app-frame rounded-lg p-6">
+                    <Subheading className="mb-4 flex items-center gap-2">
+                      <CheckCircledIcon className="h-5 w-5 text-green-600" />
+                      Results
+                    </Subheading>
+                    <div className="space-y-4">
+                      {job.result?.branch && (
+                        <div className="flex items-center gap-3 p-3 bg-[var(--gray-3)] rounded">
+                          <CommitIcon className="h-4 w-4 text-[var(--gray-8)]" />
+                          <div>
+                            <div className="text-xs text-[var(--gray-9)] uppercase tracking-wider">Branch</div>
+                            <div className="font-mono text-sm text-[var(--gray-12)]">{job.result.branch}</div>
+                          </div>
+                        </div>
+                      )}
+                      {job.result?.commitHash && (
+                        <div className="flex items-center gap-3 p-3 bg-[var(--gray-3)] rounded">
+                          <StackIcon className="h-4 w-4 text-[var(--gray-8)]" />
+                          <div>
+                            <div className="text-xs text-[var(--gray-9)] uppercase tracking-wider">Commit</div>
+                            <div className="font-mono text-sm text-[var(--gray-12)]">{job.result.commitHash}</div>
+                          </div>
+                        </div>
+                      )}
+                      {job.result?.changedFiles && job.result.changedFiles.length > 0 && (
+                        <div className="p-3 bg-[var(--gray-3)] rounded">
+                          <div className="text-xs text-[var(--gray-9)] uppercase tracking-wider mb-2">
+                            Changed Files ({job.result.changedFiles.length})
+                          </div>
+                          <ul className="space-y-1">
+                            {job.result.changedFiles.map((file, index) => (
+                              <li key={`${file}-${index}`} className="font-mono text-xs text-[var(--gray-11)]">
+                                {file}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Section */}
+                {(hasError || (job.status === 'failed' && job.failedReason)) && (
+                  <div className="app-frame rounded-lg p-6 border-red-200 dark:border-red-500/30">
+                    <Subheading className="mb-4 flex items-center gap-2 text-red-600">
+                      <CrossCircledIcon className="h-5 w-5" />
+                      Error
+                    </Subheading>
+                    <div className="p-4 bg-red-50 dark:bg-red-500/10 rounded text-red-800 dark:text-red-200 text-sm">
+                      {job.result?.errorMessage || job.failedReason || 'Unknown error'}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Progress */}
+                {showProgress && (
+                  <div className="app-frame rounded-lg p-6 border-blue-200 dark:border-blue-500/30">
+                    <Subheading className="mb-4 flex items-center gap-2 text-blue-600">
+                      <ListBulletIcon className="h-5 w-5" />
+                      Current Progress
+                    </Subheading>
+                    <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded text-blue-800 dark:text-blue-200 text-sm">
+                      {(job.progress as { message?: string }).message || 'Processing...'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'timeline' && (
+              <div className="app-frame rounded-lg p-6">
+                <ProgressTimeline updates={job.progressUpdates || []} currentStatus={job.status} />
+              </div>
+            )}
+
+            {activeTab === 'logs' && (
+              <div className="app-frame rounded-lg p-6">
+                <LogViewer logs={job.logs || []} isConnected={isPolling && job.status === 'active'} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
-      <ProgressTimeline updates={job.progressUpdates || []} currentStatus={job.status} />
-      <LogViewer logs={job.logs || []} isConnected={isPolling && job.status === 'active'} />
-    </>
+    </div>
   )
 }
