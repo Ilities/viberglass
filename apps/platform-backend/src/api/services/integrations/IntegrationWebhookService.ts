@@ -67,12 +67,12 @@ export class IntegrationWebhookService {
       webhookSecret = crypto.randomBytes(32).toString('hex')
     }
 
-    const projectLinks = await this.projectLinkDAO.getIntegrationProjects(integration.id)
-    const projectId = input.projectId || (projectLinks.length > 0 ? projectLinks[0].projectId : null)
-    const providerProjectId =
-      input.providerProjectId ||
-      getProviderProjectIdFromIntegration(provider, integration.values) ||
-      null
+    const projectId = await this.resolveProjectId(integration.id, input.projectId)
+    const providerProjectId = this.resolveProviderProjectId(
+      provider,
+      input.providerProjectId,
+      integration.values,
+    )
 
     const created = await this.webhookConfigDAO.createConfig({
       projectId,
@@ -97,7 +97,7 @@ export class IntegrationWebhookService {
   ) {
     const integration = await this.getIntegrationOrThrow(integrationId)
 
-    await this.getInboundConfigForIntegrationOrThrow(integration.id, configId)
+    const existing = await this.getInboundConfigForIntegrationOrThrow(integration.id, configId)
 
     let webhookSecret = input.webhookSecret
     if (input.generateSecret) {
@@ -105,7 +105,11 @@ export class IntegrationWebhookService {
     }
 
     await this.webhookConfigDAO.updateConfig(configId, {
-      providerProjectId: input.providerProjectId,
+      projectId: input.projectId !== undefined ? input.projectId : existing.projectId,
+      providerProjectId:
+        input.providerProjectId !== undefined
+          ? this.normalizeOptionalId(input.providerProjectId)
+          : existing.providerProjectId,
       allowedEvents: input.allowedEvents,
       autoExecute: input.autoExecute,
       webhookSecretEncrypted: webhookSecret,
@@ -183,12 +187,16 @@ export class IntegrationWebhookService {
       throw new IntegrationRouteServiceError(400, customOutboundTargetConfig.error)
     }
 
-    const projectLinks = await this.projectLinkDAO.getIntegrationProjects(integration.id)
-    const projectId = input.projectId || (projectLinks.length > 0 ? projectLinks[0].projectId : null)
-    const providerProjectId =
-      input.providerProjectId ||
-      getProviderProjectIdFromIntegration(provider, integration.values) ||
-      null
+    const projectId = await this.resolveProjectId(integration.id, input.projectId)
+    const providerProjectId = this.resolveProviderProjectId(
+      provider,
+      input.providerProjectId,
+      integration.values,
+    )
+    const allowedEvents =
+      provider === 'shortcut' || provider === 'jira'
+        ? getDefaultOutboundEvents()
+        : input.events || getDefaultOutboundEvents()
 
     const created = await this.webhookConfigDAO.createConfig({
       projectId,
@@ -196,7 +204,7 @@ export class IntegrationWebhookService {
       direction: 'outbound',
       integrationId: integration.id,
       providerProjectId,
-      allowedEvents: input.events || getDefaultOutboundEvents(),
+      allowedEvents,
       apiTokenEncrypted: provider === 'custom' ? null : input.apiToken || null,
       outboundTargetConfig:
         provider === 'custom' ? customOutboundTargetConfig.config || null : null,
@@ -252,9 +260,16 @@ export class IntegrationWebhookService {
     }
 
     await this.webhookConfigDAO.updateConfig(configId, {
-      allowedEvents: input.events,
+      projectId: input.projectId !== undefined ? input.projectId : existing.projectId,
+      allowedEvents:
+        provider === 'shortcut' || provider === 'jira'
+          ? getDefaultOutboundEvents()
+          : input.events,
       apiTokenEncrypted: provider === 'custom' ? undefined : input.apiToken,
-      providerProjectId: input.providerProjectId,
+      providerProjectId:
+        input.providerProjectId !== undefined
+          ? this.normalizeOptionalId(input.providerProjectId)
+          : existing.providerProjectId,
       outboundTargetConfig:
         provider === 'custom' ? customOutboundTargetConfig.config || null : undefined,
       active: input.active,
@@ -271,7 +286,14 @@ export class IntegrationWebhookService {
   async deleteOutboundWebhookConfig(integrationId: string, configId: string) {
     const integration = await this.getIntegrationOrThrow(integrationId)
 
-    await this.getOutboundConfigForIntegrationOrThrow(integration.id, configId)
+    const config = await this.getOutboundConfigForIntegrationOrThrow(integration.id, configId)
+    if (config.provider === 'shortcut' || config.provider === 'jira') {
+      const providerLabel = config.provider === 'shortcut' ? 'Shortcut' : 'Jira'
+      throw new IntegrationRouteServiceError(
+        400,
+        `${providerLabel} outbound webhook is required and cannot be removed`,
+      )
+    }
 
     await this.webhookConfigDAO.deleteConfig(configId)
   }
@@ -492,5 +514,47 @@ export class IntegrationWebhookService {
     }
 
     return config
+  }
+
+  private normalizeOptionalId(value: string | null | undefined): string | null {
+    if (value === null || value === undefined) {
+      return null
+    }
+
+    const normalized = value.trim()
+    return normalized.length > 0 ? normalized : null
+  }
+
+  private resolveProviderProjectId(
+    provider: NonNullable<ReturnType<typeof mapSystemToWebhookProvider>>,
+    inputProviderProjectId: string | null | undefined,
+    integrationValues: Record<string, unknown>,
+  ): string | null {
+    const explicitProviderProjectId = this.normalizeOptionalId(inputProviderProjectId)
+    if (explicitProviderProjectId) {
+      return explicitProviderProjectId
+    }
+
+    if (provider === 'shortcut') {
+      return null
+    }
+
+    if (provider === 'jira') {
+      return null
+    }
+
+    return getProviderProjectIdFromIntegration(provider, integrationValues) || null
+  }
+
+  private async resolveProjectId(
+    integrationId: string,
+    explicitProjectId: string | null | undefined,
+  ): Promise<string | null> {
+    if (explicitProjectId !== undefined) {
+      return this.normalizeOptionalId(explicitProjectId)
+    }
+
+    const projectLinks = await this.projectLinkDAO.getIntegrationProjects(integrationId)
+    return projectLinks[0]?.projectId || null
   }
 }

@@ -17,7 +17,7 @@ export function getDefaultInboundEvents(provider: WebhookProvider): string[] {
     case 'jira':
       return ['issue_created', 'issue_updated', 'comment_created']
     case 'shortcut':
-      return ['story_created', 'story_updated', 'comment_created']
+      return ['story_created', 'comment_created']
     case 'custom':
       return ['ticket_created']
     default:
@@ -42,22 +42,6 @@ export function getProviderProjectIdFromIntegration(
     return null
   }
 
-  if (provider === 'jira') {
-    const projectKey =
-      typeof integrationValues.projectKey === 'string' ? integrationValues.projectKey : null
-    return projectKey
-  }
-
-  if (provider === 'shortcut') {
-    const projectId =
-      typeof integrationValues.projectId === 'string'
-        ? integrationValues.projectId
-        : typeof integrationValues.projectId === 'number'
-          ? String(integrationValues.projectId)
-          : null
-    return projectId
-  }
-
   return null
 }
 
@@ -69,6 +53,8 @@ export function serializeInboundWebhookConfig(
     autoExecute: boolean
     active: boolean
     webhookSecretEncrypted: string | null
+    providerProjectId: string | null
+    projectId: string | null
     createdAt: Date
     updatedAt: Date
   },
@@ -86,6 +72,8 @@ export function serializeInboundWebhookConfig(
     active: config.active,
     hasSecret: Boolean(config.webhookSecretEncrypted),
     webhookSecret: includeSecret,
+    providerProjectId: config.providerProjectId,
+    projectId: config.projectId,
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
   }
@@ -99,6 +87,7 @@ export function serializeOutboundWebhookConfig(
     active: boolean
     apiTokenEncrypted: string | null
     providerProjectId: string | null
+    projectId: string | null
     outboundTargetConfig?: Record<string, unknown> | null
     createdAt: Date
     updatedAt: Date
@@ -116,6 +105,7 @@ export function serializeOutboundWebhookConfig(
     active: config.active,
     hasApiToken: Boolean(config.apiTokenEncrypted),
     providerProjectId: config.providerProjectId,
+    projectId: config.projectId,
     ...(customTarget ? toPublicCustomOutboundTargetConfig(customTarget) : {}),
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
