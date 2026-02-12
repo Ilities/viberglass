@@ -55,6 +55,7 @@ export function serializeInboundWebhookConfig(
     webhookSecretEncrypted: string | null
     providerProjectId: string | null
     projectId: string | null
+    labelMappings?: Record<string, unknown>
     createdAt: Date
     updatedAt: Date
   },
@@ -74,6 +75,7 @@ export function serializeInboundWebhookConfig(
     webhookSecret: includeSecret,
     providerProjectId: config.providerProjectId,
     projectId: config.projectId,
+    labelMappings: config.labelMappings || {},
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
   }

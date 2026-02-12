@@ -544,6 +544,186 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     );
   });
 
+  it("forces GitHub outbound events to include both job lifecycle updates", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-github",
+      system: "github",
+      values: {},
+    });
+    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([]);
+    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
+    mockWebhookConfigDAO.createConfig.mockResolvedValue({
+      id: "outbound-github-1",
+      provider: "github",
+      allowedEvents: ["job_started", "job_ended"],
+      active: true,
+      apiTokenEncrypted: "token-1",
+      providerProjectId: "acme/repo",
+      projectId: null,
+      createdAt: new Date("2026-02-11T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
+    });
+
+    await request(app)
+      .post("/api/integrations/int-github/webhooks/outbound")
+      .send({
+        events: ["job_started"],
+        providerProjectId: "acme/repo",
+        apiToken: "github-token",
+      })
+      .expect(201);
+
+    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "github",
+        direction: "outbound",
+        allowedEvents: ["job_started", "job_ended"],
+        providerProjectId: "acme/repo",
+      }),
+    );
+  });
+
+  it("forces GitHub outbound update to keep both lifecycle events enabled", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-github",
+      system: "github",
+      values: {},
+    });
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: "outbound-github-1",
+      provider: "github",
+      direction: "outbound",
+      active: true,
+      allowedEvents: ["job_started", "job_ended"],
+      apiTokenEncrypted: "token-1",
+      providerProjectId: "acme/repo",
+      projectId: null,
+      outboundTargetConfig: null,
+      createdAt: new Date("2026-02-11T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
+    });
+    mockWebhookConfigDAO.updateConfig.mockResolvedValue(undefined);
+    mockWebhookConfigDAO.getConfigById.mockResolvedValue({
+      id: "outbound-github-1",
+      provider: "github",
+      active: true,
+      allowedEvents: ["job_started", "job_ended"],
+      apiTokenEncrypted: "token-1",
+      providerProjectId: "acme/repo",
+      projectId: null,
+      createdAt: new Date("2026-02-11T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-11T10:02:00.000Z"),
+    });
+
+    await request(app)
+      .put("/api/integrations/int-github/webhooks/outbound/outbound-github-1")
+      .send({
+        events: ["job_started"],
+      })
+      .expect(200);
+
+    expect(mockWebhookConfigDAO.updateConfig).toHaveBeenCalledWith(
+      "outbound-github-1",
+      expect.objectContaining({
+        allowedEvents: ["job_started", "job_ended"],
+      }),
+    );
+  });
+
+  it("rejects deleting GitHub outbound feedback configuration", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-github",
+      system: "github",
+      values: {},
+    });
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: "outbound-github-1",
+      provider: "github",
+      direction: "outbound",
+      active: true,
+    });
+
+    const response = await request(app)
+      .delete("/api/integrations/int-github/webhooks/outbound/outbound-github-1")
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: "GitHub outbound webhook is required and cannot be removed",
+    });
+    expect(mockWebhookConfigDAO.deleteConfig).not.toHaveBeenCalled();
+  });
+
+  it("accepts GitHub inbound label-gated auto-execute policy and repository mapping", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-github",
+      system: "github",
+      values: {},
+    });
+    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
+    mockWebhookConfigDAO.createConfig.mockResolvedValue({
+      id: "cfg-github-1",
+      provider: "github",
+      direction: "inbound",
+      allowedEvents: ["issues.opened"],
+      autoExecute: true,
+      active: true,
+      webhookSecretEncrypted: "secret-1",
+      providerProjectId: "acme/repo",
+      projectId: "project-1",
+      labelMappings: {
+        github: {
+          autoExecuteMode: "label_gated",
+          requiredLabels: ["autofix", "ai-fix"],
+        },
+      },
+      createdAt: new Date("2026-02-11T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
+    });
+
+    const response = await request(app)
+      .post("/api/integrations/int-github/webhooks/inbound")
+      .send({
+        allowedEvents: ["issues.opened"],
+        autoExecute: true,
+        providerProjectId: "acme/repo",
+        projectId: "project-1",
+        labelMappings: {
+          github: {
+            autoExecuteMode: "label_gated",
+            requiredLabels: ["Autofix", "AI-FIX"],
+          },
+        },
+      })
+      .expect(201);
+
+    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "github",
+        direction: "inbound",
+        providerProjectId: "acme/repo",
+        projectId: "project-1",
+        labelMappings: {
+          github: {
+            autoExecuteMode: "label_gated",
+            requiredLabels: ["autofix", "ai-fix"],
+          },
+        },
+      }),
+    );
+    expect(response.body.data).toEqual(
+      expect.objectContaining({
+        id: "cfg-github-1",
+        providerProjectId: "acme/repo",
+        labelMappings: {
+          github: {
+            autoExecuteMode: "label_gated",
+            requiredLabels: ["autofix", "ai-fix"],
+          },
+        },
+      }),
+    );
+  });
+
   it("rejects deleting Shortcut outbound feedback configuration", async () => {
     mockIntegrationDAO.getIntegration.mockResolvedValue({
       id: "int-shortcut",

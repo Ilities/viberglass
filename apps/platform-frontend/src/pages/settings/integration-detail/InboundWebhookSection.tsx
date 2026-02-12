@@ -65,28 +65,35 @@ export function InboundWebhookSection({
   onToggleSecretVisibility,
 }: InboundWebhookSectionProps) {
   return (
-    <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-      <Subheading>Inbound Webhooks</Subheading>
-      <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+    <section className="app-frame rounded-lg p-6">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+        </div>
+        <Subheading>Inbound Webhooks</Subheading>
+      </div>
+      <Text className="text-sm text-[var(--gray-9)]">
         Inbound webhooks create tickets from external payloads.
       </Text>
 
       {isLoadingWebhook ? (
-        <div className="mt-4 text-sm text-zinc-500">Loading inbound webhook configuration...</div>
+        <div className="mt-4 text-sm text-[var(--gray-9)]">Loading inbound webhook configuration...</div>
       ) : (
-        <div className="mt-4 space-y-4">
+        <div className="mt-6 space-y-6">
           {inboundWebhooks.length === 0 ? (
             <Button color="brand" onClick={onCreateInboundWebhook} disabled={isSavingWebhook}>
               {isSavingWebhook ? 'Setting up...' : 'Setup Inbound Webhook'}
             </Button>
           ) : (
             <>
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-zinc-900 dark:text-white">Webhook</label>
+              <div className="flex items-center gap-3 pb-4 border-b border-[var(--gray-6)]">
+                <label className="text-sm font-medium text-[var(--gray-12)]">Webhook</label>
                 <select
                   value={selectedInboundConfigId || ''}
                   onChange={(e) => onSelectInboundWebhook(e.target.value)}
-                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 >
                   {inboundWebhooks.map((config, index) => (
                     <option key={config.id} value={config.id}>
@@ -101,14 +108,14 @@ export function InboundWebhookSection({
 
               {selectedInboundConfig && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook URL</label>
-                    <div className="mt-1 flex gap-2">
+                  <div className="pt-2">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Webhook URL</label>
+                    <div className="mt-2 flex gap-2">
                       <input
                         type="text"
                         readOnly
                         value={selectedInboundConfig.webhookUrl}
-                        className="flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="flex-1 rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm font-mono text-[var(--gray-12)]"
                       />
                       <Button
                         color="zinc"
@@ -120,9 +127,9 @@ export function InboundWebhookSection({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook Secret</label>
-                    <div className="mt-1 flex gap-2">
+                  <div className="pt-2">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Webhook Secret</label>
+                    <div className="mt-2 flex gap-2">
                       <input
                         type={showSecret ? 'text' : 'password'}
                         readOnly
@@ -130,7 +137,7 @@ export function InboundWebhookSection({
                           selectedInboundConfig.webhookSecret ||
                           (selectedInboundConfig.hasSecret ? '(stored, hidden)' : '(none)')
                         }
-                        className="flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="flex-1 rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm font-mono text-[var(--gray-12)]"
                       />
                       <Button color="zinc" onClick={onToggleSecretVisibility}>
                         {showSecret ? 'Hide' : 'Show'}
@@ -139,20 +146,20 @@ export function InboundWebhookSection({
                         Regenerate
                       </Button>
                     </div>
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-1.5 text-xs text-[var(--gray-9)]">
                       Use this secret to verify webhook signatures. Keep it secure.
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 pt-2">
                     <input
                       type="checkbox"
                       id="autoExecute"
                       checked={autoExecute}
                       onChange={(e) => onAutoExecuteChange(e.target.checked)}
-                      className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
+                      className="h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)] text-[var(--accent-9)] focus:ring-[var(--accent-9)]"
                     />
-                    <label htmlFor="autoExecute" className="text-sm text-zinc-900 dark:text-white">
+                    <label htmlFor="autoExecute" className="text-sm text-[var(--gray-12)]">
                       Auto-execute fixes on inbound events
                     </label>
                     {hasInboundChanges && (
@@ -162,7 +169,7 @@ export function InboundWebhookSection({
                     )}
                   </div>
 
-                  <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                  <div className="border-t border-[var(--gray-6)] pt-4">
                     <Button color="red" onClick={onDeleteInboundWebhook} disabled={isSavingWebhook}>
                       Remove Selected Inbound Webhook
                     </Button>
@@ -173,8 +180,8 @@ export function InboundWebhookSection({
           )}
 
           {showCustomPayloadHelp && selectedInboundConfig && (
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
-              <p className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Expected Payload Format</p>
+            <div className="rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
+              <p className="mb-2 text-sm font-medium text-[var(--gray-12)]">Expected Payload Format</p>
               <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">{CUSTOM_PAYLOAD_EXAMPLE}</pre>
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                 Send POST requests to the webhook URL with the payload above. Include{' '}
