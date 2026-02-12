@@ -6,16 +6,23 @@
 export type Severity = 'low' | 'medium' | 'high' | 'critical'
 
 // Supported ticket/project management systems
-export type TicketSystem =
-  | 'jira'
-  | 'linear'
-  | 'github'
-  | 'gitlab'
-  | 'azure'
-  | 'asana'
-  | 'trello'
-  | 'monday'
-  | 'clickup'
+export const TICKET_SYSTEMS = [
+  'jira',
+  'linear',
+  'github',
+  'gitlab',
+  'bitbucket',
+  'azure',
+  'asana',
+  'trello',
+  'monday',
+  'clickup',
+  'shortcut',
+  'slack',
+  'custom',
+] as const
+
+export type TicketSystem = (typeof TICKET_SYSTEMS)[number]
 
 // Auto-fix processing status
 export type AutoFixStatus = 'pending' | 'in_progress' | 'completed' | 'failed'

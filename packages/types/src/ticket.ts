@@ -101,7 +101,7 @@ export interface Ticket {
   severity: Severity
   category: string
   metadata: TicketMetadata
-  screenshot: MediaAsset
+  screenshot?: MediaAsset
   recording?: MediaAsset
   annotations: Annotation[]
   externalTicketId?: string
@@ -163,3 +163,22 @@ export interface TicketListParams {
   offset?: number
 }
 
+export interface TicketStats {
+  total: number
+  open: number
+  resolved: number
+  inProgress: number
+  bySeverity: {
+    critical: number
+    high: number
+    medium: number
+    low: number
+  }
+  byCategory: Record<string, number>
+  autoFixStats: {
+    requested: number
+    completed: number
+    pending: number
+    failed: number
+  }
+}

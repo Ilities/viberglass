@@ -1,0 +1,21 @@
+# Production stack configuration for workers infrastructure
+# Usage: pulumi stack select prod
+
+config:
+  # AWS region for all resources
+  aws:region: eu-west-1
+  viberglass-workers:awsRegion: eu-west-1
+
+  # Environment name (dev, staging, prod)
+  viberglass-workers:environment: prod
+
+  # Base stack reference (REQUIRED)
+  # Format: <organization>/<project>/<stack> or <project>/<stack>
+  viberglass-workers:baseStack: organization/viberglass-base/prod
+
+  # Enable Fargate Spot for cost savings (70% discount)
+  # Disabled for production to ensure consistent performance
+  viberglass-workers:enableSpot: "false"
+
+  # Enable ECS Container Insights for enhanced monitoring
+  viberglass-workers:containerInsights: "true"

@@ -52,7 +52,7 @@ None. Note that dist files are gitignored, so the compiled output changes are no
 ```bash
 # 1. Verify index.ts header updated
 $ grep "Viberglass platform" packages/types/src/index.ts
-# Result: "@viberator/types - Shared TypeScript types for Viberglass platform"
+# Result: "@viberglass/types - Shared TypeScript types for Viberglass platform"
 
 # 2. Verify common.ts header updated
 $ grep "Viberglass platform" packages/types/src/common.ts

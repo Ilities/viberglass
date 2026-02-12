@@ -49,16 +49,16 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: eu-west-1
 
       - name: Get deployment config from SSM
         id: get-config
         run: |
           # Fetch deployment configuration
-          AWS_REGION=$(aws ssm get-parameter --name "/viberator/prod/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "us-east-1")
-          ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberator/prod/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "viberator-backend")
-          ECS_CLUSTER=$(aws ssm get-parameter --name "/viberator/prod/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "prod-viberator-cluster")
-          ECS_SERVICE=$(aws ssm get-parameter --name "/viberator/prod/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "prod-viberator-backend")
+          AWS_REGION=$(aws ssm get-parameter --name "/viberglass/prod/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "eu-west-1")
+          ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberglass/prod/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-repo")
+          ECS_CLUSTER=$(aws ssm get-parameter --name "/viberglass/prod/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend-cluster")
+          ECS_SERVICE=$(aws ssm get-parameter --name "/viberglass/prod/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend")
 
           echo "aws_region=$AWS_REGION" >> $GITHUB_OUTPUT
           echo "ecr_repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
@@ -80,7 +80,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: platform/backend/Dockerfile.prod
+          file: apps/platform-backend/Dockerfile.prod
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
@@ -88,23 +88,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-
-      - name: Get DATABASE_URL from SSM
-        id: get-db-url
-        run: |
-          DB_URL=$(aws ssm get-parameter \
-            --name "/viberator/${{ env.ENVIRONMENT }}/database/url" \
-            --with-decryption \
-            --query Parameter.Value \
-            --output text)
-          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
-
-      - name: Run database migrations
-        run: |
-          npm ci --legacy-peer-deps
-          npm run migrate:latest -w @viberator/platform-backend
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Register new task definition
         id: register-task
@@ -116,7 +99,7 @@ jobs:
           echo "$TASK_DEF" > task-definition.json
           # Update image URI in task definition
           NEW_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
-          jq --arg image "$NEW_IMAGE" '.containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
+          jq --arg image "$NEW_IMAGE" 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
           # Register new task definition revision
           aws ecs register-task-definition \
             --cli-input-json file://task-definition-updated.json > task-definition-registered.json
@@ -124,13 +107,104 @@ jobs:
           echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
       - name: Update ECS service with extended stability wait
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.register-task.outputs.task_definition_arn }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          # Production uses longer wait times for safety
+        run: |
+          aws ecs update-service \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --service "${{ env.ECS_SERVICE }}" \
+            --task-definition "${{ steps.register-task.outputs.task_definition_arn }}"
+
+      - name: Wait for ECS service to stabilize
+        run: |
+          echo "Waiting for ECS service to reach stable state..."
+          aws ecs wait services-stable \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}"
+          echo "ECS service is stable"
+
+      - name: Get ALB endpoint
+        id: get-alb
+        run: |
+          # Get ALB DNS from SSM or ECS service
+          ALB_DNS=$(aws ssm get-parameter \
+            --name "/viberglass/prod/alb/dns" \
+            --query Parameter.Value \
+            --output text 2>/dev/null || echo "")
+
+          if [ -z "$ALB_DNS" ]; then
+            echo "Warning: ALB DNS not found in SSM, using cluster name"
+            ALB_DNS="${{ env.ECS_CLUSTER }}.elb.${{ env.AWS_REGION }}.amazonaws.com"
+          fi
+
+          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
+          echo "API_URL=https://$ALB_DNS" >> $GITHUB_ENV
+
+      - name: Verify backend health endpoint
+        run: |
+          echo "Verifying backend health at ${{ env.API_URL }}/health"
+
+          for i in {1..30}; do
+            if curl -f -s "${{ env.API_URL }}/health"; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i/30 failed, waiting 10 seconds..."
+            sleep 10
+          done
+
+          echo "❌ Health check failed after 5 minutes"
+          exit 1
+
+      - name: Test critical API endpoints
+        run: |
+          echo "Testing critical API endpoints..."
+
+          # Test projects endpoint (should return 200 or 401, not 5xx)
+          PROJECT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/projects" \
+            -H "X-Tenant-Id: smoke-test")
+
+          if [[ "$PROJECT_STATUS" =~ ^(200|401|403)$ ]]; then
+            echo "✅ Projects endpoint responding: $PROJECT_STATUS"
+          else
+            echo "❌ Projects endpoint returned unexpected status: $PROJECT_STATUS"
+            exit 1
+          fi
+
+          # Test API version endpoint
+          VERSION_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.API_URL }}/api/version")
+
+          if [[ "$VERSION_STATUS" =~ ^(200)$ ]]; then
+            echo "✅ Version endpoint responding: $VERSION_STATUS"
+          else
+            echo "❌ Version endpoint returned unexpected status: $VERSION_STATUS"
+            exit 1
+          fi
+
+          echo "✅ All critical endpoints responding correctly"
+
+      - name: Check ECS task count
+        run: |
+          echo "Verifying ECS task count..."
+
+          RUNNING_TASKS=$(aws ecs describe-services \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}" \
+            --query 'services[0].runningCount' \
+            --output text)
+
+          DESIRED_TASKS=$(aws ecs describe-services \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}" \
+            --query 'services[0].desiredCount' \
+            --output text)
+
+          echo "Running tasks: $RUNNING_TASKS"
+          echo "Desired tasks: $DESIRED_TASKS"
+
+          if [ "$RUNNING_TASKS" -ge "$DESIRED_TASKS" ]; then
+            echo "✅ Task count is healthy"
+          else
+            echo "⚠️ Warning: Running tasks ($RUNNING_TASKS) is less than desired ($DESIRED_TASKS)"
+          fi
 
       - name: Deployment summary
         run: |
@@ -140,5 +214,8 @@ jobs:
           echo "- **Service:** ${{ env.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Cluster:** ${{ env.ECS_CLUSTER }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Task Definition:** ${{ steps.register-task.outputs.task_definition_arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **API URL:** ${{ env.API_URL }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo " Deployment completed successfully. Monitor logs in CloudWatch." >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed successfully and passed all smoke tests." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Monitor logs in CloudWatch: https://console.aws.amazon.com/cloudwatch" >> $GITHUB_STEP_SUMMARY

@@ -35,14 +35,23 @@ Thumbs.db
 .output.txt
 
 # Pulumi
-infrastructure/infra/bin/
+infra/platform/bin/
+infra/viberator/bin/
+infra/hetzner/**/bin/
 .pulumi/
 
 # Frontend specific
-platform/frontend/.next/
-platform/frontend/out/
+apps/platform-frontend/.next*
+apps/platform-frontend/out/
+
+# Slack app
+apps/slack-app/data/
 
 # Temporary files
 *.swp
 *.swo
 .tmp/
+/tests/e2e/.e2e-state.json
+/tests/e2e/.env.e2e
+/tests/e2e/test-results/
+/tests/e2e/playwright-report/

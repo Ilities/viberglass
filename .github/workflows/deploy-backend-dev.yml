@@ -7,10 +7,10 @@ on:
     branches:
       - main
     paths:
-      - 'platform/backend/**'
+      - 'apps/platform-backend/**'
       - 'packages/types/**'
       - '.github/workflows/deploy-backend-dev.yml'
-      - 'platform/backend/Dockerfile.prod'
+      - 'apps/platform-backend/Dockerfile.prod'
 
 permissions:
   id-token: write   # Required for OIDC authentication
@@ -33,16 +33,16 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: eu-west-1
 
       - name: Get deployment config from SSM
         id: get-config
         run: |
           # Fetch deployment configuration
-          AWS_REGION=$(aws ssm get-parameter --name "/viberator/dev/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "us-east-1")
-          ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberator/dev/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "viberator-backend")
-          ECS_CLUSTER=$(aws ssm get-parameter --name "/viberator/dev/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "dev-viberator-cluster")
-          ECS_SERVICE=$(aws ssm get-parameter --name "/viberator/dev/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "dev-viberator-backend")
+          AWS_REGION=$(aws ssm get-parameter --name "/viberglass/dev/deployment/region" --query Parameter.Value --output text 2>/dev/null || echo "eu-west-1")
+          ECR_REPOSITORY=$(aws ssm get-parameter --name "/viberglass/dev/deployment/ecrRepository" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-repo")
+          ECS_CLUSTER=$(aws ssm get-parameter --name "/viberglass/dev/ecs/cluster" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend-cluster")
+          ECS_SERVICE=$(aws ssm get-parameter --name "/viberglass/dev/ecs/service" --query Parameter.Value --output text 2>/dev/null || echo "${ENVIRONMENT}-viberglass-backend")
 
           echo "aws_region=$AWS_REGION" >> $GITHUB_OUTPUT
           echo "ecr_repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
@@ -64,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: platform/backend/Dockerfile.prod
+          file: apps/platform-backend/Dockerfile.prod
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
@@ -72,23 +72,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-
-      - name: Get DATABASE_URL from SSM
-        id: get-db-url
-        run: |
-          DB_URL=$(aws ssm get-parameter \
-            --name "/viberator/${{ env.ENVIRONMENT }}/database/url" \
-            --with-decryption \
-            --query Parameter.Value \
-            --output text)
-          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
-
-      - name: Run database migrations
-        run: |
-          npm ci --legacy-peer-deps
-          npm run migrate:latest -w @viberator/platform-backend
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Register new task definition
         id: register-task
@@ -100,7 +83,7 @@ jobs:
           echo "$TASK_DEF" > task-definition.json
           # Update image URI in task definition
           NEW_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
-          jq --arg image "$NEW_IMAGE" '.containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
+          jq --arg image "$NEW_IMAGE" 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
           # Register new task definition revision
           aws ecs register-task-definition \
             --cli-input-json file://task-definition-updated.json > task-definition-registered.json
@@ -108,12 +91,11 @@ jobs:
           echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
       - name: Update ECS service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.register-task.outputs.task_definition_arn }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+        run: |
+          aws ecs update-service \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --service "${{ env.ECS_SERVICE }}" \
+            --task-definition "${{ steps.register-task.outputs.task_definition_arn }}"
 
       - name: Deployment summary
         run: |

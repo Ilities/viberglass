@@ -6,7 +6,7 @@ name: Frontend CI
 on:
   pull_request:
     paths:
-      - 'platform/frontend/**'
+      - 'apps/platform-frontend/**'
       - 'packages/types/**'
       - '.github/workflows/frontend-ci.yml'
 
@@ -32,25 +32,25 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Run lint
-        run: npm run lint -w @viberator/frontend
+        run: npm run lint -w @viberglass/frontend
 
       - name: Run unit tests
-        run: npm run test:unit -w @viberator/frontend
+        run: npm run test:unit -w @viberglass/frontend
         continue-on-error: true  # Don't fail CI if tests don't exist yet
 
-      - name: Build frontend (verify SSR build)
-        run: npm run build -w @viberator/frontend
+      - name: Build frontend (verify static build)
+        run: npm run build -w @viberglass/frontend
         env:
           # Use placeholder API URL for CI build verification
           NEXT_PUBLIC_API_URL: https://api.example.com
 
       - name: Verify build output
         run: |
-          echo "Verifying SSR build structure..."
-          ls -la platform/frontend/.next
-          if [ -d "platform/frontend/.next/server" ]; then
-            echo "✓ Server-side rendering build output found"
+          echo "Verifying static build structure..."
+          ls -la apps/platform-frontend/out
+          if [ -f "apps/platform-frontend/out/index.html" ]; then
+            echo "✓ Static export build output found"
           else
-            echo "✗ Missing .next/server directory"
+            echo "✗ Missing index.html in out directory"
             exit 1
           fi

@@ -4,6 +4,16 @@
 
 import { TicketSystem } from './common'
 
+// Worker settings that can be configured at project level
+export interface ProjectWorkerSettings {
+  maxChanges?: number
+  testRequired?: boolean
+  codingStandards?: string
+  runTests?: boolean
+  testCommand?: string
+  maxExecutionTime?: number
+}
+
 // Authentication credential types
 export type AuthCredentialType = 'api_key' | 'oauth' | 'basic' | 'token'
 
@@ -20,18 +30,37 @@ export interface AuthCredentials {
   baseUrl?: string // For on-premise installations
 }
 
+// Legacy project credentials - will be removed after migration to top-level integrations
+/** @deprecated Project credentials are now stored in the integrations table */
+export interface ProjectCredentials extends AuthCredentials {}
+
 // Project configuration
 export interface Project {
   id: string
   name: string
   slug: string
+  /**
+   * @deprecated Use linked integrations instead. This field will be removed.
+   * The project's primary ticketing integration determines the ticket system.
+   */
   ticketSystem: TicketSystem
+  /**
+   * @deprecated Use linked integrations instead. This field will be removed.
+   * Credentials are now stored in the top-level integrations table.
+   */
   credentials: AuthCredentials
   webhookUrl?: string | null
   autoFixEnabled: boolean
   autoFixTags: string[]
+  /**
+   * @deprecated Use linked integrations instead. This field will be removed.
+   * Custom field mappings are now stored per-integration.
+   */
   customFieldMappings: Record<string, string>
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
+  workerSettings?: ProjectWorkerSettings | null
   createdAt: string
   updatedAt: string
 }
@@ -39,25 +68,49 @@ export interface Project {
 // Request body for creating a project
 export interface CreateProjectRequest {
   name: string
-  ticketSystem: TicketSystem
-  credentials: AuthCredentials
+  /**
+   * @deprecated Use linked integrations instead.
+   */
+  ticketSystem?: TicketSystem
+  /**
+   * @deprecated Use linked integrations instead.
+   */
+  credentials?: AuthCredentials
   webhookUrl?: string | null
   autoFixEnabled?: boolean
   autoFixTags?: string[]
+  /**
+   * @deprecated Use linked integrations instead.
+   */
   customFieldMappings?: Record<string, string>
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
+  workerSettings?: ProjectWorkerSettings | null
 }
 
 // Request body for updating a project
 export interface UpdateProjectRequest {
   name?: string
+  /**
+   * @deprecated Use linked integrations instead.
+   */
   ticketSystem?: TicketSystem
+  /**
+   * @deprecated Use linked integrations instead.
+   */
   credentials?: AuthCredentials
   webhookUrl?: string | null
   autoFixEnabled?: boolean
   autoFixTags?: string[]
+  /**
+   * @deprecated Use linked integrations instead.
+   */
   customFieldMappings?: Record<string, string>
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
+  workerSettings?: ProjectWorkerSettings | null
 }
 
 // Project summary for list views
@@ -65,9 +118,14 @@ export interface ProjectSummary {
   id: string
   name: string
   slug: string
+  /**
+   * @deprecated Use linked integrations instead.
+   */
   ticketSystem: TicketSystem
   autoFixEnabled: boolean
   repositoryUrl?: string | null
+  repositoryUrls?: string[]
+  agentInstructions?: string | null
   createdAt: string
   updatedAt: string
   // Stats (computed on frontend or via separate endpoint)
@@ -76,4 +134,15 @@ export interface ProjectSummary {
     resolvedThisWeek: number
     autoFixRequests: number
   }
+}
+
+// Project with its linked integrations
+export interface ProjectWithIntegrations extends Project {
+  integrations: Array<{
+    id: string
+    name: string
+    system: TicketSystem
+    isPrimary: boolean
+    isActive: boolean
+  }>
 }

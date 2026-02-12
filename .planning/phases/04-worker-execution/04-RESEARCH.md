@@ -72,7 +72,7 @@ platform/backend/src/
 ```typescript
 // Source: Based on CONTEXT.md decisions and existing CredentialProvider pattern
 
-import { Clanker } from '@viberator/types';
+import { Clanker } from '@viberglass/types';
 import { JobData } from '../types/Job';
 
 /**
@@ -126,7 +126,7 @@ export class LambdaInvoker implements WorkerInvoker {
 
   constructor(config?: { region?: string }) {
     this.client = new LambdaClient({
-      region: config?.region || process.env.AWS_REGION || 'us-east-1',
+      region: config?.region || process.env.AWS_REGION || 'eu-west-1',
     });
   }
 
@@ -252,7 +252,7 @@ export class EcsInvoker implements WorkerInvoker {
 
   constructor(config?: { region?: string }) {
     this.client = new ECSClient({
-      region: config?.region || process.env.AWS_REGION || 'us-east-1',
+      region: config?.region || process.env.AWS_REGION || 'eu-west-1',
     });
   }
 
@@ -821,7 +821,7 @@ Verified patterns from official sources:
 
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const client = new LambdaClient({ region: 'us-east-1' });
+const client = new LambdaClient({ region: 'eu-west-1' });
 
 const command = new InvokeCommand({
   FunctionName: 'my-function',
@@ -840,7 +840,7 @@ const response = await client.send(command);
 
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
 
-const client = new ECSClient({ region: 'us-east-1' });
+const client = new ECSClient({ region: 'eu-west-1' });
 
 const command = new RunTaskCommand({
   cluster: 'my-cluster',

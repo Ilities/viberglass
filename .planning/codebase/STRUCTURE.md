@@ -55,7 +55,7 @@
 ### Entry Points
 
 **Orchestrator API Server:**
-- `viberator/app/src/index.ts` - Main VibugViberator class with Express routes
+- `viberator/app/src/index.ts` - Main ViberglassViberator class with Express routes
 - Run: `npm run dev:api -w @viberator/orchestrator`
 
 **Orchestrator CLI Worker:**

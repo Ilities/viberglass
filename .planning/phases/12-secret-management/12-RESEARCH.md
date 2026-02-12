@@ -123,7 +123,7 @@ Examples:
 secrets: [
   {
     name: "DATABASE_URL",
-    valueFrom: "arn:aws:ssm:us-east-1:123456789012:parameter/viberator/dev/database/url"
+    valueFrom: "arn:aws:ssm:eu-west-1:123456789012:parameter/viberator/dev/database/url"
   }
 ]
 ```
@@ -296,8 +296,8 @@ const ssmPolicy = new aws.iam.Policy(`${options.config.environment}-viberator-ba
 | Direct SDK calls for secrets | Lambda Parameters and Secrets Extension | 2021+ | Cached secrets, reduced latency/cost |
 
 **AWS Parameters and Secrets Lambda Extension:**
-- Layer ARN for us-east-1 (x86_64): `arn:aws:lambda:us-east-1:177933569100:layer:AWS-Parameters-and-Secrets-Lambda-Extension:21`
-- Layer ARN for us-east-1 (ARM64): `arn:aws:lambda:us-east-1:177933569100:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:21`
+- Layer ARN for eu-west-1 (x86_64): `arn:aws:lambda:eu-west-1:177933569100:layer:AWS-Parameters-and-Secrets-Lambda-Extension:21`
+- Layer ARN for eu-west-1 (ARM64): `arn:aws:lambda:eu-west-1:177933569100:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:21`
 - Default TTL: 300 seconds (5 minutes)
 - Local port: 2773
 

@@ -1,0 +1,91 @@
+# Production Dockerfile for Viberator Backend
+# Multi-stage build for minimal image size and optimal performance
+# Build context: Monorepo root (/home/jussi/Development/viberator)
+
+# ==========================================
+# Stage 1: Build
+# Compiles TypeScript and builds workspace dependencies
+# ==========================================
+FROM node:24-alpine AS builder
+
+# Set working directory
+WORKDIR /build
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++
+
+# Copy workspace package files first for better Docker caching
+COPY package*.json ./
+COPY packages/types/package*.json ./packages/types/
+COPY apps/platform-backend/package*.json ./apps/platform-backend/
+
+# Install all workspace dependencies
+# --legacy-peer-deps required for npm workspace compatibility
+# --ignore-scripts prevents root postinstall (next telemetry disable) from failing
+RUN npm ci --legacy-peer-deps --ignore-scripts
+
+# Copy source files
+COPY packages/types ./packages/types
+COPY apps/platform-backend ./apps/platform-backend
+
+# Build shared types package first (required by backend)
+RUN npm run build -w @viberglass/types
+
+# Build backend (TypeScript compilation)
+RUN npm run build -w @viberglass/platform-backend
+
+# ==========================================
+# Stage 2: Production Runtime
+# Minimal image with only compiled code and production dependencies
+# ==========================================
+FROM node:24-alpine AS production
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Set working directory
+WORKDIR /app
+
+# Create non-root user for running the application
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy package files
+COPY package*.json ./
+COPY packages/types/package*.json ./packages/types/
+COPY apps/platform-backend/package*.json ./apps/platform-backend/
+
+# Install only production dependencies
+# --ignore-scripts prevents root postinstall (next telemetry disable) from failing
+RUN npm ci --legacy-peer-deps --production --ignore-scripts && \
+    npm cache clean --force
+
+# Copy compiled backend output from builder stage
+# Includes dist/migrations with compiled migration files
+COPY --from=builder /build/apps/platform-backend/dist ./dist
+
+# Copy shared types package (required at runtime for type imports)
+COPY --from=builder /build/packages/types/dist ./packages/types/dist
+COPY --from=builder /build/packages/types/package.json ./packages/types/
+
+# Set ownership to non-root user
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose the application port
+EXPOSE 3000
+
+# Health check for container orchestration (ECS, Kubernetes)
+# Matches ECS health check configuration: interval=30s, timeout=5s, retries=3, startPeriod=60s
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=60s \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Start the application using compiled JavaScript
+# Matches package.json "start": "node ./dist/api/server.js"
+CMD ["node", "dist/api/server.js"]

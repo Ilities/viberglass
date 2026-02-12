@@ -1,0 +1,199 @@
+import { v4 as uuidv4 } from "uuid";
+import db from "../config/database";
+import { ProjectConfig } from "../../models/PMIntegration";
+
+const slugify = (text: string) =>
+  text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-") // Replace spaces with -
+    .replace(/[^\w-]+/g, "") // Remove all non-word chars
+    .replace(/--+/g, "-"); // Replace multiple - with single -
+
+const normalizeRepositoryUrls = (
+  repositoryUrls?: string[] | null,
+  repositoryUrl?: string | null,
+) => {
+  const urls = (repositoryUrls ?? [])
+    .map((url) => url?.trim())
+    .filter((url): url is string => Boolean(url));
+
+  if (repositoryUrl) {
+    const trimmed = repositoryUrl.trim();
+    if (trimmed && !urls.includes(trimmed)) {
+      urls.unshift(trimmed);
+    }
+  }
+
+  return Array.from(new Set(urls));
+};
+
+const normalizeAgentInstructions = (instructions?: string | null) => {
+  if (instructions === undefined) return undefined;
+  if (instructions === null) return null;
+  const trimmed = instructions.trim();
+  return trimmed.length > 0 ? instructions : null;
+};
+
+export class ProjectDAO {
+  async createProject(
+    request: Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">,
+  ): Promise<ProjectConfig> {
+    const projectId = uuidv4();
+    const timestamp = new Date();
+    const slug = slugify(request.name);
+
+    const repositoryUrls = normalizeRepositoryUrls(
+      request.repositoryUrls,
+      request.repositoryUrl,
+    );
+    const agentInstructions = normalizeAgentInstructions(
+      request.agentInstructions,
+    );
+    const primaryRepositoryUrl = repositoryUrls[0] ?? null;
+
+    const result = await db
+      .insertInto("projects")
+      .values({
+        id: projectId,
+        name: request.name,
+        slug: slug,
+        ticket_system: request.ticketSystem,
+        credentials: JSON.stringify(request.credentials),
+        webhook_url: request.webhookUrl || null,
+        auto_fix_enabled: request.autoFixEnabled,
+        auto_fix_tags: request.autoFixTags,
+        custom_field_mappings: JSON.stringify(request.customFieldMappings),
+        repository_url: primaryRepositoryUrl,
+        repository_urls: repositoryUrls,
+        agent_instructions: agentInstructions,
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    return this.mapRowToProject(result);
+  }
+
+  async getProject(id: string): Promise<ProjectConfig | null> {
+    const row = await db
+      .selectFrom("projects")
+      .selectAll()
+      .where("id", "=", id)
+      .executeTakeFirst();
+
+    if (!row) return null;
+
+    return this.mapRowToProject(row);
+  }
+
+  async updateProject(
+    id: string,
+    updates: Partial<ProjectConfig>,
+  ): Promise<ProjectConfig> {
+    const updateData: any = {
+      updated_at: new Date(),
+    };
+
+    if (updates.name !== undefined) {
+      updateData.name = updates.name;
+      updateData.slug = slugify(updates.name);
+    }
+    if (updates.ticketSystem !== undefined)
+      updateData.ticket_system = updates.ticketSystem;
+    if (updates.credentials !== undefined)
+      updateData.credentials = JSON.stringify(updates.credentials);
+    if (updates.webhookUrl !== undefined)
+      updateData.webhook_url = updates.webhookUrl;
+    if (updates.autoFixEnabled !== undefined)
+      updateData.auto_fix_enabled = updates.autoFixEnabled;
+    if (updates.autoFixTags !== undefined)
+      updateData.auto_fix_tags = updates.autoFixTags;
+    if (updates.customFieldMappings !== undefined)
+      updateData.custom_field_mappings = JSON.stringify(
+        updates.customFieldMappings,
+      );
+    if (
+      updates.repositoryUrls !== undefined ||
+      updates.repositoryUrl !== undefined
+    ) {
+      const repositoryUrls = normalizeRepositoryUrls(
+        updates.repositoryUrls,
+        updates.repositoryUrl,
+      );
+      updateData.repository_urls = repositoryUrls;
+      updateData.repository_url = repositoryUrls[0] ?? null;
+    }
+    if (updates.agentInstructions !== undefined) {
+      updateData.agent_instructions = normalizeAgentInstructions(
+        updates.agentInstructions,
+      );
+    }
+
+    const result = await db
+      .updateTable("projects")
+      .set(updateData)
+      .where("id", "=", id)
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    return this.mapRowToProject(result);
+  }
+
+  async listProjects(limit = 50, offset = 0): Promise<ProjectConfig[]> {
+    const rows = await db
+      .selectFrom("projects")
+      .selectAll()
+      .orderBy("created_at", "desc")
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    return rows.map((row) => this.mapRowToProject(row));
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await db.deleteFrom("projects").where("id", "=", id).execute();
+  }
+
+  private mapRowToProject(row: any): ProjectConfig {
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      ticketSystem: row.ticket_system,
+      credentials:
+        typeof row.credentials === "string"
+          ? JSON.parse(row.credentials)
+          : row.credentials,
+      webhookUrl: row.webhook_url || undefined,
+      autoFixEnabled: row.auto_fix_enabled,
+      autoFixTags: row.auto_fix_tags || [],
+      customFieldMappings:
+        typeof row.custom_field_mappings === "string"
+          ? JSON.parse(row.custom_field_mappings)
+          : row.custom_field_mappings,
+      repositoryUrl: row.repository_url || undefined,
+      repositoryUrls: Array.isArray(row.repository_urls)
+        ? row.repository_urls
+        : [],
+      agentInstructions: row.agent_instructions ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async findByName(name: string) {
+    const row = await db
+      .selectFrom("projects")
+      .selectAll()
+      .where("slug", "=", name)
+      .executeTakeFirst();
+
+    if (!row) return null;
+
+    return this.mapRowToProject(row);
+  }
+}

@@ -20,13 +20,13 @@ For comprehensive secret management documentation, see [docs/DEPLOYMENT_SECRETS.
 
 ```bash
 # Backend deploys on these paths:
-platform/backend/**
+apps/platform-backend/**
 packages/types/**
 .github/workflows/deploy-backend-dev.yml
-platform/backend/Dockerfile.prod
+apps/platform-backend/Dockerfile.prod
 
 # Frontend deploys on these paths:
-platform/frontend/**
+apps/platform-frontend/**
 packages/types/**
 .github/workflows/deploy-frontend-dev.yml
 ```
@@ -137,21 +137,21 @@ aws iam get-role --role-name ViberatorDeployRole --query Role.Arn --output text
 ```bash
 # From AWS Console
 # Amplify → App → General Settings → App ARN
-# Extract ID from: arn:aws:amplify:us-east-1:111111111111:apps/d1234567890abc
+# Extract ID from: arn:aws:amplify:eu-west-1:111111111111:apps/d1234567890abc
 ```
 
 ### SSM Parameters
 
 | Parameter | Type | Example Value |
 |-----------|------|---------------|
-| `/viberator/{env}/database/url` | SecureString | `postgresql://user:pass@db.xxx.us-east-1.rds.amazonaws.com:5432/viberator` |
-| `/viberator/{env}/database/host` | SecureString | `dev-db.xxx.us-east-1.rds.amazonaws.com` |
+| `/viberator/{env}/database/url` | SecureString | `postgresql://user:pass@db.xxx.eu-west-1.rds.amazonaws.com:5432/viberator` |
+| `/viberator/{env}/database/host` | SecureString | `dev-db.xxx.eu-west-1.rds.amazonaws.com` |
 | `/viberator/{env}/frontend/apiUrl` | String | `https://dev-api.viberator.com` |
 | `/viberator/{env}/amplify/appId` | String | `d1234567890abc` |
 | `/viberator/{env}/amplify/branch` | String | `main` |
 | `/viberator/{env}/ecs/cluster` | String | `dev-viberator-cluster` |
 | `/viberator/{env}/ecs/service` | String | `dev-viberator-backend` |
-| `/viberator/{env}/deployment/region` | String | `us-east-1` |
+| `/viberator/{env}/deployment/region` | String | `eu-west-1` |
 | `/viberator/{env}/deployment/oidcRoleArn` | SecureString | `arn:aws:iam::111111111111:role/ViberatorDeployRole` |
 | `/viberator/{env}/deployment/ecrRepository` | String | `viberator-backend` |
 

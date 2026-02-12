@@ -56,10 +56,10 @@ All deployment secrets follow this naming pattern:
 
 ```bash
 # Development
-/viberator/dev/database/url          # postgresql://dev-db.xxx.us-east-1.rds.amazonaws.com...
+/viberator/dev/database/url          # postgresql://dev-db.xxx.eu-west-1.rds.amazonaws.com...
 /viberator/dev/frontend/apiUrl       # https://dev-api.viberator.com
 /viberator/dev/amplify/appId         # d1234567890abc
-/viberator/dev/deployment/region     # us-east-1
+/viberator/dev/deployment/region     # eu-west-1
 /viberator/dev/deployment/oidcRoleArn # arn:aws:iam::...:role/ViberatorDeployRole
 
 # Staging
@@ -111,7 +111,7 @@ For each environment (`dev`, `staging`, `prod`), add these secrets:
 **AMPLIFY_APP_ID:**
 - Created by Pulumi's `createAmplifyHosting()` component
 - Find in AWS Console: **Amplify** → **App** → **App settings** → **General** → **App ARN**
-- Extract ID from ARN: `arn:aws:amplify:us-east-1:111111111111:apps/{AMPLIFY_APP_ID}`
+- Extract ID from ARN: `arn:aws:amplify:eu-west-1:111111111111:apps/{AMPLIFY_APP_ID}`
 
 **AMPLIFY_BRANCH:**
 - Defaults to environment name (`dev`, `staging`, `main` for prod)
@@ -121,7 +121,7 @@ For each environment (`dev`, `staging`, `prod`), add these secrets:
 
 ## Initial SSM Setup
 
-SSM parameters are created by Pulumi's `createDeploymentSecrets()` component, but you can also create them manually for testing.
+SSM parameters are created by Pulumi's `createDatabase()` (database connection) and `createDeploymentSecrets()` (non-database) components, but you can also create them manually for testing.
 
 ### Prerequisites
 
@@ -147,7 +147,7 @@ SSM parameters are created by Pulumi's `createDeploymentSecrets()` component, bu
 ```bash
 aws ssm put-parameter \
   --name "/viberator/dev/database/url" \
-  --value "postgresql://dbuser:dbpass@dev-db.xxx.us-east-1.rds.amazonaws.com:5432/viberator" \
+  --value "postgresql://dbuser:dbpass@dev-db.xxx.eu-west-1.rds.amazonaws.com:5432/viberator" \
   --type "SecureString" \
   --key-id "alias/viberator-dev-ssm" \
   --overwrite
@@ -157,7 +157,7 @@ aws ssm put-parameter \
 ```bash
 aws ssm put-parameter \
   --name "/viberator/dev/database/host" \
-  --value "dev-db.xxx.us-east-1.rds.amazonaws.com" \
+  --value "dev-db.xxx.eu-west-1.rds.amazonaws.com" \
   --type "SecureString" \
   --key-id "alias/viberator-dev-ssm" \
   --overwrite
@@ -194,7 +194,7 @@ aws ssm put-parameter \
 ```bash
 aws ssm put-parameter \
   --name "/viberator/dev/deployment/region" \
-  --value "us-east-1" \
+  --value "eu-west-1" \
   --type "String" \
   --overwrite
 ```
@@ -260,26 +260,20 @@ aws ssm get-parameters-by-path \
 
 ## Pulumi Integration
 
-The `createDeploymentSecrets()` component in `infrastructure/components/secrets.ts` provisions all SSM parameters automatically.
+The `createDeploymentSecrets()` component in `infra/platform/components/secrets.ts` provisions non-database SSM parameters. Database connection parameters are created by `createDatabase()` in `infra/platform/components/database.ts`.
 
 ### Setting Secret Values via Pulumi Config
 
 Secret values are set using Pulumi's `--secret` flag:
 
 ```bash
-# Set database URL (encrypted)
-pulumi config set --secret databaseUrl "postgresql://user:pass@host:5432/db"
-
-# Set database host (encrypted)
-pulumi config set --secret databaseHost "db.xxx.us-east-1.rds.amazonaws.com"
-
 # Set non-sensitive values
 pulumi config set frontendApiUrl "https://dev-api.viberator.com"
 pulumi config set amplifyAppId "d1234567890abc"
 pulumi config set ecsCluster "dev-viberator-cluster"
 
 # Set deployment config
-pulumi config set awsRegion "us-east-1"
+pulumi config set awsRegion "eu-west-1"
 pulumi config set --secret oidcRoleArn "arn:aws:iam::...:role/ViberatorDeployRole"
 pulumi config set ecrRepository "viberator-backend"
 ```
@@ -305,8 +299,6 @@ const kmsAlias = new aws.kms.Alias(`${env}-viberator-ssm-alias`, {
 const secrets = createDeploymentSecrets({
   config: config,
   kmsKeyId: kmsKey.arn,
-  databaseUrl: databaseUrl,
-  databaseHost: databaseHost,
   frontendApiUrl: frontendApiUrl,
   // ... other options
 });
@@ -318,7 +310,7 @@ To update secret values:
 
 1. **Update Pulumi config:**
    ```bash
-   pulumi config set --secret databaseUrl "new-connection-string"
+   pulumi config set frontendApiUrl "new-api-url"
    ```
 
 2. **Run Pulumi up:**
@@ -363,7 +355,7 @@ Workflows fetch parameters after AWS authentication:
   uses: aws-actions/configure-aws-credentials@v4
   with:
     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-    aws-region: us-east-1
+    aws-region: eu-west-1
 
 - name: Get deployment config from SSM
   id: get-config
@@ -484,7 +476,7 @@ User: arn:aws:sts::111111111111:assumed-role/... is not authorized to perform: s
        {
          "Effect": "Allow",
          "Action": ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"],
-         "Resource": "arn:aws:ssm:us-east-1:111111111111:parameter/viberator/*"
+         "Resource": "arn:aws:ssm:eu-west-1:111111111111:parameter/viberator/*"
        }
      ]
    }
@@ -541,7 +533,7 @@ User: arn:aws:sts::111111111111:assumed-role/... is not authorized to perform: s
 
 2. Or via Pulumi (recommended - already configured):
    ```typescript
-   // infrastructure/components/backend-ecs.ts
+   // infra/platform/components/backend-ecs.ts
    const backendService = new aws.ecs.Service(..., {
      forceNewDeployment: true,  // Always on
    });
@@ -748,8 +740,8 @@ OIDC eliminates credential rotation for access keys, but role permissions should
   "Effect": "Allow",
   "Action": ["ssm:GetParameter", "ssm:GetParameters"],
   "Resource": [
-    "arn:aws:ssm:us-east-1:111111111111:parameter/viberator/dev/database/*",
-    "arn:aws:ssm:us-east-1:111111111111:parameter/viberator/dev/frontend/*"
+    "arn:aws:ssm:eu-west-1:111111111111:parameter/viberator/dev/database/*",
+    "arn:aws:ssm:eu-west-1:111111111111:parameter/viberator/dev/frontend/*"
   ]
 }
 ```
@@ -769,7 +761,7 @@ OIDC eliminates credential rotation for access keys, but role permissions should
 
 - **[Phase 1: Multi-Tenant Security Foundation](../.planning/phases/01-multi-tenant-security-foundation/01-04-SUMMARY.md)** - Runtime tenant credential management (GitHub PATs, Jira tokens)
 - **[GitHub Deployment Quick Reference](../.github/DEPLOYMENT.md)** - Deployment commands and workflow usage
-- **[Infrastructure README](../infrastructure/README.md)** - Pulumi component documentation
+- **[Infrastructure README](../infra/README.md)** - Pulumi component documentation
 - **[AWS ECS Setup Guide](AWS_ECS_SETUP.md)** - Backend deployment infrastructure
 - **[Local Docker Setup](LOCAL_DOCKER_SETUP.md)** - Local development environment
 

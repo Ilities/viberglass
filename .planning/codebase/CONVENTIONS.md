@@ -55,7 +55,7 @@
 
 **Path Aliases:**
 - Frontend uses `@/*` for absolute imports: `import { API_BASE_URL } from '@/lib'`
-- Monorepo workspace packages use `@viberator/types` for shared types
+- Monorepo workspace packages use `@viberglass/types` for shared types
 - No other path aliases configured
 
 **Examples from codebase:**
@@ -86,7 +86,7 @@ import { API_BASE_URL } from '@/lib'
 import type {
   ApiResponse,
   CreateProjectRequest,
-} from '@viberator/types'
+} from '@viberglass/types'
 ```
 
 ## Error Handling
@@ -274,7 +274,7 @@ export type {
   Severity,
   TicketSystem,
   // ... other types
-} from '@viberator/types';
+} from '@viberglass/types';
 
 // Backend-specific types
 export interface CreateTicketRequest {

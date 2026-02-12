@@ -75,7 +75,7 @@ packages/types/src/
 // Source: Based on existing CodingJobData in workers/types.ts
 // and Clanker types from packages/types/src/clanker.ts
 
-import { Clanker, ClankerConfigFile } from '@viberator/types';
+import { Clanker, ClankerConfigFile } from '@viberglass/types';
 
 // Base shared fields
 interface BaseWorkerPayload {
@@ -175,7 +175,7 @@ export class CredentialProvider {
       '/viberator/tenants';
 
     this.ssmClient = new SSMClient({
-      region: config?.region || process.env.AWS_REGION || 'us-east-1',
+      region: config?.region || process.env.AWS_REGION || 'eu-west-1',
     });
   }
 
@@ -284,7 +284,7 @@ export class ConfigLoader {
   constructor(logger: Logger, config?: { region?: string }) {
     this.logger = logger;
     this.s3Client = new S3Client({
-      region: config?.region || process.env.AWS_REGION || 'us-east-1',
+      region: config?.region || process.env.AWS_REGION || 'eu-west-1',
     });
   }
 

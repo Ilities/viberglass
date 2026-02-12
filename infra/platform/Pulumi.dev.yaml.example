@@ -1,0 +1,60 @@
+# Development stack configuration
+# Copy this file to Pulumi.dev.yaml and update with your values
+# Usage: pulumi stack select dev
+
+encryptionsalt:
+  - v1:YOUR_SALT_HERE
+
+config:
+  # AWS region for all resources
+  aws:region: eu-west-1
+  viberglass:awsRegion: eu-west-1
+
+  # Environment name (dev, staging, prod)
+  # Affects resource naming, log retention, and cost optimizations
+  viberglass:environment: dev
+
+  # Base stack reference (REQUIRED)
+  # Format: organization/<project>/<stack> for S3 backends
+  viberglass:baseStack: organization/viberglass-base/dev
+
+  # Enable Fargate Spot for cost savings (70% discount)
+  # Workers may be interrupted with 2-minute notice
+  viberglass:enableSpot: "true"
+
+  # Enable ECS Container Insights for enhanced monitoring
+  # Adds CloudWatch metrics for CPU/memory, network, storage
+  viberglass:containerInsights: "true"
+
+  # Backend image tag used by ECS task definitions.
+  # If omitted, Pulumi auto-detects current Git SHA (or falls back to "latest").
+  # viberglass:backendImageTag: b70b9eed3f4b
+
+  # =============================================================================
+  # CUSTOM DOMAIN CONFIGURATION (Optional - for dev environments)
+  # =============================================================================
+  #
+  # Prerequisites:
+  #   1. Create a Route53 hosted zone for your domain (e.g., viberglass.io)
+  #   2. Get the hosted zone ID from AWS Console -> Route53 -> Hosted zones
+  #   3. Update your domain registrar to use Route53 nameservers
+  #
+  # Configuration:
+  #   Set these values and run `pulumi up` - everything is automated:
+  #
+  # viberglass:apiDomain: api-dev.viberglass.io
+  # viberglass:appDomain: app-dev.viberglass.io
+  # viberglass:route53ZoneId: Z1234567890ABC
+  #
+  # What gets created automatically:
+  #   - ACM certificate for api-dev.viberglass.io (DNS validated)
+  #   - Route53 alias record: api-dev.viberglass.io -> ALB
+  #   - HTTPS listener on ALB (port 443)
+  #   - Amplify custom domain for app-dev.viberglass.io
+  #   - Route53 CNAME record: app-dev.viberglass.io -> CloudFront
+  #   - Route53 validation record for Amplify SSL certificate
+
+  # Database configuration (optional - defaults shown)
+  # Valid instance classes: db.t4g.micro, db.t4g.large, db.m6g.xlarge, etc.
+  # viberglass:dbInstanceClass: db.t4g.micro
+  # viberglass:dbAllocatedStorage: 20

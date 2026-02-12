@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'platform/frontend/**'
+      - 'apps/platform-frontend/**'
       - 'packages/types/**'
       - '.github/workflows/deploy-frontend-dev.yml'
 
@@ -40,144 +40,54 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: eu-west-1
 
       - name: Get deployment config from SSM
         id: get-config
         run: |
           # Get AWS region from SSM
           AWS_REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/deployment/region" \
+            --name "/viberglass/dev/deployment/region" \
             --query Parameter.Value \
-            --output text 2>/dev/null || echo "us-east-1")
+            --output text 2>/dev/null || echo "eu-west-1")
 
           echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
 
           # Get backend API URL from SSM
           API_URL=$(aws ssm get-parameter \
-            --name "/viberator/dev/frontend/apiUrl" \
+            --name "/viberglass/dev/frontend/apiUrl" \
             --query Parameter.Value \
             --output text)
 
           if [ -z "$API_URL" ]; then
-            echo "::error::Backend API URL not found in SSM at /viberator/dev/frontend/apiUrl"
+            echo "::error::Backend API URL not found in SSM at /viberglass/dev/frontend/apiUrl"
             exit 1
           fi
 
           echo "backendUrl=$API_URL" >> $GITHUB_OUTPUT
           echo "NEXT_PUBLIC_API_URL=$API_URL" >> $GITHUB_ENV
 
-      - name: Build frontend with environment variables
-        run: npm run build -w @viberator/frontend
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build shared packages
+        run: npm run build -w @viberglass/types
+
+      - name: Build frontend (validation)
+        run: npm run build -w @viberglass/frontend
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.get-config.outputs.backendUrl }}
 
-      - name: Start Amplify deployment
-        id: amplify
+      - name: Deployment summary
         run: |
-          # Get Amplify configuration from SSM (provisioned by Pulumi)
-          APP_ID=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/appId" \
-            --query Parameter.Value \
-            --output text)
-
-          BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/branchName" \
-            --query Parameter.Value \
-            --output text)
-
-          REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/region" \
-            --query Parameter.Value \
-            --output text)
-
-          if [ -z "$APP_ID" ] || [ -z "$BRANCH_NAME" ] || [ -z "$REGION" ]; then
-            echo "::error::Amplify configuration not found in SSM. Run pulumi up first."
-            exit 1
-          fi
-
-          echo "Starting Amplify deployment for app: $APP_ID, branch: $BRANCH_NAME, region: $REGION"
-
-          # Trigger Amplify deployment using AWS CLI
-          DEPLOYMENT_ID=$(aws amplify start-deployment \
-            --app-id "$APP_ID" \
-            --branch-name "$BRANCH_NAME" \
-            --region "$REGION" \
-            --source-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --query 'jobSummary.id' \
-            --output text)
-
-          echo "Deployment started with ID: $DEPLOYMENT_ID"
-          echo "deploymentId=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-          echo "deploymentTriggered=true" >> $GITHUB_OUTPUT
-          echo "amplifyRegion=$REGION" >> $GITHUB_OUTPUT
-
-          # Get the app URL for environment linking
-          APP_URL=$(aws amplify get-app \
-            --app-id "$APP_ID" \
-            --region "$REGION" \
-            --query 'app.defaultDomain' \
-            --output text)
-
-          echo "appUrl=https://$APP_URL" >> $GITHUB_OUTPUT
-
-      - name: Wait for Amplify deployment to complete
-        if: steps.amplify.outputs.deploymentTriggered == 'true'
-        run: |
-          # Get Amplify configuration from SSM (provisioned by Pulumi)
-          APP_ID=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/appId" \
-            --query Parameter.Value \
-            --output text)
-
-          BRANCH_NAME=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/branchName" \
-            --query Parameter.Value \
-            --output text)
-
-          REGION=$(aws ssm get-parameter \
-            --name "/viberator/dev/amplify/region" \
-            --query Parameter.Value \
-            --output text)
-
-          DEPLOYMENT_ID=${{ steps.amplify.outputs.deploymentId }}
-
-          echo "Waiting for deployment $DEPLOYMENT_ID to complete..."
-          TIMEOUT=600  # 10 minutes
-          ELAPSED=0
-
-          while [ $ELAPSED -lt $TIMEOUT ]; do
-            STATUS=$(aws amplify get-job \
-              --app-id "$APP_ID" \
-              --branch-name "$BRANCH_NAME" \
-              --region "$REGION" \
-              --job-id "$DEPLOYMENT_ID" \
-              --query 'job.summary.status' \
-              --output text)
-
-            echo "Current status: $STATUS"
-
-            if [ "$STATUS" = "SUCCEED" ]; then
-              echo "✓ Deployment succeeded"
-              exit 0
-            elif [ "$STATUS" = "FAIL" ]; then
-              echo "✗ Deployment failed"
-              aws amplify get-job \
-                --app-id "$APP_ID" \
-                --branch-name "$BRANCH_NAME" \
-                --region "$REGION" \
-                --job-id "$DEPLOYMENT_ID" \
-                --query 'job.summary' \
-                --output table
-              exit 1
-            elif [ "$STATUS" = "TIMEDOUT" ]; then
-              echo "✗ Deployment timed out"
-              exit 1
-            fi
-
-            sleep 15
-            ELAPSED=$((ELAPSED + 15))
-          done
-
-          echo "::warning::Deployment wait timed out after $TIMEOUT seconds"
-          exit 1
+          echo "### :rocket: Dev Deployment Triggered" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **App URL** | ${{ steps.get-url.outputs.appUrl }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Approved by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> :information_source: Amplify will automatically build and deploy from git." >> $GITHUB_STEP_SUMMARY
+          echo "> Monitor the deployment at: ${{ steps.get-url.outputs.appUrl }}" >> $GITHUB_STEP_SUMMARY
