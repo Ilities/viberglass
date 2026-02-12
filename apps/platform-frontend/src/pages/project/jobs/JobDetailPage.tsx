@@ -110,9 +110,9 @@ export function JobDetailPage() {
               <Heading className="text-2xl">Job {formatJobId(job.jobId)}</Heading>
               <div className="mt-1.5 flex items-center gap-3">
                 <JobStatusIndicator status={job.status} isPolling={isPolling} />
-                {job.data.ticketTitle && (
+                {job.ticket?.title && (
                   <span className="text-sm text-[var(--gray-9)]">
-                    Ticket: <span className="text-[var(--gray-11)] font-medium">{job.data.ticketTitle}</span>
+                    Ticket: <span className="text-[var(--gray-11)] font-medium">{job.ticket.title}</span>
                   </span>
                 )}
               </div>
