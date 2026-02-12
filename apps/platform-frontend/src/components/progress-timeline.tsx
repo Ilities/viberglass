@@ -1,6 +1,13 @@
 import { Badge } from '@/components/badge'
 import { Subheading } from '@/components/heading'
 import type { ProgressUpdate } from '@/service/api/job-api'
+import { 
+  CheckCircledIcon, 
+  ClockIcon, 
+  GearIcon, 
+  PlayIcon,
+  DotFilledIcon
+} from '@radix-ui/react-icons'
 
 export interface ProgressTimelineProps {
   updates: ProgressUpdate[]
@@ -20,82 +27,170 @@ function formatTime(isoString: string): string {
   })
 }
 
+function formatDate(isoString: string): string {
+  const date = new Date(isoString)
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  })
+}
+
+function groupByDate(updates: ProgressUpdate[]): Map<string, ProgressUpdate[]> {
+  const groups = new Map<string, ProgressUpdate[]>()
+  
+  updates.forEach(update => {
+    const date = formatDate(update.createdAt)
+    if (!groups.has(date)) {
+      groups.set(date, [])
+    }
+    groups.get(date)!.push(update)
+  })
+  
+  return groups
+}
+
 /**
- * Progress timeline showing execution steps with latest update prominent
- * and full history below
+ * Progress timeline showing execution steps with visual timeline
  */
 export function ProgressTimeline({ updates, currentStatus }: ProgressTimelineProps) {
   // Don't show progress for queued jobs
   if (currentStatus === 'queued') {
-    return null
+    return (
+      <div>
+        <Subheading>Execution Timeline</Subheading>
+        <div className="mt-4 p-6 text-center text-[var(--gray-9)]">
+          <ClockIcon className="h-8 w-8 mx-auto mb-2 text-[var(--gray-7)]" />
+          <p>Job is queued and waiting to start...</p>
+        </div>
+      </div>
+    )
   }
 
-  const latestUpdate = updates[0]
-  const history = updates.slice(1)
+  if (!updates || updates.length === 0) {
+    return (
+      <div>
+        <Subheading>Execution Timeline</Subheading>
+        <div className="mt-4 p-6 text-center text-[var(--gray-9)]">
+          <GearIcon className="h-8 w-8 mx-auto mb-2 text-[var(--gray-7)]" />
+          <p>No progress updates yet</p>
+        </div>
+      </div>
+    )
+  }
+
+  const grouped = groupByDate(updates)
+  const sortedDates = Array.from(grouped.keys()).sort((a, b) => {
+    const dateA = new Date(grouped.get(a)![0].createdAt)
+    const dateB = new Date(grouped.get(b)![0].createdAt)
+    return dateB.getTime() - dateA.getTime()
+  })
 
   return (
-    <div className="lg:col-span-2">
-      <Subheading>Execution Progress</Subheading>
+    <div>
+      <Subheading className="flex items-center gap-2">
+        <PlayIcon className="h-5 w-5 text-[var(--accent-9)]" />
+        Execution Timeline
+      </Subheading>
 
-      {!updates || updates.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">No progress updates yet</p>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-6">
-          {/* Latest Update - Prominent */}
-          {latestUpdate && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-500/30 dark:bg-blue-500/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge color="blue">Latest</Badge>
-                  <h4 className="font-medium text-blue-900 dark:text-blue-200">
-                    {latestUpdate.step || 'System'}
-                  </h4>
-                </div>
-                <span className="text-xs text-blue-700 dark:text-blue-300">
-                  {formatTime(latestUpdate.createdAt)}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-blue-800 dark:text-blue-300">{latestUpdate.message}</p>
+      <div className="mt-6 space-y-8">
+        {sortedDates.map((date, dateIndex) => (
+          <div key={date} className="relative">
+            {/* Date Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--gray-9)]">
+                {date}
+              </span>
+              <div className="flex-1 h-px bg-[var(--gray-6)]" />
             </div>
-          )}
 
-          {/* Full History Timeline */}
-          {history.length > 0 && (
-            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-              <h4 className="text-sm font-medium text-zinc-900 dark:text-white mb-4">
-                Progress History
-              </h4>
-              <div className="space-y-3">
-                {history.map((update, index) => (
-                  <div key={index} className="flex gap-3">
-                    {/* Timeline dot */}
-                    <div className="flex flex-col items-center">
-                      <div className="mt-1.5 h-2 w-2 rounded-full bg-zinc-400 dark:bg-zinc-500" />
-                      {index < history.length - 1 && (
-                        <div className="w-px flex-1 bg-zinc-200 dark:bg-zinc-700 min-h-[24px]" />
-                      )}
-                    </div>
-                    {/* Update content */}
-                    <div className="flex-1 pb-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                          {update.step || 'System'}
-                        </span>
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {formatTime(update.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">{update.message}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {/* Timeline Items */}
+            <div className="space-y-4">
+              {grouped.get(date)!.map((update, index) => {
+                const isLatest = dateIndex === 0 && index === 0
+                return (
+                  <TimelineItem 
+                    key={`${date}-${index}`} 
+                    update={update} 
+                    isLatest={isLatest}
+                    isLast={index === grouped.get(date)!.length - 1 && dateIndex === sortedDates.length - 1}
+                  />
+                )
+              })}
             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+interface TimelineItemProps {
+  update: ProgressUpdate
+  isLatest: boolean
+  isLast: boolean
+}
+
+function TimelineItem({ update, isLatest }: TimelineItemProps) {
+  return (
+    <div className="flex gap-4 group">
+      {/* Timeline Visual */}
+      <div className="flex flex-col items-center">
+        {/* Icon/dot */}
+        <div className={`
+          relative flex items-center justify-center w-8 h-8 rounded-full shrink-0
+          transition-all duration-200
+          ${isLatest 
+            ? 'bg-[var(--accent-9)] text-white shadow-lg shadow-[var(--accent-9)]/30' 
+            : 'bg-[var(--gray-4)] text-[var(--gray-9)] group-hover:bg-[var(--accent-4)] group-hover:text-[var(--accent-11)]'
+          }
+        `}>
+          {isLatest ? (
+            <PlayIcon className="h-4 w-4" />
+          ) : (
+            <CheckCircledIcon className="h-4 w-4" />
           )}
         </div>
-      )}
+        {/* Connecting line */}
+        {!isLatest && (
+          <div className="w-px flex-1 bg-[var(--gray-6)] min-h-[40px] mt-2" />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className={`
+        flex-1 pb-6 rounded-lg transition-colors duration-200
+        ${isLatest ? 'bg-[var(--accent-3)]/50' : 'hover:bg-[var(--gray-3)]'}
+        p-3 -m-3
+      `}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              {isLatest && (
+                <Badge color="amber" className="text-xs">Latest</Badge>
+              )}
+              <span className={`
+                text-sm font-semibold
+                ${isLatest ? 'text-[var(--accent-11)]' : 'text-[var(--gray-11)]'}
+              `}>
+                {update.step || 'System'}
+              </span>
+            </div>
+            <p className={`
+              text-sm leading-relaxed
+              ${isLatest ? 'text-[var(--gray-12)]' : 'text-[var(--gray-10)]'}
+            `}>
+              {update.message}
+            </p>
+          </div>
+          <span className={`
+            text-xs font-medium tabular-nums shrink-0
+            ${isLatest ? 'text-[var(--accent-10)]' : 'text-[var(--gray-8)]'}
+          `}>
+            {formatTime(update.createdAt)}
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
