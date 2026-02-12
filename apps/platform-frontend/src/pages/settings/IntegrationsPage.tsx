@@ -53,7 +53,7 @@ export function IntegrationsPage() {
       {/* Header */}
       <div>
         <Heading>Integrations</Heading>
-        <Text className="mt-2">
+        <Text className="mt-2 text-[var(--gray-9)]">
           Connect your project management and source control tools to enable seamless bug tracking
           and auto-fix workflows.
         </Text>
@@ -67,19 +67,19 @@ export function IntegrationsPage() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-          <div className="text-2xl font-semibold text-zinc-950 dark:text-white">{configuredCount}</div>
-          <div className="text-sm text-zinc-500 dark:text-zinc-400">Configured</div>
+        <div className="app-frame rounded-lg p-4">
+          <div className="text-2xl font-semibold text-[var(--gray-12)]">{configuredCount}</div>
+          <div className="text-sm text-[var(--gray-9)]">Configured</div>
         </div>
-        <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-          <div className="text-2xl font-semibold text-zinc-950 dark:text-white">
+        <div className="app-frame rounded-lg p-4">
+          <div className="text-2xl font-semibold text-[var(--gray-12)]">
             {availableCount}
           </div>
-          <div className="text-sm text-zinc-500 dark:text-zinc-400">Available</div>
+          <div className="text-sm text-[var(--gray-9)]">Available</div>
         </div>
-        <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-          <div className="text-2xl font-semibold text-zinc-950 dark:text-white">{readyCount}</div>
-          <div className="text-sm text-zinc-500 dark:text-zinc-400">Ready to Use</div>
+        <div className="app-frame rounded-lg p-4">
+          <div className="text-2xl font-semibold text-[var(--gray-12)]">{readyCount}</div>
+          <div className="text-sm text-[var(--gray-9)]">Ready to Use</div>
         </div>
       </div>
 
@@ -92,16 +92,16 @@ export function IntegrationsPage() {
       </section>
 
       {/* Help Section */}
-      <section className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-6 dark:border-white/10 dark:bg-zinc-900">
+      <section className="app-frame rounded-lg p-6 bg-[var(--gray-3)]">
         <Subheading className="text-base">Need Help?</Subheading>
-        <Text className="mt-2">
+        <Text className="mt-2 text-[var(--gray-9)]">
           Learn how to set up integrations and get the most out of Viberglass.
         </Text>
         <div className="mt-4 flex gap-4">
-          <a href="#" className="text-sm font-medium text-brand-burnt-orange hover:underline">
+          <a href="#" className="text-sm font-medium text-[var(--accent-9)] hover:underline">
             View Documentation
           </a>
-          <a href="#" className="text-sm font-medium text-brand-burnt-orange hover:underline">
+          <a href="#" className="text-sm font-medium text-[var(--accent-9)] hover:underline">
             Contact Support
           </a>
         </div>

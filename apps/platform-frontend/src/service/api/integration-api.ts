@@ -414,6 +414,7 @@ export interface IntegrationInboundWebhookConfig {
   webhookSecret?: string
   providerProjectId?: string | null
   projectId?: string | null
+  labelMappings?: Record<string, unknown>
   createdAt: string
   updatedAt: string
 }
@@ -507,6 +508,7 @@ export async function createIntegrationInboundWebhook(
     generateSecret?: boolean
     providerProjectId?: string | null
     projectId?: string | null
+    labelMappings?: Record<string, unknown>
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -522,6 +524,7 @@ export async function createIntegrationInboundWebhook(
         generateSecret: config.generateSecret,
         providerProjectId: config.providerProjectId,
         projectId: config.projectId,
+        labelMappings: config.labelMappings,
         active: config.active,
       }),
     }
@@ -547,6 +550,7 @@ export async function updateIntegrationInboundWebhook(
     generateSecret?: boolean
     providerProjectId?: string | null
     projectId?: string | null
+    labelMappings?: Record<string, unknown>
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -562,6 +566,7 @@ export async function updateIntegrationInboundWebhook(
         generateSecret: config.generateSecret,
         providerProjectId: config.providerProjectId,
         projectId: config.projectId,
+        labelMappings: config.labelMappings,
         active: config.active,
       }),
     }
