@@ -764,6 +764,84 @@ describe("WebhookService", () => {
     );
   });
 
+  it("skips GitHub auto-execute when label-gated policy does not match issue labels", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issues.opened"];
+    config.autoExecute = true;
+    config.labelMappings = {
+      github: {
+        autoExecuteMode: "label_gated",
+        requiredLabels: ["autofix"],
+      },
+    };
+
+    const event = createGitHubIssuesEvent("opened");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "github" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoFixRequested: false,
+      }),
+    );
+  });
+
+  it("submits GitHub auto-execute job when label-gated policy matches issue labels", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issues.opened"];
+    config.autoExecute = true;
+    config.labelMappings = {
+      github: {
+        autoExecuteMode: "label_gated",
+        requiredLabels: ["high"],
+      },
+    };
+
+    const event = createGitHubIssuesEvent("opened");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "github" },
+    );
+
+    expect(result).toEqual({
+      status: "processed",
+      ticketId: "ticket-1",
+      jobId: "job-1",
+    });
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoFixRequested: true,
+      }),
+    );
+    expect(mocks.jobService.submitJob).toHaveBeenCalledTimes(1);
+  });
+
   it("creates ticket and job for bot-triggered issue_comment.created flow", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issue_comment.created"];

@@ -74,6 +74,11 @@ interface GitHubCommentPayload {
   };
 }
 
+interface GitHubAutoExecutePolicy {
+  mode: 'matching_events' | 'label_gated';
+  requiredLabels: string[];
+}
+
 export class GitHubInboundProcessor implements InboundEventProcessor {
   readonly provider: ProviderType | 'default' = 'github';
 
@@ -121,6 +126,11 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
     }
 
     const severity = this.detectSeverityFromLabels(payload.issue.labels);
+    const autoExecuteIssueFix = this.shouldAutoExecuteIssue(
+      config.autoExecute,
+      config.labelMappings,
+      payload.issue.labels,
+    );
 
     const ticketRequest: CreateTicketRequest = {
       projectId: resolvedProjectId,
@@ -144,14 +154,14 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
         installationId: payload.installation?.id?.toString(),
       }),
       annotations: [],
-      autoFixRequested: config.autoExecute,
+      autoFixRequested: autoExecuteIssueFix,
       ticketSystem: 'github',
     };
 
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
     result.ticketId = ticket.id;
 
-    if (config.autoExecute) {
+    if (autoExecuteIssueFix) {
       result.jobId = await this.submitJob(
         ticket.id,
         resolvedProjectId,
@@ -279,6 +289,76 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
       return 'medium';
     }
     return 'low';
+  }
+
+  private shouldAutoExecuteIssue(
+    autoExecute: boolean,
+    labelMappings: Record<string, unknown>,
+    issueLabels: Array<{ name: string }> | undefined,
+  ): boolean {
+    if (!autoExecute) {
+      return false;
+    }
+
+    const policy = this.resolveAutoExecutePolicy(labelMappings);
+    if (policy.mode !== 'label_gated') {
+      return true;
+    }
+
+    const issueLabelNames = new Set(
+      (issueLabels || [])
+        .map((label) => label.name?.trim().toLowerCase())
+        .filter((label): label is string => Boolean(label)),
+    );
+
+    if (issueLabelNames.size === 0 || policy.requiredLabels.length === 0) {
+      return false;
+    }
+
+    return policy.requiredLabels.some((label) => issueLabelNames.has(label));
+  }
+
+  private resolveAutoExecutePolicy(
+    labelMappings: Record<string, unknown>,
+  ): GitHubAutoExecutePolicy {
+    const root = this.toRecord(labelMappings);
+    const nested = this.toRecord(root?.github);
+    const source = nested || root;
+
+    const rawMode = source?.autoExecuteMode ?? source?.mode;
+    const normalizedMode =
+      typeof rawMode === 'string' ? rawMode.trim().toLowerCase() : 'matching_events';
+    const mode: GitHubAutoExecutePolicy['mode'] =
+      normalizedMode === 'label_gated' ? 'label_gated' : 'matching_events';
+
+    if (mode !== 'label_gated') {
+      return {
+        mode: 'matching_events',
+        requiredLabels: [],
+      };
+    }
+
+    const rawLabels = source?.requiredLabels ?? source?.labels;
+    const requiredLabels = Array.isArray(rawLabels)
+      ? rawLabels
+          .map((label) =>
+            typeof label === 'string' ? label.trim().toLowerCase() : '',
+          )
+          .filter((label): label is string => Boolean(label))
+      : [];
+
+    return {
+      mode,
+      requiredLabels: Array.from(new Set(requiredLabels)),
+    };
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> | null {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return null;
+    }
+
+    return value as Record<string, unknown>;
   }
 
   private async submitJob(

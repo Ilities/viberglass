@@ -1,8 +1,33 @@
 import { test, expect } from "../../playwright/fixtures";
 import type { Page } from "@playwright/test";
 
+async function ensureGitHubInboundRoutingConfigured(
+  page: Page,
+  repositoryMapping: string,
+): Promise<void> {
+  const inboundSection = page.locator("section", {
+    has: page.getByRole("heading", { name: "GitHub Inbound Webhook" }),
+  });
+
+  const createInboundButton = inboundSection.getByRole("button", {
+    name: "Create GitHub Inbound Webhook",
+  });
+  if ((await createInboundButton.count()) > 0) {
+    await createInboundButton.click();
+  }
+
+  const repositoryInput = inboundSection.getByLabel(/GitHub repository.*owner\/repo/i);
+  if ((await repositoryInput.count()) > 0) {
+    const currentValue = (await repositoryInput.inputValue()).trim();
+    if (!currentValue) {
+      await repositoryInput.fill(repositoryMapping);
+    }
+  }
+}
+
 async function createConfiguredGitHubIntegration(page: Page): Promise<boolean> {
   const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const repositoryMapping = `e2e-owner/e2e-repo-${uniqueSuffix}`;
 
   await page.goto("/settings/integrations/new/github");
   if (
@@ -14,34 +39,11 @@ async function createConfiguredGitHubIntegration(page: Page): Promise<boolean> {
     return false;
   }
 
-  const tokenInput = page.getByLabel(/Access Token/i).first();
-  const oauthClientIdInput = page.getByLabel(/Client ID/i).first();
-  const ownerInput = page.getByLabel(/Repository Owner/i).first();
-  const repoInput = page.getByLabel(/Repository Name/i).first();
-
-  if ((await ownerInput.count()) === 0 || (await repoInput.count()) === 0) {
-    return false;
-  }
-
-  if ((await tokenInput.count()) > 0) {
-    await tokenInput.fill("e2e-test-token");
-  } else if ((await oauthClientIdInput.count()) > 0) {
-    await oauthClientIdInput.fill(`e2e-client-${uniqueSuffix}`);
-    await page
-      .getByLabel(/Client Secret/i)
-      .first()
-      .fill("e2e-client-secret");
-  }
-
-  await ownerInput.fill("e2e-owner");
-  await repoInput.fill(`e2e-repo-${uniqueSuffix}`);
-
-  await page.getByRole("button", { name: "Save Configuration" }).click();
-
   try {
     await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
       timeout: 20000,
     });
+    await ensureGitHubInboundRoutingConfigured(page, repositoryMapping);
     return true;
   } catch {
     return false;
@@ -69,6 +71,10 @@ async function openConfiguredGitHubIntegration(page: Page): Promise<boolean> {
     await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
       timeout: 20000,
     });
+    await ensureGitHubInboundRoutingConfigured(
+      page,
+      `e2e-owner/e2e-repo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    );
     return true;
   }
 
@@ -335,57 +341,37 @@ test.describe("Integration Configuration E2E Tests", () => {
   });
 
   test.describe("GitHub Integration Configuration", () => {
-    test("should display GitHub integration configuration page", async ({
+    test("should auto-create GitHub integration from new route", async ({
       authenticatedPage: page,
     }) => {
       await page.goto("/settings/integrations/new/github");
 
-      // Check page title
+      await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+        timeout: 20000,
+      });
       await expect(
         page.getByRole("heading", { name: "GitHub", exact: true }),
       ).toBeVisible();
-
-      // Should have form fields for configuration
-      const nameInput = page.locator('input[name="name"]');
-      if ((await nameInput.count()) > 0) {
-        await expect(nameInput).toBeVisible();
-      }
+      await expect(
+        page.getByRole("heading", { name: "Configuration" }),
+      ).toHaveCount(0);
     });
 
-    test("should show GitHub configuration fields", async ({
+    test("should show GitHub webhook-first routing fields", async ({
       authenticatedPage: page,
     }) => {
       await page.goto("/settings/integrations/new/github");
+      await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+        timeout: 20000,
+      });
 
-      // Check for common GitHub integration fields
-      const tokenInput = page.locator(
-        'input[name="token"], input[name*="token"], input[name*="Token"]',
+      await ensureGitHubInboundRoutingConfigured(
+        page,
+        `e2e-owner/e2e-repo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       );
-      const ownerInput = page.locator(
-        'input[name="owner"], input[name*="owner"], input[name*="Owner"]',
-      );
-      const repoInput = page.locator(
-        'input[name="repo"], input[name*="repo"], input[name*="Repository"]',
-      );
-
-      // At least some fields should be present
-      const hasToken = (await tokenInput.count()) > 0;
-      const hasOwner = (await ownerInput.count()) > 0;
-      const hasRepo = (await repoInput.count()) > 0;
-
-      if (!hasToken && !hasOwner && !hasRepo) {
-        // Fields might be named differently - check for any input fields
-        const inputs = page.locator(
-          'input:not([type="hidden"]):not([type="submit"])',
-        );
-        const inputCount = await inputs.count();
-        if (inputCount === 0) {
-          test.skip(
-            true,
-            "No configuration inputs found - integration might be configured differently",
-          );
-        }
-      }
+      await expect(
+        page.getByLabel(/GitHub repository.*owner\/repo/i),
+      ).toBeVisible();
     });
   });
 
@@ -406,10 +392,13 @@ test.describe("Integration Configuration E2E Tests", () => {
         page.getByRole("heading", { name: "GitHub Inbound Webhook" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "GitHub Outbound Events" }),
+        page.getByRole("heading", { name: "GitHub Feedback" }),
       ).toBeVisible();
       await expect(page.getByText("GitHub setup steps")).toBeVisible();
-      await expect(page.getByText("Repository mapping preview")).toBeVisible();
+      await expect(page.getByText("Always-on feedback events")).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Configuration" }),
+      ).toHaveCount(0);
 
       await expect(
         page.getByText(
@@ -446,6 +435,13 @@ test.describe("Integration Configuration E2E Tests", () => {
         await createInboundButton.click();
       }
 
+      const repositoryInput = page.getByLabel(/GitHub repository.*owner\/repo/i);
+      if ((await repositoryInput.count()) > 0) {
+        await repositoryInput.fill(
+          `e2e-owner/e2e-repo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        );
+      }
+
       await expect(page.getByText("Allowed inbound events")).toBeVisible();
       await expect(page.getByLabel("Issue opened")).toBeChecked();
       const issueCommentEventToggle = page.getByLabel("Issue comment created");
@@ -461,10 +457,11 @@ test.describe("Integration Configuration E2E Tests", () => {
       if (wasChecked) {
         await expect(issueCommentEventToggle).not.toBeChecked();
       } else {
-        await expect(issueCommentEventToggle).toBeChecked();
+      await expect(issueCommentEventToggle).toBeChecked();
       }
       await expect(page.getByText("Webhook URL")).toBeVisible();
       await expect(page.getByText("Webhook Secret")).toBeVisible();
+      await expect(page.getByLabel(/GitHub repository.*owner\/repo/i)).toBeVisible();
     });
 
     test("should support selecting between multiple inbound GitHub configs", async ({

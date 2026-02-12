@@ -288,7 +288,7 @@ export function IntegrationConfigForm({
     label: string
     supported?: boolean
   }) => (
-    <div className={`flex items-center gap-2 ${supported ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-600'}`}>
+    <div className={`flex items-center gap-2 ${supported ? 'text-[var(--gray-11)]' : 'text-[var(--gray-8)]'}`}>
       {supported ? (
         <svg className="size-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -313,9 +313,18 @@ export function IntegrationConfigForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Authentication Section */}
-      <section>
-        <Text className="text-base font-semibold">Authentication</Text>
-        <Text>Choose how you want to authenticate with {integration.label}.</Text>
+      <section className="app-frame rounded-lg p-6">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <circle cx="12" cy="16" r="1" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+          </div>
+          <Text className="text-base font-semibold text-[var(--gray-12)]">Authentication</Text>
+        </div>
+        <Text className="text-sm text-[var(--gray-9)]">Choose how you want to authenticate with {integration.label}.</Text>
 
         <Fieldset className="mt-4">
           <FieldGroup>
@@ -352,9 +361,16 @@ export function IntegrationConfigForm({
 
       {/* Configuration Fields Section */}
       {integration.configFields.length > 0 && (
-        <section>
-          <Text className="text-base font-semibold">Configuration</Text>
-          <Text>Configure the specific settings for your {integration.label} integration.</Text>
+        <section className="app-frame rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9M12 20l-4-4m4 4l-4 4M3 12h18M3 12l4-4m-4 4l4 4" />
+              </svg>
+            </div>
+            <Text className="text-base font-semibold text-[var(--gray-12)]">Configuration</Text>
+          </div>
+          <Text className="text-sm text-[var(--gray-9)]">Configure the specific settings for your {integration.label} integration.</Text>
 
           <Fieldset className="mt-4">
             <FieldGroup>
@@ -378,9 +394,17 @@ export function IntegrationConfigForm({
       )}
 
       {/* Features Section */}
-      <section>
-        <Text className="text-base font-semibold">Supported Features</Text>
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <section className="app-frame rounded-lg p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <Text className="text-base font-semibold text-[var(--gray-12)]">Supported Features</Text>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <SupportItem label="Issue Creation" supported={integration.supports.issues} />
           <SupportItem label="Webhooks" supported={integration.supports.webhooks} />
           <SupportItem label="Pull Requests" supported={integration.supports.pullRequests} />
@@ -390,10 +414,10 @@ export function IntegrationConfigForm({
       {/* Test Result */}
       {testResult && (
         <div
-          className={`rounded-lg p-4 ${
+          className={`rounded-lg border p-4 ${
             testResult.success
-              ? 'bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-              : 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+              ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400'
+              : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400'
           }`}
         >
           <div className="flex items-start gap-3">
@@ -423,7 +447,7 @@ export function IntegrationConfigForm({
       )}
 
       {/* Actions */}
-      <div className="flex flex-col-reverse gap-4 border-t border-zinc-950/10 pt-6 sm:flex-row sm:justify-between dark:border-white/10">
+      <div className="flex flex-col-reverse gap-4 border-t border-[var(--gray-6)] pt-6 sm:flex-row sm:justify-between">
         <div className="flex gap-4">
           <Button type="button" plain onClick={onCancel}>
             Cancel
