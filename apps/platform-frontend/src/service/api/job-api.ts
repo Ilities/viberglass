@@ -48,6 +48,36 @@ export interface LogEntry {
   createdAt: string
 }
 
+export interface JobDataContext {
+  ticketId?: string
+  stepsToReproduce?: string
+  expectedBehavior?: string
+  actualBehavior?: string
+  stackTrace?: string
+  consoleErrors?: string[]
+  affectedFiles?: string[]
+  instructionFiles?: Array<{
+    fileType: string
+    content?: string
+    mountPath?: string
+  }>
+}
+
+export interface JobDataSettings {
+  maxChanges?: number
+  testRequired?: boolean
+  codingStandards?: string
+  runTests?: boolean
+  testCommand?: string
+  maxExecutionTime?: number
+}
+
+export interface JobStatusTicket {
+  id: string
+  title: string
+  externalTicketId: string | null
+}
+
 export interface JobStatus {
   jobId: string
   status: 'queued' | 'active' | 'completed' | 'failed'
@@ -62,8 +92,8 @@ export interface JobStatus {
     task: string
     branch: string | null
     baseBranch: string | null
-    context: Record<string, unknown> | null
-    settings: Record<string, unknown> | null
+    context: JobDataContext | null
+    settings: JobDataSettings | null
     timestamp: number
   }
   result: {
@@ -79,6 +109,8 @@ export interface JobStatus {
   createdAt: string
   processedAt: string | null
   finishedAt: string | null
+  ticketId: string | null
+  ticket: JobStatusTicket | null
 }
 
 /**
