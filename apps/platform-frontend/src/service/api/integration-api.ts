@@ -3,10 +3,8 @@ import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
   AuthCredentialType,
-  ConfigureIntegrationRequest,
   CreateIntegrationRequest,
   Integration,
-  IntegrationConfig,
   IntegrationFieldType,
   IntegrationSummary,
   ProjectIntegrationLink,
@@ -14,8 +12,6 @@ import type {
   TicketSystem,
   UpdateIntegrationRequest,
 } from '@viberglass/types'
-
-const DEFAULT_PROJECT_ID = 'global'
 
 // ============================================================================
 // Top-level Integration Management
@@ -266,29 +262,6 @@ export async function getAvailableIntegrationTypes(): Promise<AvailableIntegrati
   return data.data
 }
 
-// ============================================================================
-// Legacy Project-Scoped Integration APIs (Deprecated)
-// These endpoints are kept for backward compatibility but will be removed.
-// Use the top-level integration APIs above instead.
-// ============================================================================
-
-/**
- * @deprecated Use getIntegrations() and getProjectIntegrations() instead
- */
-export async function getProjectIntegrationsLegacy(
-  projectId?: string
-): Promise<IntegrationSummary[]> {
-  const targetProjectId = projectId ?? DEFAULT_PROJECT_ID
-  const response = await apiFetch(
-    `${API_BASE_URL}/api/projects/${targetProjectId}/integrations`
-  )
-  if (!response.ok) {
-    throw new Error('Failed to fetch integrations')
-  }
-  const data: ApiResponse<IntegrationSummary[]> = await response.json()
-  return data.data
-}
-
 /**
  * Get integration summaries for a project (uses the new API internally)
  * This is a transitional function that maps the new data structure to the old one
@@ -426,100 +399,6 @@ export async function getIntegrationSettingsListItems(): Promise<IntegrationSett
   return items
 }
 
-/**
- * @deprecated Use getIntegration() instead
- */
-export async function getIntegrationConfig(
-  projectId: string | undefined,
-  integrationId: TicketSystem
-): Promise<IntegrationConfig | null> {
-  const targetProjectId = projectId ?? DEFAULT_PROJECT_ID
-  const response = await apiFetch(
-    `${API_BASE_URL}/api/projects/${targetProjectId}/integrations/${integrationId}`
-  )
-  if (response.status === 404) {
-    return null
-  }
-  if (!response.ok) {
-    throw new Error('Failed to fetch integration config')
-  }
-  const data: ApiResponse<IntegrationConfig> = await response.json()
-  return data.data
-}
-
-/**
- * @deprecated Use createIntegration() and linkIntegrationToProject() instead
- */
-export async function configureIntegration(
-  projectId: string | undefined,
-  integrationId: TicketSystem,
-  config: ConfigureIntegrationRequest
-): Promise<IntegrationConfig> {
-  const targetProjectId = projectId ?? DEFAULT_PROJECT_ID
-  const response = await apiFetch(
-    `${API_BASE_URL}/api/projects/${targetProjectId}/integrations/${integrationId}`,
-    {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(config),
-    }
-  )
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to configure integration')
-  }
-  const data: ApiResponse<IntegrationConfig> = await response.json()
-  return data.data
-}
-
-/**
- * @deprecated Use deleteIntegration() or unlinkIntegrationFromProject() instead
- */
-export async function removeIntegration(
-  projectId: string | undefined,
-  integrationId: TicketSystem
-): Promise<void> {
-  const targetProjectId = projectId ?? DEFAULT_PROJECT_ID
-  const response = await apiFetch(
-    `${API_BASE_URL}/api/projects/${targetProjectId}/integrations/${integrationId}`,
-    {
-      method: 'DELETE',
-    }
-  )
-  if (!response.ok) {
-    throw new Error('Failed to remove integration')
-  }
-}
-
-/**
- * @deprecated Use testIntegration() instead
- */
-export async function testIntegrationConnection(
-  projectId: string | undefined,
-  integrationId: TicketSystem,
-  config: ConfigureIntegrationRequest
-): Promise<TestIntegrationResponse> {
-  const targetProjectId = projectId ?? DEFAULT_PROJECT_ID
-  const response = await apiFetch(
-    `${API_BASE_URL}/api/projects/${targetProjectId}/integrations/${integrationId}/test`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(config),
-    }
-  )
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to test integration')
-  }
-  const data: ApiResponse<TestIntegrationResponse> = await response.json()
-  return data.data
-}
-
 // ============================================================================
 // Webhook configuration under integrations
 // ============================================================================
@@ -533,6 +412,7 @@ export interface IntegrationInboundWebhookConfig {
   active: boolean
   hasSecret: boolean
   webhookSecret?: string
+  providerProjectId?: string | null
   projectId?: string | null
   createdAt: string
   updatedAt: string
@@ -625,8 +505,8 @@ export async function createIntegrationInboundWebhook(
     autoExecute?: boolean
     webhookSecret?: string
     generateSecret?: boolean
-    providerProjectId?: string
-    projectId?: string
+    providerProjectId?: string | null
+    projectId?: string | null
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -665,8 +545,8 @@ export async function updateIntegrationInboundWebhook(
     autoExecute?: boolean
     webhookSecret?: string
     generateSecret?: boolean
-    providerProjectId?: string
-    projectId?: string
+    providerProjectId?: string | null
+    projectId?: string | null
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -741,8 +621,8 @@ export async function saveIntegrationOutboundWebhook(
   config: {
     events?: string[]
     apiToken?: string
-    providerProjectId?: string
-    projectId?: string
+    providerProjectId?: string | null
+    projectId?: string | null
     active?: boolean
     name?: string
     targetUrl?: string

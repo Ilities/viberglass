@@ -46,6 +46,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
   const [outboundApiToken, setOutboundApiToken] = useState('')
   const [isSavingWebhook, setIsSavingWebhook] = useState(false)
   const [selectedInboundProjectId, setSelectedInboundProjectId] = useState<string | null>(null)
+  const [selectedInboundProviderProjectId, setSelectedInboundProviderProjectId] = useState<string | null>(null)
 
   const selectedInboundConfig = useMemo(
     () => inboundWebhooks.find((config) => config.id === selectedInboundConfigId) || null,
@@ -69,6 +70,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         setEmitJobStarted(true)
         setEmitJobEnded(true)
         setOutboundApiToken('')
+        setSelectedInboundProjectId(null)
+        setSelectedInboundProviderProjectId(null)
         return
       }
 
@@ -127,11 +130,13 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
       setInboundActive(selectedInboundConfig.active)
       setInboundEvents(selectedInboundConfig.events)
       setSelectedInboundProjectId(selectedInboundConfig.projectId ?? null)
+      setSelectedInboundProviderProjectId(selectedInboundConfig.providerProjectId ?? null)
     } else {
       setAutoExecute(false)
       setInboundActive(true)
       setInboundEvents([])
       setSelectedInboundProjectId(null)
+      setSelectedInboundProviderProjectId(null)
     }
   }, [selectedInboundConfig])
 
@@ -165,7 +170,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     void loadDeliveriesForConfig(integrationEntityId, selectedInboundConfigId, false)
   }, [integrationEntityId, loadDeliveriesForConfig, selectedInboundConfigId])
 
-  const handleGenerateSecret = async (providerProjectId?: string) => {
+  const handleGenerateSecret = async (providerProjectId?: string | null, projectId?: string | null) => {
     if (!integrationEntityId) {
       return
     }
@@ -184,6 +189,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
             autoExecute,
             active: inboundActive,
             providerProjectId,
+            projectId,
           })
         : await createIntegrationInboundWebhook(integrationEntityId, {
             generateSecret: true,
@@ -191,6 +197,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
             autoExecute: false,
             active: true,
             providerProjectId,
+            projectId,
           })
 
       setInboundWebhooks((prev) => {
@@ -213,7 +220,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleCreateInboundWebhook = async (providerProjectId?: string, projectId?: string | null) => {
+  const handleCreateInboundWebhook = async (providerProjectId?: string | null, projectId?: string | null) => {
     if (!integrationEntityId) {
       return
     }
@@ -225,7 +232,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         autoExecute: false,
         active: true,
         providerProjectId,
-        projectId: projectId ?? undefined,
+        projectId,
       })
       setInboundWebhooks((prev) => [...prev, config])
       setSelectedInboundConfigId(config.id)
@@ -240,7 +247,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleSaveInboundWebhook = async (providerProjectId?: string, projectId?: string | null) => {
+  const handleSaveInboundWebhook = async (providerProjectId?: string | null, projectId?: string | null) => {
     if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
@@ -257,7 +264,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         autoExecute,
         active: inboundActive,
         providerProjectId,
-        projectId: projectId ?? undefined,
+        projectId,
       })
       setInboundWebhooks((prev) => prev.map((item) => (item.id === config.id ? config : item)))
       toast.success('Inbound webhook settings saved')
@@ -299,18 +306,26 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleSaveOutboundWebhook = async (providerProjectId?: string) => {
+  const handleSaveOutboundWebhook = async (
+    providerProjectId?: string | null,
+    options?: { forcedEvents?: string[]; projectId?: string | null }
+  ) => {
     if (!integrationEntityId) {
       return
     }
 
-    const events: string[] = []
-    if (emitJobStarted) {
-      events.push('job_started')
-    }
-    if (emitJobEnded) {
-      events.push('job_ended')
-    }
+    const events: string[] = options?.forcedEvents
+      ? [...options.forcedEvents]
+      : (() => {
+          const enabledEvents: string[] = []
+          if (emitJobStarted) {
+            enabledEvents.push('job_started')
+          }
+          if (emitJobEnded) {
+            enabledEvents.push('job_ended')
+          }
+          return enabledEvents
+        })()
 
     setIsSavingWebhook(true)
     try {
@@ -320,6 +335,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
           events,
           apiToken: outboundApiToken.trim() || undefined,
           providerProjectId,
+          projectId: options?.projectId,
         },
         outboundWebhook?.id
       )
@@ -446,7 +462,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     ? autoExecute !== selectedInboundConfig.autoExecute ||
       inboundActive !== selectedInboundConfig.active ||
       !areEventListsEqual(inboundEvents, selectedInboundConfig.events) ||
-      selectedInboundProjectId !== (selectedInboundConfig.projectId ?? null)
+      selectedInboundProjectId !== (selectedInboundConfig.projectId ?? null) ||
+      selectedInboundProviderProjectId !== (selectedInboundConfig.providerProjectId ?? null)
     : false
 
   const hasOutboundChanges = outboundWebhook
@@ -472,6 +489,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     outboundWebhook,
     selectedInboundConfig,
     selectedInboundConfigId,
+    selectedInboundProviderProjectId,
     selectedInboundProjectId,
     showSecret,
     setAutoExecute,
@@ -479,6 +497,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     setEmitJobStarted,
     setInboundActive,
     setOutboundApiToken,
+    setSelectedInboundProviderProjectId,
     setSelectedInboundProjectId,
     setShowSecret,
     handleCopyWebhookSecret,

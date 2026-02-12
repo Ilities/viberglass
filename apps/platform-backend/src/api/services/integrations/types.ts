@@ -21,20 +21,20 @@ export interface LinkProjectIntegrationInput {
 }
 
 export interface UpsertInboundWebhookConfigInput {
-  projectId?: string
+  projectId?: string | null
   allowedEvents?: string[]
   autoExecute?: boolean
   webhookSecret?: string
   generateSecret?: boolean
-  providerProjectId?: string
+  providerProjectId?: string | null
   active?: boolean
 }
 
 export interface UpsertOutboundWebhookConfigInput {
-  projectId?: string
+  projectId?: string | null
   events?: string[]
   apiToken?: string
-  providerProjectId?: string
+  providerProjectId?: string | null
   active?: boolean
   outboundTargetConfig?: Record<string, unknown>
   name?: string

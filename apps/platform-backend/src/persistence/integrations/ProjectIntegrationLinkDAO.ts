@@ -95,6 +95,8 @@ export class ProjectIntegrationLinkDAO {
       .selectFrom('project_integrations')
       .selectAll()
       .where('integration_id', '=', integrationId)
+      .orderBy('is_primary', 'desc')
+      .orderBy('created_at', 'desc')
       .execute()
 
     return rows.map((row) => this.mapRowToLink(row))
