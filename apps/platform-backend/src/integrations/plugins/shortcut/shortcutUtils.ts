@@ -7,20 +7,7 @@ export const shortcutPlugin: IntegrationPluginDefinition<ShortcutConfig> = {
   label: "Shortcut",
   category: "ticketing",
   authTypes: ["api_key"],
-  configFields: [
-    {
-      key: "projectId",
-      label: "Project ID",
-      type: "string",
-      description: "Optional project ID for scoping stories.",
-    },
-    {
-      key: "workflowStateId",
-      label: "Workflow State ID",
-      type: "string",
-      description: "Optional workflow state for new stories.",
-    },
-  ],
+  configFields: [],
   supports: {
     issues: true,
     webhooks: true,

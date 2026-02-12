@@ -21,7 +21,12 @@ function createInboundProps(
     isLoadingDeliveries: false,
     isLoadingWebhook: false,
     isSavingWebhook: false,
-    jiraProjectKey: 'OPS',
+    projects: [
+      { id: 'project-1', name: 'Viberglass' },
+      { id: 'project-2', name: 'Waxcarvers' },
+    ],
+    selectedInboundProjectId: null,
+    selectedInboundProviderProjectId: 'OPS',
     selectedInboundConfig: null,
     selectedInboundConfigId: null,
     showSecret: false,
@@ -31,6 +36,8 @@ function createInboundProps(
     onCreateInboundWebhook: jest.fn(),
     onDeleteInboundWebhook: jest.fn(),
     onGenerateSecret: jest.fn(),
+    onInboundProjectChange: jest.fn(),
+    onProviderProjectIdChange: jest.fn(),
     onRefreshDeliveries: jest.fn(),
     onRetryDelivery: jest.fn(),
     onSaveWebhook: jest.fn(),
@@ -45,9 +52,6 @@ function createOutboundProps(
   overrides: Partial<ComponentProps<typeof JiraOutboundWebhookSection>> = {}
 ): ComponentProps<typeof JiraOutboundWebhookSection> {
   return {
-    emitJobEnded: true,
-    emitJobStarted: true,
-    hasOutboundChanges: true,
     isSavingWebhook: false,
     outboundApiToken: '',
     outboundWebhook: {
@@ -61,9 +65,6 @@ function createOutboundProps(
       updatedAt: '2026-02-10T00:00:00.000Z',
     },
     projectMapping: 'OPS',
-    onDeleteOutboundWebhook: jest.fn(),
-    onEmitJobEndedChange: jest.fn(),
-    onEmitJobStartedChange: jest.fn(),
     onOutboundApiTokenChange: jest.fn(),
     onSaveOutboundWebhook: jest.fn(),
     ...overrides,
@@ -71,21 +72,46 @@ function createOutboundProps(
 }
 
 describe('Jira webhook sections', () => {
-  it('renders inbound Jira setup and project key warning when project key is missing', () => {
+  it('renders inbound Jira setup and project scope controls', () => {
     renderWithTheme(
       <JiraInboundWebhookSection
         {...createInboundProps({
-          jiraProjectKey: null,
+          inboundWebhooks: [
+            {
+              id: 'inbound-1',
+              provider: 'jira',
+              webhookUrl: '/api/webhooks/jira',
+              events: ['issue_created'],
+              autoExecute: false,
+              active: true,
+              hasSecret: true,
+              webhookSecret: 'secret',
+              createdAt: '2026-02-10T00:00:00.000Z',
+              updatedAt: '2026-02-10T00:00:00.000Z',
+            },
+          ],
+          selectedInboundConfig: {
+            id: 'inbound-1',
+            provider: 'jira',
+            webhookUrl: '/api/webhooks/jira',
+            events: ['issue_created'],
+            autoExecute: false,
+            active: true,
+            hasSecret: true,
+            webhookSecret: 'secret',
+            createdAt: '2026-02-10T00:00:00.000Z',
+            updatedAt: '2026-02-10T00:00:00.000Z',
+          },
+          selectedInboundConfigId: 'inbound-1',
         })}
       />
     )
 
     expect(screen.getByRole('heading', { name: 'Jira Inbound Webhook' })).toBeInTheDocument()
     expect(screen.getByText('Jira setup steps')).toBeInTheDocument()
-    expect(
-      screen.getByText('Missing project key in integration configuration')
-    ).toBeInTheDocument()
-    expect(screen.getByText(/Save a Jira Project Key/i)).toBeInTheDocument()
+    expect(screen.getByText('Inbound project scope')).toBeInTheDocument()
+    expect(screen.getByLabelText('Viberglass project')).toBeInTheDocument()
+    expect(screen.getByLabelText('Jira project key (optional)')).toBeInTheDocument()
   })
 
   it('toggles Jira inbound event options', async () => {
@@ -132,7 +158,7 @@ describe('Jira webhook sections', () => {
     expect(onToggleInboundEvent).toHaveBeenCalledWith('comment_created', true)
   })
 
-  it('disables outbound save button when project mapping is missing', () => {
+  it('renders outbound always-on feedback copy', () => {
     renderWithTheme(
       <JiraOutboundWebhookSection
         {...createOutboundProps({
@@ -141,11 +167,25 @@ describe('Jira webhook sections', () => {
       />
     )
 
-    expect(screen.getByText(/Save a Jira Project Key/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save outbound settings' })).toBeDisabled()
+    expect(screen.getByRole('heading', { name: 'Jira Feedback' })).toBeInTheDocument()
+    expect(screen.getByText('Always-on feedback events')).toBeInTheDocument()
+    expect(screen.getByText(/Save an inbound Jira project key/i)).toBeInTheDocument()
   })
 
-  it('allows outbound save when mapping is present', async () => {
+  it('requires token to enable outbound feedback when no config exists', () => {
+    renderWithTheme(
+      <JiraOutboundWebhookSection
+        {...createOutboundProps({
+          outboundWebhook: null,
+          outboundApiToken: '',
+        })}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Enable feedback' })).toBeDisabled()
+  })
+
+  it('allows outbound save when config exists', async () => {
     const user = userEvent.setup()
     const onSaveOutboundWebhook = jest.fn()
 
@@ -157,7 +197,7 @@ describe('Jira webhook sections', () => {
       />
     )
 
-    const saveButton = screen.getByRole('button', { name: 'Save outbound settings' })
+    const saveButton = screen.getByRole('button', { name: 'Save feedback settings' })
     expect(saveButton).toBeEnabled()
     await user.click(saveButton)
     expect(onSaveOutboundWebhook).toHaveBeenCalledTimes(1)

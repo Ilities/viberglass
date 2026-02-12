@@ -466,6 +466,130 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     expect(mockWebhookConfigDAO.createConfig).not.toHaveBeenCalled();
   });
 
+  it("forces Shortcut outbound events to include both job lifecycle updates", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-shortcut",
+      system: "shortcut",
+      values: {},
+    });
+    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([]);
+    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
+    mockWebhookConfigDAO.createConfig.mockResolvedValue({
+      id: "outbound-shortcut-1",
+      provider: "shortcut",
+      allowedEvents: ["job_started", "job_ended"],
+      active: true,
+      apiTokenEncrypted: "token-1",
+      providerProjectId: "123",
+      projectId: null,
+      createdAt: new Date("2026-02-11T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
+    });
+
+    await request(app)
+      .post("/api/integrations/int-shortcut/webhooks/outbound")
+      .send({
+        events: ["job_started"],
+        providerProjectId: "123",
+        apiToken: "shortcut-token",
+      })
+      .expect(201);
+
+    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "shortcut",
+        direction: "outbound",
+        allowedEvents: ["job_started", "job_ended"],
+        providerProjectId: "123",
+      }),
+    );
+  });
+
+  it("forces Jira outbound events to include both job lifecycle updates", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-jira",
+      system: "jira",
+      values: {},
+    });
+    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([]);
+    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
+    mockWebhookConfigDAO.createConfig.mockResolvedValue({
+      id: "outbound-jira-1",
+      provider: "jira",
+      allowedEvents: ["job_started", "job_ended"],
+      active: true,
+      apiTokenEncrypted: "token-1",
+      providerProjectId: "OPS",
+      projectId: null,
+      createdAt: new Date("2026-02-11T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
+    });
+
+    await request(app)
+      .post("/api/integrations/int-jira/webhooks/outbound")
+      .send({
+        events: ["job_started"],
+        providerProjectId: "OPS",
+        apiToken: "jira-token",
+      })
+      .expect(201);
+
+    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "jira",
+        direction: "outbound",
+        allowedEvents: ["job_started", "job_ended"],
+        providerProjectId: "OPS",
+      }),
+    );
+  });
+
+  it("rejects deleting Shortcut outbound feedback configuration", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-shortcut",
+      system: "shortcut",
+      values: {},
+    });
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: "outbound-shortcut-1",
+      provider: "shortcut",
+      direction: "outbound",
+      active: true,
+    });
+
+    const response = await request(app)
+      .delete("/api/integrations/int-shortcut/webhooks/outbound/outbound-shortcut-1")
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: "Shortcut outbound webhook is required and cannot be removed",
+    });
+    expect(mockWebhookConfigDAO.deleteConfig).not.toHaveBeenCalled();
+  });
+
+  it("rejects deleting Jira outbound feedback configuration", async () => {
+    mockIntegrationDAO.getIntegration.mockResolvedValue({
+      id: "int-jira",
+      system: "jira",
+      values: {},
+    });
+    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
+      id: "outbound-jira-1",
+      provider: "jira",
+      direction: "outbound",
+      active: true,
+    });
+
+    const response = await request(app)
+      .delete("/api/integrations/int-jira/webhooks/outbound/outbound-jira-1")
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: "Jira outbound webhook is required and cannot be removed",
+    });
+    expect(mockWebhookConfigDAO.deleteConfig).not.toHaveBeenCalled();
+  });
+
   it("lists multiple custom outbound targets for a custom integration", async () => {
     mockIntegrationDAO.getIntegration.mockResolvedValue({
       id: "int-custom",

@@ -14,9 +14,11 @@ interface ShortcutInboundWebhookSectionProps {
   isLoadingDeliveries: boolean
   isLoadingWebhook: boolean
   isSavingWebhook: boolean
+  projects: Array<{ id: string; name: string }> | null
+  selectedInboundProjectId: string | null
+  selectedInboundProviderProjectId: string | null
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
   selectedInboundConfigId: string | null
-  shortcutProjectId: string | null
   showSecret: boolean
   onAutoExecuteChange: (value: boolean) => void
   onCopyWebhookSecret: () => void
@@ -24,6 +26,8 @@ interface ShortcutInboundWebhookSectionProps {
   onCreateInboundWebhook: () => void
   onDeleteInboundWebhook: () => void
   onGenerateSecret: () => void
+  onInboundProjectChange: (projectId: string | null) => void
+  onProviderProjectIdChange: (projectId: string | null) => void
   onRefreshDeliveries: () => void
   onRetryDelivery: (deliveryId: string) => void
   onSaveWebhook: () => void
@@ -58,9 +62,11 @@ export function ShortcutInboundWebhookSection({
   isLoadingDeliveries,
   isLoadingWebhook,
   isSavingWebhook,
+  projects,
+  selectedInboundProjectId,
+  selectedInboundProviderProjectId,
   selectedInboundConfig,
   selectedInboundConfigId,
-  shortcutProjectId,
   showSecret,
   onAutoExecuteChange,
   onCopyWebhookSecret,
@@ -68,6 +74,8 @@ export function ShortcutInboundWebhookSection({
   onCreateInboundWebhook,
   onDeleteInboundWebhook,
   onGenerateSecret,
+  onInboundProjectChange,
+  onProviderProjectIdChange,
   onRefreshDeliveries,
   onRetryDelivery,
   onSaveWebhook,
@@ -77,9 +85,9 @@ export function ShortcutInboundWebhookSection({
 }: ShortcutInboundWebhookSectionProps) {
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-      <Subheading>Shortcut Inbound Webhook</Subheading>
+      <Subheading>Shortcut Inbound Trigger</Subheading>
       <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Configure Shortcut story and comment webhooks to ingest targeted events into Viberator.
+        Configure inbound Shortcut events that create Viberglass tickets and optionally auto-run jobs.
       </Text>
 
       <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
@@ -90,23 +98,15 @@ export function ShortcutInboundWebhookSection({
           </li>
           <li>Use the webhook URL below and enable the same story/comment events selected in this section.</li>
           <li>Set the signing secret below and send it as `X-Shortcut-Signature: sha256=&lt;hmac&gt;`.</li>
-          <li>Use a Project ID filter in Shortcut when available to keep inbound routing targeted.</li>
+          <li>Use a Shortcut Project ID filter when possible to keep inbound routing deterministic.</li>
         </ol>
       </div>
 
       <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
-        <p className="text-sm font-medium text-zinc-900 dark:text-white">Inbound project scope</p>
+        <p className="text-sm font-medium text-zinc-900 dark:text-white">Project scope</p>
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-          Shortcut Project ID currently used for targeted config mapping:
+          Each inbound config can map events to a Viberglass project and optionally pin routing to a Shortcut project ID.
         </p>
-        <code className="mt-2 inline-block rounded bg-zinc-200 px-2 py-1 text-xs dark:bg-zinc-700">
-          {shortcutProjectId || 'No project filter configured'}
-        </code>
-        {!shortcutProjectId && (
-          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-            Save a Shortcut Project ID in integration configuration if you want project-scoped inbound targeting.
-          </p>
-        )}
       </div>
 
       {isLoadingWebhook ? (
@@ -139,6 +139,47 @@ export function ShortcutInboundWebhookSection({
 
               {selectedInboundConfig && (
                 <>
+                  {projects && projects.length > 0 && (
+                    <div>
+                      <label htmlFor="shortcutInboundProjectId" className="block text-sm font-medium text-zinc-900 dark:text-white">
+                        Viberglass project
+                      </label>
+                      <select
+                        id="shortcutInboundProjectId"
+                        value={selectedInboundProjectId ?? ''}
+                        onChange={(event) => onInboundProjectChange(event.target.value || null)}
+                        className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      >
+                        <option value="">Use integration-linked default project</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="shortcutInboundProviderProjectId" className="block text-sm font-medium text-zinc-900 dark:text-white">
+                      Shortcut project ID (optional)
+                    </label>
+                    <input
+                      id="shortcutInboundProviderProjectId"
+                      type="text"
+                      value={selectedInboundProviderProjectId ?? ''}
+                      onChange={(event) => {
+                        const value = event.target.value.trim()
+                        onProviderProjectIdChange(value.length > 0 ? value : null)
+                      }}
+                      placeholder="e.g. 12345"
+                      className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    />
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      Used to match inbound events to the correct integration config when multiple projects are linked.
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook URL</label>
                     <div className="mt-1 flex gap-2">
@@ -214,7 +255,7 @@ export function ShortcutInboundWebhookSection({
                       className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
                     />
                     <label htmlFor="shortcutAutoExecute" className="text-sm text-zinc-900 dark:text-white">
-                      Auto-execute fixes after matching Shortcut inbound events
+                      Auto-execute jobs after matching Shortcut inbound events
                     </label>
                     {hasInboundChanges && (
                       <Button color="brand" size="small" onClick={onSaveWebhook} disabled={isSavingWebhook}>

@@ -21,9 +21,14 @@ function createInboundProps(
     isLoadingDeliveries: false,
     isLoadingWebhook: false,
     isSavingWebhook: false,
+    projects: [
+      { id: 'project-1', name: 'Viberglass' },
+      { id: 'project-2', name: 'Waxcarvers' },
+    ],
+    selectedInboundProjectId: null,
+    selectedInboundProviderProjectId: '22',
     selectedInboundConfig: null,
     selectedInboundConfigId: null,
-    shortcutProjectId: '22',
     showSecret: false,
     onAutoExecuteChange: jest.fn(),
     onCopyWebhookSecret: jest.fn(),
@@ -31,6 +36,8 @@ function createInboundProps(
     onCreateInboundWebhook: jest.fn(),
     onDeleteInboundWebhook: jest.fn(),
     onGenerateSecret: jest.fn(),
+    onInboundProjectChange: jest.fn(),
+    onProviderProjectIdChange: jest.fn(),
     onRefreshDeliveries: jest.fn(),
     onRetryDelivery: jest.fn(),
     onSaveWebhook: jest.fn(),
@@ -45,9 +52,6 @@ function createOutboundProps(
   overrides: Partial<ComponentProps<typeof ShortcutOutboundWebhookSection>> = {}
 ): ComponentProps<typeof ShortcutOutboundWebhookSection> {
   return {
-    emitJobEnded: true,
-    emitJobStarted: true,
-    hasOutboundChanges: true,
     isSavingWebhook: false,
     outboundApiToken: '',
     outboundWebhook: {
@@ -61,9 +65,6 @@ function createOutboundProps(
       updatedAt: '2026-02-10T00:00:00.000Z',
     },
     projectMapping: '22',
-    onDeleteOutboundWebhook: jest.fn(),
-    onEmitJobEndedChange: jest.fn(),
-    onEmitJobStartedChange: jest.fn(),
     onOutboundApiTokenChange: jest.fn(),
     onSaveOutboundWebhook: jest.fn(),
     ...overrides,
@@ -71,19 +72,47 @@ function createOutboundProps(
 }
 
 describe('Shortcut webhook sections', () => {
-  it('renders inbound Shortcut setup and project hint when project id is missing', () => {
+  it('renders inbound Shortcut setup and project scope controls', () => {
     renderWithTheme(
       <ShortcutInboundWebhookSection
         {...createInboundProps({
-          shortcutProjectId: null,
+          selectedInboundProviderProjectId: null,
+          inboundWebhooks: [
+            {
+              id: 'inbound-1',
+              provider: 'shortcut',
+              webhookUrl: '/api/webhooks/shortcut',
+              events: ['story_created'],
+              autoExecute: false,
+              active: true,
+              hasSecret: true,
+              webhookSecret: 'secret',
+              createdAt: '2026-02-10T00:00:00.000Z',
+              updatedAt: '2026-02-10T00:00:00.000Z',
+            },
+          ],
+          selectedInboundConfig: {
+            id: 'inbound-1',
+            provider: 'shortcut',
+            webhookUrl: '/api/webhooks/shortcut',
+            events: ['story_created'],
+            autoExecute: false,
+            active: true,
+            hasSecret: true,
+            webhookSecret: 'secret',
+            createdAt: '2026-02-10T00:00:00.000Z',
+            updatedAt: '2026-02-10T00:00:00.000Z',
+          },
+          selectedInboundConfigId: 'inbound-1',
         })}
       />
     )
 
-    expect(screen.getByRole('heading', { name: 'Shortcut Inbound Webhook' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Shortcut Inbound Trigger' })).toBeInTheDocument()
     expect(screen.getByText('Shortcut setup steps')).toBeInTheDocument()
-    expect(screen.getByText('No project filter configured')).toBeInTheDocument()
-    expect(screen.getByText(/Save a Shortcut Project ID/i)).toBeInTheDocument()
+    expect(screen.getByText('Project scope')).toBeInTheDocument()
+    expect(screen.getByLabelText('Viberglass project')).toBeInTheDocument()
+    expect(screen.getByLabelText('Shortcut project ID (optional)')).toBeInTheDocument()
   })
 
   it('toggles Shortcut inbound comment event option', async () => {
@@ -178,7 +207,7 @@ describe('Shortcut webhook sections', () => {
       />
     )
 
-    const saveButton = screen.getByRole('button', { name: 'Save outbound settings' })
+    const saveButton = screen.getByRole('button', { name: 'Save feedback settings' })
     expect(saveButton).toBeEnabled()
     await user.click(saveButton)
     expect(onSaveOutboundWebhook).toHaveBeenCalledTimes(1)

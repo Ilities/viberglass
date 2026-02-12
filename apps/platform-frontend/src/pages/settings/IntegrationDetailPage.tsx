@@ -13,7 +13,6 @@ import {
   createIntegration,
   getAvailableIntegrationTypes,
   getIntegration,
-  getIntegrations,
   testIntegration,
   updateIntegration,
   type AvailableIntegrationType,
@@ -96,18 +95,16 @@ export function IntegrationDetailPage() {
     return null
   }, [initialValues, isGithubIntegration, webhook.outboundWebhook?.providerProjectId])
 
-  const jiraProjectKey = useMemo(() => {
+  const jiraProjectMapping = useMemo(() => {
     if (!isJiraIntegration) {
       return null
     }
 
-    const projectKey = typeof initialValues.projectKey === 'string' ? initialValues.projectKey.trim() : ''
-    return projectKey || null
-  }, [initialValues.projectKey, isJiraIntegration])
-
-  const jiraProjectMapping = useMemo(() => {
-    if (!isJiraIntegration) {
-      return null
+    if (
+      typeof webhook.selectedInboundProviderProjectId === 'string' &&
+      webhook.selectedInboundProviderProjectId.trim().length > 0
+    ) {
+      return webhook.selectedInboundProviderProjectId.trim()
     }
 
     const fromWebhookConfig = webhook.outboundWebhook?.providerProjectId
@@ -115,38 +112,28 @@ export function IntegrationDetailPage() {
       return fromWebhookConfig.trim()
     }
 
-    return jiraProjectKey
-  }, [isJiraIntegration, jiraProjectKey, webhook.outboundWebhook?.providerProjectId])
-
-  const shortcutProjectId = useMemo(() => {
-    if (!isShortcutIntegration) {
-      return null
-    }
-
-    const value = initialValues.projectId
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim()
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value)
-    }
-
     return null
-  }, [initialValues.projectId, isShortcutIntegration])
+  }, [isJiraIntegration, webhook.outboundWebhook?.providerProjectId, webhook.selectedInboundProviderProjectId])
 
   const shortcutProjectMapping = useMemo(() => {
     if (!isShortcutIntegration) {
       return null
     }
 
+    if (
+      typeof webhook.selectedInboundProviderProjectId === 'string' &&
+      webhook.selectedInboundProviderProjectId.trim().length > 0
+    ) {
+      return webhook.selectedInboundProviderProjectId.trim()
+    }
+
     const fromWebhookConfig = webhook.outboundWebhook?.providerProjectId
     if (typeof fromWebhookConfig === 'string' && fromWebhookConfig.trim().length > 0) {
       return fromWebhookConfig.trim()
     }
 
-    return shortcutProjectId
-  }, [isShortcutIntegration, shortcutProjectId, webhook.outboundWebhook?.providerProjectId])
+    return null
+  }, [isShortcutIntegration, webhook.outboundWebhook?.providerProjectId, webhook.selectedInboundProviderProjectId])
 
   useEffect(() => {
     let isActive = true
@@ -156,6 +143,7 @@ export function IntegrationDetailPage() {
         setIsPageLoading(false)
         setIntegrationType(null)
         setExistingIntegration(null)
+        setProjects(null)
         return
       }
 
@@ -175,15 +163,26 @@ export function IntegrationDetailPage() {
           setIntegrationType(type || null)
           setExistingIntegration(null)
 
-          // Auto-create Custom Webhook integration when visiting the new page
-          if (integrationSystemParam === 'custom' && type) {
+          // Auto-create webhook-first integrations when visiting the new page.
+          if (
+            (integrationSystemParam === 'custom' ||
+              integrationSystemParam === 'shortcut' ||
+              integrationSystemParam === 'jira') &&
+            type
+          ) {
+            const autoAuthType = type.authTypes[0]
+            if (!autoAuthType) {
+              setLoadError('No supported auth type found for integration')
+              return
+            }
+
             setIsAutoCreating(true)
             try {
-              const autoName = `Custom Webhook ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`
+              const autoName = `${type.label} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`
               const newIntegration = await createIntegration({
                 name: autoName,
-                system: 'custom',
-                authType: 'api_key',
+                system: integrationSystemParam as TicketSystem,
+                authType: autoAuthType,
                 values: {},
               })
               if (!isActive) {
@@ -192,8 +191,8 @@ export function IntegrationDetailPage() {
               navigate(`/settings/integrations/${newIntegration.id}`, { replace: true })
               return
             } catch (error) {
-              console.error('Failed to auto-create custom integration:', error)
-              setLoadError(error instanceof Error ? error.message : 'Failed to create custom integration')
+              console.error('Failed to auto-create integration:', error)
+              setLoadError(error instanceof Error ? error.message : 'Failed to create integration')
             } finally {
               if (isActive) {
                 setIsAutoCreating(false)
@@ -206,27 +205,6 @@ export function IntegrationDetailPage() {
         if (!integrationEntityIdParam) {
           setIntegrationType(null)
           setExistingIntegration(null)
-          return
-        }
-
-        const legacyType = typeMap.get(integrationEntityIdParam as TicketSystem)
-        if (legacyType) {
-          const integrations = await getIntegrations(legacyType.id)
-          if (!isActive) {
-            return
-          }
-
-          if (integrations.length === 1) {
-            navigate(`/settings/integrations/${integrations[0].id}`, { replace: true })
-            return
-          }
-
-          if (integrations.length === 0) {
-            navigate(`/settings/integrations/new/${legacyType.id}`, { replace: true })
-            return
-          }
-
-          navigate('/settings/integrations', { replace: true })
           return
         }
 
@@ -246,8 +224,12 @@ export function IntegrationDetailPage() {
         setIntegrationType(type)
         setExistingIntegration(fullIntegration)
 
-        // Load projects for custom integration
-        if (fullIntegration.system === 'custom') {
+        // Load projects for integration-scoped project mapping controls.
+        if (
+          fullIntegration.system === 'custom' ||
+          fullIntegration.system === 'shortcut' ||
+          fullIntegration.system === 'jira'
+        ) {
           try {
             const loadedProjects = await getProjects()
             if (isActive) {
@@ -256,6 +238,8 @@ export function IntegrationDetailPage() {
           } catch (projectError) {
             console.error('Failed to load projects:', projectError)
           }
+        } else if (isActive) {
+          setProjects(null)
         }
       } catch (error) {
         if (!isActive) {
@@ -358,68 +342,58 @@ export function IntegrationDetailPage() {
     navigate('/settings/integrations')
   }
 
-  const requireJiraProjectKey = (): string | null => {
-    if (jiraProjectKey) {
-      return jiraProjectKey
-    }
-
-    toast.error('Jira project key is required before saving webhook settings', {
-      description: 'Set the Project Key in Configuration and save the integration first.',
-    })
-    return null
-  }
-
   const handleJiraCreateInboundWebhook = () => {
-    const projectKey = requireJiraProjectKey()
-    if (!projectKey) {
-      return
-    }
-
-    void webhook.handleCreateInboundWebhook(projectKey)
+    void webhook.handleCreateInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
   }
 
   const handleJiraGenerateSecret = () => {
-    const projectKey = requireJiraProjectKey()
-    if (!projectKey) {
-      return
-    }
-
-    void webhook.handleGenerateSecret(projectKey)
+    void webhook.handleGenerateSecret(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
   }
 
   const handleJiraSaveInboundWebhook = () => {
-    const projectKey = requireJiraProjectKey()
-    if (!projectKey) {
-      return
-    }
-
-    void webhook.handleSaveInboundWebhook(projectKey)
+    void webhook.handleSaveInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
   }
 
   const handleJiraSaveOutboundWebhook = () => {
-    const projectMapping = jiraProjectMapping || requireJiraProjectKey()
-    if (!projectMapping) {
-      return
-    }
-
     if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
       toast.error('Jira API token is required to create outbound webhook settings')
       return
     }
 
-    void webhook.handleSaveOutboundWebhook(projectMapping)
+    void webhook.handleSaveOutboundWebhook(jiraProjectMapping, {
+      forcedEvents: ['job_started', 'job_ended'],
+      projectId: webhook.selectedInboundProjectId,
+    })
   }
 
   const handleShortcutCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(shortcutProjectId || undefined)
+    void webhook.handleCreateInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
   }
 
   const handleShortcutGenerateSecret = () => {
-    void webhook.handleGenerateSecret(shortcutProjectId || undefined)
+    void webhook.handleGenerateSecret(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
   }
 
   const handleShortcutSaveInboundWebhook = () => {
-    void webhook.handleSaveInboundWebhook(shortcutProjectId || undefined)
+    void webhook.handleSaveInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
   }
 
   const handleShortcutSaveOutboundWebhook = () => {
@@ -428,7 +402,9 @@ export function IntegrationDetailPage() {
       return
     }
 
-    void webhook.handleSaveOutboundWebhook(shortcutProjectMapping || undefined)
+    void webhook.handleSaveOutboundWebhook(shortcutProjectMapping, {
+      forcedEvents: ['job_started', 'job_ended'],
+    })
   }
 
   if (integrationType.status === 'stub') {
@@ -499,7 +475,7 @@ export function IntegrationDetailPage() {
         </div>
       </div>
 
-      {!isCustomIntegration && (
+      {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && (
         <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
           <Subheading>Configuration</Subheading>
           <div className="mt-6">
@@ -556,7 +532,9 @@ export function IntegrationDetailPage() {
             isLoadingDeliveries={webhook.isLoadingDeliveries}
             isLoadingWebhook={webhook.isLoadingWebhook}
             isSavingWebhook={webhook.isSavingWebhook}
-            jiraProjectKey={jiraProjectKey}
+            projects={projects}
+            selectedInboundProjectId={webhook.selectedInboundProjectId}
+            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
             selectedInboundConfig={webhook.selectedInboundConfig}
             selectedInboundConfigId={webhook.selectedInboundConfigId}
             showSecret={webhook.showSecret}
@@ -566,6 +544,8 @@ export function IntegrationDetailPage() {
             onCreateInboundWebhook={handleJiraCreateInboundWebhook}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
             onGenerateSecret={handleJiraGenerateSecret}
+            onInboundProjectChange={webhook.setSelectedInboundProjectId}
+            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
             onSaveWebhook={handleJiraSaveInboundWebhook}
@@ -583,9 +563,11 @@ export function IntegrationDetailPage() {
             isLoadingDeliveries={webhook.isLoadingDeliveries}
             isLoadingWebhook={webhook.isLoadingWebhook}
             isSavingWebhook={webhook.isSavingWebhook}
+            projects={projects}
+            selectedInboundProjectId={webhook.selectedInboundProjectId}
+            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
             selectedInboundConfig={webhook.selectedInboundConfig}
             selectedInboundConfigId={webhook.selectedInboundConfigId}
-            shortcutProjectId={shortcutProjectId}
             showSecret={webhook.showSecret}
             onAutoExecuteChange={webhook.setAutoExecute}
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
@@ -593,6 +575,8 @@ export function IntegrationDetailPage() {
             onCreateInboundWebhook={handleShortcutCreateInboundWebhook}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
             onGenerateSecret={handleShortcutGenerateSecret}
+            onInboundProjectChange={webhook.setSelectedInboundProjectId}
+            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
             onSaveWebhook={handleShortcutSaveInboundWebhook}
@@ -674,31 +658,19 @@ export function IntegrationDetailPage() {
           />
         ) : isJiraIntegration ? (
           <JiraOutboundWebhookSection
-            emitJobEnded={webhook.emitJobEnded}
-            emitJobStarted={webhook.emitJobStarted}
-            hasOutboundChanges={webhook.hasOutboundChanges}
             isSavingWebhook={webhook.isSavingWebhook}
             outboundApiToken={webhook.outboundApiToken}
             outboundWebhook={webhook.outboundWebhook}
             projectMapping={jiraProjectMapping}
-            onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
-            onEmitJobEndedChange={webhook.setEmitJobEnded}
-            onEmitJobStartedChange={webhook.setEmitJobStarted}
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
             onSaveOutboundWebhook={handleJiraSaveOutboundWebhook}
           />
         ) : isShortcutIntegration ? (
           <ShortcutOutboundWebhookSection
-            emitJobEnded={webhook.emitJobEnded}
-            emitJobStarted={webhook.emitJobStarted}
-            hasOutboundChanges={webhook.hasOutboundChanges}
             isSavingWebhook={webhook.isSavingWebhook}
             outboundApiToken={webhook.outboundApiToken}
             outboundWebhook={webhook.outboundWebhook}
             projectMapping={shortcutProjectMapping}
-            onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
-            onEmitJobEndedChange={webhook.setEmitJobEnded}
-            onEmitJobStartedChange={webhook.setEmitJobStarted}
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
             onSaveOutboundWebhook={handleShortcutSaveOutboundWebhook}
           />
