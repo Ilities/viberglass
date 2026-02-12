@@ -17,7 +17,9 @@ interface JiraInboundWebhookSectionProps {
   isLoadingDeliveries: boolean
   isLoadingWebhook: boolean
   isSavingWebhook: boolean
-  jiraProjectKey: string | null
+  projects: Array<{ id: string; name: string }> | null
+  selectedInboundProjectId: string | null
+  selectedInboundProviderProjectId: string | null
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
   selectedInboundConfigId: string | null
   showSecret: boolean
@@ -27,6 +29,8 @@ interface JiraInboundWebhookSectionProps {
   onCreateInboundWebhook: () => void
   onDeleteInboundWebhook: () => void
   onGenerateSecret: () => void
+  onInboundProjectChange: (projectId: string | null) => void
+  onProviderProjectIdChange: (projectId: string | null) => void
   onRefreshDeliveries: () => void
   onRetryDelivery: (deliveryId: string) => void
   onSaveWebhook: () => void
@@ -66,7 +70,9 @@ export function JiraInboundWebhookSection({
   isLoadingDeliveries,
   isLoadingWebhook,
   isSavingWebhook,
-  jiraProjectKey,
+  projects,
+  selectedInboundProjectId,
+  selectedInboundProviderProjectId,
   selectedInboundConfig,
   selectedInboundConfigId,
   showSecret,
@@ -76,6 +82,8 @@ export function JiraInboundWebhookSection({
   onCreateInboundWebhook,
   onDeleteInboundWebhook,
   onGenerateSecret,
+  onInboundProjectChange,
+  onProviderProjectIdChange,
   onRefreshDeliveries,
   onRetryDelivery,
   onSaveWebhook,
@@ -95,7 +103,7 @@ export function JiraInboundWebhookSection({
         <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
           <li>In Jira, open Settings {'>'} System {'>'} Webhooks and add a new webhook.</li>
           <li>Use the webhook URL below and select the same inbound events enabled in this section.</li>
-          <li>Set project filtering with your Jira project key to keep payload routing targeted.</li>
+          <li>Optionally set Jira project filtering with the project key below to keep routing deterministic.</li>
           <li>Set and rotate the webhook secret below for request signature verification.</li>
         </ol>
       </div>
@@ -103,16 +111,8 @@ export function JiraInboundWebhookSection({
       <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
         <p className="text-sm font-medium text-zinc-900 dark:text-white">Inbound project scope</p>
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-          Active project key used for config targeting:
+          Each inbound config can map events to a Viberglass project and optionally pin routing to a Jira project key.
         </p>
-        <code className="mt-2 inline-block rounded bg-zinc-200 px-2 py-1 text-xs dark:bg-zinc-700">
-          {jiraProjectKey || 'Missing project key in integration configuration'}
-        </code>
-        {!jiraProjectKey && (
-          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-            Save a Jira Project Key in the integration configuration before creating or saving inbound webhooks.
-          </p>
-        )}
       </div>
 
       {isLoadingWebhook ? (
@@ -145,6 +145,47 @@ export function JiraInboundWebhookSection({
 
               {selectedInboundConfig && (
                 <>
+                  {projects && projects.length > 0 && (
+                    <div>
+                      <label htmlFor="jiraInboundProjectId" className="block text-sm font-medium text-zinc-900 dark:text-white">
+                        Viberglass project
+                      </label>
+                      <select
+                        id="jiraInboundProjectId"
+                        value={selectedInboundProjectId ?? ''}
+                        onChange={(event) => onInboundProjectChange(event.target.value || null)}
+                        className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      >
+                        <option value="">Use integration-linked default project</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="jiraInboundProviderProjectId" className="block text-sm font-medium text-zinc-900 dark:text-white">
+                      Jira project key (optional)
+                    </label>
+                    <input
+                      id="jiraInboundProviderProjectId"
+                      type="text"
+                      value={selectedInboundProviderProjectId ?? ''}
+                      onChange={(event) => {
+                        const value = event.target.value.trim()
+                        onProviderProjectIdChange(value.length > 0 ? value : null)
+                      }}
+                      placeholder="e.g. OPS"
+                      className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    />
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      Used to match inbound events to the correct config when multiple Jira projects are linked.
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook URL</label>
                     <div className="mt-1 flex gap-2">

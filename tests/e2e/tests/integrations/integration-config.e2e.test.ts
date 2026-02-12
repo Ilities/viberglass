@@ -76,9 +76,6 @@ async function openConfiguredGitHubIntegration(page: Page): Promise<boolean> {
 }
 
 async function createConfiguredJiraIntegration(page: Page): Promise<boolean> {
-  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const projectKey = `E2E${Date.now().toString().slice(-4)}`;
-
   await page.goto("/settings/integrations/new/jira");
   if (
     page.url().includes("/login") ||
@@ -88,36 +85,6 @@ async function createConfiguredJiraIntegration(page: Page): Promise<boolean> {
   ) {
     return false;
   }
-
-  const tokenInput = page.getByLabel(/Access Token/i).first();
-  const usernameInput = page.getByLabel(/Username/i).first();
-  const passwordInput = page.getByLabel(/Password/i).first();
-  const instanceUrlInput = page.getByLabel(/Instance URL/i).first();
-  const projectKeyInput = page.getByLabel(/Project Key/i).first();
-
-  if (
-    (await instanceUrlInput.count()) === 0 ||
-    (await projectKeyInput.count()) === 0
-  ) {
-    return false;
-  }
-
-  if ((await tokenInput.count()) > 0) {
-    await tokenInput.fill(`e2e-jira-token-${uniqueSuffix}`);
-  } else if (
-    (await usernameInput.count()) > 0 &&
-    (await passwordInput.count()) > 0
-  ) {
-    await usernameInput.fill(`e2e-user-${uniqueSuffix}`);
-    await passwordInput.fill("e2e-jira-password");
-  } else {
-    return false;
-  }
-
-  await instanceUrlInput.fill("https://jira-e2e.example.com");
-  await projectKeyInput.fill(projectKey);
-
-  await page.getByRole("button", { name: "Save Configuration" }).click();
 
   try {
     await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
@@ -159,9 +126,6 @@ async function openConfiguredJiraIntegration(page: Page): Promise<boolean> {
 async function createConfiguredShortcutIntegration(
   page: Page,
 ): Promise<boolean> {
-  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const projectId = `${Date.now().toString().slice(-5)}`;
-
   await page.goto("/settings/integrations/new/shortcut");
   if (
     page.url().includes("/login") ||
@@ -171,27 +135,6 @@ async function createConfiguredShortcutIntegration(
   ) {
     return false;
   }
-
-  const apiTokenInput = page.getByLabel(/API Key|Access Token|Token/i).first();
-  const projectIdInput = page.getByLabel(/Project ID/i).first();
-  const workflowStateIdInput = page.getByLabel(/Workflow State ID/i).first();
-
-  if ((await projectIdInput.count()) === 0) {
-    return false;
-  }
-
-  if ((await apiTokenInput.count()) > 0) {
-    await apiTokenInput.fill(`shortcut-token-${uniqueSuffix}`);
-  } else {
-    return false;
-  }
-
-  await projectIdInput.fill(projectId);
-  if ((await workflowStateIdInput.count()) > 0) {
-    await workflowStateIdInput.fill("5001");
-  }
-
-  await page.getByRole("button", { name: "Save Configuration" }).click();
 
   try {
     await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
@@ -596,15 +539,20 @@ test.describe("Integration Configuration E2E Tests", () => {
   });
 
   test.describe("Jira Integration Configuration", () => {
-    test("should display Jira integration configuration page", async ({
+    test("should auto-create Jira integration from new route", async ({
       authenticatedPage: page,
     }) => {
       await page.goto("/settings/integrations/new/jira");
 
-      // Check page title
+      await page.waitForURL(/\/settings\/integrations\/(?!new\/)[^/]+$/, {
+        timeout: 20000,
+      });
       await expect(
         page.getByRole("heading", { name: "Jira", exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Configuration" }),
+      ).toHaveCount(0);
     });
   });
 
@@ -625,10 +573,13 @@ test.describe("Integration Configuration E2E Tests", () => {
         page.getByRole("heading", { name: "Jira Inbound Webhook" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "Jira Outbound Events" }),
+        page.getByRole("heading", { name: "Jira Feedback" }),
       ).toBeVisible();
       await expect(page.getByText("Jira setup steps")).toBeVisible();
-      await expect(page.getByText("Jira mapping preview")).toBeVisible();
+      await expect(page.getByText("Always-on feedback events")).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Configuration" }),
+      ).toHaveCount(0);
 
       await expect(
         page.getByText(
@@ -687,24 +638,8 @@ test.describe("Integration Configuration E2E Tests", () => {
       }
 
       const outboundSection = page.locator("section", {
-        has: page.getByRole("heading", { name: "Jira Outbound Events" }),
+        has: page.getByRole("heading", { name: "Jira Feedback" }),
       });
-      const jobStartedToggle = outboundSection.getByLabel(
-        "Publish `job_started` status comment",
-      );
-      if ((await jobStartedToggle.count()) === 0) {
-        test.skip(
-          true,
-          "Jira outbound event toggles are unavailable in this environment",
-        );
-      }
-
-      const outboundWasChecked = await jobStartedToggle.isChecked();
-      if (outboundWasChecked) {
-        await jobStartedToggle.uncheck();
-      } else {
-        await jobStartedToggle.check();
-      }
 
       const outboundTokenInput = outboundSection.getByLabel("Jira API token");
       if ((await outboundTokenInput.count()) > 0) {
@@ -712,7 +647,7 @@ test.describe("Integration Configuration E2E Tests", () => {
       }
       await outboundSection
         .getByRole("button", {
-          name: /Save outbound settings|Create outbound config/,
+          name: /Save feedback settings|Enable feedback/,
         })
         .click();
 
@@ -725,16 +660,12 @@ test.describe("Integration Configuration E2E Tests", () => {
         await expect(issueUpdatedToggleAfterReload).toBeChecked();
       }
 
-      const jobStartedToggleAfterReload = page
-        .locator("section", {
-          has: page.getByRole("heading", { name: "Jira Outbound Events" }),
-        })
-        .getByLabel("Publish `job_started` status comment");
-      if (outboundWasChecked) {
-        await expect(jobStartedToggleAfterReload).not.toBeChecked();
-      } else {
-        await expect(jobStartedToggleAfterReload).toBeChecked();
-      }
+      await expect(
+        page.locator("section", {
+          has: page.getByRole("heading", { name: "Jira Feedback" }),
+        }),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: "Remove outbound webhook" })).toHaveCount(0);
     });
 
     test("should support selecting between multiple inbound Jira configs", async ({
@@ -822,13 +753,13 @@ test.describe("Integration Configuration E2E Tests", () => {
       }
 
       await expect(
-        page.getByRole("heading", { name: "Shortcut Inbound Webhook" }),
+        page.getByRole("heading", { name: "Shortcut Inbound Trigger" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "Shortcut Outbound Events" }),
+        page.getByRole("heading", { name: "Shortcut Feedback" }),
       ).toBeVisible();
       await expect(page.getByText("Shortcut setup steps")).toBeVisible();
-      await expect(page.getByText("Shortcut story targeting")).toBeVisible();
+      await expect(page.getByText("Always-on feedback events")).toBeVisible();
 
       await expect(
         page.getByText(
@@ -855,7 +786,7 @@ test.describe("Integration Configuration E2E Tests", () => {
       }
 
       const inboundSection = page.locator("section", {
-        has: page.getByRole("heading", { name: "Shortcut Inbound Webhook" }),
+        has: page.getByRole("heading", { name: "Shortcut Inbound Trigger" }),
       });
       const createInboundButton = inboundSection.getByRole("button", {
         name: "Create Shortcut inbound webhook",
@@ -887,25 +818,8 @@ test.describe("Integration Configuration E2E Tests", () => {
       }
 
       const outboundSection = page.locator("section", {
-        has: page.getByRole("heading", { name: "Shortcut Outbound Events" }),
+        has: page.getByRole("heading", { name: "Shortcut Feedback" }),
       });
-      const jobStartedToggle = outboundSection.getByLabel(
-        "Publish `job_started` status comment",
-      );
-      if ((await jobStartedToggle.count()) === 0) {
-        test.skip(
-          true,
-          "Shortcut outbound event toggles are unavailable in this environment",
-        );
-      }
-
-      const outboundWasChecked = await jobStartedToggle.isChecked();
-      if (outboundWasChecked) {
-        await jobStartedToggle.uncheck();
-      } else {
-        await jobStartedToggle.check();
-      }
-
       const outboundTokenInput =
         outboundSection.getByLabel("Shortcut API token");
       if ((await outboundTokenInput.count()) > 0) {
@@ -913,7 +827,7 @@ test.describe("Integration Configuration E2E Tests", () => {
       }
       await outboundSection
         .getByRole("button", {
-          name: /Save outbound settings|Create outbound config/,
+          name: /Save feedback settings|Enable feedback/,
         })
         .click();
 
@@ -927,16 +841,11 @@ test.describe("Integration Configuration E2E Tests", () => {
         await expect(commentCreatedToggleAfterReload).toBeChecked();
       }
 
-      const jobStartedToggleAfterReload = page
-        .locator("section", {
-          has: page.getByRole("heading", { name: "Shortcut Outbound Events" }),
-        })
-        .getByLabel("Publish `job_started` status comment");
-      if (outboundWasChecked) {
-        await expect(jobStartedToggleAfterReload).not.toBeChecked();
-      } else {
-        await expect(jobStartedToggleAfterReload).toBeChecked();
-      }
+      await expect(
+        page.locator("section", {
+          has: page.getByRole("heading", { name: "Shortcut Feedback" }),
+        }),
+      ).toBeVisible();
     });
   });
 
