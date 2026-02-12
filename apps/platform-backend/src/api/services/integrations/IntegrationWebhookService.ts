@@ -25,6 +25,14 @@ import {
   serializeWebhookDelivery,
 } from './shared'
 
+const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+const GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS = 'matching_events'
+const GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED = 'label_gated'
+
+type GitHubAutoExecuteMode =
+  | typeof GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS
+  | typeof GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED
+
 export class IntegrationWebhookService {
   constructor(
     private readonly integrationDAO = new IntegrationDAO(),
@@ -73,6 +81,8 @@ export class IntegrationWebhookService {
       input.providerProjectId,
       integration.values,
     )
+    this.validateProviderProjectId(provider, providerProjectId)
+    const labelMappings = this.resolveInboundLabelMappings(provider, input.labelMappings)
 
     const created = await this.webhookConfigDAO.createConfig({
       projectId,
@@ -83,6 +93,7 @@ export class IntegrationWebhookService {
       allowedEvents: input.allowedEvents || getDefaultInboundEvents(provider),
       autoExecute: input.autoExecute ?? false,
       webhookSecretEncrypted: webhookSecret || null,
+      labelMappings,
       secretLocation: 'database',
       active: input.active ?? true,
     })
@@ -98,21 +109,37 @@ export class IntegrationWebhookService {
     const integration = await this.getIntegrationOrThrow(integrationId)
 
     const existing = await this.getInboundConfigForIntegrationOrThrow(integration.id, configId)
+    const provider = mapSystemToWebhookProvider(integration.system)
+    if (!provider) {
+      throw new IntegrationRouteServiceError(400, 'Integration does not support inbound webhooks')
+    }
 
     let webhookSecret = input.webhookSecret
     if (input.generateSecret) {
       webhookSecret = crypto.randomBytes(32).toString('hex')
     }
 
+    const providerProjectId =
+      input.providerProjectId !== undefined
+        ? this.normalizeOptionalId(input.providerProjectId)
+        : existing.providerProjectId
+    if (input.providerProjectId !== undefined) {
+      this.validateProviderProjectId(provider, providerProjectId)
+    }
+
+    const labelMappings = this.resolveInboundLabelMappings(
+      provider,
+      input.labelMappings,
+      existing.labelMappings,
+    )
+
     await this.webhookConfigDAO.updateConfig(configId, {
       projectId: input.projectId !== undefined ? input.projectId : existing.projectId,
-      providerProjectId:
-        input.providerProjectId !== undefined
-          ? this.normalizeOptionalId(input.providerProjectId)
-          : existing.providerProjectId,
+      providerProjectId,
       allowedEvents: input.allowedEvents,
       autoExecute: input.autoExecute,
       webhookSecretEncrypted: webhookSecret,
+      labelMappings,
       active: input.active,
     })
 
@@ -193,8 +220,9 @@ export class IntegrationWebhookService {
       input.providerProjectId,
       integration.values,
     )
+    this.validateProviderProjectId(provider, providerProjectId)
     const allowedEvents =
-      provider === 'shortcut' || provider === 'jira'
+      this.isAlwaysOnOutboundProvider(provider)
         ? getDefaultOutboundEvents()
         : input.events || getDefaultOutboundEvents()
 
@@ -259,17 +287,22 @@ export class IntegrationWebhookService {
       throw new IntegrationRouteServiceError(400, customOutboundTargetConfig.error)
     }
 
+    const providerProjectId =
+      input.providerProjectId !== undefined
+        ? this.normalizeOptionalId(input.providerProjectId)
+        : existing.providerProjectId
+    if (input.providerProjectId !== undefined) {
+      this.validateProviderProjectId(provider, providerProjectId)
+    }
+
     await this.webhookConfigDAO.updateConfig(configId, {
       projectId: input.projectId !== undefined ? input.projectId : existing.projectId,
       allowedEvents:
-        provider === 'shortcut' || provider === 'jira'
+        this.isAlwaysOnOutboundProvider(provider)
           ? getDefaultOutboundEvents()
           : input.events,
       apiTokenEncrypted: provider === 'custom' ? undefined : input.apiToken,
-      providerProjectId:
-        input.providerProjectId !== undefined
-          ? this.normalizeOptionalId(input.providerProjectId)
-          : existing.providerProjectId,
+      providerProjectId,
       outboundTargetConfig:
         provider === 'custom' ? customOutboundTargetConfig.config || null : undefined,
       active: input.active,
@@ -287,8 +320,8 @@ export class IntegrationWebhookService {
     const integration = await this.getIntegrationOrThrow(integrationId)
 
     const config = await this.getOutboundConfigForIntegrationOrThrow(integration.id, configId)
-    if (config.provider === 'shortcut' || config.provider === 'jira') {
-      const providerLabel = config.provider === 'shortcut' ? 'Shortcut' : 'Jira'
+    if (this.isAlwaysOnOutboundProvider(config.provider)) {
+      const providerLabel = this.getProviderLabel(config.provider)
       throw new IntegrationRouteServiceError(
         400,
         `${providerLabel} outbound webhook is required and cannot be removed`,
@@ -523,6 +556,149 @@ export class IntegrationWebhookService {
 
     const normalized = value.trim()
     return normalized.length > 0 ? normalized : null
+  }
+
+  private normalizeLabelArray(rawLabels: unknown): string[] {
+    if (!Array.isArray(rawLabels)) {
+      return []
+    }
+
+    const labels: string[] = []
+    for (const rawLabel of rawLabels) {
+      if (typeof rawLabel !== 'string') {
+        continue
+      }
+
+      const normalized = rawLabel.trim().toLowerCase()
+      if (!normalized || labels.includes(normalized)) {
+        continue
+      }
+      labels.push(normalized)
+    }
+
+    return labels
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> | null {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return null
+    }
+    return value as Record<string, unknown>
+  }
+
+  private parseGitHubAutoExecuteMode(
+    labelMappings: Record<string, unknown>,
+  ): GitHubAutoExecuteMode | undefined {
+    const root = this.toRecord(labelMappings)
+    const nested = this.toRecord(root?.github)
+    const source = nested || root
+    if (!source) {
+      return undefined
+    }
+
+    const rawMode = source.autoExecuteMode ?? source.mode
+    if (typeof rawMode !== 'string') {
+      return undefined
+    }
+
+    const normalizedMode = rawMode.trim().toLowerCase()
+    if (
+      normalizedMode !== GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS &&
+      normalizedMode !== GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED
+    ) {
+      throw new IntegrationRouteServiceError(
+        400,
+        `GitHub auto-execute mode must be "${GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS}" or "${GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED}"`,
+      )
+    }
+
+    return normalizedMode as GitHubAutoExecuteMode
+  }
+
+  private resolveInboundLabelMappings(
+    provider: NonNullable<ReturnType<typeof mapSystemToWebhookProvider>>,
+    inputLabelMappings: Record<string, unknown> | undefined,
+    existingLabelMappings?: Record<string, unknown>,
+  ): Record<string, unknown> {
+    if (inputLabelMappings === undefined) {
+      return existingLabelMappings || {}
+    }
+
+    const normalizedInput = this.toRecord(inputLabelMappings)
+    if (!normalizedInput) {
+      return {}
+    }
+
+    if (provider !== 'github') {
+      return normalizedInput
+    }
+
+    const mode = this.parseGitHubAutoExecuteMode(normalizedInput)
+    if (!mode) {
+      return {}
+    }
+
+    if (mode === GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS) {
+      return {
+        github: {
+          autoExecuteMode: GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS,
+        },
+      }
+    }
+
+    const nested = this.toRecord(normalizedInput.github)
+    const source = nested || normalizedInput
+    const labels = this.normalizeLabelArray(source.requiredLabels ?? source.labels)
+    if (labels.length === 0) {
+      throw new IntegrationRouteServiceError(
+        400,
+        'GitHub label-gated auto-execute requires at least one label',
+      )
+    }
+
+    return {
+      github: {
+        autoExecuteMode: GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED,
+        requiredLabels: labels,
+      },
+    }
+  }
+
+  private isAlwaysOnOutboundProvider(
+    provider: NonNullable<ReturnType<typeof mapSystemToWebhookProvider>>,
+  ): boolean {
+    return provider === 'github' || provider === 'jira' || provider === 'shortcut'
+  }
+
+  private getProviderLabel(
+    provider: NonNullable<ReturnType<typeof mapSystemToWebhookProvider>>,
+  ): string {
+    if (provider === 'jira') {
+      return 'Jira'
+    }
+    if (provider === 'shortcut') {
+      return 'Shortcut'
+    }
+    if (provider === 'github') {
+      return 'GitHub'
+    }
+    return provider
+  }
+
+  private validateProviderProjectId(
+    provider: NonNullable<ReturnType<typeof mapSystemToWebhookProvider>>,
+    providerProjectId: string | null,
+  ): void {
+    if (provider !== 'github' || !providerProjectId) {
+      return
+    }
+
+    if (!GITHUB_REPOSITORY_PATTERN.test(providerProjectId)) {
+      throw new IntegrationRouteServiceError(
+        400,
+        'GitHub repository mapping must use "owner/repo" format',
+      )
+    }
   }
 
   private resolveProviderProjectId(

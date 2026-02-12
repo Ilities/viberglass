@@ -27,6 +27,7 @@ export interface UpsertInboundWebhookConfigInput {
   webhookSecret?: string
   generateSecret?: boolean
   providerProjectId?: string | null
+  labelMappings?: Record<string, unknown>
   active?: boolean
 }
 

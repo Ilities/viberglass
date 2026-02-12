@@ -98,9 +98,9 @@ export function JiraInboundWebhookSection({
         Configure Jira webhooks to ingest issue and comment activity into Viberator.
       </Text>
 
-      <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
-        <p className="text-sm font-medium text-zinc-900 dark:text-white">Jira setup steps</p>
-        <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+      <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
+        <p className="text-sm font-medium text-[var(--gray-12)]">Jira setup steps</p>
+        <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-[var(--gray-9)]">
           <li>In Jira, open Settings {'>'} System {'>'} Webhooks and add a new webhook.</li>
           <li>Use the webhook URL below and select the same inbound events enabled in this section.</li>
           <li>Optionally set Jira project filtering with the project key below to keep routing deterministic.</li>
@@ -108,29 +108,29 @@ export function JiraInboundWebhookSection({
         </ol>
       </div>
 
-      <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
-        <p className="text-sm font-medium text-zinc-900 dark:text-white">Inbound project scope</p>
-        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+      <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
+        <p className="text-sm font-medium text-[var(--gray-12)]">Inbound project scope</p>
+        <p className="mt-1 text-xs text-[var(--gray-9)]">
           Each inbound config can map events to a Viberglass project and optionally pin routing to a Jira project key.
         </p>
       </div>
 
       {isLoadingWebhook ? (
-        <div className="mt-4 text-sm text-zinc-500">Loading Jira webhook configuration...</div>
+        <div className="mt-4 text-sm text-[var(--gray-9)]">Loading Jira webhook configuration...</div>
       ) : (
-        <div className="mt-4 space-y-4">
+        <div className="mt-6 space-y-6">
           {inboundWebhooks.length === 0 ? (
             <Button color="brand" onClick={onCreateInboundWebhook} disabled={isSavingWebhook}>
               {isSavingWebhook ? 'Setting up...' : 'Create Jira inbound webhook'}
             </Button>
           ) : (
             <>
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-zinc-900 dark:text-white">Inbound configuration</label>
+              <div className="flex items-center gap-3 pb-4 border-b border-[var(--gray-6)]">
+                <label className="text-sm font-medium text-[var(--gray-12)]">Inbound configuration</label>
                 <select
                   value={selectedInboundConfigId || ''}
                   onChange={(event) => onSelectInboundWebhook(event.target.value)}
-                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 >
                   {inboundWebhooks.map((config, index) => (
                     <option key={config.id} value={config.id}>
@@ -146,15 +146,15 @@ export function JiraInboundWebhookSection({
               {selectedInboundConfig && (
                 <>
                   {projects && projects.length > 0 && (
-                    <div>
-                      <label htmlFor="jiraInboundProjectId" className="block text-sm font-medium text-zinc-900 dark:text-white">
+                    <div className="pt-2">
+                      <label htmlFor="jiraInboundProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
                         Viberglass project
                       </label>
                       <select
                         id="jiraInboundProjectId"
                         value={selectedInboundProjectId ?? ''}
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
-                        className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="mt-2 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
                         <option value="">Use integration-linked default project</option>
                         {projects.map((project) => (
@@ -166,8 +166,8 @@ export function JiraInboundWebhookSection({
                     </div>
                   )}
 
-                  <div>
-                    <label htmlFor="jiraInboundProviderProjectId" className="block text-sm font-medium text-zinc-900 dark:text-white">
+                  <div className="pt-2">
+                    <label htmlFor="jiraInboundProviderProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
                       Jira project key (optional)
                     </label>
                     <input
@@ -179,21 +179,21 @@ export function JiraInboundWebhookSection({
                         onProviderProjectIdChange(value.length > 0 ? value : null)
                       }}
                       placeholder="e.g. OPS"
-                      className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      className="mt-2 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                     />
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-1.5 text-xs text-[var(--gray-9)]">
                       Used to match inbound events to the correct config when multiple Jira projects are linked.
                     </p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook URL</label>
-                    <div className="mt-1 flex gap-2">
+                  <div className="pt-2">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Webhook URL</label>
+                    <div className="mt-2 flex gap-2">
                       <input
                         type="text"
                         readOnly
                         value={selectedInboundConfig.webhookUrl}
-                        className="flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="flex-1 rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm font-mono text-[var(--gray-12)]"
                       />
                       <Button
                         color="zinc"
@@ -205,9 +205,9 @@ export function JiraInboundWebhookSection({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-900 dark:text-white">Webhook secret</label>
-                    <div className="mt-1 flex flex-wrap gap-2">
+                  <div className="pt-2">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Webhook secret</label>
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <input
                         type={showSecret ? 'text' : 'password'}
                         readOnly
@@ -215,7 +215,7 @@ export function JiraInboundWebhookSection({
                           selectedInboundConfig.webhookSecret ||
                           (selectedInboundConfig.hasSecret ? '(stored, hidden)' : '(none)')
                         }
-                        className="min-w-72 flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="min-w-72 flex-1 rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm font-mono text-[var(--gray-12)]"
                       />
                       <Button color="zinc" onClick={onToggleSecretVisibility}>
                         {showSecret ? 'Hide' : 'Show'}
@@ -227,25 +227,25 @@ export function JiraInboundWebhookSection({
                         Regenerate
                       </Button>
                     </div>
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      Configure Jira to include the `X-Atlassian-Webhook-Signature` header derived from this secret.
+                    <p className="mt-1.5 text-xs text-[var(--gray-9)]">
+                      Configure Jira to include the <code className="rounded bg-[var(--gray-5)] px-1.5 py-0.5 font-mono text-[var(--gray-11)]">X-Atlassian-Webhook-Signature</code> header derived from this secret.
                     </p>
                   </div>
 
-                  <div>
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white">Allowed inbound events</p>
-                    <div className="mt-2 space-y-2">
+                  <div className="pt-2">
+                    <p className="text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Allowed inbound events</p>
+                    <div className="mt-3 space-y-3">
                       {JIRA_INBOUND_EVENT_OPTIONS.map((option) => (
                         <label key={option.value} className="flex items-start gap-3">
                           <input
                             type="checkbox"
                             checked={inboundEvents.includes(option.value)}
                             onChange={(event) => onToggleInboundEvent(option.value, event.target.checked)}
-                            className="text-brand-600 focus:ring-brand-600 mt-0.5 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
+                            className="mt-0.5 h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)] text-[var(--accent-9)] focus:ring-[var(--accent-9)]"
                           />
                           <span>
-                            <span className="text-sm text-zinc-900 dark:text-white">{option.label}</span>
-                            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                            <span className="text-sm text-[var(--gray-12)]">{option.label}</span>
+                            <span className="block text-xs text-[var(--gray-9)]">
                               {option.description}
                             </span>
                           </span>
@@ -254,15 +254,15 @@ export function JiraInboundWebhookSection({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
                     <input
                       type="checkbox"
                       id="jiraAutoExecute"
                       checked={autoExecute}
                       onChange={(event) => onAutoExecuteChange(event.target.checked)}
-                      className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
+                      className="h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)] text-[var(--accent-9)] focus:ring-[var(--accent-9)]"
                     />
-                    <label htmlFor="jiraAutoExecute" className="text-sm text-zinc-900 dark:text-white">
+                    <label htmlFor="jiraAutoExecute" className="text-sm text-[var(--gray-12)]">
                       Auto-execute fixes after matching Jira inbound events
                     </label>
                     {hasInboundChanges && (
@@ -272,7 +272,7 @@ export function JiraInboundWebhookSection({
                     )}
                   </div>
 
-                  <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                  <div className="border-t border-[var(--gray-6)] pt-4">
                     <Button color="red" onClick={onDeleteInboundWebhook} disabled={isSavingWebhook}>
                       Remove selected inbound configuration
                     </Button>
