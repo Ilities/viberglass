@@ -226,8 +226,30 @@ export class JobService {
   async getJobStatus(jobId: string): Promise<any | null> {
     const job = await db
       .selectFrom("jobs")
-      .selectAll()
-      .where("id", "=", jobId)
+      .leftJoin("tickets", "tickets.id", "jobs.ticket_id")
+      .select([
+        "jobs.id",
+        "jobs.status",
+        "jobs.progress",
+        "jobs.last_heartbeat",
+        "jobs.repository",
+        "jobs.task",
+        "jobs.branch",
+        "jobs.base_branch",
+        "jobs.context",
+        "jobs.settings",
+        "jobs.result",
+        "jobs.error_message",
+        "jobs.created_at",
+        "jobs.started_at",
+        "jobs.finished_at",
+        "jobs.tenant_id",
+        "jobs.ticket_id",
+        "tickets.id as ticket_uuid",
+        "tickets.title as ticket_title",
+        "tickets.external_ticket_id as ticket_external_id",
+      ])
+      .where("jobs.id", "=", jobId)
       .executeTakeFirst();
 
     if (!job) {
@@ -287,6 +309,14 @@ export class JobService {
       createdAt: job.created_at,
       processedAt: job.started_at,
       finishedAt: job.finished_at,
+      ticketId: job.ticket_id,
+      ticket: job.ticket_id
+        ? {
+            id: job.ticket_uuid,
+            title: job.ticket_title,
+            externalTicketId: job.ticket_external_id,
+          }
+        : null,
     };
   }
 

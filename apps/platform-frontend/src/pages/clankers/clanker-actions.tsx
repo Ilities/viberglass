@@ -1,12 +1,10 @@
-
-
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { deleteClanker, startClanker, stopClanker } from '@/service/api/clanker-api'
 import { PlayIcon, StopIcon, TrashIcon } from '@radix-ui/react-icons'
 import type { Clanker } from '@viberglass/types'
-import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 interface ClankerActionsProps {
   clanker: Clanker
@@ -74,7 +72,11 @@ export function ClankerActions({ clanker }: ClankerActionsProps) {
         </Button>
       )}
 
-      <Button plain onClick={() => setShowDeleteDialog(true)}>
+      <Button
+        plain
+        onClick={() => setShowDeleteDialog(true)}
+        className="!inline-flex !h-9 !items-center !justify-center !rounded-md !px-3 !text-red-700 hover:!bg-red-50 hover:!text-red-800 dark:!text-red-300 dark:hover:!bg-red-500/10 dark:hover:!text-red-200"
+      >
         <TrashIcon />
         Delete
       </Button>
