@@ -208,6 +208,7 @@ async function main() {
       baseBranch: payload.baseBranch,
       context: payload.context,
       settings: payload.settings,
+      scm: payload.scm,
       timestamp: Date.now(),
     };
 

@@ -147,6 +147,7 @@ export class LambdaInvoker implements WorkerInvoker {
       secrets: secretMetadata,
       callbackToken: job.callbackToken,
       projectConfig: buildWorkerProjectConfig(project),
+      scm: job.scm,
       overrides: job.overrides,
     };
   }

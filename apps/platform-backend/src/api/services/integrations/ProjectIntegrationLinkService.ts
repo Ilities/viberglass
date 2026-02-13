@@ -1,11 +1,15 @@
 import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../../persistence/integrations'
+import { ProjectDAO } from '../../../persistence/project/ProjectDAO'
 import { IntegrationRouteServiceError } from './errors'
 import type { LinkProjectIntegrationInput } from './types'
+import { integrationRegistry } from '../../../integrations/TicketingIntegrationRegistry'
+import type { TicketSystem } from '@viberglass/types'
 
 export class ProjectIntegrationLinkService {
   constructor(
     private readonly integrationDAO = new IntegrationDAO(),
     private readonly projectLinkDAO = new ProjectIntegrationLinkDAO(),
+    private readonly projectDAO = new ProjectDAO(),
   ) {}
 
   async getProjectIntegrations(projectId: string) {
@@ -38,11 +42,40 @@ export class ProjectIntegrationLinkService {
       throw new IntegrationRouteServiceError(409, 'Integration is already linked to this project')
     }
 
-    return this.projectLinkDAO.linkIntegration({
+    const link = await this.projectLinkDAO.linkIntegration({
       projectId,
       integrationId,
       isPrimary: isPrimary ?? false,
     })
+
+    // Update category-specific primary fields
+    if (isPrimary) {
+      await this.updateProjectPrimaryIntegration(projectId, integration.system, integrationId)
+    }
+
+    return link
+  }
+
+  private async updateProjectPrimaryIntegration(
+    projectId: string,
+    system: string,
+    integrationId: string
+  ): Promise<void> {
+    // Determine category from integration system
+    const plugin = integrationRegistry.get(system as TicketSystem)
+    if (!plugin) return
+
+    const isScm = plugin.category === 'scm'
+    
+    if (isScm) {
+      await this.projectDAO.updateProject(projectId, {
+        primaryScmIntegrationId: integrationId,
+      })
+    } else {
+      await this.projectDAO.updateProject(projectId, {
+        primaryTicketingIntegrationId: integrationId,
+      })
+    }
   }
 
   async unlinkProjectIntegration(projectId: string, integrationId: string) {
@@ -60,5 +93,11 @@ export class ProjectIntegrationLinkService {
     }
 
     await this.projectLinkDAO.setPrimaryIntegration(projectId, integrationId)
+
+    // Also update the category-specific primary column
+    const integration = await this.integrationDAO.getIntegration(integrationId)
+    if (integration) {
+      await this.updateProjectPrimaryIntegration(projectId, integration.system, integrationId)
+    }
   }
 }

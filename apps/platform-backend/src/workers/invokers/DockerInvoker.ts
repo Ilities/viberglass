@@ -220,6 +220,7 @@ export class DockerInvoker implements WorkerInvoker {
       instructionFiles: job.context?.instructionFiles ?? [],
       clankerConfig: clanker, // Full config for Docker (no external storage)
       projectConfig: buildWorkerProjectConfig(project),
+      scm: job.scm,
       overrides: job.overrides,
     };
   }
