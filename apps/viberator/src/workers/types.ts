@@ -44,6 +44,17 @@ export interface JobOverrides {
   };
 }
 
+export interface ScmPayload {
+  integrationId: string;
+  integrationSystem?: string;
+  sourceRepository: string;
+  baseBranch: string;
+  pullRequestRepository: string;
+  pullRequestBaseBranch: string;
+  branchNameTemplate?: string | null;
+  credentialSecretId?: string | null;
+}
+
 /**
  * Shared fields across all worker payload types
  */
@@ -56,6 +67,7 @@ export interface BaseWorkerPayload {
   branch?: string;
   baseBranch?: string;
   context?: {
+    ticketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
@@ -73,6 +85,7 @@ export interface BaseWorkerPayload {
   };
   projectConfig?: ProjectConfigPayload;
   overrides?: JobOverrides;
+  scm?: ScmPayload | null;
   /** Callback token for authenticating worker callbacks to the platform */
   callbackToken?: string;
 }
@@ -151,6 +164,7 @@ export interface CodingJobData {
   branch?: string;
   baseBranch?: string;
   context?: {
+    ticketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
@@ -166,6 +180,7 @@ export interface CodingJobData {
     testCommand?: string;
     maxExecutionTime?: number;
   };
+  scm?: ScmPayload | null;
   timestamp: number;
 }
 

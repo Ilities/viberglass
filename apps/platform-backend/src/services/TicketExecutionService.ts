@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import logger from "../config/logger";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
+import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "./ClankerProvisioningService";
 import { JobService } from "./JobService";
@@ -29,6 +30,7 @@ export interface RunTicketResult {
 export class TicketExecutionService {
   private ticketDAO = new TicketDAO();
   private projectDAO = new ProjectDAO();
+  private projectScmConfigDAO = new ProjectScmConfigDAO();
   private clankerDAO = new ClankerDAO();
   private provisioningService = new ClankerProvisioningService();
   private jobService = new JobService();
@@ -118,9 +120,30 @@ export class TicketExecutionService {
             ? [project.repositoryUrl]
             : [];
       const primaryRepository = repositoryUrls[0];
+      const scmConfig = await this.projectScmConfigDAO.getByProjectId(project.id);
+      const normalizedScmConfig = scmConfig
+        ? {
+            integrationId: scmConfig.integrationId,
+            integrationSystem: scmConfig.integrationSystem,
+            sourceRepository: scmConfig.sourceRepository.trim(),
+            baseBranch: scmConfig.baseBranch.trim() || "main",
+            pullRequestRepository:
+              scmConfig.pullRequestRepository?.trim() ||
+              scmConfig.sourceRepository.trim(),
+            pullRequestBaseBranch:
+              scmConfig.pullRequestBaseBranch?.trim() ||
+              scmConfig.baseBranch.trim() ||
+              "main",
+            branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
+            credentialSecretId: scmConfig.credentialSecretId ?? null,
+          }
+        : null;
+      const sourceRepository =
+        normalizedScmConfig?.sourceRepository || primaryRepository;
+      const baseBranch = normalizedScmConfig?.baseBranch || "main";
 
       // Validate project has repository configured
-      if (!primaryRepository) {
+      if (!sourceRepository) {
         throw new Error("Project has no repository configured");
       }
 
@@ -159,9 +182,22 @@ export class TicketExecutionService {
         );
       }
 
+      const mergedSecretIds = Array.from(
+        new Set([
+          ...(clanker.secretIds || []),
+          ...(normalizedScmConfig?.credentialSecretId
+            ? [normalizedScmConfig.credentialSecretId]
+            : []),
+        ]),
+      );
+      const executionClanker = {
+        ...clanker,
+        secretIds: mergedSecretIds,
+      };
+
       const mergedInstructionFiles = this.mergeInstructionFiles(
         project,
-        clanker,
+        executionClanker,
         instructionFiles || [],
       );
 
@@ -172,10 +208,10 @@ export class TicketExecutionService {
       const jobData: JobData = {
         id: jobId,
         tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
-        repository: primaryRepository,
+        repository: sourceRepository,
         task: `${ticket.title}\n\n${ticket.description}`,
         branch: undefined, // Worker creates branch
-        baseBranch: "main",
+        baseBranch,
         context: {
           ticketId: ticket.id,
           stepsToReproduce: ticket.description,
@@ -185,6 +221,7 @@ export class TicketExecutionService {
           testRequired: false,
           maxChanges: 10,
         },
+        scm: normalizedScmConfig,
         overrides,
         timestamp: Date.now(),
       };
@@ -200,7 +237,7 @@ export class TicketExecutionService {
 
       const secretMetadata =
         await this.secretResolutionService.getSecretMetadataForClanker(
-          clanker.secretIds || [],
+          mergedSecretIds,
         );
       const requiredCredentials = secretMetadata.map((secret) => secret.name);
 
@@ -218,7 +255,7 @@ export class TicketExecutionService {
         instructionFiles: mergedInstructionFiles,
         requiredCredentials,
         callbackToken: submitResult.callbackToken,
-        clankerConfig: clanker,
+        clankerConfig: executionClanker,
         projectConfig: {
           id: project.id,
           name: project.name,
@@ -226,6 +263,7 @@ export class TicketExecutionService {
           customFieldMappings: project.customFieldMappings,
           workerSettings: project.workerSettings,
         },
+        scm: normalizedScmConfig,
         overrides: jobData.overrides,
       };
 
@@ -237,7 +275,7 @@ export class TicketExecutionService {
       this.workerExecutionService
         .executeJob(
           jobData,
-          clanker as unknown as Clanker,
+          executionClanker as unknown as Clanker,
           project as unknown as Project,
         )
         .then((result) => {

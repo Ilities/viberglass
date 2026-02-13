@@ -121,6 +121,16 @@ export const updateProjectSchema = Joi.object({
   agentInstructions: Joi.string().allow(null, "").optional(),
 });
 
+export const projectScmConfigSchema = Joi.object({
+  integrationId: Joi.string().uuid().required(),
+  sourceRepository: Joi.string().trim().min(1).max(500).required(),
+  baseBranch: Joi.string().trim().min(1).max(255).default("main"),
+  pullRequestRepository: Joi.string().trim().max(500).allow(null, "").optional(),
+  pullRequestBaseBranch: Joi.string().trim().max(255).allow(null, "").optional(),
+  branchNameTemplate: Joi.string().trim().max(255).allow(null, "").optional(),
+  credentialSecretId: Joi.string().uuid().allow(null).optional(),
+});
+
 // Config file schema for clankers
 const configFileSchema = Joi.object({
   fileType: Joi.string().min(1).max(100).required(),
