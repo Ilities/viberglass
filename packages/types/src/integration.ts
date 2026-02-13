@@ -78,6 +78,40 @@ export interface ProjectIntegrationLink {
   createdAt: string
 }
 
+// SCM credential stored per integration
+export interface IntegrationCredential {
+  id: string
+  integrationId: string
+  name: string
+  credentialType: 'token' | 'ssh_key' | 'oauth' | 'basic'
+  secretId: string
+  isDefault: boolean
+  description?: string | null
+  expiresAt?: string | null
+  lastUsedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// Request to create a new integration credential
+export interface CreateIntegrationCredentialRequest {
+  integrationId: string
+  name: string
+  credentialType: 'token' | 'ssh_key' | 'oauth' | 'basic'
+  secretValue: string
+  isDefault?: boolean
+  description?: string | null
+  expiresAt?: string | null
+}
+
+// Request to update an integration credential
+export interface UpdateIntegrationCredentialRequest {
+  name?: string
+  description?: string | null
+  expiresAt?: string | null
+  isDefault?: boolean
+}
+
 // Integration with configuration status for a specific project
 export interface IntegrationSummary extends IntegrationMetadata {
   configStatus: IntegrationConfigStatus

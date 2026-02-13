@@ -1,7 +1,20 @@
+import type { TicketSystem } from "@viberglass/types";
+
 interface InstructionFile {
   fileType: string;
   content?: string;
   mountPath?: string;
+}
+
+export interface JobScmConfig {
+  integrationId: string;
+  integrationSystem?: TicketSystem;
+  sourceRepository: string;
+  baseBranch: string;
+  pullRequestRepository: string;
+  pullRequestBaseBranch: string;
+  branchNameTemplate?: string | null;
+  credentialSecretId?: string | null;
 }
 
 // Override configuration for per-ticket/enhance screen overrides
@@ -46,6 +59,7 @@ export interface JobData {
     maxExecutionTime?: number;
   };
   overrides?: JobOverrides;
+  scm?: JobScmConfig | null;
   /** Optional worker bootstrap payload persisted for ref-based invocation */
   bootstrapPayload?: Record<string, unknown>;
   timestamp: number;

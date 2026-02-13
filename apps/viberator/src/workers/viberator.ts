@@ -110,7 +110,7 @@ export class ViberatorWorker {
       this.logger.level = this.config.logging.level;
 
       const agentConfigs = configManager.getAgentConfigs();
-      this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger);
+      this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger, configManager);
       this.gitService = new GitService(this.logger);
 
       // Initialize callback client with callback token for authentication
@@ -406,9 +406,53 @@ export class ViberatorWorker {
     }
   }
 
+  private sanitizeBranchName(candidate: string): string {
+    return candidate
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9/_\-.]/g, "-")
+      .replace(/\/{2,}/g, "/")
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/^\.+/, "")
+      .replace(/\.lock$/i, "");
+  }
+
+  private buildFeatureBranchName(
+    jobId: string,
+    ticketId: string | undefined,
+    template: string | null | undefined,
+  ): string {
+    const fallback = `fix/${jobId}`;
+    if (!template || template.trim().length === 0) {
+      return fallback;
+    }
+
+    const now = new Date();
+    const replacements = {
+      jobId,
+      ticketId: ticketId || jobId,
+      timestamp: now.toISOString().replace(/[-:.TZ]/g, ""),
+      date: now.toISOString().slice(0, 10),
+    };
+
+    const rendered = template.replace(
+      /\{\{\s*(jobId|ticketId|timestamp|date)\s*\}\}/g,
+      (_match, token: keyof typeof replacements) => replacements[token],
+    );
+    const sanitized = this.sanitizeBranchName(rendered);
+    return sanitized || fallback;
+  }
+
   async executeTask(data: CodingJobData): Promise<JobResult> {
     const startTime = Date.now();
-    const { id, repository, task, baseBranch, context, settings } = data;
+    const { id, repository, task, baseBranch, context, settings, scm } = data;
+    const checkoutBaseBranch = scm?.baseBranch?.trim() || baseBranch || "main";
+    const pullRequestBaseBranch =
+      scm?.pullRequestBaseBranch?.trim() || checkoutBaseBranch;
+    const pullRequestRepository =
+      scm?.pullRequestRepository?.trim() ||
+      scm?.sourceRepository?.trim() ||
+      repository;
 
     // Setup log forwarding for this job
     this.setupLogForwarding(id, data.tenantId);
@@ -431,12 +475,16 @@ export class ViberatorWorker {
       this.logger.info("Cloning repository", { repository, jobWorkDir });
       const repoDir = await this.cloneRepositoryToWorkspace(
         repository,
-        baseBranch || "main",
+        checkoutBaseBranch,
         jobWorkDir,
       );
 
       await this.sendProgress("branch", "Creating feature branch");
-      const featureBranch = `fix/${id}`;
+      const featureBranch = this.buildFeatureBranchName(
+        id,
+        context?.ticketId,
+        scm?.branchNameTemplate,
+      );
       await this.gitService.createBranch(repoDir, featureBranch);
 
       if (this.instructionFiles.size > 0) {
@@ -466,7 +514,7 @@ export class ViberatorWorker {
       const executionContext: ExecutionContext = {
         repoUrl: repository,
         branch: featureBranch,
-        baseBranch: baseBranch || "main",
+        baseBranch: checkoutBaseBranch,
         repoDir: repoDir,
         commitHash: "",
         bugDescription: fullTask,
@@ -513,9 +561,13 @@ export class ViberatorWorker {
       const pullRequestUrl = await this.gitService.createPullRequest(
         repoDir,
         featureBranch,
-        baseBranch || "main",
+        pullRequestBaseBranch,
         task,
         result.pullRequestDescription,
+        {
+          sourceRepositoryUrl: scm?.sourceRepository || repository,
+          destinationRepositoryUrl: pullRequestRepository,
+        },
       );
 
       await this.sendProgress("cleanup", "Cleaning up workspace");

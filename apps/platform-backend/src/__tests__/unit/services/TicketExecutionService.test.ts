@@ -1,6 +1,7 @@
 import { TicketExecutionService } from "../../../services/TicketExecutionService";
 import { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../../../persistence/project/ProjectDAO";
+import { ProjectScmConfigDAO } from "../../../persistence/project/ProjectScmConfigDAO";
 import { ClankerDAO } from "../../../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "../../../services/ClankerProvisioningService";
 import { JobService } from "../../../services/JobService";
@@ -10,6 +11,7 @@ import { WorkerExecutionService } from "../../../workers";
 // Mock dependencies
 jest.mock("../../../persistence/ticketing/TicketDAO");
 jest.mock("../../../persistence/project/ProjectDAO");
+jest.mock("../../../persistence/project/ProjectScmConfigDAO");
 jest.mock("../../../persistence/clanker/ClankerDAO");
 jest.mock("../../../services/ClankerProvisioningService");
 jest.mock("../../../services/JobService");
@@ -20,6 +22,7 @@ describe("TicketExecutionService", () => {
   let service: TicketExecutionService;
   let mockTicketDAO: jest.Mocked<TicketDAO>;
   let mockProjectDAO: jest.Mocked<ProjectDAO>;
+  let mockProjectScmConfigDAO: jest.Mocked<ProjectScmConfigDAO>;
   let mockClankerDAO: jest.Mocked<ClankerDAO>;
   let mockProvisioningService: jest.Mocked<ClankerProvisioningService>;
   let mockJobService: jest.Mocked<JobService>;
@@ -31,6 +34,8 @@ describe("TicketExecutionService", () => {
 
     mockTicketDAO = new TicketDAO() as jest.Mocked<TicketDAO>;
     mockProjectDAO = new ProjectDAO() as jest.Mocked<ProjectDAO>;
+    mockProjectScmConfigDAO =
+      new ProjectScmConfigDAO() as jest.Mocked<ProjectScmConfigDAO>;
     mockClankerDAO = new ClankerDAO() as jest.Mocked<ClankerDAO>;
     mockProvisioningService =
       new ClankerProvisioningService() as jest.Mocked<ClankerProvisioningService>;
@@ -42,6 +47,9 @@ describe("TicketExecutionService", () => {
 
     (TicketDAO as jest.Mock).mockImplementation(() => mockTicketDAO);
     (ProjectDAO as jest.Mock).mockImplementation(() => mockProjectDAO);
+    (ProjectScmConfigDAO as jest.Mock).mockImplementation(
+      () => mockProjectScmConfigDAO,
+    );
     (ClankerDAO as jest.Mock).mockImplementation(() => mockClankerDAO);
     (ClankerProvisioningService as jest.Mock).mockImplementation(
       () => mockProvisioningService,
@@ -84,6 +92,7 @@ describe("TicketExecutionService", () => {
 
     mockTicketDAO.getTicket.mockResolvedValue(mockTicket as any);
     mockProjectDAO.getProject.mockResolvedValue(mockProject as any);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
     mockClankerDAO.getClanker.mockResolvedValue(mockClanker as any);
     mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({
       status: "active",
@@ -117,6 +126,78 @@ describe("TicketExecutionService", () => {
     expect(mockWorkerExecutionService.executeJob).toHaveBeenCalled();
   });
 
+  it("uses project SCM config repository/base branch and merges SCM secret with clanker secrets", async () => {
+    const ticketId = "ticket-123";
+    const clankerId = "clanker-456";
+    const projectId = "project-789";
+
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: ticketId,
+      projectId,
+      title: "Test Ticket",
+      description: "Test Description",
+    } as any);
+    mockProjectDAO.getProject.mockResolvedValue({
+      id: projectId,
+      name: "Test Project",
+      repositoryUrl: "https://github.com/fallback/repo",
+    } as any);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue({
+      projectId,
+      integrationId: "integration-1",
+      integrationSystem: "github",
+      sourceRepository: "https://github.com/scm/repo",
+      baseBranch: "develop",
+      credentialSecretId: "secret-scm",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    mockClankerDAO.getClanker.mockResolvedValue({
+      id: clankerId,
+      status: "active",
+      deploymentStrategyId: "strategy-1",
+      secretIds: ["secret-a"],
+    } as any);
+    mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({
+      status: "active",
+    } as any);
+    mockJobService.submitJob.mockResolvedValue({
+      jobId: "job-123",
+      status: "active",
+      timestamp: new Date().toISOString(),
+      callbackToken: "token-123",
+    });
+    mockSecretResolutionService.getSecretMetadataForClanker.mockResolvedValue(
+      [],
+    );
+    mockWorkerExecutionService.executeJob.mockResolvedValue({
+      success: true,
+      executionId: "exec-123",
+      attempts: 1,
+    });
+
+    await service.runTicket(ticketId, { clankerId });
+
+    expect(mockJobService.submitJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repository: "https://github.com/scm/repo",
+        baseBranch: "develop",
+      }),
+      expect.any(Object),
+    );
+    expect(
+      mockSecretResolutionService.getSecretMetadataForClanker,
+    ).toHaveBeenCalledWith(["secret-a", "secret-scm"]);
+    expect(mockWorkerExecutionService.executeJob).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        id: clankerId,
+        secretIds: ["secret-a", "secret-scm"],
+      }),
+      expect.any(Object),
+    );
+  });
+
   it("should throw error if ticket is not found", async () => {
     mockTicketDAO.getTicket.mockResolvedValue(null);
 
@@ -137,6 +218,7 @@ describe("TicketExecutionService", () => {
       id: "p1",
       repositoryUrl: "url",
     } as any);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
     mockClankerDAO.getClanker.mockResolvedValue({
       id: clankerId,
       status: "inactive",

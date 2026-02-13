@@ -1,9 +1,15 @@
 import express from 'express';
 import { ProjectDAO } from '../../persistence/project/ProjectDAO';
+import { ProjectScmConfigDAO } from '../../persistence/project/ProjectScmConfigDAO';
 import { IntegrationConfigDAO } from '../../persistence/integrations/IntegrationConfigDAO';
+import { ProjectIntegrationLinkDAO } from '../../persistence/integrations/ProjectIntegrationLinkDAO';
+import { IntegrationDAO } from '../../persistence/integrations/IntegrationDAO';
+import { SecretDAO } from '../../persistence/secret/SecretDAO';
+import { IntegrationCredentialDAO } from '../../persistence/integrations/IntegrationCredentialDAO';
 import {
   validateCreateProject,
   validateIntegrationConfig,
+  validateProjectScmConfig,
   validateUpdateProject,
   validateUuidParam
 } from '../middleware/validation';
@@ -18,12 +24,18 @@ import type {
   IntegrationSummary,
   TestIntegrationResponse,
   TicketSystem,
+  UpsertProjectScmConfigRequest,
 } from '@viberglass/types';
 import { INTEGRATION_DESCRIPTIONS } from '@viberglass/types';
 
 const router = express.Router();
 const projectService = new ProjectDAO();
+const projectScmConfigDAO = new ProjectScmConfigDAO();
 const integrationConfigDAO = new IntegrationConfigDAO();
+const projectIntegrationLinkDAO = new ProjectIntegrationLinkDAO();
+const integrationDAO = new IntegrationDAO();
+const secretDAO = new SecretDAO();
+const integrationCredentialDAO = new IntegrationCredentialDAO();
 
 router.use(requireAuth);
 
@@ -87,6 +99,12 @@ const isMissingRequiredField = (
     default:
       return String(value).trim().length === 0;
   }
+};
+
+const normalizeOptionalString = (value?: string | null): string | null => {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 };
 
 // GET /api/projects - List all projects
@@ -176,6 +194,126 @@ router.delete('/:id', validateUuidParam('id'), async (req, res) => {
     res.status(204).send();
   } catch (error) {
     logger.error('Error deleting project', { error: error instanceof Error ? error.message : error });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/:projectId/scm-config', validateUuidParam('projectId'), async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const project = await projectService.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const scmConfig = await projectScmConfigDAO.getByProjectId(projectId);
+    if (!scmConfig) {
+      return res.status(404).json({ error: 'SCM configuration not found' });
+    }
+
+    res.json({ success: true, data: scmConfig });
+  } catch (error) {
+    logger.error('Error fetching project SCM config', {
+      error: error instanceof Error ? error.message : error,
+      projectId: req.params.projectId,
+    });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put(
+  '/:projectId/scm-config',
+  validateUuidParam('projectId'),
+  validateProjectScmConfig,
+  async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const project = await projectService.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const body = req.body as UpsertProjectScmConfigRequest;
+      const integration = await integrationDAO.getIntegration(body.integrationId);
+      if (!integration) {
+        return res.status(404).json({ error: 'Integration not found' });
+      }
+
+      const plugin = integrationRegistry.get(integration.system);
+      if (!plugin || plugin.category !== 'scm') {
+        return res.status(400).json({
+          error: 'Integration must be an SCM integration',
+        });
+      }
+
+      const isLinked = await projectIntegrationLinkDAO.isLinked(projectId, body.integrationId);
+      if (!isLinked) {
+        return res.status(409).json({
+          error: 'Integration must be linked to this project before use as SCM',
+        });
+      }
+
+      if (body.credentialSecretId) {
+        const secret = await secretDAO.getSecret(body.credentialSecretId);
+        if (!secret) {
+          return res.status(404).json({ error: 'SCM credential secret not found' });
+        }
+      }
+
+      // Validate integration credential if provided
+      if (body.integrationCredentialId) {
+        const credential = await integrationCredentialDAO.getById(body.integrationCredentialId);
+        if (!credential) {
+          return res.status(404).json({ error: 'Integration credential not found' });
+        }
+        if (credential.integrationId !== body.integrationId) {
+          return res.status(400).json({
+            error: 'Integration credential does not belong to the selected integration',
+          });
+        }
+      }
+
+      const saved = await projectScmConfigDAO.upsertByProjectId(projectId, {
+        integrationId: body.integrationId,
+        sourceRepository: body.sourceRepository.trim(),
+        baseBranch: body.baseBranch?.trim() || 'main',
+        pullRequestRepository: normalizeOptionalString(body.pullRequestRepository),
+        pullRequestBaseBranch: normalizeOptionalString(body.pullRequestBaseBranch),
+        branchNameTemplate: normalizeOptionalString(body.branchNameTemplate),
+        credentialSecretId: body.credentialSecretId ?? null,
+        integrationCredentialId: body.integrationCredentialId ?? null,
+      });
+
+      res.json({ success: true, data: saved });
+    } catch (error) {
+      logger.error('Error saving project SCM config', {
+        error: error instanceof Error ? error.message : error,
+        projectId: req.params.projectId,
+      });
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.delete('/:projectId/scm-config', validateUuidParam('projectId'), async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const project = await projectService.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const deleted = await projectScmConfigDAO.deleteByProjectId(projectId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'SCM configuration not found' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    logger.error('Error deleting project SCM config', {
+      error: error instanceof Error ? error.message : error,
+      projectId: req.params.projectId,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
