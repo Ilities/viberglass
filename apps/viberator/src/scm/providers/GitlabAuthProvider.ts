@@ -14,7 +14,26 @@ export class GitlabAuthProvider implements SCMAuthProvider {
   }
 
   getToken(): string | undefined {
-    return process.env.GITLAB_TOKEN || process.env.CI_JOB_TOKEN;
+    // Primary: exact match for standard token names
+    const primaryToken = process.env.GITLAB_TOKEN || process.env.CI_JOB_TOKEN;
+    if (primaryToken) {
+      return primaryToken;
+    }
+    
+    // Fallback: search for any env var that looks like a GitLab token
+    const envVars = Object.keys(process.env);
+    const gitlabTokenVar = envVars.find(
+      (key) =>
+        key.toUpperCase().includes("GITLAB") &&
+        (key.toUpperCase().includes("TOKEN") || key.toUpperCase().includes("PASSWORD")),
+    );
+    
+    if (gitlabTokenVar) {
+      console.log(`GitLab auth: Found token in ${gitlabTokenVar}`);
+      return process.env[gitlabTokenVar];
+    }
+    
+    return undefined;
   }
 
   private getUsername(): string {
