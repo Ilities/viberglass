@@ -68,6 +68,8 @@ export class ProjectDAO {
         repository_url: primaryRepositoryUrl,
         repository_urls: repositoryUrls,
         agent_instructions: agentInstructions,
+        primary_ticketing_integration_id: request.primaryTicketingIntegrationId ?? null,
+        primary_scm_integration_id: request.primaryScmIntegrationId ?? null,
         created_at: timestamp,
         updated_at: timestamp,
       })
@@ -131,6 +133,12 @@ export class ProjectDAO {
         updates.agentInstructions,
       );
     }
+    if (updates.primaryTicketingIntegrationId !== undefined) {
+      updateData.primary_ticketing_integration_id = updates.primaryTicketingIntegrationId;
+    }
+    if (updates.primaryScmIntegrationId !== undefined) {
+      updateData.primary_scm_integration_id = updates.primaryScmIntegrationId;
+    }
 
     const result = await db
       .updateTable("projects")
@@ -180,6 +188,8 @@ export class ProjectDAO {
         ? row.repository_urls
         : [],
       agentInstructions: row.agent_instructions ?? undefined,
+      primaryTicketingIntegrationId: row.primary_ticketing_integration_id ?? undefined,
+      primaryScmIntegrationId: row.primary_scm_integration_id ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

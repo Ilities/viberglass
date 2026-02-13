@@ -4,6 +4,11 @@ import * as path from "path";
 import axios from "axios";
 import { SCMAuthFactory } from "../scm";
 
+interface PullRequestOptions {
+  sourceRepositoryUrl?: string;
+  destinationRepositoryUrl?: string;
+}
+
 export class GitService {
   constructor(private logger: Logger) {}
 
@@ -149,22 +154,44 @@ export class GitService {
     targetBranch: string,
     title: string,
     description?: string,
+    options?: PullRequestOptions,
   ): Promise<string> {
+    // Declare variables outside try so they're accessible in catch
+    let sourceRepo: { owner: string; repo: string };
+    let destinationRepo: { owner: string; repo: string };
+    let token: string | undefined;
+    let headRef: string;
+
     try {
-      const { owner, repo } = await this.getRepoMetadata(repoDir);
-      // Use SCMAuthFactory to get the token
-      const token = SCMAuthFactory.getProvider(
-        `https://github.com/${await this.getRepoMetadata(repoDir).then((m) => `${m.owner}/${m.repo}`)}`,
-      )?.getToken();
+      sourceRepo = options?.sourceRepositoryUrl
+        ? this.getRepoMetadataFromUrl(options.sourceRepositoryUrl)
+        : await this.getRepoMetadata(repoDir);
+      destinationRepo = options?.destinationRepositoryUrl
+        ? this.getRepoMetadataFromUrl(options.destinationRepositoryUrl)
+        : sourceRepo;
+
+      const providerLookupUrl =
+        options?.sourceRepositoryUrl ||
+        options?.destinationRepositoryUrl ||
+        `https://github.com/${sourceRepo.owner}/${sourceRepo.repo}`;
+
+      token = SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
 
       if (!token) {
         throw new Error(
           "Unable to retrieve authentication token from SCMAuthFactory",
         );
       }
+
+      headRef =
+        sourceRepo.owner === destinationRepo.owner
+          ? sourceBranch
+          : `${sourceRepo.owner}:${sourceBranch}`;
+
       this.logger.info("Creating pull request via GitHub API", {
-        repo: `${owner}/${repo}`,
-        head: sourceBranch,
+        sourceRepo: `${sourceRepo.owner}/${sourceRepo.repo}`,
+        destinationRepo: `${destinationRepo.owner}/${destinationRepo.repo}`,
+        head: headRef,
         base: targetBranch,
       });
 
@@ -174,10 +201,10 @@ export class GitService {
         : "🤖 Automated fix by Viberator\n\nThis PR was generated automatically.";
 
       const response = await axios.post(
-        `https://api.github.com/repos/${owner}/${repo}/pulls`,
+        `https://api.github.com/repos/${destinationRepo.owner}/${destinationRepo.repo}/pulls`,
         {
           title: title,
-          head: sourceBranch,
+          head: headRef,
           base: targetBranch,
           body: prBody,
           maintainer_can_modify: true,
@@ -208,10 +235,15 @@ export class GitService {
         // Handle specific case: PR already exists
         if (
           error.response?.status === 422 &&
-          details?.[0]?.message?.includes("A pull request already exists")
+          Array.isArray(details) &&
+          details.some(
+            (detail) =>
+              typeof detail?.message === "string" &&
+              detail.message.includes("A pull request already exists"),
+          )
         ) {
           this.logger.warn("Pull request already exists for this branch");
-          return this.getExistingPullRequestUrl(repoDir, sourceBranch);
+          return this.getExistingPullRequestUrl(destinationRepo, headRef, token);
         }
       } else if (error instanceof Error) {
         errorMessage = error.message;
@@ -243,7 +275,9 @@ export class GitService {
       // Regex to handle both HTTPS and SSH formats
       // e.g., https://github.com/owner/repo.git OR git@github.com:owner/repo.git
       const remoteUrl = origin.refs.push;
-      const match = remoteUrl.match(/github\.com[:/](.+)\/(.+?)(\.git)?$/);
+      const match = remoteUrl.match(
+        /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i,
+      );
 
       if (!match) {
         throw new Error(`Could not parse owner/repo from URL: ${remoteUrl}`);
@@ -263,22 +297,37 @@ export class GitService {
    * Fallback to find an existing PR URL if creation fails because it already exists
    */
   private async getExistingPullRequestUrl(
-    repoDir: string,
+    destinationRepo: { owner: string; repo: string },
     head: string,
+    token: string,
   ): Promise<string> {
-    const { owner, repo } = await this.getRepoMetadata(repoDir);
-    const token = process.env.GITHUB_TOKEN;
-
     const response = await axios.get(
-      `https://api.github.com/repos/${owner}/${repo}/pulls`,
+      `https://api.github.com/repos/${destinationRepo.owner}/${destinationRepo.repo}/pulls`,
       {
-        params: { head: `${owner}:${head}`, state: "open" },
+        params: { head, state: "open" },
         headers: { Authorization: `Bearer ${token}` },
       },
     );
 
     return (
-      response.data[0]?.html_url || `https://github.com/${owner}/${repo}/pulls`
+      response.data[0]?.html_url ||
+      `https://github.com/${destinationRepo.owner}/${destinationRepo.repo}/pulls`
     );
+  }
+
+  private getRepoMetadataFromUrl(repoUrl: string): {
+    owner: string;
+    repo: string;
+  } {
+    const match = repoUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i);
+
+    if (!match) {
+      throw new Error(`Could not parse owner/repo from URL: ${repoUrl}`);
+    }
+
+    return {
+      owner: match[1],
+      repo: match[2],
+    };
   }
 }

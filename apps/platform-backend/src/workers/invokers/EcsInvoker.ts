@@ -257,6 +257,7 @@ export class EcsInvoker implements WorkerInvoker {
       callbackToken: job.callbackToken,
       clankerConfig: clanker,
       projectConfig: buildWorkerProjectConfig(project),
+      scm: job.scm,
       overrides: job.overrides,
     };
   }

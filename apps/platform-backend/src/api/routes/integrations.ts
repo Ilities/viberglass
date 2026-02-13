@@ -13,11 +13,19 @@ import {
   type UpsertInboundWebhookConfigInput,
   type UpsertOutboundWebhookConfigInput,
 } from '../services/integrations'
+import { IntegrationCredentialDAO } from '../../persistence/integrations/IntegrationCredentialDAO'
+import { SecretDAO } from '../../persistence/secret/SecretDAO'
+import type {
+  CreateIntegrationCredentialRequest,
+  UpdateIntegrationCredentialRequest,
+} from '@viberglass/types'
 
 const router = express.Router()
 const integrationManagementService = new IntegrationManagementService()
 const projectIntegrationLinkService = new ProjectIntegrationLinkService()
 const integrationWebhookService = new IntegrationWebhookService()
+const integrationCredentialDAO = new IntegrationCredentialDAO()
+const secretDAO = new SecretDAO()
 
 router.use(requireAuth)
 
@@ -368,6 +376,97 @@ router.post(
       message: result.message,
       data: result.data,
     })
+  }),
+)
+
+// ============================================================================
+// Integration Credentials (SCM Credentials)
+// ============================================================================
+
+router.get(
+  '/:id/credentials',
+  withRouteErrorHandling('Error fetching integration credentials', async (req, res) => {
+    const credentials = await integrationCredentialDAO.listByIntegrationId(req.params.id)
+    res.json({ success: true, data: credentials })
+  }),
+)
+
+router.post(
+  '/:id/credentials',
+  withRouteErrorHandling('Error creating integration credential', async (req, res) => {
+    const body = req.body as CreateIntegrationCredentialRequest
+
+    // Create a secret to store the credential value
+    const secret = await secretDAO.createSecret({
+      name: `integration-credential-${req.params.id}-${body.name}`,
+      secretLocation: 'database',
+      secretValueEncrypted: body.secretValue,
+    })
+
+    const credential = await integrationCredentialDAO.create({
+      integrationId: req.params.id,
+      name: body.name,
+      credentialType: body.credentialType,
+      secretId: secret.id,
+      isDefault: body.isDefault ?? false,
+      description: body.description ?? null,
+      expiresAt: body.expiresAt ?? null,
+    })
+
+    res.status(201).json({ success: true, data: credential })
+  }),
+)
+
+router.get(
+  '/:id/credentials/:credentialId',
+  withRouteErrorHandling('Error fetching integration credential', async (req, res) => {
+    const credential = await integrationCredentialDAO.getById(req.params.credentialId)
+
+    if (!credential || credential.integrationId !== req.params.id) {
+      res.status(404).json({ error: 'Credential not found' })
+      return
+    }
+
+    res.json({ success: true, data: credential })
+  }),
+)
+
+router.put(
+  '/:id/credentials/:credentialId',
+  withRouteErrorHandling('Error updating integration credential', async (req, res) => {
+    const body = req.body as UpdateIntegrationCredentialRequest
+
+    const credential = await integrationCredentialDAO.getById(req.params.credentialId)
+    if (!credential || credential.integrationId !== req.params.id) {
+      res.status(404).json({ error: 'Credential not found' })
+      return
+    }
+
+    const updated = await integrationCredentialDAO.update(req.params.credentialId, body)
+    res.json({ success: true, data: updated })
+  }),
+)
+
+router.delete(
+  '/:id/credentials/:credentialId',
+  withRouteErrorHandling('Error deleting integration credential', async (req, res) => {
+    const credential = await integrationCredentialDAO.getById(req.params.credentialId)
+    if (!credential || credential.integrationId !== req.params.id) {
+      res.status(404).json({ error: 'Credential not found' })
+      return
+    }
+
+    // Delete the credential (will fail if in use)
+    const deleted = await integrationCredentialDAO.delete(req.params.credentialId)
+    if (!deleted) {
+      res.status(500).json({ error: 'Failed to delete credential' })
+      return
+    }
+
+    // Also delete the associated secret
+    await secretDAO.deleteSecret(credential.secretId)
+
+    res.status(204).send()
   }),
 )
 

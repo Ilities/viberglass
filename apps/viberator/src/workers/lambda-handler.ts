@@ -37,6 +37,7 @@ export const handler: SQSHandler = async (event: SQSEvent) => {
         baseBranch: payload.baseBranch,
         context: payload.context,
         settings: payload.settings,
+        scm: payload.scm,
         timestamp: Date.now(),
       };
 

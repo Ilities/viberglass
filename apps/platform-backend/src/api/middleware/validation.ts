@@ -6,6 +6,7 @@ import {
   projectSchema,
   updateTicketSchema,
   updateProjectSchema,
+  projectScmConfigSchema,
   clankerSchema,
   updateClankerSchema,
   deploymentStrategySchema,
@@ -55,6 +56,7 @@ export const validateCreateTicket = createValidator(ticketSchema);
 export const validateUpdateTicket = createValidator(updateTicketSchema);
 export const validateCreateProject = createValidator(projectSchema);
 export const validateUpdateProject = createValidator(updateProjectSchema);
+export const validateProjectScmConfig = createValidator(projectScmConfigSchema);
 export const validateCreateClanker = createValidator(clankerSchema);
 export const validateUpdateClanker = createValidator(updateClankerSchema);
 export const validateCreateDeploymentStrategy = createValidator(

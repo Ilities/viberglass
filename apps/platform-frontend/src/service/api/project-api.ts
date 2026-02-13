@@ -5,6 +5,8 @@ import type {
   CreateProjectRequest,
   PaginatedResponse,
   Project,
+  ProjectScmConfig,
+  UpsertProjectScmConfigRequest,
   UpdateProjectRequest,
 } from '@viberglass/types'
 
@@ -82,5 +84,59 @@ export async function deleteProject(id: string): Promise<void> {
   }
 }
 
+export async function getProjectScmConfig(projectId: string): Promise<ProjectScmConfig | null> {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/scm-config`)
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error('Failed to fetch project SCM configuration')
+  }
+  const data: ApiResponse<ProjectScmConfig> = await response.json()
+  return data.data
+}
+
+export async function upsertProjectScmConfig(
+  projectId: string,
+  request: UpsertProjectScmConfigRequest
+): Promise<ProjectScmConfig> {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/scm-config`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to save project SCM configuration')
+  }
+
+  const data: ApiResponse<ProjectScmConfig> = await response.json()
+  return data.data
+}
+
+export async function deleteProjectScmConfig(projectId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/scm-config`, {
+    method: 'DELETE',
+  })
+
+  if (response.status === 404) {
+    return
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to delete project SCM configuration')
+  }
+}
+
 // Re-export types for convenience
-export type { CreateProjectRequest, Project, UpdateProjectRequest } from '@viberglass/types'
+export type {
+  CreateProjectRequest,
+  Project,
+  ProjectScmConfig,
+  UpsertProjectScmConfigRequest,
+  UpdateProjectRequest,
+} from '@viberglass/types'

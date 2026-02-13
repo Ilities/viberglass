@@ -14,6 +14,32 @@ export interface ProjectWorkerSettings {
   maxExecutionTime?: number
 }
 
+export interface ProjectScmConfig {
+  projectId: string
+  integrationId: string
+  integrationSystem?: TicketSystem
+  sourceRepository: string
+  baseBranch: string
+  pullRequestRepository?: string | null
+  pullRequestBaseBranch?: string | null
+  branchNameTemplate?: string | null
+  credentialSecretId?: string | null
+  integrationCredentialId?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UpsertProjectScmConfigRequest {
+  integrationId: string
+  sourceRepository: string
+  baseBranch?: string
+  pullRequestRepository?: string | null
+  pullRequestBaseBranch?: string | null
+  branchNameTemplate?: string | null
+  credentialSecretId?: string | null
+  integrationCredentialId?: string | null
+}
+
 // Authentication credential types
 export type AuthCredentialType = 'api_key' | 'oauth' | 'basic' | 'token'
 
@@ -59,8 +85,19 @@ export interface Project {
   customFieldMappings: Record<string, string>
   repositoryUrl?: string | null
   repositoryUrls?: string[]
+  scmConfig?: ProjectScmConfig | null
   agentInstructions?: string | null
   workerSettings?: ProjectWorkerSettings | null
+  /**
+   * ID of the primary ticketing integration for this project.
+   * Replaces the ambiguous isPrimary flag on project_integrations.
+   */
+  primaryTicketingIntegrationId?: string | null
+  /**
+   * ID of the primary SCM integration for this project.
+   * Replaces the ambiguous isPrimary flag on project_integrations.
+   */
+  primaryScmIntegrationId?: string | null
   createdAt: string
   updatedAt: string
 }

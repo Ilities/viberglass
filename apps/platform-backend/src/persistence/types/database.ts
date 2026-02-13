@@ -46,6 +46,8 @@ export interface ProjectsTable {
   repository_url: string | null;
   repository_urls: Generated<string[]>;
   agent_instructions: string | null;
+  primary_ticketing_integration_id: string | null;
+  primary_scm_integration_id: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -124,6 +126,35 @@ export interface ProjectIntegrationsTable {
   integration_id: string;
   is_primary: Generated<boolean>;
   created_at: Generated<Timestamp>;
+}
+
+export interface IntegrationCredentialsTable {
+  id: Generated<string>;
+  integration_id: string;
+  name: string;
+  credential_type: "token" | "ssh_key" | "oauth" | "basic";
+  secret_id: string;
+  is_default: Generated<boolean>;
+  description: string | null;
+  expires_at: Timestamp | null;
+  last_used_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ProjectScmConfigsTable {
+  id: Generated<string>;
+  project_id: string;
+  integration_id: string;
+  source_repository: string;
+  base_branch: Generated<string>;
+  pr_repository: string | null;
+  pr_base_branch: string | null;
+  branch_name_template: string | null;
+  credential_secret_id: string | null;
+  integration_credential_id: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
 }
 
 export interface WebhookEventsTable {
@@ -304,6 +335,8 @@ export interface Database {
   tickets: TicketsTable;
   integrations: IntegrationsTable;
   project_integrations: ProjectIntegrationsTable;
+  integration_credentials: IntegrationCredentialsTable;
+  project_scm_configs: ProjectScmConfigsTable;
   webhook_events: WebhookEventsTable;
   auto_fix_queue: AutoFixQueueTable;
   deployment_strategies: DeploymentStrategiesTable;
