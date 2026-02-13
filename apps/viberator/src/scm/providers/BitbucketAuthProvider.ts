@@ -14,7 +14,26 @@ export class BitbucketAuthProvider implements SCMAuthProvider {
   }
 
   getToken(): string | undefined {
-    return process.env.BITBUCKET_TOKEN || process.env.BITBUCKET_APP_PASSWORD;
+    // Primary: exact match for standard token names
+    const primaryToken = process.env.BITBUCKET_TOKEN || process.env.BITBUCKET_APP_PASSWORD;
+    if (primaryToken) {
+      return primaryToken;
+    }
+    
+    // Fallback: search for any env var that looks like a Bitbucket token
+    const envVars = Object.keys(process.env);
+    const bitbucketTokenVar = envVars.find(
+      (key) =>
+        key.toUpperCase().includes("BITBUCKET") &&
+        (key.toUpperCase().includes("TOKEN") || key.toUpperCase().includes("PASSWORD")),
+    );
+    
+    if (bitbucketTokenVar) {
+      console.log(`Bitbucket auth: Found token in ${bitbucketTokenVar}`);
+      return process.env[bitbucketTokenVar];
+    }
+    
+    return undefined;
   }
 
   private getUsername(): string {
