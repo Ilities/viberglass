@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import db from '../config/database'
-import type { ProjectIntegrationLink, TicketSystem } from '@viberglass/types'
+import type { ProjectIntegrationLink, ProjectIntegrationLinkWithCategory, TicketSystem, IntegrationCategory } from '@viberglass/types'
 
 export interface CreateProjectIntegrationLinkInput {
   projectId: string
@@ -63,7 +63,7 @@ export class ProjectIntegrationLinkDAO {
   }
 
   /**
-   * Get all integrations linked to a project (with details)
+   * Get all integrations linked to a project (with details and category)
    */
   async getProjectIntegrations(projectId: string): Promise<ProjectIntegrationWithDetails[]> {
     const rows = await db
@@ -88,6 +88,29 @@ export class ProjectIntegrationLinkDAO {
   }
 
   /**
+   * Get all integrations linked to a project with their categories
+   */
+  async getProjectIntegrationsWithCategory(projectId: string): Promise<ProjectIntegrationLinkWithCategory[]> {
+    const rows = await db
+      .selectFrom('project_integrations')
+      .innerJoin('integrations', 'integrations.id', 'project_integrations.integration_id')
+      .select([
+        'project_integrations.id',
+        'project_integrations.project_id',
+        'project_integrations.integration_id',
+        'project_integrations.is_primary',
+        'project_integrations.created_at',
+        'integrations.system as integration_system',
+      ])
+      .where('project_integrations.project_id', '=', projectId)
+      .orderBy('project_integrations.is_primary', 'desc')
+      .orderBy('project_integrations.created_at', 'desc')
+      .execute()
+
+    return rows.map((row) => this.mapRowToLinkWithCategory(row))
+  }
+
+  /**
    * Get all projects linked to an integration
    */
   async getIntegrationProjects(integrationId: string): Promise<ProjectIntegrationLink[]> {
@@ -104,6 +127,7 @@ export class ProjectIntegrationLinkDAO {
 
   /**
    * Set an integration as the primary one for a project
+   * @deprecated Use ProjectIntegrationLinkService with category-specific columns instead
    */
   async setPrimaryIntegration(projectId: string, integrationId: string): Promise<void> {
     // First, unset any existing primary
@@ -124,6 +148,7 @@ export class ProjectIntegrationLinkDAO {
 
   /**
    * Get the primary integration for a project
+   * @deprecated Use getPrimaryTicketingIntegration or getPrimaryScmIntegration instead
    */
   async getPrimaryIntegration(projectId: string): Promise<ProjectIntegrationWithDetails | null> {
     const row = await db
@@ -141,6 +166,80 @@ export class ProjectIntegrationLinkDAO {
       ])
       .where('project_integrations.project_id', '=', projectId)
       .where('project_integrations.is_primary', '=', true)
+      .executeTakeFirst()
+
+    if (!row) return null
+
+    return this.mapRowToLinkWithDetails(row)
+  }
+
+  /**
+   * Get the primary ticketing integration for a project using the category-specific column
+   */
+  async getPrimaryTicketingIntegration(projectId: string): Promise<ProjectIntegrationWithDetails | null> {
+    // First get the primary ticketing integration ID from the projects table
+    const project = await db
+      .selectFrom('projects')
+      .select('primary_ticketing_integration_id')
+      .where('id', '=', projectId)
+      .executeTakeFirst()
+
+    const primaryIntegrationId = project?.primary_ticketing_integration_id
+    if (!primaryIntegrationId) return null
+
+    // Then fetch the integration details
+    const row = await db
+      .selectFrom('project_integrations')
+      .innerJoin('integrations', 'integrations.id', 'project_integrations.integration_id')
+      .select([
+        'project_integrations.id',
+        'project_integrations.project_id',
+        'project_integrations.integration_id',
+        'project_integrations.is_primary',
+        'project_integrations.created_at',
+        'integrations.name as integration_name',
+        'integrations.system as integration_system',
+        'integrations.is_active as integration_is_active',
+      ])
+      .where('project_integrations.project_id', '=', projectId)
+      .where('project_integrations.integration_id', '=', primaryIntegrationId)
+      .executeTakeFirst()
+
+    if (!row) return null
+
+    return this.mapRowToLinkWithDetails(row)
+  }
+
+  /**
+   * Get the primary SCM integration for a project using the category-specific column
+   */
+  async getPrimaryScmIntegration(projectId: string): Promise<ProjectIntegrationWithDetails | null> {
+    // First get the primary SCM integration ID from the projects table
+    const project = await db
+      .selectFrom('projects')
+      .select('primary_scm_integration_id')
+      .where('id', '=', projectId)
+      .executeTakeFirst()
+
+    const primaryIntegrationId = project?.primary_scm_integration_id
+    if (!primaryIntegrationId) return null
+
+    // Then fetch the integration details
+    const row = await db
+      .selectFrom('project_integrations')
+      .innerJoin('integrations', 'integrations.id', 'project_integrations.integration_id')
+      .select([
+        'project_integrations.id',
+        'project_integrations.project_id',
+        'project_integrations.integration_id',
+        'project_integrations.is_primary',
+        'project_integrations.created_at',
+        'integrations.name as integration_name',
+        'integrations.system as integration_system',
+        'integrations.is_active as integration_is_active',
+      ])
+      .where('project_integrations.project_id', '=', projectId)
+      .where('project_integrations.integration_id', '=', primaryIntegrationId)
       .executeTakeFirst()
 
     if (!row) return null
@@ -221,5 +320,21 @@ export class ProjectIntegrationLinkDAO {
         isActive: Boolean(row.integration_is_active),
       },
     }
+  }
+
+  private mapRowToLinkWithCategory(row: Record<string, unknown>): ProjectIntegrationLinkWithCategory {
+    const system = row.integration_system as TicketSystem
+    return {
+      ...this.mapRowToLink(row),
+      category: this.inferCategoryFromSystem(system),
+    }
+  }
+
+  private inferCategoryFromSystem(system: TicketSystem): IntegrationCategory {
+    const scmSystems: TicketSystem[] = ['github', 'gitlab', 'bitbucket']
+    if (scmSystems.includes(system)) {
+      return 'scm'
+    }
+    return 'ticketing'
   }
 }

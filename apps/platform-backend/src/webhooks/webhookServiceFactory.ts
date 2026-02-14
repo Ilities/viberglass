@@ -11,6 +11,7 @@ import { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
 import { DeduplicationService } from "./DeduplicationService";
 import { WebhookSecretService } from "./WebhookSecretService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { JobService } from "../services/JobService";
 import { FeedbackService } from "./FeedbackService";
 import { FeedbackOutboundConfigResolver } from "./feedback/FeedbackOutboundConfigResolver";
@@ -77,6 +78,7 @@ export function getWebhookService(): WebhookService {
     const credentialProvider = getCredentialFactory();
     const secretService = new WebhookSecretService(credentialProvider);
     const ticketDAO = new TicketDAO();
+    const projectScmConfigDAO = new ProjectScmConfigDAO();
     const providerBehaviorResolver = createDefaultFeedbackProviderBehaviorResolver();
     const outboundContextResolver = new FeedbackOutboundContextResolver(
       ticketDAO,
@@ -115,6 +117,7 @@ export function getWebhookService(): WebhookService {
     const inboundProcessorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO,
       jobService,
+      projectScmConfigDAO,
     );
 
     webhookService = new WebhookService(

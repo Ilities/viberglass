@@ -79,10 +79,45 @@ export class ProjectIntegrationLinkService {
   }
 
   async unlinkProjectIntegration(projectId: string, integrationId: string) {
+    // Get integration details before unlinking to check if it's primary
+    const integration = await this.integrationDAO.getIntegration(integrationId)
+    
     const deleted = await this.projectLinkDAO.unlinkIntegration(projectId, integrationId)
 
     if (!deleted) {
       throw new IntegrationRouteServiceError(404, 'Integration link not found')
+    }
+
+    // Clear category-specific primary column if this was the primary integration
+    if (integration) {
+      await this.clearProjectPrimaryIntegrationIfNeeded(projectId, integrationId, integration.system)
+    }
+  }
+
+  private async clearProjectPrimaryIntegrationIfNeeded(
+    projectId: string,
+    unlinkedIntegrationId: string,
+    system: string
+  ): Promise<void> {
+    // Determine category from integration system
+    const plugin = integrationRegistry.get(system as TicketSystem)
+    if (!plugin) return
+
+    const isScm = plugin.category === 'scm'
+    
+    // Get current project state
+    const project = await this.projectDAO.getProject(projectId)
+    if (!project) return
+
+    // Clear the primary integration ID if it matches the unlinked integration
+    if (isScm && project.primaryScmIntegrationId === unlinkedIntegrationId) {
+      await this.projectDAO.updateProject(projectId, {
+        primaryScmIntegrationId: null,
+      })
+    } else if (!isScm && project.primaryTicketingIntegrationId === unlinkedIntegrationId) {
+      await this.projectDAO.updateProject(projectId, {
+        primaryTicketingIntegrationId: null,
+      })
     }
   }
 
