@@ -3,13 +3,16 @@ import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
   AuthCredentialType,
+  CreateIntegrationCredentialRequest,
   CreateIntegrationRequest,
   Integration,
+  IntegrationCredential,
   IntegrationFieldType,
   IntegrationSummary,
   ProjectIntegrationLink,
   TestIntegrationResponse,
   TicketSystem,
+  UpdateIntegrationCredentialRequest,
   UpdateIntegrationRequest,
 } from '@viberglass/types'
 
@@ -830,6 +833,91 @@ export async function retryIntegrationDelivery(
   }
   const data: ApiResponse<IntegrationWebhookRetryResult> = await response.json()
   return data.data
+}
+
+// ============================================================================
+// Integration Credentials (SCM Credentials)
+// ============================================================================
+
+/**
+ * List all credentials for an integration
+ */
+export async function getIntegrationCredentials(integrationId: string): Promise<IntegrationCredential[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch integration credentials')
+  }
+  const data: ApiResponse<IntegrationCredential[]> = await response.json()
+  return data.data
+}
+
+/**
+ * Create a new credential for an integration
+ */
+export async function createIntegrationCredential(
+  integrationId: string,
+  request: CreateIntegrationCredentialRequest
+): Promise<IntegrationCredential> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to create credential')
+  }
+  const data: ApiResponse<IntegrationCredential> = await response.json()
+  return data.data
+}
+
+/**
+ * Get a specific credential
+ */
+export async function getIntegrationCredential(
+  integrationId: string,
+  credentialId: string
+): Promise<IntegrationCredential> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials/${credentialId}`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch credential')
+  }
+  const data: ApiResponse<IntegrationCredential> = await response.json()
+  return data.data
+}
+
+/**
+ * Update a credential
+ */
+export async function updateIntegrationCredential(
+  integrationId: string,
+  credentialId: string,
+  request: UpdateIntegrationCredentialRequest
+): Promise<IntegrationCredential> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials/${credentialId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to update credential')
+  }
+  const data: ApiResponse<IntegrationCredential> = await response.json()
+  return data.data
+}
+
+/**
+ * Delete a credential
+ */
+export async function deleteIntegrationCredential(integrationId: string, credentialId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials/${credentialId}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to delete credential')
+  }
 }
 
 // Re-export types for convenience

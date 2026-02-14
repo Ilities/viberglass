@@ -1,5 +1,6 @@
 import express from 'express';
 import { ProjectDAO } from '../../persistence/project/ProjectDAO';
+import { ProjectConfig } from '../../models/PMIntegration';
 import { ProjectScmConfigDAO } from '../../persistence/project/ProjectScmConfigDAO';
 import { IntegrationConfigDAO } from '../../persistence/integrations/IntegrationConfigDAO';
 import { ProjectIntegrationLinkDAO } from '../../persistence/integrations/ProjectIntegrationLinkDAO';
@@ -107,6 +108,41 @@ const normalizeOptionalString = (value?: string | null): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+/**
+ * Phase 2: Enrich project with derived ticket system from primaryTicketingIntegrationId
+ * This function resolves the ticketing system name from the primary integration
+ * when the deprecated ticketSystem field is not set or needs to be overridden.
+ */
+async function enrichProjectWithDerivedTicketSystem(project: ProjectConfig): Promise<ProjectConfig> {
+  // If we have a primaryTicketingIntegrationId, derive the ticketSystem from it
+  if (project.primaryTicketingIntegrationId) {
+    try {
+      const integration = await integrationDAO.getIntegration(project.primaryTicketingIntegrationId);
+      if (integration) {
+        // Override the deprecated ticketSystem with the integration system
+        return {
+          ...project,
+          ticketSystem: integration.system,
+        };
+      }
+    } catch (error) {
+      logger.warn('Failed to resolve ticket system from primary integration', {
+        projectId: project.id,
+        primaryTicketingIntegrationId: project.primaryTicketingIntegrationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return project;
+}
+
+/**
+ * Phase 2: Enrich multiple projects with derived ticket systems
+ */
+async function enrichProjectsWithDerivedTicketSystems(projects: ProjectConfig[]): Promise<ProjectConfig[]> {
+  return Promise.all(projects.map(enrichProjectWithDerivedTicketSystem));
+}
+
 // GET /api/projects - List all projects
 router.get('/', async (req, res) => {
   try {
@@ -114,10 +150,13 @@ router.get('/', async (req, res) => {
     const offset = parseInt(req.query.offset as string) || 0;
 
     const projects = await projectService.listProjects(limit, offset);
+    
+    // Phase 2: Enrich projects with derived ticket systems from primary integrations
+    const enrichedProjects = await enrichProjectsWithDerivedTicketSystems(projects);
 
     res.json({
       success: true,
-      data: projects,
+      data: enrichedProjects,
       pagination: { limit, offset, count: projects.length }
     });
   } catch (error) {
@@ -133,7 +172,11 @@ router.get('/by-name/:name', async (req, res) => {
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    res.json({ success: true, data: project });
+    
+    // Phase 2: Enrich project with derived ticket system from primary integration
+    const enrichedProject = await enrichProjectWithDerivedTicketSystem(project);
+    
+    res.json({ success: true, data: enrichedProject });
   } catch (error) {
     logger.error('Error fetching project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
@@ -158,7 +201,11 @@ router.get('/:id', validateUuidParam('id'), async (req, res) => {
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    res.json({ success: true, data: project });
+    
+    // Phase 2: Enrich project with derived ticket system from primary integration
+    const enrichedProject = await enrichProjectWithDerivedTicketSystem(project);
+    
+    res.json({ success: true, data: enrichedProject });
   } catch (error) {
     logger.error('Error fetching project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
@@ -175,7 +222,11 @@ router.put('/:id', validateUuidParam('id'), validateUpdateProject, async (req, r
     }
 
     const updatedProject = await projectService.updateProject(req.params.id, req.body);
-    res.json({ success: true, data: updatedProject });
+    
+    // Phase 2: Enrich project with derived ticket system from primary integration
+    const enrichedProject = await enrichProjectWithDerivedTicketSystem(updatedProject);
+    
+    res.json({ success: true, data: enrichedProject });
   } catch (error) {
     logger.error('Error updating project', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: 'Internal server error' });
