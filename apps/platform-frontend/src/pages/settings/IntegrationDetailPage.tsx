@@ -28,6 +28,7 @@ import { CustomOutboundWebhookSection } from './integration-detail/CustomOutboun
 import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
 import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
+import { IntegrationCredentialSection } from './integration-detail/IntegrationCredentialSection'
 import {
   IntegrationDetailErrorState,
   IntegrationDetailLoadingState,
@@ -788,6 +789,13 @@ export function IntegrationDetailPage() {
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
         ))}
+
+      {isConfigured && existingIntegration && (isGithubIntegration || integrationSystem === 'gitlab' || integrationSystem === 'bitbucket') && (
+        <IntegrationCredentialSection
+          integrationId={existingIntegration.id}
+          integrationSystem={integrationSystem}
+        />
+      )}
 
       {(isConfigured || isCustomIntegration) &&
         capabilities.supportsOutboundWebhooks &&

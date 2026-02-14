@@ -300,6 +300,7 @@ describe('ProjectSettingsPage', () => {
         pullRequestBaseBranch: null,
         branchNameTemplate: 'viberator/{{ticketId}}-{{timestamp}}',
         credentialSecretId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        integrationCredentialId: null,
       })
     })
 

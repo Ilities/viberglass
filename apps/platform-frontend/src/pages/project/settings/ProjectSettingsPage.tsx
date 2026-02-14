@@ -11,9 +11,11 @@ import { useProject } from '@/context/project-context'
 import { getErrorMessage, getInitialRepositoryUrls, normalizeRepositoryUrls } from '@/lib/project-form'
 import {
   getAvailableIntegrationTypes,
+  getIntegrationCredentials,
   getProjectIntegrations,
   type ProjectIntegrationWithDetails,
 } from '@/service/api/integration-api'
+import type { IntegrationCredential } from '@viberglass/types'
 import {
   deleteProjectScmConfig,
   getProjectScmConfig,
@@ -78,6 +80,7 @@ export function ProjectSettingsPage() {
   const [pullRequestBaseBranch, setPullRequestBaseBranch] = useState('')
   const [branchNameTemplate, setBranchNameTemplate] = useState('')
   const [credentialSecretId, setCredentialSecretId] = useState<string>(NONE_OPTION)
+  const [integrationCredentialId, setIntegrationCredentialId] = useState<string>(NONE_OPTION)
   const [initialScmConfig, setInitialScmConfig] = useState<ProjectScmConfig | null>(null)
   const [isLoadingScmConfig, setIsLoadingScmConfig] = useState(true)
   const [scmLoadError, setScmLoadError] = useState<string | null>(null)
@@ -85,6 +88,11 @@ export function ProjectSettingsPage() {
   const [availableSecrets, setAvailableSecrets] = useState<Secret[]>([])
   const [isLoadingSecrets, setIsLoadingSecrets] = useState(true)
   const [secretsLoadError, setSecretsLoadError] = useState<string | null>(null)
+
+  // Integration credentials for the selected SCM integration
+  const [integrationCredentials, setIntegrationCredentials] = useState<IntegrationCredential[]>([])
+  const [isLoadingIntegrationCredentials, setIsLoadingIntegrationCredentials] = useState(false)
+  const [integrationCredentialsError, setIntegrationCredentialsError] = useState<string | null>(null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -156,11 +164,22 @@ export function ProjectSettingsPage() {
         const mapped = mapLinkedIntegrations(links, categoryBySystem)
         setLinkedIntegrations(mapped)
 
-        const ticketingMatch = mapped.find(
-          (integration) =>
-            integration.category !== 'scm' && integration.system === projectData.ticketSystem
-        )
-        setTicketingIntegrationId(ticketingMatch?.integrationEntityId ?? NONE_OPTION)
+        // Phase 2: Use primaryTicketingIntegrationId instead of deprecated ticketSystem
+        const primaryTicketingId = projectData.primaryTicketingIntegrationId
+        if (primaryTicketingId) {
+          const primaryMatch = mapped.find(
+            (integration) =>
+              integration.category !== 'scm' && integration.integrationEntityId === primaryTicketingId
+          )
+          setTicketingIntegrationId(primaryMatch?.integrationEntityId ?? NONE_OPTION)
+        } else {
+          // Fallback to deprecated ticketSystem field for backward compatibility
+          const ticketingMatch = mapped.find(
+            (integration) =>
+              integration.category !== 'scm' && integration.system === projectData.ticketSystem
+          )
+          setTicketingIntegrationId(ticketingMatch?.integrationEntityId ?? NONE_OPTION)
+        }
 
         if (initialScmConfig?.integrationId) {
           const scmMatch = mapped.find(
@@ -224,6 +243,7 @@ export function ProjectSettingsPage() {
           setPullRequestBaseBranch(scmConfig.pullRequestBaseBranch ?? '')
           setBranchNameTemplate(scmConfig.branchNameTemplate ?? '')
           setCredentialSecretId(scmConfig.credentialSecretId ?? NONE_OPTION)
+          setIntegrationCredentialId(scmConfig.integrationCredentialId ?? NONE_OPTION)
         } else {
           setScmIntegrationId(NONE_OPTION)
           setSourceRepository('')
@@ -232,6 +252,7 @@ export function ProjectSettingsPage() {
           setPullRequestBaseBranch('')
           setBranchNameTemplate('')
           setCredentialSecretId(NONE_OPTION)
+          setIntegrationCredentialId(NONE_OPTION)
         }
       } else {
         setScmLoadError(
@@ -262,6 +283,47 @@ export function ProjectSettingsPage() {
     }
   }, [projectData?.id])
 
+  // Load integration credentials when SCM integration changes
+  useEffect(() => {
+    let isActive = true
+
+    async function loadIntegrationCredentials() {
+      if (scmIntegrationId === NONE_OPTION || !scmIntegrationId) {
+        setIntegrationCredentials([])
+        setIsLoadingIntegrationCredentials(false)
+        return
+      }
+
+      setIsLoadingIntegrationCredentials(true)
+      setIntegrationCredentialsError(null)
+
+      try {
+        const credentials = await getIntegrationCredentials(scmIntegrationId)
+        if (isActive) {
+          setIntegrationCredentials(credentials)
+        }
+      } catch (error) {
+        console.error('Failed to load integration credentials:', error)
+        if (isActive) {
+          setIntegrationCredentials([])
+          setIntegrationCredentialsError(
+            error instanceof Error ? error.message : 'Failed to load integration credentials'
+          )
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingIntegrationCredentials(false)
+        }
+      }
+    }
+
+    void loadIntegrationCredentials()
+
+    return () => {
+      isActive = false
+    }
+  }, [scmIntegrationId])
+
   const resetForm = () => {
     if (!projectData) return
     setName(projectData.name ?? '')
@@ -270,10 +332,20 @@ export function ProjectSettingsPage() {
     setAgentInstructions(projectData.agentInstructions ?? '')
     setRepositoryUrls(getInitialRepositoryUrls(projectData))
 
-    const ticketingMatch = ticketingIntegrations.find(
-      (integration) => integration.system === projectData.ticketSystem
-    )
-    setTicketingIntegrationId(ticketingMatch?.integrationEntityId ?? NONE_OPTION)
+    // Phase 2: Use primaryTicketingIntegrationId instead of deprecated ticketSystem
+    const primaryTicketingId = projectData.primaryTicketingIntegrationId
+    if (primaryTicketingId) {
+      const primaryMatch = ticketingIntegrations.find(
+        (integration) => integration.integrationEntityId === primaryTicketingId
+      )
+      setTicketingIntegrationId(primaryMatch?.integrationEntityId ?? NONE_OPTION)
+    } else {
+      // Fallback to deprecated ticketSystem field for backward compatibility
+      const ticketingMatch = ticketingIntegrations.find(
+        (integration) => integration.system === projectData.ticketSystem
+      )
+      setTicketingIntegrationId(ticketingMatch?.integrationEntityId ?? NONE_OPTION)
+    }
 
     if (initialScmConfig) {
       setScmIntegrationId(initialScmConfig.integrationId)
@@ -283,6 +355,7 @@ export function ProjectSettingsPage() {
       setPullRequestBaseBranch(initialScmConfig.pullRequestBaseBranch ?? '')
       setBranchNameTemplate(initialScmConfig.branchNameTemplate ?? '')
       setCredentialSecretId(initialScmConfig.credentialSecretId ?? NONE_OPTION)
+      setIntegrationCredentialId(initialScmConfig.integrationCredentialId ?? NONE_OPTION)
     } else {
       setScmIntegrationId(NONE_OPTION)
       setSourceRepository('')
@@ -291,6 +364,7 @@ export function ProjectSettingsPage() {
       setPullRequestBaseBranch('')
       setBranchNameTemplate('')
       setCredentialSecretId(NONE_OPTION)
+      setIntegrationCredentialId(NONE_OPTION)
     }
 
     setError(null)
@@ -359,6 +433,8 @@ export function ProjectSettingsPage() {
           branchNameTemplate: normalizeOptionalText(branchNameTemplate),
           credentialSecretId:
             credentialSecretId !== NONE_OPTION ? credentialSecretId : null,
+          integrationCredentialId:
+            integrationCredentialId !== NONE_OPTION ? integrationCredentialId : null,
         })
         setInitialScmConfig(scmConfig)
       } else if (initialScmConfig) {
@@ -643,9 +719,56 @@ export function ProjectSettingsPage() {
                   </Field>
 
                   <Field>
-                    <Label>Credential Secret (Optional)</Label>
+                    <Label>Integration Credential (Recommended)</Label>
                     <Description>
-                      Selected secret is added to clanker runtime credentials for SCM authentication.
+                      Select an integration credential for SCM authentication. These are managed in the{' '}
+                      <Link
+                        href={`/settings/integrations/${scmIntegrationId}`}
+                        className="text-brand-burnt-orange hover:underline"
+                      >
+                        integration settings
+                      </Link>
+                      .
+                    </Description>
+                    <Select
+                      name="integration_credential_id"
+                      value={integrationCredentialId}
+                      onChange={(value) => setIntegrationCredentialId(value)}
+                      disabled={scmIntegrationId === NONE_OPTION || isLoadingIntegrationCredentials}
+                    >
+                      <option value={NONE_OPTION}>
+                        {isLoadingIntegrationCredentials ? 'Loading credentials...' : 'Select an integration credential'}
+                      </option>
+                      {integrationCredentials.map((credential) => (
+                        <option key={credential.id} value={credential.id}>
+                          {credential.name}
+                          {credential.isDefault ? ' (default)' : ''}
+                        </option>
+                      ))}
+                    </Select>
+                    {integrationCredentialsError ? (
+                      <Description className="mt-2 text-red-600 dark:text-red-400">
+                        {integrationCredentialsError}
+                      </Description>
+                    ) : null}
+                    {!isLoadingIntegrationCredentials && integrationCredentials.length === 0 && scmIntegrationId !== NONE_OPTION ? (
+                      <Description className="mt-2">
+                        No integration credentials configured. Create one in{' '}
+                        <Link
+                          href={`/settings/integrations/${scmIntegrationId}`}
+                          className="text-brand-burnt-orange hover:underline"
+                        >
+                          integration settings
+                        </Link>
+                        .
+                      </Description>
+                    ) : null}
+                  </Field>
+
+                  <Field>
+                    <Label>Legacy Credential Secret (Optional)</Label>
+                    <Description>
+                      Deprecated: Use Integration Credential above. This legacy option adds a raw secret to runtime credentials.
                     </Description>
                     <Select
                       name="credential_secret_id"
@@ -653,7 +776,7 @@ export function ProjectSettingsPage() {
                       onChange={(value) => setCredentialSecretId(value)}
                       disabled={scmIntegrationId === NONE_OPTION || isLoadingSecrets}
                     >
-                      <option value={NONE_OPTION}>No SCM credential secret</option>
+                      <option value={NONE_OPTION}>No legacy credential secret</option>
                       {availableSecrets.map((secret) => (
                         <option key={secret.id} value={secret.id}>
                           {secret.name}
@@ -663,15 +786,6 @@ export function ProjectSettingsPage() {
                     {secretsLoadError ? (
                       <Description className="mt-2 text-red-600 dark:text-red-400">
                         {secretsLoadError}
-                      </Description>
-                    ) : null}
-                    {!isLoadingSecrets && availableSecrets.length === 0 ? (
-                      <Description className="mt-2">
-                        No secrets available. Create one in{' '}
-                        <Link href="/secrets" className="text-brand-burnt-orange hover:underline">
-                          Secrets
-                        </Link>
-                        .
                       </Description>
                     ) : null}
                   </Field>
