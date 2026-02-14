@@ -119,14 +119,11 @@ export function NewProjectPage() {
       const ticketSystem = manualTicketSystem || configuredTicketSystem
       let credentials: LegacyAuthCredentials = { type: 'api_key' }
 
-      if (!ticketSystem || ticketSystem === 'none') {
-        throw new Error('Select a ticketing integration to continue')
-      }
-
       if (repositoryUrlList.length === 0) {
         throw new Error('Add at least one repository URL to continue')
       }
 
+      // Only fetch credentials if a ticketing integration is selected
       if (ticketSystem && ticketSystem !== 'none') {
         // If provided, use manual credentials JSON from the form
         const credentialsRaw = formData.get('credentials') as string
@@ -256,32 +253,16 @@ export function NewProjectPage() {
                 <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
                   Loading integrations...
                 </div>
-              ) : !hasConfiguredIntegrations ? (
-                // No integrations configured - show CTA
-                <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center dark:border-zinc-700 dark:bg-zinc-900">
-                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-                    <PlusIcon className="size-6 text-zinc-400" />
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">
-                    No integrations configured
-                  </h3>
-                  <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    Configure integrations first to enable bug tracking for this project.
-                  </p>
-                  <Button
-                    href="/settings/integrations"
-                    color="brand"
-                    className="mt-4"
-                  >
-                    Configure Integrations
-                  </Button>
-                </div>
               ) : (
-                // Show configured integrations
+                // Show configured integrations (or option to use Viberglass standalone)
                 <>
                   <Field>
                     <Select name="ticket_system" defaultValue="none">
-                      <option value="none">Select an integration...</option>
+                      <option value="none">
+                        {hasConfiguredIntegrations
+                          ? 'Use Viberglass as ticketing system (no external integration)'
+                          : 'Use Viberglass as ticketing system'}
+                      </option>
                       {configuredIntegrations.map((integration) => (
                         <option key={integration.id} value={integration.id}>
                           {integration.label} ({integration.category === 'scm' ? 'SCM' : 'Ticketing'})
@@ -289,13 +270,28 @@ export function NewProjectPage() {
                       ))}
                     </Select>
                     <Description className="mt-2">
-                      Only preconfigured integrations are shown.{' '}
-                      <Link
-                        href="/settings/integrations"
-                        className="text-brand-burnt-orange hover:underline"
-                      >
-                        Configure more integrations
-                      </Link>
+                      {hasConfiguredIntegrations ? (
+                        <>
+                          Only preconfigured integrations are shown.{' '}
+                          <Link
+                            href="/settings/integrations"
+                            className="text-brand-burnt-orange hover:underline"
+                          >
+                            Configure more integrations
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          You can use Viberglass as your sole ticketing system, or{' '}
+                          <Link
+                            href="/settings/integrations"
+                            className="text-brand-burnt-orange hover:underline"
+                          >
+                            configure external integrations
+                          </Link>{' '}
+                          to sync tickets with external systems.
+                        </>
+                      )}
                     </Description>
                   </Field>
 
@@ -397,7 +393,7 @@ export function NewProjectPage() {
               <Button
                 type="submit"
                 color="brand"
-                disabled={isSubmitting || isLoadingIntegrations || !hasConfiguredIntegrations}
+                disabled={isSubmitting || isLoadingIntegrations}
               >
                 {isSubmitting ? 'Creating...' : 'Create Project'}
               </Button>

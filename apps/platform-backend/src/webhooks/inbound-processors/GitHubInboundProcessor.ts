@@ -401,7 +401,6 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
         pullRequestRepository: scmConfig.pullRequestRepository || scmConfig.sourceRepository,
         pullRequestBaseBranch: scmConfig.pullRequestBaseBranch || scmConfig.baseBranch,
         branchNameTemplate: scmConfig.branchNameTemplate,
-        credentialSecretId: scmConfig.credentialSecretId,
       } : undefined,
       timestamp: Date.now(),
     };

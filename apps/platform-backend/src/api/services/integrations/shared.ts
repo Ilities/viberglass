@@ -31,11 +31,11 @@ export function getDefaultOutboundEvents(): string[] {
 
 export function getProviderProjectIdFromIntegration(
   provider: WebhookProvider,
-  integrationValues: Record<string, unknown>,
+  integrationConfig: Record<string, unknown>,
 ): string | null {
   if (provider === 'github') {
-    const owner = typeof integrationValues.owner === 'string' ? integrationValues.owner : null
-    const repo = typeof integrationValues.repo === 'string' ? integrationValues.repo : null
+    const owner = typeof integrationConfig.owner === 'string' ? integrationConfig.owner : null
+    const repo = typeof integrationConfig.repo === 'string' ? integrationConfig.repo : null
     if (owner && repo) {
       return `${owner}/${repo}`
     }

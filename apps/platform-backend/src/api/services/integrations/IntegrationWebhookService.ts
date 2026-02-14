@@ -79,7 +79,7 @@ export class IntegrationWebhookService {
     const providerProjectId = this.resolveProviderProjectId(
       provider,
       input.providerProjectId,
-      integration.values,
+      integration.config,
     )
     this.validateProviderProjectId(provider, providerProjectId)
     const labelMappings = this.resolveInboundLabelMappings(provider, input.labelMappings)
@@ -218,7 +218,7 @@ export class IntegrationWebhookService {
     const providerProjectId = this.resolveProviderProjectId(
       provider,
       input.providerProjectId,
-      integration.values,
+      integration.config,
     )
     this.validateProviderProjectId(provider, providerProjectId)
     const allowedEvents =

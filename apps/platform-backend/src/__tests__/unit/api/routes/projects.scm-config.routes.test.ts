@@ -18,10 +18,6 @@ const mockProjectIntegrationLinkDAO = {
 const mockIntegrationDAO = {
   getIntegration: jest.fn(),
 };
-const mockSecretDAO = {
-  getSecret: jest.fn(),
-};
-
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: (
     _req: express.Request,
@@ -53,15 +49,10 @@ jest.mock("../../../../persistence/integrations/IntegrationDAO", () => ({
   IntegrationDAO: jest.fn(() => mockIntegrationDAO),
 }));
 
-jest.mock("../../../../persistence/secret/SecretDAO", () => ({
-  SecretDAO: jest.fn(() => mockSecretDAO),
-}));
-
 import projectsRouter from "../../../../api/routes/projects";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const INTEGRATION_ID = "22222222-2222-4222-8222-222222222222";
-const SECRET_ID = "33333333-3333-4333-8333-333333333333";
 
 describe("project SCM config routes", () => {
   let app: express.Express;
@@ -105,7 +96,6 @@ describe("project SCM config routes", () => {
       pullRequestRepository: "https://github.com/acme/upstream",
       pullRequestBaseBranch: "develop",
       branchNameTemplate: "viberator/{{ticketId}}-{{timestamp}}",
-      credentialSecretId: SECRET_ID,
       createdAt: "2026-02-10T00:00:00.000Z",
       updatedAt: "2026-02-10T00:00:00.000Z",
     };
@@ -205,27 +195,6 @@ describe("project SCM config routes", () => {
     });
   });
 
-  it("returns 404 for PUT when credential secret does not exist", async () => {
-    mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: INTEGRATION_ID,
-      system: "github",
-    });
-    mockProjectIntegrationLinkDAO.isLinked.mockResolvedValue(true);
-    mockSecretDAO.getSecret.mockResolvedValue(null);
-
-    const response = await request(app)
-      .put(`/api/projects/${PROJECT_ID}/scm-config`)
-      .send({
-        integrationId: INTEGRATION_ID,
-        sourceRepository: "https://github.com/acme/repo",
-        credentialSecretId: SECRET_ID,
-      })
-      .expect(404);
-
-    expect(response.body).toEqual({ error: "SCM credential secret not found" });
-  });
-
   it("saves SCM config for PUT happy path with normalized optional fields", async () => {
     const savedConfig = {
       projectId: PROJECT_ID,
@@ -236,7 +205,6 @@ describe("project SCM config routes", () => {
       pullRequestRepository: null,
       pullRequestBaseBranch: null,
       branchNameTemplate: null,
-      credentialSecretId: null,
       createdAt: "2026-02-10T00:00:00.000Z",
       updatedAt: "2026-02-10T00:00:00.000Z",
     };
@@ -269,7 +237,6 @@ describe("project SCM config routes", () => {
         pullRequestRepository: null,
         pullRequestBaseBranch: null,
         branchNameTemplate: null,
-        credentialSecretId: null,
         integrationCredentialId: null,
       },
     );

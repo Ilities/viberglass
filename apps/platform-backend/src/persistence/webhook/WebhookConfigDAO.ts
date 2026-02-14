@@ -237,6 +237,18 @@ export class WebhookConfigDAO {
   }
 
   /**
+   * Delete all webhook configurations for an integration
+   */
+  async deleteAllForIntegration(integrationId: string): Promise<number> {
+    const result = await db
+      .deleteFrom("webhook_provider_configs")
+      .where("integration_id", "=", integrationId)
+      .executeTakeFirst();
+
+    return Number(result.numDeletedRows ?? 0);
+  }
+
+  /**
    * Get webhook configuration by integration ID
    */
   async getByIntegrationId(
