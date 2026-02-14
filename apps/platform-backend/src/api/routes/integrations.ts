@@ -14,7 +14,7 @@ import {
   type UpsertOutboundWebhookConfigInput,
 } from '../services/integrations'
 import { IntegrationCredentialDAO } from '../../persistence/integrations/IntegrationCredentialDAO'
-import { SecretDAO } from '../../persistence/secret/SecretDAO'
+import { SecretService } from '../../services/SecretService'
 import type {
   CreateIntegrationCredentialRequest,
   UpdateIntegrationCredentialRequest,
@@ -25,7 +25,7 @@ const integrationManagementService = new IntegrationManagementService()
 const projectIntegrationLinkService = new ProjectIntegrationLinkService()
 const integrationWebhookService = new IntegrationWebhookService()
 const integrationCredentialDAO = new IntegrationCredentialDAO()
-const secretDAO = new SecretDAO()
+const secretService = new SecretService()
 
 router.use(requireAuth)
 
@@ -396,24 +396,48 @@ router.post(
   withRouteErrorHandling('Error creating integration credential', async (req, res) => {
     const body = req.body as CreateIntegrationCredentialRequest
 
-    // Create a secret to store the credential value
-    const secret = await secretDAO.createSecret({
-      name: `integration-credential-${req.params.id}-${body.name}`,
-      secretLocation: 'database',
-      secretValueEncrypted: body.secretValue,
-    })
+    // Determine credential type: use provided value or default based on integration
+    // For SCM integrations (github, gitlab, bitbucket), default to 'token'
+    // For other integrations, also default to 'token' as it's the most common
+    const credentialType = body.credentialType ?? 'token'
+
+    let secret: { id: string; secretLocation: string }
+
+    if (body.secretId) {
+      // Link to an existing secret
+      const existingSecret = await secretService.getSecret(body.secretId)
+      if (!existingSecret) {
+        res.status(404).json({ error: 'Secret not found' })
+        return
+      }
+      secret = existingSecret
+    } else {
+      // Validate required fields for new secret creation
+      if (!body.secretLocation) {
+        res.status(400).json({ error: 'secretLocation is required when creating a new secret' })
+        return
+      }
+
+      // Create a new secret using SecretService (supports env, database, ssm)
+      secret = await secretService.createSecret({
+        name: body.name,
+        secretLocation: body.secretLocation,
+        secretPath: body.secretPath,
+        secretValue: body.secretValue,
+      })
+    }
 
     const credential = await integrationCredentialDAO.create({
       integrationId: req.params.id,
       name: body.name,
-      credentialType: body.credentialType,
+      credentialType,
       secretId: secret.id,
       isDefault: body.isDefault ?? false,
       description: body.description ?? null,
       expiresAt: body.expiresAt ?? null,
     })
 
-    res.status(201).json({ success: true, data: credential })
+    res.status(201).json({ success: true, data: { ...credential, secretLocation: secret.secretLocation } })
   }),
 )
 
@@ -442,8 +466,18 @@ router.put(
       return
     }
 
+    // Update the secret value if provided
+    if (body.secretValue !== undefined) {
+      await secretService.updateSecret(credential.secretId, {
+        secretValue: body.secretValue,
+      })
+    }
+
     const updated = await integrationCredentialDAO.update(req.params.credentialId, body)
-    res.json({ success: true, data: updated })
+    
+    // Get the secret to include secretLocation in response
+    const secret = await secretService.getSecret(credential.secretId)
+    res.json({ success: true, data: { ...updated, secretLocation: secret?.secretLocation || 'database' } })
   }),
 )
 
@@ -463,8 +497,8 @@ router.delete(
       return
     }
 
-    // Also delete the associated secret
-    await secretDAO.deleteSecret(credential.secretId)
+    // Also delete the associated secret via SecretService
+    await secretService.deleteSecret(credential.secretId)
 
     res.status(204).send()
   }),

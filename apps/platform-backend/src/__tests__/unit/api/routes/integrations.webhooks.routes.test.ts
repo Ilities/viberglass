@@ -7,6 +7,9 @@ const mockIntegrationDAO = {
 const mockProjectLinkDAO = {
   getIntegrationProjects: jest.fn(),
 };
+const mockCredentialDAO = {
+  deleteAllForIntegration: jest.fn(),
+};
 const mockWebhookConfigDAO = {
   listByIntegrationId: jest.fn(),
   getByIntegrationAndConfigId: jest.fn(),
@@ -34,6 +37,7 @@ jest.mock("../../../../api/middleware/authentication", () => ({
 jest.mock("../../../../persistence/integrations", () => ({
   IntegrationDAO: jest.fn(() => mockIntegrationDAO),
   ProjectIntegrationLinkDAO: jest.fn(() => mockProjectLinkDAO),
+  IntegrationCredentialDAO: jest.fn(() => mockCredentialDAO),
 }));
 
 jest.mock("../../../../persistence/webhook/WebhookConfigDAO", () => ({
@@ -57,6 +61,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     jest.clearAllMocks();
     mockIntegrationDAO.getIntegration.mockReset();
     mockProjectLinkDAO.getIntegrationProjects.mockReset();
+    mockCredentialDAO.deleteAllForIntegration.mockReset();
     mockWebhookConfigDAO.listByIntegrationId.mockReset();
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockReset();
     mockWebhookConfigDAO.createConfig.mockReset();

@@ -19,7 +19,7 @@ import {
 } from '@/service/api/integration-api'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
-import type { AuthCredentialType, Integration, TicketSystem } from '@viberglass/types'
+import type { Integration, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -88,7 +88,7 @@ export function IntegrationDetailPage() {
   const capabilities = getIntegrationDetailCapabilities(integrationSystem)
 
   const initialValues = useMemo(
-    () => (existingIntegration?.values as Record<string, string | number | boolean | string[]>) || {},
+    () => (existingIntegration?.config as Record<string, string | number | boolean | string[]>) || {},
     [existingIntegration]
   )
   const githubRepositoryMapping = useMemo(() => {
@@ -198,20 +198,13 @@ export function IntegrationDetailPage() {
               integrationSystemParam === 'jira') &&
             type
           ) {
-            const autoAuthType = type.authTypes[0]
-            if (!autoAuthType) {
-              setLoadError('No supported auth type found for integration')
-              return
-            }
-
             setIsAutoCreating(true)
             try {
               const autoName = `${type.label} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`
               const newIntegration = await createIntegration({
                 name: autoName,
                 system: integrationSystemParam as TicketSystem,
-                authType: autoAuthType,
-                values: {},
+                config: {},
               })
               if (!isActive) {
                 return
@@ -310,7 +303,7 @@ export function IntegrationDetailPage() {
   const category = getIntegrationCategoryConfig(integrationType.category)
   const StatusIcon = status.icon
 
-  const handleSubmit = async (values: { authType: AuthCredentialType; values: Record<string, unknown> }) => {
+  const handleSubmit = async (config: Record<string, unknown>) => {
     if (!integrationSystem) {
       return
     }
@@ -321,14 +314,12 @@ export function IntegrationDetailPage() {
       const savedIntegration = existingIntegration
         ? await updateIntegration(existingIntegration.id, {
             name: existingIntegration.name,
-            authType: values.authType,
-            values: values.values,
+            config,
           })
         : await createIntegration({
             name: `${integrationType.label} Integration`,
             system: integrationSystem,
-            authType: values.authType,
-            values: values.values,
+            config,
           })
 
       setExistingIntegration(savedIntegration)
@@ -342,7 +333,7 @@ export function IntegrationDetailPage() {
     }
   }
 
-  const handleTest = async (_values: { authType: AuthCredentialType; values: Record<string, unknown> }) => {
+  const handleTest = async (_config: Record<string, unknown>) => {
     setIsTesting(true)
     setTestResult(null)
 
@@ -624,7 +615,6 @@ export function IntegrationDetailPage() {
             <IntegrationConfigForm
               integration={integrationType}
               initialValues={initialValues}
-              initialAuthType={existingIntegration?.authType}
               onSubmit={handleSubmit}
               onTest={handleTest}
               onCancel={handleCancel}

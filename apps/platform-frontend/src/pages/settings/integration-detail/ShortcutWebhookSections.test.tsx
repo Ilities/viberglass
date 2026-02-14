@@ -108,7 +108,7 @@ describe('Shortcut webhook sections', () => {
       />
     )
 
-    expect(screen.getByRole('heading', { name: 'Shortcut Inbound Trigger' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Shortcut Inbound Webhook' })).toBeInTheDocument()
     expect(screen.getByText('Shortcut setup steps')).toBeInTheDocument()
     expect(screen.getByText('Project scope')).toBeInTheDocument()
     expect(screen.getByLabelText('Viberglass project')).toBeInTheDocument()

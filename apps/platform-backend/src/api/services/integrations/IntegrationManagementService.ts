@@ -1,14 +1,19 @@
-import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../../persistence/integrations'
+import { IntegrationDAO, ProjectIntegrationLinkDAO, IntegrationCredentialDAO } from '../../../persistence/integrations'
+import { WebhookConfigDAO } from '../../../persistence/webhook/WebhookConfigDAO'
 import { integrationRegistry } from '../../../integrations/TicketingIntegrationRegistry'
-import type { AuthCredentials, TicketSystem } from '@viberglass/types'
+import type { TicketSystem, AuthCredentials } from '@viberglass/types'
 import { INTEGRATION_DESCRIPTIONS } from '@viberglass/types'
 import { IntegrationRouteServiceError } from './errors'
 import type { CreateIntegrationInput, UpdateIntegrationInput } from './types'
+import { SecretService } from '../../../services/SecretService'
 
 export class IntegrationManagementService {
   constructor(
     private readonly integrationDAO = new IntegrationDAO(),
     private readonly projectLinkDAO = new ProjectIntegrationLinkDAO(),
+    private readonly webhookConfigDAO = new WebhookConfigDAO(),
+    private readonly credentialDAO = new IntegrationCredentialDAO(),
+    private readonly secretService = new SecretService(),
   ) {}
 
   async listIntegrations(system?: TicketSystem) {
@@ -16,12 +21,12 @@ export class IntegrationManagementService {
   }
 
   async createIntegration(input: CreateIntegrationInput) {
-    const { name, system, authType, values } = input
+    const { name, system, config } = input
 
-    if (!name || !system || !authType) {
+    if (!name || !system) {
       throw new IntegrationRouteServiceError(
         400,
-        'Missing required fields: name, system, authType',
+        'Missing required fields: name, system',
       )
     }
 
@@ -37,8 +42,7 @@ export class IntegrationManagementService {
     return this.integrationDAO.createIntegration({
       name,
       system: system as TicketSystem,
-      authType,
-      values: values || {},
+      config: config || {},
     })
   }
 
@@ -51,8 +55,7 @@ export class IntegrationManagementService {
 
     return this.integrationDAO.updateIntegration(integrationId, {
       name: input.name,
-      authType: input.authType,
-      values: input.values,
+      config: input.config,
       isActive: input.isActive,
     })
   }
@@ -60,7 +63,17 @@ export class IntegrationManagementService {
   async deleteIntegration(integrationId: string) {
     await this.getIntegrationOrThrow(integrationId)
 
+    // Delete related data in proper order to handle foreign key constraints
+    // 1. Delete webhook configurations (these reference integrations)
+    await this.webhookConfigDAO.deleteAllForIntegration(integrationId)
+    
+    // 2. Delete integration credentials (these reference integrations with ON DELETE CASCADE)
+    await this.credentialDAO.deleteAllForIntegration(integrationId)
+    
+    // 3. Delete project integration links (these reference integrations)
     await this.projectLinkDAO.deleteAllLinksForIntegration(integrationId)
+    
+    // 4. Finally delete the integration itself
     await this.integrationDAO.deleteIntegration(integrationId, true)
   }
 
@@ -76,14 +89,13 @@ export class IntegrationManagementService {
       throw new IntegrationRouteServiceError(400, 'Integration is not available yet')
     }
 
-    const config = {
-      type: integration.authType,
-      ...integration.values,
-    } as AuthCredentials & Record<string, unknown>
+    // Build credentials from integration config
+    // The config may contain secretName which references a secret in the secrets system
+    const credentials = await this.resolveCredentials(integration.config)
 
     try {
-      const integrationInstance = plugin.createIntegration(config)
-      await integrationInstance.authenticate(config)
+      const integrationInstance = plugin.createIntegration(credentials as unknown as AuthCredentials & Record<string, unknown>)
+      await integrationInstance.authenticate(credentials)
 
       return {
         success: true,
@@ -97,6 +109,34 @@ export class IntegrationManagementService {
     }
   }
 
+  /**
+   * Resolve credentials from integration config
+   * If the config contains a secretName, look up the secret value from the secrets system
+   */
+  private async resolveCredentials(config: Record<string, unknown>): Promise<AuthCredentials> {
+    // Default to token-based auth if not specified
+    const resolved: AuthCredentials = {
+      type: (config.authType as AuthCredentials['type']) || 'token',
+      ...config,
+    }
+
+    // If secretName is specified, resolve the secret value
+    if (typeof config.secretName === 'string') {
+      try {
+        const secrets = await this.secretService.resolveSecrets()
+        const secretValue = secrets[config.secretName]
+        if (secretValue) {
+          resolved.token = secretValue
+        }
+      } catch (error) {
+        // Secret resolution failed, continue without it
+        // The plugin will handle the missing credential appropriately
+      }
+    }
+
+    return resolved
+  }
+
   async listAvailableTypes() {
     const plugins = integrationRegistry.list()
     return plugins.map((plugin) => ({
@@ -104,7 +144,6 @@ export class IntegrationManagementService {
       label: plugin.label,
       category: plugin.category,
       description: INTEGRATION_DESCRIPTIONS[plugin.id] || plugin.label,
-      authTypes: plugin.authTypes,
       configFields: plugin.configFields,
       supports: plugin.supports,
       status: plugin.status,

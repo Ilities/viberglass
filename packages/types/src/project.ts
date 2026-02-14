@@ -23,7 +23,6 @@ export interface ProjectScmConfig {
   pullRequestRepository?: string | null
   pullRequestBaseBranch?: string | null
   branchNameTemplate?: string | null
-  credentialSecretId?: string | null
   integrationCredentialId?: string | null
   createdAt: string
   updatedAt: string
@@ -36,7 +35,6 @@ export interface UpsertProjectScmConfigRequest {
   pullRequestRepository?: string | null
   pullRequestBaseBranch?: string | null
   branchNameTemplate?: string | null
-  credentialSecretId?: string | null
   integrationCredentialId?: string | null
 }
 
@@ -108,11 +106,11 @@ export interface CreateProjectRequest {
   /**
    * @deprecated Use linked integrations instead.
    */
-  ticketSystem?: TicketSystem
+  ticketSystem?: TicketSystem | null
   /**
    * @deprecated Use linked integrations instead.
    */
-  credentials?: AuthCredentials
+  credentials?: AuthCredentials | null
   webhookUrl?: string | null
   autoFixEnabled?: boolean
   autoFixTags?: string[]
@@ -132,11 +130,11 @@ export interface UpdateProjectRequest {
   /**
    * @deprecated Use linked integrations instead.
    */
-  ticketSystem?: TicketSystem
+  ticketSystem?: TicketSystem | null
   /**
    * @deprecated Use linked integrations instead.
    */
-  credentials?: AuthCredentials
+  credentials?: AuthCredentials | null
   webhookUrl?: string | null
   autoFixEnabled?: boolean
   autoFixTags?: string[]

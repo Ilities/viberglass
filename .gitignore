@@ -23,6 +23,9 @@ out/
 # Encrypted local credentials (never commit)
 .credentials.json
 
+# Agent browser credentials
+.agent-browser-creds
+
 # Logs
 logs/
 *.log

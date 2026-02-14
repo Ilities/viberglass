@@ -13,7 +13,6 @@ type ProjectScmConfigRow = {
   pr_repository: string | null;
   pr_base_branch: string | null;
   branch_name_template: string | null;
-  credential_secret_id: string | null;
   integration_credential_id: string | null;
   created_at: Date;
   updated_at: Date;
@@ -34,7 +33,6 @@ export class ProjectScmConfigDAO {
         "project_scm_configs.pr_repository",
         "project_scm_configs.pr_base_branch",
         "project_scm_configs.branch_name_template",
-        "project_scm_configs.credential_secret_id",
         "project_scm_configs.integration_credential_id",
         "project_scm_configs.created_at",
         "project_scm_configs.updated_at",
@@ -70,7 +68,6 @@ export class ProjectScmConfigDAO {
           pr_repository: input.pullRequestRepository ?? null,
           pr_base_branch: input.pullRequestBaseBranch ?? null,
           branch_name_template: input.branchNameTemplate ?? null,
-          credential_secret_id: input.credentialSecretId ?? null,
           integration_credential_id: input.integrationCredentialId ?? null,
           updated_at: timestamp,
         })
@@ -91,7 +88,6 @@ export class ProjectScmConfigDAO {
         pr_repository: input.pullRequestRepository ?? null,
         pr_base_branch: input.pullRequestBaseBranch ?? null,
         branch_name_template: input.branchNameTemplate ?? null,
-        credential_secret_id: input.credentialSecretId ?? null,
         integration_credential_id: input.integrationCredentialId ?? null,
         created_at: timestamp,
         updated_at: timestamp,
@@ -121,7 +117,6 @@ export class ProjectScmConfigDAO {
       pullRequestRepository: row.pr_repository,
       pullRequestBaseBranch: row.pr_base_branch,
       branchNameTemplate: row.branch_name_template,
-      credentialSecretId: row.credential_secret_id,
       integrationCredentialId: row.integration_credential_id,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),

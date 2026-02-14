@@ -1,23 +1,16 @@
 import { v4 as uuidv4 } from 'uuid'
 import db from '../config/database'
-import type { Integration, TicketSystem, AuthCredentialType } from '@viberglass/types'
-
-export interface StoredIntegrationConfig {
-  authType: AuthCredentialType
-  values: Record<string, unknown>
-}
+import type { Integration, TicketSystem } from '@viberglass/types'
 
 export interface CreateIntegrationInput {
   name: string
   system: TicketSystem
-  authType: AuthCredentialType
-  values: Record<string, unknown>
+  config: Record<string, unknown>
 }
 
 export interface UpdateIntegrationInput {
   name?: string
-  authType?: AuthCredentialType
-  values?: Record<string, unknown>
+  config?: Record<string, unknown>
   isActive?: boolean
 }
 
@@ -29,18 +22,13 @@ export class IntegrationDAO {
     const integrationId = uuidv4()
     const timestamp = new Date()
 
-    const config: StoredIntegrationConfig = {
-      authType: input.authType,
-      values: input.values,
-    }
-
     const result = await db
       .insertInto('integrations')
       .values({
         id: integrationId,
         name: input.name,
         system: input.system,
-        config: JSON.stringify(config),
+        config: JSON.stringify(input.config),
         is_active: true,
         created_at: timestamp,
         updated_at: timestamp,
@@ -115,17 +103,14 @@ export class IntegrationDAO {
       updateData.is_active = input.isActive
     }
 
-    // If authType or values are being updated, we need to fetch and modify the config
-    if (input.authType !== undefined || input.values !== undefined) {
+    // If config is being updated, merge with existing or set new
+    if (input.config !== undefined) {
       const existing = await this.getIntegration(id)
       if (!existing) {
         throw new Error(`Integration ${id} not found`)
       }
 
-      const newConfig: StoredIntegrationConfig = {
-        authType: input.authType ?? existing.authType,
-        values: input.values ?? existing.values,
-      }
+      const newConfig = input.config
       updateData.config = JSON.stringify(newConfig)
     }
 
@@ -178,17 +163,16 @@ export class IntegrationDAO {
    */
   private mapRowToIntegration(row: Record<string, unknown>): Integration {
     const rawConfig = row.config
-    const parsedConfig: StoredIntegrationConfig =
+    const parsedConfig: Record<string, unknown> =
       typeof rawConfig === 'string'
-        ? (JSON.parse(rawConfig) as StoredIntegrationConfig)
-        : (rawConfig as StoredIntegrationConfig)
+        ? (JSON.parse(rawConfig) as Record<string, unknown>)
+        : (rawConfig as Record<string, unknown>) ?? {}
 
     return {
       id: String(row.id),
       name: String(row.name),
       system: row.system as TicketSystem,
-      authType: parsedConfig.authType,
-      values: parsedConfig.values ?? {},
+      config: parsedConfig,
       isActive: Boolean(row.is_active),
       createdAt: (row.created_at as Date).toISOString(),
       updatedAt: (row.updated_at as Date).toISOString(),
