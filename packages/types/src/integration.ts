@@ -78,6 +78,11 @@ export interface ProjectIntegrationLink {
   createdAt: string
 }
 
+// Project integration link with category information
+export interface ProjectIntegrationLinkWithCategory extends ProjectIntegrationLink {
+  category: IntegrationCategory
+}
+
 // SCM credential stored per integration
 export interface IntegrationCredential {
   id: string

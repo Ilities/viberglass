@@ -12,6 +12,7 @@ import type {
 } from '../InboundEventProcessorResolver';
 import type { ParsedWebhookEvent, ProviderType } from '../WebhookProvider';
 import type { TicketDAO } from '../../persistence/ticketing/TicketDAO';
+import type { ProjectScmConfigDAO } from '../../persistence/project/ProjectScmConfigDAO';
 import type { JobService } from '../../services/JobService';
 import type { CreateTicketRequest, Severity, TicketMetadata } from '@viberglass/types';
 import type { JobData } from '../../types/Job';
@@ -85,6 +86,7 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
   constructor(
     private ticketDAO: TicketDAO,
     private jobService: JobService,
+    private projectScmConfigDAO: ProjectScmConfigDAO,
   ) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
@@ -374,15 +376,33 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
       stepsToReproduce: `Issue URL: ${payload.issue!.html_url}\nIssue number: ${payload.issue!.number}`,
     };
 
+    // Fetch project SCM config to use repository and branch settings
+    const scmConfig = await this.projectScmConfigDAO.getByProjectId(resolvedProjectId);
+    
+    // Determine repository: use SCM config source repository if available, else fall back to payload
+    const repository = scmConfig?.sourceRepository || payload.repository?.full_name || '';
+    const baseBranch = scmConfig?.baseBranch || 'main';
+
     const jobData: JobData = {
       id: randomUUID(),
       tenantId: resolvedProjectId,
-      repository: payload.repository?.full_name || '',
+      repository,
       task: `Fix issue: ${payload.issue!.title}`,
+      baseBranch,
       context: webhookContext as any,
       settings: {
         runTests: true,
       },
+      scm: scmConfig ? {
+        integrationId: scmConfig.integrationId,
+        integrationSystem: scmConfig.integrationSystem,
+        sourceRepository: scmConfig.sourceRepository,
+        baseBranch: scmConfig.baseBranch,
+        pullRequestRepository: scmConfig.pullRequestRepository || scmConfig.sourceRepository,
+        pullRequestBaseBranch: scmConfig.pullRequestBaseBranch || scmConfig.baseBranch,
+        branchNameTemplate: scmConfig.branchNameTemplate,
+        credentialSecretId: scmConfig.credentialSecretId,
+      } : undefined,
       timestamp: Date.now(),
     };
 
