@@ -24,6 +24,7 @@ export function IntegrationsPage() {
             configStatus: integration.configStatus,
             integrationEntityId: integration.integrationEntityId,
             integrationName: integration.integrationName,
+            instances: integration.instances,
           }))
         )
       } catch (error) {
