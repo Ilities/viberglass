@@ -1,17 +1,14 @@
-import type { AuthCredentialType } from '@viberglass/types'
 import type { DeliveryStatus, WebhookProvider } from '../../../persistence/webhook/WebhookDeliveryDAO'
 
 export interface CreateIntegrationInput {
   name?: string
   system?: string
-  authType?: AuthCredentialType
-  values?: Record<string, unknown>
+  config?: Record<string, unknown>
 }
 
 export interface UpdateIntegrationInput {
   name?: string
-  authType?: AuthCredentialType
-  values?: Record<string, unknown>
+  config?: Record<string, unknown>
   isActive?: boolean
 }
 

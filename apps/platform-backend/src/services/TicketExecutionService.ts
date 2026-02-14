@@ -3,6 +3,7 @@ import logger from "../config/logger";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
+import { IntegrationCredentialDAO } from "../persistence/integrations/IntegrationCredentialDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "./ClankerProvisioningService";
 import { JobService } from "./JobService";
@@ -31,6 +32,7 @@ export class TicketExecutionService {
   private ticketDAO = new TicketDAO();
   private projectDAO = new ProjectDAO();
   private projectScmConfigDAO = new ProjectScmConfigDAO();
+  private integrationCredentialDAO = new IntegrationCredentialDAO();
   private clankerDAO = new ClankerDAO();
   private provisioningService = new ClankerProvisioningService();
   private jobService = new JobService();
@@ -89,6 +91,37 @@ export class TicketExecutionService {
     return Array.from(merged.values());
   }
 
+  private async resolveScmCredentialSecretId(
+    scmConfig: {
+      integrationCredentialId?: string | null;
+      credentialSecretId?: string | null;
+    } | null,
+  ): Promise<string | null> {
+    const legacyCredentialSecretId =
+      typeof scmConfig?.credentialSecretId === "string" &&
+      scmConfig.credentialSecretId.trim().length > 0
+        ? scmConfig.credentialSecretId.trim()
+        : null;
+    if (legacyCredentialSecretId) {
+      return legacyCredentialSecretId;
+    }
+
+    const integrationCredentialId = scmConfig?.integrationCredentialId?.trim();
+    if (!integrationCredentialId) {
+      return null;
+    }
+
+    const credential =
+      await this.integrationCredentialDAO.getById(integrationCredentialId);
+    if (!credential) {
+      throw new Error(
+        `SCM integration credential not found: ${integrationCredentialId}`,
+      );
+    }
+
+    return credential.secretId;
+  }
+
   async runTicket(
     ticketId: string,
     options: RunTicketOptions,
@@ -135,7 +168,6 @@ export class TicketExecutionService {
               scmConfig.baseBranch.trim() ||
               "main",
             branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
-            credentialSecretId: scmConfig.credentialSecretId ?? null,
           }
         : null;
       const sourceRepository =
@@ -182,14 +214,25 @@ export class TicketExecutionService {
         );
       }
 
+      const scmCredentialSecretId = await this.resolveScmCredentialSecretId(
+        scmConfig as {
+          integrationCredentialId?: string | null;
+          credentialSecretId?: string | null;
+        } | null,
+      );
       const mergedSecretIds = Array.from(
         new Set([
           ...(clanker.secretIds || []),
-          ...(normalizedScmConfig?.credentialSecretId
-            ? [normalizedScmConfig.credentialSecretId]
-            : []),
+          ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
         ]),
       );
+      const normalizedScmConfigWithCredential =
+        normalizedScmConfig && scmCredentialSecretId
+          ? {
+              ...normalizedScmConfig,
+              credentialSecretId: scmCredentialSecretId,
+            }
+          : normalizedScmConfig;
       const executionClanker = {
         ...clanker,
         secretIds: mergedSecretIds,
@@ -221,7 +264,7 @@ export class TicketExecutionService {
           testRequired: false,
           maxChanges: 10,
         },
-        scm: normalizedScmConfig,
+        scm: normalizedScmConfigWithCredential,
         overrides,
         timestamp: Date.now(),
       };
@@ -263,7 +306,7 @@ export class TicketExecutionService {
           customFieldMappings: project.customFieldMappings,
           workerSettings: project.workerSettings,
         },
-        scm: normalizedScmConfig,
+        scm: normalizedScmConfigWithCredential,
         overrides: jobData.overrides,
       };
 

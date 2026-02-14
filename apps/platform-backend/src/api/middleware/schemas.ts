@@ -95,8 +95,8 @@ export const projectSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds)
-    .required(),
-  credentials: Joi.object().required(),
+    .optional(),
+  credentials: Joi.object().optional(),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
@@ -110,8 +110,9 @@ export const updateProjectSchema = Joi.object({
   name: Joi.string().min(1).max(255).optional(),
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds)
-    .optional(),
-  credentials: Joi.object().optional(),
+    .optional()
+    .allow(null),
+  credentials: Joi.object().optional().allow(null),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
@@ -128,7 +129,7 @@ export const projectScmConfigSchema = Joi.object({
   pullRequestRepository: Joi.string().trim().max(500).allow(null, "").optional(),
   pullRequestBaseBranch: Joi.string().trim().max(255).allow(null, "").optional(),
   branchNameTemplate: Joi.string().trim().max(255).allow(null, "").optional(),
-  credentialSecretId: Joi.string().uuid().allow(null).optional(),
+  integrationCredentialId: Joi.string().uuid().allow(null).optional(),
 });
 
 // Config file schema for clankers

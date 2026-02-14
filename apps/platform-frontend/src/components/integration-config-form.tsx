@@ -1,113 +1,19 @@
 import { Button } from '@/components/button'
-import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Text } from '@/components/text'
-import type {
-  AuthCredentialType,
-  IntegrationFieldDefinition,
-  IntegrationMetadata,
-} from '@viberglass/types'
-import { EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons'
+import type { IntegrationFieldDefinition, IntegrationMetadata } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 type FieldValue = string | number | boolean | string[]
 
-const AUTH_FIELD_DEFINITIONS: Record<AuthCredentialType, IntegrationFieldDefinition[]> = {
-  api_key: [
-    {
-      key: 'apiKey',
-      label: 'API Key',
-      type: 'secret',
-      required: true,
-      description: 'API key for authenticating requests.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-  token: [
-    {
-      key: 'token',
-      label: 'Access Token',
-      type: 'secret',
-      required: true,
-      description: 'Personal access token or bearer token.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-  basic: [
-    {
-      key: 'username',
-      label: 'Username',
-      type: 'string',
-      required: true,
-      description: 'Username for basic authentication.',
-    },
-    {
-      key: 'password',
-      label: 'Password',
-      type: 'secret',
-      required: true,
-      description: 'Password or API token for basic authentication.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-  oauth: [
-    {
-      key: 'clientId',
-      label: 'Client ID',
-      type: 'string',
-      required: true,
-      description: 'OAuth client ID from your integration setup.',
-    },
-    {
-      key: 'clientSecret',
-      label: 'Client Secret',
-      type: 'secret',
-      required: true,
-      description: 'OAuth client secret from your integration setup.',
-    },
-    {
-      key: 'refreshToken',
-      label: 'Refresh Token',
-      type: 'secret',
-      description: 'Optional refresh token for OAuth flows.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-}
-
 interface IntegrationConfigFormProps {
   integration: IntegrationMetadata
   initialValues?: Record<string, FieldValue>
-  initialAuthType?: AuthCredentialType
-  onSubmit: (values: { authType: AuthCredentialType; values: Record<string, FieldValue> }) => void
-  onTest?: (values: { authType: AuthCredentialType; values: Record<string, FieldValue> }) => Promise<void>
+  onSubmit: (values: Record<string, FieldValue>) => void
+  onTest?: (values: Record<string, FieldValue>) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
   isTesting?: boolean
@@ -117,7 +23,6 @@ interface IntegrationConfigFormProps {
 export function IntegrationConfigForm({
   integration,
   initialValues = {},
-  initialAuthType,
   onSubmit,
   onTest,
   onCancel,
@@ -125,15 +30,7 @@ export function IntegrationConfigForm({
   isTesting,
   testResult,
 }: IntegrationConfigFormProps) {
-  const [authType, setAuthType] = useState<AuthCredentialType>(
-    initialAuthType || integration.authTypes[0] || 'api_key'
-  )
   const [values, setValues] = useState<Record<string, FieldValue>>(initialValues)
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    setAuthType(initialAuthType || integration.authTypes[0] || 'api_key')
-  }, [initialAuthType, integration.authTypes])
 
   useEffect(() => {
     setValues(initialValues)
@@ -143,18 +40,14 @@ export function IntegrationConfigForm({
     setValues((prev) => ({ ...prev, [key]: value }))
   }
 
-  const toggleSecretVisibility = (key: string) => {
-    setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ authType, values })
+    onSubmit(values)
   }
 
   const handleTest = async () => {
     if (onTest) {
-      await onTest({ authType, values })
+      await onTest(values)
     }
   }
 
@@ -217,10 +110,9 @@ export function IntegrationConfigForm({
         return (
           <div className="space-y-2">
             {field.options?.map((option) => (
-              <CheckboxField key={option.value}>
-                <Checkbox
+              <SwitchField key={option.value}>
+                <Switch
                   name={`${field.key}[]`}
-                  value={option.value}
                   checked={((value as string[]) || []).includes(option.value)}
                   onChange={(checked) => {
                     const currentValues = (value as string[]) || []
@@ -235,50 +127,27 @@ export function IntegrationConfigForm({
                   }}
                 />
                 <Label>{option.label}</Label>
-              </CheckboxField>
+              </SwitchField>
             ))}
           </div>
         )
 
       case 'secret':
+        // Secret fields are now managed through the secrets system, not here
         return (
-          <div className="relative">
-            <Input
-              type={showSecrets[field.key] ? 'text' : 'password'}
-              name={field.key}
-              value={value as string}
-              onChange={(e) => handleFieldChange(field.key, e.target.value)}
-              placeholder={field.placeholder || '••••••••'}
-              required={field.required}
-            />
-            <button
-              type="button"
-              onClick={() => toggleSecretVisibility(field.key)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              aria-label={showSecrets[field.key] ? 'Hide value' : 'Show value'}
-            >
-              {showSecrets[field.key] ? (
-                <EyeClosedIcon className="size-4" />
-              ) : (
-                <EyeOpenIcon className="size-4" />
-              )}
-            </button>
-          </div>
+          <Input
+            type="text"
+            name={field.key}
+            value={value as string}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            placeholder={field.placeholder || 'Secret name (from Secrets settings)'}
+            required={field.required}
+          />
         )
 
       default:
         return null
     }
-  }
-
-  const formatAuthType = (type: AuthCredentialType): string => {
-    const formats: Record<AuthCredentialType, string> = {
-      api_key: 'API Key',
-      oauth: 'OAuth 2.0',
-      basic: 'Basic Auth',
-      token: 'Personal Access Token',
-    }
-    return formats[type] || type
   }
 
   const SupportItem = ({
@@ -312,53 +181,6 @@ export function IntegrationConfigForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Authentication Section */}
-      <section className="app-frame rounded-lg p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <circle cx="12" cy="16" r="1" />
-              <path d="M7 11V7a5 5 0 0110 0v4" />
-            </svg>
-          </div>
-          <Text className="text-base font-semibold text-[var(--gray-12)]">Authentication</Text>
-        </div>
-        <Text className="text-sm text-[var(--gray-9)]">Choose how you want to authenticate with {integration.label}.</Text>
-
-        <Fieldset className="mt-4">
-          <FieldGroup>
-            <Field>
-              <Label>Authentication Type</Label>
-              <Select
-                value={authType}
-                onChange={(val) => setAuthType(val as AuthCredentialType)}
-              >
-                {integration.authTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {formatAuthType(type)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            {AUTH_FIELD_DEFINITIONS[authType]?.map((field) => (
-              <Field key={field.key}>
-                <Label>
-                  {field.label}
-                  {field.required && <span className="ml-1 text-red-500">*</span>}
-                </Label>
-                {field.description && <Description>{field.description}</Description>}
-                {field.type !== 'boolean' ? (
-                  renderField(field)
-                ) : (
-                  <div className="mt-2">{renderField(field)}</div>
-                )}
-              </Field>
-            ))}
-          </FieldGroup>
-        </Fieldset>
-      </section>
-
       {/* Configuration Fields Section */}
       {integration.configFields.length > 0 && (
         <section className="app-frame rounded-lg p-6">

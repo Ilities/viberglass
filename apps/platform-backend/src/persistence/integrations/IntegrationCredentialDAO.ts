@@ -1,17 +1,25 @@
 import { v4 as uuidv4 } from "uuid";
 import db from "../config/database";
+import { SecretService } from "../../services/SecretService";
 import type {
   IntegrationCredential,
   CreateIntegrationCredentialRequest,
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
+import type { SecretLocation } from "../secret/SecretDAO";
 
-export interface CreateIntegrationCredentialInput
-  extends Omit<CreateIntegrationCredentialRequest, 'secretValue'> {
+export interface CreateIntegrationCredentialInput {
+  integrationId: string;
+  name: string;
+  credentialType: 'token' | 'ssh_key' | 'oauth' | 'basic';
   secretId: string;
+  isDefault?: boolean;
+  description?: string | null;
+  expiresAt?: string | null;
 }
 
 export class IntegrationCredentialDAO {
+  private secretService = new SecretService();
   /**
    * Create a new integration credential
    */
@@ -62,6 +70,18 @@ export class IntegrationCredentialDAO {
   }
 
   /**
+   * Get the secret location for a credential
+   */
+  private async getSecretLocation(secretId: string): Promise<SecretLocation> {
+    try {
+      const secret = await this.secretService.getSecret(secretId);
+      return secret?.secretLocation || 'database';
+    } catch {
+      return 'database';
+    }
+  }
+
+  /**
    * List all credentials for an integration
    */
   async listByIntegrationId(
@@ -75,7 +95,7 @@ export class IntegrationCredentialDAO {
       .orderBy("created_at", "desc")
       .execute();
 
-    return rows.map((row) => this.mapRowToCredential(row));
+    return Promise.all(rows.map((row) => this.mapRowToCredential(row)));
   }
 
   /**
@@ -197,13 +217,17 @@ export class IntegrationCredentialDAO {
       .execute();
   }
 
-  private mapRowToCredential(row: Record<string, unknown>): IntegrationCredential {
+  private async mapRowToCredential(row: Record<string, unknown>): Promise<IntegrationCredential> {
+    const secretId = String(row.secret_id);
+    const secretLocation = await this.getSecretLocation(secretId);
+    
     return {
       id: String(row.id),
       integrationId: String(row.integration_id),
       name: String(row.name),
       credentialType: row.credential_type as IntegrationCredential["credentialType"],
-      secretId: String(row.secret_id),
+      secretId: secretId,
+      secretLocation: secretLocation,
       isDefault: Boolean(row.is_default),
       description: row.description ? String(row.description) : null,
       expiresAt: row.expires_at ? (row.expires_at as Date).toISOString() : null,
