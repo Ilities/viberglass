@@ -333,15 +333,30 @@ export async function getAllIntegrationSummaries(): Promise<IntegrationSummary[]
   })
 }
 
+export interface IntegrationInstance {
+  id: string
+  name: string
+  createdAt: string
+}
+
 export interface IntegrationSettingsListItem extends Omit<IntegrationSummary, 'id'> {
   id: string
   system: TicketSystem
+  /**
+   * @deprecated Use instances array instead
+   */
   integrationEntityId?: string
+  /**
+   * @deprecated Use instances array instead
+   */
   integrationName?: string
+  /** Configured instances of this integration type */
+  instances: IntegrationInstance[]
 }
 
 /**
- * Get integration cards for global settings with explicit entity ids for configured integrations.
+ * Get integration cards for global settings grouped by integration type.
+ * Each card represents one integration type (e.g., GitHub) with all configured instances as subitems.
  */
 export async function getIntegrationSettingsListItems(): Promise<IntegrationSettingsListItem[]> {
   const [availableTypes, allIntegrations] = await Promise.all([
@@ -349,6 +364,7 @@ export async function getIntegrationSettingsListItems(): Promise<IntegrationSett
     getIntegrations(),
   ])
 
+  // Group integrations by system type
   const integrationsBySystem = new Map<TicketSystem, Integration[]>()
   for (const integration of allIntegrations) {
     const existing = integrationsBySystem.get(integration.system)
@@ -359,47 +375,39 @@ export async function getIntegrationSettingsListItems(): Promise<IntegrationSett
     }
   }
 
-  const items: IntegrationSettingsListItem[] = []
-
-  for (const type of availableTypes) {
+  // Map each available type to a list item with its instances
+  return availableTypes.map((type) => {
     const configured = integrationsBySystem.get(type.id) ?? []
+    const instances: IntegrationInstance[] = configured.map((integration) => ({
+      id: integration.id,
+      name: integration.name,
+      createdAt: integration.createdAt,
+    }))
 
-    if (configured.length === 0) {
-      items.push({
-        id: `new:${type.id}`,
-        system: type.id,
-        label: type.label,
-        category: type.category,
-        description: type.description,
-        authTypes: type.authTypes,
-        configFields: type.configFields,
-        supports: type.supports,
-        status: type.status,
-        configStatus: type.status === 'stub' ? 'stub' : 'not_configured',
-      })
-      continue
+    // Sort instances by creation date (newest first)
+    instances.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    const isConfigured = instances.length > 0
+    const firstInstance = instances[0]
+
+    return {
+      id: isConfigured ? firstInstance.id : `new:${type.id}`,
+      system: type.id,
+      // Keep legacy fields for backward compatibility during transition
+      integrationEntityId: firstInstance?.id,
+      integrationName: instances.length === 1 ? firstInstance?.name : undefined,
+      label: type.label,
+      category: type.category,
+      description: type.description,
+      authTypes: type.authTypes,
+      configFields: type.configFields,
+      supports: type.supports,
+      status: type.status,
+      configStatus: type.status === 'stub' ? 'stub' : isConfigured ? 'configured' : 'not_configured',
+      configuredAt: firstInstance?.createdAt,
+      instances,
     }
-
-    for (const integration of configured) {
-      items.push({
-        id: integration.id,
-        system: type.id,
-        integrationEntityId: integration.id,
-        integrationName: integration.name,
-        label: type.label,
-        category: type.category,
-        description: type.description,
-        authTypes: type.authTypes,
-        configFields: type.configFields,
-        supports: type.supports,
-        status: type.status,
-        configStatus: 'configured',
-        configuredAt: integration.createdAt,
-      })
-    }
-  }
-
-  return items
+  })
 }
 
 // ============================================================================
