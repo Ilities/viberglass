@@ -275,11 +275,15 @@ describe("WebhookService", () => {
     const jobService = {
       submitJob: jest.fn().mockResolvedValue({ jobId: "job-1" }),
     };
+    const projectScmConfigDAO = {
+      getByProjectId: jest.fn().mockResolvedValue(null),
+    };
 
     // Create the processor resolver with the mocked dependencies
     const processorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO as any,
       jobService as any,
+      projectScmConfigDAO as any,
     );
 
     const service = new WebhookService(
