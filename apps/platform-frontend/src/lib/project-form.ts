@@ -58,9 +58,13 @@ export function parseCredentialsJson(credentialsRaw: string): LegacyAuthCredenti
 export function extractCredentialsFromIntegration(
   integration: Integration
 ): LegacyAuthCredentials {
-  const extracted: LegacyAuthCredentials = { type: integration.authType }
-  for (const [key, value] of Object.entries(integration.values)) {
-    if (value !== undefined) {
+  // Extract credentials from the new config structure
+  const config = integration.config
+  const extracted: LegacyAuthCredentials = { 
+    type: (config.authType as AuthCredentialType) || 'api_key',
+  }
+  for (const [key, value] of Object.entries(config)) {
+    if (value !== undefined && key !== 'authType') {
       extracted[key] = value
     }
   }

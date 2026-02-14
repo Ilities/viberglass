@@ -11,7 +11,8 @@ import {
   getIntegrationCredentials,
   updateIntegrationCredential,
 } from '@/service/api/integration-api'
-import type { CreateIntegrationCredentialRequest, UpdateIntegrationCredentialRequest, IntegrationCredential } from '@viberglass/types'
+import { getSecrets, type Secret } from '@/service/api/secret-api'
+import type { CreateIntegrationCredentialRequest, UpdateIntegrationCredentialRequest, IntegrationCredential, SecretLocation } from '@viberglass/types'
 import { PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -21,24 +22,49 @@ interface IntegrationCredentialSectionProps {
   integrationSystem: string
 }
 
-const NONE_OPTION = '__none__'
+// Credential type is now automatically determined by the integration
+// For SCM integrations (GitHub, GitLab, Bitbucket), credentials are always tokens
 
-const CREDENTIAL_TYPE_OPTIONS: Array<{ value: CreateIntegrationCredentialRequest['credentialType']; label: string }> = [
-  { value: 'token', label: 'Token' },
-  { value: 'ssh_key', label: 'SSH Key' },
-  { value: 'oauth', label: 'OAuth' },
-  { value: 'basic', label: 'Basic Auth' },
+const LOCATION_OPTIONS: Array<{ value: SecretLocation; label: string; helper: string }> = [
+  {
+    value: 'env',
+    label: 'Name only (env)',
+    helper: 'Reads the value from an existing environment variable on the API server.',
+  },
+  {
+    value: 'database',
+    label: 'Database (encrypted)',
+    helper: 'Stores the secret value encrypted at rest in the platform database.',
+  },
+  {
+    value: 'ssm',
+    label: 'AWS SSM Parameter Store',
+    helper: 'Stores the secret in AWS SSM as a SecureString parameter.',
+  },
 ]
+
+const LOCATION_BADGES: Record<SecretLocation, { label: string; color: string }> = {
+  env: { label: 'Env', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  database: { label: 'DB', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  ssm: { label: 'SSM', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+}
+
+type SecretSource = 'existing' | 'new'
 
 export function IntegrationCredentialSection({ integrationId, integrationSystem }: IntegrationCredentialSectionProps) {
   const [credentials, setCredentials] = useState<IntegrationCredential[]>([])
+  const [secrets, setSecrets] = useState<Secret[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingSecrets, setIsLoadingSecrets] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
   // Form state for new credential
+  const [secretSource, setSecretSource] = useState<SecretSource>('existing')
+  const [selectedSecretId, setSelectedSecretId] = useState('')
   const [newCredentialName, setNewCredentialName] = useState('')
-  const [newCredentialType, setNewCredentialType] = useState<CreateIntegrationCredentialRequest['credentialType']>('token')
+  const [newCredentialLocation, setNewCredentialLocation] = useState<SecretLocation>('database')
+  const [newCredentialPath, setNewCredentialPath] = useState('')
   const [newCredentialValue, setNewCredentialValue] = useState('')
   const [newCredentialIsDefault, setNewCredentialIsDefault] = useState(false)
   const [newCredentialDescription, setNewCredentialDescription] = useState('')
@@ -48,10 +74,17 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editIsDefault, setEditIsDefault] = useState(false)
+  const [editSecretValue, setEditSecretValue] = useState('')
 
   const isScmIntegration = useMemo(() => {
     return ['github', 'gitlab', 'bitbucket'].includes(integrationSystem)
   }, [integrationSystem])
+
+  // Get secrets not already linked to this integration
+  const availableSecrets = useMemo(() => {
+    const linkedSecretIds = new Set(credentials.map(c => c.secretId))
+    return secrets.filter(s => !linkedSecretIds.has(s.id))
+  }, [secrets, credentials])
 
   useEffect(() => {
     let isActive = true
@@ -87,13 +120,30 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     }
   }, [integrationId])
 
+  const loadSecrets = async () => {
+    setIsLoadingSecrets(true)
+    try {
+      const data = await getSecrets(100, 0)
+      setSecrets(data)
+    } catch (error) {
+      console.error('Failed to load secrets:', error)
+      toast.error('Failed to load secrets')
+    } finally {
+      setIsLoadingSecrets(false)
+    }
+  }
+
   const handleStartCreate = () => {
     setIsCreating(true)
+    setSecretSource('existing')
+    setSelectedSecretId('')
     setNewCredentialName('')
-    setNewCredentialType('token')
+    setNewCredentialLocation('database')
+    setNewCredentialPath('')
     setNewCredentialValue('')
     setNewCredentialIsDefault(false)
     setNewCredentialDescription('')
+    void loadSecrets()
   }
 
   const handleCancelCreate = () => {
@@ -105,20 +155,38 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
       toast.error('Credential name is required')
       return
     }
-    if (!newCredentialValue.trim()) {
-      toast.error('Credential value is required')
-      return
-    }
 
     setIsSubmitting(true)
     try {
-      const request: CreateIntegrationCredentialRequest = {
-        integrationId,
-        name: newCredentialName.trim(),
-        credentialType: newCredentialType,
-        secretValue: newCredentialValue.trim(),
-        isDefault: newCredentialIsDefault,
-        description: newCredentialDescription.trim() || null,
+      let request: CreateIntegrationCredentialRequest
+
+      if (secretSource === 'existing' && selectedSecretId) {
+        // Link to existing secret
+        request = {
+          integrationId,
+          name: newCredentialName.trim(),
+          secretId: selectedSecretId,
+          isDefault: newCredentialIsDefault,
+          description: newCredentialDescription.trim() || null,
+        }
+      } else {
+        // Validate for new secret creation
+        if (newCredentialLocation !== 'env' && !newCredentialValue.trim()) {
+          toast.error('Credential value is required for this storage option')
+          setIsSubmitting(false)
+          return
+        }
+
+        // Create new secret
+        request = {
+          integrationId,
+          name: newCredentialName.trim(),
+          secretLocation: newCredentialLocation,
+          secretValue: newCredentialLocation !== 'env' ? newCredentialValue.trim() : undefined,
+          secretPath: newCredentialLocation === 'ssm' && newCredentialPath.trim() ? newCredentialPath.trim() : undefined,
+          isDefault: newCredentialIsDefault,
+          description: newCredentialDescription.trim() || null,
+        }
       }
 
       const created = await createIntegrationCredential(integrationId, request)
@@ -140,6 +208,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     setEditName(credential.name)
     setEditDescription(credential.description || '')
     setEditIsDefault(credential.isDefault)
+    setEditSecretValue('')
   }
 
   const handleCancelEdit = () => {
@@ -153,6 +222,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
         name: editName.trim(),
         description: editDescription.trim() || null,
         isDefault: editIsDefault,
+        ...(editSecretValue.trim() ? { secretValue: editSecretValue.trim() } : {}),
       }
 
       const updated = await updateIntegrationCredential(integrationId, credentialId, request)
@@ -190,6 +260,16 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const locationHelper = useMemo(() => {
+    return LOCATION_OPTIONS.find((option) => option.value === newCredentialLocation)?.helper || ''
+  }, [newCredentialLocation])
+
+  // Get secret name by ID
+  const getSecretName = (secretId: string) => {
+    const secret = secrets.find(s => s.id === secretId)
+    return secret?.name || 'Unknown'
   }
 
   if (!isScmIntegration) {
@@ -258,6 +338,16 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                             placeholder="Optional description"
                           />
                         </Field>
+                        <Field>
+                          <Label>New Secret Value (optional)</Label>
+                          <Description>Leave blank to keep the current value. Only for database/SSM storage.</Description>
+                          <Input
+                            type="password"
+                            value={editSecretValue}
+                            onChange={(e) => setEditSecretValue(e.target.value)}
+                            placeholder="Enter new value to rotate"
+                          />
+                        </Field>
                         <SwitchField>
                           <Label>Set as default credential</Label>
                           <Description>
@@ -285,13 +375,16 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                               Default
                             </span>
                           )}
+                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${LOCATION_BADGES[credential.secretLocation].color}`}>
+                            {LOCATION_BADGES[credential.secretLocation].label}
+                          </span>
                         </div>
                         {credential.description && (
                           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{credential.description}</p>
                         )}
                         <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                           <span className="rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
-                            Type: {CREDENTIAL_TYPE_OPTIONS.find((o) => o.value === credential.credentialType)?.label || credential.credentialType}
+                            Secret: {getSecretName(credential.secretId)}
                           </span>
                           <span className="rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
                             Created: {new Date(credential.createdAt).toLocaleDateString()}
@@ -338,41 +431,115 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
               <h4 className="text-sm font-semibold text-zinc-950 dark:text-white">Add New Credential</h4>
               <Fieldset disabled={isSubmitting} className="mt-4">
                 <FieldGroup className="space-y-4">
+                  {/* Secret Source Selection */}
                   <Field>
-                    <Label>Name</Label>
-                    <Description>A descriptive name for this credential.</Description>
+                    <Label>Secret Source</Label>
+                    <Description>Choose whether to use an existing secret or create a new one.</Description>
+                    <Select
+                      value={secretSource}
+                      onChange={(value) => {
+                        setSecretSource(value as SecretSource)
+                        setSelectedSecretId('')
+                        setNewCredentialValue('')
+                      }}
+                    >
+                      <option value="existing">Use existing secret</option>
+                      <option value="new">Create new secret</option>
+                    </Select>
+                  </Field>
+
+                  {/* Existing Secret Selection */}
+                  {secretSource === 'existing' && (
+                    <Field>
+                      <Label>Select Secret</Label>
+                      <Description>
+                        {isLoadingSecrets 
+                          ? 'Loading secrets...' 
+                          : availableSecrets.length === 0 
+                            ? 'No available secrets. Create one in the Secrets page first.' 
+                            : 'Choose a secret from the Secrets page.'}
+                      </Description>
+                      <Select
+                        value={selectedSecretId || '__placeholder__'}
+                        onChange={(value) => {
+                          const actualValue = value === '__placeholder__' ? '' : value
+                          setSelectedSecretId(actualValue)
+                          // Auto-fill name from secret if empty
+                          const secret = secrets.find(s => s.id === actualValue)
+                          if (secret && !newCredentialName) {
+                            setNewCredentialName(secret.name)
+                          }
+                        }}
+                        disabled={isLoadingSecrets || availableSecrets.length === 0}
+                      >
+                        <option value="__placeholder__">{isLoadingSecrets ? 'Loading...' : 'Select a secret...'}</option>
+                        {availableSecrets.map((secret) => (
+                          <option key={secret.id} value={secret.id}>
+                            {secret.name} ({secret.secretLocation})
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  )}
+
+                  {/* New Secret Creation Fields */}
+                  {secretSource === 'new' && (
+                    <>
+                      <Field>
+                        <Label>Storage Location</Label>
+                        <Description>{locationHelper}</Description>
+                        <Select
+                          value={newCredentialLocation}
+                          onChange={(value) => {
+                            setNewCredentialLocation(value as SecretLocation)
+                            setNewCredentialPath('')
+                            setNewCredentialValue('')
+                          }}
+                        >
+                          {LOCATION_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      {newCredentialLocation === 'ssm' && (
+                        <Field>
+                          <Label>SSM Parameter Path (Optional)</Label>
+                          <Description>Defaults to /viberator/secrets/{'{credential-name}'}</Description>
+                          <Input
+                            value={newCredentialPath}
+                            onChange={(e) => setNewCredentialPath(e.target.value)}
+                            placeholder="/viberator/secrets/GITHUB_PROD_TOKEN"
+                          />
+                        </Field>
+                      )}
+                      {newCredentialLocation !== 'env' && (
+                        <Field>
+                          <Label>Credential Value</Label>
+                          <Description>The secret value (token, key, or password).</Description>
+                          <Input
+                            type="password"
+                            value={newCredentialValue}
+                            onChange={(e) => setNewCredentialValue(e.target.value)}
+                            placeholder="Enter credential value"
+                          />
+                        </Field>
+                      )}
+                    </>
+                  )}
+
+                  {/* Common Fields */}
+                  <Field>
+                    <Label>Credential Name</Label>
+                    <Description>A descriptive name for this credential. Must be a valid environment variable key.</Description>
                     <Input
                       value={newCredentialName}
                       onChange={(e) => setNewCredentialName(e.target.value)}
-                      placeholder="e.g. Production Deploy Key"
+                      placeholder="e.g. GITHUB_PROD_TOKEN"
                     />
                   </Field>
-                  <Field>
-                    <Label>Credential Type</Label>
-                    <Description>Select the type of credential.</Description>
-                    <Select
-                      value={newCredentialType}
-                      onChange={(value) =>
-                        setNewCredentialType(value as CreateIntegrationCredentialRequest['credentialType'])
-                      }
-                    >
-                      {CREDENTIAL_TYPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field>
-                    <Label>Credential Value</Label>
-                    <Description>The secret value (token, key, or password).</Description>
-                    <Input
-                      type="password"
-                      value={newCredentialValue}
-                      onChange={(e) => setNewCredentialValue(e.target.value)}
-                      placeholder="Enter credential value"
-                    />
-                  </Field>
+
                   <Field>
                     <Label>Description (Optional)</Label>
                     <Input
@@ -381,6 +548,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                       placeholder="e.g. Used for production deployments"
                     />
                   </Field>
+
                   <SwitchField>
                     <Label>Set as default credential</Label>
                     <Description>
@@ -388,8 +556,13 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                     </Description>
                     <Switch checked={newCredentialIsDefault} onChange={setNewCredentialIsDefault} />
                   </SwitchField>
+
                   <div className="flex gap-2 pt-2">
-                    <Button color="brand" onClick={handleCreate} disabled={isSubmitting}>
+                    <Button 
+                      color="brand" 
+                      onClick={handleCreate} 
+                      disabled={isSubmitting || (secretSource === 'existing' && !selectedSecretId)}
+                    >
                       {isSubmitting ? 'Creating...' : 'Create Credential'}
                     </Button>
                     <Button plain onClick={handleCancelCreate} disabled={isSubmitting}>

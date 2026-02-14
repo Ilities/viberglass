@@ -304,13 +304,6 @@ router.put(
         });
       }
 
-      if (body.credentialSecretId) {
-        const secret = await secretDAO.getSecret(body.credentialSecretId);
-        if (!secret) {
-          return res.status(404).json({ error: 'SCM credential secret not found' });
-        }
-      }
-
       // Validate integration credential if provided
       if (body.integrationCredentialId) {
         const credential = await integrationCredentialDAO.getById(body.integrationCredentialId);
@@ -331,7 +324,6 @@ router.put(
         pullRequestRepository: normalizeOptionalString(body.pullRequestRepository),
         pullRequestBaseBranch: normalizeOptionalString(body.pullRequestBaseBranch),
         branchNameTemplate: normalizeOptionalString(body.branchNameTemplate),
-        credentialSecretId: body.credentialSecretId ?? null,
         integrationCredentialId: body.integrationCredentialId ?? null,
       });
 

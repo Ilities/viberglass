@@ -24,8 +24,7 @@ import {
   type ProjectScmConfig,
   type UpdateProjectRequest,
 } from '@/service/api/project-api'
-import { getSecrets } from '@/service/api/secret-api'
-import type { Secret, TicketSystem } from '@viberglass/types'
+import type { TicketSystem } from '@viberglass/types'
 import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
 import { useEffect, useMemo, useState } from 'react'
@@ -79,15 +78,10 @@ export function ProjectSettingsPage() {
   const [pullRequestRepository, setPullRequestRepository] = useState('')
   const [pullRequestBaseBranch, setPullRequestBaseBranch] = useState('')
   const [branchNameTemplate, setBranchNameTemplate] = useState('')
-  const [credentialSecretId, setCredentialSecretId] = useState<string>(NONE_OPTION)
   const [integrationCredentialId, setIntegrationCredentialId] = useState<string>(NONE_OPTION)
   const [initialScmConfig, setInitialScmConfig] = useState<ProjectScmConfig | null>(null)
   const [isLoadingScmConfig, setIsLoadingScmConfig] = useState(true)
   const [scmLoadError, setScmLoadError] = useState<string | null>(null)
-
-  const [availableSecrets, setAvailableSecrets] = useState<Secret[]>([])
-  const [isLoadingSecrets, setIsLoadingSecrets] = useState(true)
-  const [secretsLoadError, setSecretsLoadError] = useState<string | null>(null)
 
   // Integration credentials for the selected SCM integration
   const [integrationCredentials, setIntegrationCredentials] = useState<IntegrationCredential[]>([])
@@ -213,27 +207,18 @@ export function ProjectSettingsPage() {
   useEffect(() => {
     let isActive = true
 
-    async function loadScmConfigAndSecrets() {
+    async function loadScmConfig() {
       if (!projectData?.id) {
         setIsLoadingScmConfig(false)
-        setIsLoadingSecrets(false)
         return
       }
 
       setIsLoadingScmConfig(true)
       setScmLoadError(null)
-      setIsLoadingSecrets(true)
-      setSecretsLoadError(null)
 
-      const [scmResult, secretsResult] = await Promise.allSettled([
-        getProjectScmConfig(projectData.id),
-        getSecrets(200, 0),
-      ])
-
-      if (!isActive) return
-
-      if (scmResult.status === 'fulfilled') {
-        const scmConfig = scmResult.value
+      try {
+        const scmConfig = await getProjectScmConfig(projectData.id)
+        if (!isActive) return
         setInitialScmConfig(scmConfig)
         if (scmConfig) {
           setScmIntegrationId(scmConfig.integrationId)
@@ -242,7 +227,6 @@ export function ProjectSettingsPage() {
           setPullRequestRepository(scmConfig.pullRequestRepository ?? '')
           setPullRequestBaseBranch(scmConfig.pullRequestBaseBranch ?? '')
           setBranchNameTemplate(scmConfig.branchNameTemplate ?? '')
-          setCredentialSecretId(scmConfig.credentialSecretId ?? NONE_OPTION)
           setIntegrationCredentialId(scmConfig.integrationCredentialId ?? NONE_OPTION)
         } else {
           setScmIntegrationId(NONE_OPTION)
@@ -251,32 +235,23 @@ export function ProjectSettingsPage() {
           setPullRequestRepository('')
           setPullRequestBaseBranch('')
           setBranchNameTemplate('')
-          setCredentialSecretId(NONE_OPTION)
           setIntegrationCredentialId(NONE_OPTION)
         }
-      } else {
+      } catch (error) {
+        if (!isActive) return
         setScmLoadError(
-          scmResult.reason instanceof Error
-            ? scmResult.reason.message
+          error instanceof Error
+            ? error.message
             : 'Failed to load SCM configuration'
         )
+      } finally {
+        if (isActive) {
+          setIsLoadingScmConfig(false)
+        }
       }
-      setIsLoadingScmConfig(false)
-
-      if (secretsResult.status === 'fulfilled') {
-        setAvailableSecrets(secretsResult.value)
-      } else {
-        setSecretsLoadError(
-          secretsResult.reason instanceof Error
-            ? secretsResult.reason.message
-            : 'Failed to load secrets'
-        )
-        setAvailableSecrets([])
-      }
-      setIsLoadingSecrets(false)
     }
 
-    void loadScmConfigAndSecrets()
+    void loadScmConfig()
 
     return () => {
       isActive = false
@@ -354,7 +329,6 @@ export function ProjectSettingsPage() {
       setPullRequestRepository(initialScmConfig.pullRequestRepository ?? '')
       setPullRequestBaseBranch(initialScmConfig.pullRequestBaseBranch ?? '')
       setBranchNameTemplate(initialScmConfig.branchNameTemplate ?? '')
-      setCredentialSecretId(initialScmConfig.credentialSecretId ?? NONE_OPTION)
       setIntegrationCredentialId(initialScmConfig.integrationCredentialId ?? NONE_OPTION)
     } else {
       setScmIntegrationId(NONE_OPTION)
@@ -363,7 +337,6 @@ export function ProjectSettingsPage() {
       setPullRequestRepository('')
       setPullRequestBaseBranch('')
       setBranchNameTemplate('')
-      setCredentialSecretId(NONE_OPTION)
       setIntegrationCredentialId(NONE_OPTION)
     }
 
@@ -387,9 +360,6 @@ export function ProjectSettingsPage() {
       const selectedTicketingIntegration = ticketingIntegrations.find(
         (integration) => integration.integrationEntityId === ticketingIntegrationId
       )
-      if (!selectedTicketingIntegration) {
-        throw new Error('Select a ticketing integration linked to this project')
-      }
 
       const repositoryUrlList = normalizeRepositoryUrls(repositoryUrls)
       if (repositoryUrlList.length === 0) {
@@ -398,7 +368,7 @@ export function ProjectSettingsPage() {
 
       const updates: UpdateProjectRequest = {
         name: name.trim(),
-        ticketSystem: selectedTicketingIntegration.system,
+        ticketSystem: selectedTicketingIntegration?.system,
         autoFixEnabled,
         autoFixTags: autoFixTags
           .split(',')
@@ -431,8 +401,6 @@ export function ProjectSettingsPage() {
           pullRequestRepository: normalizeOptionalText(pullRequestRepository),
           pullRequestBaseBranch: normalizeOptionalText(pullRequestBaseBranch),
           branchNameTemplate: normalizeOptionalText(branchNameTemplate),
-          credentialSecretId:
-            credentialSecretId !== NONE_OPTION ? credentialSecretId : null,
           integrationCredentialId:
             integrationCredentialId !== NONE_OPTION ? integrationCredentialId : null,
         })
@@ -572,35 +540,37 @@ export function ProjectSettingsPage() {
                   <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
                     Loading linked integrations...
                   </div>
-                ) : ticketingIntegrations.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center dark:border-zinc-700 dark:bg-zinc-900">
-                    <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-                      <PlusIcon className="size-6 text-zinc-400" />
-                    </div>
-                    <h3 className="mt-4 text-sm font-semibold text-zinc-950 dark:text-white">
-                      No ticketing integrations linked
-                    </h3>
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                      Link at least one ticketing integration to this project to continue.
-                    </p>
-                    <Button href={`/project/${project}/settings/integrations`} color="brand" className="mt-4">
-                      Link Integrations
-                    </Button>
-                  </div>
                 ) : (
                   <Field>
                     <Select
                       name="ticket_integration"
                       value={ticketingIntegrationId}
                       onChange={(value) => setTicketingIntegrationId(value)}
+                      disabled={ticketingIntegrations.length === 0}
                     >
-                      <option value={NONE_OPTION}>Select a linked ticketing integration...</option>
+                      <option value={NONE_OPTION}>
+                        {ticketingIntegrations.length === 0
+                          ? 'No integrations linked - use Viberglass as ticketing system'
+                          : 'Use Viberglass as ticketing system (no external integration)'}
+                      </option>
                       {ticketingIntegrations.map((integration) => (
                         <option key={integration.integrationEntityId} value={integration.integrationEntityId}>
                           {integration.label} ({integration.system})
                         </option>
                       ))}
                     </Select>
+                    {ticketingIntegrations.length === 0 && (
+                      <Description className="mt-2">
+                        You can use Viberglass as your sole ticketing system, or{' '}
+                        <Link
+                          href={`/project/${project}/settings/integrations`}
+                          className="text-brand-burnt-orange hover:underline"
+                        >
+                          link an external integration
+                        </Link>{' '}
+                        to sync tickets externally.
+                      </Description>
+                    )}
                   </Field>
                 )}
               </div>
@@ -765,30 +735,6 @@ export function ProjectSettingsPage() {
                     ) : null}
                   </Field>
 
-                  <Field>
-                    <Label>Legacy Credential Secret (Optional)</Label>
-                    <Description>
-                      Deprecated: Use Integration Credential above. This legacy option adds a raw secret to runtime credentials.
-                    </Description>
-                    <Select
-                      name="credential_secret_id"
-                      value={credentialSecretId}
-                      onChange={(value) => setCredentialSecretId(value)}
-                      disabled={scmIntegrationId === NONE_OPTION || isLoadingSecrets}
-                    >
-                      <option value={NONE_OPTION}>No legacy credential secret</option>
-                      {availableSecrets.map((secret) => (
-                        <option key={secret.id} value={secret.id}>
-                          {secret.name}
-                        </option>
-                      ))}
-                    </Select>
-                    {secretsLoadError ? (
-                      <Description className="mt-2 text-red-600 dark:text-red-400">
-                        {secretsLoadError}
-                      </Description>
-                    ) : null}
-                  </Field>
                 </FieldGroup>
               </div>
 
