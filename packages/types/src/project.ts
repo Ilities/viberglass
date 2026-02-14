@@ -156,13 +156,18 @@ export interface ProjectSummary {
   name: string
   slug: string
   /**
-   * @deprecated Use linked integrations instead.
+   * @deprecated Use primaryTicketingIntegrationId instead.
    */
   ticketSystem: TicketSystem
   autoFixEnabled: boolean
   repositoryUrl?: string | null
   repositoryUrls?: string[]
   agentInstructions?: string | null
+  /**
+   * ID of the primary ticketing integration for this project.
+   * Replaces the deprecated ticketSystem field.
+   */
+  primaryTicketingIntegrationId?: string | null
   createdAt: string
   updatedAt: string
   // Stats (computed on frontend or via separate endpoint)
