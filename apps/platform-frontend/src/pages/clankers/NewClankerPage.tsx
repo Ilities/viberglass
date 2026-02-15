@@ -247,6 +247,7 @@ export function NewClankerPage() {
                 <option value="qwen-cli">Qwen CLI</option>
                 <option value="qwen-api">Qwen API</option>
                 <option value="codex">OpenAI Codex</option>
+                <option value="kimi-code">Kimi Code</option>
                 <option value="gemini-cli">Gemini CLI</option>
                 <option value="mistral-vibe">Mistral Vibe</option>
               </Select>

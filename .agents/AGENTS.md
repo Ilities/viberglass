@@ -70,8 +70,12 @@ When making UI changes, verify them visually using the agent-browser skill:
 
 1. Read credentials from `.agent-browser-creds` (gitignored file)
 2. Use the agent-browser skill to:
-   - Navigate to the application
-   - Log in with the credentials
+   - Open `/login` directly before protected routes
+   - Fill email/password from `.agent-browser-creds`
+   - Click `Login`, then wait for URL change away from `/login` (or confirm a known authenticated page element)
+   - If still on `/login`, retry once with a fresh open to `/login`
+   - Only after successful auth, navigate to the target page
+   - For async forms, wait for options/data to load before asserting state
    - Take screenshots of affected UI areas
    - Interact with forms/components as needed to verify functionality
 3. Review screenshots to confirm visual changes match expectations

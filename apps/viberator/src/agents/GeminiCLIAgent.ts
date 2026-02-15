@@ -32,6 +32,11 @@ export class GeminiCLIAgent extends BaseAgent {
         (this.config.temperature || 0.15).toString(),
       ];
 
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        GOOGLE_API_KEY: this.config.apiKey!,
+      };
+
       if (this.config.endpoint) {
         args.push("--endpoint", this.config.endpoint);
       }
@@ -47,6 +52,7 @@ export class GeminiCLIAgent extends BaseAgent {
 
       const result = await this.executeCommand(cliBinary, args, {
         cwd: workDir,
+        env,
         timeout: this.config.executionTimeLimit * 1000,
       });
 
@@ -67,7 +73,11 @@ export class GeminiCLIAgent extends BaseAgent {
         success: true,
         changedFiles,
         commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
-        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
+        pullRequestUrl: this.getCliString(
+          cliOutput,
+          "pullRequestUrl",
+          "pr_url",
+        ),
         pullRequestDescription,
       };
     } catch (error) {

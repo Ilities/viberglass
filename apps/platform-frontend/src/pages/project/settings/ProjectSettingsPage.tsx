@@ -227,7 +227,8 @@ export function ProjectSettingsPage() {
           setPullRequestRepository(scmConfig.pullRequestRepository ?? '')
           setPullRequestBaseBranch(scmConfig.pullRequestBaseBranch ?? '')
           setBranchNameTemplate(scmConfig.branchNameTemplate ?? '')
-          setIntegrationCredentialId(scmConfig.integrationCredentialId ?? NONE_OPTION)
+          // Resolve selected credential after options load to avoid invalid select state resets.
+          setIntegrationCredentialId(NONE_OPTION)
         } else {
           setScmIntegrationId(NONE_OPTION)
           setSourceRepository('')
@@ -276,6 +277,28 @@ export function ProjectSettingsPage() {
         const credentials = await getIntegrationCredentials(scmIntegrationId)
         if (isActive) {
           setIntegrationCredentials(credentials)
+          setIntegrationCredentialId((currentCredentialId) => {
+            if (
+              currentCredentialId !== NONE_OPTION &&
+              credentials.some((credential) => credential.id === currentCredentialId)
+            ) {
+              return currentCredentialId
+            }
+
+            const persistedCredentialId =
+              initialScmConfig?.integrationId === scmIntegrationId
+                ? initialScmConfig.integrationCredentialId
+                : null
+
+            if (
+              persistedCredentialId &&
+              credentials.some((credential) => credential.id === persistedCredentialId)
+            ) {
+              return persistedCredentialId
+            }
+
+            return NONE_OPTION
+          })
         }
       } catch (error) {
         console.error('Failed to load integration credentials:', error)
@@ -297,7 +320,7 @@ export function ProjectSettingsPage() {
     return () => {
       isActive = false
     }
-  }, [scmIntegrationId])
+  }, [initialScmConfig?.integrationCredentialId, initialScmConfig?.integrationId, scmIntegrationId])
 
   const resetForm = () => {
     if (!projectData) return
@@ -703,7 +726,11 @@ export function ProjectSettingsPage() {
                     <Select
                       name="integration_credential_id"
                       value={integrationCredentialId}
-                      onChange={(value) => setIntegrationCredentialId(value)}
+                      onChange={(value) => {
+                        // Radix can emit an empty transition value while options are reconciling.
+                        if (value === '') return
+                        setIntegrationCredentialId(value)
+                      }}
                       disabled={scmIntegrationId === NONE_OPTION || isLoadingIntegrationCredentials}
                     >
                       <option value={NONE_OPTION}>

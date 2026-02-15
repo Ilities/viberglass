@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useProject } from '@/context/project-context'
 import {
   getAvailableIntegrationTypes,
+  getIntegrationCredentials,
   getProjectIntegrations,
 } from '@/service/api/integration-api'
 import {
@@ -13,7 +14,6 @@ import {
   updateProject,
   upsertProjectScmConfig,
 } from '@/service/api/project-api'
-import { getSecrets } from '@/service/api/secret-api'
 import { ProjectSettingsPage } from './ProjectSettingsPage'
 
 jest.mock('@/context/project-context', () => ({
@@ -22,6 +22,7 @@ jest.mock('@/context/project-context', () => ({
 
 jest.mock('@/service/api/integration-api', () => ({
   getAvailableIntegrationTypes: jest.fn(),
+  getIntegrationCredentials: jest.fn(),
   getProjectIntegrations: jest.fn(),
 }))
 
@@ -32,13 +33,12 @@ jest.mock('@/service/api/project-api', () => ({
   upsertProjectScmConfig: jest.fn(),
 }))
 
-jest.mock('@/service/api/secret-api', () => ({
-  getSecrets: jest.fn(),
-}))
-
 const mockedUseProject = useProject as jest.MockedFunction<typeof useProject>
 const mockedGetAvailableIntegrationTypes = getAvailableIntegrationTypes as jest.MockedFunction<
   typeof getAvailableIntegrationTypes
+>
+const mockedGetIntegrationCredentials = getIntegrationCredentials as jest.MockedFunction<
+  typeof getIntegrationCredentials
 >
 const mockedGetProjectIntegrations = getProjectIntegrations as jest.MockedFunction<
   typeof getProjectIntegrations
@@ -46,7 +46,6 @@ const mockedGetProjectIntegrations = getProjectIntegrations as jest.MockedFuncti
 const mockedGetProjectScmConfig = getProjectScmConfig as jest.MockedFunction<
   typeof getProjectScmConfig
 >
-const mockedGetSecrets = getSecrets as jest.MockedFunction<typeof getSecrets>
 const mockedUpdateProject = updateProject as jest.MockedFunction<typeof updateProject>
 const mockedUpsertProjectScmConfig = upsertProjectScmConfig as jest.MockedFunction<
   typeof upsertProjectScmConfig
@@ -90,7 +89,7 @@ const INITIAL_SCM_CONFIG = {
   pullRequestRepository: null,
   pullRequestBaseBranch: null,
   branchNameTemplate: null,
-  credentialSecretId: null,
+  integrationCredentialId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   createdAt: '2026-02-10T00:00:00.000Z',
   updatedAt: '2026-02-10T00:00:00.000Z',
 } as const
@@ -112,7 +111,7 @@ async function waitForInitialLoad() {
     expect(mockedGetAvailableIntegrationTypes).toHaveBeenCalled()
     expect(mockedGetProjectIntegrations).toHaveBeenCalledWith(PROJECT.id)
     expect(mockedGetProjectScmConfig).toHaveBeenCalledWith(PROJECT.id)
-    expect(mockedGetSecrets).toHaveBeenCalledWith(200, 0)
+    expect(mockedGetIntegrationCredentials).toHaveBeenCalledWith(INITIAL_SCM_CONFIG.integrationId)
   })
 }
 
@@ -179,16 +178,22 @@ describe('ProjectSettingsPage', () => {
     ] as any)
 
     mockedGetProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as any)
-    mockedGetSecrets.mockResolvedValue([
+    mockedGetIntegrationCredentials.mockResolvedValue([
       {
         id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
         name: 'GITHUB_TOKEN',
-        secretLocation: 'ssm',
-        secretPath: '/viberator/secrets/github-token',
+        integrationId: INITIAL_SCM_CONFIG.integrationId,
+        credentialType: 'token',
+        secretId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        secretLocation: 'env',
+        isDefault: false,
+        description: null,
+        expiresAt: null,
+        lastUsedAt: null,
         createdAt: '2026-02-10T00:00:00.000Z',
         updatedAt: '2026-02-10T00:00:00.000Z',
       },
-    ])
+    ] as any)
 
     mockedUpdateProject.mockResolvedValue(PROJECT as any)
     mockedUpsertProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as any)
@@ -205,11 +210,18 @@ describe('ProjectSettingsPage', () => {
       const scmIntegrationSelect = container.querySelector(
         'select[name="scm_integration"]'
       ) as HTMLSelectElement | null
+      const integrationCredentialSelect = container.querySelector(
+        'select[name="integration_credential_id"]'
+      ) as HTMLSelectElement | null
 
       expect(ticketingIntegrationSelect).not.toBeNull()
       expect(scmIntegrationSelect).not.toBeNull()
+      expect(integrationCredentialSelect).not.toBeNull()
       expect(ticketingIntegrationSelect?.value).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
       expect(scmIntegrationSelect?.value).toBe(INITIAL_SCM_CONFIG.integrationId)
+      expect(integrationCredentialSelect?.value).toBe(
+        'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+      )
     })
     expect(screen.getAllByText('Jira Team (jira)').length).toBeGreaterThan(0)
     expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
@@ -218,13 +230,13 @@ describe('ProjectSettingsPage', () => {
       'input[name="source_repository"]'
     ) as HTMLInputElement
     const baseBranchInput = container.querySelector('input[name="base_branch"]') as HTMLInputElement
-    const credentialSecretOption = container.querySelector(
-      'select[name="credential_secret_id"] option[value="cccccccc-cccc-4ccc-8ccc-cccccccccccc"]'
+    const integrationCredentialOption = container.querySelector(
+      'select[name="integration_credential_id"] option[value="cccccccc-cccc-4ccc-8ccc-cccccccccccc"]'
     )
 
     expect(sourceRepositoryInput.value).toBe(INITIAL_SCM_CONFIG.sourceRepository)
     expect(baseBranchInput.value).toBe(INITIAL_SCM_CONFIG.baseBranch)
-    expect(credentialSecretOption).not.toBeNull()
+    expect(integrationCredentialOption).not.toBeNull()
   })
 
   it('saves ticketing and SCM configuration when form is submitted', async () => {
@@ -232,7 +244,7 @@ describe('ProjectSettingsPage', () => {
     const { container } = renderPage()
     await waitForInitialLoad()
     await waitFor(() => {
-      expect(screen.getByText('GitHub Org (github)')).toBeInTheDocument()
+      expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
     })
 
     const sourceRepositoryInput = container.querySelector(
@@ -243,8 +255,8 @@ describe('ProjectSettingsPage', () => {
     const branchTemplateInput = container.querySelector(
       'input[name="branch_name_template"]'
     ) as HTMLInputElement
-    const credentialSecretSelect = container.querySelector(
-      'select[name="credential_secret_id"]'
+    const integrationCredentialSelect = container.querySelector(
+      'select[name="integration_credential_id"]'
     ) as HTMLSelectElement | null
     const ticketingIntegrationSelect = container.querySelector(
       'select[name="ticket_integration"]'
@@ -253,7 +265,7 @@ describe('ProjectSettingsPage', () => {
       'select[name="scm_integration"]'
     ) as HTMLSelectElement | null
 
-    expect(credentialSecretSelect).not.toBeNull()
+    expect(integrationCredentialSelect).not.toBeNull()
     expect(ticketingIntegrationSelect).not.toBeNull()
     expect(scmIntegrationSelect).not.toBeNull()
 
@@ -276,7 +288,7 @@ describe('ProjectSettingsPage', () => {
     fireEvent.change(branchTemplateInput, {
       target: { value: 'viberator/{{ticketId}}-{{timestamp}}' },
     })
-    fireEvent.change(credentialSecretSelect as HTMLSelectElement, {
+    fireEvent.change(integrationCredentialSelect as HTMLSelectElement, {
       target: { value: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' },
     })
 
@@ -299,8 +311,7 @@ describe('ProjectSettingsPage', () => {
         pullRequestRepository: 'https://github.com/acme/upstream',
         pullRequestBaseBranch: null,
         branchNameTemplate: 'viberator/{{ticketId}}-{{timestamp}}',
-        credentialSecretId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-        integrationCredentialId: null,
+        integrationCredentialId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
       })
     })
 
@@ -312,7 +323,7 @@ describe('ProjectSettingsPage', () => {
     const { container } = renderPage()
     await waitForInitialLoad()
     await waitFor(() => {
-      expect(screen.getByText('GitHub Org (github)')).toBeInTheDocument()
+      expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
     })
 
     const scmIntegrationSelect = container.querySelector(
@@ -336,7 +347,7 @@ describe('ProjectSettingsPage', () => {
     const { container } = renderPage()
     await waitForInitialLoad()
     await waitFor(() => {
-      expect(screen.getByText('GitHub Org (github)')).toBeInTheDocument()
+      expect(screen.getAllByText('GitHub Org (github)').length).toBeGreaterThan(0)
     })
 
     const sourceRepositoryInput = container.querySelector(

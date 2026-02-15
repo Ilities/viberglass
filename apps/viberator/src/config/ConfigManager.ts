@@ -147,6 +147,30 @@ export class ConfigManager {
           maxTokens: 8000,
           temperature: 0.0,
         },
+        "kimi-code": {
+          name: "kimi-code",
+          apiKey: "",
+          capabilities: [
+            "python",
+            "javascript",
+            "typescript",
+            "java",
+            "go",
+            "cpp",
+            "rust",
+          ],
+          costPerExecution: 0.45,
+          averageSuccessRate: 0.83,
+          executionTimeLimit: 3000,
+          resourceLimits: {
+            maxMemoryMB: 2048,
+            maxCpuPercent: 90,
+            maxDiskSpaceMB: 1024,
+            maxNetworkRequests: 120,
+          },
+          model: "kimi-k2",
+          temperature: 0.0,
+        },
         "mistral-vibe": {
           name: "mistral-vibe",
           apiKey: "",
@@ -215,28 +239,60 @@ export class ConfigManager {
       }
     });
 
-    // Special handling for claude-code: support official Claude Code env vars
-    // Priority: CLAUDE_CODE_API_KEY > ANTHROPIC_API_KEY > ANTHROPIC_AUTH_TOKEN
-    if (config.agents["claude-code"]) {
-      if (!config.agents["claude-code"].apiKey) {
-        config.agents["claude-code"].apiKey = (process.env.ANTHROPIC_API_KEY ||
-          process.env.ANTHROPIC_AUTH_TOKEN)!;
-      }
-      if (
-        !config.agents["claude-code"].endpoint &&
-        process.env.ANTHROPIC_BASE_URL
-      ) {
-        config.agents["claude-code"].endpoint = process.env.ANTHROPIC_BASE_URL;
-      }
-    }
+    // Special handling for agents with official environment variable aliases
+    const agentAliases: Record<
+      string,
+      { apiKey?: string[]; endpoint?: string[] }
+    > = {
+      "claude-code": {
+        apiKey: ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"],
+        endpoint: ["ANTHROPIC_BASE_URL"],
+      },
+      "qwen-api": {
+        apiKey: ["QWEN_API_KEY", "DASHSCOPE_API_KEY"],
+        endpoint: ["QWEN_API_ENDPOINT"],
+      },
+      "qwen-cli": {
+        apiKey: ["DASHSCOPE_API_KEY"],
+      },
+      "kimi-code": {
+        apiKey: ["KIMI_API_KEY", "MOONSHOT_API_KEY"],
+        endpoint: ["KIMI_CODE_ENDPOINT", "MOONSHOT_BASE_URL"],
+      },
+      codex: {
+        apiKey: ["OPENAI_API_KEY"],
+        endpoint: ["CODEX_ENDPOINT", "OPENAI_BASE_URL"],
+      },
+      "gemini-cli": {
+        apiKey: ["GOOGLE_API_KEY"],
+      },
+      "mistral-vibe": {
+        apiKey: ["MISTRAL_API_KEY"],
+      },
+    };
 
-    // Special handling for qwen-api to check for dedicated API key
-    if (process.env.QWEN_API_KEY && config.agents["qwen-api"]) {
-      config.agents["qwen-api"].apiKey = process.env.QWEN_API_KEY;
-    }
-    if (process.env.QWEN_API_ENDPOINT && config.agents["qwen-api"]) {
-      config.agents["qwen-api"].endpoint = process.env.QWEN_API_ENDPOINT;
-    }
+    Object.entries(agentAliases).forEach(([agentName, aliases]) => {
+      const agent = config.agents[agentName];
+      if (!agent) return;
+
+      if (!agent.apiKey && aliases.apiKey) {
+        for (const key of aliases.apiKey) {
+          if (process.env[key]) {
+            agent.apiKey = process.env[key];
+            break;
+          }
+        }
+      }
+
+      if (!agent.endpoint && aliases.endpoint) {
+        for (const key of aliases.endpoint) {
+          if (process.env[key]) {
+            agent.endpoint = process.env[key];
+            break;
+          }
+        }
+      }
+    });
 
     // Logging configuration
     if (process.env.LOG_LEVEL) {

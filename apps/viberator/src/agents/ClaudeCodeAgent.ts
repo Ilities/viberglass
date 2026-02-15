@@ -58,12 +58,9 @@ export class ClaudeCodeAgent extends BaseAgent {
           ...process.env,
           ANTHROPIC_API_KEY: this.config.apiKey!,
           CLAUDE_CODE_NON_INTERACTIVE: "true",
+          ANTHROPIC_MODEL: (this.config.model as string) || undefined,
+          ANTHROPIC_BASE_URL: this.config.endpoint || undefined,
         };
-
-        // Pass custom base URL if configured
-        if (this.config.endpoint) {
-          env.ANTHROPIC_BASE_URL = this.config.endpoint;
-        }
 
         result = await this.executeCommand("claude", args, {
           cwd: repoDir, // Execute directly inside the repo directory
@@ -101,7 +98,11 @@ export class ClaudeCodeAgent extends BaseAgent {
         success: true,
         changedFiles,
         commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
-        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
+        pullRequestUrl: this.getCliString(
+          cliOutput,
+          "pullRequestUrl",
+          "pr_url",
+        ),
         pullRequestDescription,
         testResults: Array.isArray(cliOutput.testResults)
           ? cliOutput.testResults

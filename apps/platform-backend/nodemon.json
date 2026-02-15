@@ -1,0 +1,24 @@
+{
+  "watch": ["src"],
+  "ext": "ts,js,json",
+  "ignore": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/__tests__/**",
+    "src/**/__mocks__/**",
+    "logs/*",
+    "*.log",
+    "dist/*",
+    "node_modules/*",
+    ".git/*",
+    ".idea/*",
+    ".cache/*",
+    "tmp/*",
+    "temp/*",
+    "*.tmp"
+  ],
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}
