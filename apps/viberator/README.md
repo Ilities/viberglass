@@ -4,7 +4,7 @@ A containerized AI agent orchestrator that executes various AI coding CLI tools 
 
 ## Features
 
-- **Multi-Agent Support**: Supports 5 AI agents (Claude Code, Qwen CLI, Mistral Vibe CLI, OpenAI Codex, Gemini CLI)
+- **Multi-Agent Support**: Supports 6 AI agents (Claude Code, Qwen CLI, Mistral Vibe CLI, OpenAI Codex, Kimi Code, Gemini CLI)
 - **Intelligent Agent Selection**: Automatically selects the best agent based on language, complexity, cost, and success rates
 - **Flexible Configuration**: Supports environment variables and AWS Systems Manager Parameter Store
 - **Docker Ready**: Fully containerized with proper security and resource management
@@ -18,6 +18,7 @@ A containerized AI agent orchestrator that executes various AI coding CLI tools 
 | Claude Code  | Python, JS, TS, Java, Go, Rust, C++ | $0.50          | 85%              |
 | Qwen CLI     | Python, JS, TS, Java, C++           | $0.30          | 78%              |
 | OpenAI Codex | Python, JS, TS, Java, Go, C++, C#   | $0.75          | 82%              |
+| Kimi Code    | Python, JS, TS, Java, Go, C++, Rust | $0.45          | 83%              |
 | Mistral Vibe | Python, JS, TS, Rust, Go            | $0.40          | 80%              |
 | Gemini CLI   | Python, JS, TS, Java, Kotlin, Swift | $0.35          | 77%              |
 
@@ -74,6 +75,7 @@ Copy `.env.example` to `.env` and configure:
 CLAUDE_CODE_API_KEY=your_claude_api_key
 QWEN_CLI_API_KEY=your_qwen_api_key
 CODEX_API_KEY=your_openai_api_key
+KIMI_CODE_API_KEY=your_kimi_api_key
 MISTRAL_VIBE_API_KEY=your_mistral_api_key
 GEMINI_CLI_API_KEY=your_gemini_api_key
 ```
@@ -102,6 +104,7 @@ For production deployments, store sensitive configuration in AWS SSM:
 # Example SSM parameters
 /viberglass-viberator/agents/claude-code/apiKey
 /viberglass-viberator/agents/qwen-cli/apiKey
+/viberglass-viberator/agents/kimi-code/apiKey
 /viberglass-viberator/logging/level
 /viberglass-viberator/execution/maxConcurrentJobs
 ```

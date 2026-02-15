@@ -72,6 +72,14 @@ Worker with OpenAI Codex CLI support.
 **Docs:** https://github.com/openai/codex
 **Use Case:** Using OpenAI Codex for terminal-based coding
 
+#### `agents/viberator-worker-kimi.Dockerfile`
+Worker with Kimi Code CLI support.
+
+**Agent:** `kimi-code`
+**CLI Source:** `curl -fsSL https://cli.moonshot.ai/kimi.sh | bash`
+**Docs:** https://moonshotai.github.io/Kimi-K2/cli/getting-started/
+**Use Case:** Using Moonshot Kimi Code in automated coding workflows
+
 ---
 
 ### Task-Specific Workers
@@ -79,13 +87,14 @@ Worker with OpenAI Codex CLI support.
 #### `viberator-worker-multi-agent.Dockerfile`
 Universal worker with all agent CLIs pre-installed.
 
-**Agents:** `claude-code`, `qwen-cli`, `qwen-api`, `gemini-cli`, `mistral-vibe`, `codex`
+**Agents:** `claude-code`, `qwen-cli`, `qwen-api`, `gemini-cli`, `mistral-vibe`, `codex`, `kimi-code`
 
 **CLI Sources:**
 - Claude Code: `npm install -g @anthropic-ai/claude-code`
 - Qwen Code: `npm install -g @qwen-code/qwen-code@latest`
 - Gemini: `npm install -g @google/gemini-cli`
 - Codex: `npm install -g @openai/codex`
+- Kimi Code: `curl -fsSL https://cli.moonshot.ai/kimi.sh | bash`
 - Mistral Vibe: `uv tool install mistral-vibe`
 
 **Use Case:** Maximum flexibility, switch between agents without rebuilding
@@ -186,6 +195,7 @@ The `ClankerProvisioningService` automatically selects the appropriate worker im
    - `gemini-cli` → `viberator-worker-gemini`
    - `mistral-vibe` → `viberator-worker-mistral`
    - `codex` → `viberator-worker-codex`
+   - `kimi-code` → `viberator-worker-kimi`
    - `claude-code` or other → `viberator-worker-multi-agent`
 
 ### Environment Variables
@@ -266,6 +276,7 @@ export VIBERATOR_LAMBDA_IMAGE_URI=123456.dkr.ecr.us-west-1.amazonaws.com/viberat
 | Gemini Worker | ~850MB | + Gemini CLI |
 | Mistral Worker | ~850MB | + Mistral Vibe CLI |
 | Codex Worker | ~850MB | + Codex CLI |
+| Kimi Worker | ~850MB | + Kimi Code CLI |
 | Multi-Agent Worker | ~1.2GB | All agent CLIs |
 | Testing Worker | ~1.1GB | Testing frameworks |
 | Deployment Worker | ~1.5GB | kubectl, terraform, etc. |
