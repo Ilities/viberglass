@@ -32,6 +32,12 @@ export class CodexAgent extends BaseAgent {
         (this.config.temperature || 0.0).toString(),
       ];
 
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        OPENAI_API_KEY: this.config.apiKey!,
+        OPENAI_BASE_URL: this.config.endpoint || undefined,
+      };
+
       if (this.config.endpoint) {
         args.push("--base-url", this.config.endpoint);
       }
@@ -42,6 +48,7 @@ export class CodexAgent extends BaseAgent {
 
       const result = await this.executeCommand("codex", args, {
         cwd: workDir,
+        env,
         timeout: this.config.executionTimeLimit * 1000,
       });
 
@@ -62,7 +69,11 @@ export class CodexAgent extends BaseAgent {
         success: true,
         changedFiles,
         commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
-        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
+        pullRequestUrl: this.getCliString(
+          cliOutput,
+          "pullRequestUrl",
+          "pr_url",
+        ),
         pullRequestDescription,
         testResults: Array.isArray(cliOutput.test_results)
           ? cliOutput.test_results

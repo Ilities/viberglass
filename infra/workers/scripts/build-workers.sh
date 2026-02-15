@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build script for all Viberator worker Docker images
 # Usage: ./build-workers.sh [image-type] [tag]
-#   image-type: all | claude | qwen | gemini | mistral | codex | multi-agent | testing | deployment | fullstack
+#   image-type: all | claude | qwen | gemini | mistral | codex | kimi | multi-agent | testing | deployment | fullstack
 #   tag: optional tag/version (default: latest)
 
 set -e
@@ -30,6 +30,7 @@ declare -A WORKER_IMAGES=(
     ["gemini"]="docker/agents/viberator-worker-gemini.Dockerfile"
     ["mistral"]="docker/agents/viberator-worker-mistral.Dockerfile"
     ["codex"]="docker/agents/viberator-worker-codex.Dockerfile"
+    ["kimi"]="docker/agents/viberator-worker-kimi.Dockerfile"
     ["multi-agent"]="docker/viberator-worker-multi-agent.Dockerfile"
     ["testing"]="docker/tasks/viberator-worker-testing.Dockerfile"
     ["deployment"]="docker/tasks/viberator-worker-deployment.Dockerfile"
@@ -44,6 +45,7 @@ declare -A IMAGE_NAMES=(
     ["gemini"]="viberator-worker-gemini"
     ["mistral"]="viberator-worker-mistral"
     ["codex"]="viberator-worker-codex"
+    ["kimi"]="viberator-worker-kimi"
     ["multi-agent"]="viberator-worker-multi-agent"
     ["testing"]="viberator-worker-testing"
     ["deployment"]="viberator-worker-deployment"
@@ -129,7 +131,7 @@ Build Viberator worker Docker images.
 Arguments:
   image-type    Type of worker image to build (default: all)
                 Options: all, claude, ecs, lambda, qwen, gemini, mistral,
-                         codex, multi-agent, testing, deployment, fullstack
+                         codex, kimi, multi-agent, testing, deployment, fullstack
 
   tag           Image tag/version (default: latest)
 
