@@ -25,7 +25,7 @@ import {
   type UpdateProjectRequest,
 } from '@/service/api/project-api'
 import type { TicketSystem } from '@viberglass/types'
-import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
+import { GearIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -182,6 +182,16 @@ export function ProjectSettingsPage() {
               integration.integrationEntityId === initialScmConfig.integrationId
           )
           setScmIntegrationId(scmMatch?.integrationEntityId ?? NONE_OPTION)
+        } else {
+          const primaryScmId = projectData.primaryScmIntegrationId
+          if (primaryScmId) {
+            const scmMatch = mapped.find(
+              (integration) =>
+                integration.category === 'scm' &&
+                integration.integrationEntityId === primaryScmId
+            )
+            setScmIntegrationId(scmMatch?.integrationEntityId ?? NONE_OPTION)
+          }
         }
       } catch (loadError) {
         if (!isActive) return
@@ -202,7 +212,30 @@ export function ProjectSettingsPage() {
     return () => {
       isActive = false
     }
-  }, [projectData?.id, projectData?.ticketSystem, initialScmConfig?.integrationId])
+  }, [
+    projectData?.id,
+    projectData?.ticketSystem,
+    projectData?.primaryScmIntegrationId,
+    initialScmConfig?.integrationId,
+  ])
+
+  useEffect(() => {
+    if (initialScmConfig?.integrationId) return
+    if (!projectData?.primaryScmIntegrationId) return
+    if (scmIntegrationId !== NONE_OPTION && scmIntegrationId !== '') return
+
+    const primaryScmMatch = scmIntegrations.find(
+      (integration) => integration.integrationEntityId === projectData.primaryScmIntegrationId
+    )
+    if (primaryScmMatch) {
+      setScmIntegrationId(primaryScmMatch.integrationEntityId)
+    }
+  }, [
+    initialScmConfig?.integrationId,
+    projectData?.primaryScmIntegrationId,
+    scmIntegrationId,
+    scmIntegrations,
+  ])
 
   useEffect(() => {
     let isActive = true
@@ -230,7 +263,7 @@ export function ProjectSettingsPage() {
           // Resolve selected credential after options load to avoid invalid select state resets.
           setIntegrationCredentialId(NONE_OPTION)
         } else {
-          setScmIntegrationId(NONE_OPTION)
+          setScmIntegrationId(projectData.primaryScmIntegrationId ?? NONE_OPTION)
           setSourceRepository('')
           setBaseBranch('main')
           setPullRequestRepository('')
@@ -257,7 +290,7 @@ export function ProjectSettingsPage() {
     return () => {
       isActive = false
     }
-  }, [projectData?.id])
+  }, [projectData?.id, projectData?.primaryScmIntegrationId])
 
   // Load integration credentials when SCM integration changes
   useEffect(() => {
@@ -353,6 +386,17 @@ export function ProjectSettingsPage() {
       setPullRequestBaseBranch(initialScmConfig.pullRequestBaseBranch ?? '')
       setBranchNameTemplate(initialScmConfig.branchNameTemplate ?? '')
       setIntegrationCredentialId(initialScmConfig.integrationCredentialId ?? NONE_OPTION)
+    } else if (projectData.primaryScmIntegrationId) {
+      const primaryScmMatch = scmIntegrations.find(
+        (integration) => integration.integrationEntityId === projectData.primaryScmIntegrationId
+      )
+      setScmIntegrationId(primaryScmMatch?.integrationEntityId ?? NONE_OPTION)
+      setSourceRepository('')
+      setBaseBranch('main')
+      setPullRequestRepository('')
+      setPullRequestBaseBranch('')
+      setBranchNameTemplate('')
+      setIntegrationCredentialId(NONE_OPTION)
     } else {
       setScmIntegrationId(NONE_OPTION)
       setSourceRepository('')
@@ -568,7 +612,10 @@ export function ProjectSettingsPage() {
                     <Select
                       name="ticket_integration"
                       value={ticketingIntegrationId}
-                      onChange={(value) => setTicketingIntegrationId(value)}
+                      onChange={(value) => {
+                        if (value === '') return
+                        setTicketingIntegrationId(value)
+                      }}
                       disabled={ticketingIntegrations.length === 0}
                     >
                       <option value={NONE_OPTION}>
@@ -630,7 +677,10 @@ export function ProjectSettingsPage() {
                     <Select
                       name="scm_integration"
                       value={scmIntegrationId}
-                      onChange={(value) => setScmIntegrationId(value)}
+                      onChange={(value) => {
+                        if (value === '') return
+                        setScmIntegrationId(value)
+                      }}
                       disabled={isLoadingIntegrations || isLoadingScmConfig || scmIntegrations.length === 0}
                     >
                       <option value={NONE_OPTION}>No SCM integration configured</option>

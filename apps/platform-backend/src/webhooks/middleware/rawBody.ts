@@ -28,6 +28,8 @@ export interface RawBodyMiddlewareConfig {
 export interface ExtendedRequest extends Express.Request {
   /** Raw request body as buffer for signature verification */
   rawBody?: Buffer;
+  /** Parsed JSON body (may be null if parsing failed) */
+  parsedBody?: unknown;
 }
 
 /**
@@ -51,9 +53,7 @@ export function rawBodyMiddleware(
   const { type = "application/json", limit = "10mb" } = config;
 
   // Use body-parser raw() to capture body as buffer
-  const rawParser = bodyParser.raw({ type, limit });
-
-  return rawParser;
+  return bodyParser.raw({ type, limit });
 }
 
 /**
@@ -115,7 +115,7 @@ export function rawBodyWithJsonFallback(
         const jsonStr = extendedReq.rawBody.toString("utf8");
         req.body = JSON.parse(jsonStr);
       } catch {
-        (req as any).parsedBody = null;
+        extendedReq.parsedBody = null;
       }
       return next();
     }
@@ -129,7 +129,7 @@ export function rawBodyWithJsonFallback(
 
       // Store raw body
       if (!Buffer.isBuffer(req.body)) {
-        (req as any).parsedBody = null;
+        extendedReq.parsedBody = null;
         return next();
       }
       extendedReq.rawBody = req.body;
@@ -138,10 +138,10 @@ export function rawBodyWithJsonFallback(
       // Signature middleware will re-parse after verification
       try {
         const jsonStr = extendedReq.rawBody.toString("utf8");
-        (req as any).parsedBody = JSON.parse(jsonStr);
+        extendedReq.parsedBody = JSON.parse(jsonStr);
       } catch {
         // JSON parsing failed, but raw body is captured
-        (req as any).parsedBody = null;
+        extendedReq.parsedBody = null;
       }
 
       next();

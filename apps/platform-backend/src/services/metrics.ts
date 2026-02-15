@@ -1,5 +1,18 @@
-import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from "@aws-sdk/client-cloudwatch";
+import {
+  CloudWatchClient,
+  PutMetricDataCommand,
+  StandardUnit,
+} from "@aws-sdk/client-cloudwatch";
+import type { Request, Response, NextFunction } from "express";
 import logger from "../config/logger";
+
+// Extended request type with user info
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    tenant_id: string;
+  };
+}
 
 /**
  * Simple application metrics service for CloudWatch
@@ -19,9 +32,12 @@ if (ENABLED) {
       region: process.env.AWS_REGION || "us-east-1",
     });
   } catch (error) {
-    logger.warn("CloudWatch client initialization failed, metrics will be logged only", {
-      error,
-    });
+    logger.warn(
+      "CloudWatch client initialization failed, metrics will be logged only",
+      {
+        error,
+      },
+    );
   }
 }
 
@@ -56,10 +72,12 @@ async function emitMetric(
   // Send to CloudWatch if enabled
   if (ENABLED && cloudWatchClient) {
     try {
-      const dimensionArray = Object.entries(dimensions).map(([name, value]) => ({
-        Name: name,
-        Value: value,
-      }));
+      const dimensionArray = Object.entries(dimensions).map(
+        ([name, value]) => ({
+          Name: name,
+          Value: value,
+        }),
+      );
 
       const command = new PutMetricDataCommand({
         Namespace: NAMESPACE,
@@ -101,7 +119,11 @@ export const metrics = {
   /**
    * Track Viberator execution succeeded
    */
-  viberatorSucceeded: async (ticketId: string, projectId: string, durationMs: number) => {
+  viberatorSucceeded: async (
+    ticketId: string,
+    projectId: string,
+    durationMs: number,
+  ) => {
     await Promise.all([
       emitMetric("ViberatorSuccess", 1, "Count", {
         TicketId: ticketId,
@@ -137,23 +159,30 @@ export const metrics = {
   /**
    * Track API request
    */
-  apiRequest: async (endpoint: string, method: string, statusCode: number) => {
+  apiRequest: async (
+    endpoint: string,
+    method: string,
+    statusCode: number,
+    duration: number,
+  ) => {
     await emitMetric("APIRequest", 1, "Count", {
       Endpoint: endpoint,
       Method: method,
       StatusCode: statusCode.toString(),
+      Duration: duration.toString(),
     });
   },
 
   /**
    * Track API error (4xx/5xx responses)
    */
-  apiError: async (endpoint: string, statusCode: number) => {
+  apiError: async (endpoint: string, statusCode: number, duration: number) => {
     const errorType = statusCode >= 500 ? "ServerError" : "ClientError";
     await emitMetric("APIError", 1, "Count", {
       Endpoint: endpoint,
       StatusCode: statusCode.toString(),
       ErrorType: errorType,
+      Duration: duration.toString(),
     });
   },
 
@@ -213,21 +242,26 @@ export const metrics = {
 /**
  * Middleware to automatically track API metrics
  */
-export function metricsMiddleware(req: any, res: any, next: any): void {
+export function metricsMiddleware(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void {
   const start = Date.now();
 
   res.on("finish", async () => {
     const duration = Date.now() - start;
-    const endpoint = req.route?.path || req.path;
+    const routePath = (req.route as { path?: string } | undefined)?.path;
+    const endpoint = routePath || req.path;
     const method = req.method;
     const statusCode = res.statusCode;
 
     // Track all API requests
-    await metrics.apiRequest(endpoint, method, statusCode);
+    await metrics.apiRequest(endpoint, method, statusCode, duration);
 
     // Track errors separately
     if (statusCode >= 400) {
-      await metrics.apiError(endpoint, statusCode);
+      await metrics.apiError(endpoint, statusCode, duration);
     }
 
     // Track active users (if authenticated)

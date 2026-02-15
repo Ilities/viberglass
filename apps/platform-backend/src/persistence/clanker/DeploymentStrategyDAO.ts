@@ -1,10 +1,14 @@
 import { v4 as uuidv4 } from "uuid";
+import type { Selectable } from "kysely";
 import db from "../config/database";
+import type { Database } from "../types/database";
 import type {
   DeploymentStrategy,
   CreateDeploymentStrategyRequest,
   UpdateDeploymentStrategyRequest,
 } from "@viberglass/types";
+
+type DeploymentStrategiesRow = Selectable<Database["deployment_strategies"]>;
 
 export class DeploymentStrategyDAO {
   async createDeploymentStrategy(
@@ -94,7 +98,9 @@ export class DeploymentStrategyDAO {
     await db.deleteFrom("deployment_strategies").where("id", "=", id).execute();
   }
 
-  private mapRowToDeploymentStrategy(row: any): DeploymentStrategy {
+  private mapRowToDeploymentStrategy(
+    row: DeploymentStrategiesRow,
+  ): DeploymentStrategy {
     return {
       id: row.id,
       name: row.name,

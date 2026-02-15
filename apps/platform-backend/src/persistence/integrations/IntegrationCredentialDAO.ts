@@ -3,7 +3,6 @@ import db from "../config/database";
 import { SecretService } from "../../services/SecretService";
 import type {
   IntegrationCredential,
-  CreateIntegrationCredentialRequest,
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
 import type { SecretLocation } from "../secret/SecretDAO";

@@ -1,4 +1,8 @@
+import type { Selectable } from "kysely";
 import db from "../config/database";
+import type { Database } from "../types/database";
+
+type UserSessionsRow = Selectable<Database["user_sessions"]>;
 
 export interface UserSessionRecord {
   id: string;
@@ -53,7 +57,7 @@ export class UserSessionDAO {
       .execute();
   }
 
-  private mapSession(row: any): UserSessionRecord {
+  private mapSession(row: UserSessionsRow): UserSessionRecord {
     return {
       id: row.id,
       userId: row.user_id,

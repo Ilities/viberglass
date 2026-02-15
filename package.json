@@ -35,7 +35,9 @@
     "frontend:build": "npm run build -w @viberglass/frontend",
     "frontend:start": "npm run start -w @viberglass/frontend",
     "infra:up": "npm run up -w @viberator/infra",
-    "infra:preview": "npm run preview -w @viberator/infra"
+    "infra:preview": "npm run preview -w @viberator/infra",
+    "lint": "npm run lint -w @viberglass/platform-backend",
+    "lint:fix": "npm run lint:fix -w @viberglass/platform-backend"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import db from "../config/database";
-import type { Database } from "../types/database";
+import type { JsonObject } from "../types/database";
 
 /**
  * Webhook configuration data access object
@@ -30,8 +30,8 @@ export interface WebhookConfig {
   allowedEvents: string[];
   autoExecute: boolean;
   botUsername: string | null;
-  labelMappings: Record<string, unknown>;
-  outboundTargetConfig?: Record<string, unknown> | null;
+  labelMappings: JsonObject;
+  outboundTargetConfig?: JsonObject | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -53,8 +53,8 @@ export interface CreateWebhookConfigDTO {
   allowedEvents?: string[];
   autoExecute?: boolean;
   botUsername?: string | null;
-  labelMappings?: Record<string, unknown>;
-  outboundTargetConfig?: Record<string, unknown> | null;
+  labelMappings?: JsonObject;
+  outboundTargetConfig?: JsonObject | null;
   active?: boolean;
 }
 
@@ -74,8 +74,8 @@ export interface UpdateWebhookConfigDTO {
   allowedEvents?: string[];
   autoExecute?: boolean;
   botUsername?: string | null;
-  labelMappings?: Record<string, unknown>;
-  outboundTargetConfig?: Record<string, unknown> | null;
+  labelMappings?: JsonObject;
+  outboundTargetConfig?: JsonObject | null;
   active?: boolean;
 }
 
@@ -100,15 +100,11 @@ export class WebhookConfigDAO {
         secret_path: dto.secretPath ?? null,
         webhook_secret_encrypted: dto.webhookSecretEncrypted ?? null,
         api_token_encrypted: dto.apiTokenEncrypted ?? null,
-        allowed_events: JSON.stringify(dto.allowedEvents ?? []) as any, // Kysely jsonb column requires string
+        allowed_events: dto.allowedEvents ?? [],
         auto_execute: dto.autoExecute ?? false,
         bot_username: dto.botUsername ?? null,
-        label_mappings: JSON.stringify(
-          dto.labelMappings ?? {},
-        ) as any, // Kysely jsonb column requires string
-        outbound_target_config: dto.outboundTargetConfig
-          ? (JSON.stringify(dto.outboundTargetConfig) as any)
-          : null,
+        label_mappings: (dto.labelMappings ?? {}) as JsonObject,
+        outbound_target_config: (dto.outboundTargetConfig ?? null) as JsonObject | null,
         active: dto.active ?? true,
         created_at: timestamp,
         updated_at: timestamp,
@@ -132,7 +128,7 @@ export class WebhookConfigDAO {
       .where("project_id", "=", projectId)
       .where("active", "=", true);
 
-    query = query.where("direction", "=", direction as any);
+    query = query.where("direction", "=", direction);
 
     const row = await query
       .orderBy("created_at", "desc")
@@ -163,59 +159,44 @@ export class WebhookConfigDAO {
    * Update webhook configuration
    */
   async updateConfig(id: string, updates: UpdateWebhookConfigDTO): Promise<void> {
-    const updateData: Record<string, unknown> = {
+    interface WebhookConfigUpdate {
+      updated_at: Date;
+      project_id?: string | null;
+      provider?: WebhookProvider;
+      direction?: WebhookDirection;
+      provider_project_id?: string | null;
+      integration_id?: string | null;
+      secret_location?: SecretLocation;
+      secret_path?: string | null;
+      webhook_secret_encrypted?: string | null;
+      api_token_encrypted?: string | null;
+      allowed_events?: string[];
+      auto_execute?: boolean;
+      bot_username?: string | null;
+      label_mappings?: JsonObject;
+      outbound_target_config?: JsonObject | null;
+      active?: boolean;
+    }
+
+    const updateData: WebhookConfigUpdate = {
       updated_at: new Date(),
     };
 
-    if (updates.projectId !== undefined) {
-      updateData.project_id = updates.projectId;
-    }
-    if (updates.provider !== undefined) {
-      updateData.provider = updates.provider;
-    }
-    if (updates.direction !== undefined) {
-      updateData.direction = updates.direction;
-    }
-    if (updates.providerProjectId !== undefined) {
-      updateData.provider_project_id = updates.providerProjectId;
-    }
-    if (updates.integrationId !== undefined) {
-      updateData.integration_id = updates.integrationId;
-    }
-    if (updates.secretLocation !== undefined) {
-      updateData.secret_location = updates.secretLocation;
-    }
-    if (updates.secretPath !== undefined) {
-      updateData.secret_path = updates.secretPath;
-    }
-    if (updates.webhookSecretEncrypted !== undefined) {
-      updateData.webhook_secret_encrypted = updates.webhookSecretEncrypted;
-    }
-    if (updates.apiTokenEncrypted !== undefined) {
-      updateData.api_token_encrypted = updates.apiTokenEncrypted;
-    }
-    if (updates.allowedEvents !== undefined) {
-      updateData.allowed_events = JSON.stringify(updates.allowedEvents) as any; // Kysely jsonb column requires string
-    }
-    if (updates.autoExecute !== undefined) {
-      updateData.auto_execute = updates.autoExecute;
-    }
-    if (updates.botUsername !== undefined) {
-      updateData.bot_username = updates.botUsername;
-    }
-    if (updates.labelMappings !== undefined) {
-      updateData.label_mappings = JSON.stringify(
-        updates.labelMappings,
-      ) as any; // Kysely jsonb column requires string
-    }
-    if (updates.outboundTargetConfig !== undefined) {
-      updateData.outbound_target_config = updates.outboundTargetConfig
-        ? (JSON.stringify(updates.outboundTargetConfig) as any)
-        : null;
-    }
-    if (updates.active !== undefined) {
-      updateData.active = updates.active;
-    }
+    if (updates.projectId !== undefined) updateData.project_id = updates.projectId;
+    if (updates.provider !== undefined) updateData.provider = updates.provider;
+    if (updates.direction !== undefined) updateData.direction = updates.direction;
+    if (updates.providerProjectId !== undefined) updateData.provider_project_id = updates.providerProjectId;
+    if (updates.integrationId !== undefined) updateData.integration_id = updates.integrationId;
+    if (updates.secretLocation !== undefined) updateData.secret_location = updates.secretLocation;
+    if (updates.secretPath !== undefined) updateData.secret_path = updates.secretPath;
+    if (updates.webhookSecretEncrypted !== undefined) updateData.webhook_secret_encrypted = updates.webhookSecretEncrypted;
+    if (updates.apiTokenEncrypted !== undefined) updateData.api_token_encrypted = updates.apiTokenEncrypted;
+    if (updates.allowedEvents !== undefined) updateData.allowed_events = updates.allowedEvents;
+    if (updates.autoExecute !== undefined) updateData.auto_execute = updates.autoExecute;
+    if (updates.botUsername !== undefined) updateData.bot_username = updates.botUsername;
+    if (updates.labelMappings !== undefined) updateData.label_mappings = updates.labelMappings;
+    if (updates.outboundTargetConfig !== undefined) updateData.outbound_target_config = updates.outboundTargetConfig ?? null;
+    if (updates.active !== undefined) updateData.active = updates.active;
 
     await db
       .updateTable("webhook_provider_configs")
@@ -262,7 +243,7 @@ export class WebhookConfigDAO {
       .where("active", "=", true);
 
     if (direction) {
-      query = query.where("direction", "=", direction as any);
+      query = query.where("direction", "=", direction);
     }
 
     const row = await query
@@ -295,7 +276,7 @@ export class WebhookConfigDAO {
     }
 
     if (options?.direction) {
-      query = query.where("direction", "=", options.direction as any);
+      query = query.where("direction", "=", options.direction);
     }
 
     const row = await query.executeTakeFirst();
@@ -321,7 +302,7 @@ export class WebhookConfigDAO {
     }
 
     if (options?.direction) {
-      query = query.where("direction", "=", options.direction as any);
+      query = query.where("direction", "=", options.direction);
     }
 
     const rows = await query
@@ -344,7 +325,7 @@ export class WebhookConfigDAO {
       .selectFrom("webhook_provider_configs")
       .selectAll()
       .where("provider", "=", provider)
-      .where("direction", "=", direction as any)
+      .where("direction", "=", direction)
       .where("provider_project_id", "=", providerProjectId)
       .where("active", "=", true)
       .orderBy("created_at", "desc")
@@ -371,7 +352,7 @@ export class WebhookConfigDAO {
       .where("provider", "=", provider);
 
     if (direction) {
-      query = query.where("direction", "=", direction as any);
+      query = query.where("direction", "=", direction);
     }
 
     const rows = await query
@@ -398,7 +379,7 @@ export class WebhookConfigDAO {
       .where("active", "=", true);
 
     if (direction) {
-      query = query.where("direction", "=", direction as any);
+      query = query.where("direction", "=", direction);
     }
 
     const rows = await query
@@ -426,7 +407,7 @@ export class WebhookConfigDAO {
       .where("project_id", "=", projectId);
 
     if (direction) {
-      query = query.where("direction", "=", direction as any);
+      query = query.where("direction", "=", direction);
     }
 
     const rows = await query
@@ -464,13 +445,11 @@ export class WebhookConfigDAO {
       labelMappings:
         typeof row.label_mappings === "string"
           ? JSON.parse(row.label_mappings)
-          : (row.label_mappings as Record<string, unknown>),
+          : row.label_mappings,
       outboundTargetConfig:
         typeof row.outbound_target_config === "string"
-          ? (JSON.parse(row.outbound_target_config) as Record<string, unknown>)
-          : row.outbound_target_config
-            ? (row.outbound_target_config as Record<string, unknown>)
-            : null,
+          ? JSON.parse(row.outbound_target_config)
+          : row.outbound_target_config ?? null,
       active: Boolean(row.active),
       createdAt: row.created_at as Date,
       updatedAt: row.updated_at as Date,

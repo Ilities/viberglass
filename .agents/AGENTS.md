@@ -26,6 +26,21 @@ These are the single source of truth instructions for agent behavior and backend
 - In touched areas, remove dead code with zero callers in the same change.
 - Do not perform repo-wide dead code cleanup unless requested.
 
+### 3a) Type Safety - No Casting to Bypass Linting
+
+**NEVER use type assertions (`as`) to bypass TypeScript errors or linting violations.** This includes:
+- `as any`, `as unknown`, `as SomeType`
+- `as unknown as SomeType` chains
+- Type assertions in mapper functions like `row: any`
+
+**Instead, properly type the data:**
+- Define interfaces/types for database rows
+- Use proper generic parameters (e.g., Kysely's type parameters)
+- Use type guards for runtime validation
+- If truly impossible, use `unknown` + validation, never `as`
+
+**Exception:** Only allowed when the type is genuinely unknowable at compile time AND you've exhausted all proper typing approaches. Must add a comment explaining why.
+
 ### 4) Backend Architecture
 
 - Keep classes small and single-purpose.

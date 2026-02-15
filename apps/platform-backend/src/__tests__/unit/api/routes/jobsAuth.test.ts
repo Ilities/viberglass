@@ -1,7 +1,7 @@
 import jobsRouter from "../../../../api/routes/jobs";
 import { requireAuth } from "../../../../api/middleware/authentication";
 
-function getRouteHandlers(path: string, method: string): Array<Function> {
+function getRouteHandlers(path: string, method: string): Array<(...args: unknown[]) => unknown> {
   const layer = (jobsRouter as any).stack.find(
     (entry: any) =>
       entry.route &&

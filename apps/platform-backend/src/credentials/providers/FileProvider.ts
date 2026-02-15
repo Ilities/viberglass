@@ -73,7 +73,7 @@ export class FileProvider implements CredentialProvider {
     // In production, use a proper 64-character hex key
     const salt = Buffer.from('viberator-credentials-salt-v1', 'utf-8').slice(0, FileProvider.SALT_LENGTH);
     const hash = Buffer.concat([Buffer.from(source, 'utf-8'), salt]);
-    let derived = Buffer.alloc(FileProvider.KEY_LENGTH);
+    const derived = Buffer.alloc(FileProvider.KEY_LENGTH);
 
     // Simple hash-based key derivation (for development compatibility)
     // For production, always use 64-character hex keys
@@ -202,7 +202,7 @@ export class FileProvider implements CredentialProvider {
 
     try {
       return JSON.parse(decrypted.toString('utf-8'));
-    } catch (error) {
+    } catch {
       throw new Error('Failed to parse decrypted credentials file (may be corrupted)');
     }
   }

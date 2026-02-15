@@ -93,7 +93,7 @@ export class WebhookDeliveryDAO {
           event_type: dto.eventType,
           status: dto.status ?? "processing",
           error_message: null,
-          payload: JSON.stringify(dto.payload) as any, // Kysely jsonb column
+          payload: JSON.stringify(dto.payload),
           project_id: null,
           ticket_id: null,
           created_at: timestamp,

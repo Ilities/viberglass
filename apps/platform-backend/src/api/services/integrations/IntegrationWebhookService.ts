@@ -29,6 +29,14 @@ const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 const GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS = 'matching_events'
 const GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED = 'label_gated'
 
+// Helper to safely convert unknown values to a JSON-compatible object
+function toJsonObject(value: unknown): import('../../../persistence/types/database').JsonObject | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value !== 'object') return undefined;
+  if (Array.isArray(value)) return undefined;
+  return value as import('../../../persistence/types/database').JsonObject;
+}
+
 type GitHubAutoExecuteMode =
   | typeof GITHUB_AUTO_EXECUTE_MODE_MATCHING_EVENTS
   | typeof GITHUB_AUTO_EXECUTE_MODE_LABEL_GATED
@@ -93,7 +101,7 @@ export class IntegrationWebhookService {
       allowedEvents: input.allowedEvents || getDefaultInboundEvents(provider),
       autoExecute: input.autoExecute ?? false,
       webhookSecretEncrypted: webhookSecret || null,
-      labelMappings,
+      labelMappings: toJsonObject(labelMappings) as import('../../../persistence/types/database').JsonObject,
       secretLocation: 'database',
       active: input.active ?? true,
     })
@@ -139,7 +147,7 @@ export class IntegrationWebhookService {
       allowedEvents: input.allowedEvents,
       autoExecute: input.autoExecute,
       webhookSecretEncrypted: webhookSecret,
-      labelMappings,
+      labelMappings: toJsonObject(labelMappings),
       active: input.active,
     })
 
@@ -206,7 +214,7 @@ export class IntegrationWebhookService {
       )
     }
 
-    const customOutboundTargetConfig: { config?: Record<string, unknown> | null; error?: string } =
+    const customOutboundTargetConfig: { config?: { [key: string]: unknown } | null; error?: string } =
       provider === 'custom'
         ? parseCustomOutboundTargetConfigOrError(input, { requireNameAndUrl: true })
         : { config: null }
@@ -235,7 +243,7 @@ export class IntegrationWebhookService {
       allowedEvents,
       apiTokenEncrypted: provider === 'custom' ? null : input.apiToken || null,
       outboundTargetConfig:
-        provider === 'custom' ? customOutboundTargetConfig.config || null : null,
+        provider === 'custom' ? toJsonObject(customOutboundTargetConfig.config) || null : null,
       autoExecute: false,
       secretLocation: 'database',
       active: input.active ?? true,
@@ -276,7 +284,7 @@ export class IntegrationWebhookService {
       )
     }
 
-    const customOutboundTargetConfig: { config?: Record<string, unknown> | null; error?: string } =
+    const customOutboundTargetConfig: { config?: { [key: string]: unknown } | null; error?: string } =
       provider === 'custom'
         ? parseCustomOutboundTargetConfigOrError(input, {
             existing: existing.outboundTargetConfig || null,
@@ -304,7 +312,7 @@ export class IntegrationWebhookService {
       apiTokenEncrypted: provider === 'custom' ? undefined : input.apiToken,
       providerProjectId,
       outboundTargetConfig:
-        provider === 'custom' ? customOutboundTargetConfig.config || null : undefined,
+        provider === 'custom' ? toJsonObject(customOutboundTargetConfig.config) || undefined : undefined,
       active: input.active,
     })
 
@@ -334,7 +342,7 @@ export class IntegrationWebhookService {
   async listOutboundWebhookDeliveries(
     integrationId: string,
     configId: string,
-    query: ParsedQs | Record<string, unknown>,
+    query: ParsedQs | { [key: string]: unknown },
   ): Promise<DeliveryListResult> {
     const integration = await this.getIntegrationOrThrow(integrationId)
 
@@ -366,7 +374,7 @@ export class IntegrationWebhookService {
   async listInboundWebhookDeliveries(
     integrationId: string,
     configId: string,
-    query: ParsedQs | Record<string, unknown>,
+    query: ParsedQs | { [key: string]: unknown },
   ): Promise<DeliveryListResult> {
     const integration = await this.getIntegrationOrThrow(integrationId)
 
@@ -579,15 +587,15 @@ export class IntegrationWebhookService {
     return labels
   }
 
-  private toRecord(value: unknown): Record<string, unknown> | null {
+  private toRecord(value: unknown): { [key: string]: unknown } | null {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       return null
     }
-    return value as Record<string, unknown>
+    return value as { [key: string]: unknown }
   }
 
   private parseGitHubAutoExecuteMode(
-    labelMappings: Record<string, unknown>,
+    labelMappings: { [key: string]: unknown },
   ): GitHubAutoExecuteMode | undefined {
     const root = this.toRecord(labelMappings)
     const nested = this.toRecord(root?.github)
@@ -617,9 +625,9 @@ export class IntegrationWebhookService {
 
   private resolveInboundLabelMappings(
     provider: NonNullable<ReturnType<typeof mapSystemToWebhookProvider>>,
-    inputLabelMappings: Record<string, unknown> | undefined,
-    existingLabelMappings?: Record<string, unknown>,
-  ): Record<string, unknown> {
+    inputLabelMappings: { [key: string]: unknown } | undefined,
+    existingLabelMappings?: { [key: string]: unknown },
+  ): { [key: string]: unknown } {
     if (inputLabelMappings === undefined) {
       return existingLabelMappings || {}
     }
@@ -704,7 +712,7 @@ export class IntegrationWebhookService {
   private resolveProviderProjectId(
     provider: NonNullable<ReturnType<typeof mapSystemToWebhookProvider>>,
     inputProviderProjectId: string | null | undefined,
-    integrationValues: Record<string, unknown>,
+    integrationValues: { [key: string]: unknown },
   ): string | null {
     const explicitProviderProjectId = this.normalizeOptionalId(inputProviderProjectId)
     if (explicitProviderProjectId) {
