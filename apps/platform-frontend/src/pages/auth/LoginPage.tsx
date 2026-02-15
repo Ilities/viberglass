@@ -47,8 +47,18 @@ export function LoginPage() {
     }
   }
 
+  function handleKeyDown(event: React.KeyboardEvent<HTMLFormElement>) {
+    if (event.key === 'Enter' && !isSubmitting) {
+      event.preventDefault()
+      const form = event.currentTarget
+      if (form.checkValidity()) {
+        handleSubmit(event as unknown as React.FormEvent<HTMLFormElement>)
+      }
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="grid w-full max-w-sm grid-cols-1 gap-8">
+    <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="grid w-full max-w-sm grid-cols-1 gap-8">
       <Logo className="h-6 text-zinc-950 dark:text-white forced-colors:text-[CanvasText]" />
       <Heading>Sign in to your account</Heading>
       {error && (
