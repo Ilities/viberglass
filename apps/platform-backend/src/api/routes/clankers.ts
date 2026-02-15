@@ -19,6 +19,10 @@ const provisioningService = new ClankerProvisioningService();
 router.use(requireAuth);
 
 async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
+  if (clanker.status === "deploying") {
+    return clanker;
+  }
+
   const availability =
     await provisioningService.resolveAvailabilityStatus(clanker);
   const currentMessage = clanker.statusMessage ?? null;
@@ -180,6 +184,9 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
     if (clanker.status === "active") {
       return res.status(400).json({ error: "Clanker is already active" });
     }
+    if (clanker.status === "deploying") {
+      return res.status(409).json({ error: "Clanker is already deploying" });
+    }
 
     // Update status to deploying first
     const updatedClanker = await clankerService.updateStatus(
@@ -188,40 +195,63 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
       "Starting clanker..."
     );
 
-    try {
-      const provisioned =
-        await provisioningService.provisionClanker(updatedClanker);
-      const finalClanker = await clankerService.updateClanker(
-        updatedClanker.id,
-        {
+    // Run provisioning asynchronously so UI can observe progress updates.
+    void (async () => {
+      try {
+        const provisioned = await provisioningService.provisionClanker(
+          updatedClanker,
+          async (statusMessage) => {
+            try {
+              await clankerService.updateStatus(
+                updatedClanker.id,
+                "deploying",
+                statusMessage,
+              );
+            } catch (statusError) {
+              logger.warn("Failed to persist clanker provisioning progress", {
+                clankerId: updatedClanker.id,
+                statusMessage,
+                error:
+                  statusError instanceof Error
+                    ? statusError.message
+                    : String(statusError),
+              });
+            }
+          },
+        );
+
+        await clankerService.updateClanker(updatedClanker.id, {
           deploymentConfig:
             provisioned.deploymentConfig ??
             updatedClanker.deploymentConfig ??
             null,
           status: provisioned.status,
           statusMessage: provisioned.statusMessage ?? null,
-        }
-      );
-      res.json({ success: true, data: finalClanker });
-    } catch (provisioningError) {
-      const message =
-        provisioningError instanceof Error
-          ? provisioningError.message
-          : "Provisioning failed";
-      await clankerService.updateStatus(req.params.id, "failed", message);
-      res.status(500).json({
-        error: "Failed to provision clanker resources",
-        message,
-      });
-    }
+        });
+      } catch (provisioningError) {
+        const message =
+          provisioningError instanceof Error
+            ? provisioningError.message
+            : "Provisioning failed";
+        await clankerService.updateStatus(updatedClanker.id, "failed", message);
+        logger.error("Failed to provision clanker resources", {
+          clankerId: updatedClanker.id,
+          error: message,
+        });
+      }
+    })();
+
+    res.status(202).json({ success: true, data: updatedClanker });
   } catch (error) {
     logger.error('Error starting clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// POST /api/clankers/:id/stop - Stop a clanker
-router.post("/:id/stop", validateUuidParam("id"), async (req, res) => {
+const deactivateClankerHandler = async (
+  req: express.Request,
+  res: express.Response,
+) => {
   try {
     const clanker = await clankerService.getClanker(req.params.id);
     if (!clanker) {
@@ -232,19 +262,29 @@ router.post("/:id/stop", validateUuidParam("id"), async (req, res) => {
       return res.status(400).json({ error: "Clanker is already inactive" });
     }
 
-    // TODO: Implement actual stop logic based on deployment strategy
+    // Deactivate clanker so it can no longer run new jobs.
     const updatedClanker = await clankerService.updateStatus(
       req.params.id,
       "inactive",
-      "Stopped by user"
+      "Deactivated by user"
     );
 
     res.json({ success: true, data: updatedClanker });
   } catch (error) {
-    logger.error('Error stopping clanker', { error: error instanceof Error ? error.message : error });
+    logger.error('Error deactivating clanker', { error: error instanceof Error ? error.message : error });
     res.status(500).json({ error: "Internal server error" });
   }
-});
+};
+
+// POST /api/clankers/:id/deactivate - Deactivate a clanker
+router.post(
+  "/:id/deactivate",
+  validateUuidParam("id"),
+  deactivateClankerHandler,
+);
+
+// POST /api/clankers/:id/stop - Backward-compatible alias for deactivation
+router.post("/:id/stop", validateUuidParam("id"), deactivateClankerHandler);
 
 // GET /api/clankers/:id/health - Get clanker health status
 router.get('/:id/health', validateUuidParam('id'), async (req, res) => {

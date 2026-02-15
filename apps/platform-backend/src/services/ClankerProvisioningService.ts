@@ -10,6 +10,8 @@ import {
   CreateFunctionCommand,
   GetFunctionCommand,
   LambdaClient,
+  UpdateFunctionCodeCommand,
+  UpdateFunctionConfigurationCommand,
 } from "@aws-sdk/client-lambda";
 import type { Clanker, ClankerStatus } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
@@ -20,12 +22,9 @@ const DEFAULT_LOCAL_DOCKER_IMAGE = "viberator-worker:local";
 const DEFAULT_DOCKERFILE_PATH =
   "infra/workers/docker/viberator-docker-worker.Dockerfile";
 
-// Worker image mappings based on agent type and task type
-interface WorkerImageMapping {
-  docker?: string;
-  ecs?: string;
-  lambda?: string;
-}
+type ProvisioningProgressReporter = (
+  statusMessage: string,
+) => Promise<void> | void;
 
 // Get the appropriate worker image based on clanker configuration
 function getWorkerImageForClanker(
@@ -73,7 +72,7 @@ function buildImageUrl(
   registry: string,
   prefix: string,
   suffix: string,
-  strategy: "docker" | "ecs" | "lambda",
+  _strategy: "docker" | "ecs" | "lambda",
 ): string {
   const parts = [registry, prefix, `viberator-worker-${suffix}`].filter(
     Boolean,
@@ -81,17 +80,68 @@ function buildImageUrl(
   return parts.join("/");
 }
 
+interface DockerBuildResult {
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  logs: string[];
+}
+
+interface DockerImageMetadata {
+  imageId?: string;
+  createdAt?: string;
+  sizeBytes?: number;
+  virtualSizeBytes?: number;
+  architecture?: string;
+  os?: string;
+  repoTags?: string[];
+  repoDigests?: string[];
+}
+
+interface EcsTaskDefinitionDetails {
+  taskDefinitionArn?: string;
+  family?: string;
+  revision?: number;
+  status?: string;
+  registeredAt?: string;
+  registeredBy?: string;
+  networkMode?: string;
+  cpu?: string;
+  memory?: string;
+  requiresCompatibilities?: string[];
+  containerImages?: Array<{
+    name?: string;
+    image?: string;
+  }>;
+}
+
+interface LambdaFunctionDetails {
+  functionName?: string;
+  functionArn?: string;
+  imageUri?: string;
+  roleArn?: string;
+  version?: string;
+  state?: string;
+  lastModified?: string;
+  memorySize?: number;
+  timeout?: number;
+  architectures?: string[];
+}
+
 interface DockerDeploymentConfig {
   containerImage?: string;
   environmentVariables?: Record<string, string>;
   networkMode?: string;
   logFilePath?: string;
+  imageMetadata?: DockerImageMetadata;
+  dockerBuild?: DockerBuildResult;
 }
 
 interface EcsProvisioningConfig {
   clusterArn?: string;
   taskDefinitionArn?: string;
   taskDefinition?: RegisterTaskDefinitionCommandInput;
+  taskDefinitionDetails?: EcsTaskDefinitionDetails;
   family?: string;
   containerImage?: string;
   containerName?: string;
@@ -107,6 +157,7 @@ interface EcsProvisioningConfig {
 interface LambdaProvisioningConfig {
   functionName?: string;
   functionArn?: string;
+  functionDetails?: LambdaFunctionDetails;
   imageUri?: string;
   roleArn?: string;
   memorySize?: number;
@@ -145,7 +196,10 @@ export class ClankerProvisioningService {
     this.repoRoot = path.resolve(__dirname, "../../../../");
   }
 
-  async provisionClanker(clanker: Clanker): Promise<ProvisioningResult> {
+  async provisionClanker(
+    clanker: Clanker,
+    progress?: ProvisioningProgressReporter,
+  ): Promise<ProvisioningResult> {
     const strategy = this.normalizeStrategyName(
       clanker.deploymentStrategy?.name,
     );
@@ -159,11 +213,11 @@ export class ClankerProvisioningService {
 
     switch (strategy) {
       case "docker":
-        return this.provisionDocker(clanker);
+        return this.provisionDocker(clanker, progress);
       case "ecs":
-        return this.provisionEcs(clanker);
+        return this.provisionEcs(clanker, progress);
       case "lambda":
-        return this.provisionLambda(clanker);
+        return this.provisionLambda(clanker, progress);
       default:
         return {
           status: "inactive",
@@ -213,28 +267,43 @@ export class ClankerProvisioningService {
     return null;
   }
 
-  private async provisionDocker(clanker: Clanker): Promise<ProvisioningResult> {
+  private async provisionDocker(
+    clanker: Clanker,
+    progress?: ProvisioningProgressReporter,
+  ): Promise<ProvisioningResult> {
     const config = (clanker.deploymentConfig || {}) as DockerDeploymentConfig;
     const containerImage =
       config.containerImage ||
       getWorkerImageForClanker(clanker, "docker") ||
       DEFAULT_LOCAL_DOCKER_IMAGE;
 
-    await this.buildDockerImage(containerImage);
+    await progress?.(`Docker build started for image ${containerImage}`);
+    const buildResult = await this.buildDockerImage(containerImage, progress);
+    const imageMetadata = await this.getDockerImageMetadata(containerImage);
+
+    const updatedConfig: Record<string, unknown> = {
+      ...config,
+      containerImage,
+      imageMetadata,
+      dockerBuild: buildResult,
+    };
 
     const availability = await this.checkDockerAvailability({
       ...clanker,
-      deploymentConfig: { ...config, containerImage },
+      deploymentConfig: updatedConfig,
     });
 
     return {
-      deploymentConfig: { ...config, containerImage },
+      deploymentConfig: updatedConfig,
       status: availability.status,
       statusMessage: availability.statusMessage,
     };
   }
 
-  private async provisionEcs(clanker: Clanker): Promise<ProvisioningResult> {
+  private async provisionEcs(
+    clanker: Clanker,
+    progress?: ProvisioningProgressReporter,
+  ): Promise<ProvisioningResult> {
     const config = (clanker.deploymentConfig || {}) as EcsProvisioningConfig;
 
     // Auto-select container image if not specified
@@ -245,13 +314,20 @@ export class ClankerProvisioningService {
       }
     }
 
-    const taskDefinitionArn = await this.ensureTaskDefinition(clanker, config);
+    await progress?.("Registering ECS task definition...");
+    const { taskDefinitionArn, taskDefinitionDetails } =
+      await this.ensureTaskDefinition(clanker, config);
 
     // For managed mode, persist cluster ARN from env vars so the invoker can find it
     const clusterArn =
       config.clusterArn || process.env.VIBERATOR_ECS_CLUSTER_ARN;
 
-    const updatedConfig = { ...config, taskDefinitionArn, clusterArn };
+    const updatedConfig: Record<string, unknown> = {
+      ...config,
+      taskDefinitionArn,
+      taskDefinitionDetails,
+      clusterArn,
+    };
 
     const availability = await this.checkEcsAvailability({
       ...clanker,
@@ -265,7 +341,10 @@ export class ClankerProvisioningService {
     };
   }
 
-  private async provisionLambda(clanker: Clanker): Promise<ProvisioningResult> {
+  private async provisionLambda(
+    clanker: Clanker,
+    progress?: ProvisioningProgressReporter,
+  ): Promise<ProvisioningResult> {
     const config = (clanker.deploymentConfig || {}) as LambdaProvisioningConfig;
 
     // Auto-select image URI if not specified
@@ -276,29 +355,33 @@ export class ClankerProvisioningService {
       }
     }
 
-    const functionInfo = await this.ensureLambdaFunction(clanker, config);
+    await progress?.("Deploying Lambda function...");
+    const functionInfo = await this.ensureLambdaFunction(clanker, config, progress);
+
+    const updatedConfig: Record<string, unknown> = {
+      ...config,
+      functionName: functionInfo.functionName,
+      functionArn: functionInfo.functionArn,
+      functionDetails: functionInfo.functionDetails,
+    };
 
     const availability = await this.checkLambdaAvailability({
       ...clanker,
-      deploymentConfig: {
-        ...config,
-        functionName: functionInfo.functionName,
-        functionArn: functionInfo.functionArn,
-      },
+      deploymentConfig: updatedConfig,
     });
 
     return {
-      deploymentConfig: {
-        ...config,
-        functionName: functionInfo.functionName,
-        functionArn: functionInfo.functionArn,
-      },
+      deploymentConfig: updatedConfig,
       status: availability.status,
       statusMessage: availability.statusMessage,
     };
   }
 
-  private async buildDockerImage(tag: string): Promise<void> {
+  private async buildDockerImage(
+    tag: string,
+    progress?: ProvisioningProgressReporter,
+  ): Promise<DockerBuildResult> {
+    const startedAt = new Date();
     const dockerfile = path.resolve(this.repoRoot, DEFAULT_DOCKERFILE_PATH);
     const dockerfileRelative = path.relative(this.repoRoot, dockerfile);
     const tar = require("tar-fs") as {
@@ -312,6 +395,8 @@ export class ClankerProvisioningService {
       tag,
       dockerfile: dockerfileRelative,
     });
+
+    await progress?.(`Docker build using ${dockerfileRelative}`);
 
     const tarStream = tar.pack(this.repoRoot, {
       ignore: (name: string) =>
@@ -327,48 +412,196 @@ export class ClankerProvisioningService {
       dockerfile: dockerfileRelative,
     });
 
+    const logs: string[] = [];
+    const pushLogLine = (line: string) => {
+      const normalized = line.trimEnd();
+      if (!normalized) return;
+      logs.push(normalized);
+      if (logs.length > 200) {
+        logs.shift();
+      }
+    };
+
     await new Promise<void>((resolve, reject) => {
-      this.docker.modem.followProgress(stream, (err: Error | null) => {
-        if (err) return reject(err);
-        resolve();
-      });
+      this.docker.modem.followProgress(
+        stream,
+        (err: Error | null) => {
+          if (err) return reject(err);
+          resolve();
+        },
+        (event: {
+          stream?: string;
+          error?: string;
+          errorDetail?: { message?: string };
+        }) => {
+          const line =
+            event.stream?.trim() ||
+            event.errorDetail?.message?.trim() ||
+            event.error?.trim() ||
+            "";
+
+          if (!line) {
+            return;
+          }
+
+          pushLogLine(line);
+
+          // Surface only major milestones in status updates.
+          if (
+            line.startsWith("Step ") ||
+            line.startsWith("Successfully") ||
+            line.startsWith("exporting") ||
+            line.startsWith("naming to")
+          ) {
+            void progress?.(`Docker build: ${line}`);
+          }
+        },
+      );
     });
+
+    const completedAt = new Date();
+    return {
+      startedAt: startedAt.toISOString(),
+      completedAt: completedAt.toISOString(),
+      durationMs: completedAt.getTime() - startedAt.getTime(),
+      logs,
+    };
+  }
+
+  private async getDockerImageMetadata(
+    imageTag: string,
+  ): Promise<DockerImageMetadata> {
+    const image = await this.docker.getImage(imageTag).inspect();
+
+    return {
+      imageId: image.Id,
+      createdAt: image.Created,
+      sizeBytes: image.Size,
+      virtualSizeBytes: image.VirtualSize,
+      architecture: image.Architecture,
+      os: image.Os,
+      repoTags: image.RepoTags,
+      repoDigests: image.RepoDigests,
+    };
   }
 
   private async ensureTaskDefinition(
     clanker: Clanker,
     config: EcsProvisioningConfig,
-  ): Promise<string> {
-    if (config.taskDefinitionArn) {
-      await this.ecsClient.send(
-        new DescribeTaskDefinitionCommand({
-          taskDefinition: config.taskDefinitionArn,
-        }),
-      );
-      return config.taskDefinitionArn;
+  ): Promise<{
+    taskDefinitionArn: string;
+    taskDefinitionDetails: EcsTaskDefinitionDetails;
+  }> {
+    const taskDefinition =
+      config.taskDefinition ||
+      (await this.buildTaskDefinitionFromExisting(config)) ||
+      this.buildDefaultTaskDefinition(clanker, config);
+
+    const nextTaskDefinition: RegisterTaskDefinitionCommandInput = {
+      ...taskDefinition,
+    };
+
+    // If container image is explicitly requested, inject it into the selected container.
+    if (config.containerImage && nextTaskDefinition.containerDefinitions?.length) {
+      const targetContainerName =
+        config.containerName || nextTaskDefinition.containerDefinitions[0]?.name;
+
+      nextTaskDefinition.containerDefinitions =
+        nextTaskDefinition.containerDefinitions.map((container) =>
+          container.name === targetContainerName
+            ? { ...container, image: config.containerImage }
+            : container,
+        );
     }
 
-    const taskDefinition =
-      config.taskDefinition || this.buildDefaultTaskDefinition(clanker, config);
-
-    if (!taskDefinition.containerDefinitions?.length) {
+    if (!nextTaskDefinition.containerDefinitions?.length) {
       throw new Error("ECS task definition requires container definitions");
     }
 
-    if (!taskDefinition.family) {
-      taskDefinition.family = this.buildEcsFamilyName(clanker);
+    if (!nextTaskDefinition.family) {
+      nextTaskDefinition.family = this.buildEcsFamilyName(clanker);
     }
 
     const response = await this.ecsClient.send(
-      new RegisterTaskDefinitionCommand(taskDefinition),
+      new RegisterTaskDefinitionCommand(nextTaskDefinition),
     );
 
-    const taskDefinitionArn = response.taskDefinition?.taskDefinitionArn;
+    const registeredTaskDefinition = response.taskDefinition;
+    const taskDefinitionArn = registeredTaskDefinition?.taskDefinitionArn;
     if (!taskDefinitionArn) {
       throw new Error("ECS task definition registration did not return an ARN");
     }
 
-    return taskDefinitionArn;
+    return {
+      taskDefinitionArn,
+      taskDefinitionDetails: this.mapTaskDefinitionDetails(registeredTaskDefinition),
+    };
+  }
+
+  private async buildTaskDefinitionFromExisting(
+    config: EcsProvisioningConfig,
+  ): Promise<RegisterTaskDefinitionCommandInput | null> {
+    if (!config.taskDefinitionArn) {
+      return null;
+    }
+
+    const existing = await this.ecsClient.send(
+      new DescribeTaskDefinitionCommand({
+        taskDefinition: config.taskDefinitionArn,
+      }),
+    );
+
+    const taskDefinition = existing.taskDefinition;
+    if (!taskDefinition) {
+      return null;
+    }
+
+    return {
+      family: taskDefinition.family,
+      taskRoleArn: taskDefinition.taskRoleArn,
+      executionRoleArn: taskDefinition.executionRoleArn,
+      networkMode: taskDefinition.networkMode,
+      containerDefinitions: taskDefinition.containerDefinitions,
+      volumes: taskDefinition.volumes,
+      placementConstraints: taskDefinition.placementConstraints,
+      requiresCompatibilities: taskDefinition.requiresCompatibilities,
+      cpu: taskDefinition.cpu,
+      memory: taskDefinition.memory,
+      proxyConfiguration: taskDefinition.proxyConfiguration,
+      inferenceAccelerators: taskDefinition.inferenceAccelerators,
+      pidMode: taskDefinition.pidMode,
+      ipcMode: taskDefinition.ipcMode,
+      ephemeralStorage: taskDefinition.ephemeralStorage,
+      runtimePlatform: taskDefinition.runtimePlatform,
+    };
+  }
+
+  private mapTaskDefinitionDetails(taskDefinition: any): EcsTaskDefinitionDetails {
+    if (!taskDefinition) {
+      return {};
+    }
+
+    return {
+      taskDefinitionArn: taskDefinition.taskDefinitionArn,
+      family: taskDefinition.family,
+      revision: taskDefinition.revision,
+      status: taskDefinition.status,
+      registeredAt: taskDefinition.registeredAt
+        ? new Date(taskDefinition.registeredAt).toISOString()
+        : undefined,
+      registeredBy: taskDefinition.registeredBy,
+      networkMode: taskDefinition.networkMode,
+      cpu: taskDefinition.cpu,
+      memory: taskDefinition.memory,
+      requiresCompatibilities: taskDefinition.requiresCompatibilities,
+      containerImages:
+        taskDefinition.containerDefinitions?.map(
+          (container: { name?: string; image?: string }) => ({
+            name: container.name,
+            image: container.image,
+          }),
+        ) || [],
+    };
   }
 
   private buildDefaultTaskDefinition(
@@ -427,23 +660,26 @@ export class ClankerProvisioningService {
   private async ensureLambdaFunction(
     clanker: Clanker,
     config: LambdaProvisioningConfig,
-  ): Promise<{ functionName: string; functionArn?: string }> {
+    progress?: ProvisioningProgressReporter,
+  ): Promise<{
+    functionName: string;
+    functionArn?: string;
+    functionDetails: LambdaFunctionDetails;
+  }> {
     const explicitArn = config.functionArn;
     const explicitName = config.functionName;
     const derivedName = this.buildLambdaFunctionName(clanker);
     const functionIdentifier = explicitArn || explicitName || derivedName;
     const functionName = explicitName || derivedName;
 
+    let existingResponse: any = null;
+
     try {
-      const response = await this.lambdaClient.send(
+      existingResponse = await this.lambdaClient.send(
         new GetFunctionCommand({
           FunctionName: functionIdentifier,
         }),
       );
-      return {
-        functionName: response.Configuration?.FunctionName || functionName,
-        functionArn: response.Configuration?.FunctionArn,
-      };
     } catch (error) {
       const err = error as { name?: string; message?: string };
       if (err.name !== "ResourceNotFoundException") {
@@ -454,36 +690,103 @@ export class ClankerProvisioningService {
       }
     }
 
-    const imageUri = config.imageUri || process.env.VIBERATOR_LAMBDA_IMAGE_URI;
-    const roleArn = config.roleArn || process.env.VIBERATOR_LAMBDA_ROLE_ARN;
-    if (!imageUri || !roleArn) {
-      throw new Error("Lambda creation requires imageUri and roleArn");
+    const imageUri =
+      config.imageUri ||
+      process.env.VIBERATOR_LAMBDA_IMAGE_URI ||
+      existingResponse?.Code?.ImageUri;
+
+    if (existingResponse) {
+      if (imageUri) {
+        await progress?.(`Updating Lambda image for ${functionName}...`);
+        await this.lambdaClient.send(
+          new UpdateFunctionCodeCommand({
+            FunctionName: functionIdentifier,
+            ImageUri: imageUri,
+          }),
+        );
+      }
+
+      const configurationUpdate: Record<string, unknown> = {
+        FunctionName: functionIdentifier,
+      };
+
+      if (config.roleArn) configurationUpdate.Role = config.roleArn;
+      if (config.memorySize !== undefined)
+        configurationUpdate.MemorySize = config.memorySize;
+      if (config.timeout !== undefined) configurationUpdate.Timeout = config.timeout;
+      if (config.environment) {
+        configurationUpdate.Environment = { Variables: config.environment };
+      }
+      if (config.architecture) {
+        configurationUpdate.Architectures = [config.architecture];
+      }
+      if (config.vpc) {
+        configurationUpdate.VpcConfig = {
+          SubnetIds: config.vpc.subnetIds,
+          SecurityGroupIds: config.vpc.securityGroupIds,
+        };
+      }
+
+      if (Object.keys(configurationUpdate).length > 1) {
+        await progress?.(`Updating Lambda configuration for ${functionName}...`);
+        await this.lambdaClient.send(
+          new UpdateFunctionConfigurationCommand(configurationUpdate as any),
+        );
+      }
+    } else {
+      const roleArn = config.roleArn || process.env.VIBERATOR_LAMBDA_ROLE_ARN;
+      if (!imageUri || !roleArn) {
+        throw new Error("Lambda creation requires imageUri and roleArn");
+      }
+
+      await progress?.(`Creating Lambda function ${functionName}...`);
+      await this.lambdaClient.send(
+        new CreateFunctionCommand({
+          FunctionName: functionName,
+          Role: roleArn,
+          Code: { ImageUri: imageUri },
+          PackageType: "Image",
+          MemorySize: config.memorySize,
+          Timeout: config.timeout,
+          Environment: config.environment
+            ? { Variables: config.environment }
+            : undefined,
+          Architectures: config.architecture ? [config.architecture] : undefined,
+          VpcConfig: config.vpc
+            ? {
+                SubnetIds: config.vpc.subnetIds,
+                SecurityGroupIds: config.vpc.securityGroupIds,
+              }
+            : undefined,
+        }),
+      );
     }
 
-    const response = await this.lambdaClient.send(
-      new CreateFunctionCommand({
-        FunctionName: functionName,
-        Role: roleArn,
-        Code: { ImageUri: imageUri },
-        PackageType: "Image",
-        MemorySize: config.memorySize,
-        Timeout: config.timeout,
-        Environment: config.environment
-          ? { Variables: config.environment }
-          : undefined,
-        Architectures: config.architecture ? [config.architecture] : undefined,
-        VpcConfig: config.vpc
-          ? {
-              SubnetIds: config.vpc.subnetIds,
-              SecurityGroupIds: config.vpc.securityGroupIds,
-            }
-          : undefined,
+    const refreshed = await this.lambdaClient.send(
+      new GetFunctionCommand({
+        FunctionName: functionIdentifier,
       }),
     );
 
     return {
-      functionName: response.FunctionName || functionName,
-      functionArn: response.FunctionArn,
+      functionName: refreshed.Configuration?.FunctionName || functionName,
+      functionArn: refreshed.Configuration?.FunctionArn,
+      functionDetails: this.mapLambdaFunctionDetails(refreshed),
+    };
+  }
+
+  private mapLambdaFunctionDetails(response: any): LambdaFunctionDetails {
+    return {
+      functionName: response.Configuration?.FunctionName,
+      functionArn: response.Configuration?.FunctionArn,
+      imageUri: response.Code?.ImageUri,
+      roleArn: response.Configuration?.Role,
+      version: response.Configuration?.Version,
+      state: response.Configuration?.State,
+      lastModified: response.Configuration?.LastModified,
+      memorySize: response.Configuration?.MemorySize,
+      timeout: response.Configuration?.Timeout,
+      architectures: response.Configuration?.Architectures,
     };
   }
 
@@ -505,7 +808,10 @@ export class ClankerProvisioningService {
 
     try {
       await this.docker.getImage(config.containerImage).inspect();
-      return { status: "active", statusMessage: null };
+      return {
+        status: "active",
+        statusMessage: `Docker image ready: ${config.containerImage}`,
+      };
     } catch (error) {
       const err = error as { message?: string; statusCode?: number };
       const message = err.message || "Docker image not available";
@@ -536,7 +842,10 @@ export class ClankerProvisioningService {
           taskDefinition: config.taskDefinitionArn,
         }),
       );
-      return { status: "active", statusMessage: null };
+      return {
+        status: "active",
+        statusMessage: `ECS task definition ready: ${config.taskDefinitionArn}`,
+      };
     } catch (error) {
       const err = error as { name?: string; message?: string };
       if (err.name === "ClientException") {
@@ -570,7 +879,10 @@ export class ClankerProvisioningService {
       await this.lambdaClient.send(
         new GetFunctionCommand({ FunctionName: functionName }),
       );
-      return { status: "active", statusMessage: null };
+      return {
+        status: "active",
+        statusMessage: `Lambda function ready: ${functionName}`,
+      };
     } catch (error) {
       const err = error as { name?: string; message?: string };
       if (err.name === "ResourceNotFoundException") {

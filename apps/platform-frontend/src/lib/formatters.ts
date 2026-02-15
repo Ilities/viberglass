@@ -91,6 +91,7 @@ export function formatDeploymentStrategy(strategy: DeploymentStrategy | null | u
     kubernetes: 'Kubernetes',
     k8s: 'Kubernetes',
     lambda: 'AWS Lambda',
+    'aws-lambda-container': 'AWS Lambda',
   }
 
   return formatters[strategy.name.toLowerCase()] || strategy.name

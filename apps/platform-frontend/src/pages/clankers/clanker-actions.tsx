@@ -1,6 +1,6 @@
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
-import { deleteClanker, startClanker, stopClanker } from '@/service/api/clanker-api'
+import { deactivateClanker, deleteClanker, startClanker } from '@/service/api/clanker-api'
 import { PlayIcon, StopIcon, TrashIcon } from '@radix-ui/react-icons'
 import type { Clanker } from '@viberglass/types'
 import { useState } from 'react'
@@ -14,11 +14,11 @@ export function ClankerActions({ clanker }: ClankerActionsProps) {
   const navigate = useNavigate()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
-  const [isStopping, setIsStopping] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const canStart = clanker.status === 'inactive' || clanker.status === 'failed'
-  const canStop = clanker.status === 'active' || clanker.status === 'deploying'
+  const canDeactivate = clanker.status === 'active' || clanker.status === 'deploying'
 
   async function handleStart() {
     setIsStarting(true)
@@ -32,15 +32,15 @@ export function ClankerActions({ clanker }: ClankerActionsProps) {
     }
   }
 
-  async function handleStop() {
-    setIsStopping(true)
+  async function handleDeactivate() {
+    setIsDeactivating(true)
     try {
-      await stopClanker(clanker.id)
+      await deactivateClanker(clanker.id)
       window.location.reload()
     } catch (error) {
-      console.error('Failed to stop clanker:', error)
+      console.error('Failed to deactivate clanker:', error)
     } finally {
-      setIsStopping(false)
+      setIsDeactivating(false)
     }
   }
 
@@ -65,10 +65,10 @@ export function ClankerActions({ clanker }: ClankerActionsProps) {
         </Button>
       )}
 
-      {canStop && (
-        <Button color="amber" disabled={isStopping} onClick={handleStop}>
+      {canDeactivate && (
+        <Button color="amber" disabled={isDeactivating} onClick={handleDeactivate}>
           <StopIcon />
-          {isStopping ? 'Stopping...' : 'Stop'}
+          {isDeactivating ? 'Deactivating...' : 'Deactivate'}
         </Button>
       )}
 
