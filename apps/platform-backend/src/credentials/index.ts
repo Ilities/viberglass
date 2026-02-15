@@ -1,5 +1,5 @@
 // Core interface
-export { CredentialProvider } from './CredentialProvider';
+export type { CredentialProvider } from './CredentialProvider';
 
 // Factory
 export { CredentialProviderFactory } from './CredentialProviderFactory';
@@ -10,10 +10,13 @@ export { FileProvider } from './providers/FileProvider';
 export { AwsSsmProvider } from './providers/AwsSsmProvider';
 
 // Types
-export {
+export type {
   CredentialConfig,
   ProviderConfig,
   CredentialMetadata,
+} from './types';
+
+export {
   CredentialNotFoundError,
   CredentialAccessDeniedError,
 } from './types';
