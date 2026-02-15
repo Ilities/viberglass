@@ -272,6 +272,12 @@ export class ConfigManager {
       };
     }
 
+    // Git configuration for commits
+    config.git = {
+      userName: process.env.GIT_USER_NAME || "Vibes Viber",
+      userEmail: process.env.GIT_USER_EMAIL || "viberator@viberglass.io",
+    };
+
     return config;
   }
 

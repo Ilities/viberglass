@@ -2,27 +2,15 @@ import type { ParsedQs } from 'qs'
 import { parseCustomOutboundTargetConfig, readCustomOutboundTargetConfig, toPublicCustomOutboundTargetConfig } from '../../../webhooks/feedback/customOutboundTargetConfig'
 import type { WebhookProvider } from '../../../persistence/webhook/WebhookConfigDAO'
 import type { DeliveryStatus } from '../../../persistence/webhook/WebhookDeliveryDAO'
+import { integrationRegistry } from '../../../integration-plugins/TicketingIntegrationRegistry'
 
 export function mapSystemToWebhookProvider(system: string): WebhookProvider | null {
-  if (system === 'github' || system === 'jira' || system === 'shortcut' || system === 'custom') {
-    return system
-  }
-  return null
+  const provider = integrationRegistry.getWebhookProvider(system)
+  return provider as WebhookProvider | null
 }
 
 export function getDefaultInboundEvents(provider: WebhookProvider): string[] {
-  switch (provider) {
-    case 'github':
-      return ['issues.opened', 'issue_comment.created']
-    case 'jira':
-      return ['issue_created', 'issue_updated', 'comment_created']
-    case 'shortcut':
-      return ['story_created', 'comment_created']
-    case 'custom':
-      return ['ticket_created']
-    default:
-      return ['*']
-  }
+  return integrationRegistry.getDefaultInboundEvents(provider)
 }
 
 export function getDefaultOutboundEvents(): string[] {
@@ -33,16 +21,7 @@ export function getProviderProjectIdFromIntegration(
   provider: WebhookProvider,
   integrationConfig: Record<string, unknown>,
 ): string | null {
-  if (provider === 'github') {
-    const owner = typeof integrationConfig.owner === 'string' ? integrationConfig.owner : null
-    const repo = typeof integrationConfig.repo === 'string' ? integrationConfig.repo : null
-    if (owner && repo) {
-      return `${owner}/${repo}`
-    }
-    return null
-  }
-
-  return null
+  return integrationRegistry.getProviderProjectId(provider, integrationConfig)
 }
 
 export function serializeInboundWebhookConfig(
