@@ -147,6 +147,29 @@ export class ConfigManager {
           maxTokens: 8000,
           temperature: 0.0,
         },
+        opencode: {
+          name: "opencode",
+          apiKey: "",
+          capabilities: [
+            "python",
+            "javascript",
+            "typescript",
+            "java",
+            "go",
+            "cpp",
+            "rust",
+          ],
+          costPerExecution: 0.7,
+          averageSuccessRate: 0.82,
+          executionTimeLimit: 3000,
+          resourceLimits: {
+            maxMemoryMB: 2048,
+            maxCpuPercent: 90,
+            maxDiskSpaceMB: 1024,
+            maxNetworkRequests: 120,
+          },
+          temperature: 0.0,
+        },
         "kimi-code": {
           name: "kimi-code",
           apiKey: "",
@@ -262,6 +285,10 @@ export class ConfigManager {
       codex: {
         apiKey: ["OPENAI_API_KEY"],
         endpoint: ["CODEX_ENDPOINT", "OPENAI_BASE_URL"],
+      },
+      opencode: {
+        apiKey: ["OPENCODE_API_KEY", "OPENAI_API_KEY"],
+        endpoint: ["OPENCODE_BASE_URL", "OPENCODE_ENDPOINT", "OPENAI_BASE_URL"],
       },
       "gemini-cli": {
         apiKey: ["GOOGLE_API_KEY"],

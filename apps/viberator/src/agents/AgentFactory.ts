@@ -2,6 +2,7 @@ import { BaseAgent } from "./BaseAgent";
 import { ClaudeCodeAgent } from "./ClaudeCodeAgent";
 import { QwenCodeAgent } from "./QwenCodeAgent";
 import { CodexAgent } from "./CodexAgent";
+import { OpenCodeAgent } from "./OpenCodeAgent";
 import { KimiCodeAgent } from "./KimiCodeAgent";
 import { MistralVibeAgent } from "./MistralVibeAgent";
 import { GeminiCLIAgent } from "./GeminiCLIAgent";
@@ -18,6 +19,8 @@ export class AgentFactory {
         return new QwenCodeAgent(config, logger);
       case "codex":
         return new CodexAgent(config, logger);
+      case "opencode":
+        return new OpenCodeAgent(config, logger);
       case "kimi-code":
         return new KimiCodeAgent(config, logger);
       case "mistral-vibe":

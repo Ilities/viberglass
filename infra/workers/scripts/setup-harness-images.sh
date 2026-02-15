@@ -2,7 +2,7 @@
 # One-stop script to set up and publish worker harness images to ECR
 # Usage: ./setup-harness-images.sh [environment] [harness-type]
 #   environment: dev | prod (default: dev)
-#   harness-type: multi-agent | claude | qwen | gemini | mistral | codex | kimi | testing | deployment | fullstack | all (default: multi-agent)
+#   harness-type: multi-agent | claude | qwen | gemini | mistral | codex | opencode | kimi | testing | deployment | fullstack | all (default: multi-agent)
 
 set -e
 
@@ -33,6 +33,7 @@ declare -A HARNESS_IMAGES=(
     ["gemini"]="viberator-worker-gemini"
     ["mistral"]="viberator-worker-mistral"
     ["codex"]="viberator-worker-codex"
+    ["opencode"]="viberator-worker-opencode"
     ["kimi"]="viberator-worker-kimi"
     ["testing"]="viberator-worker-testing"
     ["deployment"]="viberator-worker-deployment"
@@ -46,6 +47,7 @@ declare -A DOCKERFILES=(
     ["gemini"]="infra/workers/docker/agents/viberator-worker-gemini.Dockerfile"
     ["mistral"]="infra/workers/docker/agents/viberator-worker-mistral.Dockerfile"
     ["codex"]="infra/workers/docker/agents/viberator-worker-codex.Dockerfile"
+    ["opencode"]="infra/workers/docker/agents/viberator-worker-opencode.Dockerfile"
     ["kimi"]="infra/workers/docker/agents/viberator-worker-kimi.Dockerfile"
     ["testing"]="infra/workers/docker/tasks/viberator-worker-testing.Dockerfile"
     ["deployment"]="infra/workers/docker/tasks/viberator-worker-deployment.Dockerfile"
@@ -187,7 +189,7 @@ Arguments:
 
   image-type    Type of worker image to build (default: multi-agent)
                 Options: all, claude, multi-agent, qwen, gemini, mistral,
-                         codex, kimi, testing, deployment, fullstack
+                         codex, opencode, kimi, testing, deployment, fullstack
 
 Environment Variables:
   AWS_REGION     AWS region (default: eu-west-1)
