@@ -122,6 +122,11 @@ export interface ResourceUsage {
   diskSpaceUsed: number;
 }
 
+export interface GitConfig {
+  userName: string;
+  userEmail: string;
+}
+
 export interface Configuration {
   agents: Record<string, AgentConfig>;
   aws?: {
@@ -137,4 +142,5 @@ export interface Configuration {
     defaultTimeout: number;
     retryAttempts: number;
   };
+  git?: GitConfig;
 }

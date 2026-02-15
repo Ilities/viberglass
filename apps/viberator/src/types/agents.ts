@@ -6,7 +6,7 @@ export interface ResourceLimits {
 }
 
 // Base configuration shared by all agents
-export interface BaseAgentConfig {
+export interface BaseAgentConfig extends Record<string, unknown> {
   capabilities: string[]; // ['python', 'javascript', 'java', 'typescript', 'go', 'rust']
   costPerExecution: number;
   averageSuccessRate: number;

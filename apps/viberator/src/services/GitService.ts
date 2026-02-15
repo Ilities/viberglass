@@ -3,14 +3,47 @@ import { simpleGit, SimpleGit } from "simple-git";
 import * as path from "path";
 import axios from "axios";
 import { SCMAuthFactory } from "../scm";
+import { GitConfig } from "../types";
 
 interface PullRequestOptions {
   sourceRepositoryUrl?: string;
   destinationRepositoryUrl?: string;
 }
 
-export class GitService {
-  constructor(private logger: Logger) {}
+class GitService {
+  private gitConfig: GitConfig;
+
+  constructor(
+    private logger: Logger,
+    gitConfig?: GitConfig,
+  ) {
+    this.gitConfig = gitConfig || {
+      userName: process.env.GIT_USER_NAME || "Vibes Viber",
+      userEmail: process.env.GIT_USER_EMAIL || "viberator@viberglass.io",
+    };
+  }
+
+  private async initializeGitConfig(repoDir: string): Promise<SimpleGit> {
+    try {
+      const git = simpleGit({ baseDir: repoDir });
+      await git.addConfig("user.name", this.gitConfig.userName, false, "local");
+      await git.addConfig(
+        "user.email",
+        this.gitConfig.userEmail,
+        false,
+        "local",
+      );
+      this.logger.debug("Git user identity configured", {
+        userName: this.gitConfig.userName,
+        userEmail: this.gitConfig.userEmail,
+        repoDir,
+      });
+      return git;
+    } catch (error) {
+      this.logger.warn("Failed to configure git user identity", { error });
+      return simpleGit({ baseDir: repoDir });
+    }
+  }
 
   /**
    * Clone repository with automatic SCM authentication using simple-git
@@ -98,7 +131,7 @@ export class GitService {
     message: string,
   ): Promise<string> {
     try {
-      const git = simpleGit({ baseDir: repoDir });
+      const git = await this.initializeGitConfig(repoDir);
 
       // Check if there are changes to commit
       const status = await git.status();
@@ -156,25 +189,23 @@ export class GitService {
     description?: string,
     options?: PullRequestOptions,
   ): Promise<string> {
-    // Declare variables outside try so they're accessible in catch
-    let sourceRepo: { owner: string; repo: string };
-    let destinationRepo: { owner: string; repo: string };
+    const sourceRepo = options?.sourceRepositoryUrl
+      ? this.getRepoMetadataFromUrl(options.sourceRepositoryUrl)
+      : await this.getRepoMetadata(repoDir);
+    const destinationRepo = options?.destinationRepositoryUrl
+      ? this.getRepoMetadataFromUrl(options.destinationRepositoryUrl)
+      : sourceRepo;
     let token: string | undefined;
-    let headRef: string;
+    let headRef =
+      sourceRepo.owner === destinationRepo.owner
+        ? sourceBranch
+        : `${sourceRepo.owner}:${sourceBranch}`;
 
+    const providerLookupUrl =
+      options?.sourceRepositoryUrl ||
+      options?.destinationRepositoryUrl ||
+      `https://github.com/${sourceRepo.owner}/${sourceRepo.repo}`;
     try {
-      sourceRepo = options?.sourceRepositoryUrl
-        ? this.getRepoMetadataFromUrl(options.sourceRepositoryUrl)
-        : await this.getRepoMetadata(repoDir);
-      destinationRepo = options?.destinationRepositoryUrl
-        ? this.getRepoMetadataFromUrl(options.destinationRepositoryUrl)
-        : sourceRepo;
-
-      const providerLookupUrl =
-        options?.sourceRepositoryUrl ||
-        options?.destinationRepositoryUrl ||
-        `https://github.com/${sourceRepo.owner}/${sourceRepo.repo}`;
-
       token = SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
 
       if (!token) {
@@ -182,11 +213,6 @@ export class GitService {
           "Unable to retrieve authentication token from SCMAuthFactory",
         );
       }
-
-      headRef =
-        sourceRepo.owner === destinationRepo.owner
-          ? sourceBranch
-          : `${sourceRepo.owner}:${sourceBranch}`;
 
       this.logger.info("Creating pull request via GitHub API", {
         sourceRepo: `${sourceRepo.owner}/${sourceRepo.repo}`,
@@ -227,7 +253,6 @@ export class GitService {
     } catch (error) {
       let errorMessage = "Unknown error";
       let details: unknown = null;
-
       if (axios.isAxiosError(error)) {
         errorMessage = error.response?.data?.message || error.message;
         details = error.response?.data?.errors;
@@ -242,8 +267,15 @@ export class GitService {
               detail.message.includes("A pull request already exists"),
           )
         ) {
+          const token =
+            SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
+
           this.logger.warn("Pull request already exists for this branch");
-          return this.getExistingPullRequestUrl(destinationRepo, headRef, token);
+          return this.getExistingPullRequestUrl(
+            destinationRepo,
+            headRef,
+            token!,
+          );
         }
       } else if (error instanceof Error) {
         errorMessage = error.message;
@@ -331,3 +363,5 @@ export class GitService {
     };
   }
 }
+
+export default GitService;
