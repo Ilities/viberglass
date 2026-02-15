@@ -2,9 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { existsSync } from "fs";
 import cookieParser from "cookie-parser";
 import createError from "http-errors";
 import logger from "../config/logger";
@@ -28,6 +26,18 @@ import {
   maliciousRequestBlocker,
   suspiciousIpTracker,
 } from "./middleware/maliciousRequestBlocker";
+
+function resolvePublicDirectory(): string {
+  const cwd = process.cwd();
+  const candidates = [
+    path.resolve(cwd, "src/public"),
+    path.resolve(cwd, "dist/public"),
+    path.resolve(cwd, "apps/platform-backend/src/public"),
+    path.resolve(cwd, "apps/platform-backend/dist/public"),
+  ];
+
+  return candidates.find((candidate) => existsSync(candidate)) || candidates[0];
+}
 
 const app = express();
 configurePassport();
@@ -80,7 +90,7 @@ app.use(
 );
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, "../public")));
+app.use(express.static(resolvePublicDirectory()));
 
 // CORS configuration - strict for production, permissive for development
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
