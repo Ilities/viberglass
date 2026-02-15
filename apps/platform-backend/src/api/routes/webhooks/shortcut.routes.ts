@@ -30,6 +30,22 @@ function hasHeader(value: string | string[] | undefined): boolean {
   return Boolean(getFirstHeaderValue(value));
 }
 
+function truncateForLog(value: string, maxLength = 12000): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}...[truncated ${value.length - maxLength} chars]`;
+}
+
+function serializePayloadForLog(payload: unknown): string | undefined {
+  try {
+    return truncateForLog(JSON.stringify(payload));
+  } catch {
+    return undefined;
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -116,6 +132,21 @@ export function createShortcutRoutes(getWebhookService: () => WebhookService) {
           logger.warn('Shortcut webhook processed with non-success status', resultContext);
         } else {
           logger.info('Shortcut webhook processed', resultContext);
+        }
+
+        if (
+          result.status === 'ignored' &&
+          typeof result.reason === 'string' &&
+          result.reason.startsWith('Event parsing failed:')
+        ) {
+          logger.warn('Shortcut webhook parse failure payload snapshot', {
+            ...requestContext,
+            reason: result.reason,
+            payload: req.body,
+            payloadJson: serializePayloadForLog(req.body),
+            rawBodyUtf8: truncateForLog(rawBody.toString('utf8')),
+            rawBodyBytes: rawBody.length,
+          });
         }
 
         return respondWithWebhookResult(res, result);
