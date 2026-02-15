@@ -41,6 +41,10 @@ RUN npm install -g @google/gemini-cli
 # Source: https://github.com/openai/codex
 RUN npm install -g @openai/codex
 
+# Install Kimi Code CLI
+# Source: https://moonshotai.github.io/Kimi-K2/cli/getting-started/
+RUN curl -fsSL https://cli.moonshot.ai/kimi.sh | bash
+
 # Install uv for Python-based tools
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/ || true
@@ -52,7 +56,7 @@ RUN uv tool install mistral-vibe || \
     echo "Warning: Failed to install mistral-vibe"
 
 # Add uv tool bin directory to PATH
-ENV PATH="/root/.local/bin:${PATH}"
+ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
@@ -77,7 +81,7 @@ ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
 # Multi-agent labels
-LABEL agent.types="claude-code,qwen-cli,qwen-api,gemini-cli,mistral-vibe,codex" \
+LABEL agent.types="claude-code,qwen-cli,qwen-api,gemini-cli,mistral-vibe,codex,kimi-code" \
       viberator.worker-type="multi-agent" \
       viberator.capabilities="all-agents"
 

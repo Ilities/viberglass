@@ -72,6 +72,16 @@ export interface CodexConfig extends BaseAgentConfig {
   mcpServers?: Record<string, unknown>; // MCP server configuration
 }
 
+// Kimi Code configuration
+// Docs: https://moonshotai.github.io/Kimi-K2/cli/getting-started
+export interface KimiCodeConfig extends BaseAgentConfig {
+  name: "kimi-code";
+  apiKey: string; // KIMI_CODE_API_KEY or MOONSHOT_API_KEY
+  endpoint?: string; // Custom base URL for OpenAI-compatible deployments
+  model?: "kimi-k2" | "kimi-k2-turbo-preview" | string;
+  temperature?: number;
+}
+
 // Google Gemini configuration
 // Docs: https://ai.google.dev/gemini-api/docs/quickstart
 export interface GeminiConfig extends BaseAgentConfig {
@@ -119,5 +129,6 @@ export type AgentConfig =
   | ClaudeCodeConfig
   | QwenCodeConfig
   | CodexConfig
+  | KimiCodeConfig
   | GeminiConfig
   | MistralVibeConfig;

@@ -48,6 +48,8 @@ function formatAgent(agent?: Clanker['agent'] | null): string {
       return 'Qwen API'
     case 'codex':
       return 'OpenAI Codex'
+    case 'kimi-code':
+      return 'Kimi Code'
     case 'gemini-cli':
       return 'Gemini CLI'
     case 'mistral-vibe':

@@ -176,6 +176,11 @@ export class QwenCodeAgent extends BaseAgent {
         (this.config.maxTokens || 3000).toString(),
       ];
 
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        DASHSCOPE_API_KEY: this.config.apiKey!,
+      };
+
       if (context.testRequired) {
         args.push("--test");
       }
@@ -188,6 +193,7 @@ export class QwenCodeAgent extends BaseAgent {
 
       const result = await this.executeCommand(cliBinary, args, {
         cwd: workDir,
+        env,
         timeout: this.config.executionTimeLimit * 1000,
       });
 
@@ -205,7 +211,11 @@ export class QwenCodeAgent extends BaseAgent {
         success: true,
         changedFiles,
         commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
-        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
+        pullRequestUrl: this.getCliString(
+          cliOutput,
+          "pullRequestUrl",
+          "pr_url",
+        ),
       };
     } catch (error) {
       await this.cleanup(workDir);

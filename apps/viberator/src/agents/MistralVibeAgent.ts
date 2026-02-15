@@ -32,6 +32,11 @@ export class MistralVibeAgent extends BaseAgent {
         (this.config.temperature || 0.1).toString(),
       ];
 
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        MISTRAL_API_KEY: this.config.apiKey!,
+      };
+
       if (this.config.endpoint) {
         args.push("--endpoint", this.config.endpoint);
       }
@@ -50,6 +55,7 @@ export class MistralVibeAgent extends BaseAgent {
       try {
         result = await this.executeCommand(cliBinary, args, {
           cwd: workDir,
+          env,
           timeout: this.config.executionTimeLimit * 1000,
         });
       } catch (error) {
@@ -58,6 +64,7 @@ export class MistralVibeAgent extends BaseAgent {
         );
         result = await this.executeCommand("vibe", args, {
           cwd: workDir,
+          env,
           timeout: this.config.executionTimeLimit * 1000,
         });
       }
@@ -76,7 +83,11 @@ export class MistralVibeAgent extends BaseAgent {
         success: true,
         changedFiles,
         commitHash: this.getCliString(cliOutput, "commitHash", "commit"),
-        pullRequestUrl: this.getCliString(cliOutput, "pullRequestUrl", "pr_url"),
+        pullRequestUrl: this.getCliString(
+          cliOutput,
+          "pullRequestUrl",
+          "pr_url",
+        ),
       };
     } catch (error) {
       await this.cleanup(workDir);

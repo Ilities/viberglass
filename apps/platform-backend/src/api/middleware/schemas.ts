@@ -167,7 +167,7 @@ export const clankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "gemini-cli", "mistral-vibe")
+    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "kimi-code", "gemini-cli", "mistral-vibe")
     .allow(null)
     .optional(),
   secretIds: Joi.array().items(Joi.string().uuid()).optional(),
@@ -180,7 +180,7 @@ export const updateClankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "gemini-cli", "mistral-vibe")
+    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "kimi-code", "gemini-cli", "mistral-vibe")
     .allow(null)
     .optional(),
   secretIds: Joi.array().items(Joi.string().uuid()).optional(),
