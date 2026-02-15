@@ -1,13 +1,20 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { FunLoading } from '@/components/fun-loading'
-import { Heading, Subheading } from '@/components/heading'
-import { formatSeverity, formatTicketSystem, getClankersList, getProjectJobs, getRecentTickets, getTicketStats } from '@/data'
-import type { Clanker, JobListItem, TicketSummary, TicketStats } from '@/data'
-import { useParams } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Heading } from '@/components/heading'
 import { Link } from '@/components/link'
+import type { Clanker, JobListItem, TicketStats, TicketSummary } from '@/data'
+import {
+  formatSeverity,
+  formatTicketSystem,
+  getClankersList,
+  getProjectJobs,
+  getRecentTickets,
+  getTicketStats,
+} from '@/data'
 import { formatJobStatus, formatTimestamp } from '@/lib/formatters'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
 
 // ASCII Art decorations for Clankers
 const clankerAvatars: Record<string, string> = {
@@ -23,26 +30,26 @@ function getGreeting(): string {
     morning: [
       "Don't Panic",
       "The Guide says you're doing fine",
-      "Another day in this wholly remarkable universe",
-      "Tea first, then bugs",
+      'Another day in this wholly remarkable universe',
+      'Tea first, then bugs',
     ],
     afternoon: [
-      "Time is an illusion",
-      "Halfway through another improbable day",
-      "The universe is big. Really big",
-      "Mostly harmless progress",
+      'Time is an illusion',
+      'Halfway through another improbable day',
+      'The universe is big. Really big',
+      'Mostly harmless progress',
     ],
     evening: [
       "The ships hung in the sky much as bricks don't",
-      "Evening approaches with alarming regularity",
-      "Almost time for a Pan Galactic Gargle Blaster",
-      "The Answer is still 42",
+      'Evening approaches with alarming regularity',
+      'Almost time for a Pan Galactic Gargle Blaster',
+      'The Answer is still 42',
     ],
     night: [
-      "Share and Enjoy",
+      'Share and Enjoy',
       "Life. Don't talk to me about life",
-      "Here you are, brain the size of a planet",
-      "So it goes, in the late hours",
+      'Here you are, brain the size of a planet',
+      'So it goes, in the late hours',
     ],
   }
 
@@ -56,69 +63,156 @@ function getGreeting(): string {
   return options[Math.floor(Math.random() * options.length)]
 }
 
-function MetricCard({ 
-  label, 
-  value, 
-  change, 
-  subtext,
-  trend 
-}: { 
-  label: string
-  value: string | number
-  change?: string
-  subtext?: string
-  trend?: 'up' | 'down' | 'neutral'
-}) {
+function MetricCard({ label, value, subtext }: { label: string; value: string | number; subtext?: string }) {
   const isTheAnswer = value === '42' || value === 42
-  const trendColor = trend === 'up' ? 'text-green-600 dark:text-green-400' : 
-                     trend === 'down' ? 'text-red-600 dark:text-red-400' : 
-                     'text-zinc-500 dark:text-zinc-400'
-  
+
   return (
-    <div className="group relative overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 transition-all duration-200 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700">
+    <div className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-gray-300 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-gray-700">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className={`mt-2 text-3xl font-semibold tracking-tight ${isTheAnswer ? 'text-brand-burnt-orange pulse-glow' : 'text-zinc-900 dark:text-white'}`}>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</p>
+          <p
+            className={`mt-2 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white ${isTheAnswer ? 'pulse-glow text-brand-burnt-orange' : ''}`}
+          >
             {value}
           </p>
-          {change && (
-            <p className={`mt-1 text-sm ${trendColor} flex items-center gap-1`}>
-              <span>{change}</span>
-              {subtext && <span className="text-zinc-400 dark:text-zinc-500">{subtext}</span>}
-            </p>
-          )}
+          {subtext && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtext}</p>}
         </div>
       </div>
     </div>
   )
 }
 
-function TimelineBar() {
-  const hours = ['8am', '10am', '12pm', '2pm', '4pm', '6pm']
+interface ActivityPoint {
+  hour: number
+  label: string
+  ticketCount: number
+  jobCount: number
+}
+
+function TimelineBar({ tickets, jobs }: { tickets: TicketSummary[]; jobs: JobListItem[] }) {
   const currentHour = new Date().getHours()
-  
+  const today = new Date().toDateString()
+
+  // Build activity data for business hours (8am - 6pm)
+  const businessHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+
+  const activityData: ActivityPoint[] = useMemo(() => {
+    return businessHours.map((hour) => {
+      const hourLabel = hour <= 12 ? `${hour}am` : `${hour - 12}pm`
+
+      // Count tickets created in this hour today
+      const ticketCount = tickets.filter((t) => {
+        const ticketDate = new Date(t.timestamp)
+        return ticketDate.toDateString() === today && ticketDate.getHours() === hour
+      }).length
+
+      // Count jobs created in this hour today
+      const jobCount = jobs.filter((j) => {
+        const jobDate = new Date(j.createdAt)
+        return jobDate.toDateString() === today && jobDate.getHours() === hour
+      }).length
+
+      return { hour, label: hourLabel, ticketCount, jobCount }
+    })
+  }, [tickets, jobs])
+
+  // Find max activity for scaling
+  const maxActivity = Math.max(...activityData.map((d) => d.ticketCount + d.jobCount), 1)
+  const totalToday =
+    tickets.filter((t) => new Date(t.timestamp).toDateString() === today).length +
+    jobs.filter((j) => new Date(j.createdAt).toDateString() === today).length
+
+  // Show every other hour to avoid crowding
+  const displayHours = activityData.filter((_, idx) => idx % 2 === 0)
+
   return (
-    <div className="mb-6 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4">
-      <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+    <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+      <div className="mb-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <span>TODAY'S ACTIVITY</span>
-        <span className="text-brand-burnt-orange font-medium">Now</span>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-400 dark:text-gray-500">{totalToday} events today</span>
+          <span className="font-medium text-brand-burnt-orange">
+            {currentHour >= 8 && currentHour <= 18 ? 'Working Hours' : 'After Hours'}
+          </span>
+        </div>
       </div>
-      <div className="relative">
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-zinc-200 dark:bg-zinc-800 -translate-y-1/2" />
-        <div className="relative flex justify-between">
-          {hours.map((hour, idx) => {
-            const hourNum = parseInt(hour)
-            const isPast = currentHour > (hourNum + (hour.includes('pm') && hourNum !== 12 ? 12 : 0))
-            const isCurrent = currentHour === (hourNum + (hour.includes('pm') && hourNum !== 12 ? 12 : 0))
-            
+
+      <div className="relative h-16">
+        {/* Background grid lines */}
+        <div className="absolute inset-0 flex justify-between px-3">
+          {displayHours.map((_, idx) => (
+            <div key={idx} className="h-full w-px bg-gray-100 dark:bg-gray-800" />
+          ))}
+        </div>
+
+        {/* Activity bars */}
+        <div className="absolute inset-0 flex items-end justify-between gap-1 px-2">
+          {displayHours.map((data) => {
+            const totalActivity = data.ticketCount + data.jobCount
+            const isPast = currentHour > data.hour
+            const isCurrent = currentHour === data.hour
+
             return (
-              <div key={hour} className="flex flex-col items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isCurrent ? 'bg-brand-burnt-orange ring-4 ring-brand-burnt-orange/20' : isPast ? 'bg-zinc-400 dark:bg-zinc-600' : 'bg-zinc-200 dark:bg-zinc-700'}`} />
-                <span className={`text-xs ${isCurrent ? 'text-brand-burnt-orange font-medium' : 'text-zinc-400 dark:text-zinc-500'}`}>{hour}</span>
+              <div key={data.hour} className="flex flex-1 flex-col items-center">
+                <div className="relative flex h-10 w-full items-end justify-center gap-0.5">
+                  {/* Ticket portion */}
+                  {data.ticketCount > 0 && (
+                    <div
+                      className={`w-2 rounded-t transition-all duration-500 ${
+                        isCurrent
+                          ? 'bg-brand-burnt-orange'
+                          : isPast
+                            ? 'bg-orange-500 dark:bg-orange-600'
+                            : 'bg-orange-300 dark:bg-orange-800'
+                      }`}
+                      style={{
+                        height: `${(data.ticketCount / maxActivity) * 100}%`,
+                        minHeight: data.ticketCount > 0 ? '4px' : '0',
+                      }}
+                      title={`${data.ticketCount} tickets at ${data.label}`}
+                    />
+                  )}
+                  {/* Job portion */}
+                  {data.jobCount > 0 && (
+                    <div
+                      className={`w-2 rounded-t transition-all duration-500 ${
+                        isCurrent ? 'bg-sky-500' : isPast ? 'bg-sky-500 dark:bg-sky-600' : 'bg-sky-300 dark:bg-sky-800'
+                      }`}
+                      style={{
+                        height: `${(data.jobCount / maxActivity) * 100}%`,
+                        minHeight: data.jobCount > 0 ? '4px' : '0',
+                      }}
+                      title={`${data.jobCount} jobs at ${data.label}`}
+                    />
+                  )}
+                  {/* Empty state indicator */}
+                  {totalActivity === 0 && <div className="h-1 w-1 rounded-full bg-gray-200 dark:bg-gray-700" />}
+                </div>
+                <span
+                  className={`mt-2 text-xs ${isCurrent ? 'font-medium text-brand-burnt-orange' : 'text-gray-400 dark:text-gray-500'}`}
+                >
+                  {data.label}
+                </span>
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-3 flex items-center gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-sm bg-orange-500 dark:bg-orange-600" />
+          <span className="text-xs text-gray-500 dark:text-gray-400">Tickets</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-sm bg-sky-500 dark:bg-sky-600" />
+          <span className="text-xs text-gray-500 dark:text-gray-400">Jobs</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-full bg-brand-burnt-orange" />
+          <span className="text-xs text-gray-500 dark:text-gray-400">Current hour</span>
         </div>
       </div>
     </div>
@@ -131,30 +225,40 @@ function TicketCard({ ticket, project }: { ticket: TicketSummary; project: strin
   return (
     <Link
       href={`/project/${project}/tickets/${ticket.id}`}
-      className="group block rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 transition-all duration-200 hover:shadow-md hover:border-brand-burnt-orange/30 hover:-translate-y-0.5"
+      className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-burnt-orange/30 hover:shadow-md dark:border-white/10 dark:bg-zinc-900"
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-mono text-zinc-400 dark:text-zinc-500">#{ticket.id.slice(-4)}</span>
-            <Badge className={severity.color}>{severity.label}</Badge>
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{ticket.id.slice(-4)}</span>
+            <Badge color={severity.badgeColor}>{severity.label}</Badge>
             {ticket.autoFixStatus && (
-              <Badge className={ticket.autoFixStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' : ticket.autoFixStatus === 'completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                {ticket.autoFixStatus === 'in_progress' ? 'Fixing' : ticket.autoFixStatus === 'completed' ? 'Fixed' : 'Pending'}
+              <Badge
+                className={
+                  ticket.autoFixStatus === 'in_progress'
+                    ? 'bg-blue-100 text-blue-800'
+                    : ticket.autoFixStatus === 'completed'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                }
+              >
+                {ticket.autoFixStatus === 'in_progress'
+                  ? 'Fixing'
+                  : ticket.autoFixStatus === 'completed'
+                    ? 'Fixed'
+                    : 'Pending'}
               </Badge>
             )}
           </div>
-          <h4 className="font-medium text-zinc-900 dark:text-white line-clamp-2 group-hover:text-brand-burnt-orange transition-colors">
+          <h4 className="line-clamp-2 font-medium text-gray-900 transition-colors group-hover:text-brand-burnt-orange dark:text-white">
             {ticket.title}
           </h4>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {ticket.category}
-          </p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{ticket.category}</p>
         </div>
         <div className="text-right">
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">{formatTimestamp(ticket.timestamp)}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{formatTimestamp(ticket.timestamp)}</span>
           <div className="mt-1">
-            <Badge className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+            <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
               {formatTicketSystem(ticket.ticketSystem)}
             </Badge>
           </div>
@@ -168,22 +272,18 @@ function JobCard({ job }: { job: JobListItem }) {
   const status = formatJobStatus(job.status)
 
   return (
-    <div className="group rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 transition-all duration-200 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700">
+    <div className="group rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-gray-300 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-gray-700">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center gap-2">
             <Badge color={status.color}>{status.label}</Badge>
-            <span className="text-xs font-mono text-zinc-400 dark:text-zinc-500">#{job.jobId.slice(-6)}</span>
+            <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{job.jobId.slice(-6)}</span>
           </div>
-          <h4 className="font-medium text-zinc-900 dark:text-white line-clamp-1">
-            {job.repository}
-          </h4>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {job.task}
-          </p>
+          <h4 className="line-clamp-1 font-medium text-gray-900 dark:text-white">{job.repository}</h4>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{job.task}</p>
         </div>
         <div className="text-right">
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">{formatTimestamp(job.createdAt)}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{formatTimestamp(job.createdAt)}</span>
         </div>
       </div>
     </div>
@@ -193,23 +293,25 @@ function JobCard({ job }: { job: JobListItem }) {
 function ClankerCard({ clanker }: { clanker: Clanker }) {
   const statusColors: Record<string, string> = {
     active: 'text-green-600 dark:text-green-400',
-    inactive: 'text-zinc-500 dark:text-zinc-400',
+    inactive: 'text-gray-500 dark:text-gray-400',
     deploying: 'text-blue-600 dark:text-blue-400',
     failed: 'text-red-600 dark:text-red-400',
   }
-  
+
   return (
-    <div className="group rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 transition-all duration-200 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700">
+    <div className="group rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-gray-300 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-gray-700">
       <div className="flex items-center gap-3">
         <div className={`font-mono text-lg ${statusColors[clanker.status]}`}>
           {clankerAvatars[clanker.status] || '[? ?]'}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h4 className="font-medium text-zinc-900 dark:text-white truncate">{clanker.name}</h4>
-            <div className={`w-2 h-2 rounded-full ${clanker.status === 'active' ? 'bg-green-500 animate-pulse' : clanker.status === 'failed' ? 'bg-red-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
+            <h4 className="truncate font-medium text-gray-900 dark:text-white">{clanker.name}</h4>
+            <div
+              className={`h-2 w-2 rounded-full ${clanker.status === 'active' ? 'animate-pulse bg-green-500' : clanker.status === 'failed' ? 'bg-red-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+            />
           </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 capitalize">{clanker.status}</p>
+          <p className="text-sm text-gray-500 capitalize dark:text-gray-400">{clanker.status}</p>
         </div>
       </div>
     </div>
@@ -218,11 +320,11 @@ function ClankerCard({ clanker }: { clanker: Clanker }) {
 
 function SectionHeader({ title, count, action }: { title: string; count?: number; action?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="mb-4 flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider">{title}</h3>
+        <h3 className="text-sm font-semibold tracking-wider text-gray-900 uppercase dark:text-white">{title}</h3>
         {count !== undefined && (
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
             {count}
           </span>
         )}
@@ -246,11 +348,11 @@ export function ProjectHomePage() {
         getRecentTickets(project!),
         getTicketStats(project!),
         getClankersList(),
-        getProjectJobs(project!, 5)
+        getProjectJobs(project!, 20),
       ])
       setTickets(t)
       setStats(s)
-      setClankers(c.filter(cl => cl.status === 'active').slice(0, 4))
+      setClankers(c.filter((cl: Clanker) => cl.status === 'active').slice(0, 4))
       setJobs(j)
       setIsLoading(false)
     }
@@ -259,131 +361,121 @@ export function ProjectHomePage() {
 
   const [greeting] = useState(getGreeting)
 
-  if (isLoading) {
+  const metrics = useMemo(() => {
+    if (!stats) return null
+
+    const today = new Date().toDateString()
+    const todayTickets = tickets.filter((t) => new Date(t.timestamp).toDateString() === today).length
+    const todayResolved = tickets.filter(
+      (t) => t.autoFixStatus === 'completed' && new Date(t.timestamp).toDateString() === today
+    ).length
+
+    return {
+      total: stats.total,
+      open: stats.open,
+      inProgress: stats.inProgress,
+      autoFixRequested: stats.autoFixStats.requested,
+      autoFixPending: stats.autoFixStats.pending,
+      autoFixCompleted: stats.autoFixStats.completed,
+      resolved: stats.resolved,
+      todayTickets,
+      todayResolved,
+    }
+  }, [stats, tickets])
+
+  if (isLoading || !metrics) {
     return <FunLoading retro />
   }
 
-  // Split tickets by status for pipeline view
-  const inProgressTickets = tickets.filter(t => t.autoFixStatus === 'in_progress').slice(0, 2)
-  const openTickets = tickets.filter(t => !t.autoFixStatus || t.autoFixStatus === 'pending').slice(0, 2)
-  const resolvedTickets = tickets.filter(t => t.autoFixStatus === 'completed').slice(0, 2)
-
-  // Split jobs by status
-  const activeJobs = jobs.filter(j => j.status === 'active')
-  const queuedJobs = jobs.filter(j => j.status === 'queued')
+  const inProgressTickets = tickets.filter((t) => t.autoFixStatus === 'in_progress').slice(0, 2)
+  const openTickets = tickets.filter((t) => !t.autoFixStatus || t.autoFixStatus === 'pending').slice(0, 2)
+  const resolvedTickets = tickets.filter((t) => t.autoFixStatus === 'completed').slice(0, 2)
+  const activeJobs = jobs.filter((j) => j.status === 'active')
+  const queuedJobs = jobs.filter((j) => j.status === 'queued')
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 font-mono">{greeting}</p>
+          <p className="font-mono text-sm text-gray-500 dark:text-gray-400">{greeting}</p>
           <Heading className="mt-1">Mission Control</Heading>
         </div>
         <div className="flex gap-2">
-          <Button href={`/project/${project}/tickets`} outline>View Tickets</Button>
+          <Button href={`/project/${project}/tickets`} outline>
+            View Tickets
+          </Button>
           <Button href={`/project/${project}/jobs`}>Queue Job</Button>
         </div>
       </div>
 
-      {/* Timeline */}
-      <TimelineBar />
+      <TimelineBar tickets={tickets} jobs={jobs} />
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard 
-          label="Total Tickets" 
-          value={stats?.total ?? 0} 
-          change="+12.5%"
-          subtext="vs last week"
-          trend="up"
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <MetricCard label="Total Tickets" value={metrics.total} subtext={`${metrics.todayTickets} created today`} />
+        <MetricCard label="Open Issues" value={metrics.open} subtext={`${metrics.inProgress} in progress`} />
+        <MetricCard
+          label="Auto-Fix Queue"
+          value={metrics.autoFixPending}
+          subtext={`${metrics.autoFixRequested} total requested`}
         />
-        <MetricCard 
-          label="Open Issues" 
-          value={stats?.open ?? 0} 
-          change="-2.1%"
-          subtext="vs last week"
-          trend="down"
-        />
-        <MetricCard 
-          label="Auto-Fix Queue" 
-          value={stats?.autoFixStats.requested ?? 0} 
-          change="+8.3%"
-          subtext="vs last week"
-          trend="up"
-        />
-        <MetricCard 
-          label="Resolved This Week" 
-          value={stats?.resolved ?? 0} 
-          change="+15.2%"
-          subtext="vs last week"
-          trend="up"
-        />
+        <MetricCard label="Resolved" value={metrics.resolved} subtext={`${metrics.todayResolved} completed today`} />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Ticket Pipeline */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* In Progress */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           {inProgressTickets.length > 0 && (
             <section>
-              <SectionHeader 
-                title="In Progress" 
+              <SectionHeader
+                title="In Progress"
                 count={inProgressTickets.length}
-                action={<span className="text-xs text-zinc-500 dark:text-zinc-400">Clankers working</span>}
+                action={<span className="text-xs text-gray-500 dark:text-gray-400">Clankers working</span>}
               />
-              <div className="grid sm:grid-cols-2 gap-3">
-                {inProgressTickets.map(ticket => (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {inProgressTickets.map((ticket) => (
                   <TicketCard key={ticket.id} ticket={ticket} project={project!} />
                 ))}
               </div>
             </section>
           )}
 
-          {/* Open Issues */}
           {openTickets.length > 0 && (
             <section>
-              <SectionHeader 
-                title="Awaiting Assignment" 
-                count={openTickets.length}
-              />
-              <div className="grid sm:grid-cols-2 gap-3">
-                {openTickets.map(ticket => (
+              <SectionHeader title="Awaiting Assignment" count={openTickets.length} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                {openTickets.map((ticket) => (
                   <TicketCard key={ticket.id} ticket={ticket} project={project!} />
                 ))}
               </div>
             </section>
           )}
 
-          {/* Recently Resolved */}
           {resolvedTickets.length > 0 && (
             <section>
-              <SectionHeader 
-                title="Recently Resolved" 
-                count={resolvedTickets.length}
-              />
-              <div className="grid sm:grid-cols-2 gap-3">
-                {resolvedTickets.map(ticket => (
+              <SectionHeader title="Recently Resolved" count={resolvedTickets.length} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                {resolvedTickets.map((ticket) => (
                   <TicketCard key={ticket.id} ticket={ticket} project={project!} />
                 ))}
               </div>
             </section>
           )}
 
-          {/* Job Queue */}
           {(activeJobs.length > 0 || queuedJobs.length > 0) && (
             <section>
               <SectionHeader
                 title="Job Queue"
                 count={jobs.length}
-                action={<Link href={`/project/${project}/jobs`} className="text-xs text-brand-burnt-orange hover:underline">View all</Link>}
+                action={
+                  <Link href={`/project/${project}/jobs`} className="text-xs text-brand-burnt-orange hover:underline">
+                    View all
+                  </Link>
+                }
               />
               <div className="space-y-2">
-                {activeJobs.map(job => (
+                {activeJobs.map((job) => (
                   <JobCard key={job.jobId} job={job} />
                 ))}
-                {queuedJobs.slice(0, 2).map(job => (
+                {queuedJobs.slice(0, 2).map((job) => (
                   <JobCard key={job.jobId} job={job} />
                 ))}
               </div>
@@ -391,63 +483,74 @@ export function ProjectHomePage() {
           )}
         </div>
 
-        {/* Right Column - Clanker Fleet */}
         <div className="space-y-6">
           <section>
-            <SectionHeader 
-              title="Clanker Fleet" 
+            <SectionHeader
+              title="Clanker Fleet"
               count={clankers.length}
-              action={<Link href="/clankers" className="text-xs text-brand-burnt-orange hover:underline">Manage</Link>}
+              action={
+                <Link href="/clankers" className="text-xs text-brand-burnt-orange hover:underline">
+                  Manage
+                </Link>
+              }
             />
             <div className="space-y-2">
-              {clankers.map(clanker => (
+              {clankers.map((clanker) => (
                 <ClankerCard key={clanker.id} clanker={clanker} />
               ))}
             </div>
             {clankers.length === 0 && (
-              <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 p-6 text-center">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">No active Clankers</p>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">The fleet is dormant</p>
+              <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
+                <p className="text-gray-500 dark:text-gray-400">No active Clankers</p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">The fleet is dormant</p>
               </div>
             )}
           </section>
 
-          {/* Quick Stats */}
-          <section className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-gradient-to-br from-zinc-50 to-white dark:from-zinc-950 dark:to-zinc-900 p-4">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">Severity Breakdown</h3>
+          <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+            <h3 className="mb-4 text-sm font-semibold tracking-wider text-gray-900 uppercase dark:text-white">
+              Severity Breakdown
+            </h3>
             <div className="space-y-3">
-              {stats && Object.entries(stats.bySeverity).map(([severity, count]) => {
-                const severityInfo = formatSeverity(severity)
-                const total = stats.total || 1
-                const percentage = Math.round((count / total) * 100)
-                
-                return (
-                  <div key={severity} className="flex items-center gap-3">
-                    <div className="w-20 text-xs text-zinc-500 dark:text-zinc-400 capitalize">{severity}</div>
-                    <div className="flex-1 h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full ${severityInfo.color.replace('bg-', 'bg-opacity-60 bg-').replace('text-', '')}`}
-                        style={{ width: `${percentage}%` }}
-                      />
+              {stats &&
+                Object.entries(stats.bySeverity).map(([severity, countVal]) => {
+                  const severityInfo = formatSeverity(severity)
+                  const total = stats.total || 1
+                  const count = countVal as number
+                  const percentage = Math.round((count / total) * 100)
+                  return (
+                    <div key={severity} className="flex items-center gap-3">
+                      <div className="w-20 text-xs text-gray-500 capitalize dark:text-gray-400">{severity}</div>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                        <div
+                          className={`h-full rounded-full ${severityInfo.barColor}`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <div className="w-8 text-right text-xs text-gray-700 dark:text-gray-300">{count}</div>
                     </div>
-                    <div className="w-8 text-xs text-right text-zinc-700 dark:text-zinc-300">{count}</div>
-                  </div>
-                )
-              })}
+                  )
+                })}
             </div>
           </section>
 
-          {/* Category Distribution */}
           {stats && Object.keys(stats.byCategory).length > 0 && (
-            <section className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">Categories</h3>
+            <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+              <h3 className="mb-4 text-sm font-semibold tracking-wider text-gray-900 uppercase dark:text-white">
+                Categories
+              </h3>
               <div className="flex flex-wrap gap-2">
-                {Object.entries(stats.byCategory).slice(0, 6).map(([category, count]) => (
-                  <div key={category} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-xs">
-                    <span className="text-zinc-700 dark:text-zinc-300">{category}</span>
-                    <span className="text-zinc-400 dark:text-zinc-500">{count}</span>
-                  </div>
-                ))}
+                {Object.entries(stats.byCategory)
+                  .slice(0, 6)
+                  .map(([category, countVal]) => (
+                    <div
+                      key={category}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-xs dark:bg-gray-800"
+                    >
+                      <span className="text-gray-700 dark:text-gray-300">{category}</span>
+                      <span className="text-gray-400 dark:text-gray-500">{countVal as number}</span>
+                    </div>
+                  ))}
               </div>
             </section>
           )}
