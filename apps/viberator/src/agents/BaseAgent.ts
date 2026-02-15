@@ -3,7 +3,7 @@ import { Logger } from "winston";
 import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { GitService } from "../services/GitService";
+import GitService from "../services/GitService";
 
 type JsonObject = Record<string, unknown>;
 
@@ -11,10 +11,7 @@ function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getObjectField(
-  value: unknown,
-  key: string,
-): JsonObject | undefined {
+function getObjectField(value: unknown, key: string): JsonObject | undefined {
   if (!isJsonObject(value)) {
     return undefined;
   }
@@ -44,7 +41,10 @@ export abstract class BaseAgent {
   constructor(config: AgentConfig, logger: Logger) {
     this.config = config;
     this.logger = logger;
-    this.gitService = new GitService(logger);
+    this.gitService = new GitService(logger, {
+      userName: process.env.GIT_USER_NAME || "Vibes Viber",
+      userEmail: process.env.GIT_USER_EMAIL || "viberator@viberglass.io",
+    });
   }
 
   /**
@@ -341,11 +341,12 @@ export abstract class BaseAgent {
 
     // 2. Tool Use starts (e.g., Grep, Edit)
     const contentBlock = getObjectField(event, "content_block");
-    if (dataType === "stream_event" && getStringField(contentBlock, "type") === "tool_use") {
+    if (
+      dataType === "stream_event" &&
+      getStringField(contentBlock, "type") === "tool_use"
+    ) {
       const toolName = getStringField(contentBlock, "name") ?? "unknown";
-      process.stdout.write(
-        `\n\x1b[34m[Agent Tool: ${toolName}]\x1b[0m `,
-      );
+      process.stdout.write(`\n\x1b[34m[Agent Tool: ${toolName}]\x1b[0m `);
       return;
     }
 
@@ -365,13 +366,22 @@ export abstract class BaseAgent {
     const toolResultContent = isJsonObject(firstMessageContent)
       ? firstMessageContent.content
       : undefined;
-    if (dataType === "user" && toolResultType === "tool_result" && toolResultContent !== undefined) {
-      process.stdout.write(`\n\x1b[32m[Result]:\x1b[0m\n${String(toolResultContent)}\n`);
+    if (
+      dataType === "user" &&
+      toolResultType === "tool_result" &&
+      toolResultContent !== undefined
+    ) {
+      process.stdout.write(
+        `\n\x1b[32m[Result]:\x1b[0m\n${String(toolResultContent)}\n`,
+      );
       return;
     }
 
     // 5. Final message stop / summaries
-    if (dataType === "stream_event" && getStringField(event, "type") === "message_stop") {
+    if (
+      dataType === "stream_event" &&
+      getStringField(event, "type") === "message_stop"
+    ) {
       process.stdout.write("\n");
       return;
     }
@@ -409,18 +419,25 @@ export abstract class BaseAgent {
   /**
    * Read PR description from the PR_DESCRIPTION.md file created by the agent
    */
-  protected async readPRDescription(repoDir: string): Promise<string | undefined> {
+  protected async readPRDescription(
+    repoDir: string,
+  ): Promise<string | undefined> {
     const prDescriptionPath = path.join(repoDir, "PR_DESCRIPTION.md");
     try {
       if (fs.existsSync(prDescriptionPath)) {
         const content = await fs.promises.readFile(prDescriptionPath, "utf8");
         // Remove the file after reading so it doesn't get committed
         await fs.promises.unlink(prDescriptionPath);
-        this.logger.debug("Read PR description from file", { prDescriptionPath });
+        this.logger.debug("Read PR description from file", {
+          prDescriptionPath,
+        });
         return content.trim();
       }
     } catch (error) {
-      this.logger.warn("Could not read PR description file", { prDescriptionPath, error });
+      this.logger.warn("Could not read PR description file", {
+        prDescriptionPath,
+        error,
+      });
     }
     return undefined;
   }

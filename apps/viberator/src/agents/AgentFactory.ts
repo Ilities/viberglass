@@ -22,7 +22,7 @@ export class AgentFactory {
       case "gemini-cli":
         return new GeminiCLIAgent(config, logger);
       default:
-        throw new Error(`Unknown agent type: ${config.name}`);
+        throw new Error(`Unknown agent type: ${(config as any).name}`);
     }
   }
 }

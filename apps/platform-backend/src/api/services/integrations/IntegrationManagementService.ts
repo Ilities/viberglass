@@ -1,6 +1,6 @@
 import { IntegrationDAO, ProjectIntegrationLinkDAO, IntegrationCredentialDAO } from '../../../persistence/integrations'
 import { WebhookConfigDAO } from '../../../persistence/webhook/WebhookConfigDAO'
-import { integrationRegistry } from '../../../integrations/TicketingIntegrationRegistry'
+import { integrationRegistry } from '../../../integration-plugins/TicketingIntegrationRegistry'
 import type { TicketSystem, AuthCredentials } from '@viberglass/types'
 import { INTEGRATION_DESCRIPTIONS } from '@viberglass/types'
 import { IntegrationRouteServiceError } from './errors'

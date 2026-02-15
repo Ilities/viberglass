@@ -16,8 +16,8 @@ import {
 } from '../middleware/validation';
 import { requireAuth } from '../middleware/authentication';
 import logger from '../../config/logger';
-import { integrationRegistry } from '../../integrations/TicketingIntegrationRegistry';
-import type { IntegrationFieldDefinition as PluginFieldDefinition } from '../../integrations/plugin';
+import { integrationRegistry } from '../../integration-plugins/TicketingIntegrationRegistry';
+import type { IntegrationFieldDefinition as PluginFieldDefinition } from '../../integration-plugins/plugin';
 import type {
   AuthCredentials,
   ConfigureIntegrationRequest,
