@@ -4,7 +4,6 @@ import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { FileUploadService, upload } from "../../services/FileUploadService";
 import {
   TicketExecutionService,
-  InlineInstructionFile,
 } from "../../services/TicketExecutionService";
 import {
   validateCreateTicket,
@@ -341,9 +340,10 @@ router.post(
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       logger.error("Error running ticket", {
-        error: error instanceof Error ? error.message : error,
+        error: error.message,
       });
 
       const errorMessage = error.message || "Failed to run ticket";

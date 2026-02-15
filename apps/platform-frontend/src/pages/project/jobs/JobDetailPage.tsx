@@ -9,7 +9,7 @@ import { Section } from '@/components/section'
 import { TabButton } from '@/components/tab-button'
 import { JobRefreshButton } from './job-refresh-button'
 import { useJobStatus } from '@/hooks/useJobStatus'
-import { cn } from '@/lib/utils'
+
 import { 
   ArrowLeftIcon, 
   ExternalLinkIcon, 

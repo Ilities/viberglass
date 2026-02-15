@@ -17,7 +17,7 @@ import {
 import { createProject, type CreateProjectRequest } from '@/service/api/project-api'
 import { getIntegrations, getAllIntegrationSummaries } from '@/service/api/integration-api'
 import type { IntegrationSummary, TicketSystem } from '@viberglass/types'
-import { GearIcon, PlusIcon } from '@radix-ui/react-icons'
+import { GearIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'

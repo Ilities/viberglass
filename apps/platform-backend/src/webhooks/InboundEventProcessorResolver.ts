@@ -109,11 +109,13 @@ export function createDefaultInboundEventProcessorResolver(
   projectScmConfigDAO: ProjectScmConfigDAO,
 ): InboundEventProcessorResolver {
   // Defer import to avoid circular dependencies
+  /* eslint-disable @typescript-eslint/no-require-imports */
   const { DefaultInboundProcessor } = require('./inbound-processors/DefaultInboundProcessor');
   const { GitHubInboundProcessor } = require('./inbound-processors/GitHubInboundProcessor');
   const { JiraInboundProcessor } = require('./inbound-processors/JiraInboundProcessor');
   const { ShortcutInboundProcessor } = require('./inbound-processors/ShortcutInboundProcessor');
   const { CustomInboundProcessor } = require('./inbound-processors/CustomInboundProcessor');
+  /* eslint-enable @typescript-eslint/no-require-imports */
 
   return new InboundEventProcessorResolver([
     new DefaultInboundProcessor(),

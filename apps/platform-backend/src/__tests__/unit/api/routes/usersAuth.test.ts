@@ -7,7 +7,7 @@ jest.mock("../../../../api/middleware/authentication", () => ({
 
 import usersRouter from "../../../../api/routes/users";
 
-function getRouteHandlers(path: string, method: string): Array<Function> {
+function getRouteHandlers(path: string, method: string): Array<(...args: unknown[]) => unknown> {
   const layer = (usersRouter as any).stack.find(
     (entry: any) =>
       entry.route &&

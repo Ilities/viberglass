@@ -7,9 +7,9 @@
  * @see https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
  */
 
-import type { Request, Response, NextFunction } from 'express';
-import { SignatureValidator } from '../SignatureValidator';
-import type { ExtendedRequest } from './rawBody';
+import type { Request, Response, NextFunction } from "express";
+import { SignatureValidator } from "../SignatureValidator";
+import type { ExtendedRequest } from "./rawBody";
 
 /**
  * Function to retrieve webhook secret for a project
@@ -67,51 +67,66 @@ export interface WebhookRequest extends ExtendedRequest {
  * ```
  */
 export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
-  const { validator, getSecret, projectIdHeader, revealErrors = false, optional = false } = config;
+  const {
+    validator,
+    getSecret,
+    projectIdHeader,
+    revealErrors = false,
+    optional = false,
+  } = config;
 
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     const webhookReq = req as WebhookRequest;
 
     try {
       // Get raw body from request (set by rawBodyMiddleware)
       const rawBody = webhookReq.rawBody;
-      
+
       // Extract signature from configured header
       const headerName = validator.getHeaderName();
-      const signature = req.headers[headerName] as string | string[] | undefined;
+      const signature = req.headers[headerName] as
+        | string
+        | string[]
+        | undefined;
 
       if (!signature) {
         // If verification is optional, skip to next middleware
         if (optional && rawBody) {
           // Still try to parse JSON body
           try {
-            const jsonStr = rawBody.toString('utf8');
+            const jsonStr = rawBody.toString("utf8");
             req.body = JSON.parse(jsonStr);
-          } catch (parseError) {
+          } catch {
             res.status(400).json({
-              error: revealErrors ? 'Invalid JSON payload' : 'Bad Request',
+              error: revealErrors ? "Invalid JSON payload" : "Bad Request",
             });
             return;
           }
           next();
           return;
         }
-        
+
         const errorMsg = `Missing signature header: ${headerName}`;
         res.status(401).json({
-          error: revealErrors ? errorMsg : 'Unauthorized',
+          error: revealErrors ? errorMsg : "Unauthorized",
           ...(revealErrors && { requiredHeader: headerName }),
         });
         return;
       }
 
       // Handle array header values (Express can return array for duplicate headers)
-      const signatureValue = Array.isArray(signature) ? signature[0] : signature;
+      const signatureValue = Array.isArray(signature)
+        ? signature[0]
+        : signature;
 
       if (!rawBody || rawBody.length === 0) {
-        const errorMsg = 'Missing raw body for signature verification';
+        const errorMsg = "Missing raw body for signature verification";
         res.status(400).json({
-          error: revealErrors ? errorMsg : 'Bad Request',
+          error: revealErrors ? errorMsg : "Bad Request",
         });
         return;
       }
@@ -125,24 +140,26 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
       let secret: string;
       try {
         secret = await getSecret(projectId);
-      } catch (error) {
+      } catch {
         // If verification is optional and secret not found, skip verification
         if (optional) {
           try {
-            const jsonStr = rawBody.toString('utf8');
+            const jsonStr = rawBody.toString("utf8");
             req.body = JSON.parse(jsonStr);
-          } catch (parseError) {
+          } catch {
             res.status(400).json({
-              error: revealErrors ? 'Invalid JSON payload' : 'Bad Request',
+              error: revealErrors ? "Invalid JSON payload" : "Bad Request",
             });
             return;
           }
           next();
           return;
         }
-        
+
         res.status(500).json({
-          error: revealErrors ? 'Failed to retrieve webhook secret' : 'Internal Server Error',
+          error: revealErrors
+            ? "Failed to retrieve webhook secret"
+            : "Internal Server Error",
         });
         return;
       }
@@ -151,21 +168,21 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
         // If verification is optional and no secret, skip verification
         if (optional) {
           try {
-            const jsonStr = rawBody.toString('utf8');
+            const jsonStr = rawBody.toString("utf8");
             req.body = JSON.parse(jsonStr);
-          } catch (parseError) {
+          } catch {
             res.status(400).json({
-              error: revealErrors ? 'Invalid JSON payload' : 'Bad Request',
+              error: revealErrors ? "Invalid JSON payload" : "Bad Request",
             });
             return;
           }
           next();
           return;
         }
-        
-        const errorMsg = 'No webhook secret configured';
+
+        const errorMsg = "No webhook secret configured";
         res.status(401).json({
-          error: revealErrors ? errorMsg : 'Unauthorized',
+          error: revealErrors ? errorMsg : "Unauthorized",
         });
         return;
       }
@@ -175,33 +192,35 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
 
       if (!isValid) {
         // Log verification failure (without exposing secrets)
-        console.warn(`[Webhook] Signature verification failed for ${headerName}`);
+        console.warn(
+          `[Webhook] Signature verification failed for ${headerName}`,
+        );
 
         res.status(401).json({
-          error: revealErrors ? 'Invalid signature' : 'Unauthorized',
+          error: revealErrors ? "Invalid signature" : "Unauthorized",
         });
         return;
       }
 
       // Signature valid - parse JSON body for downstream handlers
       try {
-        const jsonStr = rawBody.toString('utf8');
+        const jsonStr = rawBody.toString("utf8");
         req.body = JSON.parse(jsonStr);
-      } catch (parseError) {
-        const errorMsg = 'Invalid JSON payload after signature verification';
+      } catch {
+        const errorMsg = "Invalid JSON payload after signature verification";
         res.status(400).json({
-          error: revealErrors ? errorMsg : 'Bad Request',
+          error: revealErrors ? errorMsg : "Bad Request",
         });
         return;
       }
 
       next();
     } catch (error) {
-      console.error('[Webhook] Signature verification error:', error);
+      console.error("[Webhook] Signature verification error:", error);
       res.status(500).json({
         error: revealErrors
-          ? `Signature verification error: ${error instanceof Error ? error.message : 'Unknown error'}`
-          : 'Internal Server Error',
+          ? `Signature verification error: ${error instanceof Error ? error.message : "Unknown error"}`
+          : "Internal Server Error",
       });
     }
   };
@@ -215,6 +234,7 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
  *
  * @param validators - Array of validators to try in order
  * @param getSecret - Function to retrieve secret
+ * @param projectIdHeader - Optional project ID header to extract from request
  * @returns Express middleware function
  *
  * @example
@@ -231,15 +251,19 @@ export function createSignatureMiddleware(config: SignatureMiddlewareConfig) {
 export function createMultiSignatureMiddleware(
   validators: SignatureValidator[],
   getSecret: SecretGetter,
-  projectIdHeader?: string
+  projectIdHeader?: string,
 ) {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     const webhookReq = req as WebhookRequest;
 
     try {
       const rawBody = webhookReq.rawBody;
       if (!rawBody || rawBody.length === 0) {
-        res.status(400).json({ error: 'Bad Request' });
+        res.status(400).json({ error: "Bad Request" });
         return;
       }
 
@@ -249,49 +273,52 @@ export function createMultiSignatureMiddleware(
 
       const secret = await getSecret(projectId);
       if (!secret) {
-        res.status(401).json({ error: 'Unauthorized' });
+        res.status(401).json({ error: "Unauthorized" });
         return;
       }
 
       // Try each validator
       let isValid = false;
-      let usedValidator: SignatureValidator | undefined;
 
       for (const validator of validators) {
         const headerName = validator.getHeaderName();
-        const signature = req.headers[headerName] as string | string[] | undefined;
+        const signature = req.headers[headerName] as
+          | string
+          | string[]
+          | undefined;
 
         if (signature) {
-          const signatureValue = Array.isArray(signature) ? signature[0] : signature;
+          const signatureValue = Array.isArray(signature)
+            ? signature[0]
+            : signature;
           if (validator.verify(rawBody, signatureValue, secret)) {
             isValid = true;
-            usedValidator = validator;
             break;
           }
         }
       }
 
       if (!isValid) {
-        res.status(401).json({ error: 'Unauthorized' });
+        res.status(401).json({ error: "Unauthorized" });
         return;
       }
 
       // Parse JSON after successful verification
       try {
-        const jsonStr = rawBody.toString('utf8');
+        const jsonStr = rawBody.toString("utf8");
         req.body = JSON.parse(jsonStr);
       } catch {
-        res.status(400).json({ error: 'Bad Request' });
+        res.status(400).json({ error: "Bad Request" });
         return;
       }
 
       next();
     } catch (error) {
-      console.error('[Webhook] Multi-signature verification error:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error("[Webhook] Multi-signature verification error:", error);
+      res.status(500).json({ error: "Internal Server Error" });
     }
   };
 }
 
 // Re-export ExtendedRequest from rawBody for convenience
-export type { ExtendedRequest } from './rawBody';
+export type { ExtendedRequest } from "./rawBody";

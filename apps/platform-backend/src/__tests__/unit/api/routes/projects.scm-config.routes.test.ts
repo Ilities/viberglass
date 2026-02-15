@@ -3,6 +3,7 @@ import request from "supertest";
 
 const mockProjectDAO = {
   getProject: jest.fn(),
+  updateProject: jest.fn(),
 };
 const mockProjectScmConfigDAO = {
   getByProjectId: jest.fn(),
@@ -59,6 +60,7 @@ describe("project SCM config routes", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockProjectDAO.updateProject.mockResolvedValue({ id: PROJECT_ID });
     app = express();
     app.use(express.json());
     app.use("/api/projects", projectsRouter);
@@ -240,6 +242,9 @@ describe("project SCM config routes", () => {
         integrationCredentialId: null,
       },
     );
+    expect(mockProjectDAO.updateProject).toHaveBeenCalledWith(PROJECT_ID, {
+      primaryScmIntegrationId: INTEGRATION_ID,
+    });
     expect(response.body).toEqual({
       success: true,
       data: savedConfig,
@@ -277,5 +282,8 @@ describe("project SCM config routes", () => {
     expect(mockProjectScmConfigDAO.deleteByProjectId).toHaveBeenCalledWith(
       PROJECT_ID,
     );
+    expect(mockProjectDAO.updateProject).toHaveBeenCalledWith(PROJECT_ID, {
+      primaryScmIntegrationId: null,
+    });
   });
 });

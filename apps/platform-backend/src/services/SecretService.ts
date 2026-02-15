@@ -15,7 +15,6 @@ import { createChildLogger } from "../config/logger";
 const logger = createChildLogger({ service: "SecretService" });
 
 const IV_LENGTH = 12;
-const AUTH_TAG_LENGTH = 16;
 
 export interface SecretInput {
   name: string;

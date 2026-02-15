@@ -1,5 +1,8 @@
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { promises as fs } from "fs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import {
   Kysely,
   Migrator,
@@ -141,6 +144,6 @@ async function main() {
 }
 
 // Run main if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }

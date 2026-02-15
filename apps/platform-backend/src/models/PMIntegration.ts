@@ -9,7 +9,7 @@ import {
 
 // Backend-specific interface for PM Integration implementations
 export interface CustomFieldMapping {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface PMIntegration {
@@ -87,7 +87,7 @@ export interface SlackConfig extends AuthCredentials {
 // Auto-fix detection strategies
 export interface AutoFixDetectionConfig {
   labelMatching: string[]; // ['auto-fix', 'ai-fix', '🤖 auto-fix']
-  customFields: Record<string, any>; // { autoFixEnabled: true }
+  customFields: Record<string, unknown>; // { autoFixEnabled: true }
   titlePrefixes: string[]; // ['[AUTO-FIX]', '[AI-FIX]']
   descriptionMarkers: string[]; // ['<!-- AUTO-FIX -->']
   projectSettings: {

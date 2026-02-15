@@ -73,7 +73,7 @@ export class LambdaInvoker implements WorkerInvoker {
     }
   }
 
-  private classifyError(error: unknown, functionName: string): WorkerError {
+  private classifyError(error: unknown, _functionName: string): WorkerError {
     const err = error as {
       name?: string;
       $metadata?: { httpStatusCode?: number };
