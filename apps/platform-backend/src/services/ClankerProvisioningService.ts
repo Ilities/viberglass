@@ -1,5 +1,8 @@
 import Docker from "dockerode";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import {
   ECSClient,
   DescribeTaskDefinitionCommand,
@@ -390,6 +393,7 @@ export class ClankerProvisioningService {
     const startedAt = new Date();
     const dockerfile = path.resolve(this.repoRoot, DEFAULT_DOCKERFILE_PATH);
     const dockerfileRelative = path.relative(this.repoRoot, dockerfile);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const tar = require("tar-fs") as {
       pack: (
         cwd: string,

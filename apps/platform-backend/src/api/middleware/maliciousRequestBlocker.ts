@@ -142,10 +142,10 @@ const BLOCKED_PATHS = new Set([
 
 // Pattern-based blocking (regex)
 const BLOCKED_PATTERNS = [
-  /^\/(\.+\/)+/,  // Path traversal attempts like /../../etc/passwd
+  /^\/(\.+\/)+/,  // Path traversal attempts like /.. /.. /etc/passwd
   /^\/\.(env|git|docker|htaccess|htpasswd)/i,  // Hidden files
   /^\/(wp-|wordpress)/i,  // WordPress probes
-  /^\/(admin|login|signin|auth)[\/]?$/i,  // Generic admin paths
+  /^\/(admin|login|signin|auth)[/]?$/i,  // Generic admin paths
   /^\/(config|settings|preferences)\.json$/i,  // Config files
   /\.(backup|bak|swp|swx|save|old|orig|dist|~)$/i,  // Backup files
   /\.(sql|sqlite|sqlite3|db|mdb|accdb)$/i,  // Database files

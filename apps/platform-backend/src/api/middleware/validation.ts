@@ -159,7 +159,7 @@ export const parseMultipartJsonFields = (
     if (req.body[field] && typeof req.body[field] === "string") {
       try {
         req.body[field] = JSON.parse(req.body[field]);
-      } catch (error) {
+      } catch {
         return res.status(400).json({
           error: "Validation error",
           details: [

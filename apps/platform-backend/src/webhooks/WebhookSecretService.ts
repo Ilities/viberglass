@@ -1,6 +1,6 @@
 import * as crypto from "node:crypto";
-import type { CredentialProvider } from "../credentials/CredentialProvider";
-import type { SecretLocation, WebhookProviderConfig } from "./WebhookProvider";
+import type { CredentialProvider } from "../credentials";
+import type { WebhookProviderConfig } from "./WebhookProvider";
 
 /**
  * Webhook secret service
@@ -13,9 +13,7 @@ import type { SecretLocation, WebhookProviderConfig } from "./WebhookProvider";
  * Provides AES-256-GCM encryption for database-stored secrets.
  */
 
-const ENCRYPTION_KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 12; // 96 bits for GCM
-const AUTH_TAG_LENGTH = 16; // 128 bits for GCM
 
 export class WebhookSecretService {
   private encryptionKey: Buffer;
@@ -26,15 +24,12 @@ export class WebhookSecretService {
 
     if (!key) {
       throw new Error(
-        "WEBHOOK_SECRET_ENCRYPTION_KEY environment variable must be set"
+        "WEBHOOK_SECRET_ENCRYPTION_KEY environment variable must be set",
       );
     }
 
     // Derive a 32-byte key from the environment variable
-    this.encryptionKey = crypto
-      .createHash("sha256")
-      .update(key)
-      .digest();
+    this.encryptionKey = crypto.createHash("sha256").update(key).digest();
   }
 
   /**
@@ -45,7 +40,7 @@ export class WebhookSecretService {
    */
   async getSecret(
     config: WebhookProviderConfig,
-    projectId?: string
+    projectId?: string,
   ): Promise<string> {
     const location = config.secretLocation ?? "database";
 
@@ -53,7 +48,7 @@ export class WebhookSecretService {
       case "database": {
         if (!config.webhookSecret) {
           throw new Error(
-            "Webhook secret not found in configuration (database storage requested)"
+            "Webhook secret not found in configuration (database storage requested)",
           );
         }
         return config.webhookSecret;
@@ -62,23 +57,21 @@ export class WebhookSecretService {
       case "ssm": {
         if (!config.secretPath) {
           throw new Error(
-            "SSM secret path not configured (secretPath required for SSM storage)"
+            "SSM secret path not configured (secretPath required for SSM storage)",
           );
         }
         if (!projectId) {
-          throw new Error(
-            "Project ID required for SSM secret lookup"
-          );
+          throw new Error("Project ID required for SSM secret lookup");
         }
 
         const secret = await this.credentialProvider.get(
           projectId,
-          config.secretPath
+          config.secretPath,
         );
 
         if (!secret) {
           throw new Error(
-            `Secret not found in SSM at path: ${config.secretPath}`
+            `Secret not found in SSM at path: ${config.secretPath}`,
           );
         }
 
@@ -91,7 +84,7 @@ export class WebhookSecretService {
 
         if (!secret) {
           throw new Error(
-            `Environment variable ${envVar} not set (env storage requested)`
+            `Environment variable ${envVar} not set (env storage requested)`,
           );
         }
 
@@ -100,7 +93,7 @@ export class WebhookSecretService {
 
       default:
         throw new Error(
-          `Unsupported secret location: ${(location as string).toString()}`
+          `Unsupported secret location: ${(location as string).toString()}`,
         );
     }
   }
@@ -108,13 +101,9 @@ export class WebhookSecretService {
   /**
    * Get API token from configuration (for outbound calls)
    * @param config - Webhook provider configuration
-   * @param projectId - Optional project/tenant ID for SSM lookups
    * @returns The plaintext API token
    */
-  async getApiToken(
-    config: WebhookProviderConfig,
-    projectId?: string
-  ): Promise<string> {
+  async getApiToken(config: WebhookProviderConfig): Promise<string> {
     if (!config.apiToken) {
       throw new Error("API token not configured");
     }
@@ -129,11 +118,7 @@ export class WebhookSecretService {
    */
   async encryptSecret(secret: string): Promise<string> {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv(
-      "aes-256-gcm",
-      this.encryptionKey,
-      iv
-    );
+    const cipher = crypto.createCipheriv("aes-256-gcm", this.encryptionKey, iv);
 
     let ciphertext = cipher.update(secret, "utf8", "binary");
     ciphertext += cipher.final("binary");
@@ -158,7 +143,7 @@ export class WebhookSecretService {
 
     if (parts.length !== 3) {
       throw new Error(
-        "Invalid encrypted secret format. Expected: iv:ciphertext:authTag"
+        "Invalid encrypted secret format. Expected: iv:ciphertext:authTag",
       );
     }
 
@@ -171,7 +156,7 @@ export class WebhookSecretService {
     const decipher = crypto.createDecipheriv(
       "aes-256-gcm",
       this.encryptionKey,
-      iv
+      iv,
     );
 
     decipher.setAuthTag(authTag);
@@ -194,15 +179,12 @@ export class WebhookSecretService {
    * Verify if a secret matches an encrypted value
    * Useful for validation before updating configuration
    */
-  async verifySecret(
-    plaintext: string,
-    encrypted: string
-  ): Promise<boolean> {
+  async verifySecret(plaintext: string, encrypted: string): Promise<boolean> {
     try {
       const decrypted = await this.decryptSecret(encrypted);
       return crypto.timingSafeEqual(
         Buffer.from(plaintext),
-        Buffer.from(decrypted)
+        Buffer.from(decrypted),
       );
     } catch {
       return false;

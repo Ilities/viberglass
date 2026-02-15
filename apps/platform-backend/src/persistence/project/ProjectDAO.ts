@@ -1,6 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
+import type { Selectable } from "kysely";
 import db from "../config/database";
+import type { Database } from "../types/database";
 import { ProjectConfig } from "../../models/PMIntegration";
+
+type ProjectsRow = Selectable<Database["projects"]>;
 
 const slugify = (text: string) =>
   text
@@ -95,7 +99,7 @@ export class ProjectDAO {
     id: string,
     updates: Partial<ProjectConfig>,
   ): Promise<ProjectConfig> {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date(),
     };
 
@@ -166,7 +170,7 @@ export class ProjectDAO {
     await db.deleteFrom("projects").where("id", "=", id).execute();
   }
 
-  private mapRowToProject(row: any): ProjectConfig {
+  private mapRowToProject(row: ProjectsRow): ProjectConfig {
     return {
       id: row.id,
       name: row.name,
@@ -190,8 +194,8 @@ export class ProjectDAO {
       agentInstructions: row.agent_instructions ?? undefined,
       primaryTicketingIntegrationId: row.primary_ticketing_integration_id ?? undefined,
       primaryScmIntegrationId: row.primary_scm_integration_id ?? undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
     };
   }
 

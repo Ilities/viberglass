@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { getCredentialFactory } from '../../config/credentials';
-import { CredentialAccessDeniedError } from '../../credentials/types';
+import { NextFunction, Request, Response } from "express";
+import { getCredentialFactory } from "../../config/credentials";
+import { CredentialAccessDeniedError } from "../../credentials";
 
 /**
  * Tenant validation middleware
@@ -15,6 +15,7 @@ import { CredentialAccessDeniedError } from '../../credentials/types';
  */
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       tenantId?: string;
@@ -38,20 +39,20 @@ declare global {
  */
 function extractTenantId(req: Request): string | null {
   // 1. Check header (current implementation)
-  const headerTenantId = req.get('X-Tenant-Id');
+  const headerTenantId = req.get("X-Tenant-Id");
   if (headerTenantId) {
     return headerTenantId;
   }
 
   // 2. Check query parameter (for webhook compatibility)
-  if (req.query.tenantId && typeof req.query.tenantId === 'string') {
+  if (req.query.tenantId && typeof req.query.tenantId === "string") {
     return req.query.tenantId;
   }
 
   // 3. Default tenant for single-tenant deployments and webhook routes
   // Webhook routes will override this with tenant from configuration
-  const defaultTenant = process.env.DEFAULT_TENANT_ID || 'api-server';
-  return defaultTenant;
+
+  return process.env.DEFAULT_TENANT_ID || "api-server";
 }
 
 /**
@@ -59,11 +60,11 @@ function extractTenantId(req: Request): string | null {
  */
 export async function validateTenantAccess(
   tenantId: string,
-  key: string
+  key: string,
 ): Promise<boolean> {
   try {
     const factory = getCredentialFactory();
-    const value = await factory.get(tenantId, key);
+    await factory.get(tenantId, key);
 
     // If we can retrieve the value, tenant has access
     // (Null is OK - means credential doesn't exist, not access denied)
@@ -88,14 +89,14 @@ export async function validateTenantAccess(
 export function tenantMiddleware(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void {
   const tenantId = extractTenantId(req);
 
   if (!tenantId) {
     res.status(401).json({
-      error: 'Tenant ID required',
-      message: 'Provide X-Tenant-Id header or tenantId query parameter',
+      error: "Tenant ID required",
+      message: "Provide X-Tenant-Id header or tenantId query parameter",
     });
     return;
   }
@@ -103,8 +104,9 @@ export function tenantMiddleware(
   // Validate tenant ID format (basic check)
   if (!/^[a-zA-Z0-9_-]+$/.test(tenantId)) {
     res.status(400).json({
-      error: 'Invalid tenant ID',
-      message: 'Tenant ID must contain only alphanumeric characters, hyphens, and underscores',
+      error: "Invalid tenant ID",
+      message:
+        "Tenant ID must contain only alphanumeric characters, hyphens, and underscores",
     });
     return;
   }
@@ -116,11 +118,15 @@ export function tenantMiddleware(
 /**
  * Middleware to validate tenant can access specific credential
  */
-export function credentialAccessMiddleware(keyParam: string = 'key') {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export function credentialAccessMiddleware(keyParam: string = "key") {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     const tenantId = req.tenantId;
     if (!tenantId) {
-      res.status(401).json({ error: 'Tenant not authenticated' });
+      res.status(401).json({ error: "Tenant not authenticated" });
       return;
     }
 
@@ -134,8 +140,8 @@ export function credentialAccessMiddleware(keyParam: string = 'key') {
 
     if (!hasAccess) {
       res.status(403).json({
-        error: 'Access denied',
-        message: 'Tenant does not have access to this credential',
+        error: "Access denied",
+        message: "Tenant does not have access to this credential",
       });
       return;
     }
@@ -148,11 +154,15 @@ export function credentialAccessMiddleware(keyParam: string = 'key') {
  * Middleware to validate tenant owns a resource
  * For resources that have a tenant_id property
  */
-export function resourceOwnerMiddleware(resourceIdParam: string = 'id') {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export function resourceOwnerMiddleware(_resourceIdParam: string = "id") {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     const tenantId = req.tenantId;
     if (!tenantId) {
-      res.status(401).json({ error: 'Tenant not authenticated' });
+      res.status(401).json({ error: "Tenant not authenticated" });
       return;
     }
 
@@ -171,14 +181,14 @@ export function requireTenantTenant(requiredTenantId: string) {
     const tenantId = req.tenantId;
 
     if (!tenantId) {
-      res.status(401).json({ error: 'Tenant not authenticated' });
+      res.status(401).json({ error: "Tenant not authenticated" });
       return;
     }
 
     if (tenantId !== requiredTenantId) {
       res.status(403).json({
-        error: 'Access denied',
-        message: 'This resource is restricted to specific tenants',
+        error: "Access denied",
+        message: "This resource is restricted to specific tenants",
       });
       return;
     }

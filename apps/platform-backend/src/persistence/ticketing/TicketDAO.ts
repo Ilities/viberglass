@@ -1,13 +1,34 @@
 import { v4 as uuidv4 } from "uuid";
-import db from "../config/database";
+import type { Selectable } from "kysely";
 import { sql } from "kysely";
-import {
+import db from "../config/database";
+import type { Database } from "../types/database";
+import type {
   Ticket,
   CreateTicketRequest,
   UpdateTicketRequest,
   MediaAsset,
   TicketStats,
+  TicketSystem,
 } from "@viberglass/types";
+
+type TicketsRow = Selectable<Database["tickets"]>;
+
+// Normalize legacy ticket_system values (2 was the old GitHub enum value)
+function normalizeTicketSystem(value: unknown): TicketSystem {
+  if (value === 2) return "github";
+  if (typeof value === "string" && isValidTicketSystem(value)) return value;
+  return "custom";
+}
+
+function isValidTicketSystem(value: string): value is TicketSystem {
+  const validSystems: TicketSystem[] = [
+    "jira", "linear", "github", "gitlab", "bitbucket",
+    "azure", "asana", "trello", "monday", "clickup",
+    "shortcut", "slack", "custom"
+  ];
+  return validSystems.includes(value as TicketSystem);
+}
 
 export class TicketDAO {
   async createTicket(
@@ -74,18 +95,22 @@ export class TicketDAO {
 
       return this.mapRowToTicket({
         ...result,
-        screenshot_id: screenshotAsset?.id,
-        screenshot_filename: screenshotAsset?.filename,
-        screenshot_mime_type: screenshotAsset?.mimeType,
-        screenshot_size: screenshotAsset?.size,
-        screenshot_url: screenshotAsset?.url,
-        screenshot_uploaded_at: screenshotAsset?.uploadedAt,
-        recording_id: recordingAsset?.id,
-        recording_filename: recordingAsset?.filename,
-        recording_mime_type: recordingAsset?.mimeType,
-        recording_size: recordingAsset?.size,
-        recording_url: recordingAsset?.url,
-        recording_uploaded_at: recordingAsset?.uploadedAt,
+        ...(screenshotAsset && {
+          screenshot_id: screenshotAsset.id,
+          screenshot_filename: screenshotAsset.filename,
+          screenshot_mime_type: screenshotAsset.mimeType,
+          screenshot_size: screenshotAsset.size,
+          screenshot_url: screenshotAsset.url,
+          screenshot_uploaded_at: new Date(),
+        }),
+        ...(recordingAsset && {
+          recording_id: recordingAsset.id,
+          recording_filename: recordingAsset.filename,
+          recording_mime_type: recordingAsset.mimeType,
+          recording_size: recordingAsset.size,
+          recording_url: recordingAsset.url,
+          recording_uploaded_at: new Date(),
+        }),
       });
     });
   }
@@ -310,19 +335,21 @@ export class TicketDAO {
     };
   }
 
-  private toISOString(date: Date | string): string {
-    return date instanceof Date ? date.toISOString() : date;
+  private toISOString(date: unknown): string {
+    if (date instanceof Date) return date.toISOString();
+    if (typeof date === "string") return date;
+    return String(date);
   }
 
-  private mapRowToTicket(row: any): Ticket {
+  private mapRowToTicket(row: TicketsRow & Record<string, unknown>): Ticket {
     let screenshot: MediaAsset | undefined;
     if (row.screenshot_id) {
       screenshot = {
-        id: row.screenshot_id,
-        filename: row.screenshot_filename,
-        mimeType: row.screenshot_mime_type,
+        id: String(row.screenshot_id),
+        filename: String(row.screenshot_filename),
+        mimeType: String(row.screenshot_mime_type),
         size: Number(row.screenshot_size),
-        url: row.screenshot_url,
+        url: String(row.screenshot_url),
         uploadedAt: this.toISOString(row.screenshot_uploaded_at),
       };
     }
@@ -330,11 +357,11 @@ export class TicketDAO {
     let recording: MediaAsset | undefined;
     if (row.recording_id) {
       recording = {
-        id: row.recording_id,
-        filename: row.recording_filename,
-        mimeType: row.recording_mime_type,
+        id: String(row.recording_id),
+        filename: String(row.recording_filename),
+        mimeType: String(row.recording_mime_type),
         size: Number(row.recording_size),
-        url: row.recording_url,
+        url: String(row.recording_url),
         uploadedAt: this.toISOString(row.recording_uploaded_at),
       };
     }
@@ -357,12 +384,12 @@ export class TicketDAO {
         typeof row.annotations === "string"
           ? JSON.parse(row.annotations)
           : row.annotations,
-      externalTicketId: row.external_ticket_id,
-      externalTicketUrl: row.external_ticket_url,
-      ticketSystem: row.ticket_system,
+      externalTicketId: row.external_ticket_id ?? undefined,
+      externalTicketUrl: row.external_ticket_url ?? undefined,
+      ticketSystem: normalizeTicketSystem(row.ticket_system),
       autoFixRequested: row.auto_fix_requested,
-      autoFixStatus: row.auto_fix_status,
-      pullRequestUrl: row.pull_request_url,
+      autoFixStatus: row.auto_fix_status ?? undefined,
+      pullRequestUrl: row.pull_request_url ?? undefined,
       createdAt: this.toISOString(row.created_at),
       updatedAt: this.toISOString(row.updated_at),
     };

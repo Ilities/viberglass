@@ -18,7 +18,7 @@ import {
   SSMClient,
   SSMServiceException,
 } from "@aws-sdk/client-ssm";
-import { SecretProvider, SecretCategory, SecretOptions } from "./SecretProvider.js";
+import { SecretProvider, SecretOptions } from "./SecretProvider.js";
 
 /**
  * Constructor options for SsmSecretProvider
@@ -71,20 +71,6 @@ export class SsmSecretProvider implements SecretProvider {
     return `${this.prefix}/${environment}/${normalizedKey}`;
   }
 
-  /**
-   * Parse key to extract category if present
-   * @param key - Secret key like "database.url" or "appId"
-   * @returns Object with category and base key name
-   */
-  private parseKey(key: string): { category: string; keyName: string } {
-    const parts = key.split(".");
-    if (parts.length >= 2) {
-      return { category: parts[0], keyName: parts.slice(1).join(".") };
-    }
-    // Default category if not specified
-    return { category: "general", keyName: key };
-  }
-
   async getSecret(environment: string, key: string): Promise<string | null> {
     try {
       const path = this.buildPath(environment, key);
@@ -103,7 +89,7 @@ export class SsmSecretProvider implements SecretProvider {
           return null;
         }
         throw new Error(
-          `SSM getSecret failed: ${error.name} - ${error.message}`
+          `SSM getSecret failed: ${error.name} - ${error.message}`,
         );
       }
       throw error;
@@ -114,7 +100,7 @@ export class SsmSecretProvider implements SecretProvider {
     environment: string,
     key: string,
     value: string,
-    options?: SecretOptions
+    options?: SecretOptions,
   ): Promise<void> {
     try {
       const path = this.buildPath(environment, key);
@@ -134,7 +120,7 @@ export class SsmSecretProvider implements SecretProvider {
     } catch (error) {
       if (error instanceof SSMServiceException) {
         throw new Error(
-          `SSM putSecret failed: ${error.name} - ${error.message}`
+          `SSM putSecret failed: ${error.name} - ${error.message}`,
         );
       }
       throw error;
@@ -157,7 +143,7 @@ export class SsmSecretProvider implements SecretProvider {
           return;
         }
         throw new Error(
-          `SSM deleteSecret failed: ${error.name} - ${error.message}`
+          `SSM deleteSecret failed: ${error.name} - ${error.message}`,
         );
       }
       throw error;
@@ -195,13 +181,10 @@ export class SsmSecretProvider implements SecretProvider {
           return true; // Should not happen, but if we get here we're available
         } catch (testError) {
           // If we get ParameterNotFound, credentials work (parameter just doesn't exist)
-          if (
+          return (
             testError instanceof SSMServiceException &&
             testError.name === "ParameterNotFound"
-          ) {
-            return true;
-          }
-          return false;
+          );
         }
       }
       return false;

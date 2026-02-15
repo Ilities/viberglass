@@ -19,6 +19,7 @@ const logger = createChildLogger({ middleware: "callbackTokenValidation" });
  */
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       callbackTokenValidated?: boolean;

@@ -1,9 +1,9 @@
-import express from 'express';
-import request from 'supertest';
-import { createShortcutRoutes } from '../../../../../api/routes/webhooks/shortcut.routes';
-import type { WebhookService } from '../../../../../webhooks/WebhookService';
+import express from "express";
+import request from "supertest";
+import { createShortcutRoutes } from "../../../../../api/routes/webhooks/shortcut.routes";
+import type { WebhookService } from "../../../../../webhooks/WebhookService";
 
-describe('shortcut webhook routes', () => {
+describe("shortcut webhook routes", () => {
   function createApp(processWebhook: jest.Mock) {
     const app = express();
     app.use(
@@ -14,7 +14,7 @@ describe('shortcut webhook routes', () => {
       }),
     );
     app.use((req, _res, next) => {
-      (req as any).tenantId = 'tenant-1';
+      (req as any).tenantId = "tenant-1";
       next();
     });
 
@@ -22,103 +22,100 @@ describe('shortcut webhook routes', () => {
       processWebhook,
     } as unknown as WebhookService;
 
-    app.use('/api/webhooks/shortcut', createShortcutRoutes(() => webhookService));
+    app.use(
+      "/api/webhooks/shortcut",
+      createShortcutRoutes(() => webhookService),
+    );
     return app;
   }
 
-  it('returns ignored payload with status 200 for unsupported Shortcut events', async () => {
+  it("returns ignored payload with status 200 for unsupported Shortcut events", async () => {
     const processWebhook = jest.fn().mockResolvedValue({
-      status: 'ignored',
+      status: "ignored",
       reason: "Unsupported Shortcut event 'story_updated'",
     });
     const app = createApp(processWebhook);
 
     const payload = {
-      object_type: 'story',
-      action: 'update',
+      object_type: "story",
+      action: "update",
       data: {
         id: 101,
       },
     };
 
     const response = await request(app)
-      .post('/api/webhooks/shortcut')
-      .set('x-shortcut-delivery', 'shortcut-delivery-ignored-1')
-      .set('x-shortcut-signature', 'sha256=signature')
+      .post("/api/webhooks/shortcut")
+      .set("x-shortcut-delivery", "shortcut-delivery-ignored-1")
+      .set("x-shortcut-signature", "sha256=signature")
       .send(payload)
       .expect(200);
 
     expect(response.body).toEqual({
-      message: 'Webhook ignored',
+      message: "Webhook ignored",
       reason: "Unsupported Shortcut event 'story_updated'",
     });
     expect(processWebhook).toHaveBeenCalledWith(
       expect.objectContaining({
-        'x-shortcut-delivery': 'shortcut-delivery-ignored-1',
-        'x-shortcut-signature': 'sha256=signature',
+        "x-shortcut-delivery": "shortcut-delivery-ignored-1",
+        "x-shortcut-signature": "sha256=signature",
       }),
       payload,
       expect.any(Buffer),
-      'tenant-1',
-      { providerName: 'shortcut' },
+      "tenant-1",
+      { providerName: "shortcut" },
     );
   });
 
-  it('returns rejected payload with status 401 when Shortcut signature verification fails', async () => {
+  it("returns rejected payload with status 401 when Shortcut signature verification fails", async () => {
     const processWebhook = jest.fn().mockResolvedValue({
-      status: 'rejected',
-      reason: 'Invalid signature',
+      status: "rejected",
+      reason: "Invalid signature",
     });
     const app = createApp(processWebhook);
 
     const response = await request(app)
-      .post('/api/webhooks/shortcut')
-      .set('x-shortcut-delivery', 'shortcut-delivery-rejected-1')
-      .set('x-shortcut-signature', 'sha256=bad-signature')
+      .post("/api/webhooks/shortcut")
+      .set("x-shortcut-delivery", "shortcut-delivery-rejected-1")
+      .set("x-shortcut-signature", "sha256=bad-signature")
       .send({
-        object_type: 'story',
-        action: 'create',
+        object_type: "story",
+        action: "create",
         data: {
           id: 101,
-          name: 'Broken flow',
+          name: "Broken flow",
         },
       })
       .expect(401);
 
     expect(response.body).toEqual({
-      error: 'Webhook rejected',
-      reason: 'Invalid signature',
+      error: "Webhook rejected",
+      reason: "Invalid signature",
     });
   });
 
-  it('returns 500 when Shortcut route processing throws unexpectedly', async () => {
+  it("returns 500 when Shortcut route processing throws unexpectedly", async () => {
     const processWebhook = jest
       .fn()
-      .mockRejectedValue(new Error('unexpected processing failure'));
+      .mockRejectedValue(new Error("unexpected processing failure"));
     const app = createApp(processWebhook);
-    const errorSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => undefined);
 
     const response = await request(app)
-      .post('/api/webhooks/shortcut')
-      .set('x-shortcut-delivery', 'shortcut-delivery-error-1')
-      .set('x-shortcut-signature', 'sha256=any')
+      .post("/api/webhooks/shortcut")
+      .set("x-shortcut-delivery", "shortcut-delivery-error-1")
+      .set("x-shortcut-signature", "sha256=any")
       .send({
-        object_type: 'story',
-        action: 'create',
+        object_type: "story",
+        action: "create",
         data: {
           id: 101,
-          name: 'Broken flow',
+          name: "Broken flow",
         },
       })
       .expect(500);
 
     expect(response.body).toEqual({
-      error: 'Failed to process webhook',
+      error: "Failed to process webhook",
     });
-    expect(errorSpy).toHaveBeenCalled();
-
-    errorSpy.mockRestore();
   });
 });

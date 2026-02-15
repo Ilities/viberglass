@@ -20,74 +20,7 @@ import type {
 /**
  * GitHub webhook payload types
  */
-interface GitHubIssuePayload {
-  action: string;
-  issue: {
-    id: number;
-    number: number;
-    title: string;
-    state: string;
-    html_url: string;
-    user: { login: string };
-    created_at: string;
-    updated_at: string;
-    labels?: Array<{ name: string }>;
-  };
-  repository: {
-    id: number;
-    name: string;
-    full_name: string;
-    owner: { login: string };
-    private: boolean;
-  };
-  sender: {
-    login: string;
-    id: number;
-  };
-  installation?: {
-    id: number;
-  };
-}
 
-interface GitHubIssueCommentPayload {
-  action: string;
-  issue: {
-    id: number;
-    number: number;
-    title: string;
-    state: string;
-    html_url: string;
-    user: { login: string };
-  };
-  comment: {
-    id: number;
-    user: { login: string };
-    created_at: string;
-    updated_at: string;
-    body: string;
-  };
-  repository: {
-    id: number;
-    name: string;
-    full_name: string;
-    owner: { login: string };
-  };
-  sender: {
-    login: string;
-  };
-}
-
-interface GitHubLabel {
-  name: string;
-  color?: string;
-  description?: string;
-}
-
-/**
- * Default labels for success/failure states
- */
-const DEFAULT_SUCCESS_LABEL = "fix-submitted";
-const DEFAULT_FAILURE_LABEL = "fix-failed";
 
 /**
  * GitHub webhook provider

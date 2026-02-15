@@ -1,6 +1,5 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import type { ComponentProps, ReactElement } from 'react'
 import { GitHubInboundWebhookSection } from './GitHubInboundWebhookSection'
 import { GitHubOutboundWebhookSection } from './GitHubOutboundWebhookSection'
