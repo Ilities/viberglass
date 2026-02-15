@@ -89,6 +89,91 @@ describe('ShortcutWebhookProvider', () => {
     );
   });
 
+  it('normalizes legacy Shortcut event_type + story payloads into canonical data', () => {
+    const event = provider.parseEvent(
+      {
+        event_type: 'story_create',
+        member_id: 'member-legacy',
+        story: {
+          id: 202,
+          name: 'Legacy story payload',
+          story_type: 'bug',
+          project_id: 22,
+          project: {
+            id: 22,
+            name: 'Core Product',
+          },
+          created_at: '2026-02-10T00:02:00.000Z',
+          updated_at: '2026-02-10T00:02:00.000Z',
+        },
+      },
+      {
+        'x-shortcut-delivery': 'shortcut-delivery-legacy-1',
+      },
+    );
+
+    expect(event.eventType).toBe('story_created');
+    expect(event.metadata).toEqual(
+      expect.objectContaining({
+        issueKey: '202',
+        projectId: '22',
+        repositoryId: 'Core Product',
+        sender: 'member-legacy',
+      }),
+    );
+    expect(event.payload).toEqual(
+      expect.objectContaining({
+        object_type: 'story',
+        action: 'create',
+        data: expect.objectContaining({
+          id: 202,
+          name: 'Legacy story payload',
+        }),
+      }),
+    );
+  });
+
+  it('parses wrapped Shortcut payload JSON from payload field', () => {
+    const event = provider.parseEvent(
+      {
+        payload: JSON.stringify({
+          object_type: 'comment',
+          action: 'create',
+          member_id: 'member-wrapped',
+          data: {
+            id: 9555,
+            story_id: 202,
+            text: '@viberator fix this please',
+            created_at: '2026-02-10T00:03:00.000Z',
+            updated_at: '2026-02-10T00:03:00.000Z',
+          },
+        }),
+      },
+      {
+        'x-shortcut-delivery': 'shortcut-delivery-wrapped-1',
+      },
+    );
+
+    expect(event.eventType).toBe('comment_created');
+    expect(event.metadata).toEqual(
+      expect.objectContaining({
+        issueKey: '202',
+        commentId: '9555',
+        sender: 'member-wrapped',
+      }),
+    );
+    expect(event.payload).toEqual(
+      expect.objectContaining({
+        object_type: 'comment',
+        action: 'create',
+        data: expect.objectContaining({
+          id: 9555,
+          story_id: 202,
+        }),
+      }),
+    );
+  });
+
   it('enforces required story and comment fields for supported events', () => {
     expect(() =>
       provider.parseEvent(

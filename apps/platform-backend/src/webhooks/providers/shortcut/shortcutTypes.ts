@@ -41,14 +41,23 @@ export interface ShortcutCommentData {
 export interface ShortcutWebhookPayload {
   id?: string;
   object_type?: ShortcutWebhookObjectType | string;
+  event_type?: string;
   action?: string;
   member_id?: string;
   data?: Record<string, unknown>;
+  story?: Record<string, unknown>;
+  comment?: Record<string, unknown>;
+  payload?: Record<string, unknown> | string;
   refs?: Array<{
     id?: number;
     entity_type?: string;
   }>;
+  references?: Array<{
+    id?: number;
+    entity_type?: string;
+  }>;
   changed_fields?: string[];
+  changedFields?: string[];
 }
 
 export interface ShortcutOutboundSettings {
@@ -74,6 +83,7 @@ export interface ParsedShortcutEvent {
   deduplicationId: string;
   timestamp: string;
   metadata: ParsedWebhookEvent['metadata'];
+  payload: ShortcutWebhookPayload;
 }
 
 export interface ShortcutLabelResultConfig {
