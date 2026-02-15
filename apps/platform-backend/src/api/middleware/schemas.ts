@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { integrationRegistry } from "../../integrations/TicketingIntegrationRegistry";
+import { integrationRegistry } from "../../integration-plugins/TicketingIntegrationRegistry";
 
 const ticketSystemIds = integrationRegistry.listIds();
 

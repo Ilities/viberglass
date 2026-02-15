@@ -2,7 +2,7 @@ import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../../persistence/
 import { ProjectDAO } from '../../../persistence/project/ProjectDAO'
 import { IntegrationRouteServiceError } from './errors'
 import type { LinkProjectIntegrationInput } from './types'
-import { integrationRegistry } from '../../../integrations/TicketingIntegrationRegistry'
+import { integrationRegistry } from '../../../integration-plugins/TicketingIntegrationRegistry'
 import type { TicketSystem } from '@viberglass/types'
 
 export class ProjectIntegrationLinkService {

@@ -4,7 +4,7 @@ import * as path from "path";
 import { ConfigManager } from "../config/ConfigManager";
 import { AgentOrchestrator } from "../orchestrator/AgentOrchestrator";
 import { Configuration, ExecutionContext } from "../types";
-import { GitService } from "../services/GitService";
+import GitService from "../services/GitService";
 import {
   CodingJobData,
   JobResult,
@@ -110,8 +110,12 @@ export class ViberatorWorker {
       this.logger.level = this.config.logging.level;
 
       const agentConfigs = configManager.getAgentConfigs();
-      this.orchestrator = new AgentOrchestrator(agentConfigs, this.logger, configManager);
-      this.gitService = new GitService(this.logger);
+      this.orchestrator = new AgentOrchestrator(
+        agentConfigs,
+        this.logger,
+        configManager,
+      );
+      this.gitService = new GitService(this.logger, this.config.git);
 
       // Initialize callback client with callback token for authentication
       this.callbackClient = new CallbackClient(this.logger, {
@@ -127,7 +131,6 @@ export class ViberatorWorker {
 
       // Continue processing payload if provided
       if (payload) {
-
         // Load instruction files based on worker type
         if (payload.workerType === "lambda" || payload.workerType === "ecs") {
           // AWS workers: fetch from S3 - S3InstructionFile has s3Url
@@ -200,7 +203,7 @@ export class ViberatorWorker {
 
           // Ensure message is always a string
           let logMessage: string;
-          if (typeof logEntry.message === 'string') {
+          if (typeof logEntry.message === "string") {
             logMessage = logEntry.message;
           } else if (logEntry.message !== undefined) {
             // If message is an object or other type, stringify it
@@ -397,7 +400,9 @@ export class ViberatorWorker {
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.promises.writeFile(targetPath, content, "utf-8");
 
-      const relativePath = path.relative(repoDir, targetPath).replace(/\\/g, "/");
+      const relativePath = path
+        .relative(repoDir, targetPath)
+        .replace(/\\/g, "/");
       excludeAppend += `\n${relativePath}`;
     }
 

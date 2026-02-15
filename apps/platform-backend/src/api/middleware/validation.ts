@@ -72,7 +72,9 @@ export const validateLogEntry = createValidator(logEntrySchema);
 export const validateLogBatch = createValidator(logBatchSchema);
 export const validateCreateSecret = createValidator(secretSchema);
 export const validateUpdateSecret = createValidator(updateSecretSchema);
-export const validateIntegrationConfig = createValidator(integrationConfigSchema);
+export const validateIntegrationConfig = createValidator(
+  integrationConfigSchema,
+);
 export const validateRegister = createValidator(registerSchema);
 export const validateCreateUser = createValidator(createUserSchema);
 export const validateUpdateUserRole = createValidator(updateUserRoleSchema);
@@ -172,7 +174,10 @@ export const parseMultipartJsonFields = (
   }
 
   // Also parse autoFixRequested if it's a string
-  if (req.body.autoFixRequested && typeof req.body.autoFixRequested === "string") {
+  if (
+    req.body.autoFixRequested &&
+    typeof req.body.autoFixRequested === "string"
+  ) {
     req.body.autoFixRequested = req.body.autoFixRequested === "true";
   }
 
@@ -192,9 +197,9 @@ export const handleMulterError = (
   // Check if it's a multer error
   if (err.name === "MulterError") {
     const multerError = err as MulterError;
-    
-    let message = "File upload error";
-    
+
+    let message: string;
+
     switch (multerError.code) {
       case "LIMIT_FILE_SIZE":
         message = "File too large. Maximum file size is 10MB.";
@@ -208,7 +213,7 @@ export const handleMulterError = (
       default:
         message = multerError.message;
     }
-    
+
     return res.status(400).json({
       error: "File upload error",
       message: message,
