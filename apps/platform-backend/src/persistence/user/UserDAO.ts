@@ -1,5 +1,9 @@
+import type { Selectable } from "kysely";
 import db from "../config/database";
+import type { Database } from "../types/database";
 import type { UserRole } from "../types/user";
+
+type UsersRow = Selectable<Database["users"]>;
 
 export interface UserRecord {
   id: string;
@@ -109,7 +113,7 @@ export class UserDAO {
     return this.mapPublicUser(row);
   }
 
-  private mapUser(row: any): UserRecord {
+  private mapUser(row: UsersRow): UserRecord {
     return {
       id: row.id,
       email: row.email,
@@ -122,7 +126,7 @@ export class UserDAO {
     };
   }
 
-  private mapPublicUser(row: any): PublicUser {
+  private mapPublicUser(row: UsersRow): PublicUser {
     return {
       id: row.id,
       email: row.email,

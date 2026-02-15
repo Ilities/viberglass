@@ -54,8 +54,7 @@ function createRequest(
 
 function createChainedSelect(result: unknown) {
   const executeTakeFirst = jest.fn().mockResolvedValue(result);
-  let where: jest.Mock;
-  where = jest.fn(() => ({ where, executeTakeFirst }));
+  const where: jest.Mock = jest.fn(() => ({ where, executeTakeFirst }));
   const select = jest.fn(() => ({ where }));
   return { select, executeTakeFirst };
 }
@@ -67,7 +66,9 @@ describe("projectAuthorization middleware", () => {
 
   describe("requireProjectAccess", () => {
     it("allows access when user belongs to project", async () => {
-      const req = createRequest({ params: { projectId: "project-123" } as any });
+      const req = createRequest({
+        params: { projectId: "project-123" } as any,
+      });
       const res = createResponse();
       const next = jest.fn();
 
@@ -117,7 +118,9 @@ describe("projectAuthorization middleware", () => {
     });
 
     it("returns 403 when user is not member of project", async () => {
-      const req = createRequest({ params: { projectId: "project-999" } as any });
+      const req = createRequest({
+        params: { projectId: "project-999" } as any,
+      });
       const res = createResponse();
       const next = jest.fn();
 
@@ -137,7 +140,9 @@ describe("projectAuthorization middleware", () => {
 
   describe("requireProjectAdmin", () => {
     it("allows admin users", async () => {
-      const req = createRequest({ params: { projectId: "project-123" } as any });
+      const req = createRequest({
+        params: { projectId: "project-123" } as any,
+      });
       const res = createResponse();
       const next = jest.fn();
 
@@ -153,7 +158,9 @@ describe("projectAuthorization middleware", () => {
     });
 
     it("blocks non-admin users", async () => {
-      const req = createRequest({ params: { projectId: "project-123" } as any });
+      const req = createRequest({
+        params: { projectId: "project-123" } as any,
+      });
       const res = createResponse();
       const next = jest.fn();
 
@@ -200,7 +207,9 @@ describe("projectAuthorization middleware", () => {
     });
 
     it("returns 404 when ticket is missing", async () => {
-      const req = createRequest({ params: { ticketId: "missing-ticket" } as any });
+      const req = createRequest({
+        params: { ticketId: "missing-ticket" } as any,
+      });
       const res = createResponse();
       const next = jest.fn();
 

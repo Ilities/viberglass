@@ -6,7 +6,6 @@
  */
 
 import type {
-  ParsedWebhookEvent,
   WebhookEventMetadata,
   WebhookProviderConfig,
   WebhookResult,
@@ -123,8 +122,7 @@ export abstract class BaseWebhookProvider extends WebhookProvider {
     }
 
     // Check for generic action field
-    const action = payload.action as string | undefined;
-    return action;
+    return payload.action as string | undefined;
   }
 
   /**
@@ -332,6 +330,7 @@ export abstract class BaseWebhookProvider extends WebhookProvider {
     baseUrl: string,
     token: string,
   ): AxiosInstance {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const axios = require("axios");
 
     return axios.create({

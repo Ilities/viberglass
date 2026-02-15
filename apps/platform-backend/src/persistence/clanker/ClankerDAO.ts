@@ -1,5 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
+import type { Selectable } from "kysely";
 import db from "../config/database";
+import type { Database } from "../types/database";
 import type {
   Clanker,
   ClankerConfigFile,
@@ -8,7 +10,36 @@ import type {
   ClankerStatus,
   DeploymentStrategy,
   ConfigFileInput,
+  AgentType,
 } from "@viberglass/types";
+
+type ClankersRow = Selectable<Database["clankers"]>;
+type ClankerConfigFilesRow = Selectable<Database["clanker_config_files"]>;
+
+// Valid agent types for runtime validation
+const VALID_AGENT_TYPES: string[] = [
+  "claude-code",
+  "qwen-cli",
+  "qwen-api",
+  "codex",
+  "opencode",
+  "kimi-code",
+  "gemini-cli",
+  "mistral-vibe",
+];
+
+function isValidAgentType(value: unknown): value is AgentType {
+  return typeof value === "string" && VALID_AGENT_TYPES.includes(value);
+}
+
+// Joined query result type with aliased columns from deployment_strategies
+type ClankerWithStrategyRow = ClankersRow & {
+  strategy_id: string | null;
+  strategy_name: string | null;
+  strategy_description: string | null;
+  strategy_config_schema: unknown;
+  strategy_created_at: Date | null;
+};
 
 const slugify = (text: string) =>
   text
@@ -328,11 +359,11 @@ export class ClankerDAO {
       .execute();
   }
 
-  private mapRowToClanker(row: any, configFiles: ClankerConfigFile[]): Clanker {
+  private mapRowToClanker(row: ClankerWithStrategyRow, configFiles: ClankerConfigFile[]): Clanker {
     const deploymentStrategy: DeploymentStrategy | null = row.strategy_id
       ? {
           id: row.strategy_id,
-          name: row.strategy_name,
+          name: row.strategy_name ?? "",
           description: row.strategy_description || null,
           configSchema:
             row.strategy_config_schema != null
@@ -343,7 +374,7 @@ export class ClankerDAO {
           createdAt:
             row.strategy_created_at instanceof Date
               ? row.strategy_created_at.toISOString()
-              : row.strategy_created_at,
+              : (row.strategy_created_at ?? new Date().toISOString()),
         }
       : null;
 
@@ -361,7 +392,7 @@ export class ClankerDAO {
             : row.deployment_config
           : null,
       configFiles,
-      agent: row.agent || null,
+      agent: isValidAgentType(row.agent) ? row.agent : null,
       secretIds:
         row.secret_ids != null
           ? typeof row.secret_ids === "string"
@@ -381,7 +412,7 @@ export class ClankerDAO {
     };
   }
 
-  private mapRowToConfigFile(row: any): ClankerConfigFile {
+  private mapRowToConfigFile(row: ClankerConfigFilesRow): ClankerConfigFile {
     return {
       id: row.id,
       clankerId: row.clanker_id,

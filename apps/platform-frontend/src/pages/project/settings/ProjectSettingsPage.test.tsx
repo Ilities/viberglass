@@ -15,6 +15,9 @@ import {
   upsertProjectScmConfig,
 } from '@/service/api/project-api'
 import { ProjectSettingsPage } from './ProjectSettingsPage'
+import type { Project } from '@/service/api/project-api'
+import type { AvailableIntegrationType, ProjectIntegrationWithDetails } from '@/service/api/integration-api'
+import type { ProjectScmConfig, IntegrationCredential } from '@viberglass/types'
 
 jest.mock('@/context/project-context', () => ({
   useProject: jest.fn(),
@@ -61,7 +64,7 @@ beforeAll(() => {
     disconnect() {}
   }
 
-  ;(global as any).ResizeObserver = ResizeObserverMock
+  ;(global as unknown as { ResizeObserver: typeof ResizeObserverMock }).ResizeObserver = ResizeObserverMock
 })
 
 const PROJECT = {
@@ -106,12 +109,12 @@ function renderPage() {
   )
 }
 
-async function waitForInitialLoad() {
+async function waitForInitialLoad(expectedCredentialIntegrationId: string = INITIAL_SCM_CONFIG.integrationId) {
   await waitFor(() => {
     expect(mockedGetAvailableIntegrationTypes).toHaveBeenCalled()
     expect(mockedGetProjectIntegrations).toHaveBeenCalledWith(PROJECT.id)
     expect(mockedGetProjectScmConfig).toHaveBeenCalledWith(PROJECT.id)
-    expect(mockedGetIntegrationCredentials).toHaveBeenCalledWith(INITIAL_SCM_CONFIG.integrationId)
+    expect(mockedGetIntegrationCredentials).toHaveBeenCalledWith(expectedCredentialIntegrationId)
   })
 }
 
@@ -120,7 +123,7 @@ describe('ProjectSettingsPage', () => {
     jest.resetAllMocks()
 
     mockedUseProject.mockReturnValue({
-      project: PROJECT as any,
+      project: PROJECT as unknown as Project,
       isLoading: false,
       error: null,
     })
@@ -135,7 +138,7 @@ describe('ProjectSettingsPage', () => {
         configFields: [],
         supports: { issues: true },
         status: 'ready',
-      } as any,
+      } as AvailableIntegrationType,
       {
         id: 'github',
         label: 'GitHub',
@@ -145,7 +148,7 @@ describe('ProjectSettingsPage', () => {
         configFields: [],
         supports: { issues: true, pullRequests: true },
         status: 'ready',
-      } as any,
+      } as AvailableIntegrationType,
     ])
 
     mockedGetProjectIntegrations.mockResolvedValue([
@@ -175,9 +178,9 @@ describe('ProjectSettingsPage', () => {
           isActive: true,
         },
       },
-    ] as any)
+    ] as ProjectIntegrationWithDetails[])
 
-    mockedGetProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as any)
+    mockedGetProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as unknown as ProjectScmConfig)
     mockedGetIntegrationCredentials.mockResolvedValue([
       {
         id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
@@ -193,10 +196,10 @@ describe('ProjectSettingsPage', () => {
         createdAt: '2026-02-10T00:00:00.000Z',
         updatedAt: '2026-02-10T00:00:00.000Z',
       },
-    ] as any)
+    ] as IntegrationCredential[])
 
-    mockedUpdateProject.mockResolvedValue(PROJECT as any)
-    mockedUpsertProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as any)
+    mockedUpdateProject.mockResolvedValue(PROJECT as unknown as Project)
+    mockedUpsertProjectScmConfig.mockResolvedValue(INITIAL_SCM_CONFIG as unknown as ProjectScmConfig)
     mockedDeleteProjectScmConfig.mockResolvedValue()
   })
 
@@ -372,5 +375,29 @@ describe('ProjectSettingsPage', () => {
       ).toBeInTheDocument()
     })
     expect(mockedUpsertProjectScmConfig).not.toHaveBeenCalled()
+  })
+
+  it('falls back to primary SCM integration selection when SCM config is missing', async () => {
+    mockedUseProject.mockReturnValue({
+      project: {
+        ...PROJECT,
+        primaryScmIntegrationId: INITIAL_SCM_CONFIG.integrationId,
+      } as unknown as Project,
+      isLoading: false,
+      error: null,
+    })
+    mockedGetProjectScmConfig.mockResolvedValue(null)
+    mockedGetIntegrationCredentials.mockResolvedValue([])
+
+    const { container } = renderPage()
+    await waitForInitialLoad(INITIAL_SCM_CONFIG.integrationId)
+
+    await waitFor(() => {
+      const scmIntegrationSelect = container.querySelector(
+        'select[name="scm_integration"]'
+      ) as HTMLSelectElement | null
+      expect(scmIntegrationSelect).not.toBeNull()
+      expect(scmIntegrationSelect?.value).toBe(INITIAL_SCM_CONFIG.integrationId)
+    })
   })
 })

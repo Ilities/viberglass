@@ -69,7 +69,7 @@ export function sanitize<T>(obj: T): T {
 /**
  * Redact sensitive values in-place (preserves Winston symbols)
  */
-export function sanitizeInPlace(obj: any): any {
+export function sanitizeInPlace(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
 
   if (Array.isArray(obj)) {
@@ -81,11 +81,12 @@ export function sanitizeInPlace(obj: any): any {
 
   if (typeof obj !== "object") return obj;
 
-  for (const [key, value] of Object.entries(obj)) {
+  const record = obj as Record<string, unknown>;
+  for (const [key, value] of Object.entries(record)) {
     if (isSensitiveKey(key)) {
-      obj[key] = "[REDACTED]";
+      record[key] = "[REDACTED]";
     } else if (typeof value === "object" && value !== null) {
-      obj[key] = sanitizeInPlace(value);
+      record[key] = sanitizeInPlace(value);
     }
   }
 
@@ -149,7 +150,7 @@ export function sanitizeError(error: unknown): string {
 export function createSanitizeFormat() {
   // Winston format expects a function that returns the info object
   return {
-    transform(info: any) {
+    transform(info: unknown) {
       return sanitize(info);
     },
   };
