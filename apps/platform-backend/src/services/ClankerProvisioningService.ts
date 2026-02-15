@@ -1,8 +1,6 @@
 import Docker from "dockerode";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { existsSync } from "fs";
 import {
   ECSClient,
   DescribeTaskDefinitionCommand,
@@ -24,6 +22,22 @@ const logger = createChildLogger({ service: "ClankerProvisioningService" });
 const DEFAULT_LOCAL_DOCKER_IMAGE = "viberator-worker:local";
 const DEFAULT_DOCKERFILE_PATH =
   "infra/workers/docker/viberator-docker-worker.Dockerfile";
+
+function resolveRepoRoot(): string {
+  const cwd = process.cwd();
+  const candidates = [
+    cwd,
+    path.resolve(cwd, ".."),
+    path.resolve(cwd, "../.."),
+    path.resolve(cwd, "../../.."),
+  ];
+
+  const matching = candidates.find((candidate) =>
+    existsSync(path.resolve(candidate, DEFAULT_DOCKERFILE_PATH)),
+  );
+
+  return matching || path.resolve(cwd, "../..");
+}
 
 type ProvisioningProgressReporter = (
   statusMessage: string,
@@ -202,7 +216,7 @@ export class ClankerProvisioningService {
     const region = process.env.AWS_REGION || "eu-west-1";
     this.ecsClient = new ECSClient({ region });
     this.lambdaClient = new LambdaClient({ region });
-    this.repoRoot = path.resolve(__dirname, "../../../../");
+    this.repoRoot = resolveRepoRoot();
   }
 
   async provisionClanker(
