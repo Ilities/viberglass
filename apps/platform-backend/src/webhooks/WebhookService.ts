@@ -28,7 +28,10 @@ import type {
 } from "../persistence/webhook/WebhookDeliveryDAO";
 import type { DeduplicationService } from "./DeduplicationService";
 import type { WebhookSecretService } from "./WebhookSecretService";
-import type { InboundEventProcessorResolver, EventProcessingResult } from "./InboundEventProcessorResolver";
+import type {
+  InboundEventProcessorResolver,
+  EventProcessingResult,
+} from "./InboundEventProcessorResolver";
 import { createChildLogger } from "../config/logger";
 
 const logger = createChildLogger({ service: "WebhookService" });
@@ -158,7 +161,8 @@ export class WebhookService {
 
     // Check if event type is allowed
     if (!this.isEventAllowed(event, dbConfig)) {
-      const allowedCandidates = this.getAllowedEventCandidates(event).join(", ");
+      const allowedCandidates =
+        this.getAllowedEventCandidates(event).join(", ");
       const reason = `Event '${allowedCandidates}' not allowed for webhook config '${dbConfig.id}'`;
       await this.recordFailedDelivery(event, dbConfig, reason);
       return {
@@ -337,7 +341,11 @@ export class WebhookService {
           : {}),
       });
 
-      const result = await this.processProviderEvent(event, dbConfig, undefined);
+      const result = await this.processProviderEvent(
+        event,
+        dbConfig,
+        undefined,
+      );
 
       if (result.ticketId && result.projectId) {
         await this.deduplication.recordDeliverySuccessById(
@@ -379,8 +387,7 @@ export class WebhookService {
         jobId: result.jobId,
       };
     } catch (error) {
-      const reason =
-        error instanceof Error ? error.message : "Unknown error";
+      const reason = error instanceof Error ? error.message : "Unknown error";
       await this.deduplication.recordDeliveryFailureById(
         delivery.id,
         error instanceof Error ? error : new Error(String(error)),
@@ -478,7 +485,10 @@ export class WebhookService {
       const providerConfigs = integrationConfigs.filter(
         (config) => config.provider === options.providerName,
       );
-      return this.selectDeterministicConfig(providerConfigs, providerProjectIds);
+      return this.selectDeterministicConfig(
+        providerConfigs,
+        providerProjectIds,
+      );
     }
 
     for (const providerProjectId of providerProjectIds) {
@@ -500,7 +510,10 @@ export class WebhookService {
       const providerConfigs = projectConfigs.filter(
         (config) => config.provider === options.providerName,
       );
-      return this.selectDeterministicConfig(providerConfigs, providerProjectIds);
+      return this.selectDeterministicConfig(
+        providerConfigs,
+        providerProjectIds,
+      );
     }
 
     return null;
@@ -571,7 +584,9 @@ export class WebhookService {
       this.normalizeCandidate(referencedStory?.id),
     ];
 
-    return candidates.filter((candidate): candidate is string => Boolean(candidate));
+    return candidates.filter((candidate): candidate is string =>
+      Boolean(candidate),
+    );
   }
 
   private normalizeCandidate(value: unknown): string | undefined {
@@ -657,7 +672,10 @@ export class WebhookService {
     };
   }
 
-  private isEventAllowed(event: ParsedWebhookEvent, config: WebhookConfig): boolean {
+  private isEventAllowed(
+    event: ParsedWebhookEvent,
+    config: WebhookConfig,
+  ): boolean {
     if (!config.allowedEvents || config.allowedEvents.length === 0) {
       return true;
     }
@@ -703,11 +721,10 @@ export class WebhookService {
         return headers["x-hub-signature-256"] || headers["x-hub-signature"];
       case "jira":
         return (
-          headers["x-atlassian-webhook-signature"] ||
-          headers["x-hub-signature"]
+          headers["x-atlassian-webhook-signature"] || headers["x-hub-signature"]
         );
       case "shortcut":
-        return headers["x-shortcut-signature"];
+        return headers["payload-signature"];
       case "custom":
         return headers["x-webhook-signature-256"];
       default:
@@ -831,7 +848,9 @@ export class WebhookService {
     config: WebhookConfig,
     tenantId?: string,
   ): Promise<EventProcessingResult> {
-    const processor = this.processorResolver.resolve(event.provider as ProviderType);
+    const processor = this.processorResolver.resolve(
+      event.provider as ProviderType,
+    );
     return processor.process({
       event,
       config,
