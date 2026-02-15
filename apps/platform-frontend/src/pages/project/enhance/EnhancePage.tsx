@@ -70,7 +70,7 @@ export function EnhancePage() {
     <>
       <div className="flex items-center gap-4">
         <Heading>Enhance & Auto-Fix</Heading>
-        <Badge className={formatSeverity(ticket.severity).color}>{formatSeverity(ticket.severity).label}</Badge>
+        <Badge color={formatSeverity(ticket.severity).badgeColor}>{formatSeverity(ticket.severity).label}</Badge>
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
