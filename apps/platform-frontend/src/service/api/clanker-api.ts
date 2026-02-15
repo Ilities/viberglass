@@ -99,16 +99,21 @@ export async function startClanker(id: string): Promise<Clanker> {
   return data.data
 }
 
-export async function stopClanker(id: string): Promise<Clanker> {
-  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/stop`, {
+export async function deactivateClanker(id: string): Promise<Clanker> {
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/deactivate`, {
     method: 'POST',
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || error.error || 'Failed to stop clanker')
+    throw new Error(error.message || error.error || 'Failed to deactivate clanker')
   }
   const data: ApiResponse<Clanker> = await response.json()
   return data.data
+}
+
+// Backward-compatible alias.
+export async function stopClanker(id: string): Promise<Clanker> {
+  return deactivateClanker(id)
 }
 
 export async function getClankerHealth(id: string): Promise<ClankerHealthStatus> {

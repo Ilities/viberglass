@@ -63,3 +63,21 @@ These are the single source of truth instructions for agent behavior and backend
 - Confirm the change complies with sections 2 through 7.
 - Ensure tests cover orchestration and extracted behaviors for touched logic.
 - If a user request conflicts with these rules, implement the request and explicitly call out the conflict.
+
+### 9) UI Change Verification
+
+When making UI changes, verify them visually using the agent-browser skill:
+
+1. Read credentials from `.agent-browser-creds` (gitignored file)
+2. Use the agent-browser skill to:
+   - Navigate to the application
+   - Log in with the credentials
+   - Take screenshots of affected UI areas
+   - Interact with forms/components as needed to verify functionality
+3. Review screenshots to confirm visual changes match expectations
+
+**Credential file format:**
+```
+VIBERATOR_USERNAME=<email>
+VIBERATOR_PASSWORD=<password>
+```
