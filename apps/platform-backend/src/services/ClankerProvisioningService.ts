@@ -63,6 +63,9 @@ function getWorkerImageForClanker(
   if (agentType === "codex") {
     return buildImageUrl(registry, imagePrefix, "codex", strategy);
   }
+  if (agentType === "opencode") {
+    return buildImageUrl(registry, imagePrefix, "opencode", strategy);
+  }
   if (agentType === "kimi-code") {
     return buildImageUrl(registry, imagePrefix, "kimi", strategy);
   }

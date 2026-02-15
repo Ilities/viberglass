@@ -12,6 +12,7 @@ export type AgentType =
   | 'qwen-cli'
   | 'qwen-api'
   | 'codex'
+  | 'opencode'
   | 'kimi-code'
   | 'gemini-cli'
   | 'mistral-vibe'

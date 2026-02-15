@@ -19,6 +19,12 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
     names: ['OPENAI_API_KEY', 'CODEX_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_ORG_ID'],
   },
   {
+    id: 'opencode',
+    label: 'OpenCode',
+    helper: 'Recommended: OPENCODE_API_KEY or OPENAI_API_KEY.',
+    names: ['OPENCODE_API_KEY', 'OPENAI_API_KEY', 'OPENCODE_BASE_URL', 'OPENAI_BASE_URL'],
+  },
+  {
     id: 'qwen-cli',
     label: 'Qwen CLI',
     helper: 'Recommended: DASHSCOPE_API_KEY.',

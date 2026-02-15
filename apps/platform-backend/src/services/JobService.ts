@@ -108,6 +108,8 @@ export class JobService {
 
     if (status === "completed" || status === "failed") {
       updateData.finished_at = new Date();
+      // Also update heartbeat - result callback proves worker is alive
+      updateData.last_heartbeat = new Date();
     }
 
     await db
