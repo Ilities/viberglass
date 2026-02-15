@@ -430,6 +430,23 @@ export interface IntegrationInboundWebhookConfig {
   updatedAt: string
 }
 
+function toAbsoluteWebhookUrl(webhookUrl: string): string {
+  try {
+    return new URL(webhookUrl, API_BASE_URL).toString()
+  } catch {
+    return webhookUrl
+  }
+}
+
+function normalizeInboundWebhookConfig(
+  config: IntegrationInboundWebhookConfig
+): IntegrationInboundWebhookConfig {
+  return {
+    ...config,
+    webhookUrl: toAbsoluteWebhookUrl(config.webhookUrl),
+  }
+}
+
 export interface IntegrationOutboundWebhookConfig {
   id: string
   provider: string
@@ -504,7 +521,7 @@ export async function getIntegrationInboundWebhooks(
     throw new Error('Failed to fetch inbound webhooks')
   }
   const data: ApiResponse<IntegrationInboundWebhookConfig[]> = await response.json()
-  return data.data
+  return data.data.map(normalizeInboundWebhookConfig)
 }
 
 /**
@@ -545,7 +562,7 @@ export async function createIntegrationInboundWebhook(
     throw new Error(error.message || 'Failed to create inbound webhook')
   }
   const data: ApiResponse<IntegrationInboundWebhookConfig> = await response.json()
-  return data.data
+  return normalizeInboundWebhookConfig(data.data)
 }
 
 /**
@@ -587,7 +604,7 @@ export async function updateIntegrationInboundWebhook(
     throw new Error(error.message || 'Failed to update inbound webhook')
   }
   const data: ApiResponse<IntegrationInboundWebhookConfig> = await response.json()
-  return data.data
+  return normalizeInboundWebhookConfig(data.data)
 }
 
 /**
