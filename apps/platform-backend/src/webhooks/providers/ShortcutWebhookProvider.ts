@@ -1,24 +1,24 @@
-import axios, { type AxiosInstance } from 'axios';
-import crypto from 'crypto';
-import { BaseWebhookProvider } from './BaseWebhookProvider';
+import axios, { type AxiosInstance } from "axios";
+import crypto from "crypto";
+import { BaseWebhookProvider } from "./BaseWebhookProvider";
 import type {
   ParsedWebhookEvent,
   WebhookProviderConfig,
   WebhookResult,
-} from '../WebhookProvider';
-import type { ShortcutWebhookProviderDependencies } from './shortcut/shortcutDependencies';
-import type { ShortcutStory } from './shortcut/shortcutTypes';
+} from "../WebhookProvider";
+import type { ShortcutWebhookProviderDependencies } from "./shortcut/shortcutDependencies";
+import type { ShortcutStory } from "./shortcut/shortcutTypes";
 
-export { createShortcutWebhookProviderDependencies } from './shortcut/createShortcutWebhookProviderDependencies';
-export type { ShortcutWebhookProviderDependencies } from './shortcut/shortcutDependencies';
+export { createShortcutWebhookProviderDependencies } from "./shortcut/createShortcutWebhookProviderDependencies";
+export type { ShortcutWebhookProviderDependencies } from "./shortcut/shortcutDependencies";
 
 const SUPPORTED_EVENTS = [
-  'story_created',
-  'story_updated',
-  'story_deleted',
-  'comment_created',
-  'comment_updated',
-  'comment_deleted',
+  "story_created",
+  "story_updated",
+  "story_deleted",
+  "comment_created",
+  "comment_updated",
+  "comment_deleted",
 ];
 
 function verifyShortcutSignature(
@@ -26,7 +26,7 @@ function verifyShortcutSignature(
   signature: string,
   secret: string,
 ): boolean {
-  const receivedSignature = signature.startsWith('sha256=')
+  const receivedSignature = signature.startsWith("sha256=")
     ? signature.slice(7)
     : signature;
 
@@ -34,11 +34,11 @@ function verifyShortcutSignature(
     return false;
   }
 
-  const hmac = crypto.createHmac('sha256', secret);
+  const hmac = crypto.createHmac("sha256", secret);
   hmac.update(payload);
-  const expectedSignature = hmac.digest('hex');
-  const receivedBuffer = Buffer.from(receivedSignature, 'hex');
-  const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+  const expectedSignature = hmac.digest("hex");
+  const receivedBuffer = Buffer.from(receivedSignature, "hex");
+  const expectedBuffer = Buffer.from(expectedSignature, "hex");
 
   if (receivedBuffer.length !== expectedBuffer.length) {
     return false;
@@ -48,7 +48,7 @@ function verifyShortcutSignature(
 }
 
 export class ShortcutWebhookProvider extends BaseWebhookProvider {
-  readonly name = 'shortcut';
+  readonly name = "shortcut";
 
   constructor(
     config: WebhookProviderConfig,
@@ -64,11 +64,11 @@ export class ShortcutWebhookProvider extends BaseWebhookProvider {
     const parsed = this.dependencies.payloadParser.parse(payload, headers);
 
     return {
-      provider: 'shortcut',
+      provider: "shortcut",
       eventType: parsed.eventType,
       deduplicationId: parsed.deduplicationId,
       timestamp: parsed.timestamp,
-      payload,
+      payload: parsed.payload,
       metadata: parsed.metadata,
     };
   }
@@ -82,17 +82,15 @@ export class ShortcutWebhookProvider extends BaseWebhookProvider {
   }
 
   validateConfig(config: WebhookProviderConfig): boolean {
-    if (!config.webhookSecret && config.secretLocation === 'database') {
+    if (!config.webhookSecret && config.secretLocation === "database") {
       return false;
     }
     if (!config.apiToken) {
       return false;
     }
-    if (!Array.isArray(config.allowedEvents) || config.allowedEvents.length === 0) {
-      return false;
-    }
-
-    return true;
+    return !(
+      !Array.isArray(config.allowedEvents) || config.allowedEvents.length === 0
+    );
   }
 
   async postComment(storyId: string, body: string): Promise<void> {
@@ -122,7 +120,9 @@ export class ShortcutWebhookProvider extends BaseWebhookProvider {
     const commentBody = this.formatCommentBody(result);
     await this.postComment(storyId, commentBody);
 
-    const settings = this.dependencies.configResolver.resolveOutboundSettings(this.config);
+    const settings = this.dependencies.configResolver.resolveOutboundSettings(
+      this.config,
+    );
     if (!settings.skipLabelUpdates) {
       const { add, remove } = this.formatLabels(result.success, {
         success: settings.successLabel,
@@ -140,16 +140,18 @@ export class ShortcutWebhookProvider extends BaseWebhookProvider {
   }
 
   protected createHttpClient(): AxiosInstance {
-    const apiBaseUrl = this.dependencies.configResolver.resolveApiBaseUrl(this.config);
-    const token = this.config.apiToken || '';
+    const apiBaseUrl = this.dependencies.configResolver.resolveApiBaseUrl(
+      this.config,
+    );
+    const token = this.config.apiToken || "";
 
     return axios.create({
       baseURL: apiBaseUrl,
       headers: {
-        'Shortcut-Token': token,
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Viberglass-Webhook/1.0',
+        "Shortcut-Token": token,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Viberglass-Webhook/1.0",
       },
       timeout: 30000,
     });
@@ -163,7 +165,10 @@ export class ShortcutWebhookProvider extends BaseWebhookProvider {
     );
   }
 
-  async updateStoryState(storyId: string, workflowStateId: number): Promise<void> {
+  async updateStoryState(
+    storyId: string,
+    workflowStateId: number,
+  ): Promise<void> {
     await this.dependencies.storyClient.updateStoryState(
       this.getHttpClient(),
       storyId,
