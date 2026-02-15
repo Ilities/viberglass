@@ -41,6 +41,10 @@ RUN npm install -g @google/gemini-cli
 # Source: https://github.com/openai/codex
 RUN npm install -g @openai/codex
 
+# Install OpenCode CLI
+# Source: https://opencode.ai/docs
+RUN npm install -g opencode-ai@latest
+
 # Install Kimi Code CLI
 # Source: https://moonshotai.github.io/Kimi-K2/cli/getting-started/
 RUN curl -fsSL https://cli.moonshot.ai/kimi.sh | bash
@@ -81,7 +85,7 @@ ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
 # Multi-agent labels
-LABEL agent.types="claude-code,qwen-cli,qwen-api,gemini-cli,mistral-vibe,codex,kimi-code" \
+LABEL agent.types="claude-code,qwen-cli,qwen-api,gemini-cli,mistral-vibe,codex,opencode,kimi-code" \
       viberator.worker-type="multi-agent" \
       viberator.capabilities="all-agents"
 

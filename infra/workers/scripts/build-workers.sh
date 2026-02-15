@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build script for all Viberator worker Docker images
 # Usage: ./build-workers.sh [image-type] [tag]
-#   image-type: all | claude | qwen | gemini | mistral | codex | kimi | multi-agent | testing | deployment | fullstack
+#   image-type: all | claude | qwen | gemini | mistral | codex | opencode | kimi | multi-agent | testing | deployment | fullstack
 #   tag: optional tag/version (default: latest)
 
 set -e
@@ -23,18 +23,19 @@ IMAGE_PREFIX="${VIBERATOR_WORKER_IMAGE_PREFIX:-viberator}"
 
 # Array of all worker images
 declare -A WORKER_IMAGES=(
-    ["claude"]="docker/viberator-docker-worker.Dockerfile"
-    ["ecs"]="docker/viberator-ecs-worker.Dockerfile"
-    ["lambda"]="docker/viberator-lambda.Dockerfile"
-    ["qwen"]="docker/agents/viberator-worker-qwen.Dockerfile"
-    ["gemini"]="docker/agents/viberator-worker-gemini.Dockerfile"
-    ["mistral"]="docker/agents/viberator-worker-mistral.Dockerfile"
-    ["codex"]="docker/agents/viberator-worker-codex.Dockerfile"
-    ["kimi"]="docker/agents/viberator-worker-kimi.Dockerfile"
-    ["multi-agent"]="docker/viberator-worker-multi-agent.Dockerfile"
-    ["testing"]="docker/tasks/viberator-worker-testing.Dockerfile"
-    ["deployment"]="docker/tasks/viberator-worker-deployment.Dockerfile"
-    ["fullstack"]="docker/tasks/viberator-worker-fullstack.Dockerfile"
+    ["claude"]="infra/workers/docker/viberator-docker-worker.Dockerfile"
+    ["ecs"]="infra/workers/docker/viberator-ecs-worker.Dockerfile"
+    ["lambda"]="infra/workers/docker/viberator-lambda.Dockerfile"
+    ["qwen"]="infra/workers/docker/agents/viberator-worker-qwen.Dockerfile"
+    ["gemini"]="infra/workers/docker/agents/viberator-worker-gemini.Dockerfile"
+    ["mistral"]="infra/workers/docker/agents/viberator-worker-mistral.Dockerfile"
+    ["codex"]="infra/workers/docker/agents/viberator-worker-codex.Dockerfile"
+    ["opencode"]="infra/workers/docker/agents/viberator-worker-opencode.Dockerfile"
+    ["kimi"]="infra/workers/docker/agents/viberator-worker-kimi.Dockerfile"
+    ["multi-agent"]="infra/workers/docker/viberator-worker-multi-agent.Dockerfile"
+    ["testing"]="infra/workers/docker/tasks/viberator-worker-testing.Dockerfile"
+    ["deployment"]="infra/workers/docker/tasks/viberator-worker-deployment.Dockerfile"
+    ["fullstack"]="infra/workers/docker/tasks/viberator-worker-fullstack.Dockerfile"
 )
 
 declare -A IMAGE_NAMES=(
@@ -45,6 +46,7 @@ declare -A IMAGE_NAMES=(
     ["gemini"]="viberator-worker-gemini"
     ["mistral"]="viberator-worker-mistral"
     ["codex"]="viberator-worker-codex"
+    ["opencode"]="viberator-worker-opencode"
     ["kimi"]="viberator-worker-kimi"
     ["multi-agent"]="viberator-worker-multi-agent"
     ["testing"]="viberator-worker-testing"
@@ -62,6 +64,26 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+ensure_base_image() {
+    local base_tag="$IMAGE_PREFIX-base-worker:latest"
+    local base_dockerfile="infra/workers/docker/base/base-worker.Dockerfile"
+
+    if docker image inspect "$base_tag" >/dev/null 2>&1; then
+        log_info "Base image already present: $base_tag"
+        return 0
+    fi
+
+    log_info "Base image not found. Building $base_tag from $base_dockerfile"
+    cd "$REPO_ROOT"
+    if docker build -f "$base_dockerfile" -t "$base_tag" .; then
+        log_info "Successfully built base image: $base_tag"
+        return 0
+    else
+        log_error "Failed to build base image: $base_tag"
+        return 1
+    fi
 }
 
 build_image() {
@@ -83,8 +105,11 @@ build_image() {
 
     # Build arguments for base image
     BUILD_ARGS=""
-    if [[ "$dockerfile" == docker/agents/* ]]; then
-        # Agent images need the base image built first
+    if [[ "$dockerfile" == infra/workers/docker/agents/* ]]; then
+        # Agent images extend the shared base worker image.
+        if ! ensure_base_image; then
+            return 1
+        fi
         BUILD_ARGS="--build-arg BASE_IMAGE=$IMAGE_PREFIX-base-worker:latest"
     fi
 
@@ -131,7 +156,7 @@ Build Viberator worker Docker images.
 Arguments:
   image-type    Type of worker image to build (default: all)
                 Options: all, claude, ecs, lambda, qwen, gemini, mistral,
-                         codex, kimi, multi-agent, testing, deployment, fullstack
+                         codex, opencode, kimi, multi-agent, testing, deployment, fullstack
 
   tag           Image tag/version (default: latest)
 
