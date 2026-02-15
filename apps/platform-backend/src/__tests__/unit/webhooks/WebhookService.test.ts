@@ -326,7 +326,7 @@ describe("WebhookService", () => {
     const result = await service.processWebhook(
       {
         "x-shortcut-delivery": "shortcut-delivery",
-        "x-shortcut-signature": "sha256=valid-signature",
+        "payload-signature": "sha256=valid-signature",
       },
       event.payload,
       rawBody,
@@ -384,7 +384,7 @@ describe("WebhookService", () => {
     const result = await service.processWebhook(
       {
         "x-shortcut-delivery": "shortcut-delivery-story-1",
-        "x-shortcut-signature": "sha256=valid-signature",
+        "payload-signature": "sha256=valid-signature",
       },
       event.payload,
       rawBody,
