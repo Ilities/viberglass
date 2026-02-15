@@ -19,7 +19,6 @@ import { CallbackClient } from "./CallbackClient";
 import { CredentialProvider } from "./CredentialProvider";
 import { ConfigLoader } from "./ConfigLoader";
 import { Writable } from "stream";
-import { GithubClonePreflightValidator } from "../services/GithubClonePreflightValidator";
 
 export class ViberatorWorker {
   private logger: Logger;
@@ -119,7 +118,6 @@ export class ViberatorWorker {
       this.gitService = new GitService(
         this.logger,
         this.config.git,
-        new GithubClonePreflightValidator(this.logger),
       );
 
       // Initialize callback client with callback token for authentication
