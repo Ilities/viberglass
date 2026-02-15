@@ -76,6 +76,42 @@ function formatConfigValue(value: unknown): string {
   return JSON.stringify(value)
 }
 
+function formatBytes(value: unknown): string {
+  if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
+    return 'Not available'
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = value
+  let unitIndex = 0
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+
+  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function formatDateTime(value: unknown): string {
+  if (!value || typeof value !== 'string') return 'Not available'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString()
+}
+
+function formatDurationMs(value: unknown): string {
+  if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
+    return 'Not available'
+  }
+
+  const seconds = Math.round(value / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}m ${remainingSeconds}s`
+}
+
 export function ClankerDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const [clanker, setClanker] = useState<Clanker | null>(null)
@@ -125,6 +161,24 @@ export function ClankerDetailPage() {
     void loadData()
   }, [slug])
 
+  useEffect(() => {
+    if (!slug || !clanker || clanker.status !== 'deploying') {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      void getClankerBySlug(slug)
+        .then((latest) => {
+          setClanker(latest)
+        })
+        .catch((error) => {
+          console.error('Failed to poll clanker status:', error)
+        })
+    }, 3000)
+
+    return () => window.clearInterval(intervalId)
+  }, [slug, clanker?.id, clanker?.status])
+
   const refreshHealth = async () => {
     if (!clanker) return
     setIsRefreshingHealth(true)
@@ -159,15 +213,67 @@ export function ClankerDetailPage() {
   const statusHint = getStatusHint(clanker.status)
   const deploymentConfig = clanker.deploymentConfig as Record<string, unknown> | null
   const deploymentDetails: Array<{ label: string; value: string }> = []
+  let dockerBuildLogs: string[] = []
+  const strategyName = clanker.deploymentStrategy?.name?.toLowerCase()
 
-  if (clanker.deploymentStrategy?.name === 'docker' && deploymentConfig) {
+  if (strategyName === 'docker' && deploymentConfig) {
+    const imageMetadata =
+      (deploymentConfig.imageMetadata as Record<string, unknown> | undefined) || {}
+    const dockerBuild = (deploymentConfig.dockerBuild as Record<string, unknown> | undefined) || {}
+    const rawLogs = dockerBuild.logs
+
     deploymentDetails.push({
       label: 'Container Image',
       value: formatConfigValue(deploymentConfig.containerImage),
     })
+    deploymentDetails.push({
+      label: 'Image ID',
+      value: formatConfigValue(imageMetadata.imageId),
+    })
+    deploymentDetails.push({
+      label: 'Image Created',
+      value: formatDateTime(imageMetadata.createdAt),
+    })
+    deploymentDetails.push({
+      label: 'Image Size',
+      value: formatBytes(imageMetadata.sizeBytes),
+    })
+    deploymentDetails.push({
+      label: 'Virtual Size',
+      value: formatBytes(imageMetadata.virtualSizeBytes),
+    })
+    deploymentDetails.push({
+      label: 'Architecture',
+      value: formatConfigValue(imageMetadata.architecture),
+    })
+    deploymentDetails.push({
+      label: 'OS',
+      value: formatConfigValue(imageMetadata.os),
+    })
+    deploymentDetails.push({
+      label: 'Build Started',
+      value: formatDateTime(dockerBuild.startedAt),
+    })
+    deploymentDetails.push({
+      label: 'Build Completed',
+      value: formatDateTime(dockerBuild.completedAt),
+    })
+    deploymentDetails.push({
+      label: 'Build Duration',
+      value: formatDurationMs(dockerBuild.durationMs),
+    })
+
+    if (Array.isArray(rawLogs)) {
+      dockerBuildLogs = rawLogs.filter((line): line is string => typeof line === 'string').slice(-80)
+    }
   }
 
-  if (clanker.deploymentStrategy?.name === 'ecs' && deploymentConfig) {
+  if (strategyName === 'ecs' && deploymentConfig) {
+    const taskDefinitionDetails =
+      (deploymentConfig.taskDefinitionDetails as Record<string, unknown> | undefined) || {}
+    const containerImages =
+      (taskDefinitionDetails.containerImages as Array<Record<string, unknown>> | undefined) || []
+
     deploymentDetails.push({
       label: 'Cluster ARN',
       value: formatConfigValue(deploymentConfig.clusterArn),
@@ -175,6 +281,86 @@ export function ClankerDetailPage() {
     deploymentDetails.push({
       label: 'Task Definition ARN',
       value: formatConfigValue(deploymentConfig.taskDefinitionArn),
+    })
+    deploymentDetails.push({
+      label: 'Task Family',
+      value: formatConfigValue(taskDefinitionDetails.family),
+    })
+    deploymentDetails.push({
+      label: 'Task Revision',
+      value: formatConfigValue(taskDefinitionDetails.revision),
+    })
+    deploymentDetails.push({
+      label: 'Task Status',
+      value: formatConfigValue(taskDefinitionDetails.status),
+    })
+    deploymentDetails.push({
+      label: 'Registered At',
+      value: formatDateTime(taskDefinitionDetails.registeredAt),
+    })
+    deploymentDetails.push({
+      label: 'CPU',
+      value: formatConfigValue(taskDefinitionDetails.cpu),
+    })
+    deploymentDetails.push({
+      label: 'Memory',
+      value: formatConfigValue(taskDefinitionDetails.memory),
+    })
+    if (containerImages.length > 0) {
+      deploymentDetails.push({
+        label: 'Container Images',
+        value: containerImages
+          .map((container) => {
+            const name = typeof container.name === 'string' ? container.name : 'container'
+            const image = typeof container.image === 'string' ? container.image : 'unknown'
+            return `${name}: ${image}`
+          })
+          .join('\n'),
+      })
+    }
+  }
+
+  if ((strategyName === 'aws-lambda-container' || strategyName === 'lambda') && deploymentConfig) {
+    const functionDetails =
+      (deploymentConfig.functionDetails as Record<string, unknown> | undefined) || {}
+
+    deploymentDetails.push({
+      label: 'Function Name',
+      value: formatConfigValue(deploymentConfig.functionName),
+    })
+    deploymentDetails.push({
+      label: 'Function ARN',
+      value: formatConfigValue(deploymentConfig.functionArn),
+    })
+    deploymentDetails.push({
+      label: 'Image URI',
+      value: formatConfigValue(functionDetails.imageUri ?? deploymentConfig.imageUri),
+    })
+    deploymentDetails.push({
+      label: 'Version',
+      value: formatConfigValue(functionDetails.version),
+    })
+    deploymentDetails.push({
+      label: 'State',
+      value: formatConfigValue(functionDetails.state),
+    })
+    deploymentDetails.push({
+      label: 'Last Modified',
+      value: formatDateTime(functionDetails.lastModified),
+    })
+    deploymentDetails.push({
+      label: 'Memory Size',
+      value:
+        typeof functionDetails.memorySize === 'number'
+          ? `${functionDetails.memorySize} MB`
+          : formatConfigValue(functionDetails.memorySize),
+    })
+    deploymentDetails.push({
+      label: 'Timeout',
+      value:
+        typeof functionDetails.timeout === 'number'
+          ? `${functionDetails.timeout}s`
+          : formatConfigValue(functionDetails.timeout),
     })
   }
 
@@ -344,10 +530,22 @@ export function ClankerDetailPage() {
                       <div className="text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
                         {detail.label}
                       </div>
-                      <div className="mt-1 font-mono text-sm text-[var(--gray-12)] break-all">{detail.value}</div>
+                      <div className="mt-1 whitespace-pre-wrap break-all font-mono text-sm text-[var(--gray-12)]">
+                        {detail.value}
+                      </div>
                     </div>
                   ))}
                 </div>
+                {dockerBuildLogs.length > 0 && (
+                  <div className="mt-4 border-t border-[var(--gray-6)] pt-4">
+                    <div className="text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
+                      Recent Docker Build Logs
+                    </div>
+                    <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--gray-3)] p-3 whitespace-pre-wrap break-all font-mono text-xs text-[var(--gray-11)]">
+                      {dockerBuildLogs.join('\n')}
+                    </pre>
+                  </div>
+                )}
               </div>
             )}
 

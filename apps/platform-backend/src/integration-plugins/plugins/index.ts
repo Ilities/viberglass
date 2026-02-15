@@ -1,19 +1,12 @@
 import { bitbucketPlugin } from "./bitbucket";
-import { customPlugin } from "./custom/customUtils";
-import { githubPlugin } from "./github/githubUtils";
+import { customPlugin } from "./custom";
+import { githubPlugin } from "./github";
 import { gitlabPlugin } from "./gitlab";
 import { jiraPlugin } from "./jira";
-import {
-  asanaPlugin,
-  azurePlugin,
-  clickupPlugin,
-  legacyTicketingPlugins,
-  trelloPlugin,
-} from "./legacy";
 import { linearPlugin } from "./linear";
 import { mondayPlugin } from "./monday";
-import { shortcutPlugin } from "./shortcut/shortcutUtils";
-import { slackPlugin } from "./slack/slackUtils";
+import { shortcutPlugin } from "./shortcut";
+import { slackPlugin } from "./slack";
 
 export const builtInIntegrationPlugins = [
   githubPlugin,
@@ -25,7 +18,6 @@ export const builtInIntegrationPlugins = [
   shortcutPlugin,
   slackPlugin,
   customPlugin,
-  ...legacyTicketingPlugins,
 ];
 
 export {
@@ -34,13 +26,8 @@ export {
   githubPlugin,
   gitlabPlugin,
   jiraPlugin,
-  asanaPlugin,
-  azurePlugin,
-  clickupPlugin,
-  trelloPlugin,
   linearPlugin,
   mondayPlugin,
   shortcutPlugin,
   slackPlugin,
-  legacyTicketingPlugins,
 };
