@@ -174,6 +174,71 @@ describe('ShortcutWebhookProvider', () => {
     );
   });
 
+  it('parses Shortcut v1 actions payloads where entity fields are on actions[0]', () => {
+    const event = provider.parseEvent(
+      {
+        id: '6992399a-ddcc-429d-9d47-42bb0420da92',
+        changed_at: '2026-02-15T21:24:42.807Z',
+        version: 'v1',
+        primary_id: 34,
+        actor_name: 'Jussi Hallila',
+        member_id: '697f111a-ae23-4f2b-8dbe-b15e034ea83a',
+        actions: [
+          {
+            app_url: 'https://app.shortcut.com/ilitiesdev-bv/story/34',
+            description: '',
+            entity_type: 'story',
+            story_type: 'feature',
+            name: 'test ticket 1',
+            requested_by_id: '697f111a-ae23-4f2b-8dbe-b15e034ea83a',
+            group_id: '697f111a-a8aa-4328-982a-3bcef1e374c5',
+            workflow_state_id: 500000007,
+            follower_ids: ['697f111a-ae23-4f2b-8dbe-b15e034ea83a'],
+            id: 34,
+            position: 22148532224,
+            action: 'create',
+          },
+        ],
+        references: [
+          {
+            id: 500000007,
+            entity_type: 'workflow-state',
+            name: 'To Do',
+            type: 'unstarted',
+          },
+          {
+            id: '697f111a-a8aa-4328-982a-3bcef1e374c5',
+            entity_type: 'group',
+            name: "Jussi Hallila's Team",
+          },
+        ],
+      },
+      {
+        'x-shortcut-delivery': 'shortcut-delivery-v1-actions',
+      },
+    );
+
+    expect(event.eventType).toBe('story_created');
+    expect(event.metadata).toEqual(
+      expect.objectContaining({
+        issueKey: '34',
+        action: 'create',
+        sender: '697f111a-ae23-4f2b-8dbe-b15e034ea83a',
+      }),
+    );
+    expect(event.payload).toEqual(
+      expect.objectContaining({
+        object_type: 'story',
+        action: 'create',
+        data: expect.objectContaining({
+          id: 34,
+          name: 'test ticket 1',
+          story_type: 'feature',
+        }),
+      }),
+    );
+  });
+
   it('enforces required story and comment fields for supported events', () => {
     expect(() =>
       provider.parseEvent(
