@@ -2,18 +2,18 @@ import type { ClankerStatus, DeploymentStrategy } from '@viberglass/types'
 
 // Ticket formatting utilities
 
-export function formatSeverity(severity: string): { label: string; color: string } {
+export function formatSeverity(severity: string): { label: string; color: string; barColor: string; badgeColor: 'red' | 'orange' | 'yellow' | 'green' | 'zinc' } {
   switch (severity) {
     case 'critical':
-      return { label: 'Critical', color: 'bg-red-100 text-red-800' }
+      return { label: 'Critical', color: 'bg-red-100 text-red-800', barColor: 'bg-red-500', badgeColor: 'red' }
     case 'high':
-      return { label: 'High', color: 'bg-amber-100 text-amber-800' }
+      return { label: 'High', color: 'bg-orange-100 text-orange-800', barColor: 'bg-orange-500', badgeColor: 'orange' }
     case 'medium':
-      return { label: 'Medium', color: 'bg-amber-100 text-amber-800' }
+      return { label: 'Medium', color: 'bg-yellow-100 text-yellow-800', barColor: 'bg-yellow-500', badgeColor: 'yellow' }
     case 'low':
-      return { label: 'Low', color: 'bg-green-100 text-green-800' }
+      return { label: 'Low', color: 'bg-green-100 text-green-800', barColor: 'bg-green-500', badgeColor: 'green' }
     default:
-      return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
+      return { label: 'Unknown', color: 'bg-gray-100 text-gray-800', barColor: 'bg-gray-500', badgeColor: 'zinc' }
   }
 }
 

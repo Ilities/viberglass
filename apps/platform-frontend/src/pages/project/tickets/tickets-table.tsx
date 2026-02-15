@@ -57,7 +57,7 @@ export function TicketsTable({ tickets, fullTickets, clankers, project }: Ticket
             <TableRow key={ticket.id} href={`/project/${project}/tickets/${ticket.id}`}>
               <TableCell className="font-medium">{ticket.title}</TableCell>
               <TableCell>
-                <Badge className={formatSeverity(ticket.severity).color}>{formatSeverity(ticket.severity).label}</Badge>
+                <Badge color={formatSeverity(ticket.severity).badgeColor}>{formatSeverity(ticket.severity).label}</Badge>
               </TableCell>
               <TableCell>{ticket.category}</TableCell>
               <TableCell>

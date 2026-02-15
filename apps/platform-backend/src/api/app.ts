@@ -19,7 +19,7 @@ import jobsRouter from "./routes/jobs";
 import secretsRouter from "./routes/secrets";
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
-import { attachAuthContext, requireAuth } from "./middleware/authentication";
+import { attachAuthContext } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
 import {
   maliciousRequestBlocker,
@@ -119,6 +119,15 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Root path - return API info
+app.get("/", (req, res) => {
+  res.json({
+    name: "Viberglass API",
+    version: "1.0.0",
+    health: "/health",
+  });
+});
+
 // API routes
 app.use("/api/projects", projectsRouter);
 app.use("/api/integrations", integrationsRouter);
@@ -130,165 +139,6 @@ app.use("/api/jobs", jobsRouter);
 app.use("/api/secrets", secretsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
-
-// API documentation endpoint
-app.get("/api/docs", requireAuth, (req, res) => {
-  const docs = {
-    version: "1.0.0",
-    title: "Viberglass Receiver API",
-    description: "Ticket capture and PM system integration API",
-    endpoints: {
-      "POST /api/tickets": {
-        description: "Create a new ticket",
-        parameters: {
-          "multipart/form-data": {
-            screenshot: "Required image file",
-            recording: "Optional video file",
-            projectId: "UUID of the project",
-            title: "Ticket title",
-            description: "Ticket description",
-            severity: "low|medium|high|critical",
-            category: "Ticket category",
-            metadata: "Technical metadata object",
-            annotations: "Array of annotations",
-            autoFixRequested: "Boolean",
-            ticketSystem: "Target PM system",
-          },
-        },
-        responses: {
-          201: "Ticket created successfully",
-          400: "Validation error",
-          500: "Internal server error",
-        },
-      },
-      "GET /api/tickets/:id": {
-        description: "Get a specific ticket",
-        parameters: {
-          id: "UUID of the ticket",
-        },
-      },
-      "GET /api/tickets": {
-        description: "Get tickets by project",
-        parameters: {
-          projectId: "UUID of the project (query param)",
-          limit: "Number of results (default: 50)",
-          offset: "Result offset (default: 0)",
-        },
-      },
-      "PUT /api/tickets/:id": {
-        description: "Update a ticket",
-        parameters: {
-          id: "UUID of the ticket",
-        },
-      },
-      "DELETE /api/tickets/:id": {
-        description: "Delete a ticket",
-        parameters: {
-          id: "UUID of the ticket",
-        },
-      },
-      "POST /api/webhooks/github": {
-        description: "GitHub webhook endpoint",
-        headers: {
-          "X-GitHub-Event": "GitHub event type",
-          "X-Hub-Signature-256": "GitHub signature",
-        },
-      },
-      "POST /api/webhooks/jira": {
-        description: "Jira webhook endpoint",
-      },
-      "POST /api/webhooks/shortcut": {
-        description: "Shortcut webhook endpoint",
-      },
-      "POST /api/webhooks/custom/:configId": {
-        description: "Custom webhook endpoint for a specific inbound config",
-      },
-      "GET /api/webhooks/status": {
-        description: "Get webhook processing status",
-      },
-      "POST /api/jobs": {
-        description: "Submit a job for AI agent execution",
-        parameters: {
-          repository: "Repository URL (required)",
-          task: "Task description (required)",
-          branch: "Target branch (default: main)",
-          baseBranch: "Base branch (default: main)",
-          context: "Additional context object",
-          settings: "Execution settings object",
-          tenantId: "Tenant identifier (default: api-server)",
-        },
-      },
-      "GET /api/jobs/:jobId": {
-        description: "Get job status and details",
-        parameters: {
-          jobId: "Job identifier",
-        },
-      },
-      "GET /api/jobs": {
-        description: "List jobs",
-        parameters: {
-          status: "Filter by job status (optional)",
-          limit: "Number of results (default: 10)",
-        },
-      },
-      "DELETE /api/jobs/:jobId": {
-        description: "Delete a job",
-        parameters: {
-          jobId: "Job identifier",
-        },
-      },
-      "GET /api/jobs/stats/queue": {
-        description: "Get queue statistics",
-      },
-    },
-    examples: {
-      createTicket: {
-        method: "POST",
-        url: "/api/tickets",
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        formData: {
-          screenshot: "@screenshot.png",
-          projectId: "123e4567-e89b-12d3-a456-426614174000",
-          title: "Button not clickable on mobile",
-          description: "The submit button cannot be clicked on mobile devices",
-          severity: "high",
-          category: "UI/UX",
-          ticketSystem: "github",
-          autoFixRequested: true,
-          metadata: JSON.stringify({
-            browser: { name: "Chrome", version: "91.0.4472.124" },
-            os: { name: "Android", version: "11" },
-            screen: {
-              width: 360,
-              height: 640,
-              viewportWidth: 360,
-              viewportHeight: 640,
-              pixelRatio: 3,
-            },
-            network: {
-              userAgent: "Mozilla/5.0...",
-              language: "en-US",
-              cookiesEnabled: true,
-              onLine: true,
-            },
-            console: [],
-            errors: [],
-            pageUrl: "https://example.com/checkout",
-            timestamp: new Date().toISOString(),
-            timezone: "America/New_York",
-          }),
-          annotations: JSON.stringify([
-            { id: "ann1", type: "arrow", x: 100, y: 200, color: "red" },
-          ]),
-        },
-      },
-    },
-  };
-
-  res.json(docs);
-});
 
 // Catch 404 and forward to error handler
 app.use((req, res, next) => {
@@ -340,17 +190,10 @@ app.use(
     logger.error("Application error", logData);
 
     // Send error response
-    if (req.path.startsWith("/api/")) {
-      // API error response
-      res.status(err.status || 500).json({
-        error: err.message || "Internal server error",
-        ...(req.app.get("env") === "development" && { stack: err.stack }),
-      });
-    } else {
-      // Render the error page for web requests
-      res.status(err.status || 500);
-      res.render("error");
-    }
+    res.status(err.status || 500).json({
+      error: err.message || "Internal server error",
+      ...(req.app.get("env") === "development" && { stack: err.stack }),
+    });
   },
 );
 
