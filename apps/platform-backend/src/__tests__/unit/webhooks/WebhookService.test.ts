@@ -1,5 +1,9 @@
 import { WebhookService } from "../../../webhooks/WebhookService";
 import { createDefaultInboundEventProcessorResolver } from "../../../webhooks/InboundEventProcessorResolver";
+import { WebhookConfigResolver } from "../../../webhooks/WebhookConfigResolver";
+import { createDefaultProviderWebhookPolicyResolver } from "../../../webhooks/ProviderWebhookPolicyResolver";
+import { InboundWebhookDeliveryLifecycle } from "../../../webhooks/InboundWebhookDeliveryLifecycle";
+import { WebhookRetryService } from "../../../webhooks/WebhookRetryService";
 import type { ParsedWebhookEvent, WebhookProvider } from "../../../webhooks/WebhookProvider";
 import type { WebhookConfig } from "../../../persistence/webhook/WebhookConfigDAO";
 
@@ -285,17 +289,35 @@ describe("WebhookService", () => {
       jobService as any,
       projectScmConfigDAO as any,
     );
+    const configResolver = new WebhookConfigResolver(configDAO as any);
+    const providerPolicyResolver = createDefaultProviderWebhookPolicyResolver();
+    const deliveryLifecycle = new InboundWebhookDeliveryLifecycle(
+      deduplication as any,
+      deliveryDAO as any,
+    );
+    const serviceConfig = {
+      defaultTenantId: "tenant-default",
+    };
+    const retryService = new WebhookRetryService(
+      registry as any,
+      configResolver,
+      deliveryLifecycle,
+      providerPolicyResolver,
+      processorResolver,
+      deliveryDAO as any,
+      serviceConfig,
+    );
 
     const service = new WebhookService(
       registry as any,
-      configDAO as any,
-      deliveryDAO as any,
       deduplication as any,
       secretService as any,
       processorResolver,
-      {
-        defaultTenantId: "tenant-default",
-      },
+      configResolver,
+      providerPolicyResolver,
+      deliveryLifecycle,
+      retryService,
+      serviceConfig,
     );
 
     return {

@@ -69,15 +69,20 @@ function buildRequestLogContext(req: Request) {
   const requestId = getFirstHeaderValue(req.headers['x-request-id']);
   const objectType = getPayloadField(req.body, 'object_type');
   const action = getPayloadField(req.body, 'action');
+  const rawConfigId = req.params.configId;
+  const configId =
+    typeof rawConfigId === 'string' && rawConfigId.trim().length > 0
+      ? rawConfigId.trim()
+      : undefined;
 
   return {
     deliveryId,
     requestId,
+    configId,
     tenantId: req.tenantId,
     objectType,
     action,
     hasPayloadSignature: hasHeader(req.headers['payload-signature']),
-    hasShortcutSignature: hasHeader(req.headers['x-shortcut-signature']),
     userAgent: getFirstHeaderValue(req.headers['user-agent']),
   };
 }
@@ -96,70 +101,86 @@ function buildRequestLogContext(req: Request) {
 export function createShortcutRoutes(getWebhookService: () => WebhookService) {
   const router = express.Router();
 
-  router.post(
-    '/',
-    async (req: Request, res: Response) => {
-      const requestContext = buildRequestLogContext(req);
-      try {
-        logger.info('Shortcut webhook request received', requestContext);
+  async function handleShortcutWebhook(req: Request, res: Response) {
+    const rawConfigId = req.params.configId;
+    const configId =
+      typeof rawConfigId === 'string' && rawConfigId.trim().length > 0
+        ? rawConfigId.trim()
+        : undefined;
 
-        const service = getWebhookService();
+    const requestContext = buildRequestLogContext(req);
+    try {
+      logger.info('Shortcut webhook request received', requestContext);
 
-        const rawBody = getRequestRawBody(req);
-        logger.debug('Shortcut webhook raw body resolved', {
+      const service = getWebhookService();
+
+      const rawBody = getRequestRawBody(req);
+      logger.debug('Shortcut webhook raw body resolved', {
+        ...requestContext,
+        rawBodyBytes: rawBody.length,
+      });
+
+      const result = await service.processWebhook(
+        req.headers,
+        req.body,
+        rawBody,
+        req.tenantId,
+        {
+          providerName: 'shortcut',
+          ...(configId ? { configId } : {}),
+        },
+      );
+
+      const resultContext = {
+        ...requestContext,
+        status: result.status,
+        reason: result.reason,
+        existingId: result.existingId,
+        ticketId: result.ticketId,
+        jobId: result.jobId,
+      };
+
+      if (result.status === 'rejected' || result.status === 'failed') {
+        logger.warn('Shortcut webhook processed with non-success status', resultContext);
+      } else {
+        logger.info('Shortcut webhook processed', resultContext);
+      }
+
+      if (
+        result.status === 'ignored' &&
+        typeof result.reason === 'string' &&
+        result.reason.startsWith('Event parsing failed:')
+      ) {
+        logger.warn('Shortcut webhook parse failure payload snapshot', {
           ...requestContext,
+          reason: result.reason,
+          payload: req.body,
+          payloadJson: serializePayloadForLog(req.body),
+          rawBodyUtf8: truncateForLog(rawBody.toString('utf8')),
           rawBodyBytes: rawBody.length,
         });
-
-        const result = await service.processWebhook(
-          req.headers,
-          req.body,
-          rawBody,
-          req.tenantId,
-          { providerName: 'shortcut' },
-        );
-
-        const resultContext = {
-          ...requestContext,
-          status: result.status,
-          reason: result.reason,
-          existingId: result.existingId,
-          ticketId: result.ticketId,
-          jobId: result.jobId,
-        };
-
-        if (result.status === 'rejected' || result.status === 'failed') {
-          logger.warn('Shortcut webhook processed with non-success status', resultContext);
-        } else {
-          logger.info('Shortcut webhook processed', resultContext);
-        }
-
-        if (
-          result.status === 'ignored' &&
-          typeof result.reason === 'string' &&
-          result.reason.startsWith('Event parsing failed:')
-        ) {
-          logger.warn('Shortcut webhook parse failure payload snapshot', {
-            ...requestContext,
-            reason: result.reason,
-            payload: req.body,
-            payloadJson: serializePayloadForLog(req.body),
-            rawBodyUtf8: truncateForLog(rawBody.toString('utf8')),
-            rawBodyBytes: rawBody.length,
-          });
-        }
-
-        return respondWithWebhookResult(res, result);
-      } catch (error) {
-        logger.error('Shortcut webhook route failed', {
-          ...requestContext,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return res.status(500).json({
-          error: 'Failed to process webhook',
-        });
       }
+
+      return respondWithWebhookResult(res, result);
+    } catch (error) {
+      logger.error('Shortcut webhook route failed', {
+        ...requestContext,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return res.status(500).json({
+        error: 'Failed to process webhook',
+      });
     }
+  }
+
+  router.post(
+    '/',
+    handleShortcutWebhook,
+  );
+
+  router.post(
+    '/:configId',
+    handleShortcutWebhook,
   );
 
   return router;
