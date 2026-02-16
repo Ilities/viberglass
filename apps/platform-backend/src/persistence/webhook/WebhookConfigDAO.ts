@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { sql } from "kysely";
 import db from "../config/database";
 import type { JsonObject } from "../types/database";
 
@@ -100,11 +101,15 @@ export class WebhookConfigDAO {
         secret_path: dto.secretPath ?? null,
         webhook_secret_encrypted: dto.webhookSecretEncrypted ?? null,
         api_token_encrypted: dto.apiTokenEncrypted ?? null,
-        allowed_events: dto.allowedEvents ?? [],
+        allowed_events: sql<string[]>`${JSON.stringify(dto.allowedEvents ?? [])}::jsonb`,
         auto_execute: dto.autoExecute ?? false,
         bot_username: dto.botUsername ?? null,
-        label_mappings: (dto.labelMappings ?? {}) as JsonObject,
-        outbound_target_config: (dto.outboundTargetConfig ?? null) as JsonObject | null,
+        label_mappings: sql<JsonObject>`${JSON.stringify(dto.labelMappings ?? {})}::jsonb`,
+        outbound_target_config:
+          dto.outboundTargetConfig === undefined ||
+          dto.outboundTargetConfig === null
+            ? null
+            : sql<JsonObject>`${JSON.stringify(dto.outboundTargetConfig)}::jsonb`,
         active: dto.active ?? true,
         created_at: timestamp,
         updated_at: timestamp,
@@ -159,26 +164,7 @@ export class WebhookConfigDAO {
    * Update webhook configuration
    */
   async updateConfig(id: string, updates: UpdateWebhookConfigDTO): Promise<void> {
-    interface WebhookConfigUpdate {
-      updated_at: Date;
-      project_id?: string | null;
-      provider?: WebhookProvider;
-      direction?: WebhookDirection;
-      provider_project_id?: string | null;
-      integration_id?: string | null;
-      secret_location?: SecretLocation;
-      secret_path?: string | null;
-      webhook_secret_encrypted?: string | null;
-      api_token_encrypted?: string | null;
-      allowed_events?: string[];
-      auto_execute?: boolean;
-      bot_username?: string | null;
-      label_mappings?: JsonObject;
-      outbound_target_config?: JsonObject | null;
-      active?: boolean;
-    }
-
-    const updateData: WebhookConfigUpdate = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date(),
     };
 
@@ -191,11 +177,20 @@ export class WebhookConfigDAO {
     if (updates.secretPath !== undefined) updateData.secret_path = updates.secretPath;
     if (updates.webhookSecretEncrypted !== undefined) updateData.webhook_secret_encrypted = updates.webhookSecretEncrypted;
     if (updates.apiTokenEncrypted !== undefined) updateData.api_token_encrypted = updates.apiTokenEncrypted;
-    if (updates.allowedEvents !== undefined) updateData.allowed_events = updates.allowedEvents;
+    if (updates.allowedEvents !== undefined) {
+      updateData.allowed_events = sql<string[]>`${JSON.stringify(updates.allowedEvents)}::jsonb`;
+    }
     if (updates.autoExecute !== undefined) updateData.auto_execute = updates.autoExecute;
     if (updates.botUsername !== undefined) updateData.bot_username = updates.botUsername;
-    if (updates.labelMappings !== undefined) updateData.label_mappings = updates.labelMappings;
-    if (updates.outboundTargetConfig !== undefined) updateData.outbound_target_config = updates.outboundTargetConfig ?? null;
+    if (updates.labelMappings !== undefined) {
+      updateData.label_mappings = sql<JsonObject>`${JSON.stringify(updates.labelMappings)}::jsonb`;
+    }
+    if (updates.outboundTargetConfig !== undefined) {
+      updateData.outbound_target_config =
+        updates.outboundTargetConfig === null
+          ? null
+          : sql<JsonObject>`${JSON.stringify(updates.outboundTargetConfig)}::jsonb`;
+    }
     if (updates.active !== undefined) updateData.active = updates.active;
 
     await db
