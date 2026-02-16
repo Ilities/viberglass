@@ -1,3 +1,4 @@
+import { useTicketUrlBuilder } from './deliveryUtils'
 import { Button } from '@/components/button'
 import { Subheading } from '@/components/heading'
 import { Text } from '@/components/text'
@@ -17,7 +18,7 @@ interface JiraInboundWebhookSectionProps {
   isLoadingDeliveries: boolean
   isLoadingWebhook: boolean
   isSavingWebhook: boolean
-  projects: Array<{ id: string; name: string }> | null
+  projects: Array<{ id: string; name: string; slug?: string }> | null
   selectedInboundProjectId: string | null
   selectedInboundProviderProjectId: string | null
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
@@ -91,6 +92,8 @@ export function JiraInboundWebhookSection({
   onToggleInboundEvent,
   onToggleSecretVisibility,
 }: JiraInboundWebhookSectionProps) {
+  const getTicketUrl = useTicketUrlBuilder(projects)
+
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
       <Subheading>Jira Inbound Webhook</Subheading>
@@ -289,6 +292,7 @@ export function JiraInboundWebhookSection({
             isLoadingDeliveries={isLoadingDeliveries}
             onRefreshDeliveries={onRefreshDeliveries}
             onRetryDelivery={onRetryDelivery}
+            getTicketUrl={getTicketUrl}
           />
         </div>
       )}

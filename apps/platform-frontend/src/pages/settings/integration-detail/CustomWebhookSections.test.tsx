@@ -129,6 +129,7 @@ describe('Custom webhook sections', () => {
               retryable: true,
               errorMessage: 'Signature mismatch',
               ticketId: null,
+              projectId: null,
               createdAt: '2026-02-10T00:00:00.000Z',
               processedAt: '2026-02-10T00:00:01.000Z',
             },
