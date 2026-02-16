@@ -64,7 +64,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     const result: EventProcessingResult = {};
 
     const resolvedTenantId =
-      tenantId || defaultTenantId || config.projectId || 'default';
+      config.projectId || tenantId || defaultTenantId || 'default';
     result.projectId = resolvedTenantId;
 
     if (event.eventType !== 'story_created' && event.eventType !== 'comment_created') {
