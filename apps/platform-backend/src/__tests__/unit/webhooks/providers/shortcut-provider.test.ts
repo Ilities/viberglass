@@ -239,6 +239,63 @@ describe('ShortcutWebhookProvider', () => {
     );
   });
 
+  it('normalizes Shortcut v1 update changes into story data fields', () => {
+    const event = provider.parseEvent(
+      {
+        id: 'd5fdd764-c1e0-471d-99b0-53f1576bc9f7',
+        changed_at: '2026-02-16T08:30:00.000Z',
+        version: 'v1',
+        primary_id: 34,
+        member_id: '697f111a-ae23-4f2b-8dbe-b15e034ea83a',
+        actions: [
+          {
+            entity_type: 'story',
+            action: 'update',
+            id: 34,
+            name: 'old title',
+            description: '',
+            story_type: 'feature',
+            app_url: 'https://app.shortcut.com/ilitiesdev-bv/story/34',
+            changes: {
+              name: { old: 'old title', new: 'updated title' },
+              description: { old: '', new: 'Updated body from Shortcut' },
+              story_type: { old: 'feature', new: 'bug' },
+              app_url: {
+                old: 'https://app.shortcut.com/ilitiesdev-bv/story/34',
+                new: 'https://app.shortcut.com/ilitiesdev-bv/story/34',
+              },
+            },
+          },
+        ],
+        changed_fields: ['name', 'description', 'story_type'],
+      },
+      {
+        'x-shortcut-delivery': 'shortcut-delivery-v1-update',
+      },
+    );
+
+    expect(event.eventType).toBe('story_updated');
+    expect(event.metadata).toEqual(
+      expect.objectContaining({
+        issueKey: '34',
+        action: 'update',
+      }),
+    );
+    expect(event.payload).toEqual(
+      expect.objectContaining({
+        object_type: 'story',
+        action: 'update',
+        data: expect.objectContaining({
+          id: 34,
+          name: 'updated title',
+          description: 'Updated body from Shortcut',
+          story_type: 'bug',
+          app_url: 'https://app.shortcut.com/ilitiesdev-bv/story/34',
+        }),
+      }),
+    );
+  });
+
   it('enforces required story and comment fields for supported events', () => {
     expect(() =>
       provider.parseEvent(
