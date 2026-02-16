@@ -274,6 +274,7 @@ describe("WebhookService", () => {
     };
     const ticketDAO = {
       createTicket: jest.fn().mockResolvedValue({ id: "ticket-1" }),
+      findLatestShortcutStoryTicketByStoryId: jest.fn().mockResolvedValue(null),
       updateTicket: jest.fn().mockResolvedValue(undefined),
     };
     const jobService = {
@@ -547,6 +548,122 @@ describe("WebhookService", () => {
         title: "Shortcut story linked project",
       }),
     );
+  });
+
+  it("updates existing Shortcut ticket for story_updated events", async () => {
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_updated"];
+    config.projectId = "project-from-config";
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_updated",
+      deduplicationId: "shortcut-delivery-updated-1",
+      timestamp: "2026-02-16T12:05:30.000Z",
+      payload: {
+        object_type: "story",
+        action: "update",
+        data: {
+          id: 777,
+          name: "Shortcut story updated",
+          description: "Updated body from Shortcut",
+          story_type: "bug",
+          app_url: "https://app.shortcut.com/acme/story/777",
+        },
+      },
+      metadata: {
+        issueKey: "777",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue({
+      id: "ticket-shortcut-777",
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-updated-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result).toEqual({
+      status: "processed",
+      ticketId: "ticket-shortcut-777",
+      jobId: undefined,
+    });
+    expect(mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId).toHaveBeenCalledWith(
+      "project-from-config",
+      "777",
+    );
+    expect(mocks.ticketDAO.updateTicket).toHaveBeenCalledWith(
+      "ticket-shortcut-777",
+      expect.objectContaining({
+        title: "Shortcut story updated",
+        description: "Updated body from Shortcut",
+        severity: "high",
+        category: "bug",
+        externalTicketId: "777",
+        externalTicketUrl: "https://app.shortcut.com/acme/story/777",
+      }),
+    );
+  });
+
+  it("ignores Shortcut story_updated when no matching Viberglass ticket exists", async () => {
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_updated"];
+    config.projectId = "project-from-config";
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_updated",
+      deduplicationId: "shortcut-delivery-updated-missing-1",
+      timestamp: "2026-02-16T12:05:30.000Z",
+      payload: {
+        object_type: "story",
+        action: "update",
+        data: {
+          id: 999,
+          description: "Updated body from Shortcut",
+        },
+      },
+      metadata: {
+        issueKey: "999",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue(null);
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-updated-missing-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result.status).toBe("ignored");
+    expect(result.reason).toBe("No Viberglass ticket found for Shortcut story '999'");
+    expect(mocks.ticketDAO.updateTicket).not.toHaveBeenCalled();
   });
 
   it("uses Jira signature headers consistently for verification", async () => {

@@ -1,7 +1,7 @@
 /**
  * Shortcut inbound event processor
  *
- * Handles Shortcut story_created and comment_created events,
+ * Handles Shortcut story_created, story_updated, and comment_created events,
  * creating tickets and optionally submitting jobs.
  */
 
@@ -14,7 +14,12 @@ import type { ParsedWebhookEvent, ProviderType } from '../WebhookProvider';
 import type { TicketDAO } from '../../persistence/ticketing/TicketDAO';
 import type { ProjectIntegrationLinkDAO } from '../../persistence/integrations/ProjectIntegrationLinkDAO';
 import type { JobService } from '../../services/JobService';
-import type { CreateTicketRequest, Severity, TicketMetadata } from '@viberglass/types';
+import type {
+  CreateTicketRequest,
+  Severity,
+  TicketMetadata,
+  UpdateTicketRequest,
+} from '@viberglass/types';
 import type { JobData } from '../../types/Job';
 import { randomUUID } from 'crypto';
 
@@ -30,13 +35,13 @@ interface WebhookJobContext {
 interface ShortcutStoryPayload {
   data?: {
     id: number;
-    name: string;
+    name?: string;
     description?: string;
-    story_type: 'feature' | 'bug' | 'chore';
+    story_type?: 'feature' | 'bug' | 'chore';
     workflow_state?: { name: string };
     project_id?: number;
     project?: { name: string };
-    app_url: string;
+    app_url?: string;
   };
 }
 
@@ -73,7 +78,11 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     );
     result.projectId = resolvedTenantId;
 
-    if (event.eventType !== 'story_created' && event.eventType !== 'comment_created') {
+    if (
+      event.eventType !== 'story_created' &&
+      event.eventType !== 'story_updated' &&
+      event.eventType !== 'comment_created'
+    ) {
       result.ignoredReason = `Unsupported Shortcut event '${event.eventType}'`;
       return result;
     }
@@ -84,6 +93,10 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
 
     if (event.eventType === 'comment_created') {
       return this.processCommentCreated(event, config, resolvedTenantId, result);
+    }
+
+    if (event.eventType === 'story_updated') {
+      return this.processStoryUpdated(event, resolvedTenantId, result);
     }
 
     return result;
@@ -127,18 +140,19 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
   ): Promise<EventProcessingResult> {
     const payload = event.payload as ShortcutStoryPayload;
 
-    if (!payload?.data) {
+    if (!payload?.data || !payload.data.name) {
       return result;
     }
 
-    const severity = this.mapStoryTypeToSeverity(payload.data.story_type);
+    const storyType = payload.data.story_type || 'feature';
+    const severity = this.mapStoryTypeToSeverity(storyType);
 
     const ticketRequest: CreateTicketRequest = {
       projectId: resolvedTenantId,
       title: payload.data.name,
       description: payload.data.description || '',
       severity,
-      category: payload.data.story_type === 'bug' ? 'bug' : 'feature',
+      category: storyType === 'bug' ? 'bug' : 'feature',
       metadata: this.createTicketMetadata({
         ...this.createBaseMetadata(event, config),
         externalTicketId: payload.data.id.toString(),
@@ -146,7 +160,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
         storyId: payload.data.id.toString(),
         shortcutStoryId: payload.data.id.toString(),
         issueNumber: payload.data.id,
-        storyType: payload.data.story_type,
+        storyType,
         projectId: payload.data.project_id?.toString() || event.metadata.projectId,
         project: payload.data.project?.name || event.metadata.repositoryId,
         repository: payload.data.project?.name || event.metadata.repositoryId,
@@ -173,6 +187,49 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       );
     }
 
+    return result;
+  }
+
+  private async processStoryUpdated(
+    event: ParsedWebhookEvent,
+    resolvedTenantId: string,
+    result: EventProcessingResult,
+  ): Promise<EventProcessingResult> {
+    const payload = event.payload as ShortcutStoryPayload;
+    const data = payload?.data;
+    if (!data) {
+      return result;
+    }
+
+    const storyId = data.id.toString();
+    const ticket = await this.ticketDAO.findLatestShortcutStoryTicketByStoryId(
+      resolvedTenantId,
+      storyId,
+    );
+
+    if (!ticket) {
+      result.ignoredReason = `No Viberglass ticket found for Shortcut story '${storyId}'`;
+      return result;
+    }
+
+    const updates: UpdateTicketRequest = {
+      externalTicketId: storyId,
+      externalTicketUrl: data.app_url,
+    };
+
+    if (typeof data.name === 'string' && data.name.trim().length > 0) {
+      updates.title = data.name;
+    }
+    if (typeof data.description === 'string') {
+      updates.description = data.description;
+    }
+    if (data.story_type) {
+      updates.severity = this.mapStoryTypeToSeverity(data.story_type);
+      updates.category = data.story_type === 'bug' ? 'bug' : 'feature';
+    }
+
+    await this.ticketDAO.updateTicket(ticket.id, updates);
+    result.ticketId = ticket.id;
     return result;
   }
 
