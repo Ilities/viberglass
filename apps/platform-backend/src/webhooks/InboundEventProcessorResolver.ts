@@ -10,6 +10,7 @@ import type { ParsedWebhookEvent, ProviderType } from './WebhookProvider';
 import type { WebhookConfig } from '../persistence/webhook/WebhookConfigDAO';
 import type { TicketDAO } from '../persistence/ticketing/TicketDAO';
 import type { ProjectScmConfigDAO } from '../persistence/project/ProjectScmConfigDAO';
+import type { ProjectIntegrationLinkDAO } from '../persistence/integrations/ProjectIntegrationLinkDAO';
 import type { JobService } from '../services/JobService';
 
 /**
@@ -107,6 +108,7 @@ export function createDefaultInboundEventProcessorResolver(
   ticketDAO: TicketDAO,
   jobService: JobService,
   projectScmConfigDAO: ProjectScmConfigDAO,
+  projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
 ): InboundEventProcessorResolver {
   // Defer import to avoid circular dependencies
   /* eslint-disable @typescript-eslint/no-require-imports */
@@ -121,7 +123,7 @@ export function createDefaultInboundEventProcessorResolver(
     new DefaultInboundProcessor(),
     new GitHubInboundProcessor(ticketDAO, jobService, projectScmConfigDAO),
     new JiraInboundProcessor(ticketDAO, jobService),
-    new ShortcutInboundProcessor(ticketDAO, jobService),
+    new ShortcutInboundProcessor(ticketDAO, jobService, projectIntegrationLinkDAO),
     new CustomInboundProcessor(ticketDAO),
   ]);
 }
