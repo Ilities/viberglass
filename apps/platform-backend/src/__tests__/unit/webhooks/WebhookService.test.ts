@@ -282,12 +282,16 @@ describe("WebhookService", () => {
     const projectScmConfigDAO = {
       getByProjectId: jest.fn().mockResolvedValue(null),
     };
+    const projectIntegrationLinkDAO = {
+      getIntegrationProjects: jest.fn().mockResolvedValue([]),
+    };
 
     // Create the processor resolver with the mocked dependencies
     const processorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO as any,
       jobService as any,
       projectScmConfigDAO as any,
+      projectIntegrationLinkDAO as any,
     );
     const configResolver = new WebhookConfigResolver(configDAO as any);
     const providerPolicyResolver = createDefaultProviderWebhookPolicyResolver();
@@ -331,6 +335,7 @@ describe("WebhookService", () => {
         secretService,
         ticketDAO,
         jobService,
+        projectIntegrationLinkDAO,
       },
     };
   }
@@ -476,6 +481,72 @@ describe("WebhookService", () => {
       }),
     );
     expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+  });
+
+  it("creates Shortcut ticket using integration-linked project when config project is missing", async () => {
+    const linkedProjectId = "11111111-1111-4111-8111-111111111111";
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_created"];
+    config.projectId = null;
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_created",
+      deduplicationId: "shortcut-delivery-linked-project-1",
+      timestamp: "2026-02-09T00:00:00.000Z",
+      payload: {
+        object_type: "story",
+        action: "create",
+        data: {
+          id: 888,
+          name: "Shortcut story linked project",
+          description: "Story body",
+          story_type: "feature",
+          app_url: "https://app.shortcut.com/acme/story/888",
+        },
+      },
+      metadata: {
+        issueKey: "888",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+    mocks.projectIntegrationLinkDAO.getIntegrationProjects.mockResolvedValue([
+      {
+        id: "link-1",
+        projectId: linkedProjectId,
+        integrationId: "integration-1",
+        isPrimary: true,
+        createdAt: "2026-02-09T00:00:00.000Z",
+      },
+    ]);
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-linked-project-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.projectIntegrationLinkDAO.getIntegrationProjects).toHaveBeenCalledWith(
+      "integration-1",
+    );
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: linkedProjectId,
+        title: "Shortcut story linked project",
+      }),
+    );
   });
 
   it("uses Jira signature headers consistently for verification", async () => {
