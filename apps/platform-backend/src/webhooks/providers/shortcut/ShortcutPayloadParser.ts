@@ -294,6 +294,62 @@ function normalizeChangedFields(value: unknown): string[] | undefined {
   return fields.length > 0 ? fields : undefined;
 }
 
+function extractChangedFieldValue(value: unknown): unknown {
+  const record = toRecord(value);
+  if (!record) {
+    return value;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(record, "new")) {
+    return record.new;
+  }
+  if (Object.prototype.hasOwnProperty.call(record, "after")) {
+    return record.after;
+  }
+  if (Object.prototype.hasOwnProperty.call(record, "to")) {
+    return record.to;
+  }
+  if (Object.prototype.hasOwnProperty.call(record, "value")) {
+    return record.value;
+  }
+
+  return value;
+}
+
+function applyChangedFields(
+  data: Record<string, unknown> | undefined,
+  source: Record<string, unknown>,
+  actionRecord: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  const changes =
+    getNestedRecord(actionRecord, "changes") || getNestedRecord(source, "changes");
+  if (!changes) {
+    return data;
+  }
+
+  const changedFieldNames = new Set<string>([
+    ...Object.keys(changes),
+    ...(normalizeChangedFields(source.changed_fields) || []),
+    ...(normalizeChangedFields(source.changedFields) || []),
+    ...(normalizeChangedFields(actionRecord?.changed_fields) || []),
+    ...(normalizeChangedFields(actionRecord?.changedFields) || []),
+  ]);
+
+  if (changedFieldNames.size === 0) {
+    return data;
+  }
+
+  const mergedData: Record<string, unknown> = { ...(data || {}) };
+  for (const field of changedFieldNames) {
+    const candidateValue = extractChangedFieldValue(changes[field]);
+    if (typeof candidateValue !== "undefined") {
+      mergedData[field] = candidateValue;
+    }
+  }
+
+  return mergedData;
+}
+
 function resolveData(
   source: Record<string, unknown>,
   objectType: ShortcutWebhookObjectType | undefined,
@@ -349,6 +405,13 @@ function normalizeShortcutPayload(sourcePayload: Record<string, unknown>): {
     normalizeAction(source.action) ||
     normalizeAction(actionRecord?.action) ||
     (eventType ? actionFromEventType(eventType) : undefined);
+  const changedFields =
+    normalizeChangedFields(source.changed_fields) ||
+    normalizeChangedFields(source.changedFields) ||
+    normalizeChangedFields(actionRecord?.changed_fields) ||
+    normalizeChangedFields(actionRecord?.changedFields);
+  const resolvedData = resolveData(source, objectType, actionRecord);
+  const normalizedData = applyChangedFields(resolvedData, source, actionRecord);
 
   return {
     source,
@@ -359,11 +422,9 @@ function normalizeShortcutPayload(sourcePayload: Record<string, unknown>): {
       action,
       member_id:
         toNonEmptyString(source.member_id) || toNonEmptyString(source.memberId),
-      data: resolveData(source, objectType, actionRecord),
+      data: normalizedData || resolvedData,
       refs: normalizeRefs(source.refs) || normalizeRefs(source.references),
-      changed_fields:
-        normalizeChangedFields(source.changed_fields) ||
-        normalizeChangedFields(source.changedFields),
+      changed_fields: changedFields,
     },
   };
 }
