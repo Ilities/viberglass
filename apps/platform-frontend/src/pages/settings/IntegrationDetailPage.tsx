@@ -745,7 +745,9 @@ export function IntegrationDetailPage() {
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
             onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(undefined, projectId)}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={webhook.handleGenerateSecret}
+            onGenerateSecret={() =>
+              webhook.handleGenerateSecret(undefined, webhook.selectedInboundProjectId)
+            }
             onInboundActiveChange={webhook.setInboundActive}
             onProjectChange={webhook.setSelectedInboundProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
@@ -770,12 +772,12 @@ export function IntegrationDetailPage() {
             showSecret={webhook.showSecret}
             onAutoExecuteChange={webhook.setAutoExecute}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
+            onCreateInboundWebhook={() => webhook.handleCreateInboundWebhook()}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={webhook.handleGenerateSecret}
+            onGenerateSecret={() => webhook.handleGenerateSecret()}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSaveWebhook={() => webhook.handleSaveInboundWebhook()}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
