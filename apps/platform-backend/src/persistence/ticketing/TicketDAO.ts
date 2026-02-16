@@ -159,6 +159,65 @@ export class TicketDAO {
     return this.mapRowToTicket(row);
   }
 
+  async findLatestShortcutStoryTicketByStoryId(
+    projectId: string,
+    storyId: string,
+  ): Promise<Ticket | null> {
+    const row = await db
+      .selectFrom("tickets as t")
+      .leftJoin("media_assets as s", "t.screenshot_id", "s.id")
+      .leftJoin("media_assets as r", "t.recording_id", "r.id")
+      .select([
+        "t.id",
+        "t.project_id",
+        "t.timestamp",
+        "t.title",
+        "t.description",
+        "t.severity",
+        "t.category",
+        "t.metadata",
+        "t.annotations",
+        "t.external_ticket_id",
+        "t.external_ticket_url",
+        "t.ticket_system",
+        "t.auto_fix_requested",
+        "t.auto_fix_status",
+        "t.pull_request_url",
+        "t.created_at",
+        "t.updated_at",
+        "s.id as screenshot_id",
+        "s.filename as screenshot_filename",
+        "s.mime_type as screenshot_mime_type",
+        "s.size as screenshot_size",
+        "s.url as screenshot_url",
+        "s.uploaded_at as screenshot_uploaded_at",
+        "r.id as recording_id",
+        "r.filename as recording_filename",
+        "r.mime_type as recording_mime_type",
+        "r.size as recording_size",
+        "r.url as recording_url",
+        "r.uploaded_at as recording_uploaded_at",
+      ])
+      .where("t.project_id", "=", projectId)
+      .where("t.ticket_system", "=", "shortcut")
+      .where(sql<boolean>`t.metadata ->> 'eventType' = 'story_created'`)
+      .where((eb) =>
+        eb.or([
+          eb("t.external_ticket_id", "=", storyId),
+          sql<boolean>`t.metadata ->> 'externalTicketId' = ${storyId}`,
+          sql<boolean>`t.metadata ->> 'shortcutStoryId' = ${storyId}`,
+        ]),
+      )
+      .orderBy("t.created_at", "desc")
+      .executeTakeFirst();
+
+    if (!row) {
+      return null;
+    }
+
+    return this.mapRowToTicket(row);
+  }
+
   async updateTicket(id: string, updates: UpdateTicketRequest): Promise<void> {
     await db
       .updateTable("tickets")
