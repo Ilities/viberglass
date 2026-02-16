@@ -4,6 +4,7 @@ import { Text } from '@/components/text'
 import { DeliveryHistoryTable } from './DeliveryHistoryTable'
 import type { IntegrationInboundWebhookConfig, IntegrationWebhookDelivery } from '@/service/api/integration-api'
 import { CopyIcon } from '@radix-ui/react-icons'
+import { useTicketUrlBuilder } from './deliveryUtils'
 
 interface ShortcutInboundWebhookSectionProps {
   autoExecute: boolean
@@ -14,7 +15,7 @@ interface ShortcutInboundWebhookSectionProps {
   isLoadingDeliveries: boolean
   isLoadingWebhook: boolean
   isSavingWebhook: boolean
-  projects: Array<{ id: string; name: string }> | null
+  projects: Array<{ id: string; name: string; slug?: string }> | null
   selectedInboundProjectId: string | null
   selectedInboundProviderProjectId: string | null
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
@@ -83,6 +84,7 @@ export function ShortcutInboundWebhookSection({
   onToggleInboundEvent,
   onToggleSecretVisibility,
 }: ShortcutInboundWebhookSectionProps) {
+  const getTicketUrl = useTicketUrlBuilder(projects)
   return (
     <section className="app-frame rounded-lg p-6">
       <div className="flex items-center gap-3 mb-2">
@@ -288,6 +290,7 @@ export function ShortcutInboundWebhookSection({
             isLoadingDeliveries={isLoadingDeliveries}
             onRefreshDeliveries={onRefreshDeliveries}
             onRetryDelivery={onRetryDelivery}
+            getTicketUrl={getTicketUrl}
           />
         </div>
       )}

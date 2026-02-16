@@ -106,6 +106,7 @@ export function serializeWebhookDelivery(delivery: {
   status: "pending" | "processing" | "succeeded" | "failed";
   errorMessage: string | null;
   ticketId: string | null;
+  projectId: string | null;
   createdAt: Date;
   processedAt: Date | null;
 }) {
@@ -119,6 +120,7 @@ export function serializeWebhookDelivery(delivery: {
     retryable: delivery.status === "failed",
     errorMessage: delivery.errorMessage,
     ticketId: delivery.ticketId,
+    projectId: delivery.projectId,
     createdAt: delivery.createdAt,
     processedAt: delivery.processedAt,
   };

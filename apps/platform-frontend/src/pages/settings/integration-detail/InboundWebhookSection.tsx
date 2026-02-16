@@ -1,3 +1,4 @@
+import { useTicketUrlBuilder } from './deliveryUtils'
 import { Button } from '@/components/button'
 import { Subheading } from '@/components/heading'
 import { Text } from '@/components/text'
@@ -16,6 +17,7 @@ interface InboundWebhookSectionProps {
   isLoadingDeliveries: boolean
   isLoadingWebhook: boolean
   isSavingWebhook: boolean
+  projects?: Array<{ id: string; name: string; slug?: string }> | null
   selectedInboundConfig: IntegrationInboundWebhookConfig | null
   selectedInboundConfigId: string | null
   showCustomPayloadHelp: boolean
@@ -49,6 +51,7 @@ export function InboundWebhookSection({
   isLoadingDeliveries,
   isLoadingWebhook,
   isSavingWebhook,
+  projects,
   selectedInboundConfig,
   selectedInboundConfigId,
   showCustomPayloadHelp,
@@ -64,6 +67,7 @@ export function InboundWebhookSection({
   onSelectInboundWebhook,
   onToggleSecretVisibility,
 }: InboundWebhookSectionProps) {
+  const getTicketUrl = useTicketUrlBuilder(projects)
   return (
     <section className="app-frame rounded-lg p-6">
       <div className="flex items-center gap-3 mb-2">
@@ -200,6 +204,7 @@ export function InboundWebhookSection({
             isLoadingDeliveries={isLoadingDeliveries}
             onRefreshDeliveries={onRefreshDeliveries}
             onRetryDelivery={onRetryDelivery}
+            getTicketUrl={getTicketUrl}
           />
         </div>
       )}

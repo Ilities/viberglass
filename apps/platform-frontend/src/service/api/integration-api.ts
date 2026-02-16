@@ -494,6 +494,7 @@ export interface IntegrationWebhookDelivery {
   retryable: boolean
   errorMessage: string | null
   ticketId: string | null
+  projectId: string | null
   createdAt: string
   processedAt: string | null
 }

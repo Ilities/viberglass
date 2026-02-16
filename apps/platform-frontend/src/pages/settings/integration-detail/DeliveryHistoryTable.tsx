@@ -1,6 +1,7 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import type { IntegrationWebhookDelivery } from '@/service/api/integration-api'
+import { Link } from '@/components/link'
 
 interface DeliveryHistoryTableProps {
   title: string
@@ -9,6 +10,7 @@ interface DeliveryHistoryTableProps {
   isLoadingDeliveries: boolean
   onRefreshDeliveries: () => void
   onRetryDelivery: (deliveryId: string) => void
+  getTicketUrl?: (delivery: IntegrationWebhookDelivery) => string | null
 }
 
 export function DeliveryHistoryTable({
@@ -18,6 +20,7 @@ export function DeliveryHistoryTable({
   isLoadingDeliveries,
   onRefreshDeliveries,
   onRetryDelivery,
+  getTicketUrl,
 }: DeliveryHistoryTableProps) {
   return (
     <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
@@ -43,38 +46,53 @@ export function DeliveryHistoryTable({
               </tr>
             </thead>
             <tbody>
-              {deliveries.map((delivery) => (
-                <tr key={delivery.id} className="border-b border-zinc-200 dark:border-zinc-800">
-                  <td className="px-3 py-2">{delivery.eventType}</td>
-                  <td className="px-3 py-2">
-                    <Badge
-                      color={
-                        delivery.status === 'succeeded'
-                          ? 'green'
-                          : delivery.status === 'failed'
-                            ? 'red'
-                            : 'amber'
-                      }
-                    >
-                      {delivery.status}
-                    </Badge>
-                    {delivery.errorMessage && (
-                      <span className="ml-2 text-xs text-red-600 dark:text-red-400">
-                        {delivery.errorMessage}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">{delivery.ticketId || '-'}</td>
-                  <td className="px-3 py-2 text-zinc-500">{new Date(delivery.createdAt).toLocaleString()}</td>
-                  <td className="px-3 py-2">
-                    {(delivery.retryable ?? delivery.status === 'failed') && (
-                      <Button color="zinc" size="small" onClick={() => onRetryDelivery(delivery.id)}>
-                        Retry
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {deliveries.map((delivery) => {
+                const ticketUrl = getTicketUrl?.(delivery) ?? null
+                return (
+                  <tr key={delivery.id} className="border-b border-zinc-200 dark:border-zinc-800">
+                    <td className="px-3 py-2">{delivery.eventType}</td>
+                    <td className="px-3 py-2">
+                      <Badge
+                        color={
+                          delivery.status === 'succeeded'
+                            ? 'green'
+                            : delivery.status === 'failed'
+                              ? 'red'
+                              : 'amber'
+                        }
+                      >
+                        {delivery.status}
+                      </Badge>
+                      {delivery.errorMessage && (
+                        <span className="ml-2 text-xs text-red-600 dark:text-red-400">
+                          {delivery.errorMessage}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {delivery.ticketId ? (
+                        ticketUrl ? (
+                          <Link href={ticketUrl} className="text-sm">
+                            {delivery.ticketId}
+                          </Link>
+                        ) : (
+                          delivery.ticketId
+                        )
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-zinc-500">{new Date(delivery.createdAt).toLocaleString()}</td>
+                    <td className="px-3 py-2">
+                      {(delivery.retryable ?? delivery.status === 'failed') && (
+                        <Button color="zinc" size="small" onClick={() => onRetryDelivery(delivery.id)}>
+                          Retry
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
