@@ -763,6 +763,7 @@ export function IntegrationDetailPage() {
             isLoadingDeliveries={webhook.isLoadingDeliveries}
             isLoadingWebhook={webhook.isLoadingWebhook}
             isSavingWebhook={webhook.isSavingWebhook}
+            projects={projects}
             selectedInboundConfig={webhook.selectedInboundConfig}
             selectedInboundConfigId={webhook.selectedInboundConfigId}
             showCustomPayloadHelp={capabilities.showCustomInboundPayloadHelp}
