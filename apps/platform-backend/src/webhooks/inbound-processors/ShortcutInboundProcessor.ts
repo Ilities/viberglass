@@ -12,6 +12,7 @@ import type {
 } from '../InboundEventProcessorResolver';
 import type { ParsedWebhookEvent, ProviderType } from '../WebhookProvider';
 import type { TicketDAO } from '../../persistence/ticketing/TicketDAO';
+import type { ProjectIntegrationLinkDAO } from '../../persistence/integrations/ProjectIntegrationLinkDAO';
 import type { JobService } from '../../services/JobService';
 import type { CreateTicketRequest, Severity, TicketMetadata } from '@viberglass/types';
 import type { JobData } from '../../types/Job';
@@ -53,6 +54,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
   constructor(
     private ticketDAO: TicketDAO,
     private jobService: JobService,
+    private projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
   ) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
@@ -63,8 +65,12 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     const { event, config, tenantId, defaultTenantId } = context;
     const result: EventProcessingResult = {};
 
-    const resolvedTenantId =
-      config.projectId || tenantId || defaultTenantId || 'default';
+    const resolvedTenantId = await this.resolveProjectId(
+      config.projectId,
+      tenantId,
+      defaultTenantId,
+      config.integrationId,
+    );
     result.projectId = resolvedTenantId;
 
     if (event.eventType !== 'story_created' && event.eventType !== 'comment_created') {
@@ -81,6 +87,36 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     }
 
     return result;
+  }
+
+  private async resolveProjectId(
+    configProjectId: string | null,
+    tenantId: string | undefined,
+    defaultTenantId: string | undefined,
+    integrationId: string | null,
+  ): Promise<string> {
+    if (configProjectId) {
+      return configProjectId;
+    }
+
+    if (tenantId) {
+      return tenantId;
+    }
+
+    if (integrationId) {
+      const projectLinks =
+        await this.projectIntegrationLinkDAO.getIntegrationProjects(integrationId);
+      const linkedProjectId = projectLinks[0]?.projectId;
+      if (linkedProjectId) {
+        return linkedProjectId;
+      }
+    }
+
+    if (defaultTenantId && defaultTenantId !== 'default') {
+      return defaultTenantId;
+    }
+
+    throw new Error('No project linked to this webhook configuration');
   }
 
   private async processStoryCreated(

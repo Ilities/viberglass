@@ -14,6 +14,7 @@ import { DeduplicationService } from "./DeduplicationService";
 import { WebhookSecretService } from "./WebhookSecretService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
+import { ProjectIntegrationLinkDAO } from "../persistence/integrations/ProjectIntegrationLinkDAO";
 import { JobService } from "../services/JobService";
 import { FeedbackService } from "./FeedbackService";
 import { FeedbackOutboundConfigResolver } from "./feedback/FeedbackOutboundConfigResolver";
@@ -85,6 +86,7 @@ export function getWebhookService(): WebhookService {
     const secretService = new WebhookSecretService(credentialProvider);
     const ticketDAO = new TicketDAO();
     const projectScmConfigDAO = new ProjectScmConfigDAO();
+    const projectIntegrationLinkDAO = new ProjectIntegrationLinkDAO();
     const providerBehaviorResolver =
       createDefaultFeedbackProviderBehaviorResolver();
     const outboundContextResolver = new FeedbackOutboundContextResolver(
@@ -125,6 +127,7 @@ export function getWebhookService(): WebhookService {
       ticketDAO,
       jobService,
       projectScmConfigDAO,
+      projectIntegrationLinkDAO,
     );
 
     const serviceConfig = {
