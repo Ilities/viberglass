@@ -422,6 +422,62 @@ describe("WebhookService", () => {
     );
   });
 
+  it("creates Shortcut ticket and prefers config project linkage", async () => {
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_created"];
+    config.autoExecute = false;
+    config.projectId = "project-from-config";
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_created",
+      deduplicationId: "shortcut-delivery-project-1",
+      timestamp: "2026-02-09T00:00:00.000Z",
+      payload: {
+        object_type: "story",
+        action: "create",
+        data: {
+          id: 777,
+          name: "Shortcut story",
+          description: "Story body",
+          story_type: "feature",
+          app_url: "https://app.shortcut.com/acme/story/777",
+        },
+      },
+      metadata: {
+        issueKey: "777",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-project-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-from-config",
+        title: "Shortcut story",
+        autoFixRequested: false,
+      }),
+    );
+    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+  });
+
   it("uses Jira signature headers consistently for verification", async () => {
     const event: ParsedWebhookEvent = {
       provider: "jira",
