@@ -47,7 +47,7 @@ describe("shortcut webhook routes", () => {
     const response = await request(app)
       .post("/api/webhooks/shortcut")
       .set("x-shortcut-delivery", "shortcut-delivery-ignored-1")
-      .set("x-shortcut-signature", "sha256=signature")
+      .set("payload-signature", "sha256=signature")
       .send(payload)
       .expect(200);
 
@@ -58,7 +58,7 @@ describe("shortcut webhook routes", () => {
     expect(processWebhook).toHaveBeenCalledWith(
       expect.objectContaining({
         "x-shortcut-delivery": "shortcut-delivery-ignored-1",
-        "x-shortcut-signature": "sha256=signature",
+        "payload-signature": "sha256=signature",
       }),
       payload,
       expect.any(Buffer),
@@ -77,7 +77,7 @@ describe("shortcut webhook routes", () => {
     const response = await request(app)
       .post("/api/webhooks/shortcut")
       .set("x-shortcut-delivery", "shortcut-delivery-rejected-1")
-      .set("x-shortcut-signature", "sha256=bad-signature")
+      .set("payload-signature", "sha256=bad-signature")
       .send({
         object_type: "story",
         action: "create",
@@ -94,6 +94,42 @@ describe("shortcut webhook routes", () => {
     });
   });
 
+  it("passes configId hint when using config-scoped Shortcut webhook URL", async () => {
+    const processWebhook = jest.fn().mockResolvedValue({
+      status: "ignored",
+      reason: "No webhook configuration found for this repository/project",
+    });
+    const app = createApp(processWebhook);
+
+    await request(app)
+      .post("/api/webhooks/shortcut/cfg-shortcut-1")
+      .set("x-shortcut-delivery", "shortcut-delivery-config-1")
+      .set("payload-signature", "sha256=signature")
+      .send({
+        object_type: "comment",
+        action: "create",
+        data: {
+          id: 9555,
+          story_id: 202,
+        },
+      })
+      .expect(200);
+
+    expect(processWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        "x-shortcut-delivery": "shortcut-delivery-config-1",
+        "payload-signature": "sha256=signature",
+      }),
+      expect.any(Object),
+      expect.any(Buffer),
+      "tenant-1",
+      {
+        providerName: "shortcut",
+        configId: "cfg-shortcut-1",
+      },
+    );
+  });
+
   it("returns 500 when Shortcut route processing throws unexpectedly", async () => {
     const processWebhook = jest
       .fn()
@@ -103,7 +139,7 @@ describe("shortcut webhook routes", () => {
     const response = await request(app)
       .post("/api/webhooks/shortcut")
       .set("x-shortcut-delivery", "shortcut-delivery-error-1")
-      .set("x-shortcut-signature", "sha256=any")
+      .set("payload-signature", "sha256=any")
       .send({
         object_type: "story",
         action: "create",
