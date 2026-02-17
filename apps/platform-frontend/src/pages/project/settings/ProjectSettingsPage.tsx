@@ -504,7 +504,7 @@ export function ProjectSettingsPage() {
 
   return (
     <>
-      <PageMeta title={project ? `${project.name} | Settings` : 'Project Settings'} />
+      <PageMeta title={projectData?.name ? `${projectData.name} | Settings` : 'Project Settings'} />
       <div className="mx-auto max-w-4xl">
       <Heading>Project Settings</Heading>
 
