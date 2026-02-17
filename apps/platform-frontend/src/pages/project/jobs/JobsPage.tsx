@@ -1,5 +1,6 @@
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { SearchInput } from '@/components/search-input'
 import { Select } from '@/components/select'
 import { getProjectJobs } from '@/data'
@@ -53,6 +54,7 @@ export function JobsPage() {
 
   return (
     <>
+      <PageMeta title={project ? `${project} | Jobs` : 'Jobs'} />
       <div className="flex items-end justify-between">
         <Heading>Jobs</Heading>
         <div className="flex gap-4">

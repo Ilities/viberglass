@@ -3,6 +3,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { AsciiRobot, RetroSeparator } from '@/components/retro-decorations'
 import { getClankersList, formatClankerStatus, formatDeploymentStrategy } from '@/data'
 import type { Clanker } from '@/data'
@@ -29,6 +30,7 @@ export function ClankersPage() {
 
   return (
     <>
+      <PageMeta title="Your Clankers" />
       <div className="flex items-end justify-between">
         <Heading>Your Clankers</Heading>
         <Button href="/clankers/new" color="brand">

@@ -2,6 +2,7 @@ import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
+import { PageMeta } from '@/components/page-meta'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
@@ -105,7 +106,9 @@ export function CreateTicketPage() {
   }
 
   return (
-    <form className="mx-auto max-w-4xl" onSubmit={handleSubmit}>
+    <>
+      <PageMeta title={project ? `${project} | New Ticket` : 'New Ticket'} />
+      <form className="mx-auto max-w-4xl" onSubmit={handleSubmit}>
       <Heading>Create New Ticket</Heading>
 
       {error && (
@@ -239,5 +242,6 @@ export function CreateTicketPage() {
         </FieldGroup>
       </Fieldset>
     </form>
+    </>
   )
 }

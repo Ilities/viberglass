@@ -1,6 +1,7 @@
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
+import { PageMeta } from '@/components/page-meta'
 import { LogViewer } from '@/components/log-viewer'
 import { ProgressTimeline } from '@/components/progress-timeline'
 import { Badge } from '@/components/badge'
@@ -88,7 +89,9 @@ export function JobDetailPage() {
   const showProgress = job.status === 'active' && job.progress
 
   return (
-    <div className="h-full flex flex-col">
+    <>
+      <PageMeta title={job ? `${job.jobId.slice(-6)} | Job` : 'Job'} />
+      <div className="h-full flex flex-col">
       {/* Breadcrumb */}
       <div className="flex items-center gap-4 mb-6">
         <Button href={`/project/${project}/jobs`} plain>
@@ -355,5 +358,6 @@ export function JobDetailPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

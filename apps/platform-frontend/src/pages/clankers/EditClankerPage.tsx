@@ -2,6 +2,7 @@ import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
+import { PageMeta } from '@/components/page-meta'
 import { MultiSelect } from '@/components/multi-select'
 import { SegmentedControl } from '@/components/segmented-control'
 import { Select } from '@/components/select'
@@ -172,6 +173,7 @@ export function EditClankerPage() {
 
   return (
     <>
+      <PageMeta title={clanker ? `Edit ${clanker.name}` : 'Edit Clanker'} />
       <Heading>Edit Clanker</Heading>
       <Subheading className="mt-2">Update the configuration for {clanker.name}.</Subheading>
 

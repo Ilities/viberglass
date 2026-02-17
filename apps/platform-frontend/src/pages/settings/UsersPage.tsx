@@ -2,6 +2,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Field, FieldGroup, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
@@ -126,7 +127,9 @@ export function UsersPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
+    <>
+      <PageMeta title="Users" />
+      <div className="space-y-8 p-6 lg:p-8">
       <div>
         <Heading>User Management</Heading>
         <Text className="mt-2">
@@ -227,5 +230,6 @@ export function UsersPage() {
         </div>
       </section>
     </div>
+    </>
   )
 }

@@ -3,6 +3,7 @@ import { Button } from '@/components/button'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading } from '@/components/heading'
 import { Link } from '@/components/link'
+import { PageMeta } from '@/components/page-meta'
 import type { Clanker, JobListItem, TicketStats, TicketSummary } from '@/data'
 import {
   formatSeverity,
@@ -394,168 +395,171 @@ export function ProjectHomePage() {
   const queuedJobs = jobs.filter((j) => j.status === 'queued')
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="font-mono text-sm text-gray-500 dark:text-gray-400">{greeting}</p>
-          <Heading className="mt-1">Mission Control</Heading>
+    <>
+      <PageMeta title={project ? `${project} | Mission Control` : 'Loading...'} />
+      <div className="space-y-8">
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="font-mono text-sm text-gray-500 dark:text-gray-400">{greeting}</p>
+            <Heading className="mt-1">Mission Control</Heading>
+          </div>
+          <div className="flex gap-2">
+            <Button href={`/project/${project}/tickets`} outline>
+              View Tickets
+            </Button>
+            <Button href={`/project/${project}/jobs`}>Queue Job</Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button href={`/project/${project}/tickets`} outline>
-            View Tickets
-          </Button>
-          <Button href={`/project/${project}/jobs`}>Queue Job</Button>
+
+        <TimelineBar tickets={tickets} jobs={jobs} />
+
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <MetricCard label="Total Tickets" value={metrics.total} subtext={`${metrics.todayTickets} created today`} />
+          <MetricCard label="Open Issues" value={metrics.open} subtext={`${metrics.inProgress} in progress`} />
+          <MetricCard
+            label="Auto-Fix Queue"
+            value={metrics.autoFixPending}
+            subtext={`${metrics.autoFixRequested} total requested`}
+          />
+          <MetricCard label="Resolved" value={metrics.resolved} subtext={`${metrics.todayResolved} completed today`} />
         </div>
-      </div>
 
-      <TimelineBar tickets={tickets} jobs={jobs} />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            {inProgressTickets.length > 0 && (
+              <section>
+                <SectionHeader
+                  title="In Progress"
+                  count={inProgressTickets.length}
+                  action={<span className="text-xs text-gray-500 dark:text-gray-400">Clankers working</span>}
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {inProgressTickets.map((ticket) => (
+                    <TicketCard key={ticket.id} ticket={ticket} project={project!} />
+                  ))}
+                </div>
+              </section>
+            )}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard label="Total Tickets" value={metrics.total} subtext={`${metrics.todayTickets} created today`} />
-        <MetricCard label="Open Issues" value={metrics.open} subtext={`${metrics.inProgress} in progress`} />
-        <MetricCard
-          label="Auto-Fix Queue"
-          value={metrics.autoFixPending}
-          subtext={`${metrics.autoFixRequested} total requested`}
-        />
-        <MetricCard label="Resolved" value={metrics.resolved} subtext={`${metrics.todayResolved} completed today`} />
-      </div>
+            {openTickets.length > 0 && (
+              <section>
+                <SectionHeader title="Awaiting Assignment" count={openTickets.length} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {openTickets.map((ticket) => (
+                    <TicketCard key={ticket.id} ticket={ticket} project={project!} />
+                  ))}
+                </div>
+              </section>
+            )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {inProgressTickets.length > 0 && (
+            {resolvedTickets.length > 0 && (
+              <section>
+                <SectionHeader title="Recently Resolved" count={resolvedTickets.length} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {resolvedTickets.map((ticket) => (
+                    <TicketCard key={ticket.id} ticket={ticket} project={project!} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {(activeJobs.length > 0 || queuedJobs.length > 0) && (
+              <section>
+                <SectionHeader
+                  title="Job Queue"
+                  count={jobs.length}
+                  action={
+                    <Link href={`/project/${project}/jobs`} className="text-xs text-brand-burnt-orange hover:underline">
+                      View all
+                    </Link>
+                  }
+                />
+                <div className="space-y-2">
+                  {activeJobs.map((job) => (
+                    <JobCard key={job.jobId} job={job} />
+                  ))}
+                  {queuedJobs.slice(0, 2).map((job) => (
+                    <JobCard key={job.jobId} job={job} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <div className="space-y-6">
             <section>
               <SectionHeader
-                title="In Progress"
-                count={inProgressTickets.length}
-                action={<span className="text-xs text-gray-500 dark:text-gray-400">Clankers working</span>}
-              />
-              <div className="grid gap-3 sm:grid-cols-2">
-                {inProgressTickets.map((ticket) => (
-                  <TicketCard key={ticket.id} ticket={ticket} project={project!} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {openTickets.length > 0 && (
-            <section>
-              <SectionHeader title="Awaiting Assignment" count={openTickets.length} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                {openTickets.map((ticket) => (
-                  <TicketCard key={ticket.id} ticket={ticket} project={project!} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {resolvedTickets.length > 0 && (
-            <section>
-              <SectionHeader title="Recently Resolved" count={resolvedTickets.length} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                {resolvedTickets.map((ticket) => (
-                  <TicketCard key={ticket.id} ticket={ticket} project={project!} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {(activeJobs.length > 0 || queuedJobs.length > 0) && (
-            <section>
-              <SectionHeader
-                title="Job Queue"
-                count={jobs.length}
+                title="Clanker Fleet"
+                count={clankers.length}
                 action={
-                  <Link href={`/project/${project}/jobs`} className="text-xs text-brand-burnt-orange hover:underline">
-                    View all
+                  <Link href="/clankers" className="text-xs text-brand-burnt-orange hover:underline">
+                    Manage
                   </Link>
                 }
               />
               <div className="space-y-2">
-                {activeJobs.map((job) => (
-                  <JobCard key={job.jobId} job={job} />
-                ))}
-                {queuedJobs.slice(0, 2).map((job) => (
-                  <JobCard key={job.jobId} job={job} />
+                {clankers.map((clanker) => (
+                  <ClankerCard key={clanker.id} clanker={clanker} />
                 ))}
               </div>
+              {clankers.length === 0 && (
+                <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
+                  <p className="text-gray-500 dark:text-gray-400">No active Clankers</p>
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">The fleet is dormant</p>
+                </div>
+              )}
             </section>
-          )}
-        </div>
 
-        <div className="space-y-6">
-          <section>
-            <SectionHeader
-              title="Clanker Fleet"
-              count={clankers.length}
-              action={
-                <Link href="/clankers" className="text-xs text-brand-burnt-orange hover:underline">
-                  Manage
-                </Link>
-              }
-            />
-            <div className="space-y-2">
-              {clankers.map((clanker) => (
-                <ClankerCard key={clanker.id} clanker={clanker} />
-              ))}
-            </div>
-            {clankers.length === 0 && (
-              <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
-                <p className="text-gray-500 dark:text-gray-400">No active Clankers</p>
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">The fleet is dormant</p>
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-            <h3 className="mb-4 text-sm font-semibold tracking-wider text-gray-900 uppercase dark:text-white">
-              Severity Breakdown
-            </h3>
-            <div className="space-y-3">
-              {stats &&
-                Object.entries(stats.bySeverity).map(([severity, countVal]) => {
-                  const severityInfo = formatSeverity(severity)
-                  const total = stats.total || 1
-                  const count = countVal as number
-                  const percentage = Math.round((count / total) * 100)
-                  return (
-                    <div key={severity} className="flex items-center gap-3">
-                      <div className="w-20 text-xs text-gray-500 capitalize dark:text-gray-400">{severity}</div>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                        <div
-                          className={`h-full rounded-full ${severityInfo.barColor}`}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <div className="w-8 text-right text-xs text-gray-700 dark:text-gray-300">{count}</div>
-                    </div>
-                  )
-                })}
-            </div>
-          </section>
-
-          {stats && Object.keys(stats.byCategory).length > 0 && (
             <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
               <h3 className="mb-4 text-sm font-semibold tracking-wider text-gray-900 uppercase dark:text-white">
-                Categories
+                Severity Breakdown
               </h3>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(stats.byCategory)
-                  .slice(0, 6)
-                  .map(([category, countVal]) => (
-                    <div
-                      key={category}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-xs dark:bg-gray-800"
-                    >
-                      <span className="text-gray-700 dark:text-gray-300">{category}</span>
-                      <span className="text-gray-400 dark:text-gray-500">{countVal as number}</span>
-                    </div>
-                  ))}
+              <div className="space-y-3">
+                {stats &&
+                  Object.entries(stats.bySeverity).map(([severity, countVal]) => {
+                    const severityInfo = formatSeverity(severity)
+                    const total = stats.total || 1
+                    const count = countVal as number
+                    const percentage = Math.round((count / total) * 100)
+                    return (
+                      <div key={severity} className="flex items-center gap-3">
+                        <div className="w-20 text-xs text-gray-500 capitalize dark:text-gray-400">{severity}</div>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                          <div
+                            className={`h-full rounded-full ${severityInfo.barColor}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <div className="w-8 text-right text-xs text-gray-700 dark:text-gray-300">{count}</div>
+                      </div>
+                    )
+                  })}
               </div>
             </section>
-          )}
+
+            {stats && Object.keys(stats.byCategory).length > 0 && (
+              <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+                <h3 className="mb-4 text-sm font-semibold tracking-wider text-gray-900 uppercase dark:text-white">
+                  Categories
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(stats.byCategory)
+                    .slice(0, 6)
+                    .map(([category, countVal]) => (
+                      <div
+                        key={category}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-xs dark:bg-gray-800"
+                      >
+                        <span className="text-gray-700 dark:text-gray-300">{category}</span>
+                        <span className="text-gray-400 dark:text-gray-500">{countVal as number}</span>
+                      </div>
+                    ))}
+                </div>
+              </section>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }

@@ -2,6 +2,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { IntegrationConfigForm } from '@/components/integration-config-form'
+import { PageMeta } from '@/components/page-meta'
 import {
   getIntegrationCategoryConfig,
   getIntegrationIcon,
@@ -577,7 +578,9 @@ export function IntegrationDetailPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
+    <>
+      <PageMeta title={integration ? `${integration.label} | Integration` : 'Integration'} />
+      <div className="space-y-8 p-6 lg:p-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-4">
         <Button href="/settings/integrations" plain>
@@ -837,5 +840,6 @@ export function IntegrationDetailPage() {
           />
         ))}
     </div>
+    </>
   )
 }
