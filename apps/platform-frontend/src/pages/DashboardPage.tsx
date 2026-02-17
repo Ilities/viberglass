@@ -48,16 +48,18 @@ function EmptyState({
   asciiArt?: React.ReactNode
 }) {
   return (
-    <div className="hover-lift rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="hover-lift flex h-full flex-col justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
       <RetroSeparator className="mb-4" />
       {asciiArt && <div className="float mb-4 flex justify-center">{asciiArt}</div>}
       <h3 className="font-mono text-sm font-semibold text-zinc-950 dark:text-white">{title}</h3>
       <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
       {href && (
-        <Button href={href} color="brand" className="hover-grow mt-4">
-          <PlusIcon data-slot="icon" />
-          {actionLabel}
-        </Button>
+        <div className="mt-4">
+          <Button href={href} color="brand" className="hover-grow">
+            <PlusIcon data-slot="icon" />
+            {actionLabel}
+          </Button>
+        </div>
       )}
       <RetroSeparator className="mt-4" />
     </div>
@@ -137,9 +139,9 @@ export function DashboardPage() {
       {/* Two-column main content */}
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
         {/* Left column */}
-        <div className="space-y-10">
+        <div className="flex flex-col gap-10">
           {/* Projects section */}
-          <div>
+          <div className="flex flex-col">
             <div className="flex items-center justify-between">
               <Subheading>Projects</Subheading>
               <div className="flex gap-2">
@@ -150,7 +152,7 @@ export function DashboardPage() {
               </div>
             </div>
             {projects.length === 0 ? (
-              <div className="mt-4">
+              <div className="mt-4 h-full">
                 <EmptyState
                   title="[ MOSTLY HARMLESS ]"
                   description="This section of space is curiously devoid of projects. The Guide recommends creating one, though it notes this may lead to responsibilities."
@@ -186,7 +188,7 @@ export function DashboardPage() {
           </div>
 
           {/* Clankers section */}
-          <div>
+          <div className="flex flex-col">
             <div className="flex items-center justify-between">
               <Subheading>Clankers</Subheading>
               <div className="flex gap-2">
@@ -200,7 +202,7 @@ export function DashboardPage() {
               </div>
             </div>
             {clankers.length === 0 ? (
-              <div className="mt-4">
+              <div className="mt-4 h-full">
                 <EmptyState
                   title="[ NO SERVANTS ON DUTY ]"
                   description="Your mechanical workforce stands at zero. Conscript a clanker to do your bidding. They exist to serve, and frankly, they should be grateful for the opportunity."
@@ -239,19 +241,17 @@ export function DashboardPage() {
         </div>
 
         {/* Right column */}
-        <div className="space-y-10">
+        <div className="flex flex-col gap-10">
           {/* Recent Tickets section */}
-          <div>
+          <div className="flex flex-col">
             <div className="flex items-center justify-between">
               <Subheading>Recent Tickets</Subheading>
             </div>
             {recentTickets.length === 0 ? (
-              <div className="mt-4">
+              <div className="mt-4 h-full">
                 <EmptyState
                   title="[ SO LONG, AND THANKS FOR ALL THE BUGS ]"
                   description="The dolphins have apparently taken all the tickets with them. This state of zero bugs is statistically improbable and likely temporary."
-                  href="/new"
-                  actionLabel="Create Project"
                   asciiArt={<AsciiWhale />}
                 />
               </div>
@@ -304,12 +304,12 @@ export function DashboardPage() {
           </div>
 
           {/* Recent Jobs section */}
-          <div>
+          <div className="flex flex-col">
             <div className="flex items-center justify-between">
               <Subheading>Recent Jobs</Subheading>
             </div>
             {recentJobs.length === 0 ? (
-              <div className="mt-4">
+              <div className="mt-4 h-full">
                 <EmptyState
                   title="[ TIME IS AN ILLUSION ]"
                   description="No jobs are currently running. Deep Thought took 7.5 million years to compute the answer. Your jobs will probably be faster. Probably."
