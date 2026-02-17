@@ -2,6 +2,7 @@ import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
+import { PageMeta } from '@/components/page-meta'
 import { MultiSelect } from '@/components/multi-select'
 import { SegmentedControl } from '@/components/segmented-control'
 import { Select } from '@/components/select'
@@ -123,6 +124,7 @@ export function NewClankerPage() {
 
   return (
     <>
+      <PageMeta title="New Clanker" />
       <Heading>Create New Clanker</Heading>
       <Subheading className="mt-2">Configure a new agent worker for your Viberator tasks.</Subheading>
       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">

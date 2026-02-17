@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
@@ -502,7 +503,9 @@ export function ProjectSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <>
+      <PageMeta title={project ? `${project.name} | Settings` : 'Project Settings'} />
+      <div className="mx-auto max-w-4xl">
       <Heading>Project Settings</Heading>
 
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
@@ -867,5 +870,6 @@ export function ProjectSettingsPage() {
         </form>
       )}
     </div>
+    </>
   )
 }

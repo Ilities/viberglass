@@ -73,12 +73,12 @@ export function ClankerActions({ clanker }: ClankerActionsProps) {
       )}
 
       <Button
-        plain
+        surface
+        color="red"
         onClick={() => setShowDeleteDialog(true)}
-        className="!inline-flex !h-9 !items-center !justify-center !rounded-md !px-3 !text-red-700 hover:!bg-red-50 hover:!text-red-800 dark:!text-red-300 dark:hover:!bg-red-500/10 dark:hover:!text-red-200"
+        aria-label="Delete clanker"
       >
         <TrashIcon />
-        Delete
       </Button>
 
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
