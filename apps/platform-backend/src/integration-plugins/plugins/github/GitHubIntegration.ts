@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosInstance } from "axios";
 import { BasePMIntegration } from "../../BasePMIntegration";
 import { GitHubConfig } from "../../../models/PMIntegration";
 import {
@@ -22,9 +22,17 @@ interface GitHubIssue {
   html_url: string;
 }
 
+type UpdateData = {
+  title?: string;
+  body?: string;
+  state?: "open" | "closed";
+  labels?: string[];
+  assignee?: string;
+};
+
 export class GitHubIntegration extends BasePMIntegration {
   private config: GitHubConfig;
-  private apiClient: any;
+  private apiClient: AxiosInstance = axios.create();
 
   constructor(credentials: AuthCredentials & GitHubConfig) {
     super(credentials);
@@ -95,7 +103,7 @@ export class GitHubIntegration extends BasePMIntegration {
     updates: ExternalTicketUpdate,
   ): Promise<void> {
     try {
-      const updateData: any = {};
+      const updateData: UpdateData = {};
 
       if (updates.title) {
         updateData.title = updates.title;
@@ -169,7 +177,12 @@ export class GitHubIntegration extends BasePMIntegration {
     }
   }
 
-  handleWebhook(payload: any): WebhookEvent {
+  handleWebhook(payload: {
+    action: string;
+    issue: GitHubIssue;
+    comment: boolean;
+    changes: Record<string, unknown>;
+  }): WebhookEvent {
     const action = payload.action;
     const issue = payload.issue;
 
@@ -277,7 +290,7 @@ export class GitHubIntegration extends BasePMIntegration {
     body: string,
     head: string,
     base: string = "main",
-  ): Promise<any> {
+  ): Promise<object> {
     try {
       const response = await this.apiClient.post(
         `/repos/${this.config.owner}/${this.config.repo}/pulls`,
@@ -310,7 +323,7 @@ export class GitHubIntegration extends BasePMIntegration {
     }
   }
 
-  async getRepositoryInfo(): Promise<any> {
+  async getRepositoryInfo(): Promise<object> {
     try {
       const response = await this.apiClient.get(
         `/repos/${this.config.owner}/${this.config.repo}`,

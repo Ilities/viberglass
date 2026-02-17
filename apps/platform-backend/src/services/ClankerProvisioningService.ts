@@ -6,13 +6,16 @@ import {
   DescribeTaskDefinitionCommand,
   RegisterTaskDefinitionCommand,
   type RegisterTaskDefinitionCommandInput,
+  TaskDefinition,
 } from "@aws-sdk/client-ecs";
 import {
   CreateFunctionCommand,
   GetFunctionCommand,
+  GetFunctionCommandOutput,
   LambdaClient,
   UpdateFunctionCodeCommand,
   UpdateFunctionConfigurationCommand,
+  UpdateFunctionConfigurationCommandInput,
 } from "@aws-sdk/client-lambda";
 import type { Clanker, ClankerStatus } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
@@ -379,7 +382,11 @@ export class ClankerProvisioningService {
     }
 
     await progress?.("Deploying Lambda function...");
-    const functionInfo = await this.ensureLambdaFunction(clanker, config, progress);
+    const functionInfo = await this.ensureLambdaFunction(
+      clanker,
+      config,
+      progress,
+    );
 
     const updatedConfig: Record<string, unknown> = {
       ...config,
@@ -526,9 +533,13 @@ export class ClankerProvisioningService {
     };
 
     // If container image is explicitly requested, inject it into the selected container.
-    if (config.containerImage && nextTaskDefinition.containerDefinitions?.length) {
+    if (
+      config.containerImage &&
+      nextTaskDefinition.containerDefinitions?.length
+    ) {
       const targetContainerName =
-        config.containerName || nextTaskDefinition.containerDefinitions[0]?.name;
+        config.containerName ||
+        nextTaskDefinition.containerDefinitions[0]?.name;
 
       nextTaskDefinition.containerDefinitions =
         nextTaskDefinition.containerDefinitions.map((container) =>
@@ -558,7 +569,9 @@ export class ClankerProvisioningService {
 
     return {
       taskDefinitionArn,
-      taskDefinitionDetails: this.mapTaskDefinitionDetails(registeredTaskDefinition),
+      taskDefinitionDetails: this.mapTaskDefinitionDetails(
+        registeredTaskDefinition,
+      ),
     };
   }
 
@@ -600,7 +613,9 @@ export class ClankerProvisioningService {
     };
   }
 
-  private mapTaskDefinitionDetails(taskDefinition: any): EcsTaskDefinitionDetails {
+  private mapTaskDefinitionDetails(
+    taskDefinition: TaskDefinition,
+  ): EcsTaskDefinitionDetails {
     if (!taskDefinition) {
       return {};
     }
@@ -696,7 +711,7 @@ export class ClankerProvisioningService {
     const functionIdentifier = explicitArn || explicitName || derivedName;
     const functionName = explicitName || derivedName;
 
-    let existingResponse: any = null;
+    let existingResponse = null;
 
     try {
       existingResponse = await this.lambdaClient.send(
@@ -730,20 +745,19 @@ export class ClankerProvisioningService {
         );
       }
 
-      const configurationUpdate: Record<string, unknown> = {
+      const configurationUpdate: UpdateFunctionConfigurationCommandInput = {
         FunctionName: functionIdentifier,
       };
 
       if (config.roleArn) configurationUpdate.Role = config.roleArn;
       if (config.memorySize !== undefined)
         configurationUpdate.MemorySize = config.memorySize;
-      if (config.timeout !== undefined) configurationUpdate.Timeout = config.timeout;
+      if (config.timeout !== undefined)
+        configurationUpdate.Timeout = config.timeout;
       if (config.environment) {
         configurationUpdate.Environment = { Variables: config.environment };
       }
-      if (config.architecture) {
-        configurationUpdate.Architectures = [config.architecture];
-      }
+
       if (config.vpc) {
         configurationUpdate.VpcConfig = {
           SubnetIds: config.vpc.subnetIds,
@@ -752,9 +766,11 @@ export class ClankerProvisioningService {
       }
 
       if (Object.keys(configurationUpdate).length > 1) {
-        await progress?.(`Updating Lambda configuration for ${functionName}...`);
+        await progress?.(
+          `Updating Lambda configuration for ${functionName}...`,
+        );
         await this.lambdaClient.send(
-          new UpdateFunctionConfigurationCommand(configurationUpdate as any),
+          new UpdateFunctionConfigurationCommand(configurationUpdate),
         );
       }
     } else {
@@ -775,7 +791,9 @@ export class ClankerProvisioningService {
           Environment: config.environment
             ? { Variables: config.environment }
             : undefined,
-          Architectures: config.architecture ? [config.architecture] : undefined,
+          Architectures: config.architecture
+            ? [config.architecture]
+            : undefined,
           VpcConfig: config.vpc
             ? {
                 SubnetIds: config.vpc.subnetIds,
@@ -799,7 +817,9 @@ export class ClankerProvisioningService {
     };
   }
 
-  private mapLambdaFunctionDetails(response: any): LambdaFunctionDetails {
+  private mapLambdaFunctionDetails(
+    response: GetFunctionCommandOutput,
+  ): LambdaFunctionDetails {
     return {
       functionName: response.Configuration?.FunctionName,
       functionArn: response.Configuration?.FunctionArn,
