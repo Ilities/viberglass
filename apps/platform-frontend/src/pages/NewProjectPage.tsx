@@ -23,20 +23,17 @@ import { Link } from '@/components/link'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
-// All available integrations for reference
+// All available integrations for reference (must match backend builtInIntegrationPlugins)
 const ALL_INTEGRATIONS = [
   { id: 'github', name: 'GitHub' },
   { id: 'gitlab', name: 'GitLab' },
   { id: 'bitbucket', name: 'Bitbucket' },
   { id: 'jira', name: 'Jira' },
   { id: 'linear', name: 'Linear' },
-  { id: 'azure', name: 'Azure DevOps' },
-  { id: 'asana', name: 'Asana' },
-  { id: 'trello', name: 'Trello' },
   { id: 'monday', name: 'Monday.com' },
-  { id: 'clickup', name: 'ClickUp' },
   { id: 'shortcut', name: 'Shortcut' },
   { id: 'slack', name: 'Slack' },
+  { id: 'custom', name: 'Custom Webhook' },
 ]
 
 export function NewProjectPage() {
@@ -148,7 +145,6 @@ export function NewProjectPage() {
 
       const projectData: CreateProjectRequest = {
         name: formData.get('name') as string,
-        ticketSystem: ticketSystem as CreateProjectRequest['ticketSystem'],
         credentials,
         repositoryUrl: repositoryUrlList[0] ?? null,
         repositoryUrls: repositoryUrlList,
@@ -159,6 +155,12 @@ export function NewProjectPage() {
           .filter(Boolean),
         agentInstructions: ((formData.get('agent_instructions') as string) || '').trim() || undefined,
         customFieldMappings: {},
+      }
+
+      // Only include ticketSystem if a specific integration is selected
+      // (when using Viberglass as ticketing system, omit the field)
+      if (ticketSystem && ticketSystem !== 'none') {
+        projectData.ticketSystem = ticketSystem as CreateProjectRequest['ticketSystem']
       }
 
       const project = await createProject(projectData)
