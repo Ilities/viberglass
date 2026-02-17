@@ -1,19 +1,14 @@
-import {
-  CheckCircledIcon,
-  CircleIcon,
-  ExclamationTriangleIcon,
-  GitHubLogoIcon,
-} from '@radix-ui/react-icons'
-import type {
-  IntegrationCategory,
-  IntegrationConfigStatus,
-  TicketSystem,
-} from '@viberglass/types'
+import { CheckCircledIcon, CircleIcon, ExclamationTriangleIcon, GitHubLogoIcon } from '@radix-ui/react-icons'
+import type { IntegrationCategory, IntegrationConfigStatus, TicketSystem } from '@viberglass/types'
 import type { ComponentType } from 'react'
 
 export type IntegrationIconComponent = ComponentType<{ className?: string }>
 
 export const INTEGRATION_ICON_COMPONENTS: Record<TicketSystem, IntegrationIconComponent> = {
+  asana: AsanaIcon,
+  azure: AzureIcon,
+  clickup: ClickUpIcon,
+  trello: TrelloIcon,
   github: GitHubLogoIcon,
   gitlab: GitLabIcon,
   bitbucket: BitbucketIcon,
