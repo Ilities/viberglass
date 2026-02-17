@@ -18,6 +18,11 @@ config:
   # Format: organization/<project>/<stack> for S3 backends
   viberglass:baseStack: organization/viberglass-base/dev
 
+  # Worker stack reference (OPTIONAL, recommended for ECS managed clankers)
+  # If omitted, managed ECS clanker provisioning won't have automatic defaults.
+  # If you deploy workers after platform, set this and re-run `pulumi up` in infra/platform.
+  # viberglass:workerStack: organization/viberglass-workers/dev
+
   # Enable Fargate Spot for cost savings (70% discount)
   # Workers may be interrupted with 2-minute notice
   viberglass:enableSpot: "true"
