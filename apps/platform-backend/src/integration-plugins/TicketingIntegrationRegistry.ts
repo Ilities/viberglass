@@ -16,6 +16,7 @@ export class TicketingIntegrationRegistry {
     this.plugins.set(plugin.id, plugin);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerAll(plugins: IntegrationPluginDefinition<any>[]): void {
     plugins.forEach((plugin) => this.register(plugin));
   }
@@ -59,7 +60,7 @@ export class TicketingIntegrationRegistry {
    */
   getProviderProjectId(
     provider: string,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ): string | null {
     for (const plugin of this.plugins.values()) {
       if (plugin.webhookProvider === provider && plugin.getProviderProjectId) {

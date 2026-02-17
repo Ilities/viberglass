@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosInstance } from "axios";
 import { BasePMIntegration } from "../../BasePMIntegration";
 import { ShortcutConfig } from "../../../models/PMIntegration";
 import {
@@ -30,7 +30,7 @@ interface ShortcutStory {
 
 export class ShortcutIntegration extends BasePMIntegration {
   private config: ShortcutConfig;
-  private apiClient: any;
+  private apiClient: AxiosInstance = axios.create();
 
   constructor(credentials: AuthCredentials & ShortcutConfig) {
     super(credentials);
@@ -85,7 +85,7 @@ export class ShortcutIntegration extends BasePMIntegration {
         labels.push("auto-fix");
       }
 
-      const storyData: any = {
+      const storyData: Record<string, unknown> = {
         name: ticket.title,
         description: this.formatBugReportDescription(ticket),
         story_type: "bug",
@@ -116,7 +116,7 @@ export class ShortcutIntegration extends BasePMIntegration {
     updates: ExternalTicketUpdate,
   ): Promise<void> {
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
 
       if (updates.title) {
         updateData.name = updates.title;
@@ -164,7 +164,7 @@ export class ShortcutIntegration extends BasePMIntegration {
 
   async registerWebhook(url: string, events: string[]): Promise<void> {
     try {
-      const webhookData: any = {
+      const webhookData: Record<string, unknown> = {
         name: "viberglass",
         url,
         event_types: events,
@@ -181,7 +181,14 @@ export class ShortcutIntegration extends BasePMIntegration {
     }
   }
 
-  handleWebhook(payload: any): WebhookEvent {
+  handleWebhook(payload: {
+    event_type?: string;
+    eventType?: string;
+    story?: ShortcutStory;
+    changes?: Record<string, unknown>;
+    actions?: Array<{ changes: Record<string, unknown> }>;
+    timestamp?: string;
+  }): WebhookEvent {
     const eventType = payload.event_type || payload.eventType || "";
     const story = payload.story;
 

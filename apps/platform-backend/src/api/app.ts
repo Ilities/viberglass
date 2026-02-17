@@ -8,6 +8,7 @@ import createError from "http-errors";
 import logger from "../config/logger";
 import passport from "passport";
 import type { ExtendedRequest } from "../webhooks/middleware/rawBody";
+import type { ErrorRequestHandler } from "express";
 
 // Import routes
 import projectsRouter from "./routes/projects";
@@ -167,47 +168,47 @@ app.use((req, res, next) => {
   next(createError(404));
 });
 
+type Layer = {
+  route?: { path: string };
+  name: string;
+  regexp?: RegExp;
+};
+
 // Error handler
-app.use(
-  (
-    err: any,
-    req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction,
-  ) => {
-    // Set locals, only providing error in development
-    res.locals.message = err.message;
-    res.locals.error = req.app.get("env") === "development" ? err : {};
+const errorHandler: ErrorRequestHandler = (err, req, res) => {
+  // Set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get("env") === "development" ? err : {};
 
-    // Log error with more context for 404s
-    const logData: Record<string, unknown> = {
-      message: err.message,
-      stack: err.stack,
-      status: err.status,
-    };
+  // Log error with more context for 404s
+  const logData: Record<string, unknown> = {
+    message: err.message,
+    stack: err.stack,
+    status: err.status,
+  };
 
-    if (err.status === 404) {
-      logData.method = req.method;
-      logData.url = req.url;
-      logData.originalUrl = req.originalUrl;
-      logData.path = req.path;
-      logData.routes = req.app._router?.stack
-        ?.filter((layer: any) => layer.route || layer.name === "router")
-        ?.map((layer: any) => ({
-          name: layer.name,
-          regexp: layer.regexp?.toString(),
-          path: layer.route?.path,
-        }));
-    }
+  if (err.status === 404) {
+    logData.method = req.method;
+    logData.url = req.url;
+    logData.originalUrl = req.originalUrl;
+    logData.path = req.path;
+    logData.routes = req.app._router?.stack
+      ?.filter((layer: Layer) => layer.route || layer.name === "router")
+      ?.map((layer: Layer) => ({
+        name: layer.name,
+        regexp: layer.regexp?.toString(),
+        path: layer.route?.path,
+      }));
+  }
 
-    logger.error("Application error", logData);
+  logger.error("Application error", logData);
 
-    // Send error response
-    res.status(err.status || 500).json({
-      error: err.message || "Internal server error",
-      ...(req.app.get("env") === "development" && { stack: err.stack }),
-    });
-  },
-);
+  // Send error response
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error",
+    ...(req.app.get("env") === "development" && { stack: err.stack }),
+  });
+};
+app.use(errorHandler);
 
 export default app;
