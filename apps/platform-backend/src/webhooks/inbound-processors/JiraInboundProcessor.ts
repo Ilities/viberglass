@@ -9,13 +9,17 @@ import type {
   InboundEventProcessor,
   InboundEventContext,
   EventProcessingResult,
-} from '../InboundEventProcessorResolver';
-import type { ParsedWebhookEvent, ProviderType } from '../WebhookProvider';
-import type { TicketDAO } from '../../persistence/ticketing/TicketDAO';
-import type { JobService } from '../../services/JobService';
-import type { CreateTicketRequest, Severity, TicketMetadata } from '@viberglass/types';
-import type { JobData } from '../../types/Job';
-import { randomUUID } from 'crypto';
+} from "../InboundEventProcessorResolver";
+import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
+import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
+import type { JobService } from "../../services/JobService";
+import type {
+  CreateTicketRequest,
+  Severity,
+  TicketMetadata,
+} from "@viberglass/types";
+import type { JobData } from "../../types/Job";
+import { randomUUID } from "crypto";
 
 interface WebhookJobContext {
   ticketId?: string;
@@ -59,7 +63,7 @@ interface JiraCommentPayload {
 }
 
 export class JiraInboundProcessor implements InboundEventProcessor {
-  readonly provider: ProviderType | 'default' = 'jira';
+  readonly provider: ProviderType | "default" = "jira";
 
   constructor(
     private ticketDAO: TicketDAO,
@@ -67,7 +71,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
   ) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
-    return event.provider === 'jira';
+    return event.provider === "jira";
   }
 
   async process(context: InboundEventContext): Promise<EventProcessingResult> {
@@ -75,10 +79,13 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     const result: EventProcessingResult = {};
 
     const resolvedTenantId =
-      config.projectId || tenantId || defaultTenantId || 'default';
+      config.projectId || tenantId || defaultTenantId || "default";
     result.projectId = resolvedTenantId;
 
-    if (event.eventType !== 'issue_created' && event.eventType !== 'comment_created') {
+    if (
+      event.eventType !== "issue_created" &&
+      event.eventType !== "comment_created"
+    ) {
       const scopedEventType = event.metadata.action
         ? `${event.eventType}.${event.metadata.action}`
         : event.eventType;
@@ -86,12 +93,17 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       return result;
     }
 
-    if (event.eventType === 'issue_created') {
+    if (event.eventType === "issue_created") {
       return this.processIssueCreated(event, config, resolvedTenantId, result);
     }
 
-    if (event.eventType === 'comment_created') {
-      return this.processCommentCreated(event, config, resolvedTenantId, result);
+    if (event.eventType === "comment_created") {
+      return this.processCommentCreated(
+        event,
+        config,
+        resolvedTenantId,
+        result,
+      );
     }
 
     return result;
@@ -99,7 +111,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
   private async processIssueCreated(
     event: ParsedWebhookEvent,
-    config: InboundEventContext['config'],
+    config: InboundEventContext["config"],
     resolvedTenantId: string,
     result: EventProcessingResult,
   ): Promise<EventProcessingResult> {
@@ -109,19 +121,23 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       return result;
     }
 
-    const severity = this.detectSeverityFromPriority(payload.issue.fields.priority?.name);
-    const description = this.extractJiraTextContent(payload.issue.fields.description);
+    const severity = this.detectSeverityFromPriority(
+      payload.issue.fields.priority?.name,
+    );
+    const description = this.extractJiraTextContent(
+      payload.issue.fields.description,
+    );
 
     const ticketRequest: CreateTicketRequest = {
       projectId: resolvedTenantId,
       title: payload.issue.fields.summary,
       description,
       severity,
-      category: 'bug',
+      category: "bug",
       metadata: this.createTicketMetadata({
         externalTicketId: payload.issue.key,
         webhookConfigId: config.id,
-        provider: 'jira',
+        provider: "jira",
         sender: payload.user?.displayName || event.metadata.sender,
         issueType: payload.issue.fields.issuetype.name,
         eventType: event.eventType,
@@ -132,13 +148,17 @@ export class JiraInboundProcessor implements InboundEventProcessor {
         jiraIssueKey: payload.issue.key,
         jiraIssueApiUrl: payload.issue.self,
         jiraApiBaseUrl: this.extractJiraApiBaseUrl(payload.issue.self),
-        externalTicketUrl: this.buildJiraIssueBrowseUrl(payload.issue.self, payload.issue.key),
+        externalTicketUrl: this.buildJiraIssueBrowseUrl(
+          payload.issue.self,
+          payload.issue.key,
+        ),
         jiraProjectKey:
-          event.metadata.repositoryId || this.extractJiraProjectKey(payload.issue.key),
+          event.metadata.repositoryId ||
+          this.extractJiraProjectKey(payload.issue.key),
       }),
       annotations: [],
       autoFixRequested: config.autoExecute,
-      ticketSystem: 'jira',
+      ticketSystem: "jira",
     };
 
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
@@ -158,7 +178,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
   private async processCommentCreated(
     event: ParsedWebhookEvent,
-    config: InboundEventContext['config'],
+    config: InboundEventContext["config"],
     resolvedTenantId: string,
     result: EventProcessingResult,
   ): Promise<EventProcessingResult> {
@@ -176,10 +196,10 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       normalizedBody.includes(normalizedBotUsername);
 
     const hasTriggerKeyword =
-      normalizedBody.includes('fix this') ||
-      normalizedBody.includes('fix it') ||
-      normalizedBody.includes('auto fix') ||
-      normalizedBody.includes('autofix');
+      normalizedBody.includes("fix this") ||
+      normalizedBody.includes("fix it") ||
+      normalizedBody.includes("auto fix") ||
+      normalizedBody.includes("autofix");
 
     if (!mentionsBot || !hasTriggerKeyword) {
       return result;
@@ -187,14 +207,15 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
     const ticketRequest: CreateTicketRequest = {
       projectId: resolvedTenantId,
-      title: payload.issue?.fields.summary || `Jira Issue ${payload.issue?.key}`,
+      title:
+        payload.issue?.fields.summary || `Jira Issue ${payload.issue?.key}`,
       description: commentBody,
-      severity: 'medium',
-      category: 'bug',
+      severity: "medium",
+      category: "bug",
       metadata: this.createTicketMetadata({
         externalTicketId: payload.issue?.key,
         webhookConfigId: config.id,
-        provider: 'jira',
+        provider: "jira",
         triggeredByComment: true,
         sender: payload.comment.author.displayName,
         commentId: payload.comment.id,
@@ -206,13 +227,17 @@ export class JiraInboundProcessor implements InboundEventProcessor {
         jiraIssueKey: payload.issue?.key,
         jiraIssueApiUrl: payload.issue?.self,
         jiraApiBaseUrl: this.extractJiraApiBaseUrl(payload.issue?.self),
-        externalTicketUrl: this.buildJiraIssueBrowseUrl(payload.issue?.self, payload.issue?.key),
+        externalTicketUrl: this.buildJiraIssueBrowseUrl(
+          payload.issue?.self,
+          payload.issue?.key,
+        ),
         jiraProjectKey:
-          event.metadata.repositoryId || this.extractJiraProjectKey(payload.issue?.key),
+          event.metadata.repositoryId ||
+          this.extractJiraProjectKey(payload.issue?.key),
       }),
       annotations: [],
       autoFixRequested: true,
-      ticketSystem: 'jira',
+      ticketSystem: "jira",
     };
 
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
@@ -221,7 +246,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     const webhookContext: WebhookJobContext = {
       ticketId: ticket.id,
       issueKey: payload.issue?.key,
-      triggeredBy: 'bot-command',
+      triggeredBy: "bot-command",
       commentBody: commentBody.substring(0, 500),
       stepsToReproduce: `Triggered by Jira comment on ${payload.issue?.key}`,
     };
@@ -232,9 +257,9 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       repository:
         event.metadata.repositoryId ||
         this.extractJiraProjectKey(payload.issue?.key) ||
-        '',
+        "",
       task: `Fix Jira issue: ${payload.issue?.fields.summary}`,
-      context: webhookContext as any,
+      context: webhookContext,
       settings: {
         runTests: true,
       },
@@ -249,18 +274,20 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     return result;
   }
 
-  private detectSeverityFromPriority(priorityName: string | undefined): Severity {
-    const normalized = priorityName?.toLowerCase() || '';
-    if (normalized.includes('highest') || normalized.includes('critical')) {
-      return 'critical';
+  private detectSeverityFromPriority(
+    priorityName: string | undefined,
+  ): Severity {
+    const normalized = priorityName?.toLowerCase() || "";
+    if (normalized.includes("highest") || normalized.includes("critical")) {
+      return "critical";
     }
-    if (normalized.includes('high')) {
-      return 'high';
+    if (normalized.includes("high")) {
+      return "high";
     }
-    if (normalized.includes('low')) {
-      return 'low';
+    if (normalized.includes("low")) {
+      return "low";
     }
-    return 'medium';
+    return "medium";
   }
 
   private async submitJob(
@@ -281,9 +308,9 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       repository:
         event.metadata.repositoryId ||
         this.extractJiraProjectKey(payload.issue!.key) ||
-        '',
+        "",
       task: `Fix Jira issue: ${payload.issue!.fields.summary}`,
-      context: webhookContext as any,
+      context: webhookContext,
       settings: {
         runTests: true,
       },
@@ -296,7 +323,9 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     return jobResult.jobId;
   }
 
-  private createTicketMetadata(baseData: Record<string, unknown>): TicketMetadata {
+  private createTicketMetadata(
+    baseData: Record<string, unknown>,
+  ): TicketMetadata {
     return {
       timestamp: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -311,7 +340,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       return undefined;
     }
 
-    const separatorIndex = issueKey.indexOf('-');
+    const separatorIndex = issueKey.indexOf("-");
     if (separatorIndex <= 0) {
       return undefined;
     }
@@ -326,13 +355,13 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
     try {
       const parsed = new URL(issueSelf);
-      const path = parsed.pathname.replace(/\/+$/, '');
+      const path = parsed.pathname.replace(/\/+$/, "");
       const restMatch = path.match(/^(.*)\/rest\/api\/([^/]+)(?:\/.*)?$/i);
       if (!restMatch) {
         return undefined;
       }
 
-      const contextPath = (restMatch[1] || '').replace(/\/+$/, '');
+      const contextPath = (restMatch[1] || "").replace(/\/+$/, "");
       const apiVersion = restMatch[2];
       return `${parsed.origin}${contextPath}/rest/api/${apiVersion}`;
     } catch {
@@ -340,20 +369,23 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     }
   }
 
-  buildJiraIssueBrowseUrl(issueSelf?: string, issueKey?: string): string | undefined {
+  buildJiraIssueBrowseUrl(
+    issueSelf?: string,
+    issueKey?: string,
+  ): string | undefined {
     if (!issueSelf || !issueKey) {
       return undefined;
     }
 
     try {
       const parsed = new URL(issueSelf);
-      const path = parsed.pathname.replace(/\/+$/, '');
+      const path = parsed.pathname.replace(/\/+$/, "");
       const restMatch = path.match(/^(.*)\/rest\/api\/[^/]+(?:\/.*)?$/i);
       if (!restMatch) {
         return undefined;
       }
 
-      const contextPath = (restMatch[1] || '').replace(/\/+$/, '');
+      const contextPath = (restMatch[1] || "").replace(/\/+$/, "");
       return `${parsed.origin}${contextPath}/browse/${issueKey}`;
     } catch {
       return undefined;
@@ -361,21 +393,21 @@ export class JiraInboundProcessor implements InboundEventProcessor {
   }
 
   extractJiraTextContent(value: unknown): string {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       return value;
     }
 
     if (value === null || value === undefined) {
-      return '';
+      return "";
     }
 
-    if (typeof value !== 'object') {
+    if (typeof value !== "object") {
       return String(value);
     }
 
     const parts: string[] = [];
     this.collectJiraTextNodes(value, parts);
-    const flattened = parts.join(' ').replace(/\s+/g, ' ').trim();
+    const flattened = parts.join(" ").replace(/\s+/g, " ").trim();
     if (flattened.length > 0) {
       return flattened;
     }
@@ -383,12 +415,12 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     try {
       return JSON.stringify(value);
     } catch {
-      return '';
+      return "";
     }
   }
 
   private collectJiraTextNodes(value: unknown, parts: string[]): void {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       const trimmed = value.trim();
       if (trimmed.length > 0) {
         parts.push(trimmed);
@@ -403,12 +435,12 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       return;
     }
 
-    if (typeof value !== 'object' || value === null) {
+    if (typeof value !== "object" || value === null) {
       return;
     }
 
     const record = value as Record<string, unknown>;
-    if (typeof record.text === 'string') {
+    if (typeof record.text === "string") {
       this.collectJiraTextNodes(record.text, parts);
     }
 

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosInstance } from "axios";
 import { BasePMIntegration } from "../../BasePMIntegration";
 import { JiraConfig } from "../../../models/PMIntegration";
 import {
@@ -8,6 +8,7 @@ import {
   Ticket,
   WebhookEvent,
 } from "@viberglass/types";
+import type { RawAxiosRequestHeaders } from "axios";
 
 interface JiraIssue {
   id: string;
@@ -74,7 +75,8 @@ interface JiraWebhookEvent {
 
 export class JiraIntegration extends BasePMIntegration {
   private config: JiraConfig;
-  private apiClient: any;
+  private apiClient: AxiosInstance = axios.create();
+  private requestHeaders: RawAxiosRequestHeaders = {};
 
   constructor(credentials: AuthCredentials & JiraConfig) {
     super(credentials);
@@ -84,10 +86,10 @@ export class JiraIntegration extends BasePMIntegration {
 
   private setupApiClient() {
     const baseURL = this.config.instanceUrl.replace(/\/$/, "");
-    
-    const headers: Record<string, string> = {
+
+    const headers: RawAxiosRequestHeaders = {
       "Content-Type": "application/json",
-      "Accept": "application/json",
+      Accept: "application/json",
       "User-Agent": "viberglass-receiver/1.0",
     };
 
@@ -97,9 +99,13 @@ export class JiraIntegration extends BasePMIntegration {
       headers["Authorization"] = `Bearer ${this.config.token}`;
     } else if (this.config.username && this.config.password) {
       // Basic auth (username + API token for cloud, or username + password for server)
-      const auth = Buffer.from(`${this.config.username}:${this.config.password}`).toString("base64");
+      const auth = Buffer.from(
+        `${this.config.username}:${this.config.password}`,
+      ).toString("base64");
       headers["Authorization"] = `Basic ${auth}`;
     }
+
+    this.requestHeaders = headers;
 
     this.apiClient = axios.create({
       baseURL: `${baseURL}/rest/api/2`,
@@ -182,10 +188,10 @@ export class JiraIntegration extends BasePMIntegration {
           `/issue/${ticketId}/transitions`,
         );
         const transitions = transitionsResponse.data.transitions;
-        
+
         // Find a transition that matches the desired status
         const transition = transitions.find(
-          (t: { to: { name: string } }) => 
+          (t: { to: { name: string } }) =>
             t.to.name.toLowerCase() === updates.status?.toLowerCase(),
         );
 
@@ -238,7 +244,7 @@ export class JiraIntegration extends BasePMIntegration {
     try {
       // Map generic events to Jira webhook events
       const jiraEvents: string[] = [];
-      
+
       for (const event of events) {
         switch (event) {
           case "issue_created":
@@ -272,13 +278,9 @@ export class JiraIntegration extends BasePMIntegration {
 
       // Jira webhooks are registered via a different endpoint
       const baseURL = this.config.instanceUrl.replace(/\/$/, "");
-      await axios.post(
-        `${baseURL}/rest/webhooks/1.0/webhook`,
-        webhookData,
-        {
-          headers: this.apiClient.defaults.headers,
-        },
-      );
+      await axios.post(`${baseURL}/rest/webhooks/1.0/webhook`, webhookData, {
+        headers: this.requestHeaders,
+      });
     } catch (error) {
       throw new Error(`Failed to register Jira webhook: ${error}`);
     }
@@ -339,7 +341,7 @@ export class JiraIntegration extends BasePMIntegration {
 
   private mapJiraIssueToTicket(issue: JiraIssue): ExternalTicket {
     const fields = issue.fields;
-    
+
     return {
       id: issue.key,
       title: fields.summary,
@@ -399,12 +401,13 @@ export class JiraIntegration extends BasePMIntegration {
       const metaResponse = await this.apiClient.get(
         `/issue/createmeta?projectKeys=${this.config.projectKey}&expand=projects.issuetypes`,
       );
-      
+
       const projectMeta = metaResponse.data.projects[0];
-      const issueTypes = projectMeta?.issuetypes?.map((t: { id: string; name: string }) => ({
-        id: t.id,
-        name: t.name,
-      })) || [];
+      const issueTypes =
+        projectMeta?.issuetypes?.map((t: { id: string; name: string }) => ({
+          id: t.id,
+          name: t.name,
+        })) || [];
 
       return {
         id: project.id,
@@ -417,7 +420,9 @@ export class JiraIntegration extends BasePMIntegration {
     }
   }
 
-  async getTransitions(issueKey: string): Promise<
+  async getTransitions(
+    issueKey: string,
+  ): Promise<
     Array<{ id: string; name: string; to: { id: string; name: string } }>
   > {
     try {
