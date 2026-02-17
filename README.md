@@ -70,6 +70,10 @@ See [Productionization Status](docs/PRODUCTIONIZATION_STATUS.md) for complete de
 | [Self-Hosting](docs/SELF_HOSTING.md) | **Production deployment guide for self-hosted** |
 | [Productionization Status](docs/PRODUCTIONIZATION_STATUS.md) | Complete production-readiness checklist |
 | [Local Development](docs/LOCAL_DEVELOPMENT.md) | Docker Compose setup guide |
+| [Shortcut to PR Quickstart](docs/USER_QUICKSTART_SHORTCUT_TO_PR.md) | Fast setup path for Shortcut -> Viberglass -> automated PR flow |
+| [Shortcut to PR Setup](docs/USER_SETUP_SHORTCUT_TO_PR.md) | User-facing setup for Shortcut -> Viberglass -> automated PR flow |
+| [Ticket Create/Run Quickstart](docs/USER_QUICKSTART_CREATE_AND_RUN_TICKET.md) | Fast path for creating a ticket with specific info and running it |
+| [Ticket Create/Run Guide](docs/USER_SETUP_CREATE_AND_RUN_TICKET.md) | Full user guide for ticket quality, execution, and troubleshooting |
 | [Local Docker Clanker Setup](docs/LOCAL_DOCKER_SETUP.md) | Worker containers and local execution |
 | [Worker Harness Images](docs/WORKER_HARNESS_IMAGES.md) | **Setup worker harness images (multi-agent, etc.)** |
 | [AWS ECS Setup](docs/AWS_ECS_SETUP.md) | AWS SaaS deployment |
