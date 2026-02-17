@@ -35,17 +35,14 @@ export function formatAutoFixStatus(status?: string): { label: string; color: st
 export function formatTicketSystem(system: string): string {
   const systems: Record<string, string> = {
     github: 'GitHub',
-    linear: 'Linear',
-    jira: 'Jira',
     gitlab: 'GitLab',
     bitbucket: 'Bitbucket',
-    azure: 'Azure DevOps',
-    asana: 'Asana',
-    trello: 'Trello',
+    jira: 'Jira',
+    linear: 'Linear',
     monday: 'Monday',
-    clickup: 'ClickUp',
     shortcut: 'Shortcut',
     slack: 'Slack',
+    custom: 'Custom Webhook',
   }
   return systems[system] || system
 }
