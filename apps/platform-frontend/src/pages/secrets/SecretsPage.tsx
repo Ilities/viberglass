@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Alert, AlertActions, AlertBody, AlertDescription, AlertTitle } from '@/components/alert'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { PageMeta } from '@/components/page-meta'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
@@ -206,7 +207,9 @@ export function SecretsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <>
+      <PageMeta title="Secrets" />
+      <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <Heading>Secrets</Heading>
@@ -275,9 +278,10 @@ export function SecretsPage() {
                       <Pencil1Icon className="h-4 w-4" />
                     </Button>
                     <Button
-                      plain
+                      surface
+                      color="red"
                       onClick={() => handleDelete(secret)}
-                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      aria-label="Delete secret"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </Button>
@@ -422,5 +426,6 @@ export function SecretsPage() {
         </AlertActions>
       </Alert>
     </div>
+    </>
   )
 }

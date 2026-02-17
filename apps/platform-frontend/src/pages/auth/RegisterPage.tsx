@@ -3,6 +3,7 @@ import { Button } from '@/components/button'
 import { Field, Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
+import { PageMeta } from '@/components/page-meta'
 import { Strong, Text, TextLink } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
 import { useNavigate } from 'react-router-dom'
@@ -47,7 +48,9 @@ export function RegisterPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid w-full max-w-sm grid-cols-1 gap-8">
+    <>
+      <PageMeta title="Create Account" />
+      <form onSubmit={handleSubmit} className="grid w-full max-w-sm grid-cols-1 gap-8">
       <Logo className="h-6 text-zinc-950 dark:text-white forced-colors:text-[CanvasText]" />
       <Heading>Create your account</Heading>
       {error && (
@@ -77,5 +80,6 @@ export function RegisterPage() {
         </TextLink>
       </Text>
     </form>
+    </>
   )
 }

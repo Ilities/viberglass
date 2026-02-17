@@ -1,4 +1,5 @@
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useProject } from '@/context/project-context'
 import {
@@ -142,17 +143,22 @@ export function ProjectIntegrationsPage() {
 
   if (isProjectLoading || isLoading) {
     return (
-      <div className="space-y-8 p-6 lg:p-8">
-        <div>
-          <Heading>Integrations</Heading>
-          <Text className="mt-2">Loading integrations...</Text>
+      <>
+        <PageMeta title="Integrations" />
+        <div className="space-y-8 p-6 lg:p-8">
+          <div>
+            <Heading>Integrations</Heading>
+            <Text className="mt-2">Loading integrations...</Text>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
+    <>
+      <PageMeta title="Integrations" />
+      <div className="space-y-8 p-6 lg:p-8">
       {/* Header */}
       <div>
         <Heading>Integrations</Heading>
@@ -252,6 +258,7 @@ export function ProjectIntegrationsPage() {
         </div>
       </section>
     </div>
+    </>
   )
 }
 

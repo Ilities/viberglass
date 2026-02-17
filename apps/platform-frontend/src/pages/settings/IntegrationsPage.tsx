@@ -1,6 +1,7 @@
 import type { IntegrationCardData } from '@/components/integration-card'
 import { IntegrationGrid } from '@/components/integration-grid'
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { getIntegrationSettingsListItems } from '@/service/api/integration-api'
 import { useEffect, useState } from 'react'
@@ -50,7 +51,9 @@ export function IntegrationsPage() {
   ).size
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
+    <>
+      <PageMeta title="Global Integrations" />
+      <div className="space-y-8 p-6 lg:p-8">
       {/* Header */}
       <div>
         <Heading>Integrations</Heading>
@@ -108,5 +111,6 @@ export function IntegrationsPage() {
         </div>
       </section>
     </div>
+    </>
   )
 }

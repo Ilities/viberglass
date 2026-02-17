@@ -1,15 +1,16 @@
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { SearchInput } from '@/components/search-input'
 import { Select } from '@/components/select'
+import type { Clanker, TicketSummary } from '@/data'
 import { getClankersList, getRecentTickets } from '@/data'
 import { getTickets } from '@/service/api/ticket-api'
-import type { Clanker, TicketSummary } from '@/data'
-import type { Ticket } from '@viberglass/types'
 import { CaretSortIcon } from '@radix-ui/react-icons'
-import { TicketsTable } from './tickets-table'
+import type { Ticket } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { TicketsTable } from './tickets-table'
 
 export function TicketsPage() {
   const { project } = useParams<{ project: string }>()
@@ -50,8 +51,7 @@ export function TicketsPage() {
   const filteredTickets = tickets.filter((ticket) => {
     if (status !== 'all' && ticket.status !== status) return false
     if (severity !== 'all' && ticket.severity !== severity) return false
-    if (search && !ticket.title.toLowerCase().includes(search.toLowerCase())) return false
-    return true
+    return !(search && !ticket.title.toLowerCase().includes(search.toLowerCase()))
   })
 
   if (!project) {
@@ -60,6 +60,7 @@ export function TicketsPage() {
 
   return (
     <>
+      <PageMeta title={project ? `${project} | Tickets` : 'Tickets'} />
       <div className="flex items-end justify-between">
         <Heading>Tickets</Heading>
         <Button href={`/project/${project}/tickets/create`} color="brand">
@@ -69,11 +70,7 @@ export function TicketsPage() {
 
       <div className="mt-8 flex items-center gap-4">
         <div className="min-w-75 flex-2">
-          <SearchInput
-            placeholder="Search tickets..."
-            name="search"
-            defaultValue={search}
-          />
+          <SearchInput placeholder="Search tickets..." name="search" defaultValue={search} />
         </div>
         <Select name="status" defaultValue={status}>
           <option value="all">All Status</option>
