@@ -95,7 +95,7 @@ export const projectSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds)
-    .optional(),
+    .default("custom"),
   credentials: Joi.object().optional(),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
