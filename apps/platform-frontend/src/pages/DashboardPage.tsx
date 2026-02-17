@@ -94,7 +94,7 @@ export function DashboardPage() {
 
   const feed = useMemo(() => {
     const ticketFeed: FeedItem[] = recentTickets
-      .map((ticket) => {
+      .map<FeedItem | null>((ticket) => {
         const project = projectMap.get(ticket.projectId)
         if (!project) return null
         const severity = formatSeverity(ticket.severity)
@@ -111,7 +111,7 @@ export function DashboardPage() {
       .filter((item): item is FeedItem => item !== null)
 
     const jobFeed: FeedItem[] = recentJobs
-      .map((job) => {
+      .map<FeedItem | null>((job) => {
         if (!job.projectSlug) return null
         const status = formatJobStatus(job.status)
         return {

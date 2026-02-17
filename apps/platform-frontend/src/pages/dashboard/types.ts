@@ -1,6 +1,6 @@
 import type { JobListItem, TicketSummary } from '@/data'
 
-export type SignalColor = 'red' | 'orange' | 'amber' | 'blue' | 'green' | 'zinc'
+export type SignalColor = 'red' | 'orange' | 'amber' | 'yellow' | 'blue' | 'green' | 'zinc'
 
 export interface ProjectSignal {
   label: string
