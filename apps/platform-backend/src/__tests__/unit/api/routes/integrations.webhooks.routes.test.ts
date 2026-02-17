@@ -6,6 +6,8 @@ const mockIntegrationDAO = {
 };
 const mockProjectLinkDAO = {
   getIntegrationProjects: jest.fn(),
+  isLinked: jest.fn(),
+  linkIntegration: jest.fn(),
 };
 const mockCredentialDAO = {
   deleteAllForIntegration: jest.fn(),
@@ -61,6 +63,8 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     jest.clearAllMocks();
     mockIntegrationDAO.getIntegration.mockReset();
     mockProjectLinkDAO.getIntegrationProjects.mockReset();
+    mockProjectLinkDAO.isLinked.mockReset();
+    mockProjectLinkDAO.linkIntegration.mockReset();
     mockCredentialDAO.deleteAllForIntegration.mockReset();
     mockWebhookConfigDAO.listByIntegrationId.mockReset();
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockReset();
@@ -71,6 +75,15 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     mockWebhookDeliveryDAO.listDeliveriesByConfig.mockReset();
     mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockReset();
     mockWebhookService.retryDelivery.mockReset();
+
+    mockProjectLinkDAO.isLinked.mockResolvedValue(true);
+    mockProjectLinkDAO.linkIntegration.mockResolvedValue({
+      id: "link-1",
+      projectId: "project-1",
+      integrationId: "int-1",
+      isPrimary: false,
+      createdAt: new Date("2026-02-11T10:00:00.000Z"),
+    });
 
     app = express();
     app.use(express.json());
@@ -664,7 +677,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       system: "github",
       values: {},
     });
-    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
+    mockProjectLinkDAO.isLinked.mockResolvedValue(false);
     mockWebhookConfigDAO.createConfig.mockResolvedValue({
       id: "cfg-github-1",
       provider: "github",
@@ -715,6 +728,15 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         },
       }),
     );
+    expect(mockProjectLinkDAO.isLinked).toHaveBeenCalledWith(
+      "project-1",
+      "int-github",
+    );
+    expect(mockProjectLinkDAO.linkIntegration).toHaveBeenCalledWith({
+      projectId: "project-1",
+      integrationId: "int-github",
+      isPrimary: false,
+    });
     expect(response.body.data).toEqual(
       expect.objectContaining({
         id: "cfg-github-1",
