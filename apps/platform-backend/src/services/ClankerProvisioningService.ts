@@ -164,6 +164,7 @@ interface DockerDeploymentConfig {
 }
 
 interface EcsProvisioningConfig {
+  provisioningMode?: "managed" | "prebuilt";
   clusterArn?: string;
   taskDefinitionArn?: string;
   taskDefinition?: RegisterTaskDefinitionCommandInput;
@@ -291,6 +292,77 @@ export class ClankerProvisioningService {
     if (normalized === "ecs") return "ecs";
     if (normalized === "docker") return "docker";
     return null;
+  }
+
+  getProvisioningPreflightError(clanker: Clanker): string | null {
+    const strategy = this.normalizeStrategyName(
+      clanker.deploymentStrategy?.name,
+    );
+    if (!strategy) {
+      return "Deployment strategy not configured";
+    }
+
+    if (strategy !== "ecs") {
+      return null;
+    }
+
+    const config = (clanker.deploymentConfig || {}) as EcsProvisioningConfig;
+    const provisioningMode = config.provisioningMode === "prebuilt"
+      ? "prebuilt"
+      : "managed";
+
+    const clusterArn =
+      this.getNonEmptyValue(config.clusterArn) ||
+      this.getNonEmptyValue(process.env.VIBERATOR_ECS_CLUSTER_ARN);
+
+    if (provisioningMode === "prebuilt") {
+      const taskDefinitionArn = this.getNonEmptyValue(config.taskDefinitionArn);
+      if (!taskDefinitionArn) {
+        return "ECS pre-built mode requires taskDefinitionArn.";
+      }
+      if (!clusterArn) {
+        return "ECS pre-built mode requires clusterArn or VIBERATOR_ECS_CLUSTER_ARN.";
+      }
+      return null;
+    }
+
+    const executionRoleArn =
+      this.getNonEmptyValue(config.executionRoleArn) ||
+      this.getNonEmptyValue(process.env.VIBERATOR_ECS_EXECUTION_ROLE_ARN);
+    const taskRoleArn =
+      this.getNonEmptyValue(config.taskRoleArn) ||
+      this.getNonEmptyValue(process.env.VIBERATOR_ECS_TASK_ROLE_ARN);
+    const containerImage =
+      this.getNonEmptyValue(config.containerImage) ||
+      this.getNonEmptyValue(process.env.VIBERATOR_ECS_CONTAINER_IMAGE);
+
+    const missing: string[] = [];
+    if (!executionRoleArn) {
+      missing.push("executionRoleArn (or VIBERATOR_ECS_EXECUTION_ROLE_ARN)");
+    }
+    if (!taskRoleArn) {
+      missing.push("taskRoleArn (or VIBERATOR_ECS_TASK_ROLE_ARN)");
+    }
+    if (!containerImage) {
+      missing.push("containerImage (or VIBERATOR_ECS_CONTAINER_IMAGE)");
+    }
+    if (!clusterArn) {
+      missing.push("clusterArn (or VIBERATOR_ECS_CLUSTER_ARN)");
+    }
+
+    if (missing.length > 0) {
+      return `ECS managed provisioning is missing required configuration: ${missing.join(
+        ", ",
+      )}. Set viberglass:workerStack in infra/platform and run pulumi up.`;
+    }
+
+    return null;
+  }
+
+  private getNonEmptyValue(value?: string): string | null {
+    if (!value) return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 
   private async provisionDocker(
