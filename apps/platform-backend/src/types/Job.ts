@@ -76,3 +76,47 @@ export interface JobResult {
   errorMessage?: string;
   commitHash?: string;
 }
+
+// Job status type from database schema
+export type JobStatus = "queued" | "active" | "completed" | "failed";
+export interface JobStatusResponse {
+  jobId: string;
+  status: JobStatus;
+  progress: unknown;
+  lastHeartbeat: string | null;
+  progressUpdates: Array<{
+    step: string | null;
+    message: string;
+    details: unknown | null;
+    createdAt: string;
+  }>;
+  logs: Array<{
+    id: string;
+    level: "info" | "warn" | "error" | "debug";
+    message: string;
+    source: string | null;
+    createdAt: string;
+  }>;
+  data: {
+    id: string;
+    tenantId: string;
+    repository: string | null;
+    task: string | null;
+    branch: string | null;
+    baseBranch: string | null;
+    context: unknown;
+    settings: unknown;
+    timestamp: number;
+  };
+  result: unknown;
+  failedReason: string | null;
+  createdAt: Date | null;
+  processedAt: Date | null;
+  finishedAt: Date | null;
+  ticketId: string | null;
+  ticket: {
+    id: string | null;
+    title: string | null;
+    externalTicketId: string | null;
+  } | null;
+}

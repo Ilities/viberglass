@@ -1,6 +1,6 @@
-import { randomUUID, randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import db from "../persistence/config/database";
-import { JobData, JobResult } from "../types/Job";
+import { JobData, JobResult, JobStatus, JobStatusResponse } from "../types/Job";
 import { sql } from "kysely";
 import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
@@ -15,9 +15,6 @@ const logger = createChildLogger({ service: "JobService" });
 function generateCallbackToken(): string {
   return randomBytes(32).toString("hex");
 }
-
-// Job status type from database schema
-export type JobStatus = "queued" | "active" | "completed" | "failed";
 
 export interface SubmitJobOptions {
   ticketId?: string;
@@ -35,7 +32,12 @@ export class JobService {
   async submitJob(
     data: JobData,
     options?: SubmitJobOptions,
-  ): Promise<{ jobId: string; status: string; timestamp: string; callbackToken: string }> {
+  ): Promise<{
+    jobId: string;
+    status: string;
+    timestamp: string;
+    callbackToken: string;
+  }> {
     const jobId = data.id;
     const callbackToken = generateCallbackToken();
 
@@ -169,13 +171,12 @@ export class JobService {
 
         if (status === "completed" || status === "failed") {
           // Emit job-ended outbound event asynchronously.
-          const outboundResult: JobResult =
-            updates.result ?? {
-              success: status === "completed",
-              changedFiles: [],
-              executionTime: 0,
-              errorMessage: updates.errorMessage,
-            };
+          const outboundResult: JobResult = updates.result ?? {
+            success: status === "completed",
+            changedFiles: [],
+            executionTime: 0,
+            errorMessage: updates.errorMessage,
+          };
 
           this.feedbackService
             .postJobEnded(
@@ -225,7 +226,7 @@ export class JobService {
     }
   }
 
-  async getJobStatus(jobId: string): Promise<any | null> {
+  async getJobStatus(jobId: string): Promise<JobStatusResponse | null> {
     const job = await db
       .selectFrom("jobs")
       .leftJoin("tickets", "tickets.id", "jobs.ticket_id")
@@ -327,7 +328,7 @@ export class JobService {
     limit?: number;
     projectSlug?: string;
     ticketId?: string;
-  }): Promise<{ jobs: any[]; count: number }> {
+  }): Promise<{ jobs: Record<string, unknown>[]; count: number }> {
     const { status, limit = 10, projectSlug, ticketId } = options || {};
 
     let projectId: string | undefined;
@@ -426,7 +427,14 @@ export class JobService {
     return { message: "Job removed successfully", jobId };
   }
 
-  async getQueueStats(): Promise<any> {
+  async getQueueStats(): Promise<{
+    waiting: number;
+    active: number;
+    completed: number;
+    failed: number;
+    queue: "agent-jobs";
+    total: number;
+  }> {
     const stats = await db
       .selectFrom("jobs")
       .select([
@@ -455,7 +463,7 @@ export class JobService {
   }
 
   // Helper method to get next queued job for processing
-  async getNextQueuedJob(): Promise<any | null> {
+  async getNextQueuedJob(): Promise<Record<string, unknown> | null> {
     const job = await db
       .selectFrom("jobs")
       .selectAll()
@@ -668,10 +676,7 @@ export class JobService {
    * Used to authenticate worker callbacks (SEC-05)
    * @returns true if the token is valid, false otherwise
    */
-  async validateCallbackToken(
-    jobId: string,
-    token: string,
-  ): Promise<boolean> {
+  async validateCallbackToken(jobId: string, token: string): Promise<boolean> {
     if (!token || token.length === 0) {
       return false;
     }

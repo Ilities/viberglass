@@ -1,7 +1,6 @@
 import { Request, Response, Router } from "express";
 import { JobService } from "../../services/JobService";
-import type { JobStatus } from "../../services/JobService";
-import { JobData } from "../../types/Job";
+import { JobData, JobStatus } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
 import { validateCallbackToken } from "../middleware/callbackTokenValidation";
 import { requireAuth } from "../middleware/authentication";
@@ -90,7 +89,12 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     const projectSlug = req.query.projectSlug as string | undefined;
     const ticketId = req.query.ticketId as string | undefined;
 
-    const result = await jobService.listJobs({ status, limit, projectSlug, ticketId });
+    const result = await jobService.listJobs({
+      status,
+      limit,
+      projectSlug,
+      ticketId,
+    });
 
     res.json(result);
   } catch (error) {

@@ -70,7 +70,8 @@ export class EcsInvoker implements WorkerInvoker {
       );
     }
 
-    const payload = job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
+    const payload =
+      job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
     const payloadJson = JSON.stringify(payload);
     const canUseJobRef = Boolean(
       job.bootstrapPayload && job.callbackToken && process.env.PLATFORM_API_URL,
@@ -203,7 +204,11 @@ export class EcsInvoker implements WorkerInvoker {
   }
 
   private classifyError(error: unknown): WorkerError {
-    const err = error as { name?: string; message?: string; $metadata?: any };
+    const err = error as {
+      name?: string;
+      message?: string;
+      $metadata?: Record<string, unknown>;
+    };
     const errorName = err.name || "";
 
     // Log full error details for debugging
