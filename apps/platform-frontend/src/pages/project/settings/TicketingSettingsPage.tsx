@@ -40,14 +40,14 @@ export function TicketingSettingsPage() {
                 onChange={(value) => setSelectedSystem(value)}
               >
                 <option value="github">GitHub Issues</option>
-                <option value="linear">Linear</option>
-                <option value="jira">Jira</option>
                 <option value="gitlab">GitLab Issues</option>
-                <option value="azure">Azure DevOps</option>
-                <option value="asana">Asana</option>
-                <option value="trello">Trello</option>
+                <option value="bitbucket">Bitbucket Issues</option>
+                <option value="jira">Jira</option>
+                <option value="linear">Linear</option>
                 <option value="monday">Monday.com</option>
-                <option value="clickup">ClickUp</option>
+                <option value="shortcut">Shortcut</option>
+                <option value="slack">Slack</option>
+                <option value="custom">Custom Webhook</option>
               </Select>
             </Field>
 
@@ -128,11 +128,11 @@ export function TicketingSettingsPage() {
               )}
 
               {(selectedSystem === 'gitlab' ||
-                selectedSystem === 'azure' ||
-                selectedSystem === 'asana' ||
-                selectedSystem === 'trello' ||
+                selectedSystem === 'bitbucket' ||
                 selectedSystem === 'monday' ||
-                selectedSystem === 'clickup') && (
+                selectedSystem === 'shortcut' ||
+                selectedSystem === 'slack' ||
+                selectedSystem === 'custom') && (
                 <div className="py-8 text-center">
                   <Text className="text-zinc-500">Configuration for {selectedSystem} is not yet implemented.</Text>
                 </div>
