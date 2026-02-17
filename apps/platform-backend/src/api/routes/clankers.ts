@@ -188,6 +188,15 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
       return res.status(409).json({ error: "Clanker is already deploying" });
     }
 
+    const preflightError =
+      provisioningService.getProvisioningPreflightError(clanker);
+    if (preflightError) {
+      return res.status(400).json({
+        error: "Provisioning configuration error",
+        message: preflightError,
+      });
+    }
+
     // Update status to deploying first
     const updatedClanker = await clankerService.updateStatus(
       req.params.id,
