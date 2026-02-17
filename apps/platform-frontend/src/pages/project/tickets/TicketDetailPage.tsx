@@ -2,6 +2,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { InfoItem } from '@/components/info-item'
+import { PageMeta } from '@/components/page-meta'
 import { Section } from '@/components/section'
 import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
 import type { Clanker, Ticket } from '@viberglass/types'
@@ -113,6 +114,7 @@ export function TicketDetailPage() {
 
   return (
     <>
+      <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Ticket` : 'Ticket'} />
       <div className="h-full flex flex-col">
         <div className="flex items-center gap-4 mb-6">
           <Button href={`/project/${project}/tickets`} plain>
@@ -162,9 +164,8 @@ export function TicketDetailPage() {
                 <Pencil1Icon className="h-4 w-4" />
                 Edit
               </Button>
-              <Button onClick={() => setIsDeleteDialogOpen(true)} color="red">
+              <Button surface color="red" onClick={() => setIsDeleteDialogOpen(true)} aria-label="Delete ticket">
                 <TrashIcon className="h-4 w-4" />
-                Delete
               </Button>
             </div>
           </div>

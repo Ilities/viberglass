@@ -1,6 +1,7 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { getTicketDetails } from '@/data'
 import type { Ticket } from '@viberglass/types'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
@@ -43,6 +44,7 @@ export function TicketMediaPage() {
 
   return (
     <>
+      <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Media` : 'Media'} />
       <div className="flex items-center gap-4">
         <Button href={`/project/${project}/tickets/${id}`} plain>
           <ArrowLeftIcon className="h-5 w-5" />

@@ -412,9 +412,11 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                           Edit
                         </Button>
                         <Button
-                          outline
+                          surface
+                          color="red"
                           onClick={() => handleDelete(credential.id)}
                           disabled={isSubmitting}
+                          aria-label="Delete credential"
                         >
                           <TrashIcon className="size-4" />
                         </Button>

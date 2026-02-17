@@ -2,6 +2,7 @@ import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
+import { PageMeta } from '@/components/page-meta'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
@@ -169,7 +170,9 @@ export function NewProjectPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <>
+      <PageMeta title="New Project" />
+      <div className="mx-auto max-w-4xl">
       <Heading>Create New Project</Heading>
 
       {error && (
@@ -402,5 +405,6 @@ export function NewProjectPage() {
         </Fieldset>
       </form>
     </div>
+    </>
   )
 }

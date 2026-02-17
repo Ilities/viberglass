@@ -1,6 +1,7 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { formatAutoFixStatus, formatSeverity, getClankersList, getTicketDetails } from '@/data'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { ClockIcon } from '@radix-ui/react-icons'
@@ -68,6 +69,7 @@ export function EnhancePage() {
 
   return (
     <>
+      <PageMeta title={ticket ? `Enhance #${ticket.id.slice(-4)}` : 'Enhance'} />
       <div className="flex items-center gap-4">
         <Heading>Enhance & Auto-Fix</Heading>
         <Badge color={formatSeverity(ticket.severity).badgeColor}>{formatSeverity(ticket.severity).label}</Badge>

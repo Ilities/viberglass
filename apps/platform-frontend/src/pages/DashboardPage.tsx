@@ -5,6 +5,7 @@ import { Divider } from '@/components/divider'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
 import { Link } from '@/components/link'
+import { PageMeta } from '@/components/page-meta'
 import { AsciiGalaxy, AsciiRobot, AsciiSpaceship, AsciiWhale, RetroSeparator } from '@/components/retro-decorations'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import type { Clanker, ClankerStatus, JobListItem, JobQueueStats, Project, TicketStats, TicketSummary } from '@/data'
@@ -109,6 +110,7 @@ export function DashboardPage() {
 
   return (
     <>
+      <PageMeta title="Dashboard" />
       {/* Header */}
       <Heading>Dashboard</Heading>
 

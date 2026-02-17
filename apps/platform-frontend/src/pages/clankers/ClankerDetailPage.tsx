@@ -3,6 +3,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { ClankerHealthBadge } from '@/components/clanker-health-badge'
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { InfoItem } from '@/components/info-item'
 import { Section } from '@/components/section'
 import { formatClankerStatus, formatDeploymentStrategy, getClankerBySlug } from '@/data'
@@ -369,7 +370,9 @@ export function ClankerDetailPage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <>
+      <PageMeta title={clanker ? `${clanker.name} | Clanker` : 'Clanker'} />
+      <div className="h-full flex flex-col">
       <div className="flex items-center gap-4 mb-6">
         <Button href="/clankers" plain>
           <ArrowLeftIcon className="h-4 w-4" />
@@ -584,5 +587,6 @@ export function ClankerDetailPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
