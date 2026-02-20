@@ -20,7 +20,7 @@ import {
   ReloadIcon,
   StackIcon,
 } from '@radix-ui/react-icons'
-import type { Clanker, ClankerHealthStatus } from '@viberglass/types'
+import { getAgentLabel, type Clanker, type ClankerHealthStatus } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
@@ -40,26 +40,7 @@ function getStatusBadgeColor(status: Clanker['status']): 'green' | 'blue' | 'red
 }
 
 function formatAgent(agent?: Clanker['agent'] | null): string {
-  switch (agent) {
-    case 'claude-code':
-      return 'Claude Code'
-    case 'qwen-cli':
-      return 'Qwen CLI'
-    case 'qwen-api':
-      return 'Qwen API'
-    case 'codex':
-      return 'OpenAI Codex'
-    case 'opencode':
-      return 'OpenCode'
-    case 'kimi-code':
-      return 'Kimi Code'
-    case 'gemini-cli':
-      return 'Gemini CLI'
-    case 'mistral-vibe':
-      return 'Mistral Vibe'
-    default:
-      return 'Claude Code'
-  }
+  return getAgentLabel(agent)
 }
 
 function getStatusHint(status: Clanker['status']): string | null {

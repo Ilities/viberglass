@@ -3,6 +3,7 @@ import {
   InvokeCommand,
   InvokeCommandOutput,
 } from "@aws-sdk/client-lambda";
+import { DEFAULT_AGENT_TYPE } from "@viberglass/types";
 import type { Clanker, Project } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
@@ -143,7 +144,7 @@ export class LambdaInvoker implements WorkerInvoker {
       context: job.context,
       settings: job.settings,
       deploymentConfig: clanker.deploymentConfig,
-      agent: clanker.agent || "claude-code",
+      agent: clanker.agent || DEFAULT_AGENT_TYPE,
       secrets: secretMetadata,
       callbackToken: job.callbackToken,
       projectConfig: buildWorkerProjectConfig(project),
