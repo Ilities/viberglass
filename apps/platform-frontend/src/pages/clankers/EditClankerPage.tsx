@@ -10,7 +10,14 @@ import { Textarea } from '@/components/textarea'
 import { getClankerBySlug } from '@/data'
 import { getDeploymentStrategies, updateClanker } from '@/service/api/clanker-api'
 import { getSecrets, type Secret } from '@/service/api/secret-api'
-import type { AgentType, Clanker, ConfigFileInput, DeploymentStrategy } from '@viberglass/types'
+import {
+  AGENT_OPTIONS,
+  DEFAULT_AGENT_TYPE,
+  type AgentType,
+  type Clanker,
+  type ConfigFileInput,
+  type DeploymentStrategy,
+} from '@viberglass/types'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
@@ -54,7 +61,7 @@ export function EditClankerPage() {
       setDeploymentStrategies(strategies)
       setSecrets(secretsData)
       setSelectedStrategyId(clankerData.deploymentStrategyId || '')
-      setSelectedAgent(clankerData.agent || 'claude-code')
+      setSelectedAgent(clankerData.agent || DEFAULT_AGENT_TYPE)
       setSelectedSecretIds(clankerData.secretIds || [])
 
       // Infer provisioning mode from existing config
@@ -303,14 +310,11 @@ export function EditClankerPage() {
               <Label>Agent</Label>
               <Description>Select which AI agent to use for this clanker.</Description>
               <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(value as AgentType)}>
-                <option value="claude-code">Claude Code (Recommended)</option>
-                <option value="qwen-cli">Qwen CLI</option>
-                <option value="qwen-api">Qwen API</option>
-                <option value="codex">OpenAI Codex</option>
-                <option value="opencode">OpenCode</option>
-                <option value="kimi-code">Kimi Code</option>
-                <option value="gemini-cli">Gemini CLI</option>
-                <option value="mistral-vibe">Mistral Vibe</option>
+                {AGENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.recommended ? `${option.label} (Recommended)` : option.label}
+                  </option>
+                ))}
               </Select>
             </Field>
 

@@ -12,24 +12,15 @@ import type {
   ConfigFileInput,
   AgentType,
 } from "@viberglass/types";
+import { DEFAULT_AGENT_TYPE, SUPPORTED_AGENT_TYPES } from "@viberglass/types";
 
 type ClankersRow = Selectable<Database["clankers"]>;
 type ClankerConfigFilesRow = Selectable<Database["clanker_config_files"]>;
 
-// Valid agent types for runtime validation
-const VALID_AGENT_TYPES: string[] = [
-  "claude-code",
-  "qwen-cli",
-  "qwen-api",
-  "codex",
-  "opencode",
-  "kimi-code",
-  "gemini-cli",
-  "mistral-vibe",
-];
+const validAgentTypeSet = new Set<string>(SUPPORTED_AGENT_TYPES);
 
 function isValidAgentType(value: unknown): value is AgentType {
-  return typeof value === "string" && VALID_AGENT_TYPES.includes(value);
+  return typeof value === "string" && validAgentTypeSet.has(value);
 }
 
 // Joined query result type with aliased columns from deployment_strategies
@@ -68,7 +59,7 @@ export class ClankerDAO {
         deployment_config: request.deploymentConfig
           ? JSON.stringify(request.deploymentConfig)
           : null,
-        agent: request.agent || "claude-code",
+        agent: request.agent || DEFAULT_AGENT_TYPE,
         secret_ids: JSON.stringify(request.secretIds || []),
         status: "inactive",
         status_message: null,

@@ -17,7 +17,12 @@ import {
   UpdateFunctionConfigurationCommand,
   UpdateFunctionConfigurationCommandInput,
 } from "@aws-sdk/client-lambda";
-import type { Clanker, ClankerStatus } from "@viberglass/types";
+import {
+  getWorkerImageRepositoryName,
+  resolveWorkerImageVariantForAgent,
+  type Clanker,
+  type ClankerStatus,
+} from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 
 const logger = createChildLogger({ service: "ClankerProvisioningService" });
@@ -46,63 +51,61 @@ type ProvisioningProgressReporter = (
   statusMessage: string,
 ) => Promise<void> | void;
 
+function getOptionalString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function getDeploymentConfig(
+  clanker: Clanker,
+): Record<string, unknown> | undefined {
+  if (!clanker.deploymentConfig || typeof clanker.deploymentConfig !== "object") {
+    return undefined;
+  }
+
+  return clanker.deploymentConfig;
+}
+
 // Get the appropriate worker image based on clanker configuration
 function getWorkerImageForClanker(
   clanker: Clanker,
   strategy: "docker" | "ecs" | "lambda",
 ): string | undefined {
-  const agentType = clanker.agent;
-  const deploymentConfig = clanker.deploymentConfig as Record<string, unknown>;
+  const deploymentConfig = getDeploymentConfig(clanker);
 
   // If explicitly configured, use that
   const explicitImage =
-    strategy === "docker"
-      ? (deploymentConfig?.containerImage as string)
-      : strategy === "ecs"
-        ? (deploymentConfig?.containerImage as string)
-        : (deploymentConfig?.imageUri as string);
+    strategy === "lambda"
+      ? getOptionalString(deploymentConfig?.imageUri)
+      : getOptionalString(deploymentConfig?.containerImage);
 
   if (explicitImage) {
     return explicitImage;
   }
 
-  // Auto-select based on agent type if available in environment
+  // Auto-select based on shared catalog defaults.
   const imagePrefix = process.env.VIBERATOR_WORKER_IMAGE_PREFIX || "";
   const registry = process.env.VIBERATOR_WORKER_REGISTRY || "";
+  const imageVariant = resolveWorkerImageVariantForAgent(clanker.agent);
+  const repositoryName = getWorkerImageRepositoryName(imageVariant);
 
-  // Agent-specific images
-  if (agentType === "qwen-cli" || agentType === "qwen-api") {
-    return buildImageUrl(registry, imagePrefix, "qwen", strategy);
-  }
-  if (agentType === "gemini-cli") {
-    return buildImageUrl(registry, imagePrefix, "gemini", strategy);
-  }
-  if (agentType === "mistral-vibe") {
-    return buildImageUrl(registry, imagePrefix, "mistral", strategy);
-  }
-  if (agentType === "codex") {
-    return buildImageUrl(registry, imagePrefix, "codex", strategy);
-  }
-  if (agentType === "opencode") {
-    return buildImageUrl(registry, imagePrefix, "opencode", strategy);
-  }
-  if (agentType === "kimi-code") {
-    return buildImageUrl(registry, imagePrefix, "kimi", strategy);
+  if (!repositoryName) {
+    return undefined;
   }
 
-  // Default to multi-agent image for flexibility
-  return buildImageUrl(registry, imagePrefix, "multi-agent", strategy);
+  return buildImageUrl(registry, imagePrefix, repositoryName);
 }
 
 function buildImageUrl(
   registry: string,
   prefix: string,
-  suffix: string,
-  _strategy: "docker" | "ecs" | "lambda",
+  repositoryName: string,
 ): string {
-  const parts = [registry, prefix, `viberator-worker-${suffix}`].filter(
-    Boolean,
-  );
+  const parts = [registry, prefix, repositoryName].filter(Boolean);
   return parts.join("/");
 }
 

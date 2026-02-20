@@ -16,42 +16,17 @@ NC='\033[0m' # No Color
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+CATALOG_SCRIPT="$SCRIPT_DIR/worker-image-catalog.js"
 ENVIRONMENT="${1:-dev}"
 HARNESS_TYPE="${2:-multi-agent}"
 REGION="${AWS_REGION:-eu-west-1}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 ECR_REGISTRY="${ECR_REGISTRY:-}"
 
-# Array of all harness images (excluding the ones built by Pulumi)
-declare -A HARNESS_IMAGES=(
-    ["base"]="viberator-base-worker"
-    ["claude"]="viberator-worker"
-    ["multi-agent"]="viberator-worker-multi-agent"
-    ["qwen"]="viberator-worker-qwen"
-    ["gemini"]="viberator-worker-gemini"
-    ["mistral"]="viberator-worker-mistral"
-    ["codex"]="viberator-worker-codex"
-    ["opencode"]="viberator-worker-opencode"
-    ["kimi"]="viberator-worker-kimi"
-    ["testing"]="viberator-worker-testing"
-    ["deployment"]="viberator-worker-deployment"
-    ["fullstack"]="viberator-worker-fullstack"
-)
-
-declare -A DOCKERFILES=(
-    ["base"]="infra/workers/docker/base/base-worker.Dockerfile"
-    ["claude"]="infra/workers/docker/viberator-docker-worker.Dockerfile"
-    ["multi-agent"]="infra/workers/docker/viberator-worker-multi-agent.Dockerfile"
-    ["qwen"]="infra/workers/docker/agents/viberator-worker-qwen.Dockerfile"
-    ["gemini"]="infra/workers/docker/agents/viberator-worker-gemini.Dockerfile"
-    ["mistral"]="infra/workers/docker/agents/viberator-worker-mistral.Dockerfile"
-    ["codex"]="infra/workers/docker/agents/viberator-worker-codex.Dockerfile"
-    ["opencode"]="infra/workers/docker/agents/viberator-worker-opencode.Dockerfile"
-    ["kimi"]="infra/workers/docker/agents/viberator-worker-kimi.Dockerfile"
-    ["testing"]="infra/workers/docker/tasks/viberator-worker-testing.Dockerfile"
-    ["deployment"]="infra/workers/docker/tasks/viberator-worker-deployment.Dockerfile"
-    ["fullstack"]="infra/workers/docker/tasks/viberator-worker-fullstack.Dockerfile"
-)
+declare -a HARNESS_TYPES=()
+declare -A HARNESS_IMAGES=()
+declare -A DOCKERFILES=()
+declare -A AGENT_IMAGE_FLAGS=()
 
 BASE_IMAGE_PUBLISHED=0
 
@@ -71,6 +46,29 @@ log_step() {
     echo -e "${BLUE}[STEP]${NC} $1"
 }
 
+load_harness_catalog() {
+    HARNESS_TYPES=()
+    HARNESS_IMAGES=()
+    DOCKERFILES=()
+    AGENT_IMAGE_FLAGS=()
+
+    while IFS=$'\t' read -r type repository_name dockerfile is_agent; do
+        if [ -z "$type" ]; then
+            continue
+        fi
+
+        HARNESS_TYPES+=("$type")
+        HARNESS_IMAGES["$type"]="$repository_name"
+        DOCKERFILES["$type"]="$dockerfile"
+        AGENT_IMAGE_FLAGS["$type"]="$is_agent"
+    done < <(node "$CATALOG_SCRIPT" list harness)
+
+    if [ "${#HARNESS_TYPES[@]}" -eq 0 ]; then
+        log_error "No harness image definitions loaded from catalog."
+        exit 1
+    fi
+}
+
 resolve_ecr_registry() {
     if [ -n "$ECR_REGISTRY" ]; then
         return 0
@@ -83,14 +81,7 @@ resolve_ecr_registry() {
 
 is_agent_image() {
     local type="$1"
-    case "$type" in
-        qwen|gemini|mistral|codex|opencode|kimi)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    [ "${AGENT_IMAGE_FLAGS[$type]:-0}" = "1" ]
 }
 
 # Login to ECR
@@ -224,7 +215,7 @@ build_all() {
     log_step "Building and pushing all harness images..."
     local failed=0
 
-    for type in "${!HARNESS_IMAGES[@]}"; do
+    for type in "${HARNESS_TYPES[@]}"; do
         if ! build_and_push_image "$type"; then
             failed=1
         fi
@@ -249,8 +240,7 @@ Arguments:
                 Options: dev, prod
 
   image-type    Type of worker image to build (default: multi-agent)
-                Options: all, base, claude, multi-agent, qwen, gemini, mistral,
-                         codex, opencode, kimi, testing, deployment, fullstack
+                Options: all and the harness types listed below
 
 Environment Variables:
   AWS_REGION     AWS region (default: eu-west-1)
@@ -267,9 +257,17 @@ Note: Images built by Pulumi (ecs-worker, lambda-worker) are handled
 by the workers infrastructure stack and are NOT included here.
 Agent image builds automatically ensure viberator-base-worker is present in ECR.
 EOF
+
+    echo ""
+    echo "Available harness types:"
+    for type in "${HARNESS_TYPES[@]}"; do
+        echo "  - $type"
+    done
 }
 
 main() {
+    load_harness_catalog
+
     if [ "$ENVIRONMENT" = "-h" ] || [ "$ENVIRONMENT" = "--help" ] || \
        [ "$HARNESS_TYPE" = "-h" ] || [ "$HARNESS_TYPE" = "--help" ]; then
         show_usage

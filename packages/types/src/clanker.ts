@@ -17,6 +17,53 @@ export type AgentType =
   | 'gemini-cli'
   | 'mistral-vibe'
 
+export const DEFAULT_AGENT_TYPE: AgentType = 'claude-code'
+
+export const SUPPORTED_AGENT_TYPES: AgentType[] = [
+  'claude-code',
+  'qwen-cli',
+  'qwen-api',
+  'codex',
+  'opencode',
+  'kimi-code',
+  'gemini-cli',
+  'mistral-vibe',
+]
+
+export const AGENT_LABELS: Record<AgentType, string> = {
+  'claude-code': 'Claude Code',
+  'qwen-cli': 'Qwen CLI',
+  'qwen-api': 'Qwen API',
+  codex: 'OpenAI Codex',
+  opencode: 'OpenCode',
+  'kimi-code': 'Kimi Code',
+  'gemini-cli': 'Gemini CLI',
+  'mistral-vibe': 'Mistral Vibe',
+}
+
+export const AGENT_OPTIONS: Array<{
+  value: AgentType
+  label: string
+  recommended?: boolean
+}> = [
+  { value: 'claude-code', label: AGENT_LABELS['claude-code'], recommended: true },
+  { value: 'qwen-cli', label: AGENT_LABELS['qwen-cli'] },
+  { value: 'qwen-api', label: AGENT_LABELS['qwen-api'] },
+  { value: 'codex', label: AGENT_LABELS.codex },
+  { value: 'opencode', label: AGENT_LABELS.opencode },
+  { value: 'kimi-code', label: AGENT_LABELS['kimi-code'] },
+  { value: 'gemini-cli', label: AGENT_LABELS['gemini-cli'] },
+  { value: 'mistral-vibe', label: AGENT_LABELS['mistral-vibe'] },
+]
+
+export function getAgentLabel(agent?: AgentType | null): string {
+  if (!agent) {
+    return AGENT_LABELS[DEFAULT_AGENT_TYPE]
+  }
+
+  return AGENT_LABELS[agent] || AGENT_LABELS[DEFAULT_AGENT_TYPE]
+}
+
 // Deployment strategy entity
 export interface DeploymentStrategy {
   id: string
