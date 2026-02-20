@@ -25,7 +25,10 @@ import {
   CheckCircledIcon,
   CrossCircledIcon,
   GearIcon,
-  LightningBoltIcon
+  LightningBoltIcon,
+  RobotIcon,
+  ChatBubbleIcon,
+  PencilIcon
 } from '@radix-ui/react-icons'
 import { useParams } from 'react-router-dom'
 import { useState } from 'react'
@@ -190,6 +193,39 @@ export function JobDetailPage() {
               </Section>
             </div>
 
+            {/* Clanker Section */}
+            {job.clanker && (
+              <div className="app-frame rounded-lg p-4">
+                <Section title="Clanker">
+                  <InfoItem 
+                    icon={<RobotIcon className="h-4 w-4" />}
+                    label="Name"
+                    value={job.clanker.name}
+                  />
+                  {job.clanker.agent && (
+                    <>
+                      <div className="h-px bg-[var(--gray-6)] mx-1" />
+                      <InfoItem 
+                        icon={<GearIcon className="h-4 w-4" />}
+                        label="Agent"
+                        value={job.clanker.agent}
+                      />
+                    </>
+                  )}
+                  {job.clanker.description && (
+                    <>
+                      <div className="h-px bg-[var(--gray-6)] mx-1" />
+                      <InfoItem 
+                        icon={<FileTextIcon className="h-4 w-4" />}
+                        label="Description"
+                        value={job.clanker.description}
+                      />
+                    </>
+                  )}
+                </Section>
+              </div>
+            )}
+
             {/* Execution Section */}
             <div className="app-frame rounded-lg p-4">
               <Section title="Execution">
@@ -270,6 +306,43 @@ export function JobDetailPage() {
                     {job.data.task}
                   </div>
                 </div>
+
+                {/* Additional Guidance Section */}
+                {(job.data.context?.instructionFiles?.length > 0 || job.data.context?.additionalContext) && (
+                  <div className="app-frame rounded-lg p-6 border-[var(--accent-6)]">
+                    <Subheading className="mb-4 flex items-center gap-2 text-[var(--accent-10)]">
+                      <PencilIcon className="h-5 w-5" />
+                      Additional Guidance
+                    </Subheading>
+                    <div className="space-y-4">
+                      {/* Additional Context from Enhance */}
+                      {job.data.context?.additionalContext && (
+                        <div className="p-3 bg-[var(--accent-3)] rounded">
+                          <div className="text-xs text-[var(--accent-9)] uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <ChatBubbleIcon className="h-3 w-3" />
+                            Additional Context
+                          </div>
+                          <div className="text-sm text-[var(--gray-11)] whitespace-pre-wrap">
+                            {job.data.context.additionalContext}
+                          </div>
+                        </div>
+                      )}
+                      {/* Instruction Files */}
+                      {job.data.context?.instructionFiles?.map((file, index) => (
+                        <div key={`${file.fileType}-${index}`} className="p-3 bg-[var(--gray-3)] rounded">
+                          <div className="text-xs text-[var(--gray-9)] uppercase tracking-wider mb-2">
+                            File: {file.fileType}
+                          </div>
+                          {file.content && (
+                            <div className="text-sm text-[var(--gray-11)] whitespace-pre-wrap font-mono bg-[var(--gray-4)] p-2 rounded">
+                              {file.content}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Results Section */}
                 {hasResults && (
