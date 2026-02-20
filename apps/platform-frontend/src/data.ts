@@ -64,7 +64,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
     externalTicketId: ticket.externalTicketId,
     ticketSystem: ticket.ticketSystem,
     autoFixStatus: ticket.autoFixStatus,
-    status: ticket.externalTicketId ? 'resolved' : ticket.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
+    status: ticket.externalTicketId || ticket.autoFixStatus === 'completed' ? 'resolved' : ticket.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
   }))
 }
 

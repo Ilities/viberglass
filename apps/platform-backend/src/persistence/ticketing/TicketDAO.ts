@@ -315,13 +315,13 @@ export class TicketDAO {
     const statsRow = await baseQuery
       .select([
         sql<string>`COUNT(*)`.as("total"),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NOT NULL)`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NOT NULL OR t.auto_fix_status = 'completed')`.as(
           "resolved",
         ),
         sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND t.auto_fix_status = 'in_progress')`.as(
           "in_progress",
         ),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND (t.auto_fix_status IS NULL OR t.auto_fix_status <> 'in_progress'))`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND (t.auto_fix_status IS NULL OR t.auto_fix_status NOT IN ('in_progress', 'completed')))`.as(
           "open",
         ),
         sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_requested IS TRUE)`.as(

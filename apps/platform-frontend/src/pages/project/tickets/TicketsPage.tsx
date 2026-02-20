@@ -6,7 +6,7 @@ import { Select } from '@/components/select'
 import type { Clanker, TicketSummary } from '@/data'
 import { getClankersList, getRecentTickets } from '@/data'
 import { getTickets } from '@/service/api/ticket-api'
-import { CaretSortIcon } from '@radix-ui/react-icons'
+
 import type { Ticket } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -20,7 +20,7 @@ export function TicketsPage() {
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const status = searchParams.get('status') ?? 'all'
+  const status = searchParams.get('status') ?? 'open'
   const severity = searchParams.get('severity') ?? 'all'
   const search = searchParams.get('search') ?? ''
 
@@ -85,10 +85,7 @@ export function TicketsPage() {
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </Select>
-        <Button plain>
-          <CaretSortIcon className="h-5 w-5" />
-          Filters
-        </Button>
+
       </div>
 
       {filteredTickets.length > 0 ? (
