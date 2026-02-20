@@ -398,16 +398,18 @@ export function ProjectHomePage() {
     <>
       <PageMeta title={project ? `${project} | Mission Control` : 'Loading...'} />
       <div className="space-y-8">
-        <div className="flex items-end justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="font-mono text-sm text-gray-500 dark:text-gray-400">{greeting}</p>
             <Heading className="mt-1">Mission Control</Heading>
           </div>
-          <div className="flex gap-2">
-            <Button href={`/project/${project}/tickets`} outline>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button href={`/project/${project}/tickets`} outline className="w-full justify-center sm:w-auto">
               View Tickets
             </Button>
-            <Button href={`/project/${project}/jobs`}>Queue Job</Button>
+            <Button href={`/project/${project}/jobs`} className="w-full justify-center sm:w-auto">
+              Queue Job
+            </Button>
           </div>
         </div>
 
