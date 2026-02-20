@@ -4,18 +4,16 @@
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS opencode-worker
 
-# Switch to root to install agent
-USER root
+# Install OpenCode CLI for the runtime user to avoid root-owned binary issues.
+ENV NPM_CONFIG_PREFIX=/home/viberator/.npm-global
+ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 
-# Install OpenCode CLI globally
+# Install OpenCode CLI
 # Source: https://opencode.ai/docs
 RUN npm install -g opencode-ai@latest
 
 # Verify installation
 RUN which opencode || echo "Warning: opencode not found in PATH"
-
-# Switch back to viberator user
-USER viberator
 
 ENV AGENT_TYPE=opencode
 ENV OPENCODE_CONFIG_DIR=/tmp/opencode-config
