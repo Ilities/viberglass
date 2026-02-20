@@ -68,7 +68,18 @@ beforeEach(() => {
     toggleTheme: jest.fn(),
     accentColor: 'amber',
   })
-  mockedGetProjects.mockResolvedValue([])
+  mockedGetProjects.mockResolvedValue([
+    {
+      id: 'project-1',
+      name: 'Viberglass',
+      slug: 'viberglass',
+    },
+    {
+      id: 'project-2',
+      name: 'Catalyst',
+      slug: 'catalyst',
+    },
+  ] as Awaited<ReturnType<typeof getProjects>>)
 })
 
 function renderLayout(initialPath: string) {
@@ -92,8 +103,8 @@ function getLinkLabels(scope: HTMLElement) {
     .map((link) => link.textContent?.trim() ?? '')
 }
 
-describe('ApplicationLayout navigation parity', () => {
-  it('keeps mobile drawer links aligned with desktop links on global routes', async () => {
+describe('ApplicationLayout mobile navigation', () => {
+  it('shows desktop nav items and project list in a single drawer layer on global routes', async () => {
     const user = userEvent.setup()
     const { container } = renderLayout('/')
     const desktopNav = container.querySelector('header nav')
@@ -106,12 +117,17 @@ describe('ApplicationLayout navigation parity', () => {
     await user.click(screen.getByRole('button', { name: 'Open navigation' }))
 
     const mobileDrawer = screen.getByRole('dialog')
-    const mobileLabels = getLinkLabels(mobileDrawer)
 
-    expect(mobileLabels).toEqual(desktopLabels)
+    desktopLabels.forEach((label) => {
+      expect(within(mobileDrawer).getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument()
+    })
+
+    expect(within(mobileDrawer).getByRole('link', { name: /Viberglass/i })).toBeInTheDocument()
+    expect(within(mobileDrawer).getByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
+    expect(within(mobileDrawer).getByRole('link', { name: /New Project/i })).toBeInTheDocument()
   })
 
-  it('keeps mobile drawer links aligned with desktop links on project routes', async () => {
+  it('shows desktop nav items and project list in a single drawer layer on project routes', async () => {
     const user = userEvent.setup()
     const { container } = renderLayout('/project/viberglass')
     const desktopNav = container.querySelector('header nav')
@@ -124,8 +140,14 @@ describe('ApplicationLayout navigation parity', () => {
     await user.click(screen.getByRole('button', { name: 'Open navigation' }))
 
     const mobileDrawer = screen.getByRole('dialog')
-    const mobileLabels = getLinkLabels(mobileDrawer)
 
-    expect(mobileLabels).toEqual(desktopLabels)
+    desktopLabels.forEach((label) => {
+      expect(within(mobileDrawer).getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument()
+    })
+
+    expect(within(mobileDrawer).getByRole('link', { name: /Back to Home/i })).toBeInTheDocument()
+    expect(within(mobileDrawer).getByRole('link', { name: /Viberglass/i })).toBeInTheDocument()
+    expect(within(mobileDrawer).getByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
+    expect(within(mobileDrawer).getByRole('link', { name: /New Project/i })).toBeInTheDocument()
   })
 })
