@@ -1,10 +1,10 @@
 import {
-  SSMClient,
-  GetParametersCommand,
-  GetParametersByPathCommand,
   GetParameterCommand,
+  GetParametersByPathCommand,
+  SSMClient,
 } from "@aws-sdk/client-ssm";
-import { Configuration, AgentConfig, SecretMetadata } from "../types";
+import { DEFAULT_AGENT_TYPE } from "@viberglass/types";
+import { AgentConfig, Configuration, SecretMetadata } from "../types";
 import { Logger } from "winston";
 import * as dotenv from "dotenv";
 
@@ -521,12 +521,14 @@ export class ConfigManager {
    * Load agent configuration by name
    */
   loadAgentConfig(agentName?: string): AgentConfig {
-    const name = agentName || process.env.DEFAULT_AGENT || "claude-code";
+    const name = agentName || process.env.DEFAULT_AGENT || DEFAULT_AGENT_TYPE;
 
     const agentConfig = this.config.agents[name];
     if (!agentConfig) {
-      this.logger.warn(`Agent ${name} not found, falling back to claude-code`);
-      return this.config.agents["claude-code"];
+      this.logger.warn(
+        `Agent ${name} not found, falling back to ${DEFAULT_AGENT_TYPE}`,
+      );
+      return this.config.agents[DEFAULT_AGENT_TYPE];
     }
 
     this.logger.info(`Loaded agent configuration for: ${name}`);
