@@ -210,6 +210,7 @@ export class DockerInvoker implements WorkerInvoker {
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,
+      agent: clanker.agent,
       repository: job.repository,
       task: job.task,
       branch: job.branch,

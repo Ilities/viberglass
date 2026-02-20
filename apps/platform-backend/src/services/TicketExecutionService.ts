@@ -289,6 +289,7 @@ export class TicketExecutionService {
         tenantId: jobData.tenantId,
         jobId: jobData.id,
         clankerId: clanker.id,
+        agent: clanker.agent,
         repository: jobData.repository,
         task: jobData.task,
         branch: jobData.branch,
