@@ -2,7 +2,8 @@ import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as pulumi from "@pulumi/pulumi";
 import * as path from "path";
-import { getConfig } from "./config";
+import workerImageCatalog from "../../packages/types/src/workerImageCatalog.json";
+import {getConfig} from "./config";
 
 /**
  * Viberglass Workers Infrastructure Stack
@@ -61,9 +62,7 @@ kmsKeyArn.apply(arn => {
     );
   }
 });
-const lambdaLogGroupName = baseStack.getOutput(
-  "lambdaLogGroupName",
-) as pulumi.Output<string>;
+
 const ecsWorkerLogGroupName = baseStack.getOutput(
   "ecsWorkerLogGroupName",
 ) as pulumi.Output<string>;
@@ -90,6 +89,50 @@ const workerRepo = new awsx.ecr.Repository(
     tags: config.tags,
   },
 );
+
+const harnessRepositoryNames = workerImageCatalog
+  .filter((entry) => entry.includeInInfraProvisioning)
+  .map((entry) => entry.repositoryName);
+
+for (const repositoryName of harnessRepositoryNames) {
+  const resourceNamePart = repositoryName.replace(/[^a-z0-9-]/g, "-");
+
+  const harnessRepository = new aws.ecr.Repository(
+    `${config.environment}-viberglass-${resourceNamePart}-repo`,
+    {
+      name: repositoryName,
+      imageScanningConfiguration: {
+        scanOnPush: true,
+      },
+      imageTagMutability: "MUTABLE",
+      forceDelete: true,
+      tags: config.tags,
+    },
+  );
+
+  new aws.ecr.LifecyclePolicy(
+    `${config.environment}-viberglass-${resourceNamePart}-lifecycle`,
+    {
+      repository: harnessRepository.name,
+      policy: JSON.stringify({
+        rules: [
+          {
+            rulePriority: 1,
+            description: "Keep last 10 images",
+            selection: {
+              tagStatus: "any",
+              countType: "imageCountMoreThan",
+              countNumber: 10,
+            },
+            action: {
+              type: "expire",
+            },
+          },
+        ],
+      }),
+    },
+  );
+}
 
 // =============================================================================
 // SQS QUEUE
