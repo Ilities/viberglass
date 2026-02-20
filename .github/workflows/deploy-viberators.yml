@@ -33,6 +33,7 @@ on:
           - gemini
           - mistral
           - codex
+          - kimi
           - testing
           - deployment
           - fullstack
