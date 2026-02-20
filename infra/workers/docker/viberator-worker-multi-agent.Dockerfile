@@ -49,9 +49,12 @@ RUN npm install -g @openai/codex
 # Source: https://opencode.ai/docs
 RUN npm install -g opencode-ai@latest
 
-# Install Kimi Code CLI
-# Source: https://moonshotai.github.io/Kimi-K2/cli/getting-started/
-RUN curl -fsSL https://cli.moonshot.ai/kimi.sh | bash
+# Install Kimi Code CLI for the runtime user to avoid /root permission issues.
+USER viberator
+ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
+# Source: https://www.kimi.com/code/docs/en/kimi-cli/guides/getting-started.html
+RUN curl -LsSf https://code.kimi.com/install.sh | bash
+USER root
 
 # Install uv for Python-based tools
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
@@ -63,8 +66,8 @@ RUN uv tool install mistral-vibe || \
     pip install mistral-vibe || \
     echo "Warning: Failed to install mistral-vibe"
 
-# Add uv tool bin directory to PATH
-ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
+# Keep user-level tool paths first at runtime.
+ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 
 # Copy package files required for workspace dependency installation
 COPY package*.json ./

@@ -4,11 +4,9 @@
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS kimi-worker
 
-# Switch to root to install agent
-USER root
-
-# Ensure installer-managed binaries are available during install
-ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
+# Install Kimi Code CLI for the runtime user so the binary remains executable
+# after the image switches to non-root execution.
+ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 
 # Install Kimi Code CLI
 # Source: https://www.kimi.com/code/docs/en/kimi-cli/guides/getting-started.html
@@ -16,9 +14,6 @@ RUN curl -LsSf https://code.kimi.com/install.sh | bash
 
 # Verify installation
 RUN which kimi || echo "Warning: kimi not found in PATH"
-
-# Switch back to viberator user
-USER viberator
 
 ENV AGENT_TYPE=kimi-code
 ENV KIMI_CONFIG_DIR=/tmp/kimi-config
