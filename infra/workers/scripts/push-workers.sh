@@ -1,7 +1,7 @@
 #!/bin/bash
 # Push script for Viberator worker Docker images
 # Usage: ./push-workers.sh [image-type] [tag]
-#   image-type: all | claude | qwen | gemini | mistral | codex | opencode | kimi | multi-agent | testing | deployment | fullstack
+#   image-type: all | base | claude | qwen | gemini | mistral | codex | opencode | kimi | multi-agent | testing | deployment | fullstack
 #   tag: optional tag/version (default: latest)
 
 set -e
@@ -20,6 +20,7 @@ TAG="${2:-latest}"
 
 # Array of all worker images
 declare -A IMAGE_NAMES=(
+    ["base"]="base-worker"
     ["claude"]="viberator-worker"
     ["ecs"]="viberator-ecs-worker"
     ["lambda"]="viberator-lambda-worker"
@@ -105,7 +106,7 @@ Push Viberator worker Docker images to registry.
 
 Arguments:
   image-type    Type of worker image to push (default: all)
-                Options: all, claude, ecs, lambda, qwen, gemini, mistral,
+                Options: all, base, claude, ecs, lambda, qwen, gemini, mistral,
                          codex, opencode, kimi, multi-agent, testing, deployment, fullstack
 
   tag           Image tag/version (default: latest)

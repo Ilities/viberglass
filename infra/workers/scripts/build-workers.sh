@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build script for all Viberator worker Docker images
 # Usage: ./build-workers.sh [image-type] [tag]
-#   image-type: all | claude | qwen | gemini | mistral | codex | opencode | kimi | multi-agent | testing | deployment | fullstack
+#   image-type: all | base | claude | qwen | gemini | mistral | codex | opencode | kimi | multi-agent | testing | deployment | fullstack
 #   tag: optional tag/version (default: latest)
 
 set -e
@@ -23,6 +23,7 @@ IMAGE_PREFIX="${VIBERATOR_WORKER_IMAGE_PREFIX:-viberator}"
 
 # Array of all worker images
 declare -A WORKER_IMAGES=(
+    ["base"]="infra/workers/docker/base/base-worker.Dockerfile"
     ["claude"]="infra/workers/docker/viberator-docker-worker.Dockerfile"
     ["ecs"]="infra/workers/docker/viberator-ecs-worker.Dockerfile"
     ["lambda"]="infra/workers/docker/viberator-lambda.Dockerfile"
@@ -39,6 +40,7 @@ declare -A WORKER_IMAGES=(
 )
 
 declare -A IMAGE_NAMES=(
+    ["base"]="base-worker"
     ["claude"]="viberator-worker"
     ["ecs"]="viberator-ecs-worker"
     ["lambda"]="viberator-lambda-worker"
@@ -116,10 +118,23 @@ build_image() {
     if docker build -f "$dockerfile" -t "$full_tag" $BUILD_ARGS .; then
         log_info "Successfully built $full_tag"
 
+        # Keep a local canonical base tag so agent builds can refer to it.
+        if [ "$type" = "base" ]; then
+            local local_base_tag="$IMAGE_PREFIX-base-worker:latest"
+            if [ "$full_tag" != "$local_base_tag" ]; then
+                docker tag "$full_tag" "$local_base_tag"
+                log_info "Also tagged local base image as $local_base_tag"
+            fi
+        fi
+
         # Also tag as latest if TAG is not latest
         if [ "$TAG" != "latest" ]; then
-            docker tag "$full_tag" "$REGISTRY/$IMAGE_PREFIX-$image_name:latest"
-            log_info "Also tagged as $REGISTRY/$IMAGE_PREFIX-$image_name:latest"
+            local latest_tag="$REGISTRY/$IMAGE_PREFIX-$image_name:latest"
+            if [ -z "$REGISTRY" ]; then
+                latest_tag="$IMAGE_PREFIX-$image_name:latest"
+            fi
+            docker tag "$full_tag" "$latest_tag"
+            log_info "Also tagged as $latest_tag"
         fi
 
         return 0
@@ -155,7 +170,7 @@ Build Viberator worker Docker images.
 
 Arguments:
   image-type    Type of worker image to build (default: all)
-                Options: all, claude, ecs, lambda, qwen, gemini, mistral,
+                Options: all, base, claude, ecs, lambda, qwen, gemini, mistral,
                          codex, opencode, kimi, multi-agent, testing, deployment, fullstack
 
   tag           Image tag/version (default: latest)
