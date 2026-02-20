@@ -4,29 +4,22 @@
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS mistral-worker
 
-# Switch to root to install agent
-USER root
+# Install Mistral tooling for the runtime user to avoid root-owned binary issues.
+ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 
 # Install uv package manager for Mistral Vibe
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/ || true
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install Mistral Vibe CLI using uv
 # Source: https://docs.mistral.ai/mistral-vibe/introduction/install
 RUN uv tool install mistral-vibe || \
-    pip install mistral-vibe || \
+    pip install --user mistral-vibe || \
     echo "Warning: Failed to install mistral-vibe"
 
 # Verify installation (try both uv and pip locations)
 RUN which mistral-vibe || \
-    ls /root/.local/bin/mistral-vibe || \
+    ls /home/viberator/.local/bin/mistral-vibe || \
     echo "Warning: mistral-vibe not found in PATH"
-
-# Add uv tool bin directory to PATH if needed
-ENV PATH="/root/.local/bin:${PATH}"
-
-# Switch back to viberator user
-USER viberator
 
 ENV AGENT_TYPE=mistral-vibe
 ENV MISTRAL_CONFIG_DIR=/tmp/mistral-config
