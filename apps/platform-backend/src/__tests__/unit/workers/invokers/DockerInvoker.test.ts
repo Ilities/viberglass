@@ -70,6 +70,7 @@ describe("DockerInvoker", () => {
       slug: "docker-fixer",
       description: "Fixes bugs via Docker",
       status: "active",
+      agent: "kimi-code",
       configFiles: [],
       secretIds: [],
       createdAt: "2024-01-01T00:00:00Z",
@@ -428,6 +429,7 @@ describe("DockerInvoker", () => {
         const payload = JSON.parse(payloadArg);
 
         expect(payload.callbackToken).toBe("cb-token-123");
+        expect(payload.agent).toBe("kimi-code");
       });
 
       it("should use job-ref command and callback token env when bootstrap payload is available", async () => {
