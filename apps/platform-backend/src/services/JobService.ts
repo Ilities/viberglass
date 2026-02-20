@@ -5,6 +5,7 @@ import { sql } from "kysely";
 import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -24,10 +25,12 @@ export interface SubmitJobOptions {
 export class JobService {
   private feedbackService?: FeedbackService;
   private ticketDAO: TicketDAO;
+  private clankerDAO: ClankerDAO;
 
   constructor(feedbackService?: FeedbackService) {
     this.feedbackService = feedbackService;
     this.ticketDAO = new TicketDAO();
+    this.clankerDAO = new ClankerDAO();
   }
   async submitJob(
     data: JobData,
@@ -230,6 +233,7 @@ export class JobService {
     const job = await db
       .selectFrom("jobs")
       .leftJoin("tickets", "tickets.id", "jobs.ticket_id")
+      .leftJoin("clankers", "clankers.id", "jobs.clanker_id")
       .select([
         "jobs.id",
         "jobs.status",
@@ -248,9 +252,15 @@ export class JobService {
         "jobs.finished_at",
         "jobs.tenant_id",
         "jobs.ticket_id",
+        "jobs.clanker_id",
         "tickets.id as ticket_uuid",
         "tickets.title as ticket_title",
         "tickets.external_ticket_id as ticket_external_id",
+        "clankers.id as clanker_uuid",
+        "clankers.name as clanker_name",
+        "clankers.slug as clanker_slug",
+        "clankers.description as clanker_description",
+        "clankers.agent as clanker_agent",
       ])
       .where("jobs.id", "=", jobId)
       .executeTakeFirst();
@@ -318,6 +328,16 @@ export class JobService {
             id: job.ticket_uuid,
             title: job.ticket_title,
             externalTicketId: job.ticket_external_id,
+          }
+        : null,
+      clankerId: job.clanker_id,
+      clanker: job.clanker_id
+        ? {
+            id: job.clanker_uuid ?? job.clanker_id,
+            name: job.clanker_name ?? "Unknown",
+            slug: job.clanker_slug ?? "unknown",
+            description: job.clanker_description ?? null,
+            agent: job.clanker_agent ?? null,
           }
         : null,
     };
