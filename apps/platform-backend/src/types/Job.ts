@@ -79,6 +79,14 @@ export interface JobResult {
 
 // Job status type from database schema
 export type JobStatus = "queued" | "active" | "completed" | "failed";
+export interface JobClankerInfo {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  agent: string | null;
+}
+
 export interface JobStatusResponse {
   jobId: string;
   status: JobStatus;
@@ -119,4 +127,6 @@ export interface JobStatusResponse {
     title: string | null;
     externalTicketId: string | null;
   } | null;
+  clankerId: string | null;
+  clanker: JobClankerInfo | null;
 }

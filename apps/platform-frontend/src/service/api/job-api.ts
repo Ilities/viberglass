@@ -78,6 +78,14 @@ export interface JobStatusTicket {
   externalTicketId: string | null
 }
 
+export interface JobStatusClanker {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  agent: string | null
+}
+
 export interface JobStatus {
   jobId: string
   status: 'queued' | 'active' | 'completed' | 'failed'
@@ -111,6 +119,8 @@ export interface JobStatus {
   finishedAt: string | null
   ticketId: string | null
   ticket: JobStatusTicket | null
+  clankerId: string | null
+  clanker: JobStatusClanker | null
 }
 
 /**
