@@ -4,18 +4,16 @@
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS qwen-worker
 
-# Switch to root to install agent
-USER root
+# Install Qwen Code CLI for the runtime user to avoid root-owned binary issues.
+ENV NPM_CONFIG_PREFIX=/home/viberator/.npm-global
+ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 
-# Install Qwen Code CLI globally
+# Install Qwen Code CLI
 # Source: https://qwenlm.github.io/qwen-code-docs/
 RUN npm install -g @qwen-code/qwen-code@latest
 
 # Verify installation
 RUN which qwen-code || echo "Warning: qwen-code not found in PATH"
-
-# Switch back to viberator user
-USER viberator
 
 ENV AGENT_TYPE=qwen-cli
 ENV QWEN_CONFIG_DIR=/tmp/qwen-config

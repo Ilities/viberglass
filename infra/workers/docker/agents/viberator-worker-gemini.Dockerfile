@@ -4,18 +4,16 @@
 ARG BASE_IMAGE=base-worker
 FROM ${BASE_IMAGE} AS gemini-worker
 
-# Switch to root to install agent
-USER root
+# Install Gemini CLI for the runtime user to avoid root-owned binary issues.
+ENV NPM_CONFIG_PREFIX=/home/viberator/.npm-global
+ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 
-# Install Google Gemini CLI globally
+# Install Google Gemini CLI
 # Source: https://geminicli.com/docs/get-started/installation/
 RUN npm install -g @google/gemini-cli
 
 # Verify installation
 RUN which gemini || echo "Warning: gemini not found in PATH"
-
-# Switch back to viberator user
-USER viberator
 
 ENV AGENT_TYPE=gemini-cli
 ENV GEMINI_CONFIG_DIR=/tmp/gemini-config
