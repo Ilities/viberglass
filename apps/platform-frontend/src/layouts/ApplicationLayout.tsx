@@ -13,7 +13,7 @@ import {
   Sidebar,
   SidebarBody,
   SidebarFooter,
-  SidebarHeader,
+  SidebarHeading,
   SidebarItem,
   SidebarLabel,
   SidebarSection,
@@ -57,13 +57,8 @@ type NavLinkItem = {
   label: string
 }
 
-function ProjectDropdownMenu({ projectSlug }: { projectSlug?: string }) {
+function ProjectDropdownMenu({ projectSlug, projects }: { projectSlug?: string; projects: Project[] }) {
   const pathname = useLocation().pathname
-  const [projects, setProjects] = useState<Project[]>([])
-
-  useEffect(() => {
-    getProjects().then(setProjects).catch(console.error)
-  }, [])
 
   return (
     <DropdownMenu className="min-w-80 lg:min-w-64">
@@ -165,12 +160,17 @@ function ApplicationLayoutContent() {
   const { project: projectSlug } = useParams<{ project: string }>()
   const { user, status, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const [projects, setProjects] = useState<Project[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       navigate('/login', { replace: true })
     }
   }, [navigate, status])
+
+  useEffect(() => {
+    getProjects().then(setProjects).catch(console.error)
+  }, [])
 
   if (status === 'loading') {
     return (
@@ -226,7 +226,7 @@ function ApplicationLayoutContent() {
                   <ChevronDownIcon />
                 </Icon>
               </DropdownButton>
-              <ProjectDropdownMenu projectSlug={projectSlug} />
+              <ProjectDropdownMenu projectSlug={projectSlug} projects={projects} />
             </Dropdown>
             <NavbarSection className="hidden lg:flex">
               {navItems.map((item) => (
@@ -253,21 +253,50 @@ function ApplicationLayoutContent() {
         }
         sidebar={
           <Sidebar>
-            <SidebarHeader>
-              <Dropdown>
-                <DropdownButton as={SidebarItem}>
-                  <Avatar src="/teams/viberglass.svg" />
-                  <SidebarLabel>{projectSlug ?? 'Projects'}</SidebarLabel>
-                  <Icon>
-                    <ChevronDownIcon />
-                  </Icon>
-                </DropdownButton>
-                <ProjectDropdownMenu projectSlug={projectSlug} />
-              </Dropdown>
-            </SidebarHeader>
-
             <SidebarBody>
+              {isProjectRoute ? (
+                <SidebarSection>
+                  <SidebarHeading>Workspace</SidebarHeading>
+                  <SidebarItem href="/">
+                    <Icon>
+                      <HomeIcon />
+                    </Icon>
+                    <SidebarLabel>Back to Home</SidebarLabel>
+                  </SidebarItem>
+                </SidebarSection>
+              ) : null}
               <SidebarSection>
+                <SidebarHeading>Projects</SidebarHeading>
+                {projects.map((project) => (
+                  <SidebarItem
+                    key={project.id}
+                    href={`/project/${project.slug}`}
+                    current={
+                      pathname === `/project/${project.slug}` ||
+                      pathname.startsWith(`/project/${project.slug}/`)
+                    }
+                  >
+                    {project.slug === 'viberglass' ? (
+                      <Avatar slot="avatar" src="/teams/viberglass.svg" />
+                    ) : (
+                      <Avatar
+                        slot="avatar"
+                        initials={project.name.substring(0, 2).toUpperCase()}
+                        className="bg-brand-gradient text-brand-charcoal"
+                      />
+                    )}
+                    <SidebarLabel>{project.name}</SidebarLabel>
+                  </SidebarItem>
+                ))}
+                <SidebarItem href="/new">
+                  <Icon>
+                    <PlusIcon />
+                  </Icon>
+                  <SidebarLabel>New Project</SidebarLabel>
+                </SidebarItem>
+              </SidebarSection>
+              <SidebarSection>
+                <SidebarHeading>Navigation</SidebarHeading>
                 {navItems.map((item) => (
                   <SidebarItem key={item.href} href={item.href} current={item.current}>
                     <SidebarLabel>{item.label}</SidebarLabel>
