@@ -27,6 +27,7 @@ on:
         type: choice
         options:
           - all
+          - base
           - claude
           - multi-agent
           - qwen

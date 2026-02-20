@@ -154,6 +154,7 @@ Full-stack worker with all development tools.
 ### Build Specific Image
 
 ```bash
+./scripts/build-workers.sh base
 ./scripts/build-workers.sh qwen
 ./scripts/build-workers.sh testing
 ```
@@ -187,6 +188,7 @@ export VIBERATOR_WORKER_REGISTRY=docker.io/myorg
 
 ```bash
 export VIBERATOR_WORKER_REGISTRY=123456.dkr.ecr.us-east-1.amazonaws.com
+./scripts/push-workers.sh base v1.0.0
 ./scripts/push-workers.sh qwen v1.0.0
 ```
 
