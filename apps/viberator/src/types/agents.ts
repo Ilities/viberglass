@@ -84,11 +84,11 @@ export interface OpenCodeConfig extends BaseAgentConfig {
 }
 
 // Kimi Code configuration
-// Docs: https://moonshotai.github.io/Kimi-K2/cli/getting-started
+// Docs: https://moonshotai.github.io/kimi-cli/en/configuration/config-files.html
 export interface KimiCodeConfig extends BaseAgentConfig {
   name: "kimi-code";
-  apiKey: string; // KIMI_CODE_API_KEY or MOONSHOT_API_KEY
-  endpoint?: string; // Custom base URL for OpenAI-compatible deployments
+  apiKey: string; // KIMI_API_KEY or MOONSHOT_API_KEY
+  endpoint?: string; // KIMI_BASE_URL / MOONSHOT_BASE_URL
   model?: "kimi-k2" | "kimi-k2-turbo-preview" | string;
   temperature?: number;
 }

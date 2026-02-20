@@ -8,8 +8,8 @@ FROM ${BASE_IMAGE} AS kimi-worker
 USER root
 
 # Install Kimi Code CLI
-# Source: https://moonshotai.github.io/Kimi-K2/cli/getting-started/
-RUN curl -fsSL https://cli.moonshot.ai/kimi.sh | bash
+# Source: https://www.kimi.com/code/docs/en/kimi-cli/guides/getting-started.html
+curl -LsSf https://code.kimi.com/install.sh | bash
 
 # Ensure installed binary path is available
 ENV PATH="/root/.cargo/bin:${PATH}"

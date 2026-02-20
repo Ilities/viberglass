@@ -280,7 +280,7 @@ export class ConfigManager {
       },
       "kimi-code": {
         apiKey: ["KIMI_API_KEY", "MOONSHOT_API_KEY"],
-        endpoint: ["KIMI_CODE_ENDPOINT", "MOONSHOT_BASE_URL"],
+        endpoint: ["KIMI_BASE_URL", "KIMI_CODE_ENDPOINT", "MOONSHOT_BASE_URL"],
       },
       codex: {
         apiKey: ["OPENAI_API_KEY"],
