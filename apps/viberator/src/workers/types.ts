@@ -62,6 +62,7 @@ export interface BaseWorkerPayload {
   tenantId: string;
   jobId: string;
   clankerId: string;
+  agent?: string;
   repository: string;
   task: string;
   branch?: string;

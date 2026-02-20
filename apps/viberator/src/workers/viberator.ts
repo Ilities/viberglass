@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { ConfigManager } from "../config/ConfigManager";
 import { AgentOrchestrator } from "../orchestrator/AgentOrchestrator";
-import { Configuration, ExecutionContext } from "../types";
+import { AgentConfig, Configuration, ExecutionContext } from "../types";
 import GitService from "../services/GitService";
 import {
   CodingJobData,
@@ -31,6 +31,7 @@ export class ViberatorWorker {
   private credentialProvider?: CredentialProvider;
   private configLoader?: ConfigLoader;
   private clankerConfig?: Record<string, unknown>;
+  private requestedAgent?: string;
   private projectConfig?: ProjectConfigPayload;
   private overrides?: JobOverrides;
   private instructionFiles: Map<string, string> = new Map();
@@ -80,6 +81,16 @@ export class ViberatorWorker {
           this.clankerConfig = (
             payload as LambdaPayload | EcsPayload
           ).deploymentConfig;
+        }
+
+        const payloadAgent = this.normalizeAgentName(payload.agent);
+        if (payloadAgent) {
+          this.requestedAgent = payloadAgent;
+        } else {
+          const clankerAgent = this.normalizeAgentName(this.clankerConfig?.agent);
+          if (clankerAgent) {
+            this.requestedAgent = clankerAgent;
+          }
         }
 
         // Store project config and overrides for configuration merging
@@ -451,6 +462,44 @@ export class ViberatorWorker {
     return sanitized || fallback;
   }
 
+  private normalizeAgentName(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private selectAgentForExecution(
+    availableAgents: AgentConfig[],
+  ): AgentConfig {
+    if (availableAgents.length === 0) {
+      throw new Error("No agents available");
+    }
+
+    const requestedAgent = this.requestedAgent || process.env.DEFAULT_AGENT;
+    const normalizedRequestedAgent = this.normalizeAgentName(requestedAgent);
+
+    if (!normalizedRequestedAgent) {
+      return availableAgents[0];
+    }
+
+    const matchedAgent = availableAgents.find(
+      (agent) => agent.name === normalizedRequestedAgent,
+    );
+
+    if (matchedAgent) {
+      return matchedAgent;
+    }
+
+    this.logger.warn("Requested agent is not configured in worker, falling back", {
+      requestedAgent: normalizedRequestedAgent,
+      fallbackAgent: availableAgents[0].name,
+    });
+    return availableAgents[0];
+  }
+
   async executeTask(data: CodingJobData): Promise<JobResult> {
     const startTime = Date.now();
     const { id, repository, task, baseBranch, context, settings, scm } = data;
@@ -541,10 +590,8 @@ export class ViberatorWorker {
       };
 
       const availableAgents = this.orchestrator.getAvailableAgents();
-      if (availableAgents.length === 0) {
-        throw new Error("No agents available");
-      }
-      const selectedAgent = availableAgents[0];
+      const selectedAgent = this.selectAgentForExecution(availableAgents);
+      executionContext.agent = selectedAgent.name;
 
       await this.sendProgress("execute", "Running AI agent", {
         agentName: selectedAgent.name,

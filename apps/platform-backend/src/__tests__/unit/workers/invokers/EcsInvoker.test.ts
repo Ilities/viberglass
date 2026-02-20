@@ -59,6 +59,7 @@ describe("EcsInvoker", () => {
       slug: "ecs-fixer",
       description: "Fixes bugs via ECS",
       status: "active",
+      agent: "kimi-code",
       configFiles: [],
       secretIds: [],
       createdAt: "2024-01-01T00:00:00Z",
@@ -466,6 +467,7 @@ describe("EcsInvoker", () => {
         expect(payload.workerType).toBe("docker");
         expect(payload.jobId).toBe(mockJob.id);
         expect(payload.tenantId).toBe(mockJob.tenantId);
+        expect(payload.agent).toBe("kimi-code");
         expect(payload.repository).toBe(mockJob.repository);
         expect(payload.task).toBe(mockJob.task);
         expect(payload.requiredCredentials).toEqual([]);
