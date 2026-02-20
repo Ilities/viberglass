@@ -9,7 +9,7 @@ USER root
 
 # Install Kimi Code CLI
 # Source: https://www.kimi.com/code/docs/en/kimi-cli/guides/getting-started.html
-curl -LsSf https://code.kimi.com/install.sh | bash
+RUN curl -LsSf https://code.kimi.com/install.sh | bash
 
 # Ensure installed binary path is available
 ENV PATH="/root/.cargo/bin:${PATH}"
