@@ -7,12 +7,12 @@ FROM ${BASE_IMAGE} AS kimi-worker
 # Switch to root to install agent
 USER root
 
+# Ensure installer-managed binaries are available during install
+ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
+
 # Install Kimi Code CLI
 # Source: https://www.kimi.com/code/docs/en/kimi-cli/guides/getting-started.html
 RUN curl -LsSf https://code.kimi.com/install.sh | bash
-
-# Ensure installed binary path is available
-ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Verify installation
 RUN which kimi || echo "Warning: kimi not found in PATH"
