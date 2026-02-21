@@ -14,13 +14,13 @@ import { TicketsTable } from './tickets-table'
 
 export function TicketsPage() {
   const { project } = useParams<{ project: string }>()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tickets, setTickets] = useState<TicketSummary[]>([])
   const [fullTickets, setFullTickets] = useState<Ticket[]>([])
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const status = searchParams.get('status') ?? 'all'
+  const status = searchParams.get('status') ?? 'not_fixed'
   const severity = searchParams.get('severity') ?? 'all'
   const search = searchParams.get('search') ?? ''
 
@@ -49,7 +49,8 @@ export function TicketsPage() {
   }
 
   const filteredTickets = tickets.filter((ticket) => {
-    if (status !== 'all' && ticket.status !== status) return false
+    if (status === 'not_fixed' && ticket.status === 'resolved') return false
+    if (status !== 'all' && status !== 'not_fixed' && ticket.status !== status) return false
     if (severity !== 'all' && ticket.severity !== severity) return false
     return !(search && !ticket.title.toLowerCase().includes(search.toLowerCase()))
   })
@@ -68,15 +69,32 @@ export function TicketsPage() {
         </Button>
       </div>
 
-      <div className="mt-8 flex items-center gap-4">
+      <form
+        className="mt-8 flex items-center gap-4"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const formData = new FormData(event.currentTarget)
+          const nextSearch = formData.get('search')?.toString().trim() ?? ''
+          const nextStatus = formData.get('status')?.toString() ?? 'not_fixed'
+          const nextSeverity = formData.get('severity')?.toString() ?? 'all'
+
+          const nextParams = new URLSearchParams()
+          if (nextSearch) nextParams.set('search', nextSearch)
+          if (nextStatus !== 'not_fixed') nextParams.set('status', nextStatus)
+          if (nextSeverity !== 'all') nextParams.set('severity', nextSeverity)
+
+          setSearchParams(nextParams)
+        }}
+      >
         <div className="min-w-75 flex-2">
           <SearchInput placeholder="Search tickets..." name="search" defaultValue={search} />
         </div>
         <Select name="status" defaultValue={status}>
+          <option value="not_fixed">Not Fixed</option>
           <option value="all">All Status</option>
           <option value="open">Open</option>
-          <option value="resolved">Resolved</option>
           <option value="in_progress">In Progress</option>
+          <option value="resolved">Resolved</option>
         </Select>
         <Select name="severity" defaultValue={severity}>
           <option value="all">All Severities</option>
@@ -85,11 +103,11 @@ export function TicketsPage() {
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </Select>
-        <Button plain>
+        <Button plain type="submit">
           <CaretSortIcon className="h-5 w-5" />
           Filters
         </Button>
-      </div>
+      </form>
 
       {filteredTickets.length > 0 ? (
         <TicketsTable tickets={filteredTickets} fullTickets={fullTickets} clankers={clankers} project={project} />
