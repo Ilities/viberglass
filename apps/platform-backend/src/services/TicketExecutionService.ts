@@ -5,7 +5,7 @@ import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
-import { ClankerProvisioningService } from "./ClankerProvisioningService";
+import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { JobService } from "./JobService";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
@@ -34,7 +34,7 @@ export class TicketExecutionService {
   private projectScmConfigDAO = new ProjectScmConfigDAO();
   private integrationCredentialDAO = new IntegrationCredentialDAO();
   private clankerDAO = new ClankerDAO();
-  private provisioningService = new ClankerProvisioningService();
+  private provisioningService = getClankerProvisioner();
   private jobService = new JobService();
   private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
