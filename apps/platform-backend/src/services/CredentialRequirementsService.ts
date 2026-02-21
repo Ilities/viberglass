@@ -15,11 +15,15 @@ export class CredentialRequirementsService {
     );
 
     const codexAgentConfig = getCodexAgentConfig(clanker);
-    if (
-      codexAgentConfig?.codexAuth.mode === "chatgpt_device" &&
-      codexAgentConfig.codexAuth.secretName
-    ) {
-      requiredCredentialSet.add(codexAgentConfig.codexAuth.secretName);
+    if (codexAgentConfig) {
+      const codexMode = codexAgentConfig.codexAuth.mode;
+      if (
+        (codexMode === "chatgpt_device" ||
+          codexMode === "chatgpt_device_stored") &&
+        codexAgentConfig.codexAuth.secretName
+      ) {
+        requiredCredentialSet.add(codexAgentConfig.codexAuth.secretName);
+      }
     }
 
     return Array.from(requiredCredentialSet);

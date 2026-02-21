@@ -165,7 +165,7 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
     const selectedAgent = selectAgentForExecution(availableAgents);
     executionContext.agent = selectedAgent.name;
 
-    if (selectedAgent.name === "codex" && codexAuthSettings.mode === "chatgpt_device") {
+    if (selectedAgent.name === "codex" && codexAuthSettings.mode !== "api_key") {
       await codexAuthManager.ensureDeviceAuth(id, data.tenantId);
     }
 

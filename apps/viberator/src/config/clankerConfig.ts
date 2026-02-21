@@ -1,6 +1,9 @@
 import { isObjectRecord } from "@viberglass/types";
 
-export type CodexAuthMode = "api_key" | "chatgpt_device";
+export type CodexAuthMode =
+  | "api_key"
+  | "chatgpt_device"
+  | "chatgpt_device_stored";
 
 export interface CodexAuthSettings {
   mode: CodexAuthMode;
@@ -25,7 +28,11 @@ function getString(value: unknown): string | undefined {
 
 function normalizeCodexAuth(raw: unknown): CodexAuthSettings {
   const source = isObjectRecord(raw) ? raw : {};
-  const mode = source.mode === "chatgpt_device" ? "chatgpt_device" : "api_key";
+  const mode =
+    source.mode === "chatgpt_device" ||
+    source.mode === "chatgpt_device_stored"
+      ? source.mode
+      : "api_key";
 
   return {
     mode,

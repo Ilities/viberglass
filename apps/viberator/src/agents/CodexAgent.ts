@@ -5,7 +5,8 @@ import * as path from "path";
 
 export class CodexAgent extends BaseAgent {
   protected requiresApiKey(): boolean {
-    return process.env.CODEX_AUTH_MODE !== "chatgpt_device";
+    const authMode = process.env.CODEX_AUTH_MODE || "api_key";
+    return authMode === "api_key";
   }
 
   protected async executeAgentCLI(
@@ -41,7 +42,7 @@ export class CodexAgent extends BaseAgent {
       const env: NodeJS.ProcessEnv = {
         ...process.env,
         OPENAI_API_KEY:
-          process.env.CODEX_AUTH_MODE !== "chatgpt_device"
+          (process.env.CODEX_AUTH_MODE || "api_key") === "api_key"
             ? this.config.apiKey
             : undefined,
         OPENAI_BASE_URL: this.config.endpoint || undefined,

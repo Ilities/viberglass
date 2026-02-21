@@ -8,7 +8,14 @@ import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { createClanker, getDeploymentStrategies } from '@/service/api/clanker-api'
 import { getSecrets, type Secret } from '@/service/api/secret-api'
-import { AGENT_OPTIONS, DEFAULT_AGENT_TYPE, type AgentType, type ConfigFileInput, type DeploymentStrategy } from '@viberglass/types'
+import {
+  AGENT_OPTIONS,
+  DEFAULT_AGENT_TYPE,
+  type AgentType,
+  type CodexAuthMode,
+  type ConfigFileInput,
+  type DeploymentStrategy,
+} from '@viberglass/types'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { buildClankerDeploymentConfig } from './config/buildConfig'
@@ -36,9 +43,7 @@ export function NewClankerPage() {
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>(DEFAULT_AGENT_TYPE)
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
-  const [codexAuthMode, setCodexAuthMode] = useState<'api_key' | 'chatgpt_device'>(
-    DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
-  )
+  const [codexAuthMode, setCodexAuthMode] = useState<CodexAuthMode>(DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode)
 
   useEffect(() => {
     async function loadData() {

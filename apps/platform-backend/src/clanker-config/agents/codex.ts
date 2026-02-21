@@ -1,4 +1,8 @@
-import type { CodexAgentConfig, CodexAuthConfig, CodexAuthMode } from "@viberglass/types";
+import type {
+  CodexAgentConfig,
+  CodexAuthConfig,
+  CodexAuthMode,
+} from "@viberglass/types";
 import {
   toNonEmptyString,
   toObjectRecord,
@@ -12,12 +16,17 @@ export const DEFAULT_CODEX_API_KEY_SECRET_NAME = "OPENAI_API_KEY";
 export function normalizeCodexAuthConfig(value: unknown): CodexAuthConfig {
   const source = toObjectRecord(value) || {};
 
-  const mode = source.mode === "chatgpt_device" ? "chatgpt_device" : DEFAULT_CODEX_AUTH_MODE;
+  const mode =
+    source.mode === "chatgpt_device" || source.mode === "chatgpt_device_stored"
+      ? source.mode
+      : DEFAULT_CODEX_AUTH_MODE;
 
   return {
     mode,
     secretName: DEFAULT_CODEX_AUTH_SECRET_NAME,
-    apiKeySecretName: toNonEmptyString(source.apiKeySecretName) || DEFAULT_CODEX_API_KEY_SECRET_NAME,
+    apiKeySecretName:
+      toNonEmptyString(source.apiKeySecretName) ||
+      DEFAULT_CODEX_API_KEY_SECRET_NAME,
   };
 }
 
@@ -35,7 +44,12 @@ export function normalizeCodexAgentConfig(value: unknown): CodexAgentConfig {
   const maxTokens = toOptionalFiniteNumber(cli.maxTokens);
   const temperature = toOptionalFiniteNumber(cli.temperature);
 
-  if (baseUrl || model || maxTokens !== undefined || temperature !== undefined) {
+  if (
+    baseUrl ||
+    model ||
+    maxTokens !== undefined ||
+    temperature !== undefined
+  ) {
     normalized.cli = {
       ...(baseUrl ? { baseUrl } : {}),
       ...(model ? { model } : {}),

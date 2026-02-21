@@ -14,6 +14,7 @@ import {
   DEFAULT_AGENT_TYPE,
   type AgentType,
   type Clanker,
+  type CodexAuthMode,
   type ConfigFileInput,
   type DeploymentStrategy,
 } from '@viberglass/types'
@@ -47,9 +48,7 @@ export function EditClankerPage() {
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>('')
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
-  const [codexAuthMode, setCodexAuthMode] = useState<'api_key' | 'chatgpt_device'>(
-    DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
-  )
+  const [codexAuthMode, setCodexAuthMode] = useState<CodexAuthMode>(DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode)
 
   useEffect(() => {
     async function loadData() {

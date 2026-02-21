@@ -39,4 +39,21 @@ describe("resolveCodexAuthSettings", () => {
 
     expect(settings.secretName).toBe(DEFAULT_CODEX_AUTH_SETTINGS.secretName);
   });
+
+  test("accepts chatgpt_device_stored mode", () => {
+    const settings = resolveCodexAuthSettings({
+      deploymentConfig: {
+        version: 1,
+        strategy: { type: "docker" },
+        agent: {
+          type: "codex",
+          codexAuth: {
+            mode: "chatgpt_device_stored",
+          },
+        },
+      },
+    });
+
+    expect(settings.mode).toBe("chatgpt_device_stored");
+  });
 });

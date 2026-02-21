@@ -226,22 +226,24 @@ export class SecretService {
     }
 
     const payloadBytes = Buffer.byteLength(authJson, "utf-8");
-    const secretLocation = payloadBytes <= MAX_SSM_SECRET_SIZE_BYTES
-      ? "ssm"
-      : "database";
+    if (payloadBytes > MAX_SSM_SECRET_SIZE_BYTES) {
+      throw new Error(
+        `Codex auth cache exceeds SSM size limit (${payloadBytes} bytes)`,
+      );
+    }
 
     const existing = await this.secretDao.getSecretByName(normalizedName);
     if (existing) {
       return this.updateSecret(existing.id, {
-        secretLocation,
+        secretLocation: "ssm",
         secretValue: authJson,
-        secretPath: secretLocation === "ssm" ? existing.secretPath : null,
+        secretPath: existing.secretPath,
       });
     }
 
     return this.createSecret({
       name: normalizedName,
-      secretLocation,
+      secretLocation: "ssm",
       secretValue: authJson,
     });
   }
