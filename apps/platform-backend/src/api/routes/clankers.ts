@@ -2,7 +2,7 @@ import express from "express";
 import type { Clanker } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
-import { ClankerProvisioningService } from "../../services/ClankerProvisioningService";
+import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import {
   validateCreateClanker,
   validateUpdateClanker,
@@ -14,7 +14,7 @@ import logger from "../../config/logger";
 const router = express.Router();
 const clankerService = new ClankerDAO();
 const healthService = new ClankerHealthService();
-const provisioningService = new ClankerProvisioningService();
+const provisioningService = getClankerProvisioner();
 
 router.use(requireAuth);
 
@@ -207,7 +207,7 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
     // Run provisioning asynchronously so UI can observe progress updates.
     void (async () => {
       try {
-        const provisioned = await provisioningService.provisionClanker(
+        const provisioned = await provisioningService.provision(
           updatedClanker,
           async (statusMessage) => {
             try {
