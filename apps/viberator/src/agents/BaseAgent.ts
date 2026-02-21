@@ -11,22 +11,6 @@ function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getObjectField(value: unknown, key: string): JsonObject | undefined {
-  if (!isJsonObject(value)) {
-    return undefined;
-  }
-  const field = value[key];
-  return isJsonObject(field) ? field : undefined;
-}
-
-function getStringField(value: unknown, key: string): string | undefined {
-  if (!isJsonObject(value)) {
-    return undefined;
-  }
-  const field = value[key];
-  return typeof field === "string" ? field : undefined;
-}
-
 // Intermediate type for CLI results that may include optional cost
 export type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost"> & {
   cost?: number;
@@ -200,33 +184,42 @@ export abstract class BaseAgent {
       let stdout = "";
       let stderr = "";
       let stdoutBuffer = "";
+      let stderrBuffer = "";
+
+      const flushBufferedLines = (
+        buffer: string,
+        onLine: (line: string) => void,
+      ): string => {
+        const lines = buffer.split(/\r?\n/);
+        const remainder = lines.pop() || "";
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line) {
+            continue;
+          }
+          onLine(line);
+        }
+
+        return remainder;
+      };
 
       child.stdout.on("data", (data) => {
         const chunk = data.toString();
         stdout += chunk;
         stdoutBuffer += chunk;
-
-        const lines = stdoutBuffer.split("\n");
-        // Keep the last partial line in the buffer
-        stdoutBuffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const parsed = JSON.parse(line);
-            this.formatAndPrintStreamEvent(parsed);
-          } catch (e) {
-            // Not JSON or incomplete, just print raw
-            process.stdout.write(line + "\n");
-          }
-        }
+        stdoutBuffer = flushBufferedLines(stdoutBuffer, (line) => {
+          this.logger.info(`[agent:${this.config.name}:stdout] ${line}`);
+        });
       });
 
       child.stderr.on("data", (data) => {
         const chunk = data.toString();
         stderr += chunk;
-        // Usually stderr isn't JSON-streamed, but you can apply similar logic if needed
-        process.stderr.write(chunk);
+        stderrBuffer += chunk;
+        stderrBuffer = flushBufferedLines(stderrBuffer, (line) => {
+          this.logger.warn(`[agent:${this.config.name}:stderr] ${line}`);
+        });
       });
 
       const timeoutId = setTimeout(() => {
@@ -236,6 +229,18 @@ export abstract class BaseAgent {
 
       child.on("close", (code) => {
         clearTimeout(timeoutId);
+        const remainingStdout = stdoutBuffer.trim();
+        if (remainingStdout.length > 0) {
+          this.logger.info(
+            `[agent:${this.config.name}:stdout] ${remainingStdout}`,
+          );
+        }
+        const remainingStderr = stderrBuffer.trim();
+        if (remainingStderr.length > 0) {
+          this.logger.warn(
+            `[agent:${this.config.name}:stderr] ${remainingStderr}`,
+          );
+        }
         resolve({
           stdout,
           stderr,
@@ -320,73 +325,6 @@ export abstract class BaseAgent {
       return null;
     }
   }
-
-  /**
-   * Format and print stream event data to stdout
-   * @param data
-   * @private
-   */
-  private formatAndPrintStreamEvent(data: unknown): void {
-    const dataType = getStringField(data, "type");
-    const event = getObjectField(data, "event");
-    const message = getObjectField(data, "message");
-
-    // 1. Assistant Text deltas
-    const delta = getObjectField(event, "delta");
-    const deltaText = getStringField(delta, "text");
-    if (dataType === "stream_event" && deltaText) {
-      process.stdout.write(deltaText);
-      return;
-    }
-
-    // 2. Tool Use starts (e.g., Grep, Edit)
-    const contentBlock = getObjectField(event, "content_block");
-    if (
-      dataType === "stream_event" &&
-      getStringField(contentBlock, "type") === "tool_use"
-    ) {
-      const toolName = getStringField(contentBlock, "name") ?? "unknown";
-      process.stdout.write(`\n\x1b[34m[Agent Tool: ${toolName}]\x1b[0m `);
-      return;
-    }
-
-    // 3. Tool Input deltas (the JSON arguments being typed out)
-    if (dataType === "stream_event" && getStringField(delta, "partial_json")) {
-      // Optional: print tool arguments in gray
-      // process.stdout.write(`\x1b[90m${data.event.delta.partial_json}\x1b[0m`);
-      return;
-    }
-
-    // 4. Tool Results (the outcome of the command)
-    const messageContent = Array.isArray(message?.content)
-      ? message.content
-      : undefined;
-    const firstMessageContent = messageContent?.[0];
-    const toolResultType = getStringField(firstMessageContent, "type");
-    const toolResultContent = isJsonObject(firstMessageContent)
-      ? firstMessageContent.content
-      : undefined;
-    if (
-      dataType === "user" &&
-      toolResultType === "tool_result" &&
-      toolResultContent !== undefined
-    ) {
-      process.stdout.write(
-        `\n\x1b[32m[Result]:\x1b[0m\n${String(toolResultContent)}\n`,
-      );
-      return;
-    }
-
-    // 5. Final message stop / summaries
-    if (
-      dataType === "stream_event" &&
-      getStringField(event, "type") === "message_stop"
-    ) {
-      process.stdout.write("\n");
-      return;
-    }
-  }
-  // ... existing code ...
 
   /**
    * Clean up working directory
