@@ -1,5 +1,5 @@
-export { CallbackClient } from './CallbackClient';
-export { ViberatorWorker } from './viberator';
-export * from './types';
-export { CredentialProvider } from './CredentialProvider';
-export { ConfigLoader, InstructionFile } from './ConfigLoader';
+export { CallbackClient } from "./infrastructure/CallbackClient";
+export { ViberatorWorker } from "./core/ViberatorWorker";
+export * from "./core/types";
+export { CredentialProvider } from "./infrastructure/CredentialProvider";
+export { ConfigLoader, InstructionFile } from "./infrastructure/ConfigLoader";

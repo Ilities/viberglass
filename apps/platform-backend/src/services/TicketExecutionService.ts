@@ -3,7 +3,7 @@ import logger from "../config/logger";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
-import { IntegrationCredentialDAO } from "../persistence/integrations/IntegrationCredentialDAO";
+import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "./ClankerProvisioningService";
 import { JobService } from "./JobService";
@@ -11,6 +11,7 @@ import { SecretResolutionService } from "./SecretResolutionService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
 import type { Clanker, Project } from "@viberglass/types";
+import { getCodexAgentConfig } from "../clanker-config";
 
 export interface InlineInstructionFile {
   fileType: string;
@@ -111,8 +112,9 @@ export class TicketExecutionService {
       return null;
     }
 
-    const credential =
-      await this.integrationCredentialDAO.getById(integrationCredentialId);
+    const credential = await this.integrationCredentialDAO.getById(
+      integrationCredentialId,
+    );
     if (!credential) {
       throw new Error(
         `SCM integration credential not found: ${integrationCredentialId}`,
@@ -153,7 +155,9 @@ export class TicketExecutionService {
             ? [project.repositoryUrl]
             : [];
       const primaryRepository = repositoryUrls[0];
-      const scmConfig = await this.projectScmConfigDAO.getByProjectId(project.id);
+      const scmConfig = await this.projectScmConfigDAO.getByProjectId(
+        project.id,
+      );
       const normalizedScmConfig = scmConfig
         ? {
             integrationId: scmConfig.integrationId,
@@ -273,7 +277,6 @@ export class TicketExecutionService {
         ticketId: ticket.id,
         clankerId: clanker.id,
       });
-      submittedJobId = submitResult.jobId;
 
       // Attach callback token for worker authentication
       jobData.callbackToken = submitResult.callbackToken;
@@ -282,7 +285,19 @@ export class TicketExecutionService {
         await this.secretResolutionService.getSecretMetadataForClanker(
           mergedSecretIds,
         );
-      const requiredCredentials = secretMetadata.map((secret) => secret.name);
+      const requiredCredentialSet = new Set(
+        secretMetadata.map((secret) => secret.name),
+      );
+
+      const codexAgentConfig = getCodexAgentConfig(executionClanker);
+      if (
+        codexAgentConfig?.codexAuth.mode === "chatgpt_device" &&
+        codexAgentConfig.codexAuth.secretName
+      ) {
+        requiredCredentialSet.add(codexAgentConfig.codexAuth.secretName);
+      }
+
+      const requiredCredentials = Array.from(requiredCredentialSet);
 
       const bootstrapPayload: Record<string, unknown> = {
         workerType: "docker",

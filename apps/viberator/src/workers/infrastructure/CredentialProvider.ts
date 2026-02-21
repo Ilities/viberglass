@@ -23,7 +23,11 @@ export class CredentialProvider {
 
   constructor(
     logger: Logger,
-    config?: { region?: string; pathPrefix?: string; tenantScopedPath?: boolean },
+    config?: {
+      region?: string;
+      pathPrefix?: string;
+      tenantScopedPath?: boolean;
+    },
   ) {
     this.logger = logger;
     const tenantPathPrefix =
@@ -134,7 +138,8 @@ export class CredentialProvider {
 
       return value;
     } catch (error) {
-      const errorName = (error as { name?: string }).name;
+      const err = error as { name?: string; message?: string };
+      const errorName = err.name;
       if (errorName === "ParameterNotFound") {
         this.logger.warn("Credential not found in SSM", {
           parameterName,
@@ -142,6 +147,24 @@ export class CredentialProvider {
         });
         return undefined; // Soft fail per CONTEXT.md
       }
+      if (
+        errorName === "AccessDeniedException" ||
+        errorName === "UnrecognizedClientException" ||
+        errorName === "InvalidClientTokenId" ||
+        errorName === "ExpiredTokenException" ||
+        errorName === "CredentialsProviderError"
+      ) {
+        this.logger.warn(
+          "Credential fetch skipped due unavailable AWS credentials",
+          {
+            parameterName,
+            error: errorName || "UnknownCredentialsError",
+            message: err.message,
+          },
+        );
+        return undefined;
+      }
+
       throw error;
     }
   }

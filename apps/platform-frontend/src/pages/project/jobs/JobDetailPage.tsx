@@ -26,9 +26,8 @@ import {
   CrossCircledIcon,
   GearIcon,
   LightningBoltIcon,
-  RobotIcon,
   ChatBubbleIcon,
-  PencilIcon
+  Pencil1Icon
 } from '@radix-ui/react-icons'
 import { useParams } from 'react-router-dom'
 import { useState } from 'react'
@@ -64,6 +63,56 @@ function formatJobId(jobId: string): string {
   return `${jobId.slice(0, 8)}...${jobId.slice(-6)}`
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+}
+
+interface CodexDeviceAuthPrompt {
+  verificationUri: string
+  userCode: string
+}
+
+function resolveCodexDeviceAuthPrompt(
+  progressUpdates: Array<{ details: Record<string, unknown> | null }>,
+  currentProgress: Record<string, unknown> | null,
+): CodexDeviceAuthPrompt | null {
+  const detailCandidates: Array<Record<string, unknown>> = []
+
+  const currentDetails = asRecord(currentProgress?.details)
+  if (currentDetails) {
+    detailCandidates.push(currentDetails)
+  }
+
+  for (let i = progressUpdates.length - 1; i >= 0; i -= 1) {
+    const details = asRecord(progressUpdates[i].details)
+    if (details) {
+      detailCandidates.push(details)
+    }
+  }
+
+  for (const details of detailCandidates) {
+    if (details.kind !== 'codex_device_auth_required' && details.kind !== 'codex_device_auth_pending') {
+      continue
+    }
+
+    const verificationUri = readString(details.verificationUri)
+    const userCode = readString(details.userCode)
+    if (verificationUri && userCode) {
+      return { verificationUri, userCode }
+    }
+  }
+
+  return null
+}
+
 type TabType = 'overview' | 'timeline' | 'logs'
 
 export function JobDetailPage() {
@@ -90,6 +139,8 @@ export function JobDetailPage() {
   const hasResults = job.result && job.result.success
   const hasError = job.result && !job.result.success
   const showProgress = job.status === 'active' && job.progress
+  const codexDeviceAuthPrompt = resolveCodexDeviceAuthPrompt(job.progressUpdates || [], job.progress)
+  const progressMessage = readString(job.progress?.message) || 'Processing...'
 
   return (
     <>
@@ -198,7 +249,7 @@ export function JobDetailPage() {
               <div className="app-frame rounded-lg p-4">
                 <Section title="Clanker">
                   <InfoItem 
-                    icon={<RobotIcon className="h-4 w-4" />}
+                    icon={<GearIcon className="h-4 w-4" />}
                     label="Name"
                     value={job.clanker.name}
                   />
@@ -308,10 +359,10 @@ export function JobDetailPage() {
                 </div>
 
                 {/* Additional Guidance Section */}
-                {(job.data.context?.instructionFiles?.length > 0 || job.data.context?.additionalContext) && (
+                {((job.data.context?.instructionFiles?.length ?? 0) > 0 || job.data.context?.additionalContext) && (
                   <div className="app-frame rounded-lg p-6 border-[var(--accent-6)]">
                     <Subheading className="mb-4 flex items-center gap-2 text-[var(--accent-10)]">
-                      <PencilIcon className="h-5 w-5" />
+                      <Pencil1Icon className="h-5 w-5" />
                       Additional Guidance
                     </Subheading>
                     <div className="space-y-4">
@@ -409,7 +460,47 @@ export function JobDetailPage() {
                       Current Progress
                     </Subheading>
                     <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded text-blue-800 dark:text-blue-200 text-sm">
-                      {(job.progress as { message?: string }).message || 'Processing...'}
+                      {progressMessage}
+                    </div>
+                  </div>
+                )}
+
+                {job.status === 'active' && codexDeviceAuthPrompt && (
+                  <div className="app-frame rounded-lg p-6 border-amber-200 dark:border-amber-500/30">
+                    <Subheading className="mb-4 flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                      <ClockIcon className="h-5 w-5" />
+                      Codex login required
+                    </Subheading>
+                    <div className="space-y-3 rounded bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-100">
+                      <div>
+                        Open verification page:
+                        {' '}
+                        <a
+                          href={codexDeviceAuthPrompt.verificationUri}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline"
+                        >
+                          {codexDeviceAuthPrompt.verificationUri}
+                        </a>
+                      </div>
+                      <div className="font-mono">
+                        Code: {codexDeviceAuthPrompt.userCode}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          plain
+                          onClick={() => {
+                            void navigator.clipboard.writeText(codexDeviceAuthPrompt.userCode)
+                          }}
+                        >
+                          Copy code
+                        </Button>
+                        <Button href={codexDeviceAuthPrompt.verificationUri} target="_blank" plain>
+                          <ExternalLinkIcon className="h-4 w-4" />
+                          Open link
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}

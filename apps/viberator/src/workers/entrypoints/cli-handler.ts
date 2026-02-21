@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { ViberatorWorker } from "./viberator";
-import { DockerPayload, CodingJobData, JobResult } from "./types";
+import { ViberatorWorker } from "../core/ViberatorWorker";
+import { DockerPayload, CodingJobData, JobResult } from "../core/types";
 
 /**
  * CLI-based ephemeral worker entry point
@@ -188,8 +188,10 @@ async function main() {
     if (!payload.task) {
       throw new Error("Missing required field: task");
     }
-    if (payload.workerType !== 'docker') {
-      throw new Error(`Invalid workerType: ${payload.workerType}. Expected 'docker' for CLI worker.`);
+    if (payload.workerType !== "docker") {
+      throw new Error(
+        `Invalid workerType: ${payload.workerType}. Expected 'docker' for CLI worker.`,
+      );
     }
 
     console.log(`Starting ephemeral worker for job: ${payload.jobId}`);

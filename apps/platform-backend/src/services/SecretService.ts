@@ -15,6 +15,7 @@ import { createChildLogger } from "../config/logger";
 const logger = createChildLogger({ service: "SecretService" });
 
 const IV_LENGTH = 12;
+const MAX_SSM_SECRET_SIZE_BYTES = 3900;
 
 export interface SecretInput {
   name: string;
@@ -210,6 +211,39 @@ export class SecretService {
     );
 
     return Object.fromEntries(entries);
+  }
+
+  async upsertWorkerAuthCache(
+    name: string,
+    authJson: string,
+  ): Promise<SecretMetadata> {
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      throw new Error("Secret name is required");
+    }
+    if (!authJson || authJson.trim().length === 0) {
+      throw new Error("Auth cache payload is required");
+    }
+
+    const payloadBytes = Buffer.byteLength(authJson, "utf-8");
+    const secretLocation = payloadBytes <= MAX_SSM_SECRET_SIZE_BYTES
+      ? "ssm"
+      : "database";
+
+    const existing = await this.secretDao.getSecretByName(normalizedName);
+    if (existing) {
+      return this.updateSecret(existing.id, {
+        secretLocation,
+        secretValue: authJson,
+        secretPath: secretLocation === "ssm" ? existing.secretPath : null,
+      });
+    }
+
+    return this.createSecret({
+      name: normalizedName,
+      secretLocation,
+      secretValue: authJson,
+    });
   }
 
   private async resolveSecretValue(secret: SecretRecord): Promise<string> {
