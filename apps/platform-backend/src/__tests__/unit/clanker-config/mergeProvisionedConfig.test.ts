@@ -1,8 +1,8 @@
-import type { Clanker } from "@viberglass/types";
+import { isObjectRecord, type Clanker } from "@viberglass/types";
 import { mergeProvisionedStrategyIntoConfig } from "../../../clanker-config/mergeProvisionedConfig";
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+function cloneObjectRecord(value: unknown): Record<string, unknown> | null {
+  if (!isObjectRecord(value)) {
     return null;
   }
   return { ...value };
@@ -64,11 +64,11 @@ describe("mergeProvisionedStrategyIntoConfig", () => {
       containerImage: "ghcr.io/org/worker:latest",
     });
 
-    const strategy = asRecord(merged.strategy);
-    const agent = asRecord(merged.agent);
-    const codexAuth = asRecord(agent?.codexAuth);
-    const runtime = asRecord(merged.runtime);
-    const settings = asRecord(runtime?.settings);
+    const strategy = cloneObjectRecord(merged.strategy);
+    const agent = cloneObjectRecord(merged.agent);
+    const codexAuth = cloneObjectRecord(agent?.codexAuth);
+    const runtime = cloneObjectRecord(merged.runtime);
+    const settings = cloneObjectRecord(runtime?.settings);
 
     expect(strategy?.type).toBe("docker");
     expect(strategy?.containerImage).toBe("ghcr.io/org/worker:latest");
@@ -95,9 +95,9 @@ describe("mergeProvisionedStrategyIntoConfig", () => {
     });
 
     expect(merged.version).toBe(1);
-    const strategy = asRecord(merged.strategy);
-    const agent = asRecord(merged.agent);
-    const codexAuth = asRecord(agent?.codexAuth);
+    const strategy = cloneObjectRecord(merged.strategy);
+    const agent = cloneObjectRecord(merged.agent);
+    const codexAuth = cloneObjectRecord(agent?.codexAuth);
 
     expect(agent?.type).toBe("codex");
     expect(codexAuth?.mode).toBe("chatgpt_device");

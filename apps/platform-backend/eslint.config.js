@@ -16,11 +16,26 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "FunctionDeclaration[id.name=/^(isRecord|toRecord|asRecord)$/]",
+          message:
+            "Use shared object-record helpers (for example isObjectRecord) instead of defining local isRecord/toRecord/asRecord functions.",
+        },
+        {
+          selector: "MethodDefinition[key.name=/^(isRecord|toRecord|asRecord)$/]",
+          message:
+            "Use shared object-record helpers (for example isObjectRecord) instead of defining local isRecord/toRecord/asRecord methods.",
+        },
+      ],
     },
   },
   {
     files: ["**/__tests__/**/*.ts", "**/*.test.ts", "src/migrations/**/*.ts"],
     rules: {
+      "no-restricted-syntax": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": "off",

@@ -19,6 +19,7 @@ import type {
   Severity,
   TicketMetadata,
 } from "@viberglass/types";
+import { isObjectRecord } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
 import { randomUUID } from "crypto";
 
@@ -329,8 +330,8 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
   private resolveAutoExecutePolicy(
     labelMappings: Record<string, unknown>,
   ): GitHubAutoExecutePolicy {
-    const root = this.toRecord(labelMappings);
-    const nested = this.toRecord(root?.github);
+    const root = isObjectRecord(labelMappings) ? labelMappings : undefined;
+    const nested = isObjectRecord(root?.github) ? root.github : undefined;
     const source = nested || root;
 
     const rawMode = source?.autoExecuteMode ?? source?.mode;
@@ -361,14 +362,6 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
       mode,
       requiredLabels: Array.from(new Set(requiredLabels)),
     };
-  }
-
-  private toRecord(value: unknown): Record<string, unknown> | null {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      return null;
-    }
-
-    return value as Record<string, unknown>;
   }
 
   private async submitJob(

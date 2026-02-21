@@ -1,3 +1,4 @@
+import { isObjectRecord } from "@viberglass/types";
 import type { WebhookProvider } from "../../../persistence/webhook/WebhookConfigDAO";
 import type { IntegrationWebhookProviderPolicy } from "./IntegrationWebhookProviderPolicy";
 
@@ -46,12 +47,14 @@ export class DefaultIntegrationWebhookProviderPolicy
       return existingLabelMappings || {};
     }
 
-    return this.toRecord(inputLabelMappings) || {};
+    return this.normalizeRecord(inputLabelMappings) || {};
   }
 
-  protected toRecord(value: unknown): { [key: string]: unknown } | null {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      return null;
+  protected normalizeRecord(
+    value: unknown,
+  ): { [key: string]: unknown } | undefined {
+    if (!isObjectRecord(value)) {
+      return undefined;
     }
 
     const normalized: { [key: string]: unknown } = {};

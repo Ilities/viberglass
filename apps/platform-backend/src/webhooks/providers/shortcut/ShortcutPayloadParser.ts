@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { isObjectRecord } from "@viberglass/types";
 import type {
   ParsedShortcutEvent,
   ShortcutWebhookObjectType,
@@ -13,17 +14,6 @@ function toNonEmptyString(value: unknown): string | undefined {
 
   const normalized = value.trim();
   return normalized || undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-  return value;
 }
 
 function toInteger(value: unknown): number | undefined {
@@ -59,7 +49,8 @@ function getNestedRecord(
   if (!source) {
     return undefined;
   }
-  return toRecord(source[key]);
+  const value = source[key];
+  return isObjectRecord(value) ? value : undefined;
 }
 
 function getFirstAction(
@@ -69,13 +60,14 @@ function getFirstAction(
   if (!Array.isArray(actions) || actions.length === 0) {
     return undefined;
   }
-  return toRecord(actions[0]);
+  const firstAction = actions[0];
+  return isObjectRecord(firstAction) ? firstAction : undefined;
 }
 
 function parseNestedPayload(
   value: unknown,
 ): Record<string, unknown> | undefined {
-  if (isRecord(value)) {
+  if (isObjectRecord(value)) {
     return value;
   }
 
@@ -84,7 +76,8 @@ function parseNestedPayload(
   }
 
   try {
-    return toRecord(JSON.parse(value));
+    const parsed = JSON.parse(value);
+    return isObjectRecord(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
@@ -188,7 +181,7 @@ function validatePayloadForSupportedEvent(
   eventType: string,
   payload: ShortcutWebhookPayload,
 ): void {
-  const data = toRecord(payload.data);
+  const data = isObjectRecord(payload.data) ? payload.data : undefined;
   if (eventType.startsWith("story_")) {
     if (!toIdentifier(data?.id)) {
       throw new Error("Missing required field 'data.id'");
@@ -213,7 +206,7 @@ function populateShortcutMetadata(
   payload: ShortcutWebhookPayload,
   metadata: ParsedShortcutEvent["metadata"],
 ): void {
-  const data = toRecord(payload.data);
+  const data = isObjectRecord(payload.data) ? payload.data : undefined;
   const entityId = toIdentifier(data?.id);
   const relatedStoryId = toIdentifier(data?.story_id);
 
@@ -243,7 +236,7 @@ function populateShortcutMetadata(
 }
 
 function extractShortcutTimestamp(payload: ShortcutWebhookPayload): string {
-  const data = toRecord(payload.data);
+  const data = isObjectRecord(payload.data) ? payload.data : undefined;
 
   const candidate =
     toNonEmptyString(data?.updated_at) || toNonEmptyString(data?.created_at);
@@ -261,7 +254,7 @@ function normalizeRefs(
   type ShortcutRef = { id?: number; entity_type?: string };
   const refs = value
     .map((ref): ShortcutRef | undefined => {
-      const record = toRecord(ref);
+      const record = isObjectRecord(ref) ? ref : undefined;
       if (!record) {
         return undefined;
       }
@@ -295,7 +288,7 @@ function normalizeChangedFields(value: unknown): string[] | undefined {
 }
 
 function extractChangedFieldValue(value: unknown): unknown {
-  const record = toRecord(value);
+  const record = isObjectRecord(value) ? value : undefined;
   if (!record) {
     return value;
   }
@@ -434,7 +427,7 @@ export class ShortcutPayloadParser {
     payload: unknown,
     headers: Record<string, string>,
   ): ParsedShortcutEvent {
-    if (!isRecord(payload)) {
+    if (!isObjectRecord(payload)) {
       throw new Error("Shortcut payload must be a JSON object");
     }
 

@@ -10,6 +10,7 @@
 
 import axios, { type AxiosInstance } from 'axios';
 import crypto from 'crypto';
+import { isObjectRecord } from '@viberglass/types';
 import { BaseWebhookProvider } from './BaseWebhookProvider';
 import type {
   ParsedWebhookEvent,
@@ -152,7 +153,7 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
     payload: unknown,
     headers: Record<string, string>
   ): ParsedWebhookEvent {
-    if (!this.isRecord(payload)) {
+    if (!isObjectRecord(payload)) {
       throw new Error('Jira payload must be a JSON object');
     }
 
@@ -343,10 +344,6 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
     }
 
     return this.extractTimestamp(payload);
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
   /**
@@ -834,9 +831,13 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
     failureStatus?: string;
   } {
     const mapping = this.getProviderLabelMappings();
-    const labelsMapping = this.toRecord(mapping?.labels);
-    const transitionsMapping = this.toRecord(mapping?.transitions);
-    const statusesMapping = this.toRecord(mapping?.statuses);
+    const labelsMapping = isObjectRecord(mapping?.labels) ? mapping.labels : undefined;
+    const transitionsMapping = isObjectRecord(mapping?.transitions)
+      ? mapping.transitions
+      : undefined;
+    const statusesMapping = isObjectRecord(mapping?.statuses)
+      ? mapping.statuses
+      : undefined;
 
     const updateLabels = this.readBoolean(mapping, 'updateLabels');
     const skipLabelUpdates =
@@ -871,16 +872,11 @@ export class JiraWebhookProvider extends BaseWebhookProvider {
   }
 
   private getProviderLabelMappings(): Record<string, unknown> | undefined {
-    const root = this.toRecord(this.config.labelMappings);
-    const nestedJira = this.toRecord(root?.jira);
+    const root = isObjectRecord(this.config.labelMappings)
+      ? this.config.labelMappings
+      : undefined;
+    const nestedJira = isObjectRecord(root?.jira) ? root.jira : undefined;
     return nestedJira || root;
-  }
-
-  private toRecord(value: unknown): Record<string, unknown> | undefined {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      return undefined;
-    }
-    return value as Record<string, unknown>;
   }
 
   private readString(
