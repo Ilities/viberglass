@@ -33,7 +33,7 @@ function normalizeCodexAuth(raw: unknown): CodexAuthSettings {
 
   return {
     mode,
-    secretName: getString(source.secretName) || DEFAULT_CODEX_AUTH_SETTINGS.secretName,
+    secretName: DEFAULT_CODEX_AUTH_SETTINGS.secretName,
     apiKeySecretName:
       getString(source.apiKeySecretName) || DEFAULT_CODEX_AUTH_SETTINGS.apiKeySecretName,
   };

@@ -134,4 +134,31 @@ describe("CredentialRequirementsService", () => {
 
     expect(requiredCredentials).toEqual([]);
   });
+
+  it("uses the default codex auth secret name even when config provides a custom name", async () => {
+    mockSecretResolutionService.getSecretMetadataForClanker.mockResolvedValue([]);
+
+    const clanker = createClanker({
+      agent: "codex",
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: "docker",
+        },
+        agent: {
+          type: "codex",
+          codexAuth: {
+            mode: "chatgpt_device",
+            secretName: "CUSTOM_CODEX_SECRET",
+          },
+        },
+      },
+      secretIds: [],
+    });
+
+    const requiredCredentials =
+      await service.getRequiredCredentialsForClanker(clanker);
+
+    expect(requiredCredentials).toEqual(["CODEX_AUTH_JSON"]);
+  });
 });
