@@ -28,6 +28,7 @@ import {
 } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 import { resolveClankerConfig } from "../clanker-config";
+import { mergeProvisionedStrategyIntoConfig } from "../clanker-config/mergeProvisionedConfig";
 
 const logger = createChildLogger({ service: "ClankerProvisioningService" });
 
@@ -418,20 +419,24 @@ export class ClankerProvisioningService {
     const buildResult = await this.buildDockerImage(containerImage, progress);
     const imageMetadata = await this.getDockerImageMetadata(containerImage);
 
-    const updatedConfig: Record<string, unknown> = {
+    const updatedStrategy: Record<string, unknown> = {
       ...config,
       containerImage,
       imageMetadata,
       dockerBuild: buildResult,
     };
+    const deploymentConfig = this.withProvisionedStrategy(
+      clanker,
+      updatedStrategy,
+    );
 
     const availability = await this.checkDockerAvailability({
       ...clanker,
-      deploymentConfig: updatedConfig,
+      deploymentConfig,
     });
 
     return {
-      deploymentConfig: updatedConfig,
+      deploymentConfig,
       status: availability.status,
       statusMessage: availability.statusMessage,
     };
@@ -459,20 +464,24 @@ export class ClankerProvisioningService {
     const clusterArn =
       config.clusterArn || process.env.VIBERATOR_ECS_CLUSTER_ARN;
 
-    const updatedConfig: Record<string, unknown> = {
+    const updatedStrategy: Record<string, unknown> = {
       ...config,
       taskDefinitionArn,
       taskDefinitionDetails,
       clusterArn,
     };
+    const deploymentConfig = this.withProvisionedStrategy(
+      clanker,
+      updatedStrategy,
+    );
 
     const availability = await this.checkEcsAvailability({
       ...clanker,
-      deploymentConfig: updatedConfig,
+      deploymentConfig,
     });
 
     return {
-      deploymentConfig: updatedConfig,
+      deploymentConfig,
       status: availability.status,
       statusMessage: availability.statusMessage,
     };
@@ -499,23 +508,34 @@ export class ClankerProvisioningService {
       progress,
     );
 
-    const updatedConfig: Record<string, unknown> = {
+    const updatedStrategy: Record<string, unknown> = {
       ...config,
       functionName: functionInfo.functionName,
       functionArn: functionInfo.functionArn,
       functionDetails: functionInfo.functionDetails,
     };
+    const deploymentConfig = this.withProvisionedStrategy(
+      clanker,
+      updatedStrategy,
+    );
 
     const availability = await this.checkLambdaAvailability({
       ...clanker,
-      deploymentConfig: updatedConfig,
+      deploymentConfig,
     });
 
     return {
-      deploymentConfig: updatedConfig,
+      deploymentConfig,
       status: availability.status,
       statusMessage: availability.statusMessage,
     };
+  }
+
+  private withProvisionedStrategy(
+    clanker: Clanker,
+    strategy: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return mergeProvisionedStrategyIntoConfig(clanker, strategy);
   }
 
   private async buildDockerImage(
