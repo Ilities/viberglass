@@ -25,7 +25,7 @@ export class CodexAgent extends BaseAgent {
         "--ask-for-approval",
         "never",
         "--sandbox",
-        "workspace-write",
+        "danger-full-access",
         "exec",
         "--json",
         "--skip-git-repo-check",
