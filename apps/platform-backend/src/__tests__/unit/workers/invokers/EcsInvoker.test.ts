@@ -65,12 +65,18 @@ describe("EcsInvoker", () => {
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {
-        clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
-        taskDefinitionArn:
-          "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
-        launchType: "FARGATE",
-        subnetIds: ["subnet-123", "subnet-456"],
-        securityGroupIds: ["sg-123"],
+        version: 1,
+        strategy: {
+          type: "ecs",
+          clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
+          taskDefinitionArn:
+            "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
+          subnetIds: ["subnet-123", "subnet-456"],
+          securityGroupIds: ["sg-123"],
+        },
+        agent: {
+          type: "kimi-code",
+        },
       },
     };
   });
@@ -362,10 +368,17 @@ describe("EcsInvoker", () => {
         const clankerWithoutCluster: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            taskDefinitionArn:
-              "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
-            subnetIds: ["subnet-123"],
-            securityGroupIds: ["sg-123"],
+            version: 1,
+            strategy: {
+              type: "ecs",
+              taskDefinitionArn:
+                "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
+              subnetIds: ["subnet-123"],
+              securityGroupIds: ["sg-123"],
+            },
+            agent: {
+              type: "kimi-code",
+            },
           },
         };
 
@@ -385,9 +398,16 @@ describe("EcsInvoker", () => {
         const clankerWithoutTaskDef: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
-            subnetIds: ["subnet-123"],
-            securityGroupIds: ["sg-123"],
+            version: 1,
+            strategy: {
+              type: "ecs",
+              clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
+              subnetIds: ["subnet-123"],
+              securityGroupIds: ["sg-123"],
+            },
+            agent: {
+              type: "kimi-code",
+            },
           },
         };
 
@@ -427,7 +447,15 @@ describe("EcsInvoker", () => {
       it("should throw PERMANENT error when both clusterArn and taskDefinitionArn are missing", async () => {
         const clankerWithEmptyConfig: Clanker = {
           ...mockClanker,
-          deploymentConfig: {},
+          deploymentConfig: {
+            version: 1,
+            strategy: {
+              type: "ecs",
+            },
+            agent: {
+              type: "kimi-code",
+            },
+          },
         };
 
         await expect(

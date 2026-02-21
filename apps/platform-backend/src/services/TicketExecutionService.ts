@@ -7,11 +7,10 @@ import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "./ClankerProvisioningService";
 import { JobService } from "./JobService";
-import { SecretResolutionService } from "./SecretResolutionService";
+import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
 import type { Clanker, Project } from "@viberglass/types";
-import { getCodexAgentConfig } from "../clanker-config";
 
 export interface InlineInstructionFile {
   fileType: string;
@@ -37,7 +36,7 @@ export class TicketExecutionService {
   private clankerDAO = new ClankerDAO();
   private provisioningService = new ClankerProvisioningService();
   private jobService = new JobService();
-  private secretResolutionService = new SecretResolutionService();
+  private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
 
   private normalizeInstructionFile(
@@ -281,23 +280,10 @@ export class TicketExecutionService {
       // Attach callback token for worker authentication
       jobData.callbackToken = submitResult.callbackToken;
 
-      const secretMetadata =
-        await this.secretResolutionService.getSecretMetadataForClanker(
-          mergedSecretIds,
+      const requiredCredentials =
+        await this.credentialRequirementsService.getRequiredCredentialsForClanker(
+          executionClanker,
         );
-      const requiredCredentialSet = new Set(
-        secretMetadata.map((secret) => secret.name),
-      );
-
-      const codexAgentConfig = getCodexAgentConfig(executionClanker);
-      if (
-        codexAgentConfig?.codexAuth.mode === "chatgpt_device" &&
-        codexAgentConfig.codexAuth.secretName
-      ) {
-        requiredCredentialSet.add(codexAgentConfig.codexAuth.secretName);
-      }
-
-      const requiredCredentials = Array.from(requiredCredentialSet);
 
       const bootstrapPayload: Record<string, unknown> = {
         workerType: "docker",

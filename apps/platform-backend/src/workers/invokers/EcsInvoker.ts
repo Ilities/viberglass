@@ -8,7 +8,7 @@ import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
-import { SecretResolutionService } from "../../services/SecretResolutionService";
+import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
 
@@ -27,13 +27,13 @@ interface EcsDeploymentConfig {
 export class EcsInvoker implements WorkerInvoker {
   readonly name = "EcsInvoker";
   private client: ECSClient;
-  private secretResolutionService: SecretResolutionService;
+  private credentialRequirementsService: CredentialRequirementsService;
 
   constructor(config?: { region?: string }) {
     this.client = new ECSClient({
       region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
-    this.secretResolutionService = new SecretResolutionService();
+    this.credentialRequirementsService = new CredentialRequirementsService();
   }
 
   async invoke(
@@ -254,11 +254,10 @@ export class EcsInvoker implements WorkerInvoker {
     clanker: Clanker,
     project?: Project,
   ): Promise<object> {
-    const secretMetadata =
-      await this.secretResolutionService.getSecretMetadataForClanker(
-        clanker.secretIds || [],
+    const requiredCredentials =
+      await this.credentialRequirementsService.getRequiredCredentialsForClanker(
+        clanker,
       );
-    const requiredCredentials = secretMetadata.map((secret) => secret.name);
 
     return {
       workerType: "docker",
