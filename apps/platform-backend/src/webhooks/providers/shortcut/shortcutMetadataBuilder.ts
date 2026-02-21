@@ -1,8 +1,5 @@
+import { isObjectRecord } from '@viberglass/types';
 import type { ParsedShortcutEvent } from './shortcutTypes';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function toNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== 'string') {
@@ -13,7 +10,7 @@ function toNonEmptyString(value: unknown): string | undefined {
 }
 
 function getRecord(value: unknown): Record<string, unknown> | undefined {
-  if (!isRecord(value)) {
+  if (!isObjectRecord(value)) {
     return undefined;
   }
   return value;

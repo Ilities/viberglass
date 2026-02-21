@@ -1,7 +1,8 @@
-import type {
-  AuthCredentialType,
-  AuthCredentials,
-  Integration,
+import {
+  isObjectRecord,
+  type AuthCredentialType,
+  type AuthCredentials,
+  type Integration,
 } from '@viberglass/types'
 
 export const MANUAL_INTEGRATION_PLACEHOLDER = '__placeholder__'
@@ -11,10 +12,6 @@ export type LegacyAuthCredentials = AuthCredentials & Record<string, unknown>
 type ProjectRepositoryShape = {
   repositoryUrls?: string[] | null
   repositoryUrl?: string | null
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isAuthCredentialType(value: unknown): value is AuthCredentialType {
@@ -45,7 +42,7 @@ export function resolveManualTicketSystem(value: string | null | undefined): str
 
 export function parseCredentialsJson(credentialsRaw: string): LegacyAuthCredentials {
   const parsed: unknown = JSON.parse(credentialsRaw)
-  if (!isRecord(parsed)) {
+  if (!isObjectRecord(parsed)) {
     throw new Error('Invalid JSON in Credentials field')
   }
   const type: AuthCredentialType = isAuthCredentialType(parsed.type) ? parsed.type : 'api_key'

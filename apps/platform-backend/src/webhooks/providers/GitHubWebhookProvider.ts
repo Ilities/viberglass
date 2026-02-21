@@ -10,6 +10,7 @@
 
 import axios, { type AxiosInstance } from "axios";
 import crypto from "crypto";
+import { isObjectRecord } from "@viberglass/types";
 import { BaseWebhookProvider } from "./BaseWebhookProvider";
 import type {
   ParsedWebhookEvent,
@@ -59,10 +60,10 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
       throw new Error("Missing x-github-delivery header");
     }
 
-    if (!this.isRecord(payload)) {
+    if (!isObjectRecord(payload)) {
       throw new Error("GitHub payload must be a JSON object");
     }
-    const payloadObj = payload as Record<string, unknown>;
+    const payloadObj = payload;
     this.validatePayloadForSupportedEvent(eventType, payloadObj);
 
     // Build metadata
@@ -141,10 +142,6 @@ export class GitHubWebhookProvider extends BaseWebhookProvider {
         throw new Error("Missing required field 'comment.id'");
       }
     }
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
   /**

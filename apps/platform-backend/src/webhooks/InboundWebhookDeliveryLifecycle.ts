@@ -1,3 +1,4 @@
+import { isObjectRecord } from "@viberglass/types";
 import type { ParsedWebhookEvent } from "./WebhookProvider";
 import type { EventProcessingResult } from "./InboundEventProcessorResolver";
 import type { WebhookConfig } from "../persistence/webhook/WebhookConfigDAO";
@@ -85,14 +86,10 @@ export class InboundWebhookDeliveryLifecycle {
   }
 
   private toPayloadRecord(payload: unknown): Record<string, unknown> {
-    if (this.isRecord(payload)) {
+    if (isObjectRecord(payload)) {
       return payload;
     }
 
     return { rawPayload: payload };
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 }

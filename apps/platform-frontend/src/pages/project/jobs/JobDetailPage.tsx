@@ -31,6 +31,7 @@ import {
 } from '@radix-ui/react-icons'
 import { useParams } from 'react-router-dom'
 import { useState } from 'react'
+import { isObjectRecord } from '@viberglass/types'
 
 function formatDuration(start: string | null, end: string | null): string {
   if (!start) return '-'
@@ -63,14 +64,6 @@ function formatJobId(jobId: string): string {
   return `${jobId.slice(0, 8)}...${jobId.slice(-6)}`
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return isRecord(value) ? value : null
-}
-
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null
 }
@@ -85,15 +78,15 @@ function resolveCodexDeviceAuthPrompt(
   currentProgress: Record<string, unknown> | null,
 ): CodexDeviceAuthPrompt | null {
   const detailCandidates: Array<Record<string, unknown>> = []
+  const currentDetails = currentProgress?.details
 
-  const currentDetails = asRecord(currentProgress?.details)
-  if (currentDetails) {
+  if (isObjectRecord(currentDetails)) {
     detailCandidates.push(currentDetails)
   }
 
   for (let i = progressUpdates.length - 1; i >= 0; i -= 1) {
-    const details = asRecord(progressUpdates[i].details)
-    if (details) {
+    const details = progressUpdates[i].details
+    if (isObjectRecord(details)) {
       detailCandidates.push(details)
     }
   }
