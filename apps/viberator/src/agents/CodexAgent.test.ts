@@ -130,6 +130,8 @@ describe("CodexAgent CLI invocation", () => {
       expect.arrayContaining([
         "--ask-for-approval",
         "never",
+        "--sandbox",
+        "workspace-write",
         "--json",
         "--skip-git-repo-check",
         "--cd",

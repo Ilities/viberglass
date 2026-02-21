@@ -23,6 +23,8 @@ export class CodexAgent extends BaseAgent {
       const args = [
         "--ask-for-approval",
         "never",
+        "--sandbox",
+        "workspace-write",
         "exec",
         "--json",
         "--skip-git-repo-check",
