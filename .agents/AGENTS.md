@@ -16,6 +16,8 @@ These are the single source of truth instructions for agent behavior and backend
 - Implement only what was requested.
 - Avoid speculative abstractions, extra configurability, or future-proofing not asked for.
 - Prefer the smallest change that fully solves the problem.
+- Follow SOLID principles. Adhere to Single Responsibility (classes/functions do one thing), Open/Closed (open for extension, closed for modification), Liskov Substitution (subtypes must be substitutable), Interface Segregation (small, specific interfaces), and Dependency Inversion (depend on abstractions).
+
 
 ### 3) Surgical Changes and Dead Code
 

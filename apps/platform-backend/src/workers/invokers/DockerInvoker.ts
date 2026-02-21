@@ -8,11 +8,12 @@ import { PassThrough } from "stream";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { buildWorkerProjectConfig } from "./projectConfig";
+import { resolveClankerConfig } from "../../clanker-config";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
 interface DockerDeploymentConfig {
-  containerImage: string;
+  containerImage?: string;
   environmentVariables?: Record<string, string>;
   networkMode?: string;
   logFilePath?: string;
@@ -40,9 +41,20 @@ export class DockerInvoker implements WorkerInvoker {
     logger.debug(
       `Invoking job ${job.id} with Docker invoker with config: \n${JSON.stringify(clanker.deploymentConfig, null, 2)}`,
     );
-    const dockerConfig = clanker.deploymentConfig as unknown as
-      | DockerDeploymentConfig
-      | undefined;
+    const resolvedConfig = resolveClankerConfig(clanker).config;
+    if (resolvedConfig.strategy.type !== "docker") {
+      throw new WorkerError(
+        `Clanker deployment strategy is ${resolvedConfig.strategy.type}, expected docker`,
+        ErrorClassification.PERMANENT,
+      );
+    }
+
+    const dockerConfig: DockerDeploymentConfig = {
+      containerImage: resolvedConfig.strategy.containerImage,
+      environmentVariables: resolvedConfig.strategy.environmentVariables,
+      networkMode: resolvedConfig.strategy.networkMode,
+      logFilePath: resolvedConfig.strategy.logFilePath,
+    };
 
     if (!dockerConfig?.containerImage) {
       throw new WorkerError(

@@ -19,6 +19,7 @@ export * from './integration'
 
 // Clanker types
 export * from './clanker'
+export * from './clankerConfig'
 
 // Worker image catalog and agent/image resolution helpers
 export * from './workerImages'

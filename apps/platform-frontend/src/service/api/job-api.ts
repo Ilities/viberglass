@@ -52,6 +52,7 @@ export interface JobDataContext {
   ticketId?: string
   stepsToReproduce?: string
   expectedBehavior?: string
+  additionalContext?: string
   actualBehavior?: string
   stackTrace?: string
   consoleErrors?: string[]

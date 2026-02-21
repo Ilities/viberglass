@@ -2,8 +2,8 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: {
-    "cli-worker": "src/workers/cli-handler.ts",
-    "lambda-handler": "src/workers/lambda-handler.ts",
+    "cli-worker": "src/workers/entrypoints/cli-handler.ts",
+    "lambda-handler": "src/workers/entrypoints/lambda-handler.ts",
   },
   format: ["esm"],
   target: "node24",

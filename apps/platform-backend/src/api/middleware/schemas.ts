@@ -238,6 +238,12 @@ export const progressUpdateSchema = Joi.object({
   details: Joi.object().optional().allow(null),
 });
 
+export const codexAuthCacheSchema = Joi.object({
+  secretName: Joi.string().pattern(/^[A-Za-z_][A-Za-z0-9_]*$/).min(1).max(255).required(),
+  authJson: Joi.string().min(2).required(),
+  updatedAt: Joi.string().isoDate().optional(),
+});
+
 // Log entry schema for worker logging
 export const logEntrySchema = Joi.object({
   level: Joi.string().valid("info", "warn", "error", "debug").required(),
