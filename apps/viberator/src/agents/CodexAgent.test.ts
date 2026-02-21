@@ -1,7 +1,7 @@
 import { createLogger, transports } from "winston";
 import { CodexAgent } from "./CodexAgent";
 import type { AgentConfig, ExecutionContext } from "../types";
-import type { CodexConfig } from "../types/agents";
+import type { CodexConfig } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
 
 interface CapturedCommand {
@@ -42,7 +42,9 @@ class TestCodexAgent extends CodexAgent {
     return { stdout: "{}", stderr: "", exitCode: 0 };
   }
 
-  protected override async getChangedFiles(_repoDir: string): Promise<string[]> {
+  protected override async getChangedFiles(
+    _repoDir: string,
+  ): Promise<string[]> {
     return ["src/example.ts"];
   }
 
@@ -131,7 +133,7 @@ describe("CodexAgent CLI invocation", () => {
         "--ask-for-approval",
         "never",
         "--sandbox",
-        "workspace-write",
+        "danger-full-access",
         "--json",
         "--skip-git-repo-check",
         "--cd",
@@ -194,7 +196,9 @@ describe("CodexAgent CLI invocation", () => {
       throw new Error("Expected command to be captured");
     }
 
-    expect(agent.capturedCommand.options.env?.OPENAI_API_KEY).toBe("sk-runtime");
+    expect(agent.capturedCommand.options.env?.OPENAI_API_KEY).toBe(
+      "sk-runtime",
+    );
     expect(agent.capturedCommand.args.at(-1)).toBe("Implement the fix");
   });
 });
