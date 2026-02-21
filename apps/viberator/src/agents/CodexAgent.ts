@@ -16,44 +16,50 @@ export class CodexAgent extends BaseAgent {
     try {
       await this.cloneRepository(context.repoUrl, context.branch, workDir);
       const repoDir = path.join(workDir, "repo");
-      const promptFile = await this.writePromptToFile(prompt, workDir);
+      const userPrompt = context.testRequired
+        ? `${prompt}\n\nBefore finishing, run relevant tests and fix any failures.`
+        : prompt;
 
       const args = [
-        "fix",
-        "--prompt",
-        promptFile,
-        "--directory",
+        "--ask-for-approval",
+        "never",
+        "exec",
+        "--json",
+        "--skip-git-repo-check",
+        "--cd",
         repoDir,
-        "--max-tokens",
-        (this.config.maxTokens || 8000).toString(),
-        "--temperature",
-        (this.config.temperature || 0.0).toString(),
       ];
 
-      const useApiKey = process.env.CODEX_AUTH_MODE !== "chatgpt_device";
-      if (useApiKey && this.config.apiKey) {
-        args.splice(1, 0, "--api-key", this.config.apiKey);
+      if (typeof this.config.model === "string" && this.config.model.trim()) {
+        args.push("--model", this.config.model.trim());
       }
+
+      args.push("--", userPrompt);
 
       const env: NodeJS.ProcessEnv = {
         ...process.env,
-        OPENAI_API_KEY: useApiKey ? this.config.apiKey : undefined,
+        OPENAI_API_KEY:
+          process.env.CODEX_AUTH_MODE !== "chatgpt_device"
+            ? this.config.apiKey
+            : undefined,
         OPENAI_BASE_URL: this.config.endpoint || undefined,
       };
 
-      if (this.config.endpoint) {
-        args.push("--base-url", this.config.endpoint);
+      let result;
+      try {
+        result = await this.executeCommand("codex", args, {
+          cwd: workDir,
+          env,
+          timeout: this.config.executionTimeLimit * 1000,
+        });
+      } catch (cmdError) {
+        if (this.isCommandNotFoundError(cmdError)) {
+          throw new Error(
+            "The 'codex' CLI was not found. Install it from: https://developers.openai.com/codex/cli",
+          );
+        }
+        throw cmdError;
       }
-
-      if (context.testRequired) {
-        args.push("--run-tests");
-      }
-
-      const result = await this.executeCommand("codex", args, {
-        cwd: workDir,
-        env,
-        timeout: this.config.executionTimeLimit * 1000,
-      });
 
       if (result.exitCode !== 0) {
         throw new Error(`Codex CLI failed: ${result.stderr}`);
