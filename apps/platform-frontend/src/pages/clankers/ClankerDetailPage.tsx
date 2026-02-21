@@ -20,7 +20,7 @@ import {
   ReloadIcon,
   StackIcon,
 } from '@radix-ui/react-icons'
-import { getAgentLabel, type Clanker, type ClankerHealthStatus } from '@viberglass/types'
+import { getAgentLabel, isObjectRecord, type Clanker, type ClankerHealthStatus } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
@@ -97,14 +97,6 @@ function formatDurationMs(value: unknown): string {
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
   return `${minutes}m ${remainingSeconds}s`
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return isRecord(value) ? value : null
 }
 
 function readStrategyName(
@@ -222,9 +214,9 @@ export function ClankerDetailPage() {
 
   const statusInfo = formatClankerStatus(clanker.status)
   const statusHint = getStatusHint(clanker.status)
-  const deploymentConfig = asRecord(clanker.deploymentConfig)
-  const v1Strategy = asRecord(deploymentConfig?.strategy)
-  const v1Agent = asRecord(deploymentConfig?.agent)
+  const deploymentConfig = isObjectRecord(clanker.deploymentConfig) ? clanker.deploymentConfig : null
+  const v1Strategy = isObjectRecord(deploymentConfig?.strategy) ? deploymentConfig.strategy : null
+  const v1Agent = isObjectRecord(deploymentConfig?.agent) ? deploymentConfig.agent : null
   const strategyConfig = deploymentConfig?.version === 1 && v1Strategy ? v1Strategy : deploymentConfig
   const agentConfig = deploymentConfig?.version === 1 && v1Agent ? v1Agent : null
   const deploymentDetails: Array<{ label: string; value: string }> = []
@@ -232,8 +224,8 @@ export function ClankerDetailPage() {
   const strategyName = readStrategyName(strategyConfig, clanker.deploymentStrategy?.name)
 
   if (strategyName === 'docker' && strategyConfig) {
-    const imageMetadata = asRecord(strategyConfig.imageMetadata) || {}
-    const dockerBuild = asRecord(strategyConfig.dockerBuild) || {}
+    const imageMetadata = isObjectRecord(strategyConfig.imageMetadata) ? strategyConfig.imageMetadata : {}
+    const dockerBuild = isObjectRecord(strategyConfig.dockerBuild) ? strategyConfig.dockerBuild : {}
     const rawLogs = dockerBuild.logs
 
     deploymentDetails.push({
@@ -283,9 +275,11 @@ export function ClankerDetailPage() {
   }
 
   if (strategyName === 'ecs' && strategyConfig) {
-    const taskDefinitionDetails = asRecord(strategyConfig.taskDefinitionDetails) || {}
+    const taskDefinitionDetails = isObjectRecord(strategyConfig.taskDefinitionDetails)
+      ? strategyConfig.taskDefinitionDetails
+      : {}
     const containerImages = Array.isArray(taskDefinitionDetails.containerImages)
-      ? taskDefinitionDetails.containerImages.filter((item): item is Record<string, unknown> => asRecord(item) !== null)
+      ? taskDefinitionDetails.containerImages.filter((item): item is Record<string, unknown> => isObjectRecord(item))
       : []
 
     deploymentDetails.push({
@@ -335,7 +329,7 @@ export function ClankerDetailPage() {
   }
 
   if (strategyName === 'lambda' && strategyConfig) {
-    const functionDetails = asRecord(strategyConfig.functionDetails) || {}
+    const functionDetails = isObjectRecord(strategyConfig.functionDetails) ? strategyConfig.functionDetails : {}
 
     deploymentDetails.push({
       label: 'Function Name',
@@ -379,8 +373,8 @@ export function ClankerDetailPage() {
 
   if (clanker.agent === 'codex') {
     const codexAuth =
-      asRecord(agentConfig?.codexAuth) ||
-      asRecord(deploymentConfig?.codexAuth) ||
+      (isObjectRecord(agentConfig?.codexAuth) ? agentConfig.codexAuth : null) ||
+      (isObjectRecord(deploymentConfig?.codexAuth) ? deploymentConfig.codexAuth : null) ||
       {}
     const mode = codexAuth.mode === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
 

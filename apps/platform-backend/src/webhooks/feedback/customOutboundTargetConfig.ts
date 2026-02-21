@@ -1,3 +1,5 @@
+import { isObjectRecord } from "@viberglass/types";
+
 export type CustomOutboundHttpMethod = "POST" | "PUT" | "PATCH";
 export type CustomOutboundSignatureAlgorithm = "sha256" | "sha1";
 export type CustomOutboundAuthType = "none" | "bearer" | "basic" | "header";
@@ -63,7 +65,7 @@ export function parseCustomOutboundTargetConfig(
   input: unknown,
   options: ParseOptions = {},
 ): ParseResult {
-  const source = toRecord(extractConfigRoot(input));
+  const source = toObjectRecord(extractConfigRoot(input));
   const existing = options.existing || null;
   if (!source) {
     return { error: "Custom outbound target configuration must be an object" };
@@ -200,12 +202,12 @@ function sanitizeAuth(auth: CustomOutboundAuth): PublicAuthConfig {
 }
 
 function extractConfigRoot(input: unknown): unknown {
-  const root = toRecord(input);
+  const root = toObjectRecord(input);
   if (!root) {
     return input;
   }
 
-  const nested = toRecord(root.outboundTargetConfig);
+  const nested = toObjectRecord(root.outboundTargetConfig);
   return nested || input;
 }
 
@@ -217,7 +219,7 @@ function parseHeaders(
     return fallback || {};
   }
 
-  const record = toRecord(value);
+  const record = toObjectRecord(value);
   if (!record) {
     return null;
   }
@@ -239,7 +241,7 @@ function parseAuth(
   config?: CustomOutboundAuth;
   error?: string;
 } {
-  const authInput = toRecord(source.auth);
+  const authInput = toObjectRecord(source.auth);
   const authTypeInput = readOptionalString(authInput?.type);
   const type = (authTypeInput || fallback?.type || "none").toLowerCase() as CustomOutboundAuthType;
 
@@ -292,7 +294,7 @@ function parseRetryPolicy(
   value: unknown,
   fallback: CustomOutboundRetryPolicy | undefined,
 ): { config?: CustomOutboundRetryPolicy; error?: string } {
-  const retryInput = toRecord(value);
+  const retryInput = toObjectRecord(value);
   const base = fallback || DEFAULT_RETRY_POLICY;
 
   const maxAttemptsRaw = readInteger(retryInput?.maxAttempts);
@@ -324,11 +326,8 @@ function parseRetryPolicy(
   };
 }
 
-function toRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
+function toObjectRecord(value: unknown): Record<string, unknown> | undefined {
+  return isObjectRecord(value) ? value : undefined;
 }
 
 function readOptionalString(value: unknown): string | undefined {

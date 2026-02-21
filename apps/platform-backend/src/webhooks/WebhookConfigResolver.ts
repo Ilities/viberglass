@@ -1,3 +1,4 @@
+import { isObjectRecord } from "@viberglass/types";
 import type { ParsedWebhookEvent } from "./WebhookProvider";
 import type {
   WebhookConfig,
@@ -145,16 +146,16 @@ function extractJiraProjectKeyFromIssue(
 function extractShortcutProviderProjectCandidates(
   event: ParsedWebhookEvent,
 ): string[] {
-  if (event.provider !== "shortcut" || !isRecord(event.payload)) {
+  if (event.provider !== "shortcut" || !isObjectRecord(event.payload)) {
     return [];
   }
 
   const payload = event.payload;
-  const data = isRecord(payload["data"]) ? payload["data"] : undefined;
+  const data = isObjectRecord(payload["data"]) ? payload["data"] : undefined;
   const refsRaw = payload["refs"];
   const refs = Array.isArray(refsRaw)
     ? refsRaw.filter((entry): entry is Record<string, unknown> =>
-        isRecord(entry),
+        isObjectRecord(entry),
       )
     : [];
 
@@ -163,10 +164,10 @@ function extractShortcutProviderProjectCandidates(
     normalizeCandidate(event.metadata.issueKey),
     normalizeCandidate(data?.["project_id"]),
     normalizeCandidate(
-      isRecord(data?.["project"]) ? data?.["project"]["id"] : undefined,
+      isObjectRecord(data?.["project"]) ? data?.["project"]["id"] : undefined,
     ),
     normalizeCandidate(
-      isRecord(data?.["project"]) ? data?.["project"]["name"] : undefined,
+      isObjectRecord(data?.["project"]) ? data?.["project"]["name"] : undefined,
     ),
     normalizeCandidate(data?.["story_id"]),
     normalizeCandidate(data?.["id"]),
@@ -233,8 +234,4 @@ function pickPreferredConfig(configs: WebhookConfig[]): WebhookConfig | null {
   });
 
   return sorted[0];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -1,12 +1,8 @@
 import { isClankerConfigV1, isObjectRecord, type ClankerConfigV1 } from '@viberglass/types'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE, type ClankerConfigReadable, type ReadConfigOutput } from './types'
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return isObjectRecord(value) ? value : null
-}
-
 function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
-  const config = asRecord(input.deploymentConfig) || {}
+  const config = isObjectRecord(input.deploymentConfig) ? input.deploymentConfig : {}
 
   const hasResources =
     typeof config.containerImage === 'string' ||
@@ -21,7 +17,7 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
         ? 'prebuilt'
         : 'managed'
 
-  const codexAuth = asRecord(config.codexAuth)
+  const codexAuth = isObjectRecord(config.codexAuth) ? config.codexAuth : null
   const codexAuthMode = codexAuth?.mode === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
 
   return {

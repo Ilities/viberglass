@@ -6,6 +6,7 @@
  * request headers.
  */
 
+import { isObjectRecord } from '@viberglass/types';
 import type { WebhookProvider } from './WebhookProvider';
 
 /**
@@ -202,7 +203,7 @@ export class ProviderRegistry {
     }
 
     // Check body for provider-specific indicators
-    if (this.isRecord(body)) {
+    if (isObjectRecord(body)) {
       // Jira often includes webhookEvent in body
       if ('webhookEvent' in body) {
         return this.get('jira');
@@ -263,16 +264,6 @@ export class ProviderRegistry {
         this.headerMappings.delete(header);
       }
     }
-  }
-
-  /**
-   * Type guard for record/object type
-   *
-   * @param value - Value to check
-   * @returns True if value is a plain object
-   */
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }
 

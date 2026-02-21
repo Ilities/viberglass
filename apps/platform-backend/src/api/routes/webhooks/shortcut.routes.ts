@@ -5,6 +5,7 @@
  */
 
 import express, { Request, Response } from 'express';
+import { isObjectRecord } from '@viberglass/types';
 import type { WebhookService } from '../../../webhooks/WebhookService';
 import { createChildLogger } from '../../../config/logger';
 import {
@@ -46,12 +47,8 @@ function serializePayloadForLog(payload: unknown): string | undefined {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function getPayloadField(payload: unknown, field: string): string | undefined {
-  if (!isRecord(payload)) {
+  if (!isObjectRecord(payload)) {
     return undefined;
   }
 
