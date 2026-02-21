@@ -10,11 +10,68 @@ interface DeviceAuthState {
   userCode?: string;
 }
 
+const ANSI_ESCAPE_SEQUENCE_PATTERN =
+  /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001B\\))/g;
+const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F]/g;
+const VERIFICATION_URI_PATTERN = /https?:\/\/[^\s)]+/i;
+const LABELED_DEVICE_CODE_PATTERN =
+  /(?:device code|one-time code|verification code|enter code|use code)\s*[:=-]?\s*([A-Z0-9-]{4,})/i;
+const HYPHENATED_DEVICE_CODE_PATTERN = /\b([A-Z0-9]{4,}(?:-[A-Z0-9]{4,})+)\b/;
+
 type ProgressReporter = (
   step: string,
   message: string,
   details?: Record<string, unknown>,
 ) => Promise<void>;
+
+export function sanitizeCliOutputLine(rawLine: string): string {
+  return rawLine
+    .replace(ANSI_ESCAPE_SEQUENCE_PATTERN, "")
+    .replace(CONTROL_CHARACTER_PATTERN, "")
+    .trim();
+}
+
+function normalizeVerificationUri(value: string): string | null {
+  const normalized = value.trim().replace(/[),.;]+$/, "");
+  return /^https?:\/\//i.test(normalized) ? normalized : null;
+}
+
+function isLikelyDeviceCode(value: string): boolean {
+  return (
+    /^[A-Z0-9]{4,}(?:-[A-Z0-9]{4,})+$/.test(value) ||
+    /^(?=.*\d)[A-Z0-9]{8,}$/.test(value)
+  );
+}
+
+export function parseDeviceAuthValues(rawLine: string): DeviceAuthState {
+  const line = sanitizeCliOutputLine(rawLine);
+  if (!line) {
+    return {};
+  }
+
+  const result: DeviceAuthState = {};
+  const uriMatch = line.match(VERIFICATION_URI_PATTERN);
+  if (uriMatch) {
+    const normalizedUri = normalizeVerificationUri(uriMatch[0]);
+    if (normalizedUri) {
+      result.verificationUri = normalizedUri;
+    }
+  }
+
+  const labeledCodeMatch = line.match(LABELED_DEVICE_CODE_PATTERN);
+  const fallbackCodeMatch = line.match(HYPHENATED_DEVICE_CODE_PATTERN);
+  const codeCandidate = labeledCodeMatch?.[1] || fallbackCodeMatch?.[1];
+  if (!codeCandidate) {
+    return result;
+  }
+
+  const normalizedCode = codeCandidate.trim().toUpperCase();
+  if (isLikelyDeviceCode(normalizedCode)) {
+    result.userCode = normalizedCode;
+  }
+
+  return result;
+}
 
 export class CodexAuthManager {
   constructor(
@@ -86,17 +143,18 @@ export class CodexAuthManager {
   }
 
   private parseDeviceAuthLine(line: string, state: DeviceAuthState): void {
-    const uriMatch = line.match(/https?:\/\/[^\s)]+/i);
-    if (uriMatch && !state.verificationUri) {
-      state.verificationUri = uriMatch[0];
+    const parsed = parseDeviceAuthValues(line);
+
+    if (parsed.verificationUri && !state.verificationUri) {
+      state.verificationUri = parsed.verificationUri;
+      this.logger.info("Detected Codex device verification URL from CLI output");
     }
 
-    const codeMatch =
-      line.match(
-        /(?:device code|one-time code|verification code|enter code)[:\s]+([A-Z0-9-]{4,})/i,
-      ) || line.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4,})\b/);
-    if (codeMatch && !state.userCode) {
-      state.userCode = codeMatch[1];
+    if (parsed.userCode && !state.userCode) {
+      state.userCode = parsed.userCode;
+      this.logger.info("Detected Codex device user code from CLI output", {
+        codeSuffix: state.userCode.slice(-4),
+      });
     }
   }
 
@@ -105,9 +163,11 @@ export class CodexAuthManager {
     tenantId: string,
   ): Promise<void> {
     await this.sendProgress("auth", "Starting Codex device authentication");
+    this.logger.info("Starting Codex device auth login via CLI");
 
     const authState: DeviceAuthState = {};
     let emittedPrompt = false;
+    const recentOutput: string[] = [];
 
     await new Promise<void>((resolve, reject) => {
       const child = spawn("codex", ["login", "--device-auth"], {
@@ -150,9 +210,14 @@ export class CodexAuthManager {
         const text = chunk.toString("utf8");
         const lines = text.split(/\r?\n/);
         for (const rawLine of lines) {
-          const line = rawLine.trim();
+          const line = sanitizeCliOutputLine(rawLine);
           if (!line) {
             continue;
+          }
+
+          recentOutput.push(line);
+          if (recentOutput.length > 12) {
+            recentOutput.shift();
           }
 
           this.parseDeviceAuthLine(line, authState);
@@ -172,11 +237,20 @@ export class CodexAuthManager {
           return;
         }
 
+        this.logger.error("Codex device auth CLI exited with non-zero status", {
+          exitCode: code,
+          hasVerificationUri: Boolean(authState.verificationUri),
+          hasUserCode: Boolean(authState.userCode),
+          recentOutput,
+        });
         reject(new Error(`codex login --device-auth exited with code ${code}`));
       });
 
       child.on("error", (error) => {
         stopHeartbeat();
+        this.logger.error("Failed to start Codex device auth CLI", {
+          error: error.message,
+        });
         reject(error);
       });
     });
