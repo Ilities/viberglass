@@ -101,7 +101,7 @@ function formatDurationMs(value: unknown): string {
 
 function readStrategyName(
   strategyConfig: Record<string, unknown> | null,
-  fallback?: string | null,
+  fallback?: string | null
 ): 'docker' | 'ecs' | 'lambda' | null {
   const type = typeof strategyConfig?.type === 'string' ? strategyConfig.type.toLowerCase() : ''
   if (type === 'docker') return 'docker'
@@ -376,11 +376,21 @@ export function ClankerDetailPage() {
       (isObjectRecord(agentConfig?.codexAuth) ? agentConfig.codexAuth : null) ||
       (isObjectRecord(deploymentConfig?.codexAuth) ? deploymentConfig.codexAuth : null) ||
       {}
-    const mode = codexAuth.mode === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
+    const mode =
+      codexAuth.mode === 'chatgpt_device_stored'
+        ? 'chatgpt_device_stored'
+        : codexAuth.mode === 'chatgpt_device'
+          ? 'chatgpt_device'
+          : 'api_key'
 
     deploymentDetails.push({
       label: 'Codex Auth Mode',
-      value: mode === 'chatgpt_device' ? 'ChatGPT device auth' : 'API key',
+      value:
+        mode === 'chatgpt_device'
+          ? 'ChatGPT device auth (ephemeral token)'
+          : mode === 'chatgpt_device_stored'
+            ? 'ChatGPT device auth (persisted token)'
+            : 'API key',
     })
     deploymentDetails.push({
       label: 'Codex Auth Secret (fixed)',
