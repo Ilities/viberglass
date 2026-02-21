@@ -3,7 +3,7 @@ import type {
   ClankerAgentConfig,
   ClankerStrategyConfig,
 } from '@viberglass/types'
-import { DEFAULT_CLANKER_CONFIG_FORM_STATE, type BuildConfigInput } from './types'
+import { DEFAULT_CODEX_AUTH_SECRET_NAME, type BuildConfigInput } from './types'
 import { normalizeStrategyName } from './normalizers'
 
 function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
@@ -40,7 +40,7 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
       type: 'codex',
       codexAuth: {
         mode: input.form.codexAuthMode,
-        secretName: input.form.codexAuthSecretName || DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
+        secretName: DEFAULT_CODEX_AUTH_SECRET_NAME,
       },
     }
   }

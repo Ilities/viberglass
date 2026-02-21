@@ -3,18 +3,16 @@ import { CodexAgentFields } from './codexFields'
 
 interface AgentSpecificFieldsProps {
   selectedAgent: AgentType | ''
+  strategyName?: string
   codexAuthMode: CodexAuthMode
-  codexAuthSecretName: string
   onCodexAuthModeChange: (mode: CodexAuthMode) => void
-  onCodexAuthSecretNameChange: (secretName: string) => void
 }
 
 export function AgentSpecificFields({
   selectedAgent,
+  strategyName,
   codexAuthMode,
-  codexAuthSecretName,
   onCodexAuthModeChange,
-  onCodexAuthSecretNameChange,
 }: AgentSpecificFieldsProps) {
   if (selectedAgent !== 'codex') {
     return null
@@ -22,10 +20,9 @@ export function AgentSpecificFields({
 
   return (
     <CodexAgentFields
+      strategyName={strategyName}
       codexAuthMode={codexAuthMode}
-      codexAuthSecretName={codexAuthSecretName}
       onCodexAuthModeChange={onCodexAuthModeChange}
-      onCodexAuthSecretNameChange={onCodexAuthSecretNameChange}
     />
   )
 }

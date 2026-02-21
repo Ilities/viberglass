@@ -24,6 +24,7 @@ import { getAgentLabel, type Clanker, type ClankerHealthStatus } from '@vibergla
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
+import { DEFAULT_CODEX_AUTH_SECRET_NAME } from './config/types'
 
 function getStatusBadgeColor(status: Clanker['status']): 'green' | 'blue' | 'red' | 'zinc' {
   switch (status) {
@@ -382,18 +383,14 @@ export function ClankerDetailPage() {
       asRecord(deploymentConfig?.codexAuth) ||
       {}
     const mode = codexAuth.mode === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
-    const secretName =
-      typeof codexAuth.secretName === 'string' && codexAuth.secretName.trim().length > 0
-        ? codexAuth.secretName
-        : 'CODEX_AUTH_JSON'
 
     deploymentDetails.push({
       label: 'Codex Auth Mode',
       value: mode === 'chatgpt_device' ? 'ChatGPT device auth' : 'API key',
     })
     deploymentDetails.push({
-      label: 'Codex Auth Secret',
-      value: secretName,
+      label: 'Codex Auth Secret (fixed)',
+      value: DEFAULT_CODEX_AUTH_SECRET_NAME,
     })
   }
 
