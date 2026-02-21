@@ -1,22 +1,22 @@
 import { Description, Field, Label } from '@/components/fieldset'
-import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import type { CodexAuthMode } from '@viberglass/types'
-import { toCodexAuthMode } from '../normalizers'
+import { normalizeStrategyName, toCodexAuthMode } from '../normalizers'
+import { DEFAULT_CODEX_AUTH_SECRET_NAME } from '../types'
 
 interface CodexAgentFieldsProps {
+  strategyName?: string
   codexAuthMode: CodexAuthMode
-  codexAuthSecretName: string
   onCodexAuthModeChange: (mode: CodexAuthMode) => void
-  onCodexAuthSecretNameChange: (secretName: string) => void
 }
 
 export function CodexAgentFields({
+  strategyName,
   codexAuthMode,
-  codexAuthSecretName,
   onCodexAuthModeChange,
-  onCodexAuthSecretNameChange,
 }: CodexAgentFieldsProps) {
+  const isDockerStrategy = strategyName ? normalizeStrategyName(strategyName) === 'docker' : false
+
   return (
     <>
       <Field>
@@ -30,13 +30,17 @@ export function CodexAgentFields({
 
       {codexAuthMode === 'chatgpt_device' && (
         <Field>
-          <Label>Codex Auth Secret Name</Label>
-          <Description>Secret used to store and reuse Codex auth.json cache.</Description>
-          <Input
-            value={codexAuthSecretName}
-            onChange={(event) => onCodexAuthSecretNameChange(event.target.value)}
-            placeholder="CODEX_AUTH_JSON"
-          />
+          <Label>Codex Auth Cache Secret</Label>
+          <Description>
+            Uses fixed secret name <code>{DEFAULT_CODEX_AUTH_SECRET_NAME}</code> to store and reuse Codex auth.json
+            cache.
+          </Description>
+          {isDockerStrategy && (
+            <Description>
+              For Docker deployments, ensure the <code>{DEFAULT_CODEX_AUTH_SECRET_NAME}</code> env var is available by
+              attaching a secret with that exact name.
+            </Description>
+          )}
         </Field>
       )}
     </>

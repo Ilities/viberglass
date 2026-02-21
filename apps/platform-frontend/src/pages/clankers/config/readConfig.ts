@@ -23,10 +23,6 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
 
   const codexAuth = asRecord(config.codexAuth)
   const codexAuthMode = codexAuth?.mode === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
-  const codexAuthSecretName =
-    typeof codexAuth?.secretName === 'string' && codexAuth.secretName.trim().length > 0
-      ? codexAuth.secretName
-      : DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName
 
   return {
     form: {
@@ -36,7 +32,6 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       taskDefinitionArn: typeof config.taskDefinitionArn === 'string' ? config.taskDefinitionArn : '',
       functionArn: typeof config.functionArn === 'string' ? config.functionArn : '',
       codexAuthMode,
-      codexAuthSecretName,
     },
   }
 }
@@ -58,11 +53,9 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
     agent.type === 'codex'
       ? {
           codexAuthMode: agent.codexAuth.mode,
-          codexAuthSecretName: agent.codexAuth.secretName || DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
         }
       : {
           codexAuthMode: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
-          codexAuthSecretName: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
         }
 
   return {
