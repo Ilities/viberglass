@@ -22,10 +22,7 @@ export class CodexAgent extends BaseAgent {
         : prompt;
 
       const args = [
-        "--ask-for-approval",
-        "never",
-        "--sandbox",
-        "danger-full-access",
+        "--dangerously-bypass-approvals-and-sandbox",
         "exec",
         "--json",
         "--skip-git-repo-check",
