@@ -50,9 +50,6 @@ export function EditClankerPage() {
   const [codexAuthMode, setCodexAuthMode] = useState<'api_key' | 'chatgpt_device'>(
     DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
   )
-  const [codexAuthSecretName, setCodexAuthSecretName] = useState(
-    DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
-  )
 
   useEffect(() => {
     async function loadData() {
@@ -81,7 +78,6 @@ export function EditClankerPage() {
       })
       setProvisioningMode(parsedConfig.form.provisioningMode)
       setCodexAuthMode(parsedConfig.form.codexAuthMode)
-      setCodexAuthSecretName(parsedConfig.form.codexAuthSecretName)
 
       const files: Record<string, string> = {}
       for (const file of clankerData.configFiles) {
@@ -138,7 +134,6 @@ export function EditClankerPage() {
         taskDefinitionArn: ((formData.get('taskDefinitionArn') as string) || '').trim(),
         functionArn: ((formData.get('functionArn') as string) || '').trim(),
         codexAuthMode,
-        codexAuthSecretName: codexAuthSecretName.trim() || DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
       },
     })
 
@@ -245,10 +240,9 @@ export function EditClankerPage() {
 
             <AgentSpecificFields
               selectedAgent={selectedAgent}
+              strategyName={selectedStrategy?.name}
               codexAuthMode={codexAuthMode}
-              codexAuthSecretName={codexAuthSecretName}
               onCodexAuthModeChange={setCodexAuthMode}
-              onCodexAuthSecretNameChange={setCodexAuthSecretName}
             />
 
             <MultiSelect

@@ -39,9 +39,6 @@ export function NewClankerPage() {
   const [codexAuthMode, setCodexAuthMode] = useState<'api_key' | 'chatgpt_device'>(
     DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
   )
-  const [codexAuthSecretName, setCodexAuthSecretName] = useState(
-    DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
-  )
 
   useEffect(() => {
     async function loadData() {
@@ -99,7 +96,6 @@ export function NewClankerPage() {
         taskDefinitionArn: ((formData.get('taskDefinitionArn') as string) || '').trim(),
         functionArn: ((formData.get('functionArn') as string) || '').trim(),
         codexAuthMode,
-        codexAuthSecretName: codexAuthSecretName.trim() || DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
       },
     })
 
@@ -193,10 +189,9 @@ export function NewClankerPage() {
 
             <AgentSpecificFields
               selectedAgent={selectedAgent}
+              strategyName={selectedStrategy?.name}
               codexAuthMode={codexAuthMode}
-              codexAuthSecretName={codexAuthSecretName}
               onCodexAuthModeChange={setCodexAuthMode}
-              onCodexAuthSecretNameChange={setCodexAuthSecretName}
             />
 
             <MultiSelect
