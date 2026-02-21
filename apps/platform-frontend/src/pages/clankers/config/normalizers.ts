@@ -14,7 +14,9 @@ export function toProvisioningMode(value: string): ProvisioningMode {
 }
 
 export function toCodexAuthMode(value: string): CodexAuthMode {
-  return value === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
+  if (value === 'chatgpt_device') return 'chatgpt_device'
+  if (value === 'chatgpt_device_stored') return 'chatgpt_device_stored'
+  return 'api_key'
 }
 
 export function toAgentType(value: string): AgentType | '' {

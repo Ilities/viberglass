@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
+import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
 import { Logger } from "winston";
 import { CodexAuthSettings } from "../../config/clankerConfig";
 import { CallbackClient } from "../infrastructure/CallbackClient";
@@ -74,6 +75,8 @@ export function parseDeviceAuthValues(rawLine: string): DeviceAuthState {
 }
 
 export class CodexAuthManager {
+  private ssmClient?: SSMClient;
+
   constructor(
     private readonly logger: Logger,
     private readonly callbackClient: CallbackClient,
@@ -111,7 +114,22 @@ export class CodexAuthManager {
       return;
     }
 
-    await this.runDeviceAuthLogin(jobId, tenantId);
+    if (this.settings.mode === "chatgpt_device_stored") {
+      await this.materializeAuthCacheFromSsm();
+
+      if (await this.hasValidAuthCache()) {
+        return;
+      }
+
+      await this.runDeviceAuthLogin(jobId, tenantId, {
+        requireAuthCacheUpload: true,
+      });
+      return;
+    }
+
+    await this.runDeviceAuthLogin(jobId, tenantId, {
+      requireAuthCacheUpload: false,
+    });
   }
 
   private getAuthFilePath(): string {
@@ -161,6 +179,7 @@ export class CodexAuthManager {
   private async runDeviceAuthLogin(
     jobId: string,
     tenantId: string,
+    options: { requireAuthCacheUpload: boolean },
   ): Promise<void> {
     await this.sendProgress("auth", "Starting Codex device authentication");
     this.logger.info("Starting Codex device auth login via CLI");
@@ -260,10 +279,98 @@ export class CodexAuthManager {
     try {
       await this.uploadAuthCache(jobId, tenantId);
     } catch (error) {
+      if (options.requireAuthCacheUpload) {
+        throw error;
+      }
       this.logger.warn("Failed to upload Codex auth cache after login", {
         jobId,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  private shouldReadAuthCacheFromSsm(): boolean {
+    return Boolean(
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+        process.env.AWS_EXECUTION_ENV ||
+        process.env.ECS_CONTAINER_METADATA_URI ||
+        process.env.ECS_CONTAINER_METADATA_URI_V4 ||
+        process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ||
+        process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI,
+    );
+  }
+
+  private getSsmClient(): SSMClient {
+    if (!this.ssmClient) {
+      this.ssmClient = new SSMClient({
+        region: process.env.AWS_REGION || "eu-west-1",
+      });
+    }
+
+    return this.ssmClient;
+  }
+
+  private getSharedAuthSsmPath(): string {
+    const prefix = (process.env.SECRETS_SSM_PREFIX || "/viberator/secrets").replace(
+      /\/+$/,
+      "",
+    );
+    const normalizedSecretName = this.settings.secretName.replace(/^\/+/, "");
+    return `${prefix}/${normalizedSecretName}`;
+  }
+
+  private async materializeAuthCacheFromSsm(): Promise<void> {
+    if (!this.shouldReadAuthCacheFromSsm()) {
+      return;
+    }
+
+    const authPath = this.getAuthFilePath();
+    const authDir = path.dirname(authPath);
+    const parameterName = this.getSharedAuthSsmPath();
+
+    try {
+      const response = await this.getSsmClient().send(
+        new GetParameterCommand({
+          Name: parameterName,
+          WithDecryption: true,
+        }),
+      );
+      const secretValue = response.Parameter?.Value;
+      if (!secretValue || secretValue.trim().length === 0) {
+        return;
+      }
+
+      await fs.promises.mkdir(authDir, { recursive: true });
+      await fs.promises.writeFile(authPath, secretValue, {
+        encoding: "utf-8",
+        mode: 0o600,
+      });
+      await fs.promises.chmod(authPath, 0o600);
+
+      this.logger.info("Materialized Codex auth cache from shared SSM", {
+        authPath,
+        parameterName,
+      });
+    } catch (error) {
+      const errorName = (error as { name?: string }).name;
+      if (errorName === "ParameterNotFound") {
+        return;
+      }
+      if (
+        errorName === "AccessDeniedException" ||
+        errorName === "UnrecognizedClientException" ||
+        errorName === "InvalidClientTokenId" ||
+        errorName === "ExpiredTokenException" ||
+        errorName === "CredentialsProviderError"
+      ) {
+        throw new Error(
+          `Failed to read shared Codex auth cache from SSM at ${parameterName}: ${errorName}`,
+        );
+      }
+
+      throw new Error(
+        `Failed to read shared Codex auth cache from SSM at ${parameterName}`,
+      );
     }
   }
 

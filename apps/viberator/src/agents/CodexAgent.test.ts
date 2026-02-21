@@ -150,8 +150,30 @@ describe("CodexAgent CLI invocation", () => {
     );
   });
 
-  test("injects OPENAI_API_KEY when not using chatgpt_device auth", async () => {
-    delete process.env.CODEX_AUTH_MODE;
+  test("does not inject OPENAI_API_KEY for stored device auth mode", async () => {
+    process.env.CODEX_AUTH_MODE = "chatgpt_device_stored";
+    const logger = createLogger({
+      silent: true,
+      transports: [new transports.Console({ silent: true })],
+    });
+
+    const agent = new TestCodexAgent(createCodexConfig(), logger);
+    await agent.run(
+      "Implement the fix",
+      createExecutionContext(false),
+      "/tmp/codex-agent-test",
+    );
+
+    expect(agent.capturedCommand).toBeDefined();
+    if (!agent.capturedCommand) {
+      throw new Error("Expected command to be captured");
+    }
+
+    expect(agent.capturedCommand.options.env?.OPENAI_API_KEY).toBeUndefined();
+  });
+
+  test("injects OPENAI_API_KEY only for api_key auth mode", async () => {
+    process.env.CODEX_AUTH_MODE = "api_key";
     const logger = createLogger({
       silent: true,
       transports: [new transports.Console({ silent: true })],
