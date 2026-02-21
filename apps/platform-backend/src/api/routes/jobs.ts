@@ -7,14 +7,17 @@ import { requireAuth } from "../middleware/authentication";
 import {
   validateResultCallback,
   validateProgressUpdate,
+  validateCodexAuthCache,
   validateLogEntry,
   validateLogBatch,
 } from "../middleware/validation";
 import { randomUUID } from "crypto";
 import logger from "../../config/logger";
+import { SecretService } from "../../services/SecretService";
 
 const router = Router();
 const jobService = new JobService();
+const secretService = new SecretService();
 
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -281,6 +284,52 @@ router.post(
       });
       res.status(500).json({
         error: error instanceof Error ? error.message : "Internal server error",
+      });
+    }
+  },
+);
+
+// POST /:jobId/codex-auth-cache - Worker uploads Codex auth cache
+router.post(
+  "/:jobId/codex-auth-cache",
+  tenantMiddleware,
+  validateCallbackToken,
+  validateCodexAuthCache,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const tenantId = req.tenantId!;
+      const secretName =
+        typeof req.body.secretName === "string" ? req.body.secretName : "";
+      const authJson =
+        typeof req.body.authJson === "string" ? req.body.authJson : "";
+
+      const job = await jobService.getJobStatus(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      if (job.data.tenantId !== tenantId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const metadata = await secretService.upsertWorkerAuthCache(
+        secretName,
+        authJson,
+      );
+
+      return res.json({
+        success: true,
+        secretId: metadata.id,
+        secretLocation: metadata.secretLocation,
+      });
+    } catch (error) {
+      logger.error("Failed to persist Codex auth cache", {
+        error: error instanceof Error ? error.message : String(error),
+        jobId: req.params.jobId,
+      });
+      return res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "Internal server error",
       });
     }
   },

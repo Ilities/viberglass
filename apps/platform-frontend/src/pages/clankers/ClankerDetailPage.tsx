@@ -98,6 +98,30 @@ function formatDurationMs(value: unknown): string {
   return `${minutes}m ${remainingSeconds}s`
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null
+}
+
+function readStrategyName(
+  strategyConfig: Record<string, unknown> | null,
+  fallback?: string | null,
+): 'docker' | 'ecs' | 'lambda' | null {
+  const type = typeof strategyConfig?.type === 'string' ? strategyConfig.type.toLowerCase() : ''
+  if (type === 'docker') return 'docker'
+  if (type === 'ecs') return 'ecs'
+  if (type === 'lambda') return 'lambda'
+
+  const normalizedFallback = (fallback || '').toLowerCase()
+  if (normalizedFallback === 'docker') return 'docker'
+  if (normalizedFallback === 'ecs') return 'ecs'
+  if (normalizedFallback === 'aws-lambda-container' || normalizedFallback === 'lambda') return 'lambda'
+  return null
+}
+
 export function ClankerDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const [clanker, setClanker] = useState<Clanker | null>(null)
@@ -197,19 +221,23 @@ export function ClankerDetailPage() {
 
   const statusInfo = formatClankerStatus(clanker.status)
   const statusHint = getStatusHint(clanker.status)
-  const deploymentConfig = clanker.deploymentConfig as Record<string, unknown> | null
+  const deploymentConfig = asRecord(clanker.deploymentConfig)
+  const v1Strategy = asRecord(deploymentConfig?.strategy)
+  const v1Agent = asRecord(deploymentConfig?.agent)
+  const strategyConfig = deploymentConfig?.version === 1 && v1Strategy ? v1Strategy : deploymentConfig
+  const agentConfig = deploymentConfig?.version === 1 && v1Agent ? v1Agent : null
   const deploymentDetails: Array<{ label: string; value: string }> = []
   let dockerBuildLogs: string[] = []
-  const strategyName = clanker.deploymentStrategy?.name?.toLowerCase()
+  const strategyName = readStrategyName(strategyConfig, clanker.deploymentStrategy?.name)
 
-  if (strategyName === 'docker' && deploymentConfig) {
-    const imageMetadata = (deploymentConfig.imageMetadata as Record<string, unknown> | undefined) || {}
-    const dockerBuild = (deploymentConfig.dockerBuild as Record<string, unknown> | undefined) || {}
+  if (strategyName === 'docker' && strategyConfig) {
+    const imageMetadata = asRecord(strategyConfig.imageMetadata) || {}
+    const dockerBuild = asRecord(strategyConfig.dockerBuild) || {}
     const rawLogs = dockerBuild.logs
 
     deploymentDetails.push({
       label: 'Container Image',
-      value: formatConfigValue(deploymentConfig.containerImage),
+      value: formatConfigValue(strategyConfig.containerImage),
     })
     deploymentDetails.push({
       label: 'Image ID',
@@ -253,17 +281,19 @@ export function ClankerDetailPage() {
     }
   }
 
-  if (strategyName === 'ecs' && deploymentConfig) {
-    const taskDefinitionDetails = (deploymentConfig.taskDefinitionDetails as Record<string, unknown> | undefined) || {}
-    const containerImages = (taskDefinitionDetails.containerImages as Array<Record<string, unknown>> | undefined) || []
+  if (strategyName === 'ecs' && strategyConfig) {
+    const taskDefinitionDetails = asRecord(strategyConfig.taskDefinitionDetails) || {}
+    const containerImages = Array.isArray(taskDefinitionDetails.containerImages)
+      ? taskDefinitionDetails.containerImages.filter((item): item is Record<string, unknown> => asRecord(item) !== null)
+      : []
 
     deploymentDetails.push({
       label: 'Cluster ARN',
-      value: formatConfigValue(deploymentConfig.clusterArn),
+      value: formatConfigValue(strategyConfig.clusterArn),
     })
     deploymentDetails.push({
       label: 'Task Definition ARN',
-      value: formatConfigValue(deploymentConfig.taskDefinitionArn),
+      value: formatConfigValue(strategyConfig.taskDefinitionArn),
     })
     deploymentDetails.push({
       label: 'Task Family',
@@ -303,20 +333,20 @@ export function ClankerDetailPage() {
     }
   }
 
-  if ((strategyName === 'aws-lambda-container' || strategyName === 'lambda') && deploymentConfig) {
-    const functionDetails = (deploymentConfig.functionDetails as Record<string, unknown> | undefined) || {}
+  if (strategyName === 'lambda' && strategyConfig) {
+    const functionDetails = asRecord(strategyConfig.functionDetails) || {}
 
     deploymentDetails.push({
       label: 'Function Name',
-      value: formatConfigValue(deploymentConfig.functionName),
+      value: formatConfigValue(strategyConfig.functionName),
     })
     deploymentDetails.push({
       label: 'Function ARN',
-      value: formatConfigValue(deploymentConfig.functionArn),
+      value: formatConfigValue(strategyConfig.functionArn),
     })
     deploymentDetails.push({
       label: 'Image URI',
-      value: formatConfigValue(functionDetails.imageUri ?? deploymentConfig.imageUri),
+      value: formatConfigValue(functionDetails.imageUri ?? strategyConfig.imageUri),
     })
     deploymentDetails.push({
       label: 'Version',
@@ -343,6 +373,27 @@ export function ClankerDetailPage() {
         typeof functionDetails.timeout === 'number'
           ? `${functionDetails.timeout}s`
           : formatConfigValue(functionDetails.timeout),
+    })
+  }
+
+  if (clanker.agent === 'codex') {
+    const codexAuth =
+      asRecord(agentConfig?.codexAuth) ||
+      asRecord(deploymentConfig?.codexAuth) ||
+      {}
+    const mode = codexAuth.mode === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
+    const secretName =
+      typeof codexAuth.secretName === 'string' && codexAuth.secretName.trim().length > 0
+        ? codexAuth.secretName
+        : 'CODEX_AUTH_JSON'
+
+    deploymentDetails.push({
+      label: 'Codex Auth Mode',
+      value: mode === 'chatgpt_device' ? 'ChatGPT device auth' : 'API key',
+    })
+    deploymentDetails.push({
+      label: 'Codex Auth Secret',
+      value: secretName,
     })
   }
 

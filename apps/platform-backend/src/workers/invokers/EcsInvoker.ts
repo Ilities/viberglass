@@ -10,6 +10,7 @@ import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { buildWorkerProjectConfig } from "./projectConfig";
+import { resolveClankerConfig } from "../../clanker-config";
 
 const logger = createChildLogger({ invoker: "ECS" });
 
@@ -40,9 +41,22 @@ export class EcsInvoker implements WorkerInvoker {
     clanker: Clanker,
     project?: Project,
   ): Promise<InvocationResult> {
-    const rawConfig = clanker.deploymentConfig as unknown as
-      | EcsDeploymentConfig
-      | undefined;
+    const resolvedConfig = resolveClankerConfig(clanker).config;
+    if (resolvedConfig.strategy.type !== "ecs") {
+      throw new WorkerError(
+        `Clanker deployment strategy is ${resolvedConfig.strategy.type}, expected ecs`,
+        ErrorClassification.PERMANENT,
+      );
+    }
+
+    const rawConfig: EcsDeploymentConfig = {
+      clusterArn: resolvedConfig.strategy.clusterArn || "",
+      taskDefinitionArn: resolvedConfig.strategy.taskDefinitionArn || "",
+      subnetIds: resolvedConfig.strategy.subnetIds || [],
+      securityGroupIds: resolvedConfig.strategy.securityGroupIds || [],
+      assignPublicIp: resolvedConfig.strategy.assignPublicIp,
+      containerName: resolvedConfig.strategy.containerName,
+    };
 
     // Apply env var fallbacks for managed mode
     const ecsConfig: EcsDeploymentConfig = {
