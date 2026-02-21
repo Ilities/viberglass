@@ -6,7 +6,7 @@ import { IntegrationCredentialDAO } from "../../../persistence/integrations/Inte
 import { ClankerDAO } from "../../../persistence/clanker/ClankerDAO";
 import { ClankerProvisioningService } from "../../../services/ClankerProvisioningService";
 import { JobService } from "../../../services/JobService";
-import { SecretResolutionService } from "../../../services/SecretResolutionService";
+import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../../workers";
 
 // Mock dependencies
@@ -17,7 +17,7 @@ jest.mock("../../../persistence/integrations/IntegrationCredentialDAO");
 jest.mock("../../../persistence/clanker/ClankerDAO");
 jest.mock("../../../services/ClankerProvisioningService");
 jest.mock("../../../services/JobService");
-jest.mock("../../../services/SecretResolutionService");
+jest.mock("../../../services/CredentialRequirementsService");
 jest.mock("../../../workers/WorkerExecutionService");
 
 describe("TicketExecutionService", () => {
@@ -29,7 +29,7 @@ describe("TicketExecutionService", () => {
   let mockClankerDAO: jest.Mocked<ClankerDAO>;
   let mockProvisioningService: jest.Mocked<ClankerProvisioningService>;
   let mockJobService: jest.Mocked<JobService>;
-  let mockSecretResolutionService: jest.Mocked<SecretResolutionService>;
+  let mockCredentialRequirementsService: jest.Mocked<CredentialRequirementsService>;
   let mockWorkerExecutionService: jest.Mocked<WorkerExecutionService>;
 
   beforeEach(() => {
@@ -45,8 +45,8 @@ describe("TicketExecutionService", () => {
     mockProvisioningService =
       new ClankerProvisioningService() as jest.Mocked<ClankerProvisioningService>;
     mockJobService = new JobService() as jest.Mocked<JobService>;
-    mockSecretResolutionService =
-      new SecretResolutionService() as jest.Mocked<SecretResolutionService>;
+    mockCredentialRequirementsService =
+      new CredentialRequirementsService() as jest.Mocked<CredentialRequirementsService>;
     mockWorkerExecutionService =
       new WorkerExecutionService() as jest.Mocked<WorkerExecutionService>;
 
@@ -63,8 +63,8 @@ describe("TicketExecutionService", () => {
       () => mockProvisioningService,
     );
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
-    (SecretResolutionService as jest.Mock).mockImplementation(
-      () => mockSecretResolutionService,
+    (CredentialRequirementsService as jest.Mock).mockImplementation(
+      () => mockCredentialRequirementsService,
     );
     (WorkerExecutionService as jest.Mock).mockImplementation(
       () => mockWorkerExecutionService,
@@ -112,7 +112,7 @@ describe("TicketExecutionService", () => {
       timestamp: new Date().toISOString(),
       callbackToken: "token-123",
     });
-    mockSecretResolutionService.getSecretMetadataForClanker.mockResolvedValue(
+    mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue(
       [],
     );
     mockWorkerExecutionService.executeJob.mockResolvedValue({
@@ -187,7 +187,7 @@ describe("TicketExecutionService", () => {
       timestamp: new Date().toISOString(),
       callbackToken: "token-123",
     });
-    mockSecretResolutionService.getSecretMetadataForClanker.mockResolvedValue(
+    mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue(
       [],
     );
     mockWorkerExecutionService.executeJob.mockResolvedValue({
@@ -206,8 +206,12 @@ describe("TicketExecutionService", () => {
       expect.any(Object),
     );
     expect(
-      mockSecretResolutionService.getSecretMetadataForClanker,
-    ).toHaveBeenCalledWith(["secret-a", "secret-scm"]);
+      mockCredentialRequirementsService.getRequiredCredentialsForClanker,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        secretIds: ["secret-a", "secret-scm"],
+      }),
+    );
     expect(mockIntegrationCredentialDAO.getById).toHaveBeenCalledWith(
       "credential-scm",
     );
