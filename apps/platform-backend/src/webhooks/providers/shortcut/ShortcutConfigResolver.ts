@@ -1,3 +1,4 @@
+import { isObjectRecord } from '@viberglass/types';
 import type { WebhookProviderConfig } from '../../WebhookProvider';
 import type { ShortcutOutboundSettings } from './shortcutTypes';
 import {
@@ -5,13 +6,6 @@ import {
   DEFAULT_SHORTCUT_API_BASE_URL,
   DEFAULT_SUCCESS_LABEL,
 } from './shortcutTypes';
-
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-  return value as Record<string, unknown>;
-}
 
 function toNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== 'string') {
@@ -38,7 +32,8 @@ function readBoolean(
   if (!source) {
     return undefined;
   }
-  return typeof source[key] === 'boolean' ? (source[key] as boolean) : undefined;
+  const value = source[key];
+  return typeof value === 'boolean' ? value : undefined;
 }
 
 function readInteger(
@@ -67,8 +62,8 @@ function readInteger(
 function getProviderLabelMappings(
   labelMappings: WebhookProviderConfig['labelMappings'],
 ): Record<string, unknown> | undefined {
-  const root = toRecord(labelMappings);
-  const nestedShortcut = toRecord(root?.shortcut);
+  const root = isObjectRecord(labelMappings) ? labelMappings : undefined;
+  const nestedShortcut = isObjectRecord(root?.shortcut) ? root.shortcut : undefined;
   return nestedShortcut || root;
 }
 
@@ -84,8 +79,10 @@ export class ShortcutConfigResolver {
 
   resolveOutboundSettings(config: WebhookProviderConfig): ShortcutOutboundSettings {
     const mapping = getProviderLabelMappings(config.labelMappings);
-    const labelsMapping = toRecord(mapping?.labels);
-    const workflowStatesMapping = toRecord(mapping?.workflowStates);
+    const labelsMapping = isObjectRecord(mapping?.labels) ? mapping.labels : undefined;
+    const workflowStatesMapping = isObjectRecord(mapping?.workflowStates)
+      ? mapping.workflowStates
+      : undefined;
 
     const updateLabels = readBoolean(mapping, 'updateLabels');
     const skipLabelUpdates =

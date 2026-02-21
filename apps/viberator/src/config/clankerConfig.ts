@@ -14,10 +14,6 @@ export const DEFAULT_CODEX_AUTH_SETTINGS: CodexAuthSettings = {
   apiKeySecretName: "OPENAI_API_KEY",
 };
 
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  return isObjectRecord(value) ? value : undefined;
-}
-
 function getString(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -28,7 +24,7 @@ function getString(value: unknown): string | undefined {
 }
 
 function normalizeCodexAuth(raw: unknown): CodexAuthSettings {
-  const source = toRecord(raw) || {};
+  const source = isObjectRecord(raw) ? raw : {};
   const mode = source.mode === "chatgpt_device" ? "chatgpt_device" : "api_key";
 
   return {
@@ -42,13 +38,17 @@ function normalizeCodexAuth(raw: unknown): CodexAuthSettings {
 export function resolveCodexAuthSettings(
   clankerConfig?: Record<string, unknown>,
 ): CodexAuthSettings {
-  const deploymentConfig = toRecord(clankerConfig?.deploymentConfig);
+  const deploymentConfig = isObjectRecord(clankerConfig?.deploymentConfig)
+    ? clankerConfig.deploymentConfig
+    : undefined;
   if (!deploymentConfig) {
     return { ...DEFAULT_CODEX_AUTH_SETTINGS };
   }
 
   // V1 config envelope
-  const agent = toRecord(deploymentConfig.agent);
+  const agent = isObjectRecord(deploymentConfig.agent)
+    ? deploymentConfig.agent
+    : undefined;
   if (deploymentConfig.version === 1 && agent?.type === "codex") {
     return normalizeCodexAuth(agent.codexAuth);
   }

@@ -38,7 +38,7 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
       return existingLabelMappings || {};
     }
 
-    const normalizedInput = this.toRecord(inputLabelMappings);
+    const normalizedInput = this.normalizeRecord(inputLabelMappings);
     if (!normalizedInput) {
       return {};
     }
@@ -56,7 +56,7 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
       };
     }
 
-    const nested = this.toRecord(normalizedInput.github);
+    const nested = this.normalizeRecord(normalizedInput.github);
     const source = nested || normalizedInput;
     const labels = this.normalizeLabelArray(
       source.requiredLabels ?? source.labels,
@@ -79,8 +79,8 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
   private parseGitHubAutoExecuteMode(labelMappings: {
     [key: string]: unknown;
   }): GitHubAutoExecuteMode | undefined {
-    const root = this.toRecord(labelMappings);
-    const nested = this.toRecord(root?.github);
+    const root = this.normalizeRecord(labelMappings);
+    const nested = this.normalizeRecord(root?.github);
     const source = nested || root;
     if (!source) {
       return undefined;
