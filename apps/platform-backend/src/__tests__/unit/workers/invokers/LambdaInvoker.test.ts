@@ -78,7 +78,14 @@ describe("LambdaInvoker", () => {
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {
-        functionName: "viberator-worker",
+        version: 1,
+        strategy: {
+          type: "lambda",
+          functionName: "viberator-worker",
+        },
+        agent: {
+          type: "claude-code",
+        },
       },
     };
   });
@@ -457,6 +464,26 @@ describe("LambdaInvoker", () => {
   describe("name property", () => {
     it("should have correct invoker name", () => {
       expect(invoker.name).toBe("LambdaInvoker");
+    });
+  });
+
+  describe("payload shape", () => {
+    it("includes requiredCredentials in worker payload", async () => {
+      mockSend.mockResolvedValueOnce({
+        StatusCode: 202,
+        $metadata: { requestId: "req-1" },
+      });
+
+      await invoker.invoke(mockJob, mockClanker);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const command = mockSend.mock.calls[0][0] as {
+        input?: { Payload?: Buffer };
+      };
+      const rawPayload = command.input?.Payload;
+      const payload = JSON.parse((rawPayload || Buffer.from("{}")).toString("utf-8"));
+
+      expect(payload.requiredCredentials).toEqual([]);
     });
   });
 });

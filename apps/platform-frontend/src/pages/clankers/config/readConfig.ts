@@ -18,7 +18,12 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
         : 'managed'
 
   const codexAuth = isObjectRecord(config.codexAuth) ? config.codexAuth : null
-  const codexAuthMode = codexAuth?.mode === 'chatgpt_device' ? 'chatgpt_device' : 'api_key'
+  const codexAuthMode =
+    codexAuth?.mode === 'chatgpt_device_stored'
+      ? 'chatgpt_device_stored'
+      : codexAuth?.mode === 'chatgpt_device'
+        ? 'chatgpt_device'
+        : 'api_key'
 
   return {
     form: {

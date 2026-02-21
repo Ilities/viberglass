@@ -4,7 +4,10 @@ export type ClankerConfigVersion = 1;
 
 export type ClankerStrategyType = "docker" | "ecs" | "lambda";
 
-export type CodexAuthMode = "api_key" | "chatgpt_device";
+export type CodexAuthMode =
+  | "api_key"
+  | "chatgpt_device"
+  | "chatgpt_device_stored";
 
 export interface ClankerRuntimeConfig {
   settings?: {
