@@ -291,6 +291,83 @@ export class CallbackClient {
     }
   }
 
+  async sendCodexAuthCache(
+    jobId: string,
+    tenantId: string,
+    payload: {
+      secretName: string;
+      authJson: string;
+      updatedAt?: string;
+    },
+  ): Promise<void> {
+    const url = `${this.apiUrl}/api/jobs/${jobId}/codex-auth-cache`;
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        this.logger.info(
+          this.tagInternalLog("Sending Codex auth cache to platform"),
+          {
+            jobId,
+            secretName: payload.secretName,
+            attempt: attempt + 1,
+          },
+        );
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: this.buildHeaders(tenantId),
+          body: JSON.stringify({
+            secretName: payload.secretName,
+            authJson: payload.authJson,
+            updatedAt: payload.updatedAt || new Date().toISOString(),
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (!response.ok) {
+          const statusCode = response.status;
+          const isRetryable = statusCode >= 500 || statusCode === 429;
+
+          if (!isRetryable) {
+            const errorData = await response
+              .json()
+              .catch(() => ({ error: response.statusText }));
+            throw new Error(
+              `Codex auth cache callback failed: ${errorData.error || response.statusText}`,
+            );
+          }
+
+          if (attempt === this.maxRetries) {
+            throw new Error(
+              `Codex auth cache callback failed after ${this.maxRetries + 1} attempts`,
+            );
+          }
+
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          await this.sleep(delay);
+          continue;
+        }
+
+        this.logger.info(
+          this.tagInternalLog("Codex auth cache sent successfully"),
+          {
+            jobId,
+            status: response.status,
+          },
+        );
+
+        return;
+      } catch (error) {
+        const isLastAttempt = attempt === this.maxRetries;
+        if (isLastAttempt) {
+          throw error;
+        }
+        const delay = this.retryDelay * Math.pow(2, attempt);
+        await this.sleep(delay);
+      }
+    }
+  }
+
   async sendLog(
     jobId: string,
     tenantId: string,

@@ -1,7 +1,7 @@
 import { SQSHandler, SQSEvent } from "aws-lambda";
-import { ViberatorWorker } from "./viberator";
-import { LambdaPayload } from "./types";
-import { CodingJobData, JobResult } from "./types";
+import { ViberatorWorker } from "../core/ViberatorWorker";
+import { LambdaPayload } from "../core/types";
+import { CodingJobData, JobResult } from "../core/types";
 
 export const handler: SQSHandler = async (event: SQSEvent) => {
   for (const record of event.Records) {

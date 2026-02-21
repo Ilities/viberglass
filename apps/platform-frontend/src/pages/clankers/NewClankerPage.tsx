@@ -4,7 +4,6 @@ import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { PageMeta } from '@/components/page-meta'
 import { MultiSelect } from '@/components/multi-select'
-import { SegmentedControl } from '@/components/segmented-control'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { createClanker, getDeploymentStrategies } from '@/service/api/clanker-api'
@@ -12,6 +11,11 @@ import { getSecrets, type Secret } from '@/service/api/secret-api'
 import { AGENT_OPTIONS, DEFAULT_AGENT_TYPE, type AgentType, type ConfigFileInput, type DeploymentStrategy } from '@viberglass/types'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { buildClankerDeploymentConfig } from './config/buildConfig'
+import { toAgentType } from './config/normalizers'
+import { AgentSpecificFields } from './config/agents'
+import { StrategySpecificFields } from './config/strategies'
+import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
 
 // Default config file types that users commonly use
 const DEFAULT_CONFIG_FILE_TYPES = [
@@ -32,6 +36,12 @@ export function NewClankerPage() {
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>(DEFAULT_AGENT_TYPE)
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
+  const [codexAuthMode, setCodexAuthMode] = useState<'api_key' | 'chatgpt_device'>(
+    DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
+  )
+  const [codexAuthSecretName, setCodexAuthSecretName] = useState(
+    DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
+  )
 
   useEffect(() => {
     async function loadData() {
@@ -79,31 +89,19 @@ export function NewClankerPage() {
       .filter(([, content]) => content.trim() !== '')
       .map(([fileType, content]) => ({ fileType, content }))
 
-    // Build deployment config from form
-    let deploymentConfig: Record<string, unknown> | null = null
-    if (selectedStrategy) {
-      if (selectedStrategy.name === 'docker') {
-        deploymentConfig = {
-          provisioningMode,
-          containerImage: provisioningMode === 'prebuilt' ? (formData.get('containerImage') as string) || '' : '',
-          ports: {},
-          environmentVariables: {},
-        }
-      } else if (selectedStrategy.name === 'ecs') {
-        deploymentConfig = {
-          provisioningMode,
-          clusterArn: provisioningMode === 'prebuilt' ? (formData.get('clusterArn') as string) || '' : '',
-          taskDefinitionArn: provisioningMode === 'prebuilt' ? (formData.get('taskDefinitionArn') as string) || '' : '',
-          subnetIds: [],
-          securityGroupIds: [],
-        }
-      } else if (selectedStrategy.name === 'aws-lambda-container') {
-        deploymentConfig = {
-          provisioningMode,
-          functionArn: provisioningMode === 'prebuilt' ? (formData.get('functionArn') as string) || '' : '',
-        }
-      }
-    }
+    const deploymentConfig = buildClankerDeploymentConfig({
+      strategyName: selectedStrategy?.name,
+      selectedAgent,
+      form: {
+        provisioningMode,
+        containerImage: ((formData.get('containerImage') as string) || '').trim(),
+        clusterArn: ((formData.get('clusterArn') as string) || '').trim(),
+        taskDefinitionArn: ((formData.get('taskDefinitionArn') as string) || '').trim(),
+        functionArn: ((formData.get('functionArn') as string) || '').trim(),
+        codexAuthMode,
+        codexAuthSecretName: codexAuthSecretName.trim() || DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthSecretName,
+      },
+    })
 
     try {
       const clanker = await createClanker({
@@ -174,77 +172,17 @@ export function NewClankerPage() {
               </Select>
             </Field>
 
-            {selectedStrategy && (
-              <Field>
-                <Label>Provisioning Mode</Label>
-                <Description>Choose whether the platform manages resources or you provide your own.</Description>
-                <SegmentedControl
-                  options={[
-                    { value: 'managed', label: 'Managed' },
-                    { value: 'prebuilt', label: 'Pre-built' },
-                  ]}
-                  value={provisioningMode}
-                  onChange={(v) => setProvisioningMode(v as 'managed' | 'prebuilt')}
-                />
-              </Field>
-            )}
-
-            {selectedStrategy?.name === 'docker' && provisioningMode === 'prebuilt' && (
-              <Field>
-                <Label>Container Image</Label>
-                <Description>The Docker image to use for this clanker.</Description>
-                <Input name="containerImage" placeholder="ghcr.io/myorg/clanker:latest" />
-              </Field>
-            )}
-
-            {selectedStrategy?.name === 'docker' && provisioningMode === 'managed' && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                Image will be built from the project Dockerfile on start.
-              </div>
-            )}
-
-            {selectedStrategy?.name === 'ecs' && provisioningMode === 'prebuilt' && (
-              <>
-                <Field>
-                  <Label>Cluster ARN</Label>
-                  <Description>The ARN of the ECS cluster.</Description>
-                  <Input name="clusterArn" placeholder="arn:aws:ecs:eu-west-1:123456789:cluster/my-cluster" />
-                </Field>
-                <Field>
-                  <Label>Task Definition ARN</Label>
-                  <Description>The ARN of the ECS task definition.</Description>
-                  <Input
-                    name="taskDefinitionArn"
-                    placeholder="arn:aws:ecs:eu-west-1:123456789:task-definition/my-task:1"
-                  />
-                </Field>
-              </>
-            )}
-
-            {selectedStrategy?.name === 'ecs' && provisioningMode === 'managed' && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                Task definition and cluster config will use platform defaults.
-              </div>
-            )}
-
-            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'prebuilt' && (
-              <Field>
-                <Label>Function ARN</Label>
-                <Description>The ARN of the existing Lambda function.</Description>
-                <Input name="functionArn" placeholder="arn:aws:lambda:eu-west-1:123456789:function/my-function" />
-              </Field>
-            )}
-
-            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'managed' && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                Lambda function will be created on start.
-              </div>
-            )}
+            <StrategySpecificFields
+              strategyName={selectedStrategy?.name}
+              provisioningMode={provisioningMode}
+              onProvisioningModeChange={setProvisioningMode}
+              defaults={DEFAULT_CLANKER_CONFIG_FORM_STATE}
+            />
 
             <Field>
               <Label>Agent</Label>
               <Description>Select which AI agent to use for this clanker.</Description>
-              <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(value as AgentType)}>
+              <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(toAgentType(value))}>
                 {AGENT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.recommended ? `${option.label} (Recommended)` : option.label}
@@ -252,6 +190,14 @@ export function NewClankerPage() {
                 ))}
               </Select>
             </Field>
+
+            <AgentSpecificFields
+              selectedAgent={selectedAgent}
+              codexAuthMode={codexAuthMode}
+              codexAuthSecretName={codexAuthSecretName}
+              onCodexAuthModeChange={setCodexAuthMode}
+              onCodexAuthSecretNameChange={setCodexAuthSecretName}
+            />
 
             <MultiSelect
               label="Secrets"

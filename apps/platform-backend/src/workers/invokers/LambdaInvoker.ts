@@ -11,6 +11,7 @@ import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { buildWorkerProjectConfig } from "./projectConfig";
+import { resolveClankerConfig } from "../../clanker-config";
 
 const logger = createChildLogger({ invoker: "Lambda" });
 
@@ -116,10 +117,17 @@ export class LambdaInvoker implements WorkerInvoker {
   }
 
   private getFunctionName(clanker: Clanker): string | undefined {
-    const config = clanker.deploymentConfig as unknown as
-      | LambdaDeploymentConfig
-      | undefined;
-    return config?.functionArn || config?.functionName;
+    const resolvedConfig = resolveClankerConfig(clanker).config;
+    if (resolvedConfig.strategy.type !== "lambda") {
+      return undefined;
+    }
+
+    const config: LambdaDeploymentConfig = {
+      functionArn: resolvedConfig.strategy.functionArn,
+      functionName: resolvedConfig.strategy.functionName,
+    };
+
+    return config.functionArn || config.functionName;
   }
 
   private async buildPayload(

@@ -22,8 +22,12 @@ import {
   resolveWorkerImageVariantForAgent,
   type Clanker,
   type ClankerStatus,
+  type DockerStrategyConfig,
+  type EcsStrategyConfig,
+  type LambdaStrategyConfig,
 } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
+import { resolveClankerConfig } from "../clanker-config";
 
 const logger = createChildLogger({ service: "ClankerProvisioningService" });
 
@@ -60,14 +64,37 @@ function getOptionalString(value: unknown): string | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
-function getDeploymentConfig(
-  clanker: Clanker,
-): Record<string, unknown> | undefined {
-  if (!clanker.deploymentConfig || typeof clanker.deploymentConfig !== "object") {
-    return undefined;
+function getDockerStrategyConfig(clanker: Clanker): DockerStrategyConfig {
+  const resolved = resolveClankerConfig(clanker).config;
+  if (resolved.strategy.type !== "docker") {
+    return {
+      type: "docker",
+      provisioningMode: "managed",
+    };
   }
+  return resolved.strategy;
+}
 
-  return clanker.deploymentConfig;
+function getEcsStrategyConfig(clanker: Clanker): EcsStrategyConfig {
+  const resolved = resolveClankerConfig(clanker).config;
+  if (resolved.strategy.type !== "ecs") {
+    return {
+      type: "ecs",
+      provisioningMode: "managed",
+    };
+  }
+  return resolved.strategy;
+}
+
+function getLambdaStrategyConfig(clanker: Clanker): LambdaStrategyConfig {
+  const resolved = resolveClankerConfig(clanker).config;
+  if (resolved.strategy.type !== "lambda") {
+    return {
+      type: "lambda",
+      provisioningMode: "managed",
+    };
+  }
+  return resolved.strategy;
 }
 
 // Get the appropriate worker image based on clanker configuration
@@ -75,13 +102,23 @@ function getWorkerImageForClanker(
   clanker: Clanker,
   strategy: "docker" | "ecs" | "lambda",
 ): string | undefined {
-  const deploymentConfig = getDeploymentConfig(clanker);
+  const resolved = resolveClankerConfig(clanker).config;
+  const strategyConfig =
+    resolved.strategy.type === strategy ? resolved.strategy : undefined;
 
   // If explicitly configured, use that
   const explicitImage =
     strategy === "lambda"
-      ? getOptionalString(deploymentConfig?.imageUri)
-      : getOptionalString(deploymentConfig?.containerImage);
+      ? getOptionalString(
+          strategyConfig && "imageUri" in strategyConfig
+            ? strategyConfig.imageUri
+            : undefined,
+        )
+      : getOptionalString(
+          strategyConfig && "containerImage" in strategyConfig
+            ? strategyConfig.containerImage
+            : undefined,
+        );
 
   if (explicitImage) {
     return explicitImage;
@@ -309,10 +346,9 @@ export class ClankerProvisioningService {
       return null;
     }
 
-    const config = (clanker.deploymentConfig || {}) as EcsProvisioningConfig;
-    const provisioningMode = config.provisioningMode === "prebuilt"
-      ? "prebuilt"
-      : "managed";
+    const config = getEcsStrategyConfig(clanker) as EcsProvisioningConfig;
+    const provisioningMode =
+      config.provisioningMode === "prebuilt" ? "prebuilt" : "managed";
 
     const clusterArn =
       this.getNonEmptyValue(config.clusterArn) ||
@@ -372,7 +408,7 @@ export class ClankerProvisioningService {
     clanker: Clanker,
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult> {
-    const config = (clanker.deploymentConfig || {}) as DockerDeploymentConfig;
+    const config = getDockerStrategyConfig(clanker) as DockerDeploymentConfig;
     const containerImage =
       config.containerImage ||
       getWorkerImageForClanker(clanker, "docker") ||
@@ -405,7 +441,7 @@ export class ClankerProvisioningService {
     clanker: Clanker,
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult> {
-    const config = (clanker.deploymentConfig || {}) as EcsProvisioningConfig;
+    const config = getEcsStrategyConfig(clanker) as EcsProvisioningConfig;
 
     // Auto-select container image if not specified
     if (!config.containerImage) {
@@ -446,7 +482,7 @@ export class ClankerProvisioningService {
     clanker: Clanker,
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult> {
-    const config = (clanker.deploymentConfig || {}) as LambdaProvisioningConfig;
+    const config = getLambdaStrategyConfig(clanker) as LambdaProvisioningConfig;
 
     // Auto-select image URI if not specified
     if (!config.imageUri) {
@@ -917,7 +953,7 @@ export class ClankerProvisioningService {
   private async checkDockerAvailability(
     clanker: Clanker,
   ): Promise<AvailabilityResult> {
-    const config = (clanker.deploymentConfig || {}) as DockerDeploymentConfig;
+    const config = getDockerStrategyConfig(clanker) as DockerDeploymentConfig;
     if (!config.containerImage) {
       return {
         status: "inactive",
@@ -947,7 +983,7 @@ export class ClankerProvisioningService {
   private async checkEcsAvailability(
     clanker: Clanker,
   ): Promise<AvailabilityResult> {
-    const config = (clanker.deploymentConfig || {}) as EcsProvisioningConfig;
+    const config = getEcsStrategyConfig(clanker) as EcsProvisioningConfig;
     if (!config.taskDefinitionArn) {
       return {
         status: "inactive",
@@ -985,7 +1021,7 @@ export class ClankerProvisioningService {
   private async checkLambdaAvailability(
     clanker: Clanker,
   ): Promise<AvailabilityResult> {
-    const config = (clanker.deploymentConfig || {}) as LambdaProvisioningConfig;
+    const config = getLambdaStrategyConfig(clanker) as LambdaProvisioningConfig;
     const functionName = config.functionArn || config.functionName;
     if (!functionName) {
       return {
