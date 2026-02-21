@@ -2,9 +2,10 @@ import { TicketExecutionService } from "../../../services/TicketExecutionService
 import { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../../../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../../../persistence/project/ProjectScmConfigDAO";
-import { IntegrationCredentialDAO } from "../../../persistence/integrations/IntegrationCredentialDAO";
+import { IntegrationCredentialDAO } from "../../../persistence/integrations";
 import { ClankerDAO } from "../../../persistence/clanker/ClankerDAO";
-import { ClankerProvisioningService } from "../../../services/ClankerProvisioningService";
+import type { ClankerProvisioner } from "../../../provisioning/ClankerProvisioner";
+import { getClankerProvisioner } from "../../../provisioning/provisioningFactory";
 import { JobService } from "../../../services/JobService";
 import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../../workers";
@@ -15,7 +16,9 @@ jest.mock("../../../persistence/project/ProjectDAO");
 jest.mock("../../../persistence/project/ProjectScmConfigDAO");
 jest.mock("../../../persistence/integrations/IntegrationCredentialDAO");
 jest.mock("../../../persistence/clanker/ClankerDAO");
-jest.mock("../../../services/ClankerProvisioningService");
+jest.mock("../../../provisioning/provisioningFactory", () => ({
+  getClankerProvisioner: jest.fn(),
+}));
 jest.mock("../../../services/JobService");
 jest.mock("../../../services/CredentialRequirementsService");
 jest.mock("../../../workers/WorkerExecutionService");
@@ -27,10 +30,12 @@ describe("TicketExecutionService", () => {
   let mockProjectScmConfigDAO: jest.Mocked<ProjectScmConfigDAO>;
   let mockIntegrationCredentialDAO: jest.Mocked<IntegrationCredentialDAO>;
   let mockClankerDAO: jest.Mocked<ClankerDAO>;
-  let mockProvisioningService: jest.Mocked<ClankerProvisioningService>;
+  let mockProvisioningService: jest.Mocked<ClankerProvisioner>;
   let mockJobService: jest.Mocked<JobService>;
   let mockCredentialRequirementsService: jest.Mocked<CredentialRequirementsService>;
   let mockWorkerExecutionService: jest.Mocked<WorkerExecutionService>;
+
+  const mockedGetClankerProvisioner = jest.mocked(getClankerProvisioner);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -42,8 +47,11 @@ describe("TicketExecutionService", () => {
     mockIntegrationCredentialDAO =
       new IntegrationCredentialDAO() as jest.Mocked<IntegrationCredentialDAO>;
     mockClankerDAO = new ClankerDAO() as jest.Mocked<ClankerDAO>;
-    mockProvisioningService =
-      new ClankerProvisioningService() as jest.Mocked<ClankerProvisioningService>;
+    mockProvisioningService = {
+      getProvisioningPreflightError: jest.fn(),
+      provision: jest.fn(),
+      resolveAvailabilityStatus: jest.fn(),
+    };
     mockJobService = new JobService() as jest.Mocked<JobService>;
     mockCredentialRequirementsService =
       new CredentialRequirementsService() as jest.Mocked<CredentialRequirementsService>;
@@ -59,9 +67,7 @@ describe("TicketExecutionService", () => {
       () => mockIntegrationCredentialDAO,
     );
     (ClankerDAO as jest.Mock).mockImplementation(() => mockClankerDAO);
-    (ClankerProvisioningService as jest.Mock).mockImplementation(
-      () => mockProvisioningService,
-    );
+    mockedGetClankerProvisioner.mockReturnValue(mockProvisioningService);
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
     (CredentialRequirementsService as jest.Mock).mockImplementation(
       () => mockCredentialRequirementsService,
