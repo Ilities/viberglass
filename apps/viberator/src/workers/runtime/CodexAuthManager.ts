@@ -75,6 +75,20 @@ export function parseDeviceAuthValues(rawLine: string): DeviceAuthState {
   return result;
 }
 
+export function compactJsonForStorage(jsonContent: string): string {
+  const trimmed = jsonContent.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return JSON.stringify(parsed);
+  } catch {
+    return trimmed;
+  }
+}
+
 export class CodexAuthManager {
   constructor(
     private readonly logger: Logger,
@@ -573,15 +587,26 @@ export class CodexAuthManager {
       return;
     }
 
+    const compactedAuthJson = compactJsonForStorage(authJson);
+    if (!compactedAuthJson) {
+      this.logger.warn("Skipping Codex auth cache upload because file is empty", {
+        jobId,
+        tenantId,
+        authPath,
+      });
+      return;
+    }
+
     this.logger.info("Sending Codex auth cache upload callback", {
       jobId,
       tenantId,
       secretName: this.settings.secretName,
-      authBytes: Buffer.byteLength(authJson, "utf-8"),
+      authBytes: Buffer.byteLength(compactedAuthJson, "utf-8"),
+      rawAuthBytes: Buffer.byteLength(authJson, "utf-8"),
     });
     await this.callbackClient.sendCodexAuthCache(jobId, tenantId, {
       secretName: this.settings.secretName,
-      authJson,
+      authJson: compactedAuthJson,
     });
     this.logger.info("Codex auth cache upload callback succeeded", {
       jobId,

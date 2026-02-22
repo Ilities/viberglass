@@ -358,16 +358,22 @@ router.post(
         secretLocation: metadata.secretLocation,
       });
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Internal server error";
+      const statusCode = errorMessage.includes("exceeds SSM size limit")
+        ? 413
+        : 500;
+
       logger.error("Failed to persist Codex auth cache", {
         error: error instanceof Error ? error.message : String(error),
+        statusCode,
         jobId,
         tenantId,
         secretName,
         authJsonLength: authJson.length,
       });
-      return res.status(500).json({
-        error:
-          error instanceof Error ? error.message : "Internal server error",
+      return res.status(statusCode).json({
+        error: errorMessage,
       });
     }
   },

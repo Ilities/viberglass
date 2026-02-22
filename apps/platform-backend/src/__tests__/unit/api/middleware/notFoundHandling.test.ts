@@ -103,6 +103,10 @@ describe("notFoundHandling middleware", () => {
   });
 
   describe("applicationErrorHandler", () => {
+    it("is declared as Express error middleware (4 arguments)", () => {
+      expect(applicationErrorHandler.length).toBe(4);
+    });
+
     it("returns 404 response without logging as application error", () => {
       const errorSpy = jest.spyOn(logger, "error").mockImplementation();
       const err = createError(404, "Not Found");

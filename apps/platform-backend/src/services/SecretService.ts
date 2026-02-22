@@ -17,6 +17,20 @@ const logger = createChildLogger({ service: "SecretService" });
 const IV_LENGTH = 12;
 const MAX_SSM_SECRET_SIZE_BYTES = 3900;
 
+export function compactJsonForStorage(jsonContent: string): string {
+  const trimmed = jsonContent.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return JSON.stringify(parsed);
+  } catch {
+    return trimmed;
+  }
+}
+
 export interface SecretInput {
   name: string;
   secretLocation: SecretLocation;
@@ -225,7 +239,8 @@ export class SecretService {
       throw new Error("Auth cache payload is required");
     }
 
-    const payloadBytes = Buffer.byteLength(authJson, "utf-8");
+    const compactedAuthJson = compactJsonForStorage(authJson);
+    const payloadBytes = Buffer.byteLength(compactedAuthJson, "utf-8");
     if (payloadBytes > MAX_SSM_SECRET_SIZE_BYTES) {
       throw new Error(
         `Codex auth cache exceeds SSM size limit (${payloadBytes} bytes)`,
@@ -236,7 +251,7 @@ export class SecretService {
     if (existing) {
       return this.updateSecret(existing.id, {
         secretLocation: "ssm",
-        secretValue: authJson,
+        secretValue: compactedAuthJson,
         secretPath: existing.secretPath,
       });
     }
@@ -244,7 +259,7 @@ export class SecretService {
     return this.createSecret({
       name: normalizedName,
       secretLocation: "ssm",
-      secretValue: authJson,
+      secretValue: compactedAuthJson,
     });
   }
 
