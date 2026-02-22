@@ -260,7 +260,7 @@ export class EcsInvoker implements WorkerInvoker {
       );
 
     return {
-      workerType: "docker",
+      workerType: "ecs",
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,

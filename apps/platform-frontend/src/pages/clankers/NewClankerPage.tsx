@@ -1,9 +1,11 @@
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
-import { PageMeta } from '@/components/page-meta'
 import { MultiSelect } from '@/components/multi-select'
+import { PageMeta } from '@/components/page-meta'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { createClanker, getDeploymentStrategies } from '@/service/api/clanker-api'
@@ -16,19 +18,67 @@ import {
   type ConfigFileInput,
   type DeploymentStrategy,
 } from '@viberglass/types'
-import { useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { AgentSpecificFields } from './config/agents'
 import { buildClankerDeploymentConfig } from './config/buildConfig'
 import { toAgentType } from './config/normalizers'
-import { AgentSpecificFields } from './config/agents'
 import { StrategySpecificFields } from './config/strategies'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
+import {
+  AGENTS_FILE_TYPE,
+  isSkillPath,
+  normalizeInstructionPath,
+  skillPathFromUploadName,
+} from './instructionFiles'
 
-// Default config file types that users commonly use
-const DEFAULT_CONFIG_FILE_TYPES = [
-  { type: 'agents.md', label: 'AGENTS.md', placeholder: '# AGENTS.md\n\n## Primary Agent\n...' },
-  { type: 'skills.md', label: 'Skills.md', placeholder: '# Skills\n\n## Code Review\n...' },
-]
+interface SkillEntry {
+  id: string
+  path: string
+  content: string
+}
+
+function createSkillEntry(path: string = 'skills/new-skill.md', content = ''): SkillEntry {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    path,
+    content,
+  }
+}
+
+function buildConfigFiles(agentInstructions: string, skills: SkillEntry[]): { files: ConfigFileInput[]; error: string | null } {
+  const files: ConfigFileInput[] = []
+
+  if (agentInstructions.trim()) {
+    files.push({ fileType: AGENTS_FILE_TYPE, content: agentInstructions.trim() })
+  }
+
+  const usedSkillPaths = new Set<string>()
+  for (const skill of skills) {
+    if (!skill.content.trim()) {
+      continue
+    }
+
+    const normalizedPath = normalizeInstructionPath(skill.path)
+    if (!isSkillPath(normalizedPath)) {
+      return {
+        files: [],
+        error: `Invalid skill path "${skill.path}". Use skills/<name>.md or nested paths under skills/.`,
+      }
+    }
+
+    const dedupeKey = normalizedPath.toLowerCase()
+    if (usedSkillPaths.has(dedupeKey)) {
+      return {
+        files: [],
+        error: `Duplicate skill path: ${normalizedPath}`,
+      }
+    }
+
+    usedSkillPaths.add(dedupeKey)
+    files.push({ fileType: normalizedPath, content: skill.content.trim() })
+  }
+
+  return { files, error: null }
+}
 
 export function NewClankerPage() {
   const navigate = useNavigate()
@@ -36,13 +86,16 @@ export function NewClankerPage() {
   const [error, setError] = useState<string | null>(null)
   const [deploymentStrategies, setDeploymentStrategies] = useState<DeploymentStrategy[]>([])
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>('')
-  const [configFiles, setConfigFiles] = useState<Record<string, string>>({})
-  const [customConfigFileName, setCustomConfigFileName] = useState('')
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>(DEFAULT_AGENT_TYPE)
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
   const [codexAuthMode, setCodexAuthMode] = useState<CodexAuthMode>(DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode)
+  const [agentInstructions, setAgentInstructions] = useState('')
+  const [skills, setSkills] = useState<SkillEntry[]>([])
+
+  const agentsFileInputRef = useRef<HTMLInputElement | null>(null)
+  const skillsFileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -57,25 +110,60 @@ export function NewClankerPage() {
     loadData()
   }, [])
 
-  const selectedStrategy = deploymentStrategies.find((s) => s.id === selectedStrategyId)
+  const selectedStrategy = deploymentStrategies.find((strategy) => strategy.id === selectedStrategyId)
 
-  function handleConfigFileChange(fileType: string, content: string) {
-    setConfigFiles((prev) => ({ ...prev, [fileType]: content }))
+  function updateSkill(id: string, updates: Partial<SkillEntry>) {
+    setSkills((previous) => previous.map((entry) => (entry.id === id ? { ...entry, ...updates } : entry)))
   }
 
-  function addCustomConfigFile() {
-    if (customConfigFileName.trim()) {
-      setConfigFiles((prev) => ({ ...prev, [customConfigFileName.trim()]: '' }))
-      setCustomConfigFileName('')
+  function removeSkill(id: string) {
+    setSkills((previous) => previous.filter((entry) => entry.id !== id))
+  }
+
+  function addSkill() {
+    setSkills((previous) => [...previous, createSkillEntry()])
+  }
+
+  async function handleAgentsUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
     }
+
+    if (!file.name.toLowerCase().endsWith('.md')) {
+      setError('AGENTS upload must be a .md file.')
+      return
+    }
+
+    const content = await file.text()
+    setAgentInstructions(content)
+    setError(null)
+    event.target.value = ''
   }
 
-  function removeConfigFile(fileType: string) {
-    setConfigFiles((prev) => {
-      const next = { ...prev }
-      delete next[fileType]
-      return next
-    })
+  async function handleSkillsUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files
+    if (!files || files.length === 0) {
+      return
+    }
+
+    const uploaded: SkillEntry[] = []
+    for (const file of Array.from(files)) {
+      if (!file.name.toLowerCase().endsWith('.md')) {
+        setError(`Skipped ${file.name}: only .md files are allowed for skills.`)
+        continue
+      }
+
+      const content = await file.text()
+      uploaded.push(createSkillEntry(skillPathFromUploadName(file.name), content))
+    }
+
+    if (uploaded.length > 0) {
+      setSkills((previous) => [...previous, ...uploaded])
+      setError(null)
+    }
+
+    event.target.value = ''
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -84,11 +172,12 @@ export function NewClankerPage() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-
-    // Build config files array
-    const configFilesArray: ConfigFileInput[] = Object.entries(configFiles)
-      .filter(([, content]) => content.trim() !== '')
-      .map(([fileType, content]) => ({ fileType, content }))
+    const configFilesResult = buildConfigFiles(agentInstructions, skills)
+    if (configFilesResult.error) {
+      setError(configFilesResult.error)
+      setIsSubmitting(false)
+      return
+    }
 
     const deploymentConfig = buildClankerDeploymentConfig({
       strategyName: selectedStrategy?.name,
@@ -109,7 +198,7 @@ export function NewClankerPage() {
         description: (formData.get('description') as string) || null,
         deploymentStrategyId: selectedStrategyId || null,
         deploymentConfig,
-        configFiles: configFilesArray,
+        configFiles: configFilesResult.files,
         agent: selectedAgent || null,
         secretIds: selectedSecretIds,
       })
@@ -215,64 +304,89 @@ export function NewClankerPage() {
         </Fieldset>
 
         <Fieldset className="mt-10">
-          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Configuration Files</legend>
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Instruction Files</legend>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Add markdown files that define how your clanker behaves. You can add custom file types as needed.
+            Define global behavior in AGENTS.md and add reusable skills under skills/.
           </p>
 
           <FieldGroup className="mt-6">
-            {DEFAULT_CONFIG_FILE_TYPES.map((fileConfig) => (
-              <Field key={fileConfig.type}>
-                <Label>{fileConfig.label}</Label>
-                <Textarea
-                  rows={6}
-                  value={configFiles[fileConfig.type] || ''}
-                  onChange={(e) => handleConfigFileChange(fileConfig.type, e.target.value)}
-                  placeholder={fileConfig.placeholder}
-                  className="font-mono"
-                />
-              </Field>
-            ))}
+            <Field>
+              <div className="flex items-center justify-between">
+                <Label>AGENTS.md</Label>
+                <div className="flex gap-2">
+                  <input
+                    ref={agentsFileInputRef}
+                    type="file"
+                    accept=".md,text/markdown"
+                    onChange={handleAgentsUpload}
+                    className="hidden"
+                  />
+                  <Button type="button" outline onClick={() => agentsFileInputRef.current?.click()}>
+                    Upload .md
+                  </Button>
+                </div>
+              </div>
+              <Description>Main instruction file used to guide this clanker.</Description>
+              <Textarea
+                rows={8}
+                value={agentInstructions}
+                onChange={(event) => setAgentInstructions(event.target.value)}
+                placeholder="Describe how this clanker should behave..."
+                className="font-mono"
+              />
+            </Field>
 
-            {/* Custom config files */}
-            {Object.keys(configFiles)
-              .filter((type) => !DEFAULT_CONFIG_FILE_TYPES.some((d) => d.type === type))
-              .map((fileType) => (
-                <Field key={fileType}>
-                  <div className="flex items-center justify-between">
-                    <Label>{fileType}</Label>
-                    <button
-                      type="button"
-                      onClick={() => removeConfigFile(fileType)}
-                      className="text-sm text-red-600 hover:text-red-700 dark:text-red-400"
-                    >
+            <Field>
+              <div className="flex items-center justify-between">
+                <Label>Skill Files (skills/**)</Label>
+                <div className="flex gap-2">
+                  <input
+                    ref={skillsFileInputRef}
+                    type="file"
+                    multiple
+                    accept=".md,text/markdown"
+                    onChange={handleSkillsUpload}
+                    className="hidden"
+                  />
+                  <Button type="button" outline onClick={() => skillsFileInputRef.current?.click()}>
+                    Upload .md Files
+                  </Button>
+                  <Button type="button" outline onClick={addSkill}>
+                    Add Skill
+                  </Button>
+                </div>
+              </div>
+              <Description>Each skill must use a path under skills/, for example skills/review.md.</Description>
+            </Field>
+
+            {skills.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                No skill files yet. Add one manually or upload markdown files.
+              </div>
+            ) : (
+              skills.map((skill) => (
+                <div key={skill.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Input
+                      value={skill.path}
+                      onChange={(event) => updateSkill(skill.id, { path: event.target.value })}
+                      placeholder="skills/example.md"
+                      className="font-mono"
+                    />
+                    <Button type="button" plain onClick={() => removeSkill(skill.id)}>
                       Remove
-                    </button>
+                    </Button>
                   </div>
                   <Textarea
                     rows={6}
-                    value={configFiles[fileType] || ''}
-                    onChange={(e) => handleConfigFileChange(fileType, e.target.value)}
-                    placeholder={`Content for ${fileType}...`}
+                    value={skill.content}
+                    onChange={(event) => updateSkill(skill.id, { content: event.target.value })}
+                    placeholder="Skill instructions..."
                     className="font-mono"
                   />
-                </Field>
-              ))}
-
-            {/* Add custom config file */}
-            <div className="flex items-end gap-2">
-              <Field className="flex-1">
-                <Label>Add Custom Config File</Label>
-                <Input
-                  value={customConfigFileName}
-                  onChange={(e) => setCustomConfigFileName(e.target.value)}
-                  placeholder="e.g., prompts.md, tools.yaml"
-                />
-              </Field>
-              <Button type="button" outline onClick={addCustomConfigFile} disabled={!customConfigFileName.trim()}>
-                Add File
-              </Button>
-            </div>
+                </div>
+              ))
+            )}
           </FieldGroup>
         </Fieldset>
 
