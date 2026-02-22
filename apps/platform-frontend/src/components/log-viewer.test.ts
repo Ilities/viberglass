@@ -1,4 +1,7 @@
 import type { LogEntry } from '@/service/api/job-api'
+import { render, screen } from '@testing-library/react'
+import { createElement } from 'react'
+import { LogViewer } from './log-viewer'
 import { buildLogTimeline } from './agent-log-model'
 
 function buildLogEntry(overrides: Partial<LogEntry>): LogEntry {
@@ -120,5 +123,35 @@ describe('buildLogTimeline', () => {
       exitCode: 0,
       state: 'completed',
     })
+  })
+})
+
+describe('LogViewer', () => {
+  test('does not show raw log details toggle when expanded text matches visible preview', () => {
+    const logs: LogEntry[] = [
+      buildLogEntry({
+        id: 'raw-short',
+        source: 'viberator',
+        message: 'Build started successfully',
+      }),
+    ]
+
+    render(createElement(LogViewer, { logs }))
+
+    expect(screen.queryByRole('button', { name: /show log details/i })).not.toBeInTheDocument()
+  })
+
+  test('shows raw log details toggle when additional text would be revealed', () => {
+    const logs: LogEntry[] = [
+      buildLogEntry({
+        id: 'raw-long',
+        source: 'viberator',
+        message: `Line one\n${'x'.repeat(320)}`,
+      }),
+    ]
+
+    render(createElement(LogViewer, { logs }))
+
+    expect(screen.getByRole('button', { name: /show log details/i })).toBeInTheDocument()
   })
 })

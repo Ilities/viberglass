@@ -432,6 +432,7 @@ export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
                     event.text,
                     isOutputExpanded ? Number.MAX_SAFE_INTEGER : RAW_OUTPUT_PREVIEW_LIMIT,
                   )
+                  const hasDetailToggle = displayText !== preview
 
                   return (
                     <AgentObservation
@@ -442,13 +443,15 @@ export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
                       <p className="font-mono text-[11px] text-[var(--gray-11)]">
                         {isExpanded ? event.text.slice(0, 180).replace(/\s+/g, ' ') : preview}
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => toggleEntry(entryId)}
-                        className="mt-2 self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                      >
-                        {isExpanded ? 'Hide log details' : 'Show log details'}
-                      </button>
+                      {hasDetailToggle && (
+                        <button
+                          type="button"
+                          onClick={() => toggleEntry(entryId)}
+                          className="mt-2 self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
+                        >
+                          {isExpanded ? 'Hide log details' : 'Show log details'}
+                        </button>
+                      )}
                       {isExpanded && (
                         <>
                           <pre className="mt-2 max-h-80 overflow-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-[var(--gray-12)]">
