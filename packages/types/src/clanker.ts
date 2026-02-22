@@ -79,6 +79,7 @@ export interface ClankerConfigFile {
   clankerId: string
   fileType: string
   content: string
+  storageUrl?: string | null
   createdAt: string
   updatedAt: string
 }
