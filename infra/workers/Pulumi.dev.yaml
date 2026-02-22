@@ -15,4 +15,8 @@ config:
   viberglass-workers:enableSpot: "true"
   # Enable ECS Container Insights for enhanced monitoring
   viberglass-workers:containerInsights: "true"
+  # Uploads/media bucket used by hosted workers
+  viberglass-workers:uploadsBucketName: dev-viberglass-uploads
+  # Prefix for ticket media objects in S3
+  viberglass-workers:ticketMediaS3Prefix: ticket-media
 encryptionsalt: v1:G4FjpHk36tU=:v1:rERCQXuZ7YqWccPc:UgVDaIRmjO8VXEGQrkzIFBA884qKCw==

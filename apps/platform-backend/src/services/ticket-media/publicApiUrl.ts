@@ -4,7 +4,6 @@ function trimTrailingSlashes(value: string): string {
 
 export function getPublicApiBaseUrl(): string {
   const configured =
-    process.env.PLATFORM_API_PUBLIC_URL ||
     process.env.PLATFORM_API_URL ||
     `http://localhost:${process.env.PORT || "8888"}`;
 

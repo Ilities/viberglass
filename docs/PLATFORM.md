@@ -79,7 +79,7 @@ REDIS_PASSWORD=
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=eu-west-1
-AWS_S3_BUCKET=viberglass-media
+AWS_S3_BUCKET=dev-viberglass-uploads
 
 # GitHub Integration
 GITHUB_TOKEN=your_github_token
