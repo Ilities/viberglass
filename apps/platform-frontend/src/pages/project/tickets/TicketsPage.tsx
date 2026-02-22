@@ -6,7 +6,6 @@ import { Select } from '@/components/select'
 import type { Clanker, TicketSummary } from '@/data'
 import { getClankersList, getRecentTickets } from '@/data'
 import { getTickets } from '@/service/api/ticket-api'
-import { CaretSortIcon } from '@radix-ui/react-icons'
 import type { Ticket } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
@@ -23,6 +22,19 @@ export function TicketsPage() {
   const status = searchParams.get('status') ?? 'not_fixed'
   const severity = searchParams.get('severity') ?? 'all'
   const search = searchParams.get('search') ?? ''
+
+  function updateFilters(next: { search?: string; status?: string; severity?: string }) {
+    const nextSearch = next.search ?? search
+    const nextStatus = next.status ?? status
+    const nextSeverity = next.severity ?? severity
+
+    const nextParams = new URLSearchParams()
+    if (nextSearch.trim()) nextParams.set('search', nextSearch.trim())
+    if (nextStatus !== 'not_fixed') nextParams.set('status', nextStatus)
+    if (nextSeverity !== 'all') nextParams.set('severity', nextSeverity)
+
+    setSearchParams(nextParams)
+  }
 
   useEffect(() => {
     async function loadData() {
@@ -69,45 +81,30 @@ export function TicketsPage() {
         </Button>
       </div>
 
-      <form
-        className="mt-8 flex items-center gap-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          const formData = new FormData(event.currentTarget)
-          const nextSearch = formData.get('search')?.toString().trim() ?? ''
-          const nextStatus = formData.get('status')?.toString() ?? 'not_fixed'
-          const nextSeverity = formData.get('severity')?.toString() ?? 'all'
-
-          const nextParams = new URLSearchParams()
-          if (nextSearch) nextParams.set('search', nextSearch)
-          if (nextStatus !== 'not_fixed') nextParams.set('status', nextStatus)
-          if (nextSeverity !== 'all') nextParams.set('severity', nextSeverity)
-
-          setSearchParams(nextParams)
-        }}
-      >
+      <div className="mt-8 flex items-center gap-4">
         <div className="min-w-75 flex-2">
-          <SearchInput placeholder="Search tickets..." name="search" defaultValue={search} />
+          <SearchInput
+            placeholder="Search tickets..."
+            name="search"
+            value={search}
+            onChange={(event) => updateFilters({ search: event.target.value })}
+          />
         </div>
-        <Select name="status" defaultValue={status}>
+        <Select name="status" value={status} onChange={(value) => updateFilters({ status: value })}>
           <option value="not_fixed">Not Fixed</option>
           <option value="all">All Status</option>
           <option value="open">Open</option>
           <option value="in_progress">In Progress</option>
           <option value="resolved">Resolved</option>
         </Select>
-        <Select name="severity" defaultValue={severity}>
+        <Select name="severity" value={severity} onChange={(value) => updateFilters({ severity: value })}>
           <option value="all">All Severities</option>
           <option value="critical">Critical</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </Select>
-        <Button plain type="submit">
-          <CaretSortIcon className="h-5 w-5" />
-          Filters
-        </Button>
-      </form>
+      </div>
 
       {filteredTickets.length > 0 ? (
         <TicketsTable tickets={filteredTickets} fullTickets={fullTickets} clankers={clankers} project={project} />
