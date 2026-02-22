@@ -16,6 +16,8 @@ export interface LogViewerProps {
 
 const COMMAND_OUTPUT_PREVIEW_LIMIT = 420
 const RAW_OUTPUT_PREVIEW_LIMIT = 300
+const COMMAND_BATCH_MIN_SIZE = 2
+const COMMAND_BATCH_MAX_GAP_MS = 120_000
 
 type DisplayEntry = { kind: 'event'; event: TimelineEvent } | CommandBatchDisplayEntry
 
@@ -89,13 +91,13 @@ function buildDisplayEntries(timeline: TimelineEvent[]): DisplayEntry[] {
       if (candidate.sourceLabel !== current.sourceLabel) break
 
       const gapMs = timestampMs(candidate.createdAt) - timestampMs(batch[batch.length - 1].createdAt)
-      if (gapMs > 90_000) break
+      if (gapMs > COMMAND_BATCH_MAX_GAP_MS) break
 
       batch.push(candidate)
       cursor += 1
     }
 
-    if (batch.length >= 3) {
+    if (batch.length >= COMMAND_BATCH_MIN_SIZE) {
       const last = batch[batch.length - 1]
       entries.push({
         kind: 'command_batch',
@@ -339,11 +341,10 @@ export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
                 if (event.kind === 'command_execution') {
                   const toolState = getToolState(event)
                   const detailsId = `command:${event.commandId}`
-                  const isDetailsExpanded =
-                    event.state !== 'completed' || expandedEntries.has(detailsId)
-                  const shouldExpand =
-                    event.state !== 'completed' || expandedCommands.has(event.commandId)
+                  const isDetailsExpanded = expandedEntries.has(detailsId)
+                  const shouldExpand = expandedCommands.has(event.commandId)
                   const outputText = event.output || (event.state === 'running' ? 'Waiting for command output...' : '')
+                  const outputLineCount = outputText.length > 0 ? outputText.split('\n').length : 0
                   const clipped =
                     outputText.length > COMMAND_OUTPUT_PREVIEW_LIMIT && !shouldExpand
                       ? clipText(outputText, COMMAND_OUTPUT_PREVIEW_LIMIT)
@@ -358,6 +359,9 @@ export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
                       }`}
                     >
                       <p className="font-mono text-[11px] text-[var(--gray-11)]">{oneLine(event.command, 180)}</p>
+                      <p className="font-mono text-[10px] text-[var(--gray-9)]">
+                        {outputLineCount > 0 ? `${outputLineCount} output lines` : 'No output'}
+                      </p>
                       <button
                         type="button"
                         onClick={() => toggleEntry(detailsId)}

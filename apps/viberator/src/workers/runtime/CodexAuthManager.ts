@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { spawn } from "child_process";
 import { Logger } from "winston";
@@ -93,7 +94,7 @@ export class CodexAuthManager {
       return;
     }
 
-    const authPath = this.getAuthFilePath();
+    const authPath = this.getPrimaryAuthFilePath();
     const authDir = path.dirname(authPath);
 
     this.logger.info("Materializing Codex auth cache from environment", {
@@ -171,18 +172,46 @@ export class CodexAuthManager {
     });
   }
 
-  private getAuthFilePath(): string {
-    const configDir = process.env.CODEX_CONFIG_DIR || "/tmp/codex-config";
+  private getPrimaryAuthFilePath(): string {
+    const configDir =
+      process.env.CODEX_CONFIG_DIR ||
+      process.env.CODEX_HOME ||
+      path.join(os.homedir(), ".codex");
     return path.join(configDir, "auth.json");
   }
 
+  private getAuthFilePathCandidates(): string[] {
+    const primaryAuthPath = this.getPrimaryAuthFilePath();
+    const homeAuthPath = path.join(os.homedir(), ".codex", "auth.json");
+    const legacyAuthPath = "/tmp/codex-config/auth.json";
+    return Array.from(new Set([primaryAuthPath, homeAuthPath, legacyAuthPath]));
+  }
+
+  private resolveAuthFilePathForRead(): string | null {
+    for (const candidate of this.getAuthFilePathCandidates()) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
   private async hasValidAuthCache(): Promise<boolean> {
-    const authPath = this.getAuthFilePath();
-    if (!fs.existsSync(authPath)) {
+    const primaryAuthPath = this.getPrimaryAuthFilePath();
+    const authPath = this.resolveAuthFilePathForRead();
+    if (!authPath) {
       this.logger.info("Codex auth cache file does not exist", {
-        authPath,
+        authPathCandidates: this.getAuthFilePathCandidates(),
       });
       return false;
+    }
+
+    if (authPath !== primaryAuthPath) {
+      this.logger.info("Using fallback Codex auth cache path", {
+        authPath,
+        primaryAuthPath,
+      });
     }
 
     try {
@@ -425,7 +454,7 @@ export class CodexAuthManager {
   }
 
   private async materializeAuthCacheFromSsm(): Promise<void> {
-    const authPath = this.getAuthFilePath();
+    const authPath = this.getPrimaryAuthFilePath();
     const authDir = path.dirname(authPath);
     const parameterName = this.getSharedAuthSsmPath();
 
@@ -506,22 +535,33 @@ export class CodexAuthManager {
     jobId: string,
     tenantId: string,
   ): Promise<void> {
-    const authPath = this.getAuthFilePath();
+    const primaryAuthPath = this.getPrimaryAuthFilePath();
+    const authPath = this.resolveAuthFilePathForRead();
+
+    if (!authPath) {
+      this.logger.warn("Skipping Codex auth cache upload because file is missing", {
+        jobId,
+        tenantId,
+        authPathCandidates: this.getAuthFilePathCandidates(),
+      });
+      return;
+    }
+
+    if (authPath !== primaryAuthPath) {
+      this.logger.info("Uploading Codex auth cache from fallback path", {
+        jobId,
+        tenantId,
+        authPath,
+        primaryAuthPath,
+      });
+    }
+
     this.logger.info("Preparing Codex auth cache upload", {
       jobId,
       tenantId,
       authPath,
       secretName: this.settings.secretName,
     });
-
-    if (!fs.existsSync(authPath)) {
-      this.logger.warn("Skipping Codex auth cache upload because file is missing", {
-        jobId,
-        tenantId,
-        authPath,
-      });
-      return;
-    }
 
     const authJson = await fs.promises.readFile(authPath, "utf-8");
     if (!authJson || authJson.trim().length === 0) {
