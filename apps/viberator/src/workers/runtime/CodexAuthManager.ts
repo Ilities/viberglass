@@ -1,10 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
-import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
 import { Logger } from "winston";
 import { CodexAuthSettings } from "../../config/clankerConfig";
 import { CallbackClient } from "../infrastructure/CallbackClient";
+import { CredentialProvider } from "../infrastructure/CredentialProvider";
 
 interface DeviceAuthState {
   verificationUri?: string;
@@ -75,14 +75,13 @@ export function parseDeviceAuthValues(rawLine: string): DeviceAuthState {
 }
 
 export class CodexAuthManager {
-  private ssmClient?: SSMClient;
-
   constructor(
     private readonly logger: Logger,
     private readonly callbackClient: CallbackClient,
     private readonly workDir: string,
     private readonly sendProgress: ProgressReporter,
     private readonly settings: CodexAuthSettings,
+    private readonly credentialProvider?: CredentialProvider,
   ) {}
 
   async materializeAuthCacheFromEnv(): Promise<void> {
@@ -165,7 +164,9 @@ export class CodexAuthManager {
 
     if (parsed.verificationUri && !state.verificationUri) {
       state.verificationUri = parsed.verificationUri;
-      this.logger.info("Detected Codex device verification URL from CLI output");
+      this.logger.info(
+        "Detected Codex device verification URL from CLI output",
+      );
     }
 
     if (parsed.userCode && !state.userCode) {
@@ -199,11 +200,15 @@ export class CodexAuthManager {
 
       const startHeartbeat = () => {
         heartbeatTimer = setInterval(() => {
-          void this.sendProgress("auth", "Waiting for Codex device authorization", {
-            kind: "codex_device_auth_pending",
-            verificationUri: authState.verificationUri || null,
-            userCode: authState.userCode || null,
-          });
+          void this.sendProgress(
+            "auth",
+            "Waiting for Codex device authorization",
+            {
+              kind: "codex_device_auth_pending",
+              verificationUri: authState.verificationUri || null,
+              userCode: authState.userCode || null,
+            },
+          );
         }, 30000);
       };
 
@@ -289,53 +294,36 @@ export class CodexAuthManager {
     }
   }
 
-  private shouldReadAuthCacheFromSsm(): boolean {
-    return Boolean(
-      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-        process.env.AWS_EXECUTION_ENV ||
-        process.env.ECS_CONTAINER_METADATA_URI ||
-        process.env.ECS_CONTAINER_METADATA_URI_V4 ||
-        process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ||
-        process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI,
-    );
-  }
-
-  private getSsmClient(): SSMClient {
-    if (!this.ssmClient) {
-      this.ssmClient = new SSMClient({
-        region: process.env.AWS_REGION || "eu-west-1",
-      });
-    }
-
-    return this.ssmClient;
-  }
-
   private getSharedAuthSsmPath(): string {
-    const prefix = (process.env.SECRETS_SSM_PREFIX || "/viberator/secrets").replace(
-      /\/+$/,
-      "",
-    );
+    // Use CredentialProvider's path construction when available for consistency
+    if (this.credentialProvider) {
+      return this.credentialProvider.getSharedParameterName(this.settings.secretName);
+    }
+    
+    // Fallback to legacy path construction
+    const prefix = (
+      process.env.SECRETS_SSM_PREFIX || "/viberator/secrets"
+    ).replace(/\/+$/, "");
     const normalizedSecretName = this.settings.secretName.replace(/^\/+/, "");
     return `${prefix}/${normalizedSecretName}`;
   }
 
   private async materializeAuthCacheFromSsm(): Promise<void> {
-    if (!this.shouldReadAuthCacheFromSsm()) {
-      return;
-    }
-
     const authPath = this.getAuthFilePath();
     const authDir = path.dirname(authPath);
     const parameterName = this.getSharedAuthSsmPath();
 
     try {
-      const response = await this.getSsmClient().send(
-        new GetParameterCommand({
-          Name: parameterName,
-          WithDecryption: true,
-        }),
-      );
-      const secretValue = response.Parameter?.Value;
+      let secretValue: string | undefined;
+      
+      if (this.credentialProvider) {
+        // Use CredentialProvider for consistent SSM fetching
+        secretValue = await this.credentialProvider.getRawSsmValue(parameterName);
+      } else {
+        // Fallback: check environment variable (for Docker workers)
+        secretValue = process.env[this.settings.secretName];
+      }
+      
       if (!secretValue || secretValue.trim().length === 0) {
         return;
       }
@@ -374,7 +362,10 @@ export class CodexAuthManager {
     }
   }
 
-  private async uploadAuthCache(jobId: string, tenantId: string): Promise<void> {
+  private async uploadAuthCache(
+    jobId: string,
+    tenantId: string,
+  ): Promise<void> {
     const authPath = this.getAuthFilePath();
     if (!fs.existsSync(authPath)) {
       return;
