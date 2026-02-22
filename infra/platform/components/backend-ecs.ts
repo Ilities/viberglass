@@ -53,6 +53,10 @@ export interface BackendEcsOptions {
   allowedOrigins?: pulumi.Input<string>;
   /** Platform API URL for worker callbacks (e.g., "https://api.viberglass.io") */
   platformApiUrl?: pulumi.Input<string>;
+  /** S3 bucket used for uploaded assets and ticket media */
+  uploadsBucketName?: pulumi.Input<string>;
+  /** S3 key prefix for ticket media objects */
+  ticketMediaS3Prefix?: pulumi.Input<string>;
   /** Worker infrastructure values for clanker ECS provisioning (optional) */
   worker?: {
     executionRoleArn?: pulumi.Input<string>;
@@ -108,9 +112,6 @@ export function createBackendEcs(
   const cpu = options.cpu ?? "256";
   const memory = options.memory ?? "512";
   const containerPort = options.containerPort ?? 3000;
-  const desiredCount = options.desiredCount ?? 1;
-  const minTasks = options.minTasks ?? 1;
-  const maxTasks = options.maxTasks ?? 3;
   const contextPath = options.contextPath ?? path.join(__dirname, "../../..");
   const imageTag = options.imageTag ?? "latest";
   const dockerfilePath =
@@ -240,7 +241,7 @@ export function createBackendEcs(
   );
 
   // ECS Execute Command policy (for debugging)
-  const executeCommandPolicy = new aws.iam.RolePolicy(
+  new aws.iam.RolePolicy(
     `${options.config.environment}-viberglass-backend-exec-command`,
     {
       role: backendTaskRole.name,
@@ -263,7 +264,7 @@ export function createBackendEcs(
   );
 
   // ECS Worker Management policy (for Clanker dynamic task provisioning)
-  const ecsWorkerPolicy = new aws.iam.RolePolicy(
+  new aws.iam.RolePolicy(
     `${options.config.environment}-viberglass-backend-ecs-worker`,
     {
       role: backendTaskRole.name,
@@ -343,148 +344,168 @@ export function createBackendEcs(
           workerSubnets: options.worker?.subnetIds ?? [],
           workerSecurityGroup: options.worker?.securityGroupId ?? "",
           workerLogGroup: options.worker?.logGroupName ?? "",
+          uploadsBucketName: options.uploadsBucketName ?? "",
+          ticketMediaS3Prefix: options.ticketMediaS3Prefix ?? "ticket-media",
         })
-        .apply(({
-          imageUri,
-          logGroupName,
-          databaseUrlPath,
-          webhookSecretEncryptionKeyPath,
-          allowedOrigins,
-          platformApiUrl,
-          workerExecRole,
-          workerTaskRole,
-          workerImage,
-          workerCluster,
-          workerSubnets,
-          workerSecurityGroup,
-          workerLogGroup,
-        }) => {
-          const normalizedWorkerImage = Array.isArray(workerImage)
-            ? workerImage[0]
-            : workerImage;
-          const normalizedWorkerSubnets = Array.isArray(workerSubnets)
-            ? workerSubnets
-            : [];
+        .apply(
+          ({
+            imageUri,
+            logGroupName,
+            databaseUrlPath,
+            webhookSecretEncryptionKeyPath,
+            allowedOrigins,
+            platformApiUrl,
+            workerExecRole,
+            workerTaskRole,
+            workerImage,
+            workerCluster,
+            workerSubnets,
+            workerSecurityGroup,
+            workerLogGroup,
+            uploadsBucketName,
+            ticketMediaS3Prefix,
+          }) => {
+            const normalizedWorkerImage = Array.isArray(workerImage)
+              ? workerImage[0]
+              : workerImage;
+            const normalizedWorkerSubnets = Array.isArray(workerSubnets)
+              ? workerSubnets
+              : [];
 
-          const envVars = [
-            { name: "NODE_ENV", value: "production" },
-            { name: "PORT", value: containerPort.toString() },
-            { name: "AWS_REGION", value: options.config.awsRegion },
-            { name: "DB_SSL", value: "true" },
-            { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
-            {
-              name: "ALLOWED_ORIGINS",
-              value: allowedOrigins,
-            },
-          ];
+            const envVars = [
+              { name: "NODE_ENV", value: "production" },
+              { name: "PORT", value: containerPort.toString() },
+              { name: "AWS_REGION", value: options.config.awsRegion },
+              { name: "DB_SSL", value: "true" },
+              { name: "RUN_MIGRATIONS_ON_STARTUP", value: "true" },
+              {
+                name: "ALLOWED_ORIGINS",
+                value: allowedOrigins,
+              },
+            ];
 
-          // Add platform API URL for worker callbacks (SEC-05)
-          if (platformApiUrl) {
-            envVars.push({
-              name: "PLATFORM_API_URL",
-              value: platformApiUrl,
-            });
-          }
-
-          // Add worker environment variables if provided
-          if (workerExecRole) {
-            envVars.push({
-              name: "VIBERATOR_ECS_EXECUTION_ROLE_ARN",
-              value: workerExecRole,
-            });
-          }
-          if (workerTaskRole) {
-            envVars.push({
-              name: "VIBERATOR_ECS_TASK_ROLE_ARN",
-              value: workerTaskRole,
-            });
-          }
-          if (workerImage) {
-            envVars.push({
-              name: "VIBERATOR_ECS_CONTAINER_IMAGE",
-              value: normalizedWorkerImage,
-            });
-
-            // Extract ECR registry from image URI for auto-selecting worker images
-            // Example: "123456.dkr.ecr.region.amazonaws.com/repo:tag" -> "123456.dkr.ecr.region.amazonaws.com"
-            const registryMatch = normalizedWorkerImage.match(
-              /^([^\/]+\.dkr\.ecr\.[^\/]+\.amazonaws\.com)/,
-            );
-            if (registryMatch) {
+            // Add platform API URL for worker callbacks (SEC-05)
+            if (platformApiUrl) {
               envVars.push({
-                name: "VIBERATOR_WORKER_REGISTRY",
-                value: registryMatch[1],
+                name: "PLATFORM_API_URL",
+                value: platformApiUrl,
               });
             }
-          }
-          if (workerCluster) {
-            envVars.push({
-              name: "VIBERATOR_ECS_CLUSTER_ARN",
-              value: workerCluster,
-            });
-          }
-          if (normalizedWorkerSubnets.length > 0) {
-            envVars.push({
-              name: "VIBERATOR_ECS_SUBNET_IDS",
-              value: normalizedWorkerSubnets.join(","),
-            });
-          }
-          if (workerSecurityGroup) {
-            envVars.push({
-              name: "VIBERATOR_ECS_SECURITY_GROUP_IDS",
-              value: workerSecurityGroup,
-            });
-          }
-          if (workerLogGroup) {
-            envVars.push({
-              name: "VIBERATOR_ECS_LOG_GROUP",
-              value: workerLogGroup,
-            });
-          }
 
-          return JSON.stringify([
-            {
-              name: "viberglass-backend",
-              image: imageUri,
-              essential: true,
-              portMappings: [
-                {
-                  containerPort: containerPort,
-                  protocol: "tcp",
-                },
-              ],
-              logConfiguration: {
-                logDriver: "awslogs",
-                options: {
-                  "awslogs-group": logGroupName,
-                  "awslogs-region": options.config.awsRegion,
-                  "awslogs-stream-prefix": "backend",
-                },
-              },
-              environment: envVars,
-              secrets: [
-                {
-                  name: "DATABASE_URL",
-                  valueFrom: databaseUrlPath,
-                },
-                {
-                  name: "WEBHOOK_SECRET_ENCRYPTION_KEY",
-                  valueFrom: webhookSecretEncryptionKeyPath,
-                },
-              ],
-              healthCheck: {
-                command: [
-                  "CMD-SHELL",
-                  `curl -f http://localhost:${containerPort}/health || exit 1`,
+            if (uploadsBucketName) {
+              envVars.push({
+                name: "AWS_S3_BUCKET",
+                value: uploadsBucketName,
+              });
+            }
+
+            if (ticketMediaS3Prefix) {
+              envVars.push({
+                name: "TICKET_MEDIA_S3_PREFIX",
+                value: ticketMediaS3Prefix,
+              });
+            }
+
+            // Add worker environment variables if provided
+            if (workerExecRole) {
+              envVars.push({
+                name: "VIBERATOR_ECS_EXECUTION_ROLE_ARN",
+                value: workerExecRole,
+              });
+            }
+            if (workerTaskRole) {
+              envVars.push({
+                name: "VIBERATOR_ECS_TASK_ROLE_ARN",
+                value: workerTaskRole,
+              });
+            }
+            if (workerImage) {
+              envVars.push({
+                name: "VIBERATOR_ECS_CONTAINER_IMAGE",
+                value: normalizedWorkerImage,
+              });
+
+              // Extract ECR registry from image URI for auto-selecting worker images
+              // Example: "123456.dkr.ecr.region.amazonaws.com/repo:tag" -> "123456.dkr.ecr.region.amazonaws.com"
+              const registryMatch = normalizedWorkerImage.match(
+                /^([^\/]+\.dkr\.ecr\.[^\/]+\.amazonaws\.com)/,
+              );
+              if (registryMatch) {
+                envVars.push({
+                  name: "VIBERATOR_WORKER_REGISTRY",
+                  value: registryMatch[1],
+                });
+              }
+            }
+            if (workerCluster) {
+              envVars.push({
+                name: "VIBERATOR_ECS_CLUSTER_ARN",
+                value: workerCluster,
+              });
+            }
+            if (normalizedWorkerSubnets.length > 0) {
+              envVars.push({
+                name: "VIBERATOR_ECS_SUBNET_IDS",
+                value: normalizedWorkerSubnets.join(","),
+              });
+            }
+            if (workerSecurityGroup) {
+              envVars.push({
+                name: "VIBERATOR_ECS_SECURITY_GROUP_IDS",
+                value: workerSecurityGroup,
+              });
+            }
+            if (workerLogGroup) {
+              envVars.push({
+                name: "VIBERATOR_ECS_LOG_GROUP",
+                value: workerLogGroup,
+              });
+            }
+
+            return JSON.stringify([
+              {
+                name: "viberglass-backend",
+                image: imageUri,
+                essential: true,
+                portMappings: [
+                  {
+                    containerPort: containerPort,
+                    protocol: "tcp",
+                  },
                 ],
-                interval: 30,
-                timeout: 5,
-                retries: 3,
-                startPeriod: 60,
+                logConfiguration: {
+                  logDriver: "awslogs",
+                  options: {
+                    "awslogs-group": logGroupName,
+                    "awslogs-region": options.config.awsRegion,
+                    "awslogs-stream-prefix": "backend",
+                  },
+                },
+                environment: envVars,
+                secrets: [
+                  {
+                    name: "DATABASE_URL",
+                    valueFrom: databaseUrlPath,
+                  },
+                  {
+                    name: "WEBHOOK_SECRET_ENCRYPTION_KEY",
+                    valueFrom: webhookSecretEncryptionKeyPath,
+                  },
+                ],
+                healthCheck: {
+                  command: [
+                    "CMD-SHELL",
+                    `curl -f http://localhost:${containerPort}/health || exit 1`,
+                  ],
+                  interval: 30,
+                  timeout: 5,
+                  retries: 3,
+                  startPeriod: 60,
+                },
               },
-            },
-          ]);
-        }),
+            ]);
+          },
+        ),
       tags: options.config.tags,
     },
     {
@@ -521,8 +542,6 @@ export function createBackendService(
   },
 ): Pick<BackendEcsOutputs, "serviceArn" | "serviceName"> {
   const desiredCount = options.desiredCount ?? 1;
-  const minTasks = options.minTasks ?? 1;
-  const maxTasks = options.maxTasks ?? 3;
   const containerPort = options.containerPort ?? 3000;
 
   // ECS Service
