@@ -88,6 +88,79 @@ export class CredentialProvider {
   }
 
   /**
+   * Get the SSM parameter name for a key (non-tenant-scoped)
+   * Used for shared secrets like Codex auth cache
+   *
+   * @param key - The credential key
+   * @returns The full SSM parameter path
+   */
+  getSharedParameterName(key: string): string {
+    const safeKey = key.replace(/[^a-zA-Z0-9_.-]/g, "_");
+    return `${this.pathPrefix}/${safeKey}`;
+  }
+
+  /**
+   * Fetch a raw value directly from SSM without env var fallback
+   * Used for shared secrets like Codex auth cache that are never passed via env vars
+   *
+   * @param parameterName - The full SSM parameter path
+   * @returns The parameter value or undefined if not found
+   */
+  async getRawSsmValue(parameterName: string): Promise<string | undefined> {
+    // Check cache first
+    const cached = this.cache.get(parameterName);
+    if (cached && cached.expiry > Date.now()) {
+      this.logger.debug("Raw SSM cache hit", { parameterName });
+      return cached.value;
+    }
+
+    try {
+      const response = await this.ssmClient.send(
+        new GetParameterCommand({
+          Name: parameterName,
+          WithDecryption: true,
+        }),
+      );
+
+      const value = response.Parameter?.Value;
+      if (value) {
+        this.cache.set(parameterName, {
+          value,
+          expiry: Date.now() + this.ttl,
+        });
+        this.logger.debug("Raw value fetched from SSM", { parameterName });
+      }
+
+      return value;
+    } catch (error) {
+      const err = error as { name?: string; message?: string };
+      const errorName = err.name;
+      if (errorName === "ParameterNotFound") {
+        this.logger.debug("Raw SSM parameter not found", {
+          parameterName,
+        });
+        return undefined;
+      }
+      if (
+        errorName === "AccessDeniedException" ||
+        errorName === "UnrecognizedClientException" ||
+        errorName === "InvalidClientTokenId" ||
+        errorName === "ExpiredTokenException" ||
+        errorName === "CredentialsProviderError"
+      ) {
+        this.logger.warn("Raw SSM fetch skipped due to AWS credentials issue", {
+          parameterName,
+          error: errorName || "UnknownCredentialsError",
+          message: err.message,
+        });
+        return undefined;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Fetch a single credential for a tenant
    *
    * For Docker workers: checks process.env first (credentials from -e flags)

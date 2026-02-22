@@ -221,6 +221,7 @@ export class ViberatorWorker {
       this.workDir,
       (step, message, details) => this.sendProgress(step, message, details),
       this.codexAuthSettings,
+      this.credentialProvider,
     );
   }
 

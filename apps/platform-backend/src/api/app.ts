@@ -4,11 +4,9 @@ import helmet from "helmet";
 import path from "path";
 import { existsSync } from "fs";
 import cookieParser from "cookie-parser";
-import createError from "http-errors";
 import logger from "../config/logger";
 import passport from "passport";
 import type { ExtendedRequest } from "../webhooks/middleware/rawBody";
-import type { ErrorRequestHandler } from "express";
 
 // Import routes
 import projectsRouter from "./routes/projects";
@@ -27,6 +25,10 @@ import {
   maliciousRequestBlocker,
   suspiciousIpTracker,
 } from "./middleware/maliciousRequestBlocker";
+import {
+  notFoundHandler,
+  applicationErrorHandler,
+} from "./middleware/notFoundHandling";
 
 function resolvePublicDirectory(): string {
   const cwd = process.cwd();
@@ -154,61 +156,7 @@ app.use("/api/secrets", secretsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 
-// Catch 404 and forward to error handler
-app.use((req, res, next) => {
-  // Log 404 errors with request details for debugging
-  logger.warn("Route not found", {
-    method: req.method,
-    url: req.url,
-    originalUrl: req.originalUrl,
-    path: req.path,
-    ip: req.ip,
-    userAgent: req.get("user-agent"),
-  });
-  next(createError(404));
-});
-
-type Layer = {
-  route?: { path: string };
-  name: string;
-  regexp?: RegExp;
-};
-
-// Error handler
-const errorHandler: ErrorRequestHandler = (err, req, res) => {
-  // Set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
-
-  // Log error with more context for 404s
-  const logData: Record<string, unknown> = {
-    message: err.message,
-    stack: err.stack,
-    status: err.status,
-  };
-
-  if (err.status === 404) {
-    logData.method = req.method;
-    logData.url = req.url;
-    logData.originalUrl = req.originalUrl;
-    logData.path = req.path;
-    logData.routes = req.app._router?.stack
-      ?.filter((layer: Layer) => layer.route || layer.name === "router")
-      ?.map((layer: Layer) => ({
-        name: layer.name,
-        regexp: layer.regexp?.toString(),
-        path: layer.route?.path,
-      }));
-  }
-
-  logger.error("Application error", logData);
-
-  // Send error response
-  res.status(err.status || 500).json({
-    error: err.message || "Internal server error",
-    ...(req.app.get("env") === "development" && { stack: err.stack }),
-  });
-};
-app.use(errorHandler);
+app.use(notFoundHandler);
+app.use(applicationErrorHandler);
 
 export default app;

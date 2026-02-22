@@ -85,17 +85,36 @@ These are the single source of truth instructions for agent behavior and backend
 
 When making UI changes, verify them visually using the agent-browser skill:
 
-1. Read credentials from `.agent-browser-creds` (gitignored file)
-2. Use the agent-browser skill to:
-   - Open `/login` directly before protected routes
-   - Fill email/password from `.agent-browser-creds`
-   - Click `Login`, then wait for URL change away from `/login` (or confirm a known authenticated page element)
-   - If still on `/login`, retry once with a fresh open to `/login`
-   - Only after successful auth, navigate to the target page
-   - For async forms, wait for options/data to load before asserting state
-   - Take screenshots of affected UI areas
-   - Interact with forms/components as needed to verify functionality
-3. Review screenshots to confirm visual changes match expectations
+1. Read credentials from `.agent-browser-creds` (gitignored file):
+   - `cat .agent-browser-creds`
+2. Login flow (run each command as its own standalone command; do not chain):
+   - `agent-browser --session ui-verify open http://localhost:3000/login`
+   - `agent-browser --session ui-verify wait --load networkidle`
+   - `agent-browser --session ui-verify snapshot -i`
+   - `agent-browser --session ui-verify fill @e1 "<username-from-.agent-browser-creds>"`
+   - `agent-browser --session ui-verify fill @e2 "<password-from-.agent-browser-creds>"`
+   - `agent-browser --session ui-verify click @e5`
+   - `agent-browser --session ui-verify wait --fn "location.pathname !== '/login'"`
+   - If the wait command returns an intermittent daemon read error, use `agent-browser --session ui-verify wait 1500` and then verify with `get url` + `snapshot -i`.
+   - `agent-browser --session ui-verify get url`
+   - `agent-browser --session ui-verify snapshot -i`
+3. Success criteria:
+   - URL is not `/login` (in this app successful login usually lands on `/`, not `/dashboard`).
+   - Authenticated navigation elements are present (e.g. `Dashboard`, `Clankers`, `Secrets`).
+4. If still on `/login`, retry once:
+   - `agent-browser --session ui-verify open http://localhost:3000/login`
+   - Repeat snapshot/fill/click/wait commands.
+5. Only after successful auth, navigate to the target page and validate UI behavior:
+   - Re-run `snapshot -i` after each major page change before interacting.
+   - For async forms, wait for data/options before asserting state.
+   - Take screenshots of affected areas: `agent-browser --session ui-verify screenshot --full`
+6. Review screenshots to confirm visual changes match expectations.
+
+Agent-browser reliability guardrails in this environment:
+- Never chain agent-browser commands with shell operators (`;`, `&&`, `||`, `|`) or command substitution (`$()`).
+- Never run multiple agent-browser commands in parallel against the same session.
+- Prefer one explicit `agent-browser ...` command per tool invocation.
+- If `@e*` refs change, use semantic locators instead (for example: `agent-browser --session ui-verify find label "Email" fill "<username>"`).
 
 **Credential file format:**
 ```
