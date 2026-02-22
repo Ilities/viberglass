@@ -11,6 +11,7 @@ import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
 import type { Clanker, Project } from "@viberglass/types";
+import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
 
 export interface InlineInstructionFile {
   fileType: string;
@@ -38,6 +39,7 @@ export class TicketExecutionService {
   private jobService = new JobService();
   private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
+  private ticketMediaExecutionService = new TicketMediaExecutionService();
 
   private normalizeInstructionFile(
     file: Partial<InlineInstructionFile> | null | undefined,
@@ -246,6 +248,11 @@ export class TicketExecutionService {
         executionClanker,
         instructionFiles || [],
       );
+      const ticketMediaExecution =
+        await this.ticketMediaExecutionService.prepareForExecution(
+          ticket,
+          executionClanker,
+        );
 
       // Generate jobId
       const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
@@ -262,6 +269,9 @@ export class TicketExecutionService {
           ticketId: ticket.id,
           stepsToReproduce: ticket.description,
           instructionFiles: mergedInstructionFiles,
+          ...(ticketMediaExecution.media.length > 0
+            ? { ticketMedia: ticketMediaExecution.media }
+            : {}),
         },
         settings: {
           testRequired: false,
@@ -269,6 +279,9 @@ export class TicketExecutionService {
         },
         scm: normalizedScmConfigWithCredential,
         overrides,
+        ...(ticketMediaExecution.mounts.length > 0
+          ? { mounts: ticketMediaExecution.mounts }
+          : {}),
         timestamp: Date.now(),
       };
 

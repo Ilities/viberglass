@@ -55,6 +55,19 @@ export interface ScmPayload {
   credentialSecretId?: string | null;
 }
 
+export interface TicketMediaPayload {
+  id: string;
+  kind: "screenshot" | "recording";
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+  storageUrl: string;
+  mountPath?: string;
+  s3Url?: string;
+  accessUrl?: string;
+}
+
 /**
  * Shared fields across all worker payload types
  */
@@ -75,6 +88,7 @@ export interface BaseWorkerPayload {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    ticketMedia?: TicketMediaPayload[];
   };
   settings?: {
     maxChanges?: number;
@@ -172,6 +186,7 @@ export interface CodingJobData {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    ticketMedia?: TicketMediaPayload[];
   };
   settings?: {
     maxChanges?: number;

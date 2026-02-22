@@ -49,6 +49,19 @@ export interface SecretMetadata {
   updatedAt: string;
 }
 
+export interface TicketMediaContext {
+  id: string;
+  kind: "screenshot" | "recording";
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+  storageUrl: string;
+  mountPath?: string;
+  s3Url?: string;
+  accessUrl?: string;
+}
+
 export interface ExecutionContext {
   // Repository
   repoUrl: string;
@@ -67,6 +80,7 @@ export interface ExecutionContext {
   stackTrace?: string;
   consoleErrors?: string[];
   affectedFiles?: string[];
+  ticketMedia?: TicketMediaContext[];
 
   // Constraints
   maxChanges: number;
