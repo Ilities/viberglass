@@ -35,7 +35,12 @@ export const notFoundHandler: RequestHandler = (req, _res, next) => {
   next(createError(404));
 };
 
-export const applicationErrorHandler: ErrorRequestHandler = (err, req, res) => {
+export const applicationErrorHandler: ErrorRequestHandler = (
+  err,
+  req,
+  res,
+  _next,
+) => {
   if (err.status === 404) {
     res.status(404).json({
       error: err.message || "Not Found",
