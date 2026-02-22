@@ -1,6 +1,7 @@
 import Joi from "joi";
 import { Request, Response, NextFunction } from "express";
 import type { MulterError } from "multer";
+import { createChildLogger } from "../../config/logger";
 import {
   ticketSchema,
   projectSchema,
@@ -27,18 +28,65 @@ import {
   forgotPasswordSchema,
 } from "./schemas";
 
+const logger = createChildLogger({ middleware: "validation" });
+
+interface ValidatorLoggingOptions {
+  name: string;
+  logSuccess?: boolean;
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getBodyKeys(body: unknown): string[] {
+  return isObjectRecord(body) ? Object.keys(body) : [];
+}
+
+function getStringField(body: unknown, field: string): string | null {
+  if (!isObjectRecord(body)) {
+    return null;
+  }
+
+  const value = body[field];
+  return typeof value === "string" ? value : null;
+}
+
+function getStringFieldLength(body: unknown, field: string): number | null {
+  const value = getStringField(body, field);
+  return value === null ? null : value.length;
+}
+
 /**
  * Factory function that creates validation middleware from a Joi schema.
  * Handles the standard validation flow: validate req.body, return 400 on error,
  * replace req.body with validated value on success.
  *
  * @param schema - Joi schema to validate against
+ * @param options - Logging options for the validator
  * @returns Express middleware function
  */
-function createValidator(schema: Joi.Schema) {
+function createValidator(
+  schema: Joi.Schema,
+  options?: ValidatorLoggingOptions,
+) {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.body);
     if (error) {
+      if (options) {
+        logger.warn("Request payload validation failed", {
+          validator: options.name,
+          method: req.method,
+          path: req.originalUrl || req.path,
+          bodyKeys: getBodyKeys(req.body),
+          authJsonLength: getStringFieldLength(req.body, "authJson"),
+          details: error.details.map((detail) => ({
+            field: detail.path.join("."),
+            message: detail.message,
+          })),
+        });
+      }
+
       return res.status(400).json({
         error: "Validation error",
         details: error.details.map((detail) => ({
@@ -47,6 +95,18 @@ function createValidator(schema: Joi.Schema) {
         })),
       });
     }
+
+    if (options?.logSuccess) {
+      logger.info("Request payload validation succeeded", {
+        validator: options.name,
+        method: req.method,
+        path: req.originalUrl || req.path,
+        bodyKeys: getBodyKeys(value),
+        secretName: getStringField(value, "secretName"),
+        authJsonLength: getStringFieldLength(value, "authJson"),
+      });
+    }
+
     req.body = value;
     next();
   };
@@ -69,7 +129,10 @@ export const validateUpdateDeploymentStrategy = createValidator(
 export const validateResultCallback = createValidator(resultCallbackSchema);
 export const validateRunTicket = createValidator(runTicketSchema);
 export const validateProgressUpdate = createValidator(progressUpdateSchema);
-export const validateCodexAuthCache = createValidator(codexAuthCacheSchema);
+export const validateCodexAuthCache = createValidator(codexAuthCacheSchema, {
+  name: "codexAuthCache",
+  logSuccess: true,
+});
 export const validateLogEntry = createValidator(logEntrySchema);
 export const validateLogBatch = createValidator(logBatchSchema);
 export const validateCreateSecret = createValidator(secretSchema);
