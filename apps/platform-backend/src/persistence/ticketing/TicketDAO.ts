@@ -11,6 +11,7 @@ import type {
   TicketStats,
   TicketSystem,
 } from "@viberglass/types";
+import { buildMediaContentUrl } from "../../services/ticket-media/publicApiUrl";
 
 type TicketsRow = Selectable<Database["tickets"]>;
 
@@ -49,7 +50,7 @@ export class TicketDAO {
             filename: screenshotAsset.filename,
             mime_type: screenshotAsset.mimeType,
             size: screenshotAsset.size,
-            url: screenshotAsset.url,
+            url: screenshotAsset.storageUrl || screenshotAsset.url,
             uploaded_at: screenshotAsset.uploadedAt,
           })
           .execute();
@@ -64,7 +65,7 @@ export class TicketDAO {
             filename: recordingAsset.filename,
             mime_type: recordingAsset.mimeType,
             size: recordingAsset.size,
-            url: recordingAsset.url,
+            url: recordingAsset.storageUrl || recordingAsset.url,
             uploaded_at: recordingAsset.uploadedAt,
           })
           .execute();
@@ -100,7 +101,7 @@ export class TicketDAO {
           screenshot_filename: screenshotAsset.filename,
           screenshot_mime_type: screenshotAsset.mimeType,
           screenshot_size: screenshotAsset.size,
-          screenshot_url: screenshotAsset.url,
+          screenshot_url: screenshotAsset.storageUrl || screenshotAsset.url,
           screenshot_uploaded_at: new Date(),
         }),
         ...(recordingAsset && {
@@ -108,7 +109,7 @@ export class TicketDAO {
           recording_filename: recordingAsset.filename,
           recording_mime_type: recordingAsset.mimeType,
           recording_size: recordingAsset.size,
-          recording_url: recordingAsset.url,
+          recording_url: recordingAsset.storageUrl || recordingAsset.url,
           recording_uploaded_at: new Date(),
         }),
       });
@@ -394,6 +395,28 @@ export class TicketDAO {
     };
   }
 
+  async getMediaAssetById(mediaId: string): Promise<MediaAsset | null> {
+    const row = await db
+      .selectFrom("media_assets")
+      .selectAll()
+      .where("id", "=", mediaId)
+      .executeTakeFirst();
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      filename: row.filename,
+      mimeType: row.mime_type,
+      size: Number(row.size),
+      url: buildMediaContentUrl(row.id),
+      storageUrl: row.url,
+      uploadedAt: this.toISOString(row.uploaded_at),
+    };
+  }
+
   private toISOString(date: unknown): string {
     if (date instanceof Date) return date.toISOString();
     if (typeof date === "string") return date;
@@ -408,7 +431,8 @@ export class TicketDAO {
         filename: String(row.screenshot_filename),
         mimeType: String(row.screenshot_mime_type),
         size: Number(row.screenshot_size),
-        url: String(row.screenshot_url),
+        url: buildMediaContentUrl(String(row.screenshot_id)),
+        storageUrl: String(row.screenshot_url),
         uploadedAt: this.toISOString(row.screenshot_uploaded_at),
       };
     }
@@ -420,7 +444,8 @@ export class TicketDAO {
         filename: String(row.recording_filename),
         mimeType: String(row.recording_mime_type),
         size: Number(row.recording_size),
-        url: String(row.recording_url),
+        url: buildMediaContentUrl(String(row.recording_id)),
+        storageUrl: String(row.recording_url),
         uploadedAt: this.toISOString(row.recording_uploaded_at),
       };
     }

@@ -125,6 +125,47 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// GET /api/tickets/media/:mediaId/content - Stream media content
+router.get(
+  "/media/:mediaId/content",
+  validateUuidParam("mediaId"),
+  async (req, res) => {
+    try {
+      const media = await ticketService.getMediaAssetById(req.params.mediaId);
+
+      if (!media) {
+        return res.status(404).json({
+          error: "Media asset not found",
+        });
+      }
+
+      const source = media.storageUrl || media.url;
+      if (source.startsWith("file://")) {
+        const filePath = decodeURIComponent(new URL(source).pathname);
+        return res.sendFile(filePath, {
+          headers: {
+            "Content-Type": media.mimeType,
+            "Content-Disposition": `inline; filename="${media.filename}"`,
+          },
+        });
+      }
+
+      const signedUrl =
+        await fileUploadService.generateSignedUrlFromStorageUrl(source, 3600);
+      return res.redirect(signedUrl);
+    } catch (error) {
+      logger.error("Error streaming media asset", {
+        mediaId: req.params.mediaId,
+        error: error instanceof Error ? error.message : error,
+      });
+      return res.status(500).json({
+        error: "Internal server error",
+        message: "Failed to stream media asset",
+      });
+    }
+  },
+);
+
 // GET /api/tickets/:id - Get a specific ticket
 router.get("/:id", validateUuidParam("id"), async (req, res) => {
   try {
@@ -302,9 +343,11 @@ router.get(
         });
       }
 
-      // Generate signed URL
-      const key = fileUploadService.getKeyFromUrl(mediaAsset.url);
-      const signedUrl = await fileUploadService.generateSignedUrl(key, 3600); // 1 hour expiry
+      const source = mediaAsset.storageUrl || mediaAsset.url;
+      const signedUrl =
+        source.startsWith("file://")
+          ? fileUploadService.getMediaContentUrl(mediaId)
+          : await fileUploadService.generateSignedUrlFromStorageUrl(source, 3600);
 
       res.json({
         success: true,

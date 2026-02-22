@@ -9,6 +9,7 @@ import { getClankerProvisioner } from "../../../provisioning/provisioningFactory
 import { JobService } from "../../../services/JobService";
 import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../../workers";
+import { TicketMediaExecutionService } from "../../../services/TicketMediaExecutionService";
 
 // Mock dependencies
 jest.mock("../../../persistence/ticketing/TicketDAO");
@@ -22,6 +23,7 @@ jest.mock("../../../provisioning/provisioningFactory", () => ({
 jest.mock("../../../services/JobService");
 jest.mock("../../../services/CredentialRequirementsService");
 jest.mock("../../../workers/WorkerExecutionService");
+jest.mock("../../../services/TicketMediaExecutionService");
 
 describe("TicketExecutionService", () => {
   let service: TicketExecutionService;
@@ -34,6 +36,7 @@ describe("TicketExecutionService", () => {
   let mockJobService: jest.Mocked<JobService>;
   let mockCredentialRequirementsService: jest.Mocked<CredentialRequirementsService>;
   let mockWorkerExecutionService: jest.Mocked<WorkerExecutionService>;
+  let mockTicketMediaExecutionService: jest.Mocked<TicketMediaExecutionService>;
 
   const mockedGetClankerProvisioner = jest.mocked(getClankerProvisioner);
 
@@ -57,6 +60,8 @@ describe("TicketExecutionService", () => {
       new CredentialRequirementsService() as jest.Mocked<CredentialRequirementsService>;
     mockWorkerExecutionService =
       new WorkerExecutionService() as jest.Mocked<WorkerExecutionService>;
+    mockTicketMediaExecutionService =
+      new TicketMediaExecutionService() as jest.Mocked<TicketMediaExecutionService>;
 
     (TicketDAO as jest.Mock).mockImplementation(() => mockTicketDAO);
     (ProjectDAO as jest.Mock).mockImplementation(() => mockProjectDAO);
@@ -75,6 +80,13 @@ describe("TicketExecutionService", () => {
     (WorkerExecutionService as jest.Mock).mockImplementation(
       () => mockWorkerExecutionService,
     );
+    (TicketMediaExecutionService as jest.Mock).mockImplementation(
+      () => mockTicketMediaExecutionService,
+    );
+    mockTicketMediaExecutionService.prepareForExecution.mockResolvedValue({
+      media: [],
+      mounts: [],
+    });
 
     service = new TicketExecutionService();
   });
@@ -264,6 +276,93 @@ describe("TicketExecutionService", () => {
 
     await expect(service.runTicket(ticketId, { clankerId })).rejects.toThrow(
       /Selected clanker is inactive/,
+    );
+  });
+
+  it("includes prepared ticket media and mounts in job submission context", async () => {
+    const ticketId = "ticket-123";
+    const clankerId = "clanker-456";
+    const projectId = "project-789";
+
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: ticketId,
+      projectId,
+      title: "Ticket With Media",
+      description: "Contains screenshot and recording",
+    } as any);
+    mockProjectDAO.getProject.mockResolvedValue({
+      id: projectId,
+      name: "Test Project",
+      repositoryUrl: "https://github.com/test/repo",
+    } as any);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockIntegrationCredentialDAO.getById.mockResolvedValue(null);
+    mockClankerDAO.getClanker.mockResolvedValue({
+      id: clankerId,
+      status: "active",
+      deploymentStrategyId: "strategy-1",
+      secretIds: [],
+    } as any);
+    mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({
+      status: "active",
+    } as any);
+    mockTicketMediaExecutionService.prepareForExecution.mockResolvedValue({
+      media: [
+        {
+          id: "media-1",
+          kind: "screenshot",
+          filename: "shot.png",
+          mimeType: "image/png",
+          size: 1024,
+          uploadedAt: new Date().toISOString(),
+          storageUrl: "file:///tmp/viberator-ticket-media/screenshots/media-1.png",
+          mountPath: "/tmp/viberator-ticket-media/screenshots/media-1.png",
+        },
+      ],
+      mounts: [
+        {
+          hostPath: "/tmp/viberator-ticket-media/screenshots/media-1.png",
+          containerPath: "/tmp/viberator-ticket-media/screenshots/media-1.png",
+          readOnly: true,
+        },
+      ],
+    });
+    mockJobService.submitJob.mockResolvedValue({
+      jobId: "job-123",
+      status: "active",
+      timestamp: new Date().toISOString(),
+      callbackToken: "token-123",
+    });
+    mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue(
+      [],
+    );
+    mockWorkerExecutionService.executeJob.mockResolvedValue({
+      success: true,
+      executionId: "exec-123",
+      attempts: 1,
+    });
+
+    await service.runTicket(ticketId, { clankerId });
+
+    expect(mockJobService.submitJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          ticketMedia: expect.arrayContaining([
+            expect.objectContaining({
+              id: "media-1",
+              kind: "screenshot",
+              mountPath: "/tmp/viberator-ticket-media/screenshots/media-1.png",
+            }),
+          ]),
+        }),
+        mounts: expect.arrayContaining([
+          expect.objectContaining({
+            hostPath: "/tmp/viberator-ticket-media/screenshots/media-1.png",
+            containerPath: "/tmp/viberator-ticket-media/screenshots/media-1.png",
+          }),
+        ]),
+      }),
+      expect.any(Object),
     );
   });
 });
