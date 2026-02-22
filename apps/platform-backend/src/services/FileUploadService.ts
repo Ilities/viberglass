@@ -23,7 +23,7 @@ import { parseMediaLocation } from "./ticket-media/mediaLocation";
 const logger = createChildLogger({ service: "FileUploadService" });
 
 const region = process.env.AWS_REGION || "eu-west-1";
-const bucketName = process.env.AWS_S3_BUCKET?.trim() || "viberglass-media";
+const bucketName = process.env.AWS_S3_BUCKET?.trim() || "";
 const hasS3Bucket = bucketName.length > 0;
 
 function createS3Client(): S3Client {

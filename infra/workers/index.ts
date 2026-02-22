@@ -27,6 +27,8 @@ const config = getConfig();
 const slackConfig = new pulumi.Config("slack");
 const slackAppEnabled = slackConfig.getBoolean("enabled") ?? false;
 const tenantConfigPathPrefix = "/viberator/tenants";
+const uploadsBucketArn = `arn:aws:s3:::${config.uploadsBucketName}`;
+const uploadsBucketObjectArn = `${uploadsBucketArn}/*`;
 const workerSsmParameterArns = [
   `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/tenants/*`,
   `arn:aws:ssm:${config.awsRegion}:*:parameter/viberator/tenants/*`,
@@ -241,6 +243,36 @@ new aws.iam.RolePolicyAttachment(
   },
 );
 
+const lambdaS3Policy = new aws.iam.Policy(
+  `${config.environment}-viberglass-lambda-s3-policy`,
+  {
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: ["s3:GetObject"],
+          Effect: "Allow",
+          Resource: uploadsBucketObjectArn,
+        },
+        {
+          Action: ["s3:ListBucket"],
+          Effect: "Allow",
+          Resource: uploadsBucketArn,
+        },
+      ],
+    },
+    tags: config.tags,
+  },
+);
+
+new aws.iam.RolePolicyAttachment(
+  `${config.environment}-viberglass-lambda-s3`,
+  {
+    role: lambdaRole.name,
+    policyArn: lambdaS3Policy.arn,
+  },
+);
+
 // KMS decrypt permission for Lambda
 new aws.iam.RolePolicy(`${config.environment}-viberglass-lambda-kms`, {
   role: lambdaRole.name,
@@ -272,6 +304,9 @@ const workerLambda = new aws.lambda.Function(
         CLAUDE_CONFIG_DIR: "/tmp/config",
         SECRETS_SSM_PREFIX: "/viberator/secrets",
         TENANT_CONFIG_PATH_PREFIX: tenantConfigPathPrefix,
+        AWS_REGION: config.awsRegion,
+        AWS_S3_BUCKET: config.uploadsBucketName,
+        TICKET_MEDIA_S3_PREFIX: config.ticketMediaS3Prefix,
       },
     },
     tags: config.tags,
@@ -609,6 +644,36 @@ new aws.iam.RolePolicyAttachment(
   },
 );
 
+const ecsS3Policy = new aws.iam.Policy(
+  `${config.environment}-viberglass-ecs-s3-policy`,
+  {
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: ["s3:GetObject"],
+          Effect: "Allow",
+          Resource: uploadsBucketObjectArn,
+        },
+        {
+          Action: ["s3:ListBucket"],
+          Effect: "Allow",
+          Resource: uploadsBucketArn,
+        },
+      ],
+    },
+    tags: config.tags,
+  },
+);
+
+new aws.iam.RolePolicyAttachment(
+  `${config.environment}-viberglass-ecs-task-s3`,
+  {
+    role: ecsTaskRole.name,
+    policyArn: ecsS3Policy.arn,
+  },
+);
+
 // KMS decrypt permission for ECS task
 new aws.iam.RolePolicy(`${config.environment}-viberglass-ecs-kms`, {
   role: ecsTaskRole.name,
@@ -634,8 +699,13 @@ const workerTaskDefinition = new aws.ecs.TaskDefinition(
     executionRoleArn: ecsTaskExecutionRole.arn,
     taskRoleArn: ecsTaskRole.arn,
     containerDefinitions: pulumi
-      .all([ecsImage.imageUri, ecsWorkerLogGroupName])
-      .apply(([imageUri, logGroupName]) =>
+      .all([
+        ecsImage.imageUri,
+        ecsWorkerLogGroupName,
+        pulumi.output(config.uploadsBucketName),
+        pulumi.output(config.ticketMediaS3Prefix),
+      ])
+      .apply(([imageUri, logGroupName, uploadsBucketName, ticketMediaS3Prefix]) =>
         JSON.stringify([
           {
             name: "viberator-worker",
@@ -653,6 +723,9 @@ const workerTaskDefinition = new aws.ecs.TaskDefinition(
               { name: "NODE_ENV", value: "production" },
               { name: "WORK_DIR", value: "/tmp/viberator-work" },
               { name: "SECRETS_SSM_PREFIX", value: "/viberator/secrets" },
+              { name: "AWS_REGION", value: config.awsRegion },
+              { name: "AWS_S3_BUCKET", value: uploadsBucketName },
+              { name: "TICKET_MEDIA_S3_PREFIX", value: ticketMediaS3Prefix },
               {
                 name: "TENANT_CONFIG_PATH_PREFIX",
                 value: tenantConfigPathPrefix,
