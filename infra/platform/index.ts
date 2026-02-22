@@ -289,6 +289,8 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   platformApiUrl: config.apiDomain
     ? pulumi.interpolate`https://${config.apiDomain}`
     : pulumi.interpolate`http://${loadBalancer.albDnsName}`,
+  uploadsBucketName: storage.bucketName,
+  ticketMediaS3Prefix: "ticket-media",
   // Pass worker infrastructure values for clanker ECS provisioning
   worker: workerExecutionRoleArn
     ? {
