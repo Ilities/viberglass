@@ -304,7 +304,6 @@ const workerLambda = new aws.lambda.Function(
         CLAUDE_CONFIG_DIR: "/tmp/config",
         SECRETS_SSM_PREFIX: "/viberator/secrets",
         TENANT_CONFIG_PATH_PREFIX: tenantConfigPathPrefix,
-        AWS_REGION: config.awsRegion,
         AWS_S3_BUCKET: config.uploadsBucketName,
         TICKET_MEDIA_S3_PREFIX: config.ticketMediaS3Prefix,
       },

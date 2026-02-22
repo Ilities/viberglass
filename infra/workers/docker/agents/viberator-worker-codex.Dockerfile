@@ -16,6 +16,7 @@ RUN npm install -g @openai/codex
 RUN which codex || echo "Warning: codex not found in PATH"
 
 ENV AGENT_TYPE=codex
+ENV CODEX_HOME=/tmp/codex-config
 ENV CODEX_CONFIG_DIR=/tmp/codex-config
 
 # Add Codex-specific labels

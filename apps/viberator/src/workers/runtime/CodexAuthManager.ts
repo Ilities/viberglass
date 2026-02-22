@@ -102,6 +102,18 @@ export function decodeCodexAuthFromSharedValue(secretValue: string): string {
   return gunzipSync(decodedBuffer).toString("utf-8");
 }
 
+export function normalizeCodexHomeEnv(env: NodeJS.ProcessEnv): void {
+  const codexHome = env.CODEX_HOME?.trim();
+  if (codexHome) {
+    return;
+  }
+
+  const legacyConfigDir = env.CODEX_CONFIG_DIR?.trim();
+  if (legacyConfigDir) {
+    env.CODEX_HOME = legacyConfigDir;
+  }
+}
+
 export class CodexAuthManager {
   constructor(
     private readonly logger: Logger,
@@ -214,9 +226,10 @@ export class CodexAuthManager {
   }
 
   private getPrimaryAuthFilePath(): string {
+    normalizeCodexHomeEnv(process.env);
     const configDir =
-      process.env.CODEX_CONFIG_DIR ||
       process.env.CODEX_HOME ||
+      process.env.CODEX_CONFIG_DIR ||
       path.join(os.homedir(), ".codex");
     return path.join(configDir, "auth.json");
   }
