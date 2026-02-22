@@ -1,6 +1,11 @@
 import Joi from "joi";
 import { SUPPORTED_AGENT_TYPES } from "@viberglass/types";
 import { integrationRegistry } from "../../integration-plugins";
+import {
+  instructionPathErrorMessage,
+  isAllowedInstructionPath,
+  normalizeInstructionPath,
+} from "../../services/instructions/pathPolicy";
 
 const ticketSystemIds = integrationRegistry.listIds();
 
@@ -143,12 +148,30 @@ export const projectScmConfigSchema = Joi.object({
 
 // Config file schema for clankers
 const configFileSchema = Joi.object({
-  fileType: Joi.string().min(1).max(100).required(),
+  fileType: Joi.string()
+    .min(1)
+    .max(300)
+    .custom((value, helpers) => {
+      if (!isAllowedInstructionPath(value)) {
+        return helpers.message({ custom: instructionPathErrorMessage(value) });
+      }
+      return normalizeInstructionPath(value);
+    })
+    .required(),
   content: Joi.string().required(),
 });
 
 const runInstructionFileSchema = Joi.object({
-  fileType: Joi.string().min(1).max(200).required(),
+  fileType: Joi.string()
+    .min(1)
+    .max(300)
+    .custom((value, helpers) => {
+      if (!isAllowedInstructionPath(value)) {
+        return helpers.message({ custom: instructionPathErrorMessage(value) });
+      }
+      return normalizeInstructionPath(value);
+    })
+    .required(),
   content: Joi.string().max(200000).required(),
 });
 

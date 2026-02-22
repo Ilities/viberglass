@@ -193,6 +193,7 @@ export interface ClankerConfigFilesTable {
   clanker_id: string;
   file_type: string;
   content: string;
+  storage_url: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

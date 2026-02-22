@@ -48,7 +48,7 @@ export class LambdaInvoker implements WorkerInvoker {
       );
     }
 
-    const payload = await this.buildPayload(job, clanker, project);
+    const payload = job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
 
     try {
       const command = new InvokeCommand({
@@ -158,6 +158,7 @@ export class LambdaInvoker implements WorkerInvoker {
       baseBranch: job.baseBranch,
       context: job.context,
       settings: job.settings,
+      instructionFiles: job.context?.instructionFiles ?? [],
       deploymentConfig: clanker.deploymentConfig,
       agent: clanker.agent || DEFAULT_AGENT_TYPE,
       secrets: secretMetadata,

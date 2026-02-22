@@ -13,10 +13,21 @@ import type {
   AgentType,
 } from "@viberglass/types";
 import { DEFAULT_AGENT_TYPE, SUPPORTED_AGENT_TYPES } from "@viberglass/types";
+import { createChildLogger } from "../../config/logger";
+import {
+  InstructionStorageService,
+  InstructionStrategyType,
+} from "../../services/instructions/InstructionStorageService";
+import {
+  instructionPathErrorMessage,
+  isAllowedInstructionPath,
+  normalizeInstructionPath,
+} from "../../services/instructions/pathPolicy";
 
 type ClankersRow = Selectable<Database["clankers"]>;
 type ClankerConfigFilesRow = Selectable<Database["clanker_config_files"]>;
 
+const logger = createChildLogger({ dao: "ClankerDAO" });
 const validAgentTypeSet = new Set<string>(SUPPORTED_AGENT_TYPES);
 
 function isValidAgentType(value: unknown): value is AgentType {
@@ -41,19 +52,66 @@ const slugify = (text: string) =>
     .replace(/[^\w-]+/g, "")
     .replace(/--+/g, "-");
 
+function normalizeStrategyName(name: string | null | undefined): InstructionStrategyType {
+  const normalized = (name || "").toLowerCase();
+  if (normalized === "ecs") {
+    return "ecs";
+  }
+  if (normalized === "lambda" || normalized === "aws-lambda-container") {
+    return "lambda";
+  }
+
+  return "docker";
+}
+
+function readStrategyTypeFromConfig(config: unknown): InstructionStrategyType | null {
+  if (!config) {
+    return null;
+  }
+
+  let parsed = config;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return null;
+  }
+
+  const strategy = (parsed as { strategy?: { type?: unknown } }).strategy;
+  if (!strategy || typeof strategy.type !== "string") {
+    return null;
+  }
+
+  if (strategy.type === "ecs") {
+    return "ecs";
+  }
+
+  if (strategy.type === "lambda") {
+    return "lambda";
+  }
+
+  return "docker";
+}
+
 export class ClankerDAO {
+  private readonly instructionStorage = new InstructionStorageService();
+
   async createClanker(request: CreateClankerRequest): Promise<Clanker> {
     const clankerId = uuidv4();
     const timestamp = new Date();
     const slug = slugify(request.name);
 
-    // Insert the clanker
     await db
       .insertInto("clankers")
       .values({
         id: clankerId,
         name: request.name,
-        slug: slug,
+        slug,
         description: request.description || null,
         deployment_strategy_id: request.deploymentStrategyId || null,
         deployment_config: request.deploymentConfig
@@ -68,9 +126,9 @@ export class ClankerDAO {
       })
       .execute();
 
-    // Insert config files if provided
     if (request.configFiles && request.configFiles.length > 0) {
-      await this.upsertConfigFiles(clankerId, request.configFiles);
+      const strategyType = await this.resolveClankerStrategyType(clankerId);
+      await this.upsertConfigFiles(clankerId, request.configFiles, strategyType);
     }
 
     return this.getClanker(clankerId) as Promise<Clanker>;
@@ -183,9 +241,9 @@ export class ClankerDAO {
       .where("id", "=", id)
       .execute();
 
-    // Update config files if provided
     if (updates.configFiles !== undefined) {
-      await this.upsertConfigFiles(id, updates.configFiles);
+      const strategyType = await this.resolveClankerStrategyType(id);
+      await this.upsertConfigFiles(id, updates.configFiles, strategyType);
     }
 
     return this.getClanker(id) as Promise<Clanker>;
@@ -233,7 +291,18 @@ export class ClankerDAO {
   }
 
   async deleteClanker(id: string): Promise<void> {
-    // Config files are deleted automatically via cascade
+    const existing = await db
+      .selectFrom("clanker_config_files")
+      .selectAll()
+      .where("clanker_id", "=", id)
+      .execute();
+
+    for (const file of existing) {
+      if (file.storage_url) {
+        await this.instructionStorage.deleteInstruction(file.storage_url);
+      }
+    }
+
     await db.deleteFrom("clankers").where("id", "=", id).execute();
   }
 
@@ -245,7 +314,7 @@ export class ClankerDAO {
     await db
       .updateTable("clankers")
       .set({
-        status: status,
+        status,
         status_message: statusMessage ?? null,
         updated_at: new Date(),
       })
@@ -255,7 +324,6 @@ export class ClankerDAO {
     return this.getClanker(id) as Promise<Clanker>;
   }
 
-  // Config file methods
   async getConfigFiles(clankerId: string): Promise<ClankerConfigFile[]> {
     const rows = await db
       .selectFrom("clanker_config_files")
@@ -264,7 +332,12 @@ export class ClankerDAO {
       .orderBy("file_type", "asc")
       .execute();
 
-    return rows.map((row) => this.mapRowToConfigFile(row));
+    const files: ClankerConfigFile[] = [];
+    for (const row of rows) {
+      files.push(await this.mapRowToConfigFile(row));
+    }
+
+    return files;
   }
 
   async getConfigFile(
@@ -286,71 +359,115 @@ export class ClankerDAO {
   async upsertConfigFiles(
     clankerId: string,
     configFiles: ConfigFileInput[],
+    strategyType: InstructionStrategyType,
   ): Promise<void> {
-    // Delete existing config files not in the new list
-    const newFileTypes = configFiles.map((f) => f.fileType);
+    const existingRows = await db
+      .selectFrom("clanker_config_files")
+      .selectAll()
+      .where("clanker_id", "=", clankerId)
+      .execute();
 
-    if (newFileTypes.length > 0) {
-      await db
-        .deleteFrom("clanker_config_files")
-        .where("clanker_id", "=", clankerId)
-        .where("file_type", "not in", newFileTypes)
-        .execute();
-    } else {
-      // If no new files, delete all existing
-      await db
-        .deleteFrom("clanker_config_files")
-        .where("clanker_id", "=", clankerId)
-        .execute();
+    const existingByPath = new Map(
+      existingRows.map((row) => [row.file_type.toLowerCase(), row]),
+    );
+    const nextByPath = new Map<string, ConfigFileInput>();
+
+    for (const file of configFiles) {
+      const fileType = normalizeInstructionPath(file.fileType);
+      const content = typeof file.content === "string" ? file.content : "";
+      if (!isAllowedInstructionPath(fileType)) {
+        throw new Error(instructionPathErrorMessage(fileType));
+      }
+      if (!content.trim()) {
+        continue;
+      }
+
+      nextByPath.set(fileType.toLowerCase(), {
+        fileType,
+        content,
+      });
     }
 
-    // Upsert each config file
-    for (const file of configFiles) {
-      if (!file.content || file.content.trim() === "") {
-        // Delete if content is empty
+    for (const [key, row] of existingByPath.entries()) {
+      if (nextByPath.has(key)) {
+        continue;
+      }
+
+      await db
+        .deleteFrom("clanker_config_files")
+        .where("clanker_id", "=", clankerId)
+        .where("file_type", "=", row.file_type)
+        .execute();
+
+      if (row.storage_url) {
+        await this.instructionStorage.deleteInstruction(row.storage_url);
+      }
+    }
+
+    for (const [key, file] of nextByPath.entries()) {
+      const existing = existingByPath.get(key);
+      const storageUrl = await this.instructionStorage.storeClankerInstruction(
+        clankerId,
+        file.fileType,
+        file.content,
+        strategyType,
+      );
+
+      if (existing) {
         await db
-          .deleteFrom("clanker_config_files")
+          .updateTable("clanker_config_files")
+          .set({
+            content: file.content,
+            storage_url: storageUrl,
+            updated_at: new Date(),
+          })
           .where("clanker_id", "=", clankerId)
-          .where("file_type", "=", file.fileType)
+          .where("file_type", "=", existing.file_type)
           .execute();
-      } else {
-        const existing = await this.getConfigFile(clankerId, file.fileType);
-        if (existing) {
-          await db
-            .updateTable("clanker_config_files")
-            .set({
-              content: file.content,
-              updated_at: new Date(),
-            })
-            .where("clanker_id", "=", clankerId)
-            .where("file_type", "=", file.fileType)
-            .execute();
-        } else {
-          await db
-            .insertInto("clanker_config_files")
-            .values({
-              id: uuidv4(),
-              clanker_id: clankerId,
-              file_type: file.fileType,
-              content: file.content,
-              created_at: new Date(),
-              updated_at: new Date(),
-            })
-            .execute();
+
+        if (existing.storage_url && existing.storage_url !== storageUrl) {
+          await this.instructionStorage.deleteInstruction(existing.storage_url);
         }
+      } else {
+        await db
+          .insertInto("clanker_config_files")
+          .values({
+            id: uuidv4(),
+            clanker_id: clankerId,
+            file_type: file.fileType,
+            content: file.content,
+            storage_url: storageUrl,
+            created_at: new Date(),
+            updated_at: new Date(),
+          })
+          .execute();
       }
     }
   }
 
   async deleteConfigFile(clankerId: string, fileType: string): Promise<void> {
+    const existing = await db
+      .selectFrom("clanker_config_files")
+      .selectAll()
+      .where("clanker_id", "=", clankerId)
+      .where("file_type", "=", fileType)
+      .executeTakeFirst();
+
     await db
       .deleteFrom("clanker_config_files")
       .where("clanker_id", "=", clankerId)
       .where("file_type", "=", fileType)
       .execute();
+
+    if (existing?.storage_url) {
+      await this.instructionStorage.deleteInstruction(existing.storage_url);
+    }
   }
 
-  private mapRowToClanker(row: ClankerWithStrategyRow, configFiles: ClankerConfigFile[]): Clanker {
+  private mapRowToClanker(
+    row: ClankerWithStrategyRow,
+    configFiles: ClankerConfigFile[],
+  ): Clanker {
     const deploymentStrategy: DeploymentStrategy | null = row.strategy_id
       ? {
           id: row.strategy_id,
@@ -403,12 +520,33 @@ export class ClankerDAO {
     };
   }
 
-  private mapRowToConfigFile(row: ClankerConfigFilesRow): ClankerConfigFile {
+  private async mapRowToConfigFile(
+    row: ClankerConfigFilesRow,
+  ): Promise<ClankerConfigFile> {
+    if (!row.storage_url) {
+      throw new Error(
+        `Instruction storage URL missing for clanker config file ${row.file_type}`,
+      );
+    }
+
+    const content = await this.instructionStorage
+      .readInstruction(row.storage_url)
+      .catch((error) => {
+        logger.error("Failed to read clanker instruction file", {
+          clankerId: row.clanker_id,
+          fileType: row.file_type,
+          storageUrl: row.storage_url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      });
+
     return {
       id: row.id,
       clankerId: row.clanker_id,
       fileType: row.file_type,
-      content: row.content,
+      content,
+      storageUrl: row.storage_url,
       createdAt:
         row.created_at instanceof Date
           ? row.created_at.toISOString()
@@ -418,6 +556,33 @@ export class ClankerDAO {
           ? row.updated_at.toISOString()
           : row.updated_at,
     };
+  }
+
+  private async resolveClankerStrategyType(
+    clankerId: string,
+  ): Promise<InstructionStrategyType> {
+    const row = await db
+      .selectFrom("clankers")
+      .leftJoin(
+        "deployment_strategies",
+        "deployment_strategies.id",
+        "clankers.deployment_strategy_id",
+      )
+      .select([
+        "clankers.deployment_config",
+        "deployment_strategies.name as strategy_name",
+      ])
+      .where("clankers.id", "=", clankerId)
+      .executeTakeFirst();
+
+    if (!row) {
+      throw new Error(`Clanker not found: ${clankerId}`);
+    }
+
+    return (
+      readStrategyTypeFromConfig(row.deployment_config) ||
+      normalizeStrategyName(row.strategy_name)
+    );
   }
 
   // Validation methods

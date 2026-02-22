@@ -9,11 +9,8 @@
  * - ClusterNotFoundException classification (permanent)
  */
 
-import { EcsInvoker } from "../../../../workers/invokers/EcsInvoker";
-import {
-  WorkerError,
-  ErrorClassification,
-} from "../../../../workers/errors/WorkerError";
+import { EcsInvoker } from "../../../../workers";
+import { ErrorClassification } from "../../../../workers";
 import type { Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
 
@@ -492,7 +489,7 @@ describe("EcsInvoker", () => {
         ]);
 
         const payload = JSON.parse(override.command[3]);
-        expect(payload.workerType).toBe("docker");
+        expect(payload.workerType).toBe("ecs");
         expect(payload.jobId).toBe(mockJob.id);
         expect(payload.tenantId).toBe(mockJob.tenantId);
         expect(payload.agent).toBe("kimi-code");
