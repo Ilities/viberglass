@@ -18,6 +18,8 @@ interface RunTicketModalProps {
 export function RunTicketModal({ ticket, clankers, project, open, onClose }: RunTicketModalProps) {
   const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
+  const configuredClankers = clankers.filter((c) => c.deploymentStrategyId)
+  const firstConfiguredClanker = configuredClankers[0]
   const [selectedClankerId, setSelectedClankerId] = useState<string>(activeClankers[0]?.id ?? '')
   const [isRunning, setIsRunning] = useState(false)
   const [extraInstructions, setExtraInstructions] = useState('')
@@ -34,6 +36,10 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
   }, [activeClankers, selectedClankerId])
 
   const selectedClanker = activeClankers.find((clanker) => clanker.id === selectedClankerId) ?? null
+  const configuredResourceLabel = getConfiguredResourceLabel(configuredClankers)
+  const noClankersMessage = configuredClankers.length > 0
+    ? `You have ${configuredClankers.length} configured clanker${configuredClankers.length === 1 ? '' : 's'}, but none are started. Start one to deploy the ${configuredResourceLabel}.`
+    : 'No clankers are configured yet. Configure and start one before running this ticket.'
 
   // Reset selection when modal opens with new ticket
   // (handled by parent re-mounting or passing key)
@@ -104,13 +110,18 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
                 ))}
               </Listbox>
             ) : (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  No active clankers available. Please configure and start a clanker first.
-                </p>
-                <Button href="/clankers" className="mt-2" color="amber">
-                  Configure Clankers
-                </Button>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/60">
+                <p className="text-sm text-zinc-700 dark:text-zinc-200">{noClankersMessage}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button href="/clankers" color="brand">
+                    Configure Clankers
+                  </Button>
+                  {firstConfiguredClanker && (
+                    <Button href={`/clankers/${firstConfiguredClanker.slug}/edit`} outline>
+                      Open Clanker Configuration
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -140,4 +151,26 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
       </DialogActions>
     </Dialog>
   )
+}
+
+function getConfiguredResourceLabel(clankers: Clanker[]): string {
+  const strategyNames = new Set(
+    clankers
+      .map((clanker) => clanker.deploymentStrategy?.name?.toLowerCase())
+      .filter((name): name is string => Boolean(name))
+  )
+
+  const hasEcs = strategyNames.has('ecs')
+  const hasDocker = strategyNames.has('docker')
+  const hasLambda = strategyNames.has('lambda') || strategyNames.has('aws-lambda-container')
+  const knownStrategyCount = [hasEcs, hasDocker, hasLambda].filter(Boolean).length
+
+  if (knownStrategyCount > 1) {
+    return 'ECS task definition, container, or Lambda function (depending on strategy)'
+  }
+
+  if (hasEcs) return 'ECS task definition'
+  if (hasDocker) return 'container'
+  if (hasLambda) return 'Lambda function'
+  return 'runtime resources'
 }
