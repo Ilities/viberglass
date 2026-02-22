@@ -199,6 +199,20 @@ export class CodexAuthManager {
     });
   }
 
+  async forceFreshDeviceAuth(jobId: string, tenantId: string): Promise<void> {
+    this.logger.warn("Forcing fresh Codex device auth after token failure", {
+      jobId,
+      tenantId,
+      mode: this.settings.mode,
+      secretName: this.settings.secretName,
+    });
+
+    await this.clearLocalAuthCacheFiles(jobId, tenantId);
+    await this.runDeviceAuthLogin(jobId, tenantId, {
+      requireAuthCacheUpload: true,
+    });
+  }
+
   private getPrimaryAuthFilePath(): string {
     const configDir =
       process.env.CODEX_CONFIG_DIR ||
@@ -222,6 +236,38 @@ export class CodexAuthManager {
     }
 
     return null;
+  }
+
+  private async clearLocalAuthCacheFiles(
+    jobId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const removedPaths: string[] = [];
+
+    for (const authPath of this.getAuthFilePathCandidates()) {
+      if (!fs.existsSync(authPath)) {
+        continue;
+      }
+
+      try {
+        await fs.promises.rm(authPath, { force: true });
+        removedPaths.push(authPath);
+      } catch (error) {
+        this.logger.warn("Failed to remove local Codex auth cache file", {
+          jobId,
+          tenantId,
+          authPath,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    this.logger.info("Cleared local Codex auth cache files before re-auth", {
+      jobId,
+      tenantId,
+      removedPathCount: removedPaths.length,
+      removedPaths,
+    });
   }
 
   private async hasValidAuthCache(): Promise<boolean> {
