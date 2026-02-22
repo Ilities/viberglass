@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { spawn } from "child_process";
+import { gunzipSync } from "node:zlib";
 import { Logger } from "winston";
 import { CodexAuthSettings } from "../../config/clankerConfig";
 import { CallbackClient } from "../infrastructure/CallbackClient";
@@ -19,6 +20,7 @@ const VERIFICATION_URI_PATTERN = /https?:\/\/[^\s)]+/i;
 const LABELED_DEVICE_CODE_PATTERN =
   /(?:device code|one-time code|verification code|enter code|use code)\s*[:=-]?\s*([A-Z0-9-]{4,})/i;
 const HYPHENATED_DEVICE_CODE_PATTERN = /\b([A-Z0-9]{4,}(?:-[A-Z0-9]{4,})+)\b/;
+const CODEX_AUTH_GZIP_PREFIX = "gz+b64:";
 
 type ProgressReporter = (
   step: string,
@@ -87,6 +89,17 @@ export function compactJsonForStorage(jsonContent: string): string {
   } catch {
     return trimmed;
   }
+}
+
+export function decodeCodexAuthFromSharedValue(secretValue: string): string {
+  const trimmed = secretValue.trim();
+  if (!trimmed.startsWith(CODEX_AUTH_GZIP_PREFIX)) {
+    return trimmed;
+  }
+
+  const base64Payload = trimmed.slice(CODEX_AUTH_GZIP_PREFIX.length);
+  const decodedBuffer = Buffer.from(base64Payload, "base64");
+  return gunzipSync(decodedBuffer).toString("utf-8");
 }
 
 export class CodexAuthManager {
@@ -496,8 +509,16 @@ export class CodexAuthManager {
         return;
       }
 
+      const materializedAuthJson = decodeCodexAuthFromSharedValue(secretValue);
+      if (!materializedAuthJson || materializedAuthJson.trim().length === 0) {
+        this.logger.info("Shared SSM Codex auth cache decoded to empty payload", {
+          parameterName,
+        });
+        return;
+      }
+
       await fs.promises.mkdir(authDir, { recursive: true });
-      await fs.promises.writeFile(authPath, secretValue, {
+      await fs.promises.writeFile(authPath, materializedAuthJson, {
         encoding: "utf-8",
         mode: 0o600,
       });
@@ -506,7 +527,8 @@ export class CodexAuthManager {
       this.logger.info("Materialized Codex auth cache from shared SSM", {
         authPath,
         parameterName,
-        authBytes: Buffer.byteLength(secretValue, "utf-8"),
+        authBytes: Buffer.byteLength(materializedAuthJson, "utf-8"),
+        rawAuthBytes: Buffer.byteLength(secretValue, "utf-8"),
       });
     } catch (error) {
       const errorName = error instanceof Error ? error.name : undefined;

@@ -10,12 +10,14 @@ import {
   PutParameterCommand,
   SSMClient,
 } from "@aws-sdk/client-ssm";
+import { gzipSync } from "node:zlib";
 import { createChildLogger } from "../config/logger";
 
 const logger = createChildLogger({ service: "SecretService" });
 
 const IV_LENGTH = 12;
 const MAX_SSM_SECRET_SIZE_BYTES = 3900;
+const CODEX_AUTH_GZIP_PREFIX = "gz+b64:";
 
 export function compactJsonForStorage(jsonContent: string): string {
   const trimmed = jsonContent.trim();
@@ -29,6 +31,21 @@ export function compactJsonForStorage(jsonContent: string): string {
   } catch {
     return trimmed;
   }
+}
+
+export function encodeCodexAuthForSsm(authJson: string): string {
+  const compacted = compactJsonForStorage(authJson);
+  if (!compacted) {
+    return "";
+  }
+
+  const compactedBytes = Buffer.byteLength(compacted, "utf-8");
+  if (compactedBytes <= MAX_SSM_SECRET_SIZE_BYTES) {
+    return compacted;
+  }
+
+  const gzipped = gzipSync(Buffer.from(compacted, "utf-8"), { level: 9 });
+  return `${CODEX_AUTH_GZIP_PREFIX}${gzipped.toString("base64")}`;
 }
 
 export interface SecretInput {
@@ -239,8 +256,8 @@ export class SecretService {
       throw new Error("Auth cache payload is required");
     }
 
-    const compactedAuthJson = compactJsonForStorage(authJson);
-    const payloadBytes = Buffer.byteLength(compactedAuthJson, "utf-8");
+    const preparedAuthJson = encodeCodexAuthForSsm(authJson);
+    const payloadBytes = Buffer.byteLength(preparedAuthJson, "utf-8");
     if (payloadBytes > MAX_SSM_SECRET_SIZE_BYTES) {
       throw new Error(
         `Codex auth cache exceeds SSM size limit (${payloadBytes} bytes)`,
@@ -251,7 +268,7 @@ export class SecretService {
     if (existing) {
       return this.updateSecret(existing.id, {
         secretLocation: "ssm",
-        secretValue: compactedAuthJson,
+        secretValue: preparedAuthJson,
         secretPath: existing.secretPath,
       });
     }
@@ -259,7 +276,7 @@ export class SecretService {
     return this.createSecret({
       name: normalizedName,
       secretLocation: "ssm",
-      secretValue: compactedAuthJson,
+      secretValue: preparedAuthJson,
     });
   }
 
