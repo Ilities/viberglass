@@ -6,6 +6,25 @@ interface InstructionFile {
   mountPath?: string;
 }
 
+export interface JobTicketMedia {
+  id: string;
+  kind: "screenshot" | "recording";
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+  storageUrl: string;
+  mountPath?: string;
+  s3Url?: string;
+  accessUrl?: string;
+}
+
+export interface VolumeMount {
+  hostPath: string;
+  containerPath: string;
+  readOnly?: boolean;
+}
+
 export interface JobScmConfig {
   integrationId: string;
   integrationSystem?: TicketSystem;
@@ -49,6 +68,7 @@ export interface JobData {
     consoleErrors?: string[];
     affectedFiles?: string[];
     instructionFiles?: InstructionFile[];
+    ticketMedia?: JobTicketMedia[];
   };
   settings?: {
     maxChanges?: number;
@@ -62,6 +82,8 @@ export interface JobData {
   scm?: JobScmConfig | null;
   /** Optional worker bootstrap payload persisted for ref-based invocation */
   bootstrapPayload?: Record<string, unknown>;
+  /** Optional host->container mount bindings for Docker invocations */
+  mounts?: VolumeMount[];
   timestamp: number;
   /** Callback token for authenticating worker callbacks (set after job creation) */
   callbackToken?: string;

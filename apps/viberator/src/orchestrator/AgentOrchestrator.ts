@@ -6,10 +6,9 @@ import {
   ExecutionContext,
   AgentExecution,
   ExecutionResult,
-  ResourceUsage,
 } from "../types";
 import { Logger } from "winston";
-import { AgentFactory } from "../agents/AgentFactory";
+import { AgentFactory } from "../agents";
 import { ConfigManager } from "../config/ConfigManager";
 import { randomUUID } from "crypto";
 
@@ -19,7 +18,11 @@ export class AgentOrchestrator {
   private logger: Logger;
   private configManager: ConfigManager;
 
-  constructor(agentConfigs: AgentConfig[], logger: Logger, configManager: ConfigManager) {
+  constructor(
+    agentConfigs: AgentConfig[],
+    logger: Logger,
+    configManager: ConfigManager,
+  ) {
     this.agents = new Map();
     this.activeExecutions = new Map();
     this.logger = logger;
@@ -135,8 +138,9 @@ export class AgentOrchestrator {
           secretCount: context.secrets.length,
         });
 
-        const secretValues =
-          await this.configManager.resolveSecrets(context.secrets);
+        const secretValues = await this.configManager.resolveSecrets(
+          context.secrets,
+        );
 
         // Inject secrets into environment
         Object.assign(process.env, secretValues);
@@ -199,6 +203,20 @@ export class AgentOrchestrator {
    * Build the prompt for the agent based on the issue description format
    */
   buildAgentPrompt(context: ExecutionContext): string {
+    const ticketMediaSection =
+      context.ticketMedia && context.ticketMedia.length > 0
+        ? `\nATTACHED MEDIA:\n${context.ticketMedia
+            .map((media, index) => {
+              const refs: string[] = [];
+              if (media.mountPath) refs.push(`mountPath=${media.mountPath}`);
+              if (media.accessUrl) refs.push(`accessUrl=${media.accessUrl}`);
+              if (media.s3Url) refs.push(`s3Url=${media.s3Url}`);
+              refs.push(`storage=${media.storageUrl}`);
+              return `${index + 1}. ${media.kind} (${media.filename}, ${media.mimeType}) ${refs.join(" | ")}`;
+            })
+            .join("\n")}\n`
+        : "";
+
     return `
 You are an expert software engineer tasked with fixing a bug.
 
@@ -215,6 +233,7 @@ ACTUAL BEHAVIOR:
 ${context.actualBehavior}
 
 ${context.stackTrace ? `STACK TRACE:\n${context.stackTrace}` : ""}
+${ticketMediaSection}
 
 REPOSITORY: ${context.repoUrl}
 BRANCH: ${context.branch}
@@ -234,11 +253,11 @@ INSTRUCTIONS:
 
 IMPORTANT: After completing your fix, you MUST output pull request metadata files in the repository root:
 
-1) `PR_TITLE.md` containing only the PR title on a single line.
+1) \`PR_TITLE.md\` containing only the PR title on a single line.
    - Use a concise, specific title that describes the fix.
-   - Prefer conventional commit style, for example: `fix: improve pull request metadata generation`
+   - Prefer conventional commit style, for example: \`fix: improve pull request metadata generation\`
 
-2) `PR_DESCRIPTION.md` using the following format:
+2) \`PR_DESCRIPTION.md\` using the following format:
 
 \`\`\`markdown
 ## Summary
