@@ -232,8 +232,13 @@ INSTRUCTIONS:
 4. Implement a minimal fix
 5. ${context.runTests ? "Run tests to verify the fix" : "Verify the fix manually"}
 
-IMPORTANT: After completing your fix, you MUST output a pull request description in the following format.
-Write this to a file called PR_DESCRIPTION.md in the repository root:
+IMPORTANT: After completing your fix, you MUST output pull request metadata files in the repository root:
+
+1) `PR_TITLE.md` containing only the PR title on a single line.
+   - Use a concise, specific title that describes the fix.
+   - Prefer conventional commit style, for example: `fix: improve pull request metadata generation`
+
+2) `PR_DESCRIPTION.md` using the following format:
 
 \`\`\`markdown
 ## Summary
