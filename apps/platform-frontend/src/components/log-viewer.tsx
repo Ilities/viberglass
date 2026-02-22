@@ -1,25 +1,16 @@
-import { Badge } from '@/components/badge'
+import { Agent, AgentAction, AgentMessage, AgentObservation, AgentThinking } from '@/components/ai-elements/agent'
 import { Subheading } from '@/components/heading'
+import {
+  type CommandExecutionTimelineEvent,
+  buildLogTimeline,
+} from '@/components/agent-log-model'
 import type { LogEntry } from '@/service/api/job-api'
 import { LayersIcon } from '@radix-ui/react-icons'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export interface LogViewerProps {
   logs: LogEntry[]
   isConnected?: boolean
-}
-
-type BadgeTone = NonNullable<Parameters<typeof Badge>[0]['color']>
-
-const AGENT_LOG_PATTERN = /^\[agent:([a-zA-Z0-9._-]+):(stdout|stderr)\]\s*(.*)$/
-const MAX_DETAIL_LENGTH = 500
-
-interface ParsedLogLine {
-  originLabel: string
-  originTone: BadgeTone
-  streamLabel: string | null
-  streamTone: BadgeTone | null
-  eventLabel: string | null
-  detail: string
 }
 
 /**
@@ -35,135 +26,97 @@ function formatTime(isoString: string): string {
   })
 }
 
-/**
- * Color mapping for log levels
- */
-const levelConfig: Record<
-  LogEntry['level'],
-  { color: Parameters<typeof Badge>[0]['color']; label: string; bgColor: string }
-> = {
-  info: { color: 'zinc', label: 'INFO', bgColor: 'bg-[var(--gray-4)]' },
-  warn: { color: 'amber', label: 'WARN', bgColor: 'bg-amber-100 dark:bg-amber-900/30' },
-  error: { color: 'red', label: 'ERROR', bgColor: 'bg-red-100 dark:bg-red-900/30' },
-  debug: { color: 'zinc', label: 'DEBUG', bgColor: 'bg-[var(--gray-4)]' },
-}
-
-function readStringField(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
-}
-
-function readObjectField(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null
+function getToolState(event: CommandExecutionTimelineEvent): 'input-streaming' | 'output-available' | 'output-error' {
+  if (event.state === 'running') {
+    return 'input-streaming'
   }
-
-  const normalized: Record<string, unknown> = {}
-  for (const [key, itemValue] of Object.entries(value)) {
-    normalized[key] = itemValue
+  if (event.state === 'failed') {
+    return 'output-error'
   }
-  return normalized
-}
-
-function truncateDetail(value: string): string {
-  if (value.length <= MAX_DETAIL_LENGTH) {
-    return value
-  }
-  return `${value.slice(0, MAX_DETAIL_LENGTH - 3)}...`
-}
-
-function tryFormatAgentPayload(payload: string): { eventLabel: string | null; detail: string } {
-  if (!payload) {
-    return { eventLabel: null, detail: 'Agent output' }
-  }
-
-  try {
-    const parsed = JSON.parse(payload)
-    const data = readObjectField(parsed)
-    if (!data) {
-      return { eventLabel: null, detail: truncateDetail(payload) }
-    }
-
-    const eventType = readStringField(data.type)
-    const item = readObjectField(data.item)
-    const itemType = item ? readStringField(item.type) : null
-    const itemText = item ? readStringField(item.text) : null
-    const messageText = readStringField(data.message)
-    const threadId = readStringField(data.thread_id)
-
-    const eventLabel = [eventType, itemType].filter(Boolean).join(' · ') || null
-    const detail =
-      itemText ||
-      messageText ||
-      (threadId ? `thread_id: ${threadId}` : null) ||
-      truncateDetail(JSON.stringify(data))
-
-    return { eventLabel, detail: truncateDetail(detail) }
-  } catch {
-    return { eventLabel: null, detail: truncateDetail(payload) }
-  }
-}
-
-export function parseLogEntryForDisplay(log: LogEntry): ParsedLogLine {
-  const message = log.message.trim()
-  const agentMatch = message.match(AGENT_LOG_PATTERN)
-
-  if (agentMatch) {
-    const [, agentName, stream, payload = ''] = agentMatch
-    const streamLabel = stream.toUpperCase()
-    const streamTone: BadgeTone = stream === 'stderr' ? 'amber' : 'sky'
-    const formattedPayload = tryFormatAgentPayload(payload.trim())
-    return {
-      originLabel: `agent:${agentName}`,
-      originTone: 'sky',
-      streamLabel,
-      streamTone,
-      eventLabel: formattedPayload.eventLabel,
-      detail: formattedPayload.detail,
-    }
-  }
-
-  const source = readStringField(log.source)
-  if (source && source !== 'viberator') {
-    return {
-      originLabel: source,
-      originTone: 'teal',
-      streamLabel: null,
-      streamTone: null,
-      eventLabel: null,
-      detail: message,
-    }
-  }
-
-  return {
-    originLabel: 'viberator',
-    originTone: 'zinc',
-    streamLabel: null,
-    streamTone: null,
-    eventLabel: null,
-    detail: message,
-  }
+  return 'output-available'
 }
 
 /**
- * Log viewer component with color-coded log levels and live indicator
+ * AI Elements-based job log viewer.
  */
 export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
+  const timeline = useMemo(() => buildLogTimeline(logs), [logs])
+  const [expandedCommands, setExpandedCommands] = useState<Set<string>>(new Set())
+  const [isFollowingOutput, setIsFollowingOutput] = useState(true)
+  const timelineRef = useRef<HTMLDivElement | null>(null)
+
+  const commandCount = timeline.filter((entry) => entry.kind === 'command_execution').length
+  const failedCount = timeline.filter(
+    (entry) => (entry.kind === 'command_execution' && entry.state === 'failed') || entry.level === 'error',
+  ).length
+
+  useEffect(() => {
+    if (!isFollowingOutput) {
+      return
+    }
+    const container = timelineRef.current
+    if (!container) {
+      return
+    }
+    container.scrollTop = container.scrollHeight
+  }, [timeline, isFollowingOutput])
+
+  function handleTimelineScroll() {
+    const container = timelineRef.current
+    if (!container) return
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    setIsFollowingOutput(distanceFromBottom < 48)
+  }
+
+  function toggleCommand(commandId: string) {
+    setExpandedCommands((previous) => {
+      const next = new Set(previous)
+      if (next.has(commandId)) {
+        next.delete(commandId)
+      } else {
+        next.add(commandId)
+      }
+      return next
+    })
+  }
+
+  function jumpToLatest() {
+    const container = timelineRef.current
+    if (!container) return
+    container.scrollTop = container.scrollHeight
+    setIsFollowingOutput(true)
+  }
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex items-center justify-between mb-4">
         <Subheading className="flex items-center gap-2">
           <LayersIcon className="h-5 w-5 text-[var(--accent-9)]" />
           Execution Logs
         </Subheading>
-        {isConnected && (
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            <span className="text-xs font-medium text-green-600">Live</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3 text-xs text-[var(--gray-10)]">
+          <span>{timeline.length} events</span>
+          <span>{commandCount} commands</span>
+          {failedCount > 0 && <span className="font-medium text-red-600">{failedCount} failed</span>}
+          {isConnected && (
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+              </span>
+              <span className="font-medium text-green-600">Live</span>
+            </div>
+          )}
+          {!isFollowingOutput && (
+            <button
+              type="button"
+              onClick={jumpToLatest}
+              className="sticky bottom-3 self-center rounded-full border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-1 text-xs font-medium text-[var(--gray-11)] shadow-sm transition hover:bg-[var(--gray-3)]"
+            >
+              Follow output
+            </button>
+          )}
+        </div>
       </div>
 
       {!logs || logs.length === 0 ? (
@@ -176,62 +129,90 @@ export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
         </div>
       ) : (
         <div className="flex-1 overflow-hidden rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] dark:bg-[var(--gray-3)]">
-          <div className="overflow-auto max-h-[600px]">
-            <table className="w-full text-sm">
-              <tbody>
-                {logs.map((log, index) => {
-                  const config = levelConfig[log.level]
-                  const isEven = index % 2 === 0
-                  const parsedLine = parseLogEntryForDisplay(log)
+          <div ref={timelineRef} onScroll={handleTimelineScroll} className="h-full overflow-auto p-3">
+            <Agent>
+              {timeline.map((event) => {
+                if (event.kind === 'agent_message') {
                   return (
-                    <tr 
-                      key={log.id} 
-                      className={`
-                        ${isEven ? 'bg-transparent' : 'bg-[var(--gray-3)]/50 dark:bg-[var(--gray-4)]/30'}
-                        hover:bg-[var(--accent-3)]/30 transition-colors
-                      `}
-                    >
-                      <td className="py-2 px-4 text-[var(--gray-8)] tabular-nums text-xs whitespace-nowrap w-20">
-                        {formatTime(log.createdAt)}
-                      </td>
-                      <td className="py-2 px-2 w-16">
-                        <Badge 
-                          color={config.color} 
-                          className={`
-                            text-[10px] px-1.5 py-0.5 font-mono font-bold
-                            ${config.bgColor}
-                          `}
-                        >
-                          {config.label}
-                        </Badge>
-                      </td>
-                      <td className="py-2 px-4 text-[var(--gray-11)]">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Badge color={parsedLine.originTone} className="px-1.5 py-0.5 font-mono text-[10px] font-semibold">
-                              {parsedLine.originLabel}
-                            </Badge>
-                            {parsedLine.streamLabel && parsedLine.streamTone && (
-                              <Badge color={parsedLine.streamTone} className="px-1.5 py-0.5 font-mono text-[10px] font-semibold">
-                                {parsedLine.streamLabel}
-                              </Badge>
-                            )}
-                            {parsedLine.eventLabel && (
-                              <span className="font-mono text-[11px] text-[var(--gray-9)]">
-                                {parsedLine.eventLabel}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                            {parsedLine.detail}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
+                    <AgentMessage key={event.id}>
+                      <div className="mb-1 font-mono text-[10px] text-[var(--gray-9)]">
+                        {event.sourceLabel} · {formatTime(event.createdAt)}
+                      </div>
+                      <p className="whitespace-pre-wrap break-words leading-relaxed">{event.text}</p>
+                    </AgentMessage>
                   )
-                })}
-              </tbody>
-            </table>
+                }
+
+                if (event.kind === 'reasoning') {
+                  return (
+                    <AgentThinking
+                      key={event.id}
+                      title={`Reasoning · ${event.sourceLabel} · ${formatTime(event.createdAt)}`}
+                    >
+                      {event.text}
+                    </AgentThinking>
+                  )
+                }
+
+                if (event.kind === 'command_execution') {
+                  const toolState = getToolState(event)
+                  const shouldExpand =
+                    event.state === 'running' || event.state === 'failed' || expandedCommands.has(event.commandId)
+                  const outputText = event.output || (event.state === 'running' ? 'Waiting for command output...' : '')
+                  const clipped =
+                    outputText.length > 1400 && !shouldExpand ? `${outputText.slice(0, 1400)}\n...` : outputText
+
+                  return (
+                    <AgentAction
+                      key={event.id}
+                      state={toolState}
+                      title={`${event.sourceLabel} · ${formatTime(event.createdAt)} · ${
+                        event.exitCode !== null ? `exit ${event.exitCode}` : event.state
+                      }`}
+                    >
+                      <pre className="overflow-x-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-2 py-1.5 font-mono text-[11px] leading-relaxed text-[var(--gray-12)]">
+                        {event.command}
+                      </pre>
+                      <pre className="max-h-80 overflow-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-[var(--gray-12)]">
+                        {clipped || '(no output)'}
+                      </pre>
+                      {outputText.length > 1400 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleCommand(event.commandId)}
+                          className="self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
+                        >
+                          {shouldExpand ? 'Collapse output' : 'Expand output'}
+                        </button>
+                      )}
+                    </AgentAction>
+                  )
+                }
+
+                if (event.kind === 'file_change') {
+                  return (
+                    <AgentObservation
+                      key={event.id}
+                      title={`${event.sourceLabel} · file changes · ${formatTime(event.createdAt)}`}
+                    >
+                      {event.changes.length > 0
+                        ? event.changes.map((change) => `${change.kind.toUpperCase()} ${change.path}`).join('\n')
+                        : 'No file change details provided'}
+                    </AgentObservation>
+                  )
+                }
+
+                return (
+                  <AgentObservation
+                    key={event.id}
+                    state={event.level === 'error' ? 'output-error' : 'output-available'}
+                    title={`${event.sourceLabel} · ${event.level.toUpperCase()} · ${formatTime(event.createdAt)}`}
+                  >
+                    {event.text}
+                  </AgentObservation>
+                )
+              })}
+            </Agent>
           </div>
         </div>
       )}
