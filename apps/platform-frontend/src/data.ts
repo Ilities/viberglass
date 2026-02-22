@@ -42,6 +42,14 @@ export interface TicketSummary {
   status: 'open' | 'resolved' | 'in_progress'
 }
 
+function deriveTicketStatus(ticket: Pick<Ticket, 'externalTicketId' | 'autoFixStatus'>): TicketSummary['status'] {
+  if (ticket.autoFixStatus === 'in_progress') return 'in_progress'
+  if (ticket.autoFixStatus === 'completed') return 'resolved'
+  if (ticket.autoFixStatus === 'pending' || ticket.autoFixStatus === 'failed') return 'open'
+  if (ticket.externalTicketId) return 'resolved'
+  return 'open'
+}
+
 // Project functions
 export async function getProjectsList(): Promise<Project[]> {
   return await apiGetProjects()
@@ -64,7 +72,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
     externalTicketId: ticket.externalTicketId,
     ticketSystem: ticket.ticketSystem,
     autoFixStatus: ticket.autoFixStatus,
-    status: ticket.externalTicketId ? 'resolved' : ticket.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
+    status: deriveTicketStatus(ticket),
   }))
 }
 

@@ -14,11 +14,42 @@ interface EditTicketDialogProps {
   onSave: (updates: UpdateTicketRequest) => Promise<void>
 }
 
+type ManualTicketStatus = 'open' | 'in_progress' | 'resolved'
+
+function getTicketStatus(ticket: Ticket): ManualTicketStatus {
+  if (ticket.autoFixStatus === 'in_progress') return 'in_progress'
+  if (ticket.autoFixStatus === 'completed') return 'resolved'
+  if (ticket.autoFixStatus === 'pending' || ticket.autoFixStatus === 'failed') return 'open'
+  if (ticket.externalTicketId) return 'resolved'
+  return 'open'
+}
+
+function getAutoFixStatusForTicketStatus(status: ManualTicketStatus): Ticket['autoFixStatus'] {
+  if (status === 'resolved') return 'completed'
+  if (status === 'in_progress') return 'in_progress'
+  return 'pending'
+}
+
+function parseSeverity(value: string): Severity {
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'critical') {
+    return value
+  }
+  return 'low'
+}
+
+function parseManualTicketStatus(value: string): ManualTicketStatus {
+  if (value === 'open' || value === 'in_progress' || value === 'resolved') {
+    return value
+  }
+  return 'open'
+}
+
 export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDialogProps) {
   const [title, setTitle] = useState(ticket.title)
   const [description, setDescription] = useState(ticket.description)
   const [severity, setSeverity] = useState<Severity>(ticket.severity)
   const [category, setCategory] = useState(ticket.category)
+  const [status, setStatus] = useState<ManualTicketStatus>(getTicketStatus(ticket))
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async () => {
@@ -29,6 +60,7 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
         description,
         severity,
         category,
+        autoFixStatus: getAutoFixStatusForTicketStatus(status),
       })
     } finally {
       setIsSaving(false)
@@ -52,14 +84,23 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Field>
               <Label>Severity</Label>
-              <Select value={severity} onChange={(value) => setSeverity(value as Severity)}>
+              <Select value={severity} onChange={(value) => setSeverity(parseSeverity(value))}>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
+              </Select>
+            </Field>
+
+            <Field>
+              <Label>Status</Label>
+              <Select value={status} onChange={(value) => setStatus(parseManualTicketStatus(value))}>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
               </Select>
             </Field>
 
