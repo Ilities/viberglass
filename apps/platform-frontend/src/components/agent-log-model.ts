@@ -68,6 +68,14 @@ interface ParsedItemPayload {
   raw: string
 }
 
+interface ParsedStructuredLog {
+  itemPayload: ParsedItemPayload
+  sourceLabel: string
+  agentName: string
+  stream: AgentStream
+  rawFallback: string
+}
+
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
 }
@@ -90,6 +98,18 @@ function readObject(value: unknown): Record<string, unknown> | null {
 
 function readNumber(value: unknown): number | null {
   return typeof value === 'number' ? value : null
+}
+
+function inferStream(level: LogEntry['level']): AgentStream {
+  return level === 'error' ? 'stderr' : 'stdout'
+}
+
+function parseAgentNameFromSource(source: string | null | undefined): string | null {
+  if (!source) return null
+  const value = source.trim()
+  if (!value.startsWith('agent:')) return null
+  const parsed = value.slice('agent:'.length).trim()
+  return parsed.length > 0 ? parsed : null
 }
 
 function parseAgentEnvelope(message: string): ParsedAgentEnvelope | null {
@@ -129,6 +149,45 @@ function parseItemPayload(payload: string): ParsedItemPayload | null {
     }
   } catch {
     return null
+  }
+}
+
+function parseStructuredLog(log: LogEntry): ParsedStructuredLog | null {
+  const sourceLabel = readString(log.source) ?? 'viberator'
+  const envelope = parseAgentEnvelope(log.message)
+
+  if (envelope) {
+    const itemPayload = parseItemPayload(envelope.payload)
+    if (!itemPayload) return null
+
+    return {
+      itemPayload,
+      sourceLabel: `agent:${envelope.agentName}`,
+      agentName: envelope.agentName,
+      stream: envelope.stream,
+      rawFallback: envelope.payload || `[agent:${envelope.agentName}:${envelope.stream}]`,
+    }
+  }
+
+  const directPayload = parseItemPayload(log.message.trim())
+  if (!directPayload) {
+    return null
+  }
+
+  const item = directPayload.item
+  const payloadAgentName = item
+    ? readString(item.agent_name) ?? readString(item.agentName) ?? readString(item.agent)
+    : null
+  const sourceAgentName = parseAgentNameFromSource(log.source)
+  const agentName = payloadAgentName ?? sourceAgentName ?? 'agent'
+  const resolvedSourceLabel = sourceAgentName ? `agent:${sourceAgentName}` : sourceLabel
+
+  return {
+    itemPayload: directPayload,
+    sourceLabel: resolvedSourceLabel,
+    agentName,
+    stream: inferStream(log.level),
+    rawFallback: directPayload.raw,
   }
 }
 
@@ -194,20 +253,16 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
   const commandIndexById = new Map<string, number>()
 
   for (const log of sortedLogs) {
-    const envelope = parseAgentEnvelope(log.message)
-    if (!envelope) {
+    const structuredLog = parseStructuredLog(log)
+    if (!structuredLog) {
       timeline.push(buildRawEvent(log))
       continue
     }
 
-    const itemPayload = parseItemPayload(envelope.payload)
-    if (!itemPayload || !itemPayload.item) {
-      timeline.push(
-        buildRawEvent(
-          log,
-          envelope.payload || `[agent:${envelope.agentName}:${envelope.stream}]`,
-        ),
-      )
+    const { itemPayload, sourceLabel, agentName, stream, rawFallback } = structuredLog
+
+    if (!itemPayload.item) {
+      timeline.push(buildRawEvent(log, rawFallback))
       continue
     }
 
@@ -235,9 +290,9 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
           startedAt: itemPayload.type === 'item.started' ? log.createdAt : null,
           completedAt: itemPayload.type === 'item.completed' ? log.createdAt : null,
           level: log.level,
-          sourceLabel: `agent:${envelope.agentName}`,
-          agentName: envelope.agentName,
-          stream: envelope.stream,
+          sourceLabel,
+          agentName,
+          stream,
           command,
           output,
           exitCode,
@@ -282,8 +337,8 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
         id: itemId ?? log.id,
         createdAt: log.createdAt,
         level: log.level,
-        sourceLabel: `agent:${envelope.agentName}`,
-        agentName: envelope.agentName,
+        sourceLabel,
+        agentName,
         text: itemText ?? itemMessage ?? itemPayload.raw,
       })
       continue
@@ -295,8 +350,8 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
         id: itemId ?? log.id,
         createdAt: log.createdAt,
         level: log.level,
-        sourceLabel: `agent:${envelope.agentName}`,
-        agentName: envelope.agentName,
+        sourceLabel,
+        agentName,
         text: itemText ?? itemMessage ?? itemPayload.raw,
       })
       continue
@@ -320,8 +375,8 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
         id: itemId ?? log.id,
         createdAt: log.createdAt,
         level: log.level,
-        sourceLabel: `agent:${envelope.agentName}`,
-        agentName: envelope.agentName,
+        sourceLabel,
+        agentName,
         changes,
       })
       continue
