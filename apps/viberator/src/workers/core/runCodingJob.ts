@@ -19,6 +19,40 @@ import { LogForwarder } from "../runtime/LogForwarder";
 import { buildFeatureBranchName } from "../runtime/branchNaming";
 import { mergeWorkerSettings } from "../runtime/workerSettings";
 
+const CODEX_AUTH_FAILURE_PATTERNS: RegExp[] = [
+  /unauthorized/i,
+  /authentication failed/i,
+  /authentication required/i,
+  /login required/i,
+  /not logged in/i,
+  /invalid[_\s-]?token/i,
+  /token[^.\n]*(expired|invalid)/i,
+  /access token[^.\n]*(expired|invalid)/i,
+  /\b401\b/i,
+  /invalid_grant/i,
+  /run\s+codex\s+login/i,
+  /device authorization required/i,
+  /session expired/i,
+];
+
+export function isCodexStoredAuthFailure(errorMessage: string): boolean {
+  const normalized = errorMessage.toLowerCase();
+  const hasAuthSignal =
+    normalized.includes("auth") ||
+    normalized.includes("login") ||
+    normalized.includes("token") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("401");
+
+  if (!hasAuthSignal) {
+    return false;
+  }
+
+  return CODEX_AUTH_FAILURE_PATTERNS.some((pattern) =>
+    pattern.test(errorMessage),
+  );
+}
+
 interface RunCodingJobParams {
   data: CodingJobData;
   repositoryRoot: string;
@@ -169,11 +203,43 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       await codexAuthManager.ensureDeviceAuth(id, data.tenantId);
     }
 
+    const executeSelectedAgent = () =>
+      orchestrator.executeAgent(selectedAgent, executionContext);
+
     await sendProgress("execute", "Running AI agent", {
       agentName: selectedAgent.name,
     });
     logger.info("Agent selected", { agentName: selectedAgent.name });
-    const result = await orchestrator.executeAgent(selectedAgent, executionContext);
+    let result = await executeSelectedAgent();
+
+    const shouldRetryWithFreshAuth =
+      !result.success &&
+      selectedAgent.name === "codex" &&
+      codexAuthSettings.mode === "chatgpt_device_stored" &&
+      isCodexStoredAuthFailure(result.errorMessage || "");
+
+    if (shouldRetryWithFreshAuth) {
+      logger.warn(
+        "Codex execution failed with stored auth; retrying after fresh device login",
+        {
+          jobId: id,
+          tenantId: data.tenantId,
+          errorMessage: result.errorMessage,
+        },
+      );
+
+      await sendProgress(
+        "auth",
+        "Stored Codex auth failed, starting fresh device login",
+      );
+      await codexAuthManager.forceFreshDeviceAuth(id, data.tenantId);
+
+      await sendProgress("execute", "Retrying AI agent after auth refresh", {
+        agentName: selectedAgent.name,
+        retry: 1,
+      });
+      result = await executeSelectedAgent();
+    }
 
     if (!result.success) {
       throw new Error(result.errorMessage || "Agent execution failed");
