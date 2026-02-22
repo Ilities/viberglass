@@ -1,4 +1,5 @@
 import {
+  compactJsonForStorage,
   parseDeviceAuthValues,
   sanitizeCliOutputLine,
 } from "./CodexAuthManager";
@@ -49,5 +50,32 @@ describe("CodexAuthManager device auth parsing", () => {
       "https://auth.openai.com/codex/device",
     );
     expect(parsedCode.userCode).toBe("ABC1-ABCDE");
+  });
+
+  test("compacts pretty JSON auth payload before upload", () => {
+    const prettyJson = JSON.stringify(
+      {
+        account_id: "acct_123",
+        auth: {
+          access_token: "token",
+          refresh_token: "refresh",
+        },
+      },
+      null,
+      2,
+    );
+
+    const compacted = compactJsonForStorage(prettyJson);
+
+    expect(compacted).toBe(
+      '{"account_id":"acct_123","auth":{"access_token":"token","refresh_token":"refresh"}}',
+    );
+    expect(Buffer.byteLength(compacted, "utf-8")).toBeLessThan(
+      Buffer.byteLength(prettyJson, "utf-8"),
+    );
+  });
+
+  test("returns trimmed value when auth payload is not valid JSON", () => {
+    expect(compactJsonForStorage("  not-json  ")).toBe("not-json");
   });
 });
