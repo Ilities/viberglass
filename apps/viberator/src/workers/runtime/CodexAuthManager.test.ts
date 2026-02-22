@@ -1,6 +1,7 @@
 import {
   compactJsonForStorage,
   decodeCodexAuthFromSharedValue,
+  normalizeCodexHomeEnv,
   parseDeviceAuthValues,
   sanitizeCliOutputLine,
 } from "./CodexAuthManager";
@@ -91,5 +92,26 @@ describe("CodexAuthManager device auth parsing", () => {
   test("passes through uncompressed shared auth payload", () => {
     const json = '{"account_id":"acct_123"}';
     expect(decodeCodexAuthFromSharedValue(json)).toBe(json);
+  });
+
+  test("normalizes legacy CODEX_CONFIG_DIR into CODEX_HOME", () => {
+    const env: NodeJS.ProcessEnv = {
+      CODEX_CONFIG_DIR: "/tmp/codex-config",
+    };
+
+    normalizeCodexHomeEnv(env);
+
+    expect(env.CODEX_HOME).toBe("/tmp/codex-config");
+  });
+
+  test("does not override existing CODEX_HOME", () => {
+    const env: NodeJS.ProcessEnv = {
+      CODEX_HOME: "/tmp/codex-home",
+      CODEX_CONFIG_DIR: "/tmp/codex-config",
+    };
+
+    normalizeCodexHomeEnv(env);
+
+    expect(env.CODEX_HOME).toBe("/tmp/codex-home");
   });
 });
