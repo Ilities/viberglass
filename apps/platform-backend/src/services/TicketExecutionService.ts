@@ -12,6 +12,12 @@ import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
 import type { Clanker, Project } from "@viberglass/types";
 import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
+import { getStrategyType } from "../clanker-config";
+import { InstructionStorageService } from "./instructions/InstructionStorageService";
+import {
+  isAllowedInstructionPath,
+  normalizeInstructionPath,
+} from "./instructions/pathPolicy";
 
 export interface InlineInstructionFile {
   fileType: string;
@@ -40,6 +46,7 @@ export class TicketExecutionService {
   private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
   private ticketMediaExecutionService = new TicketMediaExecutionService();
+  private instructionStorageService = new InstructionStorageService();
 
   private normalizeInstructionFile(
     file: Partial<InlineInstructionFile> | null | undefined,
@@ -48,10 +55,10 @@ export class TicketExecutionService {
       return null;
     }
 
-    const fileType = file.fileType.trim();
+    const fileType = normalizeInstructionPath(file.fileType);
     const content = typeof file.content === "string" ? file.content : "";
 
-    if (!fileType || !content.trim()) {
+    if (!fileType || !content.trim() || !isAllowedInstructionPath(fileType)) {
       return null;
     }
 
@@ -242,20 +249,28 @@ export class TicketExecutionService {
         ...clanker,
         secretIds: mergedSecretIds,
       };
+      const workerType = getStrategyType(executionClanker);
 
       const mergedInstructionFiles = this.mergeInstructionFiles(
         project,
         executionClanker,
         instructionFiles || [],
       );
+      // Generate jobId
+      const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
+      const workerInstructionFiles =
+        workerType === "docker"
+          ? mergedInstructionFiles
+          : await this.instructionStorageService.uploadJobInstructionFiles(
+              executionClanker.id,
+              jobId,
+              mergedInstructionFiles,
+            );
       const ticketMediaExecution =
         await this.ticketMediaExecutionService.prepareForExecution(
           ticket,
           executionClanker,
         );
-
-      // Generate jobId
-      const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
       // Create job via JobService.submitJob with ticket and clanker references
       const jobData: JobData = {
@@ -299,7 +314,7 @@ export class TicketExecutionService {
         );
 
       const bootstrapPayload: Record<string, unknown> = {
-        workerType: "docker",
+        workerType,
         tenantId: jobData.tenantId,
         jobId: jobData.id,
         clankerId: clanker.id,
@@ -310,10 +325,12 @@ export class TicketExecutionService {
         baseBranch: jobData.baseBranch,
         context: jobData.context,
         settings: jobData.settings,
-        instructionFiles: mergedInstructionFiles,
+        instructionFiles: workerInstructionFiles,
         requiredCredentials,
         callbackToken: submitResult.callbackToken,
-        clankerConfig: executionClanker,
+        ...(workerType === "docker"
+          ? { clankerConfig: executionClanker }
+          : { deploymentConfig: executionClanker.deploymentConfig }),
         projectConfig: {
           id: project.id,
           name: project.name,

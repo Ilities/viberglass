@@ -110,7 +110,7 @@ export interface BaseWorkerPayload {
  * Files are fetched from S3 using platform credentials
  */
 export interface S3InstructionFile {
-  fileType: string; // e.g., 'agents.md', 'claude.md'
+  fileType: string; // e.g., 'AGENTS.md', 'skills/code-review.md'
   s3Url: string; // s3://bucket/key format
 }
 
@@ -120,7 +120,7 @@ export interface S3InstructionFile {
  */
 export interface MountedInstructionFile {
   fileType: string;
-  mountPath: string; // e.g., /etc/viberator/config/agents.md
+  mountPath: string; // e.g., /etc/viberator/config/AGENTS.md
   content?: string; // inline override content
 }
 
