@@ -26,8 +26,7 @@ import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
 
 // Default config file types that users commonly use
 const DEFAULT_CONFIG_FILE_TYPES = [
-  { type: 'claude.md', label: 'Claude.md', placeholder: '# Claude Configuration\n\nYou are a helpful assistant...' },
-  { type: 'agents.md', label: 'Agents.md', placeholder: '# Agents\n\n## Primary Agent\n...' },
+  { type: 'agents.md', label: 'AGENTS.md', placeholder: '# AGENTS.md\n\n## Primary Agent\n...' },
   { type: 'skills.md', label: 'Skills.md', placeholder: '# Skills\n\n## Code Review\n...' },
 ]
 
