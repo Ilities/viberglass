@@ -173,6 +173,7 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       overrides?.reproductionSteps || context?.stepsToReproduce || "";
     const expectedBehavior =
       overrides?.expectedBehavior || context?.expectedBehavior || "";
+    const ticketMedia = context?.ticketMedia || [];
 
     const executionContext: ExecutionContext = {
       repoUrl: repository,
@@ -187,6 +188,7 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       stackTrace: context?.stackTrace,
       consoleErrors: context?.consoleErrors || [],
       affectedFiles: context?.affectedFiles || [],
+      ticketMedia,
       maxChanges: mergedSettings.maxChanges,
       testRequired: mergedSettings.testRequired,
       codingStandards: mergedSettings.codingStandards,

@@ -58,6 +58,7 @@ export interface MediaAsset {
   mimeType: string
   size: number
   url: string
+  storageUrl?: string
   uploadedAt: string
 }
 

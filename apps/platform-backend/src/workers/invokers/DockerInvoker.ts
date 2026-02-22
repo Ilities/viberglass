@@ -118,6 +118,7 @@ export class DockerInvoker implements WorkerInvoker {
       }
 
       const canUseJobRef = Boolean(job.bootstrapPayload && job.callbackToken);
+      const binds = this.buildVolumeBinds(job);
 
       const container = await this.docker.createContainer({
         Image: dockerConfig.containerImage,
@@ -142,6 +143,7 @@ export class DockerInvoker implements WorkerInvoker {
           AutoRemove: true, // Clean up after completion
           NetworkMode: dockerConfig.networkMode || "host",
           ExtraHosts: extraHosts.length > 0 ? extraHosts : undefined,
+          Binds: binds.length > 0 ? binds : undefined,
         },
       });
 
@@ -210,6 +212,14 @@ export class DockerInvoker implements WorkerInvoker {
   private formatEnvironmentVars(vars?: Record<string, string>): string[] {
     if (!vars) return [];
     return Object.entries(vars).map(([key, value]) => `${key}=${value}`);
+  }
+
+  private buildVolumeBinds(job: JobData): string[] {
+    const mounts = job.mounts || [];
+    return mounts.map((mount) => {
+      const mode = mount.readOnly === false ? "rw" : "ro";
+      return `${mount.hostPath}:${mount.containerPath}:${mode}`;
+    });
   }
 
   private buildPayload(
