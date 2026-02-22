@@ -71,4 +71,54 @@ describe('buildLogTimeline', () => {
       text: 'Sending batch job logs to platform',
     })
   })
+
+  test('parses direct JSON item payload logs into command events', () => {
+    const log = buildLogEntry({
+      id: 'direct-json-command',
+      source: 'viberator',
+      message:
+        '{"type":"item.completed","item":{"id":"item_22","type":"command_execution","command":"echo hey","aggregated_output":"hey\\n","exit_code":0,"status":"completed"}}',
+    })
+
+    const timeline = buildLogTimeline([log])
+
+    expect(timeline).toHaveLength(1)
+    expect(timeline[0]).toMatchObject({
+      kind: 'command_execution',
+      commandId: 'item_22',
+      command: 'echo hey',
+      output: 'hey\n',
+      exitCode: 0,
+      state: 'completed',
+      sourceLabel: 'viberator',
+    })
+  })
+
+  test('deduplicates command events by command id across envelope and direct json logs', () => {
+    const envelope = buildLogEntry({
+      id: 'envelope-command',
+      createdAt: '2026-02-21T21:23:55.000Z',
+      message:
+        '[agent:codex:stdout] {"type":"item.started","item":{"id":"item_31","type":"command_execution","command":"ls -la","aggregated_output":"","exit_code":null,"status":"in_progress"}}',
+    })
+    const direct = buildLogEntry({
+      id: 'direct-command',
+      createdAt: '2026-02-21T21:23:56.000Z',
+      source: 'viberator',
+      message:
+        '{"type":"item.completed","item":{"id":"item_31","type":"command_execution","command":"ls -la","aggregated_output":"total 4\\n","exit_code":0,"status":"completed"}}',
+    })
+
+    const timeline = buildLogTimeline([direct, envelope])
+
+    expect(timeline).toHaveLength(1)
+    expect(timeline[0]).toMatchObject({
+      kind: 'command_execution',
+      commandId: 'item_31',
+      command: 'ls -la',
+      output: 'total 4\n',
+      exitCode: 0,
+      state: 'completed',
+    })
+  })
 })

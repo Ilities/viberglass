@@ -310,6 +310,8 @@ export class CallbackClient {
             jobId,
             secretName: payload.secretName,
             attempt: attempt + 1,
+            authJsonLength: payload.authJson.length,
+            hasUpdatedAt: Boolean(payload.updatedAt),
           },
         );
 
@@ -332,18 +334,51 @@ export class CallbackClient {
             const errorData = await response
               .json()
               .catch(() => ({ error: response.statusText }));
+            this.logger.error(
+              this.tagInternalLog(
+                "Non-retryable error sending Codex auth cache",
+              ),
+              {
+                jobId,
+                secretName: payload.secretName,
+                statusCode,
+                message: errorData.error || response.statusText,
+              },
+            );
             throw new Error(
               `Codex auth cache callback failed: ${errorData.error || response.statusText}`,
             );
           }
 
           if (attempt === this.maxRetries) {
+            this.logger.error(
+              this.tagInternalLog(
+                "Max retries exceeded sending Codex auth cache",
+              ),
+              {
+                jobId,
+                secretName: payload.secretName,
+                lastStatus: statusCode,
+              },
+            );
             throw new Error(
               `Codex auth cache callback failed after ${this.maxRetries + 1} attempts`,
             );
           }
 
           const delay = this.retryDelay * Math.pow(2, attempt);
+          this.logger.warn(
+            this.tagInternalLog(
+              "Retryable error sending Codex auth cache, will retry",
+            ),
+            {
+              jobId,
+              secretName: payload.secretName,
+              attempt: attempt + 1,
+              statusCode,
+              delay,
+            },
+          );
           await this.sleep(delay);
           continue;
         }
@@ -352,6 +387,7 @@ export class CallbackClient {
           this.tagInternalLog("Codex auth cache sent successfully"),
           {
             jobId,
+            secretName: payload.secretName,
             status: response.status,
           },
         );
@@ -359,10 +395,54 @@ export class CallbackClient {
         return;
       } catch (error) {
         const isLastAttempt = attempt === this.maxRetries;
-        if (isLastAttempt) {
+
+        if (error instanceof Error && error.name === "AbortError") {
+          this.logger.error(
+            this.tagInternalLog("Codex auth cache callback request timeout"),
+            {
+              jobId,
+              secretName: payload.secretName,
+              attempt: attempt + 1,
+            },
+          );
+          if (isLastAttempt) {
+            throw new Error(
+              `Codex auth cache callback timeout after ${this.maxRetries + 1} attempts`,
+            );
+          }
+        } else if (
+          error instanceof Error &&
+          (error.message.startsWith("Codex auth cache callback failed:") ||
+            error.message.startsWith(
+              "Codex auth cache callback failed after",
+            ))
+        ) {
           throw error;
+        } else {
+          this.logger.error(
+            this.tagInternalLog("Unexpected error sending Codex auth cache"),
+            {
+              jobId,
+              secretName: payload.secretName,
+              attempt: attempt + 1,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
+          if (isLastAttempt) {
+            throw error;
+          }
         }
+
         const delay = this.retryDelay * Math.pow(2, attempt);
+        this.logger.warn(
+          this.tagInternalLog("Retrying Codex auth cache callback"),
+          {
+            jobId,
+            secretName: payload.secretName,
+            nextAttempt: attempt + 2,
+            delay,
+          },
+        );
         await this.sleep(delay);
       }
     }
