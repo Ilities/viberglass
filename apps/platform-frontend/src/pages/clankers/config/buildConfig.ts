@@ -45,9 +45,16 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
     }
   }
 
+  if (selectedAgent === 'qwen-cli') {
+    const endpoint = input.form.qwenEndpoint.trim()
+    return {
+      type: 'qwen-cli',
+      ...(endpoint ? { endpoint } : {}),
+    }
+  }
+
   const fallback =
     selectedAgent === 'claude-code' ||
-    selectedAgent === 'qwen-cli' ||
     selectedAgent === 'opencode' ||
     selectedAgent === 'kimi-code' ||
     selectedAgent === 'gemini-cli' ||

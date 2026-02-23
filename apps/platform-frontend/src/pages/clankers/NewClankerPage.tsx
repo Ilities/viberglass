@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
@@ -19,6 +19,11 @@ import {
   type DeploymentStrategy,
 } from '@viberglass/types'
 import { AgentSpecificFields } from './config/agents'
+import {
+  filterSecretsForAgent,
+  getSecretPickerDescription,
+  getSecretPickerEmptyMessage,
+} from './config/agentSecrets'
 import { buildClankerDeploymentConfig } from './config/buildConfig'
 import { toAgentType } from './config/normalizers'
 import { StrategySpecificFields } from './config/strategies'
@@ -91,6 +96,7 @@ export function NewClankerPage() {
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
   const [codexAuthMode, setCodexAuthMode] = useState<CodexAuthMode>(DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode)
+  const [qwenEndpoint, setQwenEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint)
   const [agentInstructions, setAgentInstructions] = useState('')
   const [skills, setSkills] = useState<SkillEntry[]>([])
 
@@ -111,6 +117,26 @@ export function NewClankerPage() {
   }, [])
 
   const selectedStrategy = deploymentStrategies.find((strategy) => strategy.id === selectedStrategyId)
+  const selectableSecrets = useMemo(
+    () => filterSecretsForAgent(secrets, selectedAgent, codexAuthMode),
+    [codexAuthMode, secrets, selectedAgent],
+  )
+  const selectableSecretIds = useMemo(() => new Set(selectableSecrets.map((secret) => secret.id)), [selectableSecrets])
+  const secretPickerDescription = useMemo(
+    () => getSecretPickerDescription(selectedAgent, codexAuthMode),
+    [codexAuthMode, selectedAgent],
+  )
+  const secretPickerEmptyMessage = useMemo(
+    () => getSecretPickerEmptyMessage(selectedAgent, codexAuthMode),
+    [codexAuthMode, selectedAgent],
+  )
+
+  useEffect(() => {
+    setSelectedSecretIds((previous) => {
+      const filtered = previous.filter((id) => selectableSecretIds.has(id))
+      return filtered.length === previous.length ? previous : filtered
+    })
+  }, [selectableSecretIds])
 
   function updateSkill(id: string, updates: Partial<SkillEntry>) {
     setSkills((previous) => previous.map((entry) => (entry.id === id ? { ...entry, ...updates } : entry)))
@@ -189,6 +215,7 @@ export function NewClankerPage() {
         taskDefinitionArn: ((formData.get('taskDefinitionArn') as string) || '').trim(),
         functionArn: ((formData.get('functionArn') as string) || '').trim(),
         codexAuthMode,
+        qwenEndpoint,
       },
     })
 
@@ -284,20 +311,22 @@ export function NewClankerPage() {
               selectedAgent={selectedAgent}
               strategyName={selectedStrategy?.name}
               codexAuthMode={codexAuthMode}
+              qwenEndpoint={qwenEndpoint}
               onCodexAuthModeChange={setCodexAuthMode}
+              onQwenEndpointChange={setQwenEndpoint}
             />
 
             <MultiSelect
               label="Secrets"
-              description="Select which secrets should be available to this clanker during execution."
-              options={secrets.map((secret) => ({
+              description={secretPickerDescription}
+              options={selectableSecrets.map((secret) => ({
                 id: secret.id,
                 label: secret.name,
                 description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
               }))}
               value={selectedSecretIds}
               onChange={setSelectedSecretIds}
-              emptyMessage="No secrets available. Create secrets first in the Settings section."
+              emptyMessage={secretPickerEmptyMessage}
               searchable={true}
             />
           </FieldGroup>
