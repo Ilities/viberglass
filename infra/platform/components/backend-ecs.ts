@@ -188,7 +188,11 @@ export function createBackendEcs(
             ],
           },
           {
-            Action: ["ssm:PutParameter", "ssm:GetParameter"],
+            Action: [
+              "ssm:PutParameter",
+              "ssm:GetParameter",
+              "ssm:DeleteParameter",
+            ],
             Effect: "Allow",
             Resource: `arn:aws:ssm:${options.config.awsRegion}:*:parameter/viberator/secrets/*`,
           },
