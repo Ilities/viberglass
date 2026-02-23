@@ -15,15 +15,11 @@ import {
 import { CallbackClient } from "../infrastructure/CallbackClient";
 import { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
-import {
-  DEFAULT_CODEX_AUTH_SETTINGS,
-  type CodexAuthSettings,
-  resolveCodexAuthSettings,
-} from "../../config/clankerConfig";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
-import { CodexAuthManager } from "../runtime/CodexAuthManager";
 import { LogForwarder } from "../runtime/LogForwarder";
+import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
+import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
 import { runCodingJob } from "./runCodingJob";
 
 export class ViberatorWorker {
@@ -38,7 +34,8 @@ export class ViberatorWorker {
   private instructionFileManager!: InstructionFileManager;
   private environmentManager!: EnvironmentManager;
   private logForwarder!: LogForwarder;
-  private codexAuthManager!: CodexAuthManager;
+  private agentAuthLifecycle!: AgentAuthLifecycle;
+  private readonly agentAuthLifecycleFactory: AgentAuthLifecycleFactory;
   private initialized = false;
 
   private clankerConfig?: Record<string, unknown>;
@@ -50,12 +47,10 @@ export class ViberatorWorker {
   private fetchedCredentials?: Record<string, string | undefined>;
   private currentJobId?: string;
   private currentTenantId?: string;
-  private codexAuthSettings: CodexAuthSettings = {
-    ...DEFAULT_CODEX_AUTH_SETTINGS,
-  };
 
-  constructor() {
+  constructor(agentAuthLifecycleFactory: AgentAuthLifecycleFactory) {
     this.workDir = process.env.WORK_DIR || "/tmp/viberator-work";
+    this.agentAuthLifecycleFactory = agentAuthLifecycleFactory;
     this.logger = createLogger({
       level: process.env.LOG_LEVEL || "info",
       format: format.json(),
@@ -84,7 +79,7 @@ export class ViberatorWorker {
       await this.initializeCoreServices(payload?.callbackToken);
 
       if (payload) {
-        await this.codexAuthManager.materializeAuthCacheFromEnv();
+        await this.agentAuthLifecycle.materializeFromEnvironment();
         this.instructionFiles = await this.instructionFileManager.loadFromPayload(
           payload,
           this.configLoader,
@@ -133,8 +128,7 @@ export class ViberatorWorker {
         clankerConfig: this.clankerConfig,
         projectConfig: this.projectConfig,
         overrides: this.overrides,
-        codexAuthSettings: this.codexAuthSettings,
-        codexAuthManager: this.codexAuthManager,
+        agentAuthLifecycle: this.agentAuthLifecycle,
         environmentManager: this.environmentManager,
         logForwarder: this.logForwarder,
         defaultTimeout: this.config.execution.defaultTimeout,
@@ -170,10 +164,6 @@ export class ViberatorWorker {
         this.requestedAgent = clankerAgent;
       }
     }
-
-    this.codexAuthSettings = resolveCodexAuthSettings(this.clankerConfig);
-    process.env.CODEX_AUTH_MODE = this.codexAuthSettings.mode;
-    process.env.CODEX_AUTH_SECRET_NAME = this.codexAuthSettings.secretName;
 
     this.projectConfig = payload.projectConfig;
     this.overrides = payload.overrides;
@@ -215,14 +205,16 @@ export class ViberatorWorker {
     });
 
     this.logForwarder = new LogForwarder(this.logger, this.callbackClient);
-    this.codexAuthManager = new CodexAuthManager(
-      this.logger,
-      this.callbackClient,
-      this.workDir,
-      (step, message, details) => this.sendProgress(step, message, details),
-      this.codexAuthSettings,
-      this.credentialProvider,
-    );
+    this.agentAuthLifecycle = this.agentAuthLifecycleFactory.create({
+      requestedAgent: this.requestedAgent,
+      clankerConfig: this.clankerConfig,
+      logger: this.logger,
+      callbackClient: this.callbackClient,
+      workDir: this.workDir,
+      sendProgress: (step, message, details) =>
+        this.sendProgress(step, message, details),
+      credentialProvider: this.credentialProvider,
+    });
   }
 
   private resolveClankerConfig(
