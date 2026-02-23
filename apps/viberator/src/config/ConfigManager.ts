@@ -248,7 +248,7 @@ export class ConfigManager {
         endpoint: ["ANTHROPIC_BASE_URL"],
       },
       "qwen-cli": {
-        apiKey: ["DASHSCOPE_API_KEY", "QWEN_CLI_API_KEY", "QWEN_API_KEY"],
+        apiKey: ["QWEN_CLI_API_KEY"],
         endpoint: ["QWEN_API_ENDPOINT", "OPENAI_BASE_URL"],
       },
       "kimi-code": {

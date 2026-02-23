@@ -18,7 +18,7 @@ async function testQwenAPI() {
     const hasQwen = agentsResponse.data.agents.some(agent => agent.name === 'qwen-cli');
     
     if (!hasQwen) {
-      console.log('Qwen agent not found. Make sure to set DASHSCOPE_API_KEY or QWEN_CLI_API_KEY in your environment.');
+      console.log('Qwen agent not found. Make sure to set QWEN_CLI_API_KEY in your environment.');
       return;
     }
     
