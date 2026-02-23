@@ -64,7 +64,7 @@ export function resolveCodexAuthSettings(
     return { ...DEFAULT_CODEX_AUTH_SETTINGS };
   }
 
-  // V1 config envelope
+  // Only v1 config envelope is supported.
   const agent = isObjectRecord(deploymentConfig.agent)
     ? deploymentConfig.agent
     : undefined;
@@ -72,6 +72,7 @@ export function resolveCodexAuthSettings(
     return normalizeCodexAuth(agent.codexAuth);
   }
 
-  // Legacy config format
-  return normalizeCodexAuth(deploymentConfig.codexAuth);
+  throw new Error(
+    "Unsupported Codex auth config: expected v1 deployment config with agent.type='codex'",
+  );
 }
