@@ -4,6 +4,12 @@ import {
 } from "./clankerConfig";
 
 describe("resolveCodexAuthSettings", () => {
+  test("uses defaults when clanker config is missing", () => {
+    expect(resolveCodexAuthSettings(undefined)).toEqual(
+      DEFAULT_CODEX_AUTH_SETTINGS,
+    );
+  });
+
   test("uses fixed default secret name for v1 codex auth config", () => {
     const settings = resolveCodexAuthSettings({
       deploymentConfig: {
@@ -27,17 +33,19 @@ describe("resolveCodexAuthSettings", () => {
     });
   });
 
-  test("uses fixed default secret name for legacy codex auth config", () => {
-    const settings = resolveCodexAuthSettings({
-      deploymentConfig: {
-        codexAuth: {
-          mode: "chatgpt_device",
-          secretName: "LEGACY_CUSTOM_SECRET",
+  test("rejects legacy codex auth config", () => {
+    expect(() =>
+      resolveCodexAuthSettings({
+        deploymentConfig: {
+          codexAuth: {
+            mode: "chatgpt_device",
+            secretName: "LEGACY_CUSTOM_SECRET",
+          },
         },
-      },
-    });
-
-    expect(settings.secretName).toBe(DEFAULT_CODEX_AUTH_SETTINGS.secretName);
+      }),
+    ).toThrow(
+      "Unsupported Codex auth config: expected v1 deployment config with agent.type='codex'",
+    );
   });
 
   test("accepts chatgpt_device_stored mode", () => {
