@@ -27,8 +27,8 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
   {
     id: 'qwen-cli',
     label: 'Qwen CLI',
-    helper: 'Recommended: QWEN_CLI_API_KEY.',
-    names: ['QWEN_CLI_API_KEY'],
+    helper: 'Recommended: QWEN_CLI_API_KEY. Configure endpoint in clanker settings (not as a secret).',
+    names: ['QWEN_CLI_API_KEY', 'DASHSCOPE_API_KEY', 'QWEN_API_KEY'],
   },
   {
     id: 'gemini-cli',

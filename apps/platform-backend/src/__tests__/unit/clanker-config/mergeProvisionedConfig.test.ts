@@ -104,4 +104,37 @@ describe("mergeProvisionedStrategyIntoConfig", () => {
     expect(strategy?.type).toBe("docker");
     expect(strategy?.containerImage).toBe("new-image");
   });
+
+  it("preserves qwen endpoint settings in v1 config", () => {
+    const clanker = buildBaseClanker({
+      agent: "qwen-cli",
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: "docker",
+          provisioningMode: "managed",
+        },
+        agent: {
+          type: "qwen-cli",
+          endpoint: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        },
+      },
+    });
+
+    const merged = mergeProvisionedStrategyIntoConfig(clanker, {
+      type: "docker",
+      provisioningMode: "prebuilt",
+      containerImage: "ghcr.io/org/worker:qwen",
+    });
+
+    const strategy = cloneObjectRecord(merged.strategy);
+    const agent = cloneObjectRecord(merged.agent);
+
+    expect(strategy?.type).toBe("docker");
+    expect(strategy?.containerImage).toBe("ghcr.io/org/worker:qwen");
+    expect(agent?.type).toBe("qwen-cli");
+    expect(agent?.endpoint).toBe(
+      "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    );
+  });
 });

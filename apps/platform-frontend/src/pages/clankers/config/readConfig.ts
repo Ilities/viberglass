@@ -25,6 +25,13 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
         ? 'chatgpt_device'
         : 'api_key'
 
+  const legacyQwenEndpoint =
+    typeof config.qwenEndpoint === 'string'
+      ? config.qwenEndpoint
+      : typeof config.endpoint === 'string'
+        ? config.endpoint
+        : ''
+
   return {
     form: {
       provisioningMode,
@@ -33,6 +40,7 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       taskDefinitionArn: typeof config.taskDefinitionArn === 'string' ? config.taskDefinitionArn : '',
       functionArn: typeof config.functionArn === 'string' ? config.functionArn : '',
       codexAuthMode,
+      qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
     },
   }
 }
@@ -59,10 +67,20 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
           codexAuthMode: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
         }
 
+  const qwenForm =
+    agent.type === 'qwen-cli'
+      ? {
+          qwenEndpoint: typeof agent.endpoint === 'string' ? agent.endpoint : '',
+        }
+      : {
+          qwenEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint,
+        }
+
   return {
     form: {
       ...strategyForm,
       ...codexForm,
+      ...qwenForm,
     },
   }
 }
