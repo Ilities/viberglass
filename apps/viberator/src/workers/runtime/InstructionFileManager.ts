@@ -10,6 +10,9 @@ import {
 } from "../core/types";
 
 export class InstructionFileManager {
+  private static readonly CLANKER_AGENTS_FILE = "AGENTS.md";
+  private static readonly CLANKER_AGENTS_TARGET_PATH = "agents/AGENTS.md";
+
   constructor(private readonly logger: Logger) {}
 
   async loadFromPayload(
@@ -112,7 +115,12 @@ export class InstructionFileManager {
       return null;
     }
 
-    const targetPath = path.resolve(repoDir, normalized);
+    const relativePath =
+      normalized === InstructionFileManager.CLANKER_AGENTS_FILE
+        ? InstructionFileManager.CLANKER_AGENTS_TARGET_PATH
+        : normalized;
+
+    const targetPath = path.resolve(repoDir, relativePath);
     const resolvedRepoDir = path.resolve(repoDir);
 
     if (

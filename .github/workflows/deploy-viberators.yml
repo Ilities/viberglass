@@ -37,7 +37,6 @@ on:
           - kimi
           - testing
           - deployment
-          - fullstack
       image_tag:
         description: 'Image tag (default: latest)'
         required: false
