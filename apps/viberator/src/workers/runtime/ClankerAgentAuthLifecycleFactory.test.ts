@@ -26,7 +26,7 @@ describe("ClankerAgentAuthLifecycleFactory", () => {
     expect(lifecycle).toBeInstanceOf(NoopAgentAuthLifecycle);
   });
 
-  test("returns codex lifecycle when clanker config agent is codex", () => {
+  test("returns codex lifecycle when requested agent is codex", () => {
     const previousMode = process.env.CODEX_AUTH_MODE;
     const previousSecretName = process.env.CODEX_AUTH_SECRET_NAME;
 
@@ -36,7 +36,7 @@ describe("ClankerAgentAuthLifecycleFactory", () => {
 
       const factory = new ClankerAgentAuthLifecycleFactory();
       const lifecycle = factory.create({
-        clankerConfig: { agent: "codex" },
+        requestedAgent: "codex",
         logger,
         callbackClient,
         workDir: "/tmp/viberator-test",
