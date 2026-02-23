@@ -5,7 +5,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatAutoFixStatus, formatSeverity, formatTimestamp, type TicketSummary } from '@/data'
 import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
-import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 
 interface TicketsTableProps {
@@ -17,7 +16,6 @@ interface TicketsTableProps {
 
 export function TicketsTable({ tickets, fullTickets, clankers, project }: TicketsTableProps) {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const canRun = activeClankers.length > 0
 
