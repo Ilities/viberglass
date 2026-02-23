@@ -32,6 +32,9 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
         ? config.endpoint
         : ''
 
+  const legacyOpenCodeEndpoint = typeof config.endpoint === 'string' ? config.endpoint : ''
+  const legacyOpenCodeModel = typeof config.model === 'string' ? config.model : ''
+
   return {
     form: {
       provisioningMode,
@@ -41,6 +44,9 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       functionArn: typeof config.functionArn === 'string' ? config.functionArn : '',
       codexAuthMode,
       qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
+      opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
+      opencodeModel: input.agent === 'opencode' ? legacyOpenCodeModel : '',
+      geminiModel: input.agent === 'gemini-cli' ? legacyOpenCodeModel : '',
     },
   }
 }
@@ -76,11 +82,33 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
           qwenEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint,
         }
 
+  const opencodeForm =
+    agent.type === 'opencode'
+      ? {
+          opencodeEndpoint: typeof agent.endpoint === 'string' ? agent.endpoint : '',
+          opencodeModel: typeof agent.model === 'string' ? agent.model : '',
+        }
+      : {
+          opencodeEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeEndpoint,
+          opencodeModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel,
+        }
+
+  const geminiForm =
+    agent.type === 'gemini-cli'
+      ? {
+          geminiModel: typeof agent.model === 'string' ? agent.model : '',
+        }
+      : {
+          geminiModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel,
+        }
+
   return {
     form: {
       ...strategyForm,
       ...codexForm,
       ...qwenForm,
+      ...opencodeForm,
+      ...geminiForm,
     },
   }
 }

@@ -8,6 +8,8 @@ import {
   GenericAgentConfig,
 } from "@viberglass/types";
 import { normalizeCodexAgentConfig } from "./agents/codex";
+import { normalizeGeminiAgentConfig } from "./agents/gemini";
+import { normalizeOpenCodeAgentConfig } from "./agents/opencode";
 import { normalizeQwenAgentConfig } from "./agents/qwen";
 import { normalizeDockerStrategyConfig } from "./strategies/docker";
 import { normalizeEcsStrategyConfig } from "./strategies/ecs";
@@ -28,9 +30,7 @@ function normalizeStrategyName(name: string | undefined): ClankerStrategyType {
 function normalizeGenericAgent(agent?: AgentType | null): GenericAgentConfig {
   switch (agent) {
     case "claude-code":
-    case "opencode":
     case "kimi-code":
-    case "gemini-cli":
     case "mistral-vibe":
       return { type: agent };
     default:
@@ -103,6 +103,10 @@ export function mapLegacyClankerConfig(clanker: Clanker): ClankerConfigV1 {
       ? normalizeCodexAgentConfig(deploymentConfig)
       : clanker.agent === "qwen-cli"
         ? normalizeQwenAgentConfig(deploymentConfig)
+      : clanker.agent === "opencode"
+        ? normalizeOpenCodeAgentConfig(deploymentConfig)
+      : clanker.agent === "gemini-cli"
+        ? normalizeGeminiAgentConfig(deploymentConfig)
       : normalizeGenericAgent(clanker.agent);
 
   const runtimeSettings = asRuntimeSettings(deploymentConfig.settings);

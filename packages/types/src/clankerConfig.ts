@@ -99,13 +99,26 @@ export interface QwenAgentConfig {
   endpoint?: string;
 }
 
+export interface OpenCodeAgentConfig {
+  type: "opencode";
+  endpoint?: string;
+  model?: string;
+}
+
+export interface GeminiAgentConfig {
+  type: "gemini-cli";
+  model?: string;
+}
+
 export interface GenericAgentConfig {
-  type: Exclude<AgentType, "codex" | "qwen-cli">;
+  type: Exclude<AgentType, "codex" | "qwen-cli" | "opencode" | "gemini-cli">;
 }
 
 export type ClankerAgentConfig =
   | CodexAgentConfig
   | QwenAgentConfig
+  | OpenCodeAgentConfig
+  | GeminiAgentConfig
   | GenericAgentConfig;
 
 export interface ClankerConfigV1 {

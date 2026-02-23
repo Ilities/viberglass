@@ -103,6 +103,9 @@ export function EditClankerPage() {
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
   const [codexAuthMode, setCodexAuthMode] = useState<CodexAuthMode>(DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode)
   const [qwenEndpoint, setQwenEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint)
+  const [opencodeEndpoint, setOpencodeEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeEndpoint)
+  const [opencodeModel, setOpencodeModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel)
+  const [geminiModel, setGeminiModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel)
   const [agentInstructions, setAgentInstructions] = useState('')
   const [skills, setSkills] = useState<SkillEntry[]>([])
 
@@ -137,6 +140,9 @@ export function EditClankerPage() {
       setProvisioningMode(parsedConfig.form.provisioningMode)
       setCodexAuthMode(parsedConfig.form.codexAuthMode)
       setQwenEndpoint(parsedConfig.form.qwenEndpoint)
+      setOpencodeEndpoint(parsedConfig.form.opencodeEndpoint)
+      setOpencodeModel(parsedConfig.form.opencodeModel)
+      setGeminiModel(parsedConfig.form.geminiModel)
 
       const loadedSkills: SkillEntry[] = []
       for (const file of clankerData.configFiles) {
@@ -259,6 +265,9 @@ export function EditClankerPage() {
         functionArn: ((formData.get('functionArn') as string) || '').trim(),
         codexAuthMode,
         qwenEndpoint,
+        opencodeEndpoint,
+        opencodeModel,
+        geminiModel,
       },
     })
 
@@ -368,8 +377,14 @@ export function EditClankerPage() {
               strategyName={selectedStrategy?.name}
               codexAuthMode={codexAuthMode}
               qwenEndpoint={qwenEndpoint}
+              opencodeEndpoint={opencodeEndpoint}
+              opencodeModel={opencodeModel}
+              geminiModel={geminiModel}
               onCodexAuthModeChange={setCodexAuthMode}
               onQwenEndpointChange={setQwenEndpoint}
+              onOpenCodeEndpointChange={setOpencodeEndpoint}
+              onOpenCodeModelChange={setOpencodeModel}
+              onGeminiModelChange={setGeminiModel}
             />
 
             <MultiSelect
