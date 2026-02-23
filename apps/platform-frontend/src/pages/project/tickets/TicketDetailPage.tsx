@@ -224,32 +224,6 @@ export function TicketDetailPage() {
                   />
                 </Section>
               </div>
-
-              <div className="app-frame rounded-lg p-4">
-                <Section title="Environment">
-                  <InfoItem
-                    icon={<CubeIcon className="h-4 w-4" />}
-                    label="Browser"
-                    value={`${ticket.metadata?.browser?.name || '-'} ${ticket.metadata?.browser?.version || ''}`.trim()}
-                  />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
-                  <InfoItem
-                    icon={<CubeIcon className="h-4 w-4" />}
-                    label="OS"
-                    value={`${ticket.metadata?.os?.name || '-'} ${ticket.metadata?.os?.version || ''}`.trim()}
-                  />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
-                  <InfoItem
-                    icon={<CubeIcon className="h-4 w-4" />}
-                    label="Viewport"
-                    value={
-                      ticket.metadata?.screen
-                        ? `${ticket.metadata.screen.viewportWidth}×${ticket.metadata.screen.viewportHeight}`
-                        : '-'
-                    }
-                  />
-                </Section>
-              </div>
             </div>
 
             <div className="lg:col-span-8 xl:col-span-9">
