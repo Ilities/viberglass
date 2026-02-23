@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "description": "AI Agent Orchestrator for bug fixing with multiple AI coding CLIs",
-  "main": "dist/index.js",
   "scripts": {
     "build": "tsup",
     "start:worker": "node dist/cli-worker.js",

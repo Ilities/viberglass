@@ -85,9 +85,6 @@ export class ClaudeCodeAgent extends BaseAgent {
       // Get changed files
       const changedFiles = await this.getChangedFiles(repoDir);
 
-      // Read PR description from file (before cleanup)
-      const pullRequestDescription = await this.readPRDescription(repoDir);
-
       // Parse results
       const cliOutput = this.parseCliOutput(result.stdout);
 
@@ -103,7 +100,6 @@ export class ClaudeCodeAgent extends BaseAgent {
           "pullRequestUrl",
           "pr_url",
         ),
-        pullRequestDescription,
         testResults: Array.isArray(cliOutput.testResults)
           ? cliOutput.testResults
           : undefined,

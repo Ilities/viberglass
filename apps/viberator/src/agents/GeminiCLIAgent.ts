@@ -62,9 +62,6 @@ export class GeminiCLIAgent extends BaseAgent {
 
       const changedFiles = await this.getChangedFiles(repoDir);
 
-      // Read PR description from file (before cleanup)
-      const pullRequestDescription = await this.readPRDescription(repoDir);
-
       const cliOutput = this.parseCliOutput(result.stdout);
 
       await this.cleanup(workDir);
@@ -78,7 +75,6 @@ export class GeminiCLIAgent extends BaseAgent {
           "pullRequestUrl",
           "pr_url",
         ),
-        pullRequestDescription,
       };
     } catch (error) {
       await this.cleanup(workDir);
