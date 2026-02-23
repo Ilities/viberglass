@@ -48,12 +48,6 @@ class TestCodexAgent extends CodexAgent {
     return ["src/example.ts"];
   }
 
-  protected override async readPRDescription(
-    _repoDir: string,
-  ): Promise<string | undefined> {
-    return "PR description";
-  }
-
   protected override async cleanup(_workDir: string): Promise<void> {
     return;
   }
@@ -126,14 +120,11 @@ describe("CodexAgent CLI invocation", () => {
     }
 
     expect(agent.capturedCommand.command).toBe("codex");
+    expect(agent.capturedCommand.args[0]).toBe("--yolo");
     expect(agent.capturedCommand.args).toContain("exec");
     expect(agent.capturedCommand.args).not.toContain("--prompt");
     expect(agent.capturedCommand.args).toEqual(
       expect.arrayContaining([
-        "--ask-for-approval",
-        "never",
-        "--sandbox",
-        "danger-full-access",
         "--json",
         "--skip-git-repo-check",
         "--cd",
