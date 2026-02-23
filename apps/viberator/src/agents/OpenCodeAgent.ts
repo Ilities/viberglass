@@ -71,7 +71,6 @@ export class OpenCodeAgent extends BaseAgent {
       }
 
       const changedFiles = await this.getChangedFiles(repoDir);
-      const pullRequestDescription = await this.readPRDescription(repoDir);
       const cliOutput = this.parseCliOutput(result.stdout);
 
       await this.cleanup(workDir);
@@ -85,7 +84,6 @@ export class OpenCodeAgent extends BaseAgent {
           "pullRequestUrl",
           "pr_url",
         ),
-        pullRequestDescription,
       };
     } catch (error) {
       await this.cleanup(workDir);
