@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { ViberatorWorker } from "../core/ViberatorWorker";
-import { DockerPayload, CodingJobData, JobResult } from "../core/types";
+import {
+  CodingJobData,
+  JobResult,
+  WorkerPayload,
+} from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 
 /**
@@ -70,13 +74,13 @@ function parseArgs(args: string[]): CliArgs {
 
 function showHelp(): void {
   console.log(`
-Viberator Ephemeral Worker (Docker)
+Viberator Ephemeral Worker (Docker/ECS)
 
 Usage:
   worker [options]
 
 Options:
-  -j, --job-data <json>    Job data as JSON string (DockerPayload format)
+  -j, --job-data <json>    Job data as JSON string (DockerPayload/EcsPayload format)
   -f, --job-file <path>    Path to JSON file containing job data
   -r, --job-ref <jobId>    Fetch job bootstrap payload from platform API by job ID
   -h, --help               Show this help message
@@ -105,7 +109,7 @@ Docker Credential Flow:
 `);
 }
 
-async function loadJobData(args: CliArgs): Promise<DockerPayload> {
+async function loadJobData(args: CliArgs): Promise<WorkerPayload> {
   if (args["job-file"]) {
     const fs = await import("fs");
     const content = fs.readFileSync(args["job-file"], "utf-8");
@@ -146,7 +150,7 @@ async function loadJobData(args: CliArgs): Promise<DockerPayload> {
     }
 
     const parsed: unknown = await response.json();
-    const data = readDataField<DockerPayload>(parsed);
+    const data = readDataField<WorkerPayload>(parsed);
     if (!data) {
       throw new Error(
         `Bootstrap response for ${args["job-ref"]} did not include payload data.`,
@@ -176,7 +180,7 @@ async function main() {
   try {
     const payload = await loadJobData(args);
 
-    // Validate required DockerPayload fields
+    // Validate required payload fields
     if (!payload.jobId) {
       throw new Error("Missing required field: jobId");
     }
@@ -189,19 +193,19 @@ async function main() {
     if (!payload.task) {
       throw new Error("Missing required field: task");
     }
-    if (payload.workerType !== "docker") {
+    if (payload.workerType !== "docker" && payload.workerType !== "ecs") {
       throw new Error(
-        `Invalid workerType: ${payload.workerType}. Expected 'docker' for CLI worker.`,
+        `Invalid workerType: ${payload.workerType}. Expected 'docker' or 'ecs' for CLI worker.`,
       );
     }
 
     console.log(`Starting ephemeral worker for job: ${payload.jobId}`);
 
-    // Initialize worker with DockerPayload
+    // Initialize worker with CLI payload
     const worker = new ViberatorWorker(new ClankerAgentAuthLifecycleFactory());
     await worker.initialize(payload);
 
-    // Convert DockerPayload to CodingJobData for executeTask
+    // Convert payload to CodingJobData for executeTask
     const jobData: CodingJobData = {
       id: payload.jobId,
       tenantId: payload.tenantId,
