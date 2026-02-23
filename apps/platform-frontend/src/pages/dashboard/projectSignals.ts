@@ -1,6 +1,7 @@
 import type { JobListItem, Project, TicketSummary } from '@/data'
 import { formatJobStatus, formatTimestamp } from '@/data'
 import type { ProjectSignal, SignalColor } from '@/pages/dashboard/types'
+import { TICKET_STATUS } from '@viberglass/types'
 
 export function getBroadcastLine(projectCount: number, clankerCount: number): string {
   const messages = [
@@ -21,7 +22,7 @@ export function getProjectSignal(project: Project, tickets: TicketSummary[], job
   const hasLegacyRepository = Boolean(project.repositoryUrl || (project.repositoryUrls && project.repositoryUrls.length > 0))
   const hasObservedRepositoryFlow = jobs.some((job) => job.repository.trim().length > 0)
   const hasScm = hasScmConfig || hasLegacyRepository || hasObservedRepositoryFlow
-  const openTickets = tickets.filter((ticket) => ticket.status !== 'resolved').length
+  const openTickets = tickets.filter((ticket) => ticket.status !== TICKET_STATUS.RESOLVED).length
   const failedJobs = jobs.filter((job) => job.status === 'failed').length
   const activeJobs = jobs.filter((job) => job.status === 'active' || job.status === 'queued').length
 
