@@ -94,11 +94,19 @@ export interface CodexAgentConfig {
   };
 }
 
-export interface GenericAgentConfig {
-  type: Exclude<AgentType, "codex">;
+export interface QwenAgentConfig {
+  type: "qwen-cli";
+  endpoint?: string;
 }
 
-export type ClankerAgentConfig = CodexAgentConfig | GenericAgentConfig;
+export interface GenericAgentConfig {
+  type: Exclude<AgentType, "codex" | "qwen-cli">;
+}
+
+export type ClankerAgentConfig =
+  | CodexAgentConfig
+  | QwenAgentConfig
+  | GenericAgentConfig;
 
 export interface ClankerConfigV1 {
   version: 1;

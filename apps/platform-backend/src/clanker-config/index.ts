@@ -8,6 +8,7 @@ import type {
 } from "@viberglass/types";
 import { isClankerConfigV1 } from "@viberglass/types";
 import { normalizeCodexAgentConfig } from "./agents/codex";
+import { normalizeQwenAgentConfig } from "./agents/qwen";
 import { normalizeDockerStrategyConfig } from "./strategies/docker";
 import { normalizeEcsStrategyConfig } from "./strategies/ecs";
 import { normalizeLambdaStrategyConfig } from "./strategies/lambda";
@@ -37,13 +38,20 @@ function normalizeAgent(
     return normalizeCodexAgentConfig(agent);
   }
 
+  if (agent.type === "qwen-cli") {
+    return normalizeQwenAgentConfig(agent);
+  }
+
   if (!agent.type && fallbackAgent === "codex") {
     return normalizeCodexAgentConfig(agent);
   }
 
+  if (!agent.type && fallbackAgent === "qwen-cli") {
+    return normalizeQwenAgentConfig(agent);
+  }
+
   const candidate = agent.type || fallbackAgent;
   switch (candidate) {
-    case "qwen-cli":
     case "opencode":
     case "kimi-code":
     case "gemini-cli":
