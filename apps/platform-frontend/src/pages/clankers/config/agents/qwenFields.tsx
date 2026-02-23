@@ -3,7 +3,7 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 
 const CUSTOM_ENDPOINT_VALUE = '__custom__'
-const DEFAULT_ENDPOINT_VALUE = ''
+const DEFAULT_ENDPOINT_VALUE = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
 
 interface QwenEndpointOption {
   value: string
@@ -38,10 +38,10 @@ interface QwenAgentFieldsProps {
 
 export function QwenAgentFields({ endpoint, onEndpointChange }: QwenAgentFieldsProps) {
   const normalizedEndpoint = endpoint.trim()
-  const selectedEndpoint =
-    normalizedEndpoint.length === 0 || QWEN_ENDPOINT_OPTIONS.some((option) => option.value === normalizedEndpoint)
-      ? normalizedEndpoint
-      : CUSTOM_ENDPOINT_VALUE
+
+  const isPreset = QWEN_ENDPOINT_OPTIONS.some((option) => option.value === normalizedEndpoint)
+  const selectValue = isPreset ? normalizedEndpoint : CUSTOM_ENDPOINT_VALUE
+  const showCustomInput = !isPreset
 
   return (
     <Field>
@@ -50,33 +50,31 @@ export function QwenAgentFields({ endpoint, onEndpointChange }: QwenAgentFieldsP
         Choose the endpoint region for this clanker. This is stored as regular clanker config and injected at runtime.
       </Description>
       <Select
-        value={selectedEndpoint}
+        value={selectValue}
         onChange={(value) => {
           if (value === CUSTOM_ENDPOINT_VALUE) {
-            if (selectedEndpoint !== CUSTOM_ENDPOINT_VALUE) {
-              onEndpointChange('')
-            }
-            return
+            onEndpointChange('')
+          } else {
+            onEndpointChange(value)
           }
-
-          onEndpointChange(value)
         }}
       >
         {QWEN_ENDPOINT_OPTIONS.map((option) => (
-          <option key={option.value || 'default'} value={option.value}>
+          <option key={option.value} value={option.value}>
             {option.label}
             {option.hint ? ` (${option.hint})` : ''}
           </option>
         ))}
         <option value={CUSTOM_ENDPOINT_VALUE}>Custom endpoint</option>
       </Select>
-      {selectedEndpoint === CUSTOM_ENDPOINT_VALUE && (
-        <Input
-          className="mt-3"
-          value={endpoint}
-          onChange={(event) => onEndpointChange(event.target.value)}
-          placeholder="https://your-endpoint.example.com/compatible-mode/v1"
-        />
+      {showCustomInput && (
+        <div className="pt-4">
+          <Input
+            value={endpoint}
+            onChange={(event) => onEndpointChange(event.target.value)}
+            placeholder="https://your-endpoint.example.com/compatible-mode/v1"
+          />
+        </div>
       )}
       <Description>
         Injected as <code>QWEN_CLI_ENDPOINT</code> and <code>QWEN_API_ENDPOINT</code> to the agent.

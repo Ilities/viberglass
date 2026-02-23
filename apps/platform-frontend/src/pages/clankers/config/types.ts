@@ -10,6 +10,9 @@ export interface ClankerConfigFormState {
   functionArn: string
   codexAuthMode: CodexAuthMode
   qwenEndpoint: string
+  opencodeEndpoint: string
+  opencodeModel: string
+  geminiModel: string
 }
 
 export const DEFAULT_CODEX_AUTH_SECRET_NAME = 'CODEX_AUTH_JSON'
@@ -22,6 +25,9 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   functionArn: '',
   codexAuthMode: 'api_key',
   qwenEndpoint: '',
+  opencodeEndpoint: '',
+  opencodeModel: '',
+  geminiModel: '',
 }
 
 export type StrategyName = 'docker' | 'ecs' | 'aws-lambda-container' | 'lambda'
