@@ -137,4 +137,37 @@ describe("mergeProvisionedStrategyIntoConfig", () => {
       "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     );
   });
+
+  it("preserves opencode endpoint and model in v1 config", () => {
+    const clanker = buildBaseClanker({
+      agent: "opencode",
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: "docker",
+          provisioningMode: "managed",
+        },
+        agent: {
+          type: "opencode",
+          endpoint: "https://openrouter.ai/api/v1",
+          model: "openai/gpt-5",
+        },
+      },
+    });
+
+    const merged = mergeProvisionedStrategyIntoConfig(clanker, {
+      type: "docker",
+      provisioningMode: "prebuilt",
+      containerImage: "ghcr.io/org/worker:opencode",
+    });
+
+    const strategy = cloneObjectRecord(merged.strategy);
+    const agent = cloneObjectRecord(merged.agent);
+
+    expect(strategy?.type).toBe("docker");
+    expect(strategy?.containerImage).toBe("ghcr.io/org/worker:opencode");
+    expect(agent?.type).toBe("opencode");
+    expect(agent?.endpoint).toBe("https://openrouter.ai/api/v1");
+    expect(agent?.model).toBe("openai/gpt-5");
+  });
 });
