@@ -24,8 +24,12 @@ RUN apt-get update && \
     git \
     curl \
     wget \
+    ripgrep \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Provide common CLI build tools expected by agent tasks.
+RUN npm install -g typescript
 
 # Create a non-root user
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator

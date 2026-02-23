@@ -355,32 +355,6 @@ export abstract class BaseAgent {
   }
 
   /**
-   * Read PR description from the PR_DESCRIPTION.md file created by the agent
-   */
-  protected async readPRDescription(
-    repoDir: string,
-  ): Promise<string | undefined> {
-    const prDescriptionPath = path.join(repoDir, "PR_DESCRIPTION.md");
-    try {
-      if (fs.existsSync(prDescriptionPath)) {
-        const content = await fs.promises.readFile(prDescriptionPath, "utf8");
-        // Remove the file after reading so it doesn't get committed
-        await fs.promises.unlink(prDescriptionPath);
-        this.logger.debug("Read PR description from file", {
-          prDescriptionPath,
-        });
-        return content.trim();
-      }
-    } catch (error) {
-      this.logger.warn("Could not read PR description file", {
-        prDescriptionPath,
-        error,
-      });
-    }
-    return undefined;
-  }
-
-  /**
    * Create a new branch
    */
   protected async createBranch(

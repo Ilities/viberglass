@@ -16,20 +16,15 @@ export class MistralVibeAgent extends BaseAgent {
     try {
       await this.cloneRepository(context.repoUrl, context.branch, workDir);
       const repoDir = path.join(workDir, "repo");
-      const promptFile = await this.writePromptToFile(prompt, workDir);
+      const effectivePrompt = this.buildPrompt(prompt, context);
 
       const args = [
-        "vibe",
-        "--api-key",
-        this.config.apiKey!,
-        "--prompt-file",
-        promptFile,
-        "--repo",
+        "--prompt",
+        effectivePrompt,
+        "--output",
+        "json",
+        "--workdir",
         repoDir,
-        "--max-tokens",
-        (this.config.maxTokens || 4000).toString(),
-        "--temperature",
-        (this.config.temperature || 0.1).toString(),
       ];
 
       const env: NodeJS.ProcessEnv = {
@@ -37,40 +32,12 @@ export class MistralVibeAgent extends BaseAgent {
         MISTRAL_API_KEY: this.config.apiKey!,
       };
 
-      if (this.config.endpoint) {
-        args.push("--endpoint", this.config.endpoint);
-      }
-
-      if (context.testRequired) {
-        args.push("--with-tests");
-      }
-
-      // Try both 'mistral-vibe' and 'vibe' as binary names
-      const cliBinary = "mistral-vibe";
-      this.logger.info(`Executing ${cliBinary}`, {
-        args: args.filter((arg) => arg !== this.config.apiKey),
-      });
-
-      let result;
-      try {
-        result = await this.executeCommand(cliBinary, args, {
-          cwd: workDir,
-          env,
-          timeout: this.config.executionTimeLimit * 1000,
-        });
-      } catch (error) {
-        this.logger.warn(
-          `Failed to execute ${cliBinary}, trying 'vibe' instead`,
-        );
-        result = await this.executeCommand("vibe", args, {
-          cwd: workDir,
-          env,
-          timeout: this.config.executionTimeLimit * 1000,
-        });
-      }
+      const result = await this.executeVibeBinary(args, env, workDir);
 
       if (result.exitCode !== 0) {
-        throw new Error(`Mistral Vibe execution failed: ${result.stderr}`);
+        throw new Error(
+          `Mistral Vibe execution failed (Exit ${result.exitCode}): ${result.stderr || result.stdout}`,
+        );
       }
 
       const changedFiles = await this.getChangedFiles(repoDir);
@@ -92,6 +59,58 @@ export class MistralVibeAgent extends BaseAgent {
     } catch (error) {
       await this.cleanup(workDir);
       throw error;
+    }
+  }
+
+  private buildPrompt(prompt: string, context: ExecutionContext): string {
+    const promptSections: string[] = [prompt];
+
+    if (context.maxChanges) {
+      promptSections.push(`Limit changes to ${context.maxChanges} files.`);
+    }
+
+    if (context.testRequired) {
+      promptSections.push(
+        "Before finishing, run relevant tests and fix any failures.",
+      );
+    }
+
+    return promptSections.join("\n\n");
+  }
+
+  private async executeVibeBinary(
+    args: string[],
+    env: NodeJS.ProcessEnv,
+    workDir: string,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    try {
+      return await this.executeCommand("vibe", args, {
+        cwd: workDir,
+        env,
+        timeout: this.config.executionTimeLimit * 1000,
+      });
+    } catch (cmdError) {
+      if (!this.isCommandNotFoundError(cmdError)) {
+        throw cmdError;
+      }
+    }
+
+    try {
+      this.logger.warn(
+        "The 'vibe' binary was not found. Falling back to 'mistral-vibe'.",
+      );
+      return await this.executeCommand("mistral-vibe", args, {
+        cwd: workDir,
+        env,
+        timeout: this.config.executionTimeLimit * 1000,
+      });
+    } catch (cmdError) {
+      if (this.isCommandNotFoundError(cmdError)) {
+        throw new Error(
+          "The Mistral Vibe CLI was not found. Install it with: pip install mistral-vibe",
+        );
+      }
+      throw cmdError;
     }
   }
 }
