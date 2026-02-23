@@ -43,7 +43,7 @@ Optimized for AWS Lambda container images.
 #### `agents/viberator-worker-qwen.Dockerfile`
 Worker with Qwen Code CLI support.
 
-**Agent:** `qwen-cli`, `qwen-api`
+**Agent:** `qwen-cli`
 **CLI Source:** `npm install -g @qwen-code/qwen-code@latest`
 **Docs:** https://qwenlm.github.io/qwen-code-docs/
 **Use Case:** Using Qwen AI models for code analysis and editing
@@ -95,7 +95,7 @@ Worker with Kimi Code CLI support.
 #### `viberator-worker-multi-agent.Dockerfile`
 Universal worker with all agent CLIs pre-installed.
 
-**Agents:** `claude-code`, `qwen-cli`, `qwen-api`, `gemini-cli`, `mistral-vibe`, `codex`, `opencode`, `kimi-code`
+**Agents:** `claude-code`, `qwen-cli`, `gemini-cli`, `mistral-vibe`, `codex`, `opencode`, `kimi-code`
 
 **CLI Sources:**
 - Claude Code: `npm install -g @anthropic-ai/claude-code`
@@ -192,7 +192,7 @@ The `ClankerProvisioningService` automatically selects the appropriate worker im
 
 1. **Explicit Configuration:** If `deploymentConfig.containerImage` is set, use that
 2. **Agent-Based:** Auto-select based on agent type:
-   - `qwen-cli`, `qwen-api` → `viberator-worker-qwen`
+   - `qwen-cli` → `viberator-worker-qwen`
    - `gemini-cli` → `viberator-worker-gemini`
    - `mistral-vibe` → `viberator-worker-mistral`
    - `codex` → `viberator-worker-codex`

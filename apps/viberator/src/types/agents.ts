@@ -28,10 +28,10 @@ export interface ClaudeCodeConfig extends BaseAgentConfig {
   bashDefaultTimeoutMs?: number; // Command timeout
 }
 
-// Qwen Code configuration (DashScope API or CLI)
-// Docs: https://www.alibabacloud.com/help/en/model-studio/qwen-api-reference/
+// Qwen Code CLI configuration
+// Docs: https://docs.qwen.ai/coder
 export interface QwenCodeConfig extends BaseAgentConfig {
-  name: "qwen-cli" | "qwen-api";
+  name: "qwen-cli";
   apiKey: string; // OPENAI_API_KEY format (or sk-sp-xxxxx for Coding Plan)
   endpoint?:
     | "https://dashscope.aliyuncs.com/compatible-mode/v1" // Beijing
