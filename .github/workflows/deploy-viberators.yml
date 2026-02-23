@@ -35,8 +35,7 @@ on:
           - mistral
           - codex
           - kimi
-          - testing
-          - deployment
+          - opencode
       image_tag:
         description: 'Image tag (default: latest)'
         required: false
