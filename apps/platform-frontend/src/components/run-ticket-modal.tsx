@@ -36,7 +36,6 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
   }, [activeClankers, selectedClankerId])
 
   const selectedClanker = activeClankers.find((clanker) => clanker.id === selectedClankerId) ?? null
-  const configuredResourceLabel = getConfiguredResourceLabel(configuredClankers)
   const noClankersMessage = configuredClankers.length > 0
     ? `You have ${configuredClankers.length} configured clanker${configuredClankers.length === 1 ? '' : 's'}, but none are "started". The ECS task definition, container, or Lambda isn't deployed depending on the type.`
     : 'No clankers are configured yet. Configure and start one before running this ticket.'
@@ -156,26 +155,4 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
       </DialogActions>
     </Dialog>
   )
-}
-
-function getConfiguredResourceLabel(clankers: Clanker[]): string {
-  const strategyNames = new Set(
-    clankers
-      .map((clanker) => clanker.deploymentStrategy?.name?.toLowerCase())
-      .filter((name): name is string => Boolean(name))
-  )
-
-  const hasEcs = strategyNames.has('ecs')
-  const hasDocker = strategyNames.has('docker')
-  const hasLambda = strategyNames.has('lambda') || strategyNames.has('aws-lambda-container')
-  const knownStrategyCount = [hasEcs, hasDocker, hasLambda].filter(Boolean).length
-
-  if (knownStrategyCount > 1) {
-    return 'ECS task definition, container, or Lambda function (depending on strategy)'
-  }
-
-  if (hasEcs) return 'ECS task definition'
-  if (hasDocker) return 'container'
-  if (hasLambda) return 'Lambda function'
-  return 'runtime resources'
 }
