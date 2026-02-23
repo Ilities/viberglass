@@ -33,8 +33,8 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
   {
     id: 'gemini-cli',
     label: 'Gemini CLI',
-    helper: 'Recommended: GOOGLE_API_KEY.',
-    names: ['GOOGLE_API_KEY', 'GEMINI_CLI_API_KEY'],
+    helper: 'Recommended: GEMINI_API_KEY. GOOGLE_API_KEY is used for Vertex AI API-key mode.',
+    names: ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_CLI_API_KEY'],
   },
   {
     id: 'mistral-vibe',

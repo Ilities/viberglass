@@ -77,7 +77,7 @@ QWEN_CLI_API_KEY=your_qwen_api_key
 CODEX_API_KEY=your_openai_api_key
 KIMI_CODE_API_KEY=your_kimi_api_key
 MISTRAL_VIBE_API_KEY=your_mistral_api_key
-GEMINI_CLI_API_KEY=your_gemini_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 #### Optional Configuration
