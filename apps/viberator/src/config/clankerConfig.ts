@@ -42,12 +42,24 @@ function normalizeCodexAuth(raw: unknown): CodexAuthSettings {
   };
 }
 
+function resolveDeploymentConfig(
+  clankerConfig?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!clankerConfig) {
+    return undefined;
+  }
+
+  if (isObjectRecord(clankerConfig.deploymentConfig)) {
+    return clankerConfig.deploymentConfig;
+  }
+
+  return clankerConfig;
+}
+
 export function resolveCodexAuthSettings(
   clankerConfig?: Record<string, unknown>,
 ): CodexAuthSettings {
-  const deploymentConfig = isObjectRecord(clankerConfig?.deploymentConfig)
-    ? clankerConfig.deploymentConfig
-    : undefined;
+  const deploymentConfig = resolveDeploymentConfig(clankerConfig);
   if (!deploymentConfig) {
     return { ...DEFAULT_CODEX_AUTH_SETTINGS };
   }
