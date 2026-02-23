@@ -1,6 +1,7 @@
 import { createLogger, format, transports, Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
+import { isObjectRecord } from "@viberglass/types";
 import { ConfigManager } from "../../config/ConfigManager";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import { AgentConfig, Configuration } from "../../types";
@@ -221,10 +222,19 @@ export class ViberatorWorker {
     payload: WorkerPayload,
   ): Record<string, unknown> | undefined {
     if (payload.workerType === "docker") {
-      return payload.clankerConfig;
+      return isObjectRecord(payload.clankerConfig)
+        ? payload.clankerConfig
+        : undefined;
     }
 
-    return payload.deploymentConfig;
+    if (isObjectRecord(payload.deploymentConfig)) {
+      return payload.deploymentConfig;
+    }
+
+    const fallbackClankerConfig = Reflect.get(payload, "clankerConfig");
+    return isObjectRecord(fallbackClankerConfig)
+      ? fallbackClankerConfig
+      : undefined;
   }
 
   private extractClankerEnvironment(

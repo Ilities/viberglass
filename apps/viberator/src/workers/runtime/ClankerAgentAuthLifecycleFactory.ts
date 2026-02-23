@@ -7,6 +7,10 @@ import { CodexAuthManager } from "./CodexAuthManager";
 import { CodexAgentAuthLifecycle } from "./CodexAgentAuthLifecycle";
 import { NoopAgentAuthLifecycle } from "./NoopAgentAuthLifecycle";
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function normalizeAgentName(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -16,12 +20,48 @@ function normalizeAgentName(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function resolveAgentFromConfig(value: unknown): string | undefined {
+  if (!isObjectRecord(value)) {
+    return undefined;
+  }
+
+  const directAgent = normalizeAgentName(value.agent);
+  if (directAgent) {
+    return directAgent;
+  }
+
+  if (isObjectRecord(value.agent)) {
+    const nestedAgent = normalizeAgentName(value.agent.type);
+    if (nestedAgent) {
+      return nestedAgent;
+    }
+  }
+
+  const deploymentConfig = isObjectRecord(value.deploymentConfig)
+    ? value.deploymentConfig
+    : undefined;
+  if (!deploymentConfig) {
+    return undefined;
+  }
+
+  const deploymentAgent = normalizeAgentName(deploymentConfig.agent);
+  if (deploymentAgent) {
+    return deploymentAgent;
+  }
+
+  if (isObjectRecord(deploymentConfig.agent)) {
+    return normalizeAgentName(deploymentConfig.agent.type);
+  }
+
+  return undefined;
+}
+
 export class ClankerAgentAuthLifecycleFactory
   implements AgentAuthLifecycleFactory
 {
   create(input: AgentAuthLifecycleFactoryInput) {
     const requestedAgent = normalizeAgentName(input.requestedAgent);
-    const configAgent = normalizeAgentName(input.clankerConfig?.agent);
+    const configAgent = resolveAgentFromConfig(input.clankerConfig);
     const defaultAgent = normalizeAgentName(process.env.DEFAULT_AGENT);
     const effectiveAgent = requestedAgent || configAgent || defaultAgent;
 
