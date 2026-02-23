@@ -2,6 +2,7 @@ import { SQSHandler, SQSEvent } from "aws-lambda";
 import { ViberatorWorker } from "../core/ViberatorWorker";
 import { LambdaPayload } from "../core/types";
 import { CodingJobData, JobResult } from "../core/types";
+import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 
 export const handler: SQSHandler = async (event: SQSEvent) => {
   for (const record of event.Records) {
@@ -24,7 +25,7 @@ export const handler: SQSHandler = async (event: SQSEvent) => {
       }
 
       // Initialize worker with payload - handles credential fetching and injection
-      const worker = new ViberatorWorker();
+      const worker = new ViberatorWorker(new ClankerAgentAuthLifecycleFactory());
       await worker.initialize(payload);
 
       // Convert LambdaPayload to CodingJobData for executeTask

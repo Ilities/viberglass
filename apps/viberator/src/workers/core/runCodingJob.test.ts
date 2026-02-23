@@ -1,4 +1,4 @@
-import { isCodexStoredAuthFailure } from "./runCodingJob";
+import { isCodexStoredAuthFailure } from "../runtime/CodexAgentAuthLifecycle";
 
 describe("isCodexStoredAuthFailure", () => {
   test("matches unauthorized auth failures", () => {
