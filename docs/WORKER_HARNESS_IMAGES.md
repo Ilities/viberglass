@@ -20,7 +20,6 @@ This guide covers setting up the worker harness images used by Viberator clanker
 | `codex` | OpenAI Codex worker | `viberator-worker-codex.Dockerfile` |
 | `testing` | Test execution harness | `viberator-worker-testing.Dockerfile` |
 | `deployment` | Deployment automation harness | `viberator-worker-deployment.Dockerfile` |
-| `fullstack` | Full-stack development harness | `viberator-worker-fullstack.Dockerfile` |
 
 **Note:** The `ecs-worker` and `lambda-worker` images are managed by Pulumi and are NOT included in this setup.
 
@@ -126,7 +125,7 @@ Go to Actions → Deploy Worker Harness Images → Run workflow
 
 **Workflow options:**
 - **environment:** `dev` or `prod`
-- **harness:** `all`, `claude`, `multi-agent`, `qwen`, `gemini`, `mistral`, `codex`, `testing`, `deployment`, `fullstack`
+- **harness:** `all`, `claude`, `multi-agent`, `qwen`, `gemini`, `mistral`, `codex`, `testing`, `deployment`
 - **image_tag:** Custom tag (default: `latest`)
 
 ## Verification
