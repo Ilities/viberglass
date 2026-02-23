@@ -4,6 +4,7 @@ import type {
   AgentEndpointEnvironmentFactoryInput,
 } from "../core/agentEndpointEnvironmentFactory";
 import { NoopAgentEndpointEnvironment } from "./NoopAgentEndpointEnvironment";
+import { OpenCodeAgentEndpointEnvironment } from "./OpenCodeAgentEndpointEnvironment";
 import { QwenAgentEndpointEnvironment } from "./QwenAgentEndpointEnvironment";
 
 function normalizeAgentName(value: unknown): string | undefined {
@@ -107,6 +108,42 @@ function resolveQwenEndpoint(
   );
 }
 
+function resolveOpenCodeSettings(
+  clankerConfig?: Record<string, unknown>,
+): { endpoint?: string; model?: string } {
+  const deploymentConfig = resolveDeploymentConfig(clankerConfig);
+  if (!deploymentConfig) {
+    return {};
+  }
+
+  const deploymentAgent = isObjectRecord(deploymentConfig.agent)
+    ? deploymentConfig.agent
+    : undefined;
+
+  if (deploymentConfig.version === 1) {
+    if (deploymentAgent?.type !== "opencode") {
+      return {};
+    }
+
+    return {
+      endpoint: toNonEmptyString(deploymentAgent.endpoint),
+      model: toNonEmptyString(deploymentAgent.model),
+    };
+  }
+
+  const configuredAgent =
+    normalizeAgentName(clankerConfig?.agent) ||
+    normalizeAgentName(deploymentConfig.agent);
+  if (configuredAgent !== "opencode") {
+    return {};
+  }
+
+  return {
+    endpoint: toNonEmptyString(deploymentConfig.endpoint),
+    model: toNonEmptyString(deploymentConfig.model),
+  };
+}
+
 export class ClankerAgentEndpointEnvironmentFactory
   implements AgentEndpointEnvironmentFactory
 {
@@ -116,15 +153,24 @@ export class ClankerAgentEndpointEnvironmentFactory
     const defaultAgent = normalizeAgentName(process.env.DEFAULT_AGENT);
     const effectiveAgent = requestedAgent || configAgent || defaultAgent;
 
-    if (effectiveAgent !== "qwen-cli") {
-      return new NoopAgentEndpointEnvironment();
+    if (effectiveAgent === "qwen-cli") {
+      const endpoint = resolveQwenEndpoint(input.clankerConfig);
+      if (!endpoint) {
+        return new NoopAgentEndpointEnvironment();
+      }
+
+      return new QwenAgentEndpointEnvironment(endpoint);
     }
 
-    const endpoint = resolveQwenEndpoint(input.clankerConfig);
-    if (!endpoint) {
-      return new NoopAgentEndpointEnvironment();
+    if (effectiveAgent === "opencode") {
+      const settings = resolveOpenCodeSettings(input.clankerConfig);
+      if (!settings.endpoint && !settings.model) {
+        return new NoopAgentEndpointEnvironment();
+      }
+
+      return new OpenCodeAgentEndpointEnvironment(settings);
     }
 
-    return new QwenAgentEndpointEnvironment(endpoint);
+    return new NoopAgentEndpointEnvironment();
   }
 }

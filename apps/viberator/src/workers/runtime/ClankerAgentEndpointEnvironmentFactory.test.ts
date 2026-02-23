@@ -1,5 +1,6 @@
 import { ClankerAgentEndpointEnvironmentFactory } from "./ClankerAgentEndpointEnvironmentFactory";
 import { NoopAgentEndpointEnvironment } from "./NoopAgentEndpointEnvironment";
+import { OpenCodeAgentEndpointEnvironment } from "./OpenCodeAgentEndpointEnvironment";
 import { QwenAgentEndpointEnvironment } from "./QwenAgentEndpointEnvironment";
 
 describe("ClankerAgentEndpointEnvironmentFactory", () => {
@@ -63,5 +64,43 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
 
     expect(environment).toBeInstanceOf(NoopAgentEndpointEnvironment);
     expect(environment.resolve()).toEqual({});
+  });
+
+  test("returns opencode environment from v1 deployment config", () => {
+    const factory = new ClankerAgentEndpointEnvironmentFactory();
+    const environment = factory.create({
+      clankerConfig: {
+        version: 1,
+        strategy: { type: "docker" },
+        agent: {
+          type: "opencode",
+          endpoint: "https://openrouter.ai/api/v1",
+          model: "openai/gpt-5",
+        },
+      },
+    });
+
+    expect(environment).toBeInstanceOf(OpenCodeAgentEndpointEnvironment);
+    expect(environment.resolve()).toEqual({
+      OPENCODE_BASE_URL: "https://openrouter.ai/api/v1",
+      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+      OPENCODE_MODEL: "openai/gpt-5",
+    });
+  });
+
+  test("returns opencode environment from legacy config", () => {
+    const factory = new ClankerAgentEndpointEnvironmentFactory();
+    const environment = factory.create({
+      clankerConfig: {
+        agent: "opencode",
+        endpoint: "https://api.openai.com/v1",
+      },
+    });
+
+    expect(environment).toBeInstanceOf(OpenCodeAgentEndpointEnvironment);
+    expect(environment.resolve()).toEqual({
+      OPENCODE_BASE_URL: "https://api.openai.com/v1",
+      OPENAI_BASE_URL: "https://api.openai.com/v1",
+    });
   });
 });

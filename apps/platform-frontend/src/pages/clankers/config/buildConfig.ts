@@ -53,11 +53,27 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
     }
   }
 
+  if (selectedAgent === 'opencode') {
+    const endpoint = input.form.opencodeEndpoint.trim()
+    const model = input.form.opencodeModel.trim()
+    return {
+      type: 'opencode',
+      ...(endpoint ? { endpoint } : {}),
+      ...(model ? { model } : {}),
+    }
+  }
+
+  if (selectedAgent === 'gemini-cli') {
+    const model = input.form.geminiModel.trim()
+    return {
+      type: 'gemini-cli',
+      ...(model ? { model } : {}),
+    }
+  }
+
   const fallback =
     selectedAgent === 'claude-code' ||
-    selectedAgent === 'opencode' ||
     selectedAgent === 'kimi-code' ||
-    selectedAgent === 'gemini-cli' ||
     selectedAgent === 'mistral-vibe'
       ? selectedAgent
       : 'claude-code'

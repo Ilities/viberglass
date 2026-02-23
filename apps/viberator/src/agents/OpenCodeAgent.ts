@@ -4,6 +4,15 @@ import type { AgentCLIResult } from "./BaseAgent";
 import * as path from "path";
 
 export class OpenCodeAgent extends BaseAgent {
+  private getNonEmptyTrimmedString(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
   protected requiresApiKey(): boolean {
     // OpenCode can resolve provider credentials from several env keys.
     return false;
@@ -32,8 +41,11 @@ export class OpenCodeAgent extends BaseAgent {
         "json",
       ];
 
-      if (this.config.model) {
-        args.push("--model", this.config.model as string);
+      const model =
+        this.getNonEmptyTrimmedString(this.config.model) ??
+        this.getNonEmptyTrimmedString(process.env.OPENCODE_MODEL);
+      if (model) {
+        args.push("--model", model);
       }
 
       args.push(effectivePrompt);
@@ -43,9 +55,13 @@ export class OpenCodeAgent extends BaseAgent {
         env.OPENCODE_API_KEY = this.config.apiKey;
         env.OPENAI_API_KEY = env.OPENAI_API_KEY || this.config.apiKey;
       }
-      if (this.config.endpoint) {
-        env.OPENCODE_BASE_URL = this.config.endpoint;
-        env.OPENAI_BASE_URL = env.OPENAI_BASE_URL || this.config.endpoint;
+      const endpoint =
+        this.getNonEmptyTrimmedString(this.config.endpoint) ??
+        this.getNonEmptyTrimmedString(process.env.OPENCODE_BASE_URL) ??
+        this.getNonEmptyTrimmedString(process.env.OPENAI_BASE_URL);
+      if (endpoint) {
+        env.OPENCODE_BASE_URL = endpoint;
+        env.OPENAI_BASE_URL = env.OPENAI_BASE_URL || endpoint;
       }
 
       let result;

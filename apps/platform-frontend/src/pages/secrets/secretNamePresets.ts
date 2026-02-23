@@ -21,7 +21,7 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
   {
     id: 'opencode',
     label: 'OpenCode',
-    helper: 'Recommended: OPENCODE_API_KEY or OPENAI_API_KEY.',
+    helper: 'Recommended: OPENCODE_API_KEY or OPENAI_API_KEY. Base URL can be set in clanker settings.',
     names: ['OPENCODE_API_KEY', 'OPENAI_API_KEY', 'OPENCODE_BASE_URL', 'OPENAI_BASE_URL'],
   },
   {

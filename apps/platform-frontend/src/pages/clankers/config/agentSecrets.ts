@@ -85,6 +85,14 @@ export function getSecretPickerDescription(
     return `${base} API endpoint is configured in the Qwen section above and injected automatically.`
   }
 
+  if (selectedAgent === 'opencode') {
+    return `${base} Base URL and model can be set in the OpenCode section above.`
+  }
+
+  if (selectedAgent === 'gemini-cli') {
+    return `${base} Model can be set in the Gemini CLI section above.`
+  }
+
   if (
     selectedAgent === 'codex' &&
     (codexAuthMode === 'chatgpt_device' || codexAuthMode === 'chatgpt_device_stored')
