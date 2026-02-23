@@ -99,7 +99,7 @@ ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
 # Multi-agent labels
-LABEL agent.types="claude-code,qwen-cli,qwen-api,gemini-cli,mistral-vibe,codex,opencode,kimi-code" \
+LABEL agent.types="claude-code,qwen-cli,gemini-cli,mistral-vibe,codex,opencode,kimi-code" \
       viberator.worker-type="multi-agent" \
       viberator.capabilities="all-agents"
 

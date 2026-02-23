@@ -44,7 +44,6 @@ function normalizeAgent(
   const candidate = agent.type || fallbackAgent;
   switch (candidate) {
     case "qwen-cli":
-    case "qwen-api":
     case "opencode":
     case "kimi-code":
     case "gemini-cli":

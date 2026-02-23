@@ -48,7 +48,6 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
   const fallback =
     selectedAgent === 'claude-code' ||
     selectedAgent === 'qwen-cli' ||
-    selectedAgent === 'qwen-api' ||
     selectedAgent === 'opencode' ||
     selectedAgent === 'kimi-code' ||
     selectedAgent === 'gemini-cli' ||

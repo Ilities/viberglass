@@ -23,7 +23,6 @@ export function toAgentType(value: string): AgentType | '' {
   switch (value) {
     case 'claude-code':
     case 'qwen-cli':
-    case 'qwen-api':
     case 'codex':
     case 'opencode':
     case 'kimi-code':

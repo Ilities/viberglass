@@ -28,7 +28,6 @@ function normalizeGenericAgent(agent?: AgentType | null): GenericAgentConfig {
   switch (agent) {
     case "claude-code":
     case "qwen-cli":
-    case "qwen-api":
     case "opencode":
     case "kimi-code":
     case "gemini-cli":

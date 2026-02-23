@@ -64,7 +64,6 @@
     "supportedAgents": [
       "claude-code",
       "qwen-cli",
-      "qwen-api",
       "gemini-cli",
       "mistral-vibe",
       "codex",
@@ -83,8 +82,8 @@
     "includeInBuildScript": true,
     "includeInPushScript": true,
     "isAgentImage": true,
-    "supportedAgents": ["qwen-cli", "qwen-api"],
-    "defaultForAgents": ["qwen-cli", "qwen-api"]
+    "supportedAgents": ["qwen-cli"],
+    "defaultForAgents": ["qwen-cli"]
   },
   {
     "variant": "gemini",
