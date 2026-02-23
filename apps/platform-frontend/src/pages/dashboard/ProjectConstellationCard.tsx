@@ -5,6 +5,7 @@ import { Link } from '@/components/link'
 import type { Project } from '@/data'
 import type { ProjectActivity } from '@/pages/dashboard/types'
 import { getLatestWhisper, getProjectSignal } from '@/pages/dashboard/projectSignals'
+import { TICKET_STATUS } from '@viberglass/types'
 
 export function ProjectConstellationCard({
   project,
@@ -18,7 +19,7 @@ export function ProjectConstellationCard({
   showWhisper: boolean
 }) {
   const signal = getProjectSignal(project, activity.tickets, activity.jobs)
-  const openTicketCount = activity.tickets.filter((ticket) => ticket.status !== 'resolved').length
+  const openTicketCount = activity.tickets.filter((ticket) => ticket.status !== TICKET_STATUS.RESOLVED).length
   const failedJobCount = activity.jobs.filter((job) => job.status === 'failed').length
   const runningJobCount = activity.jobs.filter((job) => job.status === 'active' || job.status === 'queued').length
 

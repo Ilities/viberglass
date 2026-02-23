@@ -6,6 +6,7 @@ import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
+import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -78,6 +79,7 @@ export class JobService {
     if (options?.ticketId) {
       await this.updateTicketAutoFixStatus(options.ticketId, {
         autoFixStatus: "pending",
+        status: TICKET_STATUS.OPEN,
       });
     }
 
@@ -137,14 +139,17 @@ export class JobService {
           status === "active"
             ? {
                 autoFixStatus: "in_progress" as const,
+                status: TICKET_STATUS.IN_PROGRESS,
               }
             : status === "completed"
               ? {
                   autoFixStatus: "completed" as const,
+                  status: TICKET_STATUS.RESOLVED,
                   pullRequestUrl: updates.result?.pullRequestUrl,
                 }
               : {
                   autoFixStatus: "failed" as const,
+                  status: TICKET_STATUS.OPEN,
                 };
 
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
@@ -211,11 +216,13 @@ export class JobService {
     ticketId: string,
     updates: {
       autoFixStatus: "pending" | "in_progress" | "completed" | "failed";
+      status: TicketLifecycleStatus;
       pullRequestUrl?: string;
     },
   ): Promise<void> {
     try {
       await this.ticketDAO.updateTicket(ticketId, {
+        status: updates.status,
         autoFixStatus: updates.autoFixStatus,
         ...(updates.pullRequestUrl
           ? { pullRequestUrl: updates.pullRequestUrl }

@@ -17,6 +17,7 @@ import {
   getTicket,
   getTickets,
 } from '@/service/api/ticket-api'
+import { TICKET_ARCHIVE_FILTER, TICKET_STATUS } from '@viberglass/types'
 import type {
   AutoFixStatus,
   Clanker,
@@ -25,6 +26,7 @@ import type {
   Project,
   Severity,
   Ticket,
+  TicketLifecycleStatus,
   TicketStats,
 } from '@viberglass/types'
 
@@ -39,7 +41,7 @@ export interface TicketSummary {
   externalTicketId?: string
   ticketSystem: string
   autoFixStatus?: AutoFixStatus
-  status: 'open' | 'resolved' | 'in_progress'
+  status: TicketLifecycleStatus
 }
 
 // Project functions
@@ -53,7 +55,12 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
 
 // Ticket functions
 export async function getRecentTickets(projectSlug?: string): Promise<TicketSummary[]> {
-  const tickets = await getTickets({ projectSlug, limit: 10 })
+  const { tickets } = await getTickets({
+    projectSlug,
+    limit: 10,
+    statuses: [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.RESOLVED],
+    archived: TICKET_ARCHIVE_FILTER.EXCLUDE,
+  })
   return tickets.map((ticket) => ({
     id: ticket.id,
     projectId: ticket.projectId,
@@ -64,7 +71,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
     externalTicketId: ticket.externalTicketId,
     ticketSystem: ticket.ticketSystem,
     autoFixStatus: ticket.autoFixStatus,
-    status: ticket.externalTicketId ? 'resolved' : ticket.autoFixStatus === 'in_progress' ? 'in_progress' : 'open',
+    status: ticket.status,
   }))
 }
 

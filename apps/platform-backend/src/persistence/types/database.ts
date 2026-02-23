@@ -92,6 +92,8 @@ export interface TicketsTable {
     | "custom";
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
+  ticket_status: Generated<"open" | "in_progress" | "resolved">;
+  archived_at: Timestamp | null;
   pull_request_url: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
