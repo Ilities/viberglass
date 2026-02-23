@@ -206,7 +206,7 @@ export class ConfigManager {
             maxDiskSpaceMB: 512,
             maxNetworkRequests: 85,
           },
-          temperature: 0.15,
+          approvalMode: "yolo",
         },
       },
       logging: {
@@ -264,7 +264,7 @@ export class ConfigManager {
         endpoint: ["OPENCODE_BASE_URL", "OPENCODE_ENDPOINT", "OPENAI_BASE_URL"],
       },
       "gemini-cli": {
-        apiKey: ["GOOGLE_API_KEY"],
+        apiKey: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
       },
       "mistral-vibe": {
         apiKey: ["MISTRAL_API_KEY"],

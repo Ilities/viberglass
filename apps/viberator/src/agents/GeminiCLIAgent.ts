@@ -8,6 +8,44 @@ export class GeminiCLIAgent extends BaseAgent {
     return true;
   }
 
+  private getNonEmptyTrimmedString(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private buildPrompt(prompt: string, context: ExecutionContext): string {
+    const sections: string[] = [prompt];
+
+    if (context.maxChanges) {
+      sections.push(`Limit changes to ${context.maxChanges} files.`);
+    }
+
+    if (context.testRequired) {
+      sections.push(
+        "Before finishing, run relevant tests and fix any failures.",
+      );
+    }
+
+    return sections.join("\n\n");
+  }
+
+  private resolveApprovalMode(): "default" | "auto_edit" | "yolo" {
+    const configured = this.getNonEmptyTrimmedString(this.config.approvalMode);
+    if (
+      configured === "default" ||
+      configured === "auto_edit" ||
+      configured === "yolo"
+    ) {
+      return configured;
+    }
+
+    return "yolo";
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,
@@ -16,48 +54,58 @@ export class GeminiCLIAgent extends BaseAgent {
     try {
       await this.cloneRepository(context.repoUrl, context.branch, workDir);
       const repoDir = path.join(workDir, "repo");
-      const promptFile = await this.writePromptToFile(prompt, workDir);
-
+      const effectivePrompt = this.buildPrompt(prompt, context);
       const args = [
-        "code",
-        "--api-key",
-        this.config.apiKey!,
-        "--input",
-        promptFile,
-        "--workspace",
-        repoDir,
-        "--max-output-tokens",
-        (this.config.maxTokens || 3500).toString(),
-        "--temperature",
-        (this.config.temperature || 0.15).toString(),
+        "--output-format",
+        "json",
+        "--approval-mode",
+        this.resolveApprovalMode(),
       ];
+
+      const model = this.getNonEmptyTrimmedString(this.config.model);
+      if (model) {
+        args.push("--model", model);
+      }
+
+      args.push(effectivePrompt);
 
       const env: NodeJS.ProcessEnv = {
         ...process.env,
+        GEMINI_API_KEY: this.config.apiKey!,
         GOOGLE_API_KEY: this.config.apiKey!,
       };
 
-      if (this.config.endpoint) {
-        args.push("--endpoint", this.config.endpoint);
-      }
-
-      if (context.testRequired) {
-        args.push("--run-tests");
+      if (this.getNonEmptyTrimmedString(this.config.endpoint)) {
+        this.logger.warn(
+          "Gemini endpoint overrides are not supported via CLI flags and will be ignored.",
+        );
       }
 
       const cliBinary = "gemini";
       this.logger.info(`Executing ${cliBinary}`, {
-        args: args.filter((arg) => arg !== this.config.apiKey),
+        args,
       });
 
-      const result = await this.executeCommand(cliBinary, args, {
-        cwd: workDir,
-        env,
-        timeout: this.config.executionTimeLimit * 1000,
-      });
+      let result;
+      try {
+        result = await this.executeCommand(cliBinary, args, {
+          cwd: repoDir,
+          env,
+          timeout: this.config.executionTimeLimit * 1000,
+        });
+      } catch (cmdError) {
+        if (this.isCommandNotFoundError(cmdError)) {
+          throw new Error(
+            "The 'gemini' CLI was not found. Install it with: npm install -g @google/gemini-cli",
+          );
+        }
+        throw cmdError;
+      }
 
       if (result.exitCode !== 0) {
-        throw new Error(`Gemini CLI failed: ${result.stderr}`);
+        throw new Error(
+          `Gemini CLI failed (Exit ${result.exitCode}): ${result.stderr || result.stdout}`,
+        );
       }
 
       const changedFiles = await this.getChangedFiles(repoDir);
