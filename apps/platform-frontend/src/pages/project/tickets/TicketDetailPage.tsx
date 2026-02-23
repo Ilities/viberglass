@@ -19,7 +19,7 @@ import {
   TrashIcon,
 } from '@radix-ui/react-icons'
 import { useParams, useNavigate } from 'react-router-dom'
-import { EnhanceFixButton } from './enhance-fix-button'
+
 import { TicketRunButton } from './ticket-run-button'
 import { useEffect, useState } from 'react'
 import { deleteTicket, updateTicket } from '@/service/api/ticket-api'
@@ -159,7 +159,7 @@ export function TicketDetailPage() {
                 </Button>
               )}
               <TicketRunButton ticket={ticket} clankers={clankers} project={project} />
-              <EnhanceFixButton href={`/project/${project}/enhance?id=${ticket.id}`} />
+
               <Button onClick={() => setIsEditDialogOpen(true)} outline>
                 <Pencil1Icon className="h-4 w-4" />
                 Edit

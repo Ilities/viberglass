@@ -32,8 +32,7 @@ import { TicketMediaPage } from '@/pages/project/tickets/TicketMediaPage'
 import { JobsPage } from '@/pages/project/jobs/JobsPage'
 import { JobDetailPage } from '@/pages/project/jobs/JobDetailPage'
 
-// Enhance pages
-import { EnhancePage } from '@/pages/project/enhance/EnhancePage'
+
 
 // Settings pages
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
@@ -94,8 +93,7 @@ export function AppRoutes() {
         <Route path="/project/:project/jobs" element={<JobsPage />} />
         <Route path="/project/:project/jobs/:jobId" element={<JobDetailPage />} />
 
-        {/* Project enhance */}
-        <Route path="/project/:project/enhance" element={<EnhancePage />} />
+
 
         {/* Project settings with nested routes */}
         <Route path="/project/:project/settings" element={<SettingsLayout />}>
