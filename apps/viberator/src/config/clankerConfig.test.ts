@@ -56,4 +56,23 @@ describe("resolveCodexAuthSettings", () => {
 
     expect(settings.mode).toBe("chatgpt_device_stored");
   });
+
+  test("resolves codex auth from raw deployment config payload", () => {
+    const settings = resolveCodexAuthSettings({
+      version: 1,
+      strategy: { type: "ecs" },
+      agent: {
+        type: "codex",
+        codexAuth: {
+          mode: "chatgpt_device_stored",
+        },
+      },
+    });
+
+    expect(settings).toEqual({
+      mode: "chatgpt_device_stored",
+      secretName: DEFAULT_CODEX_AUTH_SETTINGS.secretName,
+      apiKeySecretName: DEFAULT_CODEX_AUTH_SETTINGS.apiKeySecretName,
+    });
+  });
 });
