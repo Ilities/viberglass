@@ -101,7 +101,7 @@ After creation, open the ticket detail page:
 Use one of the actions:
 
 - `Run with <Clanker>`: direct execution with optional run-specific instructions
-- `Enhance & Fix`: enhancement flow before execution
+
 
 ## Step 5: Run with Clanker (Direct Path)
 
@@ -125,18 +125,7 @@ After submission, Viberglass redirects to:
 
 - `/project/:slug/jobs/:jobId`
 
-## Step 6: Enhance & Fix (Guided Path)
 
-Click `Enhance & Fix` on ticket detail page to open:
-
-- `/project/:slug/enhance?id=:ticketId`
-
-On this page:
-
-- review `Original Ticket` and `Technical Context`
-- choose `Clanker`
-- add `Additional Instructions (Optional)`
-- click `Start Enhancement`
 
 This also starts a job and redirects to job details.
 
