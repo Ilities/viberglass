@@ -176,18 +176,5 @@
     "isAgentImage": false,
     "supportedAgents": [],
     "defaultForAgents": []
-  },
-  {
-    "variant": "fullstack",
-    "repositoryName": "viberator-worker-fullstack",
-    "scriptImageName": "worker-fullstack",
-    "dockerfilePath": "infra/workers/docker/tasks/viberator-worker-fullstack.Dockerfile",
-    "includeInHarnessSetup": true,
-    "includeInInfraProvisioning": true,
-    "includeInBuildScript": true,
-    "includeInPushScript": true,
-    "isAgentImage": false,
-    "supportedAgents": [],
-    "defaultForAgents": []
   }
 ]

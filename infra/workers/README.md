@@ -131,16 +131,6 @@ Worker with deployment tools.
 - Pulumi, Serverless Framework
 **Use Case:** Infrastructure and deployment automation
 
-#### `tasks/viberator-worker-fullstack.Dockerfile`
-Full-stack worker with all development tools.
-
-**Includes:**
-- Multiple language runtimes (Node.js, Python, Java, Ruby, Go, Rust)
-- Build tools (gcc, make, cmake)
-- Linters and formatters
-- Database clients
-**Use Case:** Complete project handling across all languages
-
 ---
 
 ## Building Worker Images

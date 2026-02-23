@@ -46,7 +46,7 @@ export const AGENT_OPTIONS: Array<{
   label: string
   recommended?: boolean
 }> = [
-  { value: 'claude-code', label: AGENT_LABELS['claude-code'], recommended: true },
+  { value: 'claude-code', label: AGENT_LABELS['claude-code'] },
   { value: 'qwen-cli', label: AGENT_LABELS['qwen-cli'] },
   { value: 'qwen-api', label: AGENT_LABELS['qwen-api'] },
   { value: 'codex', label: AGENT_LABELS.codex },
