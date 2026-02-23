@@ -93,22 +93,14 @@ export interface KimiCodeConfig extends BaseAgentConfig {
   temperature?: number;
 }
 
-// Google Gemini configuration
-// Docs: https://ai.google.dev/gemini-api/docs/quickstart
+// Google Gemini CLI configuration
+// Docs: https://geminicli.com/docs/cli/cli-reference/
 export interface GeminiConfig extends BaseAgentConfig {
   name: "gemini-cli";
-  apiKey: string; // Google AI API key
-  endpoint?: string; // Custom endpoint if needed
-  model?: "gemini-pro" | "gemini-1.5-pro" | "gemini-2.0-flash" | string;
-  maxOutputTokens?: number; // Gemini uses maxOutputTokens instead of maxTokens
-  temperature?: number;
-  topP?: number;
-  topK?: number;
-  codeExecutionEnabled?: boolean; // Enable Python code execution
-  safetySettings?: Array<{
-    category: string;
-    threshold: string;
-  }>;
+  apiKey: string; // GEMINI_API_KEY (or GOOGLE_API_KEY for Vertex AI key mode)
+  endpoint?: string; // Kept for backward compatibility; not passed as a CLI flag
+  model?: string; // --model
+  approvalMode?: "default" | "auto_edit" | "yolo"; // --approval-mode
 }
 
 // Mistral Vibe configuration
