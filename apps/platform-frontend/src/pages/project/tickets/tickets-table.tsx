@@ -3,9 +3,8 @@ import { Button } from '@/components/button'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { formatAutoFixStatus, formatSeverity, formatTimestamp, type TicketSummary } from '@/data'
-import { MagicWandIcon, PlayIcon } from '@radix-ui/react-icons'
+import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
-import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 
 interface TicketsTableProps {
@@ -17,7 +16,6 @@ interface TicketsTableProps {
 
 export function TicketsTable({ tickets, fullTickets, clankers, project }: TicketsTableProps) {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const canRun = activeClankers.length > 0
 
@@ -30,11 +28,7 @@ export function TicketsTable({ tickets, fullTickets, clankers, project }: Ticket
     }
   }
 
-  function handleEnhanceClick(ticketSummary: TicketSummary, e: React.MouseEvent) {
-    e.preventDefault() // Prevent row navigation
-    e.stopPropagation()
-    navigate(`/project/${project}/enhance?id=${ticketSummary.id}`)
-  }
+
 
   return (
     <>
@@ -94,13 +88,7 @@ export function TicketsTable({ tickets, fullTickets, clankers, project }: Ticket
                   >
                     <PlayIcon className="h-4 w-4" />
                   </Button>
-                  <Button
-                    plain
-                    onClick={(e) => handleEnhanceClick(ticket, e)}
-                    title="Enhance & Fix"
-                  >
-                    <MagicWandIcon className="h-4 w-4" />
-                  </Button>
+
                 </div>
               </TableCell>
             </TableRow>
