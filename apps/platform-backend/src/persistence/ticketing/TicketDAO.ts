@@ -3,6 +3,10 @@ import type { Selectable } from "kysely";
 import { sql } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
+import {
+  TICKET_ARCHIVE_FILTER,
+  TICKET_STATUS,
+} from "@viberglass/types";
 import type {
   Ticket,
   CreateTicketRequest,
@@ -10,10 +14,28 @@ import type {
   MediaAsset,
   TicketStats,
   TicketSystem,
+  TicketArchiveFilter,
+  TicketLifecycleStatus,
+  Severity,
 } from "@viberglass/types";
 import { buildMediaContentUrl } from "../../services/ticket-media/publicApiUrl";
 
 type TicketsRow = Selectable<Database["tickets"]>;
+
+interface TicketListQuery {
+  limit?: number;
+  offset?: number;
+  projectId?: string;
+  statuses?: TicketLifecycleStatus[];
+  archived?: TicketArchiveFilter;
+  severity?: Severity;
+  search?: string;
+}
+
+interface TicketListResult {
+  tickets: Ticket[];
+  total: number;
+}
 
 // Normalize legacy ticket_system values (2 was the old GitHub enum value)
 function normalizeTicketSystem(value: unknown): TicketSystem {
@@ -29,6 +51,17 @@ function isValidTicketSystem(value: string): value is TicketSystem {
     "shortcut", "slack", "custom"
   ];
   return validSystems.includes(value as TicketSystem);
+}
+
+function normalizeTicketStatus(value: unknown): TicketLifecycleStatus {
+  if (
+    value === TICKET_STATUS.OPEN ||
+    value === TICKET_STATUS.IN_PROGRESS ||
+    value === TICKET_STATUS.RESOLVED
+  ) {
+    return value;
+  }
+  return TICKET_STATUS.OPEN;
 }
 
 export class TicketDAO {
@@ -88,6 +121,8 @@ export class TicketDAO {
           annotations: JSON.stringify(request.annotations),
           ticket_system: request.ticketSystem,
           auto_fix_requested: request.autoFixRequested,
+          ticket_status: TICKET_STATUS.OPEN,
+          archived_at: null,
           created_at: timestamp,
           updated_at: timestamp,
         })
@@ -136,6 +171,8 @@ export class TicketDAO {
         "t.ticket_system",
         "t.auto_fix_requested",
         "t.auto_fix_status",
+        "t.ticket_status",
+        "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
         "t.updated_at",
@@ -183,6 +220,8 @@ export class TicketDAO {
         "t.ticket_system",
         "t.auto_fix_requested",
         "t.auto_fix_status",
+        "t.ticket_status",
+        "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
         "t.updated_at",
@@ -220,6 +259,8 @@ export class TicketDAO {
   }
 
   async updateTicket(id: string, updates: UpdateTicketRequest): Promise<void> {
+    const statusUpdate = this.resolveStatusUpdate(updates);
+
     await db
       .updateTable("tickets")
       .set({
@@ -227,6 +268,7 @@ export class TicketDAO {
         description: updates.description,
         severity: updates.severity,
         category: updates.category,
+        ticket_status: statusUpdate,
         external_ticket_id: updates.externalTicketId,
         external_ticket_url: updates.externalTicketUrl,
         auto_fix_status: updates.autoFixStatus,
@@ -235,6 +277,42 @@ export class TicketDAO {
       })
       .where("id", "=", id)
       .execute();
+  }
+
+  async archiveTickets(ticketIds: string[]): Promise<number> {
+    if (ticketIds.length === 0) {
+      return 0;
+    }
+
+    const result = await db
+      .updateTable("tickets")
+      .set({
+        archived_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where("id", "in", ticketIds)
+      .where("archived_at", "is", null)
+      .executeTakeFirst();
+
+    return Number(result.numUpdatedRows ?? 0);
+  }
+
+  async unarchiveTickets(ticketIds: string[]): Promise<number> {
+    if (ticketIds.length === 0) {
+      return 0;
+    }
+
+    const result = await db
+      .updateTable("tickets")
+      .set({
+        archived_at: null,
+        updated_at: new Date(),
+      })
+      .where("id", "in", ticketIds)
+      .where("archived_at", "is not", null)
+      .executeTakeFirst();
+
+    return Number(result.numUpdatedRows ?? 0);
   }
 
   async deleteTicket(id: string): Promise<boolean> {
@@ -251,7 +329,8 @@ export class TicketDAO {
     limit = 50,
     offset = 0,
   ): Promise<Ticket[]> {
-    return this.getTickets(limit, offset, projectId);
+    const result = await this.getTicketsWithFilters({ projectId, limit, offset });
+    return result.tickets;
   }
 
   async getTickets(
@@ -259,6 +338,16 @@ export class TicketDAO {
     offset = 0,
     projectId?: string,
   ): Promise<Ticket[]> {
+    const result = await this.getTicketsWithFilters({ limit, offset, projectId });
+    return result.tickets;
+  }
+
+  async getTicketsWithFilters(params: TicketListQuery): Promise<TicketListResult> {
+    const limit = params.limit ?? 50;
+    const offset = params.offset ?? 0;
+    const archivedMode = params.archived ?? TICKET_ARCHIVE_FILTER.EXCLUDE;
+    const search = params.search?.trim();
+
     let query = db
       .selectFrom("tickets as t")
       .leftJoin("media_assets as s", "t.screenshot_id", "s.id")
@@ -278,6 +367,8 @@ export class TicketDAO {
         "t.ticket_system",
         "t.auto_fix_requested",
         "t.auto_fix_status",
+        "t.ticket_status",
+        "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
         "t.updated_at",
@@ -295,8 +386,28 @@ export class TicketDAO {
         "r.uploaded_at as recording_uploaded_at",
       ]);
 
-    if (projectId) {
-      query = query.where("t.project_id", "=", projectId);
+    if (params.projectId) {
+      query = query.where("t.project_id", "=", params.projectId);
+    }
+
+    if (params.statuses && params.statuses.length > 0) {
+      query = query.where("t.ticket_status", "in", params.statuses);
+    }
+
+    if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
+      query = query.where("t.archived_at", "is", null);
+    } else if (archivedMode === TICKET_ARCHIVE_FILTER.ONLY) {
+      query = query.where("t.archived_at", "is not", null);
+    }
+
+    if (params.severity) {
+      query = query.where("t.severity", "=", params.severity);
+    }
+
+    if (search) {
+      query = query.where(
+        sql<boolean>`t.title ILIKE ${`%${search}%`} OR t.description ILIKE ${`%${search}%`}`,
+      );
     }
 
     const rows = await query
@@ -305,24 +416,60 @@ export class TicketDAO {
       .offset(offset)
       .execute();
 
-    return rows.map((row) => this.mapRowToTicket(row));
+    let totalQuery = db
+      .selectFrom("tickets as t")
+      .select(sql<string>`COUNT(*)`.as("total"));
+
+    if (params.projectId) {
+      totalQuery = totalQuery.where("t.project_id", "=", params.projectId);
+    }
+
+    if (params.statuses && params.statuses.length > 0) {
+      totalQuery = totalQuery.where("t.ticket_status", "in", params.statuses);
+    }
+
+    if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
+      totalQuery = totalQuery.where("t.archived_at", "is", null);
+    } else if (archivedMode === TICKET_ARCHIVE_FILTER.ONLY) {
+      totalQuery = totalQuery.where("t.archived_at", "is not", null);
+    }
+
+    if (params.severity) {
+      totalQuery = totalQuery.where("t.severity", "=", params.severity);
+    }
+
+    if (search) {
+      totalQuery = totalQuery.where(
+        sql<boolean>`t.title ILIKE ${`%${search}%`} OR t.description ILIKE ${`%${search}%`}`,
+      );
+    }
+
+    const totalRow = await totalQuery.executeTakeFirst();
+
+    return {
+      tickets: rows.map((row) => this.mapRowToTicket(row)),
+      total: parseInt(totalRow?.total || "0", 10),
+    };
   }
 
   async getTicketStats(projectId?: string): Promise<TicketStats> {
     const baseQuery = projectId
-      ? db.selectFrom("tickets as t").where("t.project_id", "=", projectId)
-      : db.selectFrom("tickets as t");
+      ? db
+          .selectFrom("tickets as t")
+          .where("t.project_id", "=", projectId)
+          .where("t.archived_at", "is", null)
+      : db.selectFrom("tickets as t").where("t.archived_at", "is", null);
 
     const statsRow = await baseQuery
       .select([
         sql<string>`COUNT(*)`.as("total"),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NOT NULL)`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.ticket_status = ${TICKET_STATUS.RESOLVED})`.as(
           "resolved",
         ),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND t.auto_fix_status = 'in_progress')`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.ticket_status = ${TICKET_STATUS.IN_PROGRESS})`.as(
           "in_progress",
         ),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND (t.auto_fix_status IS NULL OR t.auto_fix_status <> 'in_progress'))`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.ticket_status = ${TICKET_STATUS.OPEN})`.as(
           "open",
         ),
         sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_requested IS TRUE)`.as(
@@ -417,6 +564,32 @@ export class TicketDAO {
     };
   }
 
+  private resolveStatusUpdate(
+    updates: UpdateTicketRequest,
+  ): TicketLifecycleStatus | undefined {
+    if (updates.status) {
+      return updates.status;
+    }
+
+    if (updates.autoFixStatus === "in_progress") {
+      return TICKET_STATUS.IN_PROGRESS;
+    }
+
+    if (updates.autoFixStatus === "completed") {
+      return TICKET_STATUS.RESOLVED;
+    }
+
+    if (updates.autoFixStatus === "failed" || updates.autoFixStatus === "pending") {
+      return TICKET_STATUS.OPEN;
+    }
+
+    if (updates.externalTicketId && updates.externalTicketId.trim().length > 0) {
+      return TICKET_STATUS.RESOLVED;
+    }
+
+    return undefined;
+  }
+
   private toISOString(date: unknown): string {
     if (date instanceof Date) return date.toISOString();
     if (typeof date === "string") return date;
@@ -473,6 +646,8 @@ export class TicketDAO {
       ticketSystem: normalizeTicketSystem(row.ticket_system),
       autoFixRequested: row.auto_fix_requested,
       autoFixStatus: row.auto_fix_status ?? undefined,
+      status: normalizeTicketStatus(row.ticket_status),
+      archivedAt: row.archived_at ? this.toISOString(row.archived_at) : undefined,
       pullRequestUrl: row.pull_request_url ?? undefined,
       createdAt: this.toISOString(row.created_at),
       updatedAt: this.toISOString(row.updated_at),

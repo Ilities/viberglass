@@ -8,6 +8,7 @@ import {
 import {
   validateCreateTicket,
   validateUpdateTicket,
+  validateArchiveTickets,
   validateUuidParam,
   validateFileUploads,
   validateRunTicket,
@@ -16,12 +17,83 @@ import {
 } from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
 import logger from "../../config/logger";
+import {
+  TICKET_ARCHIVE_FILTER,
+  TICKET_STATUS,
+  type Severity,
+  type TicketArchiveFilter,
+  type TicketLifecycleStatus,
+} from "@viberglass/types";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
 const projectService = new ProjectDAO();
 const fileUploadService = new FileUploadService();
 const ticketExecutionService = new TicketExecutionService();
+const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
+  TICKET_STATUS.OPEN,
+  TICKET_STATUS.IN_PROGRESS,
+  TICKET_STATUS.RESOLVED,
+];
+const ticketArchiveFilters: TicketArchiveFilter[] = [
+  TICKET_ARCHIVE_FILTER.EXCLUDE,
+  TICKET_ARCHIVE_FILTER.ONLY,
+  TICKET_ARCHIVE_FILTER.INCLUDE,
+];
+
+function parseStatusesQuery(
+  rawStatuses: string | string[] | undefined,
+): TicketLifecycleStatus[] | null {
+  if (!rawStatuses) {
+    return [];
+  }
+
+  const source = Array.isArray(rawStatuses) ? rawStatuses.join(",") : rawStatuses;
+  const values = source
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    return [];
+  }
+
+  if (!values.every((value) => ticketLifecycleStatuses.includes(value as TicketLifecycleStatus))) {
+    return null;
+  }
+
+  return values as TicketLifecycleStatus[];
+}
+
+function parseArchivedQuery(
+  rawArchived: string | string[] | undefined,
+): TicketArchiveFilter | null {
+  if (!rawArchived) {
+    return TICKET_ARCHIVE_FILTER.EXCLUDE;
+  }
+
+  const value = Array.isArray(rawArchived) ? rawArchived[0] : rawArchived;
+  if (!ticketArchiveFilters.includes(value as TicketArchiveFilter)) {
+    return null;
+  }
+
+  return value as TicketArchiveFilter;
+}
+
+function parseSeverityQuery(
+  rawSeverity: string | string[] | undefined,
+): Severity | null {
+  if (!rawSeverity) {
+    return null;
+  }
+
+  const value = Array.isArray(rawSeverity) ? rawSeverity[0] : rawSeverity;
+  if (value === "low" || value === "medium" || value === "high" || value === "critical") {
+    return value;
+  }
+
+  return null;
+}
 
 // POST /api/tickets - Create a new ticket
 router.use(requireAuth);
@@ -166,6 +238,44 @@ router.get(
   },
 );
 
+// POST /api/tickets/archive - Archive multiple tickets
+router.post("/archive", validateArchiveTickets, async (req, res) => {
+  try {
+    const updatedCount = await ticketService.archiveTickets(req.body.ticketIds);
+    res.json({
+      success: true,
+      data: { updatedCount },
+    });
+  } catch (error) {
+    logger.error("Error archiving tickets", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to archive tickets",
+    });
+  }
+});
+
+// POST /api/tickets/unarchive - Unarchive multiple tickets
+router.post("/unarchive", validateArchiveTickets, async (req, res) => {
+  try {
+    const updatedCount = await ticketService.unarchiveTickets(req.body.ticketIds);
+    res.json({
+      success: true,
+      data: { updatedCount },
+    });
+  } catch (error) {
+    logger.error("Error unarchiving tickets", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to unarchive tickets",
+    });
+  }
+});
+
 // GET /api/tickets/:id - Get a specific ticket
 router.get("/:id", validateUuidParam("id"), async (req, res) => {
   try {
@@ -261,10 +371,33 @@ router.get("/", async (req, res) => {
   try {
     const projectId = req.query.projectId as string;
     const projectSlug = req.query.projectSlug as string;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = Math.max(1, Math.min(200, parseInt(req.query.limit as string, 10) || 50));
+    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
+    const statuses = parseStatusesQuery(req.query.statuses as string | string[] | undefined);
+    const archived = parseArchivedQuery(req.query.archived as string | string[] | undefined);
+    const severity = parseSeverityQuery(req.query.severity as string | string[] | undefined);
+    const searchRaw = req.query.search as string | undefined;
+    const search = typeof searchRaw === "string" ? searchRaw.trim() : undefined;
 
     let targetProjectId: string | undefined = projectId;
+
+    if (statuses === null) {
+      return res.status(400).json({
+        error: "Invalid statuses filter",
+      });
+    }
+
+    if (archived === null) {
+      return res.status(400).json({
+        error: "Invalid archived filter",
+      });
+    }
+
+    if ((req.query.severity as string | undefined) && !severity) {
+      return res.status(400).json({
+        error: "Invalid severity filter",
+      });
+    }
 
     if (projectSlug) {
       // If slug is provided, resolve it to an ID
@@ -288,11 +421,15 @@ router.get("/", async (req, res) => {
       targetProjectId = undefined;
     }
 
-    const tickets = await ticketService.getTickets(
+    const { tickets, total } = await ticketService.getTicketsWithFilters({
       limit,
       offset,
-      targetProjectId,
-    );
+      projectId: targetProjectId,
+      statuses,
+      archived,
+      severity: severity || undefined,
+      search,
+    });
 
     res.json({
       success: true,
@@ -301,6 +438,7 @@ router.get("/", async (req, res) => {
         limit,
         offset,
         count: tickets.length,
+        total,
       },
     });
   } catch (error) {

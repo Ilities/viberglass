@@ -4,6 +4,7 @@ import type { MulterError } from "multer";
 import { createChildLogger } from "../../config/logger";
 import {
   ticketSchema,
+  archiveTicketsSchema,
   projectSchema,
   updateTicketSchema,
   updateProjectSchema,
@@ -115,6 +116,7 @@ function createValidator(
 // Schema validators - each created via factory
 export const validateCreateTicket = createValidator(ticketSchema);
 export const validateUpdateTicket = createValidator(updateTicketSchema);
+export const validateArchiveTickets = createValidator(archiveTicketsSchema);
 export const validateCreateProject = createValidator(projectSchema);
 export const validateUpdateProject = createValidator(updateProjectSchema);
 export const validateProjectScmConfig = createValidator(projectScmConfigSchema);
