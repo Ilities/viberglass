@@ -31,12 +31,6 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
     names: ['DASHSCOPE_API_KEY', 'QWEN_CLI_API_KEY'],
   },
   {
-    id: 'qwen-api',
-    label: 'Qwen API',
-    helper: 'Recommended: DASHSCOPE_API_KEY.',
-    names: ['DASHSCOPE_API_KEY', 'QWEN_API_KEY', 'QWEN_API_ENDPOINT'],
-  },
-  {
     id: 'gemini-cli',
     label: 'Gemini CLI',
     helper: 'Recommended: GOOGLE_API_KEY.',

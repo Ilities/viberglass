@@ -99,30 +99,6 @@ export class ConfigManager {
           maxTokens: 3000,
           temperature: 0.2,
         },
-        "qwen-api": {
-          name: "qwen-api",
-          apiKey: "",
-          capabilities: [
-            "python",
-            "javascript",
-            "typescript",
-            "java",
-            "cpp",
-            "go",
-            "rust",
-          ],
-          costPerExecution: 0.25, // Potentially cheaper than CLI
-          averageSuccessRate: 0.8,
-          executionTimeLimit: 1800, // 30 minutes for API calls
-          resourceLimits: {
-            maxMemoryMB: 1024,
-            maxCpuPercent: 60,
-            maxDiskSpaceMB: 256,
-            maxNetworkRequests: 50,
-          },
-          maxTokens: 4000,
-          temperature: 0.1,
-        },
         codex: {
           name: "codex",
           apiKey: "",
@@ -271,12 +247,9 @@ export class ConfigManager {
         apiKey: ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"],
         endpoint: ["ANTHROPIC_BASE_URL"],
       },
-      "qwen-api": {
-        apiKey: ["QWEN_API_KEY", "DASHSCOPE_API_KEY"],
-        endpoint: ["QWEN_API_ENDPOINT"],
-      },
       "qwen-cli": {
-        apiKey: ["DASHSCOPE_API_KEY"],
+        apiKey: ["DASHSCOPE_API_KEY", "QWEN_CLI_API_KEY", "QWEN_API_KEY"],
+        endpoint: ["QWEN_API_ENDPOINT", "OPENAI_BASE_URL"],
       },
       "kimi-code": {
         apiKey: ["KIMI_API_KEY", "MOONSHOT_API_KEY"],
