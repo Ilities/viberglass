@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { SUPPORTED_AGENT_TYPES } from "@viberglass/types";
+import { SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
 import { integrationRegistry } from "../../integration-plugins";
 import {
   instructionPathErrorMessage,
@@ -8,6 +8,7 @@ import {
 } from "../../services/instructions/pathPolicy";
 
 const ticketSystemIds = integrationRegistry.listIds();
+const ticketLifecycleStatuses = Object.values(TICKET_STATUS);
 
 export const ticketSchema = Joi.object({
   projectId: Joi.string().uuid().required(),
@@ -89,12 +90,19 @@ export const updateTicketSchema = Joi.object({
   description: Joi.string().min(1).optional(),
   severity: Joi.string().valid("low", "medium", "high", "critical").optional(),
   category: Joi.string().min(1).max(100).optional(),
+  status: Joi.string()
+    .valid(...ticketLifecycleStatuses)
+    .optional(),
   externalTicketId: Joi.string().optional(),
   externalTicketUrl: Joi.string().uri().optional(),
   autoFixStatus: Joi.string()
     .valid("pending", "in_progress", "completed", "failed")
     .optional(),
   pullRequestUrl: Joi.string().uri().optional(),
+});
+
+export const archiveTicketsSchema = Joi.object({
+  ticketIds: Joi.array().items(Joi.string().uuid()).min(1).required(),
 });
 
 export const projectSchema = Joi.object({

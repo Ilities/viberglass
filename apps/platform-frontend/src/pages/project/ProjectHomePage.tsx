@@ -14,6 +14,7 @@ import {
   getTicketStats,
 } from '@/data'
 import { formatJobStatus, formatTimestamp } from '@/lib/formatters'
+import { TICKET_STATUS } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
@@ -91,13 +92,13 @@ interface ActivityPoint {
   jobCount: number
 }
 
+const currentHour = new Date().getHours()
+const today = new Date().toDateString()
+
+// Build activity data for business hours (8am - 6pm)
+const businessHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+
 function TimelineBar({ tickets, jobs }: { tickets: TicketSummary[]; jobs: JobListItem[] }) {
-  const currentHour = new Date().getHours()
-  const today = new Date().toDateString()
-
-  // Build activity data for business hours (8am - 6pm)
-  const businessHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
-
   const activityData: ActivityPoint[] = useMemo(() => {
     return businessHours.map((hour) => {
       const hourLabel = hour <= 12 ? `${hour}am` : `${hour - 12}pm`
@@ -368,7 +369,7 @@ export function ProjectHomePage() {
     const today = new Date().toDateString()
     const todayTickets = tickets.filter((t) => new Date(t.timestamp).toDateString() === today).length
     const todayResolved = tickets.filter(
-      (t) => t.autoFixStatus === 'completed' && new Date(t.timestamp).toDateString() === today
+      (t) => t.status === TICKET_STATUS.RESOLVED && new Date(t.timestamp).toDateString() === today
     ).length
 
     return {
@@ -388,9 +389,9 @@ export function ProjectHomePage() {
     return <FunLoading retro />
   }
 
-  const inProgressTickets = tickets.filter((t) => t.autoFixStatus === 'in_progress').slice(0, 2)
-  const openTickets = tickets.filter((t) => !t.autoFixStatus || t.autoFixStatus === 'pending').slice(0, 2)
-  const resolvedTickets = tickets.filter((t) => t.autoFixStatus === 'completed').slice(0, 2)
+  const inProgressTickets = tickets.filter((t) => t.status === TICKET_STATUS.IN_PROGRESS).slice(0, 2)
+  const openTickets = tickets.filter((t) => t.status === TICKET_STATUS.OPEN).slice(0, 2)
+  const resolvedTickets = tickets.filter((t) => t.status === TICKET_STATUS.RESOLVED).slice(0, 2)
   const activeJobs = jobs.filter((j) => j.status === 'active')
   const queuedJobs = jobs.filter((j) => j.status === 'queued')
 
