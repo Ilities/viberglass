@@ -15,7 +15,6 @@ export class AgentFactory {
       case "claude-code":
         return new ClaudeCodeAgent(config, logger);
       case "qwen-cli":
-      case "qwen-api": // Support both CLI and API modes
         return new QwenCodeAgent(config, logger);
       case "codex":
         return new CodexAgent(config, logger);

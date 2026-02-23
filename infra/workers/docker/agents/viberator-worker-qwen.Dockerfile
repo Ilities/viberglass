@@ -13,14 +13,14 @@ ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viber
 RUN npm install -g @qwen-code/qwen-code@latest
 
 # Verify installation
-RUN which qwen-code || echo "Warning: qwen-code not found in PATH"
+RUN which qwen || echo "Warning: qwen not found in PATH"
 
 ENV AGENT_TYPE=qwen-cli
 ENV QWEN_CONFIG_DIR=/tmp/qwen-config
 
 # Add Qwen-specific labels
 LABEL agent.type="qwen-cli" \
-      agent.supported-modes="cli,api" \
+      agent.supported-modes="cli" \
       viberator.worker-type="agent"
 
 CMD ["node", "dist/cli-worker.js", "--help"]

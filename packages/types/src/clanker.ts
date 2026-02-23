@@ -10,7 +10,6 @@ export type ClankerStatus = 'active' | 'inactive' | 'deploying' | 'failed'
 export type AgentType =
   | 'claude-code'
   | 'qwen-cli'
-  | 'qwen-api'
   | 'codex'
   | 'opencode'
   | 'kimi-code'
@@ -22,7 +21,6 @@ export const DEFAULT_AGENT_TYPE: AgentType = 'claude-code'
 export const SUPPORTED_AGENT_TYPES: AgentType[] = [
   'claude-code',
   'qwen-cli',
-  'qwen-api',
   'codex',
   'opencode',
   'kimi-code',
@@ -33,7 +31,6 @@ export const SUPPORTED_AGENT_TYPES: AgentType[] = [
 export const AGENT_LABELS: Record<AgentType, string> = {
   'claude-code': 'Claude Code',
   'qwen-cli': 'Qwen CLI',
-  'qwen-api': 'Qwen API',
   codex: 'OpenAI Codex',
   opencode: 'OpenCode',
   'kimi-code': 'Kimi Code',
@@ -48,7 +45,6 @@ export const AGENT_OPTIONS: Array<{
 }> = [
   { value: 'claude-code', label: AGENT_LABELS['claude-code'] },
   { value: 'qwen-cli', label: AGENT_LABELS['qwen-cli'] },
-  { value: 'qwen-api', label: AGENT_LABELS['qwen-api'] },
   { value: 'codex', label: AGENT_LABELS.codex },
   { value: 'opencode', label: AGENT_LABELS.opencode },
   { value: 'kimi-code', label: AGENT_LABELS['kimi-code'] },
