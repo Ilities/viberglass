@@ -96,6 +96,8 @@ export class QwenCodeAgent extends BaseAgent {
     }
 
     const args = [
+      "--auth-type",
+      "openai",
       "--prompt",
       promptSections.join("\n\n"),
       "--output-format",

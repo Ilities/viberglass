@@ -122,6 +122,8 @@ describe("QwenCodeAgent CLI invocation", () => {
     expect(result.success).toBe(true);
     expect(agent.capturedCommands).toHaveLength(1);
     expect(agent.capturedCommands[0].command).toBe("qwen");
+    expect(agent.capturedCommands[0].args).toContain("--auth-type");
+    expect(agent.capturedCommands[0].args).toContain("openai");
     expect(agent.capturedCommands[0].options.cwd).toBe(
       "/tmp/qwen-agent-test/repo",
     );
