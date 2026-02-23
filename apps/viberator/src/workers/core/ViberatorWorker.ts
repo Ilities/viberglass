@@ -1,7 +1,6 @@
 import { createLogger, format, transports, Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
-import { isObjectRecord } from "@viberglass/types";
 import { ConfigManager } from "../../config/ConfigManager";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import { AgentConfig, Configuration } from "../../types";
@@ -21,7 +20,13 @@ import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
+import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
 import { runCodingJob } from "./runCodingJob";
+import {
+  extractClankerEnvironment,
+  normalizeAgentName,
+  resolveClankerConfig,
+} from "./workerConfig";
 
 export class ViberatorWorker {
   private logger: Logger;
@@ -37,6 +42,7 @@ export class ViberatorWorker {
   private logForwarder!: LogForwarder;
   private agentAuthLifecycle!: AgentAuthLifecycle;
   private readonly agentAuthLifecycleFactory: AgentAuthLifecycleFactory;
+  private readonly agentEndpointEnvironmentFactory: AgentEndpointEnvironmentFactory;
   private initialized = false;
 
   private clankerConfig?: Record<string, unknown>;
@@ -49,9 +55,13 @@ export class ViberatorWorker {
   private currentJobId?: string;
   private currentTenantId?: string;
 
-  constructor(agentAuthLifecycleFactory: AgentAuthLifecycleFactory) {
+  constructor(
+    agentAuthLifecycleFactory: AgentAuthLifecycleFactory,
+    agentEndpointEnvironmentFactory: AgentEndpointEnvironmentFactory,
+  ) {
     this.workDir = process.env.WORK_DIR || "/tmp/viberator-work";
     this.agentAuthLifecycleFactory = agentAuthLifecycleFactory;
+    this.agentEndpointEnvironmentFactory = agentEndpointEnvironmentFactory;
     this.logger = createLogger({
       level: process.env.LOG_LEVEL || "info",
       format: format.json(),
@@ -153,18 +163,28 @@ export class ViberatorWorker {
   }
 
   private configureFromPayload(payload: WorkerPayload): void {
-    this.clankerConfig = this.resolveClankerConfig(payload);
-    this.clankerEnvironment = this.extractClankerEnvironment(this.clankerConfig);
+    this.clankerConfig = resolveClankerConfig(payload);
 
-    const payloadAgent = this.normalizeAgentName(payload.agent);
+    const payloadAgent = normalizeAgentName(payload.agent);
     if (payloadAgent) {
       this.requestedAgent = payloadAgent;
     } else {
-      const clankerAgent = this.normalizeAgentName(this.clankerConfig?.agent);
+      const clankerAgent = normalizeAgentName(this.clankerConfig?.agent);
       if (clankerAgent) {
         this.requestedAgent = clankerAgent;
       }
     }
+
+    const endpointEnvironment = this.agentEndpointEnvironmentFactory
+      .create({
+        requestedAgent: this.requestedAgent,
+        clankerConfig: this.clankerConfig,
+      })
+      .resolve();
+    this.clankerEnvironment = extractClankerEnvironment(
+      this.clankerConfig,
+      endpointEnvironment,
+    );
 
     this.projectConfig = payload.projectConfig;
     this.overrides = payload.overrides;
@@ -218,59 +238,13 @@ export class ViberatorWorker {
     });
   }
 
-  private resolveClankerConfig(
-    payload: WorkerPayload,
-  ): Record<string, unknown> | undefined {
-    if (payload.workerType === "docker") {
-      return isObjectRecord(payload.clankerConfig)
-        ? payload.clankerConfig
-        : undefined;
-    }
-
-    if (isObjectRecord(payload.deploymentConfig)) {
-      return payload.deploymentConfig;
-    }
-
-    const fallbackClankerConfig = Reflect.get(payload, "clankerConfig");
-    return isObjectRecord(fallbackClankerConfig)
-      ? fallbackClankerConfig
-      : undefined;
-  }
-
-  private extractClankerEnvironment(
-    config?: Record<string, unknown>,
-  ): Record<string, string> | undefined {
-    const source = config?.environment;
-    if (!source || typeof source !== "object" || Array.isArray(source)) {
-      return undefined;
-    }
-
-    const environment: Record<string, string> = {};
-    for (const [key, value] of Object.entries(source)) {
-      if (typeof value === "string") {
-        environment[key] = value;
-      }
-    }
-
-    return Object.keys(environment).length > 0 ? environment : undefined;
-  }
-
-  private normalizeAgentName(value: unknown): string | undefined {
-    if (typeof value !== "string") {
-      return undefined;
-    }
-
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-
   private selectAgentForExecution(availableAgents: AgentConfig[]): AgentConfig {
     if (availableAgents.length === 0) {
       throw new Error("No agents available");
     }
 
     const requestedAgent = this.requestedAgent || process.env.DEFAULT_AGENT;
-    const normalizedRequestedAgent = this.normalizeAgentName(requestedAgent);
+    const normalizedRequestedAgent = normalizeAgentName(requestedAgent);
 
     if (!normalizedRequestedAgent) {
       return availableAgents[0];

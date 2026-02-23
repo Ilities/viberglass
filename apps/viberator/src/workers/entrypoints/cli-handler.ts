@@ -6,6 +6,7 @@ import {
   WorkerPayload,
 } from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
+import { ClankerAgentEndpointEnvironmentFactory } from "../runtime/ClankerAgentEndpointEnvironmentFactory";
 
 /**
  * CLI-based ephemeral worker entry point
@@ -202,7 +203,10 @@ async function main() {
     console.log(`Starting ephemeral worker for job: ${payload.jobId}`);
 
     // Initialize worker with CLI payload
-    const worker = new ViberatorWorker(new ClankerAgentAuthLifecycleFactory());
+    const worker = new ViberatorWorker(
+      new ClankerAgentAuthLifecycleFactory(),
+      new ClankerAgentEndpointEnvironmentFactory(),
+    );
     await worker.initialize(payload);
 
     // Convert payload to CodingJobData for executeTask
