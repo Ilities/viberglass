@@ -89,7 +89,7 @@ jobs:
           ./infra/workers/scripts/setup-harness-images.sh dev "$HARNESS"
 
       - name: Build and push lambda image
-        if: ${{ github.event_name == 'push' || github.event.inputs.harness == 'all' || github.event.inputs.harness == 'lambda' }}
+        if: ${{ github.event_name == 'push' }}
         env:
           ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
           IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
@@ -132,11 +132,3 @@ jobs:
           HARNESS: ${{ github.event.inputs.harness || 'all' }}
         run: |
           ./infra/workers/scripts/setup-harness-images.sh prod "$HARNESS"
-
-      - name: Build and push lambda image
-        if: ${{ github.event.inputs.harness == 'all' || github.event.inputs.harness == 'lambda' }}
-        env:
-          ECR_REGISTRY: ${{ steps.account-id.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
-        run: |
-          ./infra/workers/scripts/setup-harness-images.sh prod lambda
