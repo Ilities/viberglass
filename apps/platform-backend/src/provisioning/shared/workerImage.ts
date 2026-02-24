@@ -41,9 +41,21 @@ export function getWorkerImageForClanker(
     return explicitImage;
   }
 
+  if (strategy === "lambda") {
+    const defaultLambdaImage = getOptionalString(
+      process.env.VIBERATOR_LAMBDA_IMAGE_URI,
+    );
+    if (defaultLambdaImage) {
+      return defaultLambdaImage;
+    }
+  }
+
   const imagePrefix = process.env.VIBERATOR_WORKER_IMAGE_PREFIX || "";
   const registry = process.env.VIBERATOR_WORKER_REGISTRY || "";
-  const imageVariant = resolveWorkerImageVariantForAgent(clanker.agent);
+  const imageVariant =
+    strategy === "lambda"
+      ? "lambda"
+      : resolveWorkerImageVariantForAgent(clanker.agent);
   const repositoryName = getWorkerImageRepositoryName(imageVariant);
 
   if (!repositoryName) {
