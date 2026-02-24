@@ -15,7 +15,8 @@ export function OpenCodeAgentFields({ endpoint, model, onEndpointChange, onModel
         <Label>OpenCode Base URL</Label>
         <Description>
           Optional OpenAI-compatible endpoint override for this clanker. If blank, OpenCode uses its default provider
-          endpoint.
+          endpoint. This is usually not needed, OpenCode directs the requests to the correct endpoints automatically,
+          based on model configuration.
         </Description>
         <Input
           value={endpoint}
@@ -27,7 +28,8 @@ export function OpenCodeAgentFields({ endpoint, model, onEndpointChange, onModel
       <Field>
         <Label>OpenCode Model</Label>
         <Description>
-          Optional model passed as <code>--model</code> to the OpenCode CLI for this clanker.
+          Optional model passed as <code>--model</code> to the OpenCode CLI for this clanker. Use `opencode models` to
+          list available models.
         </Description>
         <Input value={model} onChange={(event) => onModelChange(event.target.value)} placeholder="gpt-5-codex" />
       </Field>

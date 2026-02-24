@@ -96,22 +96,24 @@ const backendAssignPublicIp = networkMode.apply(
 // WORKER STACK REFERENCE (OPTIONAL)
 // =============================================================================
 
-// Reference the worker stack for clanker ECS provisioning
-// If workerStack is not configured, clankers will need manual task definition configuration
+// Reference the worker stack for clanker managed provisioning defaults
+// If workerStack is not configured, clankers will need manual ECS/Lambda configuration
 let workerExecutionRoleArn: pulumi.Output<string> | undefined;
 let workerTaskRoleArn: pulumi.Output<string> | undefined;
 let workerImageUri: pulumi.Output<string> | undefined;
+let workerLambdaImageUri: pulumi.Output<string> | undefined;
+let workerLambdaRoleArn: pulumi.Output<string> | undefined;
 let workerClusterArn: pulumi.Output<string> | undefined;
 let workerSubnetIds: pulumi.Output<string[]> | undefined;
 let workerSecurityGroupId: pulumi.Output<string> | undefined;
 
 if (!config.workerStack) {
   pulumi.log.warn(
-    "workerStack is not configured. ECS managed clanker provisioning will be unavailable until you set viberglass:workerStack and run `pulumi up` in infra/platform.",
+    "workerStack is not configured. Managed clanker ECS/Lambda provisioning defaults will be unavailable until you set viberglass:workerStack and run `pulumi up` in infra/platform.",
   );
 } else {
   pulumi.log.info(
-    `Using worker stack reference for clanker ECS provisioning: ${config.workerStack}`,
+    `Using worker stack reference for clanker managed provisioning: ${config.workerStack}`,
   );
   try {
     const workerStack = new pulumi.StackReference(config.workerStack);
@@ -123,6 +125,12 @@ if (!config.workerStack) {
     ) as pulumi.Output<string>;
     workerImageUri = workerStack.getOutput(
       "ecsImageUri",
+    ) as pulumi.Output<string>;
+    workerLambdaImageUri = workerStack.getOutput(
+      "lambdaImageUri",
+    ) as pulumi.Output<string>;
+    workerLambdaRoleArn = workerStack.getOutput(
+      "lambdaRoleArn",
     ) as pulumi.Output<string>;
     workerClusterArn = workerStack.getOutput(
       "ecsClusterArn",
@@ -136,7 +144,7 @@ if (!config.workerStack) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     pulumi.log.warn(
-      `Failed to initialize worker stack reference '${config.workerStack}'. ECS managed clanker provisioning will be unavailable until this reference resolves. Error: ${message}`,
+      `Failed to initialize worker stack reference '${config.workerStack}'. Managed clanker ECS/Lambda provisioning defaults will be unavailable until this reference resolves. Error: ${message}`,
     );
   }
 }
@@ -291,12 +299,15 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
     : pulumi.interpolate`http://${loadBalancer.albDnsName}`,
   uploadsBucketName: storage.bucketName,
   ticketMediaS3Prefix: "ticket-media",
-  // Pass worker infrastructure values for clanker ECS provisioning
-  worker: workerExecutionRoleArn
+  // Pass worker infrastructure values for clanker managed provisioning
+  worker:
+    workerExecutionRoleArn || workerLambdaImageUri || workerLambdaRoleArn
     ? {
         executionRoleArn: workerExecutionRoleArn,
         taskRoleArn: workerTaskRoleArn,
         imageUri: workerImageUri,
+        lambdaImageUri: workerLambdaImageUri,
+        lambdaRoleArn: workerLambdaRoleArn,
         clusterArn: workerClusterArn,
         subnetIds: workerSubnetIds,
         securityGroupId: workerSecurityGroupId,
