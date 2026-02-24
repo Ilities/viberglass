@@ -13,7 +13,7 @@ export const jiraPlugin: IntegrationPluginDefinition<JiraConfig> = {
     webhooks: true,
   },
   createIntegration: (config) => new JiraIntegration(config),
-  status: "ready",
+  status: "stub",
   webhookProvider: "jira",
   defaultInboundEvents: ["issue_created", "issue_updated", "comment_created"],
 };

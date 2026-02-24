@@ -27,5 +27,5 @@ export const slackPlugin: IntegrationPluginDefinition<SlackConfig> = {
     webhooks: false,
   },
   createIntegration: (config) => new SlackIntegration(config),
-  status: "ready",
+  status: "stub",
 };
