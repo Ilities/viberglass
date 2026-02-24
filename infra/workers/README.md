@@ -34,11 +34,11 @@ Optimized for AWS ECS/Fargate deployment.
 **Agent:** `claude-code`
 **Use Case:** Production ECS deployments
 
-#### `viberator-lambda.Dockerfile` (Claude Code)
-Optimized for AWS Lambda container images.
+#### `viberator-lambda.Dockerfile` (Multi-Agent Lambda)
+Optimized for AWS Lambda container images with all supported agent CLIs.
 
-**Agent:** `claude-code`
-**Use Case:** Lightweight Lambda deployments
+**Agents:** `claude-code`, `qwen-cli`, `gemini-cli`, `mistral-vibe`, `codex`, `opencode`, `kimi-code`
+**Use Case:** Lambda deployments for any supported agent
 
 #### `agents/viberator-worker-qwen.Dockerfile`
 Worker with Qwen Code CLI support.
@@ -186,12 +186,13 @@ export VIBERATOR_WORKER_REGISTRY=123456.dkr.ecr.us-east-1.amazonaws.com
 
 ## Worker Image Selection
 
-The `ClankerProvisioningService` automatically selects the appropriate worker image based on the clanker's agent type.
+The `ClankerProvisioningService` automatically selects the appropriate worker image based on strategy and agent.
 
 ### Selection Logic
 
-1. **Explicit Configuration:** If `deploymentConfig.containerImage` is set, use that
-2. **Agent-Based:** Auto-select based on agent type:
+1. **Explicit Configuration:** If `deploymentConfig.containerImage` (ECS) or `deploymentConfig.imageUri` (Lambda) is set, use that.
+2. **Lambda Default:** Use `VIBERATOR_LAMBDA_IMAGE_URI` when available.
+3. **ECS Agent-Based:** Auto-select based on agent type:
    - `qwen-cli` → `viberator-worker-qwen`
    - `gemini-cli` → `viberator-worker-gemini`
    - `mistral-vibe` → `viberator-worker-mistral`

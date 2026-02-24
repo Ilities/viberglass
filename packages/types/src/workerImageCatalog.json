@@ -43,7 +43,7 @@
     "repositoryName": "viberator-lambda-worker",
     "scriptImageName": "lambda-worker",
     "dockerfilePath": "infra/workers/docker/viberator-lambda.Dockerfile",
-    "includeInHarnessSetup": false,
+    "includeInHarnessSetup": true,
     "includeInInfraProvisioning": false,
     "includeInBuildScript": true,
     "includeInPushScript": true,
