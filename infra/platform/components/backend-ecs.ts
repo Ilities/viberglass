@@ -62,6 +62,8 @@ export interface BackendEcsOptions {
     executionRoleArn?: pulumi.Input<string>;
     taskRoleArn?: pulumi.Input<string>;
     imageUri?: pulumi.Input<string>;
+    lambdaImageUri?: pulumi.Input<string>;
+    lambdaRoleArn?: pulumi.Input<string>;
     clusterArn?: pulumi.Input<string>;
     subnetIds?: pulumi.Input<string[]>;
     securityGroupId?: pulumi.Input<string>;
@@ -321,6 +323,39 @@ export function createBackendEcs(
     },
   );
 
+  // Lambda Worker Management policy (for Clanker Lambda provisioning)
+  new aws.iam.RolePolicy(
+    `${options.config.environment}-viberglass-backend-lambda-worker`,
+    {
+      role: backendTaskRole.name,
+      policy: {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Action: [
+              "lambda:GetFunction",
+              "lambda:CreateFunction",
+              "lambda:UpdateFunctionCode",
+              "lambda:UpdateFunctionConfiguration",
+            ],
+            Resource: `arn:aws:lambda:${options.config.awsRegion}:*:function:*`,
+          },
+          {
+            Effect: "Allow",
+            Action: ["iam:PassRole"],
+            Resource: "*",
+            Condition: {
+              StringEquals: {
+                "iam:PassedToService": "lambda.amazonaws.com",
+              },
+            },
+          },
+        ],
+      },
+    },
+  );
+
   // Backend task definition
   const backendTaskDefinition = new aws.ecs.TaskDefinition(
     `${options.config.environment}-viberglass-backend`,
@@ -344,6 +379,8 @@ export function createBackendEcs(
           workerExecRole: options.worker?.executionRoleArn ?? "",
           workerTaskRole: options.worker?.taskRoleArn ?? "",
           workerImage: options.worker?.imageUri ?? "",
+          workerLambdaImage: options.worker?.lambdaImageUri ?? "",
+          workerLambdaRole: options.worker?.lambdaRoleArn ?? "",
           workerCluster: options.worker?.clusterArn ?? "",
           workerSubnets: options.worker?.subnetIds ?? [],
           workerSecurityGroup: options.worker?.securityGroupId ?? "",
@@ -362,6 +399,8 @@ export function createBackendEcs(
             workerExecRole,
             workerTaskRole,
             workerImage,
+            workerLambdaImage,
+            workerLambdaRole,
             workerCluster,
             workerSubnets,
             workerSecurityGroup,
@@ -375,6 +414,9 @@ export function createBackendEcs(
             const normalizedWorkerSubnets = Array.isArray(workerSubnets)
               ? workerSubnets
               : [];
+            const normalizedWorkerLambdaImage = Array.isArray(workerLambdaImage)
+              ? workerLambdaImage[0]
+              : workerLambdaImage;
 
             const envVars = [
               { name: "NODE_ENV", value: "production" },
@@ -440,6 +482,18 @@ export function createBackendEcs(
                   value: registryMatch[1],
                 });
               }
+            }
+            if (workerLambdaImage) {
+              envVars.push({
+                name: "VIBERATOR_LAMBDA_IMAGE_URI",
+                value: normalizedWorkerLambdaImage,
+              });
+            }
+            if (workerLambdaRole) {
+              envVars.push({
+                name: "VIBERATOR_LAMBDA_ROLE_ARN",
+                value: workerLambdaRole,
+              });
             }
             if (workerCluster) {
               envVars.push({
