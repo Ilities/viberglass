@@ -1,18 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { MultiSelect } from '@/components/multi-select'
 import { PageMeta } from '@/components/page-meta'
-import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { getClankerBySlug } from '@/data'
 import { getDeploymentStrategies, updateClanker } from '@/service/api/clanker-api'
 import { getSecrets, type Secret } from '@/service/api/secret-api'
 import {
-  AGENT_OPTIONS,
   DEFAULT_AGENT_TYPE,
   type AgentType,
   type Clanker,
@@ -20,23 +16,16 @@ import {
   type ConfigFileInput,
   type DeploymentStrategy,
 } from '@viberglass/types'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { AgentSpecificFields } from './config/agents'
-import {
-  filterSecretsForAgent,
-  getSecretPickerDescription,
-  getSecretPickerEmptyMessage,
-} from './config/agentSecrets'
+import { filterSecretsForAgent, getSecretPickerDescription, getSecretPickerEmptyMessage } from './config/agentSecrets'
 import { buildClankerDeploymentConfig } from './config/buildConfig'
-import { toAgentType } from './config/normalizers'
 import { readClankerDeploymentConfig } from './config/readConfig'
-import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
+import { AgentSelectionCards, DeploymentStrategyCards } from './config/selectionCards'
 import { StrategySpecificFields } from './config/strategies'
-import {
-  AGENTS_FILE_TYPE,
-  isSkillPath,
-  normalizeInstructionPath,
-  skillPathFromUploadName,
-} from './instructionFiles'
+import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
+import { AGENTS_FILE_TYPE, isSkillPath, normalizeInstructionPath, skillPathFromUploadName } from './instructionFiles'
 
 interface SkillEntry {
   id: string
@@ -52,7 +41,10 @@ function createSkillEntry(path: string = 'skills/new-skill.md', content = ''): S
   }
 }
 
-function buildConfigFiles(agentInstructions: string, skills: SkillEntry[]): { files: ConfigFileInput[]; error: string | null } {
+function buildConfigFiles(
+  agentInstructions: string,
+  skills: SkillEntry[]
+): { files: ConfigFileInput[]; error: string | null } {
   const files: ConfigFileInput[] = []
 
   if (agentInstructions.trim()) {
@@ -166,16 +158,16 @@ export function EditClankerPage() {
   const selectedStrategy = deploymentStrategies.find((strategy) => strategy.id === selectedStrategyId)
   const selectableSecrets = useMemo(
     () => filterSecretsForAgent(secrets, selectedAgent, codexAuthMode),
-    [codexAuthMode, secrets, selectedAgent],
+    [codexAuthMode, secrets, selectedAgent]
   )
   const selectableSecretIds = useMemo(() => new Set(selectableSecrets.map((secret) => secret.id)), [selectableSecrets])
   const secretPickerDescription = useMemo(
     () => getSecretPickerDescription(selectedAgent, codexAuthMode),
-    [codexAuthMode, selectedAgent],
+    [codexAuthMode, selectedAgent]
   )
   const secretPickerEmptyMessage = useMemo(
     () => getSecretPickerEmptyMessage(selectedAgent, codexAuthMode),
-    [codexAuthMode, selectedAgent],
+    [codexAuthMode, selectedAgent]
   )
 
   useEffect(() => {
@@ -311,7 +303,7 @@ export function EditClankerPage() {
       <Heading>Edit Clanker</Heading>
       <Subheading className="mt-2">Update the configuration for {clanker.name}.</Subheading>
 
-      <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
+      <form onSubmit={handleSubmit} className="mt-8 w-full max-w-6xl">
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
             {error}
@@ -319,7 +311,9 @@ export function EditClankerPage() {
         )}
 
         <Fieldset>
-          <FieldGroup>
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Metadata</legend>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Core identity for this clanker.</p>
+          <FieldGroup className="mt-6">
             <Field>
               <Label>Name</Label>
               <Description>A unique name for your clanker.</Description>
@@ -331,45 +325,17 @@ export function EditClankerPage() {
               <Description>A brief description of what this clanker does.</Description>
               <Textarea name="description" rows={3} defaultValue={clanker.description || ''} />
             </Field>
+          </FieldGroup>
+        </Fieldset>
 
+        <Fieldset className="mt-10">
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Agent</legend>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Pick an agent</p>
+          <FieldGroup className="mt-6">
             <Field>
-              <Label>Deployment Strategy</Label>
-              <Description>Choose how to deploy this clanker.</Description>
-              <Select
-                name="deploymentStrategyId"
-                value={selectedStrategyId}
-                onChange={(value) => {
-                  setSelectedStrategyId(value)
-                  setProvisioningMode('managed')
-                }}
-              >
-                <option value="none">Select a deployment strategy...</option>
-                {deploymentStrategies.map((strategy) => (
-                  <option key={strategy.id} value={strategy.id}>
-                    {strategy.name.charAt(0).toUpperCase() + strategy.name.slice(1)}
-                    {strategy.description ? ` - ${strategy.description}` : ''}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <StrategySpecificFields
-              strategyName={selectedStrategy?.name}
-              provisioningMode={provisioningMode}
-              onProvisioningModeChange={setProvisioningMode}
-              defaults={parsedDeploymentForm}
-            />
-
-            <Field>
-              <Label>Agent</Label>
-              <Description>Select which AI agent to use for this clanker.</Description>
-              <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(toAgentType(value))}>
-                {AGENT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.recommended ? `${option.label} (Recommended)` : option.label}
-                  </option>
-                ))}
-              </Select>
+              <Label>Agent Selection</Label>
+              <Description>Select which AI agent powers this clanker.</Description>
+              <AgentSelectionCards value={selectedAgent} onChange={setSelectedAgent} />
             </Field>
 
             <AgentSpecificFields
@@ -404,7 +370,35 @@ export function EditClankerPage() {
         </Fieldset>
 
         <Fieldset className="mt-10">
-          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Instruction Files</legend>
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Deployment</legend>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Choose where this clanker runs and provide strategy-specific runtime settings.
+          </p>
+          <FieldGroup className="mt-6">
+            <Field>
+              <Label>Deployment Strategy</Label>
+              <Description>Choose where this clanker runs.</Description>
+              <DeploymentStrategyCards
+                strategies={deploymentStrategies}
+                value={selectedStrategyId}
+                onChange={(strategyId) => {
+                  setSelectedStrategyId(strategyId)
+                  setProvisioningMode('managed')
+                }}
+              />
+            </Field>
+
+            <StrategySpecificFields
+              strategyName={selectedStrategy?.name}
+              provisioningMode={provisioningMode}
+              onProvisioningModeChange={setProvisioningMode}
+              defaults={parsedDeploymentForm}
+            />
+          </FieldGroup>
+        </Fieldset>
+
+        <Fieldset className="mt-10">
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Additional Data</legend>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Define global behavior in AGENTS.md and add reusable skills under skills/.
           </p>
