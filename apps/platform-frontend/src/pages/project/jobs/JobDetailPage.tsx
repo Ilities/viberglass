@@ -198,7 +198,7 @@ export function JobDetailPage() {
                   <JobStatusIndicator status={job.status} isPolling={isPolling} />
                   {job.ticket?.title && (
                     <span className="text-sm text-[var(--gray-9)]">
-                      Ticket: 
+                      Ticket:{' '}
                       <Button
                         href={`/project/${project}/tickets/${job.ticket.id}`}
                         plain
