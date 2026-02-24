@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
@@ -17,7 +18,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AgentSpecificFields } from './config/agents'
-import { filterSecretsForAgent, getSecretPickerDescription, getSecretPickerEmptyMessage } from './config/agentSecrets'
+import { filterSecretsForAgent, getAllSecrets, getSecretPickerDescription, getSecretPickerEmptyMessage } from './config/agentSecrets'
 import { buildClankerDeploymentConfig } from './config/buildConfig'
 import { AgentSelectionCards, DeploymentStrategyCards } from './config/selectionCards'
 import { StrategySpecificFields } from './config/strategies'
@@ -94,6 +95,7 @@ export function NewClankerPage() {
   const [geminiModel, setGeminiModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel)
   const [agentInstructions, setAgentInstructions] = useState('')
   const [skills, setSkills] = useState<SkillEntry[]>([])
+  const [showAllSecrets, setShowAllSecrets] = useState(false)
 
   const agentsFileInputRef = useRef<HTMLInputElement | null>(null)
   const skillsFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -113,17 +115,17 @@ export function NewClankerPage() {
 
   const selectedStrategy = deploymentStrategies.find((strategy) => strategy.id === selectedStrategyId)
   const selectableSecrets = useMemo(
-    () => filterSecretsForAgent(secrets, selectedAgent, codexAuthMode),
-    [codexAuthMode, secrets, selectedAgent]
+    () => showAllSecrets ? getAllSecrets(secrets) : filterSecretsForAgent(secrets, selectedAgent, codexAuthMode),
+    [codexAuthMode, secrets, selectedAgent, showAllSecrets]
   )
   const selectableSecretIds = useMemo(() => new Set(selectableSecrets.map((secret) => secret.id)), [selectableSecrets])
   const secretPickerDescription = useMemo(
-    () => getSecretPickerDescription(selectedAgent, codexAuthMode),
-    [codexAuthMode, selectedAgent]
+    () => getSecretPickerDescription(selectedAgent, codexAuthMode, showAllSecrets),
+    [codexAuthMode, selectedAgent, showAllSecrets]
   )
   const secretPickerEmptyMessage = useMemo(
-    () => getSecretPickerEmptyMessage(selectedAgent, codexAuthMode),
-    [codexAuthMode, selectedAgent]
+    () => getSecretPickerEmptyMessage(selectedAgent, codexAuthMode, showAllSecrets),
+    [codexAuthMode, selectedAgent, showAllSecrets]
   )
 
   useEffect(() => {
@@ -294,19 +296,33 @@ export function NewClankerPage() {
               onGeminiModelChange={setGeminiModel}
             />
 
-            <MultiSelect
-              label="Secrets"
-              description={secretPickerDescription}
-              options={selectableSecrets.map((secret) => ({
-                id: secret.id,
-                label: secret.name,
-                description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
-              }))}
-              value={selectedSecretIds}
-              onChange={setSelectedSecretIds}
-              emptyMessage={secretPickerEmptyMessage}
-              searchable={true}
-            />
+            <Field>
+              <div className="flex items-center justify-between">
+                <Label>Secrets</Label>
+                <CheckboxField>
+                  <Checkbox
+                    checked={showAllSecrets}
+                    onCheckedChange={(checked) => setShowAllSecrets(checked)}
+                  />
+                  <Label>Show all secrets</Label>
+                </CheckboxField>
+              </div>
+              <Description>{secretPickerDescription}</Description>
+              <div className="mt-3">
+                <MultiSelect
+                  label=""
+                  options={selectableSecrets.map((secret) => ({
+                    id: secret.id,
+                    label: secret.name,
+                    description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
+                  }))}
+                  value={selectedSecretIds}
+                  onChange={setSelectedSecretIds}
+                  emptyMessage={secretPickerEmptyMessage}
+                  searchable={true}
+                />
+              </div>
+            </Field>
           </FieldGroup>
         </Fieldset>
 
