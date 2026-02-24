@@ -361,7 +361,11 @@ export function EditClankerPage() {
                 <CheckboxField>
                   <Checkbox
                     checked={showAllSecrets}
-                    onCheckedChange={(checked) => setShowAllSecrets(checked)}
+                    onChange={(checked) => {
+                      if (typeof checked === 'boolean') {
+                        setShowAllSecrets(checked)
+                      }
+                    }}
                   />
                   <Label>Show all secrets</Label>
                 </CheckboxField>
