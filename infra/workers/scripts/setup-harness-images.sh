@@ -2,7 +2,7 @@
 # One-stop script to set up and publish worker harness images to ECR
 # Usage: ./setup-harness-images.sh [environment] [harness-type]
 #   environment: dev | prod (default: dev)
-#   harness-type: multi-agent | claude | qwen | gemini | mistral | codex | opencode | kimi | testing | deployment | base | all (default: multi-agent)
+#   harness-type: multi-agent | claude | lambda | qwen | gemini | mistral | codex | opencode | kimi | testing | deployment | base | all (default: multi-agent)
 
 set -e
 
@@ -253,8 +253,8 @@ Examples:
   $0 prod multi-agent       # Build and push only multi-agent for prod
   IMAGE_TAG=v1.0.0 $0 dev   # Build and push with specific tag
 
-Note: Images built by Pulumi (ecs-worker, lambda-worker) are handled
-by the workers infrastructure stack and are NOT included here.
+Note: The ECS worker image built by Pulumi (ecs-worker) is handled
+by the workers infrastructure stack and is NOT included here.
 Agent image builds automatically ensure viberator-base-worker is present in ECR.
 EOF
 
