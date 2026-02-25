@@ -11,6 +11,7 @@ export interface ExecutionConfig {
   maxRetries?: number; // Default: 3
   baseDelayMs?: number; // Default: 1000 (1 second)
   maxDelayMs?: number; // Default: 30000 (30 seconds)
+  maxPendingConflictRetries?: number; // Default: 8 (Lambda Pending state)
 }
 
 export interface ExecutionResult {
@@ -31,6 +32,7 @@ export class WorkerExecutionService {
       maxRetries: config.maxRetries ?? 3,
       baseDelayMs: config.baseDelayMs ?? 1000,
       maxDelayMs: config.maxDelayMs ?? 30000,
+      maxPendingConflictRetries: config.maxPendingConflictRetries ?? 8,
     };
   }
 
@@ -45,7 +47,10 @@ export class WorkerExecutionService {
   ): Promise<ExecutionResult> {
     let lastError: Error | undefined;
     let attempts = 0;
-    const maxAttempts = this.config.maxRetries + 1;
+    let pendingConflictExtraRetriesUsed = 0;
+    const baseMaxAttempts = this.config.maxRetries + 1;
+    const absoluteMaxAttempts =
+      baseMaxAttempts + this.config.maxPendingConflictRetries;
 
     // Mark job as active before invocation
     await this.jobService.updateJobStatus(job.id, "active", {
@@ -59,23 +64,27 @@ export class WorkerExecutionService {
       jobId: job.id,
       clankerId: clanker.id,
       maxRetries: this.config.maxRetries,
-      maxAttempts,
+      maxPendingConflictRetries: this.config.maxPendingConflictRetries,
+      baseMaxAttempts,
+      absoluteMaxAttempts,
       baseDelayMs: this.config.baseDelayMs,
       maxDelayMs: this.config.maxDelayMs,
       hasProjectContext: Boolean(project),
     });
 
-    while (attempts <= this.config.maxRetries) {
+    while (attempts < absoluteMaxAttempts) {
       attempts++;
-      const attemptsRemaining = maxAttempts - attempts;
+      const attemptsRemaining = Math.max(absoluteMaxAttempts - attempts, 0);
 
       try {
         const invoker = this.factory.getInvokerForClanker(clanker);
         logger.debug("Invoke attempt starting", {
           jobId: job.id,
           attempt: attempts,
-          maxAttempts,
+          baseMaxAttempts,
+          absoluteMaxAttempts,
           attemptsRemaining,
+          pendingConflictExtraRetriesUsed,
           invoker: invoker.name,
         });
 
@@ -119,7 +128,7 @@ export class WorkerExecutionService {
               jobId: job.id,
               error: error.message,
               attempts,
-              maxAttempts,
+              absoluteMaxAttempts,
               classification: error.classification,
               causeType: this.getErrorName(error.cause),
             });
@@ -134,22 +143,55 @@ export class WorkerExecutionService {
           }
 
           // Transient error - retry with backoff
-          if (attempts <= this.config.maxRetries) {
-            const delay = this.calculateBackoff(attempts);
+          const isPendingConflict = this.isLambdaPendingConflict(error);
+          const canRetryByBaseBudget = attempts <= this.config.maxRetries;
+          let canRetryByPendingBudget = false;
+          if (isPendingConflict && !canRetryByBaseBudget) {
+            canRetryByPendingBudget =
+              pendingConflictExtraRetriesUsed <
+              this.config.maxPendingConflictRetries;
+            if (canRetryByPendingBudget) {
+              pendingConflictExtraRetriesUsed++;
+            }
+          }
+          const shouldRetry = canRetryByBaseBudget || canRetryByPendingBudget;
+
+          if (shouldRetry) {
+            const backoffDelay = this.calculateBackoff(attempts);
+            const delay = Math.max(backoffDelay, error.retryAfterMs ?? 0);
             logger.warn("Transient error, retrying", {
               jobId: job.id,
               error: error.message,
               attempt: attempts,
-              maxAttempts,
+              baseMaxAttempts,
+              absoluteMaxAttempts,
               attemptsRemaining,
+              retryBudget: canRetryByPendingBudget ? "pending-conflict" : "base",
+              isPendingConflict,
+              pendingConflictExtraRetriesUsed,
+              maxPendingConflictRetries: this.config.maxPendingConflictRetries,
               classification: error.classification,
               causeType: this.getErrorName(error.cause),
+              backoffDelay,
+              retryAfterMs: error.retryAfterMs,
               nextRetryIn: delay,
               nextRetryAt: new Date(Date.now() + delay).toISOString(),
             });
             await this.sleep(delay);
             continue;
           }
+
+          logger.error("Transient error retries exhausted", {
+            jobId: job.id,
+            error: error.message,
+            attempt: attempts,
+            baseMaxAttempts,
+            absoluteMaxAttempts,
+            isPendingConflict,
+            pendingConflictExtraRetriesUsed,
+            maxPendingConflictRetries: this.config.maxPendingConflictRetries,
+          });
+          break;
         } else {
           // Unknown error type - treat as permanent
           const errorMessage = this.getErrorMessage(error);
@@ -158,7 +200,7 @@ export class WorkerExecutionService {
             error: errorMessage,
             errorName: this.getErrorName(error),
             attempts,
-            maxAttempts,
+            absoluteMaxAttempts,
           });
 
           await this.markJobFailed(job.id, errorMessage);
@@ -178,6 +220,10 @@ export class WorkerExecutionService {
       jobId: job.id,
       error: errorMessage,
       attempts,
+      baseMaxAttempts,
+      absoluteMaxAttempts,
+      pendingConflictExtraRetriesUsed,
+      maxPendingConflictRetries: this.config.maxPendingConflictRetries,
     });
 
     await this.markJobFailed(job.id, errorMessage);
@@ -227,5 +273,19 @@ export class WorkerExecutionService {
 
     const nameValue = Reflect.get(error, "name");
     return typeof nameValue === "string" ? nameValue : "UnknownError";
+  }
+
+  private isLambdaPendingConflict(error: WorkerError): boolean {
+    if (!error.isTransient) {
+      return false;
+    }
+
+    const workerErrorMessage = error.message || "";
+    if (!/ResourceConflictException/.test(workerErrorMessage)) {
+      return false;
+    }
+
+    const causeMessage = this.getErrorMessage(error.cause);
+    return /\bPending\b/i.test(workerErrorMessage) || /\bPending\b/i.test(causeMessage);
   }
 }
