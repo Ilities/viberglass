@@ -9,7 +9,6 @@ import {
   type UpdateFunctionCodeCommandInput,
   type UpdateFunctionConfigurationCommandInput,
 } from "@aws-sdk/client-lambda";
-import { waitUntilFunctionActive } from "@aws-sdk/client-lambda";
 import type { LambdaClientPort } from "../ports/LambdaClientPort";
 
 export class AwsLambdaClientAdapter implements LambdaClientPort {
@@ -46,14 +45,47 @@ export class AwsLambdaClientAdapter implements LambdaClientPort {
   }
 
   /**
-   * Waits for a Lambda function to become active after an update.
-   * Lambda functions enter an "InProgress" state during updates and reject
-   * subsequent operations until they become "Active" again.
+   * Waits for a Lambda function update to complete.
+   * Lambda functions enter a "InProgress" last update status during updates and reject
+   * subsequent operations until the update becomes "Successful".
+   * Polls every 2 seconds for up to 5 minutes.
    */
   private async waitForFunctionUpdate(functionName: string): Promise<void> {
-    await waitUntilFunctionActive(
-      { client: this.lambdaClient, maxWaitTime: 300 },
-      { FunctionName: functionName },
+    const maxWaitTime = 300000; // 5 minutes in milliseconds
+    const pollInterval = 2000; // 2 seconds
+    const startTime = Date.now();
+    let hasSeenInProgress = false;
+
+    while (Date.now() - startTime < maxWaitTime) {
+      const response = await this.lambdaClient.send(
+        new GetFunctionCommand({ FunctionName: functionName }),
+      );
+
+      const lastUpdateStatus = response.Configuration?.LastUpdateStatus;
+
+      // Track when we see InProgress to ensure we're waiting for the current update
+      if (lastUpdateStatus === "InProgress") {
+        hasSeenInProgress = true;
+      }
+
+      // Only consider Successful valid if we've seen InProgress first
+      // This prevents returning immediately when the status still shows Successful
+      // from a previous update before the current one has started tracking
+      if (lastUpdateStatus === "Successful" && hasSeenInProgress) {
+        return;
+      }
+
+      if (lastUpdateStatus === "Failed") {
+        const reason = response.Configuration?.LastUpdateStatusReason || "Unknown error";
+        throw new Error(`Lambda function update failed: ${reason}`);
+      }
+
+      // Wait before next poll
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    throw new Error(
+      `Lambda function update timed out after ${maxWaitTime / 1000} seconds for function: ${functionName}`,
     );
   }
 }
