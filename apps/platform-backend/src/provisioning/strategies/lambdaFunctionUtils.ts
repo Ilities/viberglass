@@ -3,8 +3,11 @@ import type { LambdaFunctionResponse } from "../ports/LambdaClientPort";
 import type { LambdaFunctionDetails } from "./lambdaTypes";
 
 export function buildLambdaFunctionName(clanker: Clanker): string {
-  const base = `viberator-${clanker.slug || clanker.id}`;
-  return base.replace(/[^a-zA-Z0-9-_]/g, "-").slice(0, 64);
+  const rawName = clanker.name.trim().toLowerCase();
+  const normalized = rawName.replace(/[^a-z0-9-_]+/g, "-").replace(/^-+|-+$/g, "");
+  const safeName = normalized || clanker.id.replace(/[^a-z0-9]/gi, "").slice(0, 12);
+  const base = `viberator-${safeName}`;
+  return base.slice(0, 64);
 }
 
 export function mapLambdaFunctionDetails(

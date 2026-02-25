@@ -1,4 +1,5 @@
 import {
+  DeleteFunctionCommand,
   CreateFunctionCommand,
   GetFunctionCommand,
   LambdaClient,
@@ -42,6 +43,12 @@ export class AwsLambdaClientAdapter implements LambdaClientPort {
     if (input.FunctionName) {
       await this.waitForFunctionUpdate(input.FunctionName);
     }
+  }
+
+  async deleteFunction(functionName: string): Promise<void> {
+    await this.lambdaClient.send(
+      new DeleteFunctionCommand({ FunctionName: functionName }),
+    );
   }
 
   /**

@@ -18,6 +18,7 @@ const mockClankerDAO = {
 const mockProvisioner = {
   getProvisioningPreflightError: jest.fn(),
   provision: jest.fn(),
+  deprovision: jest.fn(),
   resolveAvailabilityStatus: jest.fn(),
 };
 
@@ -111,6 +112,36 @@ function getStartRouteHandler(): unknown {
   const handle = Reflect.get(route.stack[route.stack.length - 1], "handle");
   if (typeof handle !== "function") {
     throw new Error("Route handler for POST /:id/start is not a function");
+  }
+
+  return handle;
+}
+
+function getDeactivateRouteHandler(): unknown {
+  const stackValue = Reflect.get(clankersRouter, "stack");
+  if (!Array.isArray(stackValue)) {
+    throw new Error("Router stack not available");
+  }
+
+  const routeLayer = stackValue.find(
+    (entry: any) =>
+      entry.route &&
+      entry.route.path === "/:id/deactivate" &&
+      entry.route.methods?.post === true,
+  );
+
+  if (!routeLayer) {
+    throw new Error("Route not found: POST /:id/deactivate");
+  }
+
+  const route = routeLayer.route;
+  if (!route || !Array.isArray(route.stack) || route.stack.length === 0) {
+    throw new Error("Route stack for POST /:id/deactivate is empty");
+  }
+
+  const handle = Reflect.get(route.stack[route.stack.length - 1], "handle");
+  if (typeof handle !== "function") {
+    throw new Error("Route handler for POST /:id/deactivate is not a function");
   }
 
   return handle;
@@ -238,6 +269,71 @@ describe("clankers start route provisioning wiring", () => {
       },
       status: "active",
       statusMessage: "Docker image ready: worker:latest",
+    });
+  });
+});
+
+describe("clankers deactivate route deprovisioning wiring", () => {
+  const deactivateHandler = getDeactivateRouteHandler();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("deprovisions resources and persists deployment config updates", async () => {
+    const req = { params: { id: CLANKER_ID }, body: {} };
+    const res = createMockResponse();
+    const clanker: Clanker = {
+      ...buildClanker(),
+      status: "active",
+      deploymentStrategy: {
+        ...buildClanker().deploymentStrategy!,
+        name: "lambda",
+      },
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: "lambda",
+          provisioningMode: "managed",
+          functionName: "worker-fn",
+          functionArn: "arn:worker-fn",
+        },
+        agent: { type: "claude-code" },
+      },
+    };
+    const updatedClanker: Clanker = {
+      ...clanker,
+      status: "inactive",
+      statusMessage: "Lambda function deleted",
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: "lambda",
+          provisioningMode: "managed",
+        },
+        agent: { type: "claude-code" },
+      },
+    };
+
+    mockClankerDAO.getClanker.mockResolvedValue(clanker);
+    mockProvisioner.deprovision.mockResolvedValue({
+      status: "inactive",
+      statusMessage: "Lambda function deleted",
+      deploymentConfig: updatedClanker.deploymentConfig,
+    });
+    mockClankerDAO.updateClanker.mockResolvedValue(updatedClanker);
+
+    await invokeStartHandler(deactivateHandler, req, res);
+
+    expect(mockProvisioner.deprovision).toHaveBeenCalledWith(clanker);
+    expect(mockClankerDAO.updateClanker).toHaveBeenCalledWith(CLANKER_ID, {
+      deploymentConfig: updatedClanker.deploymentConfig,
+      status: "inactive",
+      statusMessage: "Lambda function deleted",
+    });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: updatedClanker,
     });
   });
 });

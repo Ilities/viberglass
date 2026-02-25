@@ -11,5 +11,6 @@ export interface ClankerProvisioner {
     clanker: Clanker,
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult>;
+  deprovision(clanker: Clanker): Promise<ProvisioningResult>;
   resolveAvailabilityStatus(clanker: Clanker): Promise<AvailabilityResult>;
 }

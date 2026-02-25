@@ -29,8 +29,11 @@ export class LambdaFunctionProvisioner {
     functionArn?: string;
     functionDetails: LambdaFunctionDetails;
   }> {
-    const explicitArn = config.functionArn;
-    const explicitName = config.functionName;
+    const provisioningMode =
+      config.provisioningMode === "prebuilt" ? "prebuilt" : "managed";
+    const explicitArn = provisioningMode === "prebuilt" ? config.functionArn : undefined;
+    const explicitName =
+      provisioningMode === "prebuilt" ? config.functionName : undefined;
     const derivedName = buildLambdaFunctionName(clanker);
     const functionIdentifier = explicitArn || explicitName || derivedName;
     const functionName = explicitName || derivedName;

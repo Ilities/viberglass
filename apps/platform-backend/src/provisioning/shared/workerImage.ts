@@ -16,29 +16,36 @@ function buildImageUrl(
   return `${parts.join("/")}:latest`;
 }
 
+interface WorkerImageResolutionOptions {
+  ignoreStrategyImage?: boolean;
+}
+
 export function getWorkerImageForClanker(
   clanker: Clanker,
   strategy: ProvisioningStrategyName,
+  options?: WorkerImageResolutionOptions,
 ): string | undefined {
   const resolved = resolveClankerConfig(clanker).config;
   const strategyConfig =
     resolved.strategy.type === strategy ? resolved.strategy : undefined;
 
-  const explicitImage =
-    strategy === "lambda"
-      ? getOptionalString(
-          strategyConfig && "imageUri" in strategyConfig
-            ? strategyConfig.imageUri
-            : undefined,
-        )
-      : getOptionalString(
-          strategyConfig && "containerImage" in strategyConfig
-            ? strategyConfig.containerImage
-            : undefined,
-        );
+  if (!options?.ignoreStrategyImage) {
+    const explicitImage =
+      strategy === "lambda"
+        ? getOptionalString(
+            strategyConfig && "imageUri" in strategyConfig
+              ? strategyConfig.imageUri
+              : undefined,
+          )
+        : getOptionalString(
+            strategyConfig && "containerImage" in strategyConfig
+              ? strategyConfig.containerImage
+              : undefined,
+          );
 
-  if (explicitImage) {
-    return explicitImage;
+    if (explicitImage) {
+      return explicitImage;
+    }
   }
 
   if (strategy === "lambda") {

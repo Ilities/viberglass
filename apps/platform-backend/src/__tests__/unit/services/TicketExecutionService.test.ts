@@ -53,6 +53,7 @@ describe("TicketExecutionService", () => {
     mockProvisioningService = {
       getProvisioningPreflightError: jest.fn(),
       provision: jest.fn(),
+      deprovision: jest.fn(),
       resolveAvailabilityStatus: jest.fn(),
     };
     mockJobService = new JobService() as jest.Mocked<JobService>;

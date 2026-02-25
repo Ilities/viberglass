@@ -28,4 +28,5 @@ export interface LambdaClientPort {
   updateFunctionConfiguration(
     input: UpdateFunctionConfigurationCommandInput,
   ): Promise<void>;
+  deleteFunction(functionName: string): Promise<void>;
 }

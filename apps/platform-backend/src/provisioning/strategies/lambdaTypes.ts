@@ -13,6 +13,7 @@ export interface LambdaFunctionDetails {
 
 export interface LambdaProvisioningConfig {
   type: "lambda";
+  provisioningMode?: "managed" | "prebuilt";
   functionName?: string;
   functionArn?: string;
   functionDetails?: LambdaFunctionDetails;
