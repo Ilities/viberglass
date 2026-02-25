@@ -61,6 +61,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image
+        id: build-image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -73,6 +74,15 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
+      - name: Verify pushed image digest in ECR
+        run: |
+          aws ecr describe-images \
+            --repository-name "${{ env.ECR_REPOSITORY }}" \
+            --image-ids imageDigest="${{ steps.build-image.outputs.digest }}" \
+            --region "${{ env.AWS_REGION }}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text
+
       - name: Register new task definition
         id: register-task
         run: |
@@ -82,7 +92,7 @@ jobs:
             --output json)
           echo "$TASK_DEF" > task-definition.json
           # Update image URI in task definition
-          NEW_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          NEW_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}@${{ steps.build-image.outputs.digest }}"
           jq --arg image "$NEW_IMAGE" 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $image' task-definition.json > task-definition-updated.json
           # Register new task definition revision
           aws ecs register-task-definition \
@@ -101,7 +111,9 @@ jobs:
         run: |
           echo "### Deployed to Dev :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image tag:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image digest:** ${{ steps.build-image.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed image ref:** ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}@${{ steps.build-image.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Service:** ${{ env.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Cluster:** ${{ env.ECS_CLUSTER }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Task Definition:** ${{ steps.register-task.outputs.task_definition_arn }}" >> $GITHUB_STEP_SUMMARY
