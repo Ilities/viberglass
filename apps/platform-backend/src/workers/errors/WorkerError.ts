@@ -7,7 +7,8 @@ export class WorkerError extends Error {
   constructor(
     message: string,
     public readonly classification: ErrorClassification,
-    public readonly cause?: unknown
+    public readonly cause?: unknown,
+    public readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = 'WorkerError';

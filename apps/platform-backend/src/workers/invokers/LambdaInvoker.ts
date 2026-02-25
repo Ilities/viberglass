@@ -160,6 +160,9 @@ export class LambdaInvoker implements WorkerInvoker {
     const isTransient =
       transientErrors.includes(errorName) ||
       (statusCode !== undefined && statusCode >= 500);
+    const retryAfterMs = isTransient
+      ? this.getSuggestedRetryDelayMs(errorDetails)
+      : undefined;
 
     logger.warn("Lambda invocation request failed", {
       jobId: context.jobId,
@@ -174,6 +177,7 @@ export class LambdaInvoker implements WorkerInvoker {
       extendedRequestId: errorDetails.extendedRequestId,
       cfId: errorDetails.cfId,
       retryable: errorDetails.retryable,
+      retryAfterMs,
     });
 
     if (isTransient) {
@@ -182,6 +186,7 @@ export class LambdaInvoker implements WorkerInvoker {
           (errorName || errorDetails.message || "Unknown Lambda error"),
         ErrorClassification.TRANSIENT,
         error,
+        retryAfterMs,
       );
     }
 
@@ -260,6 +265,22 @@ export class LambdaInvoker implements WorkerInvoker {
         requestId: details.requestId,
       });
     }
+  }
+
+  private getSuggestedRetryDelayMs(
+    errorDetails: LambdaErrorDetails,
+  ): number | undefined {
+    if (errorDetails.name !== "ResourceConflictException") {
+      return undefined;
+    }
+
+    const errorMessage = errorDetails.message || "";
+    if (/\bPending\b/i.test(errorMessage)) {
+      // Pending means Lambda is not ready to invoke yet; short retries are usually ineffective.
+      return 15000;
+    }
+
+    return 5000;
   }
 
   private getFunctionName(clanker: Clanker): string | undefined {

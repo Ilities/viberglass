@@ -184,6 +184,23 @@ describe("LambdaInvoker", () => {
         });
       });
 
+      it("should suggest longer retry delay for ResourceConflictException in Pending state", async () => {
+        mockSend.mockRejectedValueOnce(
+          createLambdaError(
+            "ResourceConflictException",
+            409,
+            "The function is currently in the following state: Pending",
+          ),
+        );
+
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
+          classification: ErrorClassification.TRANSIENT,
+          retryAfterMs: 15000,
+        });
+      });
+
       it("should classify EFSIOException as TRANSIENT", async () => {
         mockSend.mockRejectedValueOnce(
           createLambdaError("EFSIOException", 500, "EFS IO error"),

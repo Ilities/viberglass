@@ -1,14 +1,101 @@
-import { SQSHandler, SQSEvent } from "aws-lambda";
 import { ViberatorWorker } from "../core/ViberatorWorker";
 import { LambdaPayload } from "../core/types";
 import { CodingJobData, JobResult } from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 import { ClankerAgentEndpointEnvironmentFactory } from "../runtime/ClankerAgentEndpointEnvironmentFactory";
 
-export const handler: SQSHandler = async (event: SQSEvent) => {
-  for (const record of event.Records) {
+interface SqsRecordLike {
+  body: unknown;
+}
+
+interface SqsEventLike {
+  Records: SqsRecordLike[];
+}
+
+interface BodyWrappedEventLike {
+  body: unknown;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isSqsRecordLike = (value: unknown): value is SqsRecordLike =>
+  isRecord(value) && "body" in value;
+
+const isSqsEventLike = (value: unknown): value is SqsEventLike => {
+  if (!isRecord(value) || !("Records" in value)) {
+    return false;
+  }
+
+  const records = value["Records"];
+  return Array.isArray(records) && records.every(isSqsRecordLike);
+};
+
+const isBodyWrappedEventLike = (value: unknown): value is BodyWrappedEventLike =>
+  isRecord(value) && "body" in value;
+
+const isS3InstructionFile = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value["fileType"] === "string" &&
+  typeof value["s3Url"] === "string";
+
+const isLambdaPayload = (value: unknown): value is LambdaPayload => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    value["workerType"] === "lambda" &&
+    typeof value["tenantId"] === "string" &&
+    typeof value["jobId"] === "string" &&
+    typeof value["clankerId"] === "string" &&
+    typeof value["repository"] === "string" &&
+    typeof value["task"] === "string" &&
+    Array.isArray(value["instructionFiles"]) &&
+    value["instructionFiles"].every(isS3InstructionFile) &&
+    Array.isArray(value["requiredCredentials"]) &&
+    value["requiredCredentials"].every(
+      (credential) => typeof credential === "string",
+    )
+  );
+};
+
+const parsePayloadValue = (value: unknown, source: string): LambdaPayload => {
+  if (typeof value === "string") {
     try {
-      const payload: LambdaPayload = JSON.parse(record.body);
+      const parsed: unknown = JSON.parse(value);
+      return parsePayloadValue(parsed, source);
+    } catch {
+      throw new Error(`Invalid JSON payload in ${source}`);
+    }
+  }
+
+  if (isLambdaPayload(value)) {
+    return value;
+  }
+
+  throw new Error(`Invalid Lambda payload in ${source}`);
+};
+
+const extractPayloads = (event: unknown): LambdaPayload[] => {
+  if (isSqsEventLike(event)) {
+    return event.Records.map((record, index) =>
+      parsePayloadValue(record.body, `event.Records[${index}].body`),
+    );
+  }
+
+  if (isBodyWrappedEventLike(event)) {
+    return [parsePayloadValue(event.body, "event.body")];
+  }
+
+  return [parsePayloadValue(event, "event")];
+};
+
+export const handler = async (event: unknown): Promise<void> => {
+  const payloads = extractPayloads(event);
+
+  for (const payload of payloads) {
+    try {
       console.log("Lambda processing task:", payload);
 
       // Validate required fields
