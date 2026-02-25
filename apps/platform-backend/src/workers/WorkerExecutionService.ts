@@ -45,6 +45,7 @@ export class WorkerExecutionService {
   ): Promise<ExecutionResult> {
     let lastError: Error | undefined;
     let attempts = 0;
+    const maxAttempts = this.config.maxRetries + 1;
 
     // Mark job as active before invocation
     await this.jobService.updateJobStatus(job.id, "active", {
@@ -54,11 +55,30 @@ export class WorkerExecutionService {
       },
     });
 
+    logger.debug("Starting worker invocation", {
+      jobId: job.id,
+      clankerId: clanker.id,
+      maxRetries: this.config.maxRetries,
+      maxAttempts,
+      baseDelayMs: this.config.baseDelayMs,
+      maxDelayMs: this.config.maxDelayMs,
+      hasProjectContext: Boolean(project),
+    });
+
     while (attempts <= this.config.maxRetries) {
       attempts++;
+      const attemptsRemaining = maxAttempts - attempts;
 
       try {
         const invoker = this.factory.getInvokerForClanker(clanker);
+        logger.debug("Invoke attempt starting", {
+          jobId: job.id,
+          attempt: attempts,
+          maxAttempts,
+          attemptsRemaining,
+          invoker: invoker.name,
+        });
+
         const result = await invoker.invoke(job, clanker, project);
 
         // Success - store execution ID on job
@@ -76,6 +96,7 @@ export class WorkerExecutionService {
           executionId: result.executionId,
           workerType: result.workerType,
           attempts,
+          invoker: invoker.name,
         });
 
         return {
@@ -85,7 +106,10 @@ export class WorkerExecutionService {
           attempts,
         };
       } catch (error) {
-        lastError = error as Error;
+        lastError =
+          error instanceof Error
+            ? error
+            : new Error(this.getErrorMessage(error));
 
         // Check if error is retryable
         if (error instanceof WorkerError) {
@@ -95,6 +119,9 @@ export class WorkerExecutionService {
               jobId: job.id,
               error: error.message,
               attempts,
+              maxAttempts,
+              classification: error.classification,
+              causeType: this.getErrorName(error.cause),
             });
 
             await this.markJobFailed(job.id, error.message);
@@ -113,24 +140,32 @@ export class WorkerExecutionService {
               jobId: job.id,
               error: error.message,
               attempt: attempts,
+              maxAttempts,
+              attemptsRemaining,
+              classification: error.classification,
+              causeType: this.getErrorName(error.cause),
               nextRetryIn: delay,
+              nextRetryAt: new Date(Date.now() + delay).toISOString(),
             });
             await this.sleep(delay);
             continue;
           }
         } else {
           // Unknown error type - treat as permanent
+          const errorMessage = this.getErrorMessage(error);
           logger.error("Unknown error type", {
             jobId: job.id,
-            error: (error as Error).message,
+            error: errorMessage,
+            errorName: this.getErrorName(error),
             attempts,
+            maxAttempts,
           });
 
-          await this.markJobFailed(job.id, (error as Error).message);
+          await this.markJobFailed(job.id, errorMessage);
 
           return {
             success: false,
-            error: (error as Error).message,
+            error: errorMessage,
             attempts,
           };
         }
@@ -171,5 +206,26 @@ export class WorkerExecutionService {
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === "string") {
+      return error;
+    }
+
+    return "Unknown error";
+  }
+
+  private getErrorName(error: unknown): string {
+    if (!(typeof error === "object" && error !== null)) {
+      return typeof error;
+    }
+
+    const nameValue = Reflect.get(error, "name");
+    return typeof nameValue === "string" ? nameValue : "UnknownError";
   }
 }
