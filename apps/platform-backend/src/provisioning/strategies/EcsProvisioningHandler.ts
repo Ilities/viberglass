@@ -171,4 +171,11 @@ export class EcsProvisioningHandler implements ProvisioningStrategyHandler {
       };
     }
   }
+
+  async deprovision(_clanker: Clanker): Promise<ProvisioningResult> {
+    return {
+      status: "inactive",
+      statusMessage: "Deactivated by user",
+    };
+  }
 }

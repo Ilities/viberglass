@@ -30,6 +30,26 @@ describe("getWorkerImageForClanker", () => {
     expect(image).toBe("explicit-lambda-image:latest");
   });
 
+  it("can ignore explicit lambda imageUri when requested", () => {
+    process.env.VIBERATOR_LAMBDA_IMAGE_URI =
+      "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator-lambda-worker:latest";
+
+    const clanker = buildClanker("lambda", {
+      version: 1,
+      strategy: {
+        type: "lambda",
+        imageUri: "explicit-lambda-image:latest",
+      },
+      agent: { type: "codex" },
+    });
+
+    const image = getWorkerImageForClanker(clanker, "lambda", {
+      ignoreStrategyImage: true,
+    });
+
+    expect(image).toBe(process.env.VIBERATOR_LAMBDA_IMAGE_URI);
+  });
+
   it("uses VIBERATOR_LAMBDA_IMAGE_URI as default for lambda", () => {
     process.env.VIBERATOR_LAMBDA_IMAGE_URI =
       "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator-lambda-worker:latest";
