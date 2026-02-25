@@ -1,7 +1,6 @@
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as pulumi from "@pulumi/pulumi";
-import * as path from "path";
 import workerImageCatalog from "../../packages/types/src/workerImageCatalog.json";
 import {getConfig} from "./config";
 
@@ -80,6 +79,21 @@ const workerSubnetIds = pulumi
 const workerAssignPublicIp = networkMode.apply((mode) => mode !== "enterprise");
 
 // =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Derive image URI from worker image catalog.
+ * Format: {account}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:{tag}
+ */
+function getDefaultImageUri(repositoryName: string, tag: string = "latest"): pulumi.Output<string> {
+  return workerRepo.url.apply((url) => {
+    const baseUrl = url.split("/").slice(0, -1).join("/");
+    return `${baseUrl}/${repositoryName}:${tag}`;
+  });
+}
+
+// =============================================================================
 // ECR REPOSITORY
 // =============================================================================
 
@@ -92,17 +106,20 @@ const workerRepo = new awsx.ecr.Repository(
   },
 );
 
-const harnessRepositoryNames = workerImageCatalog
-  .filter((entry) => entry.includeInInfraProvisioning)
-  .map((entry) => entry.repositoryName);
+const harnessRepositoryEntries = workerImageCatalog.filter(
+  (entry) => entry.includeInInfraProvisioning
+);
 
-for (const repositoryName of harnessRepositoryNames) {
-  const resourceNamePart = repositoryName.replace(/[^a-z0-9-]/g, "-");
+// Map to store created repositories by variant
+const harnessRepositories: Map<string, aws.ecr.Repository> = new Map();
+
+for (const entry of harnessRepositoryEntries) {
+  const resourceNamePart = entry.repositoryName.replace(/[^a-z0-9-]/g, "-");
 
   const harnessRepository = new aws.ecr.Repository(
     `${config.environment}-viberglass-${resourceNamePart}-repo`,
     {
-      name: repositoryName,
+      name: entry.repositoryName,
       imageScanningConfiguration: {
         scanOnPush: true,
       },
@@ -111,6 +128,9 @@ for (const repositoryName of harnessRepositoryNames) {
       tags: config.tags,
     },
   );
+
+  // Store the repository for later use
+  harnessRepositories.set(entry.variant, harnessRepository);
 
   new aws.ecr.LifecyclePolicy(
     `${config.environment}-viberglass-${resourceNamePart}-lifecycle`,
@@ -170,23 +190,13 @@ const workerQueue = new aws.sqs.Queue(
 // LAMBDA WORKER
 // =============================================================================
 
-// Build paths for Lambda worker image
-const contextPath = path.join(__dirname, "../..");
-const lambdaDockerfilePath = path.join(
-  __dirname,
-  "docker/viberator-lambda.Dockerfile",
-);
-
-// Build and publish the Lambda container image to ECR
-const lambdaImage = new awsx.ecr.Image(
-  `${config.environment}-viberglass-worker-image`,
-  {
-    repositoryUrl: workerRepo.url,
-    context: contextPath,
-    dockerfile: lambdaDockerfilePath,
-    platform: "linux/amd64",
-  },
-);
+// Lambda worker image URI - from config or derived from catalog
+const lambdaCatalogEntry = workerImageCatalog.find((e) => e.variant === "lambda");
+const lambdaWorkerImageUri: pulumi.Output<string> = config.lambdaImageUri
+  ? pulumi.output(config.lambdaImageUri)
+  : lambdaCatalogEntry
+    ? getDefaultImageUri(lambdaCatalogEntry.repositoryName)
+    : getDefaultImageUri(`${config.environment}-viberglass-worker`);
 
 // IAM role for Lambda
 const lambdaRole = new aws.iam.Role(
@@ -292,7 +302,7 @@ const workerLambda = new aws.lambda.Function(
   {
     name: `viberglass-${config.environment}-worker`,
     packageType: "Image",
-    imageUri: lambdaImage.imageUri,
+    imageUri: lambdaWorkerImageUri,
     role: lambdaRole.arn,
     timeout: 900, // 15 minutes (max Lambda timeout)
     memorySize: 2048,
@@ -327,12 +337,12 @@ const eventSourceMapping = new aws.lambda.EventSourceMapping(
 // =============================================================================
 
 let slackRepository: awsx.ecr.Repository | undefined;
-let slackImage: awsx.ecr.Image | undefined;
 let slackLambdaRole: aws.iam.Role | undefined;
 let slackInstallationsTable: aws.dynamodb.Table | undefined;
 let slackLambda: aws.lambda.Function | undefined;
 let slackFunctionUrl: aws.lambda.FunctionUrl | undefined;
 let slackFunctionUrlPermission: aws.lambda.Permission | undefined;
+let slackImageUri: pulumi.Output<string> | undefined;
 
 if (slackAppEnabled) {
   const slackClientId = slackConfig.require("clientId");
@@ -351,21 +361,10 @@ if (slackAppEnabled) {
     },
   );
 
-  const slackAppContextPath = path.join(__dirname, "../..");
-  const slackDockerfilePath = path.join(
-    slackAppContextPath,
-    "apps/slack-app/Dockerfile.lambda",
-  );
-
-  slackImage = new awsx.ecr.Image(
-    `${config.environment}-viberglass-slack-app-image`,
-    {
-      repositoryUrl: slackRepository.url,
-      context: slackAppContextPath,
-      dockerfile: slackDockerfilePath,
-      platform: "linux/amd64",
-    },
-  );
+  // Slack app image URI - from config or derived from repository
+  slackImageUri = config.slackAppImageUri
+    ? pulumi.output(config.slackAppImageUri)
+    : slackRepository.url.apply((url) => `${url}:latest`);
 
   slackInstallationsTable = new aws.dynamodb.Table(
     `${config.environment}-viberglass-slack-installations`,
@@ -451,7 +450,7 @@ if (slackAppEnabled) {
     {
       name: `viberglass-${config.environment}-slack-app`,
       packageType: "Image",
-      imageUri: slackImage.imageUri,
+      imageUri: slackImageUri,
       role: slackLambdaRole.arn,
       timeout: 30,
       memorySize: 512,
@@ -502,22 +501,13 @@ const workerCluster = new aws.ecs.Cluster(
   },
 );
 
-// Build paths for ECS worker image
-const ecsDockerfilePath = path.join(
-  __dirname,
-  "docker/viberator-ecs-worker.Dockerfile",
-);
-
-// Build and publish the ECS worker container image
-const ecsImage = new awsx.ecr.Image(
-  `${config.environment}-viberglass-ecs-worker-image`,
-  {
-    repositoryUrl: workerRepo.url,
-    context: contextPath,
-    dockerfile: ecsDockerfilePath,
-    platform: "linux/amd64",
-  },
-);
+// ECS worker image URI - from config or derived from catalog
+const ecsCatalogEntry = workerImageCatalog.find((e) => e.variant === "ecs");
+const ecsWorkerImageUri: pulumi.Output<string> = config.ecsImageUri
+  ? pulumi.output(config.ecsImageUri)
+  : ecsCatalogEntry
+    ? getDefaultImageUri(ecsCatalogEntry.repositoryName)
+    : getDefaultImageUri(`${config.environment}-viberglass-worker`);
 
 // IAM role for ECS task execution (pulls images, writes logs)
 const ecsTaskExecutionRole = new aws.iam.Role(
@@ -699,7 +689,7 @@ const workerTaskDefinition = new aws.ecs.TaskDefinition(
     taskRoleArn: ecsTaskRole.arn,
     containerDefinitions: pulumi
       .all([
-        ecsImage.imageUri,
+        ecsWorkerImageUri,
         ecsWorkerLogGroupName,
         pulumi.output(config.uploadsBucketName),
         pulumi.output(config.ticketMediaS3Prefix),
@@ -764,7 +754,7 @@ export const deadLetterQueueUrl = deadLetterQueue.url;
 export const lambdaArn = workerLambda.arn;
 export const lambdaName = workerLambda.name;
 export const lambdaInvokeArn = workerLambda.invokeArn;
-export const lambdaImageUri = lambdaImage.imageUri;
+export { lambdaWorkerImageUri as lambdaImageUri };
 export const lambdaRoleName = lambdaRole.name;
 export const lambdaRoleArn = lambdaRole.arn;
 export const eventSourceMappingId = eventSourceMapping.id;
@@ -777,8 +767,8 @@ export const slackAppRepositoryUrl = slackRepository
 export const slackAppRepositoryArn = slackRepository
   ? slackRepository.repository.arn
   : pulumi.output(undefined);
-export const slackAppImageUri = slackImage
-  ? slackImage.imageUri
+export const slackAppImageUri = slackImageUri
+  ? slackImageUri
   : pulumi.output(undefined);
 export const slackAppLambdaArn = slackLambda
   ? slackLambda.arn
@@ -804,7 +794,7 @@ export const ecsTaskDefinitionFamily = workerTaskDefinition.family;
 export const ecsExecutionRoleArn = ecsTaskExecutionRole.arn;
 export const ecsTaskRoleArn = ecsTaskRole.arn;
 export const ecsTaskRoleName = ecsTaskRole.name;
-export const ecsImageUri = ecsImage.imageUri;
+export const ecsImageUri = ecsWorkerImageUri;
 
 // Security group (from base stack, exported for convenience)
 export const workerSecurityGroup = workerSecurityGroupId;

@@ -8,6 +8,8 @@ export interface ClankerConfigFormState {
   clusterArn: string
   taskDefinitionArn: string
   functionArn: string
+  lambdaMemorySize: string
+  lambdaTimeout: string
   codexAuthMode: CodexAuthMode
   qwenEndpoint: string
   opencodeEndpoint: string
@@ -23,6 +25,8 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   clusterArn: '',
   taskDefinitionArn: '',
   functionArn: '',
+  lambdaMemorySize: '',
+  lambdaTimeout: '',
   codexAuthMode: 'api_key',
   qwenEndpoint: '',
   opencodeEndpoint: '',
