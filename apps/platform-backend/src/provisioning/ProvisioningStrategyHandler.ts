@@ -11,5 +11,6 @@ export interface ProvisioningStrategyHandler {
     clanker: Clanker,
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult>;
+  deprovision(clanker: Clanker): Promise<ProvisioningResult>;
   checkAvailability(clanker: Clanker): Promise<AvailabilityResult>;
 }

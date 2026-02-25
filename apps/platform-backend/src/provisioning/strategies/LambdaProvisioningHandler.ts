@@ -11,12 +11,14 @@ import type {
   ProvisioningResult,
 } from "../types";
 import { LambdaFunctionProvisioner } from "./LambdaFunctionProvisioner";
+import { buildLambdaFunctionName } from "./lambdaFunctionUtils";
 import type { LambdaProvisioningConfig } from "./lambdaTypes";
 
 function toLambdaProvisioningConfig(clanker: Clanker): LambdaProvisioningConfig {
   const strategy = getLambdaStrategyConfig(clanker);
   return {
     type: "lambda",
+    provisioningMode: strategy.provisioningMode,
     functionName: strategy.functionName,
     functionArn: strategy.functionArn,
     functionDetails: strategy.functionDetails,
@@ -47,7 +49,16 @@ export class LambdaProvisioningHandler implements ProvisioningStrategyHandler {
     progress?: ProvisioningProgressReporter,
   ): Promise<ProvisioningResult> {
     const config = toLambdaProvisioningConfig(clanker);
-    if (!config.imageUri) {
+    const provisioningMode =
+      config.provisioningMode === "prebuilt" ? "prebuilt" : "managed";
+    if (provisioningMode === "managed") {
+      const selectedImage = getWorkerImageForClanker(clanker, "lambda", {
+        ignoreStrategyImage: true,
+      });
+      if (selectedImage) {
+        config.imageUri = selectedImage;
+      }
+    } else if (!config.imageUri) {
       const selectedImage = getWorkerImageForClanker(clanker, "lambda");
       if (selectedImage) {
         config.imageUri = selectedImage;
@@ -77,6 +88,44 @@ export class LambdaProvisioningHandler implements ProvisioningStrategyHandler {
       deploymentConfig,
       status: availability.status,
       statusMessage: availability.statusMessage,
+    };
+  }
+
+  async deprovision(clanker: Clanker): Promise<ProvisioningResult> {
+    const config = toLambdaProvisioningConfig(clanker);
+    const provisioningMode =
+      config.provisioningMode === "prebuilt" ? "prebuilt" : "managed";
+
+    if (provisioningMode === "prebuilt") {
+      return {
+        status: "inactive",
+        statusMessage: "Deactivated by user",
+      };
+    }
+
+    const functionIdentifier =
+      config.functionArn || config.functionName || buildLambdaFunctionName(clanker);
+
+    try {
+      await this.lambdaClient.deleteFunction(functionIdentifier);
+    } catch (error) {
+      if (getErrorName(error) !== "ResourceNotFoundException") {
+        throw error;
+      }
+    }
+
+    const deploymentConfig = mergeProvisionedStrategyIntoConfig(clanker, {
+      ...config,
+      functionName: undefined,
+      functionArn: undefined,
+      functionDetails: undefined,
+      imageUri: undefined,
+    });
+
+    return {
+      deploymentConfig,
+      status: "inactive",
+      statusMessage: "Lambda function deleted",
     };
   }
 

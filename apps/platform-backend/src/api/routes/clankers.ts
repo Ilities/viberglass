@@ -271,12 +271,21 @@ const deactivateClankerHandler = async (
       return res.status(400).json({ error: "Clanker is already inactive" });
     }
 
-    // Deactivate clanker so it can no longer run new jobs.
-    const updatedClanker = await clankerService.updateStatus(
-      req.params.id,
-      "inactive",
-      "Deactivated by user"
-    );
+    const deprovisioned = await provisioningService.deprovision(clanker);
+    const statusMessage = deprovisioned.statusMessage ?? "Deactivated by user";
+
+    const updatedClanker =
+      deprovisioned.deploymentConfig !== undefined
+        ? await clankerService.updateClanker(req.params.id, {
+            deploymentConfig: deprovisioned.deploymentConfig,
+            status: "inactive",
+            statusMessage,
+          })
+        : await clankerService.updateStatus(
+            req.params.id,
+            "inactive",
+            statusMessage,
+          );
 
     res.json({ success: true, data: updatedClanker });
   } catch (error) {
