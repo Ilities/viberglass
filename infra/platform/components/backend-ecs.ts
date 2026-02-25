@@ -335,6 +335,7 @@ export function createBackendEcs(
             Effect: "Allow",
             Action: [
               "lambda:GetFunction",
+              "lambda:GetFunctionConfiguration",
               "lambda:CreateFunction",
               "lambda:UpdateFunctionCode",
               "lambda:UpdateFunctionConfiguration",
