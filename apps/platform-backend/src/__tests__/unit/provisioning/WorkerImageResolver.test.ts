@@ -67,7 +67,7 @@ describe("getWorkerImageForClanker", () => {
     const image = getWorkerImageForClanker(clanker, "lambda");
 
     expect(image).toBe(
-      "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator/viberator-lambda-worker",
+      "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator/viberator-lambda-worker:latest",
     );
   });
 
@@ -87,7 +87,7 @@ describe("getWorkerImageForClanker", () => {
     const image = getWorkerImageForClanker(clanker, "ecs");
 
     expect(image).toBe(
-      "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator/viberator-worker-codex",
+      "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator/viberator-worker-codex:latest",
     );
   });
 });

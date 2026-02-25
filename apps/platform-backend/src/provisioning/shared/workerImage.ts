@@ -13,7 +13,7 @@ function buildImageUrl(
   repositoryName: string,
 ): string {
   const parts = [registry, prefix, repositoryName].filter(Boolean);
-  return parts.join("/");
+  return `${parts.join("/")}:latest`;
 }
 
 export function getWorkerImageForClanker(
