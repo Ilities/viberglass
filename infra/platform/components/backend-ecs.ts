@@ -339,9 +339,13 @@ export function createBackendEcs(
               "lambda:CreateFunction",
               "lambda:UpdateFunctionCode",
               "lambda:UpdateFunctionConfiguration",
+              "lambda:DeleteFunction",
               "lambda:InvokeFunction",
             ],
-            Resource: `arn:aws:lambda:${options.config.awsRegion}:*:function:*`,
+            Resource: [
+              `arn:aws:lambda:${options.config.awsRegion}:*:function:viberator-*`,
+              `arn:aws:lambda:${options.config.awsRegion}:*:function:viberator-*:*`,
+            ],
           },
           {
             Effect: "Allow",

@@ -21,6 +21,7 @@ describe("LambdaProvisioningHandler", () => {
     createFunction: jest.Mock;
     updateFunctionCode: jest.Mock;
     updateFunctionConfiguration: jest.Mock;
+    deleteFunction: jest.Mock;
   } {
     const getFunction = jest.fn(async () => ({
       Configuration: {
@@ -34,12 +35,14 @@ describe("LambdaProvisioningHandler", () => {
     const createFunction = jest.fn(async () => undefined);
     const updateFunctionCode = jest.fn(async () => undefined);
     const updateFunctionConfiguration = jest.fn(async () => undefined);
+    const deleteFunction = jest.fn(async () => undefined);
 
     const client: LambdaClientPort = {
       getFunction,
       createFunction,
       updateFunctionCode,
       updateFunctionConfiguration,
+      deleteFunction,
     };
 
     return {
@@ -48,6 +51,7 @@ describe("LambdaProvisioningHandler", () => {
       createFunction,
       updateFunctionCode,
       updateFunctionConfiguration,
+      deleteFunction,
     };
   }
 
@@ -101,6 +105,7 @@ describe("LambdaProvisioningHandler", () => {
       version: 1,
       strategy: {
         type: "lambda",
+        provisioningMode: "prebuilt",
         functionName: "worker-fn",
         imageUri: "new-image",
         roleArn: "arn:role",
@@ -126,6 +131,55 @@ describe("LambdaProvisioningHandler", () => {
     );
     expect(result.status).toBe("active");
     expect(result.statusMessage).toBe("Lambda function ready: arn:worker-fn");
+  });
+
+  it("refreshes managed lambda image from default resolver even with stale stored image", async () => {
+    const {
+      client,
+      getFunction,
+      updateFunctionCode,
+    } = buildLambdaClient();
+
+    process.env.VIBERATOR_WORKER_REGISTRY =
+      "111111111111.dkr.ecr.eu-west-1.amazonaws.com";
+    process.env.VIBERATOR_WORKER_IMAGE_PREFIX = "viberator";
+
+    getFunction
+      .mockResolvedValueOnce({
+        Configuration: {
+          FunctionName: "worker-fn",
+          FunctionArn: "arn:worker-fn",
+        },
+        Code: {
+          ImageUri: "old-image",
+        },
+      })
+      .mockResolvedValue({
+        Configuration: {
+          FunctionName: "worker-fn",
+          FunctionArn: "arn:worker-fn",
+        },
+      });
+
+    const handler = new LambdaProvisioningHandler(client);
+    const clanker = buildClanker("lambda", {
+      version: 1,
+      strategy: {
+        type: "lambda",
+        provisioningMode: "managed",
+        functionName: "worker-fn",
+        imageUri: "stale-image",
+      },
+      agent: { type: "claude-code" },
+    });
+
+    await handler.provision(clanker);
+
+    expect(updateFunctionCode).toHaveBeenCalledWith({
+      FunctionName: "viberator-test-clanker",
+      ImageUri:
+        "111111111111.dkr.ecr.eu-west-1.amazonaws.com/viberator/viberator-lambda-worker:latest",
+    });
   });
 
   it("creates lambda function when it does not exist", async () => {
@@ -224,5 +278,34 @@ describe("LambdaProvisioningHandler", () => {
 
     expect(result.status).toBe("failed");
     expect(result.statusMessage).toContain("lambda timeout");
+  });
+
+  it("deprovisions managed lambda by deleting function and clearing function identifiers", async () => {
+    const { client, deleteFunction } = buildLambdaClient();
+    const handler = new LambdaProvisioningHandler(client);
+    const clanker = buildClanker("lambda", {
+      version: 1,
+      strategy: {
+        type: "lambda",
+        provisioningMode: "managed",
+        functionName: "worker-fn",
+        functionArn: "arn:worker-fn",
+      },
+      agent: { type: "claude-code" },
+    });
+
+    const result = await handler.deprovision(clanker);
+
+    expect(deleteFunction).toHaveBeenCalledWith("arn:worker-fn");
+    expect(result.status).toBe("inactive");
+    expect(result.statusMessage).toBe("Lambda function deleted");
+    expect(result.deploymentConfig).toEqual({
+      version: 1,
+      strategy: {
+        type: "lambda",
+        provisioningMode: "managed",
+      },
+      agent: { type: "claude-code" },
+    });
   });
 });

@@ -42,6 +42,18 @@ export class ClankerProvisioningOrchestrator implements ClankerProvisioner {
     return this.handlers[strategyResolution.strategy].provision(clanker, progress);
   }
 
+  async deprovision(clanker: Clanker): Promise<ProvisioningResult> {
+    const strategyResolution = this.resolveStrategy(clanker);
+    if (strategyResolution.kind !== "resolved") {
+      return {
+        status: "inactive",
+        statusMessage: strategyResolution.message,
+      };
+    }
+
+    return this.handlers[strategyResolution.strategy].deprovision(clanker);
+  }
+
   async resolveAvailabilityStatus(clanker: Clanker): Promise<AvailabilityResult> {
     const strategyResolution = this.resolveStrategy(clanker);
     if (strategyResolution.kind !== "resolved") {

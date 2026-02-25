@@ -114,6 +114,13 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
     }
   }
 
+  async deprovision(_clanker: Clanker): Promise<ProvisioningResult> {
+    return {
+      status: "inactive",
+      statusMessage: "Deactivated by user",
+    };
+  }
+
   private async buildDockerImage(
     tag: string,
     progress?: ProvisioningProgressReporter,

@@ -7,6 +7,7 @@ jest.mock("@aws-sdk/client-lambda", () => ({
     send: mockSend,
   })),
   GetFunctionCommand: jest.fn().mockImplementation((input) => ({ input })),
+  DeleteFunctionCommand: jest.fn().mockImplementation((input) => ({ input })),
   UpdateFunctionCodeCommand: jest.fn().mockImplementation((input) => ({ input })),
   UpdateFunctionConfigurationCommand: jest.fn().mockImplementation((input) => ({ input })),
   CreateFunctionCommand: jest.fn().mockImplementation((input) => ({ input })),
@@ -258,6 +259,22 @@ describe("AwsLambdaClientAdapter", () => {
             PackageType: "Image",
           },
         })
+      );
+    });
+  });
+
+  describe("deleteFunction", () => {
+    it("should call DeleteFunctionCommand with correct params", async () => {
+      mockSend.mockResolvedValue({});
+
+      await adapter.deleteFunction("function-to-delete");
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: {
+            FunctionName: "function-to-delete",
+          },
+        }),
       );
     });
   });
