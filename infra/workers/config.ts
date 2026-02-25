@@ -19,6 +19,12 @@ export interface WorkersInfrastructureConfig {
   uploadsBucketName: string;
   /** S3 key prefix for ticket media objects */
   ticketMediaS3Prefix: string;
+  /** ECR image URI for Lambda worker (optional - derived from catalog if not set) */
+  lambdaImageUri?: string;
+  /** ECR image URI for ECS worker (optional - derived from catalog if not set) */
+  ecsImageUri?: string;
+  /** ECR image URI for Slack app (optional) */
+  slackAppImageUri?: string;
   /** Common tags applied to all resources */
   tags: {
     Environment: string;
@@ -42,6 +48,9 @@ export function getConfig(): WorkersInfrastructureConfig {
   const uploadsBucketName =
     config.get("uploadsBucketName") || `${environment}-viberglass-uploads`;
   const ticketMediaS3Prefix = config.get("ticketMediaS3Prefix") || "ticket-media";
+  const lambdaImageUri = config.get("lambdaImageUri");
+  const ecsImageUri = config.get("ecsImageUri");
+  const slackAppImageUri = config.get("slackAppImageUri");
 
   return {
     awsRegion,
@@ -51,6 +60,9 @@ export function getConfig(): WorkersInfrastructureConfig {
     containerInsights,
     uploadsBucketName,
     ticketMediaS3Prefix,
+    lambdaImageUri,
+    ecsImageUri,
+    slackAppImageUri,
     tags: {
       Environment: environment,
       Project: "viberglass",

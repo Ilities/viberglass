@@ -47,4 +47,63 @@ describe('readClankerDeploymentConfig', () => {
     expect(result.form.opencodeEndpoint).toBe('')
     expect(result.form.opencodeModel).toBe('')
   })
+
+  test('reads lambda memorySize and timeout from v1 config', () => {
+    const result = readClankerDeploymentConfig({
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: 'lambda',
+          provisioningMode: 'managed',
+          memorySize: 2048,
+          timeout: 120,
+        },
+        agent: {
+          type: 'claude-code',
+        },
+      },
+      agent: 'claude-code',
+    })
+
+    expect(result.form.lambdaMemorySize).toBe('2048')
+    expect(result.form.lambdaTimeout).toBe('120')
+  })
+
+  test('reads lambda config with empty memorySize and timeout', () => {
+    const result = readClankerDeploymentConfig({
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: 'lambda',
+          provisioningMode: 'managed',
+        },
+        agent: {
+          type: 'claude-code',
+        },
+      },
+      agent: 'claude-code',
+    })
+
+    expect(result.form.lambdaMemorySize).toBe('')
+    expect(result.form.lambdaTimeout).toBe('')
+  })
+
+  test('does not populate lambda fields for non-lambda strategies', () => {
+    const result = readClankerDeploymentConfig({
+      deploymentConfig: {
+        version: 1,
+        strategy: {
+          type: 'docker',
+          provisioningMode: 'managed',
+        },
+        agent: {
+          type: 'claude-code',
+        },
+      },
+      agent: 'claude-code',
+    })
+
+    expect(result.form.lambdaMemorySize).toBe('')
+    expect(result.form.lambdaTimeout).toBe('')
+  })
 })
