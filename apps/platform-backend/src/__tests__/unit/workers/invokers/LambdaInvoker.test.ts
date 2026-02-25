@@ -24,6 +24,7 @@ jest.mock("@aws-sdk/client-lambda", () => ({
     send: mockSend,
   })),
   InvokeCommand: jest.fn().mockImplementation((input) => ({ input })),
+  GetFunctionCommand: jest.fn().mockImplementation((input) => ({ input })),
 }));
 
 describe("LambdaInvoker", () => {

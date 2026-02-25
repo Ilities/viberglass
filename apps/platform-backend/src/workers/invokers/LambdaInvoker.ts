@@ -1,6 +1,7 @@
 import {
   LambdaClient,
   InvokeCommand,
+  GetFunctionCommand,
   InvokeCommandOutput,
 } from "@aws-sdk/client-lambda";
 import { DEFAULT_AGENT_TYPE } from "@viberglass/types";
@@ -19,6 +20,23 @@ const logger = createChildLogger({ invoker: "Lambda" });
 interface LambdaDeploymentConfig {
   functionName?: string;
   functionArn?: string;
+}
+
+interface LambdaErrorDetails {
+  name?: string;
+  message?: string;
+  statusCode?: number;
+  requestId?: string;
+  extendedRequestId?: string;
+  cfId?: string;
+  retryable?: boolean;
+}
+
+interface LambdaInvokeContext {
+  jobId: string;
+  functionName: string;
+  payloadMode: "bootstrap" | "generated";
+  payloadBytes: number;
 }
 
 export class LambdaInvoker implements WorkerInvoker {
@@ -48,13 +66,38 @@ export class LambdaInvoker implements WorkerInvoker {
       );
     }
 
+    const payloadMode: LambdaInvokeContext["payloadMode"] = job.bootstrapPayload
+      ? "bootstrap"
+      : "generated";
     const payload = job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
+    const payloadJson = JSON.stringify(payload);
+    const payloadBytes = Buffer.byteLength(payloadJson, "utf8");
+    const context: LambdaInvokeContext = {
+      jobId: job.id,
+      functionName,
+      payloadMode,
+      payloadBytes,
+    };
+
+    logger.debug("Invoking Lambda function", {
+      jobId: job.id,
+      clankerId: clanker.id,
+      functionName,
+      invocationType: "Event",
+      payloadMode,
+      payloadBytes,
+      hasCallbackToken: Boolean(job.callbackToken),
+      hasProjectConfig: Boolean(project),
+      repository: job.repository,
+      branch: job.branch,
+      baseBranch: job.baseBranch,
+    });
 
     try {
       const command = new InvokeCommand({
         FunctionName: functionName,
         InvocationType: "Event", // Async - returns 202, no response payload
-        Payload: Buffer.from(JSON.stringify(payload)),
+        Payload: Buffer.from(payloadJson),
       });
 
       const response: InvokeCommandOutput = await this.client.send(command);
@@ -67,26 +110,40 @@ export class LambdaInvoker implements WorkerInvoker {
         functionName,
         executionId,
         statusCode: response.StatusCode, // Should be 202 for Event
+        requestId: response.$metadata.requestId,
+        attempts: response.$metadata.attempts,
+        totalRetryDelay: response.$metadata.totalRetryDelay,
       });
+
+      if (response.StatusCode !== 202) {
+        logger.warn("Unexpected Lambda invoke status code", {
+          jobId: job.id,
+          functionName,
+          statusCode: response.StatusCode,
+          requestId: response.$metadata.requestId,
+        });
+      }
 
       return {
         executionId,
         workerType: "lambda",
       };
     } catch (error) {
-      throw this.classifyError(error, functionName);
+      const errorDetails = this.extractErrorDetails(error);
+      if (errorDetails.name === "ResourceConflictException") {
+        await this.logFunctionDiagnostics(context);
+      }
+      throw this.classifyError(error, errorDetails, context);
     }
   }
 
-  private classifyError(error: unknown, _functionName: string): WorkerError {
-    const err = error as {
-      name?: string;
-      $metadata?: { httpStatusCode?: number };
-      message?: string;
-    };
-    const errorName = err.name || "";
-    const statusCode = err.$metadata?.httpStatusCode;
-
+  private classifyError(
+    error: unknown,
+    errorDetails: LambdaErrorDetails,
+    context: LambdaInvokeContext,
+  ): WorkerError {
+    const errorName = errorDetails.name || "";
+    const statusCode = errorDetails.statusCode;
     // Transient errors - can be retried
     const transientErrors = [
       "TooManyRequestsException",
@@ -100,12 +157,29 @@ export class LambdaInvoker implements WorkerInvoker {
       "EFSMountTimeoutException",
     ];
 
-    if (
+    const isTransient =
       transientErrors.includes(errorName) ||
-      (statusCode && statusCode >= 500)
-    ) {
+      (statusCode !== undefined && statusCode >= 500);
+
+    logger.warn("Lambda invocation request failed", {
+      jobId: context.jobId,
+      functionName: context.functionName,
+      payloadMode: context.payloadMode,
+      payloadBytes: context.payloadBytes,
+      classification: isTransient ? "transient" : "permanent",
+      errorName: errorDetails.name,
+      errorMessage: errorDetails.message,
+      statusCode: errorDetails.statusCode,
+      requestId: errorDetails.requestId,
+      extendedRequestId: errorDetails.extendedRequestId,
+      cfId: errorDetails.cfId,
+      retryable: errorDetails.retryable,
+    });
+
+    if (isTransient) {
       return new WorkerError(
-        "Lambda invocation failed (transient): " + (errorName || err.message),
+        "Lambda invocation failed (transient): " +
+          (errorName || errorDetails.message || "Unknown Lambda error"),
         ErrorClassification.TRANSIENT,
         error,
       );
@@ -113,10 +187,79 @@ export class LambdaInvoker implements WorkerInvoker {
 
     // Permanent errors - do not retry
     return new WorkerError(
-      "Lambda invocation failed (permanent): " + (errorName || err.message),
+      "Lambda invocation failed (permanent): " +
+        (errorName || errorDetails.message || "Unknown Lambda error"),
       ErrorClassification.PERMANENT,
       error,
     );
+  }
+
+  private extractErrorDetails(error: unknown): LambdaErrorDetails {
+    if (!(typeof error === "object" && error !== null)) {
+      return {};
+    }
+
+    const metadataValue = Reflect.get(error, "$metadata");
+    const metadata =
+      typeof metadataValue === "object" && metadataValue !== null
+        ? metadataValue
+        : null;
+    const retryableValue = Reflect.get(error, "$retryable");
+    const nameValue = Reflect.get(error, "name");
+    const messageValue = Reflect.get(error, "message");
+    const statusCodeValue = metadata
+      ? Reflect.get(metadata, "httpStatusCode")
+      : undefined;
+    const requestIdValue = metadata ? Reflect.get(metadata, "requestId") : undefined;
+    const extendedRequestIdValue = metadata
+      ? Reflect.get(metadata, "extendedRequestId")
+      : undefined;
+    const cfIdValue = metadata ? Reflect.get(metadata, "cfId") : undefined;
+
+    return {
+      name: typeof nameValue === "string" ? nameValue : undefined,
+      message: typeof messageValue === "string" ? messageValue : undefined,
+      statusCode: typeof statusCodeValue === "number" ? statusCodeValue : undefined,
+      requestId: typeof requestIdValue === "string" ? requestIdValue : undefined,
+      extendedRequestId:
+        typeof extendedRequestIdValue === "string"
+          ? extendedRequestIdValue
+          : undefined,
+      cfId: typeof cfIdValue === "string" ? cfIdValue : undefined,
+      retryable: typeof retryableValue === "object" && retryableValue !== null,
+    };
+  }
+
+  private async logFunctionDiagnostics(
+    context: LambdaInvokeContext,
+  ): Promise<void> {
+    try {
+      const response = await this.client.send(
+        new GetFunctionCommand({ FunctionName: context.functionName }),
+      );
+
+      logger.warn("Lambda function diagnostics after conflict", {
+        jobId: context.jobId,
+        functionName: context.functionName,
+        state: response.Configuration?.State,
+        stateReason: response.Configuration?.StateReason,
+        stateReasonCode: response.Configuration?.StateReasonCode,
+        lastUpdateStatus: response.Configuration?.LastUpdateStatus,
+        lastUpdateStatusReason: response.Configuration?.LastUpdateStatusReason,
+        lastModified: response.Configuration?.LastModified,
+        revisionId: response.Configuration?.RevisionId,
+      });
+    } catch (error) {
+      const details = this.extractErrorDetails(error);
+      logger.warn("Lambda diagnostics lookup failed", {
+        jobId: context.jobId,
+        functionName: context.functionName,
+        errorName: details.name,
+        errorMessage: details.message,
+        statusCode: details.statusCode,
+        requestId: details.requestId,
+      });
+    }
   }
 
   private getFunctionName(clanker: Clanker): string | undefined {
