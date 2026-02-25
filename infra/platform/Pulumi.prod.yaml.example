@@ -32,8 +32,8 @@ config:
   viberglass:containerInsights: "true"
 
   # Backend image tag used by ECS task definitions.
-  # Set this from CI (recommended: commit SHA) for immutable deployments.
-  # viberglass:backendImageTag: 9f1a2b3c4d5e
+  # If omitted, defaults to "prod-latest" in production.
+  # viberglass:backendImageTag: prod-latest
 
   # =============================================================================
   # CUSTOM DOMAIN CONFIGURATION (Route53)

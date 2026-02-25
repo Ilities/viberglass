@@ -1,7 +1,5 @@
 import * as aws from "@pulumi/aws";
-import * as awsx from "@pulumi/awsx";
 import * as pulumi from "@pulumi/pulumi";
-import * as path from "path";
 import { InfrastructureConfig } from "../config";
 
 /**
@@ -43,11 +41,7 @@ export interface BackendEcsOptions {
   minTasks?: number;
   /** Maximum task count for auto-scaling */
   maxTasks?: number;
-  /** Path to Dockerfile for the backend image */
-  dockerfilePath?: string;
-  /** Build context for docker build */
-  contextPath?: string;
-  /** Image tag for backend container (e.g., commit SHA) */
+  /** Image tag used when constructing backend image URI from repository URL */
   imageTag?: pulumi.Input<string>;
   /** Allowed CORS origins (comma-separated). Defaults to localhost for development. */
   allowedOrigins?: pulumi.Input<string>;
@@ -99,7 +93,6 @@ export interface BackendEcsOutputs {
  * Creates ECS infrastructure for running the backend API.
  *
  * This creates:
- * - ECR image for backend container
  * - IAM roles for task execution and task permissions
  * - Task definition with container configuration
  * - ECS service with load balancer integration
@@ -114,30 +107,9 @@ export function createBackendEcs(
   const cpu = options.cpu ?? "256";
   const memory = options.memory ?? "512";
   const containerPort = options.containerPort ?? 3000;
-  const contextPath = options.contextPath ?? path.join(__dirname, "../../..");
-  const imageTag = options.imageTag ?? "latest";
-  const dockerfilePath =
-    options.dockerfilePath ??
-    path.join(contextPath, "apps/platform-backend/Dockerfile.prod");
-
-  // Build and publish the backend container image
-  // Use an immutable tag (typically commit SHA) to avoid stale/missing digests
-  const backendImage = new awsx.ecr.Image(
-    `${options.config.environment}-viberglass-backend-image`,
-    {
-      repositoryUrl: options.repositoryUrl,
-      context: contextPath,
-      dockerfile: dockerfilePath,
-      platform: "linux/amd64",
-      imageTag: imageTag,
-    },
-    {
-      // Keep previously published images when Pulumi replaces this resource.
-      // Without this, replacement cleanup can remove a digest referenced by a
-      // newly registered task definition when content is unchanged.
-      retainOnDelete: true,
-    },
-  );
+  const defaultImageTag =
+    options.config.environment === "prod" ? "prod-latest" : "latest";
+  const imageTag = options.imageTag ?? defaultImageTag;
   const backendImageUri = pulumi.interpolate`${options.repositoryUrl}:${imageTag}`;
 
   // IAM role for ECS task execution (pulls images, writes logs)
@@ -573,7 +545,6 @@ export function createBackendEcs(
       tags: options.config.tags,
     },
     {
-      dependsOn: [backendImage],
       aliases: [{ name: `${options.config.environment}-viberator-backend` }],
     },
   );
@@ -632,6 +603,11 @@ export function createBackendService(
       ],
       enableExecuteCommand: true,
       tags: options.config.tags,
+    },
+    {
+      // Backend deploy workflows update the service to CI-registered task definitions.
+      // Ignore taskDefinition drift so Pulumi doesn't roll back those updates.
+      ignoreChanges: ["taskDefinition"],
     },
   );
 
