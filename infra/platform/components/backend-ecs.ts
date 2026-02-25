@@ -339,6 +339,7 @@ export function createBackendEcs(
               "lambda:CreateFunction",
               "lambda:UpdateFunctionCode",
               "lambda:UpdateFunctionConfiguration",
+              "lambda:InvokeFunction",
             ],
             Resource: `arn:aws:lambda:${options.config.awsRegion}:*:function:*`,
           },
