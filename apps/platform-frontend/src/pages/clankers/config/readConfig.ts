@@ -42,6 +42,8 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       clusterArn: typeof config.clusterArn === 'string' ? config.clusterArn : '',
       taskDefinitionArn: typeof config.taskDefinitionArn === 'string' ? config.taskDefinitionArn : '',
       functionArn: typeof config.functionArn === 'string' ? config.functionArn : '',
+      lambdaMemorySize: '',
+      lambdaTimeout: '',
       codexAuthMode,
       qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
       opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
@@ -62,6 +64,8 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
     clusterArn: strategy.type === 'ecs' ? strategy.clusterArn || '' : '',
     taskDefinitionArn: strategy.type === 'ecs' ? strategy.taskDefinitionArn || '' : '',
     functionArn: strategy.type === 'lambda' ? strategy.functionArn || '' : '',
+    lambdaMemorySize: strategy.type === 'lambda' ? String(strategy.memorySize || '') : '',
+    lambdaTimeout: strategy.type === 'lambda' ? String(strategy.timeout || '') : '',
   }
 
   const codexForm =

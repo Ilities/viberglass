@@ -211,6 +211,8 @@ export function NewClankerPage() {
         clusterArn: ((formData.get('clusterArn') as string) || '').trim(),
         taskDefinitionArn: ((formData.get('taskDefinitionArn') as string) || '').trim(),
         functionArn: ((formData.get('functionArn') as string) || '').trim(),
+        lambdaMemorySize: ((formData.get('lambdaMemorySize') as string) || '').trim(),
+        lambdaTimeout: ((formData.get('lambdaTimeout') as string) || '').trim(),
         codexAuthMode,
         qwenEndpoint,
         opencodeEndpoint,
