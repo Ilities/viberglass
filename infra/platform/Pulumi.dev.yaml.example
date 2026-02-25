@@ -32,8 +32,8 @@ config:
   viberglass:containerInsights: "true"
 
   # Backend image tag used by ECS task definitions.
-  # If omitted, Pulumi auto-detects current Git SHA (or falls back to "latest").
-  # viberglass:backendImageTag: b70b9eed3f4b
+  # If omitted, defaults to "latest" in dev/staging.
+  # viberglass:backendImageTag: latest
 
   # =============================================================================
   # CUSTOM DOMAIN CONFIGURATION (Optional - for dev environments)
