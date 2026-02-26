@@ -7,13 +7,13 @@ describe("buildFeatureBranchName", () => {
       "ticket-42",
       "SC-77",
       "clanker-9",
-      "fix/{{ ticket }}/{{ original_ticket }}/{{ clanker }}",
+      "viberator/{{ ticket }}/{{ original_ticket }}/{{ clanker }}",
     );
 
-    expect(branch).toBe("fix/ticket-42/SC-77/clanker-9");
+    expect(branch).toBe("viberator/ticket-42/SC-77/clanker-9");
   });
 
-  test("falls back when template is empty", () => {
+  test("falls back to default template when template is empty", () => {
     const branch = buildFeatureBranchName(
       "job_123",
       undefined,
@@ -22,6 +22,7 @@ describe("buildFeatureBranchName", () => {
       null,
     );
 
-    expect(branch).toBe("fix/job_123");
+    const expectedDate = new Date().toISOString().slice(0, 10);
+    expect(branch).toBe(`viberator/${expectedDate}`);
   });
 });
