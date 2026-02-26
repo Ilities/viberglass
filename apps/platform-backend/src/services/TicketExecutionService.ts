@@ -282,6 +282,7 @@ export class TicketExecutionService {
         baseBranch,
         context: {
           ticketId: ticket.id,
+          originalTicketId: ticket.externalTicketId || ticket.id,
           stepsToReproduce: ticket.description,
           instructionFiles: mergedInstructionFiles,
           ...(ticketMediaExecution.media.length > 0
