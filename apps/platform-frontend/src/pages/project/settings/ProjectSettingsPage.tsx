@@ -728,7 +728,7 @@ export function ProjectSettingsPage() {
                     <Field>
                       <Label>Branch Name Template (Optional)</Label>
                       <Description>
-                        Template used by workers when creating fix branches.
+                        Template used by workers when creating fix branches. If left empty, defaults to fix/{jobId}.
                       </Description>
                       <Description>
                         Available placeholders: <code>{'{{ ticket }}'}</code>,{' '}
@@ -737,7 +737,7 @@ export function ProjectSettingsPage() {
                       </Description>
                       <Input
                         name="branch_name_template"
-                        placeholder="viberator/{{ ticket }}-{{ clanker }}"
+                        placeholder="fix/{{ jobId }} (default if empty)"
                         value={branchNameTemplate}
                         onChange={(event) => setBranchNameTemplate(event.target.value)}
                         disabled={scmIntegrationId === NONE_OPTION}
