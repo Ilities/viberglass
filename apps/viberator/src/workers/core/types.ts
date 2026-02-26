@@ -84,6 +84,7 @@ export interface BaseWorkerPayload {
   baseBranch?: string;
   context?: {
     ticketId?: string;
+    originalTicketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
@@ -182,6 +183,7 @@ export interface CodingJobData {
   baseBranch?: string;
   context?: {
     ticketId?: string;
+    originalTicketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
