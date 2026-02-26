@@ -240,6 +240,7 @@ describe('ProjectSettingsPage', () => {
     expect(sourceRepositoryInput.value).toBe(INITIAL_SCM_CONFIG.sourceRepository)
     expect(baseBranchInput.value).toBe(INITIAL_SCM_CONFIG.baseBranch)
     expect(integrationCredentialOption).not.toBeNull()
+    expect(screen.getByText(/Available placeholders:/i)).toBeInTheDocument()
   })
 
   it('saves ticketing and SCM configuration when form is submitted', async () => {
