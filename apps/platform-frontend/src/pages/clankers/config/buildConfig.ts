@@ -22,12 +22,14 @@ function buildStrategy(input: BuildConfigInput): ClankerStrategyConfig {
   if (strategyName === 'aws-lambda-container' || strategyName === 'lambda') {
     const memorySize = form.lambdaMemorySize.trim()
     const timeout = form.lambdaTimeout.trim()
+    const ephemeralStorage = form.lambdaEphemeralStorage.trim()
     return {
       type: 'lambda',
       provisioningMode: form.provisioningMode,
       functionArn: form.provisioningMode === 'prebuilt' ? form.functionArn : undefined,
       ...(form.provisioningMode === 'managed' && memorySize ? { memorySize: parseInt(memorySize, 10) } : {}),
       ...(form.provisioningMode === 'managed' && timeout ? { timeout: parseInt(timeout, 10) } : {}),
+      ...(form.provisioningMode === 'managed' && ephemeralStorage ? { ephemeralStorage: parseInt(ephemeralStorage, 10) } : {}),
     }
   }
 
