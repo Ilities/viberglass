@@ -1,6 +1,8 @@
 export function buildFeatureBranchName(
   jobId: string,
   ticketId: string | undefined,
+  originalTicketId: string | undefined,
+  clankerId: string | undefined,
   template: string | null | undefined,
 ): string {
   const fallback = `fix/${jobId}`;
@@ -12,12 +14,18 @@ export function buildFeatureBranchName(
   const replacements = {
     jobId,
     ticketId: ticketId || jobId,
+    ticket: ticketId || jobId,
+    original_ticket: originalTicketId || ticketId || jobId,
+    originalTicket:
+      originalTicketId || ticketId || jobId,
+    clanker: clankerId || "unknown-clanker",
+    clankerId: clankerId || "unknown-clanker",
     timestamp: now.toISOString().replace(/[-:.TZ]/g, ""),
     date: now.toISOString().slice(0, 10),
   };
 
   const rendered = template.replace(
-    /\{\{\s*(jobId|ticketId|timestamp|date)\s*\}\}/g,
+    /\{\{\s*(jobId|ticketId|ticket|original_ticket|originalTicket|clanker|clankerId|timestamp|date)\s*\}\}/g,
     (_match, token: keyof typeof replacements) => replacements[token],
   );
   const sanitized = sanitizeBranchName(rendered);
