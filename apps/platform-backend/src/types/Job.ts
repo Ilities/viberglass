@@ -61,6 +61,7 @@ export interface JobData {
   baseBranch?: string;
   context?: {
     ticketId?: string;
+    originalTicketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
