@@ -49,46 +49,6 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Prepare execution context for the selected agent
-   */
-  prepareExecutionContext(
-    bugReport: BugReport,
-    ticket: Ticket,
-    projectSettings: ProjectSettings,
-  ): ExecutionContext {
-    return {
-      // Repository
-      repoUrl: projectSettings.repoUrl,
-      branch: projectSettings.branch,
-      baseBranch: projectSettings.branch,
-      commitHash: "", // Will be set during execution
-
-      // Bug information
-      bugDescription: bugReport.description,
-      stepsToReproduce: bugReport.stepsToReproduce,
-      expectedBehavior: bugReport.expectedBehavior,
-      actualBehavior: bugReport.actualBehavior,
-
-      // Technical context
-      stackTrace: bugReport.stackTrace,
-      consoleErrors: bugReport.consoleErrors,
-      affectedFiles: bugReport.affectedFiles,
-
-      // Constraints
-      maxChanges: 5, // Default max changes
-      testRequired: projectSettings.testingRequired,
-      codingStandards: projectSettings.codingStandards,
-
-      // CI/CD
-      runTests: projectSettings.testingRequired,
-      testCommand: "npm test", // Default test command
-
-      // Timeout
-      maxExecutionTime: projectSettings.timeLimit || 2700, // 45 minutes default
-    };
-  }
-
-  /**
    * Execute agent with the given context
    */
   async executeAgent(
