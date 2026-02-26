@@ -105,6 +105,9 @@ export class LambdaFunctionProvisioner {
     if (config.memorySize !== undefined)
       configurationUpdate.MemorySize = config.memorySize;
     if (config.timeout !== undefined) configurationUpdate.Timeout = config.timeout;
+    if (config.ephemeralStorage !== undefined) {
+      configurationUpdate.EphemeralStorage = { Size: config.ephemeralStorage };
+    }
     if (config.environment) {
       configurationUpdate.Environment = { Variables: config.environment };
     }
@@ -141,6 +144,9 @@ export class LambdaFunctionProvisioner {
       PackageType: "Image",
       MemorySize: config.memorySize,
       Timeout: config.timeout,
+      EphemeralStorage: config.ephemeralStorage !== undefined
+        ? { Size: config.ephemeralStorage }
+        : { Size: 2048 },
       Environment: config.environment
         ? { Variables: config.environment }
         : undefined,
