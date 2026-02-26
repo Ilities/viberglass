@@ -1,8 +1,8 @@
 const axios = require('axios');
 
-// Test script for Qwen API functionality
+// Test script for Qwen CLI functionality
 async function testQwenAPI() {
-  console.log('Testing Qwen API functionality...');
+  console.log('Testing Qwen CLI functionality...');
   
   try {
     // Test the health endpoint first
@@ -15,12 +15,10 @@ async function testQwenAPI() {
     const agentsResponse = await axios.get('http://localhost:3000/agents');
     console.log('Available agents:', agentsResponse.data.agents.map(a => a.name));
     
-    const hasQwen = agentsResponse.data.agents.some(agent => 
-      agent.name === 'qwen-api' || agent.name === 'qwen-cli'
-    );
+    const hasQwen = agentsResponse.data.agents.some(agent => agent.name === 'qwen-cli');
     
     if (!hasQwen) {
-      console.log('Qwen agent not found. Make sure to set QWEN_API_KEY or QWEN_CLI_API_KEY in your environment.');
+      console.log('Qwen agent not found. Make sure to set QWEN_CLI_API_KEY in your environment.');
       return;
     }
     
@@ -52,7 +50,7 @@ async function testQwenAPI() {
       console.log('Qwen execution test failed (expected if API key not configured):', error.response?.data || error.message);
     }
     
-    console.log('\n5. Testing general execution endpoint with Qwen preference...');
+    console.log('\n5. Testing general execution endpoint with Qwen CLI preference...');
     try {
       const executionResponse = await axios.post('http://localhost:3000/execute', {
         bugReport: {
@@ -69,7 +67,7 @@ async function testQwenAPI() {
           repoUrl: '', // Will be ignored for this test
           branch: 'main',
           testingRequired: false,
-          agentName: 'qwen-api' // Use Qwen API explicitly
+          agentName: 'qwen-cli'
         }
       }, {
         headers: {

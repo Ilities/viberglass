@@ -2,13 +2,22 @@ import { randomUUID } from "crypto";
 import logger from "../config/logger";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
+import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
+import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
-import { ClankerProvisioningService } from "./ClankerProvisioningService";
+import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { JobService } from "./JobService";
-import { SecretResolutionService } from "./SecretResolutionService";
+import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
 import type { Clanker, Project } from "@viberglass/types";
+import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
+import { getStrategyType } from "../clanker-config";
+import { InstructionStorageService } from "./instructions/InstructionStorageService";
+import {
+  isAllowedInstructionPath,
+  normalizeInstructionPath,
+} from "./instructions/pathPolicy";
 
 export interface InlineInstructionFile {
   fileType: string;
@@ -29,11 +38,15 @@ export interface RunTicketResult {
 export class TicketExecutionService {
   private ticketDAO = new TicketDAO();
   private projectDAO = new ProjectDAO();
+  private projectScmConfigDAO = new ProjectScmConfigDAO();
+  private integrationCredentialDAO = new IntegrationCredentialDAO();
   private clankerDAO = new ClankerDAO();
-  private provisioningService = new ClankerProvisioningService();
+  private provisioningService = getClankerProvisioner();
   private jobService = new JobService();
-  private secretResolutionService = new SecretResolutionService();
+  private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
+  private ticketMediaExecutionService = new TicketMediaExecutionService();
+  private instructionStorageService = new InstructionStorageService();
 
   private normalizeInstructionFile(
     file: Partial<InlineInstructionFile> | null | undefined,
@@ -42,10 +55,10 @@ export class TicketExecutionService {
       return null;
     }
 
-    const fileType = file.fileType.trim();
+    const fileType = normalizeInstructionPath(file.fileType);
     const content = typeof file.content === "string" ? file.content : "";
 
-    if (!fileType || !content.trim()) {
+    if (!fileType || !content.trim() || !isAllowedInstructionPath(fileType)) {
       return null;
     }
 
@@ -87,6 +100,38 @@ export class TicketExecutionService {
     return Array.from(merged.values());
   }
 
+  private async resolveScmCredentialSecretId(
+    scmConfig: {
+      integrationCredentialId?: string | null;
+      credentialSecretId?: string | null;
+    } | null,
+  ): Promise<string | null> {
+    const legacyCredentialSecretId =
+      typeof scmConfig?.credentialSecretId === "string" &&
+      scmConfig.credentialSecretId.trim().length > 0
+        ? scmConfig.credentialSecretId.trim()
+        : null;
+    if (legacyCredentialSecretId) {
+      return legacyCredentialSecretId;
+    }
+
+    const integrationCredentialId = scmConfig?.integrationCredentialId?.trim();
+    if (!integrationCredentialId) {
+      return null;
+    }
+
+    const credential = await this.integrationCredentialDAO.getById(
+      integrationCredentialId,
+    );
+    if (!credential) {
+      throw new Error(
+        `SCM integration credential not found: ${integrationCredentialId}`,
+      );
+    }
+
+    return credential.secretId;
+  }
+
   async runTicket(
     ticketId: string,
     options: RunTicketOptions,
@@ -118,9 +163,31 @@ export class TicketExecutionService {
             ? [project.repositoryUrl]
             : [];
       const primaryRepository = repositoryUrls[0];
+      const scmConfig = await this.projectScmConfigDAO.getByProjectId(
+        project.id,
+      );
+      const normalizedScmConfig = scmConfig
+        ? {
+            integrationId: scmConfig.integrationId,
+            integrationSystem: scmConfig.integrationSystem,
+            sourceRepository: scmConfig.sourceRepository.trim(),
+            baseBranch: scmConfig.baseBranch.trim() || "main",
+            pullRequestRepository:
+              scmConfig.pullRequestRepository?.trim() ||
+              scmConfig.sourceRepository.trim(),
+            pullRequestBaseBranch:
+              scmConfig.pullRequestBaseBranch?.trim() ||
+              scmConfig.baseBranch.trim() ||
+              "main",
+            branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
+          }
+        : null;
+      const sourceRepository =
+        normalizedScmConfig?.sourceRepository || primaryRepository;
+      const baseBranch = normalizedScmConfig?.baseBranch || "main";
 
       // Validate project has repository configured
-      if (!primaryRepository) {
+      if (!sourceRepository) {
         throw new Error("Project has no repository configured");
       }
 
@@ -159,33 +226,77 @@ export class TicketExecutionService {
         );
       }
 
+      const scmCredentialSecretId = await this.resolveScmCredentialSecretId(
+        scmConfig as {
+          integrationCredentialId?: string | null;
+          credentialSecretId?: string | null;
+        } | null,
+      );
+      const mergedSecretIds = Array.from(
+        new Set([
+          ...(clanker.secretIds || []),
+          ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
+        ]),
+      );
+      const normalizedScmConfigWithCredential =
+        normalizedScmConfig && scmCredentialSecretId
+          ? {
+              ...normalizedScmConfig,
+              credentialSecretId: scmCredentialSecretId,
+            }
+          : normalizedScmConfig;
+      const executionClanker = {
+        ...clanker,
+        secretIds: mergedSecretIds,
+      };
+      const workerType = getStrategyType(executionClanker);
+
       const mergedInstructionFiles = this.mergeInstructionFiles(
         project,
-        clanker,
+        executionClanker,
         instructionFiles || [],
       );
-
       // Generate jobId
       const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
+      const workerInstructionFiles =
+        workerType === "docker"
+          ? mergedInstructionFiles
+          : await this.instructionStorageService.uploadJobInstructionFiles(
+              executionClanker.id,
+              jobId,
+              mergedInstructionFiles,
+            );
+      const ticketMediaExecution =
+        await this.ticketMediaExecutionService.prepareForExecution(
+          ticket,
+          executionClanker,
+        );
 
       // Create job via JobService.submitJob with ticket and clanker references
       const jobData: JobData = {
         id: jobId,
         tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
-        repository: primaryRepository,
+        repository: sourceRepository,
         task: `${ticket.title}\n\n${ticket.description}`,
         branch: undefined, // Worker creates branch
-        baseBranch: "main",
+        baseBranch,
         context: {
           ticketId: ticket.id,
           stepsToReproduce: ticket.description,
           instructionFiles: mergedInstructionFiles,
+          ...(ticketMediaExecution.media.length > 0
+            ? { ticketMedia: ticketMediaExecution.media }
+            : {}),
         },
         settings: {
           testRequired: false,
           maxChanges: 10,
         },
+        scm: normalizedScmConfigWithCredential,
         overrides,
+        ...(ticketMediaExecution.mounts.length > 0
+          ? { mounts: ticketMediaExecution.mounts }
+          : {}),
         timestamp: Date.now(),
       };
 
@@ -193,32 +304,33 @@ export class TicketExecutionService {
         ticketId: ticket.id,
         clankerId: clanker.id,
       });
-      submittedJobId = submitResult.jobId;
 
       // Attach callback token for worker authentication
       jobData.callbackToken = submitResult.callbackToken;
 
-      const secretMetadata =
-        await this.secretResolutionService.getSecretMetadataForClanker(
-          clanker.secretIds || [],
+      const requiredCredentials =
+        await this.credentialRequirementsService.getRequiredCredentialsForClanker(
+          executionClanker,
         );
-      const requiredCredentials = secretMetadata.map((secret) => secret.name);
 
       const bootstrapPayload: Record<string, unknown> = {
-        workerType: "docker",
+        workerType,
         tenantId: jobData.tenantId,
         jobId: jobData.id,
         clankerId: clanker.id,
+        agent: clanker.agent,
         repository: jobData.repository,
         task: jobData.task,
         branch: jobData.branch,
         baseBranch: jobData.baseBranch,
         context: jobData.context,
         settings: jobData.settings,
-        instructionFiles: mergedInstructionFiles,
+        instructionFiles: workerInstructionFiles,
         requiredCredentials,
         callbackToken: submitResult.callbackToken,
-        clankerConfig: clanker,
+        ...(workerType === "docker"
+          ? { clankerConfig: executionClanker }
+          : { deploymentConfig: executionClanker.deploymentConfig }),
         projectConfig: {
           id: project.id,
           name: project.name,
@@ -226,6 +338,7 @@ export class TicketExecutionService {
           customFieldMappings: project.customFieldMappings,
           workerSettings: project.workerSettings,
         },
+        scm: normalizedScmConfigWithCredential,
         overrides: jobData.overrides,
       };
 
@@ -237,7 +350,7 @@ export class TicketExecutionService {
       this.workerExecutionService
         .executeJob(
           jobData,
-          clanker as unknown as Clanker,
+          executionClanker as unknown as Clanker,
           project as unknown as Project,
         )
         .then((result) => {

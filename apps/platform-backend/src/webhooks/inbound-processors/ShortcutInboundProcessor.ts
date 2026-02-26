@@ -1,7 +1,7 @@
 /**
  * Shortcut inbound event processor
  *
- * Handles Shortcut story_created and comment_created events,
+ * Handles Shortcut story_created, story_updated, and comment_created events,
  * creating tickets and optionally submitting jobs.
  */
 
@@ -9,13 +9,19 @@ import type {
   InboundEventProcessor,
   InboundEventContext,
   EventProcessingResult,
-} from '../InboundEventProcessorResolver';
-import type { ParsedWebhookEvent, ProviderType } from '../WebhookProvider';
-import type { TicketDAO } from '../../persistence/ticketing/TicketDAO';
-import type { JobService } from '../../services/JobService';
-import type { CreateTicketRequest, Severity, TicketMetadata } from '@viberglass/types';
-import type { JobData } from '../../types/Job';
-import { randomUUID } from 'crypto';
+} from "../InboundEventProcessorResolver";
+import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
+import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
+import type { ProjectIntegrationLinkDAO } from "../../persistence/integrations/ProjectIntegrationLinkDAO";
+import type { JobService } from "../../services/JobService";
+import type {
+  CreateTicketRequest,
+  Severity,
+  TicketMetadata,
+  UpdateTicketRequest,
+} from "@viberglass/types";
+import type { JobData } from "../../types/Job";
+import { randomUUID } from "crypto";
 
 interface WebhookJobContext {
   ticketId?: string;
@@ -29,13 +35,13 @@ interface WebhookJobContext {
 interface ShortcutStoryPayload {
   data?: {
     id: number;
-    name: string;
+    name?: string;
     description?: string;
-    story_type: 'feature' | 'bug' | 'chore';
+    story_type?: "feature" | "bug" | "chore";
     workflow_state?: { name: string };
     project_id?: number;
     project?: { name: string };
-    app_url: string;
+    app_url?: string;
   };
 }
 
@@ -48,61 +54,112 @@ interface ShortcutCommentPayload {
 }
 
 export class ShortcutInboundProcessor implements InboundEventProcessor {
-  readonly provider: ProviderType | 'default' = 'shortcut';
+  readonly provider: ProviderType | "default" = "shortcut";
 
   constructor(
     private ticketDAO: TicketDAO,
     private jobService: JobService,
+    private projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
   ) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
-    return event.provider === 'shortcut';
+    return event.provider === "shortcut";
   }
 
   async process(context: InboundEventContext): Promise<EventProcessingResult> {
     const { event, config, tenantId, defaultTenantId } = context;
     const result: EventProcessingResult = {};
 
-    const resolvedTenantId =
-      tenantId || defaultTenantId || config.projectId || 'default';
+    const resolvedTenantId = await this.resolveProjectId(
+      config.projectId,
+      tenantId,
+      defaultTenantId,
+      config.integrationId,
+    );
     result.projectId = resolvedTenantId;
 
-    if (event.eventType !== 'story_created' && event.eventType !== 'comment_created') {
+    if (
+      event.eventType !== "story_created" &&
+      event.eventType !== "story_updated" &&
+      event.eventType !== "comment_created"
+    ) {
       result.ignoredReason = `Unsupported Shortcut event '${event.eventType}'`;
       return result;
     }
 
-    if (event.eventType === 'story_created') {
+    if (event.eventType === "story_created") {
       return this.processStoryCreated(event, config, resolvedTenantId, result);
     }
 
-    if (event.eventType === 'comment_created') {
-      return this.processCommentCreated(event, config, resolvedTenantId, result);
+    if (event.eventType === "comment_created") {
+      return this.processCommentCreated(
+        event,
+        config,
+        resolvedTenantId,
+        result,
+      );
+    }
+
+    if (event.eventType === "story_updated") {
+      return this.processStoryUpdated(event, resolvedTenantId, result);
     }
 
     return result;
   }
 
+  private async resolveProjectId(
+    configProjectId: string | null,
+    tenantId: string | undefined,
+    defaultTenantId: string | undefined,
+    integrationId: string | null,
+  ): Promise<string> {
+    if (configProjectId) {
+      return configProjectId;
+    }
+
+    if (tenantId) {
+      return tenantId;
+    }
+
+    if (integrationId) {
+      const projectLinks =
+        await this.projectIntegrationLinkDAO.getIntegrationProjects(
+          integrationId,
+        );
+      const linkedProjectId = projectLinks[0]?.projectId;
+      if (linkedProjectId) {
+        return linkedProjectId;
+      }
+    }
+
+    if (defaultTenantId && defaultTenantId !== "default") {
+      return defaultTenantId;
+    }
+
+    throw new Error("No project linked to this webhook configuration");
+  }
+
   private async processStoryCreated(
     event: ParsedWebhookEvent,
-    config: InboundEventContext['config'],
+    config: InboundEventContext["config"],
     resolvedTenantId: string,
     result: EventProcessingResult,
   ): Promise<EventProcessingResult> {
     const payload = event.payload as ShortcutStoryPayload;
 
-    if (!payload?.data) {
+    if (!payload?.data || !payload.data.name) {
       return result;
     }
 
-    const severity = this.mapStoryTypeToSeverity(payload.data.story_type);
+    const storyType = payload.data.story_type || "feature";
+    const severity = this.mapStoryTypeToSeverity(storyType);
 
     const ticketRequest: CreateTicketRequest = {
       projectId: resolvedTenantId,
       title: payload.data.name,
-      description: payload.data.description || '',
+      description: payload.data.description || "",
       severity,
-      category: payload.data.story_type === 'bug' ? 'bug' : 'feature',
+      category: storyType === "bug" ? "bug" : "feature",
       metadata: this.createTicketMetadata({
         ...this.createBaseMetadata(event, config),
         externalTicketId: payload.data.id.toString(),
@@ -110,8 +167,9 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
         storyId: payload.data.id.toString(),
         shortcutStoryId: payload.data.id.toString(),
         issueNumber: payload.data.id,
-        storyType: payload.data.story_type,
-        projectId: payload.data.project_id?.toString() || event.metadata.projectId,
+        storyType,
+        projectId:
+          payload.data.project_id?.toString() || event.metadata.projectId,
         project: payload.data.project?.name || event.metadata.repositoryId,
         repository: payload.data.project?.name || event.metadata.repositoryId,
         repositoryId: event.metadata.repositoryId || payload.data.project?.name,
@@ -122,14 +180,14 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
         workflowState: payload.data.workflow_state?.name,
       }),
       annotations: [],
-      autoFixRequested: config.autoExecute && payload.data.story_type === 'bug',
-      ticketSystem: 'shortcut',
+      autoFixRequested: config.autoExecute && payload.data.story_type === "bug",
+      ticketSystem: "shortcut",
     };
 
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
     result.ticketId = ticket.id;
 
-    if (config.autoExecute && payload.data.story_type === 'bug') {
+    if (config.autoExecute && payload.data.story_type === "bug") {
       result.jobId = await this.submitJob(
         ticket.id,
         resolvedTenantId,
@@ -140,9 +198,52 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     return result;
   }
 
+  private async processStoryUpdated(
+    event: ParsedWebhookEvent,
+    resolvedTenantId: string,
+    result: EventProcessingResult,
+  ): Promise<EventProcessingResult> {
+    const payload = event.payload as ShortcutStoryPayload;
+    const data = payload?.data;
+    if (!data) {
+      return result;
+    }
+
+    const storyId = data.id.toString();
+    const ticket = await this.ticketDAO.findLatestShortcutStoryTicketByStoryId(
+      resolvedTenantId,
+      storyId,
+    );
+
+    if (!ticket) {
+      result.ignoredReason = `No Viberglass ticket found for Shortcut story '${storyId}'`;
+      return result;
+    }
+
+    const updates: UpdateTicketRequest = {
+      externalTicketId: storyId,
+      externalTicketUrl: data.app_url,
+    };
+
+    if (typeof data.name === "string" && data.name.trim().length > 0) {
+      updates.title = data.name;
+    }
+    if (typeof data.description === "string") {
+      updates.description = data.description;
+    }
+    if (data.story_type) {
+      updates.severity = this.mapStoryTypeToSeverity(data.story_type);
+      updates.category = data.story_type === "bug" ? "bug" : "feature";
+    }
+
+    await this.ticketDAO.updateTicket(ticket.id, updates);
+    result.ticketId = ticket.id;
+    return result;
+  }
+
   private async processCommentCreated(
     event: ParsedWebhookEvent,
-    config: InboundEventContext['config'],
+    config: InboundEventContext["config"],
     resolvedTenantId: string,
     result: EventProcessingResult,
   ): Promise<EventProcessingResult> {
@@ -158,10 +259,10 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       commentBody.includes(config.botUsername.toLowerCase());
 
     const hasTriggerKeyword =
-      commentBody.includes('fix this') ||
-      commentBody.includes('fix it') ||
-      commentBody.includes('auto fix') ||
-      commentBody.includes('autofix');
+      commentBody.includes("fix this") ||
+      commentBody.includes("fix it") ||
+      commentBody.includes("auto fix") ||
+      commentBody.includes("autofix");
 
     if (!mentionsBot || !hasTriggerKeyword) {
       return result;
@@ -171,8 +272,8 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       projectId: resolvedTenantId,
       title: `Shortcut Comment on Story ${payload.data.story_id}`,
       description: payload.data.text,
-      severity: 'medium',
-      category: 'bug',
+      severity: "medium",
+      category: "bug",
       metadata: this.createTicketMetadata({
         ...this.createBaseMetadata(event, config),
         externalTicketId: payload.data.story_id.toString(),
@@ -187,7 +288,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       }),
       annotations: [],
       autoFixRequested: true,
-      ticketSystem: 'shortcut',
+      ticketSystem: "shortcut",
     };
 
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
@@ -196,7 +297,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     const webhookContext: WebhookJobContext = {
       ticketId: ticket.id,
       issueNumber: payload.data.story_id,
-      triggeredBy: 'bot-command',
+      triggeredBy: "bot-command",
       commentBody: payload.data.text.substring(0, 500),
       stepsToReproduce: `Triggered by Shortcut comment on story ${payload.data.story_id}`,
     };
@@ -204,9 +305,9 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     const jobData: JobData = {
       id: randomUUID(),
       tenantId: resolvedTenantId,
-      repository: event.metadata.repositoryId || config.providerProjectId || '',
+      repository: event.metadata.repositoryId || config.providerProjectId || "",
       task: `Fix Shortcut story from comment: ${payload.data.story_id}`,
-      context: webhookContext as any,
+      context: webhookContext,
       settings: {
         runTests: true,
       },
@@ -223,21 +324,21 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
 
   private mapStoryTypeToSeverity(storyType: string): Severity {
     switch (storyType) {
-      case 'bug':
-        return 'high';
-      case 'feature':
-        return 'medium';
-      case 'chore':
-        return 'low';
+      case "bug":
+        return "high";
+      case "feature":
+        return "medium";
+      case "chore":
+        return "low";
       default:
-        return 'medium';
+        return "medium";
     }
   }
 
   private async submitJob(
     ticketId: string,
     resolvedTenantId: string,
-    data: NonNullable<ShortcutStoryPayload['data']>,
+    data: NonNullable<ShortcutStoryPayload["data"]>,
   ): Promise<string> {
     const webhookContext: WebhookJobContext = {
       ticketId,
@@ -249,9 +350,9 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     const jobData: JobData = {
       id: randomUUID(),
       tenantId: resolvedTenantId,
-      repository: data.project?.name || '',
+      repository: data.project?.name || "",
       task: `Fix Shortcut story: ${data.name}`,
-      context: webhookContext as any,
+      context: webhookContext,
       settings: {
         runTests: true,
       },
@@ -264,7 +365,9 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     return jobResult.jobId;
   }
 
-  private createTicketMetadata(baseData: Record<string, unknown>): TicketMetadata {
+  private createTicketMetadata(
+    baseData: Record<string, unknown>,
+  ): TicketMetadata {
     return {
       timestamp: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -274,11 +377,11 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
 
   private createBaseMetadata(
     event: ParsedWebhookEvent,
-    config: InboundEventContext['config'],
+    config: InboundEventContext["config"],
   ): Record<string, unknown> {
     return {
       webhookConfigId: config.id,
-      provider: 'shortcut',
+      provider: "shortcut",
       eventType: event.eventType,
       eventAction: event.metadata.action,
       deliveryId: event.deduplicationId,

@@ -1,10 +1,10 @@
 import {
-  SSMClient,
-  GetParametersCommand,
-  GetParametersByPathCommand,
   GetParameterCommand,
+  GetParametersByPathCommand,
+  SSMClient,
 } from "@aws-sdk/client-ssm";
-import { Configuration, AgentConfig, SecretMetadata } from "../types";
+import { DEFAULT_AGENT_TYPE } from "@viberglass/types";
+import { AgentConfig, Configuration, SecretMetadata } from "../types";
 import { Logger } from "winston";
 import * as dotenv from "dotenv";
 
@@ -99,30 +99,6 @@ export class ConfigManager {
           maxTokens: 3000,
           temperature: 0.2,
         },
-        "qwen-api": {
-          name: "qwen-api",
-          apiKey: "",
-          capabilities: [
-            "python",
-            "javascript",
-            "typescript",
-            "java",
-            "cpp",
-            "go",
-            "rust",
-          ],
-          costPerExecution: 0.25, // Potentially cheaper than CLI
-          averageSuccessRate: 0.8,
-          executionTimeLimit: 1800, // 30 minutes for API calls
-          resourceLimits: {
-            maxMemoryMB: 1024,
-            maxCpuPercent: 60,
-            maxDiskSpaceMB: 256,
-            maxNetworkRequests: 50,
-          },
-          maxTokens: 4000,
-          temperature: 0.1,
-        },
         codex: {
           name: "codex",
           apiKey: "",
@@ -145,6 +121,53 @@ export class ConfigManager {
             maxNetworkRequests: 120,
           },
           maxTokens: 8000,
+          temperature: 0.0,
+        },
+        opencode: {
+          name: "opencode",
+          apiKey: "",
+          capabilities: [
+            "python",
+            "javascript",
+            "typescript",
+            "java",
+            "go",
+            "cpp",
+            "rust",
+          ],
+          costPerExecution: 0.7,
+          averageSuccessRate: 0.82,
+          executionTimeLimit: 3000,
+          resourceLimits: {
+            maxMemoryMB: 2048,
+            maxCpuPercent: 90,
+            maxDiskSpaceMB: 1024,
+            maxNetworkRequests: 120,
+          },
+          temperature: 0.0,
+        },
+        "kimi-code": {
+          name: "kimi-code",
+          apiKey: "",
+          capabilities: [
+            "python",
+            "javascript",
+            "typescript",
+            "java",
+            "go",
+            "cpp",
+            "rust",
+          ],
+          costPerExecution: 0.45,
+          averageSuccessRate: 0.83,
+          executionTimeLimit: 3000,
+          resourceLimits: {
+            maxMemoryMB: 2048,
+            maxCpuPercent: 90,
+            maxDiskSpaceMB: 1024,
+            maxNetworkRequests: 120,
+          },
+          model: "kimi-k2",
           temperature: 0.0,
         },
         "mistral-vibe": {
@@ -183,7 +206,7 @@ export class ConfigManager {
             maxDiskSpaceMB: 512,
             maxNetworkRequests: 85,
           },
-          temperature: 0.15,
+          approvalMode: "yolo",
         },
       },
       logging: {
@@ -215,28 +238,61 @@ export class ConfigManager {
       }
     });
 
-    // Special handling for claude-code: support official Claude Code env vars
-    // Priority: CLAUDE_CODE_API_KEY > ANTHROPIC_API_KEY > ANTHROPIC_AUTH_TOKEN
-    if (config.agents["claude-code"]) {
-      if (!config.agents["claude-code"].apiKey) {
-        config.agents["claude-code"].apiKey = (process.env.ANTHROPIC_API_KEY ||
-          process.env.ANTHROPIC_AUTH_TOKEN)!;
-      }
-      if (
-        !config.agents["claude-code"].endpoint &&
-        process.env.ANTHROPIC_BASE_URL
-      ) {
-        config.agents["claude-code"].endpoint = process.env.ANTHROPIC_BASE_URL;
-      }
-    }
+    // Special handling for agents with official environment variable aliases
+    const agentAliases: Record<
+      string,
+      { apiKey?: string[]; endpoint?: string[] }
+    > = {
+      "claude-code": {
+        apiKey: ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"],
+        endpoint: ["ANTHROPIC_BASE_URL"],
+      },
+      "qwen-cli": {
+        apiKey: ["QWEN_CLI_API_KEY"],
+        endpoint: ["QWEN_API_ENDPOINT", "OPENAI_BASE_URL"],
+      },
+      "kimi-code": {
+        apiKey: ["KIMI_API_KEY", "MOONSHOT_API_KEY"],
+        endpoint: ["KIMI_BASE_URL", "KIMI_CODE_ENDPOINT", "MOONSHOT_BASE_URL"],
+      },
+      codex: {
+        apiKey: ["OPENAI_API_KEY"],
+        endpoint: ["CODEX_ENDPOINT", "OPENAI_BASE_URL"],
+      },
+      opencode: {
+        apiKey: ["OPENCODE_API_KEY", "OPENAI_API_KEY"],
+        endpoint: ["OPENCODE_BASE_URL", "OPENCODE_ENDPOINT", "OPENAI_BASE_URL"],
+      },
+      "gemini-cli": {
+        apiKey: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+      },
+      "mistral-vibe": {
+        apiKey: ["MISTRAL_API_KEY"],
+      },
+    };
 
-    // Special handling for qwen-api to check for dedicated API key
-    if (process.env.QWEN_API_KEY && config.agents["qwen-api"]) {
-      config.agents["qwen-api"].apiKey = process.env.QWEN_API_KEY;
-    }
-    if (process.env.QWEN_API_ENDPOINT && config.agents["qwen-api"]) {
-      config.agents["qwen-api"].endpoint = process.env.QWEN_API_ENDPOINT;
-    }
+    Object.entries(agentAliases).forEach(([agentName, aliases]) => {
+      const agent = config.agents[agentName];
+      if (!agent) return;
+
+      if (!agent.apiKey && aliases.apiKey) {
+        for (const key of aliases.apiKey) {
+          if (process.env[key]) {
+            agent.apiKey = process.env[key];
+            break;
+          }
+        }
+      }
+
+      if (!agent.endpoint && aliases.endpoint) {
+        for (const key of aliases.endpoint) {
+          if (process.env[key]) {
+            agent.endpoint = process.env[key];
+            break;
+          }
+        }
+      }
+    });
 
     // Logging configuration
     if (process.env.LOG_LEVEL) {
@@ -271,6 +327,12 @@ export class ConfigManager {
         ssmParameterPath: process.env.SSM_PARAMETER_PATH,
       };
     }
+
+    // Git configuration for commits
+    config.git = {
+      userName: process.env.GIT_USER_NAME || "Vibes Viber",
+      userEmail: process.env.GIT_USER_EMAIL || "viberator@viberglass.io",
+    };
 
     return config;
   }
@@ -432,12 +494,14 @@ export class ConfigManager {
    * Load agent configuration by name
    */
   loadAgentConfig(agentName?: string): AgentConfig {
-    const name = agentName || process.env.DEFAULT_AGENT || "claude-code";
+    const name = agentName || process.env.DEFAULT_AGENT || DEFAULT_AGENT_TYPE;
 
     const agentConfig = this.config.agents[name];
     if (!agentConfig) {
-      this.logger.warn(`Agent ${name} not found, falling back to claude-code`);
-      return this.config.agents["claude-code"];
+      this.logger.warn(
+        `Agent ${name} not found, falling back to ${DEFAULT_AGENT_TYPE}`,
+      );
+      return this.config.agents[DEFAULT_AGENT_TYPE];
     }
 
     this.logger.info(`Loaded agent configuration for: ${name}`);

@@ -1,48 +1,60 @@
-
-
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
-import { deleteClanker, startClanker, stopClanker } from '@/service/api/clanker-api'
+import { deactivateClanker, deleteClanker, startClanker } from '@/service/api/clanker-api'
 import { PlayIcon, StopIcon, TrashIcon } from '@radix-ui/react-icons'
 import type { Clanker } from '@viberglass/types'
-import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 interface ClankerActionsProps {
   clanker: Clanker
+  onClankerUpdated?: (clanker: Clanker) => void
 }
 
-export function ClankerActions({ clanker }: ClankerActionsProps) {
+export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProps) {
   const navigate = useNavigate()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
-  const [isStopping, setIsStopping] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const canStart = clanker.status === 'inactive' || clanker.status === 'failed'
-  const canStop = clanker.status === 'active' || clanker.status === 'deploying'
+  const canDeactivate = clanker.status === 'active' || clanker.status === 'deploying'
 
   async function handleStart() {
     setIsStarting(true)
+    setActionError(null)
     try {
-      await startClanker(clanker.id)
-      window.location.reload()
+      const updatedClanker = await startClanker(clanker.id)
+      if (onClankerUpdated) {
+        onClankerUpdated(updatedClanker)
+      } else {
+        window.location.reload()
+      }
     } catch (error) {
       console.error('Failed to start clanker:', error)
+      setActionError(error instanceof Error ? error.message : 'Failed to start clanker')
     } finally {
       setIsStarting(false)
     }
   }
 
-  async function handleStop() {
-    setIsStopping(true)
+  async function handleDeactivate() {
+    setIsDeactivating(true)
+    setActionError(null)
     try {
-      await stopClanker(clanker.id)
-      window.location.reload()
+      const updatedClanker = await deactivateClanker(clanker.id)
+      if (onClankerUpdated) {
+        onClankerUpdated(updatedClanker)
+      } else {
+        window.location.reload()
+      }
     } catch (error) {
-      console.error('Failed to stop clanker:', error)
+      console.error('Failed to deactivate clanker:', error)
+      setActionError(error instanceof Error ? error.message : 'Failed to deactivate clanker')
     } finally {
-      setIsStopping(false)
+      setIsDeactivating(false)
     }
   }
 
@@ -67,16 +79,20 @@ export function ClankerActions({ clanker }: ClankerActionsProps) {
         </Button>
       )}
 
-      {canStop && (
-        <Button color="amber" disabled={isStopping} onClick={handleStop}>
+      {canDeactivate && (
+        <Button color="amber" disabled={isDeactivating} onClick={handleDeactivate}>
           <StopIcon />
-          {isStopping ? 'Stopping...' : 'Stop'}
+          {isDeactivating ? 'Deactivating...' : 'Deactivate'}
         </Button>
       )}
 
-      <Button plain onClick={() => setShowDeleteDialog(true)}>
+      <Button
+        surface
+        color="red"
+        onClick={() => setShowDeleteDialog(true)}
+        aria-label="Delete clanker"
+      >
         <TrashIcon />
-        Delete
       </Button>
 
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
@@ -98,6 +114,12 @@ export function ClankerActions({ clanker }: ClankerActionsProps) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {actionError}
+        </p>
+      )}
     </>
   )
 }

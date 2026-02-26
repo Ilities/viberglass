@@ -202,6 +202,45 @@ describe("WorkerExecutionService", () => {
       );
       expect(failedCalls.length).toBeGreaterThan(0);
     });
+
+    it("should allow extra retries for Lambda Pending ResourceConflictException", async () => {
+      const customService = new WorkerExecutionService({
+        maxRetries: 1, // base attempts: 2
+        maxPendingConflictRetries: 2, // +2 extra attempts for Pending conflicts
+      });
+
+      const pendingCause = new Error(
+        "The function is currently in the following state: Pending",
+      );
+      const pendingConflict = new WorkerError(
+        "Lambda invocation failed (transient): ResourceConflictException",
+        ErrorClassification.TRANSIENT,
+        pendingCause,
+        1000,
+      );
+
+      mockInvoker.invoke
+        .mockRejectedValueOnce(pendingConflict)
+        .mockRejectedValueOnce(pendingConflict)
+        .mockRejectedValueOnce(pendingConflict)
+        .mockResolvedValueOnce({
+          executionId: "exec-after-pending",
+          workerType: "lambda",
+        });
+
+      (getWorkerInvokerFactory as jest.Mock).mockReturnValue(mockFactory);
+
+      const executePromise = customService.executeJob(mockJob, mockClanker);
+
+      await jest.advanceTimersByTimeAsync(1000);
+      await jest.advanceTimersByTimeAsync(2000);
+      await jest.advanceTimersByTimeAsync(4000);
+      const result = await executePromise;
+
+      expect(result.success).toBe(true);
+      expect(result.attempts).toBe(4); // 2 base + 2 extra pending retries
+      expect(mockInvoker.invoke).toHaveBeenCalledTimes(4);
+    });
   });
 
   describe("Retry Logic - Permanent Errors", () => {
@@ -287,6 +326,33 @@ describe("WorkerExecutionService", () => {
 
       // Advance another 100ms - triggers retry
       await jest.advanceTimersByTimeAsync(100);
+      await executePromise;
+
+      expect(mockInvoker.invoke).toHaveBeenCalledTimes(2);
+    });
+
+    it("should honor retryAfterMs when greater than calculated backoff", async () => {
+      mockInvoker.invoke
+        .mockRejectedValueOnce(
+          new WorkerError(
+            "Lambda still pending",
+            ErrorClassification.TRANSIENT,
+            undefined,
+            5000,
+          ),
+        )
+        .mockResolvedValueOnce({
+          executionId: "exec-1",
+          workerType: "lambda",
+        });
+
+      const executePromise = service.executeJob(mockJob, mockClanker);
+
+      // Backoff would normally be 1000ms, but retryAfterMs forces 5000ms
+      await jest.advanceTimersByTimeAsync(4000);
+      expect(mockInvoker.invoke).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(1000);
       await executePromise;
 
       expect(mockInvoker.invoke).toHaveBeenCalledTimes(2);

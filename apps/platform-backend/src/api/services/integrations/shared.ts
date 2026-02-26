@@ -1,62 +1,48 @@
-import type { ParsedQs } from 'qs'
-import { parseCustomOutboundTargetConfig, readCustomOutboundTargetConfig, toPublicCustomOutboundTargetConfig } from '../../../webhooks/feedback/customOutboundTargetConfig'
-import type { WebhookProvider } from '../../../persistence/webhook/WebhookConfigDAO'
-import type { DeliveryStatus } from '../../../persistence/webhook/WebhookDeliveryDAO'
+import type { ParsedQs } from "qs";
+import {
+  parseCustomOutboundTargetConfig,
+  readCustomOutboundTargetConfig,
+  toPublicCustomOutboundTargetConfig,
+} from "../../../webhooks/feedback/customOutboundTargetConfig";
+import type { WebhookProvider } from "../../../persistence/webhook/WebhookConfigDAO";
+import type { DeliveryStatus } from "../../../persistence/webhook/WebhookDeliveryDAO";
+import { integrationRegistry } from "../../../integration-plugins";
 
-export function mapSystemToWebhookProvider(system: string): WebhookProvider | null {
-  if (system === 'github' || system === 'jira' || system === 'shortcut' || system === 'custom') {
-    return system
-  }
-  return null
+export function mapSystemToWebhookProvider(
+  system: string,
+): WebhookProvider | null {
+  const provider = integrationRegistry.getWebhookProvider(system);
+  return provider as WebhookProvider | null;
 }
 
 export function getDefaultInboundEvents(provider: WebhookProvider): string[] {
-  switch (provider) {
-    case 'github':
-      return ['issues.opened', 'issue_comment.created']
-    case 'jira':
-      return ['issue_created', 'issue_updated', 'comment_created']
-    case 'shortcut':
-      return ['story_created', 'comment_created']
-    case 'custom':
-      return ['ticket_created']
-    default:
-      return ['*']
-  }
+  return integrationRegistry.getDefaultInboundEvents(provider);
 }
 
 export function getDefaultOutboundEvents(): string[] {
-  return ['job_started', 'job_ended']
+  return ["job_started", "job_ended"];
 }
 
 export function getProviderProjectIdFromIntegration(
   provider: WebhookProvider,
-  integrationValues: Record<string, unknown>,
+  integrationConfig: Record<string, unknown>,
 ): string | null {
-  if (provider === 'github') {
-    const owner = typeof integrationValues.owner === 'string' ? integrationValues.owner : null
-    const repo = typeof integrationValues.repo === 'string' ? integrationValues.repo : null
-    if (owner && repo) {
-      return `${owner}/${repo}`
-    }
-    return null
-  }
-
-  return null
+  return integrationRegistry.getProviderProjectId(provider, integrationConfig);
 }
 
 export function serializeInboundWebhookConfig(
   config: {
-    id: string
-    provider: WebhookProvider
-    allowedEvents: string[]
-    autoExecute: boolean
-    active: boolean
-    webhookSecretEncrypted: string | null
-    providerProjectId: string | null
-    projectId: string | null
-    createdAt: Date
-    updatedAt: Date
+    id: string;
+    provider: WebhookProvider;
+    allowedEvents: string[];
+    autoExecute: boolean;
+    active: boolean;
+    webhookSecretEncrypted: string | null;
+    providerProjectId: string | null;
+    projectId: string | null;
+    labelMappings?: Record<string, unknown>;
+    createdAt: Date;
+    updatedAt: Date;
   },
   includeSecret?: string,
 ) {
@@ -64,8 +50,8 @@ export function serializeInboundWebhookConfig(
     id: config.id,
     provider: config.provider,
     webhookUrl:
-      config.provider === 'custom'
-        ? `/api/webhooks/custom/${config.id}`
+      config.provider === "custom" || config.provider === "shortcut"
+        ? `/api/webhooks/${config.provider}/${config.id}`
         : `/api/webhooks/${config.provider}`,
     events: config.allowedEvents,
     autoExecute: config.autoExecute,
@@ -74,29 +60,28 @@ export function serializeInboundWebhookConfig(
     webhookSecret: includeSecret,
     providerProjectId: config.providerProjectId,
     projectId: config.projectId,
+    labelMappings: config.labelMappings || {},
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
-  }
+  };
 }
 
-export function serializeOutboundWebhookConfig(
-  config: {
-    id: string
-    provider: WebhookProvider
-    allowedEvents: string[]
-    active: boolean
-    apiTokenEncrypted: string | null
-    providerProjectId: string | null
-    projectId: string | null
-    outboundTargetConfig?: Record<string, unknown> | null
-    createdAt: Date
-    updatedAt: Date
-  },
-): Record<string, unknown> {
+export function serializeOutboundWebhookConfig(config: {
+  id: string;
+  provider: WebhookProvider;
+  allowedEvents: string[];
+  active: boolean;
+  apiTokenEncrypted: string | null;
+  providerProjectId: string | null;
+  projectId: string | null;
+  outboundTargetConfig?: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): Record<string, unknown> {
   const customTarget =
-    config.provider === 'custom'
+    config.provider === "custom"
       ? readCustomOutboundTargetConfig(config.outboundTargetConfig || null)
-      : null
+      : null;
 
   return {
     id: config.id,
@@ -109,23 +94,22 @@ export function serializeOutboundWebhookConfig(
     ...(customTarget ? toPublicCustomOutboundTargetConfig(customTarget) : {}),
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
-  }
+  };
 }
 
-export function serializeWebhookDelivery(
-  delivery: {
-    id: string
-    provider: WebhookProvider
-    webhookConfigId: string | null
-    deliveryId: string
-    eventType: string
-    status: 'pending' | 'processing' | 'succeeded' | 'failed'
-    errorMessage: string | null
-    ticketId: string | null
-    createdAt: Date
-    processedAt: Date | null
-  },
-) {
+export function serializeWebhookDelivery(delivery: {
+  id: string;
+  provider: WebhookProvider;
+  webhookConfigId: string | null;
+  deliveryId: string;
+  eventType: string;
+  status: "pending" | "processing" | "succeeded" | "failed";
+  errorMessage: string | null;
+  ticketId: string | null;
+  projectId: string | null;
+  createdAt: Date;
+  processedAt: Date | null;
+}) {
   return {
     id: delivery.id,
     provider: delivery.provider,
@@ -133,90 +117,98 @@ export function serializeWebhookDelivery(
     deliveryId: delivery.deliveryId,
     eventType: delivery.eventType,
     status: delivery.status,
-    retryable: delivery.status === 'failed',
+    retryable: delivery.status === "failed",
     errorMessage: delivery.errorMessage,
     ticketId: delivery.ticketId,
+    projectId: delivery.projectId,
     createdAt: delivery.createdAt,
     processedAt: delivery.processedAt,
-  }
+  };
 }
 
 export function parseNonNegativeInt(value: unknown, fallback: number): number {
-  const candidate = Array.isArray(value) ? value[0] : value
-  if (typeof candidate !== 'string') {
-    return fallback
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (typeof candidate !== "string") {
+    return fallback;
   }
 
-  const parsed = Number.parseInt(candidate, 10)
+  const parsed = Number.parseInt(candidate, 10);
   if (!Number.isFinite(parsed) || parsed < 0) {
-    return fallback
+    return fallback;
   }
 
-  return parsed
+  return parsed;
 }
 
-const VALID_DELIVERY_STATUSES: DeliveryStatus[] = ['pending', 'processing', 'succeeded', 'failed']
+const VALID_DELIVERY_STATUSES: DeliveryStatus[] = [
+  "pending",
+  "processing",
+  "succeeded",
+  "failed",
+];
 
 function splitQueryValues(value: unknown): string[] {
-  if (typeof value === 'string') {
-    return value.split(',')
+  if (typeof value === "string") {
+    return value.split(",");
   }
 
   if (Array.isArray(value)) {
-    return value.flatMap((nested) => splitQueryValues(nested))
+    return value.flatMap((nested) => splitQueryValues(nested));
   }
 
-  return []
+  return [];
 }
 
-export function parseDeliveryStatuses(query: ParsedQs | Record<string, unknown>): {
-  statuses?: DeliveryStatus[]
-  invalidValues: string[]
+export function parseDeliveryStatuses(
+  query: ParsedQs | Record<string, unknown>,
+): {
+  statuses?: DeliveryStatus[];
+  invalidValues: string[];
 } {
   const rawValues = [query.statuses, query.status]
     .flatMap((value) => splitQueryValues(value))
     .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
+    .filter(Boolean);
 
   if (rawValues.length === 0) {
-    return { invalidValues: [] }
+    return { invalidValues: [] };
   }
 
-  const uniqueValues = Array.from(new Set(rawValues))
+  const uniqueValues = Array.from(new Set(rawValues));
   const invalidValues = uniqueValues.filter(
     (value) => !VALID_DELIVERY_STATUSES.includes(value as DeliveryStatus),
-  )
+  );
   if (invalidValues.length > 0) {
-    return { invalidValues }
+    return { invalidValues };
   }
 
   return {
     statuses: uniqueValues as DeliveryStatus[],
     invalidValues: [],
-  }
+  };
 }
 
 export function parseCustomOutboundTargetConfigOrError(
   body: unknown,
   options: {
-    existing?: Record<string, unknown> | null
-    requireNameAndUrl?: boolean
+    existing?: Record<string, unknown> | null;
+    requireNameAndUrl?: boolean;
   } = {},
 ): { config?: Record<string, unknown>; error?: string } {
   const existingConfig = options.existing
     ? readCustomOutboundTargetConfig(options.existing)
-    : null
+    : null;
   const parsed = parseCustomOutboundTargetConfig(body, {
     existing: existingConfig,
     requireNameAndUrl: options.requireNameAndUrl ?? false,
-  })
+  });
   if (!parsed.config) {
     return {
-      error: parsed.error || 'Invalid custom outbound target configuration',
-    }
+      error: parsed.error || "Invalid custom outbound target configuration",
+    };
   }
 
   return {
     config: parsed.config as unknown as Record<string, unknown>,
-  }
+  };
 }

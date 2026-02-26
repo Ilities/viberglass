@@ -1,7 +1,7 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import { getConfig, InfrastructureConfig } from "./config";
+import { getConfig } from "./config";
 import { createRegistry, RegistryOutputs } from "./components/registry";
 import { createStorage, StorageOutputs } from "./components/storage";
 import { createDatabase, DatabaseOutputs } from "./components/database";
@@ -10,17 +10,17 @@ import {
   LoadBalancerOutputs,
 } from "./components/load-balancer";
 import {
+  BackendEcsOutputs,
   createBackendEcs,
   createBackendService,
-  BackendEcsOutputs,
 } from "./components/backend-ecs";
 import {
-  createAmplifyOidc,
   AmplifyOidcOutputs,
+  createAmplifyOidc,
 } from "./components/amplify-oidc";
 import {
-  createAmplifyFrontend,
   AmplifyFrontendOutputs,
+  createAmplifyFrontend,
 } from "./components/amplify-frontend";
 import {
   createDeploymentSecrets,
@@ -96,35 +96,57 @@ const backendAssignPublicIp = networkMode.apply(
 // WORKER STACK REFERENCE (OPTIONAL)
 // =============================================================================
 
-// Reference the worker stack for clanker ECS provisioning
-// If workerStack is not configured, clankers will need manual task definition configuration
+// Reference the worker stack for clanker managed provisioning defaults
+// If workerStack is not configured, clankers will need manual ECS/Lambda configuration
 let workerExecutionRoleArn: pulumi.Output<string> | undefined;
 let workerTaskRoleArn: pulumi.Output<string> | undefined;
 let workerImageUri: pulumi.Output<string> | undefined;
+let workerLambdaImageUri: pulumi.Output<string> | undefined;
+let workerLambdaRoleArn: pulumi.Output<string> | undefined;
 let workerClusterArn: pulumi.Output<string> | undefined;
 let workerSubnetIds: pulumi.Output<string[]> | undefined;
 let workerSecurityGroupId: pulumi.Output<string> | undefined;
 
-if (config.workerStack) {
-  const workerStack = new pulumi.StackReference(config.workerStack);
-  workerExecutionRoleArn = workerStack.getOutput(
-    "ecsExecutionRoleArn",
-  ) as pulumi.Output<string>;
-  workerTaskRoleArn = workerStack.getOutput(
-    "ecsTaskRoleArn",
-  ) as pulumi.Output<string>;
-  workerImageUri = workerStack.getOutput("ecsImageUri") as pulumi.Output<
-    string
-  >;
-  workerClusterArn = workerStack.getOutput("ecsClusterArn") as pulumi.Output<
-    string
-  >;
-  workerSubnetIds = workerStack.getOutput("workerSubnets") as pulumi.Output<
-    string[]
-  >;
-  workerSecurityGroupId = workerStack.getOutput(
-    "workerSecurityGroup",
-  ) as pulumi.Output<string>;
+if (!config.workerStack) {
+  pulumi.log.warn(
+    "workerStack is not configured. Managed clanker ECS/Lambda provisioning defaults will be unavailable until you set viberglass:workerStack and run `pulumi up` in infra/platform.",
+  );
+} else {
+  pulumi.log.info(
+    `Using worker stack reference for clanker managed provisioning: ${config.workerStack}`,
+  );
+  try {
+    const workerStack = new pulumi.StackReference(config.workerStack);
+    workerExecutionRoleArn = workerStack.getOutput(
+      "ecsExecutionRoleArn",
+    ) as pulumi.Output<string>;
+    workerTaskRoleArn = workerStack.getOutput(
+      "ecsTaskRoleArn",
+    ) as pulumi.Output<string>;
+    workerImageUri = workerStack.getOutput(
+      "ecsImageUri",
+    ) as pulumi.Output<string>;
+    workerLambdaImageUri = workerStack.getOutput(
+      "lambdaImageUri",
+    ) as pulumi.Output<string>;
+    workerLambdaRoleArn = workerStack.getOutput(
+      "lambdaRoleArn",
+    ) as pulumi.Output<string>;
+    workerClusterArn = workerStack.getOutput(
+      "ecsClusterArn",
+    ) as pulumi.Output<string>;
+    workerSubnetIds = workerStack.getOutput("workerSubnets") as pulumi.Output<
+      string[]
+    >;
+    workerSecurityGroupId = workerStack.getOutput(
+      "workerSecurityGroup",
+    ) as pulumi.Output<string>;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    pulumi.log.warn(
+      `Failed to initialize worker stack reference '${config.workerStack}'. Managed clanker ECS/Lambda provisioning defaults will be unavailable until this reference resolves. Error: ${message}`,
+    );
+  }
 }
 
 // =============================================================================
@@ -275,12 +297,17 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   platformApiUrl: config.apiDomain
     ? pulumi.interpolate`https://${config.apiDomain}`
     : pulumi.interpolate`http://${loadBalancer.albDnsName}`,
-  // Pass worker infrastructure values for clanker ECS provisioning
-  worker: workerExecutionRoleArn
+  uploadsBucketName: storage.bucketName,
+  ticketMediaS3Prefix: "ticket-media",
+  // Pass worker infrastructure values for clanker managed provisioning
+  worker:
+    workerExecutionRoleArn || workerLambdaImageUri || workerLambdaRoleArn
     ? {
         executionRoleArn: workerExecutionRoleArn,
         taskRoleArn: workerTaskRoleArn,
         imageUri: workerImageUri,
+        lambdaImageUri: workerLambdaImageUri,
+        lambdaRoleArn: workerLambdaRoleArn,
         clusterArn: workerClusterArn,
         subnetIds: workerSubnetIds,
         securityGroupId: workerSecurityGroupId,
@@ -433,7 +460,8 @@ export const amplifyAppArn = amplifyFrontend.appArn;
 export const amplifyDefaultDomain = amplifyFrontend.defaultDomain;
 export const amplifyCustomDomain = amplifyFrontend.customDomain;
 export const amplifyCustomDomainUrl = amplifyFrontend.customDomainUrl;
-export const amplifyCustomDomainDnsRecords = amplifyFrontend.customDomainDnsRecords;
+export const amplifyCustomDomainDnsRecords =
+  amplifyFrontend.customDomainDnsRecords;
 export const amplifyBranchName = amplifyFrontend.branchName;
 export const amplifyOidcRoleArn = amplifyOidc.roleArn;
 export const amplifySsmAppIdPath = amplifyFrontend.ssmAppIdPath;

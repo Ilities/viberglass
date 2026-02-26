@@ -13,11 +13,19 @@ import {
   type UpsertInboundWebhookConfigInput,
   type UpsertOutboundWebhookConfigInput,
 } from '../services/integrations'
+import { IntegrationCredentialDAO } from '../../persistence/integrations/IntegrationCredentialDAO'
+import { SecretService } from '../../services/SecretService'
+import type {
+  CreateIntegrationCredentialRequest,
+  UpdateIntegrationCredentialRequest,
+} from '@viberglass/types'
 
 const router = express.Router()
 const integrationManagementService = new IntegrationManagementService()
 const projectIntegrationLinkService = new ProjectIntegrationLinkService()
 const integrationWebhookService = new IntegrationWebhookService()
+const integrationCredentialDAO = new IntegrationCredentialDAO()
+const secretService = new SecretService()
 
 router.use(requireAuth)
 
@@ -368,6 +376,131 @@ router.post(
       message: result.message,
       data: result.data,
     })
+  }),
+)
+
+// ============================================================================
+// Integration Credentials (SCM Credentials)
+// ============================================================================
+
+router.get(
+  '/:id/credentials',
+  withRouteErrorHandling('Error fetching integration credentials', async (req, res) => {
+    const credentials = await integrationCredentialDAO.listByIntegrationId(req.params.id)
+    res.json({ success: true, data: credentials })
+  }),
+)
+
+router.post(
+  '/:id/credentials',
+  withRouteErrorHandling('Error creating integration credential', async (req, res) => {
+    const body = req.body as CreateIntegrationCredentialRequest
+
+    // Determine credential type: use provided value or default based on integration
+    // For SCM integrations (github, gitlab, bitbucket), default to 'token'
+    // For other integrations, also default to 'token' as it's the most common
+    const credentialType = body.credentialType ?? 'token'
+
+    let secret: { id: string; secretLocation: string }
+
+    if (body.secretId) {
+      // Link to an existing secret
+      const existingSecret = await secretService.getSecret(body.secretId)
+      if (!existingSecret) {
+        res.status(404).json({ error: 'Secret not found' })
+        return
+      }
+      secret = existingSecret
+    } else {
+      // Validate required fields for new secret creation
+      if (!body.secretLocation) {
+        res.status(400).json({ error: 'secretLocation is required when creating a new secret' })
+        return
+      }
+
+      // Create a new secret using SecretService (supports env, database, ssm)
+      secret = await secretService.createSecret({
+        name: body.name,
+        secretLocation: body.secretLocation,
+        secretPath: body.secretPath,
+        secretValue: body.secretValue,
+      })
+    }
+
+    const credential = await integrationCredentialDAO.create({
+      integrationId: req.params.id,
+      name: body.name,
+      credentialType,
+      secretId: secret.id,
+      isDefault: body.isDefault ?? false,
+      description: body.description ?? null,
+      expiresAt: body.expiresAt ?? null,
+    })
+
+    res.status(201).json({ success: true, data: { ...credential, secretLocation: secret.secretLocation } })
+  }),
+)
+
+router.get(
+  '/:id/credentials/:credentialId',
+  withRouteErrorHandling('Error fetching integration credential', async (req, res) => {
+    const credential = await integrationCredentialDAO.getById(req.params.credentialId)
+
+    if (!credential || credential.integrationId !== req.params.id) {
+      res.status(404).json({ error: 'Credential not found' })
+      return
+    }
+
+    res.json({ success: true, data: credential })
+  }),
+)
+
+router.put(
+  '/:id/credentials/:credentialId',
+  withRouteErrorHandling('Error updating integration credential', async (req, res) => {
+    const body = req.body as UpdateIntegrationCredentialRequest
+
+    const credential = await integrationCredentialDAO.getById(req.params.credentialId)
+    if (!credential || credential.integrationId !== req.params.id) {
+      res.status(404).json({ error: 'Credential not found' })
+      return
+    }
+
+    // Update the secret value if provided
+    if (body.secretValue !== undefined) {
+      await secretService.updateSecret(credential.secretId, {
+        secretValue: body.secretValue,
+      })
+    }
+
+    const updated = await integrationCredentialDAO.update(req.params.credentialId, body)
+    
+    // Get the secret to include secretLocation in response
+    const secret = await secretService.getSecret(credential.secretId)
+    res.json({ success: true, data: { ...updated, secretLocation: secret?.secretLocation || 'database' } })
+  }),
+)
+
+router.delete(
+  '/:id/credentials/:credentialId',
+  withRouteErrorHandling('Error deleting integration credential', async (req, res) => {
+    const credential = await integrationCredentialDAO.getById(req.params.credentialId)
+    if (!credential || credential.integrationId !== req.params.id) {
+      res.status(404).json({ error: 'Credential not found' })
+      return
+    }
+
+    // Delete the credential (will fail if in use)
+    const deleted = await integrationCredentialDAO.delete(req.params.credentialId)
+    if (!deleted) {
+      res.status(500).json({ error: 'Failed to delete credential' })
+      return
+    }
+
+    // Also delete the associated secret via SecretService
+    await secretService.deleteSecret(credential.secretId)
+
+    res.status(204).send()
   }),
 )
 

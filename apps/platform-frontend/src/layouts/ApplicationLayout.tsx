@@ -9,7 +9,15 @@ import {
   DropdownHeader,
 } from '@/components/dropdown'
 import { Navbar, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/components/navbar'
-import { Sidebar, SidebarBody, SidebarHeader, SidebarItem, SidebarLabel, SidebarSection } from '@/components/sidebar'
+import {
+  Sidebar,
+  SidebarBody,
+  SidebarFooter,
+  SidebarHeading,
+  SidebarItem,
+  SidebarLabel,
+  SidebarSection,
+} from '@/components/sidebar'
 import { StackedLayout } from '@/components/stacked-layout'
 import { ProjectProvider } from '@/context/project-context'
 import { ProjectTheme } from '@/context/project-theme'
@@ -19,14 +27,12 @@ import { getProjects, Project } from '@/service/api/project-api'
 import type { AuthUser } from '@/service/api/auth-api'
 import {
   ChevronDownIcon,
-  CrumpledPaperIcon,
   ExitIcon,
   GearIcon,
   HomeIcon,
   MoonIcon,
   PlusIcon,
   SunIcon,
-  ClockIcon,
 } from '@radix-ui/react-icons'
 import { useParams, useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
@@ -45,13 +51,14 @@ function getInitials(name?: string, email?: string) {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
 
-function ProjectDropdownMenu({ projectSlug }: { projectSlug?: string }) {
-  const pathname = useLocation().pathname
-  const [projects, setProjects] = useState<Project[]>([])
+type NavLinkItem = {
+  current: boolean
+  href: string
+  label: string
+}
 
-  useEffect(() => {
-    getProjects().then(setProjects).catch(console.error)
-  }, [])
+function ProjectDropdownMenu({ projectSlug, projects }: { projectSlug?: string; projects: Project[] }) {
+  const pathname = useLocation().pathname
 
   return (
     <DropdownMenu className="min-w-80 lg:min-w-64">
@@ -152,12 +159,18 @@ function ApplicationLayoutContent() {
   const pathname = useLocation().pathname
   const { project: projectSlug } = useParams<{ project: string }>()
   const { user, status, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
+  const [projects, setProjects] = useState<Project[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       navigate('/login', { replace: true })
     }
   }, [navigate, status])
+
+  useEffect(() => {
+    getProjects().then(setProjects).catch(console.error)
+  }, [])
 
   if (status === 'loading') {
     return (
@@ -173,6 +186,27 @@ function ApplicationLayoutContent() {
 
   const basePath = `/project/${projectSlug}`
   const isAdmin = user.role === 'admin'
+  const isProjectRoute = pathname.startsWith('/project/')
+  const navItems: NavLinkItem[] = isProjectRoute
+    ? [
+        { href: basePath, label: 'Dashboard', current: pathname === basePath },
+        { href: `${basePath}/tickets`, label: 'Tickets', current: pathname.startsWith(`${basePath}/tickets`) },
+        { href: `${basePath}/jobs`, label: 'Jobs', current: pathname.startsWith(`${basePath}/jobs`) },
+      ]
+    : [
+        { href: '/', label: 'Dashboard', current: pathname === '/' },
+        { href: '/clankers', label: 'Clankers', current: pathname.startsWith('/clankers') },
+        { href: '/secrets', label: 'Secrets', current: pathname.startsWith('/secrets') },
+        {
+          href: '/settings/integrations',
+          label: 'Integrations',
+          current: pathname.startsWith('/settings/integrations'),
+        },
+        ...(isAdmin
+          ? [{ href: '/settings/users', label: 'Users', current: pathname.startsWith('/settings/users') }]
+          : []),
+      ]
+
   const handleSignOut = async () => {
     await logout()
     navigate('/login', { replace: true })
@@ -187,47 +221,20 @@ function ApplicationLayoutContent() {
             <Dropdown>
               <DropdownButton as={NavbarItem} className="max-lg:hidden">
                 <Avatar src="/teams/viberglass.svg" />
-                <NavbarLabel>{projectSlug}</NavbarLabel>
+                <NavbarLabel>{projectSlug ?? 'Projects'}</NavbarLabel>
                 <Icon>
                   <ChevronDownIcon />
                 </Icon>
               </DropdownButton>
-              <ProjectDropdownMenu projectSlug={projectSlug} />
+              <ProjectDropdownMenu projectSlug={projectSlug} projects={projects} />
             </Dropdown>
-            {pathname.startsWith('/project/') ? (
-              <NavbarSection className="hidden lg:flex">
-                <NavbarItem href={basePath} current={pathname === basePath}>
-                  Dashboard
+            <NavbarSection className="hidden lg:flex">
+              {navItems.map((item) => (
+                <NavbarItem key={item.href} href={item.href} current={item.current}>
+                  {item.label}
                 </NavbarItem>
-                <NavbarItem href={`${basePath}/tickets`} current={pathname.startsWith(`${basePath}/tickets`)}>
-                  Tickets
-                </NavbarItem>
-                <NavbarItem href={`${basePath}/jobs`} current={pathname.startsWith(`${basePath}/jobs`)}>
-                  Jobs
-                </NavbarItem>
-              </NavbarSection>
-            ) : null}
-            {!pathname.startsWith('/project/') ? (
-              <NavbarSection className="hidden lg:flex">
-                <NavbarItem href="/" current={pathname === basePath}>
-                  Dashboard
-                </NavbarItem>
-                <NavbarItem href="/clankers" current={pathname.startsWith(`/clankers`)}>
-                  Clankers
-                </NavbarItem>
-                <NavbarItem href="/secrets" current={pathname.startsWith(`/secrets`)}>
-                  Secrets
-                </NavbarItem>
-                <NavbarItem href="/settings/integrations" current={pathname.startsWith(`/settings/integrations`)}>
-                  Integrations
-                </NavbarItem>
-                {isAdmin ? (
-                  <NavbarItem href="/settings/users" current={pathname.startsWith(`/settings/users`)}>
-                    Users
-                  </NavbarItem>
-                ) : null}
-              </NavbarSection>
-            ) : null}
+              ))}
+            </NavbarSection>
             <NavbarSpacer />
             <NavbarSection>
               <Dropdown>
@@ -246,47 +253,81 @@ function ApplicationLayoutContent() {
         }
         sidebar={
           <Sidebar>
-            <SidebarHeader>
-              <Dropdown>
-                <DropdownButton as={SidebarItem}>
-                  <Avatar src="/teams/viberator.svg" />
-                  <SidebarLabel>{projectSlug}</SidebarLabel>
-                  <Icon>
-                    <ChevronDownIcon />
-                  </Icon>
-                </DropdownButton>
-                <ProjectDropdownMenu projectSlug={projectSlug} />
-              </Dropdown>
-            </SidebarHeader>
-
             <SidebarBody>
+              {isProjectRoute ? (
+                <SidebarSection>
+                  <SidebarHeading>Workspace</SidebarHeading>
+                  <SidebarItem href="/">
+                    <Icon>
+                      <HomeIcon />
+                    </Icon>
+                    <SidebarLabel>Back to Home</SidebarLabel>
+                  </SidebarItem>
+                </SidebarSection>
+              ) : null}
               <SidebarSection>
-                <SidebarItem href={basePath} current={pathname === basePath}>
+                <SidebarHeading>Projects</SidebarHeading>
+                {projects.map((project) => (
+                  <SidebarItem
+                    key={project.id}
+                    href={`/project/${project.slug}`}
+                    current={
+                      pathname === `/project/${project.slug}` ||
+                      pathname.startsWith(`/project/${project.slug}/`)
+                    }
+                  >
+                    {project.slug === 'viberglass' ? (
+                      <Avatar slot="avatar" src="/teams/viberglass.svg" />
+                    ) : (
+                      <Avatar
+                        slot="avatar"
+                        initials={project.name.substring(0, 2).toUpperCase()}
+                        className="bg-brand-gradient text-brand-charcoal"
+                      />
+                    )}
+                    <SidebarLabel>{project.name}</SidebarLabel>
+                  </SidebarItem>
+                ))}
+                <SidebarItem href="/new">
                   <Icon>
-                    <HomeIcon />
+                    <PlusIcon />
                   </Icon>
-                  <SidebarLabel>Dashboard</SidebarLabel>
-                </SidebarItem>
-                <SidebarItem href={`${basePath}/tickets`} current={pathname.startsWith(`${basePath}/tickets`)}>
-                  <Icon>
-                    <CrumpledPaperIcon />
-                  </Icon>
-                  <SidebarLabel>Bug Reports</SidebarLabel>
-                </SidebarItem>
-                <SidebarItem href={`${basePath}/jobs`} current={pathname.startsWith(`${basePath}/jobs`)}>
-                  <Icon>
-                    <ClockIcon />
-                  </Icon>
-                  <SidebarLabel>Jobs</SidebarLabel>
-                </SidebarItem>
-                <SidebarItem href={`${basePath}/settings`} current={pathname.startsWith(`${basePath}/settings`)}>
-                  <Icon>
-                    <GearIcon />
-                  </Icon>
-                  <SidebarLabel>Settings</SidebarLabel>
+                  <SidebarLabel>New Project</SidebarLabel>
                 </SidebarItem>
               </SidebarSection>
+              <SidebarSection>
+                <SidebarHeading>Navigation</SidebarHeading>
+                {navItems.map((item) => (
+                  <SidebarItem key={item.href} href={item.href} current={item.current}>
+                    <SidebarLabel>{item.label}</SidebarLabel>
+                  </SidebarItem>
+                ))}
+              </SidebarSection>
             </SidebarBody>
+            <SidebarFooter>
+              <SidebarSection>
+                <SidebarItem
+                  onClick={(event) => {
+                    event.preventDefault()
+                    toggleTheme()
+                  }}
+                >
+                  <Icon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</Icon>
+                  <SidebarLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</SidebarLabel>
+                </SidebarItem>
+                <SidebarItem
+                  onClick={(event) => {
+                    event.preventDefault()
+                    void handleSignOut()
+                  }}
+                >
+                  <Icon>
+                    <ExitIcon />
+                  </Icon>
+                  <SidebarLabel>Sign out</SidebarLabel>
+                </SidebarItem>
+              </SidebarSection>
+            </SidebarFooter>
           </Sidebar>
         }
         >

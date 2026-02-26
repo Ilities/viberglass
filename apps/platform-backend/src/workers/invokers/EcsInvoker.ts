@@ -8,8 +8,9 @@ import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
-import { SecretResolutionService } from "../../services/SecretResolutionService";
+import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { buildWorkerProjectConfig } from "./projectConfig";
+import { resolveClankerConfig } from "../../clanker-config";
 
 const logger = createChildLogger({ invoker: "ECS" });
 
@@ -26,13 +27,13 @@ interface EcsDeploymentConfig {
 export class EcsInvoker implements WorkerInvoker {
   readonly name = "EcsInvoker";
   private client: ECSClient;
-  private secretResolutionService: SecretResolutionService;
+  private credentialRequirementsService: CredentialRequirementsService;
 
   constructor(config?: { region?: string }) {
     this.client = new ECSClient({
       region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
-    this.secretResolutionService = new SecretResolutionService();
+    this.credentialRequirementsService = new CredentialRequirementsService();
   }
 
   async invoke(
@@ -40,9 +41,22 @@ export class EcsInvoker implements WorkerInvoker {
     clanker: Clanker,
     project?: Project,
   ): Promise<InvocationResult> {
-    const rawConfig = clanker.deploymentConfig as unknown as
-      | EcsDeploymentConfig
-      | undefined;
+    const resolvedConfig = resolveClankerConfig(clanker).config;
+    if (resolvedConfig.strategy.type !== "ecs") {
+      throw new WorkerError(
+        `Clanker deployment strategy is ${resolvedConfig.strategy.type}, expected ecs`,
+        ErrorClassification.PERMANENT,
+      );
+    }
+
+    const rawConfig: EcsDeploymentConfig = {
+      clusterArn: resolvedConfig.strategy.clusterArn || "",
+      taskDefinitionArn: resolvedConfig.strategy.taskDefinitionArn || "",
+      subnetIds: resolvedConfig.strategy.subnetIds || [],
+      securityGroupIds: resolvedConfig.strategy.securityGroupIds || [],
+      assignPublicIp: resolvedConfig.strategy.assignPublicIp,
+      containerName: resolvedConfig.strategy.containerName,
+    };
 
     // Apply env var fallbacks for managed mode
     const ecsConfig: EcsDeploymentConfig = {
@@ -70,7 +84,8 @@ export class EcsInvoker implements WorkerInvoker {
       );
     }
 
-    const payload = job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
+    const payload =
+      job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
     const payloadJson = JSON.stringify(payload);
     const canUseJobRef = Boolean(
       job.bootstrapPayload && job.callbackToken && process.env.PLATFORM_API_URL,
@@ -203,7 +218,11 @@ export class EcsInvoker implements WorkerInvoker {
   }
 
   private classifyError(error: unknown): WorkerError {
-    const err = error as { name?: string; message?: string; $metadata?: any };
+    const err = error as {
+      name?: string;
+      message?: string;
+      $metadata?: Record<string, unknown>;
+    };
     const errorName = err.name || "";
 
     // Log full error details for debugging
@@ -235,17 +254,17 @@ export class EcsInvoker implements WorkerInvoker {
     clanker: Clanker,
     project?: Project,
   ): Promise<object> {
-    const secretMetadata =
-      await this.secretResolutionService.getSecretMetadataForClanker(
-        clanker.secretIds || [],
+    const requiredCredentials =
+      await this.credentialRequirementsService.getRequiredCredentialsForClanker(
+        clanker,
       );
-    const requiredCredentials = secretMetadata.map((secret) => secret.name);
 
     return {
-      workerType: "docker",
+      workerType: "ecs",
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,
+      agent: clanker.agent,
       repository: job.repository,
       task: job.task,
       branch: job.branch,
@@ -257,6 +276,7 @@ export class EcsInvoker implements WorkerInvoker {
       callbackToken: job.callbackToken,
       clankerConfig: clanker,
       projectConfig: buildWorkerProjectConfig(project),
+      scm: job.scm,
       overrides: job.overrides,
     };
   }

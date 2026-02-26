@@ -34,16 +34,16 @@ Optimized for AWS ECS/Fargate deployment.
 **Agent:** `claude-code`
 **Use Case:** Production ECS deployments
 
-#### `viberator-lambda.Dockerfile` (Claude Code)
-Optimized for AWS Lambda container images.
+#### `viberator-lambda.Dockerfile` (Multi-Agent Lambda)
+Optimized for AWS Lambda container images with all supported agent CLIs.
 
-**Agent:** `claude-code`
-**Use Case:** Lightweight Lambda deployments
+**Agents:** `claude-code`, `qwen-cli`, `gemini-cli`, `mistral-vibe`, `codex`, `opencode`, `kimi-code`
+**Use Case:** Lambda deployments for any supported agent
 
 #### `agents/viberator-worker-qwen.Dockerfile`
 Worker with Qwen Code CLI support.
 
-**Agent:** `qwen-cli`, `qwen-api`
+**Agent:** `qwen-cli`
 **CLI Source:** `npm install -g @qwen-code/qwen-code@latest`
 **Docs:** https://qwenlm.github.io/qwen-code-docs/
 **Use Case:** Using Qwen AI models for code analysis and editing
@@ -72,6 +72,22 @@ Worker with OpenAI Codex CLI support.
 **Docs:** https://github.com/openai/codex
 **Use Case:** Using OpenAI Codex for terminal-based coding
 
+#### `agents/viberator-worker-opencode.Dockerfile`
+Worker with OpenCode CLI support.
+
+**Agent:** `opencode`
+**CLI Source:** `npm install -g opencode-ai@latest`
+**Docs:** https://opencode.ai/docs
+**Use Case:** Using OpenCode for terminal-based coding workflows
+
+#### `agents/viberator-worker-kimi.Dockerfile`
+Worker with Kimi Code CLI support.
+
+**Agent:** `kimi-code`
+**CLI Source:** `curl -fsSL https://cli.moonshot.ai/kimi.sh | bash`
+**Docs:** https://moonshotai.github.io/Kimi-K2/cli/getting-started/
+**Use Case:** Using Moonshot Kimi Code in automated coding workflows
+
 ---
 
 ### Task-Specific Workers
@@ -79,13 +95,15 @@ Worker with OpenAI Codex CLI support.
 #### `viberator-worker-multi-agent.Dockerfile`
 Universal worker with all agent CLIs pre-installed.
 
-**Agents:** `claude-code`, `qwen-cli`, `qwen-api`, `gemini-cli`, `mistral-vibe`, `codex`
+**Agents:** `claude-code`, `qwen-cli`, `gemini-cli`, `mistral-vibe`, `codex`, `opencode`, `kimi-code`
 
 **CLI Sources:**
 - Claude Code: `npm install -g @anthropic-ai/claude-code`
 - Qwen Code: `npm install -g @qwen-code/qwen-code@latest`
 - Gemini: `npm install -g @google/gemini-cli`
 - Codex: `npm install -g @openai/codex`
+- OpenCode: `npm install -g opencode-ai@latest`
+- Kimi Code: `curl -fsSL https://cli.moonshot.ai/kimi.sh | bash`
 - Mistral Vibe: `uv tool install mistral-vibe`
 
 **Use Case:** Maximum flexibility, switch between agents without rebuilding
@@ -113,16 +131,6 @@ Worker with deployment tools.
 - Pulumi, Serverless Framework
 **Use Case:** Infrastructure and deployment automation
 
-#### `tasks/viberator-worker-fullstack.Dockerfile`
-Full-stack worker with all development tools.
-
-**Includes:**
-- Multiple language runtimes (Node.js, Python, Java, Ruby, Go, Rust)
-- Build tools (gcc, make, cmake)
-- Linters and formatters
-- Database clients
-**Use Case:** Complete project handling across all languages
-
 ---
 
 ## Building Worker Images
@@ -136,6 +144,7 @@ Full-stack worker with all development tools.
 ### Build Specific Image
 
 ```bash
+./scripts/build-workers.sh base
 ./scripts/build-workers.sh qwen
 ./scripts/build-workers.sh testing
 ```
@@ -169,6 +178,7 @@ export VIBERATOR_WORKER_REGISTRY=docker.io/myorg
 
 ```bash
 export VIBERATOR_WORKER_REGISTRY=123456.dkr.ecr.us-east-1.amazonaws.com
+./scripts/push-workers.sh base v1.0.0
 ./scripts/push-workers.sh qwen v1.0.0
 ```
 
@@ -176,16 +186,19 @@ export VIBERATOR_WORKER_REGISTRY=123456.dkr.ecr.us-east-1.amazonaws.com
 
 ## Worker Image Selection
 
-The `ClankerProvisioningService` automatically selects the appropriate worker image based on the clanker's agent type.
+The `ClankerProvisioningService` automatically selects the appropriate worker image based on strategy and agent.
 
 ### Selection Logic
 
-1. **Explicit Configuration:** If `deploymentConfig.containerImage` is set, use that
-2. **Agent-Based:** Auto-select based on agent type:
-   - `qwen-cli`, `qwen-api` → `viberator-worker-qwen`
+1. **Explicit Configuration:** If `deploymentConfig.containerImage` (ECS) or `deploymentConfig.imageUri` (Lambda) is set, use that.
+2. **Lambda Default:** Use `VIBERATOR_LAMBDA_IMAGE_URI` when available.
+3. **ECS Agent-Based:** Auto-select based on agent type:
+   - `qwen-cli` → `viberator-worker-qwen`
    - `gemini-cli` → `viberator-worker-gemini`
    - `mistral-vibe` → `viberator-worker-mistral`
    - `codex` → `viberator-worker-codex`
+   - `opencode` → `viberator-worker-opencode`
+   - `kimi-code` → `viberator-worker-kimi`
    - `claude-code` or other → `viberator-worker-multi-agent`
 
 ### Environment Variables
@@ -266,6 +279,8 @@ export VIBERATOR_LAMBDA_IMAGE_URI=123456.dkr.ecr.us-west-1.amazonaws.com/viberat
 | Gemini Worker | ~850MB | + Gemini CLI |
 | Mistral Worker | ~850MB | + Mistral Vibe CLI |
 | Codex Worker | ~850MB | + Codex CLI |
+| OpenCode Worker | ~850MB | + OpenCode CLI |
+| Kimi Worker | ~850MB | + Kimi Code CLI |
 | Multi-Agent Worker | ~1.2GB | All agent CLIs |
 | Testing Worker | ~1.1GB | Testing frameworks |
 | Deployment Worker | ~1.5GB | kubectl, terraform, etc. |
@@ -311,6 +326,7 @@ export VIBERATOR_LAMBDA_IMAGE_URI=123456.dkr.ecr.us-west-1.amazonaws.com/viberat
   - Qwen Code: `@qwen-code/qwen-code` - https://qwenlm.github.io/qwen-code-docs/
   - Gemini: `@google/gemini-cli` - https://geminicli.com/docs/get-started/installation/
   - Codex: `@openai/codex` - https://github.com/openai/codex
+  - OpenCode: `opencode-ai` - https://opencode.ai/docs
   - Mistral Vibe: `uv tool install mistral-vibe` - https://docs.mistral.ai/mistral-vibe/introduction/install
 - The multi-agent worker is recommended for development and testing
 - Use agent-specific workers in production for smaller image sizes

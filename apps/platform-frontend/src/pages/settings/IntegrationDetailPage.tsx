@@ -2,12 +2,13 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { IntegrationConfigForm } from '@/components/integration-config-form'
+import { PageMeta } from '@/components/page-meta'
 import {
   getIntegrationCategoryConfig,
   getIntegrationIcon,
   getIntegrationStatusConfig,
 } from '@/components/integration-visuals'
-import { Link } from '@/components/link'
+
 import { Text } from '@/components/text'
 import {
   createIntegration,
@@ -19,7 +20,7 @@ import {
 } from '@/service/api/integration-api'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
-import type { AuthCredentialType, Integration, TicketSystem } from '@viberglass/types'
+import type { Integration, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -28,6 +29,7 @@ import { CustomOutboundWebhookSection } from './integration-detail/CustomOutboun
 import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
 import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
+import { IntegrationCredentialSection } from './integration-detail/IntegrationCredentialSection'
 import {
   IntegrationDetailErrorState,
   IntegrationDetailLoadingState,
@@ -40,6 +42,20 @@ import { ShortcutInboundWebhookSection } from './integration-detail/ShortcutInbo
 import { ShortcutOutboundWebhookSection } from './integration-detail/ShortcutOutboundWebhookSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
+
+const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+
+function normalizeGitHubRequiredLabels(rawLabels: string[]): string[] {
+  const labels: string[] = []
+  for (const rawLabel of rawLabels) {
+    const normalized = rawLabel.trim().toLowerCase()
+    if (!normalized || labels.includes(normalized)) {
+      continue
+    }
+    labels.push(normalized)
+  }
+  return labels
+}
 
 export function IntegrationDetailPage() {
   const navigate = useNavigate()
@@ -73,12 +89,19 @@ export function IntegrationDetailPage() {
   const capabilities = getIntegrationDetailCapabilities(integrationSystem)
 
   const initialValues = useMemo(
-    () => (existingIntegration?.values as Record<string, string | number | boolean | string[]>) || {},
+    () => (existingIntegration?.config as Record<string, string | number | boolean | string[]>) || {},
     [existingIntegration]
   )
   const githubRepositoryMapping = useMemo(() => {
     if (!isGithubIntegration) {
       return null
+    }
+
+    if (
+      typeof webhook.selectedInboundProviderProjectId === 'string' &&
+      webhook.selectedInboundProviderProjectId.trim().length > 0
+    ) {
+      return webhook.selectedInboundProviderProjectId.trim()
     }
 
     const fromWebhookConfig = webhook.outboundWebhook?.providerProjectId
@@ -93,7 +116,12 @@ export function IntegrationDetailPage() {
     }
 
     return null
-  }, [initialValues, isGithubIntegration, webhook.outboundWebhook?.providerProjectId])
+  }, [
+    initialValues,
+    isGithubIntegration,
+    webhook.outboundWebhook?.providerProjectId,
+    webhook.selectedInboundProviderProjectId,
+  ])
 
   const jiraProjectMapping = useMemo(() => {
     if (!isJiraIntegration) {
@@ -166,24 +194,18 @@ export function IntegrationDetailPage() {
           // Auto-create webhook-first integrations when visiting the new page.
           if (
             (integrationSystemParam === 'custom' ||
+              integrationSystemParam === 'github' ||
               integrationSystemParam === 'shortcut' ||
               integrationSystemParam === 'jira') &&
             type
           ) {
-            const autoAuthType = type.authTypes[0]
-            if (!autoAuthType) {
-              setLoadError('No supported auth type found for integration')
-              return
-            }
-
             setIsAutoCreating(true)
             try {
               const autoName = `${type.label} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`
               const newIntegration = await createIntegration({
                 name: autoName,
                 system: integrationSystemParam as TicketSystem,
-                authType: autoAuthType,
-                values: {},
+                config: {},
               })
               if (!isActive) {
                 return
@@ -227,6 +249,7 @@ export function IntegrationDetailPage() {
         // Load projects for integration-scoped project mapping controls.
         if (
           fullIntegration.system === 'custom' ||
+          fullIntegration.system === 'github' ||
           fullIntegration.system === 'shortcut' ||
           fullIntegration.system === 'jira'
         ) {
@@ -281,7 +304,7 @@ export function IntegrationDetailPage() {
   const category = getIntegrationCategoryConfig(integrationType.category)
   const StatusIcon = status.icon
 
-  const handleSubmit = async (values: { authType: AuthCredentialType; values: Record<string, unknown> }) => {
+  const handleSubmit = async (config: Record<string, unknown>) => {
     if (!integrationSystem) {
       return
     }
@@ -292,14 +315,12 @@ export function IntegrationDetailPage() {
       const savedIntegration = existingIntegration
         ? await updateIntegration(existingIntegration.id, {
             name: existingIntegration.name,
-            authType: values.authType,
-            values: values.values,
+            config,
           })
         : await createIntegration({
             name: `${integrationType.label} Integration`,
             system: integrationSystem,
-            authType: values.authType,
-            values: values.values,
+            config,
           })
 
       setExistingIntegration(savedIntegration)
@@ -313,7 +334,7 @@ export function IntegrationDetailPage() {
     }
   }
 
-  const handleTest = async (_values: { authType: AuthCredentialType; values: Record<string, unknown> }) => {
+  const handleTest = async (_config: Record<string, unknown>) => {
     setIsTesting(true)
     setTestResult(null)
 
@@ -407,37 +428,145 @@ export function IntegrationDetailPage() {
     })
   }
 
+  const buildGitHubInboundLabelMappings = () => {
+    if (!webhook.autoExecute) {
+      return {}
+    }
+
+    if (webhook.githubAutoExecuteMode === 'label_gated') {
+      const requiredLabels = normalizeGitHubRequiredLabels(webhook.githubRequiredLabels)
+      return {
+        github: {
+          autoExecuteMode: 'label_gated',
+          requiredLabels,
+        },
+      }
+    }
+
+    return {
+      github: {
+        autoExecuteMode: 'matching_events',
+      },
+    }
+  }
+
+  const validateGitHubRepositoryMapping = (): string | null => {
+    const repositoryMapping = webhook.selectedInboundProviderProjectId?.trim() || null
+    if (!repositoryMapping) {
+      toast.error('GitHub repository mapping is required')
+      return null
+    }
+
+    if (!GITHUB_REPOSITORY_PATTERN.test(repositoryMapping)) {
+      toast.error('GitHub repository mapping must use owner/repo format')
+      return null
+    }
+
+    return repositoryMapping
+  }
+
+  const handleGitHubCreateInboundWebhook = () => {
+    void webhook.handleCreateInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+      buildGitHubInboundLabelMappings(),
+    )
+  }
+
+  const handleGitHubGenerateSecret = () => {
+    if (webhook.selectedInboundConfig) {
+      const repositoryMapping = validateGitHubRepositoryMapping()
+      if (!repositoryMapping) {
+        return
+      }
+
+      void webhook.handleGenerateSecret(
+        repositoryMapping,
+        webhook.selectedInboundProjectId,
+        buildGitHubInboundLabelMappings(),
+      )
+      return
+    }
+
+    void webhook.handleGenerateSecret(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+      buildGitHubInboundLabelMappings(),
+    )
+  }
+
+  const handleGitHubSaveInboundWebhook = () => {
+    const repositoryMapping = validateGitHubRepositoryMapping()
+    if (!repositoryMapping) {
+      return
+    }
+
+    if (
+      webhook.githubAutoExecuteMode === 'label_gated' &&
+      normalizeGitHubRequiredLabels(webhook.githubRequiredLabels).length === 0
+    ) {
+      toast.error('Add at least one GitHub label for label-gated auto-execute')
+      return
+    }
+
+    void webhook.handleSaveInboundWebhook(
+      repositoryMapping,
+      webhook.selectedInboundProjectId,
+      buildGitHubInboundLabelMappings(),
+    )
+  }
+
+  const handleGitHubSaveOutboundWebhook = () => {
+    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
+      toast.error('GitHub API token is required to enable outbound feedback')
+      return
+    }
+
+    const repositoryMapping = githubRepositoryMapping
+    if (!repositoryMapping || !GITHUB_REPOSITORY_PATTERN.test(repositoryMapping)) {
+      toast.error('Save a valid GitHub inbound repository mapping before enabling feedback')
+      return
+    }
+
+    void webhook.handleSaveOutboundWebhook(repositoryMapping, {
+      forcedEvents: ['job_started', 'job_ended'],
+      projectId: webhook.selectedInboundProjectId,
+    })
+  }
+
   if (integrationType.status === 'stub') {
     return (
       <div className="space-y-8 p-6 lg:p-8">
-        <Link
-          href="/settings/integrations"
-          className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
-        >
-          <ArrowLeftIcon className="size-4" />
-          Back to Integrations
-        </Link>
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-4">
+          <Button href="/settings/integrations" plain>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Back to Integrations
+          </Button>
+        </div>
 
-        <div className="flex items-start gap-6">
-          <div className="flex size-16 items-center justify-center rounded-xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800">
-            <IconComponent className="size-8" />
+        {/* Header Section */}
+        <div className="flex items-start gap-4">
+          {/* Integration Avatar */}
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--gray-4)] text-[var(--gray-9)]">
+            <IconComponent className="h-7 w-7" />
           </div>
-          <div className="flex-1">
+          <div>
             <div className="flex items-center gap-3">
-              <Heading>{integrationType.label}</Heading>
+              <Heading className="text-2xl">{integrationType.label}</Heading>
               <Badge color="amber">
-                <StatusIcon className="mr-1 inline-block size-3" />
+                <StatusIcon className="mr-1 inline-block h-3 w-3" />
                 {status.label}
               </Badge>
             </div>
-            <Text className="mt-2 max-w-2xl">{integrationType.description}</Text>
+            <Text className="mt-1.5 text-[var(--gray-9)] max-w-2xl">{integrationType.description}</Text>
           </div>
         </div>
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-900 dark:bg-amber-900/20">
-          <StatusIcon className="mx-auto size-12 text-amber-500" />
+        <div className="app-frame rounded-lg p-8 text-center border-amber-200 dark:border-amber-900/50">
+          <StatusIcon className="mx-auto h-12 w-12 text-amber-500" />
           <h2 className="mt-4 text-lg font-semibold text-amber-900 dark:text-amber-400">Coming Soon</h2>
-          <p className="mt-2 text-amber-700 dark:text-amber-300">
+          <p className="mt-2 text-[var(--gray-9)]">
             The {integrationType.label} integration is currently under development. Check back soon!
           </p>
           <Button href="/settings/integrations" color="brand" className="mt-6">
@@ -449,40 +578,46 @@ export function IntegrationDetailPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
-      <Link
-        href="/settings/integrations"
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
-      >
-        <ArrowLeftIcon className="size-4" />
-        Back to Integrations
-      </Link>
+    <>
+      <PageMeta title={`${integrationType.label} | Integration`} />
+      <div className="space-y-8 p-6 lg:p-8">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-4">
+        <Button href="/settings/integrations" plain>
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back to Integrations
+        </Button>
+      </div>
 
-      <div className="flex items-start gap-6">
-        <div className="bg-brand-gradient flex size-16 items-center justify-center rounded-xl text-white">
-          <IconComponent className="size-8" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <Heading>{integrationType.label}</Heading>
-            <Badge color={status.color}>
-              <StatusIcon className="mr-1 inline-block size-3" />
-              {status.label}
-            </Badge>
-            <Badge color={category.color}>{category.label}</Badge>
+      {/* Header Section */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {/* Integration Avatar */}
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent-4)] to-[var(--accent-3)] text-[var(--accent-11)] shadow-sm">
+            <IconComponent className="h-7 w-7" />
           </div>
-          <Text className="mt-2 max-w-2xl">{integrationType.description}</Text>
+          
+          <div>
+            <div className="flex items-center gap-3">
+              <Heading className="text-2xl">{integrationType.label}</Heading>
+              <Badge color={status.color}>
+                <StatusIcon className="mr-1 inline-block h-3 w-3" />
+                {status.label}
+              </Badge>
+              <Badge color={category.color}>{category.label}</Badge>
+            </div>
+            <Text className="mt-1.5 text-[var(--gray-9)] max-w-2xl">{integrationType.description}</Text>
+          </div>
         </div>
       </div>
 
-      {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && (
-        <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
+      {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && !isGithubIntegration && (
+        <section className="app-frame rounded-lg p-6">
           <Subheading>Configuration</Subheading>
           <div className="mt-6">
             <IntegrationConfigForm
               integration={integrationType}
               initialValues={initialValues}
-              initialAuthType={existingIntegration?.authType}
               onSubmit={handleSubmit}
               onTest={handleTest}
               onCancel={handleCancel}
@@ -506,18 +641,27 @@ export function IntegrationDetailPage() {
             isLoadingDeliveries={webhook.isLoadingDeliveries}
             isLoadingWebhook={webhook.isLoadingWebhook}
             isSavingWebhook={webhook.isSavingWebhook}
+            projects={projects}
+            selectedInboundProjectId={webhook.selectedInboundProjectId}
+            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
             selectedInboundConfig={webhook.selectedInboundConfig}
             selectedInboundConfigId={webhook.selectedInboundConfigId}
             showSecret={webhook.showSecret}
+            githubAutoExecuteMode={webhook.githubAutoExecuteMode}
+            githubRequiredLabels={webhook.githubRequiredLabels}
             onAutoExecuteChange={webhook.setAutoExecute}
+            onGitHubAutoExecuteModeChange={webhook.setGitHubAutoExecuteMode}
+            onGitHubRequiredLabelsChange={webhook.setGitHubRequiredLabels}
             onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
+            onCreateInboundWebhook={handleGitHubCreateInboundWebhook}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={webhook.handleGenerateSecret}
+            onGenerateSecret={handleGitHubGenerateSecret}
+            onInboundProjectChange={webhook.setSelectedInboundProjectId}
+            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSaveWebhook={handleGitHubSaveInboundWebhook}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleInboundEvent={webhook.handleToggleInboundEvent}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
@@ -604,7 +748,9 @@ export function IntegrationDetailPage() {
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
             onCreateInboundWebhook={(projectId) => webhook.handleCreateInboundWebhook(undefined, projectId)}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={webhook.handleGenerateSecret}
+            onGenerateSecret={() =>
+              webhook.handleGenerateSecret(undefined, webhook.selectedInboundProjectId)
+            }
             onInboundActiveChange={webhook.setInboundActive}
             onProjectChange={webhook.setSelectedInboundProjectId}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
@@ -622,39 +768,41 @@ export function IntegrationDetailPage() {
             isLoadingDeliveries={webhook.isLoadingDeliveries}
             isLoadingWebhook={webhook.isLoadingWebhook}
             isSavingWebhook={webhook.isSavingWebhook}
+            projects={projects}
             selectedInboundConfig={webhook.selectedInboundConfig}
             selectedInboundConfigId={webhook.selectedInboundConfigId}
             showCustomPayloadHelp={capabilities.showCustomInboundPayloadHelp}
             showSecret={webhook.showSecret}
             onAutoExecuteChange={webhook.setAutoExecute}
             onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={webhook.handleCreateInboundWebhook}
+            onCreateInboundWebhook={() => webhook.handleCreateInboundWebhook()}
             onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={webhook.handleGenerateSecret}
+            onGenerateSecret={() => webhook.handleGenerateSecret()}
             onRefreshDeliveries={webhook.handleRefreshDeliveries}
             onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={webhook.handleSaveInboundWebhook}
+            onSaveWebhook={() => webhook.handleSaveInboundWebhook()}
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
         ))}
 
+      {isConfigured && existingIntegration && (isGithubIntegration || integrationSystem === 'gitlab' || integrationSystem === 'bitbucket') && (
+        <IntegrationCredentialSection
+          integrationId={existingIntegration.id}
+          integrationSystem={integrationSystem}
+        />
+      )}
+
       {(isConfigured || isCustomIntegration) &&
         capabilities.supportsOutboundWebhooks &&
         (isGithubIntegration ? (
           <GitHubOutboundWebhookSection
-            emitJobEnded={webhook.emitJobEnded}
-            emitJobStarted={webhook.emitJobStarted}
-            hasOutboundChanges={webhook.hasOutboundChanges}
             isSavingWebhook={webhook.isSavingWebhook}
             outboundApiToken={webhook.outboundApiToken}
             outboundWebhook={webhook.outboundWebhook}
             repositoryMapping={githubRepositoryMapping}
-            onDeleteOutboundWebhook={webhook.handleDeleteOutboundWebhook}
-            onEmitJobEndedChange={webhook.setEmitJobEnded}
-            onEmitJobStartedChange={webhook.setEmitJobStarted}
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
-            onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
+            onSaveOutboundWebhook={handleGitHubSaveOutboundWebhook}
           />
         ) : isJiraIntegration ? (
           <JiraOutboundWebhookSection
@@ -692,5 +840,6 @@ export function IntegrationDetailPage() {
           />
         ))}
     </div>
+    </>
   )
 }

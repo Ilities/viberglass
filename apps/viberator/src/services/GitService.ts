@@ -3,9 +3,47 @@ import { simpleGit, SimpleGit } from "simple-git";
 import * as path from "path";
 import axios from "axios";
 import { SCMAuthFactory } from "../scm";
+import { GitConfig } from "../types";
 
-export class GitService {
-  constructor(private logger: Logger) {}
+interface PullRequestOptions {
+  sourceRepositoryUrl?: string;
+  destinationRepositoryUrl?: string;
+}
+
+class GitService {
+  private gitConfig: GitConfig;
+
+  constructor(
+    private logger: Logger,
+    gitConfig?: GitConfig,
+  ) {
+    this.gitConfig = gitConfig || {
+      userName: process.env.GIT_USER_NAME || "Vibes Viber",
+      userEmail: process.env.GIT_USER_EMAIL || "viberator@viberglass.io",
+    };
+  }
+
+  private async initializeGitConfig(repoDir: string): Promise<SimpleGit> {
+    try {
+      const git = simpleGit({ baseDir: repoDir });
+      await git.addConfig("user.name", this.gitConfig.userName, false, "local");
+      await git.addConfig(
+        "user.email",
+        this.gitConfig.userEmail,
+        false,
+        "local",
+      );
+      this.logger.debug("Git user identity configured", {
+        userName: this.gitConfig.userName,
+        userEmail: this.gitConfig.userEmail,
+        repoDir,
+      });
+      return git;
+    } catch (error) {
+      this.logger.warn("Failed to configure git user identity", { error });
+      return simpleGit({ baseDir: repoDir });
+    }
+  }
 
   /**
    * Clone repository with automatic SCM authentication using simple-git
@@ -93,7 +131,7 @@ export class GitService {
     message: string,
   ): Promise<string> {
     try {
-      const git = simpleGit({ baseDir: repoDir });
+      const git = await this.initializeGitConfig(repoDir);
 
       // Check if there are changes to commit
       const status = await git.status();
@@ -149,22 +187,37 @@ export class GitService {
     targetBranch: string,
     title: string,
     description?: string,
+    options?: PullRequestOptions,
   ): Promise<string> {
+    const sourceRepo = options?.sourceRepositoryUrl
+      ? this.getRepoMetadataFromUrl(options.sourceRepositoryUrl)
+      : await this.getRepoMetadata(repoDir);
+    const destinationRepo = options?.destinationRepositoryUrl
+      ? this.getRepoMetadataFromUrl(options.destinationRepositoryUrl)
+      : sourceRepo;
+    let token: string | undefined;
+    let headRef =
+      sourceRepo.owner === destinationRepo.owner
+        ? sourceBranch
+        : `${sourceRepo.owner}:${sourceBranch}`;
+
+    const providerLookupUrl =
+      options?.sourceRepositoryUrl ||
+      options?.destinationRepositoryUrl ||
+      `https://github.com/${sourceRepo.owner}/${sourceRepo.repo}`;
     try {
-      const { owner, repo } = await this.getRepoMetadata(repoDir);
-      // Use SCMAuthFactory to get the token
-      const token = SCMAuthFactory.getProvider(
-        `https://github.com/${await this.getRepoMetadata(repoDir).then((m) => `${m.owner}/${m.repo}`)}`,
-      )?.getToken();
+      token = SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
 
       if (!token) {
         throw new Error(
           "Unable to retrieve authentication token from SCMAuthFactory",
         );
       }
+
       this.logger.info("Creating pull request via GitHub API", {
-        repo: `${owner}/${repo}`,
-        head: sourceBranch,
+        sourceRepo: `${sourceRepo.owner}/${sourceRepo.repo}`,
+        destinationRepo: `${destinationRepo.owner}/${destinationRepo.repo}`,
+        head: headRef,
         base: targetBranch,
       });
 
@@ -174,10 +227,10 @@ export class GitService {
         : "🤖 Automated fix by Viberator\n\nThis PR was generated automatically.";
 
       const response = await axios.post(
-        `https://api.github.com/repos/${owner}/${repo}/pulls`,
+        `https://api.github.com/repos/${destinationRepo.owner}/${destinationRepo.repo}/pulls`,
         {
           title: title,
-          head: sourceBranch,
+          head: headRef,
           base: targetBranch,
           body: prBody,
           maintainer_can_modify: true,
@@ -200,7 +253,6 @@ export class GitService {
     } catch (error) {
       let errorMessage = "Unknown error";
       let details: unknown = null;
-
       if (axios.isAxiosError(error)) {
         errorMessage = error.response?.data?.message || error.message;
         details = error.response?.data?.errors;
@@ -208,10 +260,22 @@ export class GitService {
         // Handle specific case: PR already exists
         if (
           error.response?.status === 422 &&
-          details?.[0]?.message?.includes("A pull request already exists")
+          Array.isArray(details) &&
+          details.some(
+            (detail) =>
+              typeof detail?.message === "string" &&
+              detail.message.includes("A pull request already exists"),
+          )
         ) {
+          const token =
+            SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
+
           this.logger.warn("Pull request already exists for this branch");
-          return this.getExistingPullRequestUrl(repoDir, sourceBranch);
+          return this.getExistingPullRequestUrl(
+            destinationRepo,
+            headRef,
+            token!,
+          );
         }
       } else if (error instanceof Error) {
         errorMessage = error.message;
@@ -243,7 +307,9 @@ export class GitService {
       // Regex to handle both HTTPS and SSH formats
       // e.g., https://github.com/owner/repo.git OR git@github.com:owner/repo.git
       const remoteUrl = origin.refs.push;
-      const match = remoteUrl.match(/github\.com[:/](.+)\/(.+?)(\.git)?$/);
+      const match = remoteUrl.match(
+        /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i,
+      );
 
       if (!match) {
         throw new Error(`Could not parse owner/repo from URL: ${remoteUrl}`);
@@ -263,22 +329,39 @@ export class GitService {
    * Fallback to find an existing PR URL if creation fails because it already exists
    */
   private async getExistingPullRequestUrl(
-    repoDir: string,
+    destinationRepo: { owner: string; repo: string },
     head: string,
+    token: string,
   ): Promise<string> {
-    const { owner, repo } = await this.getRepoMetadata(repoDir);
-    const token = process.env.GITHUB_TOKEN;
-
     const response = await axios.get(
-      `https://api.github.com/repos/${owner}/${repo}/pulls`,
+      `https://api.github.com/repos/${destinationRepo.owner}/${destinationRepo.repo}/pulls`,
       {
-        params: { head: `${owner}:${head}`, state: "open" },
+        params: { head, state: "open" },
         headers: { Authorization: `Bearer ${token}` },
       },
     );
 
     return (
-      response.data[0]?.html_url || `https://github.com/${owner}/${repo}/pulls`
+      response.data[0]?.html_url ||
+      `https://github.com/${destinationRepo.owner}/${destinationRepo.repo}/pulls`
     );
   }
+
+  private getRepoMetadataFromUrl(repoUrl: string): {
+    owner: string;
+    repo: string;
+  } {
+    const match = repoUrl.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i);
+
+    if (!match) {
+      throw new Error(`Could not parse owner/repo from URL: ${repoUrl}`);
+    }
+
+    return {
+      owner: match[1],
+      repo: match[2],
+    };
+  }
 }
+
+export default GitService;

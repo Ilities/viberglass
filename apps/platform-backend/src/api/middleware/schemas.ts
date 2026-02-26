@@ -1,7 +1,14 @@
 import Joi from "joi";
-import { integrationRegistry } from "../../integrations/TicketingIntegrationRegistry";
+import { SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
+import { integrationRegistry } from "../../integration-plugins";
+import {
+  instructionPathErrorMessage,
+  isAllowedInstructionPath,
+  normalizeInstructionPath,
+} from "../../services/instructions/pathPolicy";
 
 const ticketSystemIds = integrationRegistry.listIds();
+const ticketLifecycleStatuses = Object.values(TICKET_STATUS);
 
 export const ticketSchema = Joi.object({
   projectId: Joi.string().uuid().required(),
@@ -83,6 +90,9 @@ export const updateTicketSchema = Joi.object({
   description: Joi.string().min(1).optional(),
   severity: Joi.string().valid("low", "medium", "high", "critical").optional(),
   category: Joi.string().min(1).max(100).optional(),
+  status: Joi.string()
+    .valid(...ticketLifecycleStatuses)
+    .optional(),
   externalTicketId: Joi.string().optional(),
   externalTicketUrl: Joi.string().uri().optional(),
   autoFixStatus: Joi.string()
@@ -91,12 +101,16 @@ export const updateTicketSchema = Joi.object({
   pullRequestUrl: Joi.string().uri().optional(),
 });
 
+export const archiveTicketsSchema = Joi.object({
+  ticketIds: Joi.array().items(Joi.string().uuid()).min(1).required(),
+});
+
 export const projectSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds)
-    .required(),
-  credentials: Joi.object().required(),
+    .default("custom"),
+  credentials: Joi.object().optional(),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
@@ -110,8 +124,9 @@ export const updateProjectSchema = Joi.object({
   name: Joi.string().min(1).max(255).optional(),
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds)
-    .optional(),
-  credentials: Joi.object().optional(),
+    .optional()
+    .allow(null),
+  credentials: Joi.object().optional().allow(null),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
@@ -121,14 +136,50 @@ export const updateProjectSchema = Joi.object({
   agentInstructions: Joi.string().allow(null, "").optional(),
 });
 
+export const projectScmConfigSchema = Joi.object({
+  integrationId: Joi.string().uuid().required(),
+  sourceRepository: Joi.string().trim().min(1).max(500).required(),
+  baseBranch: Joi.string().trim().min(1).max(255).default("main"),
+  pullRequestRepository: Joi.string()
+    .trim()
+    .max(500)
+    .allow(null, "")
+    .optional(),
+  pullRequestBaseBranch: Joi.string()
+    .trim()
+    .max(255)
+    .allow(null, "")
+    .optional(),
+  branchNameTemplate: Joi.string().trim().max(255).allow(null, "").optional(),
+  integrationCredentialId: Joi.string().uuid().allow(null).optional(),
+});
+
 // Config file schema for clankers
 const configFileSchema = Joi.object({
-  fileType: Joi.string().min(1).max(100).required(),
+  fileType: Joi.string()
+    .min(1)
+    .max(300)
+    .custom((value, helpers) => {
+      if (!isAllowedInstructionPath(value)) {
+        return helpers.message({ custom: instructionPathErrorMessage(value) });
+      }
+      return normalizeInstructionPath(value);
+    })
+    .required(),
   content: Joi.string().required(),
 });
 
 const runInstructionFileSchema = Joi.object({
-  fileType: Joi.string().min(1).max(200).required(),
+  fileType: Joi.string()
+    .min(1)
+    .max(300)
+    .custom((value, helpers) => {
+      if (!isAllowedInstructionPath(value)) {
+        return helpers.message({ custom: instructionPathErrorMessage(value) });
+      }
+      return normalizeInstructionPath(value);
+    })
+    .required(),
   content: Joi.string().max(200000).required(),
 });
 
@@ -156,7 +207,7 @@ export const clankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "gemini-cli", "mistral-vibe")
+    .valid(...SUPPORTED_AGENT_TYPES)
     .allow(null)
     .optional(),
   secretIds: Joi.array().items(Joi.string().uuid()).optional(),
@@ -169,11 +220,13 @@ export const updateClankerSchema = Joi.object({
   deploymentConfig: Joi.object().allow(null).optional(),
   configFiles: Joi.array().items(configFileSchema).optional(),
   agent: Joi.string()
-    .valid("claude-code", "qwen-cli", "qwen-api", "codex", "gemini-cli", "mistral-vibe")
+    .valid(...SUPPORTED_AGENT_TYPES)
     .allow(null)
     .optional(),
   secretIds: Joi.array().items(Joi.string().uuid()).optional(),
-  status: Joi.string().valid("active", "inactive", "deploying", "failed").optional(),
+  status: Joi.string()
+    .valid("active", "inactive", "deploying", "failed")
+    .optional(),
   statusMessage: Joi.string().allow(null, "").optional(),
 });
 
@@ -211,16 +264,22 @@ export const runTicketSchema = Joi.object({
 
 // Progress update schema for worker progress reporting
 export const progressUpdateSchema = Joi.object({
-  step: Joi.string().max(100).optional().allow(null, ''),
+  step: Joi.string().max(100).optional().allow(null, ""),
   message: Joi.string().min(1).max(1000).required(),
   details: Joi.object().optional().allow(null),
 });
 
+export const codexAuthCacheSchema = Joi.object({
+  secretName: Joi.string().pattern(/^[A-Za-z_][A-Za-z0-9_]*$/).min(1).max(255).required(),
+  authJson: Joi.string().min(2).required(),
+  updatedAt: Joi.string().isoDate().optional(),
+});
+
 // Log entry schema for worker logging
 export const logEntrySchema = Joi.object({
-  level: Joi.string().valid('info', 'warn', 'error', 'debug').required(),
+  level: Joi.string().valid("info", "warn", "error", "debug").required(),
   message: Joi.string().min(1).max(5000).required(),
-  source: Joi.string().max(100).optional().allow(null, ''),
+  source: Joi.string().max(100).optional().allow(null, ""),
 });
 
 // Batch log entries schema for efficient bulk logging
@@ -249,9 +308,7 @@ export const updateSecretSchema = Joi.object({
 });
 
 export const integrationConfigSchema = Joi.object({
-  authType: Joi.string()
-    .valid("api_key", "oauth", "basic", "token")
-    .required(),
+  authType: Joi.string().valid("api_key", "oauth", "basic", "token").required(),
   values: Joi.object().required(),
 });
 

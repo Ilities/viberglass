@@ -2,9 +2,16 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: {
-    "lambda-handler": "src/workers/lambda-handler.ts",
+    "lambda-handler": "src/workers/entrypoints/lambda-handler.ts",
   },
-  format: ["esm"],
+  // Lambda loads .js as CommonJS unless package.json sets type=module or file is .mjs.
+  // Emit CJS to match the runtime's default module loader.
+  format: ["cjs"],
+  outExtension() {
+    return {
+      js: ".js",
+    };
+  },
   target: "node24",
   outDir: "dist",
   clean: true,

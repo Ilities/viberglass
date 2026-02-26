@@ -511,6 +511,45 @@ Check the repository for a new pull request created by the worker.
 
 ---
 
+### Managed ECS Clanker Provisioning Fails
+
+**Error:** `ECS task definition requires executionRoleArn, taskRoleArn, and containerImage`
+
+This usually happens when using Pulumi stacks and deploying in this order:
+
+1. `infra/base`
+2. `infra/platform`
+3. `infra/workers`
+
+In that order, platform was deployed before worker outputs existed, so backend does not have the required `VIBERATOR_ECS_*` environment variables yet.
+
+**Solutions:**
+
+1. **Set worker stack reference in platform config:**
+   ```bash
+   cd infra/platform
+   pulumi config set viberglass:workerStack <org>/viberglass-workers/<stack>
+   ```
+
+2. **Re-run platform deployment:**
+   ```bash
+   pulumi up
+   ```
+
+3. **Verify backend task definition now includes worker ECS env vars:**
+   ```bash
+   aws ecs describe-task-definition \
+     --task-definition <your-backend-task-family> \
+     --region <your-region> \
+     --query 'taskDefinition.containerDefinitions[0].environment[?starts_with(name, `VIBERATOR_ECS`)]'
+   ```
+
+4. **Retry Start in the UI.**
+
+For a full worker stack integration walkthrough, see `infra/platform/DEPLOY_WORKER_INTEGRATION.md`.
+
+---
+
 ### SSM Parameter Not Found
 
 **Error:** `ParameterNotFound` in worker logs

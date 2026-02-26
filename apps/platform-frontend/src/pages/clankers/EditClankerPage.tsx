@@ -1,23 +1,85 @@
 import { Button } from '@/components/button'
+import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { MultiSelect } from '@/components/multi-select'
-import { SegmentedControl } from '@/components/segmented-control'
-import { Select } from '@/components/select'
+import { PageMeta } from '@/components/page-meta'
 import { Textarea } from '@/components/textarea'
 import { getClankerBySlug } from '@/data'
 import { getDeploymentStrategies, updateClanker } from '@/service/api/clanker-api'
 import { getSecrets, type Secret } from '@/service/api/secret-api'
-import type { AgentType, Clanker, ConfigFileInput, DeploymentStrategy } from '@viberglass/types'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import {
+  DEFAULT_AGENT_TYPE,
+  type AgentType,
+  type Clanker,
+  type CodexAuthMode,
+  type ConfigFileInput,
+  type DeploymentStrategy,
+} from '@viberglass/types'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { AgentSpecificFields } from './config/agents'
+import { filterSecretsForAgent, getAllSecrets, getSecretPickerDescription, getSecretPickerEmptyMessage } from './config/agentSecrets'
+import { buildClankerDeploymentConfig } from './config/buildConfig'
+import { readClankerDeploymentConfig } from './config/readConfig'
+import { AgentSelectionCards, DeploymentStrategyCards } from './config/selectionCards'
+import { StrategySpecificFields } from './config/strategies'
+import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
+import { AGENTS_FILE_TYPE, isSkillPath, normalizeInstructionPath, skillPathFromUploadName } from './instructionFiles'
 
-const DEFAULT_CONFIG_FILE_TYPES = [
-  { type: 'claude.md', label: 'Claude.md', placeholder: '# Claude Configuration\n\nYou are a helpful assistant...' },
-  { type: 'agents.md', label: 'Agents.md', placeholder: '# Agents\n\n## Primary Agent\n...' },
-  { type: 'skills.md', label: 'Skills.md', placeholder: '# Skills\n\n## Code Review\n...' },
-]
+interface SkillEntry {
+  id: string
+  path: string
+  content: string
+}
+
+function createSkillEntry(path: string = 'skills/new-skill.md', content = ''): SkillEntry {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    path,
+    content,
+  }
+}
+
+function buildConfigFiles(
+  agentInstructions: string,
+  skills: SkillEntry[]
+): { files: ConfigFileInput[]; error: string | null } {
+  const files: ConfigFileInput[] = []
+
+  if (agentInstructions.trim()) {
+    files.push({ fileType: AGENTS_FILE_TYPE, content: agentInstructions.trim() })
+  }
+
+  const usedSkillPaths = new Set<string>()
+  for (const skill of skills) {
+    if (!skill.content.trim()) {
+      continue
+    }
+
+    const normalizedPath = normalizeInstructionPath(skill.path)
+    if (!isSkillPath(normalizedPath)) {
+      return {
+        files: [],
+        error: `Invalid skill path "${skill.path}". Use skills/<name>.md or nested paths under skills/.`,
+      }
+    }
+
+    const dedupeKey = normalizedPath.toLowerCase()
+    if (usedSkillPaths.has(dedupeKey)) {
+      return {
+        files: [],
+        error: `Duplicate skill path: ${normalizedPath}`,
+      }
+    }
+
+    usedSkillPaths.add(dedupeKey)
+    files.push({ fileType: normalizedPath, content: skill.content.trim() })
+  }
+
+  return { files, error: null }
+}
 
 export function EditClankerPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -28,12 +90,21 @@ export function EditClankerPage() {
   const [error, setError] = useState<string | null>(null)
   const [deploymentStrategies, setDeploymentStrategies] = useState<DeploymentStrategy[]>([])
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>('')
-  const [configFiles, setConfigFiles] = useState<Record<string, string>>({})
-  const [customConfigFileName, setCustomConfigFileName] = useState('')
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>('')
   const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
+  const [codexAuthMode, setCodexAuthMode] = useState<CodexAuthMode>(DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode)
+  const [qwenEndpoint, setQwenEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint)
+  const [opencodeEndpoint, setOpencodeEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeEndpoint)
+  const [opencodeModel, setOpencodeModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel)
+  const [geminiModel, setGeminiModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel)
+  const [agentInstructions, setAgentInstructions] = useState('')
+  const [skills, setSkills] = useState<SkillEntry[]>([])
+  const [showAllSecrets, setShowAllSecrets] = useState(false)
+
+  const agentsFileInputRef = useRef<HTMLInputElement | null>(null)
+  const skillsFileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -53,54 +124,113 @@ export function EditClankerPage() {
       setDeploymentStrategies(strategies)
       setSecrets(secretsData)
       setSelectedStrategyId(clankerData.deploymentStrategyId || '')
-      setSelectedAgent(clankerData.agent || 'claude-code')
+      setSelectedAgent(clankerData.agent || DEFAULT_AGENT_TYPE)
       setSelectedSecretIds(clankerData.secretIds || [])
 
-      // Infer provisioning mode from existing config
-      const existingConfig = clankerData.deploymentConfig as Record<string, unknown> | null
-      if (existingConfig?.provisioningMode) {
-        setProvisioningMode(existingConfig.provisioningMode as 'managed' | 'prebuilt')
-      } else {
-        // Default to 'prebuilt' if resource identifiers are already populated, 'managed' otherwise
-        const hasResources =
-          !!existingConfig?.containerImage ||
-          !!existingConfig?.clusterArn ||
-          !!existingConfig?.taskDefinitionArn ||
-          !!existingConfig?.functionArn
-        setProvisioningMode(hasResources ? 'prebuilt' : 'managed')
-      }
+      const parsedConfig = readClankerDeploymentConfig({
+        deploymentConfig: clankerData.deploymentConfig,
+        agent: clankerData.agent,
+      })
+      setProvisioningMode(parsedConfig.form.provisioningMode)
+      setCodexAuthMode(parsedConfig.form.codexAuthMode)
+      setQwenEndpoint(parsedConfig.form.qwenEndpoint)
+      setOpencodeEndpoint(parsedConfig.form.opencodeEndpoint)
+      setOpencodeModel(parsedConfig.form.opencodeModel)
+      setGeminiModel(parsedConfig.form.geminiModel)
 
-      const files: Record<string, string> = {}
+      const loadedSkills: SkillEntry[] = []
       for (const file of clankerData.configFiles) {
-        files[file.fileType] = file.content
-      }
-      setConfigFiles(files)
+        if (file.fileType === AGENTS_FILE_TYPE) {
+          setAgentInstructions(file.content)
+          continue
+        }
 
+        if (isSkillPath(file.fileType)) {
+          loadedSkills.push(createSkillEntry(file.fileType, file.content))
+        }
+      }
+
+      setSkills(loadedSkills)
       setIsLoading(false)
     }
+
     loadData()
   }, [slug])
 
-  const selectedStrategy = deploymentStrategies.find((s) => s.id === selectedStrategyId)
-  const deploymentConfig = clanker?.deploymentConfig as Record<string, unknown> | null
+  const selectedStrategy = deploymentStrategies.find((strategy) => strategy.id === selectedStrategyId)
+  const selectableSecrets = useMemo(
+    () => showAllSecrets ? getAllSecrets(secrets) : filterSecretsForAgent(secrets, selectedAgent, codexAuthMode),
+    [codexAuthMode, secrets, selectedAgent, showAllSecrets]
+  )
+  const selectableSecretIds = useMemo(() => new Set(selectableSecrets.map((secret) => secret.id)), [selectableSecrets])
+  const secretPickerDescription = useMemo(
+    () => getSecretPickerDescription(selectedAgent, codexAuthMode, showAllSecrets),
+    [codexAuthMode, selectedAgent, showAllSecrets]
+  )
+  const secretPickerEmptyMessage = useMemo(
+    () => getSecretPickerEmptyMessage(selectedAgent, codexAuthMode, showAllSecrets),
+    [codexAuthMode, selectedAgent, showAllSecrets]
+  )
 
-  function handleConfigFileChange(fileType: string, content: string) {
-    setConfigFiles((prev) => ({ ...prev, [fileType]: content }))
-  }
-
-  function addCustomConfigFile() {
-    if (customConfigFileName.trim()) {
-      setConfigFiles((prev) => ({ ...prev, [customConfigFileName.trim()]: '' }))
-      setCustomConfigFileName('')
-    }
-  }
-
-  function removeConfigFile(fileType: string) {
-    setConfigFiles((prev) => {
-      const next = { ...prev }
-      delete next[fileType]
-      return next
+  useEffect(() => {
+    setSelectedSecretIds((previous) => {
+      const filtered = previous.filter((id) => selectableSecretIds.has(id))
+      return filtered.length === previous.length ? previous : filtered
     })
+  }, [selectableSecretIds])
+
+  function updateSkill(id: string, updates: Partial<SkillEntry>) {
+    setSkills((previous) => previous.map((entry) => (entry.id === id ? { ...entry, ...updates } : entry)))
+  }
+
+  function removeSkill(id: string) {
+    setSkills((previous) => previous.filter((entry) => entry.id !== id))
+  }
+
+  function addSkill() {
+    setSkills((previous) => [...previous, createSkillEntry()])
+  }
+
+  async function handleAgentsUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    if (!file.name.toLowerCase().endsWith('.md')) {
+      setError('AGENTS upload must be a .md file.')
+      return
+    }
+
+    const content = await file.text()
+    setAgentInstructions(content)
+    setError(null)
+    event.target.value = ''
+  }
+
+  async function handleSkillsUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files
+    if (!files || files.length === 0) {
+      return
+    }
+
+    const uploaded: SkillEntry[] = []
+    for (const file of Array.from(files)) {
+      if (!file.name.toLowerCase().endsWith('.md')) {
+        setError(`Skipped ${file.name}: only .md files are allowed for skills.`)
+        continue
+      }
+
+      const content = await file.text()
+      uploaded.push(createSkillEntry(skillPathFromUploadName(file.name), content))
+    }
+
+    if (uploaded.length > 0) {
+      setSkills((previous) => [...previous, ...uploaded])
+      setError(null)
+    }
+
+    event.target.value = ''
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -111,35 +241,31 @@ export function EditClankerPage() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-
-    const configFilesArray: ConfigFileInput[] = Object.entries(configFiles)
-      .filter(([, content]) => content.trim() !== '')
-      .map(([fileType, content]) => ({ fileType, content }))
-
-    let newDeploymentConfig: Record<string, unknown> | null = null
-    if (selectedStrategy) {
-      if (selectedStrategy.name === 'docker') {
-        newDeploymentConfig = {
-          provisioningMode,
-          containerImage: provisioningMode === 'prebuilt' ? (formData.get('containerImage') as string) || '' : '',
-          ports: (deploymentConfig?.ports as Record<string, number>) || {},
-          environmentVariables: (deploymentConfig?.environmentVariables as Record<string, string>) || {},
-        }
-      } else if (selectedStrategy.name === 'ecs') {
-        newDeploymentConfig = {
-          provisioningMode,
-          clusterArn: provisioningMode === 'prebuilt' ? (formData.get('clusterArn') as string) || '' : '',
-          taskDefinitionArn: provisioningMode === 'prebuilt' ? (formData.get('taskDefinitionArn') as string) || '' : '',
-          subnetIds: (deploymentConfig?.subnetIds as string[]) || [],
-          securityGroupIds: (deploymentConfig?.securityGroupIds as string[]) || [],
-        }
-      } else if (selectedStrategy.name === 'aws-lambda-container') {
-        newDeploymentConfig = {
-          provisioningMode,
-          functionArn: provisioningMode === 'prebuilt' ? (formData.get('functionArn') as string) || '' : '',
-        }
-      }
+    const configFilesResult = buildConfigFiles(agentInstructions, skills)
+    if (configFilesResult.error) {
+      setError(configFilesResult.error)
+      setIsSubmitting(false)
+      return
     }
+
+    const newDeploymentConfig = buildClankerDeploymentConfig({
+      strategyName: selectedStrategy?.name,
+      selectedAgent,
+      form: {
+        provisioningMode,
+        containerImage: ((formData.get('containerImage') as string) || '').trim(),
+        clusterArn: ((formData.get('clusterArn') as string) || '').trim(),
+        taskDefinitionArn: ((formData.get('taskDefinitionArn') as string) || '').trim(),
+        functionArn: ((formData.get('functionArn') as string) || '').trim(),
+        lambdaMemorySize: ((formData.get('lambdaMemorySize') as string) || '').trim(),
+        lambdaTimeout: ((formData.get('lambdaTimeout') as string) || '').trim(),
+        codexAuthMode,
+        qwenEndpoint,
+        opencodeEndpoint,
+        opencodeModel,
+        geminiModel,
+      },
+    })
 
     try {
       const updated = await updateClanker(clanker.id, {
@@ -147,7 +273,7 @@ export function EditClankerPage() {
         description: (formData.get('description') as string) || null,
         deploymentStrategyId: selectedStrategyId || null,
         deploymentConfig: newDeploymentConfig,
-        configFiles: configFilesArray,
+        configFiles: configFilesResult.files,
         agent: selectedAgent || null,
         secretIds: selectedSecretIds,
       })
@@ -170,12 +296,18 @@ export function EditClankerPage() {
     return null
   }
 
+  const parsedDeploymentForm = readClankerDeploymentConfig({
+    deploymentConfig: clanker.deploymentConfig,
+    agent: clanker.agent,
+  }).form
+
   return (
     <>
+      <PageMeta title={clanker ? `Edit ${clanker.name}` : 'Edit Clanker'} />
       <Heading>Edit Clanker</Heading>
       <Subheading className="mt-2">Update the configuration for {clanker.name}.</Subheading>
 
-      <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
+      <form onSubmit={handleSubmit} className="mt-8 w-full max-w-6xl">
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
             {error}
@@ -183,7 +315,9 @@ export function EditClankerPage() {
         )}
 
         <Fieldset>
-          <FieldGroup>
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Metadata</legend>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Core identity for this clanker.</p>
+          <FieldGroup className="mt-6">
             <Field>
               <Label>Name</Label>
               <Description>A unique name for your clanker.</Description>
@@ -195,194 +329,180 @@ export function EditClankerPage() {
               <Description>A brief description of what this clanker does.</Description>
               <Textarea name="description" rows={3} defaultValue={clanker.description || ''} />
             </Field>
+          </FieldGroup>
+        </Fieldset>
 
+        <Fieldset className="mt-10">
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Agent</legend>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Pick an agent</p>
+          <FieldGroup className="mt-6">
+            <Field>
+              <Label>Agent Selection</Label>
+              <Description>Select which AI agent powers this clanker.</Description>
+              <AgentSelectionCards value={selectedAgent} onChange={setSelectedAgent} />
+            </Field>
+
+            <AgentSpecificFields
+              selectedAgent={selectedAgent}
+              strategyName={selectedStrategy?.name}
+              codexAuthMode={codexAuthMode}
+              qwenEndpoint={qwenEndpoint}
+              opencodeEndpoint={opencodeEndpoint}
+              opencodeModel={opencodeModel}
+              geminiModel={geminiModel}
+              onCodexAuthModeChange={setCodexAuthMode}
+              onQwenEndpointChange={setQwenEndpoint}
+              onOpenCodeEndpointChange={setOpencodeEndpoint}
+              onOpenCodeModelChange={setOpencodeModel}
+              onGeminiModelChange={setGeminiModel}
+            />
+
+            <Field>
+              <div className="flex items-center justify-between">
+                <Label>Secrets</Label>
+                <CheckboxField>
+                  <Checkbox
+                    checked={showAllSecrets}
+                    onChange={(checked) => {
+                      if (typeof checked === 'boolean') {
+                        setShowAllSecrets(checked)
+                      }
+                    }}
+                  />
+                  <Label>Show all secrets</Label>
+                </CheckboxField>
+              </div>
+              <Description>{secretPickerDescription}</Description>
+              <div className="mt-3">
+                <MultiSelect
+                  label=""
+                  options={selectableSecrets.map((secret) => ({
+                    id: secret.id,
+                    label: secret.name,
+                    description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
+                  }))}
+                  value={selectedSecretIds}
+                  onChange={setSelectedSecretIds}
+                  emptyMessage={secretPickerEmptyMessage}
+                  searchable={true}
+                />
+              </div>
+            </Field>
+          </FieldGroup>
+        </Fieldset>
+
+        <Fieldset className="mt-10">
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Deployment</legend>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Choose where this clanker runs and provide strategy-specific runtime settings.
+          </p>
+          <FieldGroup className="mt-6">
             <Field>
               <Label>Deployment Strategy</Label>
-              <Description>Choose how to deploy this clanker.</Description>
-              <Select
-                name="deploymentStrategyId"
+              <Description>Choose where this clanker runs.</Description>
+              <DeploymentStrategyCards
+                strategies={deploymentStrategies}
                 value={selectedStrategyId}
-                onChange={(e) => {
-                  setSelectedStrategyId(e)
+                onChange={(strategyId) => {
+                  setSelectedStrategyId(strategyId)
                   setProvisioningMode('managed')
                 }}
-              >
-                <option value="none">Select a deployment strategy...</option>
-                {deploymentStrategies.map((strategy) => (
-                  <option key={strategy.id} value={strategy.id}>
-                    {strategy.name.charAt(0).toUpperCase() + strategy.name.slice(1)}
-                    {strategy.description ? ` - ${strategy.description}` : ''}
-                  </option>
-                ))}
-              </Select>
+              />
             </Field>
 
-            {selectedStrategy && (
-              <Field>
-                <Label>Provisioning Mode</Label>
-                <Description>Choose whether the platform manages resources or you provide your own.</Description>
-                <SegmentedControl
-                  options={[
-                    { value: 'managed', label: 'Managed' },
-                    { value: 'prebuilt', label: 'Pre-built' },
-                  ]}
-                  value={provisioningMode}
-                  onChange={(v) => setProvisioningMode(v as 'managed' | 'prebuilt')}
-                />
-              </Field>
-            )}
-
-            {selectedStrategy?.name === 'docker' && provisioningMode === 'prebuilt' && (
-              <Field>
-                <Label>Container Image</Label>
-                <Description>The Docker image to use for this clanker.</Description>
-                <Input
-                  name="containerImage"
-                  defaultValue={(deploymentConfig?.containerImage as string) || ''}
-                  placeholder="ghcr.io/myorg/clanker:latest"
-                />
-              </Field>
-            )}
-
-            {selectedStrategy?.name === 'docker' && provisioningMode === 'managed' && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                Image will be built from the project Dockerfile on start.
-              </div>
-            )}
-
-            {selectedStrategy?.name === 'ecs' && provisioningMode === 'prebuilt' && (
-              <>
-                <Field>
-                  <Label>Cluster ARN</Label>
-                  <Description>The ARN of the ECS cluster.</Description>
-                  <Input
-                    name="clusterArn"
-                    defaultValue={(deploymentConfig?.clusterArn as string) || ''}
-                    placeholder="arn:aws:ecs:eu-west-1:123456789:cluster/my-cluster"
-                  />
-                </Field>
-                <Field>
-                  <Label>Task Definition ARN</Label>
-                  <Description>The ARN of the ECS task definition.</Description>
-                  <Input
-                    name="taskDefinitionArn"
-                    defaultValue={(deploymentConfig?.taskDefinitionArn as string) || ''}
-                    placeholder="arn:aws:ecs:eu-west-1:123456789:task-definition/my-task:1"
-                  />
-                </Field>
-              </>
-            )}
-
-            {selectedStrategy?.name === 'ecs' && provisioningMode === 'managed' && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                Task definition and cluster config will use platform defaults.
-              </div>
-            )}
-
-            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'prebuilt' && (
-              <Field>
-                <Label>Function ARN</Label>
-                <Description>The ARN of the existing Lambda function.</Description>
-                <Input
-                  name="functionArn"
-                  defaultValue={(deploymentConfig?.functionArn as string) || ''}
-                  placeholder="arn:aws:lambda:eu-west-1:123456789:function/my-function"
-                />
-              </Field>
-            )}
-
-            {selectedStrategy?.name === 'aws-lambda-container' && provisioningMode === 'managed' && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                Lambda function will be created on start.
-              </div>
-            )}
-
-            <Field>
-              <Label>Agent</Label>
-              <Description>Select which AI agent to use for this clanker.</Description>
-              <Select name="agent" value={selectedAgent} onChange={(value) => setSelectedAgent(value as AgentType)}>
-                <option value="claude-code">Claude Code (Recommended)</option>
-                <option value="qwen-cli">Qwen CLI</option>
-                <option value="qwen-api">Qwen API</option>
-                <option value="codex">OpenAI Codex</option>
-                <option value="gemini-cli">Gemini CLI</option>
-                <option value="mistral-vibe">Mistral Vibe</option>
-              </Select>
-            </Field>
-
-            <MultiSelect
-              label="Secrets"
-              description="Select which secrets should be available to this clanker during execution."
-              options={secrets.map((secret) => ({
-                id: secret.id,
-                label: secret.name,
-                description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
-              }))}
-              value={selectedSecretIds}
-              onChange={setSelectedSecretIds}
-              emptyMessage="No secrets available. Create secrets first in the Settings section."
-              searchable={true}
+            <StrategySpecificFields
+              strategyName={selectedStrategy?.name}
+              provisioningMode={provisioningMode}
+              onProvisioningModeChange={setProvisioningMode}
+              defaults={parsedDeploymentForm}
             />
           </FieldGroup>
         </Fieldset>
 
         <Fieldset className="mt-10">
-          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Configuration Files</legend>
+          <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Additional Data</legend>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Add markdown files that define how your clanker behaves. You can add custom file types as needed.
+            Define global behavior in AGENTS.md and add reusable skills under skills/.
           </p>
 
           <FieldGroup className="mt-6">
-            {DEFAULT_CONFIG_FILE_TYPES.map((fileConfig) => (
-              <Field key={fileConfig.type}>
-                <Label>{fileConfig.label}</Label>
-                <Textarea
-                  rows={6}
-                  value={configFiles[fileConfig.type] || ''}
-                  onChange={(e) => handleConfigFileChange(fileConfig.type, e.target.value)}
-                  placeholder={fileConfig.placeholder}
-                  className="font-mono"
-                />
-              </Field>
-            ))}
+            <Field>
+              <div className="flex items-center justify-between">
+                <Label>AGENTS.md</Label>
+                <div className="flex gap-2">
+                  <input
+                    ref={agentsFileInputRef}
+                    type="file"
+                    accept=".md,text/markdown"
+                    onChange={handleAgentsUpload}
+                    className="hidden"
+                  />
+                  <Button type="button" outline onClick={() => agentsFileInputRef.current?.click()}>
+                    Upload .md
+                  </Button>
+                </div>
+              </div>
+              <Description>Main instruction file used to guide this clanker.</Description>
+              <Textarea
+                rows={8}
+                value={agentInstructions}
+                onChange={(event) => setAgentInstructions(event.target.value)}
+                placeholder="Describe how this clanker should behave..."
+                className="font-mono"
+              />
+            </Field>
 
-            {Object.keys(configFiles)
-              .filter((type) => !DEFAULT_CONFIG_FILE_TYPES.some((d) => d.type === type))
-              .map((fileType) => (
-                <Field key={fileType}>
-                  <div className="flex items-center justify-between">
-                    <Label>{fileType}</Label>
-                    <button
-                      type="button"
-                      onClick={() => removeConfigFile(fileType)}
-                      className="text-sm text-red-600 hover:text-red-700 dark:text-red-400"
-                    >
+            <Field>
+              <div className="flex items-center justify-between">
+                <Label>Skill Files (skills/**)</Label>
+                <div className="flex gap-2">
+                  <input
+                    ref={skillsFileInputRef}
+                    type="file"
+                    multiple
+                    accept=".md,text/markdown"
+                    onChange={handleSkillsUpload}
+                    className="hidden"
+                  />
+                  <Button type="button" outline onClick={() => skillsFileInputRef.current?.click()}>
+                    Upload .md Files
+                  </Button>
+                  <Button type="button" outline onClick={addSkill}>
+                    Add Skill
+                  </Button>
+                </div>
+              </div>
+              <Description>Each skill must use a path under skills/, for example skills/review.md.</Description>
+            </Field>
+
+            {skills.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                No skill files yet. Add one manually or upload markdown files.
+              </div>
+            ) : (
+              skills.map((skill) => (
+                <div key={skill.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Input
+                      value={skill.path}
+                      onChange={(event) => updateSkill(skill.id, { path: event.target.value })}
+                      placeholder="skills/example.md"
+                      className="font-mono"
+                    />
+                    <Button type="button" plain onClick={() => removeSkill(skill.id)}>
                       Remove
-                    </button>
+                    </Button>
                   </div>
                   <Textarea
                     rows={6}
-                    value={configFiles[fileType] || ''}
-                    onChange={(e) => handleConfigFileChange(fileType, e.target.value)}
-                    placeholder={`Content for ${fileType}...`}
+                    value={skill.content}
+                    onChange={(event) => updateSkill(skill.id, { content: event.target.value })}
+                    placeholder="Skill instructions..."
                     className="font-mono"
                   />
-                </Field>
-              ))}
-
-            <div className="flex items-end gap-2">
-              <Field className="flex-1">
-                <Label>Add Custom Config File</Label>
-                <Input
-                  value={customConfigFileName}
-                  onChange={(e) => setCustomConfigFileName(e.target.value)}
-                  placeholder="e.g., prompts.md, tools.yaml"
-                />
-              </Field>
-              <Button type="button" outline onClick={addCustomConfigFile} disabled={!customConfigFileName.trim()}>
-                Add File
-              </Button>
-            </div>
+                </div>
+              ))
+            )}
           </FieldGroup>
         </Fieldset>
 
@@ -397,5 +517,4 @@ export function EditClankerPage() {
       </form>
     </>
   )
-
 }

@@ -549,27 +549,34 @@ export function CustomOutboundWebhookSection({
   const testSendDisabled = !selectedDestination || isCreatingNew || isSaving || isSendingTest
 
   return (
-    <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
+    <section className="app-frame rounded-lg p-6">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 12h-20M22 12l-8-8M22 12l-8 8" />
+          </svg>
+        </div>
+      </div>
       <Subheading>Custom Outbound Destinations</Subheading>
-      <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+      <Text className="text-sm text-[var(--gray-9)]">
         Configure multiple outbound destinations with destination-specific auth, headers, retry policy, and event
         selection.
       </Text>
 
       {isLoading ? (
-        <div className="mt-4 text-sm text-zinc-500">Loading outbound destinations...</div>
+        <div className="mt-4 text-sm text-[var(--gray-9)]">Loading outbound destinations...</div>
       ) : (
         <div className="mt-4 grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
           <div className="space-y-2">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">Destinations</p>
+              <p className="text-sm font-medium text-[var(--gray-12)]">Destinations</p>
               <Button color="zinc" size="small" onClick={onCreateNewDestination} disabled={isSaving}>
                 Add
               </Button>
             </div>
 
             {destinations.length === 0 ? (
-              <div className="rounded-md border border-dashed border-zinc-300 p-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+              <div className="rounded-md border border-dashed border-[var(--gray-7)] bg-[var(--gray-2)] p-3 text-xs text-[var(--gray-9)]">
                 No destinations configured yet.
               </div>
             ) : (
@@ -583,19 +590,19 @@ export function CustomOutboundWebhookSection({
                     className={[
                       'w-full rounded-md border px-3 py-2 text-left transition',
                       selected
-                        ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-950/20'
-                        : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700',
+                        ? 'border-[var(--accent-9)] bg-[var(--accent-3)]'
+                        : 'border-[var(--gray-6)] bg-[var(--gray-2)] hover:border-[var(--gray-7)]',
                     ].join(' ')}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium text-zinc-900 dark:text-white">
+                      <span className="truncate text-sm font-medium text-[var(--gray-12)]">
                         {destination.name || destination.targetUrl || destination.id}
                       </span>
                       <Badge color={destination.active ? 'green' : 'amber'}>
                         {destination.active ? 'Active' : 'Disabled'}
                       </Badge>
                     </div>
-                    <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-1 truncate text-xs text-[var(--gray-9)]">
                       {formatEventSummary(destination.events)}
                     </p>
                   </button>
@@ -605,17 +612,17 @@ export function CustomOutboundWebhookSection({
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800">
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">
+            <div className="rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-3">
+              <p className="text-sm font-medium text-[var(--gray-12)]">
                 {isCreatingNew ? 'Create destination' : 'Edit destination'}
               </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1.5 text-xs text-[var(--gray-9)]">
                 Sensitive fields stay masked. Enter a new value only when rotating a secret.
               </p>
             </div>
 
             <div>
-              <label htmlFor="customOutboundDestinationName" className="block text-sm font-medium text-zinc-900 dark:text-white">
+              <label htmlFor="customOutboundDestinationName" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
                 Destination name
               </label>
               <input
@@ -624,20 +631,20 @@ export function CustomOutboundWebhookSection({
                 value={form.name}
                 onChange={(event) => updateForm('name', event.target.value)}
                 placeholder="Primary sink"
-                className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
               />
               {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
             </div>
 
             {projects && projects.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
                   Link to Project
                 </label>
                 <select
                   value={form.projectId ?? ''}
                   onChange={(event) => updateForm('projectId', event.target.value || null)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 >
                   <option value="">Global (all projects)</option>
                   {projects.map((project) => (
@@ -646,7 +653,7 @@ export function CustomOutboundWebhookSection({
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mt-1.5 text-xs text-[var(--gray-9)]">
                   Events from this destination will be linked to the selected project.
                 </p>
               </div>
@@ -654,7 +661,7 @@ export function CustomOutboundWebhookSection({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor="customOutboundDestinationUrl" className="block text-sm font-medium text-zinc-900 dark:text-white">
+                <label htmlFor="customOutboundDestinationUrl" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
                   Destination URL
                 </label>
                 <input
@@ -663,15 +670,15 @@ export function CustomOutboundWebhookSection({
                   value={form.targetUrl}
                   onChange={(event) => updateForm('targetUrl', event.target.value)}
                   placeholder="https://hooks.example.com/viberator"
-                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Method</label>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Method</label>
                 <select
                   value={form.method}
                   onChange={(event) => updateForm('method', event.target.value as CustomOutboundMethod)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 >
                   <option value="POST">POST</option>
                   <option value="PUT">PUT</option>
@@ -683,31 +690,31 @@ export function CustomOutboundWebhookSection({
             {errors.method && <p className="text-xs text-red-600 dark:text-red-400">{errors.method}</p>}
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">Events</p>
+              <p className="text-sm font-medium text-[var(--gray-12)]">Events</p>
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={form.emitJobStarted}
                   onChange={(event) => updateForm('emitJobStarted', event.target.checked)}
-                  className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
+                  className="text-[var(--accent-9)] focus:ring-[var(--accent-9)] h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)]"
                 />
-                <span className="text-sm text-zinc-900 dark:text-white">Emit `job_started`</span>
+                <span className="text-sm text-[var(--gray-12)]">Emit `job_started`</span>
               </label>
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={form.emitJobEnded}
                   onChange={(event) => updateForm('emitJobEnded', event.target.checked)}
-                  className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
+                  className="text-[var(--accent-9)] focus:ring-[var(--accent-9)] h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)]"
                 />
-                <span className="text-sm text-zinc-900 dark:text-white">Emit `job_ended`</span>
+                <span className="text-sm text-[var(--gray-12)]">Emit `job_ended`</span>
               </label>
               {errors.events && <p className="text-xs text-red-600 dark:text-red-400">{errors.events}</p>}
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-zinc-900 dark:text-white">Headers</p>
+                <p className="text-sm font-medium text-[var(--gray-12)]">Headers</p>
                 <div className="flex gap-2">
                   <Button color="zinc" size="small" onClick={() => setShowHeaderValues((value) => !value)}>
                     {showHeaderValues ? 'Hide values' : 'Show values'}
@@ -719,7 +726,7 @@ export function CustomOutboundWebhookSection({
               </div>
 
               {form.headers.length === 0 ? (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">No custom headers configured.</p>
+                <p className="text-xs text-[var(--gray-9)]">No custom headers configured.</p>
               ) : (
                 <div className="space-y-2">
                   {form.headers.map((header) => (
@@ -729,14 +736,14 @@ export function CustomOutboundWebhookSection({
                         value={header.key}
                         onChange={(event) => updateHeader(header.id, { key: event.target.value })}
                         placeholder="x-api-key"
-                        className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       />
                       <input
                         type={showHeaderValues ? 'text' : 'password'}
                         value={header.value}
                         onChange={(event) => updateHeader(header.id, { value: event.target.value })}
                         placeholder={showHeaderValues ? 'value' : 'stored header value'}
-                        className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       />
                       <Button color="red" size="small" onClick={() => removeHeader(header.id)}>
                         Remove
@@ -749,11 +756,11 @@ export function CustomOutboundWebhookSection({
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-zinc-900 dark:text-white">Authentication</label>
+              <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Authentication</label>
               <select
                 value={form.authType}
                 onChange={(event) => updateForm('authType', event.target.value as CustomAuthType)}
-                className="w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
               >
                 <option value="none">None</option>
                 <option value="bearer">Bearer token</option>
@@ -776,7 +783,7 @@ export function CustomOutboundWebhookSection({
                     placeholder={
                       selectedDestination?.auth?.hasToken ? 'Stored token (enter to rotate)' : 'Bearer token'
                     }
-                    className="w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    className="w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                   />
                 </div>
               )}
@@ -788,7 +795,7 @@ export function CustomOutboundWebhookSection({
                     value={form.authUsername}
                     onChange={(event) => updateForm('authUsername', event.target.value)}
                     placeholder="Username"
-                    className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                   />
                   <input
                     type={showAuthSecret ? 'text' : 'password'}
@@ -797,7 +804,7 @@ export function CustomOutboundWebhookSection({
                     placeholder={
                       selectedDestination?.auth?.hasPassword ? 'Stored password (enter to rotate)' : 'Password'
                     }
-                    className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                   />
                 </div>
               )}
@@ -809,7 +816,7 @@ export function CustomOutboundWebhookSection({
                     value={form.authHeaderName}
                     onChange={(event) => updateForm('authHeaderName', event.target.value)}
                     placeholder="x-auth-token"
-                    className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                   />
                   <input
                     type={showAuthSecret ? 'text' : 'password'}
@@ -820,7 +827,7 @@ export function CustomOutboundWebhookSection({
                         ? 'Stored header value (enter to rotate)'
                         : 'Header value'
                     }
-                    className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    className="rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                   />
                 </div>
               )}
@@ -830,7 +837,7 @@ export function CustomOutboundWebhookSection({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Signing secret</label>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Signing secret</label>
                 <div className="mt-1 flex gap-2">
                   <input
                     type={showSigningSecret ? 'text' : 'password'}
@@ -841,7 +848,7 @@ export function CustomOutboundWebhookSection({
                         ? 'Stored secret (enter to rotate)'
                         : 'Optional HMAC signing secret'
                     }
-                    className="w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                    className="w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                   />
                   <Button color="zinc" onClick={() => setShowSigningSecret((value) => !value)}>
                     {showSigningSecret ? 'Hide' : 'Show'}
@@ -849,11 +856,11 @@ export function CustomOutboundWebhookSection({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Signature algorithm</label>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Signature algorithm</label>
                 <select
                   value={form.signatureAlgorithm}
                   onChange={(event) => updateForm('signatureAlgorithm', event.target.value as SignatureAlgorithm)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 >
                   <option value="sha256">sha256</option>
                   <option value="sha1">sha1</option>
@@ -864,36 +871,36 @@ export function CustomOutboundWebhookSection({
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Max attempts</label>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Max attempts</label>
                 <input
                   type="number"
                   min={1}
                   max={10}
                   value={form.retryMaxAttempts}
                   onChange={(event) => updateForm('retryMaxAttempts', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Backoff (ms)</label>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Backoff (ms)</label>
                 <input
                   type="number"
                   min={0}
                   max={60000}
                   value={form.retryBackoffMs}
                   onChange={(event) => updateForm('retryBackoffMs', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-900 dark:text-white">Max backoff (ms)</label>
+                <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Max backoff (ms)</label>
                 <input
                   type="number"
                   min={0}
                   max={600000}
                   value={form.retryMaxBackoffMs}
                   onChange={(event) => updateForm('retryMaxBackoffMs', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                  className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 />
               </div>
             </div>
@@ -904,21 +911,21 @@ export function CustomOutboundWebhookSection({
                 type="checkbox"
                 checked={form.active}
                 onChange={(event) => updateForm('active', event.target.checked)}
-                className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
+                className="text-[var(--accent-9)] focus:ring-[var(--accent-9)] h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)]"
               />
-              <span className="text-sm text-zinc-900 dark:text-white">Destination active</span>
+              <span className="text-sm text-[var(--gray-12)]">Destination active</span>
             </label>
 
             {lastTestResult && (
-              <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800">
+              <div className="rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-zinc-900 dark:text-white">Last test send</p>
+                  <p className="text-sm font-medium text-[var(--gray-12)]">Last test send</p>
                   <Badge color={lastTestResult.success ? 'green' : 'red'}>
                     {lastTestResult.success ? 'Succeeded' : 'Failed'}
                   </Badge>
                 </div>
                 <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{lastTestResult.message}</p>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mt-1.5 text-xs text-[var(--gray-9)]">
                   {new Date(lastTestResult.testedAt).toLocaleString()}
                   {lastTestResult.statusCode ? ` - HTTP ${lastTestResult.statusCode}` : ''}
                 </p>

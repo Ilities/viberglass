@@ -11,16 +11,64 @@ import type {
   WebhookStatus,
 } from '@viberglass/types'
 
+export interface TicketListResponse {
+  tickets: Ticket[]
+  pagination: {
+    limit: number
+    offset: number
+    count: number
+    total: number
+  }
+}
+
 // Tickets API
-export async function getTickets(params: TicketListParams = {}): Promise<Ticket[]> {
-  const { projectId, projectSlug, limit = 50, offset = 0 } = params
-  const query = projectSlug ? `projectSlug=${projectSlug}` : projectId ? `projectId=${projectId}` : ''
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets?${query}&limit=${limit}&offset=${offset}`)
+export async function getTickets(params: TicketListParams = {}): Promise<TicketListResponse> {
+  const {
+    projectId,
+    projectSlug,
+    limit = 50,
+    offset = 0,
+    statuses,
+    archived,
+    severity,
+    search,
+  } = params
+
+  const queryParams = new URLSearchParams()
+  if (projectSlug) {
+    queryParams.set('projectSlug', projectSlug)
+  } else if (projectId) {
+    queryParams.set('projectId', projectId)
+  }
+  queryParams.set('limit', String(limit))
+  queryParams.set('offset', String(offset))
+  if (statuses && statuses.length > 0) {
+    queryParams.set('statuses', statuses.join(','))
+  }
+  if (archived) {
+    queryParams.set('archived', archived)
+  }
+  if (severity) {
+    queryParams.set('severity', severity)
+  }
+  if (search && search.trim()) {
+    queryParams.set('search', search.trim())
+  }
+
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets?${queryParams.toString()}`)
   if (!response.ok) {
     throw new Error('Failed to fetch tickets')
   }
   const data: PaginatedResponse<Ticket> = await response.json()
-  return data.data
+  return {
+    tickets: data.data,
+    pagination: {
+      limit: data.pagination.limit,
+      offset: data.pagination.offset,
+      count: data.pagination.count,
+      total: data.pagination.total ?? data.pagination.count,
+    },
+  }
 }
 
 export async function getTicketStats(params: { projectId?: string; projectSlug?: string } = {}): Promise<TicketStats> {
@@ -118,6 +166,34 @@ export async function deleteTicket(id: string): Promise<void> {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.message || 'Failed to delete ticket')
   }
+}
+
+export async function archiveTickets(ticketIds: string[]): Promise<number> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/archive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ticketIds }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || 'Failed to archive tickets')
+  }
+  const data: ApiResponse<{ updatedCount: number }> = await response.json()
+  return data.data.updatedCount
+}
+
+export async function unarchiveTickets(ticketIds: string[]): Promise<number> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/unarchive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ticketIds }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || 'Failed to unarchive tickets')
+  }
+  const data: ApiResponse<{ updatedCount: number }> = await response.json()
+  return data.data.updatedCount
 }
 
 export async function getMediaSignedUrl(

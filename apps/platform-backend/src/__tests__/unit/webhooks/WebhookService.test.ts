@@ -1,5 +1,9 @@
 import { WebhookService } from "../../../webhooks/WebhookService";
 import { createDefaultInboundEventProcessorResolver } from "../../../webhooks/InboundEventProcessorResolver";
+import { WebhookConfigResolver } from "../../../webhooks/WebhookConfigResolver";
+import { createDefaultProviderWebhookPolicyResolver } from "../../../webhooks/ProviderWebhookPolicyResolver";
+import { InboundWebhookDeliveryLifecycle } from "../../../webhooks/InboundWebhookDeliveryLifecycle";
+import { WebhookRetryService } from "../../../webhooks/WebhookRetryService";
 import type { ParsedWebhookEvent, WebhookProvider } from "../../../webhooks/WebhookProvider";
 import type { WebhookConfig } from "../../../persistence/webhook/WebhookConfigDAO";
 
@@ -270,28 +274,55 @@ describe("WebhookService", () => {
     };
     const ticketDAO = {
       createTicket: jest.fn().mockResolvedValue({ id: "ticket-1" }),
+      findLatestShortcutStoryTicketByStoryId: jest.fn().mockResolvedValue(null),
       updateTicket: jest.fn().mockResolvedValue(undefined),
     };
     const jobService = {
       submitJob: jest.fn().mockResolvedValue({ jobId: "job-1" }),
+    };
+    const projectScmConfigDAO = {
+      getByProjectId: jest.fn().mockResolvedValue(null),
+    };
+    const projectIntegrationLinkDAO = {
+      getIntegrationProjects: jest.fn().mockResolvedValue([]),
     };
 
     // Create the processor resolver with the mocked dependencies
     const processorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO as any,
       jobService as any,
+      projectScmConfigDAO as any,
+      projectIntegrationLinkDAO as any,
+    );
+    const configResolver = new WebhookConfigResolver(configDAO as any);
+    const providerPolicyResolver = createDefaultProviderWebhookPolicyResolver();
+    const deliveryLifecycle = new InboundWebhookDeliveryLifecycle(
+      deduplication as any,
+      deliveryDAO as any,
+    );
+    const serviceConfig = {
+      defaultTenantId: "tenant-default",
+    };
+    const retryService = new WebhookRetryService(
+      registry as any,
+      configResolver,
+      deliveryLifecycle,
+      providerPolicyResolver,
+      processorResolver,
+      deliveryDAO as any,
+      serviceConfig,
     );
 
     const service = new WebhookService(
       registry as any,
-      configDAO as any,
-      deliveryDAO as any,
       deduplication as any,
       secretService as any,
       processorResolver,
-      {
-        defaultTenantId: "tenant-default",
-      },
+      configResolver,
+      providerPolicyResolver,
+      deliveryLifecycle,
+      retryService,
+      serviceConfig,
     );
 
     return {
@@ -305,6 +336,7 @@ describe("WebhookService", () => {
         secretService,
         ticketDAO,
         jobService,
+        projectIntegrationLinkDAO,
       },
     };
   }
@@ -322,7 +354,7 @@ describe("WebhookService", () => {
     const result = await service.processWebhook(
       {
         "x-shortcut-delivery": "shortcut-delivery",
-        "x-shortcut-signature": "sha256=valid-signature",
+        "payload-signature": "sha256=valid-signature",
       },
       event.payload,
       rawBody,
@@ -380,7 +412,7 @@ describe("WebhookService", () => {
     const result = await service.processWebhook(
       {
         "x-shortcut-delivery": "shortcut-delivery-story-1",
-        "x-shortcut-signature": "sha256=valid-signature",
+        "payload-signature": "sha256=valid-signature",
       },
       event.payload,
       rawBody,
@@ -394,6 +426,244 @@ describe("WebhookService", () => {
       "321",
       "inbound",
     );
+  });
+
+  it("creates Shortcut ticket and prefers config project linkage", async () => {
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_created"];
+    config.autoExecute = false;
+    config.projectId = "project-from-config";
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_created",
+      deduplicationId: "shortcut-delivery-project-1",
+      timestamp: "2026-02-09T00:00:00.000Z",
+      payload: {
+        object_type: "story",
+        action: "create",
+        data: {
+          id: 777,
+          name: "Shortcut story",
+          description: "Story body",
+          story_type: "feature",
+          app_url: "https://app.shortcut.com/acme/story/777",
+        },
+      },
+      metadata: {
+        issueKey: "777",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-project-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-from-config",
+        title: "Shortcut story",
+        autoFixRequested: false,
+      }),
+    );
+    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+  });
+
+  it("creates Shortcut ticket using integration-linked project when config project is missing", async () => {
+    const linkedProjectId = "11111111-1111-4111-8111-111111111111";
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_created"];
+    config.projectId = null;
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_created",
+      deduplicationId: "shortcut-delivery-linked-project-1",
+      timestamp: "2026-02-09T00:00:00.000Z",
+      payload: {
+        object_type: "story",
+        action: "create",
+        data: {
+          id: 888,
+          name: "Shortcut story linked project",
+          description: "Story body",
+          story_type: "feature",
+          app_url: "https://app.shortcut.com/acme/story/888",
+        },
+      },
+      metadata: {
+        issueKey: "888",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+    mocks.projectIntegrationLinkDAO.getIntegrationProjects.mockResolvedValue([
+      {
+        id: "link-1",
+        projectId: linkedProjectId,
+        integrationId: "integration-1",
+        isPrimary: true,
+        createdAt: "2026-02-09T00:00:00.000Z",
+      },
+    ]);
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-linked-project-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.projectIntegrationLinkDAO.getIntegrationProjects).toHaveBeenCalledWith(
+      "integration-1",
+    );
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: linkedProjectId,
+        title: "Shortcut story linked project",
+      }),
+    );
+  });
+
+  it("updates existing Shortcut ticket for story_updated events", async () => {
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_updated"];
+    config.projectId = "project-from-config";
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_updated",
+      deduplicationId: "shortcut-delivery-updated-1",
+      timestamp: "2026-02-16T12:05:30.000Z",
+      payload: {
+        object_type: "story",
+        action: "update",
+        data: {
+          id: 777,
+          name: "Shortcut story updated",
+          description: "Updated body from Shortcut",
+          story_type: "bug",
+          app_url: "https://app.shortcut.com/acme/story/777",
+        },
+      },
+      metadata: {
+        issueKey: "777",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue({
+      id: "ticket-shortcut-777",
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-updated-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result).toEqual({
+      status: "processed",
+      ticketId: "ticket-shortcut-777",
+      jobId: undefined,
+    });
+    expect(mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId).toHaveBeenCalledWith(
+      "project-from-config",
+      "777",
+    );
+    expect(mocks.ticketDAO.updateTicket).toHaveBeenCalledWith(
+      "ticket-shortcut-777",
+      expect.objectContaining({
+        title: "Shortcut story updated",
+        description: "Updated body from Shortcut",
+        severity: "high",
+        category: "bug",
+        externalTicketId: "777",
+        externalTicketUrl: "https://app.shortcut.com/acme/story/777",
+      }),
+    );
+  });
+
+  it("ignores Shortcut story_updated when no matching Viberglass ticket exists", async () => {
+    const config = createConfig("shortcut");
+    config.allowedEvents = ["story_updated"];
+    config.projectId = "project-from-config";
+
+    const event: ParsedWebhookEvent = {
+      provider: "shortcut",
+      eventType: "story_updated",
+      deduplicationId: "shortcut-delivery-updated-missing-1",
+      timestamp: "2026-02-16T12:05:30.000Z",
+      payload: {
+        object_type: "story",
+        action: "update",
+        data: {
+          id: 999,
+          description: "Updated body from Shortcut",
+        },
+      },
+      metadata: {
+        issueKey: "999",
+        repositoryId: "shortcut-project-1",
+      },
+    };
+
+    const { service, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+    mocks.ticketDAO.findLatestShortcutStoryTicketByStoryId.mockResolvedValue(null);
+
+    const result = await service.processWebhook(
+      {
+        "x-shortcut-delivery": "shortcut-delivery-updated-missing-1",
+        "payload-signature": "sha256=valid-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result.status).toBe("ignored");
+    expect(result.reason).toBe("No Viberglass ticket found for Shortcut story '999'");
+    expect(mocks.ticketDAO.updateTicket).not.toHaveBeenCalled();
   });
 
   it("uses Jira signature headers consistently for verification", async () => {
@@ -762,6 +1032,84 @@ describe("WebhookService", () => {
       }),
       { ticketId: "ticket-1" },
     );
+  });
+
+  it("skips GitHub auto-execute when label-gated policy does not match issue labels", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issues.opened"];
+    config.autoExecute = true;
+    config.labelMappings = {
+      github: {
+        autoExecuteMode: "label_gated",
+        requiredLabels: ["autofix"],
+      },
+    };
+
+    const event = createGitHubIssuesEvent("opened");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "github" },
+    );
+
+    expect(result.status).toBe("processed");
+    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoFixRequested: false,
+      }),
+    );
+  });
+
+  it("submits GitHub auto-execute job when label-gated policy matches issue labels", async () => {
+    const config = createConfig("github");
+    config.allowedEvents = ["issues.opened"];
+    config.autoExecute = true;
+    config.labelMappings = {
+      github: {
+        autoExecuteMode: "label_gated",
+        requiredLabels: ["high"],
+      },
+    };
+
+    const event = createGitHubIssuesEvent("opened");
+    const { service, mocks } = createHarness({
+      providerName: "github",
+      event,
+      config,
+    });
+
+    const result = await service.processWebhook(
+      {
+        "x-hub-signature-256": "sha256=github-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "github" },
+    );
+
+    expect(result).toEqual({
+      status: "processed",
+      ticketId: "ticket-1",
+      jobId: "job-1",
+    });
+    expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoFixRequested: true,
+      }),
+    );
+    expect(mocks.jobService.submitJob).toHaveBeenCalledTimes(1);
   });
 
   it("creates ticket and job for bot-triggered issue_comment.created flow", async () => {

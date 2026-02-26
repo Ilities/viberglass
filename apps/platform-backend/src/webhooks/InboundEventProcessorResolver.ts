@@ -9,6 +9,8 @@
 import type { ParsedWebhookEvent, ProviderType } from './WebhookProvider';
 import type { WebhookConfig } from '../persistence/webhook/WebhookConfigDAO';
 import type { TicketDAO } from '../persistence/ticketing/TicketDAO';
+import type { ProjectScmConfigDAO } from '../persistence/project/ProjectScmConfigDAO';
+import type { ProjectIntegrationLinkDAO } from '../persistence/integrations/ProjectIntegrationLinkDAO';
 import type { JobService } from '../services/JobService';
 
 /**
@@ -105,19 +107,23 @@ export class InboundEventProcessorResolver {
 export function createDefaultInboundEventProcessorResolver(
   ticketDAO: TicketDAO,
   jobService: JobService,
+  projectScmConfigDAO: ProjectScmConfigDAO,
+  projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
 ): InboundEventProcessorResolver {
   // Defer import to avoid circular dependencies
+  /* eslint-disable @typescript-eslint/no-require-imports */
   const { DefaultInboundProcessor } = require('./inbound-processors/DefaultInboundProcessor');
   const { GitHubInboundProcessor } = require('./inbound-processors/GitHubInboundProcessor');
   const { JiraInboundProcessor } = require('./inbound-processors/JiraInboundProcessor');
   const { ShortcutInboundProcessor } = require('./inbound-processors/ShortcutInboundProcessor');
   const { CustomInboundProcessor } = require('./inbound-processors/CustomInboundProcessor');
+  /* eslint-enable @typescript-eslint/no-require-imports */
 
   return new InboundEventProcessorResolver([
     new DefaultInboundProcessor(),
-    new GitHubInboundProcessor(ticketDAO, jobService),
+    new GitHubInboundProcessor(ticketDAO, jobService, projectScmConfigDAO),
     new JiraInboundProcessor(ticketDAO, jobService),
-    new ShortcutInboundProcessor(ticketDAO, jobService),
+    new ShortcutInboundProcessor(ticketDAO, jobService, projectIntegrationLinkDAO),
     new CustomInboundProcessor(ticketDAO),
   ]);
 }

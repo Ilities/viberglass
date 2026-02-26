@@ -36,13 +36,15 @@ type ButtonColor = keyof typeof colorMap
 function getVariantAndColor(
   color?: ButtonColor,
   outline?: boolean,
-  plain?: boolean
+  plain?: boolean,
+  surface?: boolean
 ): {
   variant: 'solid' | 'outline' | 'ghost' | 'surface'
   color?: string
 } {
   if (outline) return { variant: 'outline' }
   if (plain) return { variant: 'ghost' }
+  if (surface) return { variant: 'surface', color: color ? colorMap[color] : 'gray' }
 
   if (color === 'light' || color === 'white') {
     return { variant: 'surface', color: 'gray' }
@@ -52,9 +54,10 @@ function getVariantAndColor(
 }
 
 type ButtonProps = (
-  | { color?: ButtonColor; outline?: never; plain?: never }
-  | { color?: never; outline: true; plain?: never }
-  | { color?: never; outline?: never; plain: true }
+  | { color?: ButtonColor; outline?: never; plain?: never; surface?: never }
+  | { color?: never; outline: true; plain?: never; surface?: never }
+  | { color?: never; outline?: never; plain: true; surface?: never }
+  | { color?: ButtonColor; outline?: never; plain?: never; surface: true }
 ) & { className?: string; children: React.ReactNode; size?: 'small' | 'medium' | 'large' } & (
     | ({ href?: never } & React.ButtonHTMLAttributes<HTMLButtonElement>)
     | ({ href: string; disabled?: boolean } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'className'>)
@@ -67,10 +70,10 @@ const sizeClasses = {
 }
 
 export const Button = forwardRef(function Button(
-  { color, outline, plain, className, children, size, ...props }: ButtonProps,
+  { color, outline, plain, surface, className, children, size, ...props }: ButtonProps,
   ref: React.ForwardedRef<HTMLElement>
 ) {
-  const { variant, color: mappedColor } = getVariantAndColor(color, outline, plain)
+  const { variant, color: mappedColor } = getVariantAndColor(color, outline, plain, surface)
   const isLink = typeof props.href === 'string'
 
   const gradientClass = color === 'brand/gradient' ? 'bg-brand-gradient' : undefined

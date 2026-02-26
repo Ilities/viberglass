@@ -4,101 +4,77 @@ import { Text } from '@/components/text'
 import type { IntegrationOutboundWebhookConfig } from '@/service/api/integration-api'
 
 interface GitHubOutboundWebhookSectionProps {
-  emitJobEnded: boolean
-  emitJobStarted: boolean
-  hasOutboundChanges: boolean
   isSavingWebhook: boolean
   outboundApiToken: string
   outboundWebhook: IntegrationOutboundWebhookConfig | null
   repositoryMapping: string | null
-  onDeleteOutboundWebhook: () => void
-  onEmitJobEndedChange: (value: boolean) => void
-  onEmitJobStartedChange: (value: boolean) => void
   onOutboundApiTokenChange: (value: string) => void
   onSaveOutboundWebhook: () => void
 }
 
 export function GitHubOutboundWebhookSection({
-  emitJobEnded,
-  emitJobStarted,
-  hasOutboundChanges,
   isSavingWebhook,
   outboundApiToken,
   outboundWebhook,
   repositoryMapping,
-  onDeleteOutboundWebhook,
-  onEmitJobEndedChange,
-  onEmitJobStartedChange,
   onOutboundApiTokenChange,
   onSaveOutboundWebhook,
 }: GitHubOutboundWebhookSectionProps) {
+  const issuePreview = repositoryMapping ? `${repositoryMapping}#123` : 'Resolved from inbound ticket metadata'
+  const saveDisabled = isSavingWebhook || (!outboundWebhook && outboundApiToken.trim().length === 0)
+
   return (
-    <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-      <Subheading>GitHub Outbound Events</Subheading>
-      <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Send job lifecycle feedback back to GitHub issues and comments.
+    <section className="app-frame rounded-lg p-6">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 12h-20M22 12l-8-8M22 12l-8 8" />
+          </svg>
+        </div>
+      </div>
+      <Subheading>GitHub Feedback</Subheading>
+      <Text className="text-sm text-[var(--gray-9)]">
+        Publish job lifecycle feedback back to the originating GitHub issue or comment context.
       </Text>
 
-      <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
-        <p className="text-sm font-medium text-zinc-900 dark:text-white">Repository mapping preview</p>
-        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-          Outbound events are currently targeted to:
+      <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
+        <p className="text-sm font-medium text-[var(--gray-12)]">Always-on feedback events</p>
+        <p className="mt-1 text-xs text-[var(--gray-9)]">
+          Viberglass always sends `job_started` and `job_ended` updates for tickets created from GitHub inbound events.
         </p>
-        <code className="mt-2 inline-block rounded bg-zinc-200 px-2 py-1 text-xs dark:bg-zinc-700">
-          {repositoryMapping || 'No repository mapping available'}
-        </code>
+        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+          <code className="rounded bg-zinc-200 px-2 py-1 dark:bg-zinc-700">
+            Repository mapping: {repositoryMapping || 'Not configured'}
+          </code>
+          <code className="rounded bg-zinc-200 px-2 py-1 dark:bg-zinc-700">Issue target: {issuePreview}</code>
+        </div>
+        {!repositoryMapping && (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+            Save an inbound GitHub repository mapping to strengthen project-scoped outbound config matching.
+          </p>
+        )}
       </div>
 
-      <div className="mt-4 space-y-4">
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="githubEmitJobStarted"
-            checked={emitJobStarted}
-            onChange={(event) => onEmitJobStartedChange(event.target.checked)}
-            className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
-          />
-          <label htmlFor="githubEmitJobStarted" className="text-sm text-zinc-900 dark:text-white">
-            Publish `job_started` status comment
-          </label>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="githubEmitJobEnded"
-            checked={emitJobEnded}
-            onChange={(event) => onEmitJobEndedChange(event.target.checked)}
-            className="text-brand-600 focus:ring-brand-600 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
-          />
-          <label htmlFor="githubEmitJobEnded" className="text-sm text-zinc-900 dark:text-white">
-            Publish `job_ended` completion/failure updates
-          </label>
-        </div>
-
+      <div className="mt-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-zinc-900 dark:text-white">GitHub API Token</label>
+          <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">GitHub API token</label>
           <input
             type="password"
             value={outboundApiToken}
             onChange={(event) => onOutboundApiTokenChange(event.target.value)}
             placeholder={outboundWebhook?.hasApiToken ? 'Stored token (leave empty to keep)' : 'Enter API token'}
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+            className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
           />
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Use a token with repository permissions required for issue comments and label updates.
+          <p className="mt-1.5 text-xs text-[var(--gray-9)]">
+            Use a token that can comment on issues and update labels. Rotate regularly and leave this field empty
+            after rotation to keep the stored token.
           </p>
         </div>
 
-        <div className="flex gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-          <Button color="brand" onClick={onSaveOutboundWebhook} disabled={isSavingWebhook || !hasOutboundChanges}>
-            {isSavingWebhook ? 'Saving...' : outboundWebhook ? 'Save outbound settings' : 'Create outbound config'}
+        <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+          <Button color="brand" onClick={onSaveOutboundWebhook} disabled={saveDisabled}>
+            {isSavingWebhook ? 'Saving...' : outboundWebhook ? 'Save feedback settings' : 'Enable feedback'}
           </Button>
-          {outboundWebhook && (
-            <Button color="red" onClick={onDeleteOutboundWebhook} disabled={isSavingWebhook}>
-              Remove outbound webhook
-            </Button>
-          )}
         </div>
       </div>
     </section>

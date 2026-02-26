@@ -19,6 +19,8 @@ interface UseIntegrationWebhookSettingsArgs {
   integrationEntityId?: string
 }
 
+type GitHubAutoExecuteMode = 'matching_events' | 'label_gated'
+
 function areEventListsEqual(left: string[], right: string[]): boolean {
   const normalizedLeft = Array.from(new Set(left)).sort()
   const normalizedRight = Array.from(new Set(right)).sort()
@@ -28,6 +30,64 @@ function areEventListsEqual(left: string[], right: string[]): boolean {
   }
 
   return normalizedLeft.every((event, index) => event === normalizedRight[index])
+}
+
+function areStringListsEqual(left: string[], right: string[]): boolean {
+  const normalizedLeft = Array.from(new Set(left.map((value) => value.trim().toLowerCase()).filter(Boolean))).sort()
+  const normalizedRight = Array.from(
+    new Set(right.map((value) => value.trim().toLowerCase()).filter(Boolean))
+  ).sort()
+
+  if (normalizedLeft.length !== normalizedRight.length) {
+    return false
+  }
+
+  return normalizedLeft.every((value, index) => value === normalizedRight[index])
+}
+
+function normalizeGitHubRequiredLabels(rawLabels: unknown): string[] {
+  if (!Array.isArray(rawLabels)) {
+    return []
+  }
+
+  const normalizedLabels: string[] = []
+  for (const label of rawLabels) {
+    if (typeof label !== 'string') {
+      continue
+    }
+
+    const normalized = label.trim().toLowerCase()
+    if (!normalized || normalizedLabels.includes(normalized)) {
+      continue
+    }
+    normalizedLabels.push(normalized)
+  }
+
+  return normalizedLabels
+}
+
+function parseGitHubAutoExecuteSettings(labelMappings?: Record<string, unknown> | null): {
+  mode: GitHubAutoExecuteMode
+  requiredLabels: string[]
+} {
+  if (!labelMappings || typeof labelMappings !== 'object' || Array.isArray(labelMappings)) {
+    return { mode: 'matching_events', requiredLabels: [] }
+  }
+
+  const nested =
+    typeof labelMappings.github === 'object' && labelMappings.github !== null && !Array.isArray(labelMappings.github)
+      ? (labelMappings.github as Record<string, unknown>)
+      : labelMappings
+
+  const mode =
+    nested.autoExecuteMode === 'label_gated'
+      ? 'label_gated'
+      : 'matching_events'
+
+  return {
+    mode,
+    requiredLabels: normalizeGitHubRequiredLabels(nested.requiredLabels ?? nested.labels),
+  }
 }
 
 export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegrationWebhookSettingsArgs) {
@@ -47,6 +107,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
   const [isSavingWebhook, setIsSavingWebhook] = useState(false)
   const [selectedInboundProjectId, setSelectedInboundProjectId] = useState<string | null>(null)
   const [selectedInboundProviderProjectId, setSelectedInboundProviderProjectId] = useState<string | null>(null)
+  const [githubAutoExecuteMode, setGitHubAutoExecuteMode] = useState<GitHubAutoExecuteMode>('matching_events')
+  const [githubRequiredLabels, setGitHubRequiredLabels] = useState<string[]>([])
 
   const selectedInboundConfig = useMemo(
     () => inboundWebhooks.find((config) => config.id === selectedInboundConfigId) || null,
@@ -72,6 +134,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         setOutboundApiToken('')
         setSelectedInboundProjectId(null)
         setSelectedInboundProviderProjectId(null)
+        setGitHubAutoExecuteMode('matching_events')
+        setGitHubRequiredLabels([])
         return
       }
 
@@ -131,12 +195,17 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
       setInboundEvents(selectedInboundConfig.events)
       setSelectedInboundProjectId(selectedInboundConfig.projectId ?? null)
       setSelectedInboundProviderProjectId(selectedInboundConfig.providerProjectId ?? null)
+      const autoExecuteSettings = parseGitHubAutoExecuteSettings(selectedInboundConfig.labelMappings)
+      setGitHubAutoExecuteMode(autoExecuteSettings.mode)
+      setGitHubRequiredLabels(autoExecuteSettings.requiredLabels)
     } else {
       setAutoExecute(false)
       setInboundActive(true)
       setInboundEvents([])
       setSelectedInboundProjectId(null)
       setSelectedInboundProviderProjectId(null)
+      setGitHubAutoExecuteMode('matching_events')
+      setGitHubRequiredLabels([])
     }
   }, [selectedInboundConfig])
 
@@ -170,7 +239,11 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     void loadDeliveriesForConfig(integrationEntityId, selectedInboundConfigId, false)
   }, [integrationEntityId, loadDeliveriesForConfig, selectedInboundConfigId])
 
-  const handleGenerateSecret = async (providerProjectId?: string | null, projectId?: string | null) => {
+  const handleGenerateSecret = async (
+    providerProjectId?: string | null,
+    projectId?: string | null,
+    labelMappings?: Record<string, unknown>
+  ) => {
     if (!integrationEntityId) {
       return
     }
@@ -190,6 +263,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
             active: inboundActive,
             providerProjectId,
             projectId,
+            labelMappings,
           })
         : await createIntegrationInboundWebhook(integrationEntityId, {
             generateSecret: true,
@@ -198,6 +272,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
             active: true,
             providerProjectId,
             projectId,
+            labelMappings,
           })
 
       setInboundWebhooks((prev) => {
@@ -220,7 +295,11 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleCreateInboundWebhook = async (providerProjectId?: string | null, projectId?: string | null) => {
+  const handleCreateInboundWebhook = async (
+    providerProjectId?: string | null,
+    projectId?: string | null,
+    labelMappings?: Record<string, unknown>
+  ) => {
     if (!integrationEntityId) {
       return
     }
@@ -233,6 +312,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         active: true,
         providerProjectId,
         projectId,
+        labelMappings,
       })
       setInboundWebhooks((prev) => [...prev, config])
       setSelectedInboundConfigId(config.id)
@@ -247,7 +327,11 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleSaveInboundWebhook = async (providerProjectId?: string | null, projectId?: string | null) => {
+  const handleSaveInboundWebhook = async (
+    providerProjectId?: string | null,
+    projectId?: string | null,
+    labelMappings?: Record<string, unknown>
+  ) => {
     if (!integrationEntityId || !selectedInboundConfig) {
       return
     }
@@ -265,6 +349,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         active: inboundActive,
         providerProjectId,
         projectId,
+        labelMappings,
       })
       setInboundWebhooks((prev) => prev.map((item) => (item.id === config.id ? config : item)))
       toast.success('Inbound webhook settings saved')
@@ -458,12 +543,16 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
+  const selectedInboundAutoExecuteSettings = parseGitHubAutoExecuteSettings(selectedInboundConfig?.labelMappings)
+
   const hasInboundChanges = selectedInboundConfig
     ? autoExecute !== selectedInboundConfig.autoExecute ||
       inboundActive !== selectedInboundConfig.active ||
       !areEventListsEqual(inboundEvents, selectedInboundConfig.events) ||
       selectedInboundProjectId !== (selectedInboundConfig.projectId ?? null) ||
-      selectedInboundProviderProjectId !== (selectedInboundConfig.providerProjectId ?? null)
+      selectedInboundProviderProjectId !== (selectedInboundConfig.providerProjectId ?? null) ||
+      githubAutoExecuteMode !== selectedInboundAutoExecuteSettings.mode ||
+      !areStringListsEqual(githubRequiredLabels, selectedInboundAutoExecuteSettings.requiredLabels)
     : false
 
   const hasOutboundChanges = outboundWebhook
@@ -477,6 +566,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     deliveries,
     emitJobEnded,
     emitJobStarted,
+    githubAutoExecuteMode,
+    githubRequiredLabels,
     hasInboundChanges,
     hasOutboundChanges,
     inboundActive,
@@ -495,6 +586,8 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     setAutoExecute,
     setEmitJobEnded,
     setEmitJobStarted,
+    setGitHubAutoExecuteMode,
+    setGitHubRequiredLabels,
     setInboundActive,
     setOutboundApiToken,
     setSelectedInboundProviderProjectId,

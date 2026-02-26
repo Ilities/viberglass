@@ -9,11 +9,8 @@
  * - ClusterNotFoundException classification (permanent)
  */
 
-import { EcsInvoker } from "../../../../workers/invokers/EcsInvoker";
-import {
-  WorkerError,
-  ErrorClassification,
-} from "../../../../workers/errors/WorkerError";
+import { EcsInvoker } from "../../../../workers";
+import { ErrorClassification } from "../../../../workers";
 import type { Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
 
@@ -59,17 +56,24 @@ describe("EcsInvoker", () => {
       slug: "ecs-fixer",
       description: "Fixes bugs via ECS",
       status: "active",
+      agent: "kimi-code",
       configFiles: [],
       secretIds: [],
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {
-        clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
-        taskDefinitionArn:
-          "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
-        launchType: "FARGATE",
-        subnetIds: ["subnet-123", "subnet-456"],
-        securityGroupIds: ["sg-123"],
+        version: 1,
+        strategy: {
+          type: "ecs",
+          clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
+          taskDefinitionArn:
+            "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
+          subnetIds: ["subnet-123", "subnet-456"],
+          securityGroupIds: ["sg-123"],
+        },
+        agent: {
+          type: "kimi-code",
+        },
       },
     };
   });
@@ -361,10 +365,17 @@ describe("EcsInvoker", () => {
         const clankerWithoutCluster: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            taskDefinitionArn:
-              "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
-            subnetIds: ["subnet-123"],
-            securityGroupIds: ["sg-123"],
+            version: 1,
+            strategy: {
+              type: "ecs",
+              taskDefinitionArn:
+                "arn:aws:ecs:eu-west-1:123456789:task-definition/viberator-worker:1",
+              subnetIds: ["subnet-123"],
+              securityGroupIds: ["sg-123"],
+            },
+            agent: {
+              type: "kimi-code",
+            },
           },
         };
 
@@ -384,9 +395,16 @@ describe("EcsInvoker", () => {
         const clankerWithoutTaskDef: Clanker = {
           ...mockClanker,
           deploymentConfig: {
-            clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
-            subnetIds: ["subnet-123"],
-            securityGroupIds: ["sg-123"],
+            version: 1,
+            strategy: {
+              type: "ecs",
+              clusterArn: "arn:aws:ecs:eu-west-1:123456789:cluster/viberator",
+              subnetIds: ["subnet-123"],
+              securityGroupIds: ["sg-123"],
+            },
+            agent: {
+              type: "kimi-code",
+            },
           },
         };
 
@@ -426,7 +444,15 @@ describe("EcsInvoker", () => {
       it("should throw PERMANENT error when both clusterArn and taskDefinitionArn are missing", async () => {
         const clankerWithEmptyConfig: Clanker = {
           ...mockClanker,
-          deploymentConfig: {},
+          deploymentConfig: {
+            version: 1,
+            strategy: {
+              type: "ecs",
+            },
+            agent: {
+              type: "kimi-code",
+            },
+          },
         };
 
         await expect(
@@ -463,9 +489,10 @@ describe("EcsInvoker", () => {
         ]);
 
         const payload = JSON.parse(override.command[3]);
-        expect(payload.workerType).toBe("docker");
+        expect(payload.workerType).toBe("ecs");
         expect(payload.jobId).toBe(mockJob.id);
         expect(payload.tenantId).toBe(mockJob.tenantId);
+        expect(payload.agent).toBe("kimi-code");
         expect(payload.repository).toBe(mockJob.repository);
         expect(payload.task).toBe(mockJob.task);
         expect(payload.requiredCredentials).toEqual([]);

@@ -1,4 +1,5 @@
 import { Heading, Subheading } from '@/components/heading'
+import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useProject } from '@/context/project-context'
 import {
@@ -142,17 +143,22 @@ export function ProjectIntegrationsPage() {
 
   if (isProjectLoading || isLoading) {
     return (
-      <div className="space-y-8 p-6 lg:p-8">
-        <div>
-          <Heading>Integrations</Heading>
-          <Text className="mt-2">Loading integrations...</Text>
+      <>
+        <PageMeta title="Integrations" />
+        <div className="space-y-8 p-6 lg:p-8">
+          <div>
+            <Heading>Integrations</Heading>
+            <Text className="mt-2">Loading integrations...</Text>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
+    <>
+      <PageMeta title="Integrations" />
+      <div className="space-y-8 p-6 lg:p-8">
       {/* Header */}
       <div>
         <Heading>Integrations</Heading>
@@ -252,6 +258,7 @@ export function ProjectIntegrationsPage() {
         </div>
       </section>
     </div>
+    </>
   )
 }
 
@@ -363,11 +370,7 @@ function getDescriptionFromSystem(system: string): string {
     bitbucket: 'Atlassian Bitbucket issue tracking for teams using Bitbucket Git.',
     jira: 'Create and sync issues with Atlassian Jira. Supports Jira Cloud and Server.',
     linear: 'Streamlined issue tracking with Linear. Perfect for modern product teams.',
-    azure: 'Azure DevOps Boards integration for Microsoft-centric workflows.',
-    asana: 'Project management and issue tracking with Asana.',
-    trello: 'Kanban-style issue organization using Trello boards.',
     monday: 'Work operating system for issue and project management.',
-    clickup: 'All-in-one productivity platform for issue tracking.',
     shortcut: 'Project management for software teams (formerly Clubhouse).',
     slack: 'Send notifications and create issues directly from Slack channels.',
     custom: 'Receive tickets from any external system via a simple JSON webhook.',
@@ -383,11 +386,7 @@ function IntegrationIcon({ system }: { system: string }) {
     bitbucket: 'bg-blue-500 text-white',
     jira: 'bg-blue-600 text-white',
     linear: 'bg-purple-500 text-white',
-    azure: 'bg-blue-700 text-white',
-    asana: 'bg-red-500 text-white',
-    trello: 'bg-blue-400 text-white',
     monday: 'bg-yellow-500 text-white',
-    clickup: 'bg-purple-600 text-white',
     shortcut: 'bg-green-500 text-white',
     slack: 'bg-pink-500 text-white',
     custom: 'bg-gray-500 text-white',

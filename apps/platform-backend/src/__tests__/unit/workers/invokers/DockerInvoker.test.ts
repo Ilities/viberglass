@@ -8,14 +8,10 @@
  * - Other errors default to PERMANENT
  */
 
-import { DockerInvoker } from "../../../../workers/invokers/DockerInvoker";
-import {
-  WorkerError,
-  ErrorClassification,
-} from "../../../../workers/errors/WorkerError";
+import { DockerInvoker } from "../../../../workers";
+import { ErrorClassification } from "../../../../workers";
 import type { Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
-import Docker from "dockerode";
 
 // Mock dockerode
 const mockCreateContainer = jest.fn();
@@ -70,6 +66,7 @@ describe("DockerInvoker", () => {
       slug: "docker-fixer",
       description: "Fixes bugs via Docker",
       status: "active",
+      agent: "kimi-code",
       configFiles: [],
       secretIds: [],
       createdAt: "2024-01-01T00:00:00Z",
@@ -411,6 +408,38 @@ describe("DockerInvoker", () => {
         );
       });
 
+      it("should mount job volume bindings as read-only by default", async () => {
+        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+
+        const jobWithMounts: JobData = {
+          ...mockJob,
+          mounts: [
+            {
+              hostPath: "/tmp/viberator-ticket-media/screenshots/a.png",
+              containerPath: "/tmp/viberator-ticket-media/screenshots/a.png",
+            },
+            {
+              hostPath: "/tmp/viberator-ticket-media/recordings/b.mp4",
+              containerPath: "/tmp/viberator-ticket-media/recordings/b.mp4",
+              readOnly: false,
+            },
+          ],
+        };
+
+        await invoker.invoke(jobWithMounts, mockClanker);
+
+        expect(mockCreateContainer).toHaveBeenCalledWith(
+          expect.objectContaining({
+            HostConfig: expect.objectContaining({
+              Binds: expect.arrayContaining([
+                "/tmp/viberator-ticket-media/screenshots/a.png:/tmp/viberator-ticket-media/screenshots/a.png:ro",
+                "/tmp/viberator-ticket-media/recordings/b.mp4:/tmp/viberator-ticket-media/recordings/b.mp4:rw",
+              ]),
+            }),
+          }),
+        );
+      });
+
       it("should include callback token in worker payload", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 
@@ -422,12 +451,14 @@ describe("DockerInvoker", () => {
         await invoker.invoke(jobWithCallbackToken, mockClanker);
 
         const createContainerCall = mockCreateContainer.mock.calls[0][0];
-        const payloadArg = createContainerCall.Cmd[
-          createContainerCall.Cmd.indexOf("--job-data") + 1
-        ];
+        const payloadArg =
+          createContainerCall.Cmd[
+            createContainerCall.Cmd.indexOf("--job-data") + 1
+          ];
         const payload = JSON.parse(payloadArg);
 
         expect(payload.callbackToken).toBe("cb-token-123");
+        expect(payload.agent).toBe("kimi-code");
       });
 
       it("should use job-ref command and callback token env when bootstrap payload is available", async () => {
@@ -454,7 +485,9 @@ describe("DockerInvoker", () => {
           mockJob.id,
         ]);
         expect(createContainerCall.Env).toEqual(
-          expect.arrayContaining([expect.stringContaining("CALLBACK_TOKEN=cb-token-456")]),
+          expect.arrayContaining([
+            expect.stringContaining("CALLBACK_TOKEN=cb-token-456"),
+          ]),
         );
       });
     });

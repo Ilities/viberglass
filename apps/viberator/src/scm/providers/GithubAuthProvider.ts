@@ -17,7 +17,28 @@ export class GithubAuthProvider implements SCMAuthProvider {
     console.log(
       "GitHub auth: Checking for GITHUB_TOKEN or GH_TOKEN environment variable...",
     );
-    return process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    
+    // Primary: exact match for standard token names
+    const primaryToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    if (primaryToken) {
+      return primaryToken;
+    }
+    
+    // Fallback: search for any env var that looks like a GitHub token
+    // (contains "github" and "token" in the name)
+    const envVars = Object.keys(process.env);
+    const githubTokenVar = envVars.find(
+      (key) =>
+        key.toUpperCase().includes("GITHUB") &&
+        key.toUpperCase().includes("TOKEN"),
+    );
+    
+    if (githubTokenVar) {
+      console.log(`GitHub auth: Found token in ${githubTokenVar}`);
+      return process.env[githubTokenVar];
+    }
+    
+    return undefined;
   }
 
   hasCredentials(): boolean {

@@ -1,18 +1,66 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
-import { Table, TableBody, TableCell, TableRow } from '@/components/table'
-import { formatAutoFixStatus, formatSeverity, formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
+import { InfoItem } from '@/components/info-item'
+import { PageMeta } from '@/components/page-meta'
+import { Section } from '@/components/section'
+import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
 import type { Clanker, Ticket } from '@viberglass/types'
-import { ArrowLeftIcon, EyeOpenIcon, Pencil1Icon, TrashIcon } from '@radix-ui/react-icons'
+import {
+  ArrowLeftIcon,
+  CalendarIcon,
+  ClockIcon,
+  CubeIcon,
+  ExternalLinkIcon,
+  EyeOpenIcon,
+  FileTextIcon,
+  Pencil1Icon,
+  StackIcon,
+  TrashIcon,
+} from '@radix-ui/react-icons'
 import { useParams, useNavigate } from 'react-router-dom'
-import { EnhanceFixButton } from './enhance-fix-button'
+
 import { TicketRunButton } from './ticket-run-button'
 import { useEffect, useState } from 'react'
 import { deleteTicket, updateTicket } from '@/service/api/ticket-api'
 import { toast } from 'sonner'
 import { EditTicketDialog } from './edit-ticket-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
+
+function formatTicketId(ticketId: string): string {
+  if (ticketId.length <= 20) return ticketId
+  return `${ticketId.slice(0, 8)}...${ticketId.slice(-6)}`
+}
+
+function getSeverityBadge(severity: string): { label: string; color: 'red' | 'amber' | 'green' | 'zinc' } {
+  switch (severity) {
+    case 'critical':
+      return { label: 'Critical', color: 'red' }
+    case 'high':
+      return { label: 'High', color: 'amber' }
+    case 'medium':
+      return { label: 'Medium', color: 'amber' }
+    case 'low':
+      return { label: 'Low', color: 'green' }
+    default:
+      return { label: 'Unknown', color: 'zinc' }
+  }
+}
+
+function getAutoFixBadge(status?: string): { label: string; color: 'green' | 'amber' | 'red' | 'zinc' } {
+  switch (status) {
+    case 'completed':
+      return { label: 'Fixed', color: 'green' }
+    case 'in_progress':
+      return { label: 'Fixing', color: 'amber' }
+    case 'pending':
+      return { label: 'Pending', color: 'amber' }
+    case 'failed':
+      return { label: 'Failed', color: 'red' }
+    default:
+      return { label: 'Not Requested', color: 'zinc' }
+  }
+}
 
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
@@ -25,177 +73,173 @@ export function TicketDetailPage() {
 
   useEffect(() => {
     async function loadData() {
-      const [t, c] = await Promise.all([getTicketDetails(id!), getClankersList()])
-
-      if (!t) {
+      if (!id) {
         setIsLoading(false)
         return
       }
 
-      setTicket(t)
-      setClankers(c)
-      setIsLoading(false)
+      try {
+        const [t, c] = await Promise.all([getTicketDetails(id), getClankersList()])
+        if (!t) {
+          setIsLoading(false)
+          return
+        }
+        setTicket(t)
+        setClankers(c)
+      } finally {
+        setIsLoading(false)
+      }
     }
-    loadData()
+    void loadData()
   }, [id])
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-zinc-500 dark:text-zinc-400">Loading...</div>
+        <div className="text-[var(--gray-9)]">Loading ticket details...</div>
       </div>
     )
   }
 
-  if (!ticket) {
-    return null
+  if (!ticket || !project) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-red-600 dark:text-red-400">Ticket not found</div>
+      </div>
+    )
   }
+
+  const severityBadge = getSeverityBadge(ticket.severity)
+  const autoFixBadge = getAutoFixBadge(ticket.autoFixStatus)
 
   return (
     <>
-      <div className="flex items-center gap-4">
-        <Button href={`/project/${project}/tickets`} plain>
-          <ArrowLeftIcon className="h-5 w-5" />
-          Back to Tickets
-        </Button>
-      </div>
-
-      <div className="mt-8 flex items-start justify-between">
-        <div className="flex-1">
-          <Heading>{ticket.title}</Heading>
-          <div className="mt-4 flex items-center gap-4">
-            <Badge className={formatSeverity(ticket.severity).color}>{formatSeverity(ticket.severity).label}</Badge>
-            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200">
-              {ticket.category}
-            </Badge>
-            {ticket.externalTicketId && (
-              <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-200">
-                {formatTicketSystem(ticket.ticketSystem)} #{ticket.externalTicketId}
-              </Badge>
-            )}
-            {ticket.autoFixStatus && (
-              <Badge className={formatAutoFixStatus(ticket.autoFixStatus).color}>
-                {formatAutoFixStatus(ticket.autoFixStatus).label}
-              </Badge>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setIsEditDialogOpen(true)} outline>
-            <Pencil1Icon className="h-4 w-4" />
-            Edit
+      <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Ticket` : 'Ticket'} />
+      <div className="h-full flex flex-col">
+        <div className="flex items-center gap-4 mb-6">
+          <Button href={`/project/${project}/tickets`} plain>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Back to Tickets
           </Button>
-          <Button onClick={() => setIsDeleteDialogOpen(true)} color="red">
-            <TrashIcon className="h-4 w-4" />
-            Delete
-          </Button>
-          <TicketRunButton ticket={ticket} clankers={clankers} project={project!} />
-          <EnhanceFixButton href={`/project/${project}/enhance?id=${ticket.id}`} />
-          {ticket.screenshot && (
-            <Button href={`/project/${project}/tickets/${ticket.id}/media`} plain>
-              <EyeOpenIcon className="h-5 w-5" />
-              View Screenshots
-            </Button>
-          )}
         </div>
-      </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Subheading>Description</Subheading>
-          <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
-            <p className="text-zinc-700 dark:text-zinc-300">{ticket.description}</p>
+        <div className="mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent-4)] to-[var(--accent-3)] text-[var(--accent-11)] shadow-sm">
+                <FileTextIcon className="h-7 w-7" />
+              </div>
+
+              <div>
+                <Heading className="text-2xl">{ticket.title}</Heading>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <Badge color={severityBadge.color}>{severityBadge.label}</Badge>
+                  <Badge color="blue">{ticket.category}</Badge>
+                  <Badge color={autoFixBadge.color}>{autoFixBadge.label}</Badge>
+                  {ticket.externalTicketId && (
+                    <Badge color="violet">
+                      {formatTicketSystem(ticket.ticketSystem)} #{ticket.externalTicketId}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {ticket.externalTicketUrl && (
+                <Button href={ticket.externalTicketUrl} target="_blank" plain>
+                  <ExternalLinkIcon className="h-4 w-4" />
+                  External Ticket
+                </Button>
+              )}
+              {ticket.screenshot && (
+                <Button href={`/project/${project}/tickets/${ticket.id}/media`} plain>
+                  <EyeOpenIcon className="h-4 w-4" />
+                  View Screenshots
+                </Button>
+              )}
+              <TicketRunButton ticket={ticket} clankers={clankers} project={project} />
+
+              <Button onClick={() => setIsEditDialogOpen(true)} outline>
+                <Pencil1Icon className="h-4 w-4" />
+                Edit
+              </Button>
+              <Button surface color="red" onClick={() => setIsDeleteDialogOpen(true)} aria-label="Delete ticket">
+                <TrashIcon className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          {Array.isArray(ticket.metadata?.errors) && ticket.metadata.errors.length > 0 && (
-            <>
-              <Subheading className="mt-8">JavaScript Errors</Subheading>
-              <div className="mt-4 space-y-4">
-                {ticket.metadata.errors.map((error, index) => (
-                  <div
-                    key={index}
-                    className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10"
-                  >
-                    <div className="font-medium text-red-900 dark:text-red-200">{error.message}</div>
-                    {error.stack && (
-                      <pre className="mt-2 text-sm whitespace-pre-wrap text-red-700 dark:text-red-300">
-                        {error.stack}
-                      </pre>
-                    )}
-                    {error.filename && (
-                      <div className="mt-2 text-sm text-red-600 dark:text-red-300">
-                        {error.filename}:{error.lineno}:{error.colno}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {ticket.metadata.console && ticket.metadata.console.length > 0 && (
-            <>
-              <Subheading className="mt-8">Console Logs</Subheading>
-              <div className="mt-4 space-y-2">
-                {ticket.metadata.console.map((log, index) => (
-                  <div
-                    key={index}
-                    className={`rounded p-3 text-sm ${
-                      log.level === 'error'
-                        ? 'bg-red-50 text-red-900 dark:bg-red-500/10 dark:text-red-200'
-                        : log.level === 'warn'
-                          ? 'bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200'
-                          : 'bg-gray-50 text-gray-900 dark:bg-white/10 dark:text-zinc-200'
-                    }`}
-                  >
-                    <span className="font-medium uppercase">{log.level}:</span> {log.message}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </div>
 
-        <div>
-          <Subheading>Technical Details</Subheading>
-          <Table className="mt-4">
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Browser</TableCell>
-                <TableCell>
-                  {ticket.metadata?.browser?.name} {ticket.metadata?.browser?.version}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">OS</TableCell>
-                <TableCell>
-                  {ticket.metadata?.os?.name} {ticket.metadata?.os?.version}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Screen Size</TableCell>
-                <TableCell>
-                  {ticket.metadata?.screen?.width}×{ticket.metadata?.screen?.height}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Viewport</TableCell>
-                <TableCell>
-                  {ticket.metadata?.screen?.viewportWidth}×{ticket.metadata?.screen?.viewportHeight}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Page URL</TableCell>
-                <TableCell className="break-all">{ticket.metadata?.pageUrl}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Timestamp</TableCell>
-                <TableCell>
-                  {ticket.metadata?.timestamp ? new Date(ticket.metadata.timestamp).toLocaleString() : '\u2014'}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+        <div className="flex-1 min-h-0">
+          <div className="grid gap-6 lg:grid-cols-12 h-full">
+            <div className="lg:col-span-4 xl:col-span-3 space-y-1">
+              <div className="app-frame rounded-lg p-4">
+                <Section title="Ticket Information">
+                  <InfoItem
+                    icon={<StackIcon className="h-4 w-4" />}
+                    label="Ticket ID"
+                    value={<span className="font-mono text-xs">{ticket.id}</span>}
+                  />
+                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <InfoItem
+                    icon={<FileTextIcon className="h-4 w-4" />}
+                    label="Display ID"
+                    value={formatTicketId(ticket.id)}
+                  />
+                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <InfoItem
+                    icon={<CubeIcon className="h-4 w-4" />}
+                    label="Category"
+                    value={ticket.category}
+                  />
+                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <InfoItem
+                    icon={<ExternalLinkIcon className="h-4 w-4" />}
+                    label="Ticket System"
+                    value={formatTicketSystem(ticket.ticketSystem)}
+                  />
+                </Section>
+              </div>
+
+              <div className="app-frame rounded-lg p-4">
+                <Section title="Timeline">
+                  <InfoItem
+                    icon={<CalendarIcon className="h-4 w-4" />}
+                    label="Created"
+                    value={new Date(ticket.createdAt).toLocaleString()}
+                  />
+                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <InfoItem
+                    icon={<ClockIcon className="h-4 w-4" />}
+                    label="Updated"
+                    value={new Date(ticket.updatedAt).toLocaleString()}
+                  />
+                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <InfoItem
+                    icon={<ClockIcon className="h-4 w-4" />}
+                    label="Reported"
+                    value={ticket.metadata?.timestamp ? new Date(ticket.metadata.timestamp).toLocaleString() : '—'}
+                  />
+                </Section>
+              </div>
+            </div>
+
+            <div className="lg:col-span-8 xl:col-span-9">
+              <div className="space-y-6">
+                <div className="app-frame rounded-lg p-6">
+                  <Subheading className="mb-4 flex items-center gap-2">
+                    <FileTextIcon className="h-5 w-5 text-[var(--accent-9)]" />
+                    Description
+                  </Subheading>
+                  <div className="prose prose-sm max-w-none text-[var(--gray-11)] whitespace-pre-wrap">
+                    {ticket.description}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

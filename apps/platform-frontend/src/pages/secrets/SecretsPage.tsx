@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Alert, AlertActions, AlertBody, AlertDescription, AlertTitle } from '@/components/alert'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { PageMeta } from '@/components/page-meta'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
@@ -19,6 +20,7 @@ import {
   type SecretLocation,
 } from '@/service/api/secret-api'
 import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { DEFAULT_SECRET_NAME_PRESET_GROUP_ID, SECRET_NAME_PRESET_GROUPS } from './secretNamePresets'
 
 type SecretFormState = {
   name: string
@@ -70,10 +72,16 @@ export function SecretsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [secretToDelete, setSecretToDelete] = useState<Secret | null>(null)
+  const [selectedPresetGroupId, setSelectedPresetGroupId] = useState(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
 
   const locationHelper = useMemo(() => {
     return locationOptions.find((option) => option.value === formState.secretLocation)?.helper || ''
   }, [formState.secretLocation])
+  const selectedPresetGroup = useMemo(() => {
+    return (
+      SECRET_NAME_PRESET_GROUPS.find((group) => group.id === selectedPresetGroupId) || SECRET_NAME_PRESET_GROUPS[0]
+    )
+  }, [selectedPresetGroupId])
 
   useEffect(() => {
     void loadSecrets()
@@ -97,6 +105,7 @@ export function SecretsPage() {
     setDialogMode('create')
     setActiveSecret(null)
     setFormState(emptyForm)
+    setSelectedPresetGroupId(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
     setDialogOpen(true)
   }
 
@@ -198,7 +207,9 @@ export function SecretsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <>
+      <PageMeta title="Secrets" />
+      <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <Heading>Secrets</Heading>
@@ -267,9 +278,10 @@ export function SecretsPage() {
                       <Pencil1Icon className="h-4 w-4" />
                     </Button>
                     <Button
-                      plain
+                      surface
+                      color="red"
                       onClick={() => handleDelete(secret)}
-                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      aria-label="Delete secret"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </Button>
@@ -293,6 +305,35 @@ export function SecretsPage() {
           <DialogBody>
             <Fieldset>
               <FieldGroup>
+                {dialogMode === 'create' && (
+                  <Field>
+                    <Label>Predefined values</Label>
+                    <Description>Pick a clanker variant and click a value to autofill the secret name.</Description>
+                    <div className="mt-3 space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                      <Select value={selectedPresetGroup.id} onChange={setSelectedPresetGroupId}>
+                        {SECRET_NAME_PRESET_GROUPS.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.label}
+                          </option>
+                        ))}
+                      </Select>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{selectedPresetGroup.helper}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedPresetGroup.names.map((name) => (
+                          <Button
+                            key={name}
+                            plain
+                            size="small"
+                            onClick={() => setFormState((prev) => ({ ...prev, name }))}
+                          >
+                            {name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </Field>
+                )}
+
                 <Field>
                   <Label>Secret name</Label>
                   <Description>Must be a valid environment variable key.</Description>
@@ -385,5 +426,6 @@ export function SecretsPage() {
         </AlertActions>
       </Alert>
     </div>
+    </>
   )
 }

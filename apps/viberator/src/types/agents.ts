@@ -6,7 +6,7 @@ export interface ResourceLimits {
 }
 
 // Base configuration shared by all agents
-export interface BaseAgentConfig {
+export interface BaseAgentConfig extends Record<string, unknown> {
   capabilities: string[]; // ['python', 'javascript', 'java', 'typescript', 'go', 'rust']
   costPerExecution: number;
   averageSuccessRate: number;
@@ -28,10 +28,10 @@ export interface ClaudeCodeConfig extends BaseAgentConfig {
   bashDefaultTimeoutMs?: number; // Command timeout
 }
 
-// Qwen Code configuration (DashScope API or CLI)
-// Docs: https://www.alibabacloud.com/help/en/model-studio/qwen-api-reference/
+// Qwen Code CLI configuration
+// Docs: https://docs.qwen.ai/coder
 export interface QwenCodeConfig extends BaseAgentConfig {
-  name: "qwen-cli" | "qwen-api";
+  name: "qwen-cli";
   apiKey: string; // OPENAI_API_KEY format (or sk-sp-xxxxx for Coding Plan)
   endpoint?:
     | "https://dashscope.aliyuncs.com/compatible-mode/v1" // Beijing
@@ -72,22 +72,35 @@ export interface CodexConfig extends BaseAgentConfig {
   mcpServers?: Record<string, unknown>; // MCP server configuration
 }
 
-// Google Gemini configuration
-// Docs: https://ai.google.dev/gemini-api/docs/quickstart
+// OpenCode configuration
+// Docs: https://opencode.ai/docs
+export interface OpenCodeConfig extends BaseAgentConfig {
+  name: "opencode";
+  apiKey: string; // Optional depending on provider, supports OPENCODE_API_KEY/OPENAI_API_KEY
+  endpoint?: string; // Custom base URL for OpenAI-compatible providers
+  model?: string;
+  permissionMode?: "ask" | "auto" | "none" | string;
+  sandboxMode?: "read-only" | "workspace-write" | "danger-full-access" | string;
+}
+
+// Kimi Code configuration
+// Docs: https://moonshotai.github.io/kimi-cli/en/configuration/config-files.html
+export interface KimiCodeConfig extends BaseAgentConfig {
+  name: "kimi-code";
+  apiKey: string; // KIMI_API_KEY or MOONSHOT_API_KEY
+  endpoint?: string; // KIMI_BASE_URL / MOONSHOT_BASE_URL
+  model?: "kimi-k2" | "kimi-k2-turbo-preview" | string;
+  temperature?: number;
+}
+
+// Google Gemini CLI configuration
+// Docs: https://geminicli.com/docs/cli/cli-reference/
 export interface GeminiConfig extends BaseAgentConfig {
   name: "gemini-cli";
-  apiKey: string; // Google AI API key
-  endpoint?: string; // Custom endpoint if needed
-  model?: "gemini-pro" | "gemini-1.5-pro" | "gemini-2.0-flash" | string;
-  maxOutputTokens?: number; // Gemini uses maxOutputTokens instead of maxTokens
-  temperature?: number;
-  topP?: number;
-  topK?: number;
-  codeExecutionEnabled?: boolean; // Enable Python code execution
-  safetySettings?: Array<{
-    category: string;
-    threshold: string;
-  }>;
+  apiKey: string; // GEMINI_API_KEY (or GOOGLE_API_KEY for Vertex AI key mode)
+  endpoint?: string; // Kept for backward compatibility; not passed as a CLI flag
+  model?: string; // --model
+  approvalMode?: "default" | "auto_edit" | "yolo"; // --approval-mode
 }
 
 // Mistral Vibe configuration
@@ -119,5 +132,7 @@ export type AgentConfig =
   | ClaudeCodeConfig
   | QwenCodeConfig
   | CodexConfig
+  | OpenCodeConfig
+  | KimiCodeConfig
   | GeminiConfig
   | MistralVibeConfig;

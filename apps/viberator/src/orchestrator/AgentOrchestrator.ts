@@ -6,10 +6,9 @@ import {
   ExecutionContext,
   AgentExecution,
   ExecutionResult,
-  ResourceUsage,
 } from "../types";
 import { Logger } from "winston";
-import { AgentFactory } from "../agents/AgentFactory";
+import { AgentFactory } from "../agents";
 import { ConfigManager } from "../config/ConfigManager";
 import { randomUUID } from "crypto";
 
@@ -19,7 +18,11 @@ export class AgentOrchestrator {
   private logger: Logger;
   private configManager: ConfigManager;
 
-  constructor(agentConfigs: AgentConfig[], logger: Logger, configManager: ConfigManager) {
+  constructor(
+    agentConfigs: AgentConfig[],
+    logger: Logger,
+    configManager: ConfigManager,
+  ) {
     this.agents = new Map();
     this.activeExecutions = new Map();
     this.logger = logger;
@@ -43,46 +46,6 @@ export class AgentOrchestrator {
     }
 
     return selectedAgent;
-  }
-
-  /**
-   * Prepare execution context for the selected agent
-   */
-  prepareExecutionContext(
-    bugReport: BugReport,
-    ticket: Ticket,
-    projectSettings: ProjectSettings,
-  ): ExecutionContext {
-    return {
-      // Repository
-      repoUrl: projectSettings.repoUrl,
-      branch: projectSettings.branch,
-      baseBranch: projectSettings.branch,
-      commitHash: "", // Will be set during execution
-
-      // Bug information
-      bugDescription: bugReport.description,
-      stepsToReproduce: bugReport.stepsToReproduce,
-      expectedBehavior: bugReport.expectedBehavior,
-      actualBehavior: bugReport.actualBehavior,
-
-      // Technical context
-      stackTrace: bugReport.stackTrace,
-      consoleErrors: bugReport.consoleErrors,
-      affectedFiles: bugReport.affectedFiles,
-
-      // Constraints
-      maxChanges: 5, // Default max changes
-      testRequired: projectSettings.testingRequired,
-      codingStandards: projectSettings.codingStandards,
-
-      // CI/CD
-      runTests: projectSettings.testingRequired,
-      testCommand: "npm test", // Default test command
-
-      // Timeout
-      maxExecutionTime: projectSettings.timeLimit || 2700, // 45 minutes default
-    };
   }
 
   /**
@@ -135,8 +98,9 @@ export class AgentOrchestrator {
           secretCount: context.secrets.length,
         });
 
-        const secretValues =
-          await this.configManager.resolveSecrets(context.secrets);
+        const secretValues = await this.configManager.resolveSecrets(
+          context.secrets,
+        );
 
         // Inject secrets into environment
         Object.assign(process.env, secretValues);
@@ -199,6 +163,20 @@ export class AgentOrchestrator {
    * Build the prompt for the agent based on the issue description format
    */
   buildAgentPrompt(context: ExecutionContext): string {
+    const ticketMediaSection =
+      context.ticketMedia && context.ticketMedia.length > 0
+        ? `\nATTACHED MEDIA:\n${context.ticketMedia
+            .map((media, index) => {
+              const refs: string[] = [];
+              if (media.mountPath) refs.push(`mountPath=${media.mountPath}`);
+              if (media.accessUrl) refs.push(`accessUrl=${media.accessUrl}`);
+              if (media.s3Url) refs.push(`s3Url=${media.s3Url}`);
+              refs.push(`storage=${media.storageUrl}`);
+              return `${index + 1}. ${media.kind} (${media.filename}, ${media.mimeType}) ${refs.join(" | ")}`;
+            })
+            .join("\n")}\n`
+        : "";
+
     return `
 You are an expert software engineer tasked with fixing a bug.
 
@@ -215,6 +193,7 @@ ACTUAL BEHAVIOR:
 ${context.actualBehavior}
 
 ${context.stackTrace ? `STACK TRACE:\n${context.stackTrace}` : ""}
+${ticketMediaSection}
 
 REPOSITORY: ${context.repoUrl}
 BRANCH: ${context.branch}
@@ -226,14 +205,20 @@ ${context.testRequired ? "- Write tests for your fix" : ""}
 ${context.codingStandards ? `- Follow coding standards: ${context.codingStandards}` : ""}
 
 INSTRUCTIONS:
+0. Before making changes, read and follow AGENTS.md (if present), agents/AGENTS.md (if present), and relevant files under skills/ if present.
 1. Clone the repository
 2. Analyze the bug
 3. Identify the root cause
 4. Implement a minimal fix
 5. ${context.runTests ? "Run tests to verify the fix" : "Verify the fix manually"}
 
-IMPORTANT: After completing your fix, you MUST output a pull request description in the following format.
-Write this to a file called PR_DESCRIPTION.md in the repository root:
+IMPORTANT: After completing your fix, you MUST output pull request metadata files in the repository root:
+
+1) \`PR_TITLE.md\` containing only the PR title on a single line.
+   - Use a concise, specific title that describes the fix.
+   - Prefer conventional commit style, for example: \`fix: improve pull request metadata generation\`
+
+2) \`PR_DESCRIPTION.md\` using the following format:
 
 \`\`\`markdown
 ## Summary

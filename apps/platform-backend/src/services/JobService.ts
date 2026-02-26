@@ -1,10 +1,12 @@
-import { randomUUID, randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import db from "../persistence/config/database";
-import { JobData, JobResult } from "../types/Job";
+import { JobData, JobResult, JobStatus, JobStatusResponse } from "../types/Job";
 import { sql } from "kysely";
 import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
+import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -16,9 +18,6 @@ function generateCallbackToken(): string {
   return randomBytes(32).toString("hex");
 }
 
-// Job status type from database schema
-export type JobStatus = "queued" | "active" | "completed" | "failed";
-
 export interface SubmitJobOptions {
   ticketId?: string;
   clankerId?: string;
@@ -27,15 +26,22 @@ export interface SubmitJobOptions {
 export class JobService {
   private feedbackService?: FeedbackService;
   private ticketDAO: TicketDAO;
+  private clankerDAO: ClankerDAO;
 
   constructor(feedbackService?: FeedbackService) {
     this.feedbackService = feedbackService;
     this.ticketDAO = new TicketDAO();
+    this.clankerDAO = new ClankerDAO();
   }
   async submitJob(
     data: JobData,
     options?: SubmitJobOptions,
-  ): Promise<{ jobId: string; status: string; timestamp: string; callbackToken: string }> {
+  ): Promise<{
+    jobId: string;
+    status: string;
+    timestamp: string;
+    callbackToken: string;
+  }> {
     const jobId = data.id;
     const callbackToken = generateCallbackToken();
 
@@ -73,6 +79,7 @@ export class JobService {
     if (options?.ticketId) {
       await this.updateTicketAutoFixStatus(options.ticketId, {
         autoFixStatus: "pending",
+        status: TICKET_STATUS.OPEN,
       });
     }
 
@@ -108,6 +115,8 @@ export class JobService {
 
     if (status === "completed" || status === "failed") {
       updateData.finished_at = new Date();
+      // Also update heartbeat - result callback proves worker is alive
+      updateData.last_heartbeat = new Date();
     }
 
     await db
@@ -130,14 +139,17 @@ export class JobService {
           status === "active"
             ? {
                 autoFixStatus: "in_progress" as const,
+                status: TICKET_STATUS.IN_PROGRESS,
               }
             : status === "completed"
               ? {
                   autoFixStatus: "completed" as const,
+                  status: TICKET_STATUS.RESOLVED,
                   pullRequestUrl: updates.result?.pullRequestUrl,
                 }
               : {
                   autoFixStatus: "failed" as const,
+                  status: TICKET_STATUS.OPEN,
                 };
 
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
@@ -167,13 +179,12 @@ export class JobService {
 
         if (status === "completed" || status === "failed") {
           // Emit job-ended outbound event asynchronously.
-          const outboundResult: JobResult =
-            updates.result ?? {
-              success: status === "completed",
-              changedFiles: [],
-              executionTime: 0,
-              errorMessage: updates.errorMessage,
-            };
+          const outboundResult: JobResult = updates.result ?? {
+            success: status === "completed",
+            changedFiles: [],
+            executionTime: 0,
+            errorMessage: updates.errorMessage,
+          };
 
           this.feedbackService
             .postJobEnded(
@@ -205,11 +216,13 @@ export class JobService {
     ticketId: string,
     updates: {
       autoFixStatus: "pending" | "in_progress" | "completed" | "failed";
+      status: TicketLifecycleStatus;
       pullRequestUrl?: string;
     },
   ): Promise<void> {
     try {
       await this.ticketDAO.updateTicket(ticketId, {
+        status: updates.status,
         autoFixStatus: updates.autoFixStatus,
         ...(updates.pullRequestUrl
           ? { pullRequestUrl: updates.pullRequestUrl }
@@ -223,11 +236,40 @@ export class JobService {
     }
   }
 
-  async getJobStatus(jobId: string): Promise<any | null> {
+  async getJobStatus(jobId: string): Promise<JobStatusResponse | null> {
     const job = await db
       .selectFrom("jobs")
-      .selectAll()
-      .where("id", "=", jobId)
+      .leftJoin("tickets", "tickets.id", "jobs.ticket_id")
+      .leftJoin("clankers", "clankers.id", "jobs.clanker_id")
+      .select([
+        "jobs.id",
+        "jobs.status",
+        "jobs.progress",
+        "jobs.last_heartbeat",
+        "jobs.repository",
+        "jobs.task",
+        "jobs.branch",
+        "jobs.base_branch",
+        "jobs.context",
+        "jobs.settings",
+        "jobs.result",
+        "jobs.error_message",
+        "jobs.created_at",
+        "jobs.started_at",
+        "jobs.finished_at",
+        "jobs.tenant_id",
+        "jobs.ticket_id",
+        "jobs.clanker_id",
+        "tickets.id as ticket_uuid",
+        "tickets.title as ticket_title",
+        "tickets.external_ticket_id as ticket_external_id",
+        "clankers.id as clanker_uuid",
+        "clankers.name as clanker_name",
+        "clankers.slug as clanker_slug",
+        "clankers.description as clanker_description",
+        "clankers.agent as clanker_agent",
+      ])
+      .where("jobs.id", "=", jobId)
       .executeTakeFirst();
 
     if (!job) {
@@ -287,6 +329,24 @@ export class JobService {
       createdAt: job.created_at,
       processedAt: job.started_at,
       finishedAt: job.finished_at,
+      ticketId: job.ticket_id,
+      ticket: job.ticket_id
+        ? {
+            id: job.ticket_uuid,
+            title: job.ticket_title,
+            externalTicketId: job.ticket_external_id,
+          }
+        : null,
+      clankerId: job.clanker_id,
+      clanker: job.clanker_id
+        ? {
+            id: job.clanker_uuid ?? job.clanker_id,
+            name: job.clanker_name ?? "Unknown",
+            slug: job.clanker_slug ?? "unknown",
+            description: job.clanker_description ?? null,
+            agent: job.clanker_agent ?? null,
+          }
+        : null,
     };
   }
 
@@ -295,7 +355,7 @@ export class JobService {
     limit?: number;
     projectSlug?: string;
     ticketId?: string;
-  }): Promise<{ jobs: any[]; count: number }> {
+  }): Promise<{ jobs: Record<string, unknown>[]; count: number }> {
     const { status, limit = 10, projectSlug, ticketId } = options || {};
 
     let projectId: string | undefined;
@@ -394,7 +454,14 @@ export class JobService {
     return { message: "Job removed successfully", jobId };
   }
 
-  async getQueueStats(): Promise<any> {
+  async getQueueStats(): Promise<{
+    waiting: number;
+    active: number;
+    completed: number;
+    failed: number;
+    queue: "agent-jobs";
+    total: number;
+  }> {
     const stats = await db
       .selectFrom("jobs")
       .select([
@@ -423,7 +490,7 @@ export class JobService {
   }
 
   // Helper method to get next queued job for processing
-  async getNextQueuedJob(): Promise<any | null> {
+  async getNextQueuedJob(): Promise<Record<string, unknown> | null> {
     const job = await db
       .selectFrom("jobs")
       .selectAll()
@@ -636,10 +703,7 @@ export class JobService {
    * Used to authenticate worker callbacks (SEC-05)
    * @returns true if the token is valid, false otherwise
    */
-  async validateCallbackToken(
-    jobId: string,
-    token: string,
-  ): Promise<boolean> {
+  async validateCallbackToken(jobId: string, token: string): Promise<boolean> {
     if (!token || token.length === 0) {
       return false;
     }

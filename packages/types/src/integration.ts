@@ -4,6 +4,7 @@
 
 import type { TicketSystem } from './common'
 import type { AuthCredentialType } from './project'
+import type { SecretLocation } from './secret'
 
 // Integration category - SCM (source control), Ticketing (issue tracking), or Inbound (receives events)
 export type IntegrationCategory = 'scm' | 'ticketing' | 'inbound'
@@ -61,9 +62,9 @@ export interface Integration {
   id: string
   name: string
   system: TicketSystem
-  authType: AuthCredentialType
-  // Dynamic configuration values based on integration's configFields
-  values: Record<string, unknown>
+  // Non-sensitive configuration values (baseUrl, owner, repo, etc.)
+  // Credentials are stored separately in the secrets system
+  config: Record<string, unknown>
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -76,6 +77,52 @@ export interface ProjectIntegrationLink {
   integrationId: string
   isPrimary: boolean
   createdAt: string
+}
+
+// Project integration link with category information
+export interface ProjectIntegrationLinkWithCategory extends ProjectIntegrationLink {
+  category: IntegrationCategory
+}
+
+// SCM credential stored per integration
+export interface IntegrationCredential {
+  id: string
+  integrationId: string
+  name: string
+  credentialType: 'token' | 'ssh_key' | 'oauth' | 'basic'
+  secretId: string
+  secretLocation: SecretLocation
+  isDefault: boolean
+  description?: string | null
+  expiresAt?: string | null
+  lastUsedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// Request to create a new integration credential
+export interface CreateIntegrationCredentialRequest {
+  integrationId: string
+  name: string
+  /** @deprecated Credential type is now auto-determined by the backend based on integration */
+  credentialType?: 'token' | 'ssh_key' | 'oauth' | 'basic'
+  /** ID of an existing secret to link (if not provided, a new secret will be created) */
+  secretId?: string
+  secretLocation?: SecretLocation
+  secretValue?: string
+  secretPath?: string | null
+  isDefault?: boolean
+  description?: string | null
+  expiresAt?: string | null
+}
+
+// Request to update an integration credential
+export interface UpdateIntegrationCredentialRequest {
+  name?: string
+  description?: string | null
+  expiresAt?: string | null
+  isDefault?: boolean
+  secretValue?: string
 }
 
 // Integration with configuration status for a specific project
@@ -103,15 +150,15 @@ export interface IntegrationConfig {
 export interface CreateIntegrationRequest {
   name: string
   system: TicketSystem
-  authType: AuthCredentialType
-  values: Record<string, unknown>
+  // Non-sensitive configuration (baseUrl, owner, repo, etc.)
+  config: Record<string, unknown>
 }
 
 // Request to update an integration
 export interface UpdateIntegrationRequest {
   name?: string
-  authType?: AuthCredentialType
-  values?: Record<string, unknown>
+  // Non-sensitive configuration (baseUrl, owner, repo, etc.)
+  config?: Record<string, unknown>
   isActive?: boolean
 }
 

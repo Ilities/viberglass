@@ -1,5 +1,5 @@
 import * as path from "path";
-import { promises as fs } from "fs";
+import { promises as fs, existsSync } from "fs";
 import {
   Kysely,
   Migrator,
@@ -11,6 +11,18 @@ import * as dotenv from "dotenv";
 import logger from "../config/logger";
 
 dotenv.config();
+
+function resolveMigrationFolder(): string {
+  const cwd = process.cwd();
+  const candidates = [
+    path.resolve(cwd, "src/migrations"),
+    path.resolve(cwd, "dist/migrations"),
+    path.resolve(cwd, "apps/platform-backend/src/migrations"),
+    path.resolve(cwd, "apps/platform-backend/dist/migrations"),
+  ];
+
+  return candidates.find((candidate) => existsSync(candidate)) || candidates[0];
+}
 
 /**
  * Parse DATABASE_URL connection string into connection config
@@ -100,7 +112,7 @@ export async function migrateToLatest(): Promise<void> {
       fs,
       path,
       // Use compiled migrations in dist folder (migrations are compiled to JS)
-      migrationFolder: path.join(__dirname),
+      migrationFolder: resolveMigrationFolder(),
     }),
   });
 
@@ -141,6 +153,10 @@ async function main() {
 }
 
 // Run main if this file is executed directly
-if (require.main === module) {
+const entrypoint = path.normalize(process.argv[1] || "");
+if (
+  entrypoint.endsWith(path.normalize("src/migrations/migrator.ts")) ||
+  entrypoint.endsWith(path.normalize("dist/migrations/migrator.js"))
+) {
   main();
 }

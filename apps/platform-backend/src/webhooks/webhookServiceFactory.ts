@@ -1,16 +1,20 @@
 import { ProviderRegistry } from "./ProviderRegistry";
-import { GitHubWebhookProvider } from "./providers/GitHubWebhookProvider";
-import { JiraWebhookProvider } from "./providers/JiraWebhookProvider";
 import {
-  ShortcutWebhookProvider,
+  CustomWebhookProvider,
+  GitHubWebhookProvider,
+  JiraWebhookProvider,
+} from "./providers";
+import {
   createShortcutWebhookProviderDependencies,
+  ShortcutWebhookProvider,
 } from "./providers/ShortcutWebhookProvider";
-import { CustomWebhookProvider } from "./providers/CustomWebhookProvider";
 import { WebhookConfigDAO } from "../persistence/webhook/WebhookConfigDAO";
 import { WebhookDeliveryDAO } from "../persistence/webhook/WebhookDeliveryDAO";
 import { DeduplicationService } from "./DeduplicationService";
 import { WebhookSecretService } from "./WebhookSecretService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
+import { ProjectIntegrationLinkDAO } from "../persistence/integrations/ProjectIntegrationLinkDAO";
 import { JobService } from "../services/JobService";
 import { FeedbackService } from "./FeedbackService";
 import { FeedbackOutboundConfigResolver } from "./feedback/FeedbackOutboundConfigResolver";
@@ -23,6 +27,10 @@ import { FeedbackOutboundTargetResolver } from "./feedback/FeedbackOutboundTarge
 import { FeedbackRetryExecutor } from "./feedback/FeedbackRetryExecutor";
 import { createDefaultFeedbackProviderBehaviorResolver } from "./feedback/provider-behaviors";
 import { createDefaultInboundEventProcessorResolver } from "./InboundEventProcessorResolver";
+import { WebhookConfigResolver } from "./WebhookConfigResolver";
+import { createDefaultProviderWebhookPolicyResolver } from "./ProviderWebhookPolicyResolver";
+import { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecycle";
+import { WebhookRetryService } from "./WebhookRetryService";
 import { getCredentialFactory } from "../config/credentials";
 import { WebhookService } from "./WebhookService";
 
@@ -77,7 +85,10 @@ export function getWebhookService(): WebhookService {
     const credentialProvider = getCredentialFactory();
     const secretService = new WebhookSecretService(credentialProvider);
     const ticketDAO = new TicketDAO();
-    const providerBehaviorResolver = createDefaultFeedbackProviderBehaviorResolver();
+    const projectScmConfigDAO = new ProjectScmConfigDAO();
+    const projectIntegrationLinkDAO = new ProjectIntegrationLinkDAO();
+    const providerBehaviorResolver =
+      createDefaultFeedbackProviderBehaviorResolver();
     const outboundContextResolver = new FeedbackOutboundContextResolver(
       ticketDAO,
       providerBehaviorResolver,
@@ -115,19 +126,40 @@ export function getWebhookService(): WebhookService {
     const inboundProcessorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO,
       jobService,
+      projectScmConfigDAO,
+      projectIntegrationLinkDAO,
+    );
+
+    const serviceConfig = {
+      enableAutoExecute: true,
+      defaultTenantId: process.env.DEFAULT_TENANT_ID || "default",
+    };
+    const configResolver = new WebhookConfigResolver(configDAO);
+    const providerPolicyResolver = createDefaultProviderWebhookPolicyResolver();
+    const deliveryLifecycle = new InboundWebhookDeliveryLifecycle(
+      deduplication,
+      deliveryDAO,
+    );
+    const retryService = new WebhookRetryService(
+      registry,
+      configResolver,
+      deliveryLifecycle,
+      providerPolicyResolver,
+      inboundProcessorResolver,
+      deliveryDAO,
+      serviceConfig,
     );
 
     webhookService = new WebhookService(
       registry,
-      configDAO,
-      deliveryDAO,
       deduplication,
       secretService,
       inboundProcessorResolver,
-      {
-        enableAutoExecute: true,
-        defaultTenantId: process.env.DEFAULT_TENANT_ID || "default",
-      },
+      configResolver,
+      providerPolicyResolver,
+      deliveryLifecycle,
+      retryService,
+      serviceConfig,
     );
   }
 

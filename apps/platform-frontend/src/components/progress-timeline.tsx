@@ -5,8 +5,7 @@ import {
   CheckCircledIcon, 
   ClockIcon, 
   GearIcon, 
-  PlayIcon,
-  DotFilledIcon
+  PlayIcon
 } from '@radix-ui/react-icons'
 
 export interface ProgressTimelineProps {

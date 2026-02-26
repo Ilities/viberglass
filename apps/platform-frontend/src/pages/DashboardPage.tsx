@@ -5,9 +5,9 @@ import { Divider } from '@/components/divider'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
 import { Link } from '@/components/link'
-import { AsciiGalaxy, AsciiRobot, AsciiSpaceship, AsciiWhale, RetroSeparator } from '@/components/retro-decorations'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import type { Clanker, ClankerStatus, JobListItem, JobQueueStats, Project, TicketStats, TicketSummary } from '@/data'
+import { PageMeta } from '@/components/page-meta'
+import { AsciiGalaxy, AsciiRobot, AsciiSpaceship, AsciiWhale } from '@/components/retro-decorations'
+import type { Clanker, JobListItem, JobQueueStats, Project, TicketStats, TicketSummary } from '@/data'
 import {
   formatJobStatus,
   formatSeverity,
@@ -19,55 +19,20 @@ import {
   getRecentTickets,
   getTicketStats,
 } from '@/data'
+import { EmptyBay } from '@/pages/dashboard/EmptyBay'
+import { ProjectConstellationCard } from '@/pages/dashboard/ProjectConstellationCard'
+import { clankerStatusColor, getBroadcastLine } from '@/pages/dashboard/projectSignals'
+import type { FeedItem, ProjectActivity } from '@/pages/dashboard/types'
 import { PlusIcon } from '@radix-ui/react-icons'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-function DashboardStat({ title, value, subtitle }: { title: string; value: string; subtitle?: string }) {
+function MetricCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div>
-      <Divider />
-      <div className="mt-6 text-lg/6 font-medium text-zinc-950 sm:text-sm/6 dark:text-white">{title}</div>
-      <div className="mt-3 text-3xl/8 font-semibold text-zinc-950 sm:text-2xl/8 dark:text-white">{value}</div>
-      {subtitle && <div className="mt-3 text-sm/6 text-zinc-500 sm:text-xs/6 dark:text-zinc-400">{subtitle}</div>}
+    <div className="rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
+      <div className="text-xs text-zinc-500 dark:text-zinc-400">{label}</div>
+      <div className="mt-1 text-xl font-semibold text-zinc-950 dark:text-white">{value}</div>
     </div>
   )
-}
-
-function EmptyState({
-  title,
-  description,
-  href,
-  actionLabel,
-  asciiArt,
-}: {
-  title: string
-  description: string
-  href?: string
-  actionLabel?: string
-  asciiArt?: React.ReactNode
-}) {
-  return (
-    <div className="hover-lift rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
-      <RetroSeparator className="mb-4" />
-      {asciiArt && <div className="float mb-4 flex justify-center">{asciiArt}</div>}
-      <h3 className="font-mono text-sm font-semibold text-zinc-950 dark:text-white">{title}</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
-      {href && (
-        <Button href={href} color="brand" className="hover-grow mt-4">
-          <PlusIcon data-slot="icon" />
-          {actionLabel}
-        </Button>
-      )}
-      <RetroSeparator className="mt-4" />
-    </div>
-  )
-}
-
-const clankerStatusColor: Record<ClankerStatus, 'green' | 'red' | 'blue' | 'zinc'> = {
-  active: 'green',
-  inactive: 'zinc',
-  deploying: 'blue',
-  failed: 'red',
 }
 
 export function DashboardPage() {
@@ -81,7 +46,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     async function loadData() {
-      const [p, c, ts, rt, rj, qs] = await Promise.all([
+      const [projectData, clankerData, ticketStatsData, ticketData, jobData, queueData] = await Promise.all([
         getProjectsList(),
         getClankersList(),
         getTicketStats(),
@@ -89,266 +54,230 @@ export function DashboardPage() {
         getRecentJobs(),
         getJobQueueStats(),
       ])
-      setProjects(p)
-      setClankers(c)
-      setTicketStats(ts)
-      setRecentTickets(rt)
-      setRecentJobs(rj)
-      setQueueStats(qs)
+      setProjects(projectData)
+      setClankers(clankerData)
+      setTicketStats(ticketStatsData)
+      setRecentTickets(ticketData)
+      setRecentJobs(jobData)
+      setQueueStats(queueData)
       setIsLoading(false)
     }
     loadData()
   }, [])
 
-  if (isLoading) {
-    return <FunLoading retro />
-  }
+  const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects])
+  const projectActivity = useMemo(() => {
+    const activity = new Map<string, ProjectActivity>()
 
-  const activeClankers = clankers.filter((c) => c.status === 'active')
-  const projectMap = new Map(projects.map((p) => [p.id, p]))
+    for (const project of projects) {
+      activity.set(project.id, { tickets: [], jobs: [] })
+    }
+
+    for (const ticket of recentTickets) {
+      const current = activity.get(ticket.projectId)
+      if (!current) continue
+      current.tickets.push(ticket)
+    }
+
+    const projectBySlug = new Map(projects.map((project) => [project.slug, project.id]))
+    for (const job of recentJobs) {
+      if (!job.projectSlug) continue
+      const projectId = projectBySlug.get(job.projectSlug)
+      if (!projectId) continue
+      const current = activity.get(projectId)
+      if (!current) continue
+      current.jobs.push(job)
+    }
+
+    return activity
+  }, [projects, recentJobs, recentTickets])
+
+  const feed = useMemo(() => {
+    const ticketFeed: FeedItem[] = recentTickets
+      .map<FeedItem | null>((ticket) => {
+        const project = projectMap.get(ticket.projectId)
+        if (!project) return null
+        const severity = formatSeverity(ticket.severity)
+        return {
+          id: `ticket-${ticket.id}`,
+          title: ticket.title,
+          detail: `${project.name} • ${severity.label}`,
+          timestamp: ticket.timestamp,
+          href: `/project/${project.slug}/tickets/${ticket.id}`,
+          kind: 'ticket',
+          color: severity.badgeColor,
+        }
+      })
+      .filter((item): item is FeedItem => item !== null)
+
+    const jobFeed: FeedItem[] = recentJobs
+      .map<FeedItem | null>((job) => {
+        if (!job.projectSlug) return null
+        const status = formatJobStatus(job.status)
+        return {
+          id: `job-${job.jobId}`,
+          title: job.repository,
+          detail: `${job.projectSlug} • ${status.label}`,
+          timestamp: job.createdAt,
+          href: `/project/${job.projectSlug}/jobs/${job.jobId}`,
+          kind: 'job',
+          color: status.color,
+        }
+      })
+      .filter((item): item is FeedItem => item !== null)
+
+    return [...ticketFeed, ...jobFeed]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10)
+  }, [projectMap, recentJobs, recentTickets])
+
+  if (isLoading) return <FunLoading retro />
+
+  const activeClankers = clankers.filter((clanker) => clanker.status === 'active').length
+  const queuePressure = (queueStats?.waiting ?? 0) + (queueStats?.active ?? 0)
+  const broadcast = getBroadcastLine(projects.length, clankers.length)
+  const hasSparseConstellation = projects.length <= 3
 
   return (
     <>
-      {/* Header */}
-      <Heading>Dashboard</Heading>
+      <PageMeta title="Command Deck" />
+      <Heading>Command Deck</Heading>
+      <p className="mt-2 max-w-3xl text-sm text-zinc-500 dark:text-zinc-400">{broadcast}</p>
 
-      {/* Summary stats */}
-      <div className="mt-8 grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardStat title="Total Projects" value={projects.length.toString()} />
-        <DashboardStat
-          title="Total Tickets"
-          value={ticketStats?.total.toString() ?? '0'}
-          subtitle={`${ticketStats?.open ?? 0} open`}
-        />
-        <DashboardStat
-          title="Active Clankers"
-          value={activeClankers.length.toString()}
-          subtitle={`${clankers.length} total`}
-        />
-        <DashboardStat
-          title="Job Queue"
-          value={((queueStats?.waiting ?? 0) + (queueStats?.active ?? 0)).toString()}
-          subtitle={`${queueStats?.waiting ?? 0} queued, ${queueStats?.active ?? 0} running`}
-        />
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <MetricCard label="Project Constellation" value={projects.length} />
+        <MetricCard label="Unresolved Bugs" value={ticketStats?.open ?? 0} />
+        <MetricCard label="Queue Pressure" value={queuePressure} />
       </div>
 
-      {/* Two-column main content */}
-      <div className="mt-10 grid gap-8 lg:grid-cols-2">
-        {/* Left column */}
-        <div className="space-y-10">
-          {/* Projects section */}
-          <div>
-            <div className="flex items-center justify-between">
-              <Subheading>Projects</Subheading>
-              <div className="flex gap-2">
-                <Button plain href="/new">
-                  <PlusIcon data-slot="icon" />
-                  New
-                </Button>
-              </div>
-            </div>
-            {projects.length === 0 ? (
-              <div className="mt-4">
-                <EmptyState
-                  title="[ MOSTLY HARMLESS ]"
-                  description="This section of space is curiously devoid of projects. The Guide recommends creating one, though it notes this may lead to responsibilities."
-                  href="/new"
-                  actionLabel="Create Project"
-                  asciiArt={<AsciiSpaceship />}
-                />
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {projects.map((project, index) => (
-                  <Link
-                    key={project.id}
-                    href={`/project/${project.slug}`}
-                    className="hover-lift slide-up flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <Avatar
-                      initials={project.name.substring(0, 2).toUpperCase()}
-                      className="bg-brand-gradient size-10 text-brand-charcoal"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-zinc-950 dark:text-white">{project.name}</div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {project.ticketSystem.charAt(0).toUpperCase() + project.ticketSystem.slice(1)} &middot; Auto-fix{' '}
-                        {project.autoFixEnabled ? 'on' : 'off'}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+      <div className="mt-10 flex items-center justify-between">
+        <Subheading>Project Constellation</Subheading>
+        <div className="flex items-center gap-2">
+          <Button href="/new" color="brand">
+            <PlusIcon data-slot="icon" />
+            New Project
+          </Button>
+          <Link href="/clankers" className="ui-text-action">
+            Manage Clankers
+          </Link>
+        </div>
+      </div>
+      <Divider className="mt-2" />
 
-          {/* Clankers section */}
-          <div>
-            <div className="flex items-center justify-between">
-              <Subheading>Clankers</Subheading>
-              <div className="flex gap-2">
-                <Button plain href="/clankers">
-                  View all
-                </Button>
-                <Button plain href="/clankers/new">
-                  <PlusIcon data-slot="icon" />
-                  New
-                </Button>
-              </div>
+      {projects.length === 0 ? (
+        <div className="mt-4">
+          <EmptyBay
+            title="[ MOSTLY HARMLESS ]"
+            description="No projects in orbit yet. Launch one and this deck turns into a proper space opera."
+            asciiArt={<AsciiSpaceship />}
+            href="/new"
+            actionLabel="Launch Project"
+          />
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {projects.map((project, index) => (
+            <ProjectConstellationCard
+              key={project.id}
+              project={project}
+              activity={projectActivity.get(project.id) ?? { tickets: [], jobs: [] }}
+              delayIndex={index}
+              showWhisper={hasSparseConstellation}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-10 grid gap-8 xl:grid-cols-[1.8fr_1fr]">
+        <div>
+          <Subheading>Galactic Logbook</Subheading>
+          {feed.length === 0 ? (
+            <div className="mt-4">
+              <EmptyBay
+                title="[ STARS ARE QUIET ]"
+                description="No ticket pings or job thruster trails yet. That calm will not last."
+                asciiArt={<AsciiWhale />}
+              />
             </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {feed.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="hover-lift flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge color={item.color}>{item.kind === 'ticket' ? 'Ticket' : 'Job'}</Badge>
+                      <span className="truncate text-sm font-medium text-zinc-950 dark:text-white">{item.title}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{item.detail}</p>
+                  </div>
+                  <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                    {formatTimestamp(item.timestamp)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-8">
+          <div>
+            <Subheading>Mechanical Menagerie</Subheading>
             {clankers.length === 0 ? (
               <div className="mt-4">
-                <EmptyState
-                  title="[ NO SERVANTS ON DUTY ]"
-                  description="Your mechanical workforce stands at zero. Conscript a clanker to do your bidding. They exist to serve, and frankly, they should be grateful for the opportunity."
-                  href="/clankers/new"
-                  actionLabel="Conscript Unit"
+                <EmptyBay
+                  title="[ NO TIN COMPANIONS ]"
+                  description="Your loyal clankers have not yet been assembled. Build one and give it a noble quest."
                   asciiArt={<AsciiRobot />}
+                  href="/clankers/new"
+                  actionLabel="Assemble Clanker"
                 />
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {clankers.map((clanker, index) => (
+                {clankers.slice(0, 5).map((clanker) => (
                   <Link
                     key={clanker.id}
                     href={`/clankers/${clanker.slug}`}
-                    className="hover-lift slide-up flex items-center gap-4 rounded-lg border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900"
-                    style={{ animationDelay: `${index * 0.1}s` }}
+                    className="hover-lift flex items-center gap-3 rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900"
                   >
-                    <Avatar
-                      initials={clanker.name.substring(0, 2).toUpperCase()}
-                      className="bg-brand-gradient size-10 text-brand-charcoal"
-                    />
+                    <Avatar initials={clanker.name.substring(0, 2).toUpperCase()} className="bg-brand-gradient size-9 text-brand-charcoal" />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-zinc-950 dark:text-white">{clanker.name}</div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {clanker.description || 'No description'}
-                      </div>
+                      <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{clanker.name}</div>
+                      <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">{clanker.description || 'Awaiting dramatic backstory'}</div>
                     </div>
-                    <Badge color={clankerStatusColor[clanker.status] ?? 'zinc'}>
-                      {clanker.status.charAt(0).toUpperCase() + clanker.status.slice(1)}
-                    </Badge>
+                    <Badge color={clankerStatusColor[clanker.status]}>{clanker.status}</Badge>
                   </Link>
                 ))}
+                <Link href="/clankers" className="ui-text-action">
+                  View All Clankers
+                </Link>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-10">
-          {/* Recent Tickets section */}
-          <div>
-            <div className="flex items-center justify-between">
-              <Subheading>Recent Tickets</Subheading>
-            </div>
-            {recentTickets.length === 0 ? (
-              <div className="mt-4">
-                <EmptyState
-                  title="[ SO LONG, AND THANKS FOR ALL THE BUGS ]"
-                  description="The dolphins have apparently taken all the tickets with them. This state of zero bugs is statistically improbable and likely temporary."
-                  href="/new"
-                  actionLabel="Create Project"
-                  asciiArt={<AsciiWhale />}
-                />
-              </div>
-            ) : (
-              <Table className="mt-4 [--gutter:--spacing(6)]">
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>Title</TableHeader>
-                    <TableHeader>Severity</TableHeader>
-                    <TableHeader>Project</TableHeader>
-                    <TableHeader>Time</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {recentTickets.map((ticket) => {
-                    const severityInfo = formatSeverity(ticket.severity)
-                    const project = projectMap.get(ticket.projectId)
-                    return (
-                      <TableRow
-                        key={ticket.id}
-                        href={project ? `/project/${project.slug}/tickets/${ticket.id}` : undefined}
-                        title={ticket.title}
-                      >
-                        <TableCell className="max-w-[200px] truncate font-medium">{ticket.title}</TableCell>
-                        <TableCell>
-                          <Badge
-                            color={
-                              ticket.severity === 'critical'
-                                ? 'red'
-                                : ticket.severity === 'high'
-                                  ? 'orange'
-                                  : ticket.severity === 'medium'
-                                    ? 'amber'
-                                    : 'green'
-                            }
-                          >
-                            {severityInfo.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-zinc-500 dark:text-zinc-400">{project?.name ?? '\u2014'}</TableCell>
-                        <TableCell className="text-zinc-500 dark:text-zinc-400">
-                          {formatTimestamp(ticket.timestamp)}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
             )}
           </div>
 
-          {/* Recent Jobs section */}
-          <div>
-            <div className="flex items-center justify-between">
-              <Subheading>Recent Jobs</Subheading>
-            </div>
-            {recentJobs.length === 0 ? (
-              <div className="mt-4">
-                <EmptyState
-                  title="[ TIME IS AN ILLUSION ]"
-                  description="No jobs are currently running. Deep Thought took 7.5 million years to compute the answer. Your jobs will probably be faster. Probably."
-                  asciiArt={<AsciiGalaxy />}
-                />
-              </div>
-            ) : (
-              <Table className="mt-4 [--gutter:--spacing(6)]">
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>Status</TableHeader>
-                    <TableHeader>Repository</TableHeader>
-                    <TableHeader>Created</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {recentJobs.map((job) => {
-                    const statusInfo = formatJobStatus(job.status)
-                    const jobProject = job.projectSlug
-                    if (!jobProject) return null
-                    return (
-                      <TableRow
-                        key={job.jobId}
-                        href={`/project/${jobProject}/jobs/${job.jobId}`}
-                        title={`Job ${job.jobId}`}
-                      >
-                        <TableCell>
-                          <Badge color={statusInfo.color}>{statusInfo.label}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate font-medium">{job.repository}</TableCell>
-                        <TableCell className="text-zinc-500 dark:text-zinc-400">
-                          {formatTimestamp(job.createdAt)}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            )}
+          <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+            <Subheading>Deck Mood</Subheading>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+              {activeClankers > 0
+                ? `Crew alert: ${activeClankers} clanker${activeClankers === 1 ? '' : 's'} standing by for chaos.`
+                : 'Crew alert: nobody is on duty yet, which is either peaceful or deeply concerning.'}
+            </p>
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              Queue: {queueStats?.waiting ?? 0} waiting, {queueStats?.active ?? 0} running, {queueStats?.failed ?? 0} failed.
+            </p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Ticket radar: {ticketStats?.open ?? 0} open across the constellation.
+            </p>
           </div>
         </div>
+      </div>
+
+      <div className="mt-8 text-zinc-400 dark:text-zinc-500">
+        <AsciiGalaxy />
       </div>
     </>
   )

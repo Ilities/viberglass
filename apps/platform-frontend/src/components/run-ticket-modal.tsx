@@ -18,6 +18,8 @@ interface RunTicketModalProps {
 export function RunTicketModal({ ticket, clankers, project, open, onClose }: RunTicketModalProps) {
   const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
+  const configuredClankers = clankers.filter((c) => c.deploymentStrategyId)
+  const firstConfiguredClanker = configuredClankers[0]
   const [selectedClankerId, setSelectedClankerId] = useState<string>(activeClankers[0]?.id ?? '')
   const [isRunning, setIsRunning] = useState(false)
   const [extraInstructions, setExtraInstructions] = useState('')
@@ -34,6 +36,9 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
   }, [activeClankers, selectedClankerId])
 
   const selectedClanker = activeClankers.find((clanker) => clanker.id === selectedClankerId) ?? null
+  const noClankersMessage = configuredClankers.length > 0
+    ? `You have ${configuredClankers.length} configured clanker${configuredClankers.length === 1 ? '' : 's'}, but none are "started". The ECS task definition, container, or Lambda isn't deployed depending on the type.`
+    : 'No clankers are configured yet. Configure and start one before running this ticket.'
 
   // Reset selection when modal opens with new ticket
   // (handled by parent re-mounting or passing key)
@@ -104,13 +109,23 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
                 ))}
               </Listbox>
             ) : (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  No active clankers available. Please configure and start a clanker first.
-                </p>
-                <Button href="/clankers" className="mt-2" color="amber">
-                  Configure Clankers
-                </Button>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <p className="text-sm text-zinc-700 dark:text-zinc-300">{noClankersMessage}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button href="/clankers" color="brand">
+                    Configure Clankers
+                  </Button>
+                  {firstConfiguredClanker && (
+                    <Button href={`/clankers/${firstConfiguredClanker.slug}/edit`} outline>
+                      Open Clanker Configuration
+                    </Button>
+                  )}
+                  {firstConfiguredClanker && (
+                    <Button href={`/clankers/${firstConfiguredClanker.slug}`} outline>
+                      View Clanker Status
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -23,6 +23,18 @@ The platform backend now automatically receives worker infrastructure values (IA
    pulumi stack output ecsClusterArn
    ```
 
+## Important Deployment Order Note
+
+If you deployed stacks in this order:
+
+1. `infra/base`
+2. `infra/platform`
+3. `infra/workers`
+
+then you must run `infra/platform` again after workers are deployed.
+
+Reason: the platform backend only receives `VIBERATOR_ECS_*` values from the worker stack during the platform `pulumi up`. If workers did not exist yet, those values are missing and ECS managed clanker provisioning will fail.
+
 ## Deployment Steps
 
 ### Step 1: Update Pulumi Configuration

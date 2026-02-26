@@ -24,15 +24,22 @@ export function JiraOutboundWebhookSection({
   const saveDisabled = isSavingWebhook || (!outboundWebhook && outboundApiToken.trim().length === 0)
 
   return (
-    <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
+    <section className="app-frame rounded-lg p-6">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 12h-20M22 12l-8-8M22 12l-8 8" />
+          </svg>
+        </div>
+      </div>
       <Subheading>Jira Feedback</Subheading>
-      <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+      <Text className="text-sm text-[var(--gray-9)]">
         Publish job lifecycle feedback back to the originating Jira issue.
       </Text>
 
-      <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800">
-        <p className="text-sm font-medium text-zinc-900 dark:text-white">Always-on feedback events</p>
-        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+      <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
+        <p className="text-sm font-medium text-[var(--gray-12)]">Always-on feedback events</p>
+        <p className="mt-1 text-xs text-[var(--gray-9)]">
           Viberglass always sends `job_started` and `job_ended` updates to the Jira issue linked to the ticket.
         </p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -46,17 +53,17 @@ export function JiraOutboundWebhookSection({
         )}
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-zinc-900 dark:text-white">Jira API token</label>
+          <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">Jira API token</label>
           <input
             type="password"
             value={outboundApiToken}
             onChange={(event) => onOutboundApiTokenChange(event.target.value)}
             placeholder={outboundWebhook?.hasApiToken ? 'Stored token (leave empty to keep)' : 'Enter API token'}
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+            className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
           />
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1.5 text-xs text-[var(--gray-9)]">
             Use an API token with Jira permissions for issue comments and transitions. Rotate regularly and leave
             this field empty after rotation to keep the stored token.
           </p>

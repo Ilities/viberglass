@@ -29,7 +29,7 @@ export interface AlarmsOutputs {
   /** Alarm ARNs */
   alarmArns: pulumi.Output<string>[];
   /** Alarm names */
-  alarmNames: string[];
+  alarmNames: pulumi.Output<string>[];
 }
 
 /**
@@ -43,9 +43,7 @@ export interface AlarmsOutputs {
  *
  * All alarms notify the provided SNS topic.
  */
-export function createCloudWatchAlarms(
-  options: AlarmsOptions,
-): AlarmsOutputs {
+export function createCloudWatchAlarms(options: AlarmsOptions): AlarmsOutputs {
   const {
     config,
     snsTopicArn,
@@ -67,7 +65,7 @@ export function createCloudWatchAlarms(
   const ecsTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-ecs-task-count-low`,
     {
-      alarmName: `${config.environment}-viberglass-ecs-task-count-low`,
+      name: `${config.environment}-viberglass-ecs-task-count-low`,
       comparisonOperator: "LessThanThreshold",
       evaluationPeriods: 2,
       metricName: "RunningTaskCount",
@@ -92,7 +90,7 @@ export function createCloudWatchAlarms(
   const ecsCpuAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-ecs-cpu-high`,
     {
-      alarmName: `${config.environment}-viberglass-ecs-cpu-high`,
+      name: `${config.environment}-viberglass-ecs-cpu-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 3,
       metricName: "CPUUtilization",
@@ -115,7 +113,7 @@ export function createCloudWatchAlarms(
   const ecsMemoryAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-ecs-memory-high`,
     {
-      alarmName: `${config.environment}-viberglass-ecs-memory-high`,
+      name: `${config.environment}-viberglass-ecs-memory-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 3,
       metricName: "MemoryUtilization",
@@ -143,7 +141,7 @@ export function createCloudWatchAlarms(
     const alb5xxAlarm = new aws.cloudwatch.MetricAlarm(
       `${config.environment}-viberglass-alb-5xx-high`,
       {
-        alarmName: `${config.environment}-viberglass-alb-5xx-high`,
+        name: `${config.environment}-viberglass-alb-5xx-high`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 2,
         metricName: "HTTPCode_Target_5XX_Count",
@@ -166,7 +164,7 @@ export function createCloudWatchAlarms(
     const albResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
       `${config.environment}-viberglass-alb-response-time-high`,
       {
-        alarmName: `${config.environment}-viberglass-alb-response-time-high`,
+        name: `${config.environment}-viberglass-alb-response-time-high`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 3,
         metricName: "TargetResponseTime",
@@ -174,7 +172,8 @@ export function createCloudWatchAlarms(
         period: 300,
         statistic: "Average",
         threshold: 2, // 2 seconds
-        alarmDescription: "Average response time above 2 seconds for 15 minutes",
+        alarmDescription:
+          "Average response time above 2 seconds for 15 minutes",
         dimensions: {
           LoadBalancer: albArnSuffix,
         },
@@ -189,7 +188,7 @@ export function createCloudWatchAlarms(
     const albUnhealthyTargetsAlarm = new aws.cloudwatch.MetricAlarm(
       `${config.environment}-viberglass-alb-unhealthy-targets`,
       {
-        alarmName: `${config.environment}-viberglass-alb-unhealthy-targets`,
+        name: `${config.environment}-viberglass-alb-unhealthy-targets`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 2,
         metricName: "UnHealthyHostCount",
@@ -217,7 +216,7 @@ export function createCloudWatchAlarms(
   const rdsCpuAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-rds-cpu-high`,
     {
-      alarmName: `${config.environment}-viberglass-rds-cpu-high`,
+      name: `${config.environment}-viberglass-rds-cpu-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 3,
       metricName: "CPUUtilization",
@@ -239,7 +238,7 @@ export function createCloudWatchAlarms(
   const rdsStorageAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-rds-storage-low`,
     {
-      alarmName: `${config.environment}-viberglass-rds-storage-low`,
+      name: `${config.environment}-viberglass-rds-storage-low`,
       comparisonOperator: "LessThanThreshold",
       evaluationPeriods: 1,
       metricName: "FreeStorageSpace",
@@ -261,7 +260,7 @@ export function createCloudWatchAlarms(
   const rdsConnectionsAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-rds-connections-high`,
     {
-      alarmName: `${config.environment}-viberglass-rds-connections-high`,
+      name: `${config.environment}-viberglass-rds-connections-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 2,
       metricName: "DatabaseConnections",
@@ -283,7 +282,7 @@ export function createCloudWatchAlarms(
   const rdsReadLatencyAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-rds-read-latency-high`,
     {
-      alarmName: `${config.environment}-viberglass-rds-read-latency-high`,
+      name: `${config.environment}-viberglass-rds-read-latency-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 3,
       metricName: "ReadLatency",
@@ -306,7 +305,7 @@ export function createCloudWatchAlarms(
   const rdsWriteLatencyAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-rds-write-latency-high`,
     {
-      alarmName: `${config.environment}-viberglass-rds-write-latency-high`,
+      name: `${config.environment}-viberglass-rds-write-latency-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 3,
       metricName: "WriteLatency",
@@ -334,7 +333,7 @@ export function createCloudWatchAlarms(
     const lambdaErrorsAlarm = new aws.cloudwatch.MetricAlarm(
       `${config.environment}-viberglass-worker-errors-high`,
       {
-        alarmName: `${config.environment}-viberglass-worker-errors-high`,
+        name: `${config.environment}-viberglass-worker-errors-high`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 1,
         metricName: "Errors",
@@ -357,7 +356,7 @@ export function createCloudWatchAlarms(
     const lambdaThrottlesAlarm = new aws.cloudwatch.MetricAlarm(
       `${config.environment}-viberglass-worker-throttles-high`,
       {
-        alarmName: `${config.environment}-viberglass-worker-throttles-high`,
+        name: `${config.environment}-viberglass-worker-throttles-high`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 1,
         metricName: "Throttles",
@@ -380,7 +379,7 @@ export function createCloudWatchAlarms(
     const lambdaDurationAlarm = new aws.cloudwatch.MetricAlarm(
       `${config.environment}-viberglass-worker-duration-high`,
       {
-        alarmName: `${config.environment}-viberglass-worker-duration-high`,
+        name: `${config.environment}-viberglass-worker-duration-high`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 2,
         metricName: "Duration",
@@ -409,7 +408,7 @@ export function createCloudWatchAlarms(
   const ticketProcessingFailuresAlarm = new aws.cloudwatch.MetricAlarm(
     `${config.environment}-viberglass-ticket-failures-high`,
     {
-      alarmName: `${config.environment}-viberglass-ticket-failures-high`,
+      name: `${config.environment}-viberglass-ticket-failures-high`,
       comparisonOperator: "GreaterThanThreshold",
       evaluationPeriods: 1,
       metricName: "ViberatorFailures",
@@ -428,7 +427,7 @@ export function createCloudWatchAlarms(
   return {
     alarmArns: alarms.map((alarm) => alarm.arn),
     alarmNames: alarms.map((alarm) =>
-      pulumi.output(alarm.alarmName).apply((name) => name as string),
+      pulumi.output(alarm.name).apply((name) => name as string),
     ),
   };
 }

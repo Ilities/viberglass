@@ -10,6 +10,7 @@ import type {
   IntegrationConfigStatus,
   TicketSystem,
 } from '@viberglass/types'
+import type { IntegrationInstance } from '@/service/api/integration-api'
 
 export interface IntegrationCardData {
   id: string
@@ -20,6 +21,8 @@ export interface IntegrationCardData {
   configStatus: IntegrationConfigStatus
   integrationEntityId?: string
   integrationName?: string
+  /** Configured instances of this integration type */
+  instances?: IntegrationInstance[]
 }
 
 interface IntegrationCardProps {
@@ -33,22 +36,31 @@ export function IntegrationCard({ integration, hrefBase = '/settings/integration
   const category = getIntegrationCategoryConfig(integration.category)
   const StatusIcon = status.icon
   const basePath = hrefBase.endsWith('/') ? hrefBase.slice(0, -1) : hrefBase
-  const href = integration.integrationEntityId
-    ? `${basePath}/${integration.integrationEntityId}`
+  
+  const instanceCount = integration.instances?.length ?? 0
+  const hasInstances = instanceCount > 0
+  const hasMultipleInstances = instanceCount > 1
+  const singleInstance = hasInstances && !hasMultipleInstances ? integration.instances![0] : null
+  const firstInstanceId = integration.instances?.[0]?.id
+  
+  // Card links to first instance if configured, or to create new page
+  const cardHref = firstInstanceId
+    ? `${basePath}/${firstInstanceId}`
     : `${basePath}/new/${integration.system}`
-  const cardTitle = integration.integrationName || integration.label
+  
+  // Always use the integration type label as the main title (e.g., "GitHub", "Shortcut")
+  // This avoids showing date-based names as the primary identifier
+  const cardTitle = integration.label
+  
   const cardAction =
     integration.configStatus === 'configured'
-      ? 'Manage'
+      ? hasMultipleInstances ? 'View All' : 'Manage'
       : integration.configStatus === 'stub'
         ? 'View'
         : 'Configure'
 
   return (
-    <Link
-      href={href}
-      className="group relative flex flex-col rounded-xl border border-zinc-950/10 bg-white p-6 shadow-sm transition-all hover:border-brand-burnt-orange/30 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30"
-    >
+    <div className="group relative flex flex-col rounded-xl border border-zinc-950/10 bg-white p-6 shadow-sm transition-all hover:border-brand-burnt-orange/30 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30">
       <div className="absolute right-4 top-4">
         <Badge color={status.color}>
           <StatusIcon className="mr-1 inline-block size-3" />
@@ -56,28 +68,62 @@ export function IntegrationCard({ integration, hrefBase = '/settings/integration
         </Badge>
       </div>
 
-      <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-zinc-50 text-zinc-900 dark:bg-zinc-800 dark:text-white">
-        <IconComponent className="size-6" />
-      </div>
+      <Link href={cardHref} className="flex-1">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-zinc-50 text-zinc-900 dark:bg-zinc-800 dark:text-white">
+          <IconComponent className="size-6" />
+        </div>
 
-      <div className="flex-1">
         <div className="flex items-center gap-2">
           <h3 className="text-base font-semibold text-zinc-950 dark:text-white">{cardTitle}</h3>
           <Badge color={category.color} className="text-xs">
             {category.label}
           </Badge>
         </div>
-        {integration.integrationName && (
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{integration.label}</p>
+        
+        {/* Show single instance name as subtitle (even if it's date-based, it's now secondary) */}
+        {singleInstance && (
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{singleInstance.name}</p>
         )}
+        
         <p className="mt-2 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">{integration.description}</p>
-      </div>
+      </Link>
 
-      <div className="mt-4 flex items-center gap-2 text-sm font-medium text-brand-burnt-orange">
-        <span>{cardAction}</span>
-        <span aria-hidden="true">→</span>
-      </div>
-    </Link>
+      {/* Show instances list when there are multiple */}
+      {hasMultipleInstances && integration.instances && (
+        <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-700">
+          <ul className="space-y-1">
+            {integration.instances.map((instance) => (
+              <li key={instance.id}>
+                <Link
+                  href={`${basePath}/${instance.id}`}
+                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  <span className="truncate">{instance.name}</span>
+                  <span className="ml-2 text-xs text-zinc-400">→</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href={`${basePath}/new/${integration.system}`}
+            className="mt-2 flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium text-brand-burnt-orange transition-colors hover:bg-brand-burnt-orange/10"
+          >
+            <span>+ Add new</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Single instance or not configured - show action link */}
+      {!hasMultipleInstances && (
+        <Link 
+          href={cardHref}
+          className="mt-4 flex items-center gap-2 text-sm font-medium text-brand-burnt-orange"
+        >
+          <span>{cardAction}</span>
+          <span aria-hidden="true">→</span>
+        </Link>
+      )}
+    </div>
   )
 }
 

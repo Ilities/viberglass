@@ -3,13 +3,16 @@ import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
   AuthCredentialType,
+  CreateIntegrationCredentialRequest,
   CreateIntegrationRequest,
   Integration,
+  IntegrationCredential,
   IntegrationFieldType,
   IntegrationSummary,
   ProjectIntegrationLink,
   TestIntegrationResponse,
   TicketSystem,
+  UpdateIntegrationCredentialRequest,
   UpdateIntegrationRequest,
 } from '@viberglass/types'
 
@@ -330,15 +333,30 @@ export async function getAllIntegrationSummaries(): Promise<IntegrationSummary[]
   })
 }
 
+export interface IntegrationInstance {
+  id: string
+  name: string
+  createdAt: string
+}
+
 export interface IntegrationSettingsListItem extends Omit<IntegrationSummary, 'id'> {
   id: string
   system: TicketSystem
+  /**
+   * @deprecated Use instances array instead
+   */
   integrationEntityId?: string
+  /**
+   * @deprecated Use instances array instead
+   */
   integrationName?: string
+  /** Configured instances of this integration type */
+  instances: IntegrationInstance[]
 }
 
 /**
- * Get integration cards for global settings with explicit entity ids for configured integrations.
+ * Get integration cards for global settings grouped by integration type.
+ * Each card represents one integration type (e.g., GitHub) with all configured instances as subitems.
  */
 export async function getIntegrationSettingsListItems(): Promise<IntegrationSettingsListItem[]> {
   const [availableTypes, allIntegrations] = await Promise.all([
@@ -346,6 +364,7 @@ export async function getIntegrationSettingsListItems(): Promise<IntegrationSett
     getIntegrations(),
   ])
 
+  // Group integrations by system type
   const integrationsBySystem = new Map<TicketSystem, Integration[]>()
   for (const integration of allIntegrations) {
     const existing = integrationsBySystem.get(integration.system)
@@ -356,47 +375,39 @@ export async function getIntegrationSettingsListItems(): Promise<IntegrationSett
     }
   }
 
-  const items: IntegrationSettingsListItem[] = []
-
-  for (const type of availableTypes) {
+  // Map each available type to a list item with its instances
+  return availableTypes.map((type) => {
     const configured = integrationsBySystem.get(type.id) ?? []
+    const instances: IntegrationInstance[] = configured.map((integration) => ({
+      id: integration.id,
+      name: integration.name,
+      createdAt: integration.createdAt,
+    }))
 
-    if (configured.length === 0) {
-      items.push({
-        id: `new:${type.id}`,
-        system: type.id,
-        label: type.label,
-        category: type.category,
-        description: type.description,
-        authTypes: type.authTypes,
-        configFields: type.configFields,
-        supports: type.supports,
-        status: type.status,
-        configStatus: type.status === 'stub' ? 'stub' : 'not_configured',
-      })
-      continue
+    // Sort instances by creation date (newest first)
+    instances.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    const isConfigured = instances.length > 0
+    const firstInstance = instances[0]
+
+    return {
+      id: isConfigured ? firstInstance.id : `new:${type.id}`,
+      system: type.id,
+      // Keep legacy fields for backward compatibility during transition
+      integrationEntityId: firstInstance?.id,
+      integrationName: instances.length === 1 ? firstInstance?.name : undefined,
+      label: type.label,
+      category: type.category,
+      description: type.description,
+      authTypes: type.authTypes,
+      configFields: type.configFields,
+      supports: type.supports,
+      status: type.status,
+      configStatus: type.status === 'stub' ? 'stub' : isConfigured ? 'configured' : 'not_configured',
+      configuredAt: firstInstance?.createdAt,
+      instances,
     }
-
-    for (const integration of configured) {
-      items.push({
-        id: integration.id,
-        system: type.id,
-        integrationEntityId: integration.id,
-        integrationName: integration.name,
-        label: type.label,
-        category: type.category,
-        description: type.description,
-        authTypes: type.authTypes,
-        configFields: type.configFields,
-        supports: type.supports,
-        status: type.status,
-        configStatus: 'configured',
-        configuredAt: integration.createdAt,
-      })
-    }
-  }
-
-  return items
+  })
 }
 
 // ============================================================================
@@ -414,8 +425,26 @@ export interface IntegrationInboundWebhookConfig {
   webhookSecret?: string
   providerProjectId?: string | null
   projectId?: string | null
+  labelMappings?: Record<string, unknown>
   createdAt: string
   updatedAt: string
+}
+
+function toAbsoluteWebhookUrl(webhookUrl: string): string {
+  try {
+    return new URL(webhookUrl, API_BASE_URL).toString()
+  } catch {
+    return webhookUrl
+  }
+}
+
+function normalizeInboundWebhookConfig(
+  config: IntegrationInboundWebhookConfig
+): IntegrationInboundWebhookConfig {
+  return {
+    ...config,
+    webhookUrl: toAbsoluteWebhookUrl(config.webhookUrl),
+  }
 }
 
 export interface IntegrationOutboundWebhookConfig {
@@ -465,6 +494,7 @@ export interface IntegrationWebhookDelivery {
   retryable: boolean
   errorMessage: string | null
   ticketId: string | null
+  projectId: string | null
   createdAt: string
   processedAt: string | null
 }
@@ -492,7 +522,7 @@ export async function getIntegrationInboundWebhooks(
     throw new Error('Failed to fetch inbound webhooks')
   }
   const data: ApiResponse<IntegrationInboundWebhookConfig[]> = await response.json()
-  return data.data
+  return data.data.map(normalizeInboundWebhookConfig)
 }
 
 /**
@@ -507,6 +537,7 @@ export async function createIntegrationInboundWebhook(
     generateSecret?: boolean
     providerProjectId?: string | null
     projectId?: string | null
+    labelMappings?: Record<string, unknown>
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -522,6 +553,7 @@ export async function createIntegrationInboundWebhook(
         generateSecret: config.generateSecret,
         providerProjectId: config.providerProjectId,
         projectId: config.projectId,
+        labelMappings: config.labelMappings,
         active: config.active,
       }),
     }
@@ -531,7 +563,7 @@ export async function createIntegrationInboundWebhook(
     throw new Error(error.message || 'Failed to create inbound webhook')
   }
   const data: ApiResponse<IntegrationInboundWebhookConfig> = await response.json()
-  return data.data
+  return normalizeInboundWebhookConfig(data.data)
 }
 
 /**
@@ -547,6 +579,7 @@ export async function updateIntegrationInboundWebhook(
     generateSecret?: boolean
     providerProjectId?: string | null
     projectId?: string | null
+    labelMappings?: Record<string, unknown>
     active?: boolean
   }
 ): Promise<IntegrationInboundWebhookConfig> {
@@ -562,6 +595,7 @@ export async function updateIntegrationInboundWebhook(
         generateSecret: config.generateSecret,
         providerProjectId: config.providerProjectId,
         projectId: config.projectId,
+        labelMappings: config.labelMappings,
         active: config.active,
       }),
     }
@@ -571,7 +605,7 @@ export async function updateIntegrationInboundWebhook(
     throw new Error(error.message || 'Failed to update inbound webhook')
   }
   const data: ApiResponse<IntegrationInboundWebhookConfig> = await response.json()
-  return data.data
+  return normalizeInboundWebhookConfig(data.data)
 }
 
 /**
@@ -825,6 +859,91 @@ export async function retryIntegrationDelivery(
   }
   const data: ApiResponse<IntegrationWebhookRetryResult> = await response.json()
   return data.data
+}
+
+// ============================================================================
+// Integration Credentials (SCM Credentials)
+// ============================================================================
+
+/**
+ * List all credentials for an integration
+ */
+export async function getIntegrationCredentials(integrationId: string): Promise<IntegrationCredential[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch integration credentials')
+  }
+  const data: ApiResponse<IntegrationCredential[]> = await response.json()
+  return data.data
+}
+
+/**
+ * Create a new credential for an integration
+ */
+export async function createIntegrationCredential(
+  integrationId: string,
+  request: CreateIntegrationCredentialRequest
+): Promise<IntegrationCredential> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to create credential')
+  }
+  const data: ApiResponse<IntegrationCredential> = await response.json()
+  return data.data
+}
+
+/**
+ * Get a specific credential
+ */
+export async function getIntegrationCredential(
+  integrationId: string,
+  credentialId: string
+): Promise<IntegrationCredential> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials/${credentialId}`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch credential')
+  }
+  const data: ApiResponse<IntegrationCredential> = await response.json()
+  return data.data
+}
+
+/**
+ * Update a credential
+ */
+export async function updateIntegrationCredential(
+  integrationId: string,
+  credentialId: string,
+  request: UpdateIntegrationCredentialRequest
+): Promise<IntegrationCredential> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials/${credentialId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to update credential')
+  }
+  const data: ApiResponse<IntegrationCredential> = await response.json()
+  return data.data
+}
+
+/**
+ * Delete a credential
+ */
+export async function deleteIntegrationCredential(integrationId: string, credentialId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/${integrationId}/credentials/${credentialId}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to delete credential')
+  }
 }
 
 // Re-export types for convenience

@@ -15,4 +15,19 @@ config:
   viberglass-workers:enableSpot: "true"
   # Enable ECS Container Insights for enhanced monitoring
   viberglass-workers:containerInsights: "true"
+  # Uploads/media bucket used by hosted workers
+  viberglass-workers:uploadsBucketName: dev-viberglass-uploads
+  # Prefix for ticket media objects in S3
+  viberglass-workers:ticketMediaS3Prefix: ticket-media
+  # ---------------------------------------------------------------------------
+  # OPTIONAL: Custom image URIs
+  # ---------------------------------------------------------------------------
+  # By default, image URIs are derived from workerImageCatalog.json:
+  #   {account}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:latest
+  #
+  # Override these if images are built and pushed by CI/CD (GitHub Actions):
+  # viberglass-workers:lambdaImageUri: "123456789012.dkr.ecr.eu-west-1.amazonaws.com/viberator-lambda-worker:latest"
+  # viberglass-workers:ecsImageUri: "123456789012.dkr.ecr.eu-west-1.amazonaws.com/viberator-ecs-worker:latest"
+  # viberglass-workers:slackAppImageUri: "123456789012.dkr.ecr.eu-west-1.amazonaws.com/viberglass-slack-app:latest"
+  # ---------------------------------------------------------------------------
 encryptionsalt: v1:G4FjpHk36tU=:v1:rERCQXuZ7YqWccPc:UgVDaIRmjO8VXEGQrkzIFBA884qKCw==

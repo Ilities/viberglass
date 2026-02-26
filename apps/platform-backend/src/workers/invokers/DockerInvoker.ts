@@ -8,11 +8,12 @@ import { PassThrough } from "stream";
 import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { buildWorkerProjectConfig } from "./projectConfig";
+import { resolveClankerConfig } from "../../clanker-config";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
 interface DockerDeploymentConfig {
-  containerImage: string;
+  containerImage?: string;
   environmentVariables?: Record<string, string>;
   networkMode?: string;
   logFilePath?: string;
@@ -40,9 +41,20 @@ export class DockerInvoker implements WorkerInvoker {
     logger.debug(
       `Invoking job ${job.id} with Docker invoker with config: \n${JSON.stringify(clanker.deploymentConfig, null, 2)}`,
     );
-    const dockerConfig = clanker.deploymentConfig as unknown as
-      | DockerDeploymentConfig
-      | undefined;
+    const resolvedConfig = resolveClankerConfig(clanker).config;
+    if (resolvedConfig.strategy.type !== "docker") {
+      throw new WorkerError(
+        `Clanker deployment strategy is ${resolvedConfig.strategy.type}, expected docker`,
+        ErrorClassification.PERMANENT,
+      );
+    }
+
+    const dockerConfig: DockerDeploymentConfig = {
+      containerImage: resolvedConfig.strategy.containerImage,
+      environmentVariables: resolvedConfig.strategy.environmentVariables,
+      networkMode: resolvedConfig.strategy.networkMode,
+      logFilePath: resolvedConfig.strategy.logFilePath,
+    };
 
     if (!dockerConfig?.containerImage) {
       throw new WorkerError(
@@ -106,6 +118,7 @@ export class DockerInvoker implements WorkerInvoker {
       }
 
       const canUseJobRef = Boolean(job.bootstrapPayload && job.callbackToken);
+      const binds = this.buildVolumeBinds(job);
 
       const container = await this.docker.createContainer({
         Image: dockerConfig.containerImage,
@@ -130,6 +143,7 @@ export class DockerInvoker implements WorkerInvoker {
           AutoRemove: true, // Clean up after completion
           NetworkMode: dockerConfig.networkMode || "host",
           ExtraHosts: extraHosts.length > 0 ? extraHosts : undefined,
+          Binds: binds.length > 0 ? binds : undefined,
         },
       });
 
@@ -200,6 +214,14 @@ export class DockerInvoker implements WorkerInvoker {
     return Object.entries(vars).map(([key, value]) => `${key}=${value}`);
   }
 
+  private buildVolumeBinds(job: JobData): string[] {
+    const mounts = job.mounts || [];
+    return mounts.map((mount) => {
+      const mode = mount.readOnly === false ? "rw" : "ro";
+      return `${mount.hostPath}:${mount.containerPath}:${mode}`;
+    });
+  }
+
   private buildPayload(
     job: JobData,
     clanker: Clanker,
@@ -210,6 +232,7 @@ export class DockerInvoker implements WorkerInvoker {
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,
+      agent: clanker.agent,
       repository: job.repository,
       task: job.task,
       branch: job.branch,
@@ -220,6 +243,7 @@ export class DockerInvoker implements WorkerInvoker {
       instructionFiles: job.context?.instructionFiles ?? [],
       clankerConfig: clanker, // Full config for Docker (no external storage)
       projectConfig: buildWorkerProjectConfig(project),
+      scm: job.scm,
       overrides: job.overrides,
     };
   }

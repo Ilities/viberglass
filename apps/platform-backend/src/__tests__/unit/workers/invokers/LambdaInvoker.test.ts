@@ -9,11 +9,7 @@
  * - Unknown errors default to PERMANENT
  */
 
-import { LambdaInvoker } from "../../../../workers/invokers/LambdaInvoker";
-import {
-  WorkerError,
-  ErrorClassification,
-} from "../../../../workers/errors/WorkerError";
+import { ErrorClassification, LambdaInvoker } from "../../../../workers";
 import type { Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
 
@@ -24,6 +20,7 @@ jest.mock("@aws-sdk/client-lambda", () => ({
     send: mockSend,
   })),
   InvokeCommand: jest.fn().mockImplementation((input) => ({ input })),
+  GetFunctionCommand: jest.fn().mockImplementation((input) => ({ input })),
 }));
 
 describe("LambdaInvoker", () => {
@@ -78,7 +75,14 @@ describe("LambdaInvoker", () => {
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {
-        functionName: "viberator-worker",
+        version: 1,
+        strategy: {
+          type: "lambda",
+          functionName: "viberator-worker",
+        },
+        agent: {
+          type: "claude-code",
+        },
       },
     };
   });
@@ -173,6 +177,23 @@ describe("LambdaInvoker", () => {
           invoker.invoke(mockJob, mockClanker),
         ).rejects.toMatchObject({
           classification: ErrorClassification.TRANSIENT,
+        });
+      });
+
+      it("should suggest longer retry delay for ResourceConflictException in Pending state", async () => {
+        mockSend.mockRejectedValueOnce(
+          createLambdaError(
+            "ResourceConflictException",
+            409,
+            "The function is currently in the following state: Pending",
+          ),
+        );
+
+        await expect(
+          invoker.invoke(mockJob, mockClanker),
+        ).rejects.toMatchObject({
+          classification: ErrorClassification.TRANSIENT,
+          retryAfterMs: 15000,
         });
       });
 
@@ -457,6 +478,96 @@ describe("LambdaInvoker", () => {
   describe("name property", () => {
     it("should have correct invoker name", () => {
       expect(invoker.name).toBe("LambdaInvoker");
+    });
+  });
+
+  describe("payload shape", () => {
+    it("includes requiredCredentials in worker payload", async () => {
+      mockSend.mockResolvedValueOnce({
+        StatusCode: 202,
+        $metadata: { requestId: "req-1" },
+      });
+
+      await invoker.invoke(mockJob, mockClanker);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      const command = mockSend.mock.calls[0][0] as {
+        input?: { Payload?: Buffer };
+      };
+      const rawPayload = command.input?.Payload;
+      const payload = JSON.parse(
+        (rawPayload || Buffer.from("{}")).toString("utf-8"),
+      );
+
+      expect(payload.requiredCredentials).toEqual([]);
+    });
+
+    it("injects platformApiUrl from PLATFORM_API_URL when missing", async () => {
+      const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
+      process.env.PLATFORM_API_URL = "https://platform.example.com/";
+
+      try {
+        mockSend.mockResolvedValueOnce({
+          StatusCode: 202,
+          $metadata: { requestId: "req-1" },
+        });
+
+        await invoker.invoke(mockJob, mockClanker);
+
+        const command = mockSend.mock.calls[0][0] as {
+          input?: { Payload?: Buffer };
+        };
+        const rawPayload = command.input?.Payload;
+        const payload = JSON.parse(
+          (rawPayload || Buffer.from("{}")).toString("utf-8"),
+        );
+
+        expect(payload.platformApiUrl).toBe("https://platform.example.com");
+      } finally {
+        process.env.PLATFORM_API_URL = previousPlatformApiUrl;
+      }
+    });
+
+    it("preserves existing platformApiUrl in bootstrap payload", async () => {
+      const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
+      process.env.PLATFORM_API_URL = "https://platform.example.com";
+
+      try {
+        mockSend.mockResolvedValueOnce({
+          StatusCode: 202,
+          $metadata: { requestId: "req-1" },
+        });
+
+        await invoker.invoke(
+          {
+            ...mockJob,
+            bootstrapPayload: {
+              workerType: "lambda",
+              tenantId: "tenant-abc",
+              jobId: "job-123",
+              clankerId: "clanker-1",
+              repository: "https://github.com/user/repo",
+              task: "Fix bug",
+              instructionFiles: [],
+              requiredCredentials: [],
+              platformApiUrl: "https://existing.example.com",
+            },
+          },
+          mockClanker,
+        );
+
+        const command = mockSend.mock.calls[0][0] as {
+          input?: { Payload?: Buffer };
+        };
+        const rawPayload = command.input?.Payload;
+        const payload = JSON.parse(
+          (rawPayload || Buffer.from("{}")).toString("utf-8"),
+        );
+
+        expect(payload.platformApiUrl).toBe("https://existing.example.com");
+      } finally {
+        process.env.PLATFORM_API_URL = previousPlatformApiUrl;
+      }
     });
   });
 });

@@ -18,6 +18,11 @@ config:
   # Format: organization/<project>/<stack> for S3 backends
   viberglass:baseStack: organization/viberglass-base/dev
 
+  # Worker stack reference (OPTIONAL, recommended for ECS managed clankers)
+  # If omitted, managed ECS clanker provisioning won't have automatic defaults.
+  # If you deploy workers after platform, set this and re-run `pulumi up` in infra/platform.
+  # viberglass:workerStack: organization/viberglass-workers/dev
+
   # Enable Fargate Spot for cost savings (70% discount)
   # Workers may be interrupted with 2-minute notice
   viberglass:enableSpot: "true"
@@ -27,8 +32,8 @@ config:
   viberglass:containerInsights: "true"
 
   # Backend image tag used by ECS task definitions.
-  # If omitted, Pulumi auto-detects current Git SHA (or falls back to "latest").
-  # viberglass:backendImageTag: b70b9eed3f4b
+  # If omitted, defaults to "latest" in dev/staging.
+  # viberglass:backendImageTag: latest
 
   # =============================================================================
   # CUSTOM DOMAIN CONFIGURATION (Optional - for dev environments)

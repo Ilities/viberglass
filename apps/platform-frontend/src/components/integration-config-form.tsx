@@ -1,113 +1,19 @@
 import { Button } from '@/components/button'
-import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Text } from '@/components/text'
-import type {
-  AuthCredentialType,
-  IntegrationFieldDefinition,
-  IntegrationMetadata,
-} from '@viberglass/types'
-import { EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons'
+import type { IntegrationFieldDefinition, IntegrationMetadata } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 type FieldValue = string | number | boolean | string[]
 
-const AUTH_FIELD_DEFINITIONS: Record<AuthCredentialType, IntegrationFieldDefinition[]> = {
-  api_key: [
-    {
-      key: 'apiKey',
-      label: 'API Key',
-      type: 'secret',
-      required: true,
-      description: 'API key for authenticating requests.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-  token: [
-    {
-      key: 'token',
-      label: 'Access Token',
-      type: 'secret',
-      required: true,
-      description: 'Personal access token or bearer token.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-  basic: [
-    {
-      key: 'username',
-      label: 'Username',
-      type: 'string',
-      required: true,
-      description: 'Username for basic authentication.',
-    },
-    {
-      key: 'password',
-      label: 'Password',
-      type: 'secret',
-      required: true,
-      description: 'Password or API token for basic authentication.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-  oauth: [
-    {
-      key: 'clientId',
-      label: 'Client ID',
-      type: 'string',
-      required: true,
-      description: 'OAuth client ID from your integration setup.',
-    },
-    {
-      key: 'clientSecret',
-      label: 'Client Secret',
-      type: 'secret',
-      required: true,
-      description: 'OAuth client secret from your integration setup.',
-    },
-    {
-      key: 'refreshToken',
-      label: 'Refresh Token',
-      type: 'secret',
-      description: 'Optional refresh token for OAuth flows.',
-    },
-    {
-      key: 'baseUrl',
-      label: 'API Base URL',
-      type: 'string',
-      description: 'Optional base URL for self-hosted instances.',
-      placeholder: 'https://api.example.com',
-    },
-  ],
-}
-
 interface IntegrationConfigFormProps {
   integration: IntegrationMetadata
   initialValues?: Record<string, FieldValue>
-  initialAuthType?: AuthCredentialType
-  onSubmit: (values: { authType: AuthCredentialType; values: Record<string, FieldValue> }) => void
-  onTest?: (values: { authType: AuthCredentialType; values: Record<string, FieldValue> }) => Promise<void>
+  onSubmit: (values: Record<string, FieldValue>) => void
+  onTest?: (values: Record<string, FieldValue>) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
   isTesting?: boolean
@@ -117,7 +23,6 @@ interface IntegrationConfigFormProps {
 export function IntegrationConfigForm({
   integration,
   initialValues = {},
-  initialAuthType,
   onSubmit,
   onTest,
   onCancel,
@@ -125,15 +30,7 @@ export function IntegrationConfigForm({
   isTesting,
   testResult,
 }: IntegrationConfigFormProps) {
-  const [authType, setAuthType] = useState<AuthCredentialType>(
-    initialAuthType || integration.authTypes[0] || 'api_key'
-  )
   const [values, setValues] = useState<Record<string, FieldValue>>(initialValues)
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    setAuthType(initialAuthType || integration.authTypes[0] || 'api_key')
-  }, [initialAuthType, integration.authTypes])
 
   useEffect(() => {
     setValues(initialValues)
@@ -143,18 +40,14 @@ export function IntegrationConfigForm({
     setValues((prev) => ({ ...prev, [key]: value }))
   }
 
-  const toggleSecretVisibility = (key: string) => {
-    setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ authType, values })
+    onSubmit(values)
   }
 
   const handleTest = async () => {
     if (onTest) {
-      await onTest({ authType, values })
+      await onTest(values)
     }
   }
 
@@ -217,10 +110,9 @@ export function IntegrationConfigForm({
         return (
           <div className="space-y-2">
             {field.options?.map((option) => (
-              <CheckboxField key={option.value}>
-                <Checkbox
+              <SwitchField key={option.value}>
+                <Switch
                   name={`${field.key}[]`}
-                  value={option.value}
                   checked={((value as string[]) || []).includes(option.value)}
                   onChange={(checked) => {
                     const currentValues = (value as string[]) || []
@@ -235,50 +127,27 @@ export function IntegrationConfigForm({
                   }}
                 />
                 <Label>{option.label}</Label>
-              </CheckboxField>
+              </SwitchField>
             ))}
           </div>
         )
 
       case 'secret':
+        // Secret fields are now managed through the secrets system, not here
         return (
-          <div className="relative">
-            <Input
-              type={showSecrets[field.key] ? 'text' : 'password'}
-              name={field.key}
-              value={value as string}
-              onChange={(e) => handleFieldChange(field.key, e.target.value)}
-              placeholder={field.placeholder || '••••••••'}
-              required={field.required}
-            />
-            <button
-              type="button"
-              onClick={() => toggleSecretVisibility(field.key)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              aria-label={showSecrets[field.key] ? 'Hide value' : 'Show value'}
-            >
-              {showSecrets[field.key] ? (
-                <EyeClosedIcon className="size-4" />
-              ) : (
-                <EyeOpenIcon className="size-4" />
-              )}
-            </button>
-          </div>
+          <Input
+            type="text"
+            name={field.key}
+            value={value as string}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            placeholder={field.placeholder || 'Secret name (from Secrets settings)'}
+            required={field.required}
+          />
         )
 
       default:
         return null
     }
-  }
-
-  const formatAuthType = (type: AuthCredentialType): string => {
-    const formats: Record<AuthCredentialType, string> = {
-      api_key: 'API Key',
-      oauth: 'OAuth 2.0',
-      basic: 'Basic Auth',
-      token: 'Personal Access Token',
-    }
-    return formats[type] || type
   }
 
   const SupportItem = ({
@@ -288,7 +157,7 @@ export function IntegrationConfigForm({
     label: string
     supported?: boolean
   }) => (
-    <div className={`flex items-center gap-2 ${supported ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-600'}`}>
+    <div className={`flex items-center gap-2 ${supported ? 'text-[var(--gray-11)]' : 'text-[var(--gray-8)]'}`}>
       {supported ? (
         <svg className="size-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -312,49 +181,18 @@ export function IntegrationConfigForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Authentication Section */}
-      <section>
-        <Text className="text-base font-semibold">Authentication</Text>
-        <Text>Choose how you want to authenticate with {integration.label}.</Text>
-
-        <Fieldset className="mt-4">
-          <FieldGroup>
-            <Field>
-              <Label>Authentication Type</Label>
-              <Select
-                value={authType}
-                onChange={(val) => setAuthType(val as AuthCredentialType)}
-              >
-                {integration.authTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {formatAuthType(type)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            {AUTH_FIELD_DEFINITIONS[authType]?.map((field) => (
-              <Field key={field.key}>
-                <Label>
-                  {field.label}
-                  {field.required && <span className="ml-1 text-red-500">*</span>}
-                </Label>
-                {field.description && <Description>{field.description}</Description>}
-                {field.type !== 'boolean' ? (
-                  renderField(field)
-                ) : (
-                  <div className="mt-2">{renderField(field)}</div>
-                )}
-              </Field>
-            ))}
-          </FieldGroup>
-        </Fieldset>
-      </section>
-
       {/* Configuration Fields Section */}
       {integration.configFields.length > 0 && (
-        <section>
-          <Text className="text-base font-semibold">Configuration</Text>
-          <Text>Configure the specific settings for your {integration.label} integration.</Text>
+        <section className="app-frame rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9M12 20l-4-4m4 4l-4 4M3 12h18M3 12l4-4m-4 4l4 4" />
+              </svg>
+            </div>
+            <Text className="text-base font-semibold text-[var(--gray-12)]">Configuration</Text>
+          </div>
+          <Text className="text-sm text-[var(--gray-9)]">Configure the specific settings for your {integration.label} integration.</Text>
 
           <Fieldset className="mt-4">
             <FieldGroup>
@@ -378,9 +216,17 @@ export function IntegrationConfigForm({
       )}
 
       {/* Features Section */}
-      <section>
-        <Text className="text-base font-semibold">Supported Features</Text>
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <section className="app-frame rounded-lg p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-3)] text-[var(--accent-9)]">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <Text className="text-base font-semibold text-[var(--gray-12)]">Supported Features</Text>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <SupportItem label="Issue Creation" supported={integration.supports.issues} />
           <SupportItem label="Webhooks" supported={integration.supports.webhooks} />
           <SupportItem label="Pull Requests" supported={integration.supports.pullRequests} />
@@ -390,10 +236,10 @@ export function IntegrationConfigForm({
       {/* Test Result */}
       {testResult && (
         <div
-          className={`rounded-lg p-4 ${
+          className={`rounded-lg border p-4 ${
             testResult.success
-              ? 'bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-              : 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+              ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400'
+              : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-400'
           }`}
         >
           <div className="flex items-start gap-3">
@@ -423,7 +269,7 @@ export function IntegrationConfigForm({
       )}
 
       {/* Actions */}
-      <div className="flex flex-col-reverse gap-4 border-t border-zinc-950/10 pt-6 sm:flex-row sm:justify-between dark:border-white/10">
+      <div className="flex flex-col-reverse gap-4 border-t border-[var(--gray-6)] pt-6 sm:flex-row sm:justify-between">
         <div className="flex gap-4">
           <Button type="button" plain onClick={onCancel}>
             Cancel

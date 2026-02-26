@@ -64,6 +64,9 @@ services:
       NODE_ENV: development
       PORT: 8888
       LOG_LEVEL: debug
+      # Ticket media local storage (used by Docker clanker file mounts)
+      TICKET_MEDIA_DISK_ROOT: /tmp/viberator-ticket-media
+      TICKET_MEDIA_CONTAINER_ROOT: /tmp/viberator-ticket-media
       # Hot-reload in containers (required for some Docker setups)
       CHOKIDAR_USEPOLLING: "true"
     ports:
@@ -72,6 +75,8 @@ services:
       # Mount source with cached mode for better performance on macOS/Windows
       - ./apps/platform-backend:/app/apps/platform-backend:cached
       - ./packages/types:/app/packages/types:cached
+      # Persist ticket media files on host disk for Docker strategy mounts
+      - /tmp/viberator-ticket-media:/tmp/viberator-ticket-media
       # Preserve container's node_modules (prevents architecture mismatch)
       - /app/apps/platform-backend/node_modules
       - /app/node_modules

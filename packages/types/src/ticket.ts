@@ -4,6 +4,22 @@
 
 import { AutoFixStatus, Severity, TicketSystem } from './common'
 
+export const TICKET_STATUS = {
+  OPEN: 'open',
+  IN_PROGRESS: 'in_progress',
+  RESOLVED: 'resolved',
+} as const
+
+export type TicketLifecycleStatus = (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS]
+
+export const TICKET_ARCHIVE_FILTER = {
+  EXCLUDE: 'exclude',
+  ONLY: 'only',
+  INCLUDE: 'include',
+} as const
+
+export type TicketArchiveFilter = (typeof TICKET_ARCHIVE_FILTER)[keyof typeof TICKET_ARCHIVE_FILTER]
+
 // Browser information
 export interface BrowserInfo {
   name: string
@@ -58,6 +74,7 @@ export interface MediaAsset {
   mimeType: string
   size: number
   url: string
+  storageUrl?: string
   uploadedAt: string
 }
 
@@ -100,6 +117,8 @@ export interface Ticket {
   description: string
   severity: Severity
   category: string
+  status: TicketLifecycleStatus
+  archivedAt?: string
   metadata: TicketMetadata
   screenshot?: MediaAsset
   recording?: MediaAsset
@@ -133,6 +152,7 @@ export interface UpdateTicketRequest {
   description?: string
   severity?: Severity
   category?: string
+  status?: TicketLifecycleStatus
   externalTicketId?: string
   externalTicketUrl?: string
   autoFixStatus?: AutoFixStatus
@@ -147,6 +167,8 @@ export interface TicketListItem {
   title: string
   severity: Severity
   category: string
+  status: TicketLifecycleStatus
+  archivedAt?: string
   externalTicketId?: string
   externalTicketUrl?: string
   autoFixRequested: boolean
@@ -161,6 +183,10 @@ export interface TicketListParams {
   projectSlug?: string
   limit?: number
   offset?: number
+  statuses?: TicketLifecycleStatus[]
+  archived?: TicketArchiveFilter
+  severity?: Severity
+  search?: string
 }
 
 export interface TicketStats {

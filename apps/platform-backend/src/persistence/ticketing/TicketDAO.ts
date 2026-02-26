@@ -1,13 +1,68 @@
 import { v4 as uuidv4 } from "uuid";
-import db from "../config/database";
+import type { Selectable } from "kysely";
 import { sql } from "kysely";
+import db from "../config/database";
+import type { Database } from "../types/database";
 import {
+  TICKET_ARCHIVE_FILTER,
+  TICKET_STATUS,
+} from "@viberglass/types";
+import type {
   Ticket,
   CreateTicketRequest,
   UpdateTicketRequest,
   MediaAsset,
   TicketStats,
+  TicketSystem,
+  TicketArchiveFilter,
+  TicketLifecycleStatus,
+  Severity,
 } from "@viberglass/types";
+import { buildMediaContentUrl } from "../../services/ticket-media/publicApiUrl";
+
+type TicketsRow = Selectable<Database["tickets"]>;
+
+interface TicketListQuery {
+  limit?: number;
+  offset?: number;
+  projectId?: string;
+  statuses?: TicketLifecycleStatus[];
+  archived?: TicketArchiveFilter;
+  severity?: Severity;
+  search?: string;
+}
+
+interface TicketListResult {
+  tickets: Ticket[];
+  total: number;
+}
+
+// Normalize legacy ticket_system values (2 was the old GitHub enum value)
+function normalizeTicketSystem(value: unknown): TicketSystem {
+  if (value === 2) return "github";
+  if (typeof value === "string" && isValidTicketSystem(value)) return value;
+  return "custom";
+}
+
+function isValidTicketSystem(value: string): value is TicketSystem {
+  const validSystems: TicketSystem[] = [
+    "jira", "linear", "github", "gitlab", "bitbucket",
+    "azure", "asana", "trello", "monday", "clickup",
+    "shortcut", "slack", "custom"
+  ];
+  return validSystems.includes(value as TicketSystem);
+}
+
+function normalizeTicketStatus(value: unknown): TicketLifecycleStatus {
+  if (
+    value === TICKET_STATUS.OPEN ||
+    value === TICKET_STATUS.IN_PROGRESS ||
+    value === TICKET_STATUS.RESOLVED
+  ) {
+    return value;
+  }
+  return TICKET_STATUS.OPEN;
+}
 
 export class TicketDAO {
   async createTicket(
@@ -28,7 +83,7 @@ export class TicketDAO {
             filename: screenshotAsset.filename,
             mime_type: screenshotAsset.mimeType,
             size: screenshotAsset.size,
-            url: screenshotAsset.url,
+            url: screenshotAsset.storageUrl || screenshotAsset.url,
             uploaded_at: screenshotAsset.uploadedAt,
           })
           .execute();
@@ -43,7 +98,7 @@ export class TicketDAO {
             filename: recordingAsset.filename,
             mime_type: recordingAsset.mimeType,
             size: recordingAsset.size,
-            url: recordingAsset.url,
+            url: recordingAsset.storageUrl || recordingAsset.url,
             uploaded_at: recordingAsset.uploadedAt,
           })
           .execute();
@@ -66,6 +121,8 @@ export class TicketDAO {
           annotations: JSON.stringify(request.annotations),
           ticket_system: request.ticketSystem,
           auto_fix_requested: request.autoFixRequested,
+          ticket_status: TICKET_STATUS.OPEN,
+          archived_at: null,
           created_at: timestamp,
           updated_at: timestamp,
         })
@@ -74,18 +131,22 @@ export class TicketDAO {
 
       return this.mapRowToTicket({
         ...result,
-        screenshot_id: screenshotAsset?.id,
-        screenshot_filename: screenshotAsset?.filename,
-        screenshot_mime_type: screenshotAsset?.mimeType,
-        screenshot_size: screenshotAsset?.size,
-        screenshot_url: screenshotAsset?.url,
-        screenshot_uploaded_at: screenshotAsset?.uploadedAt,
-        recording_id: recordingAsset?.id,
-        recording_filename: recordingAsset?.filename,
-        recording_mime_type: recordingAsset?.mimeType,
-        recording_size: recordingAsset?.size,
-        recording_url: recordingAsset?.url,
-        recording_uploaded_at: recordingAsset?.uploadedAt,
+        ...(screenshotAsset && {
+          screenshot_id: screenshotAsset.id,
+          screenshot_filename: screenshotAsset.filename,
+          screenshot_mime_type: screenshotAsset.mimeType,
+          screenshot_size: screenshotAsset.size,
+          screenshot_url: screenshotAsset.storageUrl || screenshotAsset.url,
+          screenshot_uploaded_at: new Date(),
+        }),
+        ...(recordingAsset && {
+          recording_id: recordingAsset.id,
+          recording_filename: recordingAsset.filename,
+          recording_mime_type: recordingAsset.mimeType,
+          recording_size: recordingAsset.size,
+          recording_url: recordingAsset.storageUrl || recordingAsset.url,
+          recording_uploaded_at: new Date(),
+        }),
       });
     });
   }
@@ -110,6 +171,8 @@ export class TicketDAO {
         "t.ticket_system",
         "t.auto_fix_requested",
         "t.auto_fix_status",
+        "t.ticket_status",
+        "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
         "t.updated_at",
@@ -134,7 +197,70 @@ export class TicketDAO {
     return this.mapRowToTicket(row);
   }
 
+  async findLatestShortcutStoryTicketByStoryId(
+    projectId: string,
+    storyId: string,
+  ): Promise<Ticket | null> {
+    const row = await db
+      .selectFrom("tickets as t")
+      .leftJoin("media_assets as s", "t.screenshot_id", "s.id")
+      .leftJoin("media_assets as r", "t.recording_id", "r.id")
+      .select([
+        "t.id",
+        "t.project_id",
+        "t.timestamp",
+        "t.title",
+        "t.description",
+        "t.severity",
+        "t.category",
+        "t.metadata",
+        "t.annotations",
+        "t.external_ticket_id",
+        "t.external_ticket_url",
+        "t.ticket_system",
+        "t.auto_fix_requested",
+        "t.auto_fix_status",
+        "t.ticket_status",
+        "t.archived_at",
+        "t.pull_request_url",
+        "t.created_at",
+        "t.updated_at",
+        "s.id as screenshot_id",
+        "s.filename as screenshot_filename",
+        "s.mime_type as screenshot_mime_type",
+        "s.size as screenshot_size",
+        "s.url as screenshot_url",
+        "s.uploaded_at as screenshot_uploaded_at",
+        "r.id as recording_id",
+        "r.filename as recording_filename",
+        "r.mime_type as recording_mime_type",
+        "r.size as recording_size",
+        "r.url as recording_url",
+        "r.uploaded_at as recording_uploaded_at",
+      ])
+      .where("t.project_id", "=", projectId)
+      .where("t.ticket_system", "=", "shortcut")
+      .where(sql<boolean>`t.metadata ->> 'eventType' = 'story_created'`)
+      .where((eb) =>
+        eb.or([
+          eb("t.external_ticket_id", "=", storyId),
+          sql<boolean>`t.metadata ->> 'externalTicketId' = ${storyId}`,
+          sql<boolean>`t.metadata ->> 'shortcutStoryId' = ${storyId}`,
+        ]),
+      )
+      .orderBy("t.created_at", "desc")
+      .executeTakeFirst();
+
+    if (!row) {
+      return null;
+    }
+
+    return this.mapRowToTicket(row);
+  }
+
   async updateTicket(id: string, updates: UpdateTicketRequest): Promise<void> {
+    const statusUpdate = this.resolveStatusUpdate(updates);
+
     await db
       .updateTable("tickets")
       .set({
@@ -142,6 +268,7 @@ export class TicketDAO {
         description: updates.description,
         severity: updates.severity,
         category: updates.category,
+        ticket_status: statusUpdate,
         external_ticket_id: updates.externalTicketId,
         external_ticket_url: updates.externalTicketUrl,
         auto_fix_status: updates.autoFixStatus,
@@ -150,6 +277,42 @@ export class TicketDAO {
       })
       .where("id", "=", id)
       .execute();
+  }
+
+  async archiveTickets(ticketIds: string[]): Promise<number> {
+    if (ticketIds.length === 0) {
+      return 0;
+    }
+
+    const result = await db
+      .updateTable("tickets")
+      .set({
+        archived_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where("id", "in", ticketIds)
+      .where("archived_at", "is", null)
+      .executeTakeFirst();
+
+    return Number(result.numUpdatedRows ?? 0);
+  }
+
+  async unarchiveTickets(ticketIds: string[]): Promise<number> {
+    if (ticketIds.length === 0) {
+      return 0;
+    }
+
+    const result = await db
+      .updateTable("tickets")
+      .set({
+        archived_at: null,
+        updated_at: new Date(),
+      })
+      .where("id", "in", ticketIds)
+      .where("archived_at", "is not", null)
+      .executeTakeFirst();
+
+    return Number(result.numUpdatedRows ?? 0);
   }
 
   async deleteTicket(id: string): Promise<boolean> {
@@ -166,7 +329,8 @@ export class TicketDAO {
     limit = 50,
     offset = 0,
   ): Promise<Ticket[]> {
-    return this.getTickets(limit, offset, projectId);
+    const result = await this.getTicketsWithFilters({ projectId, limit, offset });
+    return result.tickets;
   }
 
   async getTickets(
@@ -174,6 +338,16 @@ export class TicketDAO {
     offset = 0,
     projectId?: string,
   ): Promise<Ticket[]> {
+    const result = await this.getTicketsWithFilters({ limit, offset, projectId });
+    return result.tickets;
+  }
+
+  async getTicketsWithFilters(params: TicketListQuery): Promise<TicketListResult> {
+    const limit = params.limit ?? 50;
+    const offset = params.offset ?? 0;
+    const archivedMode = params.archived ?? TICKET_ARCHIVE_FILTER.EXCLUDE;
+    const search = params.search?.trim();
+
     let query = db
       .selectFrom("tickets as t")
       .leftJoin("media_assets as s", "t.screenshot_id", "s.id")
@@ -193,6 +367,8 @@ export class TicketDAO {
         "t.ticket_system",
         "t.auto_fix_requested",
         "t.auto_fix_status",
+        "t.ticket_status",
+        "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
         "t.updated_at",
@@ -210,8 +386,28 @@ export class TicketDAO {
         "r.uploaded_at as recording_uploaded_at",
       ]);
 
-    if (projectId) {
-      query = query.where("t.project_id", "=", projectId);
+    if (params.projectId) {
+      query = query.where("t.project_id", "=", params.projectId);
+    }
+
+    if (params.statuses && params.statuses.length > 0) {
+      query = query.where("t.ticket_status", "in", params.statuses);
+    }
+
+    if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
+      query = query.where("t.archived_at", "is", null);
+    } else if (archivedMode === TICKET_ARCHIVE_FILTER.ONLY) {
+      query = query.where("t.archived_at", "is not", null);
+    }
+
+    if (params.severity) {
+      query = query.where("t.severity", "=", params.severity);
+    }
+
+    if (search) {
+      query = query.where(
+        sql<boolean>`t.title ILIKE ${`%${search}%`} OR t.description ILIKE ${`%${search}%`}`,
+      );
     }
 
     const rows = await query
@@ -220,24 +416,60 @@ export class TicketDAO {
       .offset(offset)
       .execute();
 
-    return rows.map((row) => this.mapRowToTicket(row));
+    let totalQuery = db
+      .selectFrom("tickets as t")
+      .select(sql<string>`COUNT(*)`.as("total"));
+
+    if (params.projectId) {
+      totalQuery = totalQuery.where("t.project_id", "=", params.projectId);
+    }
+
+    if (params.statuses && params.statuses.length > 0) {
+      totalQuery = totalQuery.where("t.ticket_status", "in", params.statuses);
+    }
+
+    if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
+      totalQuery = totalQuery.where("t.archived_at", "is", null);
+    } else if (archivedMode === TICKET_ARCHIVE_FILTER.ONLY) {
+      totalQuery = totalQuery.where("t.archived_at", "is not", null);
+    }
+
+    if (params.severity) {
+      totalQuery = totalQuery.where("t.severity", "=", params.severity);
+    }
+
+    if (search) {
+      totalQuery = totalQuery.where(
+        sql<boolean>`t.title ILIKE ${`%${search}%`} OR t.description ILIKE ${`%${search}%`}`,
+      );
+    }
+
+    const totalRow = await totalQuery.executeTakeFirst();
+
+    return {
+      tickets: rows.map((row) => this.mapRowToTicket(row)),
+      total: parseInt(totalRow?.total || "0", 10),
+    };
   }
 
   async getTicketStats(projectId?: string): Promise<TicketStats> {
     const baseQuery = projectId
-      ? db.selectFrom("tickets as t").where("t.project_id", "=", projectId)
-      : db.selectFrom("tickets as t");
+      ? db
+          .selectFrom("tickets as t")
+          .where("t.project_id", "=", projectId)
+          .where("t.archived_at", "is", null)
+      : db.selectFrom("tickets as t").where("t.archived_at", "is", null);
 
     const statsRow = await baseQuery
       .select([
         sql<string>`COUNT(*)`.as("total"),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NOT NULL)`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.ticket_status = ${TICKET_STATUS.RESOLVED})`.as(
           "resolved",
         ),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND t.auto_fix_status = 'in_progress')`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.ticket_status = ${TICKET_STATUS.IN_PROGRESS})`.as(
           "in_progress",
         ),
-        sql<string>`COUNT(*) FILTER (WHERE t.external_ticket_id IS NULL AND (t.auto_fix_status IS NULL OR t.auto_fix_status <> 'in_progress'))`.as(
+        sql<string>`COUNT(*) FILTER (WHERE t.ticket_status = ${TICKET_STATUS.OPEN})`.as(
           "open",
         ),
         sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_requested IS TRUE)`.as(
@@ -310,19 +542,70 @@ export class TicketDAO {
     };
   }
 
-  private toISOString(date: Date | string): string {
-    return date instanceof Date ? date.toISOString() : date;
+  async getMediaAssetById(mediaId: string): Promise<MediaAsset | null> {
+    const row = await db
+      .selectFrom("media_assets")
+      .selectAll()
+      .where("id", "=", mediaId)
+      .executeTakeFirst();
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      filename: row.filename,
+      mimeType: row.mime_type,
+      size: Number(row.size),
+      url: buildMediaContentUrl(row.id),
+      storageUrl: row.url,
+      uploadedAt: this.toISOString(row.uploaded_at),
+    };
   }
 
-  private mapRowToTicket(row: any): Ticket {
+  private resolveStatusUpdate(
+    updates: UpdateTicketRequest,
+  ): TicketLifecycleStatus | undefined {
+    if (updates.status) {
+      return updates.status;
+    }
+
+    if (updates.autoFixStatus === "in_progress") {
+      return TICKET_STATUS.IN_PROGRESS;
+    }
+
+    if (updates.autoFixStatus === "completed") {
+      return TICKET_STATUS.RESOLVED;
+    }
+
+    if (updates.autoFixStatus === "failed" || updates.autoFixStatus === "pending") {
+      return TICKET_STATUS.OPEN;
+    }
+
+    if (updates.externalTicketId && updates.externalTicketId.trim().length > 0) {
+      return TICKET_STATUS.RESOLVED;
+    }
+
+    return undefined;
+  }
+
+  private toISOString(date: unknown): string {
+    if (date instanceof Date) return date.toISOString();
+    if (typeof date === "string") return date;
+    return String(date);
+  }
+
+  private mapRowToTicket(row: TicketsRow & Record<string, unknown>): Ticket {
     let screenshot: MediaAsset | undefined;
     if (row.screenshot_id) {
       screenshot = {
-        id: row.screenshot_id,
-        filename: row.screenshot_filename,
-        mimeType: row.screenshot_mime_type,
+        id: String(row.screenshot_id),
+        filename: String(row.screenshot_filename),
+        mimeType: String(row.screenshot_mime_type),
         size: Number(row.screenshot_size),
-        url: row.screenshot_url,
+        url: buildMediaContentUrl(String(row.screenshot_id)),
+        storageUrl: String(row.screenshot_url),
         uploadedAt: this.toISOString(row.screenshot_uploaded_at),
       };
     }
@@ -330,11 +613,12 @@ export class TicketDAO {
     let recording: MediaAsset | undefined;
     if (row.recording_id) {
       recording = {
-        id: row.recording_id,
-        filename: row.recording_filename,
-        mimeType: row.recording_mime_type,
+        id: String(row.recording_id),
+        filename: String(row.recording_filename),
+        mimeType: String(row.recording_mime_type),
         size: Number(row.recording_size),
-        url: row.recording_url,
+        url: buildMediaContentUrl(String(row.recording_id)),
+        storageUrl: String(row.recording_url),
         uploadedAt: this.toISOString(row.recording_uploaded_at),
       };
     }
@@ -357,12 +641,14 @@ export class TicketDAO {
         typeof row.annotations === "string"
           ? JSON.parse(row.annotations)
           : row.annotations,
-      externalTicketId: row.external_ticket_id,
-      externalTicketUrl: row.external_ticket_url,
-      ticketSystem: row.ticket_system,
+      externalTicketId: row.external_ticket_id ?? undefined,
+      externalTicketUrl: row.external_ticket_url ?? undefined,
+      ticketSystem: normalizeTicketSystem(row.ticket_system),
       autoFixRequested: row.auto_fix_requested,
-      autoFixStatus: row.auto_fix_status,
-      pullRequestUrl: row.pull_request_url,
+      autoFixStatus: row.auto_fix_status ?? undefined,
+      status: normalizeTicketStatus(row.ticket_status),
+      archivedAt: row.archived_at ? this.toISOString(row.archived_at) : undefined,
+      pullRequestUrl: row.pull_request_url ?? undefined,
       createdAt: this.toISOString(row.created_at),
       updatedAt: this.toISOString(row.updated_at),
     };
