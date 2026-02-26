@@ -40,9 +40,16 @@
     "lint:fix": "npm run lint:fix -w @viberglass/platform-backend"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.1"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "typescript": "^5.9.3"
   }
 }

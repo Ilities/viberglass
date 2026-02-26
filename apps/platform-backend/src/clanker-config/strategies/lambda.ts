@@ -20,6 +20,7 @@ export function normalizeLambdaStrategyConfig(value: unknown): LambdaStrategyCon
     roleArn: toNonEmptyString(source.roleArn),
     memorySize: toOptionalFiniteNumber(source.memorySize),
     timeout: toOptionalFiniteNumber(source.timeout),
+    ephemeralStorage: toOptionalFiniteNumber(source.ephemeralStorage),
     environment: toStringRecord(source.environment),
     architecture:
       source.architecture === "x86_64" || source.architecture === "arm64"
