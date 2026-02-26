@@ -35,7 +35,7 @@ interface CommandBatchDisplayEntry {
  */
 function formatTime(isoString: string): string {
   const date = new Date(isoString)
-  return date.toLocaleTimeString('en-US', {
+  return date.toLocaleTimeString(undefined, {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',

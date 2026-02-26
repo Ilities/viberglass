@@ -18,7 +18,7 @@ export interface ProgressTimelineProps {
  */
 function formatTime(isoString: string): string {
   const date = new Date(isoString)
-  return date.toLocaleTimeString('en-US', {
+  return date.toLocaleTimeString(undefined, {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
@@ -28,7 +28,7 @@ function formatTime(isoString: string): string {
 
 function formatDate(isoString: string): string {
   const date = new Date(isoString)
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
