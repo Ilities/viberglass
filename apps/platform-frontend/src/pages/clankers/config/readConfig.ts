@@ -44,6 +44,7 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       functionArn: typeof config.functionArn === 'string' ? config.functionArn : '',
       lambdaMemorySize: '',
       lambdaTimeout: '',
+      lambdaEphemeralStorage: '',
       codexAuthMode,
       qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
       opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
@@ -66,6 +67,7 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
     functionArn: strategy.type === 'lambda' ? strategy.functionArn || '' : '',
     lambdaMemorySize: strategy.type === 'lambda' ? String(strategy.memorySize || '') : '',
     lambdaTimeout: strategy.type === 'lambda' ? String(strategy.timeout || '') : '',
+    lambdaEphemeralStorage: strategy.type === 'lambda' ? String(strategy.ephemeralStorage || '') : '',
   }
 
   const codexForm =

@@ -21,6 +21,7 @@ export interface LambdaProvisioningConfig {
   roleArn?: string;
   memorySize?: number;
   timeout?: number;
+  ephemeralStorage?: number;
   environment?: Record<string, string>;
   architecture?: "x86_64" | "arm64";
   vpc?: {

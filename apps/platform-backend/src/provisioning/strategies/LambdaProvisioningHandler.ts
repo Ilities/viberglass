@@ -26,6 +26,7 @@ function toLambdaProvisioningConfig(clanker: Clanker): LambdaProvisioningConfig 
     roleArn: strategy.roleArn,
     memorySize: strategy.memorySize,
     timeout: strategy.timeout,
+    ephemeralStorage: strategy.ephemeralStorage,
     environment: strategy.environment,
     architecture: strategy.architecture,
     vpc: strategy.vpc,

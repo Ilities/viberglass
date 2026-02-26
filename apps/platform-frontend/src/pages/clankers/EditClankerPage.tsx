@@ -259,6 +259,7 @@ export function EditClankerPage() {
         functionArn: ((formData.get('functionArn') as string) || '').trim(),
         lambdaMemorySize: ((formData.get('lambdaMemorySize') as string) || '').trim(),
         lambdaTimeout: ((formData.get('lambdaTimeout') as string) || '').trim(),
+        lambdaEphemeralStorage: ((formData.get('lambdaEphemeralStorage') as string) || '').trim(),
         codexAuthMode,
         qwenEndpoint,
         opencodeEndpoint,
