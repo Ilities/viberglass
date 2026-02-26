@@ -276,7 +276,7 @@ export class ClankerDAO {
         "deployment_strategies.config_schema as strategy_config_schema",
         "deployment_strategies.created_at as strategy_created_at",
       ])
-      .orderBy("clankers.created_at", "desc")
+      .orderBy("clankers.name", "asc")
       .limit(limit)
       .offset(offset)
       .execute();
