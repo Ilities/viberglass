@@ -75,6 +75,8 @@ export interface BaseWorkerPayload {
   tenantId: string;
   jobId: string;
   clankerId: string;
+  /** Platform API base URL used for callbacks/bootstrap requests */
+  platformApiUrl?: string;
   agent?: string;
   repository: string;
   task: string;

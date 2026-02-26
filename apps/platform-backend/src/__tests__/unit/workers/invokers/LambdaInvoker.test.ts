@@ -9,11 +9,7 @@
  * - Unknown errors default to PERMANENT
  */
 
-import { LambdaInvoker } from "../../../../workers/invokers/LambdaInvoker";
-import {
-  WorkerError,
-  ErrorClassification,
-} from "../../../../workers/errors/WorkerError";
+import { ErrorClassification, LambdaInvoker } from "../../../../workers";
 import type { Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
 
@@ -499,9 +495,79 @@ describe("LambdaInvoker", () => {
         input?: { Payload?: Buffer };
       };
       const rawPayload = command.input?.Payload;
-      const payload = JSON.parse((rawPayload || Buffer.from("{}")).toString("utf-8"));
+      const payload = JSON.parse(
+        (rawPayload || Buffer.from("{}")).toString("utf-8"),
+      );
 
       expect(payload.requiredCredentials).toEqual([]);
+    });
+
+    it("injects platformApiUrl from PLATFORM_API_URL when missing", async () => {
+      const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
+      process.env.PLATFORM_API_URL = "https://platform.example.com/";
+
+      try {
+        mockSend.mockResolvedValueOnce({
+          StatusCode: 202,
+          $metadata: { requestId: "req-1" },
+        });
+
+        await invoker.invoke(mockJob, mockClanker);
+
+        const command = mockSend.mock.calls[0][0] as {
+          input?: { Payload?: Buffer };
+        };
+        const rawPayload = command.input?.Payload;
+        const payload = JSON.parse(
+          (rawPayload || Buffer.from("{}")).toString("utf-8"),
+        );
+
+        expect(payload.platformApiUrl).toBe("https://platform.example.com");
+      } finally {
+        process.env.PLATFORM_API_URL = previousPlatformApiUrl;
+      }
+    });
+
+    it("preserves existing platformApiUrl in bootstrap payload", async () => {
+      const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
+      process.env.PLATFORM_API_URL = "https://platform.example.com";
+
+      try {
+        mockSend.mockResolvedValueOnce({
+          StatusCode: 202,
+          $metadata: { requestId: "req-1" },
+        });
+
+        await invoker.invoke(
+          {
+            ...mockJob,
+            bootstrapPayload: {
+              workerType: "lambda",
+              tenantId: "tenant-abc",
+              jobId: "job-123",
+              clankerId: "clanker-1",
+              repository: "https://github.com/user/repo",
+              task: "Fix bug",
+              instructionFiles: [],
+              requiredCredentials: [],
+              platformApiUrl: "https://existing.example.com",
+            },
+          },
+          mockClanker,
+        );
+
+        const command = mockSend.mock.calls[0][0] as {
+          input?: { Payload?: Buffer };
+        };
+        const rawPayload = command.input?.Payload;
+        const payload = JSON.parse(
+          (rawPayload || Buffer.from("{}")).toString("utf-8"),
+        );
+
+        expect(payload.platformApiUrl).toBe("https://existing.example.com");
+      } finally {
+        process.env.PLATFORM_API_URL = previousPlatformApiUrl;
+      }
     });
   });
 });

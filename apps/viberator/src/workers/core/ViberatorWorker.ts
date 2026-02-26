@@ -87,7 +87,10 @@ export class ViberatorWorker {
         await this.loadPayloadCredentials(payload);
       }
 
-      await this.initializeCoreServices(payload?.callbackToken);
+      await this.initializeCoreServices(
+        payload?.callbackToken,
+        payload?.platformApiUrl,
+      );
 
       if (payload) {
         await this.agentAuthLifecycle.materializeFromEnvironment();
@@ -205,7 +208,10 @@ export class ViberatorWorker {
     this.environmentManager.inject(credentials, this.clankerEnvironment);
   }
 
-  private async initializeCoreServices(callbackToken?: string): Promise<void> {
+  private async initializeCoreServices(
+    callbackToken?: string,
+    platformApiUrl?: string,
+  ): Promise<void> {
     const configManager = new ConfigManager(this.logger);
     this.config = await configManager.loadConfiguration();
     this.logger.level = this.config.logging.level;
@@ -219,7 +225,7 @@ export class ViberatorWorker {
     this.gitService = new GitService(this.logger, this.config.git);
 
     this.callbackClient = new CallbackClient(this.logger, {
-      platformUrl: process.env.PLATFORM_API_URL,
+      platformUrl: platformApiUrl || process.env.PLATFORM_API_URL,
       maxRetries: 3,
       retryDelay: 1000,
       callbackToken,

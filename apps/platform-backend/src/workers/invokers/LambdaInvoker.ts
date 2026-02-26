@@ -37,6 +37,7 @@ interface LambdaInvokeContext {
   functionName: string;
   payloadMode: "bootstrap" | "generated";
   payloadBytes: number;
+  hasPlatformApiUrl: boolean;
 }
 
 export class LambdaInvoker implements WorkerInvoker {
@@ -69,7 +70,13 @@ export class LambdaInvoker implements WorkerInvoker {
     const payloadMode: LambdaInvokeContext["payloadMode"] = job.bootstrapPayload
       ? "bootstrap"
       : "generated";
-    const payload = job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
+    const platformApiUrl = this.resolvePlatformApiUrl();
+    const basePayload =
+      job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
+    const payload = this.injectPlatformApiUrl(
+      basePayload,
+      platformApiUrl,
+    );
     const payloadJson = JSON.stringify(payload);
     const payloadBytes = Buffer.byteLength(payloadJson, "utf8");
     const context: LambdaInvokeContext = {
@@ -77,6 +84,9 @@ export class LambdaInvoker implements WorkerInvoker {
       functionName,
       payloadMode,
       payloadBytes,
+      hasPlatformApiUrl:
+        typeof payload["platformApiUrl"] === "string" &&
+        payload["platformApiUrl"].length > 0,
     };
 
     logger.debug("Invoking Lambda function", {
@@ -86,6 +96,7 @@ export class LambdaInvoker implements WorkerInvoker {
       invocationType: "Event",
       payloadMode,
       payloadBytes,
+      hasPlatformApiUrl: context.hasPlatformApiUrl,
       hasCallbackToken: Boolean(job.callbackToken),
       hasProjectConfig: Boolean(project),
       repository: job.repository,
@@ -169,6 +180,7 @@ export class LambdaInvoker implements WorkerInvoker {
       functionName: context.functionName,
       payloadMode: context.payloadMode,
       payloadBytes: context.payloadBytes,
+      hasPlatformApiUrl: context.hasPlatformApiUrl,
       classification: isTransient ? "transient" : "permanent",
       errorName: errorDetails.name,
       errorMessage: errorDetails.message,
@@ -297,11 +309,37 @@ export class LambdaInvoker implements WorkerInvoker {
     return config.functionArn || config.functionName;
   }
 
+  private resolvePlatformApiUrl(): string | undefined {
+    const value = process.env.PLATFORM_API_URL?.trim();
+    return value && value.length > 0 ? value.replace(/\/+$/, "") : undefined;
+  }
+
+  private injectPlatformApiUrl(
+    payload: Record<string, unknown>,
+    platformApiUrl?: string,
+  ): Record<string, unknown> {
+    if (!platformApiUrl) {
+      return payload;
+    }
+
+    if (
+      typeof payload["platformApiUrl"] === "string" &&
+      payload["platformApiUrl"].length > 0
+    ) {
+      return payload;
+    }
+
+    return {
+      ...payload,
+      platformApiUrl,
+    };
+  }
+
   private async buildPayload(
     job: JobData,
     clanker: Clanker,
     project?: Project,
-  ): Promise<object> {
+  ): Promise<Record<string, unknown>> {
     const secretMetadata =
       await this.secretResolutionService.getSecretMetadataForClanker(
         clanker.secretIds || [],
@@ -311,7 +349,7 @@ export class LambdaInvoker implements WorkerInvoker {
         clanker,
       );
 
-    return {
+    const payload: Record<string, unknown> = {
       workerType: "lambda",
       tenantId: job.tenantId,
       jobId: job.id,
@@ -332,6 +370,8 @@ export class LambdaInvoker implements WorkerInvoker {
       scm: job.scm,
       overrides: job.overrides,
     };
+
+    return this.injectPlatformApiUrl(payload, this.resolvePlatformApiUrl());
   }
 
   async isAvailable(): Promise<boolean> {
