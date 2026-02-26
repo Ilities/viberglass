@@ -10,6 +10,7 @@ export interface ClankerConfigFormState {
   functionArn: string
   lambdaMemorySize: string
   lambdaTimeout: string
+  lambdaEphemeralStorage: string
   codexAuthMode: CodexAuthMode
   qwenEndpoint: string
   opencodeEndpoint: string
@@ -27,6 +28,7 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   functionArn: '',
   lambdaMemorySize: '',
   lambdaTimeout: '',
+  lambdaEphemeralStorage: '',
   codexAuthMode: 'api_key',
   qwenEndpoint: '',
   opencodeEndpoint: '',
