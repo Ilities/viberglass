@@ -112,6 +112,8 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
     const featureBranch = buildFeatureBranchName(
       id,
       context?.ticketId,
+      context?.originalTicketId,
+      data.clankerId,
       scm?.branchNameTemplate,
     );
     await gitService.createBranch(repoDir, featureBranch);
