@@ -2,6 +2,7 @@ import { AgentConfig, ExecutionContext, ExecutionResult } from "../types";
 import { Logger } from "winston";
 import { spawn } from "child_process";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import GitService from "../services/GitService";
 
@@ -174,10 +175,7 @@ export abstract class BaseAgent {
 
       const child = spawn(command, args, {
         cwd: options.cwd,
-        env: {
-          ...process.env,
-          ...options.env,
-        },
+        env: this.buildCommandEnvironment(options.env),
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -253,6 +251,53 @@ export abstract class BaseAgent {
         reject(error);
       });
     });
+  }
+
+  protected buildCommandEnvironment(
+    overrides?: NodeJS.ProcessEnv,
+  ): NodeJS.ProcessEnv {
+    const merged: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...overrides,
+    };
+    merged.HOME = this.resolveHomeDirectory(merged.HOME);
+    return merged;
+  }
+
+  private resolveHomeDirectory(
+    candidateHome: string | undefined,
+  ): string {
+    const candidates: string[] = [];
+
+    if (typeof candidateHome === "string" && candidateHome.trim().length > 0) {
+      candidates.push(candidateHome.trim());
+    }
+
+    const runtimeHome = process.env.HOME?.trim();
+    if (runtimeHome) {
+      candidates.push(runtimeHome);
+    }
+
+    const systemHome = os.homedir().trim();
+    if (systemHome.length > 0) {
+      candidates.push(systemHome);
+    }
+
+    candidates.push("/tmp");
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    try {
+      fs.mkdirSync("/tmp", { recursive: true });
+    } catch {
+      // Best effort only; command execution will still proceed.
+    }
+
+    return "/tmp";
   }
 
   /**
