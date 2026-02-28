@@ -212,6 +212,7 @@ async function main() {
     // Convert payload to CodingJobData for executeTask
     const jobData: CodingJobData = {
       id: payload.jobId,
+      jobKind: payload.jobKind,
       tenantId: payload.tenantId,
       repository: payload.repository,
       task: payload.task,

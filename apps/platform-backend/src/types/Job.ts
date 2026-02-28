@@ -1,4 +1,4 @@
-import type { TicketSystem } from "@viberglass/types";
+import type { JobKind, TicketSystem } from "@viberglass/types";
 
 interface InstructionFile {
   fileType: string;
@@ -54,6 +54,7 @@ export interface JobOverrides {
 
 export interface JobData {
   id: string;
+  jobKind: JobKind;
   tenantId: string;
   repository: string;
   task: string;
@@ -94,6 +95,7 @@ export interface JobResult {
   success: boolean;
   branch?: string;
   pullRequestUrl?: string;
+  documentContent?: string;
   changedFiles: string[];
   executionTime: number;
   errorMessage?: string;
@@ -112,6 +114,7 @@ export interface JobClankerInfo {
 
 export interface JobStatusResponse {
   jobId: string;
+  jobKind: JobKind;
   status: JobStatus;
   progress: unknown;
   lastHeartbeat: string | null;
@@ -130,6 +133,7 @@ export interface JobStatusResponse {
   }>;
   data: {
     id: string;
+    jobKind: JobKind;
     tenantId: string;
     repository: string | null;
     task: string | null;
