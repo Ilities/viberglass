@@ -12,7 +12,7 @@ interface StrategySpecificFieldsProps {
   strategyName?: string
   provisioningMode: ProvisioningMode
   onProvisioningModeChange: (mode: ProvisioningMode) => void
-  defaults: ClankerConfigFormState
+  defaults: Partial<ClankerConfigFormState>
 }
 
 function renderStrategyFields(

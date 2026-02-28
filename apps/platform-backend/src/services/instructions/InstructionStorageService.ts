@@ -23,6 +23,18 @@ export interface InlineInstructionFile {
   content: string;
 }
 
+function getContentType(fileType: string): string {
+  if (fileType.endsWith(".json")) {
+    return "application/json; charset=utf-8";
+  }
+
+  if (fileType.endsWith(".toml")) {
+    return "application/toml; charset=utf-8";
+  }
+
+  return "text/markdown; charset=utf-8";
+}
+
 export class InstructionStorageService {
   private readonly s3Client: S3Client;
   private readonly region: string;
@@ -162,12 +174,13 @@ export class InstructionStorageService {
 
   private async storeToS3(key: string, content: string): Promise<string> {
     const bucket = this.ensureS3Configured();
+    const fileType = key.split("/").pop() || "";
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
         Body: content,
-        ContentType: "text/markdown; charset=utf-8",
+        ContentType: getContentType(fileType),
       }),
     );
 

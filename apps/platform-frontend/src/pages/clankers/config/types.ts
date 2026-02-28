@@ -1,6 +1,26 @@
-import type { AgentType, Clanker, ClankerConfigV1, CodexAuthMode } from "@viberglass/types"
+import type {
+  AgentType,
+  Clanker,
+  ClankerConfigV1,
+  CodexAuthMode,
+  ConfigFileInput,
+  NativeAgentConfigFormat,
+} from "@viberglass/types"
 
 export type ProvisioningMode = 'managed' | 'prebuilt'
+
+export interface SkillEntry {
+  id: string
+  path: string
+  content: string
+}
+
+export interface NativeAgentConfigState {
+  enabled: boolean
+  path: string
+  content: string
+  format: NativeAgentConfigFormat | null
+}
 
 export interface ClankerConfigFormState {
   provisioningMode: ProvisioningMode
@@ -53,4 +73,9 @@ export type DeploymentConfig = ClankerConfigV1 | Record<string, unknown> | null
 export interface ClankerConfigReadable {
   deploymentConfig?: Clanker['deploymentConfig']
   agent?: Clanker['agent']
+}
+
+export interface ConfigFilesResult {
+  files: ConfigFileInput[]
+  error: string | null
 }

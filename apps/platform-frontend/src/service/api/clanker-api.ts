@@ -7,6 +7,7 @@ import type {
   ClankerHealthStatus,
   CreateClankerRequest,
   DeploymentStrategy,
+  NativeAgentConfigTemplateResponse,
   PaginatedResponse,
   UpdateClankerRequest,
 } from '@viberglass/types'
@@ -161,6 +162,25 @@ export async function deleteConfigFile(clankerId: string, fileType: string): Pro
   if (!response.ok) {
     throw new Error('Failed to delete config file')
   }
+}
+
+export async function getNativeAgentConfigTemplate(
+  agent: string,
+  clankerId?: string,
+): Promise<NativeAgentConfigTemplateResponse> {
+  const params = new URLSearchParams({ agent })
+  if (clankerId) {
+    params.set('clankerId', clankerId)
+  }
+
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/native-config-template?${params.toString()}`)
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.message || error.error || 'Failed to fetch native config template')
+  }
+
+  const data: ApiResponse<NativeAgentConfigTemplateResponse> = await response.json()
+  return data.data
 }
 
 // Deployment Strategy API functions

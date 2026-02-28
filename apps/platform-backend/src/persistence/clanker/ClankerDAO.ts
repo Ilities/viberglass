@@ -19,10 +19,9 @@ import {
   InstructionStrategyType,
 } from "../../services/instructions/InstructionStorageService";
 import {
-  instructionPathErrorMessage,
-  isAllowedInstructionPath,
   normalizeInstructionPath,
 } from "../../services/instructions/pathPolicy";
+import { validateClankerConfigFiles } from "../../services/clanker-config-files/nativeAgentConfig";
 
 type ClankersRow = Selectable<Database["clankers"]>;
 type ClankerConfigFilesRow = Selectable<Database["clanker_config_files"]>;
@@ -128,7 +127,12 @@ export class ClankerDAO {
 
     if (request.configFiles && request.configFiles.length > 0) {
       const strategyType = await this.resolveClankerStrategyType(clankerId);
-      await this.upsertConfigFiles(clankerId, request.configFiles, strategyType);
+      await this.upsertConfigFiles(
+        clankerId,
+        request.configFiles,
+        strategyType,
+        request.agent ?? DEFAULT_AGENT_TYPE,
+      );
     }
 
     return this.getClanker(clankerId) as Promise<Clanker>;
@@ -243,7 +247,13 @@ export class ClankerDAO {
 
     if (updates.configFiles !== undefined) {
       const strategyType = await this.resolveClankerStrategyType(id);
-      await this.upsertConfigFiles(id, updates.configFiles, strategyType);
+      const currentClanker = await this.getClanker(id);
+      await this.upsertConfigFiles(
+        id,
+        updates.configFiles,
+        strategyType,
+        updates.agent ?? currentClanker?.agent ?? DEFAULT_AGENT_TYPE,
+      );
     }
 
     return this.getClanker(id) as Promise<Clanker>;
@@ -360,6 +370,7 @@ export class ClankerDAO {
     clankerId: string,
     configFiles: ConfigFileInput[],
     strategyType: InstructionStrategyType,
+    agent: AgentType | null | undefined,
   ): Promise<void> {
     const existingRows = await db
       .selectFrom("clanker_config_files")
@@ -371,13 +382,19 @@ export class ClankerDAO {
       existingRows.map((row) => [row.file_type.toLowerCase(), row]),
     );
     const nextByPath = new Map<string, ConfigFileInput>();
+    const validatedConfigFiles = validateClankerConfigFiles(
+      agent,
+      configFiles,
+    );
 
-    for (const file of configFiles) {
+    for (const file of [
+      ...validatedConfigFiles.instructionFiles,
+      ...(validatedConfigFiles.nativeAgentConfigFile
+        ? [validatedConfigFiles.nativeAgentConfigFile]
+        : []),
+    ]) {
       const fileType = normalizeInstructionPath(file.fileType);
       const content = typeof file.content === "string" ? file.content : "";
-      if (!isAllowedInstructionPath(fileType)) {
-        throw new Error(instructionPathErrorMessage(fileType));
-      }
       if (!content.trim()) {
         continue;
       }

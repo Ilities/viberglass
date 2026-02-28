@@ -11,6 +11,7 @@ import {
   ProjectConfigPayload,
 } from "./types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
+import { AgentConfigFileManager } from "../runtime/AgentConfigFileManager";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
@@ -29,6 +30,9 @@ interface RunCodingJobParams {
   gitService: GitService;
   callbackClient: CallbackClient;
   orchestrator: AgentOrchestrator;
+  agentConfigFileManager: AgentConfigFileManager;
+  agentConfigFile: { fileType: string; content: string } | null;
+  requestedAgent?: string;
   instructionFileManager: InstructionFileManager;
   instructionFiles: Map<string, string>;
   fetchedCredentials: Record<string, string | undefined>;
@@ -54,6 +58,15 @@ interface RunCodingJobParams {
   cleanupWorkspace: (workDir: string) => void;
 }
 
+function normalizeAgentName(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export async function runCodingJob(params: RunCodingJobParams): Promise<JobResult> {
   const {
     data,
@@ -62,6 +75,9 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
     gitService,
     callbackClient,
     orchestrator,
+    agentConfigFileManager,
+    agentConfigFile,
+    requestedAgent,
     instructionFileManager,
     instructionFiles,
     fetchedCredentials,
@@ -93,6 +109,7 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
   await sendProgress("initialize", "Starting job execution");
 
   environmentManager.inject(fetchedCredentials, clankerEnvironment);
+  let agentConfigEnvironment: Record<string, string> | undefined;
 
   try {
     const jobWorkDir = path.join(repositoryRoot, id);
@@ -123,6 +140,17 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
         count: instructionFiles.size,
       });
       await instructionFileManager.materialize(repoDir, instructionFiles);
+    }
+
+    const materializedAgentConfig = await agentConfigFileManager.materialize(
+      jobWorkDir,
+      repoDir,
+      normalizeAgentName(requestedAgent) || normalizeAgentName(clankerConfig?.agent),
+      agentConfigFile,
+    );
+    agentConfigEnvironment = materializedAgentConfig.environment;
+    if (agentConfigEnvironment) {
+      environmentManager.inject({}, agentConfigEnvironment);
     }
 
     const mergedSettings = mergeWorkerSettings({
@@ -280,6 +308,10 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       });
     }
 
+    if (agentConfigEnvironment) {
+      environmentManager.cleanup({}, agentConfigEnvironment);
+    }
+
     return workerResult;
   } catch (error) {
     const executionTime = Date.now() - startTime;
@@ -310,6 +342,10 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
             ? callbackError.message
             : String(callbackError),
       });
+    }
+
+    if (agentConfigEnvironment) {
+      environmentManager.cleanup({}, agentConfigEnvironment);
     }
 
     return {

@@ -1,3 +1,5 @@
+import type { RuntimeConfigFileReference } from "@viberglass/types";
+
 // ============================================================================
 // Worker Payload Types
 // ============================================================================
@@ -106,6 +108,7 @@ export interface BaseWorkerPayload {
   scm?: ScmPayload | null;
   /** Callback token for authenticating worker callbacks to the platform */
   callbackToken?: string;
+  agentConfigFile?: RuntimeConfigFileReference | null;
 }
 
 /**

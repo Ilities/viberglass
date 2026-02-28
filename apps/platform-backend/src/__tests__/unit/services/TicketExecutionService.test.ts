@@ -10,6 +10,7 @@ import { JobService } from "../../../services/JobService";
 import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../../workers";
 import { TicketMediaExecutionService } from "../../../services/TicketMediaExecutionService";
+import { InstructionStorageService } from "../../../services/instructions/InstructionStorageService";
 
 // Mock dependencies
 jest.mock("../../../persistence/ticketing/TicketDAO");
@@ -24,6 +25,7 @@ jest.mock("../../../services/JobService");
 jest.mock("../../../services/CredentialRequirementsService");
 jest.mock("../../../workers/WorkerExecutionService");
 jest.mock("../../../services/TicketMediaExecutionService");
+jest.mock("../../../services/instructions/InstructionStorageService");
 
 describe("TicketExecutionService", () => {
   let service: TicketExecutionService;
@@ -37,6 +39,7 @@ describe("TicketExecutionService", () => {
   let mockCredentialRequirementsService: jest.Mocked<CredentialRequirementsService>;
   let mockWorkerExecutionService: jest.Mocked<WorkerExecutionService>;
   let mockTicketMediaExecutionService: jest.Mocked<TicketMediaExecutionService>;
+  let mockInstructionStorageService: jest.Mocked<InstructionStorageService>;
 
   const mockedGetClankerProvisioner = jest.mocked(getClankerProvisioner);
 
@@ -63,6 +66,8 @@ describe("TicketExecutionService", () => {
       new WorkerExecutionService() as jest.Mocked<WorkerExecutionService>;
     mockTicketMediaExecutionService =
       new TicketMediaExecutionService() as jest.Mocked<TicketMediaExecutionService>;
+    mockInstructionStorageService =
+      new InstructionStorageService() as jest.Mocked<InstructionStorageService>;
 
     (TicketDAO as jest.Mock).mockImplementation(() => mockTicketDAO);
     (ProjectDAO as jest.Mock).mockImplementation(() => mockProjectDAO);
@@ -84,10 +89,14 @@ describe("TicketExecutionService", () => {
     (TicketMediaExecutionService as jest.Mock).mockImplementation(
       () => mockTicketMediaExecutionService,
     );
+    (InstructionStorageService as jest.Mock).mockImplementation(
+      () => mockInstructionStorageService,
+    );
     mockTicketMediaExecutionService.prepareForExecution.mockResolvedValue({
       media: [],
       mounts: [],
     });
+    mockInstructionStorageService.uploadJobInstructionFiles.mockResolvedValue([]);
 
     service = new TicketExecutionService();
   });
@@ -277,6 +286,80 @@ describe("TicketExecutionService", () => {
 
     await expect(service.runTicket(ticketId, { clankerId })).rejects.toThrow(
       /Selected clanker is inactive/,
+    );
+  });
+
+  it("separates native agent config files from instruction files in the bootstrap payload", async () => {
+    const ticketId = "ticket-123";
+    const clankerId = "clanker-456";
+    const projectId = "project-789";
+
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: ticketId,
+      projectId,
+      title: "Test Ticket",
+      description: "Test Description",
+    } as any);
+    mockProjectDAO.getProject.mockResolvedValue({
+      id: projectId,
+      name: "Test Project",
+      repositoryUrl: "https://github.com/test/repo",
+    } as any);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockIntegrationCredentialDAO.getById.mockResolvedValue(null);
+    mockClankerDAO.getClanker.mockResolvedValue({
+      id: clankerId,
+      status: "active",
+      deploymentStrategyId: "strategy-1",
+      deploymentStrategy: { name: "ecs" },
+      agent: "opencode",
+      secretIds: [],
+      configFiles: [
+        { fileType: "AGENTS.md", content: "instructions" },
+        { fileType: "config/opencode.json", content: '{ "model": "gpt-5" }' },
+      ],
+    } as any);
+    mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({
+      status: "active",
+    } as any);
+    mockInstructionStorageService.uploadJobInstructionFiles
+      .mockResolvedValueOnce([
+        { fileType: "config/opencode.json", s3Url: "s3://bucket/job/config/opencode.json" },
+      ])
+      .mockResolvedValueOnce([
+        { fileType: "AGENTS.md", s3Url: "s3://bucket/job/AGENTS.md" },
+      ]);
+    mockJobService.submitJob.mockResolvedValue({
+      jobId: "job-123",
+      status: "active",
+      timestamp: new Date().toISOString(),
+      callbackToken: "token-123",
+    });
+    mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue(
+      [],
+    );
+    mockWorkerExecutionService.executeJob.mockResolvedValue({
+      success: true,
+      executionId: "exec-123",
+      attempts: 1,
+    });
+
+    await service.runTicket(ticketId, { clankerId });
+
+    expect(mockInstructionStorageService.uploadJobInstructionFiles).toHaveBeenCalledWith(
+      clankerId,
+      expect.any(String),
+      [{ fileType: "config/opencode.json", content: '{ "model": "gpt-5" }' }],
+    );
+    expect(mockJobService.saveBootstrapPayload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        instructionFiles: [{ fileType: "AGENTS.md", s3Url: "s3://bucket/job/AGENTS.md" }],
+        agentConfigFile: {
+          fileType: "config/opencode.json",
+          s3Url: "s3://bucket/job/config/opencode.json",
+        },
+      }),
     );
   });
 

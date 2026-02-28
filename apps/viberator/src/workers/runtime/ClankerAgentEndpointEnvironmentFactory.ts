@@ -153,6 +153,10 @@ export class ClankerAgentEndpointEnvironmentFactory
     const defaultAgent = normalizeAgentName(process.env.DEFAULT_AGENT);
     const effectiveAgent = requestedAgent || configAgent || defaultAgent;
 
+    if (input.hasNativeAgentConfigFile) {
+      return new NoopAgentEndpointEnvironment();
+    }
+
     if (effectiveAgent === "qwen-cli") {
       const endpoint = resolveQwenEndpoint(input.clankerConfig);
       if (!endpoint) {
