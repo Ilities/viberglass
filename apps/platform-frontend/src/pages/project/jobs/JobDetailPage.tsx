@@ -27,6 +27,7 @@ import {
   LightningBoltIcon,
   ListBulletIcon,
   Pencil1Icon,
+  ReaderIcon,
   StackIcon,
   TimerIcon,
 } from '@radix-ui/react-icons'
@@ -98,6 +99,10 @@ function formatJobId(jobId: string): string {
   // Show first 8 and last 6 characters
   if (jobId.length <= 20) return jobId
   return `${jobId.slice(0, 8)}...${jobId.slice(-6)}`
+}
+
+function formatJobKind(kind: 'research' | 'execution'): string {
+  return kind === 'research' ? 'Research' : 'Execution'
 }
 
 function readString(value: unknown): string | null {
@@ -196,6 +201,9 @@ export function JobDetailPage() {
                 <Heading className="text-2xl">Job {formatJobId(job.jobId)}</Heading>
                 <div className="mt-1.5 flex items-center gap-3">
                   <JobStatusIndicator status={job.status} isPolling={isPolling} />
+                  <Badge color={job.jobKind === 'research' ? 'blue' : 'violet'}>
+                    {formatJobKind(job.jobKind)}
+                  </Badge>
                   {job.ticket?.title && (
                     <span className="text-sm text-[var(--gray-9)]">
                       Ticket:{' '}
@@ -218,6 +226,12 @@ export function JobDetailPage() {
                 <Button href={job.result.pullRequestUrl} target="_blank" color="brand">
                   <ExternalLinkIcon className="h-4 w-4" />
                   View Pull Request
+                </Button>
+              )}
+              {job.jobKind === 'research' && job.ticketId && (
+                <Button href={`/project/${project}/tickets/${job.ticketId}`} plain>
+                  <ReaderIcon className="h-4 w-4" />
+                  View Research
                 </Button>
               )}
               <JobRefreshButton onRefresh={() => void refetch()} />

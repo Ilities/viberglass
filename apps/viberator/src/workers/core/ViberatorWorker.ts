@@ -22,6 +22,7 @@ import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
 import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
 import { runCodingJob } from "./runCodingJob";
+import { runResearchJob } from "./runResearchJob";
 import {
   extractClankerEnvironment,
   normalizeAgentName,
@@ -128,7 +129,10 @@ export class ViberatorWorker {
     this.currentTenantId = data.tenantId;
 
     try {
-      return await runCodingJob({
+      const jobRunner =
+        data.jobKind === "research" ? runResearchJob : runCodingJob;
+
+      return await jobRunner({
         data,
         repositoryRoot: this.workDir,
         logger: this.logger,

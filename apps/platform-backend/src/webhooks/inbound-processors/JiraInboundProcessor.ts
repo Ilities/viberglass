@@ -13,6 +13,7 @@ import type {
 import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
 import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import type { JobService } from "../../services/JobService";
+import { JOB_KIND } from "@viberglass/types";
 import type {
   CreateTicketRequest,
   Severity,
@@ -253,6 +254,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
     const jobData: JobData = {
       id: randomUUID(),
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: resolvedTenantId,
       repository:
         event.metadata.repositoryId ||
@@ -304,6 +306,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
     const jobData: JobData = {
       id: randomUUID(),
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: resolvedTenantId,
       repository:
         event.metadata.repositoryId ||

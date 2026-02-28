@@ -62,6 +62,18 @@ export interface JobDataContext {
     content?: string
     mountPath?: string
   }>
+  ticketMedia?: Array<{
+    id: string
+    kind: 'screenshot' | 'recording'
+    filename: string
+    mimeType: string
+    size: number
+    uploadedAt: string
+    storageUrl: string
+    mountPath?: string
+    s3Url?: string
+    accessUrl?: string
+  }>
 }
 
 export interface JobDataSettings {
@@ -89,6 +101,7 @@ export interface JobStatusClanker {
 
 export interface JobStatus {
   jobId: string
+  jobKind: 'research' | 'execution'
   status: 'queued' | 'active' | 'completed' | 'failed'
   progress: Record<string, unknown> | null
   lastHeartbeat: string | null
@@ -96,6 +109,7 @@ export interface JobStatus {
   logs: LogEntry[]
   data: {
     id: string
+    jobKind: 'research' | 'execution'
     tenantId: string
     repository: string
     task: string
@@ -109,6 +123,7 @@ export interface JobStatus {
     success: boolean
     branch?: string
     pullRequestUrl?: string
+    documentContent?: string
     changedFiles?: string[]
     executionTime?: number
     errorMessage?: string
@@ -173,6 +188,7 @@ export interface JobListItemTicket {
 
 export interface JobListItem {
   jobId: string
+  jobKind: 'research' | 'execution'
   status: 'queued' | 'active' | 'completed' | 'failed'
   repository: string
   task: string

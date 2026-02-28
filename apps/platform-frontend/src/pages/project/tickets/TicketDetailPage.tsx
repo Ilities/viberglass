@@ -293,7 +293,7 @@ export function TicketDetailPage() {
 
                   <Tabs.Content value="research">
                     <div className="app-frame rounded-lg p-6 mt-4">
-                      <ResearchDocumentPanel ticketId={ticket.id} />
+                      <ResearchDocumentPanel ticket={ticket} clankers={clankers} project={project} />
                     </div>
                   </Tabs.Content>
 

@@ -14,10 +14,13 @@ import {
 import { randomUUID } from "crypto";
 import logger from "../../config/logger";
 import { SecretService } from "../../services/SecretService";
+import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
+import { JOB_KIND, TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 
 const router = Router();
 const jobService = new JobService();
 const secretService = new SecretService();
+const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -40,6 +43,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
     const jobData: JobData = {
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: tenantId ?? "api-server",
       id: jobId,
       repository,
@@ -219,12 +223,34 @@ router.post(
       // Determine status from success field
       const status = result.success ? "completed" : "failed";
 
+      if (
+        job.jobKind === JOB_KIND.RESEARCH &&
+        result.success &&
+        job.ticketId &&
+        typeof result.documentContent === "string"
+      ) {
+        await ticketPhaseDocumentService.saveDocument(
+          job.ticketId,
+          TICKET_WORKFLOW_PHASE.RESEARCH,
+          result.documentContent,
+        );
+      } else if (
+        job.jobKind === JOB_KIND.RESEARCH &&
+        result.success &&
+        !result.documentContent
+      ) {
+        return res.status(400).json({
+          error: "Research result missing document content",
+        });
+      }
+
       // Update job status using existing JobService method
       await jobService.updateJobStatus(jobId, status, {
         result: {
           success: result.success,
           branch: result.branch,
           pullRequestUrl: result.pullRequestUrl,
+          documentContent: result.documentContent,
           changedFiles: result.changedFiles,
           executionTime: result.executionTime,
           errorMessage: result.errorMessage,

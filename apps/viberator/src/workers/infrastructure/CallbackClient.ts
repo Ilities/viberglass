@@ -4,6 +4,7 @@ export interface CallbackResult {
   success: boolean;
   commitHash?: string;
   pullRequestUrl?: string;
+  documentContent?: string;
   errorMessage?: string;
   logs: string[];
   changedFiles: string[];

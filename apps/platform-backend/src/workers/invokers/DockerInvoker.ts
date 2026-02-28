@@ -229,6 +229,7 @@ export class DockerInvoker implements WorkerInvoker {
   ): object {
     return {
       workerType: "docker",
+      jobKind: job.jobKind,
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,

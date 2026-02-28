@@ -261,6 +261,7 @@ export class EcsInvoker implements WorkerInvoker {
 
     return {
       workerType: "ecs",
+      jobKind: job.jobKind,
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,

@@ -238,6 +238,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
+  job_kind: Generated<"research" | "execution">;
 }
 
 export interface JobProgressUpdatesTable {
@@ -343,6 +344,15 @@ export interface TicketPhaseDocumentsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface TicketPhaseRunsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  phase: "research";
+  job_id: string;
+  clanker_id: string;
+  created_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -366,4 +376,5 @@ export interface Database {
   user_sessions: UserSessionsTable;
   user_projects: UserProjectsTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
+  ticket_phase_runs: TicketPhaseRunsTable;
 }

@@ -27,6 +27,7 @@ import {
   type TicketWorkflowPhase,
 } from "@viberglass/types";
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
+import { TicketResearchService } from "../../services/TicketResearchService";
 import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 
 const router = express.Router();
@@ -36,6 +37,7 @@ const fileUploadService = new FileUploadService();
 const ticketExecutionService = new TicketExecutionService();
 const ticketWorkflowService = new TicketWorkflowService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
+const ticketResearchService = new TicketResearchService();
 const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
@@ -372,14 +374,11 @@ router.post("/:id/phases/:phase/advance", validateUuidParam("id"), async (req, r
 // GET /api/tickets/:id/phases/research - Get research phase document
 router.get("/:id/phases/research", validateUuidParam("id"), async (req, res) => {
   try {
-    const document = await ticketPhaseDocumentService.getOrCreateDocument(
-      req.params.id,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-    );
+    const phase = await ticketResearchService.getResearchPhase(req.params.id);
 
     res.json({
       success: true,
-      data: document,
+      data: phase,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -399,6 +398,47 @@ router.get("/:id/phases/research", validateUuidParam("id"), async (req, res) => 
     });
   }
 });
+
+// POST /api/tickets/:id/phases/research/run - Run research generation
+router.post(
+  "/:id/phases/research/run",
+  validateUuidParam("id"),
+  validateRunTicket,
+  async (req, res) => {
+    try {
+      const result = await ticketResearchService.runResearch(
+        req.params.id,
+        req.body,
+      );
+
+      return res.status(202).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.error("Error running research", {
+        ticketId: req.params.id,
+        error: message,
+      });
+
+      const statusCode =
+        message.includes("not found")
+          ? 404
+          : message.includes("only allowed during the research phase") ||
+              message.includes("no repository") ||
+              message.includes("no deployment strategy") ||
+              message.includes("Only active")
+            ? 400
+            : 500;
+
+      return res.status(statusCode).json({
+        error: statusCode === 500 ? "Internal server error" : "Bad request",
+        message,
+      });
+    }
+  },
+);
 
 // PUT /api/tickets/:id/phases/research/document - Save research phase document
 router.put("/:id/phases/research/document", validateUuidParam("id"), async (req, res) => {

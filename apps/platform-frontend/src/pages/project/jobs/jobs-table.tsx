@@ -30,6 +30,10 @@ function truncateTask(task: string, maxLength: number = 60): string {
   return task.slice(0, maxLength) + '...'
 }
 
+function formatJobKind(kind: 'research' | 'execution'): string {
+  return kind === 'research' ? 'Research' : 'Execution'
+}
+
 export function JobsTable({ jobs, project }: JobsTableProps) {
   return (
     <Table className="mt-8 [--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
@@ -57,9 +61,14 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
               <JobStatusIndicator status={job.status} />
             </TableCell>
             <TableCell className="max-w-md">
-              <span className="font-medium" title={job.task}>
-                {truncateTask(job.task)}
-              </span>
+              <div className="flex items-center gap-2">
+                <Badge color={job.jobKind === 'research' ? 'blue' : 'violet'}>
+                  {formatJobKind(job.jobKind)}
+                </Badge>
+                <span className="font-medium" title={job.task}>
+                  {truncateTask(job.task)}
+                </span>
+              </div>
             </TableCell>
             <TableCell>
               {job.ticket ? (

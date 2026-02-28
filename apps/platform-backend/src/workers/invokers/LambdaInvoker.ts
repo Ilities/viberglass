@@ -351,6 +351,7 @@ export class LambdaInvoker implements WorkerInvoker {
 
     const payload: Record<string, unknown> = {
       workerType: "lambda",
+      jobKind: job.jobKind,
       tenantId: job.tenantId,
       jobId: job.id,
       clankerId: clanker.id,

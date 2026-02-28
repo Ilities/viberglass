@@ -6,7 +6,11 @@ import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
-import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
+import {
+  JOB_KIND,
+  TICKET_STATUS,
+  type TicketLifecycleStatus,
+} from "@viberglass/types";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -64,6 +68,7 @@ export class JobService {
         bootstrap_payload: data.bootstrapPayload
           ? JSON.stringify(data.bootstrapPayload)
           : null,
+        job_kind: data.jobKind,
         created_at: new Date(),
       })
       .execute();
@@ -71,12 +76,13 @@ export class JobService {
     logger.info("Job enqueued", {
       jobId,
       repository: data.repository,
+      jobKind: data.jobKind,
       tenantId: data.tenantId,
       ticketId: options?.ticketId,
       clankerId: options?.clankerId,
     });
 
-    if (options?.ticketId) {
+    if (options?.ticketId && data.jobKind === JOB_KIND.EXECUTION) {
       await this.updateTicketAutoFixStatus(options.ticketId, {
         autoFixStatus: "pending",
         status: TICKET_STATUS.OPEN,
@@ -130,11 +136,11 @@ export class JobService {
     if (status === "active" || status === "completed" || status === "failed") {
       const job = await db
         .selectFrom("jobs")
-        .select(["id", "ticket_id", "repository", "status"])
+        .select(["id", "ticket_id", "repository", "status", "job_kind"])
         .where("id", "=", jobId)
         .executeTakeFirst();
 
-      if (job?.ticket_id) {
+      if (job?.ticket_id && job.job_kind === JOB_KIND.EXECUTION) {
         const ticketUpdate =
           status === "active"
             ? {
@@ -260,6 +266,7 @@ export class JobService {
         "jobs.tenant_id",
         "jobs.ticket_id",
         "jobs.clanker_id",
+        "jobs.job_kind",
         "tickets.id as ticket_uuid",
         "tickets.title as ticket_title",
         "tickets.external_ticket_id as ticket_external_id",
@@ -295,6 +302,7 @@ export class JobService {
 
     return {
       jobId: job.id,
+      jobKind: job.job_kind,
       status: job.status,
       progress: job.progress,
       lastHeartbeat: job.last_heartbeat?.toISOString() || null,
@@ -315,6 +323,7 @@ export class JobService {
         })),
       data: {
         id: job.id,
+        jobKind: job.job_kind,
         tenantId: job.tenant_id,
         repository: job.repository,
         task: job.task,
@@ -405,6 +414,7 @@ export class JobService {
         "jobs.started_at",
         "jobs.finished_at",
         "jobs.ticket_id",
+        "jobs.job_kind",
         "tickets.id as ticket_id",
         "tickets.title as ticket_title",
         "tickets.external_ticket_id as ticket_external_id",
@@ -417,6 +427,7 @@ export class JobService {
     const jobsData = jobs.map((job) => {
       return {
         jobId: job.id,
+        jobKind: job.job_kind,
         status: job.status,
         repository: job.repository,
         task: job.task,
@@ -515,6 +526,7 @@ export class JobService {
       id: job.id,
       data: {
         id: job.id,
+        jobKind: job.job_kind,
         tenantId: job.tenant_id,
         repository: job.repository,
         task: job.task,
