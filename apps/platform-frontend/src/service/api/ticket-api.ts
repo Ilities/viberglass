@@ -7,6 +7,7 @@ import type {
   Ticket,
   TicketListParams,
   TicketStats,
+  TicketWorkflowPhase,
   UpdateTicketRequest,
   WebhookStatus,
 } from '@viberglass/types'
@@ -19,6 +20,17 @@ export interface TicketListResponse {
     count: number
     total: number
   }
+}
+
+export interface TicketWorkflowPhaseState {
+  phase: TicketWorkflowPhase
+  status: 'completed' | 'current' | 'upcoming'
+}
+
+export interface TicketWorkflowResponse {
+  ticketId: string
+  workflowPhase: TicketWorkflowPhase
+  phases: TicketWorkflowPhaseState[]
 }
 
 // Tickets API
@@ -92,6 +104,33 @@ export async function getTicket(id: string): Promise<Ticket> {
     throw new Error('Failed to fetch ticket')
   }
   const data: ApiResponse<Ticket> = await response.json()
+  return data.data
+}
+
+export async function getTicketWorkflow(id: string): Promise<TicketWorkflowResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/phases`)
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Ticket not found')
+    }
+    throw new Error('Failed to fetch ticket workflow')
+  }
+  const data: ApiResponse<TicketWorkflowResponse> = await response.json()
+  return data.data
+}
+
+export async function advanceTicketWorkflowPhase(
+  id: string,
+  phase: TicketWorkflowPhase
+): Promise<{ ticketId: string; workflowPhase: TicketWorkflowPhase }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/phases/${phase}/advance`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to advance ticket workflow')
+  }
+  const data: ApiResponse<{ ticketId: string; workflowPhase: TicketWorkflowPhase }> = await response.json()
   return data.data
 }
 
@@ -219,4 +258,11 @@ export async function getWebhookStatus(): Promise<WebhookStatus> {
 }
 
 // Re-export types for convenience
-export type { AutoFixStatus, Severity, Ticket, TicketListParams, UpdateTicketRequest } from '@viberglass/types'
+export type {
+  AutoFixStatus,
+  Severity,
+  Ticket,
+  TicketListParams,
+  TicketWorkflowPhase,
+  UpdateTicketRequest,
+} from '@viberglass/types'

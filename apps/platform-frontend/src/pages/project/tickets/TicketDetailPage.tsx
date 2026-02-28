@@ -5,7 +5,7 @@ import { InfoItem } from '@/components/info-item'
 import { PageMeta } from '@/components/page-meta'
 import { Section } from '@/components/section'
 import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
-import type { Clanker, Ticket } from '@viberglass/types'
+import { TICKET_WORKFLOW_PHASE, type Clanker, type Ticket, type TicketWorkflowPhase } from '@viberglass/types'
 import {
   ArrowLeftIcon,
   CalendarIcon,
@@ -22,10 +22,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 
 import { TicketRunButton } from './ticket-run-button'
 import { useEffect, useState } from 'react'
-import { deleteTicket, updateTicket } from '@/service/api/ticket-api'
+import { advanceTicketWorkflowPhase, deleteTicket, updateTicket } from '@/service/api/ticket-api'
 import { toast } from 'sonner'
 import { EditTicketDialog } from './edit-ticket-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
+import { TicketWorkflowPanel } from './ticket-workflow-panel'
 
 function formatTicketId(ticketId: string): string {
   if (ticketId.length <= 20) return ticketId
@@ -70,6 +71,7 @@ export function TicketDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isAdvancingWorkflow, setIsAdvancingWorkflow] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -111,6 +113,12 @@ export function TicketDetailPage() {
 
   const severityBadge = getSeverityBadge(ticket.severity)
   const autoFixBadge = getAutoFixBadge(ticket.autoFixStatus)
+
+  function formatWorkflowPhase(phase: TicketWorkflowPhase): string {
+    if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) return 'Research'
+    if (phase === TICKET_WORKFLOW_PHASE.PLANNING) return 'Planning'
+    return 'Execution'
+  }
 
   return (
     <>
@@ -200,6 +208,12 @@ export function TicketDetailPage() {
                     label="Ticket System"
                     value={formatTicketSystem(ticket.ticketSystem)}
                   />
+                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <InfoItem
+                    icon={<ClockIcon className="h-4 w-4" />}
+                    label="Workflow Phase"
+                    value={formatWorkflowPhase(ticket.workflowPhase)}
+                  />
                 </Section>
               </div>
 
@@ -228,6 +242,27 @@ export function TicketDetailPage() {
 
             <div className="lg:col-span-8 xl:col-span-9">
               <div className="space-y-6">
+                <TicketWorkflowPanel
+                  workflowPhase={ticket.workflowPhase}
+                  isAdvancing={isAdvancingWorkflow}
+                  onAdvance={async (phase) => {
+                    try {
+                      setIsAdvancingWorkflow(true)
+                      const result = await advanceTicketWorkflowPhase(ticket.id, phase)
+                      setTicket((currentTicket) =>
+                        currentTicket
+                          ? { ...currentTicket, workflowPhase: result.workflowPhase }
+                          : currentTicket
+                      )
+                      toast.success(`Ticket moved to ${formatWorkflowPhase(result.workflowPhase)}`)
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : 'Failed to advance workflow')
+                    } finally {
+                      setIsAdvancingWorkflow(false)
+                    }
+                  }}
+                />
+
                 <div className="app-frame rounded-lg p-6">
                   <Subheading className="mb-4 flex items-center gap-2">
                     <FileTextIcon className="h-5 w-5 text-[var(--accent-9)]" />
