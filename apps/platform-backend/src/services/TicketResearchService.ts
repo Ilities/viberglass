@@ -12,6 +12,7 @@ import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { TicketPhaseApprovalDAO } from "../persistence/ticketing/TicketPhaseApprovalDAO";
 import { TicketPhaseRunDAO } from "../persistence/ticketing/TicketPhaseRunDAO";
 import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
@@ -27,6 +28,8 @@ import {
 } from "./instructions/pathPolicy";
 import { WorkerExecutionService } from "../workers";
 import type { JobData } from "../types/Job";
+import { TicketWorkflowService } from "./TicketWorkflowService";
+import type { FeedbackService } from "../webhooks/FeedbackService";
 
 interface InlineInstructionFile {
   fileType: string;
@@ -153,6 +156,13 @@ export class TicketResearchService {
   private readonly documentService = new TicketPhaseDocumentService();
   private readonly phaseRunDAO = new TicketPhaseRunDAO();
   private readonly instructionStorageService = new InstructionStorageService();
+  private readonly approvalDAO = new TicketPhaseApprovalDAO();
+  private readonly workflowService = new TicketWorkflowService();
+  private feedbackService?: FeedbackService;
+
+  constructor(feedbackService?: FeedbackService) {
+    this.feedbackService = feedbackService;
+  }
 
   async getResearchPhase(ticketId: string): Promise<ResearchPhaseView> {
     const document = await this.documentService.getOrCreateDocument(
@@ -378,5 +388,170 @@ export class TicketResearchService {
     }
 
     return credential.secretId;
+  }
+
+  async requestApproval(
+    ticketId: string,
+    actor?: string,
+  ): Promise<ResearchPhaseView> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
+
+    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
+      throw new Error(
+        "Approval can only be requested during the research phase",
+      );
+    }
+
+    const document = await this.documentService.requestApproval(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+      actor,
+    );
+
+    await this.approvalDAO.recordApprovalAction(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+      "approval_requested",
+      actor,
+    );
+
+    const latestRun = await this.phaseRunDAO.getLatestResearchRun(ticketId);
+
+    return {
+      document,
+      latestRun: latestRun
+        ? {
+            id: latestRun.id,
+            jobId: latestRun.jobId,
+            status: latestRun.status,
+            clankerId: latestRun.clankerId,
+            clankerName: latestRun.clankerName,
+            clankerSlug: latestRun.clankerSlug,
+            createdAt: latestRun.createdAt.toISOString(),
+            startedAt: latestRun.startedAt?.toISOString() || null,
+            finishedAt: latestRun.finishedAt?.toISOString() || null,
+          }
+        : null,
+    };
+  }
+
+  async approve(
+    ticketId: string,
+    actor?: string,
+  ): Promise<ResearchPhaseView> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
+
+    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
+      throw new Error(
+        "Approval can only be granted during the research phase",
+      );
+    }
+
+    const document = await this.documentService.approveDocument(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+      actor,
+    );
+
+    await this.approvalDAO.recordApprovalAction(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+      "approved",
+      actor,
+      "Research document approved",
+    );
+
+    // Auto-advance to planning phase
+    await this.workflowService.advancePhase(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+    );
+
+    // Post external comment asynchronously
+    if (this.feedbackService) {
+      this.feedbackService
+        .postResearchApproved({
+          id: ticketId,
+          ticketId,
+          workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
+        })
+        .catch((error) => {
+          logger.error(
+            `Failed to post research approval event for ticket ${ticketId}`,
+            {
+              error: error instanceof Error ? error.message : String(error),
+              ticketId,
+            },
+          );
+        });
+    }
+
+    const latestRun = await this.phaseRunDAO.getLatestResearchRun(ticketId);
+
+    return {
+      document,
+      latestRun: latestRun
+        ? {
+            id: latestRun.id,
+            jobId: latestRun.jobId,
+            status: latestRun.status,
+            clankerId: latestRun.clankerId,
+            clankerName: latestRun.clankerName,
+            clankerSlug: latestRun.clankerSlug,
+            createdAt: latestRun.createdAt.toISOString(),
+            startedAt: latestRun.startedAt?.toISOString() || null,
+            finishedAt: latestRun.finishedAt?.toISOString() || null,
+          }
+        : null,
+    };
+  }
+
+  async revokeApproval(
+    ticketId: string,
+    actor?: string,
+  ): Promise<ResearchPhaseView> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
+
+    const document = await this.documentService.revokeApproval(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+      actor,
+    );
+
+    await this.approvalDAO.recordApprovalAction(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+      "revoked",
+      actor,
+      "Research approval revoked",
+    );
+
+    const latestRun = await this.phaseRunDAO.getLatestResearchRun(ticketId);
+
+    return {
+      document,
+      latestRun: latestRun
+        ? {
+            id: latestRun.id,
+            jobId: latestRun.jobId,
+            status: latestRun.status,
+            clankerId: latestRun.clankerId,
+            clankerName: latestRun.clankerName,
+            clankerSlug: latestRun.clankerSlug,
+            createdAt: latestRun.createdAt.toISOString(),
+            startedAt: latestRun.startedAt?.toISOString() || null,
+            finishedAt: latestRun.finishedAt?.toISOString() || null,
+          }
+        : null,
+    };
   }
 }
