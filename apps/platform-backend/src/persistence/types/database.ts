@@ -340,8 +340,21 @@ export interface TicketPhaseDocumentsTable {
   phase: "research" | "planning" | "execution";
   content: Generated<string>;
   storage_url: string | null;
+  approval_state: Generated<"draft" | "approval_requested" | "approved" | "rejected">;
+  approved_at: Timestamp | null;
+  approved_by: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
+}
+
+export interface TicketPhaseApprovalsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  phase: "research" | "planning" | "execution";
+  action: "approval_requested" | "approved" | "rejected" | "revoked";
+  actor: string | null;
+  comment: string | null;
+  created_at: Generated<Timestamp>;
 }
 
 export interface TicketPhaseRunsTable {
@@ -377,4 +390,5 @@ export interface Database {
   user_projects: UserProjectsTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;
+  ticket_phase_approvals: TicketPhaseApprovalsTable;
 }
