@@ -97,6 +97,7 @@ export interface ExecutionContext {
   // Agent and secrets configuration
   agent?: string;
   secrets?: SecretMetadata[];
+  promptOverride?: string;
 }
 
 export interface AgentExecution {

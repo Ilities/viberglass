@@ -10,7 +10,7 @@ import { JobService } from "./JobService";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
-import type { Clanker, Project } from "@viberglass/types";
+import { JOB_KIND, type Clanker, type Project } from "@viberglass/types";
 import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
 import { getStrategyType } from "../clanker-config";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
@@ -275,6 +275,7 @@ export class TicketExecutionService {
       // Create job via JobService.submitJob with ticket and clanker references
       const jobData: JobData = {
         id: jobId,
+        jobKind: JOB_KIND.EXECUTION,
         tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
         repository: sourceRepository,
         task: `${ticket.title}\n\n${ticket.description}`,
@@ -316,6 +317,7 @@ export class TicketExecutionService {
 
       const bootstrapPayload: Record<string, unknown> = {
         workerType,
+        jobKind: jobData.jobKind,
         tenantId: jobData.tenantId,
         jobId: jobData.id,
         clankerId: clanker.id,

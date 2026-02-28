@@ -246,6 +246,7 @@ export const resultCallbackSchema = Joi.object({
   success: Joi.boolean().required(),
   commitHash: Joi.string().allow(null, "").optional(),
   pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
+  documentContent: Joi.string().allow(null, "").optional(),
   errorMessage: Joi.string().allow(null, "").optional(),
   logs: Joi.array().items(Joi.string()).default([]),
   changedFiles: Joi.array().items(Joi.string()).default([]),

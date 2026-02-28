@@ -258,13 +258,30 @@ export interface PhaseDocumentResponse {
   updatedAt: string
 }
 
-export async function getResearchDocument(ticketId: string): Promise<PhaseDocumentResponse> {
+export interface ResearchRunResponse {
+  id: string
+  jobId: string
+  status: 'queued' | 'active' | 'completed' | 'failed'
+  clankerId: string
+  clankerName: string | null
+  clankerSlug: string | null
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface ResearchPhaseResponse {
+  document: PhaseDocumentResponse
+  latestRun: ResearchRunResponse | null
+}
+
+export async function getResearchDocument(ticketId: string): Promise<ResearchPhaseResponse> {
   const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research`)
   if (!response.ok) {
     if (response.status === 404) throw new Error('Ticket not found')
     throw new Error('Failed to fetch research document')
   }
-  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
+  const data: ApiResponse<ResearchPhaseResponse> = await response.json()
   return data.data
 }
 
@@ -283,6 +300,27 @@ export async function saveResearchDocument(
   }
   const data: ApiResponse<PhaseDocumentResponse> = await response.json()
   return data.data
+}
+
+export async function runResearch(
+  ticketId: string,
+  clankerId: string,
+  instructionFiles?: Array<{ fileType: string; content: string }>,
+): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ clankerId, instructionFiles }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to run research')
+  }
+
+  return response.json()
 }
 
 // Webhook Status API

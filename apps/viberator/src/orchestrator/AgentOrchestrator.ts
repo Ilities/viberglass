@@ -1,10 +1,7 @@
 import {
   AgentConfig,
-  BugReport,
-  Ticket,
-  ProjectSettings,
-  ExecutionContext,
   AgentExecution,
+  ExecutionContext,
   ExecutionResult,
 } from "../types";
 import { Logger } from "winston";
@@ -112,7 +109,7 @@ export class AgentOrchestrator {
       }
 
       // Generate prompt for the agent
-      const prompt = this.buildAgentPrompt(context);
+      const prompt = context.promptOverride || this.buildAgentPrompt(context);
 
       // Instantiate the specific agent
       const agent = AgentFactory.createAgent(effectiveAgentConfig, this.logger);
