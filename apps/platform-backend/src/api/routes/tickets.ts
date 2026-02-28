@@ -26,6 +26,7 @@ import {
   type TicketLifecycleStatus,
   type TicketWorkflowPhase,
 } from "@viberglass/types";
+import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
 import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 
 const router = express.Router();
@@ -34,6 +35,7 @@ const projectService = new ProjectDAO();
 const fileUploadService = new FileUploadService();
 const ticketExecutionService = new TicketExecutionService();
 const ticketWorkflowService = new TicketWorkflowService();
+const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
@@ -363,6 +365,77 @@ router.post("/:id/phases/:phase/advance", validateUuidParam("id"), async (req, r
     return res.status(500).json({
       error: "Internal server error",
       message: "Failed to advance ticket workflow",
+    });
+  }
+});
+
+// GET /api/tickets/:id/phases/research - Get research phase document
+router.get("/:id/phases/research", validateUuidParam("id"), async (req, res) => {
+  try {
+    const document = await ticketPhaseDocumentService.getOrCreateDocument(
+      req.params.id,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
+
+    res.json({
+      success: true,
+      data: document,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error fetching research document", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to fetch research document",
+    });
+  }
+});
+
+// PUT /api/tickets/:id/phases/research/document - Save research phase document
+router.put("/:id/phases/research/document", validateUuidParam("id"), async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (typeof content !== "string") {
+      return res.status(400).json({
+        error: "Validation error",
+        message: "content must be a string",
+      });
+    }
+
+    const document = await ticketPhaseDocumentService.saveDocument(
+      req.params.id,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+      content,
+    );
+
+    res.json({
+      success: true,
+      data: document,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error saving research document", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to save research document",
     });
   }
 });

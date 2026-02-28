@@ -247,6 +247,44 @@ export async function getMediaSignedUrl(
   return data.data
 }
 
+// Phase Document API
+
+export interface PhaseDocumentResponse {
+  id: string
+  ticketId: string
+  phase: TicketWorkflowPhase
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function getResearchDocument(ticketId: string): Promise<PhaseDocumentResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research`)
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Ticket not found')
+    throw new Error('Failed to fetch research document')
+  }
+  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
+  return data.data
+}
+
+export async function saveResearchDocument(
+  ticketId: string,
+  content: string,
+): Promise<PhaseDocumentResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/document`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to save research document')
+  }
+  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
+  return data.data
+}
+
 // Webhook Status API
 export async function getWebhookStatus(): Promise<WebhookStatus> {
   const response = await apiFetch(`${API_BASE_URL}/api/webhooks/status`)

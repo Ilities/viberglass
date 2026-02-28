@@ -333,6 +333,16 @@ export interface UserProjectsTable {
   updated_at: Timestamp | null;
 }
 
+export interface TicketPhaseDocumentsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  phase: "research" | "planning" | "execution";
+  content: Generated<string>;
+  storage_url: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -355,4 +365,5 @@ export interface Database {
   users: UsersTable;
   user_sessions: UserSessionsTable;
   user_projects: UserProjectsTable;
+  ticket_phase_documents: TicketPhaseDocumentsTable;
 }

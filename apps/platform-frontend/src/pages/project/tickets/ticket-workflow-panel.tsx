@@ -1,6 +1,5 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { Section } from '@/components/section'
 import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
 
 interface TicketWorkflowPanelProps {
@@ -9,40 +8,18 @@ interface TicketWorkflowPanelProps {
   onAdvance: (phase: TicketWorkflowPhase) => Promise<void>
 }
 
-interface WorkflowPhaseDescriptor {
-  phase: TicketWorkflowPhase
-  title: string
-  description: string
-  emptyState: string
-}
-
-const workflowPhases: WorkflowPhaseDescriptor[] = [
-  {
-    phase: TICKET_WORKFLOW_PHASE.RESEARCH,
-    title: 'Research',
-    description: 'Explore the codebase and gather implementation context.',
-    emptyState: 'Research artifacts will appear here in a later chunk.',
-  },
-  {
-    phase: TICKET_WORKFLOW_PHASE.PLANNING,
-    title: 'Planning',
-    description: 'Define the approach before execution starts.',
-    emptyState: 'Planning artifacts will appear here after research is completed.',
-  },
-  {
-    phase: TICKET_WORKFLOW_PHASE.EXECUTION,
-    title: 'Execution',
-    description: 'Run the implementation workflow for this ticket.',
-    emptyState: 'Execution remains unchanged in this chunk.',
-  },
+const phases: { phase: TicketWorkflowPhase; label: string }[] = [
+  { phase: TICKET_WORKFLOW_PHASE.RESEARCH, label: 'Research' },
+  { phase: TICKET_WORKFLOW_PHASE.PLANNING, label: 'Planning' },
+  { phase: TICKET_WORKFLOW_PHASE.EXECUTION, label: 'Execution' },
 ]
 
 function getPhaseStatus(
   currentPhase: TicketWorkflowPhase,
-  phase: TicketWorkflowPhase
+  phase: TicketWorkflowPhase,
 ): 'completed' | 'current' | 'upcoming' {
-  const currentIndex = workflowPhases.findIndex((entry) => entry.phase === currentPhase)
-  const phaseIndex = workflowPhases.findIndex((entry) => entry.phase === phase)
+  const currentIndex = phases.findIndex((p) => p.phase === currentPhase)
+  const phaseIndex = phases.findIndex((p) => p.phase === phase)
 
   if (phaseIndex < currentIndex) return 'completed'
   if (phaseIndex === currentIndex) return 'current'
@@ -53,14 +30,8 @@ function getStatusBadge(status: 'completed' | 'current' | 'upcoming'): {
   label: string
   color: 'green' | 'blue' | 'zinc'
 } {
-  if (status === 'completed') {
-    return { label: 'Completed', color: 'green' }
-  }
-
-  if (status === 'current') {
-    return { label: 'Current', color: 'blue' }
-  }
-
+  if (status === 'completed') return { label: 'Done', color: 'green' }
+  if (status === 'current') return { label: 'Current', color: 'blue' }
   return { label: 'Upcoming', color: 'zinc' }
 }
 
@@ -69,19 +40,11 @@ function getAdvanceAction(currentPhase: TicketWorkflowPhase): {
   label: string
 } | null {
   if (currentPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
-    return {
-      phase: TICKET_WORKFLOW_PHASE.PLANNING,
-      label: 'Move to Planning',
-    }
+    return { phase: TICKET_WORKFLOW_PHASE.PLANNING, label: 'Move to Planning' }
   }
-
   if (currentPhase === TICKET_WORKFLOW_PHASE.PLANNING) {
-    return {
-      phase: TICKET_WORKFLOW_PHASE.EXECUTION,
-      label: 'Move to Execution',
-    }
+    return { phase: TICKET_WORKFLOW_PHASE.EXECUTION, label: 'Move to Execution' }
   }
-
   return null
 }
 
@@ -93,46 +56,39 @@ export function TicketWorkflowPanel({
   const advanceAction = getAdvanceAction(workflowPhase)
 
   return (
-    <div className="app-frame rounded-lg p-6">
-      <Section title="Workflow" className="mb-0">
-        <div className="space-y-4">
-          {workflowPhases.map((phase) => {
-            const status = getPhaseStatus(workflowPhase, phase.phase)
+    <div className="app-frame rounded-lg px-5 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {phases.map((entry, index) => {
+            const status = getPhaseStatus(workflowPhase, entry.phase)
             const badge = getStatusBadge(status)
-            const isCurrent = status === 'current'
-            const showAdvance = isCurrent && advanceAction !== null
 
             return (
-              <div
-                key={phase.phase}
-                className="rounded-xl border border-[var(--gray-6)] bg-[var(--gray-2)] p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-[var(--gray-12)]">{phase.title}</h3>
-                      <Badge color={badge.color}>{badge.label}</Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-[var(--gray-10)]">{phase.description}</p>
-                  </div>
-
-                  {showAdvance && advanceAction ? (
-                    <Button
-                      color="brand"
-                      onClick={() => onAdvance(advanceAction.phase)}
-                      disabled={isAdvancing}
-                    >
-                      {isAdvancing ? 'Updating...' : advanceAction.label}
-                    </Button>
-                  ) : null}
+              <div key={entry.phase} className="flex items-center gap-4">
+                {index > 0 && (
+                  <div className="h-px w-6 bg-[var(--gray-6)]" />
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-[var(--gray-11)]">
+                    {entry.label}
+                  </span>
+                  <Badge color={badge.color}>{badge.label}</Badge>
                 </div>
-
-                <p className="mt-3 text-sm text-[var(--gray-9)]">{phase.emptyState}</p>
               </div>
             )
           })}
         </div>
-      </Section>
+
+        {advanceAction ? (
+          <Button
+            color="brand"
+            onClick={() => onAdvance(advanceAction.phase)}
+            disabled={isAdvancing}
+          >
+            {isAdvancing ? 'Updating...' : advanceAction.label}
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }
