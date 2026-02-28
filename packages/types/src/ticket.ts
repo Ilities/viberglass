@@ -12,6 +12,15 @@ export const TICKET_STATUS = {
 
 export type TicketLifecycleStatus = (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS]
 
+export const TICKET_WORKFLOW_PHASE = {
+  RESEARCH: 'research',
+  PLANNING: 'planning',
+  EXECUTION: 'execution',
+} as const
+
+export type TicketWorkflowPhase =
+  (typeof TICKET_WORKFLOW_PHASE)[keyof typeof TICKET_WORKFLOW_PHASE]
+
 export const TICKET_ARCHIVE_FILTER = {
   EXCLUDE: 'exclude',
   ONLY: 'only',
@@ -118,6 +127,7 @@ export interface Ticket {
   severity: Severity
   category: string
   status: TicketLifecycleStatus
+  workflowPhase: TicketWorkflowPhase
   archivedAt?: string
   metadata: TicketMetadata
   screenshot?: MediaAsset
@@ -168,6 +178,7 @@ export interface TicketListItem {
   severity: Severity
   category: string
   status: TicketLifecycleStatus
+  workflowPhase: TicketWorkflowPhase
   archivedAt?: string
   externalTicketId?: string
   externalTicketUrl?: string

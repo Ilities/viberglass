@@ -20,20 +20,29 @@ import logger from "../../config/logger";
 import {
   TICKET_ARCHIVE_FILTER,
   TICKET_STATUS,
+  TICKET_WORKFLOW_PHASE,
   type Severity,
   type TicketArchiveFilter,
   type TicketLifecycleStatus,
+  type TicketWorkflowPhase,
 } from "@viberglass/types";
+import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
 const projectService = new ProjectDAO();
 const fileUploadService = new FileUploadService();
 const ticketExecutionService = new TicketExecutionService();
+const ticketWorkflowService = new TicketWorkflowService();
 const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
   TICKET_STATUS.RESOLVED,
+];
+const ticketWorkflowPhases: TicketWorkflowPhase[] = [
+  TICKET_WORKFLOW_PHASE.RESEARCH,
+  TICKET_WORKFLOW_PHASE.PLANNING,
+  TICKET_WORKFLOW_PHASE.EXECUTION,
 ];
 const ticketArchiveFilters: TicketArchiveFilter[] = [
   TICKET_ARCHIVE_FILTER.EXCLUDE,
@@ -90,6 +99,14 @@ function parseSeverityQuery(
   const value = Array.isArray(rawSeverity) ? rawSeverity[0] : rawSeverity;
   if (value === "low" || value === "medium" || value === "high" || value === "critical") {
     return value;
+  }
+
+  return null;
+}
+
+function parseWorkflowPhaseParam(rawPhase: string): TicketWorkflowPhase | null {
+  if (ticketWorkflowPhases.includes(rawPhase as TicketWorkflowPhase)) {
+    return rawPhase as TicketWorkflowPhase;
   }
 
   return null;
@@ -272,6 +289,80 @@ router.post("/unarchive", validateArchiveTickets, async (req, res) => {
     res.status(500).json({
       error: "Internal server error",
       message: "Failed to unarchive tickets",
+    });
+  }
+});
+
+// GET /api/tickets/:id/phases - Get workflow phase state for a ticket
+router.get("/:id/phases", validateUuidParam("id"), async (req, res) => {
+  try {
+    const workflow = await ticketWorkflowService.getTicketWorkflow(req.params.id);
+
+    res.json({
+      success: true,
+      data: workflow,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error fetching ticket workflow", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to fetch ticket workflow",
+    });
+  }
+});
+
+// POST /api/tickets/:id/phases/:phase/advance - Advance workflow phase
+router.post("/:id/phases/:phase/advance", validateUuidParam("id"), async (req, res) => {
+  try {
+    const targetPhase = parseWorkflowPhaseParam(req.params.phase);
+    if (!targetPhase) {
+      return res.status(400).json({
+        error: "Invalid workflow phase",
+      });
+    }
+
+    const result = await ticketWorkflowService.advancePhase(
+      req.params.id,
+      targetPhase,
+    );
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    if (message.startsWith("Cannot advance ticket workflow")) {
+      return res.status(409).json({
+        error: message,
+      });
+    }
+
+    logger.error("Error advancing ticket workflow", {
+      ticketId: req.params.id,
+      targetPhase: req.params.phase,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to advance ticket workflow",
     });
   }
 });
