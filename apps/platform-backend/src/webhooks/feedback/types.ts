@@ -15,9 +15,15 @@ export interface FeedbackResult {
   error?: string;
 }
 
-export type OutboundWebhookEventType = 'job_started' | 'job_ended';
+export type OutboundWebhookEventType = 'job_started' | 'job_ended' | 'research_approved';
 
 export interface FeedbackServiceConfig {
   postOnFailure?: boolean;
   timeout?: number;
+}
+
+export interface ResearchApprovalEvent {
+  id: string;
+  ticketId: string;
+  workflowPhase: 'research';
 }

@@ -480,6 +480,114 @@ router.put("/:id/phases/research/document", validateUuidParam("id"), async (req,
   }
 });
 
+// POST /api/tickets/:id/phases/research/request-approval - Request approval for research
+router.post("/:id/phases/research/request-approval", validateUuidParam("id"), async (req, res) => {
+  try {
+    const actor = req.auth?.user.email;
+    const result = await ticketResearchService.requestApproval(
+      req.params.id,
+      actor,
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    if (message.includes("only allowed during the research phase")) {
+      return res.status(409).json({
+        error: message,
+      });
+    }
+
+    logger.error("Error requesting research approval", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to request research approval",
+    });
+  }
+});
+
+// POST /api/tickets/:id/phases/research/approve - Approve research document
+router.post("/:id/phases/research/approve", validateUuidParam("id"), async (req, res) => {
+  try {
+    const actor = req.auth?.user.email;
+    const result = await ticketResearchService.approve(
+      req.params.id,
+      actor,
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    if (message.includes("only allowed during the research phase")) {
+      return res.status(409).json({
+        error: message,
+      });
+    }
+
+    logger.error("Error approving research document", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to approve research document",
+    });
+  }
+});
+
+// POST /api/tickets/:id/phases/research/revoke-approval - Revoke research approval
+router.post("/:id/phases/research/revoke-approval", validateUuidParam("id"), async (req, res) => {
+  try {
+    const actor = req.auth?.user.email;
+    const result = await ticketResearchService.revokeApproval(
+      req.params.id,
+      actor,
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error revoking research approval", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to revoke research approval",
+    });
+  }
+});
+
 // GET /api/tickets/:id - Get a specific ticket
 router.get("/:id", validateUuidParam("id"), async (req, res) => {
   try {

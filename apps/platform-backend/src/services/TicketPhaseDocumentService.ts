@@ -3,6 +3,7 @@ import type { TicketWorkflowPhase } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import {
+  type ApprovalState,
   type PhaseDocument,
   TicketPhaseDocumentDAO,
 } from "../persistence/ticketing/TicketPhaseDocumentDAO";
@@ -14,6 +15,9 @@ export interface PhaseDocumentView {
   ticketId: string;
   phase: TicketWorkflowPhase;
   content: string;
+  approvalState: ApprovalState;
+  approvedAt: string | null;
+  approvedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,12 +96,88 @@ export class TicketPhaseDocumentService {
     return this.toView(updated!);
   }
 
+  async requestApproval(
+    ticketId: string,
+    phase: TicketWorkflowPhase,
+    actor?: string,
+  ): Promise<PhaseDocumentView> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
+
+    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    if (!doc) {
+      doc = await this.documentDAO.create(ticketId, phase);
+    }
+
+    await this.documentDAO.updateApprovalState(
+      ticketId,
+      phase,
+      "approval_requested",
+      actor,
+    );
+
+    const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    return this.toView(updated!);
+  }
+
+  async approveDocument(
+    ticketId: string,
+    phase: TicketWorkflowPhase,
+    actor?: string,
+  ): Promise<PhaseDocumentView> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
+
+    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    if (!doc) {
+      doc = await this.documentDAO.create(ticketId, phase);
+    }
+
+    await this.documentDAO.updateApprovalState(ticketId, phase, "approved", actor);
+
+    const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    return this.toView(updated!);
+  }
+
+  async revokeApproval(
+    ticketId: string,
+    phase: TicketWorkflowPhase,
+    actor?: string,
+  ): Promise<PhaseDocumentView> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
+
+    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    if (!doc) {
+      doc = await this.documentDAO.create(ticketId, phase);
+    }
+
+    await this.documentDAO.updateApprovalState(
+      ticketId,
+      phase,
+      "draft",
+      actor,
+    );
+
+    const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    return this.toView(updated!);
+  }
+
   private toView(doc: PhaseDocument): PhaseDocumentView {
     return {
       id: doc.id,
       ticketId: doc.ticketId,
       phase: doc.phase,
       content: doc.content,
+      approvalState: doc.approvalState,
+      approvedAt: doc.approvedAt?.toISOString() || null,
+      approvedBy: doc.approvedBy,
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
     };

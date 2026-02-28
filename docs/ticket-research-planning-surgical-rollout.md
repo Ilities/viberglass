@@ -284,7 +284,7 @@ Backend:
   - execution override recorded
 
 Frontend:
-- Add `Override to Execution` action with required reason input
+- Add `Execute without Research/Planning` action with optional reason input
 - Show override badge and audit info on ticket detail page
 
 ### Acceptance
