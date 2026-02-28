@@ -15,6 +15,7 @@ import {
 import { CallbackClient } from "../infrastructure/CallbackClient";
 import { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
+import { AgentConfigFileManager } from "../runtime/AgentConfigFileManager";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
@@ -37,6 +38,7 @@ export class ViberatorWorker {
   private callbackClient!: CallbackClient;
   private credentialProvider!: CredentialProvider;
   private configLoader!: ConfigLoader;
+  private agentConfigFileManager!: AgentConfigFileManager;
   private instructionFileManager!: InstructionFileManager;
   private environmentManager!: EnvironmentManager;
   private logForwarder!: LogForwarder;
@@ -51,6 +53,7 @@ export class ViberatorWorker {
   private projectConfig?: ProjectConfigPayload;
   private overrides?: JobOverrides;
   private instructionFiles: Map<string, string> = new Map();
+  private agentConfigFile: { fileType: string; content: string } | null = null;
   private fetchedCredentials?: Record<string, string | undefined>;
   private currentJobId?: string;
   private currentTenantId?: string;
@@ -79,6 +82,7 @@ export class ViberatorWorker {
 
       this.credentialProvider = new CredentialProvider(this.logger);
       this.configLoader = new ConfigLoader(this.logger);
+      this.agentConfigFileManager = new AgentConfigFileManager(this.logger);
       this.instructionFileManager = new InstructionFileManager(this.logger);
       this.environmentManager = new EnvironmentManager(this.logger);
 
@@ -94,6 +98,10 @@ export class ViberatorWorker {
 
       if (payload) {
         await this.agentAuthLifecycle.materializeFromEnvironment();
+        this.agentConfigFile = await this.agentConfigFileManager.loadFromPayload(
+          payload,
+          this.configLoader,
+        );
         this.instructionFiles = await this.instructionFileManager.loadFromPayload(
           payload,
           this.configLoader,
@@ -137,6 +145,9 @@ export class ViberatorWorker {
         orchestrator: this.orchestrator,
         instructionFileManager: this.instructionFileManager,
         instructionFiles: this.instructionFiles,
+        agentConfigFileManager: this.agentConfigFileManager,
+        agentConfigFile: this.agentConfigFile,
+        requestedAgent: this.requestedAgent,
         fetchedCredentials: this.fetchedCredentials || {},
         clankerEnvironment: this.clankerEnvironment,
         clankerConfig: this.clankerConfig,
@@ -182,6 +193,7 @@ export class ViberatorWorker {
       .create({
         requestedAgent: this.requestedAgent,
         clankerConfig: this.clankerConfig,
+        hasNativeAgentConfigFile: Boolean(payload.agentConfigFile),
       })
       .resolve();
     this.clankerEnvironment = extractClankerEnvironment(

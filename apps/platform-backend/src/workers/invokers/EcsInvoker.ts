@@ -272,6 +272,7 @@ export class EcsInvoker implements WorkerInvoker {
       context: job.context,
       settings: job.settings,
       instructionFiles: job.context?.instructionFiles ?? [],
+      agentConfigFile: job.agentConfigFile,
       requiredCredentials,
       callbackToken: job.callbackToken,
       clankerConfig: clanker,

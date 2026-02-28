@@ -10,6 +10,10 @@ import {
 } from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
 import logger from "../../config/logger";
+import {
+  buildNativeAgentConfigTemplate,
+  validateClankerConfigFiles,
+} from "../../services/clanker-config-files/nativeAgentConfig";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
@@ -37,6 +41,13 @@ async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
     availability.status,
     nextMessage,
   );
+}
+
+function toConfigFileInputs(clanker: Clanker) {
+  return clanker.configFiles.map((file) => ({
+    fileType: file.fileType,
+    content: file.content,
+  }));
 }
 
 // GET /api/clankers - List all clankers
@@ -76,9 +87,46 @@ router.get("/by-slug/:slug", async (req, res) => {
   }
 });
 
+router.get("/native-config-template", async (req, res) => {
+  try {
+    const rawAgent = typeof req.query.agent === "string" ? req.query.agent : null;
+    const clankerId =
+      typeof req.query.clankerId === "string" ? req.query.clankerId : null;
+
+    let clanker: Clanker | null = null;
+    if (clankerId) {
+      clanker = await clankerService.getClanker(clankerId);
+      if (!clanker) {
+        return res.status(404).json({ error: "Clanker not found" });
+      }
+    }
+
+    const template = buildNativeAgentConfigTemplate(
+      rawAgent ?? clanker?.agent ?? null,
+      clanker,
+    );
+    if (!template) {
+      return res.status(400).json({
+        error: "Unsupported agent",
+        message:
+          "Native config templates are only available for supported tool-backed agents.",
+      });
+    }
+
+    res.json({ success: true, data: template });
+  } catch (error) {
+    logger.error("Error generating native config template", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // POST /api/clankers - Create a new clanker
 router.post("/", validateCreateClanker, async (req, res) => {
   try {
+    validateClankerConfigFiles(req.body.agent, req.body.configFiles || []);
+
     // Validate that secrets exist if secretIds are provided
     if (req.body.secretIds && req.body.secretIds.length > 0) {
       try {
@@ -128,6 +176,11 @@ router.put(
       if (!clanker) {
         return res.status(404).json({ error: "Clanker not found" });
       }
+
+      validateClankerConfigFiles(
+        req.body.agent ?? clanker.agent,
+        req.body.configFiles ?? toConfigFileInputs(clanker),
+      );
 
       // Validate that secrets exist if secretIds are provided
       if (req.body.secretIds && req.body.secretIds.length > 0) {

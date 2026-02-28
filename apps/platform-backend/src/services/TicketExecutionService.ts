@@ -10,14 +10,21 @@ import { JobService } from "./JobService";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
-import type { Clanker, Project } from "@viberglass/types";
+import type {
+  Clanker,
+  Project,
+  RuntimeConfigFileReference,
+} from "@viberglass/types";
 import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
 import { getStrategyType } from "../clanker-config";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
 import {
-  isAllowedInstructionPath,
   normalizeInstructionPath,
 } from "./instructions/pathPolicy";
+import {
+  splitClankerConfigFiles,
+  validateClankerConfigFiles,
+} from "./clanker-config-files/nativeAgentConfig";
 
 export interface InlineInstructionFile {
   fileType: string;
@@ -58,20 +65,55 @@ export class TicketExecutionService {
     const fileType = normalizeInstructionPath(file.fileType);
     const content = typeof file.content === "string" ? file.content : "";
 
-    if (!fileType || !content.trim() || !isAllowedInstructionPath(fileType)) {
+    const split = validateClankerConfigFiles("claude-code", [
+      { fileType, content },
+    ]);
+    if (!fileType || !content.trim() || split.instructionFiles.length === 0) {
       return null;
     }
 
     return { fileType, content };
   }
 
+  private async resolveWorkerNativeAgentConfigFile(
+    clanker: Clanker,
+    workerType: "docker" | "ecs" | "lambda",
+    jobId: string,
+  ): Promise<RuntimeConfigFileReference | null> {
+    const split = splitClankerConfigFiles(clanker.agent, clanker.configFiles || []);
+    const nativeFile = split.nativeAgentConfigFile;
+    if (!nativeFile) {
+      return null;
+    }
+
+    if (workerType === "docker") {
+      return {
+        fileType: nativeFile.fileType,
+        content: nativeFile.content,
+      };
+    }
+
+    const [uploaded] = await this.instructionStorageService.uploadJobInstructionFiles(
+      clanker.id,
+      jobId,
+      [nativeFile],
+    );
+
+    return uploaded
+      ? {
+          fileType: uploaded.fileType,
+          s3Url: uploaded.s3Url,
+        }
+      : null;
+  }
+
   private mergeInstructionFiles(
     project: { agentInstructions?: string | null },
-    clanker: {
-      configFiles?: Array<{ fileType: string; content: string }>;
-    },
+    clanker: Clanker,
     runtimeInstructionFiles: Array<Partial<InlineInstructionFile>> = [],
   ): InlineInstructionFile[] {
+    const split = splitClankerConfigFiles(clanker.agent, clanker.configFiles || []);
+
     const merged = new Map<string, InlineInstructionFile>();
 
     const addFiles = (files: Array<Partial<InlineInstructionFile>>) => {
@@ -86,15 +128,8 @@ export class TicketExecutionService {
       ? [{ fileType: "AGENTS.md", content: project.agentInstructions }]
       : [];
 
-    const clankerFiles: Array<InlineInstructionFile> = (
-      clanker.configFiles || []
-    ).map((file) => ({
-      fileType: file.fileType,
-      content: file.content,
-    }));
-
     addFiles(projectFiles);
-    addFiles(clankerFiles);
+    addFiles(split.instructionFiles);
     addFiles(runtimeInstructionFiles);
 
     return Array.from(merged.values());
@@ -258,6 +293,11 @@ export class TicketExecutionService {
       );
       // Generate jobId
       const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
+      const workerAgentConfigFile = await this.resolveWorkerNativeAgentConfigFile(
+        executionClanker,
+        workerType,
+        jobId,
+      );
       const workerInstructionFiles =
         workerType === "docker"
           ? mergedInstructionFiles
@@ -293,6 +333,7 @@ export class TicketExecutionService {
           testRequired: false,
           maxChanges: 10,
         },
+        agentConfigFile: workerAgentConfigFile || undefined,
         scm: normalizedScmConfigWithCredential,
         overrides,
         ...(ticketMediaExecution.mounts.length > 0
@@ -327,6 +368,9 @@ export class TicketExecutionService {
         context: jobData.context,
         settings: jobData.settings,
         instructionFiles: workerInstructionFiles,
+        ...(workerAgentConfigFile
+          ? { agentConfigFile: workerAgentConfigFile }
+          : {}),
         requiredCredentials,
         callbackToken: submitResult.callbackToken,
         ...(workerType === "docker"

@@ -241,6 +241,7 @@ export class DockerInvoker implements WorkerInvoker {
       settings: job.settings,
       callbackToken: job.callbackToken,
       instructionFiles: job.context?.instructionFiles ?? [],
+      agentConfigFile: job.agentConfigFile,
       clankerConfig: clanker, // Full config for Docker (no external storage)
       projectConfig: buildWorkerProjectConfig(project),
       scm: job.scm,
