@@ -15,9 +15,11 @@ import {
   EyeOpenIcon,
   FileTextIcon,
   Pencil1Icon,
+  ReaderIcon,
   StackIcon,
   TrashIcon,
 } from '@radix-ui/react-icons'
+import { Tabs } from '@radix-ui/themes'
 import { useParams, useNavigate } from 'react-router-dom'
 
 import { TicketRunButton } from './ticket-run-button'
@@ -26,6 +28,7 @@ import { advanceTicketWorkflowPhase, deleteTicket, updateTicket } from '@/servic
 import { toast } from 'sonner'
 import { EditTicketDialog } from './edit-ticket-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
+import { ResearchDocumentPanel } from './research-document-panel'
 import { TicketWorkflowPanel } from './ticket-workflow-panel'
 
 function formatTicketId(ticketId: string): string {
@@ -113,6 +116,12 @@ export function TicketDetailPage() {
 
   const severityBadge = getSeverityBadge(ticket.severity)
   const autoFixBadge = getAutoFixBadge(ticket.autoFixStatus)
+
+  function phaseToTab(phase: TicketWorkflowPhase): string {
+    if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) return 'research'
+    if (phase === TICKET_WORKFLOW_PHASE.PLANNING) return 'planning'
+    return 'overview'
+  }
 
   function formatWorkflowPhase(phase: TicketWorkflowPhase): string {
     if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) return 'Research'
@@ -241,7 +250,7 @@ export function TicketDetailPage() {
             </div>
 
             <div className="lg:col-span-8 xl:col-span-9">
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <TicketWorkflowPanel
                   workflowPhase={ticket.workflowPhase}
                   isAdvancing={isAdvancingWorkflow}
@@ -263,15 +272,42 @@ export function TicketDetailPage() {
                   }}
                 />
 
-                <div className="app-frame rounded-lg p-6">
-                  <Subheading className="mb-4 flex items-center gap-2">
-                    <FileTextIcon className="h-5 w-5 text-[var(--accent-9)]" />
-                    Description
-                  </Subheading>
-                  <div className="prose prose-sm max-w-none text-[var(--gray-11)] whitespace-pre-wrap">
-                    {ticket.description}
-                  </div>
-                </div>
+                <Tabs.Root defaultValue={phaseToTab(ticket.workflowPhase)}>
+                  <Tabs.List>
+                    <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
+                    <Tabs.Trigger value="research">Research</Tabs.Trigger>
+                    <Tabs.Trigger value="planning">Planning</Tabs.Trigger>
+                  </Tabs.List>
+
+                  <Tabs.Content value="overview">
+                    <div className="app-frame rounded-lg p-6 mt-4">
+                      <Subheading className="mb-4 flex items-center gap-2">
+                        <FileTextIcon className="h-5 w-5 text-[var(--accent-9)]" />
+                        Description
+                      </Subheading>
+                      <div className="prose prose-sm max-w-none text-[var(--gray-11)] whitespace-pre-wrap">
+                        {ticket.description}
+                      </div>
+                    </div>
+                  </Tabs.Content>
+
+                  <Tabs.Content value="research">
+                    <div className="app-frame rounded-lg p-6 mt-4">
+                      <ResearchDocumentPanel ticketId={ticket.id} />
+                    </div>
+                  </Tabs.Content>
+
+                  <Tabs.Content value="planning">
+                    <div className="app-frame rounded-lg p-6 mt-4">
+                      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
+                        <ReaderIcon className="h-6 w-6 text-[var(--gray-8)]" />
+                        <p className="text-sm text-[var(--gray-9)]">
+                          Planning documents will be available after research is completed.
+                        </p>
+                      </div>
+                    </div>
+                  </Tabs.Content>
+                </Tabs.Root>
               </div>
             </div>
           </div>

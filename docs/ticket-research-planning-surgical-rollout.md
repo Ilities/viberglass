@@ -66,10 +66,13 @@ Backend:
   - `PUT /api/tickets/:id/phases/research/document`
 
 Frontend:
-- Add research document panel to ticket detail
-- Plain textarea edit mode
-- Markdown preview mode
-- Save button and updated timestamp
+- Restructure ticket detail right column into tab layout:
+  - Compact workflow phase stepper at top (always visible, shows phase badges and advance button)
+  - Tabs below: Overview | Research | Planning
+  - Overview tab: ticket description
+  - Research tab: full-height research document panel with textarea edit mode, markdown preview mode, save button, and updated timestamp
+  - Planning tab: read-only placeholder for now
+- Default selected tab follows current workflow phase (research tab when in research, etc.)
 - Planning/execution UI remains read-only placeholders
 
 ### Acceptance
