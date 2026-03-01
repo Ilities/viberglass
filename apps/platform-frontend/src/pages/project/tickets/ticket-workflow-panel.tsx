@@ -1,5 +1,4 @@
-import { Badge } from '@/components/badge'
-import { Button } from '@/components/button'
+import { CheckIcon } from '@radix-ui/react-icons'
 import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
 
 interface TicketWorkflowPanelProps {
@@ -32,86 +31,96 @@ function getPhaseStatus(
   return 'upcoming'
 }
 
-function getStatusBadge(status: 'completed' | 'current' | 'upcoming'): {
-  label: string
-  color: 'green' | 'blue' | 'zinc'
-} {
-  if (status === 'completed') return { label: 'Done', color: 'green' }
-  if (status === 'current') return { label: 'Current', color: 'blue' }
-  return { label: 'Upcoming', color: 'zinc' }
-}
-
-function getAdvanceAction(currentPhase: TicketWorkflowPhase): {
-  phase: TicketWorkflowPhase
-  label: string
-} | null {
-  if (currentPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
-    return { phase: TICKET_WORKFLOW_PHASE.PLANNING, label: 'Move to Planning' }
-  }
-  if (currentPhase === TICKET_WORKFLOW_PHASE.PLANNING) {
-    return { phase: TICKET_WORKFLOW_PHASE.EXECUTION, label: 'Move to Execution' }
-  }
-  return null
-}
-
 export function TicketWorkflowPanel({
   workflowPhase,
-  isAdvancing = false,
-  onAdvance,
   blockingReason = null,
   overrideAudit = null,
 }: TicketWorkflowPanelProps) {
-  const advanceAction = onAdvance ? getAdvanceAction(workflowPhase) : null
+  const isBlocked = Boolean(blockingReason)
 
   return (
-    <div className="app-frame rounded-lg px-5 py-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          {phases.map((entry, index) => {
-            const status = getPhaseStatus(workflowPhase, entry.phase)
-            const badge = getStatusBadge(status)
+    <div
+      className="rounded-xl border px-6 py-4"
+      style={
+        isBlocked
+          ? { backgroundColor: 'var(--accent-2)', borderColor: 'var(--accent-6)' }
+          : { backgroundColor: 'var(--gray-2)', borderColor: 'var(--gray-5)' }
+      }
+    >
+      {/* Phase rail */}
+      <div className="flex items-center">
+        {phases.map((entry, index) => {
+          const status = getPhaseStatus(workflowPhase, entry.phase)
+          const isLast = index === phases.length - 1
 
-            return (
-              <div key={entry.phase} className="flex items-center gap-4">
-                {index > 0 && (
-                  <div className="h-px w-6 bg-[var(--gray-6)]" />
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-[var(--gray-11)]">
-                    {entry.label}
-                  </span>
-                  <Badge color={badge.color}>{badge.label}</Badge>
+          return (
+            <div key={entry.phase} className="flex items-center">
+              <div className="flex items-center gap-2">
+                {/* Step dot */}
+                <div
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                  style={
+                    status === 'completed'
+                      ? { backgroundColor: 'var(--green-9)', color: 'white' }
+                      : status === 'current'
+                        ? { backgroundColor: 'var(--accent-9)', color: 'var(--accent-12)' }
+                        : { backgroundColor: 'var(--gray-4)', color: 'var(--gray-9)' }
+                  }
+                >
+                  {status === 'completed' ? (
+                    <CheckIcon className="h-3 w-3" />
+                  ) : (
+                    <span>{index + 1}</span>
+                  )}
                 </div>
-              </div>
-            )
-          })}
-        </div>
 
-        {advanceAction ? (
-          <Button
-            color="brand"
-            onClick={() => void onAdvance?.(advanceAction.phase)}
-            disabled={isAdvancing}
-          >
-            {isAdvancing ? 'Updating...' : advanceAction.label}
-          </Button>
-        ) : null}
+                {/* Label */}
+                <span
+                  className="text-sm font-medium"
+                  style={{
+                    color:
+                      status === 'current'
+                        ? 'var(--gray-12)'
+                        : status === 'completed'
+                          ? 'var(--gray-11)'
+                          : 'var(--gray-8)',
+                  }}
+                >
+                  {entry.label}
+                </span>
+              </div>
+
+              {/* Connector */}
+              {!isLast && (
+                <div
+                  className="mx-3 h-px w-10 shrink-0"
+                  style={{ backgroundColor: status === 'completed' ? 'var(--gray-7)' : 'var(--gray-4)' }}
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
-      {blockingReason ? (
-        <div className="mt-3 rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+
+      {/* Blocking message */}
+      {blockingReason && (
+        <p className="mt-2.5 text-sm" style={{ color: 'var(--accent-11)' }}>
           {blockingReason}
+        </p>
+      )}
+
+      {/* Override audit */}
+      {overrideAudit && (
+        <div className="mt-3 border-t pt-3 text-sm" style={{ borderColor: 'var(--accent-5)', color: 'var(--accent-11)' }}>
+          <span className="font-medium">Override recorded</span>
+          {overrideAudit.overriddenBy && ` by ${overrideAudit.overriddenBy}`}
+          {' · '}
+          {new Date(overrideAudit.overriddenAt).toLocaleString()}
+          {overrideAudit.reason && (
+            <p className="mt-1 whitespace-pre-wrap" style={{ color: 'var(--accent-10)' }}>{overrideAudit.reason}</p>
+          )}
         </div>
-      ) : null}
-      {overrideAudit ? (
-        <div className="mt-3 rounded-md border border-orange-300/70 bg-orange-50 px-3 py-2 text-sm text-orange-900">
-          <div className="font-medium">Execution override recorded</div>
-          <div className="mt-1">
-            {overrideAudit.overriddenBy ? `${overrideAudit.overriddenBy} on ` : ''}
-            {new Date(overrideAudit.overriddenAt).toLocaleString()}
-          </div>
-          <div className="mt-1 whitespace-pre-wrap">{overrideAudit.reason}</div>
-        </div>
-      ) : null}
+      )}
     </div>
   )
 }

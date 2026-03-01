@@ -172,8 +172,8 @@ export function PlanningDocumentPanel({
   const hasContent = (document?.content ?? '').trim().length > 0
   const canEdit = ticket.workflowPhase === 'planning' || ticket.workflowPhase === 'execution'
   const canRunPlanning = ticket.workflowPhase === 'planning' || ticket.workflowPhase === 'execution'
-  const canRequestApproval = ticket.workflowPhase === 'planning' && hasContent && document?.approvalState === 'draft'
-  const canApprove = ticket.workflowPhase === 'planning' && document?.approvalState === 'approval_requested'
+  const canRequestApproval = hasContent && document?.approvalState === 'draft'
+  const canApprove = document?.approvalState === 'approval_requested'
   const canRevoke = document?.approvalState === 'approved'
   const approvalIsPending = document?.approvalState === 'approval_requested'
 
@@ -187,10 +187,10 @@ export function PlanningDocumentPanel({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Subheading className="flex items-center gap-2">
                 <ReaderIcon className="h-5 w-5 text-[var(--accent-9)]" />
                 Planning Document
