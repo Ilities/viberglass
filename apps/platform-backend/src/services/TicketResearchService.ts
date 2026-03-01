@@ -408,12 +408,6 @@ export class TicketResearchService {
       throw new Error("Ticket not found");
     }
 
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
-      throw new Error(
-        "Approval can only be requested during the research phase",
-      );
-    }
-
     const document = await this.documentService.requestApproval(
       ticketId,
       TICKET_WORKFLOW_PHASE.RESEARCH,
@@ -454,10 +448,6 @@ export class TicketResearchService {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
       throw new Error("Ticket not found");
-    }
-
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
-      throw new Error("Approval can only be granted during the research phase");
     }
 
     const document = await this.documentService.approveDocument(
