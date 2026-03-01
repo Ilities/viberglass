@@ -12,7 +12,6 @@ import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
-import { TicketPhaseApprovalDAO } from "../persistence/ticketing/TicketPhaseApprovalDAO";
 import { TicketPhaseRunDAO } from "../persistence/ticketing/TicketPhaseRunDAO";
 import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
@@ -28,20 +27,18 @@ import {
 } from "./instructions/pathPolicy";
 import { WorkerExecutionService } from "../workers";
 import type { JobData } from "../types/Job";
-import { TicketWorkflowService } from "./TicketWorkflowService";
-import type { FeedbackService } from "../webhooks/FeedbackService";
 
 interface InlineInstructionFile {
   fileType: string;
   content: string;
 }
 
-export interface RunResearchOptions {
+export interface RunPlanningOptions {
   clankerId: string;
   instructionFiles?: InlineInstructionFile[];
 }
 
-export interface ResearchRunView {
+export interface PlanningRunView {
   id: string;
   jobId: string;
   status: "queued" | "active" | "completed" | "failed";
@@ -53,9 +50,9 @@ export interface ResearchRunView {
   finishedAt: string | null;
 }
 
-export interface ResearchPhaseView {
+export interface PlanningPhaseView {
   document: PhaseDocumentView;
-  latestRun: ResearchRunView | null;
+  latestRun: PlanningRunView | null;
 }
 
 function normalizeInstructionFile(
@@ -105,19 +102,20 @@ function mergeInstructionFiles(
   return Array.from(merged.values());
 }
 
-function buildResearchTask(input: {
+function buildPlanningTask(input: {
   ticketTitle: string;
   ticketDescription: string;
   projectName: string;
   repository: string;
   baseBranch: string;
+  researchDocument: string;
   externalTicketId?: string;
 }): string {
   const externalTicketLine = input.externalTicketId
     ? `External Ticket ID: ${input.externalTicketId}\n`
     : "";
 
-  return `Create a research document for this ticket.
+  return `Create a planning document for this ticket based on the research findings.
 
 Ticket Title: ${input.ticketTitle}
 ${externalTicketLine}Project: ${input.projectName}
@@ -127,22 +125,27 @@ Base Branch: ${input.baseBranch}
 Ticket Description:
 ${input.ticketDescription}
 
+Research Document:
+${input.researchDocument}
+
 Requirements:
 - Read and follow repository instructions from AGENTS.md and any provided instruction files.
-- Analyze the repository and relevant code paths for this ticket.
+- Analyze the research document to understand the problem.
+- Create a detailed implementation plan.
 - Do not create a branch, commit changes, push changes, or open a pull request.
-- Do not modify application code unless it is strictly necessary to produce RESEARCH.md.
-- Write your output to RESEARCH.md in the repository root.
+- Do not modify application code unless it is strictly necessary to produce PLAN.md.
+- Write your output to PLAN.md in the repository root.
 
-RESEARCH.md should include:
-- Summary
-- Relevant Code Areas
-- Root Cause Analysis
-- Constraints and Risks
-- Recommended Next Steps`;
+PLAN.md should include:
+- Summary of the Problem
+- Proposed Solution
+- Implementation Steps
+- Files to Modify
+- Testing Strategy
+- Risks and Mitigations`;
 }
 
-export class TicketResearchService {
+export class TicketPlanningService {
   private readonly ticketDAO = new TicketDAO();
   private readonly projectDAO = new ProjectDAO();
   private readonly projectScmConfigDAO = new ProjectScmConfigDAO();
@@ -156,22 +159,15 @@ export class TicketResearchService {
   private readonly documentService = new TicketPhaseDocumentService();
   private readonly phaseRunDAO = new TicketPhaseRunDAO();
   private readonly instructionStorageService = new InstructionStorageService();
-  private readonly approvalDAO = new TicketPhaseApprovalDAO();
-  private readonly workflowService = new TicketWorkflowService();
-  private feedbackService?: FeedbackService;
 
-  constructor(feedbackService?: FeedbackService) {
-    this.feedbackService = feedbackService;
-  }
-
-  async getResearchPhase(ticketId: string): Promise<ResearchPhaseView> {
+  async getPlanningPhase(ticketId: string): Promise<PlanningPhaseView> {
     const document = await this.documentService.getOrCreateDocument(
       ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
+      TICKET_WORKFLOW_PHASE.PLANNING,
     );
     const latestRun = await this.phaseRunDAO.getLatestRun(
       ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
+      TICKET_WORKFLOW_PHASE.PLANNING,
     );
 
     return {
@@ -192,17 +188,20 @@ export class TicketResearchService {
     };
   }
 
-  async runResearch(
+  async runPlanning(
     ticketId: string,
-    options: RunResearchOptions,
+    options: RunPlanningOptions,
   ): Promise<{ jobId: string; status: string }> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
       throw new Error("Ticket not found");
     }
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
+    if (
+      ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING &&
+      ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.EXECUTION
+    ) {
       throw new Error(
-        "Research runs are only allowed during the research phase",
+        "Planning runs are only allowed during the planning or execution phase",
       );
     }
 
@@ -279,18 +278,25 @@ export class TicketResearchService {
             jobId,
             mergedInstructionFiles,
           );
-    const task = buildResearchTask({
+
+    const researchDocument = await this.documentService.getOrCreateDocument(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
+
+    const task = buildPlanningTask({
       ticketTitle: ticket.title,
       ticketDescription: ticket.description,
       projectName: project.name,
       repository: sourceRepository,
       baseBranch,
+      researchDocument: researchDocument.content,
       externalTicketId: ticket.externalTicketId,
     });
 
     const jobData: JobData = {
       id: jobId,
-      jobKind: JOB_KIND.RESEARCH,
+      jobKind: JOB_KIND.PLANNING,
       tenantId: "api-server",
       repository: sourceRepository,
       task,
@@ -352,13 +358,13 @@ export class TicketResearchService {
       ticket.id,
       jobData.id,
       executionClanker.id,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
+      TICKET_WORKFLOW_PHASE.PLANNING,
     );
 
     this.workerExecutionService
       .executeJob(jobData, executionClanker, project)
       .then((result) => {
-        logger.info("Research worker invoked successfully", {
+        logger.info("Planning worker invoked successfully", {
           ticketId,
           jobId,
           clankerId: executionClanker.id,
@@ -366,7 +372,7 @@ export class TicketResearchService {
         });
       })
       .catch((error) => {
-        logger.error("Research worker invocation failed", {
+        logger.error("Planning worker invocation failed", {
           ticketId,
           jobId,
           clankerId: executionClanker.id,
@@ -397,174 +403,5 @@ export class TicketResearchService {
     }
 
     return credential.secretId;
-  }
-
-  async requestApproval(
-    ticketId: string,
-    actor?: string,
-  ): Promise<ResearchPhaseView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
-      throw new Error(
-        "Approval can only be requested during the research phase",
-      );
-    }
-
-    const document = await this.documentService.requestApproval(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-      actor,
-    );
-
-    await this.approvalDAO.recordApprovalAction(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-      "approval_requested",
-      actor,
-    );
-
-    const latestRun = await this.phaseRunDAO.getLatestRun(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-    );
-
-    return {
-      document,
-      latestRun: latestRun
-        ? {
-            id: latestRun.id,
-            jobId: latestRun.jobId,
-            status: latestRun.status,
-            clankerId: latestRun.clankerId,
-            clankerName: latestRun.clankerName,
-            clankerSlug: latestRun.clankerSlug,
-            createdAt: latestRun.createdAt.toISOString(),
-            startedAt: latestRun.startedAt?.toISOString() || null,
-            finishedAt: latestRun.finishedAt?.toISOString() || null,
-          }
-        : null,
-    };
-  }
-
-  async approve(ticketId: string, actor?: string): Promise<ResearchPhaseView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
-      throw new Error("Approval can only be granted during the research phase");
-    }
-
-    const document = await this.documentService.approveDocument(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-      actor,
-    );
-
-    await this.approvalDAO.recordApprovalAction(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-      "approved",
-      actor,
-      "Research document approved",
-    );
-
-    // Auto-advance to planning phase
-    await this.workflowService.advancePhase(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.PLANNING,
-    );
-
-    // Post external comment asynchronously
-    if (this.feedbackService) {
-      this.feedbackService
-        .postResearchApproved({
-          id: ticketId,
-          ticketId,
-          workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
-        })
-        .catch((error) => {
-          logger.error(
-            `Failed to post research approval event for ticket ${ticketId}`,
-            {
-              error: error instanceof Error ? error.message : String(error),
-              ticketId,
-            },
-          );
-        });
-    }
-
-    const latestRun = await this.phaseRunDAO.getLatestRun(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-    );
-
-    return {
-      document,
-      latestRun: latestRun
-        ? {
-            id: latestRun.id,
-            jobId: latestRun.jobId,
-            status: latestRun.status,
-            clankerId: latestRun.clankerId,
-            clankerName: latestRun.clankerName,
-            clankerSlug: latestRun.clankerSlug,
-            createdAt: latestRun.createdAt.toISOString(),
-            startedAt: latestRun.startedAt?.toISOString() || null,
-            finishedAt: latestRun.finishedAt?.toISOString() || null,
-          }
-        : null,
-    };
-  }
-
-  async revokeApproval(
-    ticketId: string,
-    actor?: string,
-  ): Promise<ResearchPhaseView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    const document = await this.documentService.revokeApproval(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-      actor,
-    );
-
-    await this.approvalDAO.recordApprovalAction(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-      "revoked",
-      actor,
-      "Research approval revoked",
-    );
-
-    const latestRun = await this.phaseRunDAO.getLatestRun(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.RESEARCH,
-    );
-
-    return {
-      document,
-      latestRun: latestRun
-        ? {
-            id: latestRun.id,
-            jobId: latestRun.jobId,
-            status: latestRun.status,
-            clankerId: latestRun.clankerId,
-            clankerName: latestRun.clankerName,
-            clankerSlug: latestRun.clankerSlug,
-            createdAt: latestRun.createdAt.toISOString(),
-            startedAt: latestRun.startedAt?.toISOString() || null,
-            finishedAt: latestRun.finishedAt?.toISOString() || null,
-          }
-        : null,
-    };
   }
 }

@@ -2,13 +2,13 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { runTicket } from '@/service/api/job-api'
-import { runResearch } from '@/service/api/ticket-api'
+import { runPlanning, runResearch } from '@/service/api/ticket-api'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-type RunMode = 'execution' | 'research'
+type RunMode = 'execution' | 'research' | 'planning'
 
 interface RunTicketModalProps {
   ticket: Ticket | null
@@ -66,19 +66,30 @@ export function RunTicketModal({
       const response =
         mode === 'research'
           ? await runResearch(ticket.id, selectedClanker.id, instructionFiles)
-          : await runTicket(ticket.id, selectedClanker.id, undefined, instructionFiles)
+          : mode === 'planning'
+            ? await runPlanning(ticket.id, selectedClanker.id, instructionFiles)
+            : await runTicket(ticket.id, selectedClanker.id, undefined, instructionFiles)
       const jobId = response.data.jobId
 
-      toast.success(mode === 'research' ? 'Research started' : 'Job started', {
-        description:
-          mode === 'research'
-            ? `Researching "${ticket.title}" with ${selectedClanker.name}`
-            : `Running "${ticket.title}" with ${selectedClanker.name}`,
-        action: {
-          label: 'View Job',
-          onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
-        },
-      })
+      toast.success(
+        mode === 'research'
+          ? 'Research started'
+          : mode === 'planning'
+            ? 'Planning started'
+            : 'Job started',
+        {
+          description:
+            mode === 'research'
+              ? `Researching "${ticket.title}" with ${selectedClanker.name}`
+              : mode === 'planning'
+                ? `Planning "${ticket.title}" with ${selectedClanker.name}`
+                : `Running "${ticket.title}" with ${selectedClanker.name}`,
+          action: {
+            label: 'View Job',
+            onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
+          },
+        }
+      )
 
       // Navigate to job page
       navigate(`/project/${project}/jobs/${jobId}`)
@@ -96,11 +107,19 @@ export function RunTicketModal({
 
   return (
     <Dialog open={open} onClose={onClose} size="lg">
-      <DialogTitle>{mode === 'research' ? 'Run Research with Clanker' : 'Run Ticket with Clanker'}</DialogTitle>
+      <DialogTitle>
+        {mode === 'research'
+          ? 'Run Research with Clanker'
+          : mode === 'planning'
+            ? 'Run Planning with Clanker'
+            : 'Run Ticket with Clanker'}
+      </DialogTitle>
       <DialogDescription>
         {mode === 'research'
           ? 'Create a job to generate a research document for this ticket.'
-          : 'Create a job to fix this ticket using an AI coding agent.'}
+          : mode === 'planning'
+            ? 'Create a job to generate a planning document for this ticket based on the research.'
+            : 'Create a job to fix this ticket using an AI coding agent.'}
       </DialogDescription>
       <DialogBody>
         <div className="space-y-6">
@@ -174,7 +193,9 @@ export function RunTicketModal({
             ? 'Starting...'
             : mode === 'research'
               ? `Run research with ${selectedClanker?.name || 'Clanker'}`
-              : `Run with ${selectedClanker?.name || 'Clanker'}`}
+              : mode === 'planning'
+                ? `Run planning with ${selectedClanker?.name || 'Clanker'}`
+                : `Run with ${selectedClanker?.name || 'Clanker'}`}
         </Button>
       </DialogActions>
     </Dialog>

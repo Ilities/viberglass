@@ -28,6 +28,7 @@ import {
 } from "@viberglass/types";
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
 import { TicketResearchService } from "../../services/TicketResearchService";
+import { TicketPlanningService } from "../../services/TicketPlanningService";
 import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 
 const router = express.Router();
@@ -38,6 +39,7 @@ const ticketExecutionService = new TicketExecutionService();
 const ticketWorkflowService = new TicketWorkflowService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 const ticketResearchService = new TicketResearchService();
+const ticketPlanningService = new TicketPlanningService();
 const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
@@ -665,6 +667,47 @@ router.put("/:id/phases/planning/document", validateUuidParam("id"), async (req,
     });
   }
 });
+
+// POST /api/tickets/:id/phases/planning/run - Run planning generation
+router.post(
+  "/:id/phases/planning/run",
+  validateUuidParam("id"),
+  validateRunTicket,
+  async (req, res) => {
+    try {
+      const result = await ticketPlanningService.runPlanning(
+        req.params.id,
+        req.body,
+      );
+
+      return res.status(202).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.error("Error running planning", {
+        ticketId: req.params.id,
+        error: message,
+      });
+
+      const statusCode =
+        message.includes("not found")
+          ? 404
+          : message.includes("only allowed during the planning") ||
+              message.includes("no repository") ||
+              message.includes("no deployment strategy") ||
+              message.includes("Only active")
+            ? 400
+            : 500;
+
+      return res.status(statusCode).json({
+        error: statusCode === 500 ? "Internal server error" : "Bad request",
+        message,
+      });
+    }
+  },
+);
 
 // GET /api/tickets/:id - Get a specific ticket
 router.get("/:id", validateUuidParam("id"), async (req, res) => {
