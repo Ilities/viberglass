@@ -139,6 +139,9 @@ export interface Ticket {
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
   pullRequestUrl?: string
+  workflowOverrideReason?: string
+  workflowOverriddenAt?: string
+  workflowOverriddenBy?: string
   createdAt: string
   updatedAt: string
 }
@@ -184,6 +187,9 @@ export interface TicketListItem {
   externalTicketUrl?: string
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
+  workflowOverrideReason?: string
+  workflowOverriddenAt?: string
+  workflowOverriddenBy?: string
   createdAt: string
   updatedAt: string
 }

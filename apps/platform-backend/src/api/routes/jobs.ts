@@ -22,6 +22,17 @@ const jobService = new JobService();
 const secretService = new SecretService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 
+function getDocumentPhaseForJobKind(jobKind: string): "research" | "planning" | null {
+  if (jobKind === JOB_KIND.RESEARCH) {
+    return TICKET_WORKFLOW_PHASE.RESEARCH;
+  }
+  if (jobKind === JOB_KIND.PLANNING) {
+    return TICKET_WORKFLOW_PHASE.PLANNING;
+  }
+
+  return null;
+}
+
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const {
@@ -222,25 +233,27 @@ router.post(
 
       // Determine status from success field
       const status = result.success ? "completed" : "failed";
+      const documentPhase = getDocumentPhaseForJobKind(job.jobKind);
 
       if (
-        job.jobKind === JOB_KIND.RESEARCH &&
+        documentPhase &&
         result.success &&
         job.ticketId &&
         typeof result.documentContent === "string"
       ) {
         await ticketPhaseDocumentService.saveDocument(
           job.ticketId,
-          TICKET_WORKFLOW_PHASE.RESEARCH,
+          documentPhase,
           result.documentContent,
+          { source: "agent" },
         );
       } else if (
-        job.jobKind === JOB_KIND.RESEARCH &&
+        documentPhase &&
         result.success &&
         !result.documentContent
       ) {
         return res.status(400).json({
-          error: "Research result missing document content",
+          error: `${job.jobKind} result missing document content`,
         });
       }
 

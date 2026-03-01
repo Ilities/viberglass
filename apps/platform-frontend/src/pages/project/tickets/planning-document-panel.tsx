@@ -4,12 +4,14 @@ import { Subheading } from '@/components/heading'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import {
   approvePlanning,
+  getPhaseDocumentRevisions,
   getPlanningPhase,
   requestPlanningApproval,
   revokePlanningApproval,
   savePlanningDocument,
   type ApprovalState,
   type PhaseDocumentResponse,
+  type PhaseDocumentRevisionResponse,
   type PlanningRunResponse,
 } from '@/service/api/ticket-api'
 import { CheckCircledIcon, CrossCircledIcon, Pencil1Icon, PlayIcon, ReaderIcon } from '@radix-ui/react-icons'
@@ -17,6 +19,9 @@ import type { Clanker, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PhaseDocumentRevisionHistory } from './phase-document-revision-history'
+import { PhaseDocumentComments } from './phase-document-comments'
+import { getApprovalStateBadgeColor, getApprovalStateLabel, getPhaseRunStatusBadgeColor } from './phase-document-ui'
 
 interface PlanningDocumentPanelProps {
   ticket: Ticket
@@ -24,46 +29,6 @@ interface PlanningDocumentPanelProps {
   project: string
   onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
   onApprovalStateChange?: (state: ApprovalState) => void
-}
-
-function getStatusBadgeColor(status: PlanningRunResponse['status']): 'amber' | 'green' | 'red' | 'zinc' {
-  switch (status) {
-    case 'queued':
-    case 'active':
-      return 'amber'
-    case 'completed':
-      return 'green'
-    case 'failed':
-      return 'red'
-    default:
-      return 'zinc'
-  }
-}
-
-function getApprovalStateBadgeColor(state: ApprovalState): 'zinc' | 'blue' | 'green' | 'amber' {
-  switch (state) {
-    case 'draft':
-      return 'zinc'
-    case 'approval_requested':
-      return 'blue'
-    case 'approved':
-      return 'green'
-    case 'rejected':
-      return 'amber'
-  }
-}
-
-function getApprovalStateLabel(state: ApprovalState): string {
-  switch (state) {
-    case 'draft':
-      return 'Draft'
-    case 'approval_requested':
-      return 'Approval Requested'
-    case 'approved':
-      return 'Approved'
-    case 'rejected':
-      return 'Rejected'
-  }
 }
 
 export function PlanningDocumentPanel({
@@ -75,20 +40,27 @@ export function PlanningDocumentPanel({
 }: PlanningDocumentPanelProps) {
   const navigate = useNavigate()
   const [document, setDocument] = useState<PhaseDocumentResponse | null>(null)
+  const [revisions, setRevisions] = useState<PhaseDocumentRevisionResponse[]>([])
   const [latestRun, setLatestRun] = useState<PlanningRunResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isRunModalOpen, setIsRunModalOpen] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const load = useCallback(async () => {
     try {
-      const phase = await getPlanningPhase(ticket.id)
+      const [phase, history] = await Promise.all([
+        getPlanningPhase(ticket.id),
+        getPhaseDocumentRevisions(ticket.id, 'planning'),
+      ])
       setDocument(phase.document)
       setLatestRun(phase.latestRun)
+      setRevisions(history)
+      setSelectedRevisionId(null)
       setDraft(phase.document.content)
       onApprovalStateChange?.(phase.document.approvalState)
     } finally {
@@ -110,7 +82,10 @@ export function PlanningDocumentPanel({
     try {
       setIsSaving(true)
       const saved = await savePlanningDocument(ticket.id, draft)
+      const history = await getPhaseDocumentRevisions(ticket.id, 'planning')
       setDocument(saved)
+      setRevisions(history)
+      setSelectedRevisionId(null)
       onApprovalStateChange?.(saved.approvalState)
       setIsEditing(false)
       toast.success('Planning document saved')
@@ -172,6 +147,27 @@ export function PlanningDocumentPanel({
     }
   }, [ticket.id, onApprovalStateChange])
 
+  const handleApplySuggestion = useCallback(async (lineNumber: number, suggestedText: string) => {
+    const lines = (document?.content ?? '').split('\n')
+    lines[lineNumber - 1] = suggestedText
+    const newContent = lines.join('\n')
+    try {
+      setIsSaving(true)
+      const saved = await savePlanningDocument(ticket.id, newContent)
+      const history = await getPhaseDocumentRevisions(ticket.id, 'planning')
+      setDocument(saved)
+      setDraft(saved.content)
+      setRevisions(history)
+      onApprovalStateChange?.(saved.approvalState)
+      toast.success(`Suggestion applied to line ${lineNumber}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to apply suggestion')
+      throw error
+    } finally {
+      setIsSaving(false)
+    }
+  }, [document, ticket.id, onApprovalStateChange])
+
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
   const canEdit = ticket.workflowPhase === 'planning' || ticket.workflowPhase === 'execution'
@@ -201,7 +197,7 @@ export function PlanningDocumentPanel({
               </Subheading>
               {latestRun && (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gray-9)]">
-                  <Badge color={getStatusBadgeColor(latestRun.status)}>
+                  <Badge color={getPhaseRunStatusBadgeColor(latestRun.status)}>
                     {latestRun.status === 'active' ? 'Planning Running' : `Planning ${latestRun.status}`}
                   </Badge>
                   <span>
@@ -307,9 +303,7 @@ export function PlanningDocumentPanel({
             placeholder="Write planning notes in markdown..."
           />
         ) : hasContent ? (
-          <div className="prose prose-sm max-w-none rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-4 text-sm whitespace-pre-wrap text-[var(--gray-11)]">
-            {document!.content}
-          </div>
+          <PhaseDocumentComments ticketId={ticket.id} phase="planning" content={document!.content} onApplySuggestion={handleApplySuggestion} />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-12 text-center">
             <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />
@@ -321,6 +315,12 @@ export function PlanningDocumentPanel({
             </div>
           </div>
         )}
+
+        <PhaseDocumentRevisionHistory
+          revisions={revisions}
+          selectedRevisionId={selectedRevisionId}
+          onSelectRevision={setSelectedRevisionId}
+        />
       </div>
 
       <RunTicketModal

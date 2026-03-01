@@ -95,6 +95,9 @@ export interface TicketsTable {
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   ticket_status: Generated<"open" | "in_progress" | "resolved">;
   workflow_phase: Generated<"research" | "planning" | "execution">;
+  workflow_override_reason: string | null;
+  workflow_overridden_at: Timestamp | null;
+  workflow_overridden_by: string | null;
   archived_at: Timestamp | null;
   pull_request_url: string | null;
   created_at: Generated<Timestamp>;
@@ -369,6 +372,32 @@ export interface TicketPhaseRunsTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface TicketPhaseDocumentRevisionsTable {
+  id: Generated<string>;
+  document_id: string;
+  ticket_id: string;
+  phase: TicketWorkflowPhase;
+  content: string;
+  source: "manual" | "agent";
+  actor: string | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface TicketPhaseDocumentCommentsTable {
+  id: Generated<string>;
+  document_id: string;
+  ticket_id: string;
+  phase: "research" | "planning";
+  line_number: number;
+  content: string;
+  status: Generated<"open" | "resolved">;
+  actor: string | null;
+  resolved_at: Timestamp | null;
+  resolved_by: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -394,4 +423,6 @@ export interface Database {
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;
   ticket_phase_approvals: TicketPhaseApprovalsTable;
+  ticket_phase_document_revisions: TicketPhaseDocumentRevisionsTable;
+  ticket_phase_document_comments: TicketPhaseDocumentCommentsTable;
 }
