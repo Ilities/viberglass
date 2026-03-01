@@ -292,7 +292,7 @@ export function TicketDetailPage() {
 
                   <Tabs.Content value="planning">
                     <div className="app-frame mt-4 rounded-lg p-6">
-                      <PlanningDocumentPanel ticket={ticket} />
+                      <PlanningDocumentPanel ticket={ticket} clankers={clankers} project={project} />
                     </div>
                   </Tabs.Content>
                 </Tabs.Root>

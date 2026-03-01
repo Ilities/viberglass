@@ -393,6 +393,54 @@ export async function savePlanningDocument(
   return data.data
 }
 
+export interface PlanningRunResponse {
+  id: string
+  jobId: string
+  status: 'queued' | 'active' | 'completed' | 'failed'
+  clankerId: string
+  clankerName: string | null
+  clankerSlug: string | null
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface PlanningPhaseResponse {
+  document: PhaseDocumentResponse
+  latestRun: PlanningRunResponse | null
+}
+
+export async function getPlanningPhase(ticketId: string): Promise<PlanningPhaseResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning`)
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Ticket not found')
+    throw new Error('Failed to fetch planning phase')
+  }
+  const data: ApiResponse<PlanningPhaseResponse> = await response.json()
+  return data.data
+}
+
+export async function runPlanning(
+  ticketId: string,
+  clankerId: string,
+  instructionFiles?: Array<{ fileType: string; content: string }>,
+): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ clankerId, instructionFiles }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to run planning')
+  }
+
+  return response.json()
+}
+
 // Webhook Status API
 export async function getWebhookStatus(): Promise<WebhookStatus> {
   const response = await apiFetch(`${API_BASE_URL}/api/webhooks/status`)

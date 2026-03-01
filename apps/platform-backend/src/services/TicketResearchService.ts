@@ -169,7 +169,10 @@ export class TicketResearchService {
       ticketId,
       TICKET_WORKFLOW_PHASE.RESEARCH,
     );
-    const latestRun = await this.phaseRunDAO.getLatestResearchRun(ticketId);
+    const latestRun = await this.phaseRunDAO.getLatestRun(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
 
     return {
       document,
@@ -198,7 +201,9 @@ export class TicketResearchService {
       throw new Error("Ticket not found");
     }
     if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
-      throw new Error("Research runs are only allowed during the research phase");
+      throw new Error(
+        "Research runs are only allowed during the research phase",
+      );
     }
 
     const project = await this.projectDAO.getProject(ticket.projectId);
@@ -339,11 +344,15 @@ export class TicketResearchService {
         workerSettings: project.workerSettings,
       },
     };
-    await this.jobService.saveBootstrapPayload(jobData.id, jobData.bootstrapPayload);
-    await this.phaseRunDAO.createResearchRun(
+    await this.jobService.saveBootstrapPayload(
+      jobData.id,
+      jobData.bootstrapPayload,
+    );
+    await this.phaseRunDAO.createRun(
       ticket.id,
       jobData.id,
       executionClanker.id,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
     );
 
     this.workerExecutionService
@@ -418,7 +427,10 @@ export class TicketResearchService {
       actor,
     );
 
-    const latestRun = await this.phaseRunDAO.getLatestResearchRun(ticketId);
+    const latestRun = await this.phaseRunDAO.getLatestRun(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
 
     return {
       document,
@@ -438,19 +450,14 @@ export class TicketResearchService {
     };
   }
 
-  async approve(
-    ticketId: string,
-    actor?: string,
-  ): Promise<ResearchPhaseView> {
+  async approve(ticketId: string, actor?: string): Promise<ResearchPhaseView> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
       throw new Error("Ticket not found");
     }
 
     if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH) {
-      throw new Error(
-        "Approval can only be granted during the research phase",
-      );
+      throw new Error("Approval can only be granted during the research phase");
     }
 
     const document = await this.documentService.approveDocument(
@@ -492,7 +499,10 @@ export class TicketResearchService {
         });
     }
 
-    const latestRun = await this.phaseRunDAO.getLatestResearchRun(ticketId);
+    const latestRun = await this.phaseRunDAO.getLatestRun(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
 
     return {
       document,
@@ -535,7 +545,10 @@ export class TicketResearchService {
       "Research approval revoked",
     );
 
-    const latestRun = await this.phaseRunDAO.getLatestResearchRun(ticketId);
+    const latestRun = await this.phaseRunDAO.getLatestRun(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
 
     return {
       document,

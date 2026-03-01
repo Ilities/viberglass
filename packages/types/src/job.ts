@@ -1,5 +1,6 @@
 export const JOB_KIND = {
   RESEARCH: 'research',
+  PLANNING: 'planning',
   EXECUTION: 'execution',
 } as const
 

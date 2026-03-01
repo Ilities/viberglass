@@ -1,4 +1,5 @@
 import type { ColumnType } from "kysely";
+import type { TicketWorkflowPhase } from "@viberglass/types";
 import type { UserRole } from "./user";
 
 export type Generated<T> =
@@ -238,7 +239,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"research" | "execution">;
+  job_kind: Generated<"research" | "planning" | "execution">;
 }
 
 export interface JobProgressUpdatesTable {
@@ -340,7 +341,9 @@ export interface TicketPhaseDocumentsTable {
   phase: "research" | "planning" | "execution";
   content: Generated<string>;
   storage_url: string | null;
-  approval_state: Generated<"draft" | "approval_requested" | "approved" | "rejected">;
+  approval_state: Generated<
+    "draft" | "approval_requested" | "approved" | "rejected"
+  >;
   approved_at: Timestamp | null;
   approved_by: string | null;
   created_at: Generated<Timestamp>;
@@ -360,7 +363,7 @@ export interface TicketPhaseApprovalsTable {
 export interface TicketPhaseRunsTable {
   id: Generated<string>;
   ticket_id: string;
-  phase: "research";
+  phase: TicketWorkflowPhase;
   job_id: string;
   clanker_id: string;
   created_at: Generated<Timestamp>;
