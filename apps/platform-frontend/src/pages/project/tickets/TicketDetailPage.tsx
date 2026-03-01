@@ -30,6 +30,7 @@ import { PlanningDocumentPanel } from './planning-document-panel'
 import { ResearchDocumentPanel } from './research-document-panel'
 import { TicketRunButton } from './ticket-run-button'
 import { TicketWorkflowPanel } from './ticket-workflow-panel'
+import { WorkflowOverrideDialog } from './workflow-override-dialog'
 
 function formatTicketId(ticketId: string): string {
   if (ticketId.length <= 20) return ticketId
@@ -75,6 +76,7 @@ export function TicketDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [planningApprovalState, setPlanningApprovalState] = useState<ApprovalState | null>(null)
+  const [isWorkflowOverrideDialogOpen, setIsWorkflowOverrideDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -101,6 +103,9 @@ export function TicketDetailPage() {
 
   const executionBlockingReason = useMemo(() => {
     if (!ticket) {
+      return null
+    }
+    if (ticket.workflowOverriddenAt) {
       return null
     }
     if (planningApprovalState === 'approved') {
@@ -198,6 +203,11 @@ export function TicketDetailPage() {
                 disabled={executionBlockingReason !== null}
                 disabledReason={executionBlockingReason ?? undefined}
               />
+              {executionBlockingReason ? (
+                <Button color="amber" onClick={() => setIsWorkflowOverrideDialogOpen(true)}>
+                  Execute without Research/Planning
+                </Button>
+              ) : null}
 
               <Button onClick={() => setIsEditDialogOpen(true)} outline>
                 <Pencil1Icon className="h-4 w-4" />
@@ -240,6 +250,16 @@ export function TicketDetailPage() {
                     label="Workflow Phase"
                     value={formatWorkflowPhase(ticket.workflowPhase)}
                   />
+                  {ticket.workflowOverriddenAt ? (
+                    <>
+                      <div className="mx-1 h-px bg-[var(--gray-6)]" />
+                      <InfoItem
+                        icon={<ClockIcon className="h-4 w-4" />}
+                        label="Execution Override"
+                        value="Recorded"
+                      />
+                    </>
+                  ) : null}
                 </Section>
               </div>
 
@@ -268,7 +288,19 @@ export function TicketDetailPage() {
 
             <div className="lg:col-span-8 xl:col-span-9">
               <div className="space-y-4">
-                <TicketWorkflowPanel workflowPhase={ticket.workflowPhase} blockingReason={executionBlockingReason} />
+                <TicketWorkflowPanel
+                  workflowPhase={ticket.workflowPhase}
+                  blockingReason={executionBlockingReason}
+                  overrideAudit={
+                    ticket.workflowOverriddenAt
+                      ? {
+                          reason: ticket.workflowOverrideReason || '',
+                          overriddenAt: ticket.workflowOverriddenAt,
+                          overriddenBy: ticket.workflowOverriddenBy || null,
+                        }
+                      : null
+                  }
+                />
 
                 <Tabs.Root defaultValue={phaseToTab(ticket.workflowPhase)}>
                   <Tabs.List>
@@ -354,6 +386,17 @@ export function TicketDetailPage() {
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to delete ticket')
           }
+        }}
+      />
+
+      <WorkflowOverrideDialog
+        ticket={ticket}
+        open={isWorkflowOverrideDialogOpen}
+        onClose={() => setIsWorkflowOverrideDialogOpen(false)}
+        onSuccess={(updatedTicket) => {
+          setTicket(updatedTicket)
+          setIsWorkflowOverrideDialogOpen(false)
+          toast.success('Execution override recorded - ticket moved to execution')
         }}
       />
     </>

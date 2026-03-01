@@ -7,6 +7,11 @@ interface TicketWorkflowPanelProps {
   isAdvancing?: boolean
   onAdvance?: (phase: TicketWorkflowPhase) => Promise<void>
   blockingReason?: string | null
+  overrideAudit?: {
+    reason: string
+    overriddenAt: string
+    overriddenBy: string | null
+  } | null
 }
 
 const phases: { phase: TicketWorkflowPhase; label: string }[] = [
@@ -54,6 +59,7 @@ export function TicketWorkflowPanel({
   isAdvancing = false,
   onAdvance,
   blockingReason = null,
+  overrideAudit = null,
 }: TicketWorkflowPanelProps) {
   const advanceAction = onAdvance ? getAdvanceAction(workflowPhase) : null
 
@@ -94,6 +100,16 @@ export function TicketWorkflowPanel({
       {blockingReason ? (
         <div className="mt-3 rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {blockingReason}
+        </div>
+      ) : null}
+      {overrideAudit ? (
+        <div className="mt-3 rounded-md border border-orange-300/70 bg-orange-50 px-3 py-2 text-sm text-orange-900">
+          <div className="font-medium">Execution override recorded</div>
+          <div className="mt-1">
+            {overrideAudit.overriddenBy ? `${overrideAudit.overriddenBy} on ` : ''}
+            {new Date(overrideAudit.overriddenAt).toLocaleString()}
+          </div>
+          <div className="mt-1 whitespace-pre-wrap">{overrideAudit.reason}</div>
         </div>
       ) : null}
     </div>

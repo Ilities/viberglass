@@ -3,10 +3,11 @@ import { Button } from '@/components/button'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Subheading } from '@/components/heading'
 import {
-  type ApprovalState,
   type PhaseDocumentResponse,
+  type PhaseDocumentRevisionResponse,
   type ResearchRunResponse,
   approveResearch,
+  getPhaseDocumentRevisions,
   getResearchDocument,
   requestResearchApproval,
   revokeResearchApproval,
@@ -17,52 +18,15 @@ import type { Clanker, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PhaseDocumentRevisionHistory } from './phase-document-revision-history'
+import { PhaseDocumentComments } from './phase-document-comments'
+import { getApprovalStateBadgeColor, getApprovalStateLabel, getPhaseRunStatusBadgeColor } from './phase-document-ui'
 
 interface ResearchDocumentPanelProps {
   ticket: Ticket
   clankers: Clanker[]
   project: string
   onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
-}
-
-function getStatusBadgeColor(status: ResearchRunResponse['status']): 'amber' | 'green' | 'red' | 'zinc' {
-  switch (status) {
-    case 'queued':
-    case 'active':
-      return 'amber'
-    case 'completed':
-      return 'green'
-    case 'failed':
-      return 'red'
-    default:
-      return 'zinc'
-  }
-}
-
-function getApprovalStateBadgeColor(state: ApprovalState): 'zinc' | 'blue' | 'green' | 'amber' {
-  switch (state) {
-    case 'draft':
-      return 'zinc'
-    case 'approval_requested':
-      return 'blue'
-    case 'approved':
-      return 'green'
-    case 'rejected':
-      return 'amber'
-  }
-}
-
-function getApprovalStateLabel(state: ApprovalState): string {
-  switch (state) {
-    case 'draft':
-      return 'Draft'
-    case 'approval_requested':
-      return 'Approval Requested'
-    case 'approved':
-      return 'Approved'
-    case 'rejected':
-      return 'Rejected'
-  }
 }
 
 export function ResearchDocumentPanel({
@@ -73,20 +37,27 @@ export function ResearchDocumentPanel({
 }: ResearchDocumentPanelProps) {
   const navigate = useNavigate()
   const [document, setDocument] = useState<PhaseDocumentResponse | null>(null)
+  const [revisions, setRevisions] = useState<PhaseDocumentRevisionResponse[]>([])
   const [latestRun, setLatestRun] = useState<ResearchRunResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isRunModalOpen, setIsRunModalOpen] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const load = useCallback(async () => {
     try {
-      const phase = await getResearchDocument(ticket.id)
+      const [phase, history] = await Promise.all([
+        getResearchDocument(ticket.id),
+        getPhaseDocumentRevisions(ticket.id, 'research'),
+      ])
       setDocument(phase.document)
       setLatestRun(phase.latestRun)
+      setRevisions(history)
+      setSelectedRevisionId(null)
       setDraft(phase.document.content)
     } finally {
       setIsLoading(false)
@@ -107,7 +78,10 @@ export function ResearchDocumentPanel({
     try {
       setIsSaving(true)
       const saved = await saveResearchDocument(ticket.id, draft)
+      const history = await getPhaseDocumentRevisions(ticket.id, 'research')
       setDocument(saved)
+      setRevisions(history)
+      setSelectedRevisionId(null)
       setIsEditing(false)
       toast.success('Research document saved')
     } catch (error) {
@@ -165,6 +139,26 @@ export function ResearchDocumentPanel({
     }
   }, [ticket.id])
 
+  const handleApplySuggestion = useCallback(async (lineNumber: number, suggestedText: string) => {
+    const lines = (document?.content ?? '').split('\n')
+    lines[lineNumber - 1] = suggestedText
+    const newContent = lines.join('\n')
+    try {
+      setIsSaving(true)
+      const saved = await saveResearchDocument(ticket.id, newContent)
+      const history = await getPhaseDocumentRevisions(ticket.id, 'research')
+      setDocument(saved)
+      setDraft(saved.content)
+      setRevisions(history)
+      toast.success(`Suggestion applied to line ${lineNumber}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to apply suggestion')
+      throw error
+    } finally {
+      setIsSaving(false)
+    }
+  }, [document, ticket.id])
+
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
   const canRequestApproval = ticket.workflowPhase === 'research' && hasContent && document?.approvalState === 'draft'
@@ -192,7 +186,7 @@ export function ResearchDocumentPanel({
               </Subheading>
               {latestRun && (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gray-9)]">
-                  <Badge color={getStatusBadgeColor(latestRun.status)}>
+                  <Badge color={getPhaseRunStatusBadgeColor(latestRun.status)}>
                     {latestRun.status === 'active' ? 'Research Running' : `Research ${latestRun.status}`}
                   </Badge>
                   <span>
@@ -304,9 +298,7 @@ export function ResearchDocumentPanel({
             placeholder="Write research notes in markdown..."
           />
         ) : hasContent ? (
-          <div className="prose prose-sm max-w-none whitespace-pre-wrap rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-4 text-sm text-[var(--gray-11)]">
-            {document!.content}
-          </div>
+          <PhaseDocumentComments ticketId={ticket.id} phase="research" content={document!.content} onApplySuggestion={handleApplySuggestion} />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-12 text-center">
             <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />
@@ -318,6 +310,12 @@ export function ResearchDocumentPanel({
             </div>
           </div>
         )}
+
+        <PhaseDocumentRevisionHistory
+          revisions={revisions}
+          selectedRevisionId={selectedRevisionId}
+          onSelectRevision={setSelectedRevisionId}
+        />
       </div>
 
       <RunTicketModal

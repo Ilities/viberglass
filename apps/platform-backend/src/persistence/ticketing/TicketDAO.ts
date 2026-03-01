@@ -188,6 +188,9 @@ export class TicketDAO {
         "t.auto_fix_status",
         "t.ticket_status",
         "t.workflow_phase",
+        "t.workflow_override_reason",
+        "t.workflow_overridden_at",
+        "t.workflow_overridden_by",
         "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
@@ -238,6 +241,9 @@ export class TicketDAO {
         "t.auto_fix_status",
         "t.ticket_status",
         "t.workflow_phase",
+        "t.workflow_override_reason",
+        "t.workflow_overridden_at",
+        "t.workflow_overridden_by",
         "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
@@ -304,6 +310,24 @@ export class TicketDAO {
       .updateTable("tickets")
       .set({
         workflow_phase: workflowPhase,
+        updated_at: new Date(),
+      })
+      .where("id", "=", id)
+      .execute();
+  }
+
+  async overrideWorkflowToExecution(
+    id: string,
+    reason: string,
+    actor?: string,
+  ): Promise<void> {
+    await db
+      .updateTable("tickets")
+      .set({
+        workflow_phase: TICKET_WORKFLOW_PHASE.EXECUTION,
+        workflow_override_reason: reason,
+        workflow_overridden_at: new Date(),
+        workflow_overridden_by: actor || null,
         updated_at: new Date(),
       })
       .where("id", "=", id)
@@ -414,6 +438,9 @@ export class TicketDAO {
         "t.auto_fix_status",
         "t.ticket_status",
         "t.workflow_phase",
+        "t.workflow_override_reason",
+        "t.workflow_overridden_at",
+        "t.workflow_overridden_by",
         "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
@@ -694,6 +721,11 @@ export class TicketDAO {
       autoFixStatus: row.auto_fix_status ?? undefined,
       status: normalizeTicketStatus(row.ticket_status),
       workflowPhase: normalizeWorkflowPhase(row.workflow_phase),
+      workflowOverrideReason: row.workflow_override_reason ?? undefined,
+      workflowOverriddenAt: row.workflow_overridden_at
+        ? this.toISOString(row.workflow_overridden_at)
+        : undefined,
+      workflowOverriddenBy: row.workflow_overridden_by ?? undefined,
       archivedAt: row.archived_at ? this.toISOString(row.archived_at) : undefined,
       pullRequestUrl: row.pull_request_url ?? undefined,
       createdAt: this.toISOString(row.created_at),

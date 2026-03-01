@@ -29,9 +29,20 @@ const mockTicketPlanningApprovalService = {
   approve: jest.fn(),
   revokeApproval: jest.fn(),
 };
+const mockTicketWorkflowOverrideService = {
+  overrideToExecution: jest.fn(),
+};
 const mockTicketWorkflowService = {
   getTicketWorkflow: jest.fn(),
   advancePhase: jest.fn(),
+};
+const mockTicketPhaseDocumentRevisionService = {
+  listRevisions: jest.fn(),
+};
+const mockTicketPhaseDocumentCommentService = {
+  listComments: jest.fn(),
+  createComment: jest.fn(),
+  updateComment: jest.fn(),
 };
 
 jest.mock("../../../../api/middleware/authentication", () => ({
@@ -69,8 +80,26 @@ jest.mock("../../../../services/TicketPlanningApprovalService", () => ({
   ),
 }));
 
+jest.mock("../../../../services/TicketWorkflowOverrideService", () => ({
+  TicketWorkflowOverrideService: jest.fn(
+    () => mockTicketWorkflowOverrideService,
+  ),
+}));
+
 jest.mock("../../../../services/TicketWorkflowService", () => ({
   TicketWorkflowService: jest.fn(() => mockTicketWorkflowService),
+}));
+
+jest.mock("../../../../services/TicketPhaseDocumentRevisionService", () => ({
+  TicketPhaseDocumentRevisionService: jest.fn(
+    () => mockTicketPhaseDocumentRevisionService,
+  ),
+}));
+
+jest.mock("../../../../services/TicketPhaseDocumentCommentService", () => ({
+  TicketPhaseDocumentCommentService: jest.fn(
+    () => mockTicketPhaseDocumentCommentService,
+  ),
 }));
 
 jest.mock("../../../../webhooks/webhookServiceFactory", () => ({
@@ -130,6 +159,53 @@ describe("ticket workflow routes", () => {
       .expect(404);
 
     expect(response.body).toEqual({ error: "Ticket not found" });
+  });
+
+  it("returns document revisions for GET /:id/phases/:phase/revisions", async () => {
+    mockTicketPhaseDocumentRevisionService.listRevisions.mockResolvedValue([
+      {
+        id: "revision-1",
+        documentId: "doc-1",
+        ticketId: TICKET_ID,
+        phase: "research",
+        content: "First draft",
+        source: "manual",
+        actor: "author@example.com",
+        createdAt: "2026-03-01T09:00:00.000Z",
+      },
+    ]);
+
+    const response = await request(app)
+      .get(`/api/tickets/${TICKET_ID}/phases/research/revisions`)
+      .expect(200);
+
+    expect(mockTicketPhaseDocumentRevisionService.listRevisions).toHaveBeenCalledWith(
+      TICKET_ID,
+      "research",
+    );
+    expect(response.body).toEqual({
+      success: true,
+      data: [
+        {
+          id: "revision-1",
+          documentId: "doc-1",
+          ticketId: TICKET_ID,
+          phase: "research",
+          content: "First draft",
+          source: "manual",
+          actor: "author@example.com",
+          createdAt: "2026-03-01T09:00:00.000Z",
+        },
+      ],
+    });
+  });
+
+  it("returns 400 for invalid revision phase params", async () => {
+    const response = await request(app)
+      .get(`/api/tickets/${TICKET_ID}/phases/not-a-phase/revisions`)
+      .expect(400);
+
+    expect(response.body).toEqual({ error: "Invalid workflow phase" });
   });
 
   it("advances from research to planning", async () => {
@@ -242,5 +318,27 @@ describe("ticket workflow routes", () => {
     expect(response.body.message).toBe(
       "Execution is blocked until the planning document is approved",
     );
+  });
+
+  it("overrides the workflow to execution and returns the updated ticket", async () => {
+    mockTicketWorkflowOverrideService.overrideToExecution.mockResolvedValue({
+      id: TICKET_ID,
+      workflowPhase: "execution",
+      workflowOverrideReason: "Urgent production fix",
+      workflowOverriddenAt: "2026-03-01T12:00:00.000Z",
+      workflowOverriddenBy: "approver@example.com",
+    });
+
+    const response = await request(app)
+      .post(`/api/tickets/${TICKET_ID}/workflow/override-to-execution`)
+      .send({ reason: "Urgent production fix" })
+      .expect(200);
+
+    expect(mockTicketWorkflowOverrideService.overrideToExecution).toHaveBeenCalledWith(
+      TICKET_ID,
+      "Urgent production fix",
+      undefined,
+    );
+    expect(response.body.data.workflowPhase).toBe("execution");
   });
 });
