@@ -21,8 +21,8 @@ import { Tabs } from '@radix-ui/themes'
 import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { advanceTicketWorkflowPhase, deleteTicket, updateTicket } from '@/service/api/ticket-api'
-import { useEffect, useState } from 'react'
+import { type ApprovalState, deleteTicket, getPlanningPhase, updateTicket } from '@/service/api/ticket-api'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog } from './edit-ticket-dialog'
@@ -74,7 +74,7 @@ export function TicketDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isAdvancingWorkflow, setIsAdvancingWorkflow] = useState(false)
+  const [planningApprovalState, setPlanningApprovalState] = useState<ApprovalState | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -84,19 +84,35 @@ export function TicketDetailPage() {
       }
 
       try {
-        const [t, c] = await Promise.all([getTicketDetails(id), getClankersList()])
+        const [t, c, planningPhase] = await Promise.all([getTicketDetails(id), getClankersList(), getPlanningPhase(id)])
         if (!t) {
           setIsLoading(false)
           return
         }
         setTicket(t)
         setClankers(c)
+        setPlanningApprovalState(planningPhase.document.approvalState)
       } finally {
         setIsLoading(false)
       }
     }
     void loadData()
   }, [id])
+
+  const executionBlockingReason = useMemo(() => {
+    if (!ticket) {
+      return null
+    }
+    if (planningApprovalState === 'approved') {
+      return null
+    }
+
+    if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
+      return 'Execution is blocked until research is completed and the planning document is approved.'
+    }
+
+    return 'Execution is blocked until the planning document is approved.'
+  }, [planningApprovalState, ticket])
 
   if (isLoading) {
     return (
@@ -175,7 +191,13 @@ export function TicketDetailPage() {
                   View Screenshots
                 </Button>
               )}
-              <TicketRunButton ticket={ticket} clankers={clankers} project={project} />
+              <TicketRunButton
+                ticket={ticket}
+                clankers={clankers}
+                project={project}
+                disabled={executionBlockingReason !== null}
+                disabledReason={executionBlockingReason ?? undefined}
+              />
 
               <Button onClick={() => setIsEditDialogOpen(true)} outline>
                 <Pencil1Icon className="h-4 w-4" />
@@ -246,24 +268,7 @@ export function TicketDetailPage() {
 
             <div className="lg:col-span-8 xl:col-span-9">
               <div className="space-y-4">
-                <TicketWorkflowPanel
-                  workflowPhase={ticket.workflowPhase}
-                  isAdvancing={isAdvancingWorkflow}
-                  onAdvance={async (phase) => {
-                    try {
-                      setIsAdvancingWorkflow(true)
-                      const result = await advanceTicketWorkflowPhase(ticket.id, phase)
-                      setTicket((currentTicket) =>
-                        currentTicket ? { ...currentTicket, workflowPhase: result.workflowPhase } : currentTicket
-                      )
-                      toast.success(`Ticket moved to ${formatWorkflowPhase(result.workflowPhase)}`)
-                    } catch (error) {
-                      toast.error(error instanceof Error ? error.message : 'Failed to advance workflow')
-                    } finally {
-                      setIsAdvancingWorkflow(false)
-                    }
-                  }}
-                />
+                <TicketWorkflowPanel workflowPhase={ticket.workflowPhase} blockingReason={executionBlockingReason} />
 
                 <Tabs.Root defaultValue={phaseToTab(ticket.workflowPhase)}>
                   <Tabs.List>
@@ -286,13 +291,32 @@ export function TicketDetailPage() {
 
                   <Tabs.Content value="research">
                     <div className="app-frame mt-4 rounded-lg p-6">
-                      <ResearchDocumentPanel ticket={ticket} clankers={clankers} project={project} />
+                      <ResearchDocumentPanel
+                        ticket={ticket}
+                        clankers={clankers}
+                        project={project}
+                        onWorkflowPhaseChange={(workflowPhase) =>
+                          setTicket((currentTicket) =>
+                            currentTicket ? { ...currentTicket, workflowPhase } : currentTicket
+                          )
+                        }
+                      />
                     </div>
                   </Tabs.Content>
 
                   <Tabs.Content value="planning">
                     <div className="app-frame mt-4 rounded-lg p-6">
-                      <PlanningDocumentPanel ticket={ticket} clankers={clankers} project={project} />
+                      <PlanningDocumentPanel
+                        ticket={ticket}
+                        clankers={clankers}
+                        project={project}
+                        onWorkflowPhaseChange={(workflowPhase) =>
+                          setTicket((currentTicket) =>
+                            currentTicket ? { ...currentTicket, workflowPhase } : currentTicket
+                          )
+                        }
+                        onApprovalStateChange={setPlanningApprovalState}
+                      />
                     </div>
                   </Tabs.Content>
                 </Tabs.Root>
