@@ -364,6 +364,35 @@ export async function revokeResearchApproval(ticketId: string): Promise<Research
   return data.data
 }
 
+// Planning Document API
+
+export async function getPlanningDocument(ticketId: string): Promise<PhaseDocumentResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning`)
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Ticket not found')
+    throw new Error('Failed to fetch planning document')
+  }
+  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
+  return data.data
+}
+
+export async function savePlanningDocument(
+  ticketId: string,
+  content: string,
+): Promise<PhaseDocumentResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/document`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to save planning document')
+  }
+  const data: ApiResponse<PhaseDocumentResponse> = await response.json()
+  return data.data
+}
+
 // Webhook Status API
 export async function getWebhookStatus(): Promise<WebhookStatus> {
   const response = await apiFetch(`${API_BASE_URL}/api/webhooks/status`)

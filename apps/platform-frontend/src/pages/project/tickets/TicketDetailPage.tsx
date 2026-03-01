@@ -5,7 +5,6 @@ import { InfoItem } from '@/components/info-item'
 import { PageMeta } from '@/components/page-meta'
 import { Section } from '@/components/section'
 import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
-import { TICKET_WORKFLOW_PHASE, type Clanker, type Ticket, type TicketWorkflowPhase } from '@viberglass/types'
 import {
   ArrowLeftIcon,
   CalendarIcon,
@@ -15,20 +14,21 @@ import {
   EyeOpenIcon,
   FileTextIcon,
   Pencil1Icon,
-  ReaderIcon,
   StackIcon,
   TrashIcon,
 } from '@radix-ui/react-icons'
 import { Tabs } from '@radix-ui/themes'
-import { useParams, useNavigate } from 'react-router-dom'
+import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
+import { useNavigate, useParams } from 'react-router-dom'
 
-import { TicketRunButton } from './ticket-run-button'
-import { useEffect, useState } from 'react'
 import { advanceTicketWorkflowPhase, deleteTicket, updateTicket } from '@/service/api/ticket-api'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { EditTicketDialog } from './edit-ticket-dialog'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
+import { EditTicketDialog } from './edit-ticket-dialog'
+import { PlanningDocumentPanel } from './planning-document-panel'
 import { ResearchDocumentPanel } from './research-document-panel'
+import { TicketRunButton } from './ticket-run-button'
 import { TicketWorkflowPanel } from './ticket-workflow-panel'
 
 function formatTicketId(ticketId: string): string {
@@ -132,8 +132,8 @@ export function TicketDetailPage() {
   return (
     <>
       <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Ticket` : 'Ticket'} />
-      <div className="h-full flex flex-col">
-        <div className="flex items-center gap-4 mb-6">
+      <div className="flex h-full flex-col">
+        <div className="mb-6 flex items-center gap-4">
           <Button href={`/project/${project}/tickets`} plain>
             <ArrowLeftIcon className="h-4 w-4" />
             Back to Tickets
@@ -186,12 +186,11 @@ export function TicketDetailPage() {
               </Button>
             </div>
           </div>
-
         </div>
 
-        <div className="flex-1 min-h-0">
-          <div className="grid gap-6 lg:grid-cols-12 h-full">
-            <div className="lg:col-span-4 xl:col-span-3 space-y-1">
+        <div className="min-h-0 flex-1">
+          <div className="grid h-full gap-6 lg:grid-cols-12">
+            <div className="space-y-1 lg:col-span-4 xl:col-span-3">
               <div className="app-frame rounded-lg p-4">
                 <Section title="Ticket Information">
                   <InfoItem
@@ -199,25 +198,21 @@ export function TicketDetailPage() {
                     label="Ticket ID"
                     value={<span className="font-mono text-xs">{ticket.id}</span>}
                   />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
                   <InfoItem
                     icon={<FileTextIcon className="h-4 w-4" />}
                     label="Display ID"
                     value={formatTicketId(ticket.id)}
                   />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
-                  <InfoItem
-                    icon={<CubeIcon className="h-4 w-4" />}
-                    label="Category"
-                    value={ticket.category}
-                  />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
+                  <InfoItem icon={<CubeIcon className="h-4 w-4" />} label="Category" value={ticket.category} />
+                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
                   <InfoItem
                     icon={<ExternalLinkIcon className="h-4 w-4" />}
                     label="Ticket System"
                     value={formatTicketSystem(ticket.ticketSystem)}
                   />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
                   <InfoItem
                     icon={<ClockIcon className="h-4 w-4" />}
                     label="Workflow Phase"
@@ -233,13 +228,13 @@ export function TicketDetailPage() {
                     label="Created"
                     value={new Date(ticket.createdAt).toLocaleString()}
                   />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
                   <InfoItem
                     icon={<ClockIcon className="h-4 w-4" />}
                     label="Updated"
                     value={new Date(ticket.updatedAt).toLocaleString()}
                   />
-                  <div className="h-px bg-[var(--gray-6)] mx-1" />
+                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
                   <InfoItem
                     icon={<ClockIcon className="h-4 w-4" />}
                     label="Reported"
@@ -259,9 +254,7 @@ export function TicketDetailPage() {
                       setIsAdvancingWorkflow(true)
                       const result = await advanceTicketWorkflowPhase(ticket.id, phase)
                       setTicket((currentTicket) =>
-                        currentTicket
-                          ? { ...currentTicket, workflowPhase: result.workflowPhase }
-                          : currentTicket
+                        currentTicket ? { ...currentTicket, workflowPhase: result.workflowPhase } : currentTicket
                       )
                       toast.success(`Ticket moved to ${formatWorkflowPhase(result.workflowPhase)}`)
                     } catch (error) {
@@ -280,31 +273,26 @@ export function TicketDetailPage() {
                   </Tabs.List>
 
                   <Tabs.Content value="overview">
-                    <div className="app-frame rounded-lg p-6 mt-4">
+                    <div className="app-frame mt-4 rounded-lg p-6">
                       <Subheading className="mb-4 flex items-center gap-2">
                         <FileTextIcon className="h-5 w-5 text-[var(--accent-9)]" />
                         Description
                       </Subheading>
-                      <div className="prose prose-sm max-w-none text-[var(--gray-11)] whitespace-pre-wrap">
+                      <div className="prose prose-sm max-w-none whitespace-pre-wrap text-[var(--gray-11)]">
                         {ticket.description}
                       </div>
                     </div>
                   </Tabs.Content>
 
                   <Tabs.Content value="research">
-                    <div className="app-frame rounded-lg p-6 mt-4">
+                    <div className="app-frame mt-4 rounded-lg p-6">
                       <ResearchDocumentPanel ticket={ticket} clankers={clankers} project={project} />
                     </div>
                   </Tabs.Content>
 
                   <Tabs.Content value="planning">
-                    <div className="app-frame rounded-lg p-6 mt-4">
-                      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
-                        <ReaderIcon className="h-6 w-6 text-[var(--gray-8)]" />
-                        <p className="text-sm text-[var(--gray-9)]">
-                          Planning documents will be available after research is completed.
-                        </p>
-                      </div>
+                    <div className="app-frame mt-4 rounded-lg p-6">
+                      <PlanningDocumentPanel ticket={ticket} />
                     </div>
                   </Tabs.Content>
                 </Tabs.Root>
