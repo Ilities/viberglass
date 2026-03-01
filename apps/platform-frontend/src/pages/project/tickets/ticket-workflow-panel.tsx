@@ -5,7 +5,8 @@ import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/typ
 interface TicketWorkflowPanelProps {
   workflowPhase: TicketWorkflowPhase
   isAdvancing?: boolean
-  onAdvance: (phase: TicketWorkflowPhase) => Promise<void>
+  onAdvance?: (phase: TicketWorkflowPhase) => Promise<void>
+  blockingReason?: string | null
 }
 
 const phases: { phase: TicketWorkflowPhase; label: string }[] = [
@@ -52,8 +53,9 @@ export function TicketWorkflowPanel({
   workflowPhase,
   isAdvancing = false,
   onAdvance,
+  blockingReason = null,
 }: TicketWorkflowPanelProps) {
-  const advanceAction = getAdvanceAction(workflowPhase)
+  const advanceAction = onAdvance ? getAdvanceAction(workflowPhase) : null
 
   return (
     <div className="app-frame rounded-lg px-5 py-3">
@@ -82,13 +84,18 @@ export function TicketWorkflowPanel({
         {advanceAction ? (
           <Button
             color="brand"
-            onClick={() => onAdvance(advanceAction.phase)}
+            onClick={() => void onAdvance?.(advanceAction.phase)}
             disabled={isAdvancing}
           >
             {isAdvancing ? 'Updating...' : advanceAction.label}
           </Button>
         ) : null}
       </div>
+      {blockingReason ? (
+        <div className="mt-3 rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {blockingReason}
+        </div>
+      ) : null}
     </div>
   )
 }

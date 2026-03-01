@@ -10,6 +10,7 @@ import { JobService } from "../../../services/JobService";
 import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../../workers";
 import { TicketMediaExecutionService } from "../../../services/TicketMediaExecutionService";
+import { TicketPhaseDocumentService } from "../../../services/TicketPhaseDocumentService";
 
 // Mock dependencies
 jest.mock("../../../persistence/ticketing/TicketDAO");
@@ -24,6 +25,7 @@ jest.mock("../../../services/JobService");
 jest.mock("../../../services/CredentialRequirementsService");
 jest.mock("../../../workers/WorkerExecutionService");
 jest.mock("../../../services/TicketMediaExecutionService");
+jest.mock("../../../services/TicketPhaseDocumentService");
 
 describe("TicketExecutionService", () => {
   let service: TicketExecutionService;
@@ -37,6 +39,7 @@ describe("TicketExecutionService", () => {
   let mockCredentialRequirementsService: jest.Mocked<CredentialRequirementsService>;
   let mockWorkerExecutionService: jest.Mocked<WorkerExecutionService>;
   let mockTicketMediaExecutionService: jest.Mocked<TicketMediaExecutionService>;
+  let mockTicketPhaseDocumentService: jest.Mocked<TicketPhaseDocumentService>;
 
   const mockedGetClankerProvisioner = jest.mocked(getClankerProvisioner);
 
@@ -63,6 +66,8 @@ describe("TicketExecutionService", () => {
       new WorkerExecutionService() as jest.Mocked<WorkerExecutionService>;
     mockTicketMediaExecutionService =
       new TicketMediaExecutionService() as jest.Mocked<TicketMediaExecutionService>;
+    mockTicketPhaseDocumentService =
+      new TicketPhaseDocumentService() as jest.Mocked<TicketPhaseDocumentService>;
 
     (TicketDAO as jest.Mock).mockImplementation(() => mockTicketDAO);
     (ProjectDAO as jest.Mock).mockImplementation(() => mockProjectDAO);
@@ -84,10 +89,28 @@ describe("TicketExecutionService", () => {
     (TicketMediaExecutionService as jest.Mock).mockImplementation(
       () => mockTicketMediaExecutionService,
     );
+    (TicketPhaseDocumentService as jest.Mock).mockImplementation(
+      () => mockTicketPhaseDocumentService,
+    );
     mockTicketMediaExecutionService.prepareForExecution.mockResolvedValue({
       media: [],
       mounts: [],
     });
+    mockTicketPhaseDocumentService.getOrCreateDocument.mockImplementation(
+      async (ticketId, phase) =>
+        ({
+          id: `${phase}-doc`,
+          ticketId,
+          phase,
+          content:
+            phase === "planning" ? "Approved plan" : "Research context",
+          approvalState: "approved",
+          approvedAt: new Date().toISOString(),
+          approvedBy: "approver@example.com",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }) as any,
+    );
 
     service = new TicketExecutionService();
   });
@@ -348,6 +371,8 @@ describe("TicketExecutionService", () => {
     expect(mockJobService.submitJob).toHaveBeenCalledWith(
       expect.objectContaining({
         context: expect.objectContaining({
+          researchDocument: "Research context",
+          planDocument: "Approved plan",
           ticketMedia: expect.arrayContaining([
             expect.objectContaining({
               id: "media-1",
@@ -364,6 +389,119 @@ describe("TicketExecutionService", () => {
         ]),
       }),
       expect.any(Object),
+    );
+  });
+
+  it("blocks execution when the planning document is not approved", async () => {
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: "ticket-999",
+      projectId: "p1",
+      title: "Blocked Ticket",
+      description: "Blocked Description",
+    } as any);
+    mockTicketPhaseDocumentService.getOrCreateDocument.mockResolvedValueOnce({
+      id: "planning-doc",
+      ticketId: "ticket-999",
+      phase: "planning",
+      content: "Draft plan",
+      approvalState: "draft",
+      approvedAt: null,
+      approvedBy: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+
+    await expect(service.runTicket("ticket-999", { clankerId: "clanker-1" })).rejects.toThrow(
+      "Execution is blocked until the planning document is approved",
+    );
+
+    expect(mockJobService.submitJob).not.toHaveBeenCalled();
+    expect(mockWorkerExecutionService.executeJob).not.toHaveBeenCalled();
+  });
+
+  it("includes approved research and planning documents in execution context", async () => {
+    const ticketId = "ticket-docs";
+    const clankerId = "clanker-docs";
+    const projectId = "project-docs";
+
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: ticketId,
+      projectId,
+      title: "Ticket With Docs",
+      description: "Execution uses docs",
+    } as any);
+    mockTicketPhaseDocumentService.getOrCreateDocument
+      .mockResolvedValueOnce({
+        id: "planning-doc",
+        ticketId,
+        phase: "planning",
+        content: "Ship the implementation in three steps.",
+        approvalState: "approved",
+        approvedAt: new Date().toISOString(),
+        approvedBy: "approver@example.com",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any)
+      .mockResolvedValueOnce({
+        id: "research-doc",
+        ticketId,
+        phase: "research",
+        content: "Root cause and relevant code paths.",
+        approvalState: "approved",
+        approvedAt: new Date().toISOString(),
+        approvedBy: "approver@example.com",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any);
+    mockProjectDAO.getProject.mockResolvedValue({
+      id: projectId,
+      name: "Docs Project",
+      repositoryUrl: "https://github.com/test/repo",
+    } as any);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockClankerDAO.getClanker.mockResolvedValue({
+      id: clankerId,
+      status: "active",
+      deploymentStrategyId: "strategy-1",
+      secretIds: [],
+    } as any);
+    mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({
+      status: "active",
+    } as any);
+    mockJobService.submitJob.mockResolvedValue({
+      jobId: "job-123",
+      status: "active",
+      timestamp: new Date().toISOString(),
+      callbackToken: "token-123",
+    });
+    mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue(
+      [],
+    );
+    mockWorkerExecutionService.executeJob.mockResolvedValue({
+      success: true,
+      executionId: "exec-123",
+      attempts: 1,
+    });
+
+    await service.runTicket(ticketId, { clankerId });
+
+    expect(mockJobService.submitJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          researchDocument: "Root cause and relevant code paths.",
+          planDocument: "Ship the implementation in three steps.",
+        }),
+      }),
+      expect.any(Object),
+    );
+    expect(mockJobService.saveBootstrapPayload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        context: expect.objectContaining({
+          researchDocument: "Root cause and relevant code paths.",
+          planDocument: "Ship the implementation in three steps.",
+        }),
+      }),
     );
   });
 });

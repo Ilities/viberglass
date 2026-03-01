@@ -3,12 +3,16 @@ import { Button } from '@/components/button'
 import { Subheading } from '@/components/heading'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import {
+  approvePlanning,
   getPlanningPhase,
+  requestPlanningApproval,
+  revokePlanningApproval,
+  savePlanningDocument,
+  type ApprovalState,
   type PhaseDocumentResponse,
   type PlanningRunResponse,
-  savePlanningDocument,
 } from '@/service/api/ticket-api'
-import { Pencil1Icon, PlayIcon, ReaderIcon } from '@radix-ui/react-icons'
+import { CheckCircledIcon, CrossCircledIcon, Pencil1Icon, PlayIcon, ReaderIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -18,6 +22,8 @@ interface PlanningDocumentPanelProps {
   ticket: Ticket
   clankers: Clanker[]
   project: string
+  onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
+  onApprovalStateChange?: (state: ApprovalState) => void
 }
 
 function getStatusBadgeColor(status: PlanningRunResponse['status']): 'amber' | 'green' | 'red' | 'zinc' {
@@ -34,7 +40,39 @@ function getStatusBadgeColor(status: PlanningRunResponse['status']): 'amber' | '
   }
 }
 
-export function PlanningDocumentPanel({ ticket, clankers, project }: PlanningDocumentPanelProps) {
+function getApprovalStateBadgeColor(state: ApprovalState): 'zinc' | 'blue' | 'green' | 'amber' {
+  switch (state) {
+    case 'draft':
+      return 'zinc'
+    case 'approval_requested':
+      return 'blue'
+    case 'approved':
+      return 'green'
+    case 'rejected':
+      return 'amber'
+  }
+}
+
+function getApprovalStateLabel(state: ApprovalState): string {
+  switch (state) {
+    case 'draft':
+      return 'Draft'
+    case 'approval_requested':
+      return 'Approval Requested'
+    case 'approved':
+      return 'Approved'
+    case 'rejected':
+      return 'Rejected'
+  }
+}
+
+export function PlanningDocumentPanel({
+  ticket,
+  clankers,
+  project,
+  onWorkflowPhaseChange,
+  onApprovalStateChange,
+}: PlanningDocumentPanelProps) {
   const navigate = useNavigate()
   const [document, setDocument] = useState<PhaseDocumentResponse | null>(null)
   const [latestRun, setLatestRun] = useState<PlanningRunResponse | null>(null)
@@ -42,6 +80,7 @@ export function PlanningDocumentPanel({ ticket, clankers, project }: PlanningDoc
   const [isSaving, setIsSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isRunModalOpen, setIsRunModalOpen] = useState(false)
+  const [isApproving, setIsApproving] = useState(false)
   const [draft, setDraft] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -51,10 +90,11 @@ export function PlanningDocumentPanel({ ticket, clankers, project }: PlanningDoc
       setDocument(phase.document)
       setLatestRun(phase.latestRun)
       setDraft(phase.document.content)
+      onApprovalStateChange?.(phase.document.approvalState)
     } finally {
       setIsLoading(false)
     }
-  }, [ticket.id])
+  }, [ticket.id, onApprovalStateChange])
 
   useEffect(() => {
     void load()
@@ -71,6 +111,7 @@ export function PlanningDocumentPanel({ ticket, clankers, project }: PlanningDoc
       setIsSaving(true)
       const saved = await savePlanningDocument(ticket.id, draft)
       setDocument(saved)
+      onApprovalStateChange?.(saved.approvalState)
       setIsEditing(false)
       toast.success('Planning document saved')
     } catch (error) {
@@ -78,17 +119,67 @@ export function PlanningDocumentPanel({ ticket, clankers, project }: PlanningDoc
     } finally {
       setIsSaving(false)
     }
-  }, [ticket.id, draft])
+  }, [ticket.id, draft, onApprovalStateChange])
 
   const handleCancel = useCallback(() => {
     setDraft(document?.content ?? '')
     setIsEditing(false)
   }, [document])
 
+  const handleRequestApproval = useCallback(async () => {
+    try {
+      setIsApproving(true)
+      const result = await requestPlanningApproval(ticket.id)
+      setDocument(result.document)
+      setLatestRun(result.latestRun)
+      onApprovalStateChange?.(result.document.approvalState)
+      toast.success('Planning approval requested')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to request planning approval')
+    } finally {
+      setIsApproving(false)
+    }
+  }, [ticket.id, onApprovalStateChange])
+
+  const handleApprove = useCallback(async () => {
+    try {
+      setIsApproving(true)
+      const result = await approvePlanning(ticket.id)
+      setDocument(result.document)
+      setLatestRun(result.latestRun)
+      onApprovalStateChange?.(result.document.approvalState)
+      onWorkflowPhaseChange?.('execution')
+      toast.success('Planning approved - ticket advanced to execution')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to approve planning')
+    } finally {
+      setIsApproving(false)
+    }
+  }, [ticket.id, onApprovalStateChange, onWorkflowPhaseChange])
+
+  const handleRevokeApproval = useCallback(async () => {
+    try {
+      setIsApproving(true)
+      const result = await revokePlanningApproval(ticket.id)
+      setDocument(result.document)
+      setLatestRun(result.latestRun)
+      onApprovalStateChange?.(result.document.approvalState)
+      toast.success('Planning approval revoked')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to revoke planning approval')
+    } finally {
+      setIsApproving(false)
+    }
+  }, [ticket.id, onApprovalStateChange])
+
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
   const canEdit = ticket.workflowPhase === 'planning' || ticket.workflowPhase === 'execution'
   const canRunPlanning = ticket.workflowPhase === 'planning' || ticket.workflowPhase === 'execution'
+  const canRequestApproval = ticket.workflowPhase === 'planning' && hasContent && document?.approvalState === 'draft'
+  const canApprove = ticket.workflowPhase === 'planning' && document?.approvalState === 'approval_requested'
+  const canRevoke = document?.approvalState === 'approved'
+  const approvalIsPending = document?.approvalState === 'approval_requested'
 
   if (isLoading) {
     return (
@@ -160,6 +251,45 @@ export function PlanningDocumentPanel({ ticket, clankers, project }: PlanningDoc
               )}
             </div>
           </div>
+
+          {document && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge color={getApprovalStateBadgeColor(document.approvalState)}>
+                {getApprovalStateLabel(document.approvalState)}
+              </Badge>
+              {document.approvalState === 'approved' && document.approvedBy && (
+                <span className="text-xs text-[var(--gray-9)]">
+                  by {document.approvedBy} on {new Date(document.approvedAt!).toLocaleString()}
+                </span>
+              )}
+              {canRequestApproval && (
+                <Button
+                  color="green"
+                  onClick={handleRequestApproval}
+                  disabled={isApproving || !hasContent}
+                  title={hasContent ? 'Request approval for this planning document' : 'Add content before requesting approval'}
+                >
+                  <CheckCircledIcon className="h-3.5 w-3.5" />
+                  Request Approval
+                </Button>
+              )}
+              {canApprove && (
+                <Button color="green" onClick={handleApprove} disabled={isApproving}>
+                  <CheckCircledIcon className="h-3.5 w-3.5" />
+                  {isApproving ? 'Approving...' : 'Approve'}
+                </Button>
+              )}
+              {canRevoke && (
+                <Button plain onClick={handleRevokeApproval} disabled={isApproving}>
+                  <CrossCircledIcon className="h-3.5 w-3.5" />
+                  {isApproving ? 'Revoking...' : 'Revoke Approval'}
+                </Button>
+              )}
+              {approvalIsPending && (
+                <span className="text-xs text-[var(--gray-9)]">Waiting for approval...</span>
+              )}
+            </div>
+          )}
         </div>
 
         {document?.updatedAt && hasContent && (

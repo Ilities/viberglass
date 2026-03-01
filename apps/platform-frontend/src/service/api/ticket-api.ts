@@ -441,6 +441,42 @@ export async function runPlanning(
   return response.json()
 }
 
+export async function requestPlanningApproval(ticketId: string): Promise<PlanningPhaseResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/request-approval`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to request planning approval')
+  }
+  const data: ApiResponse<PlanningPhaseResponse> = await response.json()
+  return data.data
+}
+
+export async function approvePlanning(ticketId: string): Promise<PlanningPhaseResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/approve`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to approve planning')
+  }
+  const data: ApiResponse<PlanningPhaseResponse> = await response.json()
+  return data.data
+}
+
+export async function revokePlanningApproval(ticketId: string): Promise<PlanningPhaseResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/revoke-approval`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to revoke planning approval')
+  }
+  const data: ApiResponse<PlanningPhaseResponse> = await response.json()
+  return data.data
+}
+
 // Webhook Status API
 export async function getWebhookStatus(): Promise<WebhookStatus> {
   const response = await apiFetch(`${API_BASE_URL}/api/webhooks/status`)

@@ -10,10 +10,15 @@ import { JobService } from "./JobService";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
-import { JOB_KIND, type Clanker, type Project } from "@viberglass/types";
+import {
+  type Clanker,
+  JOB_KIND,
+  TICKET_WORKFLOW_PHASE,
+} from "@viberglass/types";
 import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
 import { getStrategyType } from "../clanker-config";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
+import { TicketPhaseDocumentService } from "./TicketPhaseDocumentService";
 import {
   isAllowedInstructionPath,
   normalizeInstructionPath,
@@ -47,6 +52,7 @@ export class TicketExecutionService {
   private workerExecutionService = new WorkerExecutionService();
   private ticketMediaExecutionService = new TicketMediaExecutionService();
   private instructionStorageService = new InstructionStorageService();
+  private ticketPhaseDocumentService = new TicketPhaseDocumentService();
 
   private normalizeInstructionFile(
     file: Partial<InlineInstructionFile> | null | undefined,
@@ -145,6 +151,23 @@ export class TicketExecutionService {
       if (!ticket) {
         throw new Error("Ticket not found");
       }
+
+      const planningDocument =
+        await this.ticketPhaseDocumentService.getOrCreateDocument(
+          ticketId,
+          TICKET_WORKFLOW_PHASE.PLANNING,
+        );
+      if (planningDocument.approvalState !== "approved") {
+        throw new Error(
+          "Execution is blocked until the planning document is approved",
+        );
+      }
+
+      const researchDocument =
+        await this.ticketPhaseDocumentService.getOrCreateDocument(
+          ticketId,
+          TICKET_WORKFLOW_PHASE.RESEARCH,
+        );
 
       // Get project by ticket.projectId
       const project = await this.projectDAO.getProject(ticket.projectId);
@@ -245,7 +268,7 @@ export class TicketExecutionService {
               credentialSecretId: scmCredentialSecretId,
             }
           : normalizedScmConfig;
-      const executionClanker = {
+      const executionClanker: Clanker = {
         ...clanker,
         secretIds: mergedSecretIds,
       };
@@ -285,6 +308,8 @@ export class TicketExecutionService {
           ticketId: ticket.id,
           originalTicketId: ticket.externalTicketId || ticket.id,
           stepsToReproduce: ticket.description,
+          researchDocument: researchDocument.content,
+          planDocument: planningDocument.content,
           instructionFiles: mergedInstructionFiles,
           ...(ticketMediaExecution.media.length > 0
             ? { ticketMedia: ticketMediaExecution.media }
@@ -351,11 +376,7 @@ export class TicketExecutionService {
       // Invoke worker via WorkerExecutionService.executeJob - fire and forget
       // Don't await the result, just log errors
       this.workerExecutionService
-        .executeJob(
-          jobData,
-          executionClanker as unknown as Clanker,
-          project as unknown as Project,
-        )
+        .executeJob(jobData, executionClanker, project)
         .then((result) => {
           logger.info("Worker invoked successfully", {
             ticketId,

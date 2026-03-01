@@ -92,6 +92,8 @@ export interface BaseWorkerPayload {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    researchDocument?: string;
+    planDocument?: string;
     ticketMedia?: TicketMediaPayload[];
     instructionFiles?: Array<{ fileType: string; content: string }>;
   };
@@ -193,6 +195,8 @@ export interface CodingJobData {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    researchDocument?: string;
+    planDocument?: string;
     ticketMedia?: TicketMediaPayload[];
     instructionFiles?: Array<{ fileType: string; content: string }>;
   };

@@ -69,6 +69,8 @@ export interface JobData {
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    researchDocument?: string;
+    planDocument?: string;
     instructionFiles?: InstructionFile[];
     ticketMedia?: JobTicketMedia[];
   };
