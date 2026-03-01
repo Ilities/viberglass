@@ -157,7 +157,10 @@ export class TicketExecutionService {
           ticketId,
           TICKET_WORKFLOW_PHASE.PLANNING,
         );
-      if (planningDocument.approvalState !== "approved") {
+      if (
+        planningDocument.approvalState !== "approved" &&
+        !ticket.workflowOverriddenAt
+      ) {
         throw new Error(
           "Execution is blocked until the planning document is approved",
         );

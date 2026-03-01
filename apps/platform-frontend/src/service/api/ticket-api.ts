@@ -263,6 +263,36 @@ export interface PhaseDocumentResponse {
   updatedAt: string
 }
 
+export type PhaseDocumentRevisionSource = 'manual' | 'agent'
+
+export interface PhaseDocumentRevisionResponse {
+  id: string
+  documentId: string
+  ticketId: string
+  phase: TicketWorkflowPhase
+  content: string
+  source: PhaseDocumentRevisionSource
+  actor: string | null
+  createdAt: string
+}
+
+export type PhaseDocumentCommentStatus = 'open' | 'resolved'
+
+export interface PhaseDocumentCommentResponse {
+  id: string
+  documentId: string
+  ticketId: string
+  phase: 'research' | 'planning'
+  lineNumber: number
+  content: string
+  status: PhaseDocumentCommentStatus
+  actor: string | null
+  resolvedAt: string | null
+  resolvedBy: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ResearchRunResponse {
   id: string
   jobId: string
@@ -304,6 +334,69 @@ export async function saveResearchDocument(
     throw new Error(error.error || error.message || 'Failed to save research document')
   }
   const data: ApiResponse<PhaseDocumentResponse> = await response.json()
+  return data.data
+}
+
+export async function getPhaseDocumentRevisions(
+  ticketId: string,
+  phase: TicketWorkflowPhase,
+): Promise<PhaseDocumentRevisionResponse[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/revisions`)
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Ticket not found')
+    throw new Error('Failed to fetch document revisions')
+  }
+  const data: ApiResponse<PhaseDocumentRevisionResponse[]> = await response.json()
+  return data.data
+}
+
+export async function getPhaseDocumentComments(
+  ticketId: string,
+  phase: 'research' | 'planning',
+): Promise<PhaseDocumentCommentResponse[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/comments`)
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Ticket not found')
+    throw new Error('Failed to fetch document comments')
+  }
+  const data: ApiResponse<PhaseDocumentCommentResponse[]> = await response.json()
+  return data.data
+}
+
+export async function createPhaseDocumentComment(
+  ticketId: string,
+  phase: 'research' | 'planning',
+  payload: { lineNumber: number; content: string },
+): Promise<PhaseDocumentCommentResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to create comment')
+  }
+  const data: ApiResponse<PhaseDocumentCommentResponse> = await response.json()
+  return data.data
+}
+
+export async function updatePhaseDocumentComment(
+  ticketId: string,
+  phase: 'research' | 'planning',
+  commentId: string,
+  payload: { content?: string; status?: PhaseDocumentCommentStatus },
+): Promise<PhaseDocumentCommentResponse> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/comments/${commentId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to update comment')
+  }
+  const data: ApiResponse<PhaseDocumentCommentResponse> = await response.json()
   return data.data
 }
 
@@ -474,6 +567,20 @@ export async function revokePlanningApproval(ticketId: string): Promise<Planning
     throw new Error(error.error || error.message || 'Failed to revoke planning approval')
   }
   const data: ApiResponse<PlanningPhaseResponse> = await response.json()
+  return data.data
+}
+
+export async function overrideTicketWorkflowToExecution(ticketId: string, reason: string): Promise<Ticket> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/workflow/override-to-execution`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to override ticket workflow')
+  }
+  const data: ApiResponse<Ticket> = await response.json()
   return data.data
 }
 

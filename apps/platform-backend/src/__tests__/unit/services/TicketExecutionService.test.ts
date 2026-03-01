@@ -504,4 +504,75 @@ describe("TicketExecutionService", () => {
       }),
     );
   });
+
+  it("allows execution when a workflow override exists even if planning is not approved", async () => {
+    const ticketId = "ticket-override";
+    const clankerId = "clanker-override";
+    const projectId = "project-override";
+
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: ticketId,
+      projectId,
+      title: "Overridden Ticket",
+      description: "Skip the normal gate",
+      workflowOverriddenAt: "2026-03-01T12:00:00.000Z",
+    } as any);
+    mockTicketPhaseDocumentService.getOrCreateDocument
+      .mockResolvedValueOnce({
+        id: "planning-doc",
+        ticketId,
+        phase: "planning",
+        content: "Draft plan",
+        approvalState: "draft",
+        approvedAt: null,
+        approvedBy: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any)
+      .mockResolvedValueOnce({
+        id: "research-doc",
+        ticketId,
+        phase: "research",
+        content: "Research context",
+        approvalState: "draft",
+        approvedAt: null,
+        approvedBy: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any);
+    mockProjectDAO.getProject.mockResolvedValue({
+      id: projectId,
+      name: "Override Project",
+      repositoryUrl: "https://github.com/test/repo",
+    } as any);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockClankerDAO.getClanker.mockResolvedValue({
+      id: clankerId,
+      status: "active",
+      deploymentStrategyId: "strategy-1",
+      secretIds: [],
+    } as any);
+    mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({
+      status: "active",
+    } as any);
+    mockJobService.submitJob.mockResolvedValue({
+      jobId: "job-123",
+      status: "active",
+      timestamp: new Date().toISOString(),
+      callbackToken: "token-123",
+    });
+    mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue(
+      [],
+    );
+    mockWorkerExecutionService.executeJob.mockResolvedValue({
+      success: true,
+      executionId: "exec-123",
+      attempts: 1,
+    });
+
+    await service.runTicket(ticketId, { clankerId });
+
+    expect(mockJobService.submitJob).toHaveBeenCalled();
+    expect(mockWorkerExecutionService.executeJob).toHaveBeenCalled();
+  });
 });

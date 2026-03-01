@@ -7,6 +7,11 @@ import {
   type PhaseDocument,
   TicketPhaseDocumentDAO,
 } from "../persistence/ticketing/TicketPhaseDocumentDAO";
+import {
+  PHASE_DOCUMENT_REVISION_SOURCE,
+  type PhaseDocumentRevisionSource,
+  TicketPhaseDocumentRevisionDAO,
+} from "../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
 
 const logger = createChildLogger({ service: "TicketPhaseDocumentService" });
 
@@ -22,9 +27,15 @@ export interface PhaseDocumentView {
   updatedAt: string;
 }
 
+interface SaveDocumentOptions {
+  actor?: string;
+  source?: PhaseDocumentRevisionSource;
+}
+
 export class TicketPhaseDocumentService {
   private readonly ticketDAO = new TicketDAO();
   private readonly documentDAO = new TicketPhaseDocumentDAO();
+  private readonly revisionDAO = new TicketPhaseDocumentRevisionDAO();
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
 
@@ -39,16 +50,8 @@ export class TicketPhaseDocumentService {
     ticketId: string,
     phase: TicketWorkflowPhase,
   ): Promise<PhaseDocumentView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    if (!doc) {
-      doc = await this.documentDAO.create(ticketId, phase);
-    }
-
+    await this.requireTicket(ticketId);
+    const doc = await this.getOrCreatePersistedDocument(ticketId, phase);
     return this.toView(doc);
   }
 
@@ -56,16 +59,10 @@ export class TicketPhaseDocumentService {
     ticketId: string,
     phase: TicketWorkflowPhase,
     content: string,
+    options: SaveDocumentOptions = {},
   ): Promise<PhaseDocumentView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    if (!doc) {
-      doc = await this.documentDAO.create(ticketId, phase);
-    }
+    await this.requireTicket(ticketId);
+    const doc = await this.getOrCreatePersistedDocument(ticketId, phase);
 
     let storageUrl: string | null = doc.storageUrl;
 
@@ -91,6 +88,14 @@ export class TicketPhaseDocumentService {
     }
 
     await this.documentDAO.updateContent(doc.id, content, storageUrl);
+    await this.revisionDAO.create({
+      documentId: doc.id,
+      ticketId,
+      phase,
+      content,
+      source: options.source ?? PHASE_DOCUMENT_REVISION_SOURCE.MANUAL,
+      actor: options.actor,
+    });
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
     return this.toView(updated!);
@@ -101,15 +106,8 @@ export class TicketPhaseDocumentService {
     phase: TicketWorkflowPhase,
     actor?: string,
   ): Promise<PhaseDocumentView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    if (!doc) {
-      doc = await this.documentDAO.create(ticketId, phase);
-    }
+    await this.requireTicket(ticketId);
+    await this.getOrCreatePersistedDocument(ticketId, phase);
 
     await this.documentDAO.updateApprovalState(
       ticketId,
@@ -127,15 +125,8 @@ export class TicketPhaseDocumentService {
     phase: TicketWorkflowPhase,
     actor?: string,
   ): Promise<PhaseDocumentView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    if (!doc) {
-      doc = await this.documentDAO.create(ticketId, phase);
-    }
+    await this.requireTicket(ticketId);
+    await this.getOrCreatePersistedDocument(ticketId, phase);
 
     await this.documentDAO.updateApprovalState(ticketId, phase, "approved", actor);
 
@@ -148,15 +139,8 @@ export class TicketPhaseDocumentService {
     phase: TicketWorkflowPhase,
     actor?: string,
   ): Promise<PhaseDocumentView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new Error("Ticket not found");
-    }
-
-    let doc = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    if (!doc) {
-      doc = await this.documentDAO.create(ticketId, phase);
-    }
+    await this.requireTicket(ticketId);
+    await this.getOrCreatePersistedDocument(ticketId, phase);
 
     await this.documentDAO.updateApprovalState(
       ticketId,
@@ -167,6 +151,25 @@ export class TicketPhaseDocumentService {
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
     return this.toView(updated!);
+  }
+
+  private async requireTicket(ticketId: string): Promise<void> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
+  }
+
+  private async getOrCreatePersistedDocument(
+    ticketId: string,
+    phase: TicketWorkflowPhase,
+  ): Promise<PhaseDocument> {
+    const existing = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
+    if (existing) {
+      return existing;
+    }
+
+    return this.documentDAO.create(ticketId, phase);
   }
 
   private toView(doc: PhaseDocument): PhaseDocumentView {
