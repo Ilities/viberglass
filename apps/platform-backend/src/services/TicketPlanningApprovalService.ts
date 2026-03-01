@@ -52,12 +52,6 @@ export class TicketPlanningApprovalService {
       throw new Error("Ticket not found");
     }
 
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING) {
-      throw new Error(
-        "Approval can only be requested during the planning phase",
-      );
-    }
-
     const document = await this.documentService.requestApproval(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
@@ -78,10 +72,6 @@ export class TicketPlanningApprovalService {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
       throw new Error("Ticket not found");
-    }
-
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING) {
-      throw new Error("Approval can only be granted during the planning phase");
     }
 
     const document = await this.documentService.approveDocument(
