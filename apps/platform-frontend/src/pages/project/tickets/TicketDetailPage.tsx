@@ -240,7 +240,7 @@ export function TicketDetailPage() {
               <DropdownButton outline aria-label="More actions">
                 <DotsHorizontalIcon className="h-4 w-4" />
               </DropdownButton>
-              <DropdownMenu anchor="bottom end">
+              <DropdownMenu>
                 <DropdownItem onClick={() => setIsEditDialogOpen(true)}>
                   <Pencil1Icon className="h-4 w-4" />
                   Edit ticket
