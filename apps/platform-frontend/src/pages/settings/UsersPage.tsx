@@ -63,7 +63,8 @@ export function UsersPage() {
     setSuccessMessage(null)
     setIsSubmitting(true)
 
-    const formData = new FormData(event.currentTarget)
+    const form = event.currentTarget
+    const formData = new FormData(form)
     const name = String(formData.get('name') ?? '').trim()
     const email = String(formData.get('email') ?? '').trim()
     const password = String(formData.get('password') ?? '')
@@ -79,7 +80,7 @@ export function UsersPage() {
       const created = await createUser({ name, email, password, role })
       setUsers((currentUsers) => [...currentUsers, created])
       setSuccessMessage(`Created ${created.email}. Share the credentials manually.`)
-      event.currentTarget.reset()
+      form.reset()
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Failed to create user')
     } finally {

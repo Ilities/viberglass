@@ -1,20 +1,19 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { Heading, Subheading } from '@/components/heading'
-import { InfoItem } from '@/components/info-item'
+import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
+import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
-import { Section } from '@/components/section'
 import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
 import {
   ArrowLeftIcon,
-  CalendarIcon,
-  ClockIcon,
-  CubeIcon,
+  CheckCircledIcon,
+  ClipboardIcon,
+  DotsHorizontalIcon,
   ExternalLinkIcon,
   EyeOpenIcon,
   FileTextIcon,
   Pencil1Icon,
-  StackIcon,
+  PlayIcon,
   TrashIcon,
 } from '@radix-ui/react-icons'
 import { Tabs } from '@radix-ui/themes'
@@ -31,11 +30,6 @@ import { ResearchDocumentPanel } from './research-document-panel'
 import { TicketRunButton } from './ticket-run-button'
 import { TicketWorkflowPanel } from './ticket-workflow-panel'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
-
-function formatTicketId(ticketId: string): string {
-  if (ticketId.length <= 20) return ticketId
-  return `${ticketId.slice(0, 8)}...${ticketId.slice(-6)}`
-}
 
 function getSeverityBadge(severity: string): { label: string; color: 'red' | 'amber' | 'green' | 'zinc' } {
   switch (severity) {
@@ -65,6 +59,41 @@ function getAutoFixBadge(status?: string): { label: string; color: 'green' | 'am
     default:
       return { label: 'Not Requested', color: 'zinc' }
   }
+}
+
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function formatDateTime(dateString: string): string {
+  return new Date(dateString).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function SidebarLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--gray-8)]">
+      {children}
+    </span>
+  )
+}
+
+function SidebarField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[11px] text-[var(--gray-9)]">{label}</span>
+      <span className="text-sm font-medium text-[var(--gray-12)]">{children}</span>
+    </div>
+  )
 }
 
 export function TicketDetailPage() {
@@ -102,15 +131,9 @@ export function TicketDetailPage() {
   }, [id])
 
   const executionBlockingReason = useMemo(() => {
-    if (!ticket) {
-      return null
-    }
-    if (ticket.workflowOverriddenAt) {
-      return null
-    }
-    if (planningApprovalState === 'approved') {
-      return null
-    }
+    if (!ticket) return null
+    if (ticket.workflowOverriddenAt) return null
+    if (planningApprovalState === 'approved') return null
 
     if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
       return 'Execution is blocked until research is completed and the planning document is approved.'
@@ -144,216 +167,289 @@ export function TicketDetailPage() {
     return 'overview'
   }
 
-  function formatWorkflowPhase(phase: TicketWorkflowPhase): string {
-    if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) return 'Research'
-    if (phase === TICKET_WORKFLOW_PHASE.PLANNING) return 'Planning'
-    return 'Execution'
-  }
+  const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
+  const isRunnable = !executionBlockingReason && activeClankers.length > 0
+
+  const displayId = ticket.id.length > 16
+    ? `${ticket.id.slice(0, 8)}…${ticket.id.slice(-6)}`
+    : ticket.id
 
   return (
     <>
       <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Ticket` : 'Ticket'} />
-      <div className="flex h-full flex-col">
-        <div className="mb-6 flex items-center gap-4">
-          <Button href={`/project/${project}/tickets`} plain>
+      <div className="flex h-full flex-col gap-5">
+
+        {/* Back link */}
+        <div>
+          <Button href={`/project/${project}/tickets`} plain className="-ml-1">
             <ArrowLeftIcon className="h-4 w-4" />
             Back to Tickets
           </Button>
         </div>
 
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent-4)] to-[var(--accent-3)] text-[var(--accent-11)] shadow-sm">
-                <FileTextIcon className="h-7 w-7" />
-              </div>
-
-              <div>
-                <Heading className="text-2xl">{ticket.title}</Heading>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  <Badge color={severityBadge.color}>{severityBadge.label}</Badge>
-                  <Badge color="blue">{ticket.category}</Badge>
-                  <Badge color={autoFixBadge.color}>{autoFixBadge.label}</Badge>
-                  {ticket.externalTicketId && (
-                    <Badge color="violet">
-                      {formatTicketSystem(ticket.ticketSystem)} #{ticket.externalTicketId}
-                    </Badge>
-                  )}
-                </div>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent-4)] to-[var(--accent-3)] text-[var(--accent-11)] shadow-sm">
+              <FileTextIcon className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <Heading className="text-xl leading-tight">{ticket.title}</Heading>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Badge color={severityBadge.color}>{severityBadge.label}</Badge>
+                <Badge color="blue">{ticket.category}</Badge>
+                {ticket.autoFixStatus && (
+                  <Badge color={autoFixBadge.color}>Auto-fix: {autoFixBadge.label}</Badge>
+                )}
+                {ticket.externalTicketId && (
+                  <Badge color="violet">
+                    {formatTicketSystem(ticket.ticketSystem)} #{ticket.externalTicketId}
+                  </Badge>
+                )}
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {ticket.externalTicketUrl && (
-                <Button href={ticket.externalTicketUrl} target="_blank" plain>
-                  <ExternalLinkIcon className="h-4 w-4" />
-                  External Ticket
-                </Button>
-              )}
-              {ticket.screenshot && (
-                <Button href={`/project/${project}/tickets/${ticket.id}/media`} plain>
-                  <EyeOpenIcon className="h-4 w-4" />
-                  View Screenshots
-                </Button>
-              )}
+          {/* Actions */}
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Primary CTA — context-aware */}
+            {isRunnable ? (
               <TicketRunButton
                 ticket={ticket}
                 clankers={clankers}
                 project={project}
-                disabled={executionBlockingReason !== null}
+                disabled={false}
+              />
+            ) : executionBlockingReason ? (
+              <Button color="amber" onClick={() => setIsWorkflowOverrideDialogOpen(true)}>
+                <PlayIcon className="h-4 w-4" />
+                Force Execute
+              </Button>
+            ) : (
+              <TicketRunButton
+                ticket={ticket}
+                clankers={clankers}
+                project={project}
+                disabled={true}
                 disabledReason={executionBlockingReason ?? undefined}
               />
-              {executionBlockingReason ? (
-                <Button color="amber" onClick={() => setIsWorkflowOverrideDialogOpen(true)}>
-                  Execute without Research/Planning
-                </Button>
-              ) : null}
+            )}
 
-              <Button onClick={() => setIsEditDialogOpen(true)} outline>
-                <Pencil1Icon className="h-4 w-4" />
-                Edit
-              </Button>
-              <Button surface color="red" onClick={() => setIsDeleteDialogOpen(true)} aria-label="Delete ticket">
-                <TrashIcon className="h-4 w-4" />
-              </Button>
-            </div>
+            {/* Overflow menu */}
+            <Dropdown>
+              <DropdownButton outline aria-label="More actions">
+                <DotsHorizontalIcon className="h-4 w-4" />
+              </DropdownButton>
+              <DropdownMenu anchor="bottom end">
+                <DropdownItem onClick={() => setIsEditDialogOpen(true)}>
+                  <Pencil1Icon className="h-4 w-4" />
+                  Edit ticket
+                </DropdownItem>
+                {ticket.externalTicketUrl && (
+                  <DropdownItem href={ticket.externalTicketUrl} target="_blank">
+                    <ExternalLinkIcon className="h-4 w-4" />
+                    View external ticket
+                  </DropdownItem>
+                )}
+                {ticket.screenshot && (
+                  <DropdownItem href={`/project/${project}/tickets/${ticket.id}/media`}>
+                    <EyeOpenIcon className="h-4 w-4" />
+                    View screenshots
+                  </DropdownItem>
+                )}
+                <DropdownItem
+                  onClick={() => {
+                    void navigator.clipboard.writeText(ticket.id)
+                    toast.success('Ticket ID copied')
+                  }}
+                >
+                  <ClipboardIcon className="h-4 w-4" />
+                  Copy ticket ID
+                </DropdownItem>
+                {executionBlockingReason && (
+                  <>
+                    <DropdownDivider />
+                    <DropdownItem onClick={() => setIsWorkflowOverrideDialogOpen(true)}>
+                      <CheckCircledIcon className="h-4 w-4" />
+                      Force execute (skip R&amp;P)
+                    </DropdownItem>
+                  </>
+                )}
+                <DropdownDivider />
+                <DropdownItem onClick={() => setIsDeleteDialogOpen(true)} className="text-red-600">
+                  <TrashIcon className="h-4 w-4" />
+                  Delete ticket
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1">
-          <div className="grid h-full gap-6 lg:grid-cols-12">
-            <div className="space-y-1 lg:col-span-4 xl:col-span-3">
-              <div className="app-frame rounded-lg p-4">
-                <Section title="Ticket Information">
-                  <InfoItem
-                    icon={<StackIcon className="h-4 w-4" />}
-                    label="Ticket ID"
-                    value={<span className="font-mono text-xs">{ticket.id}</span>}
-                  />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem
-                    icon={<FileTextIcon className="h-4 w-4" />}
-                    label="Display ID"
-                    value={formatTicketId(ticket.id)}
-                  />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem icon={<CubeIcon className="h-4 w-4" />} label="Category" value={ticket.category} />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem
-                    icon={<ExternalLinkIcon className="h-4 w-4" />}
-                    label="Ticket System"
-                    value={formatTicketSystem(ticket.ticketSystem)}
-                  />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem
-                    icon={<ClockIcon className="h-4 w-4" />}
-                    label="Workflow Phase"
-                    value={formatWorkflowPhase(ticket.workflowPhase)}
-                  />
-                  {ticket.workflowOverriddenAt ? (
-                    <>
-                      <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                      <InfoItem
-                        icon={<ClockIcon className="h-4 w-4" />}
-                        label="Execution Override"
-                        value="Recorded"
-                      />
-                    </>
-                  ) : null}
-                </Section>
+        {/* Phase Beacon — full width */}
+        <TicketWorkflowPanel
+          workflowPhase={ticket.workflowPhase}
+          blockingReason={executionBlockingReason}
+          overrideAudit={
+            ticket.workflowOverriddenAt
+              ? {
+                  reason: ticket.workflowOverrideReason || '',
+                  overriddenAt: ticket.workflowOverriddenAt,
+                  overriddenBy: ticket.workflowOverriddenBy || null,
+                }
+              : null
+          }
+        />
+
+        {/* Two-column body */}
+        <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
+
+          {/* Left sidebar — unified metadata */}
+          <div className="lg:col-span-3 xl:col-span-3">
+            <div className="rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-5">
+              {/* Classification */}
+              <div>
+                <SidebarLabel>Classification</SidebarLabel>
+                <div className="mt-3 space-y-3">
+                  <SidebarField label="Severity">
+                    <Badge color={severityBadge.color}>{severityBadge.label}</Badge>
+                  </SidebarField>
+                  <SidebarField label="Category">{ticket.category}</SidebarField>
+                  {ticket.ticketSystem && (
+                    <SidebarField label="Ticket system">
+                      {ticket.externalTicketUrl ? (
+                        <a
+                          href={ticket.externalTicketUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[var(--accent-11)] hover:underline"
+                        >
+                          {formatTicketSystem(ticket.ticketSystem)}
+                          <ExternalLinkIcon className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        formatTicketSystem(ticket.ticketSystem)
+                      )}
+                    </SidebarField>
+                  )}
+                  <SidebarField label="Workflow phase">
+                    {ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH
+                      ? 'Research'
+                      : ticket.workflowPhase === TICKET_WORKFLOW_PHASE.PLANNING
+                        ? 'Planning'
+                        : 'Execution'}
+                  </SidebarField>
+                </div>
               </div>
 
-              <div className="app-frame rounded-lg p-4">
-                <Section title="Timeline">
-                  <InfoItem
-                    icon={<CalendarIcon className="h-4 w-4" />}
-                    label="Created"
-                    value={new Date(ticket.createdAt).toLocaleString()}
-                  />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem
-                    icon={<ClockIcon className="h-4 w-4" />}
-                    label="Updated"
-                    value={new Date(ticket.updatedAt).toLocaleString()}
-                  />
-                  <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                  <InfoItem
-                    icon={<ClockIcon className="h-4 w-4" />}
-                    label="Reported"
-                    value={ticket.metadata?.timestamp ? new Date(ticket.metadata.timestamp).toLocaleString() : '—'}
-                  />
-                </Section>
+              <div className="my-5 h-px bg-[var(--gray-4)]" />
+
+              {/* Identity */}
+              <div>
+                <SidebarLabel>Identity</SidebarLabel>
+                <div className="mt-3">
+                  <span className="text-[11px] text-[var(--gray-9)]">Ticket ID</span>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <span className="font-mono text-xs text-[var(--gray-11)]">{displayId}</span>
+                    <button
+                      type="button"
+                      title="Copy full ID"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(ticket.id)
+                        toast.success('Ticket ID copied')
+                      }}
+                      className="text-[var(--gray-8)] transition-colors hover:text-[var(--gray-11)]"
+                    >
+                      <ClipboardIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              <div className="my-5 h-px bg-[var(--gray-4)]" />
+
+              {/* Timeline */}
+              <div>
+                <SidebarLabel>Timeline</SidebarLabel>
+                <div className="mt-3 space-y-3">
+                  <SidebarField label="Created">{formatDate(ticket.createdAt)}</SidebarField>
+                  <SidebarField label="Updated">{formatDateTime(ticket.updatedAt)}</SidebarField>
+                  {ticket.metadata?.timestamp && (
+                    <SidebarField label="Reported">{formatDate(ticket.metadata.timestamp)}</SidebarField>
+                  )}
+                </div>
+              </div>
+
+              {ticket.workflowOverriddenAt && (
+                <>
+                  <div className="my-5 h-px bg-[var(--gray-4)]" />
+                  <div>
+                    <SidebarLabel>Override</SidebarLabel>
+                    <div className="mt-3">
+                      <SidebarField label="Overridden at">
+                        {formatDateTime(ticket.workflowOverriddenAt)}
+                      </SidebarField>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+          </div>
 
-            <div className="lg:col-span-8 xl:col-span-9">
-              <div className="space-y-4">
-                <TicketWorkflowPanel
-                  workflowPhase={ticket.workflowPhase}
-                  blockingReason={executionBlockingReason}
-                  overrideAudit={
-                    ticket.workflowOverriddenAt
-                      ? {
-                          reason: ticket.workflowOverrideReason || '',
-                          overriddenAt: ticket.workflowOverriddenAt,
-                          overriddenBy: ticket.workflowOverriddenBy || null,
-                        }
-                      : null
-                  }
-                />
+          {/* Right content column */}
+          <div className="lg:col-span-9 xl:col-span-9">
+            <Tabs.Root defaultValue={phaseToTab(ticket.workflowPhase)}>
+              <Tabs.List>
+                <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
+                <Tabs.Trigger value="research">Research</Tabs.Trigger>
+                <Tabs.Trigger value="planning">Planning</Tabs.Trigger>
+              </Tabs.List>
 
-                <Tabs.Root defaultValue={phaseToTab(ticket.workflowPhase)}>
-                  <Tabs.List>
-                    <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
-                    <Tabs.Trigger value="research">Research</Tabs.Trigger>
-                    <Tabs.Trigger value="planning">Planning</Tabs.Trigger>
-                  </Tabs.List>
+              <Tabs.Content value="overview">
+                <div className="mt-4 rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-7">
+                  <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--gray-12)]">
+                    <FileTextIcon className="h-4 w-4 text-[var(--accent-9)]" />
+                    Description
+                  </h3>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--gray-11)]">
+                    {ticket.description
+                      ? ticket.description.replace(/\\n/g, '\n')
+                      : <span className="italic text-[var(--gray-8)]">No description provided.</span>
+                    }
+                  </div>
+                </div>
+              </Tabs.Content>
 
-                  <Tabs.Content value="overview">
-                    <div className="app-frame mt-4 rounded-lg p-6">
-                      <Subheading className="mb-4 flex items-center gap-2">
-                        <FileTextIcon className="h-5 w-5 text-[var(--accent-9)]" />
-                        Description
-                      </Subheading>
-                      <div className="prose prose-sm max-w-none whitespace-pre-wrap text-[var(--gray-11)]">
-                        {ticket.description}
-                      </div>
-                    </div>
-                  </Tabs.Content>
+              <Tabs.Content value="research">
+                <div className="mt-4 rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-7">
+                  <ResearchDocumentPanel
+                    ticket={ticket}
+                    clankers={clankers}
+                    project={project}
+                    onWorkflowPhaseChange={(workflowPhase) =>
+                      setTicket((currentTicket) =>
+                        currentTicket ? { ...currentTicket, workflowPhase } : currentTicket
+                      )
+                    }
+                  />
+                </div>
+              </Tabs.Content>
 
-                  <Tabs.Content value="research">
-                    <div className="app-frame mt-4 rounded-lg p-6">
-                      <ResearchDocumentPanel
-                        ticket={ticket}
-                        clankers={clankers}
-                        project={project}
-                        onWorkflowPhaseChange={(workflowPhase) =>
-                          setTicket((currentTicket) =>
-                            currentTicket ? { ...currentTicket, workflowPhase } : currentTicket
-                          )
-                        }
-                      />
-                    </div>
-                  </Tabs.Content>
-
-                  <Tabs.Content value="planning">
-                    <div className="app-frame mt-4 rounded-lg p-6">
-                      <PlanningDocumentPanel
-                        ticket={ticket}
-                        clankers={clankers}
-                        project={project}
-                        onWorkflowPhaseChange={(workflowPhase) =>
-                          setTicket((currentTicket) =>
-                            currentTicket ? { ...currentTicket, workflowPhase } : currentTicket
-                          )
-                        }
-                        onApprovalStateChange={setPlanningApprovalState}
-                      />
-                    </div>
-                  </Tabs.Content>
-                </Tabs.Root>
-              </div>
-            </div>
+              <Tabs.Content value="planning">
+                <div className="mt-4 rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-7">
+                  <PlanningDocumentPanel
+                    ticket={ticket}
+                    clankers={clankers}
+                    project={project}
+                    onWorkflowPhaseChange={(workflowPhase) =>
+                      setTicket((currentTicket) =>
+                        currentTicket ? { ...currentTicket, workflowPhase } : currentTicket
+                      )
+                    }
+                    onApprovalStateChange={setPlanningApprovalState}
+                  />
+                </div>
+              </Tabs.Content>
+            </Tabs.Root>
           </div>
         </div>
       </div>
