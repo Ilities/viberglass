@@ -588,6 +588,84 @@ router.post("/:id/phases/research/revoke-approval", validateUuidParam("id"), asy
   }
 });
 
+// GET /api/tickets/:id/phases/planning - Get planning phase document
+router.get("/:id/phases/planning", validateUuidParam("id"), async (req, res) => {
+  try {
+    const ticket = await ticketService.getTicket(req.params.id);
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    const document = await ticketPhaseDocumentService.getOrCreateDocument(
+      req.params.id,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+    );
+
+    res.json({
+      success: true,
+      data: document,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error fetching planning document", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to fetch planning document",
+    });
+  }
+});
+
+// PUT /api/tickets/:id/phases/planning/document - Save planning phase document
+router.put("/:id/phases/planning/document", validateUuidParam("id"), async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (typeof content !== "string") {
+      return res.status(400).json({
+        error: "Validation error",
+        message: "content must be a string",
+      });
+    }
+
+    const document = await ticketPhaseDocumentService.saveDocument(
+      req.params.id,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+      content,
+    );
+
+    res.json({
+      success: true,
+      data: document,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error saving planning document", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to save planning document",
+    });
+  }
+});
+
 // GET /api/tickets/:id - Get a specific ticket
 router.get("/:id", validateUuidParam("id"), async (req, res) => {
   try {
