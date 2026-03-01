@@ -29,7 +29,10 @@ import {
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
 import { TicketResearchService } from "../../services/TicketResearchService";
 import { TicketPlanningService } from "../../services/TicketPlanningService";
+import { TicketPlanningApprovalService } from "../../services/TicketPlanningApprovalService";
 import { TicketWorkflowService } from "../../services/TicketWorkflowService";
+import { getFeedbackService } from "../../webhooks/webhookServiceFactory";
+import type { FeedbackService } from "../../webhooks/FeedbackService";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -38,8 +41,19 @@ const fileUploadService = new FileUploadService();
 const ticketExecutionService = new TicketExecutionService();
 const ticketWorkflowService = new TicketWorkflowService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
-const ticketResearchService = new TicketResearchService();
+let feedbackService: FeedbackService | undefined;
+try {
+  feedbackService = getFeedbackService();
+} catch (error) {
+  logger.warn("Feedback service unavailable for ticket phase approvals", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+const ticketResearchService = new TicketResearchService(feedbackService);
 const ticketPlanningService = new TicketPlanningService();
+const ticketPlanningApprovalService = new TicketPlanningApprovalService(
+  feedbackService,
+);
 const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
@@ -593,21 +607,11 @@ router.post("/:id/phases/research/revoke-approval", validateUuidParam("id"), asy
 // GET /api/tickets/:id/phases/planning - Get planning phase document
 router.get("/:id/phases/planning", validateUuidParam("id"), async (req, res) => {
   try {
-    const ticket = await ticketService.getTicket(req.params.id);
-    if (!ticket) {
-      return res.status(404).json({
-        error: "Ticket not found",
-      });
-    }
-
-    const document = await ticketPhaseDocumentService.getOrCreateDocument(
-      req.params.id,
-      TICKET_WORKFLOW_PHASE.PLANNING,
-    );
+    const phase = await ticketPlanningService.getPlanningPhase(req.params.id);
 
     res.json({
       success: true,
-      data: document,
+      data: phase,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -624,6 +628,114 @@ router.get("/:id/phases/planning", validateUuidParam("id"), async (req, res) => 
     return res.status(500).json({
       error: "Internal server error",
       message: "Failed to fetch planning document",
+    });
+  }
+});
+
+// POST /api/tickets/:id/phases/planning/request-approval - Request approval for planning
+router.post("/:id/phases/planning/request-approval", validateUuidParam("id"), async (req, res) => {
+  try {
+    const actor = req.auth?.user.email;
+    const result = await ticketPlanningApprovalService.requestApproval(
+      req.params.id,
+      actor,
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    if (message.includes("only be requested during the planning phase")) {
+      return res.status(409).json({
+        error: message,
+      });
+    }
+
+    logger.error("Error requesting planning approval", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to request planning approval",
+    });
+  }
+});
+
+// POST /api/tickets/:id/phases/planning/approve - Approve planning document
+router.post("/:id/phases/planning/approve", validateUuidParam("id"), async (req, res) => {
+  try {
+    const actor = req.auth?.user.email;
+    const result = await ticketPlanningApprovalService.approve(
+      req.params.id,
+      actor,
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    if (message.includes("only be granted during the planning phase")) {
+      return res.status(409).json({
+        error: message,
+      });
+    }
+
+    logger.error("Error approving planning document", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to approve planning document",
+    });
+  }
+});
+
+// POST /api/tickets/:id/phases/planning/revoke-approval - Revoke planning approval
+router.post("/:id/phases/planning/revoke-approval", validateUuidParam("id"), async (req, res) => {
+  try {
+    const actor = req.auth?.user.email;
+    const result = await ticketPlanningApprovalService.revokeApproval(
+      req.params.id,
+      actor,
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error revoking planning approval", {
+      ticketId: req.params.id,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to revoke planning approval",
     });
   }
 });
@@ -963,7 +1075,9 @@ router.post(
       const errorMessage = error.message || "Failed to run ticket";
       const statusCode = errorMessage.includes("not found")
         ? 404
-        : errorMessage.includes("no repository") ||
+        : errorMessage.includes("planning document is approved")
+          ? 409
+          : errorMessage.includes("no repository") ||
             errorMessage.includes("not ready") ||
             errorMessage.includes("Only active")
           ? 400

@@ -22,6 +22,7 @@ interface ResearchDocumentPanelProps {
   ticket: Ticket
   clankers: Clanker[]
   project: string
+  onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
 }
 
 function getStatusBadgeColor(status: ResearchRunResponse['status']): 'amber' | 'green' | 'red' | 'zinc' {
@@ -64,7 +65,12 @@ function getApprovalStateLabel(state: ApprovalState): string {
   }
 }
 
-export function ResearchDocumentPanel({ ticket, clankers, project }: ResearchDocumentPanelProps) {
+export function ResearchDocumentPanel({
+  ticket,
+  clankers,
+  project,
+  onWorkflowPhaseChange,
+}: ResearchDocumentPanelProps) {
   const navigate = useNavigate()
   const [document, setDocument] = useState<PhaseDocumentResponse | null>(null)
   const [latestRun, setLatestRun] = useState<ResearchRunResponse | null>(null)
@@ -136,13 +142,14 @@ export function ResearchDocumentPanel({ ticket, clankers, project }: ResearchDoc
       const result = await approveResearch(ticket.id)
       setDocument(result.document)
       setLatestRun(result.latestRun)
+      onWorkflowPhaseChange?.('planning')
       toast.success('Research approved - ticket advanced to planning')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to approve research')
     } finally {
       setIsApproving(false)
     }
-  }, [ticket.id])
+  }, [ticket.id, onWorkflowPhaseChange])
 
   const handleRevokeApproval = useCallback(async () => {
     try {

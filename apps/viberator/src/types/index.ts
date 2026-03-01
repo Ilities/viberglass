@@ -81,6 +81,8 @@ export interface ExecutionContext {
   consoleErrors?: string[];
   affectedFiles?: string[];
   ticketMedia?: TicketMediaContext[];
+  researchDocument?: string;
+  planDocument?: string;
 
   // Constraints
   maxChanges: number;

@@ -24,6 +24,11 @@ const mockFileUploadService = {
 const mockTicketExecutionService = {
   runTicket: jest.fn(),
 };
+const mockTicketPlanningApprovalService = {
+  requestApproval: jest.fn(),
+  approve: jest.fn(),
+  revokeApproval: jest.fn(),
+};
 const mockTicketWorkflowService = {
   getTicketWorkflow: jest.fn(),
   advancePhase: jest.fn(),
@@ -58,8 +63,18 @@ jest.mock("../../../../services/TicketExecutionService", () => ({
   TicketExecutionService: jest.fn(() => mockTicketExecutionService),
 }));
 
+jest.mock("../../../../services/TicketPlanningApprovalService", () => ({
+  TicketPlanningApprovalService: jest.fn(
+    () => mockTicketPlanningApprovalService,
+  ),
+}));
+
 jest.mock("../../../../services/TicketWorkflowService", () => ({
   TicketWorkflowService: jest.fn(() => mockTicketWorkflowService),
+}));
+
+jest.mock("../../../../webhooks/webhookServiceFactory", () => ({
+  getFeedbackService: jest.fn(() => undefined),
 }));
 
 import ticketsRouter from "../../../../api/routes/tickets";
@@ -185,5 +200,47 @@ describe("ticket workflow routes", () => {
       .expect(404);
 
     expect(response.body).toEqual({ error: "Ticket not found" });
+  });
+
+  it("approves planning and returns the updated phase view", async () => {
+    mockTicketPlanningApprovalService.approve.mockResolvedValue({
+      document: {
+        id: "doc-1",
+        ticketId: TICKET_ID,
+        phase: "planning",
+        content: "Approved plan",
+        approvalState: "approved",
+        approvedAt: "2026-03-01T10:00:00.000Z",
+        approvedBy: "approver@example.com",
+        createdAt: "2026-03-01T09:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
+      },
+      latestRun: null,
+    });
+
+    const response = await request(app)
+      .post(`/api/tickets/${TICKET_ID}/phases/planning/approve`)
+      .expect(200);
+
+    expect(mockTicketPlanningApprovalService.approve).toHaveBeenCalledWith(
+      TICKET_ID,
+      undefined,
+    );
+    expect(response.body.data.document.approvalState).toBe("approved");
+  });
+
+  it("returns 409 when execution is blocked by planning approval", async () => {
+    mockTicketExecutionService.runTicket.mockRejectedValue(
+      new Error("Execution is blocked until the planning document is approved"),
+    );
+
+    const response = await request(app)
+      .post(`/api/tickets/${TICKET_ID}/run`)
+      .send({ clankerId: "clanker-1" })
+      .expect(409);
+
+    expect(response.body.message).toBe(
+      "Execution is blocked until the planning document is approved",
+    );
   });
 });

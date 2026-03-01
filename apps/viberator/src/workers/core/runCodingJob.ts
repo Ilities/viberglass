@@ -158,6 +158,8 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       consoleErrors: context?.consoleErrors || [],
       affectedFiles: context?.affectedFiles || [],
       ticketMedia,
+      researchDocument: context?.researchDocument,
+      planDocument: context?.planDocument,
       maxChanges: mergedSettings.maxChanges,
       testRequired: mergedSettings.testRequired,
       codingStandards: mergedSettings.codingStandards,
