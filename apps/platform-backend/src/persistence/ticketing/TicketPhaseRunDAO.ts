@@ -1,10 +1,25 @@
 import db from "../config/database";
-import type { JobKind } from "@viberglass/types";
+import type { Selectable } from "kysely";
+import type { JobKind, TicketWorkflowPhase } from "@viberglass/types";
+import type { Database } from "../types/database";
+
+type TicketPhaseRunsRow = Selectable<Database["ticket_phase_runs"]>;
+type JobsRow = Selectable<Database["jobs"]>;
+type ClankersRow = Selectable<Database["clankers"]>;
+
+type LatestPhaseRunRow = Pick<
+  TicketPhaseRunsRow,
+  "id" | "ticket_id" | "phase" | "job_id" | "clanker_id" | "created_at"
+> &
+  Pick<JobsRow, "job_kind" | "status" | "started_at" | "finished_at"> & {
+    clanker_name: ClankersRow["name"] | null;
+    clanker_slug: ClankersRow["slug"] | null;
+  };
 
 export interface LatestPhaseRun {
   id: string;
   ticketId: string;
-  phase: "research";
+  phase: TicketWorkflowPhase;
   jobId: string;
   clankerId: string;
   clankerName: string | null;
@@ -17,23 +32,27 @@ export interface LatestPhaseRun {
 }
 
 export class TicketPhaseRunDAO {
-  async createResearchRun(
+  async createRun(
     ticketId: string,
     jobId: string,
     clankerId: string,
+    phase: TicketWorkflowPhase,
   ): Promise<void> {
     await db
       .insertInto("ticket_phase_runs")
       .values({
         ticket_id: ticketId,
-        phase: "research",
+        phase: phase,
         job_id: jobId,
         clanker_id: clankerId,
       })
       .execute();
   }
 
-  async getLatestResearchRun(ticketId: string): Promise<LatestPhaseRun | null> {
+  async getLatestRun(
+    ticketId: string,
+    phase: TicketWorkflowPhase,
+  ): Promise<LatestPhaseRun | null> {
     const row = await db
       .selectFrom("ticket_phase_runs as runs")
       .innerJoin("jobs", "jobs.id", "runs.job_id")
@@ -53,7 +72,7 @@ export class TicketPhaseRunDAO {
         "clankers.slug as clanker_slug",
       ])
       .where("runs.ticket_id", "=", ticketId)
-      .where("runs.phase", "=", "research")
+      .where("runs.phase", "=", phase)
       .orderBy("runs.created_at", "desc")
       .executeTakeFirst();
 
@@ -61,6 +80,9 @@ export class TicketPhaseRunDAO {
       return null;
     }
 
+    return this.toPhaseRunRow(row);
+  }
+  private toPhaseRunRow(row: LatestPhaseRunRow): LatestPhaseRun {
     return {
       id: row.id,
       ticketId: row.ticket_id,
