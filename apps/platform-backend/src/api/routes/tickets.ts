@@ -65,6 +65,11 @@ const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.IN_PROGRESS,
   TICKET_STATUS.RESOLVED,
 ];
+const ticketWorkflowPhases: TicketWorkflowPhase[] = [
+  TICKET_WORKFLOW_PHASE.RESEARCH,
+  TICKET_WORKFLOW_PHASE.PLANNING,
+  TICKET_WORKFLOW_PHASE.EXECUTION,
+];
 
 const ticketArchiveFilters: TicketArchiveFilter[] = [
   TICKET_ARCHIVE_FILTER.EXCLUDE,
@@ -117,6 +122,36 @@ function parseArchivedQuery(
   return value as TicketArchiveFilter;
 }
 
+function parseWorkflowPhasesQuery(
+  rawWorkflowPhases: string | string[] | undefined,
+): TicketWorkflowPhase[] | null {
+  if (!rawWorkflowPhases) {
+    return [];
+  }
+
+  const source = Array.isArray(rawWorkflowPhases)
+    ? rawWorkflowPhases.join(",")
+    : rawWorkflowPhases;
+  const values = source
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    return [];
+  }
+
+  if (
+    !values.every((value) =>
+      ticketWorkflowPhases.includes(value as TicketWorkflowPhase),
+    )
+  ) {
+    return null;
+  }
+
+  return values as TicketWorkflowPhase[];
+}
+
 function parseSeverityQuery(
   rawSeverity: string | string[] | undefined,
 ): Severity | null {
@@ -152,12 +187,8 @@ function parseWorkflowPhaseParam(rawPhase: string): TicketWorkflowPhase | null {
 function parseCommentableWorkflowPhaseParam(
   rawPhase: string,
 ): "research" | "planning" | null {
-  if (
-    rawPhase === TICKET_WORKFLOW_PHASE.RESEARCH ||
-    rawPhase === TICKET_WORKFLOW_PHASE.PLANNING
-  ) {
-    return rawPhase;
-  }
+  if (rawPhase === TICKET_WORKFLOW_PHASE.RESEARCH) return TICKET_WORKFLOW_PHASE.RESEARCH;
+  if (rawPhase === TICKET_WORKFLOW_PHASE.PLANNING) return TICKET_WORKFLOW_PHASE.PLANNING;
 
   return null;
 }
@@ -1226,6 +1257,9 @@ router.get("/", async (req, res) => {
     const statuses = parseStatusesQuery(
       req.query.statuses as string | string[] | undefined,
     );
+    const workflowPhases = parseWorkflowPhasesQuery(
+      req.query.workflowPhases as string | string[] | undefined,
+    );
     const archived = parseArchivedQuery(
       req.query.archived as string | string[] | undefined,
     );
@@ -1246,6 +1280,12 @@ router.get("/", async (req, res) => {
     if (archived === null) {
       return res.status(400).json({
         error: "Invalid archived filter",
+      });
+    }
+
+    if (workflowPhases === null) {
+      return res.status(400).json({
+        error: "Invalid workflowPhases filter",
       });
     }
 
@@ -1282,6 +1322,7 @@ router.get("/", async (req, res) => {
       offset,
       projectId: targetProjectId,
       statuses,
+      workflowPhases,
       archived,
       severity: severity || undefined,
       search,

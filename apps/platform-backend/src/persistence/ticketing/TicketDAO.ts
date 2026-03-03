@@ -29,6 +29,7 @@ interface TicketListQuery {
   offset?: number;
   projectId?: string;
   statuses?: TicketLifecycleStatus[];
+  workflowPhases?: TicketWorkflowPhase[];
   archived?: TicketArchiveFilter;
   severity?: Severity;
   search?: string;
@@ -467,6 +468,10 @@ export class TicketDAO {
       query = query.where("t.ticket_status", "in", params.statuses);
     }
 
+    if (params.workflowPhases && params.workflowPhases.length > 0) {
+      query = query.where("t.workflow_phase", "in", params.workflowPhases);
+    }
+
     if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
       query = query.where("t.archived_at", "is", null);
     } else if (archivedMode === TICKET_ARCHIVE_FILTER.ONLY) {
@@ -499,6 +504,10 @@ export class TicketDAO {
 
     if (params.statuses && params.statuses.length > 0) {
       totalQuery = totalQuery.where("t.ticket_status", "in", params.statuses);
+    }
+
+    if (params.workflowPhases && params.workflowPhases.length > 0) {
+      totalQuery = totalQuery.where("t.workflow_phase", "in", params.workflowPhases);
     }
 
     if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
