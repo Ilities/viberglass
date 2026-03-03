@@ -41,6 +41,7 @@ export async function getTickets(params: TicketListParams = {}): Promise<TicketL
     limit = 50,
     offset = 0,
     statuses,
+    workflowPhases,
     archived,
     severity,
     search,
@@ -56,6 +57,9 @@ export async function getTickets(params: TicketListParams = {}): Promise<TicketL
   queryParams.set('offset', String(offset))
   if (statuses && statuses.length > 0) {
     queryParams.set('statuses', statuses.join(','))
+  }
+  if (workflowPhases && workflowPhases.length > 0) {
+    queryParams.set('workflowPhases', workflowPhases.join(','))
   }
   if (archived) {
     queryParams.set('archived', archived)

@@ -312,7 +312,7 @@ describe("ticket workflow routes", () => {
 
     const response = await request(app)
       .post(`/api/tickets/${TICKET_ID}/run`)
-      .send({ clankerId: "clanker-1" })
+      .send({ clankerId: "22222222-2222-4222-8222-222222222222" })
       .expect(409);
 
     expect(response.body.message).toBe(
@@ -340,5 +340,38 @@ describe("ticket workflow routes", () => {
       undefined,
     );
     expect(response.body.data.workflowPhase).toBe("execution");
+  });
+
+  it("passes workflow phase filters through GET /api/tickets", async () => {
+    mockTicketDAO.getTicketsWithFilters.mockResolvedValue({
+      tickets: [],
+      total: 0,
+    });
+
+    await request(app)
+      .get("/api/tickets")
+      .query({
+        statuses: "open,in_progress",
+        workflowPhases: "research,planning",
+      })
+      .expect(200);
+
+    expect(mockTicketDAO.getTicketsWithFilters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statuses: ["open", "in_progress"],
+        workflowPhases: ["research", "planning"],
+      }),
+    );
+  });
+
+  it("returns 400 for invalid workflow phase filters on GET /api/tickets", async () => {
+    const response = await request(app)
+      .get("/api/tickets")
+      .query({ workflowPhases: "research,invalid-phase" })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: "Invalid workflowPhases filter",
+    });
   });
 });
