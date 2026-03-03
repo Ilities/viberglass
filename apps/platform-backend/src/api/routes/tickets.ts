@@ -458,6 +458,45 @@ router.post(
   },
 );
 
+// PUT /api/tickets/:id/workflow/phase - Manually set workflow phase
+router.put("/:id/workflow/phase", validateUuidParam("id"), async (req, res) => {
+  try {
+    const targetPhase = parseWorkflowPhaseParam(req.body?.workflowPhase);
+    if (!targetPhase) {
+      return res.status(400).json({
+        error: "Invalid workflow phase",
+      });
+    }
+
+    const ticket = await ticketWorkflowService.setPhase(
+      req.params.id,
+      targetPhase,
+    );
+
+    return res.json({
+      success: true,
+      data: ticket,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "Ticket not found") {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    logger.error("Error setting ticket workflow phase", {
+      ticketId: req.params.id,
+      workflowPhase: req.body?.workflowPhase,
+      error: message,
+    });
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to update ticket workflow phase",
+    });
+  }
+});
+
 // GET /api/tickets/:id/phases/research - Get research phase document
 router.get(
   "/:id/phases/research",

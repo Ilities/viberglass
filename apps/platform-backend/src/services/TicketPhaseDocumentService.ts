@@ -12,6 +12,7 @@ import {
   type PhaseDocumentRevisionSource,
   TicketPhaseDocumentRevisionDAO,
 } from "../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
+import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 
 const logger = createChildLogger({ service: "TicketPhaseDocumentService" });
 
@@ -36,6 +37,7 @@ export class TicketPhaseDocumentService {
   private readonly ticketDAO = new TicketDAO();
   private readonly documentDAO = new TicketPhaseDocumentDAO();
   private readonly revisionDAO = new TicketPhaseDocumentRevisionDAO();
+  private readonly lifecycleStatusService = new TicketLifecycleStatusService();
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
 
@@ -96,6 +98,7 @@ export class TicketPhaseDocumentService {
       source: options.source ?? PHASE_DOCUMENT_REVISION_SOURCE.MANUAL,
       actor: options.actor,
     });
+    await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
     return this.toView(updated!);
@@ -115,6 +118,7 @@ export class TicketPhaseDocumentService {
       "approval_requested",
       actor,
     );
+    await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
     return this.toView(updated!);
@@ -129,6 +133,7 @@ export class TicketPhaseDocumentService {
     await this.getOrCreatePersistedDocument(ticketId, phase);
 
     await this.documentDAO.updateApprovalState(ticketId, phase, "approved", actor);
+    await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
     return this.toView(updated!);
@@ -148,6 +153,7 @@ export class TicketPhaseDocumentService {
       "draft",
       actor,
     );
+    await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
     return this.toView(updated!);

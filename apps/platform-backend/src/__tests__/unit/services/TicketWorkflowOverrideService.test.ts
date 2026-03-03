@@ -4,6 +4,14 @@ import { TicketWorkflowOverrideService } from "../../../services/TicketWorkflowO
 
 jest.mock("../../../persistence/ticketing/TicketDAO");
 
+const mockLifecycleStatusService = {
+  synchronize: jest.fn(),
+};
+
+jest.mock("../../../services/TicketLifecycleStatusService", () => ({
+  TicketLifecycleStatusService: jest.fn(() => mockLifecycleStatusService),
+}));
+
 describe("TicketWorkflowOverrideService", () => {
   let service: TicketWorkflowOverrideService;
   let mockTicketDAO: jest.Mocked<TicketDAO>;
