@@ -35,6 +35,7 @@ const mockTicketWorkflowOverrideService = {
 const mockTicketWorkflowService = {
   getTicketWorkflow: jest.fn(),
   advancePhase: jest.fn(),
+  setPhase: jest.fn(),
 };
 const mockTicketPhaseDocumentRevisionService = {
   listRevisions: jest.fn(),
@@ -247,6 +248,34 @@ describe("ticket workflow routes", () => {
   it("returns 400 for invalid phase params", async () => {
     const response = await request(app)
       .post(`/api/tickets/${TICKET_ID}/phases/not-a-phase/advance`)
+      .expect(400);
+
+    expect(response.body).toEqual({ error: "Invalid workflow phase" });
+  });
+
+  it("manually sets the workflow phase", async () => {
+    mockTicketWorkflowService.setPhase.mockResolvedValue({
+      id: TICKET_ID,
+      workflowPhase: "execution",
+      status: "open",
+    });
+
+    const response = await request(app)
+      .put(`/api/tickets/${TICKET_ID}/workflow/phase`)
+      .send({ workflowPhase: "execution" })
+      .expect(200);
+
+    expect(mockTicketWorkflowService.setPhase).toHaveBeenCalledWith(
+      TICKET_ID,
+      "execution",
+    );
+    expect(response.body.data.workflowPhase).toBe("execution");
+  });
+
+  it("rejects invalid workflow phases for manual phase updates", async () => {
+    const response = await request(app)
+      .put(`/api/tickets/${TICKET_ID}/workflow/phase`)
+      .send({ workflowPhase: "invalid" })
       .expect(400);
 
     expect(response.body).toEqual({ error: "Invalid workflow phase" });

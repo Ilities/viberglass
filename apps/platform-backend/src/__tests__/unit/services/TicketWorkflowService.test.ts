@@ -4,6 +4,14 @@ import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 
 jest.mock("../../../persistence/ticketing/TicketDAO");
 
+const mockLifecycleStatusService = {
+  synchronize: jest.fn(),
+};
+
+jest.mock("../../../services/TicketLifecycleStatusService", () => ({
+  TicketLifecycleStatusService: jest.fn(() => mockLifecycleStatusService),
+}));
+
 describe("TicketWorkflowService", () => {
   let service: TicketWorkflowService;
   let mockTicketDAO: jest.Mocked<TicketDAO>;
@@ -54,6 +62,9 @@ describe("TicketWorkflowService", () => {
       "ticket-1",
       TICKET_WORKFLOW_PHASE.PLANNING,
     );
+    expect(mockLifecycleStatusService.synchronize).toHaveBeenCalledWith(
+      "ticket-1",
+    );
   });
 
   it("allows advancing from planning to execution", async () => {
@@ -73,6 +84,33 @@ describe("TicketWorkflowService", () => {
       "ticket-1",
       TICKET_WORKFLOW_PHASE.EXECUTION,
     );
+  });
+
+  it("manually sets the workflow phase", async () => {
+    mockTicketDAO.getTicket
+      .mockResolvedValueOnce({
+        id: "ticket-1",
+        workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
+      } as any)
+      .mockResolvedValueOnce({
+        id: "ticket-1",
+        workflowPhase: TICKET_WORKFLOW_PHASE.EXECUTION,
+      } as any);
+    mockTicketDAO.updateWorkflowPhase.mockResolvedValue();
+
+    const result = await service.setPhase(
+      "ticket-1",
+      TICKET_WORKFLOW_PHASE.EXECUTION,
+    );
+
+    expect(mockTicketDAO.updateWorkflowPhase).toHaveBeenCalledWith(
+      "ticket-1",
+      TICKET_WORKFLOW_PHASE.EXECUTION,
+    );
+    expect(mockLifecycleStatusService.synchronize).toHaveBeenCalledWith(
+      "ticket-1",
+    );
+    expect(result.workflowPhase).toBe(TICKET_WORKFLOW_PHASE.EXECUTION);
   });
 
   it("rejects research to execution transitions", async () => {

@@ -1,8 +1,10 @@
 import { TICKET_WORKFLOW_PHASE, type Ticket } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 
 export class TicketWorkflowOverrideService {
   private readonly ticketDAO = new TicketDAO();
+  private readonly lifecycleStatusService = new TicketLifecycleStatusService();
 
   async overrideToExecution(
     ticketId: string,
@@ -32,6 +34,7 @@ export class TicketWorkflowOverrideService {
       normalizedReason,
       actor,
     );
+    await this.lifecycleStatusService.synchronize(ticketId);
 
     const updatedTicket = await this.ticketDAO.getTicket(ticketId);
     if (!updatedTicket) {

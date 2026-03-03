@@ -138,6 +138,22 @@ export async function advanceTicketWorkflowPhase(
   return data.data
 }
 
+export async function setTicketWorkflowPhase(id: string, workflowPhase: TicketWorkflowPhase): Promise<Ticket> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/workflow/phase`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ workflowPhase }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to update ticket workflow phase')
+  }
+  const data: ApiResponse<Ticket> = await response.json()
+  return data.data
+}
+
 export async function createTicket(
   ticket: CreateTicketRequest,
   screenshot?: File,
