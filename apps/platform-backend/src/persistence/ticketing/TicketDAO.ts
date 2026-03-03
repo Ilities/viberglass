@@ -349,6 +349,18 @@ export class TicketDAO {
     return normalizeWorkflowPhase(row.workflow_phase);
   }
 
+  async hasExecutionJob(ticketId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom("jobs")
+      .select("id")
+      .where("ticket_id", "=", ticketId)
+      .where("job_kind", "=", "execution")
+      .limit(1)
+      .executeTakeFirst();
+
+    return Boolean(row);
+  }
+
   async archiveTickets(ticketIds: string[]): Promise<number> {
     if (ticketIds.length === 0) {
       return 0;

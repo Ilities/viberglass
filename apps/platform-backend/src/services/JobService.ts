@@ -6,6 +6,7 @@ import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
+import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 import {
   JOB_KIND,
   TICKET_STATUS,
@@ -31,11 +32,13 @@ export class JobService {
   private feedbackService?: FeedbackService;
   private ticketDAO: TicketDAO;
   private clankerDAO: ClankerDAO;
+  private lifecycleStatusService: TicketLifecycleStatusService;
 
   constructor(feedbackService?: FeedbackService) {
     this.feedbackService = feedbackService;
     this.ticketDAO = new TicketDAO();
     this.clankerDAO = new ClankerDAO();
+    this.lifecycleStatusService = new TicketLifecycleStatusService();
   }
   async submitJob(
     data: JobData,
@@ -85,8 +88,8 @@ export class JobService {
     if (options?.ticketId && data.jobKind === JOB_KIND.EXECUTION) {
       await this.updateTicketAutoFixStatus(options.ticketId, {
         autoFixStatus: "pending",
-        status: TICKET_STATUS.OPEN,
       });
+      await this.lifecycleStatusService.synchronize(options.ticketId);
     }
 
     return {
@@ -145,7 +148,6 @@ export class JobService {
           status === "active"
             ? {
                 autoFixStatus: "in_progress" as const,
-                status: TICKET_STATUS.IN_PROGRESS,
               }
             : status === "completed"
               ? {
@@ -155,10 +157,12 @@ export class JobService {
                 }
               : {
                   autoFixStatus: "failed" as const,
-                  status: TICKET_STATUS.OPEN,
                 };
 
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
+        if (status !== "completed") {
+          await this.lifecycleStatusService.synchronize(job.ticket_id);
+        }
       }
 
       if (this.feedbackService && job?.ticket_id) {
@@ -222,7 +226,7 @@ export class JobService {
     ticketId: string,
     updates: {
       autoFixStatus: "pending" | "in_progress" | "completed" | "failed";
-      status: TicketLifecycleStatus;
+      status?: TicketLifecycleStatus;
       pullRequestUrl?: string;
     },
   ): Promise<void> {
