@@ -12,6 +12,10 @@ import {
 } from "@aws-sdk/client-ssm";
 import { gzipSync } from "node:zlib";
 import { createChildLogger } from "../config/logger";
+import {
+  SECRET_SERVICE_ERROR_CODE,
+  SecretServiceError,
+} from "./errors/SecretServiceError";
 
 const logger = createChildLogger({ service: "SecretService" });
 
@@ -98,12 +102,18 @@ export class SecretService {
   async createSecret(input: SecretInput): Promise<SecretMetadata> {
     const name = input.name.trim();
     if (!name) {
-      throw new Error("Secret name is required");
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.SECRET_NAME_REQUIRED,
+        "Secret name is required",
+      );
     }
 
     const existing = await this.secretDao.getSecretByName(name);
     if (existing) {
-      throw new Error("Secret name already exists");
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.SECRET_NAME_ALREADY_EXISTS,
+        "Secret name already exists",
+      );
     }
 
     const secretLocation = input.secretLocation;
@@ -118,7 +128,10 @@ export class SecretService {
 
     if (secretLocation === "database") {
       if (input.secretValue === undefined) {
-        throw new Error("Secret value is required for database storage");
+        throw new SecretServiceError(
+          SECRET_SERVICE_ERROR_CODE.SECRET_VALUE_REQUIRED,
+          "Secret value is required for database storage",
+        );
       }
       secretValueEncrypted = await this.encryptSecret(input.secretValue);
       secretPath = null;
@@ -126,7 +139,10 @@ export class SecretService {
 
     if (secretLocation === "ssm") {
       if (input.secretValue === undefined) {
-        throw new Error("Secret value is required for SSM storage");
+        throw new SecretServiceError(
+          SECRET_SERVICE_ERROR_CODE.SECRET_VALUE_REQUIRED,
+          "Secret value is required for SSM storage",
+        );
       }
       secretPath = this.buildSsmPath(name, normalizedPath);
       await this.putSsmSecret(secretPath, input.secretValue);
@@ -148,7 +164,10 @@ export class SecretService {
   ): Promise<SecretMetadata> {
     const existing = await this.secretDao.getSecret(id);
     if (!existing) {
-      throw new Error("Secret not found");
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.SECRET_NOT_FOUND,
+        "Secret not found",
+      );
     }
 
     const nextName = updates.name?.trim() || existing.name;
@@ -169,7 +188,10 @@ export class SecretService {
       }
 
       if (!nextEncrypted) {
-        throw new Error("Secret value is required for database storage");
+        throw new SecretServiceError(
+          SECRET_SERVICE_ERROR_CODE.SECRET_VALUE_REQUIRED,
+          "Secret value is required for database storage",
+        );
       }
     }
 
@@ -215,7 +237,10 @@ export class SecretService {
     });
 
     if (!record) {
-      throw new Error("Secret not found");
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.SECRET_NOT_FOUND,
+        "Secret not found",
+      );
     }
 
     return this.toMetadata(record);
@@ -250,16 +275,23 @@ export class SecretService {
   ): Promise<SecretMetadata> {
     const normalizedName = name.trim();
     if (!normalizedName) {
-      throw new Error("Secret name is required");
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.SECRET_NAME_REQUIRED,
+        "Secret name is required",
+      );
     }
     if (!authJson || authJson.trim().length === 0) {
-      throw new Error("Auth cache payload is required");
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_PAYLOAD_REQUIRED,
+        "Auth cache payload is required",
+      );
     }
 
     const preparedAuthJson = encodeCodexAuthForSsm(authJson);
     const payloadBytes = Buffer.byteLength(preparedAuthJson, "utf-8");
     if (payloadBytes > MAX_SSM_SECRET_SIZE_BYTES) {
-      throw new Error(
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_TOO_LARGE,
         `Codex auth cache exceeds SSM size limit (${payloadBytes} bytes)`,
       );
     }
@@ -413,7 +445,10 @@ export class SecretService {
       }
     }
 
-    throw new Error(`Secret value is required for SSM storage at ${nextPath}`);
+    throw new SecretServiceError(
+      SECRET_SERVICE_ERROR_CODE.SECRET_VALUE_REQUIRED,
+      `Secret value is required for SSM storage at ${nextPath}`,
+    );
   }
 
   private getEncryptionKey(): Buffer {

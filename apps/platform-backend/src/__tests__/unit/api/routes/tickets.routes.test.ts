@@ -1,5 +1,9 @@
 import express from "express";
 import request from "supertest";
+import {
+  TicketServiceError,
+  TICKET_SERVICE_ERROR_CODE,
+} from "../../../../services/errors/TicketServiceError";
 
 const mockTicketDAO = {
   getTicket: jest.fn(),
@@ -334,9 +338,29 @@ describe("ticket workflow routes", () => {
     expect(response.body.data.document.approvalState).toBe("approved");
   });
 
+  it("returns 409 when planning approval request is made outside planning phase", async () => {
+    mockTicketPlanningApprovalService.requestApproval.mockRejectedValue(
+      new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_REQUEST_INVALID_PHASE,
+        "Approval can only be requested during the planning phase",
+      ),
+    );
+
+    const response = await request(app)
+      .post(`/api/tickets/${TICKET_ID}/phases/planning/request-approval`)
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: "Approval can only be requested during the planning phase",
+    });
+  });
+
   it("returns 409 when execution is blocked by planning approval", async () => {
     mockTicketExecutionService.runTicket.mockRejectedValue(
-      new Error("Execution is blocked until the planning document is approved"),
+      new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.EXECUTION_BLOCKED_UNAPPROVED_PLAN,
+        "Execution is blocked until the planning document is approved",
+      ),
     );
 
     const response = await request(app)
@@ -369,6 +393,22 @@ describe("ticket workflow routes", () => {
       undefined,
     );
     expect(response.body.data.workflowPhase).toBe("execution");
+  });
+
+  it("returns 400 when override validation fails", async () => {
+    mockTicketWorkflowOverrideService.overrideToExecution.mockRejectedValue(
+      new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.WORKFLOW_OVERRIDE_REASON_REQUIRED,
+        "workflow override reason is required",
+      ),
+    );
+
+    const response = await request(app)
+      .post(`/api/tickets/${TICKET_ID}/workflow/override-to-execution`)
+      .send({ reason: "   " })
+      .expect(400);
+
+    expect(response.body.message).toBe("workflow override reason is required");
   });
 
   it("passes workflow phase filters through GET /api/tickets", async () => {

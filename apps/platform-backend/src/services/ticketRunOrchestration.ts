@@ -1,0 +1,251 @@
+import { getStrategyType } from "../clanker-config";
+import type { Clanker, ClankerStrategyType, Project, ProjectScmConfig } from "@viberglass/types";
+import type { ClankerDAO } from "../persistence/clanker/ClankerDAO";
+import type { IntegrationCredentialDAO } from "../persistence/integrations";
+import type { ProjectDAO } from "../persistence/project/ProjectDAO";
+import type { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
+import type { ClankerProvisioner } from "../provisioning/ClankerProvisioner";
+import {
+  type InlineInstructionFile as StoredInlineInstructionFile,
+  type InstructionStorageService,
+} from "./instructions/InstructionStorageService";
+import {
+  isAllowedInstructionPath,
+  normalizeInstructionPath,
+} from "./instructions/pathPolicy";
+import {
+  TicketServiceError,
+  TICKET_SERVICE_ERROR_CODE,
+} from "./errors/TicketServiceError";
+
+type ProjectScmConfigWithLegacySecret = ProjectScmConfig & {
+  credentialSecretId?: string | null;
+};
+
+export interface InlineInstructionFile {
+  fileType: string;
+  content: string;
+}
+
+export type WorkerInstructionFileReference =
+  | InlineInstructionFile
+  | { fileType: string; s3Url: string };
+
+export interface TicketRunOrchestrationDependencies {
+  projectDAO: Pick<ProjectDAO, "getProject">;
+  projectScmConfigDAO: Pick<ProjectScmConfigDAO, "getByProjectId">;
+  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById">;
+  clankerDAO: Pick<ClankerDAO, "getClanker" | "updateStatus">;
+  provisioningService: Pick<ClankerProvisioner, "resolveAvailabilityStatus">;
+  instructionStorageService: Pick<
+    InstructionStorageService,
+    "uploadJobInstructionFiles"
+  >;
+}
+
+export interface PrepareTicketRunContextInput {
+  projectId: string;
+  clankerId: string;
+  jobId: string;
+  instructionFiles?: Array<Partial<InlineInstructionFile>>;
+}
+
+export interface PreparedTicketRunContext {
+  project: Project;
+  scmConfig: ProjectScmConfigWithLegacySecret | null;
+  sourceRepository: string;
+  baseBranch: string;
+  clanker: Clanker;
+  executionClanker: Clanker;
+  scmCredentialSecretId: string | null;
+  workerType: ClankerStrategyType;
+  mergedInstructionFiles: InlineInstructionFile[];
+  workerInstructionFiles: WorkerInstructionFileReference[];
+}
+
+function normalizeInstructionFile(
+  file: Partial<InlineInstructionFile> | null | undefined,
+): InlineInstructionFile | null {
+  if (!file?.fileType || typeof file.fileType !== "string") {
+    return null;
+  }
+
+  const fileType = normalizeInstructionPath(file.fileType);
+  const content = typeof file.content === "string" ? file.content : "";
+  if (!fileType || !content.trim() || !isAllowedInstructionPath(fileType)) {
+    return null;
+  }
+
+  return { fileType, content };
+}
+
+export function mergeInstructionFiles(
+  project: Pick<Project, "agentInstructions">,
+  clanker: Pick<Clanker, "configFiles">,
+  runtimeInstructionFiles: Array<Partial<InlineInstructionFile>> = [],
+): InlineInstructionFile[] {
+  const merged = new Map<string, InlineInstructionFile>();
+  const addFiles = (files: Array<Partial<InlineInstructionFile>>) => {
+    for (const file of files) {
+      const normalized = normalizeInstructionFile(file);
+      if (normalized) {
+        merged.set(normalized.fileType.toLowerCase(), normalized);
+      }
+    }
+  };
+
+  addFiles(
+    project.agentInstructions
+      ? [{ fileType: "AGENTS.md", content: project.agentInstructions }]
+      : [],
+  );
+  addFiles(
+    (clanker.configFiles || []).map((file) => ({
+      fileType: file.fileType,
+      content: file.content,
+    })),
+  );
+  addFiles(runtimeInstructionFiles);
+
+  return Array.from(merged.values());
+}
+
+async function resolveScmCredentialSecretId(
+  integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById">,
+  scmConfig: ProjectScmConfigWithLegacySecret | null,
+): Promise<string | null> {
+  const legacyCredentialSecretId =
+    typeof scmConfig?.credentialSecretId === "string" &&
+    scmConfig.credentialSecretId.trim().length > 0
+      ? scmConfig.credentialSecretId.trim()
+      : null;
+  if (legacyCredentialSecretId) {
+    return legacyCredentialSecretId;
+  }
+
+  const integrationCredentialId = scmConfig?.integrationCredentialId?.trim();
+  if (!integrationCredentialId) {
+    return null;
+  }
+
+  const credential = await integrationCredentialDAO.getById(
+    integrationCredentialId,
+  );
+  if (!credential) {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.INTEGRATION_CREDENTIAL_NOT_FOUND,
+      `SCM integration credential not found: ${integrationCredentialId}`,
+    );
+  }
+
+  return credential.secretId;
+}
+
+export async function prepareTicketRunContext(
+  input: PrepareTicketRunContextInput,
+  deps: TicketRunOrchestrationDependencies,
+): Promise<PreparedTicketRunContext> {
+  const project = await deps.projectDAO.getProject(input.projectId);
+  if (!project) {
+    throw new Error("Associated project not found");
+  }
+
+  const repositoryUrls =
+    project.repositoryUrls && project.repositoryUrls.length > 0
+      ? project.repositoryUrls
+      : project.repositoryUrl
+        ? [project.repositoryUrl]
+        : [];
+  const scmConfig = (await deps.projectScmConfigDAO.getByProjectId(
+    project.id,
+  )) as ProjectScmConfigWithLegacySecret | null;
+  const sourceRepository =
+    scmConfig?.sourceRepository.trim() || repositoryUrls[0] || "";
+  const baseBranch = scmConfig?.baseBranch.trim() || "main";
+  if (!sourceRepository) {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.PROJECT_REPOSITORY_NOT_CONFIGURED,
+      "Project has no repository configured",
+    );
+  }
+
+  const clanker = await deps.clankerDAO.getClanker(input.clankerId);
+  if (!clanker) {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.CLANKER_NOT_FOUND,
+      "Clanker not found",
+    );
+  }
+
+  const availability =
+    await deps.provisioningService.resolveAvailabilityStatus(clanker);
+  const currentStatus = availability.status;
+  const currentStatusMessage = availability.statusMessage ?? null;
+
+  if (
+    availability.status !== clanker.status ||
+    (clanker.statusMessage ?? null) !== currentStatusMessage
+  ) {
+    await deps.clankerDAO.updateStatus(
+      clanker.id,
+      availability.status,
+      currentStatusMessage,
+    );
+  }
+
+  if (!clanker.deploymentStrategyId) {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.CLANKER_DEPLOYMENT_STRATEGY_MISSING,
+      "Selected clanker has no deployment strategy configured",
+    );
+  }
+
+  if (currentStatus !== "active") {
+    throw new TicketServiceError(
+      TICKET_SERVICE_ERROR_CODE.CLANKER_NOT_ACTIVE,
+      `Selected clanker is ${currentStatus}. Only active clankers can run jobs.`,
+    );
+  }
+
+  const scmCredentialSecretId = await resolveScmCredentialSecretId(
+    deps.integrationCredentialDAO,
+    scmConfig,
+  );
+  const executionClanker: Clanker = {
+    ...clanker,
+    secretIds: Array.from(
+      new Set([
+        ...(clanker.secretIds || []),
+        ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
+      ]),
+    ),
+  };
+  const workerType = getStrategyType(executionClanker);
+  const mergedInstructionFiles = mergeInstructionFiles(
+    project,
+    executionClanker,
+    input.instructionFiles || [],
+  );
+  const workerInstructionFiles: WorkerInstructionFileReference[] =
+    workerType === "docker"
+      ? mergedInstructionFiles
+      : (await deps.instructionStorageService.uploadJobInstructionFiles(
+          executionClanker.id,
+          input.jobId,
+          mergedInstructionFiles as StoredInlineInstructionFile[],
+        ));
+
+  return {
+    project,
+    scmConfig,
+    sourceRepository,
+    baseBranch,
+    clanker,
+    executionClanker,
+    scmCredentialSecretId,
+    workerType,
+    mergedInstructionFiles,
+    workerInstructionFiles,
+  };
+}
+

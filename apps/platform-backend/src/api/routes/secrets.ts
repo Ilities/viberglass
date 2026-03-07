@@ -7,20 +7,12 @@ import {
 import { requireAuth } from "../middleware/authentication";
 import { SecretService } from "../../services/SecretService";
 import logger from "../../config/logger";
+import { isSecretServiceError } from "../../services/errors/SecretServiceError";
 
 const router = express.Router();
 const secretService = new SecretService();
 
 router.use(requireAuth);
-
-const isClientError = (error: Error): boolean => {
-  const message = error.message.toLowerCase();
-  return (
-    message.includes("required") ||
-    message.includes("already exists") ||
-    message.includes("invalid")
-  );
-};
 
 router.get("/", async (req, res) => {
   try {
@@ -62,9 +54,14 @@ router.post("/", validateCreateSecret, async (req, res) => {
     const secret = await secretService.createSecret(req.body);
     res.status(201).json({ success: true, data: secret });
   } catch (error) {
-    const err = error as Error;
+    const err = error instanceof Error ? error : new Error(String(error));
     logger.error("Error creating secret", { error: err.message });
-    res.status(isClientError(err) ? 400 : 500).json({ error: err.message });
+
+    if (isSecretServiceError(error)) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -82,9 +79,14 @@ router.put(
       const secret = await secretService.updateSecret(req.params.id, req.body);
       res.json({ success: true, data: secret });
     } catch (error) {
-      const err = error as Error;
+      const err = error instanceof Error ? error : new Error(String(error));
       logger.error("Error updating secret", { error: err.message });
-      res.status(isClientError(err) ? 400 : 500).json({ error: err.message });
+
+      if (isSecretServiceError(error)) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+
+      return res.status(500).json({ error: err.message });
     }
   },
 );

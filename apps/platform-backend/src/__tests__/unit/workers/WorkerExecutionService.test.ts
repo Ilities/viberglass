@@ -10,19 +10,16 @@
  * Note: Simple status updates are covered by integration tests.
  */
 
-import { WorkerExecutionService } from "../../../workers/WorkerExecutionService";
+import type { WorkerInvoker } from "../../../workers";
 import {
-  WorkerError,
   ErrorClassification,
-} from "../../../workers/errors/WorkerError";
-import { JobService } from "../../../services/JobService";
-import {
   getWorkerInvokerFactory,
-  resetWorkerInvokerFactory,
-} from "../../../workers/WorkerInvokerFactory";
-import type { Clanker } from "@viberglass/types";
+  WorkerError,
+  WorkerExecutionService,
+} from "../../../workers";
+import { JobService } from "../../../services/JobService";
+import { type Clanker, JOB_KIND } from "@viberglass/types";
 import type { JobData } from "../../../types/Job";
-import type { WorkerInvoker } from "../../../workers/WorkerInvoker";
 
 // Mock JobService
 jest.mock("../../../services/JobService");
@@ -48,6 +45,7 @@ describe("WorkerExecutionService", () => {
     // Mock job data
     mockJob = {
       id: "job-123",
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: "tenant-456",
       repository: "https://github.com/test/repo",
       task: "Fix the bug",
