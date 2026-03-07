@@ -4,6 +4,10 @@ import { CodingJobData, JobResult } from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 import { ClankerAgentEndpointEnvironmentFactory } from "../runtime/ClankerAgentEndpointEnvironmentFactory";
 
+// Tell Lambda not to wait for the event loop to empty before freezing.
+// We manage the lifecycle manually to ensure callbacks complete.
+export const callbackWaitsForEmptyEventLoop = false;
+
 interface SqsRecordLike {
   body: unknown;
 }
@@ -91,6 +95,13 @@ const extractPayloads = (event: unknown): LambdaPayload[] => {
   return [parsePayloadValue(event, "event")];
 };
 
+/**
+ * Small delay to allow in-flight HTTP callbacks to fully complete.
+ * Lambda can freeze the execution context before TCP connections close.
+ */
+const drainEventLoop = (): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, 500));
+
 export const handler = async (event: unknown): Promise<void> => {
   const payloads = extractPayloads(event);
 
@@ -142,9 +153,16 @@ export const handler = async (event: unknown): Promise<void> => {
       }
 
       console.log(`Task ${payload.jobId} finished successfully`);
+
+      // Allow in-flight HTTP callbacks (result/progress) to fully complete
+      // before Lambda freezes the execution context.
+      await drainEventLoop();
     } catch (error) {
       console.error("Error in Lambda execution loop:", error);
       throw error;
     }
   }
+
+  // Final drain to ensure all callbacks complete before handler returns
+  await drainEventLoop();
 };
