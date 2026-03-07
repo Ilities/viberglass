@@ -29,6 +29,10 @@ const QWEN_ENDPOINT_OPTIONS: QwenEndpointOption[] = [
     value: 'https://coding.dashscope.aliyuncs.com/v1',
     label: 'Coding Plan',
   },
+  {
+    value: 'https://coding-intl.dashscope.aliyuncs.com/v1',
+    label: 'Coding Plan International',
+  },
 ]
 
 interface QwenAgentFieldsProps {
