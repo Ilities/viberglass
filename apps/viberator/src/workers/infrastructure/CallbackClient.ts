@@ -82,23 +82,44 @@ export class CallbackClient {
 
         if (!response.ok) {
           const statusCode = response.status;
+          const errorData = await response
+            .json()
+            .catch(() => ({ error: response.statusText }));
+          const errorMessage =
+            typeof errorData?.error === "string"
+              ? errorData.error
+              : response.statusText;
+
+          // Idempotency: another worker retry may have already finalized this job.
+          if (
+            statusCode === 409 &&
+            errorMessage === "Job already in terminal state"
+          ) {
+            this.logger.warn(
+              this.tagInternalLog(
+                "Result callback skipped because job is already terminal",
+              ),
+              {
+                jobId,
+                statusCode,
+                message: errorMessage,
+              },
+            );
+            return;
+          }
+
           const isRetryable = statusCode >= 500 || statusCode === 429;
 
           if (!isRetryable) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ error: response.statusText }));
             this.logger.error(
               this.tagInternalLog("Non-retryable error sending result"),
               {
                 jobId,
                 statusCode,
-                message: errorData.error || response.statusText,
+                message: errorMessage,
               },
             );
-            throw new Error(
-              `Callback failed: ${errorData.error || response.statusText}`,
-            );
+            throw new Error(`Callback failed: ${errorMessage}`);
           }
 
           if (attempt === this.maxRetries) {
