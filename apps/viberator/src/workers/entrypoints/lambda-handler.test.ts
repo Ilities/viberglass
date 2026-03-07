@@ -6,6 +6,7 @@ const lambdaPayload: LambdaPayload = {
   workerType: "lambda",
   tenantId: "tenant-123",
   jobId: "job-123",
+  jobKind: "execution",
   clankerId: "clanker-123",
   repository: "org/repo",
   task: "Fix the failing test",

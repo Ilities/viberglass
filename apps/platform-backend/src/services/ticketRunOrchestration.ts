@@ -5,6 +5,7 @@ import type { IntegrationCredentialDAO } from "../persistence/integrations";
 import type { ProjectDAO } from "../persistence/project/ProjectDAO";
 import type { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import type { ClankerProvisioner } from "../provisioning/ClankerProvisioner";
+import type { JobData } from "../types/Job";
 import {
   type InlineInstructionFile as StoredInlineInstructionFile,
   type InstructionStorageService,
@@ -17,6 +18,7 @@ import {
   TicketServiceError,
   TICKET_SERVICE_ERROR_CODE,
 } from "./errors/TicketServiceError";
+import logger from "../config/logger";
 
 type ProjectScmConfigWithLegacySecret = ProjectScmConfig & {
   credentialSecretId?: string | null;
@@ -246,6 +248,164 @@ export async function prepareTicketRunContext(
     workerType,
     mergedInstructionFiles,
     workerInstructionFiles,
+  };
+}
+
+// Types for job submission helpers
+export interface JobSubmissionDependencies {
+  jobService: Pick<
+    typeof import("./JobService").JobService.prototype,
+    "submitJob" | "saveBootstrapPayload"
+  >;
+  credentialRequirementsService: Pick<
+    typeof import("./CredentialRequirementsService").CredentialRequirementsService.prototype,
+    "getRequiredCredentialsForClanker"
+  >;
+  workerExecutionService: Pick<
+    typeof import("../workers/WorkerExecutionService").WorkerExecutionService.prototype,
+    "executeJob"
+  >;
+}
+
+export interface BuildBootstrapPayloadInput {
+  workerType: ClankerStrategyType;
+  jobKind: string;
+  tenantId: string;
+  jobId: string;
+  clankerId: string;
+  agent: Clanker["agent"];
+  repository: string;
+  task: string;
+  branch?: string;
+  baseBranch: string | undefined;
+  context: unknown;
+  settings: unknown;
+  instructionFiles: WorkerInstructionFileReference[];
+  requiredCredentials: string[];
+  callbackToken: string;
+  executionClanker: Clanker;
+  project: Project;
+}
+
+export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record<string, unknown> {
+  const {
+    workerType,
+    jobKind,
+    tenantId,
+    jobId,
+    clankerId,
+    agent,
+    repository,
+    task,
+    branch,
+    baseBranch,
+    context,
+    settings,
+    instructionFiles,
+    requiredCredentials,
+    callbackToken,
+    executionClanker,
+    project,
+  } = input;
+
+  return {
+    workerType,
+    jobKind,
+    tenantId,
+    jobId,
+    clankerId,
+    agent,
+    repository,
+    task,
+    branch,
+    baseBranch,
+    context,
+    settings,
+    instructionFiles,
+    requiredCredentials,
+    callbackToken,
+    ...(workerType === "docker"
+      ? { clankerConfig: executionClanker }
+      : { deploymentConfig: executionClanker.deploymentConfig }),
+    projectConfig: {
+      id: project.id,
+      name: project.name,
+      autoFixTags: project.autoFixTags,
+      customFieldMappings: project.customFieldMappings,
+      workerSettings: project.workerSettings,
+    },
+  };
+}
+
+export async function submitJobWithBootstrapAndInvoke(
+  jobData: JobData,
+  ticketId: string,
+  clankerId: string,
+  phaseLabel: string,
+  preparedContext: PreparedTicketRunContext,
+  deps: JobSubmissionDependencies,
+): Promise<{ jobId: string; status: string }> {
+  const { project, executionClanker, workerType, workerInstructionFiles } =
+    preparedContext;
+
+  // Submit job to get callback token
+  const submitResult = await deps.jobService.submitJob(jobData, {
+    ticketId,
+    clankerId,
+  });
+
+  // Get required credentials
+  const requiredCredentials =
+    await deps.credentialRequirementsService.getRequiredCredentialsForClanker(
+      executionClanker,
+    );
+
+  // Build and save bootstrap payload
+  const bootstrapPayload = buildBootstrapPayload({
+    workerType,
+    jobKind: jobData.jobKind,
+    tenantId: jobData.tenantId,
+    jobId: jobData.id,
+    clankerId,
+    agent: executionClanker.agent,
+    repository: jobData.repository,
+    task: jobData.task,
+    branch: jobData.branch,
+    baseBranch: jobData.baseBranch,
+    context: jobData.context,
+    settings: jobData.settings,
+    instructionFiles: workerInstructionFiles,
+    requiredCredentials,
+    callbackToken: submitResult.callbackToken,
+    executionClanker,
+    project,
+  });
+
+  await deps.jobService.saveBootstrapPayload(jobData.id, bootstrapPayload);
+
+  // Invoke worker (fire-and-forget)
+  deps.workerExecutionService
+    .executeJob(jobData, executionClanker, project)
+    .then((result) => {
+      logger.info(`${phaseLabel} worker invoked successfully`, {
+        ticketId,
+        jobId: jobData.id,
+        clankerId: executionClanker.id,
+        executionId: result.executionId,
+      });
+    })
+    .catch((error) => {
+      logger.error(`${phaseLabel} worker invocation failed`, {
+        ticketId,
+        jobId: jobData.id,
+        clankerId: executionClanker.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+  return {
+    jobId: jobData.id,
+    status: "active",
   };
 }
 

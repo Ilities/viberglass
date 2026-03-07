@@ -83,7 +83,7 @@ export class ClaudeCodeAgent extends BaseAgent {
       }
 
       // Get changed files
-      const changedFiles = await this.getChangedFiles(repoDir);
+      const changedFiles = await this.gitService.getChangedFiles(repoDir);
 
       // Parse results
       const cliOutput = this.parseCliOutput(result.stdout);

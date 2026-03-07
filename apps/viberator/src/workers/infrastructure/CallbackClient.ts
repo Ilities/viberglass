@@ -12,6 +12,11 @@ export interface CallbackResult {
   branch?: string;
 }
 
+interface RetryConfig {
+  timeoutMs: number;
+  label: string;
+}
+
 export class CallbackClient {
   private static readonly INTERNAL_LOG_TAG = "[internal]";
   private apiUrl: string;
@@ -37,9 +42,6 @@ export class CallbackClient {
     this.callbackToken = config.callbackToken;
   }
 
-  /**
-   * Build common headers for callback requests
-   */
   private buildHeaders(tenantId: string): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -56,28 +58,151 @@ export class CallbackClient {
     tenantId: string,
     result: CallbackResult,
   ): Promise<void> {
-    const url = `${this.apiUrl}/api/jobs/${jobId}/result`;
+    const body = {
+      ...result,
+      logs: result.logs
+        .filter((log) => !this.isInternalLogMessage(log))
+        .map((log) => this.redactSensitiveInfo(log)),
+    };
 
+    await this.fetchWithRetry(
+      `${this.apiUrl}/api/jobs/${jobId}/result`,
+      tenantId,
+      body,
+      { timeoutMs: 30000, label: "job result" },
+      { jobId },
+    );
+  }
+
+  async sendProgress(
+    jobId: string,
+    tenantId: string,
+    progress: {
+      step?: string;
+      message: string;
+      details?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    const body = {
+      step: progress.step || null,
+      message: this.redactSensitiveInfo(progress.message),
+      details: progress.details || null,
+    };
+
+    await this.fetchWithRetry(
+      `${this.apiUrl}/api/jobs/${jobId}/progress`,
+      tenantId,
+      body,
+      { timeoutMs: 10000, label: "job progress" },
+      { jobId },
+    );
+  }
+
+  async sendCodexAuthCache(
+    jobId: string,
+    tenantId: string,
+    payload: {
+      secretName: string;
+      authJson: string;
+      updatedAt?: string;
+    },
+  ): Promise<void> {
+    const body = {
+      secretName: payload.secretName,
+      authJson: payload.authJson,
+      updatedAt: payload.updatedAt || new Date().toISOString(),
+    };
+
+    await this.fetchWithRetry(
+      `${this.apiUrl}/api/jobs/${jobId}/codex-auth-cache`,
+      tenantId,
+      body,
+      { timeoutMs: 10000, label: "Codex auth cache" },
+      { jobId, secretName: payload.secretName },
+    );
+  }
+
+  async sendLog(
+    jobId: string,
+    tenantId: string,
+    log: {
+      level: "info" | "warn" | "error" | "debug";
+      message: string;
+      source?: string;
+    },
+  ): Promise<void> {
+    if (this.isInternalLogMessage(log.message)) {
+      return;
+    }
+
+    const body = {
+      level: log.level,
+      message: this.redactSensitiveInfo(log.message),
+      source: log.source || null,
+    };
+
+    await this.fetchWithRetry(
+      `${this.apiUrl}/api/jobs/${jobId}/logs`,
+      tenantId,
+      body,
+      { timeoutMs: 5000, label: "job log" },
+      { jobId },
+    );
+  }
+
+  async sendLogBatch(
+    jobId: string,
+    tenantId: string,
+    logs: Array<{
+      level: "info" | "warn" | "error" | "debug";
+      message: string;
+      source?: string;
+      internal?: boolean;
+    }>,
+  ): Promise<void> {
+    if (logs.length === 0) return;
+
+    const externalLogs = logs.filter(
+      (log) => !log.internal && !this.isInternalLogMessage(log.message),
+    );
+    if (externalLogs.length === 0) return;
+
+    const body = {
+      logs: externalLogs.map((log) => ({
+        level: log.level,
+        message: this.redactSensitiveInfo(log.message),
+        source: log.source || null,
+      })),
+    };
+
+    await this.fetchWithRetry(
+      `${this.apiUrl}/api/jobs/${jobId}/logs/batch`,
+      tenantId,
+      body,
+      { timeoutMs: 10000, label: "batch job logs" },
+      { jobId, count: externalLogs.length },
+    );
+  }
+
+  private async fetchWithRetry(
+    url: string,
+    tenantId: string,
+    body: unknown,
+    config: RetryConfig,
+    context: Record<string, unknown>,
+  ): Promise<void> {
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
         this.logger.info(
-          this.tagInternalLog("Sending job result to platform"),
-          {
-            jobId,
-            attempt: attempt + 1,
-          },
+          this.tagInternalLog(`Sending ${config.label} to platform`),
+          { ...context, attempt: attempt + 1 },
         );
 
         const response = await fetch(url, {
           method: "POST",
           headers: this.buildHeaders(tenantId),
-          body: JSON.stringify({
-            ...result,
-            logs: result.logs
-              .filter((log) => !this.isInternalLogMessage(log))
-              .map((log) => this.redactSensitiveInfo(log)),
-          }),
-          signal: AbortSignal.timeout(30000), // 30 second timeout
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(config.timeoutMs),
         });
 
         if (!response.ok) {
@@ -97,13 +222,9 @@ export class CallbackClient {
           ) {
             this.logger.warn(
               this.tagInternalLog(
-                "Result callback skipped because job is already terminal",
+                `${config.label} callback skipped because job is already terminal`,
               ),
-              {
-                jobId,
-                statusCode,
-                message: errorMessage,
-              },
+              { ...context, statusCode, message: errorMessage },
             );
             return;
           }
@@ -112,615 +233,70 @@ export class CallbackClient {
 
           if (!isRetryable) {
             this.logger.error(
-              this.tagInternalLog("Non-retryable error sending result"),
-              {
-                jobId,
-                statusCode,
-                message: errorMessage,
-              },
-            );
-            throw new Error(`Callback failed: ${errorMessage}`);
-          }
-
-          if (attempt === this.maxRetries) {
-            this.logger.error(
-              this.tagInternalLog("Max retries exceeded sending job result"),
-              {
-                jobId,
-                lastStatus: statusCode,
-              },
-            );
-            throw new Error(
-              `Callback failed after ${this.maxRetries + 1} attempts`,
-            );
-          }
-
-          const delay = this.retryDelay * Math.pow(2, attempt);
-          this.logger.warn(this.tagInternalLog("Retryable error, will retry"), {
-            jobId,
-            attempt: attempt + 1,
-            statusCode,
-            delay,
-          });
-          await this.sleep(delay);
-          continue;
-        }
-
-        this.logger.info(this.tagInternalLog("Job result sent successfully"), {
-          jobId,
-          status: response.status,
-        });
-
-        return;
-      } catch (error) {
-        const isLastAttempt = attempt === this.maxRetries;
-
-        if (error instanceof Error && error.name === "AbortError") {
-          this.logger.error(this.tagInternalLog("Request timeout"), {
-            jobId,
-          });
-          if (isLastAttempt) {
-            throw new Error(
-              `Callback timeout after ${this.maxRetries + 1} attempts`,
-            );
-          }
-        } else if (
-          error instanceof Error &&
-          error.message.startsWith("Callback failed:")
-        ) {
-          throw error;
-        } else {
-          this.logger.error(
-            this.tagInternalLog("Unexpected error sending result"),
-            {
-              jobId,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
-          if (isLastAttempt) {
-            throw error;
-          }
-        }
-
-        const delay = this.retryDelay * Math.pow(2, attempt);
-        await this.sleep(delay);
-      }
-    }
-  }
-
-  async sendProgress(
-    jobId: string,
-    tenantId: string,
-    progress: {
-      step?: string;
-      message: string;
-      details?: Record<string, unknown>;
-    },
-  ): Promise<void> {
-    const url = `${this.apiUrl}/api/jobs/${jobId}/progress`;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
-        this.logger.info(
-          this.tagInternalLog("Sending job progress to platform"),
-          {
-            jobId,
-            attempt: attempt + 1,
-          },
-        );
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: this.buildHeaders(tenantId),
-          body: JSON.stringify({
-            step: progress.step || null,
-            message: this.redactSensitiveInfo(progress.message),
-            details: progress.details || null,
-          }),
-          signal: AbortSignal.timeout(10000), // 10 second timeout
-        });
-
-        if (!response.ok) {
-          const statusCode = response.status;
-          const isRetryable = statusCode >= 500 || statusCode === 429;
-
-          if (!isRetryable) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ error: response.statusText }));
-            this.logger.error(
-              this.tagInternalLog("Non-retryable error sending progress"),
-              {
-                jobId,
-                statusCode,
-                message: errorData.error || response.statusText,
-              },
-            );
-            throw new Error(
-              `Progress callback failed: ${errorData.error || response.statusText}`,
-            );
-          }
-
-          if (attempt === this.maxRetries) {
-            this.logger.error(
-              this.tagInternalLog("Max retries exceeded sending job progress"),
-              {
-                jobId,
-                lastStatus: statusCode,
-              },
-            );
-            throw new Error(
-              `Progress callback failed after ${this.maxRetries + 1} attempts`,
-            );
-          }
-
-          const delay = this.retryDelay * Math.pow(2, attempt);
-          this.logger.warn(
-            this.tagInternalLog("Retryable error sending progress, will retry"),
-            {
-              jobId,
-              attempt: attempt + 1,
-              statusCode,
-              delay,
-            },
-          );
-          await this.sleep(delay);
-          continue;
-        }
-
-        this.logger.info(
-          this.tagInternalLog("Job progress sent successfully"),
-          {
-            jobId,
-            status: response.status,
-          },
-        );
-
-        return;
-      } catch (error) {
-        const isLastAttempt = attempt === this.maxRetries;
-
-        if (error instanceof Error && error.name === "AbortError") {
-          this.logger.error(this.tagInternalLog("Request timeout"), {
-            jobId,
-          });
-          if (isLastAttempt) {
-            throw new Error(
-              `Progress callback timeout after ${this.maxRetries + 1} attempts`,
-            );
-          }
-        } else if (
-          error instanceof Error &&
-          error.message.startsWith("Progress callback failed:")
-        ) {
-          throw error;
-        } else {
-          this.logger.error(
-            this.tagInternalLog("Unexpected error sending progress"),
-            {
-              jobId,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
-          if (isLastAttempt) {
-            throw error;
-          }
-        }
-
-        const delay = this.retryDelay * Math.pow(2, attempt);
-        await this.sleep(delay);
-      }
-    }
-  }
-
-  async sendCodexAuthCache(
-    jobId: string,
-    tenantId: string,
-    payload: {
-      secretName: string;
-      authJson: string;
-      updatedAt?: string;
-    },
-  ): Promise<void> {
-    const url = `${this.apiUrl}/api/jobs/${jobId}/codex-auth-cache`;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
-        this.logger.info(
-          this.tagInternalLog("Sending Codex auth cache to platform"),
-          {
-            jobId,
-            secretName: payload.secretName,
-            attempt: attempt + 1,
-            authJsonLength: payload.authJson.length,
-            hasUpdatedAt: Boolean(payload.updatedAt),
-          },
-        );
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: this.buildHeaders(tenantId),
-          body: JSON.stringify({
-            secretName: payload.secretName,
-            authJson: payload.authJson,
-            updatedAt: payload.updatedAt || new Date().toISOString(),
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
-
-        if (!response.ok) {
-          const statusCode = response.status;
-          const isRetryable = statusCode >= 500 || statusCode === 429;
-
-          if (!isRetryable) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ error: response.statusText }));
-            this.logger.error(
               this.tagInternalLog(
-                "Non-retryable error sending Codex auth cache",
+                `Non-retryable error sending ${config.label}`,
               ),
-              {
-                jobId,
-                secretName: payload.secretName,
-                statusCode,
-                message: errorData.error || response.statusText,
-              },
+              { ...context, statusCode, message: errorMessage },
             );
             throw new Error(
-              `Codex auth cache callback failed: ${errorData.error || response.statusText}`,
+              `${config.label} callback failed: ${errorMessage}`,
             );
           }
 
           if (attempt === this.maxRetries) {
             this.logger.error(
               this.tagInternalLog(
-                "Max retries exceeded sending Codex auth cache",
+                `Max retries exceeded sending ${config.label}`,
               ),
-              {
-                jobId,
-                secretName: payload.secretName,
-                lastStatus: statusCode,
-              },
+              { ...context, lastStatus: statusCode },
             );
             throw new Error(
-              `Codex auth cache callback failed after ${this.maxRetries + 1} attempts`,
+              `${config.label} callback failed after ${this.maxRetries + 1} attempts`,
             );
           }
 
           const delay = this.retryDelay * Math.pow(2, attempt);
           this.logger.warn(
             this.tagInternalLog(
-              "Retryable error sending Codex auth cache, will retry",
+              `Retryable error sending ${config.label}, will retry`,
             ),
-            {
-              jobId,
-              secretName: payload.secretName,
-              attempt: attempt + 1,
-              statusCode,
-              delay,
-            },
+            { ...context, attempt: attempt + 1, statusCode, delay },
           );
           await this.sleep(delay);
           continue;
         }
 
         this.logger.info(
-          this.tagInternalLog("Codex auth cache sent successfully"),
-          {
-            jobId,
-            secretName: payload.secretName,
-            status: response.status,
-          },
+          this.tagInternalLog(`${config.label} sent successfully`),
+          { ...context, status: response.status },
         );
-
         return;
       } catch (error) {
         const isLastAttempt = attempt === this.maxRetries;
 
         if (error instanceof Error && error.name === "AbortError") {
           this.logger.error(
-            this.tagInternalLog("Codex auth cache callback request timeout"),
-            {
-              jobId,
-              secretName: payload.secretName,
-              attempt: attempt + 1,
-            },
+            this.tagInternalLog(`${config.label} request timeout`),
+            { ...context, attempt: attempt + 1 },
           );
           if (isLastAttempt) {
             throw new Error(
-              `Codex auth cache callback timeout after ${this.maxRetries + 1} attempts`,
+              `${config.label} callback timeout after ${this.maxRetries + 1} attempts`,
             );
           }
         } else if (
           error instanceof Error &&
-          (error.message.startsWith("Codex auth cache callback failed:") ||
-            error.message.startsWith(
-              "Codex auth cache callback failed after",
-            ))
+          error.message.includes("callback failed")
         ) {
           throw error;
         } else {
           this.logger.error(
-            this.tagInternalLog("Unexpected error sending Codex auth cache"),
-            {
-              jobId,
-              secretName: payload.secretName,
-              attempt: attempt + 1,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
-          if (isLastAttempt) {
-            throw error;
-          }
-        }
-
-        const delay = this.retryDelay * Math.pow(2, attempt);
-        this.logger.warn(
-          this.tagInternalLog("Retrying Codex auth cache callback"),
-          {
-            jobId,
-            secretName: payload.secretName,
-            nextAttempt: attempt + 2,
-            delay,
-          },
-        );
-        await this.sleep(delay);
-      }
-    }
-  }
-
-  async sendLog(
-    jobId: string,
-    tenantId: string,
-    log: {
-      level: "info" | "warn" | "error" | "debug";
-      message: string;
-      source?: string;
-    },
-  ): Promise<void> {
-    const url = `${this.apiUrl}/api/jobs/${jobId}/logs`;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
-        this.logger.info(this.tagInternalLog("Sending job log to platform"), {
-          jobId,
-          level: log.level,
-          attempt: attempt + 1,
-        });
-
-        if (this.isInternalLogMessage(log.message)) {
-          return;
-        }
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: this.buildHeaders(tenantId),
-          body: JSON.stringify({
-            level: log.level,
-            message: this.redactSensitiveInfo(log.message),
-            source: log.source || null,
-          }),
-          signal: AbortSignal.timeout(5000), // 5 second timeout
-        });
-
-        if (!response.ok) {
-          const statusCode = response.status;
-          const isRetryable = statusCode >= 500 || statusCode === 429;
-
-          if (!isRetryable) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ error: response.statusText }));
-            this.logger.error(
-              this.tagInternalLog("Non-retryable error sending log"),
-              {
-                jobId,
-                statusCode,
-                message: errorData.error || response.statusText,
-              },
-            );
-            throw new Error(
-              `Log callback failed: ${errorData.error || response.statusText}`,
-            );
-          }
-
-          if (attempt === this.maxRetries) {
-            this.logger.error(
-              this.tagInternalLog("Max retries exceeded sending job log"),
-              {
-                jobId,
-                lastStatus: statusCode,
-              },
-            );
-            throw new Error(
-              `Log callback failed after ${this.maxRetries + 1} attempts`,
-            );
-          }
-
-          const delay = this.retryDelay * Math.pow(2, attempt);
-          this.logger.warn(
-            this.tagInternalLog("Retryable error sending log, will retry"),
-            {
-              jobId,
-              attempt: attempt + 1,
-              statusCode,
-              delay,
-            },
-          );
-          await this.sleep(delay);
-          continue;
-        }
-
-        this.logger.info(this.tagInternalLog("Job log sent successfully"), {
-          jobId,
-          status: response.status,
-        });
-
-        return;
-      } catch (error) {
-        const isLastAttempt = attempt === this.maxRetries;
-
-        if (error instanceof Error && error.name === "AbortError") {
-          this.logger.error(this.tagInternalLog("Request timeout"), {
-            jobId,
-          });
-          if (isLastAttempt) {
-            throw new Error(
-              `Log callback timeout after ${this.maxRetries + 1} attempts`,
-            );
-          }
-        } else if (
-          error instanceof Error &&
-          error.message.startsWith("Log callback failed:")
-        ) {
-          throw error;
-        } else {
-          this.logger.error(
-            this.tagInternalLog("Unexpected error sending log"),
-            {
-              jobId,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
-          if (isLastAttempt) {
-            throw error;
-          }
-        }
-
-        const delay = this.retryDelay * Math.pow(2, attempt);
-        await this.sleep(delay);
-      }
-    }
-  }
-
-  async sendLogBatch(
-    jobId: string,
-    tenantId: string,
-    logs: Array<{
-      level: "info" | "warn" | "error" | "debug";
-      message: string;
-      source?: string;
-      internal?: boolean;
-    }>,
-  ): Promise<void> {
-    if (logs.length === 0) return;
-
-    const url = `${this.apiUrl}/api/jobs/${jobId}/logs/batch`;
-
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
-        this.logger.info(
-          this.tagInternalLog("Sending batch job logs to platform"),
-          {
-            jobId,
-            count: logs.length,
-            attempt: attempt + 1,
-          },
-        );
-
-        const externalLogs = logs.filter(
-          (log) => !log.internal && !this.isInternalLogMessage(log.message),
-        );
-        if (externalLogs.length === 0) {
-          return;
-        }
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: this.buildHeaders(tenantId),
-          body: JSON.stringify({
-            logs: externalLogs.map((log) => ({
-              level: log.level,
-              message: this.redactSensitiveInfo(log.message),
-              source: log.source || null,
-            })),
-          }),
-          signal: AbortSignal.timeout(10000), // 10 second timeout for batch
-        });
-
-        if (!response.ok) {
-          const statusCode = response.status;
-          const isRetryable = statusCode >= 500 || statusCode === 429;
-
-          if (!isRetryable) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ error: response.statusText }));
-            this.logger.error(
-              this.tagInternalLog("Non-retryable error sending batch logs"),
-              {
-                jobId,
-                statusCode,
-                message: errorData.error || response.statusText,
-              },
-            );
-            throw new Error(
-              `Batch log callback failed: ${errorData.error || response.statusText}`,
-            );
-          }
-
-          if (attempt === this.maxRetries) {
-            this.logger.error(
-              this.tagInternalLog("Max retries exceeded sending batch logs"),
-              {
-                jobId,
-                lastStatus: statusCode,
-              },
-            );
-            throw new Error(
-              `Batch log callback failed after ${this.maxRetries + 1} attempts`,
-            );
-          }
-
-          const delay = this.retryDelay * Math.pow(2, attempt);
-          this.logger.warn(
             this.tagInternalLog(
-              "Retryable error sending batch logs, will retry",
+              `Unexpected error sending ${config.label}`,
             ),
             {
-              jobId,
+              ...context,
               attempt: attempt + 1,
-              statusCode,
-              delay,
-            },
-          );
-          await this.sleep(delay);
-          continue;
-        }
-
-        this.logger.info(
-          this.tagInternalLog("Batch job logs sent successfully"),
-          {
-            jobId,
-            count: externalLogs.length,
-            status: response.status,
-          },
-        );
-
-        return;
-      } catch (error) {
-        const isLastAttempt = attempt === this.maxRetries;
-
-        if (error instanceof Error && error.name === "AbortError") {
-          this.logger.error(this.tagInternalLog("Request timeout"), {
-            jobId,
-          });
-          if (isLastAttempt) {
-            throw new Error(
-              `Batch log callback timeout after ${this.maxRetries + 1} attempts`,
-            );
-          }
-        } else if (
-          error instanceof Error &&
-          error.message.startsWith("Batch log callback failed:")
-        ) {
-          throw error;
-        } else {
-          this.logger.error(
-            this.tagInternalLog("Unexpected error sending batch logs"),
-            {
-              jobId,
               error: error instanceof Error ? error.message : String(error),
             },
           );
@@ -735,17 +311,16 @@ export class CallbackClient {
     }
   }
 
-  // Simple redaction for logs (SEC-04 compliance)
   private redactSensitiveInfo(log: string): string {
     const sensitivePatterns = [
       /token[a-z]*["\s:=]+[a-zA-Z0-9_\-]{20,}/gi,
       /password["\s:=]+[^\s]+/gi,
-      /sk-[a-zA-Z0-9]{20,}/g, // API keys
-      /ghp_[a-zA-Z0-9]{36}/g, // GitHub tokens
-      /gho_[a-zA-Z0-9]{36}/g, // GitHub OAuth tokens
-      /ghu_[a-zA-Z0-9]{36}/g, // GitHub user tokens
-      /ghs_[a-zA-Z0-9]{36}/g, // GitHub server tokens
-      /ghr_[a-zA-Z0-9]{36}/g, // GitHub refresh tokens
+      /sk-[a-zA-Z0-9]{20,}/g,
+      /ghp_[a-zA-Z0-9]{36}/g,
+      /gho_[a-zA-Z0-9]{36}/g,
+      /ghu_[a-zA-Z0-9]{36}/g,
+      /ghs_[a-zA-Z0-9]{36}/g,
+      /ghr_[a-zA-Z0-9]{36}/g,
       /Bearer\s+[a-zA-Z0-9_\-]{20,}/gi,
     ];
 

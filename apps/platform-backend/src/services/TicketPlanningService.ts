@@ -3,7 +3,6 @@ import {
   JOB_KIND,
   TICKET_WORKFLOW_PHASE,
 } from "@viberglass/types";
-import logger from "../config/logger";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
@@ -27,6 +26,7 @@ import {
 import {
   type InlineInstructionFile,
   prepareTicketRunContext,
+  submitJobWithBootstrapAndInvoke,
 } from "./ticketRunOrchestration";
 
 export interface RunPlanningOptions {
@@ -159,15 +159,7 @@ export class TicketPlanningService {
     }
 
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
-    const {
-      project,
-      sourceRepository,
-      baseBranch,
-      executionClanker,
-      workerType,
-      mergedInstructionFiles,
-      workerInstructionFiles,
-    } = await prepareTicketRunContext(
+    const preparedContext = await prepareTicketRunContext(
       {
         projectId: ticket.projectId,
         clankerId: options.clankerId,
@@ -183,6 +175,14 @@ export class TicketPlanningService {
         instructionStorageService: this.instructionStorageService,
       },
     );
+
+    const {
+      project,
+      sourceRepository,
+      baseBranch,
+      executionClanker,
+      mergedInstructionFiles,
+    } = preparedContext;
 
     const researchDocument = await this.documentService.getOrCreateDocument(
       ticketId,
@@ -219,46 +219,21 @@ export class TicketPlanningService {
       timestamp: Date.now(),
     };
 
-    const submitResult = await this.jobService.submitJob(jobData, {
-      ticketId: ticket.id,
-      clankerId: executionClanker.id,
-    });
-
-    jobData.callbackToken = submitResult.callbackToken;
-    jobData.bootstrapPayload = {
-      workerType,
-      jobKind: jobData.jobKind,
-      tenantId: jobData.tenantId,
-      jobId: jobData.id,
-      clankerId: executionClanker.id,
-      agent: executionClanker.agent,
-      repository: jobData.repository,
-      task: jobData.task,
-      branch: jobData.branch,
-      baseBranch: jobData.baseBranch,
-      context: jobData.context,
-      settings: jobData.settings,
-      instructionFiles: workerInstructionFiles,
-      requiredCredentials:
-        await this.credentialRequirementsService.getRequiredCredentialsForClanker(
-          executionClanker,
-        ),
-      callbackToken: submitResult.callbackToken,
-      ...(workerType === "docker"
-        ? { clankerConfig: executionClanker }
-        : { deploymentConfig: executionClanker.deploymentConfig }),
-      projectConfig: {
-        id: project.id,
-        name: project.name,
-        autoFixTags: project.autoFixTags,
-        customFieldMappings: project.customFieldMappings,
-        workerSettings: project.workerSettings,
+    // Submit job, build bootstrap, and invoke worker (fire-and-forget)
+    const result = await submitJobWithBootstrapAndInvoke(
+      jobData,
+      ticket.id,
+      executionClanker.id,
+      "Planning",
+      preparedContext,
+      {
+        jobService: this.jobService,
+        credentialRequirementsService: this.credentialRequirementsService,
+        workerExecutionService: this.workerExecutionService,
       },
-    };
-    await this.jobService.saveBootstrapPayload(
-      jobData.id,
-      jobData.bootstrapPayload,
     );
+
+    // Record phase run
     await this.phaseRunDAO.createRun(
       ticket.id,
       jobData.id,
@@ -266,29 +241,7 @@ export class TicketPlanningService {
       TICKET_WORKFLOW_PHASE.PLANNING,
     );
 
-    this.workerExecutionService
-      .executeJob(jobData, executionClanker, project)
-      .then((result) => {
-        logger.info("Planning worker invoked successfully", {
-          ticketId,
-          jobId,
-          clankerId: executionClanker.id,
-          executionId: result.executionId,
-        });
-      })
-      .catch((error) => {
-        logger.error("Planning worker invocation failed", {
-          ticketId,
-          jobId,
-          clankerId: executionClanker.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
-
-    return {
-      jobId,
-      status: "active",
-    };
+    return result;
   }
 
 }

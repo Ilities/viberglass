@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler, Request, RequestHandler } from "express";
 import createError from "http-errors";
 import logger from "../../config/logger";
+import { isDomainError } from "../../services/errors/DomainError";
 
 type Layer = {
   route?: { path: string };
@@ -41,6 +42,23 @@ export const applicationErrorHandler: ErrorRequestHandler = (
   res,
   _next,
 ) => {
+  // Domain errors carry their own status code and error code
+  if (isDomainError(err)) {
+    const level = err.statusCode >= 500 ? "error" : "warn";
+    logger[level]("Domain error", {
+      code: err.code,
+      message: err.message,
+      statusCode: err.statusCode,
+      method: req.method,
+      url: req.url,
+    });
+    res.status(err.statusCode).json({
+      error: err.message,
+      code: err.code,
+    });
+    return;
+  }
+
   if (err.status === 404) {
     res.status(404).json({
       error: err.message || "Not Found",
