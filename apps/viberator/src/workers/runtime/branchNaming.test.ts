@@ -22,7 +22,7 @@ describe("buildFeatureBranchName", () => {
       null,
     );
 
-    const expectedDate = new Date().toISOString().slice(0, 10);
-    expect(branch).toBe(`viberator/${expectedDate}`);
+    // Default template is viberator/{{ ticketId }}, which falls back to jobId
+    expect(branch).toBe("viberator/job_123");
   });
 });

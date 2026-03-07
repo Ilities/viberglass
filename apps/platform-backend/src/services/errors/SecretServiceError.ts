@@ -1,3 +1,5 @@
+import { DomainError } from "./DomainError";
+
 export const SECRET_SERVICE_ERROR_CODE = {
   SECRET_NOT_FOUND: "SECRET_NOT_FOUND",
   SECRET_NAME_REQUIRED: "SECRET_NAME_REQUIRED",
@@ -19,7 +21,7 @@ const DEFAULT_STATUS_BY_CODE: Record<SecretServiceErrorCode, number> = {
   [SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_TOO_LARGE]: 413,
 };
 
-export class SecretServiceError extends Error {
+export class SecretServiceError extends DomainError {
   readonly statusCode: number;
 
   constructor(
@@ -28,7 +30,6 @@ export class SecretServiceError extends Error {
     statusCode?: number,
   ) {
     super(message);
-    this.name = "SecretServiceError";
     this.statusCode = statusCode ?? DEFAULT_STATUS_BY_CODE[code] ?? 500;
   }
 }
