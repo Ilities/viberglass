@@ -16,6 +16,11 @@ import logger from "../../config/logger";
 import { SecretService } from "../../services/SecretService";
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
 import { JOB_KIND, TICKET_WORKFLOW_PHASE } from "@viberglass/types";
+import {
+  isJobServiceError,
+  JOB_SERVICE_ERROR_CODE,
+} from "../../services/errors/JobServiceError";
+import { isSecretServiceError } from "../../services/errors/SecretServiceError";
 
 const router = Router();
 const jobService = new JobService();
@@ -178,7 +183,10 @@ router.delete("/:jobId", requireAuth, async (req: Request, res: Response) => {
       jobId: req.params.jobId,
     });
 
-    if (error instanceof Error && error.message === "Job not found") {
+    if (
+      isJobServiceError(error) &&
+      error.code === JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND
+    ) {
       return res.status(404).json({ error: "Job not found" });
     }
 
@@ -399,9 +407,7 @@ router.post(
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Internal server error";
-      const statusCode = errorMessage.includes("exceeds SSM size limit")
-        ? 413
-        : 500;
+      const statusCode = isSecretServiceError(error) ? error.statusCode : 500;
 
       logger.error("Failed to persist Codex auth cache", {
         error: error instanceof Error ? error.message : String(error),

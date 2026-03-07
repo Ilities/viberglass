@@ -10,7 +10,7 @@
  */
 
 import { ErrorClassification, LambdaInvoker } from "../../../../workers";
-import type { Clanker } from "@viberglass/types";
+import { JOB_KIND, type Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
 
 // Mock the Lambda client
@@ -50,6 +50,7 @@ describe("LambdaInvoker", () => {
     // Setup mock job
     mockJob = {
       id: "job-123",
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: "tenant-abc",
       repository: "https://github.com/user/repo",
       task: "Fix the bug in auth module",

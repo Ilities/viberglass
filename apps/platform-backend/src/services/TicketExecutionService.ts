@@ -11,23 +11,20 @@ import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData } from "../types/Job";
 import {
-  type Clanker,
   JOB_KIND,
   TICKET_WORKFLOW_PHASE,
 } from "@viberglass/types";
 import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
-import { getStrategyType } from "../clanker-config";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
 import { TicketPhaseDocumentService } from "./TicketPhaseDocumentService";
 import {
-  isAllowedInstructionPath,
-  normalizeInstructionPath,
-} from "./instructions/pathPolicy";
-
-export interface InlineInstructionFile {
-  fileType: string;
-  content: string;
-}
+  TicketServiceError,
+  TICKET_SERVICE_ERROR_CODE,
+} from "./errors/TicketServiceError";
+import {
+  type InlineInstructionFile,
+  prepareTicketRunContext,
+} from "./ticketRunOrchestration";
 
 export interface RunTicketOptions {
   clankerId: string;
@@ -54,90 +51,6 @@ export class TicketExecutionService {
   private instructionStorageService = new InstructionStorageService();
   private ticketPhaseDocumentService = new TicketPhaseDocumentService();
 
-  private normalizeInstructionFile(
-    file: Partial<InlineInstructionFile> | null | undefined,
-  ): InlineInstructionFile | null {
-    if (!file?.fileType || typeof file.fileType !== "string") {
-      return null;
-    }
-
-    const fileType = normalizeInstructionPath(file.fileType);
-    const content = typeof file.content === "string" ? file.content : "";
-
-    if (!fileType || !content.trim() || !isAllowedInstructionPath(fileType)) {
-      return null;
-    }
-
-    return { fileType, content };
-  }
-
-  private mergeInstructionFiles(
-    project: { agentInstructions?: string | null },
-    clanker: {
-      configFiles?: Array<{ fileType: string; content: string }>;
-    },
-    runtimeInstructionFiles: Array<Partial<InlineInstructionFile>> = [],
-  ): InlineInstructionFile[] {
-    const merged = new Map<string, InlineInstructionFile>();
-
-    const addFiles = (files: Array<Partial<InlineInstructionFile>>) => {
-      for (const file of files) {
-        const normalized = this.normalizeInstructionFile(file);
-        if (!normalized) continue;
-        merged.set(normalized.fileType.toLowerCase(), normalized);
-      }
-    };
-
-    const projectFiles: Array<InlineInstructionFile> = project.agentInstructions
-      ? [{ fileType: "AGENTS.md", content: project.agentInstructions }]
-      : [];
-
-    const clankerFiles: Array<InlineInstructionFile> = (
-      clanker.configFiles || []
-    ).map((file) => ({
-      fileType: file.fileType,
-      content: file.content,
-    }));
-
-    addFiles(projectFiles);
-    addFiles(clankerFiles);
-    addFiles(runtimeInstructionFiles);
-
-    return Array.from(merged.values());
-  }
-
-  private async resolveScmCredentialSecretId(
-    scmConfig: {
-      integrationCredentialId?: string | null;
-      credentialSecretId?: string | null;
-    } | null,
-  ): Promise<string | null> {
-    const legacyCredentialSecretId =
-      typeof scmConfig?.credentialSecretId === "string" &&
-      scmConfig.credentialSecretId.trim().length > 0
-        ? scmConfig.credentialSecretId.trim()
-        : null;
-    if (legacyCredentialSecretId) {
-      return legacyCredentialSecretId;
-    }
-
-    const integrationCredentialId = scmConfig?.integrationCredentialId?.trim();
-    if (!integrationCredentialId) {
-      return null;
-    }
-
-    const credential = await this.integrationCredentialDAO.getById(
-      integrationCredentialId,
-    );
-    if (!credential) {
-      throw new Error(
-        `SCM integration credential not found: ${integrationCredentialId}`,
-      );
-    }
-
-    return credential.secretId;
-  }
-
   async runTicket(
     ticketId: string,
     options: RunTicketOptions,
@@ -149,7 +62,10 @@ export class TicketExecutionService {
       // Get ticket by id
       const ticket = await this.ticketDAO.getTicket(ticketId);
       if (!ticket) {
-        throw new Error("Ticket not found");
+        throw new TicketServiceError(
+          TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
+          "Ticket not found",
+        );
       }
 
       const planningDocument =
@@ -161,7 +77,8 @@ export class TicketExecutionService {
         planningDocument.approvalState !== "approved" &&
         !ticket.workflowOverriddenAt
       ) {
-        throw new Error(
+        throw new TicketServiceError(
+          TICKET_SERVICE_ERROR_CODE.EXECUTION_BLOCKED_UNAPPROVED_PLAN,
           "Execution is blocked until the planning document is approved",
         );
       }
@@ -172,26 +89,36 @@ export class TicketExecutionService {
           TICKET_WORKFLOW_PHASE.RESEARCH,
         );
 
-      // Get project by ticket.projectId
-      const project = await this.projectDAO.getProject(ticket.projectId);
-      if (!project) {
-        logger.error("Project not found for ticket", {
-          ticketId,
+      // Generate jobId before instruction materialization so non-docker workers can upload by job path
+      const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
+      const {
+        project,
+        scmConfig,
+        sourceRepository,
+        baseBranch,
+        clanker,
+        executionClanker,
+        scmCredentialSecretId,
+        workerType,
+        mergedInstructionFiles,
+        workerInstructionFiles,
+      } = await prepareTicketRunContext(
+        {
           projectId: ticket.projectId,
-        });
-        throw new Error("Associated project not found");
-      }
-
-      const repositoryUrls =
-        project.repositoryUrls && project.repositoryUrls.length > 0
-          ? project.repositoryUrls
-          : project.repositoryUrl
-            ? [project.repositoryUrl]
-            : [];
-      const primaryRepository = repositoryUrls[0];
-      const scmConfig = await this.projectScmConfigDAO.getByProjectId(
-        project.id,
+          clankerId,
+          jobId,
+          instructionFiles: instructionFiles || [],
+        },
+        {
+          projectDAO: this.projectDAO,
+          projectScmConfigDAO: this.projectScmConfigDAO,
+          integrationCredentialDAO: this.integrationCredentialDAO,
+          clankerDAO: this.clankerDAO,
+          provisioningService: this.provisioningService,
+          instructionStorageService: this.instructionStorageService,
+        },
       );
+
       const normalizedScmConfig = scmConfig
         ? {
             integrationId: scmConfig.integrationId,
@@ -208,62 +135,6 @@ export class TicketExecutionService {
             branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
           }
         : null;
-      const sourceRepository =
-        normalizedScmConfig?.sourceRepository || primaryRepository;
-      const baseBranch = normalizedScmConfig?.baseBranch || "main";
-
-      // Validate project has repository configured
-      if (!sourceRepository) {
-        throw new Error("Project has no repository configured");
-      }
-
-      // Get clanker by clankerId
-      const clanker = await this.clankerDAO.getClanker(clankerId);
-      if (!clanker) {
-        throw new Error("Clanker not found");
-      }
-
-      const availability =
-        await this.provisioningService.resolveAvailabilityStatus(clanker);
-      const currentStatus = availability.status;
-      const currentStatusMessage = availability.statusMessage ?? null;
-
-      if (
-        availability.status !== clanker.status ||
-        (clanker.statusMessage ?? null) !== currentStatusMessage
-      ) {
-        await this.clankerDAO.updateStatus(
-          clanker.id,
-          availability.status,
-          currentStatusMessage,
-        );
-      }
-
-      // Validate clanker has deploymentStrategyId and status is 'active'
-      if (!clanker.deploymentStrategyId) {
-        throw new Error(
-          "Selected clanker has no deployment strategy configured",
-        );
-      }
-
-      if (currentStatus !== "active") {
-        throw new Error(
-          `Selected clanker is ${currentStatus}. Only active clankers can run jobs.`,
-        );
-      }
-
-      const scmCredentialSecretId = await this.resolveScmCredentialSecretId(
-        scmConfig as {
-          integrationCredentialId?: string | null;
-          credentialSecretId?: string | null;
-        } | null,
-      );
-      const mergedSecretIds = Array.from(
-        new Set([
-          ...(clanker.secretIds || []),
-          ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
-        ]),
-      );
       const normalizedScmConfigWithCredential =
         normalizedScmConfig && scmCredentialSecretId
           ? {
@@ -271,27 +142,6 @@ export class TicketExecutionService {
               credentialSecretId: scmCredentialSecretId,
             }
           : normalizedScmConfig;
-      const executionClanker: Clanker = {
-        ...clanker,
-        secretIds: mergedSecretIds,
-      };
-      const workerType = getStrategyType(executionClanker);
-
-      const mergedInstructionFiles = this.mergeInstructionFiles(
-        project,
-        executionClanker,
-        instructionFiles || [],
-      );
-      // Generate jobId
-      const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
-      const workerInstructionFiles =
-        workerType === "docker"
-          ? mergedInstructionFiles
-          : await this.instructionStorageService.uploadJobInstructionFiles(
-              executionClanker.id,
-              jobId,
-              mergedInstructionFiles,
-            );
       const ticketMediaExecution =
         await this.ticketMediaExecutionService.prepareForExecution(
           ticket,

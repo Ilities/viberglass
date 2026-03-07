@@ -8,6 +8,10 @@ import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 import {
+  JOB_SERVICE_ERROR_CODE,
+  JobServiceError,
+} from "./errors/JobServiceError";
+import {
   JOB_KIND,
   TICKET_STATUS,
   type TicketLifecycleStatus,
@@ -461,7 +465,10 @@ export class JobService {
       .executeTakeFirst();
 
     if (result.numDeletedRows === 0n) {
-      throw new Error("Job not found");
+      throw new JobServiceError(
+        JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND,
+        "Job not found",
+      );
     }
 
     logger.info("Job removed", { jobId });
