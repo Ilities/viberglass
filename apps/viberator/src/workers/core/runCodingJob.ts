@@ -20,7 +20,10 @@ import {
   resolvePullRequestDescription,
   resolvePullRequestTitle,
 } from "./pullRequestContent";
-import type { AgentAuthContext, AgentAuthLifecycle } from "./agentAuthLifecycle";
+import type {
+  AgentAuthContext,
+  AgentAuthLifecycle,
+} from "./agentAuthLifecycle";
 
 interface RunCodingJobParams {
   data: CodingJobData;
@@ -54,7 +57,9 @@ interface RunCodingJobParams {
   cleanupWorkspace: (workDir: string) => void;
 }
 
-export async function runCodingJob(params: RunCodingJobParams): Promise<JobResult> {
+export async function runCodingJob(
+  params: RunCodingJobParams,
+): Promise<JobResult> {
   const {
     data,
     repositoryRoot,
@@ -85,7 +90,9 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
   const pullRequestBaseBranch =
     scm?.pullRequestBaseBranch?.trim() || checkoutBaseBranch;
   const pullRequestRepository =
-    scm?.pullRequestRepository?.trim() || scm?.sourceRepository?.trim() || repository;
+    scm?.pullRequestRepository?.trim() ||
+    scm?.sourceRepository?.trim() ||
+    repository;
 
   logForwarder.setupForJob(id, data.tenantId);
 
@@ -113,7 +120,7 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       id,
       context?.ticketId,
       context?.originalTicketId,
-      data.clankerId,
+      clankerConfig?.clankerId as string,
       scm?.branchNameTemplate,
     );
     await gitService.createBranch(repoDir, featureBranch);
@@ -193,12 +200,15 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
     );
 
     if (shouldRetryWithFreshAuth) {
-      logger.warn("Agent execution failed due to auth; retrying after auth refresh", {
-        jobId: id,
-        tenantId: data.tenantId,
-        agentName: selectedAgent.name,
-        errorMessage: result.errorMessage,
-      });
+      logger.warn(
+        "Agent execution failed due to auth; retrying after auth refresh",
+        {
+          jobId: id,
+          tenantId: data.tenantId,
+          agentName: selectedAgent.name,
+          errorMessage: result.errorMessage,
+        },
+      );
 
       await sendProgress(
         "auth",
@@ -218,11 +228,18 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       throw new Error(result.errorMessage || "Agent execution failed");
     }
 
+    const changedFiles = await gitService.getChangedFiles(repoDir);
+    if (changedFiles.length === 0) {
+      throw new Error(
+        "No code changes detected after agent execution; pull request was not created",
+      );
+    }
+
     const pullRequestTitle = resolvePullRequestTitle(repoDir, task);
     const pullRequestDescription = resolvePullRequestDescription({
       repoDir,
       task,
-      changedFiles: result.changedFiles,
+      changedFiles,
       testsWereRequested: executionContext.runTests,
     });
 
@@ -262,7 +279,7 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
       success: true,
       branch: featureBranch,
       pullRequestUrl,
-      changedFiles: result.changedFiles,
+      changedFiles,
       executionTime,
       commitHash,
     };
@@ -285,7 +302,8 @@ export async function runCodingJob(params: RunCodingJobParams): Promise<JobResul
     return workerResult;
   } catch (error) {
     const executionTime = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
 
     await sendProgress("failed", "Job failed", { error: errorMessage });
     logger.error("Task failed", {
