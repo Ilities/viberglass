@@ -1,3 +1,5 @@
+import { DomainError } from "./DomainError";
+
 export const TICKET_SERVICE_ERROR_CODE = {
   TICKET_NOT_FOUND: "TICKET_NOT_FOUND",
   CLANKER_NOT_FOUND: "CLANKER_NOT_FOUND",
@@ -39,7 +41,7 @@ const DEFAULT_STATUS_BY_CODE: Record<TicketServiceErrorCode, number> = {
   [TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_GRANT_INVALID_PHASE]: 409,
 };
 
-export class TicketServiceError extends Error {
+export class TicketServiceError extends DomainError {
   readonly statusCode: number;
 
   constructor(
@@ -48,7 +50,6 @@ export class TicketServiceError extends Error {
     statusCode?: number,
   ) {
     super(message);
-    this.name = "TicketServiceError";
     this.statusCode = statusCode ?? DEFAULT_STATUS_BY_CODE[code] ?? 500;
   }
 }

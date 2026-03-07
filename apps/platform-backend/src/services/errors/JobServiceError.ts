@@ -1,3 +1,5 @@
+import { DomainError } from "./DomainError";
+
 export const JOB_SERVICE_ERROR_CODE = {
   JOB_NOT_FOUND: "JOB_NOT_FOUND",
 } as const;
@@ -9,7 +11,7 @@ const DEFAULT_STATUS_BY_CODE: Record<JobServiceErrorCode, number> = {
   [JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND]: 404,
 };
 
-export class JobServiceError extends Error {
+export class JobServiceError extends DomainError {
   readonly statusCode: number;
 
   constructor(
@@ -18,7 +20,6 @@ export class JobServiceError extends Error {
     statusCode?: number,
   ) {
     super(message);
-    this.name = "JobServiceError";
     this.statusCode = statusCode ?? DEFAULT_STATUS_BY_CODE[code] ?? 500;
   }
 }
