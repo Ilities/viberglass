@@ -124,4 +124,18 @@ describe("TicketPlanningApprovalService", () => {
     expect(mockDocumentService.approveDocument).not.toHaveBeenCalled();
     expect(mockWorkflowService.advancePhase).not.toHaveBeenCalled();
   });
+
+  it("rejects approval request when the ticket is not in planning", async () => {
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: "ticket-3",
+      workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
+    } as any);
+
+    await expect(service.requestApproval("ticket-3")).rejects.toThrow(
+      "Approval can only be requested during the planning phase",
+    );
+
+    expect(mockDocumentService.requestApproval).not.toHaveBeenCalled();
+    expect(mockApprovalDAO.recordApprovalAction).not.toHaveBeenCalled();
+  });
 });
