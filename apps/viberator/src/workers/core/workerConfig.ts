@@ -3,25 +3,26 @@ import type { WorkerPayload } from "./types";
 
 export function resolveClankerConfig(
   payload: WorkerPayload,
-): Record<string, unknown> | undefined {
+): ({ clankerId: string } & Record<string, unknown>) | undefined {
+  const clankerId = payload.clankerId;
   if (payload.workerType === "docker") {
     return isObjectRecord(payload.clankerConfig)
-      ? payload.clankerConfig
+      ? { ...payload.clankerConfig, clankerId }
       : undefined;
   }
 
   if (isObjectRecord(payload.deploymentConfig)) {
-    return payload.deploymentConfig;
+    return { ...payload.deploymentConfig, clankerId };
   }
 
   const fallbackClankerConfig = Reflect.get(payload, "clankerConfig");
   return isObjectRecord(fallbackClankerConfig)
-    ? fallbackClankerConfig
+    ? { ...fallbackClankerConfig, clankerId }
     : undefined;
 }
 
 export function extractClankerEnvironment(
-  config?: Record<string, unknown>,
+  config?: { clankerId: string } & Record<string, unknown>,
   endpointEnvironment?: Record<string, string>,
 ): Record<string, string> | undefined {
   const environment: Record<string, string> = {};
