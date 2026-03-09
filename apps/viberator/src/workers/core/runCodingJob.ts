@@ -16,11 +16,11 @@ export async function runCodingJob(
   params: JobRunnerParams,
 ): Promise<JobResult> {
   return withJobLifecycle(params, "Job", async () => {
-    const { data, gitService, sendProgress, cleanupWorkspace } = params;
+    const { data, gitService, sendProgress } = params;
     const { id, repository, task, context, scm } = data;
 
     const setup = await setupJob(params, "coding");
-    const { repoDir, jobWorkDir, checkoutBaseBranch, mergedSettings } = setup;
+    const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
 
     const pullRequestBaseBranch =
       scm?.pullRequestBaseBranch?.trim() || checkoutBaseBranch;
@@ -110,9 +110,6 @@ export async function runCodingJob(
         destinationRepositoryUrl: pullRequestRepository,
       },
     );
-
-    await sendProgress("cleanup", "Cleaning up workspace");
-    cleanupWorkspace(jobWorkDir);
 
     return {
       success: true,

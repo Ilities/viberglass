@@ -15,10 +15,10 @@ export async function runResearchJob(
   params: JobRunnerParams,
 ): Promise<JobResult> {
   return withJobLifecycle(params, "Research", async () => {
-    const { data, sendProgress, cleanupWorkspace } = params;
+    const { data, sendProgress } = params;
 
     const setup = await setupJob(params, "research");
-    const { repoDir, jobWorkDir, checkoutBaseBranch, mergedSettings } = setup;
+    const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
 
     const executionContext: ExecutionContext = {
       repoUrl: data.repository,
@@ -46,8 +46,6 @@ export async function runResearchJob(
     }
 
     const documentContent = fs.readFileSync(documentPath, "utf-8");
-    await sendProgress("cleanup", "Cleaning up workspace");
-    cleanupWorkspace(jobWorkDir);
 
     return {
       success: true,

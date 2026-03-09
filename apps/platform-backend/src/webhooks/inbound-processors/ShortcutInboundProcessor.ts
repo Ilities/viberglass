@@ -25,7 +25,7 @@ import type { JobData } from "../../types/Job";
 import { randomUUID } from "crypto";
 
 interface WebhookJobContext {
-  ticketId?: string;
+  ticketId: string;
   issueNumber?: number;
   issueUrl?: string;
   triggeredBy?: string;

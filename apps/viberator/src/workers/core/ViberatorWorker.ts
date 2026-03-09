@@ -162,14 +162,17 @@ export class ViberatorWorker {
           this.sendProgress(step, message, details),
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
           this.cloneRepositoryToWorkspace(repository, branch, workDir),
-        cleanupWorkspace: (workDir) => this.cleanupWorkspace(workDir),
       });
     } finally {
+      // Cleanup runs after sendResult has already been called inside jobRunner,
+      // so Lambda timeout during cleanup no longer causes the job to appear
+      // stuck as "running" on the platform.
       this.logForwarder.cleanup();
       this.environmentManager.cleanup(
         this.fetchedCredentials || {},
         this.clankerEnvironment,
       );
+      this.cleanupWorkspace(path.join(this.workDir, data.id));
       this.currentJobId = undefined;
       this.currentTenantId = undefined;
     }
