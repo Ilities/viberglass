@@ -229,7 +229,7 @@ export function JobDetailPage() {
                 </Button>
               )}
               {job.jobKind === 'research' && job.ticketId && (
-                <Button href={`/project/${project}/tickets/${job.ticketId}`} plain>
+                <Button href={`/project/${project}/tickets/${job.ticketId}?tab=research`} plain>
                   <ReaderIcon className="h-4 w-4" />
                   View Research
                 </Button>
@@ -472,6 +472,20 @@ export function JobDetailPage() {
                         Results
                       </Subheading>
                       <div className="space-y-4">
+                        {job.jobKind === 'research' && job.ticketId && (
+                          <div className="flex items-center gap-3 rounded bg-[var(--gray-3)] p-3">
+                            <ReaderIcon className="h-4 w-4 text-[var(--gray-8)]" />
+                            <div>
+                              <div className="text-xs tracking-wider text-[var(--gray-9)] uppercase">Document</div>
+                              <a
+                                href={`/project/${project}/tickets/${job.ticketId}?tab=research`}
+                                className="text-sm text-[var(--accent-9)] hover:text-[var(--accent-10)] hover:underline"
+                              >
+                                View research document
+                              </a>
+                            </div>
+                          </div>
+                        )}
                         {job.result?.branch && (
                           <div className="flex items-center gap-3 rounded bg-[var(--gray-3)] p-3">
                             <CommitIcon className="h-4 w-4 text-[var(--gray-8)]" />

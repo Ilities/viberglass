@@ -177,7 +177,7 @@ function DocumentLine({
         </div>
 
         {/* Line content */}
-        <div className="flex-1 overflow-x-auto whitespace-pre px-3 py-1.5 text-[var(--gray-11)]">
+        <div className="flex-1 whitespace-pre-wrap break-words px-3 py-1.5 text-[var(--gray-11)]">
           {content || ' '}
         </div>
       </div>

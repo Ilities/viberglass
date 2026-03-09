@@ -18,7 +18,7 @@ import {
 } from '@radix-ui/react-icons'
 import { Tabs } from '@radix-ui/themes'
 import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import {
   type ApprovalState,
@@ -106,6 +106,7 @@ function SidebarField({ label, children }: { label: string; children: React.Reac
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -409,7 +410,7 @@ export function TicketDetailPage() {
 
           {/* Right content column */}
           <div className="lg:col-span-9 xl:col-span-9">
-            <Tabs.Root defaultValue={phaseToTab(ticket.workflowPhase)}>
+            <Tabs.Root defaultValue={searchParams.get('tab') ?? phaseToTab(ticket.workflowPhase)}>
               <Tabs.List>
                 <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
                 <Tabs.Trigger value="research">Research</Tabs.Trigger>
