@@ -2,10 +2,13 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { runTicket } from '@/service/api/job-api'
+import { runPlanning, runResearch } from '@/service/api/ticket-api'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+
+type RunMode = 'execution' | 'research' | 'planning'
 
 interface RunTicketModalProps {
   ticket: Ticket | null
@@ -13,9 +16,17 @@ interface RunTicketModalProps {
   project: string
   open: boolean
   onClose: () => void
+  mode?: RunMode
 }
 
-export function RunTicketModal({ ticket, clankers, project, open, onClose }: RunTicketModalProps) {
+export function RunTicketModal({
+  ticket,
+  clankers,
+  project,
+  open,
+  onClose,
+  mode = 'execution',
+}: RunTicketModalProps) {
   const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const configuredClankers = clankers.filter((c) => c.deploymentStrategyId)
@@ -52,17 +63,33 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
         ? [{ fileType: 'AGENTS.md', content: extraInstructions.trim() }]
         : undefined
 
-      const response = await runTicket(ticket.id, selectedClanker.id, undefined, instructionFiles)
+      const response =
+        mode === 'research'
+          ? await runResearch(ticket.id, selectedClanker.id, instructionFiles)
+          : mode === 'planning'
+            ? await runPlanning(ticket.id, selectedClanker.id, instructionFiles)
+            : await runTicket(ticket.id, selectedClanker.id, undefined, instructionFiles)
       const jobId = response.data.jobId
 
-      // Show toast with link
-      toast.success('Job started', {
-        description: `Running "${ticket.title}" with ${selectedClanker.name}`,
-        action: {
-          label: 'View Job',
-          onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
-        },
-      })
+      toast.success(
+        mode === 'research'
+          ? 'Research started'
+          : mode === 'planning'
+            ? 'Planning started'
+            : 'Job started',
+        {
+          description:
+            mode === 'research'
+              ? `Researching "${ticket.title}" with ${selectedClanker.name}`
+              : mode === 'planning'
+                ? `Planning "${ticket.title}" with ${selectedClanker.name}`
+                : `Running "${ticket.title}" with ${selectedClanker.name}`,
+          action: {
+            label: 'View Job',
+            onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
+          },
+        }
+      )
 
       // Navigate to job page
       navigate(`/project/${project}/jobs/${jobId}`)
@@ -80,8 +107,20 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
 
   return (
     <Dialog open={open} onClose={onClose} size="lg">
-      <DialogTitle>Run Ticket with Clanker</DialogTitle>
-      <DialogDescription>Create a job to fix this ticket using an AI coding agent.</DialogDescription>
+      <DialogTitle>
+        {mode === 'research'
+          ? 'Run Research with Clanker'
+          : mode === 'planning'
+            ? 'Run Planning with Clanker'
+            : 'Run Ticket with Clanker'}
+      </DialogTitle>
+      <DialogDescription>
+        {mode === 'research'
+          ? 'Create a job to generate a research document for this ticket.'
+          : mode === 'planning'
+            ? 'Create a job to generate a planning document for this ticket based on the research.'
+            : 'Create a job to fix this ticket using an AI coding agent.'}
+      </DialogDescription>
       <DialogBody>
         <div className="space-y-6">
           {/* Ticket Info (read-only display) */}
@@ -150,7 +189,13 @@ export function RunTicketModal({ ticket, clankers, project, open, onClose }: Run
           Cancel
         </Button>
         <Button color="brand" disabled={isRunning || !selectedClanker} onClick={handleRun}>
-          {isRunning ? 'Starting...' : `Run with ${selectedClanker?.name || 'Clanker'}`}
+          {isRunning
+            ? 'Starting...'
+            : mode === 'research'
+              ? `Run research with ${selectedClanker?.name || 'Clanker'}`
+              : mode === 'planning'
+                ? `Run planning with ${selectedClanker?.name || 'Clanker'}`
+                : `Run with ${selectedClanker?.name || 'Clanker'}`}
         </Button>
       </DialogActions>
     </Dialog>

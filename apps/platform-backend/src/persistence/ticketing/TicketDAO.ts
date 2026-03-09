@@ -6,6 +6,7 @@ import type { Database } from "../types/database";
 import {
   TICKET_ARCHIVE_FILTER,
   TICKET_STATUS,
+  TICKET_WORKFLOW_PHASE,
 } from "@viberglass/types";
 import type {
   Ticket,
@@ -16,6 +17,7 @@ import type {
   TicketSystem,
   TicketArchiveFilter,
   TicketLifecycleStatus,
+  TicketWorkflowPhase,
   Severity,
 } from "@viberglass/types";
 import { buildMediaContentUrl } from "../../services/ticket-media/publicApiUrl";
@@ -27,6 +29,7 @@ interface TicketListQuery {
   offset?: number;
   projectId?: string;
   statuses?: TicketLifecycleStatus[];
+  workflowPhases?: TicketWorkflowPhase[];
   archived?: TicketArchiveFilter;
   severity?: Severity;
   search?: string;
@@ -62,6 +65,18 @@ function normalizeTicketStatus(value: unknown): TicketLifecycleStatus {
     return value;
   }
   return TICKET_STATUS.OPEN;
+}
+
+function normalizeWorkflowPhase(value: unknown): TicketWorkflowPhase {
+  if (
+    value === TICKET_WORKFLOW_PHASE.RESEARCH ||
+    value === TICKET_WORKFLOW_PHASE.PLANNING ||
+    value === TICKET_WORKFLOW_PHASE.EXECUTION
+  ) {
+    return value;
+  }
+
+  return TICKET_WORKFLOW_PHASE.EXECUTION;
 }
 
 export class TicketDAO {
@@ -122,6 +137,7 @@ export class TicketDAO {
           ticket_system: request.ticketSystem,
           auto_fix_requested: request.autoFixRequested,
           ticket_status: TICKET_STATUS.OPEN,
+          workflow_phase: TICKET_WORKFLOW_PHASE.RESEARCH,
           archived_at: null,
           created_at: timestamp,
           updated_at: timestamp,
@@ -172,6 +188,10 @@ export class TicketDAO {
         "t.auto_fix_requested",
         "t.auto_fix_status",
         "t.ticket_status",
+        "t.workflow_phase",
+        "t.workflow_override_reason",
+        "t.workflow_overridden_at",
+        "t.workflow_overridden_by",
         "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
@@ -221,6 +241,10 @@ export class TicketDAO {
         "t.auto_fix_requested",
         "t.auto_fix_status",
         "t.ticket_status",
+        "t.workflow_phase",
+        "t.workflow_override_reason",
+        "t.workflow_overridden_at",
+        "t.workflow_overridden_by",
         "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
@@ -277,6 +301,64 @@ export class TicketDAO {
       })
       .where("id", "=", id)
       .execute();
+  }
+
+  async updateWorkflowPhase(
+    id: string,
+    workflowPhase: TicketWorkflowPhase,
+  ): Promise<void> {
+    await db
+      .updateTable("tickets")
+      .set({
+        workflow_phase: workflowPhase,
+        updated_at: new Date(),
+      })
+      .where("id", "=", id)
+      .execute();
+  }
+
+  async overrideWorkflowToExecution(
+    id: string,
+    reason: string,
+    actor?: string,
+  ): Promise<void> {
+    await db
+      .updateTable("tickets")
+      .set({
+        workflow_phase: TICKET_WORKFLOW_PHASE.EXECUTION,
+        workflow_override_reason: reason,
+        workflow_overridden_at: new Date(),
+        workflow_overridden_by: actor || null,
+        updated_at: new Date(),
+      })
+      .where("id", "=", id)
+      .execute();
+  }
+
+  async getWorkflowPhase(id: string): Promise<TicketWorkflowPhase | null> {
+    const row = await db
+      .selectFrom("tickets")
+      .select("workflow_phase")
+      .where("id", "=", id)
+      .executeTakeFirst();
+
+    if (!row) {
+      return null;
+    }
+
+    return normalizeWorkflowPhase(row.workflow_phase);
+  }
+
+  async hasExecutionJob(ticketId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom("jobs")
+      .select("id")
+      .where("ticket_id", "=", ticketId)
+      .where("job_kind", "=", "execution")
+      .limit(1)
+      .executeTakeFirst();
+
+    return Boolean(row);
   }
 
   async archiveTickets(ticketIds: string[]): Promise<number> {
@@ -368,6 +450,10 @@ export class TicketDAO {
         "t.auto_fix_requested",
         "t.auto_fix_status",
         "t.ticket_status",
+        "t.workflow_phase",
+        "t.workflow_override_reason",
+        "t.workflow_overridden_at",
+        "t.workflow_overridden_by",
         "t.archived_at",
         "t.pull_request_url",
         "t.created_at",
@@ -392,6 +478,10 @@ export class TicketDAO {
 
     if (params.statuses && params.statuses.length > 0) {
       query = query.where("t.ticket_status", "in", params.statuses);
+    }
+
+    if (params.workflowPhases && params.workflowPhases.length > 0) {
+      query = query.where("t.workflow_phase", "in", params.workflowPhases);
     }
 
     if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
@@ -426,6 +516,10 @@ export class TicketDAO {
 
     if (params.statuses && params.statuses.length > 0) {
       totalQuery = totalQuery.where("t.ticket_status", "in", params.statuses);
+    }
+
+    if (params.workflowPhases && params.workflowPhases.length > 0) {
+      totalQuery = totalQuery.where("t.workflow_phase", "in", params.workflowPhases);
     }
 
     if (archivedMode === TICKET_ARCHIVE_FILTER.EXCLUDE) {
@@ -647,6 +741,12 @@ export class TicketDAO {
       autoFixRequested: row.auto_fix_requested,
       autoFixStatus: row.auto_fix_status ?? undefined,
       status: normalizeTicketStatus(row.ticket_status),
+      workflowPhase: normalizeWorkflowPhase(row.workflow_phase),
+      workflowOverrideReason: row.workflow_override_reason ?? undefined,
+      workflowOverriddenAt: row.workflow_overridden_at
+        ? this.toISOString(row.workflow_overridden_at)
+        : undefined,
+      workflowOverriddenBy: row.workflow_overridden_by ?? undefined,
       archivedAt: row.archived_at ? this.toISOString(row.archived_at) : undefined,
       pullRequestUrl: row.pull_request_url ?? undefined,
       createdAt: this.toISOString(row.created_at),

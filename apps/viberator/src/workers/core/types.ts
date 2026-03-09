@@ -72,6 +72,7 @@ export interface TicketMediaPayload {
  * Shared fields across all worker payload types
  */
 export interface BaseWorkerPayload {
+  jobKind: JobKind;
   tenantId: string;
   jobId: string;
   clankerId: string;
@@ -84,13 +85,17 @@ export interface BaseWorkerPayload {
   baseBranch?: string;
   context?: {
     ticketId?: string;
+    originalTicketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    researchDocument?: string;
+    planDocument?: string;
     ticketMedia?: TicketMediaPayload[];
+    instructionFiles?: Array<{ fileType: string; content: string }>;
   };
   settings?: {
     maxChanges?: number;
@@ -175,6 +180,7 @@ export type WorkerPayload = LambdaPayload | EcsPayload | DockerPayload;
 
 export interface CodingJobData {
   id: string;
+  jobKind: JobKind;
   tenantId: string;
   repository: string;
   task: string;
@@ -182,13 +188,17 @@ export interface CodingJobData {
   baseBranch?: string;
   context?: {
     ticketId?: string;
+    originalTicketId?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
     stackTrace?: string;
     consoleErrors?: string[];
     affectedFiles?: string[];
+    researchDocument?: string;
+    planDocument?: string;
     ticketMedia?: TicketMediaPayload[];
+    instructionFiles?: Array<{ fileType: string; content: string }>;
   };
   settings?: {
     maxChanges?: number;
@@ -206,8 +216,10 @@ export interface JobResult {
   success: boolean;
   branch?: string;
   pullRequestUrl?: string;
+  documentContent?: string;
   changedFiles: string[];
   executionTime: number;
   errorMessage?: string;
   commitHash?: string;
 }
+import type { JobKind } from "@viberglass/types";

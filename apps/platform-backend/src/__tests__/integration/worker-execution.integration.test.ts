@@ -11,21 +11,16 @@
  * without requiring external infrastructure like databases or cloud services.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { JobService } from "../../services/JobService";
-import { WorkerExecutionService } from "../../workers/WorkerExecutionService";
-import { OrphanSweeper } from "../../workers/OrphanSweeper";
 import {
   getWorkerInvokerFactory,
+  OrphanSweeper,
   resetWorkerInvokerFactory,
-} from "../../workers/WorkerInvokerFactory";
-import { WorkerInvoker, WorkerType } from "../../workers/WorkerInvoker";
+  WorkerExecutionService,
+} from "../../workers";
 import type { Clanker } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
-import {
-  WorkerError,
-  ErrorClassification,
-} from "../../workers/errors/WorkerError";
 
 // Mock AWS SDK at the boundary before any imports that use them
 const mockLambdaSend = jest.fn();
@@ -92,6 +87,7 @@ describe("Worker Execution Integration Tests", () => {
 
   const createMockJob = (overrides?: Partial<JobData>): JobData => ({
     id: generateJobId(),
+    jobKind: "execution",
     tenantId: "test-tenant",
     repository: "https://github.com/test/repo",
     task: "Fix the bug",

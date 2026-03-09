@@ -12,6 +12,15 @@ export const TICKET_STATUS = {
 
 export type TicketLifecycleStatus = (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS]
 
+export const TICKET_WORKFLOW_PHASE = {
+  RESEARCH: 'research',
+  PLANNING: 'planning',
+  EXECUTION: 'execution',
+} as const
+
+export type TicketWorkflowPhase =
+  (typeof TICKET_WORKFLOW_PHASE)[keyof typeof TICKET_WORKFLOW_PHASE]
+
 export const TICKET_ARCHIVE_FILTER = {
   EXCLUDE: 'exclude',
   ONLY: 'only',
@@ -118,6 +127,7 @@ export interface Ticket {
   severity: Severity
   category: string
   status: TicketLifecycleStatus
+  workflowPhase: TicketWorkflowPhase
   archivedAt?: string
   metadata: TicketMetadata
   screenshot?: MediaAsset
@@ -129,6 +139,9 @@ export interface Ticket {
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
   pullRequestUrl?: string
+  workflowOverrideReason?: string
+  workflowOverriddenAt?: string
+  workflowOverriddenBy?: string
   createdAt: string
   updatedAt: string
 }
@@ -168,11 +181,15 @@ export interface TicketListItem {
   severity: Severity
   category: string
   status: TicketLifecycleStatus
+  workflowPhase: TicketWorkflowPhase
   archivedAt?: string
   externalTicketId?: string
   externalTicketUrl?: string
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
+  workflowOverrideReason?: string
+  workflowOverriddenAt?: string
+  workflowOverriddenBy?: string
   createdAt: string
   updatedAt: string
 }
@@ -184,6 +201,7 @@ export interface TicketListParams {
   limit?: number
   offset?: number
   statuses?: TicketLifecycleStatus[]
+  workflowPhases?: TicketWorkflowPhase[]
   archived?: TicketArchiveFilter
   severity?: Severity
   search?: string

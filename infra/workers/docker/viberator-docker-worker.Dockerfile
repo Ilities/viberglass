@@ -27,6 +27,9 @@ RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 # Install Claude Code globally
 RUN npm install -g @anthropic-ai/claude-code
 
+# Provide common CLI tools expected by agent tasks.
+RUN npm install -g typescript jest
+
 # Copy package files required for workspace dependency installation
 COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/

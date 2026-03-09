@@ -14,10 +14,29 @@ import {
 import { randomUUID } from "crypto";
 import logger from "../../config/logger";
 import { SecretService } from "../../services/SecretService";
+import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
+import { JOB_KIND, TICKET_WORKFLOW_PHASE } from "@viberglass/types";
+import {
+  isJobServiceError,
+  JOB_SERVICE_ERROR_CODE,
+} from "../../services/errors/JobServiceError";
+import { isSecretServiceError } from "../../services/errors/SecretServiceError";
 
 const router = Router();
 const jobService = new JobService();
 const secretService = new SecretService();
+const ticketPhaseDocumentService = new TicketPhaseDocumentService();
+
+function getDocumentPhaseForJobKind(jobKind: string): "research" | "planning" | null {
+  if (jobKind === JOB_KIND.RESEARCH) {
+    return TICKET_WORKFLOW_PHASE.RESEARCH;
+  }
+  if (jobKind === JOB_KIND.PLANNING) {
+    return TICKET_WORKFLOW_PHASE.PLANNING;
+  }
+
+  return null;
+}
 
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -40,6 +59,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
     const jobData: JobData = {
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: tenantId ?? "api-server",
       id: jobId,
       repository,
@@ -163,7 +183,10 @@ router.delete("/:jobId", requireAuth, async (req: Request, res: Response) => {
       jobId: req.params.jobId,
     });
 
-    if (error instanceof Error && error.message === "Job not found") {
+    if (
+      isJobServiceError(error) &&
+      error.code === JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND
+    ) {
       return res.status(404).json({ error: "Job not found" });
     }
 
@@ -218,6 +241,29 @@ router.post(
 
       // Determine status from success field
       const status = result.success ? "completed" : "failed";
+      const documentPhase = getDocumentPhaseForJobKind(job.jobKind);
+
+      if (
+        documentPhase &&
+        result.success &&
+        job.ticketId &&
+        typeof result.documentContent === "string"
+      ) {
+        await ticketPhaseDocumentService.saveDocument(
+          job.ticketId,
+          documentPhase,
+          result.documentContent,
+          { source: "agent" },
+        );
+      } else if (
+        documentPhase &&
+        result.success &&
+        !result.documentContent
+      ) {
+        return res.status(400).json({
+          error: `${job.jobKind} result missing document content`,
+        });
+      }
 
       // Update job status using existing JobService method
       await jobService.updateJobStatus(jobId, status, {
@@ -225,6 +271,7 @@ router.post(
           success: result.success,
           branch: result.branch,
           pullRequestUrl: result.pullRequestUrl,
+          documentContent: result.documentContent,
           changedFiles: result.changedFiles,
           executionTime: result.executionTime,
           errorMessage: result.errorMessage,
@@ -360,9 +407,7 @@ router.post(
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Internal server error";
-      const statusCode = errorMessage.includes("exceeds SSM size limit")
-        ? 413
-        : 500;
+      const statusCode = isSecretServiceError(error) ? error.statusCode : 500;
 
       logger.error("Failed to persist Codex auth cache", {
         error: error instanceof Error ? error.message : String(error),

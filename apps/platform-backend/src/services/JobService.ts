@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "crypto";
+import { randomBytes } from "crypto";
 import db from "../persistence/config/database";
 import { JobData, JobResult, JobStatus, JobStatusResponse } from "../types/Job";
 import { sql } from "kysely";
@@ -6,7 +6,26 @@ import { createChildLogger } from "../config/logger";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
-import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
+import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
+import {
+  JOB_SERVICE_ERROR_CODE,
+  JobServiceError,
+} from "./errors/JobServiceError";
+import {
+  JOB_KIND,
+  TICKET_STATUS,
+  type TicketLifecycleStatus,
+} from "@viberglass/types";
+import { findOrphanedJobs, findStaleJobs } from "./job/JobSweeperQueries";
+import {
+  recordProgress,
+  recordLog,
+  recordLogBatch,
+} from "./job/JobProgressService";
+import {
+  validateCallbackToken,
+  getCallbackToken,
+} from "./job/JobCallbackService";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -27,11 +46,13 @@ export class JobService {
   private feedbackService?: FeedbackService;
   private ticketDAO: TicketDAO;
   private clankerDAO: ClankerDAO;
+  private lifecycleStatusService: TicketLifecycleStatusService;
 
   constructor(feedbackService?: FeedbackService) {
     this.feedbackService = feedbackService;
     this.ticketDAO = new TicketDAO();
     this.clankerDAO = new ClankerDAO();
+    this.lifecycleStatusService = new TicketLifecycleStatusService();
   }
   async submitJob(
     data: JobData,
@@ -64,6 +85,7 @@ export class JobService {
         bootstrap_payload: data.bootstrapPayload
           ? JSON.stringify(data.bootstrapPayload)
           : null,
+        job_kind: data.jobKind,
         created_at: new Date(),
       })
       .execute();
@@ -71,16 +93,17 @@ export class JobService {
     logger.info("Job enqueued", {
       jobId,
       repository: data.repository,
+      jobKind: data.jobKind,
       tenantId: data.tenantId,
       ticketId: options?.ticketId,
       clankerId: options?.clankerId,
     });
 
-    if (options?.ticketId) {
+    if (options?.ticketId && data.jobKind === JOB_KIND.EXECUTION) {
       await this.updateTicketAutoFixStatus(options.ticketId, {
         autoFixStatus: "pending",
-        status: TICKET_STATUS.OPEN,
       });
+      await this.lifecycleStatusService.synchronize(options.ticketId);
     }
 
     return {
@@ -130,16 +153,15 @@ export class JobService {
     if (status === "active" || status === "completed" || status === "failed") {
       const job = await db
         .selectFrom("jobs")
-        .select(["id", "ticket_id", "repository", "status"])
+        .select(["id", "ticket_id", "repository", "status", "job_kind"])
         .where("id", "=", jobId)
         .executeTakeFirst();
 
-      if (job?.ticket_id) {
+      if (job?.ticket_id && job.job_kind === JOB_KIND.EXECUTION) {
         const ticketUpdate =
           status === "active"
             ? {
                 autoFixStatus: "in_progress" as const,
-                status: TICKET_STATUS.IN_PROGRESS,
               }
             : status === "completed"
               ? {
@@ -149,10 +171,12 @@ export class JobService {
                 }
               : {
                   autoFixStatus: "failed" as const,
-                  status: TICKET_STATUS.OPEN,
                 };
 
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
+        if (status !== "completed") {
+          await this.lifecycleStatusService.synchronize(job.ticket_id);
+        }
       }
 
       if (this.feedbackService && job?.ticket_id) {
@@ -216,7 +240,7 @@ export class JobService {
     ticketId: string,
     updates: {
       autoFixStatus: "pending" | "in_progress" | "completed" | "failed";
-      status: TicketLifecycleStatus;
+      status?: TicketLifecycleStatus;
       pullRequestUrl?: string;
     },
   ): Promise<void> {
@@ -260,6 +284,7 @@ export class JobService {
         "jobs.tenant_id",
         "jobs.ticket_id",
         "jobs.clanker_id",
+        "jobs.job_kind",
         "tickets.id as ticket_uuid",
         "tickets.title as ticket_title",
         "tickets.external_ticket_id as ticket_external_id",
@@ -295,6 +320,7 @@ export class JobService {
 
     return {
       jobId: job.id,
+      jobKind: job.job_kind,
       status: job.status,
       progress: job.progress,
       lastHeartbeat: job.last_heartbeat?.toISOString() || null,
@@ -315,6 +341,7 @@ export class JobService {
         })),
       data: {
         id: job.id,
+        jobKind: job.job_kind,
         tenantId: job.tenant_id,
         repository: job.repository,
         task: job.task,
@@ -405,6 +432,7 @@ export class JobService {
         "jobs.started_at",
         "jobs.finished_at",
         "jobs.ticket_id",
+        "jobs.job_kind",
         "tickets.id as ticket_id",
         "tickets.title as ticket_title",
         "tickets.external_ticket_id as ticket_external_id",
@@ -417,6 +445,7 @@ export class JobService {
     const jobsData = jobs.map((job) => {
       return {
         jobId: job.id,
+        jobKind: job.job_kind,
         status: job.status,
         repository: job.repository,
         task: job.task,
@@ -446,7 +475,10 @@ export class JobService {
       .executeTakeFirst();
 
     if (result.numDeletedRows === 0n) {
-      throw new Error("Job not found");
+      throw new JobServiceError(
+        JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND,
+        "Job not found",
+      );
     }
 
     logger.info("Job removed", { jobId });
@@ -515,6 +547,7 @@ export class JobService {
       id: job.id,
       data: {
         id: job.id,
+        jobKind: job.job_kind,
         tenantId: job.tenant_id,
         repository: job.repository,
         task: job.task,
@@ -533,62 +566,36 @@ export class JobService {
   }
 
   /**
-   * Find jobs that have been active for longer than the cutoff time
-   * Used by OrphanSweeper to detect stuck jobs
+   * Find jobs that have been active for longer than the cutoff time.
+   * Used by OrphanSweeper to detect stuck jobs.
+   * Delegates to JobSweeperQueries.findOrphanedJobs.
    */
   async findOrphanedJobs(
     cutoffTime: Date,
   ): Promise<Array<{ id: string; started_at: Date }>> {
-    const jobs = await db
-      .selectFrom("jobs")
-      .select(["id", "started_at"])
-      .where("status", "=", "active")
-      .where("started_at", "<", cutoffTime)
-      .execute();
-
-    return jobs.map((job) => ({
-      id: job.id,
-      started_at: job.started_at!,
-    }));
+    return findOrphanedJobs(cutoffTime);
   }
 
   /**
-   * Find jobs that have stopped sending heartbeats
+   * Find jobs that have stopped sending heartbeats.
    * A job is stale if:
    * - last_heartbeat is before the stale threshold, OR
    * - last_heartbeat is NULL AND started_at is before the stale threshold (never sent progress)
-   * Used by HeartbeatSweeper to detect jobs that stopped communicating
+   * Used by HeartbeatSweeper to detect jobs that stopped communicating.
+   * Delegates to JobSweeperQueries.findStaleJobs.
    */
   async findStaleJobs(
     staleThreshold: Date,
   ): Promise<
     Array<{ id: string; started_at: Date | null; last_heartbeat: Date | null }>
   > {
-    const jobs = await db
-      .selectFrom("jobs")
-      .select(["id", "started_at", "last_heartbeat"])
-      .where("status", "=", "active")
-      .where((eb) =>
-        eb.or([
-          eb("last_heartbeat", "<", staleThreshold),
-          eb.and([
-            eb("last_heartbeat", "is", null),
-            eb("started_at", "<", staleThreshold),
-          ]),
-        ]),
-      )
-      .execute();
-
-    return jobs.map((job) => ({
-      id: job.id,
-      started_at: job.started_at,
-      last_heartbeat: job.last_heartbeat,
-    }));
+    return findStaleJobs(staleThreshold);
   }
 
   /**
-   * Record a progress update for a job (also updates heartbeat)
-   * Progress updates update the jobs table and store history in job_progress_updates
+   * Record a progress update for a job (also updates heartbeat).
+   * Progress updates update the jobs table and store history in job_progress_updates.
+   * Delegates to JobProgressService.recordProgress.
    */
   async recordProgress(
     jobId: string,
@@ -598,49 +605,13 @@ export class JobService {
       details?: Record<string, unknown>;
     },
   ): Promise<void> {
-    const progressData = {
-      step: progress.step || null,
-      message: progress.message,
-      details: progress.details || null,
-    };
-
-    await db.transaction().execute(async (trx) => {
-      // Update jobs table with new progress and heartbeat timestamp
-      await trx
-        .updateTable("jobs")
-        .set({
-          progress: JSON.stringify(progressData),
-          last_heartbeat: new Date(),
-        })
-        .where("id", "=", jobId)
-        .execute();
-
-      // Insert into job_progress_updates for history
-      await trx
-        .insertInto("job_progress_updates")
-        .values({
-          id: randomUUID(),
-          job_id: jobId,
-          step: progressData.step,
-          message: progressData.message,
-          details: progressData.details
-            ? JSON.stringify(progressData.details)
-            : null,
-          created_at: new Date(),
-        })
-        .execute();
-    });
-
-    logger.debug("Job progress recorded", {
-      jobId,
-      message: progress.message,
-      step: progress.step,
-    });
+    return recordProgress(jobId, progress);
   }
 
   /**
-   * Record a log line for a job
-   * Log lines are stored in job_log_lines table for frontend display
+   * Record a log line for a job.
+   * Log lines are stored in job_log_lines table for frontend display.
+   * Delegates to JobProgressService.recordLog.
    */
   async recordLog(
     jobId: string,
@@ -650,28 +621,13 @@ export class JobService {
       source?: string;
     },
   ): Promise<void> {
-    await db
-      .insertInto("job_log_lines")
-      .values({
-        id: randomUUID(),
-        job_id: jobId,
-        level: log.level,
-        message: log.message,
-        source: log.source || null,
-        created_at: new Date(),
-      })
-      .execute();
-
-    logger.debug("Job log recorded", {
-      jobId,
-      level: log.level,
-      message: log.message,
-    });
+    return recordLog(jobId, log);
   }
 
   /**
-   * Record multiple log lines for a job in a single bulk insert
-   * This is much more efficient than individual recordLog calls
+   * Record multiple log lines for a job in a single bulk insert.
+   * This is much more efficient than individual recordLog calls.
+   * Delegates to JobProgressService.recordLogBatch.
    */
   async recordLogBatch(
     jobId: string,
@@ -681,60 +637,25 @@ export class JobService {
       source?: string;
     }>,
   ): Promise<void> {
-    if (logs.length === 0) return;
-
-    const now = new Date();
-    const values = logs.map((log) => ({
-      id: randomUUID(),
-      job_id: jobId,
-      level: log.level,
-      message: log.message,
-      source: log.source || null,
-      created_at: now,
-    }));
-
-    await db.insertInto("job_log_lines").values(values).execute();
-
-    logger.debug("Job log batch recorded", { jobId, count: logs.length });
+    return recordLogBatch(jobId, logs);
   }
 
   /**
-   * Validate a callback token for a job
-   * Used to authenticate worker callbacks (SEC-05)
+   * Validate a callback token for a job.
+   * Used to authenticate worker callbacks (SEC-05).
    * @returns true if the token is valid, false otherwise
+   * Delegates to JobCallbackService.validateCallbackToken.
    */
   async validateCallbackToken(jobId: string, token: string): Promise<boolean> {
-    if (!token || token.length === 0) {
-      return false;
-    }
-
-    const job = await db
-      .selectFrom("jobs")
-      .select(["callback_token"])
-      .where("id", "=", jobId)
-      .executeTakeFirst();
-
-    if (!job) {
-      return false;
-    }
-
-    // Use timing-safe comparison to prevent timing attacks
-    // For simplicity, we use a basic comparison here since the token
-    // is already cryptographically random and 64 chars long
-    return job.callback_token === token;
+    return validateCallbackToken(jobId, token);
   }
 
   /**
-   * Get the callback token for a job (used by invokers to pass to workers)
+   * Get the callback token for a job (used by invokers to pass to workers).
+   * Delegates to JobCallbackService.getCallbackToken.
    */
   async getCallbackToken(jobId: string): Promise<string | null> {
-    const job = await db
-      .selectFrom("jobs")
-      .select(["callback_token"])
-      .where("id", "=", jobId)
-      .executeTakeFirst();
-
-    return job?.callback_token ?? null;
+    return getCallbackToken(jobId);
   }
 
   /**

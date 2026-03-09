@@ -9,32 +9,44 @@ import * as http from "http";
 import * as dotenv from "dotenv";
 import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
+import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 
 // Load environment variables
 dotenv.config();
 
-// Initialize orphan sweeper for stuck job detection
-const orphanSweeper = new OrphanSweeper({
-  sweepIntervalMs: parseInt(
-    process.env.ORPHAN_SWEEP_INTERVAL_MS || "60000",
-    10,
-  ),
-  jobTimeoutMs: parseInt(process.env.ORPHAN_JOB_TIMEOUT_MS || "1800000", 10),
-});
+const shouldRunBackgroundSweepers =
+  process.env.DISABLE_BACKGROUND_SWEEPERS !== "true";
 
-// Initialize heartbeat sweeper for stale job detection
-const heartbeatSweeper = new HeartbeatSweeper({
-  sweepIntervalMs: parseInt(
-    process.env.HEARTBEAT_SWEEP_INTERVAL_MS || "60000",
-    10,
-  ),
-  gracePeriodMs: parseInt(
-    process.env.HEARTBEAT_GRACE_PERIOD_MS || "300000",
-    10,
-  ),
-});
+// Initialize background sweepers for job health management.
+const orphanSweeper = shouldRunBackgroundSweepers
+  ? new OrphanSweeper({
+      sweepIntervalMs: parseInt(
+        process.env.ORPHAN_SWEEP_INTERVAL_MS || "60000",
+        10,
+      ),
+      jobTimeoutMs: parseInt(
+        process.env.ORPHAN_JOB_TIMEOUT_MS || "1800000",
+        10,
+      ),
+    })
+  : null;
+
+const heartbeatSweeper = shouldRunBackgroundSweepers
+  ? new HeartbeatSweeper({
+      sweepIntervalMs: parseInt(
+        process.env.HEARTBEAT_SWEEP_INTERVAL_MS || "60000",
+        10,
+      ),
+      gracePeriodMs: parseInt(
+        process.env.HEARTBEAT_GRACE_PERIOD_MS || "300000",
+        10,
+      ),
+    })
+  : null;
+
+const clawSchedulingEngine = ClawSchedulingEngine.getInstance();
 
 // Normalize a port into a number, string, or false
 function normalizePort(val: string): number | string | false {
@@ -54,6 +66,7 @@ function normalizePort(val: string): number | string | false {
 // Get port from environment and store in Express
 const port = normalizePort(process.env.PORT || "8888");
 app.set("port", port);
+const host = process.env.HOST?.trim();
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -99,19 +112,28 @@ function onListening(): void {
 
   // Log configuration status
   logger.debug("Configuration status", {
-    database: (process.env.DATABASE_URL || process.env.DB_HOST) ? "✓" : "✗ (using defaults)",
+    database:
+      process.env.DATABASE_URL || process.env.DB_HOST
+        ? "✓"
+        : "✗ (using defaults)",
     redis: process.env.REDIS_HOST ? "✓" : "✗ (using defaults)",
     awsS3: process.env.AWS_ACCESS_KEY_ID ? "✓" : "✗ (not configured)",
     githubToken: process.env.GITHUB_TOKEN ? "✓" : "✗ (not configured)",
   });
 
   logger.info("Server ready to receive bug reports");
-  logger.info("Starting orphan sweeper for stuck job detection");
-  logger.info("Starting heartbeat sweeper for stale job detection");
+  if (shouldRunBackgroundSweepers) {
+    logger.info("Starting orphan sweeper for stuck job detection");
+    logger.info("Starting heartbeat sweeper for stale job detection");
+    orphanSweeper?.start();
+    heartbeatSweeper?.start();
+  } else {
+    logger.info("Background sweepers are disabled");
+  }
 
-  // Start orphan sweeper after server is listening
-  orphanSweeper.start();
-  heartbeatSweeper.start();
+  clawSchedulingEngine.start().catch((error) => {
+    logger.error("Failed to start claw scheduling engine", { error });
+  });
 }
 
 /**
@@ -128,29 +150,43 @@ async function startServer(): Promise<void> {
       process.exit(1);
     }
   } else {
-    logger.debug("RUN_MIGRATIONS_ON_STARTUP is not enabled, skipping migrations");
+    logger.debug(
+      "RUN_MIGRATIONS_ON_STARTUP is not enabled, skipping migrations",
+    );
   }
 
-  // Listen on provided port, on all network interfaces
-  server.listen(port);
+  if (port === false) {
+    throw new Error("Invalid port configuration");
+  }
+
+  // Listen on provided port and optional host.
+  if (typeof port === "string") {
+    server.listen(port);
+  } else if (host) {
+    server.listen(port, host);
+  } else {
+    server.listen(port);
+  }
   server.on("error", onError);
   server.on("listening", onListening);
 
   // Graceful shutdown
-  process.on("SIGTERM", () => {
+  process.on("SIGTERM", async () => {
     logger.info("SIGTERM received, shutting down gracefully");
-    orphanSweeper.stop();
-    heartbeatSweeper.stop();
+    orphanSweeper?.stop();
+    heartbeatSweeper?.stop();
+    await clawSchedulingEngine.stop();
     server.close(() => {
       logger.info("Server closed");
       process.exit(0);
     });
   });
 
-  process.on("SIGINT", () => {
+  process.on("SIGINT", async () => {
     logger.info("SIGINT received, shutting down gracefully");
-    orphanSweeper.stop();
-    heartbeatSweeper.stop();
+    orphanSweeper?.stop();
+    heartbeatSweeper?.stop();
+    await clawSchedulingEngine.stop();
     server.close(() => {
       logger.info("Server closed");
       process.exit(0);

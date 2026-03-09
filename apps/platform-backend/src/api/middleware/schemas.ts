@@ -246,6 +246,7 @@ export const resultCallbackSchema = Joi.object({
   success: Joi.boolean().required(),
   commitHash: Joi.string().allow(null, "").optional(),
   pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
+  documentContent: Joi.string().allow(null, "").optional(),
   errorMessage: Joi.string().allow(null, "").optional(),
   logs: Joi.array().items(Joi.string()).default([]),
   changedFiles: Joi.array().items(Joi.string()).default([]),
@@ -335,4 +336,62 @@ export const loginSchema = Joi.object({
 
 export const forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
+});
+
+// Claw (scheduled task) schemas
+const clawWebhookConfigSchema = Joi.object({
+  url: Joi.string().uri().required(),
+  secret: Joi.string().optional(),
+  events: Joi.array().items(
+    Joi.string().valid("started", "completed", "failed")
+  ).default(["started", "completed", "failed"]),
+});
+
+export const clawTaskTemplateSchema = Joi.object({
+  projectId: Joi.string().uuid().required(),
+  name: Joi.string().min(1).max(255).required(),
+  description: Joi.string().allow(null, "").optional(),
+  clankerId: Joi.string().uuid().required(),
+  taskInstructions: Joi.string().min(1).max(50000).required(),
+  config: Joi.object().optional().default({}),
+});
+
+export const updateClawTaskTemplateSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  clankerId: Joi.string().uuid().optional(),
+  taskInstructions: Joi.string().min(1).max(50000).optional(),
+  config: Joi.object().optional(),
+});
+
+export const clawScheduleSchema = Joi.object({
+  projectId: Joi.string().uuid().required(),
+  taskTemplateId: Joi.string().uuid().required(),
+  name: Joi.string().min(1).max(255).required(),
+  description: Joi.string().allow(null, "").optional(),
+  scheduleType: Joi.string().valid("interval", "cron").required(),
+  intervalExpression: Joi.string().when("scheduleType", {
+    is: "interval",
+    then: Joi.string().pattern(/^\d+[mhdw]$/).required(),
+    otherwise: Joi.optional(),
+  }),
+  cronExpression: Joi.string().when("scheduleType", {
+    is: "cron",
+    then: Joi.string().required(),
+    otherwise: Joi.optional(),
+  }),
+  timezone: Joi.string().default("UTC").optional(),
+  isActive: Joi.boolean().default(true).optional(),
+  webhookConfig: clawWebhookConfigSchema.optional().allow(null),
+});
+
+export const updateClawScheduleSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  scheduleType: Joi.string().valid("interval", "cron").optional(),
+  intervalExpression: Joi.string().pattern(/^\d+[mhdw]$/).optional(),
+  cronExpression: Joi.string().optional(),
+  timezone: Joi.string().optional(),
+  isActive: Joi.boolean().optional(),
+  webhookConfig: clawWebhookConfigSchema.optional().allow(null),
 });

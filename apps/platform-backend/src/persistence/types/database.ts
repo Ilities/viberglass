@@ -1,4 +1,5 @@
 import type { ColumnType } from "kysely";
+import type { TicketWorkflowPhase } from "@viberglass/types";
 import type { UserRole } from "./user";
 
 export type Generated<T> =
@@ -93,6 +94,10 @@ export interface TicketsTable {
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   ticket_status: Generated<"open" | "in_progress" | "resolved">;
+  workflow_phase: Generated<"research" | "planning" | "execution">;
+  workflow_override_reason: string | null;
+  workflow_overridden_at: Timestamp | null;
+  workflow_overridden_by: string | null;
   archived_at: Timestamp | null;
   pull_request_url: string | null;
   created_at: Generated<Timestamp>;
@@ -237,6 +242,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
+  job_kind: Generated<"research" | "planning" | "execution" | "claw">;
 }
 
 export interface JobProgressUpdatesTable {
@@ -332,6 +338,112 @@ export interface UserProjectsTable {
   updated_at: Timestamp | null;
 }
 
+export interface TicketPhaseDocumentsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  phase: "research" | "planning" | "execution";
+  content: Generated<string>;
+  storage_url: string | null;
+  approval_state: Generated<
+    "draft" | "approval_requested" | "approved" | "rejected"
+  >;
+  approved_at: Timestamp | null;
+  approved_by: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface TicketPhaseApprovalsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  phase: "research" | "planning" | "execution";
+  action: "approval_requested" | "approved" | "rejected" | "revoked";
+  actor: string | null;
+  comment: string | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface TicketPhaseRunsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  phase: TicketWorkflowPhase;
+  job_id: string;
+  clanker_id: string;
+  created_at: Generated<Timestamp>;
+}
+
+export interface TicketPhaseDocumentRevisionsTable {
+  id: Generated<string>;
+  document_id: string;
+  ticket_id: string;
+  phase: TicketWorkflowPhase;
+  content: string;
+  source: "manual" | "agent";
+  actor: string | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface TicketPhaseDocumentCommentsTable {
+  id: Generated<string>;
+  document_id: string;
+  ticket_id: string;
+  phase: "research" | "planning";
+  line_number: number;
+  content: string;
+  status: Generated<"open" | "resolved">;
+  actor: string | null;
+  resolved_at: Timestamp | null;
+  resolved_by: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ClawTaskTemplatesTable {
+  id: Generated<string>;
+  project_id: string;
+  name: string;
+  description: string | null;
+  clanker_id: string;
+  task_instructions: string;
+  config: Json;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ClawSchedulesTable {
+  id: Generated<string>;
+  project_id: string;
+  task_template_id: string;
+  name: string;
+  description: string | null;
+  schedule_type: Generated<"interval" | "cron">;
+  interval_expression: string | null;
+  cron_expression: string | null;
+  timezone: Generated<string>;
+  is_active: Generated<boolean>;
+  last_run_at: Timestamp | null;
+  next_run_at: Timestamp | null;
+  run_count: Generated<bigint>;
+  failure_count: Generated<bigint>;
+  webhook_config: Json | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+  created_by: string | null;
+}
+
+export interface ClawExecutionsTable {
+  id: Generated<string>;
+  schedule_id: string;
+  job_id: string | null;
+  status: Generated<"pending" | "running" | "completed" | "failed" | "cancelled">;
+  started_at: Timestamp | null;
+  completed_at: Timestamp | null;
+  error_message: string | null;
+  result: Json | null;
+  webhook_delivery_status: Json | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -354,4 +466,12 @@ export interface Database {
   users: UsersTable;
   user_sessions: UserSessionsTable;
   user_projects: UserProjectsTable;
+  ticket_phase_documents: TicketPhaseDocumentsTable;
+  ticket_phase_runs: TicketPhaseRunsTable;
+  ticket_phase_approvals: TicketPhaseApprovalsTable;
+  ticket_phase_document_revisions: TicketPhaseDocumentRevisionsTable;
+  ticket_phase_document_comments: TicketPhaseDocumentCommentsTable;
+  claw_task_templates: ClawTaskTemplatesTable;
+  claw_schedules: ClawSchedulesTable;
+  claw_executions: ClawExecutionsTable;
 }

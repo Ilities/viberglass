@@ -20,6 +20,10 @@ export * from './integration'
 // Clanker types
 export * from './clanker'
 export * from './clankerConfig'
+export * from './job'
+
+// Claw types (scheduled task execution)
+export * from './claw'
 
 // Worker image catalog and agent/image resolution helpers
 export * from './workerImages'

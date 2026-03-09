@@ -12,8 +12,9 @@ import type {
 } from "../InboundEventProcessorResolver";
 import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
 import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
-import type { ProjectIntegrationLinkDAO } from "../../persistence/integrations/ProjectIntegrationLinkDAO";
+import type { ProjectIntegrationLinkDAO } from "../../persistence/integrations";
 import type { JobService } from "../../services/JobService";
+import { JOB_KIND } from "@viberglass/types";
 import type {
   CreateTicketRequest,
   Severity,
@@ -24,7 +25,7 @@ import type { JobData } from "../../types/Job";
 import { randomUUID } from "crypto";
 
 interface WebhookJobContext {
-  ticketId?: string;
+  ticketId: string;
   issueNumber?: number;
   issueUrl?: string;
   triggeredBy?: string;
@@ -304,6 +305,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
 
     const jobData: JobData = {
       id: randomUUID(),
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: resolvedTenantId,
       repository: event.metadata.repositoryId || config.providerProjectId || "",
       task: `Fix Shortcut story from comment: ${payload.data.story_id}`,
@@ -349,6 +351,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
 
     const jobData: JobData = {
       id: randomUUID(),
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: resolvedTenantId,
       repository: data.project?.name || "",
       task: `Fix Shortcut story: ${data.name}`,

@@ -81,6 +81,8 @@ export interface ExecutionContext {
   consoleErrors?: string[];
   affectedFiles?: string[];
   ticketMedia?: TicketMediaContext[];
+  researchDocument?: string;
+  planDocument?: string;
 
   // Constraints
   maxChanges: number;
@@ -97,6 +99,7 @@ export interface ExecutionContext {
   // Agent and secrets configuration
   agent?: string;
   secrets?: SecretMetadata[];
+  promptOverride?: string;
 }
 
 export interface AgentExecution {

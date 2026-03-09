@@ -19,12 +19,12 @@ import type {
   Severity,
   TicketMetadata,
 } from "@viberglass/types";
-import { isObjectRecord } from "@viberglass/types";
+import { isObjectRecord, JOB_KIND } from "@viberglass/types";
 import type { JobData } from "../../types/Job";
 import { randomUUID } from "crypto";
 
 interface WebhookJobContext {
-  ticketId?: string;
+  ticketId: string;
   issueNumber?: number;
   issueUrl?: string;
   issueBody?: string;
@@ -260,6 +260,7 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
 
     const jobData: JobData = {
       id: randomUUID(),
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: resolvedProjectId,
       repository: payload.repository?.full_name || "",
       task: `Fix issue: ${payload.issue?.title}`,
@@ -388,6 +389,7 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
 
     const jobData: JobData = {
       id: randomUUID(),
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: resolvedProjectId,
       repository,
       task: `Fix issue: ${payload.issue!.title}`,

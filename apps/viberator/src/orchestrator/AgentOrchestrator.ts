@@ -1,10 +1,7 @@
 import {
   AgentConfig,
-  BugReport,
-  Ticket,
-  ProjectSettings,
-  ExecutionContext,
   AgentExecution,
+  ExecutionContext,
   ExecutionResult,
 } from "../types";
 import { Logger } from "winston";
@@ -112,7 +109,7 @@ export class AgentOrchestrator {
       }
 
       // Generate prompt for the agent
-      const prompt = this.buildAgentPrompt(context);
+      const prompt = context.promptOverride || this.buildAgentPrompt(context);
 
       // Instantiate the specific agent
       const agent = AgentFactory.createAgent(effectiveAgentConfig, this.logger);
@@ -176,6 +173,12 @@ export class AgentOrchestrator {
             })
             .join("\n")}\n`
         : "";
+    const researchSection = context.researchDocument?.trim()
+      ? `\nRESEARCH DOCUMENT:\n${context.researchDocument}\n`
+      : "";
+    const planningSection = context.planDocument?.trim()
+      ? `\nPLANNING DOCUMENT:\n${context.planDocument}\n`
+      : "";
 
     return `
 You are an expert software engineer tasked with fixing a bug.
@@ -194,6 +197,8 @@ ${context.actualBehavior}
 
 ${context.stackTrace ? `STACK TRACE:\n${context.stackTrace}` : ""}
 ${ticketMediaSection}
+${researchSection}
+${planningSection}
 
 REPOSITORY: ${context.repoUrl}
 BRANCH: ${context.branch}

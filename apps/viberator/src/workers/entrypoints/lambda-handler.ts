@@ -1,3 +1,4 @@
+import type { Context } from "aws-lambda";
 import { ViberatorWorker } from "../core/ViberatorWorker";
 import { LambdaPayload } from "../core/types";
 import { CodingJobData, JobResult } from "../core/types";
@@ -91,7 +92,14 @@ const extractPayloads = (event: unknown): LambdaPayload[] => {
   return [parsePayloadValue(event, "event")];
 };
 
-export const handler = async (event: unknown): Promise<void> => {
+export const handler = async (event: unknown, context?: Context): Promise<void> => {
+  // Tell Lambda not to wait for the event loop to drain after this handler
+  // resolves. sendResult is fully awaited before we return; remaining async
+  // operations (log-batch flushes) can be safely abandoned.
+  if (context) {
+    context.callbackWaitsForEmptyEventLoop = false;
+  }
+
   const payloads = extractPayloads(event);
 
   for (const payload of payloads) {
@@ -122,6 +130,7 @@ export const handler = async (event: unknown): Promise<void> => {
       // Convert LambdaPayload to CodingJobData for executeTask
       const jobData: CodingJobData = {
         id: payload.jobId,
+        jobKind: payload.jobKind,
         tenantId: payload.tenantId,
         repository: payload.repository,
         task: payload.task,

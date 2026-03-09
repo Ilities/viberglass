@@ -4,23 +4,23 @@ A containerized AI agent orchestrator that executes various AI coding CLI tools 
 
 ## Features
 
-- **Multi-Agent Support**: Supports 6 AI agents (Claude Code, Qwen CLI, Mistral Vibe CLI, OpenAI Codex, Kimi Code, Gemini CLI)
-- **Intelligent Agent Selection**: Automatically selects the best agent based on language, complexity, cost, and success rates
+- **Multi-Agent Support**: Supports 7 AI agents (Claude Code, Qwen CLI, Mistral Vibe, OpenCode, Kimi Code, Gemini CLI, OpenAI Codex)
 - **Flexible Configuration**: Supports environment variables and AWS Systems Manager Parameter Store
 - **Docker Ready**: Fully containerized with proper security and resource management
-- **Worker Mode**: Executes AI coding jobs from a centralized queue
+- **Worker Mode**: Executes AI coding jobs via Lambda, ECS, or Docker invokers
 - **Comprehensive Logging**: Structured logging with configurable levels and formats
 
 ## Supported AI Agents
 
-| Agent        | Capabilities                        | Cost/Execution | Avg Success Rate |
-|--------------|-------------------------------------|----------------|------------------|
-| Claude Code  | Python, JS, TS, Java, Go, Rust, C++ | $0.50          | 85%              |
-| Qwen CLI     | Python, JS, TS, Java, C++           | $0.30          | 78%              |
-| OpenAI Codex | Python, JS, TS, Java, Go, C++, C#   | $0.75          | 82%              |
-| Kimi Code    | Python, JS, TS, Java, Go, C++, Rust | $0.45          | 83%              |
-| Mistral Vibe | Python, JS, TS, Rust, Go            | $0.40          | 80%              |
-| Gemini CLI   | Python, JS, TS, Java, Kotlin, Swift | $0.35          | 77%              |
+| Agent        |                
+|--------------|
+| Claude Code  |
+| Qwen CLI     |
+| OpenCode     |
+| OpenAI Codex |
+| Kimi Code    |
+| Mistral Vibe |
+| Gemini CLI   |
 
 ## Quick Start
 
@@ -35,13 +35,19 @@ cp .env.example .env
 docker build -t viberglass-viberator .
 ```
 
-2. **Run the worker:**
+2. **Run the worker in Lambda/ECS mode:**
+```bash
+# The worker is invoked by the platform backend via AWS Lambda or ECS
+# See platform-backend documentation for deployment configuration
+```
+
+3. **Run the worker locally in Docker mode:**
 ```bash
 docker run -d \
   --name viberglass-viberator-worker \
   --env-file .env \
-  -e REDIS_HOST=your-redis-host \
-  viberglass-viberator npm run start:worker
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  viberglass-viberator
 ```
 
 ### Local Development
@@ -226,18 +232,18 @@ This will queue the job for processing by the viberator worker.
 ### Components
 
 1. **ConfigManager**: Handles environment variables and AWS SSM configuration
-2. **AgentOrchestrator**: Selects and executes appropriate AI agents
-3. **BaseAgent**: Abstract base class for all AI agent implementations
-4. **Individual Agents**: Specific implementations for each AI service
-5. **Worker Service**: Processes jobs from the Redis queue (BullMQ)
+2. **Worker Invokers**: Lambda, ECS, and Docker invokers for job execution
+3. **Job Pipeline**: Shared setup, execution, and lifecycle management
+4. **BaseAgent**: Abstract base class for all AI agent implementations
+5. **Individual Agents**: Claude Code, Qwen CLI, OpenCode, Kimi Code, Mistral Vibe, Gemini CLI, OpenAI Codex
 
 ### System Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│ Platform/Backend│────▶│  Redis Queue     │────▶│ Viberator Worker│
-│   (HTTP API)    │     │   (BullMQ)       │     │  (This Service) │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
+┌─────────────────┐     ┌────────────────────┐     ┌─────────────────┐
+│ Platform/Backend│────▶│  Worker Invoker    │────▶│ Viberator Worker│
+│   (HTTP API)    │     │ (Lambda/ECS/Docker)│     │  (This Service) │
+└─────────────────┘     └────────────────────┘     └─────────────────┘
                                                         │
                                                         ▼
                                                  ┌─────────────────┐
@@ -249,15 +255,14 @@ This will queue the job for processing by the viberator worker.
 ### Execution Flow
 
 1. **Job Submission**: HTTP API receives job request via apps/platform-backend
-2. **Queueing**: Job is added to Redis queue
-3. **Worker Processing**: Worker picks up job from queue
-4. **Configuration Loading**: Load from environment and AWS SSM
-5. **Agent Selection**: Analyze task and select best agent
-6. **Context Preparation**: Prepare execution environment and prompts
-7. **Repository Cloning**: Clone target repository to isolated workspace
-8. **Agent Execution**: Run selected AI agent CLI with prepared context
-9. **Result Processing**: Parse results, detect changed files, run tests
-10. **Cleanup**: Clean up workspace and update job status
+2. **Worker Invocation**: WorkerInvoker invokes via AWS Lambda, ECS, or local Docker
+3. **Configuration Loading**: Load from environment and AWS SSM
+4. **Agent Selection**: Select agent based on clanker configuration
+5. **Context Preparation**: Prepare execution environment and prompts
+6. **Repository Cloning**: Clone target repository to isolated workspace
+7. **Agent Execution**: Run selected AI agent CLI with prepared context
+8. **Result Processing**: Parse results, detect changed files, create PR
+9. **Callback**: Send results back to platform via HTTP callback
 
 ## Security
 
