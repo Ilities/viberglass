@@ -23,8 +23,6 @@ export interface WorkersInfrastructureConfig {
   lambdaImageUri?: string;
   /** ECR image URI for ECS worker (optional - derived from catalog if not set) */
   ecsImageUri?: string;
-  /** ECR image URI for Slack app (optional) */
-  slackAppImageUri?: string;
   /** Common tags applied to all resources */
   tags: {
     Environment: string;
@@ -50,7 +48,6 @@ export function getConfig(): WorkersInfrastructureConfig {
   const ticketMediaS3Prefix = config.get("ticketMediaS3Prefix") || "ticket-media";
   const lambdaImageUri = config.get("lambdaImageUri");
   const ecsImageUri = config.get("ecsImageUri");
-  const slackAppImageUri = config.get("slackAppImageUri");
 
   return {
     awsRegion,
@@ -62,7 +59,6 @@ export function getConfig(): WorkersInfrastructureConfig {
     ticketMediaS3Prefix,
     lambdaImageUri,
     ecsImageUri,
-    slackAppImageUri,
     tags: {
       Environment: environment,
       Project: "viberglass",
