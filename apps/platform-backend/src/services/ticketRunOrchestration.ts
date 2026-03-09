@@ -353,6 +353,7 @@ export async function submitJobWithBootstrapAndInvoke(
     ticketId,
     clankerId,
   });
+  jobData.callbackToken = submitResult.callbackToken;
 
   // Get required credentials
   const requiredCredentials =
