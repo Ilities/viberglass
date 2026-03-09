@@ -49,7 +49,6 @@ export interface JobRunnerParams {
     branch: string,
     workDir: string,
   ) => Promise<string>;
-  cleanupWorkspace: (workDir: string) => void;
 }
 
 export interface MergedSettings {
@@ -227,7 +226,7 @@ export async function withJobLifecycle(
     try {
       await callbackClient.sendResult(data.id, data.tenantId, {
         ...workerResult,
-        logs: logForwarder.getLogs(),
+        logs: [],
       });
     } catch (callbackError) {
       logger.warn(`Failed to send ${jobLabel} result to platform`, {
@@ -260,7 +259,7 @@ export async function withJobLifecycle(
         success: false,
         executionTime,
         errorMessage,
-        logs: logForwarder.getLogs(),
+        logs: [],
         changedFiles: [],
       });
     } catch (callbackError) {
