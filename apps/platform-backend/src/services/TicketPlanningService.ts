@@ -1,8 +1,5 @@
 import { randomUUID } from "crypto";
-import {
-  JOB_KIND,
-  TICKET_WORKFLOW_PHASE,
-} from "@viberglass/types";
+import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
@@ -13,15 +10,15 @@ import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { JobService } from "./JobService";
 import {
-  TicketPhaseDocumentService,
   type PhaseDocumentView,
+  TicketPhaseDocumentService,
 } from "./TicketPhaseDocumentService";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
 import { WorkerExecutionService } from "../workers";
-import type { JobData } from "../types/Job";
+import type { PlanningJobData } from "../types/Job";
 import {
-  TicketServiceError,
   TICKET_SERVICE_ERROR_CODE,
+  TicketServiceError,
 } from "./errors/TicketServiceError";
 import {
   type InlineInstructionFile,
@@ -199,17 +196,15 @@ export class TicketPlanningService {
       externalTicketId: ticket.externalTicketId,
     });
 
-    const jobData: JobData = {
+    const jobData: PlanningJobData = {
       id: jobId,
-      jobKind: JOB_KIND.PLANNING,
+      jobKind: "planning",
       tenantId: "api-server",
       repository: sourceRepository,
       task,
       baseBranch,
       context: {
         ticketId: ticket.id,
-        originalTicketId: ticket.externalTicketId || ticket.id,
-        stepsToReproduce: ticket.description,
         instructionFiles: mergedInstructionFiles,
       },
       settings: {
@@ -243,5 +238,4 @@ export class TicketPlanningService {
 
     return result;
   }
-
 }

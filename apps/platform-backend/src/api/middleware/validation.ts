@@ -27,6 +27,10 @@ import {
   updateUserRoleSchema,
   loginSchema,
   forgotPasswordSchema,
+  clawTaskTemplateSchema,
+  updateClawTaskTemplateSchema,
+  clawScheduleSchema,
+  updateClawScheduleSchema,
 } from "./schemas";
 
 const logger = createChildLogger({ middleware: "validation" });
@@ -147,6 +151,10 @@ export const validateCreateUser = createValidator(createUserSchema);
 export const validateUpdateUserRole = createValidator(updateUserRoleSchema);
 export const validateLogin = createValidator(loginSchema);
 export const validateForgotPassword = createValidator(forgotPasswordSchema);
+export const validateCreateClawTaskTemplate = createValidator(clawTaskTemplateSchema);
+export const validateUpdateClawTaskTemplate = createValidator(updateClawTaskTemplateSchema);
+export const validateCreateClawSchedule = createValidator(clawScheduleSchema);
+export const validateUpdateClawSchedule = createValidator(updateClawScheduleSchema);
 
 // Custom validators with special logic
 

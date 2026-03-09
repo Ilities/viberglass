@@ -19,6 +19,7 @@ import jobsRouter from "./routes/jobs";
 import secretsRouter from "./routes/secrets";
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
+import clawRouter from "./routes/claw";
 import { attachAuthContext } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
 import {
@@ -155,6 +156,7 @@ app.use("/api/jobs", jobsRouter);
 app.use("/api/secrets", secretsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/claw", clawRouter);
 
 app.use(notFoundHandler);
 app.use(applicationErrorHandler);

@@ -52,7 +52,59 @@ export interface JobOverrides {
   };
 }
 
-export interface JobData {
+// Base job settings (shared across all job kinds)
+export interface JobSettings {
+  maxChanges?: number;
+  testRequired?: boolean;
+  codingStandards?: string;
+  runTests?: boolean;
+  testCommand?: string;
+  maxExecutionTime?: number;
+}
+
+// Context types for each job kind
+export interface BaseJobContext {
+  instructionFiles?: InstructionFile[];
+}
+
+export interface TicketJobContext extends BaseJobContext {
+  ticketId: string;
+  originalTicketId?: string;
+  stepsToReproduce?: string;
+  expectedBehavior?: string;
+  actualBehavior?: string;
+  stackTrace?: string;
+  consoleErrors?: string[];
+  affectedFiles?: string[];
+  ticketMedia?: JobTicketMedia[];
+  researchDocument?: string;
+  planDocument?: string;
+}
+
+export interface ResearchJobContext extends BaseJobContext {
+  ticketId: string;
+  researchDocument?: string;
+}
+
+export interface PlanningJobContext extends BaseJobContext {
+  ticketId: string;
+  planDocument?: string;
+}
+
+export interface ClawJobContext extends BaseJobContext {
+  clawExecutionId: string;
+  clawScheduleId: string;
+  clawTemplateName: string;
+}
+
+export type JobContext =
+  | { jobKind: 'execution'; context: TicketJobContext }
+  | { jobKind: 'research'; context: ResearchJobContext }
+  | { jobKind: 'planning'; context: PlanningJobContext }
+  | { jobKind: 'claw'; context: ClawJobContext };
+
+// Discriminated union for JobData based on jobKind
+export interface BaseJobData {
   id: string;
   jobKind: JobKind;
   tenantId: string;
@@ -60,28 +112,7 @@ export interface JobData {
   task: string;
   branch?: string;
   baseBranch?: string;
-  context?: {
-    ticketId?: string;
-    originalTicketId?: string;
-    stepsToReproduce?: string;
-    expectedBehavior?: string;
-    actualBehavior?: string;
-    stackTrace?: string;
-    consoleErrors?: string[];
-    affectedFiles?: string[];
-    researchDocument?: string;
-    planDocument?: string;
-    instructionFiles?: InstructionFile[];
-    ticketMedia?: JobTicketMedia[];
-  };
-  settings?: {
-    maxChanges?: number;
-    testRequired?: boolean;
-    codingStandards?: string;
-    runTests?: boolean;
-    testCommand?: string;
-    maxExecutionTime?: number;
-  };
+  settings?: JobSettings;
   overrides?: JobOverrides;
   scm?: JobScmConfig | null;
   /** Optional worker bootstrap payload persisted for ref-based invocation */
@@ -92,6 +123,32 @@ export interface JobData {
   /** Callback token for authenticating worker callbacks (set after job creation) */
   callbackToken?: string;
 }
+
+export interface TicketJobData extends BaseJobData {
+  jobKind: 'execution';
+  context: TicketJobContext;
+}
+
+export interface ResearchJobData extends BaseJobData {
+  jobKind: 'research';
+  context: ResearchJobContext;
+}
+
+export interface PlanningJobData extends BaseJobData {
+  jobKind: 'planning';
+  context: PlanningJobContext;
+}
+
+export interface ClawJobData extends BaseJobData {
+  jobKind: 'claw';
+  context: ClawJobContext;
+}
+
+export type JobData =
+  | TicketJobData
+  | ResearchJobData
+  | PlanningJobData
+  | ClawJobData;
 
 export interface JobResult {
   success: boolean;
