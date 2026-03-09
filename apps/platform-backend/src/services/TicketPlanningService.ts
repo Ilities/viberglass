@@ -51,44 +51,13 @@ export interface PlanningPhaseView {
 function buildPlanningTask(input: {
   ticketTitle: string;
   ticketDescription: string;
-  projectName: string;
-  repository: string;
-  baseBranch: string;
-  researchDocument: string;
   externalTicketId?: string;
 }): string {
   const externalTicketLine = input.externalTicketId
-    ? `External Ticket ID: ${input.externalTicketId}\n`
+    ? `External Ticket ID: ${input.externalTicketId}\n\n`
     : "";
 
-  return `Create a planning document for this ticket based on the research findings.
-
-Ticket Title: ${input.ticketTitle}
-${externalTicketLine}Project: ${input.projectName}
-Repository: ${input.repository}
-Base Branch: ${input.baseBranch}
-
-Ticket Description:
-${input.ticketDescription}
-
-Research Document:
-${input.researchDocument}
-
-Requirements:
-- Read and follow repository instructions from AGENTS.md and any provided instruction files.
-- Analyze the research document to understand the problem.
-- Create a detailed implementation plan.
-- Do not create a branch, commit changes, push changes, or open a pull request.
-- Do not modify application code unless it is strictly necessary to produce PLAN.md.
-- Write your output to PLAN.md in the repository root.
-
-PLAN.md should include:
-- Summary of the Problem
-- Proposed Solution
-- Implementation Steps
-- Files to Modify
-- Testing Strategy
-- Risks and Mitigations`;
+  return `${externalTicketLine}${input.ticketTitle}\n\n${input.ticketDescription}`;
 }
 
 export class TicketPlanningService {
@@ -174,7 +143,6 @@ export class TicketPlanningService {
     );
 
     const {
-      project,
       sourceRepository,
       baseBranch,
       executionClanker,
@@ -189,10 +157,6 @@ export class TicketPlanningService {
     const task = buildPlanningTask({
       ticketTitle: ticket.title,
       ticketDescription: ticket.description,
-      projectName: project.name,
-      repository: sourceRepository,
-      baseBranch,
-      researchDocument: researchDocument.content,
       externalTicketId: ticket.externalTicketId,
     });
 
@@ -205,6 +169,7 @@ export class TicketPlanningService {
       baseBranch,
       context: {
         ticketId: ticket.id,
+        researchDocument: researchDocument.content,
         instructionFiles: mergedInstructionFiles,
       },
       settings: {

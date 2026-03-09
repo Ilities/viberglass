@@ -88,6 +88,7 @@ export interface ResearchJobContext extends BaseJobContext {
 
 export interface PlanningJobContext extends BaseJobContext {
   ticketId: string;
+  researchDocument?: string;
   planDocument?: string;
 }
 

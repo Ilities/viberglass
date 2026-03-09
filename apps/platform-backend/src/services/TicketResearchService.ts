@@ -55,38 +55,13 @@ export interface ResearchPhaseView {
 function buildResearchTask(input: {
   ticketTitle: string;
   ticketDescription: string;
-  projectName: string;
-  repository: string;
-  baseBranch: string;
   externalTicketId?: string;
 }): string {
   const externalTicketLine = input.externalTicketId
-    ? `External Ticket ID: ${input.externalTicketId}\n`
+    ? `External Ticket ID: ${input.externalTicketId}\n\n`
     : "";
 
-  return `Create a research document for this ticket.
-
-Ticket Title: ${input.ticketTitle}
-${externalTicketLine}Project: ${input.projectName}
-Repository: ${input.repository}
-Base Branch: ${input.baseBranch}
-
-Ticket Description:
-${input.ticketDescription}
-
-Requirements:
-- Read and follow repository instructions from AGENTS.md and any provided instruction files.
-- Analyze the repository and relevant code paths for this ticket.
-- Do not create a branch, commit changes, push changes, or open a pull request.
-- Do not modify application code unless it is strictly necessary to produce RESEARCH.md.
-- Write your output to RESEARCH.md in the repository root.
-
-RESEARCH.md should include:
-- Summary
-- Relevant Code Areas
-- Root Cause Analysis
-- Constraints and Risks
-- Recommended Next Steps`;
+  return `${externalTicketLine}${input.ticketTitle}\n\n${input.ticketDescription}`;
 }
 
 export class TicketResearchService {
@@ -176,7 +151,6 @@ export class TicketResearchService {
     );
 
     const {
-      project,
       sourceRepository,
       baseBranch,
       executionClanker,
@@ -186,9 +160,6 @@ export class TicketResearchService {
     const task = buildResearchTask({
       ticketTitle: ticket.title,
       ticketDescription: ticket.description,
-      projectName: project.name,
-      repository: sourceRepository,
-      baseBranch,
       externalTicketId: ticket.externalTicketId,
     });
 
