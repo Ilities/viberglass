@@ -9,6 +9,7 @@ import * as http from "http";
 import * as dotenv from "dotenv";
 import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
+import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 
@@ -44,6 +45,8 @@ const heartbeatSweeper = shouldRunBackgroundSweepers
       ),
     })
   : null;
+
+const clawSchedulingEngine = ClawSchedulingEngine.getInstance();
 
 // Normalize a port into a number, string, or false
 function normalizePort(val: string): number | string | false {
@@ -109,7 +112,10 @@ function onListening(): void {
 
   // Log configuration status
   logger.debug("Configuration status", {
-    database: (process.env.DATABASE_URL || process.env.DB_HOST) ? "✓" : "✗ (using defaults)",
+    database:
+      process.env.DATABASE_URL || process.env.DB_HOST
+        ? "✓"
+        : "✗ (using defaults)",
     redis: process.env.REDIS_HOST ? "✓" : "✗ (using defaults)",
     awsS3: process.env.AWS_ACCESS_KEY_ID ? "✓" : "✗ (not configured)",
     githubToken: process.env.GITHUB_TOKEN ? "✓" : "✗ (not configured)",
@@ -124,6 +130,10 @@ function onListening(): void {
   } else {
     logger.info("Background sweepers are disabled");
   }
+
+  clawSchedulingEngine.start().catch((error) => {
+    logger.error("Failed to start claw scheduling engine", { error });
+  });
 }
 
 /**
@@ -140,7 +150,9 @@ async function startServer(): Promise<void> {
       process.exit(1);
     }
   } else {
-    logger.debug("RUN_MIGRATIONS_ON_STARTUP is not enabled, skipping migrations");
+    logger.debug(
+      "RUN_MIGRATIONS_ON_STARTUP is not enabled, skipping migrations",
+    );
   }
 
   if (port === false) {
@@ -159,20 +171,22 @@ async function startServer(): Promise<void> {
   server.on("listening", onListening);
 
   // Graceful shutdown
-  process.on("SIGTERM", () => {
+  process.on("SIGTERM", async () => {
     logger.info("SIGTERM received, shutting down gracefully");
     orphanSweeper?.stop();
     heartbeatSweeper?.stop();
+    await clawSchedulingEngine.stop();
     server.close(() => {
       logger.info("Server closed");
       process.exit(0);
     });
   });
 
-  process.on("SIGINT", () => {
+  process.on("SIGINT", async () => {
     logger.info("SIGINT received, shutting down gracefully");
     orphanSweeper?.stop();
     heartbeatSweeper?.stop();
+    await clawSchedulingEngine.stop();
     server.close(() => {
       logger.info("Server closed");
       process.exit(0);
