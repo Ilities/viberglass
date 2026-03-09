@@ -23,7 +23,7 @@ import type { JobData } from "../../types/Job";
 import { randomUUID } from "crypto";
 
 interface WebhookJobContext {
-  ticketId?: string;
+  ticketId: string;
   issueKey?: string;
   triggeredBy?: string;
   commentBody?: string;
