@@ -101,7 +101,7 @@ export interface JobStatusClanker {
 
 export interface JobStatus {
   jobId: string
-  jobKind: 'research' | 'execution'
+  jobKind: 'research' | 'planning' | 'execution'
   status: 'queued' | 'active' | 'completed' | 'failed'
   progress: Record<string, unknown> | null
   lastHeartbeat: string | null
@@ -188,7 +188,7 @@ export interface JobListItemTicket {
 
 export interface JobListItem {
   jobId: string
-  jobKind: 'research' | 'execution'
+  jobKind: 'research' | 'planning' | 'execution'
   status: 'queued' | 'active' | 'completed' | 'failed'
   repository: string
   task: string
