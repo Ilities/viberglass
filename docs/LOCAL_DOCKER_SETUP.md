@@ -12,7 +12,7 @@ This guide walks you through setting up Viberator for local development using Do
 
 **Architecture:**
 ```
-Frontend (Next.js)     Backend (Express)     Docker Daemon
+Frontend (React)     Backend (Express)     Docker Daemon
      :                        :                      :
      |--- POST /run --------->|                      |
      |   Ticket + Clanker     |                      |

@@ -653,10 +653,9 @@ Creates backend service:
 
 Creates AWS Amplify application for SSR frontend hosting with:
 
-- Amplify App with WEB_COMPUTE platform for Next.js SSR
+- Amplify App for React
 - Main/production branch configuration
-- Build spec for Next.js with .next output directory
-- Environment variables (NEXT_PUBLIC_API_URL from backend)
+- Environment variables (VITE_API_URL from backend)
 - Auto-branch creation disabled for security
 - SSM parameters for app ID, branch name, and region
 
@@ -739,7 +738,7 @@ Frontend is deployed via AWS Amplify SSR with environment-specific deployment st
 
 - Platform: WEB_COMPUTE (SSR)
 - Build output: .next directory
-- Environment variable: NEXT_PUBLIC_API_URL (from backend ALB)
+- Environment variable: VITE_API_URL (from backend ALB)
 - Branch: `main` (all environments)
 
 #### Setting Up Production Auto-Deployment

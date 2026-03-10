@@ -16,10 +16,9 @@ This document focuses on self-hosting for teams who want full control over their
 Viberglass consists of:
 
 - **Backend API** (Node.js/Express) - Core application server
-- **Frontend** (Next.js) - Web interface
+- **Frontend** (React) - Web interface
 - **PostgreSQL** - Primary database
-- **Worker** - Background job processing (Docker-based)
-- **Optional**: Redis (for rate limiting across multiple instances)
+- **Workers** - Background job processing (Docker-based)
 
 ## Minimum Requirements
 
@@ -84,7 +83,7 @@ SMTP_PASSWORD=your-smtp-password
 ### 3. Start Services
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 This will start:
@@ -95,16 +94,15 @@ This will start:
 ### 4. Initialize Database
 
 ```bash
-docker-compose exec backend npm run migrate:latest
+docker compose exec backend npm run migrate:latest
 ```
 
 ### 5. Access the Application
 
 Open your browser to `http://localhost:3000`
 
-Default admin credentials (change immediately):
-- Email: `admin@viberglass.local`
-- Password: `changeme`
+First time setup:
+- Create an admin account. Account creation is disabled after initial setup.
 
 ## Production Deployment Options
 
@@ -143,7 +141,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./backups:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d viberglass"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -171,7 +169,7 @@ services:
     depends_on:
       - backend
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:8888
+      VITE_API_URL: http://backend:8888
     ports:
       - "3000:3000"
 
@@ -194,11 +192,10 @@ volumes:
   postgres-data:
 ```
 
-### Option 2: Kubernetes (Scalable)
+### Option 2: AWS ECS (Recommended)
 
-Best for: Large deployments, high availability requirements
+See infra folder for AWS ECS deployment IAC.
 
-See [kubernetes-deployment.md](./operations/kubernetes-deployment.md) for full guide.
 
 ### Option 3: Cloud VMs (Flexible)
 
@@ -483,7 +480,7 @@ docker-compose exec postgres pg_isready
 
 **Check CORS configuration:**
 - Ensure `ALLOWED_ORIGINS` includes frontend URL
-- Check `NEXT_PUBLIC_API_URL` points to correct backend
+- Check `VITE_API_URL` points to correct backend
 
 ### Migrations failing
 

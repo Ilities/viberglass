@@ -6,7 +6,7 @@ One-command setup for complete Viberator platform locally.
 
 - **Docker Desktop** or **Docker Engine** 20.10+
 - **docker compose** v2 (built into Docker Desktop)
-- No need to install Node.js, PostgreSQL, or Redis separately - all run in containers
+- No need to install Node.js or PostgreSQL separately - all run in containers
 
 ## Quick Start
 
@@ -14,7 +14,7 @@ One-command setup for complete Viberator platform locally.
 # Clone and navigate to repository
 cd viberator
 
-# Start all services (postgres, redis, backend, frontend)
+# Start all services (postgres, backend, frontend)
 docker compose up
 
 # Or run in detached mode (background)
@@ -25,7 +25,6 @@ Once running:
 - **Frontend:** http://localhost:3000
 - **Backend API:** http://localhost:8888
 - **PostgreSQL:** localhost:5432
-- **Redis:** localhost:6379
 
 ## First-Time Setup
 
@@ -45,16 +44,15 @@ Code changes in `apps/platform-backend` or `apps/platform-frontend` automaticall
 - Source files are mounted as volumes from your host
 - No need to rebuild images when editing code
 - Backend uses nodemon for hot-reload
-- Frontend uses Next.js built-in HMR (Fast Refresh)
+- Frontend uses Vite built-in HMR (Fast Refresh)
 
 ## Services
 
-| Service | Description | Port |
-|---------|-------------|------|
+| Service | Description            | Port |
+|---------|------------------------|------|
 | **postgres** | PostgreSQL 16 database | 5432 |
-| **redis** | Redis 7 message queue | 6379 |
-| **backend** | Express API server | 8888 |
-| **frontend** | Next.js web UI | 3000 |
+| **backend** | Express API server     | 8888 |
+| **frontend** | React web UI           | 3000 |
 
 Data persists in Docker volumes across restarts.
 
@@ -138,7 +136,7 @@ docker compose logs frontend
 
 The docker-compose configuration uses:
 
-- **Healthcheck-based service ordering:** Backend waits for postgres/redis to be healthy
+- **Healthcheck-based service ordering:** Backend waits for postgres to be healthy
 - **Anonymous node_modules volumes:** Prevents host/container architecture mismatch
 - **Cached volume mounts:** Better performance on macOS/Windows
 - **Cross-platform networking:** Uses `host.docker.internal` for container-to-host communication

@@ -1,4 +1,4 @@
-# Viberator Development Environment
+# viberglass Development Environment
 # One-command local development: docker compose up
 #
 # This compose file starts all services (postgres, redis, backend, frontend)
@@ -19,12 +19,12 @@
 #   3. Remove the ports section entirely (services still accessible within Docker network)
 
 networks:
-  viberator-dev-network:
-    name: viberator-dev-network
+  viberglass-dev-network:
+    name: viberglass-dev-network
 
 volumes:
   postgres-data:
-    name: viberator-postgres-data
+    name: viberglass-postgres-data
 
 services:
   # PostgreSQL Database
@@ -38,7 +38,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jussi"]
+      test: ["CMD-SHELL", "pg_isready -U jussi -d viberglass-platform"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -57,16 +57,21 @@ services:
       # Database
       DB_HOST: postgres
       DB_PORT: 5432
+      DB_NAME: viberglass-platform
+      DB_USER: jussi
+      DB_PASSWORD: salasana
       POSTGRES_DB: viberglass-platform
       POSTGRES_USER: jussi
       POSTGRES_PASSWORD: salasana
+      RUN_MIGRATIONS_ON_STARTUP: "true"
       # Node
       NODE_ENV: development
       PORT: 8888
       LOG_LEVEL: debug
       # Ticket media local storage (used by Docker clanker file mounts)
-      TICKET_MEDIA_DISK_ROOT: /tmp/viberator-ticket-media
-      TICKET_MEDIA_CONTAINER_ROOT: /tmp/viberator-ticket-media
+      TICKET_MEDIA_DISK_ROOT: /tmp/viberglass-ticket-media
+      TICKET_MEDIA_CONTAINER_ROOT: /tmp/viberglass-ticket-media
+      SECRETS_ENCRYPTION_KEY: 'very-berry-secret-key'
       # Hot-reload in containers (required for some Docker setups)
       CHOKIDAR_USEPOLLING: "true"
     ports:
@@ -76,7 +81,12 @@ services:
       - ./apps/platform-backend:/app/apps/platform-backend:cached
       - ./packages/types:/app/packages/types:cached
       # Persist ticket media files on host disk for Docker strategy mounts
-      - /tmp/viberator-ticket-media:/tmp/viberator-ticket-media
+      - /tmp/viberglass-ticket-media:/tmp/viberglass-ticket-media
+      # Docker socket for provisioning clanker containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Worker Dockerfiles and source needed for clanker provisioning
+      - ./infra:/app/infra:cached
+      - ./apps/viberator:/app/apps/viberator:cached
       # Preserve container's node_modules (prevents architecture mismatch)
       - /app/apps/platform-backend/node_modules
       - /app/node_modules
@@ -87,7 +97,7 @@ services:
       - viberglass-dev-network
     restart: unless-stopped
 
-  # Frontend (Next.js with HMR)
+  # Frontend (Vite + React)
   frontend:
     build:
       context: .
@@ -95,7 +105,7 @@ services:
     container_name: viberglass-dev-frontend
     environment:
       # Backend API URL (from host perspective)
-      NEXT_PUBLIC_API_URL: http://localhost:8888
+      VITE_API_URL: http://localhost:8888
       NODE_ENV: development
       # Hot-reload in containers
       CHOKIDAR_USEPOLLING: "true"
@@ -108,8 +118,6 @@ services:
       # Preserve container's node_modules
       - /app/apps/platform-frontend/node_modules
       - /app/node_modules
-      # Preserve Next.js build cache
-      - /app/apps/platform-frontend/.next
     depends_on:
       backend:
         condition: service_started

@@ -54,7 +54,7 @@ app.set("trust proxy", 1);
 // Security headers with helmet
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Allow inline scripts for Next.js
+    contentSecurityPolicy: false, // Allow inline scripts
     crossOriginEmbedderPolicy: false, // Allow embedding from same origin
   }),
 );
