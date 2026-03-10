@@ -1,4 +1,5 @@
 import Docker from "dockerode";
+import tar from "tar-fs";
 import type {
   BuildDockerImageParams,
   DockerClientPort,
@@ -15,8 +16,7 @@ export class DockerodeClientAdapter implements DockerClientPort {
   constructor(private readonly docker: Docker = new Docker({ socketPath: "/var/run/docker.sock" })) {}
 
   async buildImage(params: BuildDockerImageParams): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const tar = require("tar-fs");
+
 
     const tarStream = tar.pack(params.repoRoot, {
       ignore: (name: string) =>
@@ -33,6 +33,8 @@ export class DockerodeClientAdapter implements DockerClientPort {
     });
 
     await new Promise<void>((resolve, reject) => {
+      let buildError: string | undefined;
+
       this.docker.modem.followProgress(
         stream,
         (error: Error | null) => {
@@ -40,10 +42,17 @@ export class DockerodeClientAdapter implements DockerClientPort {
             reject(error);
             return;
           }
-
+          if (buildError) {
+            reject(new Error(`Docker build failed: ${buildError}`));
+            return;
+          }
           resolve();
         },
         (event: DockerBuildEvent) => {
+          if (event.error) {
+            buildError = event.errorDetail?.message?.trim() || event.error.trim();
+          }
+
           const line =
             event.stream?.trim() ||
             event.errorDetail?.message?.trim() ||

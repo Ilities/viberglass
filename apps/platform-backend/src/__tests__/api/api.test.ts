@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import request from "supertest";
-import logger from "../config/logger";
+import logger from "../../config/logger";
 
 let app: Express;
 
@@ -10,7 +10,7 @@ beforeAll(async () => {
   process.env.WEBHOOK_SECRET_ENCRYPTION_KEY =
     process.env.WEBHOOK_SECRET_ENCRYPTION_KEY || "test-webhook-secret";
 
-  const module = await import("../api/app");
+  const module = await import("../../api/app");
   app = module.default;
 });
 
@@ -70,24 +70,41 @@ describe("API Endpoints", () => {
 
     it("should return 404 for removed generic webhook management routes", async () => {
       await request(app).get("/api/webhooks/configs").expect(404);
-      await request(app).post("/api/webhooks/configs").send({ provider: "github" }).expect(404);
-      await request(app).put("/api/webhooks/configs/cfg-1").send({}).expect(404);
+      await request(app)
+        .post("/api/webhooks/configs")
+        .send({ provider: "github" })
+        .expect(404);
+      await request(app)
+        .put("/api/webhooks/configs/cfg-1")
+        .send({})
+        .expect(404);
       await request(app).delete("/api/webhooks/configs/cfg-1").expect(404);
       await request(app).get("/api/webhooks/deliveries").expect(404);
       await request(app).post("/api/webhooks/deliveries/d-1/retry").expect(404);
-      await request(app).post("/api/webhooks/trigger-autofix").send({}).expect(404);
+      await request(app)
+        .post("/api/webhooks/trigger-autofix")
+        .send({})
+        .expect(404);
     });
 
     it("should return 404 for removed project-scoped webhook routes", async () => {
-      await request(app).get("/api/projects/proj-1/integrations/github/webhook").expect(404);
+      await request(app)
+        .get("/api/projects/proj-1/integrations/github/webhook")
+        .expect(404);
       await request(app)
         .put("/api/projects/proj-1/integrations/github/webhook")
         .send({})
         .expect(404);
-      await request(app).delete("/api/projects/proj-1/integrations/github/webhook").expect(404);
-      await request(app).get("/api/projects/proj-1/integrations/github/deliveries").expect(404);
       await request(app)
-        .post("/api/projects/proj-1/integrations/github/deliveries/delivery-1/retry")
+        .delete("/api/projects/proj-1/integrations/github/webhook")
+        .expect(404);
+      await request(app)
+        .get("/api/projects/proj-1/integrations/github/deliveries")
+        .expect(404);
+      await request(app)
+        .post(
+          "/api/projects/proj-1/integrations/github/deliveries/delivery-1/retry",
+        )
         .send({})
         .expect(404);
     });
@@ -112,9 +129,8 @@ describe("Bug Report Integration", () => {
     logger.debug("1. Widget captures screenshot and metadata");
     logger.debug("2. POST /api/tickets with multipart form data");
     logger.debug("3. File uploaded to S3, metadata stored in PostgreSQL");
-    logger.debug("4. If autoFixRequested, job queued in Redis");
-    logger.debug("5. Webhook creates ticket in PM system");
-    logger.debug("6. Auto-fix agent processes if tags detected");
+    logger.debug("4. Webhook creates ticket in PM system");
+    logger.debug("5. Auto-fix agent processes if tags detected");
 
     expect(true).toBe(true);
   });

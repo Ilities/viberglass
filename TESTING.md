@@ -111,7 +111,7 @@ describe('MyService', () => {
 });
 ```
 
-#### Frontend (React/Next.js)
+#### Frontend (React)
 
 ```typescript
 import { render, screen } from '@testing-library/react';

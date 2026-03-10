@@ -10,7 +10,7 @@ Start all services locally with a single command:
 # Clone and navigate to repository
 cd viberglass
 
-# Start all services (postgres, redis, backend, frontend)
+# Start all services (postgres, backend, frontend)
 docker compose up
 ```
 
