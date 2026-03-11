@@ -153,7 +153,7 @@ export abstract class BaseAgent {
     // If repo directory already exists (passed in context), skip cloning
     const repoPath = path.join(workDir, "repo");
     if (fs.existsSync(repoPath)) {
-      this.logger.info("Repository already exists, skipping clone", {
+      this.logger.debug("Repository already exists, skipping clone", {
         repoPath,
       });
       return;
@@ -264,9 +264,7 @@ export abstract class BaseAgent {
     return merged;
   }
 
-  private resolveHomeDirectory(
-    candidateHome: string | undefined,
-  ): string {
+  private resolveHomeDirectory(candidateHome: string | undefined): string {
     const candidates: string[] = [];
 
     if (typeof candidateHome === "string" && candidateHome.trim().length > 0) {
