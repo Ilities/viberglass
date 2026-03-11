@@ -10,9 +10,9 @@ export async function setupServices() {
 
   // Start PostgreSQL container
   const postgres = await new PostgreSqlContainer("postgres:16-alpine")
-    .withDatabase("viberglass")
-    .withUsername("viberglass")
-    .withPassword("viberglass")
+    .withDatabase("viberator")
+    .withUsername("viberator")
+    .withPassword("viberator")
     .withExposedPorts(5432)
     .start();
 
@@ -31,21 +31,30 @@ export async function setupServices() {
 
   console.log(`LocalStack started at ${localstack.getConnectionUri()}`);
 
-  // Write .env.e2e file
+  // Write .env.e2e file using DB_* vars (backend reads these, not DATABASE_URL)
+  const dbPort = postgres.getMappedPort(5432);
+  const localstackPort = localstack.getMappedPort(4566);
+
   const envContent = `
 # E2E Test Environment
-DATABASE_URL=${postgres.getConnectionUri()}
-AWS_ENDPOINT_URL=http://localhost:${localstack.getMappedPort(4566)}
+DB_HOST=localhost
+DB_PORT=${dbPort}
+DB_NAME=viberator
+DB_USER=viberator
+DB_PASSWORD=viberator
+AWS_ENDPOINT_URL=http://localhost:${localstackPort}
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_REGION=eu-west-1
 S3_BUCKET=test-bucket
-SQS_QUEUE_URL=http://localhost:${localstack.getMappedPort(4566)}/000000000000/test-queue
+SQS_QUEUE_URL=http://localhost:${localstackPort}/000000000000/test-queue
 NODE_ENV=test
-BACKEND_PORT=3001
-`;
+AUTH_ENABLED=false
+BASE_URL=http://localhost:3000
+BACKEND_URL=http://localhost:8888
+`.trim();
 
-  writeFileSync(ENV_FILE, envContent.trim());
+  writeFileSync(ENV_FILE, envContent);
   console.log(`Environment file written to ${ENV_FILE}`);
 
   // Store container IDs for cleanup
@@ -53,8 +62,8 @@ BACKEND_PORT=3001
   const state = {
     postgresId: postgres.getId(),
     localstackId: localstack.getId(),
-    postgresPort: postgres.getMappedPort(5432),
-    localstackPort: localstack.getMappedPort(4566),
+    postgresPort: dbPort,
+    localstackPort,
   };
   writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
