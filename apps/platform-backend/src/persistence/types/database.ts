@@ -39,7 +39,7 @@ export interface ProjectsTable {
     | "shortcut"
     | "slack"
     | "custom";
-  credentials: Json;
+  credentials: Json | null;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
   auto_fix_tags: Generated<string[]>;

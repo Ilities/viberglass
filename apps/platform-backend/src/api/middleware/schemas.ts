@@ -115,8 +115,6 @@ export const projectSchema = Joi.object({
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
   customFieldMappings: Joi.object().optional(),
-  repositoryUrl: Joi.string().uri().allow(null).optional(),
-  repositoryUrls: Joi.array().items(Joi.string().uri()).optional(),
   agentInstructions: Joi.string().allow(null, "").optional(),
 });
 
@@ -131,8 +129,6 @@ export const updateProjectSchema = Joi.object({
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
   customFieldMappings: Joi.object().optional(),
-  repositoryUrl: Joi.string().uri().allow(null).optional(),
-  repositoryUrls: Joi.array().items(Joi.string().uri()).optional(),
   agentInstructions: Joi.string().allow(null, "").optional(),
 });
 
