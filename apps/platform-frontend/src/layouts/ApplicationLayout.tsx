@@ -170,7 +170,7 @@ function ApplicationLayoutContent() {
 
   useEffect(() => {
     getProjects().then(setProjects).catch(console.error)
-  }, [])
+  }, [pathname])
 
   if (status === 'loading') {
     return (

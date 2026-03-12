@@ -152,17 +152,10 @@ export async function prepareTicketRunContext(
     throw new Error("Associated project not found");
   }
 
-  const repositoryUrls =
-    project.repositoryUrls && project.repositoryUrls.length > 0
-      ? project.repositoryUrls
-      : project.repositoryUrl
-        ? [project.repositoryUrl]
-        : [];
   const scmConfig = (await deps.projectScmConfigDAO.getByProjectId(
     project.id,
   )) as ProjectScmConfigWithLegacySecret | null;
-  const sourceRepository =
-    scmConfig?.sourceRepository.trim() || repositoryUrls[0] || "";
+  const sourceRepository = scmConfig?.sourceRepository.trim() ?? "";
   const baseBranch = scmConfig?.baseBranch.trim() || "main";
   if (!sourceRepository) {
     throw new TicketServiceError(

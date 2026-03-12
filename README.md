@@ -80,6 +80,7 @@ Click the **Start** button on your configured Clanker page to configure a vibera
 Once your Clanker is running, you can configure your project to use it. Go to `/projects` and click **Create Project**. Within the project settings page, you can select the integration that you want to link to the project. This allows you to configure your SCM (e.g. GitHub) and ticket source (e.g. Jira) and link them to be used by the project with the correct values like repository URL and ticket labels.
 ![Project configuration screen](docs/images/project-config.png)
 
+
 **Step 5: Create tickets and put your viberators to work!**
 
 After you've set up your project, you can create tickets in the UI or via an integration webhook. Once you are happy with the ticket you have created, you can put your Clanker to work to step through the 'Research', 'Plan' and 'Execute' phases of the ticket lifecycle.

@@ -81,8 +81,6 @@ export interface Project {
    * Custom field mappings are now stored per-integration.
    */
   customFieldMappings: Record<string, string>
-  repositoryUrl?: string | null
-  repositoryUrls?: string[]
   scmConfig?: ProjectScmConfig | null
   agentInstructions?: string | null
   workerSettings?: ProjectWorkerSettings | null
@@ -118,8 +116,6 @@ export interface CreateProjectRequest {
    * @deprecated Use linked integrations instead.
    */
   customFieldMappings?: Record<string, string>
-  repositoryUrl?: string | null
-  repositoryUrls?: string[]
   agentInstructions?: string | null
   workerSettings?: ProjectWorkerSettings | null
 }
@@ -142,8 +138,6 @@ export interface UpdateProjectRequest {
    * @deprecated Use linked integrations instead.
    */
   customFieldMappings?: Record<string, string>
-  repositoryUrl?: string | null
-  repositoryUrls?: string[]
   agentInstructions?: string | null
   workerSettings?: ProjectWorkerSettings | null
 }
@@ -158,8 +152,6 @@ export interface ProjectSummary {
    */
   ticketSystem: TicketSystem
   autoFixEnabled: boolean
-  repositoryUrl?: string | null
-  repositoryUrls?: string[]
   agentInstructions?: string | null
   /**
    * ID of the primary ticketing integration for this project.
