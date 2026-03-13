@@ -1,12 +1,15 @@
-import { Agent, AgentAction, AgentMessage, AgentObservation, AgentThinking } from '@/components/ai-elements/agent'
-import { Subheading } from '@/components/heading'
+import { Agent } from '@/components/ai-elements/agent'
+import { buildLogTimeline } from '@/components/agent-log-model'
+import { type EntryCallbacks, renderEntry } from '@/components/log-viewer-entry-renderer'
 import {
-  type CommandExecutionTimelineEvent,
-  type TimelineEvent,
-  buildLogTimeline,
-} from '@/components/agent-log-model'
+  type DisplayEntry,
+  buildDisplayEntries,
+  getEntrySourceLabel,
+  getUniqueAgentLabels,
+} from '@/components/log-viewer-utils'
 import type { LogEntry } from '@/service/api/job-api'
-import { LayersIcon } from '@radix-ui/react-icons'
+import { LayersIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 export interface LogViewerProps {
@@ -14,467 +17,255 @@ export interface LogViewerProps {
   isConnected?: boolean
 }
 
-const COMMAND_OUTPUT_PREVIEW_LIMIT = 420
-const RAW_OUTPUT_PREVIEW_LIMIT = 300
-const COMMAND_BATCH_MIN_SIZE = 2
-const COMMAND_BATCH_MAX_GAP_MS = 120_000
-
-type DisplayEntry = { kind: 'event'; event: TimelineEvent } | CommandBatchDisplayEntry
-
-interface CommandBatchDisplayEntry {
-  kind: 'command_batch'
-  id: string
-  sourceLabel: string
-  createdAt: string
-  completedAt: string
-  events: CommandExecutionTimelineEvent[]
+type FilterKind = 'all' | 'commands' | 'messages' | 'reasoning' | 'files' | 'errors'
+const KIND_LABELS: Record<FilterKind, string> = {
+  all: 'All',
+  commands: 'Commands',
+  messages: 'Messages',
+  reasoning: 'Reasoning',
+  files: 'Files',
+  errors: 'Errors',
 }
 
-/**
- * Format timestamp to HH:MM:SS
- */
-function formatTime(isoString: string): string {
-  const date = new Date(isoString)
-  return date.toLocaleTimeString(undefined, {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
+function applyFilters(
+  entries: DisplayEntry[],
+  filterKind: FilterKind,
+  filterAgent: string,
+  filterText: string,
+): DisplayEntry[] {
+  let result = entries
 
-function getToolState(event: CommandExecutionTimelineEvent): 'input-streaming' | 'output-available' | 'output-error' {
-  if (event.state === 'running') {
-    return 'input-streaming'
-  }
-  if (event.state === 'failed') {
-    return 'output-error'
-  }
-  return 'output-available'
-}
-
-function clipText(value: string, limit: number): string {
-  if (value.length <= limit) return value
-  return `${value.slice(0, limit)}\n...`
-}
-
-function oneLine(value: string, limit = 150): string {
-  const normalized = value.replace(/\s+/g, ' ').trim()
-  if (normalized.length <= limit) return normalized
-  return `${normalized.slice(0, limit)}...`
-}
-
-function timestampMs(value: string): number {
-  const parsed = new Date(value).getTime()
-  return Number.isNaN(parsed) ? 0 : parsed
-}
-
-function buildDisplayEntries(timeline: TimelineEvent[]): DisplayEntry[] {
-  const entries: DisplayEntry[] = []
-  let index = 0
-
-  while (index < timeline.length) {
-    const current = timeline[index]
-    if (current.kind !== 'command_execution' || current.state !== 'completed') {
-      entries.push({ kind: 'event', event: current })
-      index += 1
-      continue
-    }
-
-    const batch: CommandExecutionTimelineEvent[] = [current]
-    let cursor = index + 1
-
-    while (cursor < timeline.length) {
-      const candidate = timeline[cursor]
-      if (candidate.kind !== 'command_execution') break
-      if (candidate.state !== 'completed') break
-      if (candidate.sourceLabel !== current.sourceLabel) break
-
-      const gapMs = timestampMs(candidate.createdAt) - timestampMs(batch[batch.length - 1].createdAt)
-      if (gapMs > COMMAND_BATCH_MAX_GAP_MS) break
-
-      batch.push(candidate)
-      cursor += 1
-    }
-
-    if (batch.length >= COMMAND_BATCH_MIN_SIZE) {
-      const last = batch[batch.length - 1]
-      entries.push({
-        kind: 'command_batch',
-        id: `batch-${current.id}`,
-        sourceLabel: current.sourceLabel,
-        createdAt: current.createdAt,
-        completedAt: last.completedAt ?? last.createdAt,
-        events: batch,
-      })
-      index = cursor
-      continue
-    }
-
-    entries.push({ kind: 'event', event: current })
-    index += 1
+  if (filterKind !== 'all') {
+    result = result.filter((entry) => {
+      if (entry.kind === 'command_batch') return filterKind === 'commands'
+      const { kind } = entry.event
+      if (kind === 'command_execution')
+        return filterKind === 'commands' || (filterKind === 'errors' && entry.event.state === 'failed')
+      if (kind === 'agent_message') return filterKind === 'messages'
+      if (kind === 'reasoning') return filterKind === 'reasoning'
+      if (kind === 'file_change') return filterKind === 'files'
+      if (kind === 'raw') return filterKind === 'errors' && entry.event.level === 'error'
+      return false
+    })
   }
 
-  return entries
+  if (filterAgent) {
+    result = result.filter((entry) => getEntrySourceLabel(entry) === filterAgent)
+  }
+
+  if (filterText) {
+    const lower = filterText.toLowerCase()
+    result = result.filter((entry) => {
+      if (entry.kind === 'command_batch')
+        return entry.events.some(
+          (e) => e.command.toLowerCase().includes(lower) || e.output.toLowerCase().includes(lower),
+        )
+      const { event } = entry
+      if (event.kind === 'command_execution')
+        return event.command.toLowerCase().includes(lower) || event.output.toLowerCase().includes(lower)
+      if (event.kind === 'agent_message' || event.kind === 'reasoning' || event.kind === 'raw')
+        return event.text.toLowerCase().includes(lower)
+      return false
+    })
+  }
+
+  return result
 }
 
-/**
- * AI Elements-based job log viewer.
- */
 export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
   const timeline = useMemo(() => buildLogTimeline(logs), [logs])
   const displayEntries = useMemo(() => buildDisplayEntries(timeline), [timeline])
-  const [expandedCommands, setExpandedCommands] = useState<Set<string>>(new Set())
-  const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set())
-  const [expandedRawOutput, setExpandedRawOutput] = useState<Set<string>>(new Set())
+  const [expandedCmds, setExpandedCmds] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [rawExpanded, setRawExpanded] = useState<Set<string>>(new Set())
   const [isFollowingOutput, setIsFollowingOutput] = useState(true)
-  const timelineRef = useRef<HTMLDivElement | null>(null)
+  const [filterText, setFilterText] = useState('')
+  const [filterKind, setFilterKind] = useState<FilterKind>('all')
+  const [filterAgent, setFilterAgent] = useState('')
+  const parentRef = useRef<HTMLDivElement | null>(null)
 
-  const commandCount = timeline.filter((entry) => entry.kind === 'command_execution').length
-  const failedCount = timeline.filter(
-    (entry) => (entry.kind === 'command_execution' && entry.state === 'failed') || entry.level === 'error',
-  ).length
+  const filteredEntries = useMemo(
+    () => applyFilters(displayEntries, filterKind, filterAgent, filterText),
+    [displayEntries, filterKind, filterAgent, filterText],
+  )
+  const agentOptions = useMemo(() => getUniqueAgentLabels(displayEntries), [displayEntries])
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredEntries.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 72,
+    measureElement: (el) => el?.getBoundingClientRect().height ?? 72,
+    overscan: 5,
+    // Fallback height keeps tests working in jsdom where container has 0 height
+    initialRect: { width: 0, height: 800 },
+  })
 
   useEffect(() => {
-    if (!isFollowingOutput) {
-      return
-    }
-    const container = timelineRef.current
-    if (!container) {
-      return
-    }
-    container.scrollTop = container.scrollHeight
-  }, [timeline, isFollowingOutput])
+    if (!isFollowingOutput) return
+    const c = parentRef.current
+    if (!c) return
+    c.scrollTop = c.scrollHeight
+  }, [filteredEntries, isFollowingOutput])
 
-  function handleTimelineScroll() {
-    const container = timelineRef.current
-    if (!container) return
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
-    setIsFollowingOutput(distanceFromBottom < 48)
+  function handleScroll() {
+    const c = parentRef.current
+    if (!c) return
+    setIsFollowingOutput(c.scrollHeight - c.scrollTop - c.clientHeight < 48)
   }
 
-  function toggleCommand(commandId: string) {
-    setExpandedCommands((previous) => {
-      const next = new Set(previous)
-      if (next.has(commandId)) {
-        next.delete(commandId)
-      } else {
-        next.add(commandId)
-      }
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  function toggleRaw(id: string) {
+    setRawExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  function toggleCmd(id: string) {
+    setExpandedCmds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
 
-  function toggleEntry(entryId: string) {
-    setExpandedEntries((previous) => {
-      const next = new Set(previous)
-      if (next.has(entryId)) {
-        next.delete(entryId)
-      } else {
-        next.add(entryId)
-      }
-      return next
-    })
-  }
+  const ctx: EntryCallbacks = { expanded, rawExpanded, expandedCmds, toggle, toggleRaw, toggleCmd }
 
-  function toggleRawOutput(entryId: string) {
-    setExpandedRawOutput((previous) => {
-      const next = new Set(previous)
-      if (next.has(entryId)) {
-        next.delete(entryId)
-      } else {
-        next.add(entryId)
-      }
-      return next
-    })
-  }
+  const commandCount = timeline.filter((e) => e.kind === 'command_execution').length
+  const failedCount = timeline.filter(
+    (e) => (e.kind === 'command_execution' && e.state === 'failed') || e.level === 'error',
+  ).length
 
-  function jumpToLatest() {
-    const container = timelineRef.current
-    if (!container) return
-    container.scrollTop = container.scrollHeight
-    setIsFollowingOutput(true)
-  }
+  const virtualItems = rowVirtualizer.getVirtualItems()
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <Subheading className="flex items-center gap-2">
-          <LayersIcon className="h-5 w-5 text-[var(--accent-9)]" />
+    <div className="flex h-full flex-col gap-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--gray-12)]">
+          <LayersIcon className="h-4 w-4 text-[var(--accent-9)]" />
           Execution Logs
-        </Subheading>
+        </div>
         <div className="flex items-center gap-3 text-xs text-[var(--gray-10)]">
           <span>{timeline.length} events</span>
           <span>{commandCount} commands</span>
           {failedCount > 0 && <span className="font-medium text-red-600">{failedCount} failed</span>}
           {isConnected && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
               </span>
               <span className="font-medium text-green-600">Live</span>
             </div>
           )}
-          {!isFollowingOutput && (
-            <button
-              type="button"
-              onClick={jumpToLatest}
-              className="sticky bottom-3 self-center rounded-full border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-1 text-xs font-medium text-[var(--gray-11)] shadow-sm transition hover:bg-[var(--gray-3)]"
-            >
-              Follow output
-            </button>
-          )}
         </div>
       </div>
 
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-32 flex-1">
+          <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--gray-9)]" />
+          <input
+            type="search"
+            placeholder="Filter logs…"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            className="w-full rounded border border-[var(--gray-6)] bg-[var(--gray-1)] py-1 pl-6 pr-2 text-xs text-[var(--gray-12)] outline-none placeholder:text-[var(--gray-9)] focus:border-[var(--accent-8)]"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          {(Object.keys(KIND_LABELS) as FilterKind[]).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => setFilterKind(kind)}
+              className={`rounded px-2 py-1 font-mono text-[10px] font-medium transition ${
+                filterKind === kind
+                  ? 'bg-[var(--accent-9)] text-white'
+                  : 'border border-[var(--gray-6)] text-[var(--gray-11)] hover:bg-[var(--gray-3)]'
+              }`}
+            >
+              {KIND_LABELS[kind]}
+            </button>
+          ))}
+        </div>
+        {agentOptions.length > 1 && (
+          <select
+            value={filterAgent}
+            onChange={(e) => setFilterAgent(e.target.value)}
+            className="rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-2 py-1 text-xs text-[var(--gray-12)] outline-none focus:border-[var(--accent-8)]"
+          >
+            <option value="">All agents</option>
+            {agentOptions.map((label) => (
+              <option key={label} value={label}>
+                {label.replace(/^agent:/, '')}
+              </option>
+            ))}
+          </select>
+        )}
+        {!isFollowingOutput && (
+          <button
+            type="button"
+            onClick={() => {
+              const c = parentRef.current
+              if (c) c.scrollTop = c.scrollHeight
+              setIsFollowingOutput(true)
+            }}
+            className="rounded-full border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-1 text-xs font-medium text-[var(--gray-11)] shadow-sm transition hover:bg-[var(--gray-3)]"
+          >
+            Follow output
+          </button>
+        )}
+      </div>
+
+      {/* Log list */}
       {!logs || logs.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center p-8 text-center">
+        <div className="flex flex-1 items-center justify-center p-8 text-center">
           <div className="text-[var(--gray-9)]">
-            <LayersIcon className="h-10 w-10 mx-auto mb-3 text-[var(--gray-6)]" />
+            <LayersIcon className="mx-auto mb-3 h-10 w-10 text-[var(--gray-6)]" />
             <p className="text-sm">No logs available</p>
-            <p className="text-xs mt-1 text-[var(--gray-8)]">Logs will appear here once the job starts</p>
+            <p className="mt-1 text-xs text-[var(--gray-8)]">Logs will appear here once the job starts</p>
           </div>
         </div>
       ) : (
         <div className="flex-1 overflow-hidden rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] dark:bg-[var(--gray-3)]">
-          <div ref={timelineRef} onScroll={handleTimelineScroll} className="h-full overflow-auto p-3">
-            <Agent>
-              {displayEntries.map((entry) => {
-                if (entry.kind === 'command_batch') {
-                  const detailsId = `batch:${entry.id}`
-                  const outputId = `batch-output:${entry.id}`
-                  const isExpanded = expandedEntries.has(detailsId)
-                  const isOutputExpanded = expandedRawOutput.has(outputId)
-                  const combinedOutput = entry.events
-                    .map((commandEvent) => {
-                      const output = commandEvent.output || '(no output)'
-                      return `$ ${commandEvent.command}\n${output}`
-                    })
-                    .join('\n\n')
-
-                  return (
-                    <AgentAction
-                      key={entry.id}
-                      state="output-available"
-                      title={`${entry.sourceLabel} · ${formatTime(entry.createdAt)}-${formatTime(entry.completedAt)} · ${entry.events.length} tool calls`}
-                    >
-                      <div className="font-mono text-[11px] text-[var(--gray-11)]">
-                        {entry.events
-                          .slice(0, 3)
-                          .map((commandEvent) => oneLine(commandEvent.command, 120))
-                          .join('\n')}
-                        {entry.events.length > 3 ? `\n+ ${entry.events.length - 3} more` : ''}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleEntry(detailsId)}
-                        className="self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                      >
-                        {isExpanded ? 'Hide tool batch details' : 'Show tool batch details'}
-                      </button>
-                      {isExpanded && (
-                        <>
-                          <pre className="overflow-x-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-2 py-1.5 font-mono text-[11px] leading-relaxed text-[var(--gray-12)]">
-                            {entry.events
-                              .map((commandEvent, commandIndex) => `${commandIndex + 1}. ${commandEvent.command}`)
-                              .join('\n')}
-                          </pre>
-                          <pre className="max-h-80 overflow-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-[var(--gray-12)]">
-                            {clipText(
-                              combinedOutput,
-                              isOutputExpanded ? Number.MAX_SAFE_INTEGER : COMMAND_OUTPUT_PREVIEW_LIMIT * 3,
-                            )}
-                          </pre>
-                          {combinedOutput.length > COMMAND_OUTPUT_PREVIEW_LIMIT * 3 && (
-                            <button
-                              type="button"
-                              onClick={() => toggleRawOutput(outputId)}
-                              className="self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                            >
-                              {isOutputExpanded ? 'Collapse grouped output' : 'Expand grouped output'}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </AgentAction>
-                  )
-                }
-
-                const event = entry.event
-
-                if (event.kind === 'agent_message') {
-                  const entryId = `message:${event.id}`
-                  const isExpanded = expandedEntries.has(entryId)
-                  const summary = oneLine(event.text, 220)
-
-                  return (
-                    <AgentMessage key={event.id}>
-                      <div className="mb-1 font-mono text-[10px] text-[var(--gray-9)]">
-                        {event.sourceLabel} · {formatTime(event.createdAt)}
-                      </div>
-                      <p className="whitespace-pre-wrap break-words leading-relaxed">{isExpanded ? event.text : summary}</p>
-                      {event.text.length > 220 && (
-                        <button
-                          type="button"
-                          onClick={() => toggleEntry(entryId)}
-                          className="mt-2 self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                        >
-                          {isExpanded ? 'Collapse message' : 'Expand message'}
-                        </button>
-                      )}
-                    </AgentMessage>
-                  )
-                }
-
-                if (event.kind === 'reasoning') {
-                  return (
-                    <AgentThinking
-                      key={event.id}
-                      title={`Reasoning · ${event.sourceLabel} · ${formatTime(event.createdAt)}`}
-                    >
-                      {event.text}
-                    </AgentThinking>
-                  )
-                }
-
-                if (event.kind === 'command_execution') {
-                  const toolState = getToolState(event)
-                  const detailsId = `command:${event.commandId}`
-                  const isDetailsExpanded = expandedEntries.has(detailsId)
-                  const shouldExpand = expandedCommands.has(event.commandId)
-                  const outputText = event.output || (event.state === 'running' ? 'Waiting for command output...' : '')
-                  const outputLineCount = outputText.length > 0 ? outputText.split('\n').length : 0
-                  const clipped =
-                    outputText.length > COMMAND_OUTPUT_PREVIEW_LIMIT && !shouldExpand
-                      ? clipText(outputText, COMMAND_OUTPUT_PREVIEW_LIMIT)
-                      : outputText
-
-                  return (
-                    <AgentAction
-                      key={event.id}
-                      state={toolState}
-                      title={`${event.sourceLabel} · ${formatTime(event.createdAt)} · ${
-                        event.exitCode !== null ? `exit ${event.exitCode}` : event.state
-                      }`}
-                    >
-                      <p className="font-mono text-[11px] text-[var(--gray-11)]">{oneLine(event.command, 180)}</p>
-                      <p className="font-mono text-[10px] text-[var(--gray-9)]">
-                        {outputLineCount > 0 ? `${outputLineCount} output lines` : 'No output'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => toggleEntry(detailsId)}
-                        className="self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                      >
-                        {isDetailsExpanded ? 'Hide command details' : 'Show command details'}
-                      </button>
-                      {isDetailsExpanded && (
-                        <>
-                          <pre className="overflow-x-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-2 py-1.5 font-mono text-[11px] leading-relaxed text-[var(--gray-12)]">
-                            {event.command}
-                          </pre>
-                          <pre className="max-h-80 overflow-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-[var(--gray-12)]">
-                            {clipped || '(no output)'}
-                          </pre>
-                        </>
-                      )}
-                      {outputText.length > COMMAND_OUTPUT_PREVIEW_LIMIT && isDetailsExpanded && (
-                        <button
-                          type="button"
-                          onClick={() => toggleCommand(event.commandId)}
-                          className="self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                        >
-                          {shouldExpand ? 'Collapse command output' : 'Expand command output'}
-                        </button>
-                      )}
-                    </AgentAction>
-                  )
-                }
-
-                if (event.kind === 'file_change') {
-                  const entryId = `file-change:${event.id}`
-                  const isExpanded = expandedEntries.has(entryId)
-
-                  return (
-                    <AgentObservation
-                      key={event.id}
-                      title={`${event.sourceLabel} · file changes · ${formatTime(event.createdAt)}`}
-                    >
-                      <p className="font-mono text-[11px] text-[var(--gray-11)]">
-                        {event.changes.length} files changed
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => toggleEntry(entryId)}
-                        className="mt-2 self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                      >
-                        {isExpanded ? 'Hide file list' : 'Show file list'}
-                      </button>
-                      {isExpanded && (
-                        <pre className="mt-2 overflow-x-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-2 py-1.5 font-mono text-[11px] leading-relaxed text-[var(--gray-12)]">
-                          {event.changes.length > 0
-                            ? event.changes.map((change) => `${change.kind.toUpperCase()} ${change.path}`).join('\n')
-                            : 'No file change details provided'}
-                        </pre>
-                      )}
-                    </AgentObservation>
-                  )
-                }
-
-                if (event.kind === 'raw') {
-                  const entryId = `raw:${event.id}`
-                  const outputId = `raw-output:${event.id}`
-                  const isExpanded = expandedEntries.has(entryId)
-                  const isOutputExpanded = expandedRawOutput.has(outputId)
-                  const preview = oneLine(event.text, 220)
-                  const displayText = clipText(
-                    event.text,
-                    isOutputExpanded ? Number.MAX_SAFE_INTEGER : RAW_OUTPUT_PREVIEW_LIMIT,
-                  )
-                  const hasDetailToggle = displayText !== preview
-
-                  return (
-                    <AgentObservation
-                      key={event.id}
-                      state={event.level === 'error' ? 'output-error' : 'output-available'}
-                      title={`${event.sourceLabel} · ${event.level.toUpperCase()} · ${formatTime(event.createdAt)}`}
-                    >
-                      <p className="font-mono text-[11px] text-[var(--gray-11)]">
-                        {isExpanded ? event.text.slice(0, 180).replace(/\s+/g, ' ') : preview}
-                      </p>
-                      {hasDetailToggle && (
-                        <button
-                          type="button"
-                          onClick={() => toggleEntry(entryId)}
-                          className="mt-2 self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                        >
-                          {isExpanded ? 'Hide log details' : 'Show log details'}
-                        </button>
-                      )}
-                      {isExpanded && (
-                        <>
-                          <pre className="mt-2 max-h-80 overflow-auto rounded border border-[var(--gray-6)] bg-[var(--gray-1)] px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-[var(--gray-12)]">
-                            {displayText}
-                          </pre>
-                          {event.text.length > RAW_OUTPUT_PREVIEW_LIMIT && (
-                            <button
-                              type="button"
-                              onClick={() => toggleRawOutput(outputId)}
-                              className="self-start rounded border border-[var(--gray-6)] px-2 py-1 font-mono text-[10px] font-medium text-[var(--gray-11)] transition hover:bg-[var(--gray-3)]"
-                            >
-                              {isOutputExpanded ? 'Collapse raw output' : 'Expand raw output'}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </AgentObservation>
-                  )
-                }
-
-                return null
-              })}
-            </Agent>
+          <div ref={parentRef} onScroll={handleScroll} className="h-full overflow-auto px-3 pt-3">
+            {virtualItems.length > 0 ? (
+              /* Virtual scroll path: absolutely positioned items inside a sized container */
+              <Agent style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
+                {virtualItems.map((virtualItem) => (
+                  <div
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    ref={rowVirtualizer.measureElement}
+                    style={{ position: 'absolute', top: virtualItem.start, left: 0, right: 0 }}
+                    className="pb-2"
+                  >
+                    {renderEntry(filteredEntries[virtualItem.index], ctx)}
+                  </div>
+                ))}
+              </Agent>
+            ) : (
+              /* Fallback path: all items in normal flow (0-height container / test env) */
+              <Agent>
+                {filteredEntries.map((entry, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: stable index in non-virtual fallback
+                  <div key={i} className="pb-2">
+                    {renderEntry(entry, ctx)}
+                  </div>
+                ))}
+              </Agent>
+            )}
           </div>
         </div>
       )}

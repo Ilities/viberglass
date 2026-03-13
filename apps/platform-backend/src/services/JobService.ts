@@ -309,13 +309,13 @@ export class JobService {
       .orderBy("created_at", "desc")
       .execute();
 
-    // Fetch log lines (most recent first, limited to 100)
+    // Fetch log lines (most recent first, limited to 500)
     const logs = await db
       .selectFrom("job_log_lines")
       .selectAll()
       .where("job_id", "=", jobId)
       .orderBy("created_at", "desc")
-      .limit(100)
+      .limit(500)
       .execute();
 
     return {
