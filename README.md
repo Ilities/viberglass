@@ -58,13 +58,13 @@ Viberglass manages your secrets for you either encrypted in the database or in A
 
 For the first run, you want to set up at least your GitHub token (GITHUB_TOKEN) and an API key for your favourite agent harness (suggested values in the UI)..
 
-![Setting up a secret](docs/images/secret-creation.png)
+<img src="docs/images/secret-creation.png" width="600" />
 
 **Step 2: Create your Clanker configuration**
 
 To execute tickets, you need at least one Clanker. Clankers are configured and managed entirely through the UI at `/clankers`: pick the compute type, set credentials, and click **Start**. The platform handles provisioning the container, ECS task definition, or Lambda function, then launches a viberator from that configuration.
 
-![Clanker configuration screen](docs/images/clanker-config.png)
+<img src="docs/images/clanker-config.png" width="600" />
 
 The simplest local setup uses Docker. AWS Lambda and ECS Clankers are for production use and work better once the whole app is deployed.
 
@@ -73,19 +73,19 @@ The simplest local setup uses Docker. AWS Lambda and ECS Clankers are for produc
 
 Via the UI:
 Click the **Start** button on your configured Clanker page to configure a viberator image ready to be used. Depending on the compute type, the platform will either build a Docker image, create an ECS task definition, or a Lambda function. For more information on how to build your own Clanker images, see Worker Images section below.
-![Button to start a clanker](docs/images/start-clanker.png)
+<img src="docs/images/start-clanker.png" width="600" />
 
 **Step 4: Configure your project**
 
 Once your Clanker is running, you can configure your project to use it. Go to `/projects` and click **Create Project**. Within the project settings page, you can select the integration that you want to link to the project. This allows you to configure your SCM (e.g. GitHub) and ticket source (e.g. Jira) and link them to be used by the project with the correct values like repository URL and ticket labels.
-![Project configuration screen](docs/images/project-config.png)
+<img src="docs/images/project-config.png" width="600" />
 
 
 **Step 5: Create tickets and put your viberators to work!**
 
 After you've set up your project, you can create tickets in the UI or via an integration webhook. Once you are happy with the ticket you have created, you can put your Clanker to work to step through the 'Research', 'Plan' and 'Execute' phases of the ticket lifecycle.
 
-![Ticket details screen](docs/images/ticket-page.png)
+<img src="docs/images/ticket-page.png" width="600" />
 
 ---
 
