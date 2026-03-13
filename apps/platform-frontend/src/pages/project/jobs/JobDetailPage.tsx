@@ -101,10 +101,18 @@ function formatJobId(jobId: string): string {
   return `${jobId.slice(0, 8)}...${jobId.slice(-6)}`
 }
 
-function formatJobKind(kind: 'research' | 'planning' | 'execution'): string {
+function formatJobKind(kind: 'research' | 'planning' | 'execution' | 'claw'): string {
   if (kind === 'research') return 'Research'
   if (kind === 'planning') return 'Planning'
+  if (kind === 'claw') return 'Scheduled'
   return 'Execution'
+}
+
+function jobKindBadgeColor(kind: 'research' | 'planning' | 'execution' | 'claw') {
+  if (kind === 'research') return 'blue' as const
+  if (kind === 'planning') return 'teal' as const
+  if (kind === 'claw') return 'amber' as const
+  return 'violet' as const
 }
 
 function readString(value: unknown): string | null {
@@ -203,7 +211,7 @@ export function JobDetailPage() {
                 <Heading className="text-2xl">Job {formatJobId(job.jobId)}</Heading>
                 <div className="mt-1.5 flex items-center gap-3">
                   <JobStatusIndicator status={job.status} isPolling={isPolling} />
-                  <Badge color={job.jobKind === 'research' ? 'blue' : job.jobKind === 'planning' ? 'teal' : 'violet'}>
+                  <Badge color={jobKindBadgeColor(job.jobKind)}>
                     {formatJobKind(job.jobKind)}
                   </Badge>
                   {job.ticket?.title && (
@@ -216,6 +224,14 @@ export function JobDetailPage() {
                       >
                         {job.ticket.title}
                       </Button>
+                    </span>
+                  )}
+                  {job.jobKind === 'claw' && job.data.context?.clawTemplateName && (
+                    <span className="text-sm text-[var(--gray-9)]">
+                      Schedule:{' '}
+                      <span className="font-medium text-[var(--gray-11)]">
+                        {job.data.context.clawTemplateName}
+                      </span>
                     </span>
                   )}
                 </div>

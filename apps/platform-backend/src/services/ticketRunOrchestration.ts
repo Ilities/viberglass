@@ -50,6 +50,7 @@ export interface PrepareTicketRunContextInput {
   clankerId: string;
   jobId: string;
   instructionFiles?: Array<Partial<InlineInstructionFile>>;
+  additionalSecretIds?: string[];
 }
 
 export interface PreparedTicketRunContext {
@@ -212,6 +213,7 @@ export async function prepareTicketRunContext(
       new Set([
         ...(clanker.secretIds || []),
         ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
+        ...(input.additionalSecretIds ?? []),
       ]),
     ),
   };
@@ -332,7 +334,7 @@ export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record
 
 export async function submitJobWithBootstrapAndInvoke(
   jobData: JobData,
-  ticketId: string,
+  ticketId: string | undefined,
   clankerId: string,
   phaseLabel: string,
   preparedContext: PreparedTicketRunContext,

@@ -90,6 +90,7 @@ export class ClawOrchestrationService {
           clankerId: template.clankerId,
           jobId,
           instructionFiles,
+          additionalSecretIds: template.secretIds,
         },
         {
           projectDAO: this.projectDAO,
@@ -121,7 +122,7 @@ export class ClawOrchestrationService {
 
       await submitJobWithBootstrapAndInvoke(
         jobData,
-        scheduleId, // Use scheduleId as ticketId equivalent
+        undefined,
         template.clankerId,
         "Claw Task",
         preparedContext,
@@ -145,6 +146,12 @@ export class ClawOrchestrationService {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+
+      await this.clawExecutionService.recordExecutionResult(execution.id, {
+        status: "failed",
+        errorMessage,
+      });
+
       const sched = await this.clawScheduleDAO.getSchedule(scheduleId);
       await this.webhookService.sendWebhook(sched!, execution, "failed", {
         errorMessage,

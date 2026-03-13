@@ -20,7 +20,7 @@ export function registerClawScheduleRoutes(
 ) {
   router.post("/schedules", validateCreateClawSchedule, async (req, res) => {
     try {
-      const actor = req.auth?.user.email;
+      const actor = req.auth?.user.id;
       const schedule = await clawScheduleService.createSchedule(
         req.body,
         actor,
