@@ -34,9 +34,7 @@ export class ClaudeCodeAgent extends BaseAgent {
       const args = [
         "--print",
         prompt,
-        "--include-partial-messages",
-        "--output-format=default",
-        "--verbose",
+        "--output-format=stream-json",
         "--dangerously-skip-permissions",
       ];
 

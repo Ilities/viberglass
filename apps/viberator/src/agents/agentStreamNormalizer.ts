@@ -120,6 +120,57 @@ export function normalizeAgentStreamLine(line: string): string[] {
     return normalizeUserBlocks(blocks);
   }
 
+  // OpenCode format: {"type":"message.part.updated","part":{...}}
+  if (eventType === "message.part.updated") {
+    const part = isRecord(data.part) ? data.part : null;
+    if (!part) return [];
+    const partType = typeof part.type === "string" ? part.type : "";
+
+    if (partType === "text") {
+      const text = typeof part.text === "string" ? part.text.trim() : "";
+      if (!text) return [];
+      return [JSON.stringify({ type: "item.completed", item: { type: "agent_message", text } })];
+    }
+
+    if (partType === "thinking" || partType === "reasoning") {
+      const text = typeof part.text === "string" ? part.text.trim() : "";
+      if (!text) return [];
+      return [JSON.stringify({ type: "item.completed", item: { type: "reasoning", text } })];
+    }
+
+    if (partType === "tool") {
+      const name = typeof part.name === "string" ? part.name : "(tool)";
+      const state = typeof part.state === "string" ? part.state : "";
+      const id = typeof part.id === "string" ? part.id : undefined;
+
+      if (state === "running") {
+        const input = isRecord(part.input) ? part.input : {};
+        const command = typeof input.command === "string" ? input.command : name;
+        const item: Record<string, unknown> = { type: "command_execution", command };
+        if (id) item.id = id;
+        return [JSON.stringify({ type: "item.started", item })];
+      }
+
+      if (state === "complete" || state === "completed") {
+        const output = typeof part.output === "string" ? part.output : "";
+        const item: Record<string, unknown> = { type: "command_execution", output, status: "completed", exit_code: 0 };
+        if (id) item.id = id;
+        return [JSON.stringify({ type: "item.completed", item })];
+      }
+
+      if (state === "error") {
+        const output = typeof part.output === "string" ? part.output : "";
+        const item: Record<string, unknown> = { type: "command_execution", output, status: "failed", exit_code: 1 };
+        if (id) item.id = id;
+        return [JSON.stringify({ type: "item.completed", item })];
+      }
+
+      return [];
+    }
+
+    return [];
+  }
+
   // Unknown event type (e.g. "error") — emit as-is
   return [line];
 }
