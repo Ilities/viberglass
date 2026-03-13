@@ -161,7 +161,17 @@ function parseStructuredLog(log: LogEntry): ParsedStructuredLog | null {
 
   if (envelope) {
     const itemPayload = parseItemPayload(envelope.payload)
-    if (!itemPayload) return null
+    // Non-JSON payload (plain text from agent — e.g. Claude Code default format, Mistral vibe)
+    // Still preserve the agent source label and strip the envelope prefix from the text.
+    if (!itemPayload) {
+      return {
+        itemPayload: { type: null, item: null, data: {}, raw: envelope.payload },
+        sourceLabel: `agent:${envelope.agentName}`,
+        agentName: envelope.agentName,
+        stream: envelope.stream,
+        rawFallback: envelope.payload,
+      }
+    }
 
     return {
       itemPayload,
@@ -513,7 +523,8 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
         toolUseDefs,
       )
       if (!handled) {
-        timeline.push(buildRawEvent(log, rawFallback))
+        // Use sourceLabel from the envelope (e.g. "agent:claude") not log.source ("viberator")
+        timeline.push({ kind: 'raw', id: log.id, createdAt: log.createdAt, level: log.level, sourceLabel, text: rawFallback })
       }
       continue
     }
