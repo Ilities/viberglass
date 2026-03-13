@@ -87,9 +87,6 @@ services:
       # Worker Dockerfiles and source needed for clanker provisioning
       - ./infra:/app/infra:cached
       - ./apps/viberator:/app/apps/viberator:cached
-      # Preserve container's node_modules (prevents architecture mismatch)
-      - /app/apps/platform-backend/node_modules
-      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,9 +112,6 @@ services:
       # Mount source with cached mode for better performance
       - ./apps/platform-frontend:/app/apps/platform-frontend:cached
       - ./packages/types:/app/packages/types:cached
-      # Preserve container's node_modules
-      - /app/apps/platform-frontend/node_modules
-      - /app/node_modules
     depends_on:
       backend:
         condition: service_started

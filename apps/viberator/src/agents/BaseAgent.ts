@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import GitService from "../services/GitService";
+import { normalizeAgentStreamLine } from "./agentStreamNormalizer";
 
 type JsonObject = Record<string, unknown>;
 
@@ -207,7 +208,7 @@ export abstract class BaseAgent {
         stdout += chunk;
         stdoutBuffer += chunk;
         stdoutBuffer = flushBufferedLines(stdoutBuffer, (line) => {
-          this.logger.info(`[agent:${this.config.name}:stdout] ${line}`);
+          this.emitAgentLogLines(line);
         });
       });
 
@@ -229,9 +230,7 @@ export abstract class BaseAgent {
         clearTimeout(timeoutId);
         const remainingStdout = stdoutBuffer.trim();
         if (remainingStdout.length > 0) {
-          this.logger.info(
-            `[agent:${this.config.name}:stdout] ${remainingStdout}`,
-          );
+          this.emitAgentLogLines(remainingStdout);
         }
         const remainingStderr = stderrBuffer.trim();
         if (remainingStderr.length > 0) {
@@ -251,6 +250,13 @@ export abstract class BaseAgent {
         reject(error);
       });
     });
+  }
+
+  private emitAgentLogLines(line: string): void {
+    const normalized = normalizeAgentStreamLine(line);
+    for (const normalizedLine of normalized) {
+      this.logger.info(`[agent:${this.config.name}:stdout] ${normalizedLine}`);
+    }
   }
 
   protected buildCommandEnvironment(
