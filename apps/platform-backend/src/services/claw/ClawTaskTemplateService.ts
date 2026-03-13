@@ -90,6 +90,7 @@ export class ClawTaskTemplateService {
         name: t.name,
         description: t.description,
         clankerId: t.clankerId,
+        secretIds: t.secretIds,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
       })),

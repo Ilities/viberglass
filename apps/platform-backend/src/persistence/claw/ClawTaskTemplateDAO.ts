@@ -39,6 +39,7 @@ export class ClawTaskTemplateDAO {
         clanker_id: request.clankerId,
         task_instructions: request.taskInstructions,
         config: JSON.stringify(request.config ?? {}),
+        secret_ids: JSON.stringify(request.secretIds ?? []),
         created_at: timestamp,
         updated_at: timestamp,
       })
@@ -93,6 +94,8 @@ export class ClawTaskTemplateDAO {
       updateData.task_instructions = updates.taskInstructions;
     if (updates.config !== undefined)
       updateData.config = JSON.stringify(updates.config);
+    if (updates.secretIds !== undefined)
+      updateData.secret_ids = JSON.stringify(updates.secretIds);
 
     const result = await db
       .updateTable("claw_task_templates")
@@ -189,6 +192,11 @@ export class ClawTaskTemplateDAO {
         typeof row.config === "string"
           ? JSON.parse(row.config)
           : (row.config ?? {}),
+      secretIds: Array.isArray(row.secret_ids)
+        ? (row.secret_ids as string[])
+        : typeof row.secret_ids === "string"
+          ? JSON.parse(row.secret_ids)
+          : [],
       createdAt: this.toISOString(row.created_at),
       updatedAt: this.toISOString(row.updated_at),
     };

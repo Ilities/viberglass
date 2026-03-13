@@ -416,9 +416,18 @@ export class JobService {
       query = query.where("jobs.ticket_id", "=", ticketId);
     }
 
-    // When filtering by projectId, we need to filter by tickets.project_id
+    // Filter by project: ticket-based jobs via tickets.project_id,
+    // ticketless jobs (e.g. claw) via tenant_id which is set to project.id
     if (projectId) {
-      query = query.where("tickets.project_id", "=", projectId);
+      query = query.where((eb) =>
+        eb.or([
+          eb("tickets.project_id", "=", projectId),
+          eb.and([
+            eb("jobs.ticket_id", "is", null),
+            eb("jobs.tenant_id", "=", projectId),
+          ]),
+        ]),
+      );
     }
 
     const jobs = await query

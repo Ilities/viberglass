@@ -21,6 +21,7 @@ export interface ClawTaskTemplate {
   clankerId: string
   taskInstructions: string
   config: Record<string, unknown>
+  secretIds: string[]
   createdAt: string
   updatedAt: string
 }
@@ -33,6 +34,7 @@ export interface CreateClawTaskTemplateRequest {
   clankerId: string
   taskInstructions: string
   config?: Record<string, unknown>
+  secretIds?: string[]
 }
 
 // Request body for updating a task template
@@ -42,6 +44,7 @@ export interface UpdateClawTaskTemplateRequest {
   clankerId?: string
   taskInstructions?: string
   config?: Record<string, unknown>
+  secretIds?: string[]
 }
 
 // Task template summary for list views
@@ -51,6 +54,7 @@ export interface ClawTaskTemplateSummary {
   name: string
   description: string | null
   clankerId: string
+  secretIds: string[]
   createdAt: string
   updatedAt: string
 }
@@ -298,9 +302,17 @@ export function intervalToCron(expression: string): string | null {
 
 /**
  * Validate a cron expression
+ * Minimum resolution is 1 minute — the seconds field must be a fixed value (0-59).
  */
 export function isValidCronExpression(expression: string): boolean {
-  // Cron format: sec min hour day month dow
-  const cronPattern = /^(\*|([0-9]|[1-5][0-9])|\*\/[0-9]+) (\*|([0-9]|[0-5][0-9])|\*\/[0-9]+) (\*|([0-9]|1[0-9]|2[0-3])|\*\/[0-9]+) (\*|([1-9]|[12][0-9]|3[01])|\*\/[0-9]+) (\*|([1-9]|1[0-2])|\*\/[0-9]+) (\*|([0-6])|\*\/[0-9]+)$/
-  return cronPattern.test(expression.trim())
+  // Cron format: sec min hour day month dow (6 fields)
+  const parts = expression.trim().split(/\s+/)
+  if (parts.length !== 6) return false
+
+  // Seconds field must be a plain integer (0-59) — no * or */N allowed
+  const secondsField = parts[0]
+  if (!/^\d+$/.test(secondsField) || parseInt(secondsField, 10) > 59) return false
+
+  const restPattern = /^(\*|([0-9]|[1-5][0-9])|\*\/[0-9]+) (\*|([0-9]|1[0-9]|2[0-3])|\*\/[0-9]+) (\*|([1-9]|[12][0-9]|3[01])|\*\/[0-9]+) (\*|([1-9]|1[0-2])|\*\/[0-9]+) (\*|([0-6])|\*\/[0-9]+)$/
+  return restPattern.test(parts.slice(1).join(' '))
 }

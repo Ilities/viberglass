@@ -219,8 +219,7 @@ export class ClawScheduleDAO {
       .selectFrom("claw_schedules")
       .selectAll()
       .where("is_active", "=", true)
-      .where("next_run_at", "is not", null)
-      .orderBy("next_run_at", "asc")
+      .orderBy("created_at", "asc")
       .execute();
 
     return rows.map((row) => this.mapRowToSchedule(row));

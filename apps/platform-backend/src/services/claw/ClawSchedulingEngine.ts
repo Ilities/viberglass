@@ -246,7 +246,19 @@ export class ClawSchedulingEngine {
         scheduleId,
         error: error instanceof Error ? error.message : String(error),
       });
-      // Don't throw - errors are logged and handled in orchestration
+      // Auto-pause the schedule to prevent failure loops
+      try {
+        await this.scheduleDAO.pauseSchedule(scheduleId);
+        this.removeSchedule(scheduleId);
+        logger.warn("Schedule auto-paused after execution failure to prevent retry loop", {
+          scheduleId,
+        });
+      } catch (pauseError) {
+        logger.error("Failed to auto-pause schedule after execution failure", {
+          scheduleId,
+          error: pauseError instanceof Error ? pauseError.message : String(pauseError),
+        });
+      }
     }
   }
 

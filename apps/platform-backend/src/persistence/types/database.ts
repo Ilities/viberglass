@@ -406,6 +406,7 @@ export interface ClawTaskTemplatesTable {
   clanker_id: string;
   task_instructions: string;
   config: Json;
+  secret_ids: Generated<Json>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
