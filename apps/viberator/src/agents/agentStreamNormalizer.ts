@@ -1,14 +1,22 @@
 /**
- * Normalizes stream-json agent output (Claude/Qwen/Kimi format) into the
- * canonical platform log format expected by agent-log-model on the frontend.
+ * Normalizes agent stdout into the canonical platform log format expected by
+ * agent-log-model on the frontend.
  *
- * Stream-json agents emit per-event JSON lines like:
- *   {"type":"assistant","content":[{"type":"text","text":"..."},...]}
- *   {"type":"user","content":[{"type":"tool_result","tool_use_id":"X","content":"..."}]}
- *   {"type":"result","subtype":"success","result":"..."}
- *   {"type":"system",...}
+ * Supports two agent output formats:
  *
- * This function maps them to the canonical format:
+ * 1. JSONL / stream-json (Claude Code, Qwen, Kimi, Codex, OpenCode):
+ *    One complete JSON object per line.
+ *    {"type":"assistant","content":[{"type":"text","text":"..."},...]}
+ *    {"type":"user","content":[{"type":"tool_result","tool_use_id":"X","content":"..."}]}
+ *    {"type":"result","subtype":"success","result":"..."}
+ *    {"type":"message.part.updated","part":{...}}
+ *
+ * 2. Pretty-printed OpenAI message objects (Mistral Vibe):
+ *    One JSON field per line — multiple lines form a single message object.
+ *    {"role":"assistant","content":"...","tool_calls":[...]}
+ *    {"role":"tool","tool_call_id":"X","content":"..."}
+ *
+ * Both formats are mapped to the canonical format:
  *   {"type":"item.completed","item":{"type":"agent_message","text":"..."}}
  *   {"type":"item.started","item":{"id":"X","type":"command_execution","command":"..."}}
  *   {"type":"item.completed","item":{"id":"X","type":"command_execution","output":"...","status":"completed","exit_code":0}}
@@ -80,14 +88,106 @@ function normalizeUserBlocks(blocks: ContentBlock[]): string[] {
 }
 
 /**
- * Normalize a single agent stdout line.
- *
- * Returns an array of canonical log line strings:
- * - Empty array: skip this line (system events, empty events)
- * - Single-element array with the original line: not a recognized stream-json event
- * - Multiple elements: one canonical line per content block
+ * Track JSON nesting depth from a single line, correctly ignoring braces
+ * inside string literals.
  */
-export function normalizeAgentStreamLine(line: string): string[] {
+function countDepthDelta(line: string): number {
+  let delta = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (const ch of line) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (ch === "{" || ch === "[") delta++;
+      else if (ch === "}" || ch === "]") delta--;
+    }
+  }
+
+  return delta;
+}
+
+/**
+ * Normalize an assembled, multi-line OpenAI-style message object (Mistral Vibe format).
+ */
+function normalizeOpenAIMessage(parsed: Record<string, unknown>): string[] {
+  const role = typeof parsed.role === "string" ? parsed.role : "";
+
+  if (role === "assistant") {
+    const results: string[] = [];
+
+    // Text content
+    if (typeof parsed.content === "string" && parsed.content.trim()) {
+      results.push(JSON.stringify({
+        type: "item.completed",
+        item: { type: "agent_message", text: parsed.content.trim() },
+      }));
+    }
+
+    // OpenAI-style tool_calls array
+    if (Array.isArray(parsed.tool_calls)) {
+      for (const tc of parsed.tool_calls) {
+        if (!isRecord(tc)) continue;
+        const id = typeof tc.id === "string" ? tc.id : undefined;
+        const fn = isRecord(tc.function) ? tc.function : {};
+        const name = typeof fn.name === "string" ? fn.name : "(tool)";
+        const argsStr = typeof fn.arguments === "string" ? fn.arguments : "{}";
+
+        // Build a human-readable command string from the arguments
+        let command = name;
+        try {
+          const args: unknown = JSON.parse(argsStr);
+          if (isRecord(args)) {
+            const parts = Object.entries(args)
+              .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+              .join(" ");
+            if (parts) command = `${name} ${parts}`;
+          }
+        } catch {
+          // Use tool name only
+        }
+
+        const item: Record<string, unknown> = { type: "command_execution", command };
+        if (id) item.id = id;
+        results.push(JSON.stringify({ type: "item.started", item }));
+      }
+    }
+
+    return results;
+  }
+
+  if (role === "tool") {
+    const id = typeof parsed.tool_call_id === "string" ? parsed.tool_call_id : undefined;
+    const content = typeof parsed.content === "string" ? parsed.content : "";
+    const item: Record<string, unknown> = {
+      type: "command_execution",
+      output: content,
+      status: "completed",
+      exit_code: 0,
+    };
+    if (id) item.id = id;
+    return [JSON.stringify({ type: "item.completed", item })];
+  }
+
+  // Ignore system/user/other roles
+  return [];
+}
+
+/**
+ * Normalize a single JSONL line (stateless, for JSONL / stream-json formats).
+ */
+function normalizeJsonlLine(line: string): string[] {
   let data: Record<string, unknown>;
   try {
     const parsed: unknown = JSON.parse(line);
@@ -171,6 +271,86 @@ export function normalizeAgentStreamLine(line: string): string[] {
     return [];
   }
 
-  // Unknown event type (e.g. "error") — emit as-is
+  // Unknown event type — emit as-is
   return [line];
+}
+
+/**
+ * Stateful normalizer that handles both JSONL (one JSON object per line) and
+ * pretty-printed JSON (Mistral Vibe — multiple lines form a single object).
+ *
+ * Create one instance per agent execution to avoid state leakage.
+ */
+export class AgentStreamNormalizer {
+  private buffer: string[] = [];
+  private depth = 0;
+
+  /**
+   * Process a single stdout line. Returns zero or more canonical log lines.
+   */
+  processLine(line: string): string[] {
+    // Not currently buffering a multi-line object
+    if (this.depth === 0 && this.buffer.length === 0) {
+      if (line.startsWith("{") || line.startsWith("[")) {
+        // Try to parse as a complete JSON object (JSONL case)
+        try {
+          const parsed: unknown = JSON.parse(line);
+          if (isRecord(parsed)) {
+            return normalizeJsonlLine(line);
+          }
+        } catch {
+          // Incomplete JSON: start buffering (Mistral pretty-printed case)
+          this.depth = countDepthDelta(line);
+          this.buffer.push(line);
+          return [];
+        }
+      }
+      // Plain text line — use JSONL normalizer (which returns it as-is)
+      return normalizeJsonlLine(line);
+    }
+
+    // Currently buffering a multi-line JSON object
+    this.depth += countDepthDelta(line);
+    this.buffer.push(line);
+
+    if (this.depth <= 0) {
+      return this.flushBuffer();
+    }
+
+    return [];
+  }
+
+  /**
+   * Flush any remaining buffered lines. Call after the process exits to ensure
+   * a partially-assembled object is not silently dropped.
+   */
+  flush(): string[] {
+    if (this.buffer.length === 0) return [];
+    return this.flushBuffer();
+  }
+
+  private flushBuffer(): string[] {
+    const assembled = this.buffer.join("\n");
+    this.buffer = [];
+    this.depth = 0;
+
+    try {
+      const parsed: unknown = JSON.parse(assembled);
+      if (isRecord(parsed)) {
+        return normalizeOpenAIMessage(parsed);
+      }
+    } catch {
+      // Assembled text is not valid JSON — drop it silently
+    }
+
+    return [];
+  }
+}
+
+/**
+ * Convenience stateless wrapper for a single JSONL line.
+ * Kept for backwards-compatibility; prefer AgentStreamNormalizer for new code.
+ */
+export function normalizeAgentStreamLine(line: string): string[] {
+  return normalizeJsonlLine(line);
 }
