@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import GitService from "../services/GitService";
-import { normalizeAgentStreamLine } from "./agentStreamNormalizer";
+import { AgentStreamNormalizer } from "./agentStreamNormalizer";
 
 type JsonObject = Record<string, unknown>;
 
@@ -173,6 +173,7 @@ export abstract class BaseAgent {
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
       const timeout = options.timeout || this.config.executionTimeLimit * 1000;
+      const normalizer = new AgentStreamNormalizer();
 
       const child = spawn(command, args, {
         cwd: options.cwd,
@@ -203,13 +204,17 @@ export abstract class BaseAgent {
         return remainder;
       };
 
+      const emitLine = (line: string): void => {
+        for (const normalized of normalizer.processLine(line)) {
+          this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
+        }
+      };
+
       child.stdout.on("data", (data) => {
         const chunk = data.toString();
         stdout += chunk;
         stdoutBuffer += chunk;
-        stdoutBuffer = flushBufferedLines(stdoutBuffer, (line) => {
-          this.emitAgentLogLines(line);
-        });
+        stdoutBuffer = flushBufferedLines(stdoutBuffer, emitLine);
       });
 
       child.stderr.on("data", (data) => {
@@ -230,7 +235,11 @@ export abstract class BaseAgent {
         clearTimeout(timeoutId);
         const remainingStdout = stdoutBuffer.trim();
         if (remainingStdout.length > 0) {
-          this.emitAgentLogLines(remainingStdout);
+          emitLine(remainingStdout);
+        }
+        // Flush any partially-assembled multi-line JSON object
+        for (const normalized of normalizer.flush()) {
+          this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
         }
         const remainingStderr = stderrBuffer.trim();
         if (remainingStderr.length > 0) {
@@ -250,13 +259,6 @@ export abstract class BaseAgent {
         reject(error);
       });
     });
-  }
-
-  private emitAgentLogLines(line: string): void {
-    const normalized = normalizeAgentStreamLine(line);
-    for (const normalizedLine of normalized) {
-      this.logger.info(`[agent:${this.config.name}:stdout] ${normalizedLine}`);
-    }
   }
 
   protected buildCommandEnvironment(
