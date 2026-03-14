@@ -65,7 +65,7 @@ export class CodexAgent extends BaseAgent {
         throw new Error(`Codex CLI failed: ${result.stderr}`);
       }
 
-      const changedFiles = await this.getChangedFiles(repoDir);
+      const changedFiles = await this.gitService.getChangedFiles(repoDir);
 
       const cliOutput = this.parseCliOutput(result.stdout);
 

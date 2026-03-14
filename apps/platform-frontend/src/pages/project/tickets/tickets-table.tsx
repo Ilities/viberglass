@@ -4,8 +4,9 @@ import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { formatAutoFixStatus, formatSeverity, formatTimestamp } from '@/data'
 import { PlayIcon } from '@radix-ui/react-icons'
-import { TICKET_STATUS, type Clanker, type Ticket } from '@viberglass/types'
+import type { Clanker, Ticket } from '@viberglass/types'
 import { useMemo, useState } from 'react'
+import { formatTicketStatus, formatTicketWorkflowPhase } from './ticket-display'
 
 interface TicketsTableProps {
   tickets: Ticket[]
@@ -18,25 +19,6 @@ interface TicketsTableProps {
   onToggleAllTicketSelection: (checked: boolean) => void
   onArchiveTicket: (ticketId: string) => void
   onUnarchiveTicket: (ticketId: string) => void
-}
-
-function formatStatus(status: Ticket['status']): { label: string; className: string } {
-  if (status === TICKET_STATUS.RESOLVED) {
-    return {
-      label: 'Resolved',
-      className: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
-    }
-  }
-  if (status === TICKET_STATUS.IN_PROGRESS) {
-    return {
-      label: 'In Progress',
-      className: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200',
-    }
-  }
-  return {
-    label: 'Open',
-    className: 'bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-zinc-200',
-  }
 }
 
 export function TicketsTable({
@@ -112,6 +94,7 @@ export function TicketsTable({
             <TableHeader>Severity</TableHeader>
             <TableHeader>Category</TableHeader>
             <TableHeader>Status</TableHeader>
+            <TableHeader>Phase</TableHeader>
             <TableHeader>Auto-Fix</TableHeader>
             <TableHeader>Reported</TableHeader>
             <TableHeader className="w-28">Archive</TableHeader>
@@ -122,7 +105,8 @@ export function TicketsTable({
         </TableHead>
         <TableBody>
           {tickets.map((ticket) => {
-            const status = formatStatus(ticket.status)
+            const status = formatTicketStatus(ticket.status)
+            const phase = formatTicketWorkflowPhase(ticket.workflowPhase)
             const isSelected = selectedTicketIds.has(ticket.id)
 
             return (
@@ -143,6 +127,9 @@ export function TicketsTable({
                 <TableCell>{ticket.category}</TableCell>
                 <TableCell>
                   <Badge className={status.className}>{status.label}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge className={phase.className}>{phase.label}</Badge>
                 </TableCell>
                 <TableCell>
                   {ticket.autoFixStatus ? (

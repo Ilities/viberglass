@@ -1,10 +1,15 @@
 const mockJobService = {
   getJobStatus: jest.fn(),
   updateJobStatus: jest.fn(),
+  deleteJob: jest.fn(),
 };
 
 const mockTicketPhaseDocumentService = {
   saveDocument: jest.fn(),
+};
+
+const mockSecretService = {
+  upsertWorkerAuthCache: jest.fn(),
 };
 
 jest.mock("../../../../api/middleware/authentication", () => ({
@@ -32,7 +37,7 @@ jest.mock("../../../../services/JobService", () => ({
 }));
 
 jest.mock("../../../../services/SecretService", () => ({
-  SecretService: jest.fn(() => ({})),
+  SecretService: jest.fn(() => mockSecretService),
 }));
 
 jest.mock("../../../../services/TicketPhaseDocumentService", () => ({
@@ -40,6 +45,14 @@ jest.mock("../../../../services/TicketPhaseDocumentService", () => ({
 }));
 
 import jobsRouter from "../../../../api/routes/jobs";
+import {
+  JobServiceError,
+  JOB_SERVICE_ERROR_CODE,
+} from "../../../../services/errors/JobServiceError";
+import {
+  SecretServiceError,
+  SECRET_SERVICE_ERROR_CODE,
+} from "../../../../services/errors/SecretServiceError";
 
 function getRouteHandler(path: string, method: string): unknown {
   const layer = jobsRouter.stack.find(
@@ -114,6 +127,73 @@ describe("job result callbacks", () => {
       success: true,
       jobId: "job-1",
       status: "completed",
+    });
+  });
+
+  it("maps typed job delete not-found errors to 404", async () => {
+    mockJobService.deleteJob.mockRejectedValue(
+      new JobServiceError(
+        JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND,
+        "Job not found",
+      ),
+    );
+
+    const handler = getRouteHandler("/:jobId", "delete");
+    if (typeof handler !== "function") {
+      throw new Error("Route handler was not a function");
+    }
+
+    const req = {
+      params: { jobId: "job-missing" },
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "Job not found" });
+  });
+
+  it("maps typed auth cache overflow errors to 413", async () => {
+    mockJobService.getJobStatus.mockResolvedValue({
+      data: {
+        tenantId: "tenant-1",
+      },
+    });
+    mockSecretService.upsertWorkerAuthCache.mockRejectedValue(
+      new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_TOO_LARGE,
+        "Codex auth cache exceeds SSM size limit (4100 bytes)",
+      ),
+    );
+
+    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
+    if (typeof handler !== "function") {
+      throw new Error("Route handler was not a function");
+    }
+
+    const req = {
+      params: { jobId: "job-1" },
+      tenantId: "tenant-1",
+      callbackTokenValidated: true,
+      body: {
+        secretName: "CODEX_AUTH_CACHE",
+        authJson: "{\"token\":\"abc\"}",
+      },
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Codex auth cache exceeds SSM size limit (4100 bytes)",
     });
   });
 });

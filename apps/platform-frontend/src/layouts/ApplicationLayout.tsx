@@ -170,7 +170,7 @@ function ApplicationLayoutContent() {
 
   useEffect(() => {
     getProjects().then(setProjects).catch(console.error)
-  }, [])
+  }, [pathname])
 
   if (status === 'loading') {
     return (
@@ -192,6 +192,7 @@ function ApplicationLayoutContent() {
         { href: basePath, label: 'Dashboard', current: pathname === basePath },
         { href: `${basePath}/tickets`, label: 'Tickets', current: pathname.startsWith(`${basePath}/tickets`) },
         { href: `${basePath}/jobs`, label: 'Jobs', current: pathname.startsWith(`${basePath}/jobs`) },
+        { href: `${basePath}/claws`, label: 'Claws', current: pathname.startsWith(`${basePath}/claws`) },
       ]
     : [
         { href: '/', label: 'Dashboard', current: pathname === '/' },

@@ -115,8 +115,6 @@ export const projectSchema = Joi.object({
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
   customFieldMappings: Joi.object().optional(),
-  repositoryUrl: Joi.string().uri().allow(null).optional(),
-  repositoryUrls: Joi.array().items(Joi.string().uri()).optional(),
   agentInstructions: Joi.string().allow(null, "").optional(),
 });
 
@@ -131,8 +129,6 @@ export const updateProjectSchema = Joi.object({
   autoFixEnabled: Joi.boolean().optional(),
   autoFixTags: Joi.array().items(Joi.string()).optional(),
   customFieldMappings: Joi.object().optional(),
-  repositoryUrl: Joi.string().uri().allow(null).optional(),
-  repositoryUrls: Joi.array().items(Joi.string().uri()).optional(),
   agentInstructions: Joi.string().allow(null, "").optional(),
 });
 
@@ -336,4 +332,88 @@ export const loginSchema = Joi.object({
 
 export const forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
+});
+
+// Claw (scheduled task) schemas
+const clawWebhookConfigSchema = Joi.object({
+  url: Joi.string().uri().required(),
+  secret: Joi.string().optional(),
+  events: Joi.array().items(
+    Joi.string().valid("started", "completed", "failed")
+  ).default(["started", "completed", "failed"]),
+});
+
+export const clawTaskTemplateSchema = Joi.object({
+  projectId: Joi.string().uuid().required(),
+  name: Joi.string().min(1).max(255).required(),
+  description: Joi.string().allow(null, "").optional(),
+  clankerId: Joi.string().uuid().required(),
+  taskInstructions: Joi.string().min(1).max(50000).required(),
+  config: Joi.object().optional().default({}),
+  secretIds: Joi.array().items(Joi.string().uuid()).optional().default([]),
+});
+
+export const updateClawTaskTemplateSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  clankerId: Joi.string().uuid().optional(),
+  taskInstructions: Joi.string().min(1).max(50000).optional(),
+  config: Joi.object().optional(),
+  secretIds: Joi.array().items(Joi.string().uuid()).optional(),
+});
+
+export const clawScheduleSchema = Joi.object({
+  projectId: Joi.string().uuid().required(),
+  taskTemplateId: Joi.string().uuid().required(),
+  name: Joi.string().min(1).max(255).required(),
+  description: Joi.string().allow(null, "").optional(),
+  scheduleType: Joi.string().valid("interval", "cron").required(),
+  intervalExpression: Joi.string().when("scheduleType", {
+    is: "interval",
+    then: Joi.string().pattern(/^[1-9]\d*[mhdw]$/).required().messages({
+      "string.pattern.base": "Interval must be a positive number followed by m, h, d, or w (e.g. 5m, 2h). Minimum is 1 minute.",
+    }),
+    otherwise: Joi.optional(),
+  }),
+  cronExpression: Joi.string().when("scheduleType", {
+    is: "cron",
+    then: Joi.string().custom((value, helpers) => {
+      const parts = value.trim().split(/\s+/);
+      if (parts.length !== 6) {
+        return helpers.message({ custom: "Cron expression must have exactly 6 fields: second minute hour day month weekday" });
+      }
+      const secondsField = parts[0];
+      if (!/^\d+$/.test(secondsField) || parseInt(secondsField, 10) > 59) {
+        return helpers.message({ custom: "Cron seconds field must be a fixed value (0-59). Sub-minute scheduling is not allowed." });
+      }
+      return value;
+    }).required(),
+    otherwise: Joi.optional(),
+  }),
+  timezone: Joi.string().default("UTC").optional(),
+  isActive: Joi.boolean().default(true).optional(),
+  webhookConfig: clawWebhookConfigSchema.optional().allow(null),
+});
+
+export const updateClawScheduleSchema = Joi.object({
+  name: Joi.string().min(1).max(255).optional(),
+  description: Joi.string().allow(null, "").optional(),
+  scheduleType: Joi.string().valid("interval", "cron").optional(),
+  intervalExpression: Joi.string().pattern(/^[1-9]\d*[mhdw]$/).optional().messages({
+    "string.pattern.base": "Interval must be a positive number followed by m, h, d, or w (e.g. 5m, 2h). Minimum is 1 minute.",
+  }),
+  cronExpression: Joi.string().custom((value, helpers) => {
+    const parts = value.trim().split(/\s+/);
+    if (parts.length !== 6) {
+      return helpers.message({ custom: "Cron expression must have exactly 6 fields: second minute hour day month weekday" });
+    }
+    const secondsField = parts[0];
+    if (!/^\d+$/.test(secondsField) || parseInt(secondsField, 10) > 59) {
+      return helpers.message({ custom: "Cron seconds field must be a fixed value (0-59). Sub-minute scheduling is not allowed." });
+    }
+    return value;
+  }).optional(),
+  timezone: Joi.string().optional(),
+  isActive: Joi.boolean().optional(),
+  webhookConfig: clawWebhookConfigSchema.optional().allow(null),
 });

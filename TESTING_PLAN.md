@@ -6,7 +6,7 @@ This document provides a comprehensive testing plan for the Viberator AI Agent O
 
 **Applications:**
 - Platform Backend (Express.js API)
-- Platform Frontend (Next.js dashboard)
+- Platform Frontend (React app)
 - Viberator Worker (AI agent executor)
 
 **Environments:**

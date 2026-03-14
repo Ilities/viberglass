@@ -44,7 +44,6 @@ infra/hetzner/**/bin/
 .pulumi/
 
 # Frontend specific
-apps/platform-frontend/.next*
 apps/platform-frontend/out/
 
 # Slack app

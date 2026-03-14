@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import GitService from "../services/GitService";
+import { AgentStreamNormalizer } from "./agentStreamNormalizer";
 
 type JsonObject = Record<string, unknown>;
 
@@ -153,7 +154,7 @@ export abstract class BaseAgent {
     // If repo directory already exists (passed in context), skip cloning
     const repoPath = path.join(workDir, "repo");
     if (fs.existsSync(repoPath)) {
-      this.logger.info("Repository already exists, skipping clone", {
+      this.logger.debug("Repository already exists, skipping clone", {
         repoPath,
       });
       return;
@@ -172,6 +173,7 @@ export abstract class BaseAgent {
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
       const timeout = options.timeout || this.config.executionTimeLimit * 1000;
+      const normalizer = new AgentStreamNormalizer();
 
       const child = spawn(command, args, {
         cwd: options.cwd,
@@ -202,13 +204,17 @@ export abstract class BaseAgent {
         return remainder;
       };
 
+      const emitLine = (line: string): void => {
+        for (const normalized of normalizer.processLine(line)) {
+          this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
+        }
+      };
+
       child.stdout.on("data", (data) => {
         const chunk = data.toString();
         stdout += chunk;
         stdoutBuffer += chunk;
-        stdoutBuffer = flushBufferedLines(stdoutBuffer, (line) => {
-          this.logger.info(`[agent:${this.config.name}:stdout] ${line}`);
-        });
+        stdoutBuffer = flushBufferedLines(stdoutBuffer, emitLine);
       });
 
       child.stderr.on("data", (data) => {
@@ -229,9 +235,11 @@ export abstract class BaseAgent {
         clearTimeout(timeoutId);
         const remainingStdout = stdoutBuffer.trim();
         if (remainingStdout.length > 0) {
-          this.logger.info(
-            `[agent:${this.config.name}:stdout] ${remainingStdout}`,
-          );
+          emitLine(remainingStdout);
+        }
+        // Flush any partially-assembled multi-line JSON object
+        for (const normalized of normalizer.flush()) {
+          this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
         }
         const remainingStderr = stderrBuffer.trim();
         if (remainingStderr.length > 0) {
@@ -264,9 +272,7 @@ export abstract class BaseAgent {
     return merged;
   }
 
-  private resolveHomeDirectory(
-    candidateHome: string | undefined,
-  ): string {
+  private resolveHomeDirectory(candidateHome: string | undefined): string {
     const candidates: string[] = [];
 
     if (typeof candidateHome === "string" && candidateHome.trim().length > 0) {
@@ -390,61 +396,5 @@ export abstract class BaseAgent {
         error,
       });
     }
-  }
-
-  /**
-   * Parse changed files from git diff
-   */
-  protected async getChangedFiles(repoDir: string): Promise<string[]> {
-    return this.gitService.getChangedFiles(repoDir);
-  }
-
-  /**
-   * Create a new branch
-   */
-  protected async createBranch(
-    repoDir: string,
-    branchName: string,
-  ): Promise<void> {
-    return this.gitService.createBranch(repoDir, branchName);
-  }
-
-  /**
-   * Commit changes
-   */
-  protected async commitChanges(
-    repoDir: string,
-    message: string,
-  ): Promise<string> {
-    return this.gitService.commitChanges(repoDir, message);
-  }
-
-  /**
-   * Push branch
-   */
-  protected async pushBranch(
-    repoDir: string,
-    branchName: string,
-  ): Promise<void> {
-    return this.gitService.pushBranch(repoDir, branchName);
-  }
-
-  /**
-   * Create a pull request
-   */
-  protected async createPullRequest(
-    repoDir: string,
-    sourceBranch: string,
-    targetBranch: string,
-    title: string,
-    description?: string,
-  ): Promise<string> {
-    return this.gitService.createPullRequest(
-      repoDir,
-      sourceBranch,
-      targetBranch,
-      title,
-      description,
-    );
   }
 }

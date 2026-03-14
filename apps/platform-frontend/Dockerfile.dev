@@ -1,5 +1,5 @@
 # Frontend Development Container
-# This container runs the Next.js frontend with HMR (Hot Module Reload)
+# This container runs the Vite + React frontend with HMR (Hot Module Reload)
 # NOTE: Build from repository root for workspace dependencies: docker build -f apps/platform-frontend/Dockerfile.dev .
 
 FROM node:24-alpine
@@ -21,11 +21,11 @@ RUN npm install --legacy-peer-deps
 COPY packages/types ./packages/types
 COPY apps/platform-frontend ./apps/platform-frontend
 
-# Expose Next.js default port
+# Expose Vite default port
 EXPOSE 3000
 
 # Set working directory to frontend for running the dev server
 WORKDIR /app/apps/platform-frontend
 
-# Use Next.js dev server for HMR (matches "npm run dev" script)
+# Use Vite dev server for HMR (matches "npm run dev" script)
 CMD ["npm", "run", "dev"]

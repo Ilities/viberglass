@@ -15,6 +15,10 @@ const mockRevisionDAO = {
   create: jest.fn(),
 };
 
+const mockLifecycleStatusService = {
+  synchronize: jest.fn(),
+};
+
 jest.mock("../../../persistence/ticketing/TicketDAO", () => ({
   TicketDAO: jest.fn(() => mockTicketDAO),
 }));
@@ -31,6 +35,10 @@ jest.mock("../../../persistence/ticketing/TicketPhaseDocumentRevisionDAO", () =>
   TicketPhaseDocumentRevisionDAO: jest.fn(() => mockRevisionDAO),
 }));
 
+jest.mock("../../../services/TicketLifecycleStatusService", () => ({
+  TicketLifecycleStatusService: jest.fn(() => mockLifecycleStatusService),
+}));
+
 import { TicketPhaseDocumentService } from "../../../services/TicketPhaseDocumentService";
 
 describe("TicketPhaseDocumentService", () => {
@@ -42,6 +50,7 @@ describe("TicketPhaseDocumentService", () => {
     mockDocumentDAO.updateContent.mockReset();
     mockDocumentDAO.updateApprovalState.mockReset();
     mockRevisionDAO.create.mockReset();
+    mockLifecycleStatusService.synchronize.mockReset();
     delete process.env.AWS_S3_BUCKET;
   });
 
@@ -98,6 +107,9 @@ describe("TicketPhaseDocumentService", () => {
       source: "manual",
       actor: "author@example.com",
     });
+    expect(mockLifecycleStatusService.synchronize).toHaveBeenCalledWith(
+      "ticket-1",
+    );
     expect(result.content).toBe("New content");
   });
 

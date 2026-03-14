@@ -1,4 +1,5 @@
 import express from "express";
+import type { Request, Response, NextFunction } from "express";
 import type { Clanker } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
@@ -10,6 +11,10 @@ import {
 } from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
 import logger from "../../config/logger";
+import {
+  ClankerServiceError,
+  CLANKER_SERVICE_ERROR_CODE,
+} from "../../services/errors/ClankerServiceError";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
@@ -17,6 +22,28 @@ const healthService = new ClankerHealthService();
 const provisioningService = getClankerProvisioner();
 
 router.use(requireAuth);
+
+/**
+ * Wraps an async route handler so thrown errors propagate to Express error middleware.
+ */
+function asyncHandler(
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>,
+) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    return fn(req, res, next).catch(next);
+  };
+}
+
+async function requireClanker(id: string): Promise<Clanker> {
+  const clanker = await clankerService.getClanker(id);
+  if (!clanker) {
+    throw new ClankerServiceError(
+      CLANKER_SERVICE_ERROR_CODE.CLANKER_NOT_FOUND,
+      "Clanker not found",
+    );
+  }
+  return clanker;
+}
 
 async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
   if (clanker.status === "deploying") {
@@ -39,9 +66,22 @@ async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
   );
 }
 
-// GET /api/clankers - List all clankers
-router.get("/", async (req, res) => {
+async function validateSecretIds(secretIds?: string[]): Promise<void> {
+  if (!secretIds || secretIds.length === 0) return;
   try {
+    await clankerService.validateSecretsExist(secretIds);
+  } catch (error) {
+    throw new ClankerServiceError(
+      CLANKER_SERVICE_ERROR_CODE.INVALID_SECRET_IDS,
+      error instanceof Error ? error.message : "Invalid secret IDs",
+    );
+  }
+}
+
+// GET /api/clankers - List all clankers
+router.get(
+  "/",
+  asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
@@ -55,153 +95,109 @@ router.get("/", async (req, res) => {
       data: refreshed,
       pagination: { limit, offset, count: refreshed.length },
     });
-  } catch (error) {
-    logger.error('Error fetching clankers', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  }),
+);
 
 // GET /api/clankers/by-slug/:slug - Get a clanker by slug
-router.get("/by-slug/:slug", async (req, res) => {
-  try {
+router.get(
+  "/by-slug/:slug",
+  asyncHandler(async (req, res) => {
     const clanker = await clankerService.getClankerBySlug(req.params.slug);
     if (!clanker) {
-      return res.status(404).json({ error: "Clanker not found" });
+      throw new ClankerServiceError(
+        CLANKER_SERVICE_ERROR_CODE.CLANKER_NOT_FOUND,
+        "Clanker not found",
+      );
     }
     const refreshed = await refreshClankerStatus(clanker);
     res.json({ success: true, data: refreshed });
-  } catch (error) {
-    logger.error('Error fetching clanker', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  }),
+);
 
 // POST /api/clankers - Create a new clanker
-router.post("/", validateCreateClanker, async (req, res) => {
-  try {
-    // Validate that secrets exist if secretIds are provided
-    if (req.body.secretIds && req.body.secretIds.length > 0) {
-      try {
-        await clankerService.validateSecretsExist(req.body.secretIds);
-      } catch (validationError) {
-        return res.status(400).json({
-          error: "Validation error",
-          message:
-            validationError instanceof Error
-              ? validationError.message
-              : "Invalid secret IDs",
-        });
-      }
-    }
-
+router.post(
+  "/",
+  validateCreateClanker,
+  asyncHandler(async (req, res) => {
+    await validateSecretIds(req.body.secretIds);
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
-  } catch (error) {
-    logger.error('Error creating clanker', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  }),
+);
 
 // GET /api/clankers/:id - Get a specific clanker
-router.get("/:id", validateUuidParam("id"), async (req, res) => {
-  try {
-    const clanker = await clankerService.getClanker(req.params.id);
-    if (!clanker) {
-      return res.status(404).json({ error: "Clanker not found" });
-    }
+router.get(
+  "/:id",
+  validateUuidParam("id"),
+  asyncHandler(async (req, res) => {
+    const clanker = await requireClanker(req.params.id);
     const refreshed = await refreshClankerStatus(clanker);
     res.json({ success: true, data: refreshed });
-  } catch (error) {
-    logger.error('Error fetching clanker', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  }),
+);
 
 // PUT /api/clankers/:id - Update a clanker
 router.put(
   "/:id",
   validateUuidParam("id"),
   validateUpdateClanker,
-  async (req, res) => {
-    try {
-      const clanker = await clankerService.getClanker(req.params.id);
-      if (!clanker) {
-        return res.status(404).json({ error: "Clanker not found" });
-      }
+  asyncHandler(async (req, res) => {
+    await requireClanker(req.params.id);
+    await validateSecretIds(req.body.secretIds);
 
-      // Validate that secrets exist if secretIds are provided
-      if (req.body.secretIds && req.body.secretIds.length > 0) {
-        try {
-          await clankerService.validateSecretsExist(req.body.secretIds);
-        } catch (validationError) {
-          return res.status(400).json({
-            error: "Validation error",
-            message:
-              validationError instanceof Error
-                ? validationError.message
-                : "Invalid secret IDs",
-          });
-        }
-      }
-
-      const updatedClanker = await clankerService.updateClanker(
-        req.params.id,
-        req.body
-      );
-      const refreshed = await refreshClankerStatus(updatedClanker);
-      res.json({ success: true, data: refreshed });
-    } catch (error) {
-      logger.error('Error updating clanker', { error: error instanceof Error ? error.message : error });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  }
+    const updatedClanker = await clankerService.updateClanker(
+      req.params.id,
+      req.body,
+    );
+    const refreshed = await refreshClankerStatus(updatedClanker);
+    res.json({ success: true, data: refreshed });
+  }),
 );
 
 // DELETE /api/clankers/:id - Delete a clanker
-router.delete("/:id", validateUuidParam("id"), async (req, res) => {
-  try {
-    const clanker = await clankerService.getClanker(req.params.id);
-    if (!clanker) {
-      return res.status(404).json({ error: "Clanker not found" });
-    }
-
+router.delete(
+  "/:id",
+  validateUuidParam("id"),
+  asyncHandler(async (req, res) => {
+    await requireClanker(req.params.id);
     await clankerService.deleteClanker(req.params.id);
     res.status(204).send();
-  } catch (error) {
-    logger.error('Error deleting clanker', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  }),
+);
 
 // POST /api/clankers/:id/start - Start a clanker
-router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
-  try {
-    const clanker = await clankerService.getClanker(req.params.id);
-    if (!clanker) {
-      return res.status(404).json({ error: "Clanker not found" });
-    }
+router.post(
+  "/:id/start",
+  validateUuidParam("id"),
+  asyncHandler(async (req, res) => {
+    const clanker = await requireClanker(req.params.id);
 
     if (clanker.status === "active") {
-      return res.status(400).json({ error: "Clanker is already active" });
+      throw new ClankerServiceError(
+        CLANKER_SERVICE_ERROR_CODE.ALREADY_ACTIVE,
+        "Clanker is already active",
+      );
     }
     if (clanker.status === "deploying") {
-      return res.status(409).json({ error: "Clanker is already deploying" });
+      throw new ClankerServiceError(
+        CLANKER_SERVICE_ERROR_CODE.ALREADY_DEPLOYING,
+        "Clanker is already deploying",
+      );
     }
 
     const preflightError =
       provisioningService.getProvisioningPreflightError(clanker);
     if (preflightError) {
-      return res.status(400).json({
-        error: "Provisioning configuration error",
-        message: preflightError,
-      });
+      throw new ClankerServiceError(
+        CLANKER_SERVICE_ERROR_CODE.PROVISIONING_CONFIG_ERROR,
+        preflightError,
+      );
     }
 
-    // Update status to deploying first
     const updatedClanker = await clankerService.updateStatus(
       req.params.id,
       "deploying",
-      "Starting clanker..."
+      "Starting clanker...",
     );
 
     // Run provisioning asynchronously so UI can observe progress updates.
@@ -251,139 +247,96 @@ router.post("/:id/start", validateUuidParam("id"), async (req, res) => {
     })();
 
     res.status(202).json({ success: true, data: updatedClanker });
-  } catch (error) {
-    logger.error('Error starting clanker', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
+  }),
+);
+
+const deactivateClankerHandler = asyncHandler(async (req, res) => {
+  const clanker = await requireClanker(req.params.id);
+
+  if (clanker.status === "inactive") {
+    throw new ClankerServiceError(
+      CLANKER_SERVICE_ERROR_CODE.ALREADY_INACTIVE,
+      "Clanker is already inactive",
+    );
   }
+
+  const deprovisioned = await provisioningService.deprovision(clanker);
+  const statusMessage = deprovisioned.statusMessage ?? "Deactivated by user";
+
+  const updatedClanker =
+    deprovisioned.deploymentConfig !== undefined
+      ? await clankerService.updateClanker(req.params.id, {
+          deploymentConfig: deprovisioned.deploymentConfig,
+          status: "inactive",
+          statusMessage,
+        })
+      : await clankerService.updateStatus(
+          req.params.id,
+          "inactive",
+          statusMessage,
+        );
+
+  res.json({ success: true, data: updatedClanker });
 });
 
-const deactivateClankerHandler = async (
-  req: express.Request,
-  res: express.Response,
-) => {
-  try {
-    const clanker = await clankerService.getClanker(req.params.id);
-    if (!clanker) {
-      return res.status(404).json({ error: "Clanker not found" });
-    }
-
-    if (clanker.status === "inactive") {
-      return res.status(400).json({ error: "Clanker is already inactive" });
-    }
-
-    const deprovisioned = await provisioningService.deprovision(clanker);
-    const statusMessage = deprovisioned.statusMessage ?? "Deactivated by user";
-
-    const updatedClanker =
-      deprovisioned.deploymentConfig !== undefined
-        ? await clankerService.updateClanker(req.params.id, {
-            deploymentConfig: deprovisioned.deploymentConfig,
-            status: "inactive",
-            statusMessage,
-          })
-        : await clankerService.updateStatus(
-            req.params.id,
-            "inactive",
-            statusMessage,
-          );
-
-    res.json({ success: true, data: updatedClanker });
-  } catch (error) {
-    logger.error('Error deactivating clanker', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
 // POST /api/clankers/:id/deactivate - Deactivate a clanker
-router.post(
-  "/:id/deactivate",
-  validateUuidParam("id"),
-  deactivateClankerHandler,
-);
+router.post("/:id/deactivate", validateUuidParam("id"), deactivateClankerHandler);
 
 // POST /api/clankers/:id/stop - Backward-compatible alias for deactivation
 router.post("/:id/stop", validateUuidParam("id"), deactivateClankerHandler);
 
 // GET /api/clankers/:id/health - Get clanker health status
-router.get('/:id/health', validateUuidParam('id'), async (req, res) => {
-  try {
-    const clanker = await clankerService.getClanker(req.params.id);
-    if (!clanker) {
-      return res.status(404).json({ error: 'Clanker not found' });
-    }
-
+router.get(
+  "/:id/health",
+  validateUuidParam("id"),
+  asyncHandler(async (req, res) => {
+    const clanker = await requireClanker(req.params.id);
     const refreshed = await refreshClankerStatus(clanker);
     const health = await healthService.checkClankerHealth(refreshed);
     res.json({ success: true, data: health });
-  } catch (error) {
-    logger.error('Error checking clanker health', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Config file management routes
+  }),
+);
 
 // GET /api/clankers/:id/config-files - Get all config files for a clanker
-router.get("/:id/config-files", validateUuidParam("id"), async (req, res) => {
-  try {
-    const clanker = await clankerService.getClanker(req.params.id);
-    if (!clanker) {
-      return res.status(404).json({ error: "Clanker not found" });
-    }
-
+router.get(
+  "/:id/config-files",
+  validateUuidParam("id"),
+  asyncHandler(async (req, res) => {
+    await requireClanker(req.params.id);
     const configFiles = await clankerService.getConfigFiles(req.params.id);
     res.json({ success: true, data: configFiles });
-  } catch (error) {
-    logger.error('Error fetching config files', { error: error instanceof Error ? error.message : error });
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  }),
+);
 
 // GET /api/clankers/:id/config-files/:fileType - Get a specific config file
 router.get(
   "/:id/config-files/:fileType",
   validateUuidParam("id"),
-  async (req, res) => {
-    try {
-      const clanker = await clankerService.getClanker(req.params.id);
-      if (!clanker) {
-        return res.status(404).json({ error: "Clanker not found" });
-      }
-
-      const configFile = await clankerService.getConfigFile(
-        req.params.id,
-        req.params.fileType
+  asyncHandler(async (req, res) => {
+    await requireClanker(req.params.id);
+    const configFile = await clankerService.getConfigFile(
+      req.params.id,
+      req.params.fileType,
+    );
+    if (!configFile) {
+      throw new ClankerServiceError(
+        CLANKER_SERVICE_ERROR_CODE.CONFIG_FILE_NOT_FOUND,
+        "Config file not found",
       );
-      if (!configFile) {
-        return res.status(404).json({ error: "Config file not found" });
-      }
-
-      res.json({ success: true, data: configFile });
-    } catch (error) {
-      logger.error('Error fetching config file', { error: error instanceof Error ? error.message : error });
-      res.status(500).json({ error: "Internal server error" });
     }
-  }
+    res.json({ success: true, data: configFile });
+  }),
 );
 
 // DELETE /api/clankers/:id/config-files/:fileType - Delete a specific config file
 router.delete(
   "/:id/config-files/:fileType",
   validateUuidParam("id"),
-  async (req, res) => {
-    try {
-      const clanker = await clankerService.getClanker(req.params.id);
-      if (!clanker) {
-        return res.status(404).json({ error: "Clanker not found" });
-      }
-
-      await clankerService.deleteConfigFile(req.params.id, req.params.fileType);
-      res.status(204).send();
-    } catch (error) {
-      logger.error('Error deleting config file', { error: error instanceof Error ? error.message : error });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  }
+  asyncHandler(async (req, res) => {
+    await requireClanker(req.params.id);
+    await clankerService.deleteConfigFile(req.params.id, req.params.fileType);
+    res.status(204).send();
+  }),
 );
 
 export default router;

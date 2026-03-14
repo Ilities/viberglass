@@ -11,7 +11,7 @@
 
 import { EcsInvoker } from "../../../../workers";
 import { ErrorClassification } from "../../../../workers";
-import type { Clanker } from "@viberglass/types";
+import { JOB_KIND, type Clanker } from "@viberglass/types";
 import type { JobData } from "../../../../types/Job";
 
 // Mock the ECS client
@@ -36,6 +36,7 @@ describe("EcsInvoker", () => {
     // Setup mock job
     mockJob = {
       id: "job-123",
+      jobKind: JOB_KIND.EXECUTION,
       tenantId: "tenant-abc",
       repository: "https://github.com/user/repo",
       task: "Fix the bug in auth module",

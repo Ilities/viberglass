@@ -2,55 +2,76 @@ import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { SearchInput } from '@/components/search-input'
+import { SegmentedControl } from '@/components/segmented-control'
 import { Select } from '@/components/select'
 import { getClankersList } from '@/data'
 import { archiveTickets, getTickets, unarchiveTickets } from '@/service/api/ticket-api'
 import {
   TICKET_ARCHIVE_FILTER,
   TICKET_STATUS,
+  TICKET_WORKFLOW_PHASE,
   type Clanker,
   type Severity,
   type Ticket,
   type TicketArchiveFilter,
   type TicketLifecycleStatus,
+  type TicketWorkflowPhase,
 } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { ticketWorkflowPhaseOrder } from './ticket-display'
+import { TicketsBoard } from './tickets-board'
 import { TicketsTable } from './tickets-table'
 
 type StatusFilter = 'actionable' | 'all' | TicketLifecycleStatus
+type PhaseFilter = 'all' | TicketWorkflowPhase
+type TicketView = 'board' | 'table'
+type TicketTab = 'active' | 'archived'
+
+const allStatuses: TicketLifecycleStatus[] = [
+  TICKET_STATUS.OPEN,
+  TICKET_STATUS.IN_PROGRESS,
+  TICKET_STATUS.RESOLVED,
+]
+
+function isTicketLifecycleStatus(value: string): value is TicketLifecycleStatus {
+  return value === TICKET_STATUS.OPEN || value === TICKET_STATUS.IN_PROGRESS || value === TICKET_STATUS.RESOLVED
+}
+
+function isTicketWorkflowPhase(value: string): value is TicketWorkflowPhase {
+  return (
+    value === TICKET_WORKFLOW_PHASE.RESEARCH ||
+    value === TICKET_WORKFLOW_PHASE.PLANNING ||
+    value === TICKET_WORKFLOW_PHASE.EXECUTION
+  )
+}
 
 function parseStatusFilter(value: string | null, defaultValue: StatusFilter): StatusFilter {
-  if (!value) {
-    return defaultValue
-  }
-
-  if (
-    value === 'actionable' ||
-    value === 'all' ||
-    value === TICKET_STATUS.OPEN ||
-    value === TICKET_STATUS.IN_PROGRESS ||
-    value === TICKET_STATUS.RESOLVED
-  ) {
-    return value
-  }
-
+  if (!value) return defaultValue
+  if (value === 'actionable' || value === 'all') return value
+  if (isTicketLifecycleStatus(value)) return value
   return defaultValue
 }
 
-function parseSeverity(value: string | null): Severity | 'all' {
-  if (value === 'low' || value === 'medium' || value === 'high' || value === 'critical') {
-    return value
-  }
+function parsePhaseFilter(value: string | null): PhaseFilter {
+  if (!value) return 'all'
+  if (isTicketWorkflowPhase(value)) return value
   return 'all'
+}
+
+function parseSeverity(value: string | null): Severity | 'all' {
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'critical') return value
+  return 'all'
+}
+
+function parseView(value: string | null): TicketView {
+  return value === 'table' ? 'table' : 'board'
 }
 
 function parsePositiveInt(value: string | null, fallback: number): number {
   if (!value) return fallback
   const parsed = Number.parseInt(value, 10)
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return fallback
-  }
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback
   return parsed
 }
 
@@ -59,8 +80,18 @@ function statusesFromFilter(filter: StatusFilter): TicketLifecycleStatus[] {
     return [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS]
   }
   if (filter === 'all') {
-    return [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.RESOLVED]
+    return allStatuses
   }
+  return [filter]
+}
+
+function workflowPhasesFromFilter(filter: PhaseFilter): TicketWorkflowPhase[] | undefined {
+  if (filter === 'all') return undefined
+  return [filter]
+}
+
+function visiblePhasesFromFilter(filter: PhaseFilter): TicketWorkflowPhase[] {
+  if (filter === 'all') return ticketWorkflowPhaseOrder
   return [filter]
 }
 
@@ -68,10 +99,11 @@ export function TicketsPage() {
   const { project } = useParams<{ project: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const tab = searchParams.get('tab') === 'archived' ? 'archived' : 'active'
-  const defaultStatus = tab === 'active' ? 'actionable' : 'all'
-  const status = parseStatusFilter(searchParams.get('status'), defaultStatus)
+  const tab: TicketTab = searchParams.get('tab') === 'archived' ? 'archived' : 'active'
+  const status = parseStatusFilter(searchParams.get('status'), tab === 'active' ? 'actionable' : 'all')
+  const phase = parsePhaseFilter(searchParams.get('phase'))
   const severity = parseSeverity(searchParams.get('severity'))
+  const view = parseView(searchParams.get('view'))
   const search = searchParams.get('search') ?? ''
   const page = parsePositiveInt(searchParams.get('page'), 1)
   const pageSize = parsePositiveInt(searchParams.get('pageSize'), 25)
@@ -86,22 +118,31 @@ export function TicketsPage() {
   const [reloadNonce, setReloadNonce] = useState(0)
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const visibleStatuses = useMemo(() => statusesFromFilter(status), [status])
+  const visiblePhases = useMemo(() => visiblePhasesFromFilter(phase), [phase])
+  const selectedCount = selectedTicketIds.size
+  const showArchived = tab === 'archived'
+  const selectedTicketIdList = useMemo(() => Array.from(selectedTicketIds), [selectedTicketIds])
+  const allVisibleSelected = tickets.length > 0 && tickets.every((ticket) => selectedTicketIds.has(ticket.id))
 
   function updateFilters(next: {
-    tab?: 'active' | 'archived'
-    search?: string
-    status?: StatusFilter
-    severity?: Severity | 'all'
     page?: number
     pageSize?: number
+    phase?: PhaseFilter
+    search?: string
+    severity?: Severity | 'all'
+    status?: StatusFilter
+    tab?: TicketTab
+    view?: TicketView
   }) {
     const nextTab = next.tab ?? tab
-    const nextSearch = next.search ?? search
     const nextStatus = next.status ?? status
+    const nextPhase = next.phase ?? phase
     const nextSeverity = next.severity ?? severity
+    const nextView = next.view ?? view
+    const nextSearch = next.search ?? search
     const nextPage = next.page ?? page
     const nextPageSize = next.pageSize ?? pageSize
-
     const nextParams = new URLSearchParams()
 
     if (nextTab !== 'active') {
@@ -115,15 +156,18 @@ export function TicketsPage() {
     if (nextStatus !== defaultStatusForTab) {
       nextParams.set('status', nextStatus)
     }
-
+    if (nextPhase !== 'all') {
+      nextParams.set('phase', nextPhase)
+    }
     if (nextSeverity !== 'all') {
       nextParams.set('severity', nextSeverity)
     }
-
+    if (nextView !== 'board') {
+      nextParams.set('view', nextView)
+    }
     if (nextPage !== 1) {
       nextParams.set('page', String(nextPage))
     }
-
     if (nextPageSize !== 25) {
       nextParams.set('pageSize', String(nextPageSize))
     }
@@ -133,8 +177,7 @@ export function TicketsPage() {
 
   useEffect(() => {
     async function loadClankers() {
-      const clankerData = await getClankersList()
-      setClankers(clankerData)
+      setClankers(await getClankersList())
     }
 
     void loadClankers()
@@ -142,9 +185,7 @@ export function TicketsPage() {
 
   useEffect(() => {
     async function loadTickets() {
-      if (!project) {
-        return
-      }
+      if (!project) return
 
       setIsLoading(true)
       setError(null)
@@ -158,7 +199,8 @@ export function TicketsPage() {
           projectSlug: project,
           limit: pageSize,
           offset,
-          statuses: statusesFromFilter(status),
+          statuses: visibleStatuses,
+          workflowPhases: workflowPhasesFromFilter(phase),
           archived: archivedMode,
           severity: severity === 'all' ? undefined : severity,
           search,
@@ -176,7 +218,7 @@ export function TicketsPage() {
     }
 
     void loadTickets()
-  }, [page, pageSize, project, reloadNonce, search, severity, status, tab])
+  }, [page, pageSize, phase, project, reloadNonce, search, severity, tab, visibleStatuses])
 
   useEffect(() => {
     setSelectedTicketIds((previous) => {
@@ -191,15 +233,8 @@ export function TicketsPage() {
     })
   }, [tickets])
 
-  const selectedCount = selectedTicketIds.size
-  const showArchived = tab === 'archived'
-
-  const selectedTicketIdList = useMemo(() => Array.from(selectedTicketIds), [selectedTicketIds])
-
   async function runArchiveMutation(mode: 'archive' | 'unarchive', ticketIds: string[]) {
-    if (ticketIds.length === 0) {
-      return
-    }
+    if (ticketIds.length === 0) return
 
     setIsArchiveMutationPending(true)
     setError(null)
@@ -221,46 +256,64 @@ export function TicketsPage() {
     }
   }
 
-  function goToPage(nextPage: number) {
-    const boundedPage = Math.max(1, Math.min(totalPages, nextPage))
-    updateFilters({ page: boundedPage })
+  function toggleTicketSelection(ticketId: string) {
+    setSelectedTicketIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(ticketId)) {
+        next.delete(ticketId)
+      } else {
+        next.add(ticketId)
+      }
+      return next
+    })
   }
 
-  if (!project) {
-    return null
+  function goToPage(nextPage: number) {
+    updateFilters({ page: Math.max(1, Math.min(totalPages, nextPage)) })
   }
+
+  if (!project) return null
 
   return (
     <>
       <PageMeta title={`${project} | Tickets`} />
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4">
         <Heading>Tickets</Heading>
         <Button href={`/project/${project}/tickets/create`} color="brand">
           Create
         </Button>
       </div>
 
-      <div className="mt-6 flex gap-2">
-        {tab === 'active' ? (
-          <Button onClick={() => updateFilters({ tab: 'active', page: 1, status: 'actionable' })}>
-            Active Queue
-          </Button>
-        ) : (
-          <Button outline onClick={() => updateFilters({ tab: 'active', page: 1, status: 'actionable' })}>
-            Active Queue
-          </Button>
-        )}
-        {tab === 'archived' ? (
-          <Button onClick={() => updateFilters({ tab: 'archived', page: 1, status: 'all' })}>Archived</Button>
-        ) : (
-          <Button outline onClick={() => updateFilters({ tab: 'archived', page: 1, status: 'all' })}>
-            Archived
-          </Button>
-        )}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          {tab === 'active' ? (
+            <Button onClick={() => updateFilters({ tab: 'active', page: 1, status: 'actionable' })}>Active Queue</Button>
+          ) : (
+            <Button outline onClick={() => updateFilters({ tab: 'active', page: 1, status: 'actionable' })}>
+              Active Queue
+            </Button>
+          )}
+          {tab === 'archived' ? (
+            <Button onClick={() => updateFilters({ tab: 'archived', page: 1, status: 'all' })}>Archived</Button>
+          ) : (
+            <Button outline onClick={() => updateFilters({ tab: 'archived', page: 1, status: 'all' })}>
+              Archived
+            </Button>
+          )}
+        </div>
+
+        <SegmentedControl
+          value={view}
+          onChange={(nextValue) => updateFilters({ view: parseView(nextValue) })}
+          options={[
+            { value: 'board', label: 'Board' },
+            { value: 'table', label: 'Table' },
+          ]}
+        />
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-4">
-        <div className="min-w-75 flex-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(18rem,1.7fr)_repeat(4,minmax(9rem,0.7fr))]">
+        <div className="min-w-0">
           <SearchInput
             placeholder="Search tickets..."
             name="search"
@@ -269,19 +322,22 @@ export function TicketsPage() {
           />
         </div>
 
-        <Select name="status" value={status} onChange={(value) => updateFilters({ status: value as StatusFilter, page: 1 })}>
-          <option value="actionable">Actionable (Open + In Progress)</option>
+        <Select name="status" value={status} onChange={(value) => updateFilters({ status: parseStatusFilter(value, status), page: 1 })}>
+          <option value="actionable">Actionable</option>
           <option value="all">All Statuses</option>
           <option value={TICKET_STATUS.OPEN}>Open</option>
           <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
           <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
         </Select>
 
-        <Select
-          name="severity"
-          value={severity}
-          onChange={(value) => updateFilters({ severity: value as Severity | 'all', page: 1 })}
-        >
+        <Select name="phase" value={phase} onChange={(value) => updateFilters({ phase: parsePhaseFilter(value), page: 1 })}>
+          <option value="all">All Phases</option>
+          <option value={TICKET_WORKFLOW_PHASE.RESEARCH}>Research</option>
+          <option value={TICKET_WORKFLOW_PHASE.PLANNING}>Planning</option>
+          <option value={TICKET_WORKFLOW_PHASE.EXECUTION}>Execution</option>
+        </Select>
+
+        <Select name="severity" value={severity} onChange={(value) => updateFilters({ severity: parseSeverity(value), page: 1 })}>
           <option value="all">All Severities</option>
           <option value="critical">Critical</option>
           <option value="high">High</option>
@@ -292,7 +348,7 @@ export function TicketsPage() {
         <Select
           name="page_size"
           value={String(pageSize)}
-          onChange={(value) => updateFilters({ pageSize: Number.parseInt(value, 10), page: 1 })}
+          onChange={(value) => updateFilters({ pageSize: parsePositiveInt(value, 25), page: 1 })}
         >
           <option value="25">25 / page</option>
           <option value="50">50 / page</option>
@@ -300,33 +356,29 @@ export function TicketsPage() {
         </Select>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-4">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-zinc-500 dark:text-zinc-400">
           {total} ticket{total === 1 ? '' : 's'} total
           {selectedCount > 0 ? ` • ${selectedCount} selected` : ''}
         </div>
 
-        {selectedCount > 0 ? (
-          <div className="flex items-center gap-2">
-            {showArchived ? (
-              <Button
-                plain
-                disabled={isArchiveMutationPending}
-                onClick={() => runArchiveMutation('unarchive', selectedTicketIdList)}
-              >
-                Unarchive Selected
-              </Button>
-            ) : (
-              <Button
-                plain
-                disabled={isArchiveMutationPending}
-                onClick={() => runArchiveMutation('archive', selectedTicketIdList)}
-              >
-                Archive Selected
-              </Button>
-            )}
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button plain disabled={tickets.length === 0 || allVisibleSelected} onClick={() => setSelectedTicketIds(new Set(tickets.map((ticket) => ticket.id)))}>
+            Select Visible
+          </Button>
+          <Button plain disabled={selectedCount === 0} onClick={() => setSelectedTicketIds(new Set())}>
+            Clear Selection
+          </Button>
+          {selectedCount > 0 ? (
+            <Button
+              plain
+              disabled={isArchiveMutationPending}
+              onClick={() => void runArchiveMutation(showArchived ? 'unarchive' : 'archive', selectedTicketIdList)}
+            >
+              {showArchived ? 'Unarchive Selected' : 'Archive Selected'}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {error ? (
@@ -341,38 +393,36 @@ export function TicketsPage() {
         </div>
       ) : tickets.length > 0 ? (
         <>
-          <TicketsTable
-            tickets={tickets}
-            clankers={clankers}
-            project={project}
-            selectedTicketIds={selectedTicketIds}
-            showArchived={showArchived}
-            isArchiveMutationPending={isArchiveMutationPending}
-            onToggleTicketSelection={(ticketId) => {
-              setSelectedTicketIds((previous) => {
-                const next = new Set(previous)
-                if (next.has(ticketId)) {
-                  next.delete(ticketId)
-                } else {
-                  next.add(ticketId)
-                }
-                return next
-              })
-            }}
-            onToggleAllTicketSelection={(checked) => {
-              if (checked) {
-                setSelectedTicketIds(new Set(tickets.map((ticket) => ticket.id)))
-              } else {
-                setSelectedTicketIds(new Set())
+          {view === 'board' ? (
+            <TicketsBoard
+              tickets={tickets}
+              clankers={clankers}
+              project={project}
+              selectedTicketIds={selectedTicketIds}
+              showArchived={showArchived}
+              isArchiveMutationPending={isArchiveMutationPending}
+              visiblePhases={visiblePhases}
+              visibleStatuses={visibleStatuses}
+              onToggleTicketSelection={toggleTicketSelection}
+              onArchiveTicket={(ticketId) => void runArchiveMutation('archive', [ticketId])}
+              onUnarchiveTicket={(ticketId) => void runArchiveMutation('unarchive', [ticketId])}
+            />
+          ) : (
+            <TicketsTable
+              tickets={tickets}
+              clankers={clankers}
+              project={project}
+              selectedTicketIds={selectedTicketIds}
+              showArchived={showArchived}
+              isArchiveMutationPending={isArchiveMutationPending}
+              onToggleTicketSelection={toggleTicketSelection}
+              onToggleAllTicketSelection={(checked) =>
+                setSelectedTicketIds(checked ? new Set(tickets.map((ticket) => ticket.id)) : new Set())
               }
-            }}
-            onArchiveTicket={(ticketId) => {
-              void runArchiveMutation('archive', [ticketId])
-            }}
-            onUnarchiveTicket={(ticketId) => {
-              void runArchiveMutation('unarchive', [ticketId])
-            }}
-          />
+              onArchiveTicket={(ticketId) => void runArchiveMutation('archive', [ticketId])}
+              onUnarchiveTicket={(ticketId) => void runArchiveMutation('unarchive', [ticketId])}
+            />
+          )}
 
           <div className="mt-6 flex items-center justify-end gap-2">
             <Button plain disabled={page <= 1} onClick={() => goToPage(page - 1)}>

@@ -1,6 +1,7 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/button'
+import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
@@ -10,7 +11,7 @@ import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
-import { getErrorMessage, getInitialRepositoryUrls, normalizeRepositoryUrls } from '@/lib/project-form'
+import { getErrorMessage } from '@/lib/project-form'
 import {
   getAvailableIntegrationTypes,
   getIntegrationCredentials,
@@ -18,6 +19,7 @@ import {
   type ProjectIntegrationWithDetails,
 } from '@/service/api/integration-api'
 import {
+  deleteProject,
   deleteProjectScmConfig,
   getProjectScmConfig,
   updateProject,
@@ -60,11 +62,11 @@ function mapLinkedIntegrations(
 export function ProjectSettingsPage() {
   const { project } = useParams<{ project: string }>()
   const { project: projectData, isLoading: isProjectLoading, error: projectError } = useProject()
+  const navigate = useNavigate()
 
   const [name, setName] = useState('')
   const [autoFixEnabled, setAutoFixEnabled] = useState(false)
   const [autoFixTags, setAutoFixTags] = useState('')
-  const [repositoryUrls, setRepositoryUrls] = useState<string[]>([''])
   const [agentInstructions, setAgentInstructions] = useState('')
 
   const [linkedIntegrations, setLinkedIntegrations] = useState<LinkedIntegrationOption[]>([])
@@ -92,6 +94,11 @@ export function ProjectSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
   const ticketingIntegrations = useMemo(
     () => linkedIntegrations.filter((integration) => integration.category !== 'scm'),
     [linkedIntegrations]
@@ -101,32 +108,12 @@ export function ProjectSettingsPage() {
     [linkedIntegrations]
   )
 
-  const updateRepositoryUrl = (index: number, value: string) => {
-    setRepositoryUrls((prev) => {
-      const next = [...prev]
-      next[index] = value
-      return next
-    })
-  }
-
-  const addRepositoryUrl = () => {
-    setRepositoryUrls((prev) => [...prev, ''])
-  }
-
-  const removeRepositoryUrl = (index: number) => {
-    setRepositoryUrls((prev) => {
-      const next = prev.filter((_, i) => i !== index)
-      return next.length > 0 ? next : ['']
-    })
-  }
-
   useEffect(() => {
     if (!projectData) return
     setName(projectData.name ?? '')
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
     setAgentInstructions(projectData.agentInstructions ?? '')
-    setRepositoryUrls(getInitialRepositoryUrls(projectData))
     setError(null)
     setSuccess(null)
   }, [projectData])
@@ -332,13 +319,25 @@ export function ProjectSettingsPage() {
     }
   }, [initialScmConfig?.integrationCredentialId, initialScmConfig?.integrationId, scmIntegrationId])
 
+  async function handleDeleteProject() {
+    if (!projectData) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteProject(projectData.id)
+      navigate('/')
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, 'Failed to delete project'))
+      setIsDeleting(false)
+    }
+  }
+
   const resetForm = () => {
     if (!projectData) return
     setName(projectData.name ?? '')
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
     setAgentInstructions(projectData.agentInstructions ?? '')
-    setRepositoryUrls(getInitialRepositoryUrls(projectData))
 
     // Phase 2: Use primaryTicketingIntegrationId instead of deprecated ticketSystem
     const primaryTicketingId = projectData.primaryTicketingIntegrationId
@@ -405,11 +404,6 @@ export function ProjectSettingsPage() {
         (integration) => integration.integrationEntityId === ticketingIntegrationId
       )
 
-      const repositoryUrlList = normalizeRepositoryUrls(repositoryUrls)
-      if (repositoryUrlList.length === 0) {
-        throw new Error('Add at least one repository URL to continue')
-      }
-
       const updates: UpdateProjectRequest = {
         name: name.trim(),
         ticketSystem: selectedTicketingIntegration?.system,
@@ -418,8 +412,6 @@ export function ProjectSettingsPage() {
           .split(',')
           .map((tag) => tag.trim())
           .filter(Boolean),
-        repositoryUrl: repositoryUrlList[0] ?? null,
-        repositoryUrls: repositoryUrlList,
         agentInstructions: normalizeOptionalText(agentInstructions),
       }
 
@@ -458,7 +450,6 @@ export function ProjectSettingsPage() {
       setAutoFixEnabled(Boolean(updatedProject.autoFixEnabled))
       setAutoFixTags(updatedProject.autoFixTags?.join(', ') ?? '')
       setAgentInstructions(updatedProject.agentInstructions ?? '')
-      setRepositoryUrls(getInitialRepositoryUrls(updatedProject))
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Failed to update project'))
     } finally {
@@ -515,42 +506,6 @@ export function ProjectSettingsPage() {
                   <Label>Project Name</Label>
                   <Description>Update the project name shown across the platform.</Description>
                   <Input name="name" value={name} onChange={(event) => setName(event.target.value)} required />
-                </Field>
-
-                <Field>
-                  <Label>Repository URLs</Label>
-                  <Description>
-                    Legacy fallback repository list. The first URL is used when no SCM configuration is set.
-                  </Description>
-                  <div className="mt-2 space-y-3">
-                    {repositoryUrls.map((url, index) => (
-                      <div key={`repository-${index}`} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <Input
-                          name="repository_urls"
-                          type="url"
-                          aria-label={`Repository URL ${index + 1}`}
-                          placeholder="https://github.com/org/repo"
-                          value={url}
-                          onChange={(event) => updateRepositoryUrl(index, event.target.value)}
-                          className="min-w-0 flex-1"
-                          style={{ width: '100%' }}
-                        />
-                        {repositoryUrls.length > 1 ? (
-                          <Button
-                            type="button"
-                            plain
-                            className="self-start sm:self-center"
-                            onClick={() => removeRepositoryUrl(index)}
-                          >
-                            Remove
-                          </Button>
-                        ) : null}
-                      </div>
-                    ))}
-                    <Button type="button" plain onClick={addRepositoryUrl}>
-                      Add another repository
-                    </Button>
-                  </div>
                 </Field>
 
                 <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
@@ -847,7 +802,58 @@ export function ProjectSettingsPage() {
             </Fieldset>
           </form>
         )}
+
+        {projectData && (
+          <div className="mt-16 border-t border-red-200 pt-8 dark:border-red-900/50">
+            <div className="rounded-xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
+              <h3 className="text-base font-semibold text-red-700 dark:text-red-400">Danger Zone</h3>
+              <p className="mt-1 text-sm text-red-600/80 dark:text-red-400/80">
+                Permanently delete this project and all associated data. This cannot be undone.
+              </p>
+              <div className="mt-4">
+                <Button color="red" onClick={() => { setDeleteConfirmName(''); setDeleteError(null); setShowDeleteDialog(true) }}>
+                  Delete Project
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      <Dialog open={showDeleteDialog} onClose={(open) => { if (!isDeleting) setShowDeleteDialog(open) }} size="md">
+        <DialogTitle>Delete Project</DialogTitle>
+        <DialogDescription>
+          This will permanently delete <strong>{projectData?.name}</strong> and all its tickets, jobs, and configuration. This action cannot be undone.
+        </DialogDescription>
+        <DialogBody>
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Type <strong className="font-mono text-zinc-900 dark:text-white">{projectData?.name}</strong> to confirm.
+            </p>
+            <Input
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder={projectData?.name}
+              disabled={isDeleting}
+            />
+            {deleteError && (
+              <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+            )}
+          </div>
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            onClick={handleDeleteProject}
+            disabled={isDeleting || deleteConfirmName !== projectData?.name}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete Project'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }

@@ -1,6 +1,6 @@
 # DEPRECATED: Use docker-compose.yml at repository root instead
 # The root docker-compose.yml provides a complete development environment
-# with postgres, redis, backend, and frontend services.
+# with postgres, backend, and frontend services.
 #
 # This file is kept for reference but should not be used for new development.
 # To start all services: docker compose up (from repository root)
@@ -15,20 +15,13 @@ services:
     ports:
       - "5432:5432"
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
   backend:
     scale: 0
     build:
       dockerfile: Dockerfile
     environment:
       - DB_HOST=postgres
-      - REDIS_HOST=redis
     ports:
       - "3000:3000"
     depends_on:
       - postgres
-      - redis

@@ -49,7 +49,7 @@ jobs:
         run: npm run build -w @viberglass/frontend
         env:
           # Use a placeholder API URL for build validation
-          NEXT_PUBLIC_API_URL: https://api.placeholder.local
+          VITE_API_URL: https://api.placeholder.local
 
   # Production deployment approval gate
   # This job requires manual approval via GitHub environment protection rules

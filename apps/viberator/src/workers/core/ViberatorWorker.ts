@@ -47,7 +47,7 @@ export class ViberatorWorker {
   private readonly agentEndpointEnvironmentFactory: AgentEndpointEnvironmentFactory;
   private initialized = false;
 
-  private clankerConfig?: Record<string, unknown>;
+  private clankerConfig?: { clankerId: string } & Record<string, unknown>;
   private clankerEnvironment?: Record<string, string>;
   private requestedAgent?: string;
   private projectConfig?: ProjectConfigPayload;
@@ -96,10 +96,11 @@ export class ViberatorWorker {
 
       if (payload) {
         await this.agentAuthLifecycle.materializeFromEnvironment();
-        this.instructionFiles = await this.instructionFileManager.loadFromPayload(
-          payload,
-          this.configLoader,
-        );
+        this.instructionFiles =
+          await this.instructionFileManager.loadFromPayload(
+            payload,
+            this.configLoader,
+          );
 
         this.logger.info("Worker payload processed", {
           tenantId: payload.tenantId,
@@ -161,14 +162,17 @@ export class ViberatorWorker {
           this.sendProgress(step, message, details),
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
           this.cloneRepositoryToWorkspace(repository, branch, workDir),
-        cleanupWorkspace: (workDir) => this.cleanupWorkspace(workDir),
       });
     } finally {
+      // Cleanup runs after sendResult has already been called inside jobRunner,
+      // so Lambda timeout during cleanup no longer causes the job to appear
+      // stuck as "running" on the platform.
       this.logForwarder.cleanup();
       this.environmentManager.cleanup(
         this.fetchedCredentials || {},
         this.clankerEnvironment,
       );
+      this.cleanupWorkspace(path.join(this.workDir, data.id));
       this.currentJobId = undefined;
       this.currentTenantId = undefined;
     }
@@ -273,10 +277,13 @@ export class ViberatorWorker {
       return matchedAgent;
     }
 
-    this.logger.warn("Requested agent is not configured in worker, falling back", {
-      requestedAgent: normalizedRequestedAgent,
-      fallbackAgent: availableAgents[0].name,
-    });
+    this.logger.warn(
+      "Requested agent is not configured in worker, falling back",
+      {
+        requestedAgent: normalizedRequestedAgent,
+        fallbackAgent: availableAgents[0].name,
+      },
+    );
     return availableAgents[0];
   }
 

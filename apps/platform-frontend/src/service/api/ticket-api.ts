@@ -41,6 +41,7 @@ export async function getTickets(params: TicketListParams = {}): Promise<TicketL
     limit = 50,
     offset = 0,
     statuses,
+    workflowPhases,
     archived,
     severity,
     search,
@@ -56,6 +57,9 @@ export async function getTickets(params: TicketListParams = {}): Promise<TicketL
   queryParams.set('offset', String(offset))
   if (statuses && statuses.length > 0) {
     queryParams.set('statuses', statuses.join(','))
+  }
+  if (workflowPhases && workflowPhases.length > 0) {
+    queryParams.set('workflowPhases', workflowPhases.join(','))
   }
   if (archived) {
     queryParams.set('archived', archived)
@@ -131,6 +135,22 @@ export async function advanceTicketWorkflowPhase(
     throw new Error(error.error || error.message || 'Failed to advance ticket workflow')
   }
   const data: ApiResponse<{ ticketId: string; workflowPhase: TicketWorkflowPhase }> = await response.json()
+  return data.data
+}
+
+export async function setTicketWorkflowPhase(id: string, workflowPhase: TicketWorkflowPhase): Promise<Ticket> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/workflow/phase`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ workflowPhase }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to update ticket workflow phase')
+  }
+  const data: ApiResponse<Ticket> = await response.json()
   return data.data
 }
 

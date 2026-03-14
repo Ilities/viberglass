@@ -1,5 +1,9 @@
 import express from "express";
 import request from "supertest";
+import {
+  TicketServiceError,
+  TICKET_SERVICE_ERROR_CODE,
+} from "../../../../services/errors/TicketServiceError";
 
 const mockTicketDAO = {
   getTicket: jest.fn(),
@@ -35,6 +39,7 @@ const mockTicketWorkflowOverrideService = {
 const mockTicketWorkflowService = {
   getTicketWorkflow: jest.fn(),
   advancePhase: jest.fn(),
+  setPhase: jest.fn(),
 };
 const mockTicketPhaseDocumentRevisionService = {
   listRevisions: jest.fn(),
@@ -252,6 +257,34 @@ describe("ticket workflow routes", () => {
     expect(response.body).toEqual({ error: "Invalid workflow phase" });
   });
 
+  it("manually sets the workflow phase", async () => {
+    mockTicketWorkflowService.setPhase.mockResolvedValue({
+      id: TICKET_ID,
+      workflowPhase: "execution",
+      status: "open",
+    });
+
+    const response = await request(app)
+      .put(`/api/tickets/${TICKET_ID}/workflow/phase`)
+      .send({ workflowPhase: "execution" })
+      .expect(200);
+
+    expect(mockTicketWorkflowService.setPhase).toHaveBeenCalledWith(
+      TICKET_ID,
+      "execution",
+    );
+    expect(response.body.data.workflowPhase).toBe("execution");
+  });
+
+  it("rejects invalid workflow phases for manual phase updates", async () => {
+    const response = await request(app)
+      .put(`/api/tickets/${TICKET_ID}/workflow/phase`)
+      .send({ workflowPhase: "invalid" })
+      .expect(400);
+
+    expect(response.body).toEqual({ error: "Invalid workflow phase" });
+  });
+
   it("returns 409 for disallowed transitions", async () => {
     mockTicketWorkflowService.advancePhase.mockRejectedValue(
       new Error("Cannot advance ticket workflow from research to execution"),
@@ -305,14 +338,34 @@ describe("ticket workflow routes", () => {
     expect(response.body.data.document.approvalState).toBe("approved");
   });
 
+  it("returns 409 when planning approval request is made outside planning phase", async () => {
+    mockTicketPlanningApprovalService.requestApproval.mockRejectedValue(
+      new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_REQUEST_INVALID_PHASE,
+        "Approval can only be requested during the planning phase",
+      ),
+    );
+
+    const response = await request(app)
+      .post(`/api/tickets/${TICKET_ID}/phases/planning/request-approval`)
+      .expect(409);
+
+    expect(response.body).toEqual({
+      error: "Approval can only be requested during the planning phase",
+    });
+  });
+
   it("returns 409 when execution is blocked by planning approval", async () => {
     mockTicketExecutionService.runTicket.mockRejectedValue(
-      new Error("Execution is blocked until the planning document is approved"),
+      new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.EXECUTION_BLOCKED_UNAPPROVED_PLAN,
+        "Execution is blocked until the planning document is approved",
+      ),
     );
 
     const response = await request(app)
       .post(`/api/tickets/${TICKET_ID}/run`)
-      .send({ clankerId: "clanker-1" })
+      .send({ clankerId: "22222222-2222-4222-8222-222222222222" })
       .expect(409);
 
     expect(response.body.message).toBe(
@@ -340,5 +393,54 @@ describe("ticket workflow routes", () => {
       undefined,
     );
     expect(response.body.data.workflowPhase).toBe("execution");
+  });
+
+  it("returns 400 when override validation fails", async () => {
+    mockTicketWorkflowOverrideService.overrideToExecution.mockRejectedValue(
+      new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.WORKFLOW_OVERRIDE_REASON_REQUIRED,
+        "workflow override reason is required",
+      ),
+    );
+
+    const response = await request(app)
+      .post(`/api/tickets/${TICKET_ID}/workflow/override-to-execution`)
+      .send({ reason: "   " })
+      .expect(400);
+
+    expect(response.body.message).toBe("workflow override reason is required");
+  });
+
+  it("passes workflow phase filters through GET /api/tickets", async () => {
+    mockTicketDAO.getTicketsWithFilters.mockResolvedValue({
+      tickets: [],
+      total: 0,
+    });
+
+    await request(app)
+      .get("/api/tickets")
+      .query({
+        statuses: "open,in_progress",
+        workflowPhases: "research,planning",
+      })
+      .expect(200);
+
+    expect(mockTicketDAO.getTicketsWithFilters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statuses: ["open", "in_progress"],
+        workflowPhases: ["research", "planning"],
+      }),
+    );
+  });
+
+  it("returns 400 for invalid workflow phase filters on GET /api/tickets", async () => {
+    const response = await request(app)
+      .get("/api/tickets")
+      .query({ workflowPhases: "research,invalid-phase" })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      error: "Invalid workflowPhases filter",
+    });
   });
 });

@@ -1,5 +1,5 @@
-import type express from "express";
-import type { Clanker } from "@viberglass/types";
+import { Clanker } from "@viberglass/types";
+import type { Request, Response, NextFunction } from "express";
 
 const mockClankerDAO = {
   getClanker: jest.fn(),
@@ -24,17 +24,17 @@ const mockProvisioner = {
 
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: (
-    _req: express.Request,
-    _res: express.Response,
-    next: express.NextFunction,
+    _req: Request,
+    _res: Response,
+    next: NextFunction,
   ) => next(),
 }));
 
 jest.mock("../../../../api/middleware/validation", () => {
   const passThrough = (
-    _req: express.Request,
-    _res: express.Response,
-    next: express.NextFunction,
+    _req: Request,
+    _res: Response,
+    next: NextFunction,
   ) => next();
 
   return {
@@ -156,7 +156,20 @@ async function invokeStartHandler(
     throw new Error("Start route handler is not callable");
   }
 
-  await handler(req, res, () => undefined);
+  const next = (err?: unknown) => {
+    if (!err) return;
+    // Simulate Express error middleware: map DomainError to HTTP response
+    const r = res as ReturnType<typeof createMockResponse>;
+    if (err instanceof Error && "statusCode" in err && "code" in err) {
+      const domainErr = err as Error & { statusCode: number; code: string };
+      r.status(domainErr.statusCode);
+      r.json({ error: domainErr.message, code: domainErr.code });
+    } else if (err instanceof Error) {
+      r.status(500);
+      r.json({ error: err.message });
+    }
+  };
+  await handler(req, res, next);
 }
 
 function createMockResponse() {
@@ -193,8 +206,8 @@ describe("clankers start route provisioning wiring", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Provisioning configuration error",
-      message: "missing executionRoleArn",
+      error: "missing executionRoleArn",
+      code: "PROVISIONING_CONFIG_ERROR",
     });
     expect(mockClankerDAO.updateStatus).not.toHaveBeenCalled();
     expect(mockProvisioner.provision).not.toHaveBeenCalled();

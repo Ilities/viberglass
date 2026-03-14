@@ -27,6 +27,9 @@ export class AwsLambdaClientAdapter implements LambdaClientPort {
 
   async createFunction(input: CreateFunctionCommandInput): Promise<void> {
     await this.lambdaClient.send(new CreateFunctionCommand(input));
+    if (input.FunctionName) {
+      await this.waitForFunctionActive(input.FunctionName);
+    }
   }
 
   async updateFunctionCode(input: UpdateFunctionCodeCommandInput): Promise<void> {
@@ -48,6 +51,41 @@ export class AwsLambdaClientAdapter implements LambdaClientPort {
   async deleteFunction(functionName: string): Promise<void> {
     await this.lambdaClient.send(
       new DeleteFunctionCommand({ FunctionName: functionName }),
+    );
+  }
+
+  /**
+   * Waits for a newly created Lambda function to reach Active state.
+   * Lambda functions start in "Pending" state after creation and reject
+   * invocations until they become "Active".
+   * Polls every 2 seconds for up to 5 minutes.
+   */
+  private async waitForFunctionActive(functionName: string): Promise<void> {
+    const maxWaitTime = 300000; // 5 minutes in milliseconds
+    const pollInterval = 2000; // 2 seconds
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      const response = await this.lambdaClient.send(
+        new GetFunctionCommand({ FunctionName: functionName }),
+      );
+
+      const state = response.Configuration?.State;
+
+      if (state === "Active") {
+        return;
+      }
+
+      if (state === "Failed") {
+        const reason = response.Configuration?.StateReason || "Unknown error";
+        throw new Error(`Lambda function creation failed: ${reason}`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    throw new Error(
+      `Lambda function activation timed out after ${maxWaitTime / 1000} seconds for function: ${functionName}`,
     );
   }
 

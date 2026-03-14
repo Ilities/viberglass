@@ -1,5 +1,3 @@
-
-
 import { Badge } from '@/components/badge'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
@@ -30,8 +28,24 @@ function truncateTask(task: string, maxLength: number = 60): string {
   return task.slice(0, maxLength) + '...'
 }
 
-function formatJobKind(kind: 'research' | 'execution'): string {
-  return kind === 'research' ? 'Research' : 'Execution'
+function formatJobKind(kind: 'research' | 'execution' | 'planning' | 'claw'): string {
+  switch (kind) {
+    case 'research':
+      return 'Research'
+    case 'execution':
+      return 'Execution'
+    case 'planning':
+      return 'Planning'
+    case 'claw':
+      return 'Scheduled'
+  }
+}
+
+function jobKindBadgeColor(kind: 'research' | 'execution' | 'planning' | 'claw') {
+  if (kind === 'research') return 'blue' as const
+  if (kind === 'planning') return 'teal' as const
+  if (kind === 'claw') return 'amber' as const
+  return 'violet' as const
 }
 
 export function JobsTable({ jobs, project }: JobsTableProps) {
@@ -52,50 +66,47 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
           const jobProject = job.projectSlug || project
           if (!jobProject) return null
           return (
-            <TableRow
-              key={job.jobId}
-              href={`/project/${jobProject}/jobs/${job.jobId}`}
-              title={`View job ${job.jobId}`}
-            >
-            <TableCell>
-              <JobStatusIndicator status={job.status} />
-            </TableCell>
-            <TableCell className="max-w-md">
-              <div className="flex items-center gap-2">
-                <Badge color={job.jobKind === 'research' ? 'blue' : 'violet'}>
-                  {formatJobKind(job.jobKind)}
-                </Badge>
-                <span className="font-medium" title={job.task}>
-                  {truncateTask(job.task)}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell>
-              {job.ticket ? (
+            <TableRow key={job.jobId} href={`/project/${jobProject}/jobs/${job.jobId}`} title={`View job ${job.jobId}`}>
+              <TableCell>
+                <JobStatusIndicator status={job.status} />
+              </TableCell>
+              <TableCell className="max-w-md">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200">
-                    {job.ticket.externalTicketId || 'Internal'}
-                  </Badge>
-                  <span className="max-w-32 truncate text-sm text-zinc-600 dark:text-zinc-400" title={job.ticket.title}>
-                    {job.ticket.title}
+                  <Badge color={jobKindBadgeColor(job.jobKind)}>{formatJobKind(job.jobKind)}</Badge>
+                  <span className="font-medium" title={job.task}>
+                    {truncateTask(job.task)}
                   </span>
                 </div>
-              ) : (
-                <span className="text-zinc-400">-</span>
-              )}
-            </TableCell>
-            <TableCell>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                {job.repository.split('/').slice(-2).join('/')}
-              </span>
-            </TableCell>
-            <TableCell className="text-zinc-500 dark:text-zinc-400">
-              {formatDuration(job.processedAt, job.finishedAt)}
-            </TableCell>
-            <TableCell className="text-zinc-500 dark:text-zinc-400">
-              {formatTimestamp(job.createdAt)}
-            </TableCell>
-          </TableRow>
+              </TableCell>
+              <TableCell>
+                {job.ticket ? (
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200">
+                      {job.ticket.externalTicketId || 'Internal'}
+                    </Badge>
+                    <span
+                      className="max-w-32 truncate text-sm text-zinc-600 dark:text-zinc-400"
+                      title={job.ticket.title}
+                    >
+                      {job.ticket.title}
+                    </span>
+                  </div>
+                ) : job.jobKind === 'claw' ? (
+                  <span className="text-sm text-amber-600 dark:text-amber-400">Scheduled task</span>
+                ) : (
+                  <span className="text-zinc-400">-</span>
+                )}
+              </TableCell>
+              <TableCell>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {job.repository.split('/').slice(-2).join('/')}
+                </span>
+              </TableCell>
+              <TableCell className="text-zinc-500 dark:text-zinc-400">
+                {formatDuration(job.processedAt, job.finishedAt)}
+              </TableCell>
+              <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(job.createdAt)}</TableCell>
+            </TableRow>
           )
         })}
       </TableBody>
