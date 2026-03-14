@@ -110,7 +110,7 @@ export class KimiCodeAgent extends BaseAgent {
         );
       }
 
-      const changedFiles = await this.getChangedFiles(repoDir);
+      const changedFiles = await this.gitService.getChangedFiles(repoDir);
       const cliOutput = this.parseCliOutput(result.stdout);
 
       await this.cleanup(workDir);

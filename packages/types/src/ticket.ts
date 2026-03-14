@@ -201,6 +201,7 @@ export interface TicketListParams {
   limit?: number
   offset?: number
   statuses?: TicketLifecycleStatus[]
+  workflowPhases?: TicketWorkflowPhase[]
   archived?: TicketArchiveFilter
   severity?: Severity
   search?: string

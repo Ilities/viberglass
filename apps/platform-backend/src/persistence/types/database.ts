@@ -48,7 +48,7 @@ export interface ProjectsTable {
     | "shortcut"
     | "slack"
     | "custom";
-  credentials: Json;
+  credentials: Json | null;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
   auto_fix_tags: Generated<string[]>;
@@ -251,7 +251,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"research" | "planning" | "execution">;
+  job_kind: Generated<"research" | "planning" | "execution" | "claw">;
   agent_session_id: string | null;
   agent_turn_id: string | null;
 }
@@ -409,6 +409,53 @@ export interface TicketPhaseDocumentCommentsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface ClawTaskTemplatesTable {
+  id: Generated<string>;
+  project_id: string;
+  name: string;
+  description: string | null;
+  clanker_id: string;
+  task_instructions: string;
+  config: Json;
+  secret_ids: Generated<Json>;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ClawSchedulesTable {
+  id: Generated<string>;
+  project_id: string;
+  task_template_id: string;
+  name: string;
+  description: string | null;
+  schedule_type: Generated<"interval" | "cron">;
+  interval_expression: string | null;
+  cron_expression: string | null;
+  timezone: Generated<string>;
+  is_active: Generated<boolean>;
+  last_run_at: Timestamp | null;
+  next_run_at: Timestamp | null;
+  run_count: Generated<bigint>;
+  failure_count: Generated<bigint>;
+  webhook_config: Json | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+  created_by: string | null;
+}
+
+export interface ClawExecutionsTable {
+  id: Generated<string>;
+  schedule_id: string;
+  job_id: string | null;
+  status: Generated<"pending" | "running" | "completed" | "failed" | "cancelled">;
+  started_at: Timestamp | null;
+  completed_at: Timestamp | null;
+  error_message: string | null;
+  result: Json | null;
+  webhook_delivery_status: Json | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface AgentSessionsTable {
   id: Generated<string>;
   tenant_id: string;
@@ -502,6 +549,9 @@ export interface Database {
   ticket_phase_approvals: TicketPhaseApprovalsTable;
   ticket_phase_document_revisions: TicketPhaseDocumentRevisionsTable;
   ticket_phase_document_comments: TicketPhaseDocumentCommentsTable;
+  claw_task_templates: ClawTaskTemplatesTable;
+  claw_schedules: ClawSchedulesTable;
+  claw_executions: ClawExecutionsTable;
   agent_sessions: AgentSessionsTable;
   agent_turns: AgentTurnsTable;
   agent_session_events: AgentSessionEventsTable;

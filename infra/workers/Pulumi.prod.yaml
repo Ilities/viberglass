@@ -33,5 +33,4 @@ config:
   # Override these if images are built and pushed by CI/CD (GitHub Actions):
   # viberglass-workers:lambdaImageUri: "123456789012.dkr.ecr.eu-west-1.amazonaws.com/viberator-lambda-worker:latest"
   # viberglass-workers:ecsImageUri: "123456789012.dkr.ecr.eu-west-1.amazonaws.com/viberator-ecs-worker:latest"
-  # viberglass-workers:slackAppImageUri: "123456789012.dkr.ecr.eu-west-1.amazonaws.com/viberglass-slack-app:latest"
   # ---------------------------------------------------------------------------

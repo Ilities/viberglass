@@ -19,9 +19,8 @@ export function getProjectSignal(project: Project, tickets: TicketSummary[], job
   const hasObservedTicketFlow = tickets.length > 0
   const hasTicketing = Boolean(project.primaryTicketingIntegrationId) || hasNativeTicketing || hasObservedTicketFlow
   const hasScmConfig = Boolean(project.primaryScmIntegrationId || project.scmConfig?.sourceRepository)
-  const hasLegacyRepository = Boolean(project.repositoryUrl || (project.repositoryUrls && project.repositoryUrls.length > 0))
   const hasObservedRepositoryFlow = jobs.some((job) => job.repository.trim().length > 0)
-  const hasScm = hasScmConfig || hasLegacyRepository || hasObservedRepositoryFlow
+  const hasScm = hasScmConfig || hasObservedRepositoryFlow
   const openTickets = tickets.filter((ticket) => ticket.status !== TICKET_STATUS.RESOLVED).length
   const failedJobs = jobs.filter((job) => job.status === 'failed').length
   const activeJobs = jobs.filter((job) => job.status === 'active' || job.status === 'queued').length

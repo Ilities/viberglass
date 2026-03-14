@@ -18,16 +18,23 @@ import {
 } from '@radix-ui/react-icons'
 import { Tabs } from '@radix-ui/themes'
 import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
-import { type ApprovalState, deleteTicket, getPlanningPhase, updateTicket } from '@/service/api/ticket-api'
+import {
+  type ApprovalState,
+  deleteTicket,
+  getPlanningPhase,
+  setTicketWorkflowPhase,
+  updateTicket,
+} from '@/service/api/ticket-api'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
-import { EditTicketDialog } from './edit-ticket-dialog'
+import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
 import { PlanningDocumentPanel } from './planning-document-panel'
 import { ResearchDocumentPanel } from './research-document-panel'
 import { TicketRunButton } from './ticket-run-button'
+import { formatTicketStatus } from './ticket-display'
 import { TicketWorkflowPanel } from './ticket-workflow-panel'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
 
@@ -99,6 +106,7 @@ function SidebarField({ label, children }: { label: string; children: React.Reac
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -160,6 +168,7 @@ export function TicketDetailPage() {
 
   const severityBadge = getSeverityBadge(ticket.severity)
   const autoFixBadge = getAutoFixBadge(ticket.autoFixStatus)
+  const statusBadge = formatTicketStatus(ticket.status)
 
   function phaseToTab(phase: TicketWorkflowPhase): string {
     if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) return 'research'
@@ -198,6 +207,7 @@ export function TicketDetailPage() {
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <Badge color={severityBadge.color}>{severityBadge.label}</Badge>
                 <Badge color="blue">{ticket.category}</Badge>
+                <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
                 {ticket.autoFixStatus && (
                   <Badge color={autoFixBadge.color}>Auto-fix: {autoFixBadge.label}</Badge>
                 )}
@@ -314,6 +324,9 @@ export function TicketDetailPage() {
                     <Badge color={severityBadge.color}>{severityBadge.label}</Badge>
                   </SidebarField>
                   <SidebarField label="Category">{ticket.category}</SidebarField>
+                  <SidebarField label="Status">
+                    <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
+                  </SidebarField>
                   {ticket.ticketSystem && (
                     <SidebarField label="Ticket system">
                       {ticket.externalTicketUrl ? (
@@ -397,7 +410,7 @@ export function TicketDetailPage() {
 
           {/* Right content column */}
           <div className="lg:col-span-9 xl:col-span-9">
-            <Tabs.Root defaultValue={phaseToTab(ticket.workflowPhase)}>
+            <Tabs.Root defaultValue={searchParams.get('tab') ?? phaseToTab(ticket.workflowPhase)}>
               <Tabs.List>
                 <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
                 <Tabs.Trigger value="research">Research</Tabs.Trigger>
@@ -458,9 +471,15 @@ export function TicketDetailPage() {
         ticket={ticket}
         open={isEditDialogOpen}
         onClose={() => setIsEditDialogOpen(false)}
-        onSave={async (updates) => {
+        onSave={async (updates: EditTicketValues) => {
           try {
-            const updatedTicket = await updateTicket(ticket.id, updates)
+            const { workflowPhase, ...ticketUpdates } = updates
+            let updatedTicket = await updateTicket(ticket.id, ticketUpdates)
+
+            if (workflowPhase !== updatedTicket.workflowPhase) {
+              updatedTicket = await setTicketWorkflowPhase(ticket.id, workflowPhase)
+            }
+
             setTicket(updatedTicket)
             setIsEditDialogOpen(false)
             toast.success('Ticket updated successfully')

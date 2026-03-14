@@ -35,3 +35,6 @@ jobs:
 
       - name: TypeScript compilation check
         run: npm run build -w @viberglass/platform-backend
+
+      - name: Runtime startup smoke check
+        run: npm run smoke:start -w @viberglass/platform-backend

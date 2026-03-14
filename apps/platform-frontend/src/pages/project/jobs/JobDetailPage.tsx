@@ -101,8 +101,18 @@ function formatJobId(jobId: string): string {
   return `${jobId.slice(0, 8)}...${jobId.slice(-6)}`
 }
 
-function formatJobKind(kind: 'research' | 'execution'): string {
-  return kind === 'research' ? 'Research' : 'Execution'
+function formatJobKind(kind: 'research' | 'planning' | 'execution' | 'claw'): string {
+  if (kind === 'research') return 'Research'
+  if (kind === 'planning') return 'Planning'
+  if (kind === 'claw') return 'Scheduled'
+  return 'Execution'
+}
+
+function jobKindBadgeColor(kind: 'research' | 'planning' | 'execution' | 'claw') {
+  if (kind === 'research') return 'blue' as const
+  if (kind === 'planning') return 'teal' as const
+  if (kind === 'claw') return 'amber' as const
+  return 'violet' as const
 }
 
 function readString(value: unknown): string | null {
@@ -201,7 +211,7 @@ export function JobDetailPage() {
                 <Heading className="text-2xl">Job {formatJobId(job.jobId)}</Heading>
                 <div className="mt-1.5 flex items-center gap-3">
                   <JobStatusIndicator status={job.status} isPolling={isPolling} />
-                  <Badge color={job.jobKind === 'research' ? 'blue' : 'violet'}>
+                  <Badge color={jobKindBadgeColor(job.jobKind)}>
                     {formatJobKind(job.jobKind)}
                   </Badge>
                   {job.ticket?.title && (
@@ -216,6 +226,14 @@ export function JobDetailPage() {
                       </Button>
                     </span>
                   )}
+                  {job.jobKind === 'claw' && job.data.context?.clawTemplateName && (
+                    <span className="text-sm text-[var(--gray-9)]">
+                      Schedule:{' '}
+                      <span className="font-medium text-[var(--gray-11)]">
+                        {job.data.context.clawTemplateName}
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -228,10 +246,10 @@ export function JobDetailPage() {
                   View Pull Request
                 </Button>
               )}
-              {job.jobKind === 'research' && job.ticketId && (
-                <Button href={`/project/${project}/tickets/${job.ticketId}`} plain>
+              {(job.jobKind === 'research' || job.jobKind === 'planning') && job.ticketId && (
+                <Button href={`/project/${project}/tickets/${job.ticketId}?tab=${job.jobKind}`} plain>
                   <ReaderIcon className="h-4 w-4" />
-                  View Research
+                  View {formatJobKind(job.jobKind)}
                 </Button>
               )}
               <JobRefreshButton onRefresh={() => void refetch()} />
@@ -472,6 +490,20 @@ export function JobDetailPage() {
                         Results
                       </Subheading>
                       <div className="space-y-4">
+                        {(job.jobKind === 'research' || job.jobKind === 'planning') && job.ticketId && (
+                          <div className="flex items-center gap-3 rounded bg-[var(--gray-3)] p-3">
+                            <ReaderIcon className="h-4 w-4 text-[var(--gray-8)]" />
+                            <div>
+                              <div className="text-xs tracking-wider text-[var(--gray-9)] uppercase">Document</div>
+                              <a
+                                href={`/project/${project}/tickets/${job.ticketId}?tab=${job.jobKind}`}
+                                className="text-sm text-[var(--accent-9)] hover:text-[var(--accent-10)] hover:underline"
+                              >
+                                View {job.jobKind} document
+                              </a>
+                            </div>
+                          </div>
+                        )}
                         {job.result?.branch && (
                           <div className="flex items-center gap-3 rounded bg-[var(--gray-3)] p-3">
                             <CommitIcon className="h-4 w-4 text-[var(--gray-8)]" />

@@ -1,5 +1,3 @@
-import { TestConstants } from '../tests/constants';
-
 /**
  * A specialized mock client that mimics the behavior of a Viberator Worker.
  * It polls for jobs, "executes" them, and posts results back to the platform.

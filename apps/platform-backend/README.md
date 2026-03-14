@@ -1,130 +1,34 @@
-# Backend Setup Guide
+# Platform Backend
 
-To run the backend of this application, you need the following services and configurations.
+Backend service for project/ticket orchestration, worker execution, integrations, webhooks, and secret management.
 
-## 🛠 Required Services
-*   **PostgreSQL**: For database storage (Default: `5432`)
-*   **Redis**: For message queue processing with Bull (Default: `6379`)
-*   **AWS S3**: For storing screenshots and recordings.
+## Documentation
+- Architecture: [docs/architecture.md](./docs/architecture.md)
+- Refactor backlog: [docs/refactor-backlog.md](./docs/refactor-backlog.md)
+- Contributor map: [docs/contributor-map.md](./docs/contributor-map.md)
 
----
+## Quick Start
 
-## 🚀 Local Setup
-
-### 1. Database Setup
-Create a PostgreSQL database and initialize the schema:
-```bash
-createdb viberglass_receiver
-psql -d viberglass_receiver -f backend/src/config/database.sql
-```
-
-
-### 2. Environment Configuration
-Create a `.env` file in the `backend` directory:
-```bash
-cp backend/.env.example backend/.env
-```
-
-Update `DB_PASSWORD`, `REDIS_HOST`, and `AWS` credentials.
-
-### 3. Install & Run
-From the project root:
+### 1) Install dependencies
 ```bash
 npm install
-npm run backend:dev
 ```
 
-
----
-
-## 🐳 Docker Setup
-
-The easiest way to run the backend with its dependencies (Postgres & Redis) is using Docker Compose.
-
-### 1. Create a `docker-compose.yml`
-In the project root, create a `docker-compose.yml`:
-
-```yaml
-services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: viberglass_receiver
-      POSTGRES_PASSWORD: your_password
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  backend:
-    build: 
-      context: ./backend
-      dockerfile: Dockerfile
-    environment:
-      - DB_HOST=postgres
-      - REDIS_HOST=redis
-    ports:
-      - "3000:3000"
-    depends_on:
-      - postgres
-      - redis
-```
-
-
-### 2. Run with Compose
+### 2) Configure environment
 ```bash
-docker-compose up --build
+cp .env.example .env
 ```
+Update `.env` values for your local PostgreSQL and any optional AWS/webhook integrations.
 
-
----
-
-## 📡 Verification
-*   **Health Check**: `GET http://localhost:3000/health`
-*   **API Docs**: `GET http://localhost:3000/api/docs`
-*   **Queue Status**: `GET http://localhost:3000/api/webhooks/status`
-*   **Jobs Queue Stats**: `GET http://localhost:3000/api/jobs/stats/queue`
-
-## 🤖 Jobs API (AI Agent Integration)
-
-The backend includes a Jobs API for submitting AI agent tasks (powered by Viberator workers):
-
-### Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/jobs` | Submit a new job for AI processing |
-| GET | `/api/jobs/:jobId` | Get job status and results |
-| GET | `/api/jobs` | List jobs (with optional status filter) |
-| DELETE | `/api/jobs/:jobId` | Delete a job |
-| GET | `/api/jobs/stats/queue` | Get queue statistics |
-
-### Example Usage
-
+### 3) Run migrations
 ```bash
-# Submit a job
-curl -X POST http://localhost:3000/api/jobs \
-  -H "Content-Type: application/json" \
-  -d '{
-    "repository": "https://github.com/example/repo.git",
-    "task": "Fix the authentication bug",
-    "branch": "main"
-  }'
-
-# Check job status
-curl http://localhost:3000/api/jobs/job_1234567890_abc
-
-# View queue stats
-curl http://localhost:3000/api/jobs/stats/queue
+npm run migrate:latest
 ```
 
-> **Note**: The Jobs API requires Viberator workers to be built and image to be available. See [apps/viberator/README.md](../../apps/viberator/README.md) for worker setup.
+### 4) Start dev server
+```bash
+npm run dev
+```
 
-## 🔧 Integrations (Optional)
-To enable ticket synchronization, provide API keys in `.env` for:
-*   **GitHub**: `GITHUB_TOKEN`
-*   **Jira**: `JIRA_API_TOKEN` & `JIRA_BASE_URL`
-*   **Linear**: `LINEAR_API_KEY`
+Default API URL: `http://localhost:8888`
+Health endpoint: `GET /health`

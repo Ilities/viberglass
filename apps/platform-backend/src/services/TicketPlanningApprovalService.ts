@@ -13,6 +13,10 @@ import type {
   PlanningPhaseView,
   PlanningRunView,
 } from "./TicketPlanningService";
+import {
+  TicketServiceError,
+  TICKET_SERVICE_ERROR_CODE,
+} from "./errors/TicketServiceError";
 
 function toPlanningRunView(
   latestRun: Awaited<ReturnType<TicketPhaseRunDAO["getLatestRun"]>>,
@@ -49,7 +53,16 @@ export class TicketPlanningApprovalService {
   ): Promise<PlanningPhaseView> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
-      throw new Error("Ticket not found");
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
+        "Ticket not found",
+      );
+    }
+    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING) {
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_REQUEST_INVALID_PHASE,
+        "Approval can only be requested during the planning phase",
+      );
     }
 
     const document = await this.documentService.requestApproval(
@@ -71,7 +84,16 @@ export class TicketPlanningApprovalService {
   async approve(ticketId: string, actor?: string): Promise<PlanningPhaseView> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
-      throw new Error("Ticket not found");
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
+        "Ticket not found",
+      );
+    }
+    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING) {
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_GRANT_INVALID_PHASE,
+        "Approval can only be granted during the planning phase",
+      );
     }
 
     const document = await this.documentService.approveDocument(
@@ -120,7 +142,10 @@ export class TicketPlanningApprovalService {
   ): Promise<PlanningPhaseView> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
-      throw new Error("Ticket not found");
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
+        "Ticket not found",
+      );
     }
 
     const document = await this.documentService.revokeApproval(

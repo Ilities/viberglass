@@ -1,12 +1,5 @@
 import { randomUUID } from "crypto";
-import {
-  JOB_KIND,
-  TICKET_WORKFLOW_PHASE,
-  type Clanker,
-  type Project,
-} from "@viberglass/types";
-import { getStrategyType } from "../clanker-config";
-import logger from "../config/logger";
+import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
@@ -17,21 +10,21 @@ import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { JobService } from "./JobService";
 import {
-  TicketPhaseDocumentService,
   type PhaseDocumentView,
+  TicketPhaseDocumentService,
 } from "./TicketPhaseDocumentService";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
-import {
-  isAllowedInstructionPath,
-  normalizeInstructionPath,
-} from "./instructions/pathPolicy";
 import { WorkerExecutionService } from "../workers";
-import type { JobData } from "../types/Job";
-
-interface InlineInstructionFile {
-  fileType: string;
-  content: string;
-}
+import type { PlanningJobData } from "../types/Job";
+import {
+  TICKET_SERVICE_ERROR_CODE,
+  TicketServiceError,
+} from "./errors/TicketServiceError";
+import {
+  type InlineInstructionFile,
+  prepareTicketRunContext,
+  submitJobWithBootstrapAndInvoke,
+} from "./ticketRunOrchestration";
 
 export interface RunPlanningOptions {
   clankerId: string;
@@ -55,94 +48,16 @@ export interface PlanningPhaseView {
   latestRun: PlanningRunView | null;
 }
 
-function normalizeInstructionFile(
-  file: Partial<InlineInstructionFile> | null | undefined,
-): InlineInstructionFile | null {
-  if (!file?.fileType || typeof file.fileType !== "string") {
-    return null;
-  }
-
-  const fileType = normalizeInstructionPath(file.fileType);
-  const content = typeof file.content === "string" ? file.content : "";
-  if (!fileType || !content.trim() || !isAllowedInstructionPath(fileType)) {
-    return null;
-  }
-
-  return { fileType, content };
-}
-
-function mergeInstructionFiles(
-  project: Pick<Project, "agentInstructions">,
-  clanker: Pick<Clanker, "configFiles">,
-  runtimeInstructionFiles: Array<Partial<InlineInstructionFile>> = [],
-): InlineInstructionFile[] {
-  const merged = new Map<string, InlineInstructionFile>();
-  const addFiles = (files: Array<Partial<InlineInstructionFile>>) => {
-    for (const file of files) {
-      const normalized = normalizeInstructionFile(file);
-      if (normalized) {
-        merged.set(normalized.fileType.toLowerCase(), normalized);
-      }
-    }
-  };
-
-  addFiles(
-    project.agentInstructions
-      ? [{ fileType: "AGENTS.md", content: project.agentInstructions }]
-      : [],
-  );
-  addFiles(
-    (clanker.configFiles || []).map((file) => ({
-      fileType: file.fileType,
-      content: file.content,
-    })),
-  );
-  addFiles(runtimeInstructionFiles);
-
-  return Array.from(merged.values());
-}
-
 function buildPlanningTask(input: {
   ticketTitle: string;
   ticketDescription: string;
-  projectName: string;
-  repository: string;
-  baseBranch: string;
-  researchDocument: string;
   externalTicketId?: string;
 }): string {
   const externalTicketLine = input.externalTicketId
-    ? `External Ticket ID: ${input.externalTicketId}\n`
+    ? `External Ticket ID: ${input.externalTicketId}\n\n`
     : "";
 
-  return `Create a planning document for this ticket based on the research findings.
-
-Ticket Title: ${input.ticketTitle}
-${externalTicketLine}Project: ${input.projectName}
-Repository: ${input.repository}
-Base Branch: ${input.baseBranch}
-
-Ticket Description:
-${input.ticketDescription}
-
-Research Document:
-${input.researchDocument}
-
-Requirements:
-- Read and follow repository instructions from AGENTS.md and any provided instruction files.
-- Analyze the research document to understand the problem.
-- Create a detailed implementation plan.
-- Do not create a branch, commit changes, push changes, or open a pull request.
-- Do not modify application code unless it is strictly necessary to produce PLAN.md.
-- Write your output to PLAN.md in the repository root.
-
-PLAN.md should include:
-- Summary of the Problem
-- Proposed Solution
-- Implementation Steps
-- Files to Modify
-- Testing Strategy
-- Risks and Mitigations`;
+  return `${externalTicketLine}${input.ticketTitle}\n\n${input.ticketDescription}`;
 }
 
 export class TicketPlanningService {
@@ -194,90 +109,45 @@ export class TicketPlanningService {
   ): Promise<{ jobId: string; status: string }> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
-      throw new Error("Ticket not found");
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
+        "Ticket not found",
+      );
     }
     if (
       ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING &&
       ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.EXECUTION
     ) {
-      throw new Error(
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.PLANNING_RUN_INVALID_PHASE,
         "Planning runs are only allowed during the planning or execution phase",
       );
     }
 
-    const project = await this.projectDAO.getProject(ticket.projectId);
-    if (!project) {
-      throw new Error("Associated project not found");
-    }
-
-    const repositoryUrls =
-      project.repositoryUrls && project.repositoryUrls.length > 0
-        ? project.repositoryUrls
-        : project.repositoryUrl
-          ? [project.repositoryUrl]
-          : [];
-    const scmConfig = await this.projectScmConfigDAO.getByProjectId(project.id);
-    const sourceRepository =
-      scmConfig?.sourceRepository.trim() || repositoryUrls[0] || "";
-    const baseBranch = scmConfig?.baseBranch.trim() || "main";
-    if (!sourceRepository) {
-      throw new Error("Project has no repository configured");
-    }
-
-    const clanker = await this.clankerDAO.getClanker(options.clankerId);
-    if (!clanker) {
-      throw new Error("Clanker not found");
-    }
-
-    const availability =
-      await this.provisioningService.resolveAvailabilityStatus(clanker);
-    const currentStatusMessage = availability.statusMessage ?? null;
-    if (
-      availability.status !== clanker.status ||
-      (clanker.statusMessage ?? null) !== currentStatusMessage
-    ) {
-      await this.clankerDAO.updateStatus(
-        clanker.id,
-        availability.status,
-        currentStatusMessage,
-      );
-    }
-    if (!clanker.deploymentStrategyId) {
-      throw new Error("Selected clanker has no deployment strategy configured");
-    }
-    if (availability.status !== "active") {
-      throw new Error(
-        `Selected clanker is ${availability.status}. Only active clankers can run jobs.`,
-      );
-    }
-
-    const scmCredentialSecretId = await this.resolveScmCredentialSecretId(
-      scmConfig?.integrationCredentialId || null,
-    );
-    const executionClanker: Clanker = {
-      ...clanker,
-      secretIds: Array.from(
-        new Set([
-          ...(clanker.secretIds || []),
-          ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
-        ]),
-      ),
-    };
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
-    const workerType = getStrategyType(executionClanker);
-    const mergedInstructionFiles = mergeInstructionFiles(
-      project,
-      executionClanker,
-      options.instructionFiles || [],
+    const preparedContext = await prepareTicketRunContext(
+      {
+        projectId: ticket.projectId,
+        clankerId: options.clankerId,
+        jobId,
+        instructionFiles: options.instructionFiles || [],
+      },
+      {
+        projectDAO: this.projectDAO,
+        projectScmConfigDAO: this.projectScmConfigDAO,
+        integrationCredentialDAO: this.integrationCredentialDAO,
+        clankerDAO: this.clankerDAO,
+        provisioningService: this.provisioningService,
+        instructionStorageService: this.instructionStorageService,
+      },
     );
-    const workerInstructionFiles =
-      workerType === "docker"
-        ? mergedInstructionFiles
-        : await this.instructionStorageService.uploadJobInstructionFiles(
-            executionClanker.id,
-            jobId,
-            mergedInstructionFiles,
-          );
+
+    const {
+      sourceRepository,
+      baseBranch,
+      executionClanker,
+      mergedInstructionFiles,
+    } = preparedContext;
 
     const researchDocument = await this.documentService.getOrCreateDocument(
       ticketId,
@@ -287,24 +157,19 @@ export class TicketPlanningService {
     const task = buildPlanningTask({
       ticketTitle: ticket.title,
       ticketDescription: ticket.description,
-      projectName: project.name,
-      repository: sourceRepository,
-      baseBranch,
-      researchDocument: researchDocument.content,
       externalTicketId: ticket.externalTicketId,
     });
 
-    const jobData: JobData = {
+    const jobData: PlanningJobData = {
       id: jobId,
-      jobKind: JOB_KIND.PLANNING,
+      jobKind: "planning",
       tenantId: "api-server",
       repository: sourceRepository,
       task,
       baseBranch,
       context: {
         ticketId: ticket.id,
-        originalTicketId: ticket.externalTicketId || ticket.id,
-        stepsToReproduce: ticket.description,
+        researchDocument: researchDocument.content,
         instructionFiles: mergedInstructionFiles,
       },
       settings: {
@@ -314,46 +179,21 @@ export class TicketPlanningService {
       timestamp: Date.now(),
     };
 
-    const submitResult = await this.jobService.submitJob(jobData, {
-      ticketId: ticket.id,
-      clankerId: executionClanker.id,
-    });
-
-    jobData.callbackToken = submitResult.callbackToken;
-    jobData.bootstrapPayload = {
-      workerType,
-      jobKind: jobData.jobKind,
-      tenantId: jobData.tenantId,
-      jobId: jobData.id,
-      clankerId: executionClanker.id,
-      agent: executionClanker.agent,
-      repository: jobData.repository,
-      task: jobData.task,
-      branch: jobData.branch,
-      baseBranch: jobData.baseBranch,
-      context: jobData.context,
-      settings: jobData.settings,
-      instructionFiles: workerInstructionFiles,
-      requiredCredentials:
-        await this.credentialRequirementsService.getRequiredCredentialsForClanker(
-          executionClanker,
-        ),
-      callbackToken: submitResult.callbackToken,
-      ...(workerType === "docker"
-        ? { clankerConfig: executionClanker }
-        : { deploymentConfig: executionClanker.deploymentConfig }),
-      projectConfig: {
-        id: project.id,
-        name: project.name,
-        autoFixTags: project.autoFixTags,
-        customFieldMappings: project.customFieldMappings,
-        workerSettings: project.workerSettings,
+    // Submit job, build bootstrap, and invoke worker (fire-and-forget)
+    const result = await submitJobWithBootstrapAndInvoke(
+      jobData,
+      ticket.id,
+      executionClanker.id,
+      "Planning",
+      preparedContext,
+      {
+        jobService: this.jobService,
+        credentialRequirementsService: this.credentialRequirementsService,
+        workerExecutionService: this.workerExecutionService,
       },
-    };
-    await this.jobService.saveBootstrapPayload(
-      jobData.id,
-      jobData.bootstrapPayload,
     );
+
+    // Record phase run
     await this.phaseRunDAO.createRun(
       ticket.id,
       jobData.id,
@@ -361,47 +201,6 @@ export class TicketPlanningService {
       TICKET_WORKFLOW_PHASE.PLANNING,
     );
 
-    this.workerExecutionService
-      .executeJob(jobData, executionClanker, project)
-      .then((result) => {
-        logger.info("Planning worker invoked successfully", {
-          ticketId,
-          jobId,
-          clankerId: executionClanker.id,
-          executionId: result.executionId,
-        });
-      })
-      .catch((error) => {
-        logger.error("Planning worker invocation failed", {
-          ticketId,
-          jobId,
-          clankerId: executionClanker.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
-
-    return {
-      jobId,
-      status: "active",
-    };
-  }
-
-  private async resolveScmCredentialSecretId(
-    integrationCredentialId: string | null,
-  ): Promise<string | null> {
-    if (!integrationCredentialId?.trim()) {
-      return null;
-    }
-
-    const credential = await this.integrationCredentialDAO.getById(
-      integrationCredentialId,
-    );
-    if (!credential) {
-      throw new Error(
-        `SCM integration credential not found: ${integrationCredentialId}`,
-      );
-    }
-
-    return credential.secretId;
+    return result;
   }
 }

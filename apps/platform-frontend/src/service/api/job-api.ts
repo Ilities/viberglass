@@ -50,6 +50,9 @@ export interface LogEntry {
 
 export interface JobDataContext {
   ticketId?: string
+  clawExecutionId?: string
+  clawScheduleId?: string
+  clawTemplateName?: string
   stepsToReproduce?: string
   expectedBehavior?: string
   additionalContext?: string
@@ -101,7 +104,7 @@ export interface JobStatusClanker {
 
 export interface JobStatus {
   jobId: string
-  jobKind: 'research' | 'execution'
+  jobKind: 'research' | 'planning' | 'execution' | 'claw'
   status: 'queued' | 'active' | 'completed' | 'failed'
   progress: Record<string, unknown> | null
   lastHeartbeat: string | null
@@ -109,7 +112,7 @@ export interface JobStatus {
   logs: LogEntry[]
   data: {
     id: string
-    jobKind: 'research' | 'execution'
+    jobKind: 'research' | 'execution' | 'claw'
     tenantId: string
     repository: string
     task: string
@@ -188,7 +191,7 @@ export interface JobListItemTicket {
 
 export interface JobListItem {
   jobId: string
-  jobKind: 'research' | 'execution'
+  jobKind: 'research' | 'planning' | 'execution' | 'claw'
   status: 'queued' | 'active' | 'completed' | 'failed'
   repository: string
   task: string
