@@ -31,6 +31,7 @@ interface PhaseDocumentCommentsProps {
 export function PhaseDocumentComments({ ticketId, phase, content, onApplySuggestion }: PhaseDocumentCommentsProps) {
   const [comments, setComments] = useState<PhaseDocumentCommentResponse[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [activeLineNumber, setActiveLineNumber] = useState<number | null>(null)
   const lines = content.split('\n')
   const commentsByLine = groupCommentsByLine(comments)
 
@@ -57,6 +58,7 @@ export function PhaseDocumentComments({ ticketId, phase, content, onApplySuggest
         })
         await loadComments()
         toast.success(`Comment added to line ${lineNumber}`)
+        setActiveLineNumber(null)
         return true
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to add comment')
@@ -85,6 +87,10 @@ export function PhaseDocumentComments({ ticketId, phase, content, onApplySuggest
     [loadComments, phase, ticketId],
   )
 
+  const toggleLine = useCallback((lineNumber: number) => {
+    setActiveLineNumber((prev) => (prev === lineNumber ? null : lineNumber))
+  }, [])
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] font-mono text-sm">
       {lines.map((line, index) => {
@@ -95,7 +101,9 @@ export function PhaseDocumentComments({ ticketId, phase, content, onApplySuggest
             lineNumber={lineNumber}
             content={line}
             comments={commentsByLine.get(lineNumber) ?? []}
+            formOpen={activeLineNumber === lineNumber}
             isSaving={isSaving}
+            onToggleLine={toggleLine}
             onCreateComment={onCreateComment}
             onToggleStatus={onToggleStatus}
             onApplySuggestion={onApplySuggestion}
@@ -110,7 +118,9 @@ interface DocumentLineProps {
   lineNumber: number
   content: string
   comments: PhaseDocumentCommentResponse[]
+  formOpen: boolean
   isSaving: boolean
+  onToggleLine: (lineNumber: number) => void
   onCreateComment: (lineNumber: number, content: string) => Promise<boolean>
   onToggleStatus: (comment: PhaseDocumentCommentResponse) => Promise<void>
   onApplySuggestion?: (lineNumber: number, suggestedText: string) => Promise<void>
@@ -120,12 +130,13 @@ function DocumentLine({
   lineNumber,
   content,
   comments,
+  formOpen,
   isSaving,
+  onToggleLine,
   onCreateComment,
   onToggleStatus,
   onApplySuggestion,
 }: DocumentLineProps) {
-  const [formOpen, setFormOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [commentMode, setCommentMode] = useState<'comment' | 'suggestion'>('comment')
   const [suggestionDraft, setSuggestionDraft] = useState(content)
@@ -139,6 +150,7 @@ function DocumentLine({
 
   const openComments = comments.filter((c) => c.status === 'open')
   const resolvedComments = comments.filter((c) => c.status === 'resolved')
+  const openCount = openComments.length
 
   const handleSubmit = async () => {
     const commentContent = commentMode === 'suggestion' ? encodeSuggestion(suggestionDraft) : draft
@@ -146,7 +158,6 @@ function DocumentLine({
     if (success) {
       setDraft('')
       setSuggestionDraft(content)
-      setFormOpen(false)
       setCommentMode('comment')
     }
   }
@@ -162,28 +173,25 @@ function DocumentLine({
 
   return (
     <div className="border-b border-[var(--gray-5)] last:border-b-0">
-      <div className="group flex items-start">
-        {/* Gutter */}
-        <div className="flex w-16 shrink-0 select-none items-center justify-end gap-1 bg-[var(--gray-2)] px-2 py-1.5 text-xs text-[var(--gray-8)]">
-          <button
-            type="button"
-            onClick={() => setFormOpen((open) => !open)}
-            className="hidden h-4 w-4 cursor-pointer items-center justify-center rounded text-[var(--gray-8)] hover:bg-[var(--accent-4)] hover:text-[var(--accent-9)] group-hover:flex"
-            aria-label={`Add comment on line ${lineNumber}`}
-          >
-            +
-          </button>
-          <span>{lineNumber}</span>
-        </div>
-
-        {/* Line content */}
-        <div className="flex-1 whitespace-pre-wrap break-words px-3 py-1.5 text-[var(--gray-11)]">
+      {/* Line header — always visible, toggles the form */}
+      <button
+        type="button"
+        onClick={() => onToggleLine(lineNumber)}
+        className="flex w-full items-start py-1 text-left"
+      >
+        <span className="w-16 shrink-0 select-none bg-[var(--gray-2)] px-2 text-right text-xs text-[var(--gray-8)]">
+          {lineNumber}
+        </span>
+        <span className="flex-1 break-words whitespace-pre-wrap px-3 text-[var(--gray-11)]">
           {content || ' '}
-        </div>
-      </div>
+        </span>
+        {openCount > 0 && (
+          <span className="shrink-0 px-2 text-xs text-[var(--accent-9)]">{openCount} open</span>
+        )}
+      </button>
 
-      {/* Thread */}
-      {(openComments.length > 0 || resolvedComments.length > 0) && (
+      {/* Open comments thread — always visible when there are open comments */}
+      {openComments.length > 0 && (
         <div className="ml-16 space-y-3 border-l-4 border-[var(--accent-6)] bg-[var(--accent-2)] p-3">
           {openComments.map((comment) => (
             <CommentEntry
@@ -222,7 +230,7 @@ function DocumentLine({
         </div>
       )}
 
-      {/* Inline form */}
+      {/* Inline form — only shown for the active line */}
       {formOpen && (
         <div className="ml-16 space-y-2 border-l-4 border-[var(--accent-6)] bg-[var(--gray-2)] p-3">
           {/* Mode tabs */}
@@ -277,7 +285,7 @@ function DocumentLine({
             <Button
               plain
               onClick={() => {
-                setFormOpen(false)
+                onToggleLine(lineNumber)
                 setDraft('')
                 setSuggestionDraft(content)
                 setCommentMode('comment')

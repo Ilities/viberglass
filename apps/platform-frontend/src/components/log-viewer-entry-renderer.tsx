@@ -224,7 +224,7 @@ export function renderEntry(entry: DisplayEntry, ctx: EntryCallbacks): React.Rea
             onClick={() => ctx.toggle(entryId)}
             className="shrink-0 font-mono text-[9px] text-[var(--accent-9)] hover:underline"
           >
-            {isExpanded ? 'less' : 'more…'}
+            {isExpanded ? 'hide log details' : 'show log details'}
           </button>
         )}
       </div>

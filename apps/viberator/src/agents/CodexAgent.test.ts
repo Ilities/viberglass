@@ -42,7 +42,7 @@ class TestCodexAgent extends CodexAgent {
     return { stdout: "{}", stderr: "", exitCode: 0 };
   }
 
-  protected override async getChangedFiles(
+  protected async getChangedFiles(
     _repoDir: string,
   ): Promise<string[]> {
     return ["src/example.ts"];
