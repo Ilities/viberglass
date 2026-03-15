@@ -9,10 +9,8 @@
  *   natural question     → needs_input (heuristic via detectsNeedsInput)
  */
 
-export interface PlatformSessionEvent {
-  eventType: string;
-  payload: Record<string, unknown>;
-}
+import type { PlatformSessionEvent } from "./types";
+export type { PlatformSessionEvent } from "./types";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

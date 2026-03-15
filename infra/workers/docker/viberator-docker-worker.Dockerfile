@@ -32,7 +32,11 @@ RUN npm install -g \
     @google/gemini-cli \
     @openai/codex \
     opencode-ai@latest \
-    typescript jest
+    typescript jest \
+    @zed-industries/claude-agent-acp
+
+# Install Codex ACP adapter for interactive sessions.
+RUN npm install -g codex-acp || echo "Warning: codex-acp not available"
 
 # Switch to viberator for user-local agent installs (uv/kimi install to ~/.local/bin)
 USER viberator

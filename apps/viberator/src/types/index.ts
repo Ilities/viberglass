@@ -1,4 +1,5 @@
 import { AgentConfig } from "./agents";
+import type { PlatformSessionEvent } from "../acp/types";
 
 export * from "./agents";
 
@@ -100,6 +101,11 @@ export interface ExecutionContext {
   agent?: string;
   secrets?: SecretMetadata[];
   promptOverride?: string;
+
+  // ACP interactive session fields
+  agentSessionId?: string;
+  acpSessionId?: string;
+  onAcpEvent?: (event: PlatformSessionEvent) => void;
 }
 
 export interface AgentExecution {
@@ -122,6 +128,8 @@ export interface ExecutionResult {
   errorMessage?: string;
   executionTime: number;
   cost: number;
+  acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
+  newAcpSessionId?: string;
 }
 
 export interface TestResult {

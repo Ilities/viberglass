@@ -1,8 +1,9 @@
 import { createLogger, format, transports, Logger } from "winston";
-import * as fs from "fs";
 import * as path from "path";
+import * as fs from "fs";
 import { ConfigManager } from "../../config/ConfigManager";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
+import { AcpExecutor } from "../../orchestrator/AcpExecutor";
 import { AgentConfig, Configuration } from "../../types";
 import GitService from "../../services/GitService";
 import {
@@ -18,17 +19,20 @@ import { ConfigLoader } from "../infrastructure/ConfigLoader";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
+import { SessionEventForwarder } from "../../acp/SessionEventForwarder";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
 import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
 import { runCodingJob } from "./runCodingJob";
 import { runResearchJob } from "./runResearchJob";
 import { runPlanningJob } from "./runPlanningJob";
+import { runSessionTurnJob } from "./runSessionTurnJob";
 import {
   extractClankerEnvironment,
   normalizeAgentName,
   resolveClankerConfig,
 } from "./workerConfig";
+import { sendWorkerProgress, cleanupJobWorkspace } from "./workerHelpers";
 
 export class ViberatorWorker {
   private logger: Logger;
@@ -42,6 +46,7 @@ export class ViberatorWorker {
   private instructionFileManager!: InstructionFileManager;
   private environmentManager!: EnvironmentManager;
   private logForwarder!: LogForwarder;
+  private sessionEventForwarder!: SessionEventForwarder;
   private agentAuthLifecycle!: AgentAuthLifecycle;
   private readonly agentAuthLifecycleFactory: AgentAuthLifecycleFactory;
   private readonly agentEndpointEnvironmentFactory: AgentEndpointEnvironmentFactory;
@@ -136,8 +141,9 @@ export class ViberatorWorker {
     this.currentTenantId = data.tenantId;
 
     try {
-      const jobRunner =
-        data.jobKind === "research"
+      const jobRunner = this.agentSessionId
+        ? runSessionTurnJob
+        : data.jobKind === "research"
           ? runResearchJob
           : data.jobKind === "planning"
             ? runPlanningJob
@@ -161,10 +167,23 @@ export class ViberatorWorker {
         environmentManager: this.environmentManager,
         logForwarder: this.logForwarder,
         defaultTimeout: this.config.execution.defaultTimeout,
+        agentSessionId: this.agentSessionId,
+        agentTurnId: this.agentTurnId,
+        acpSessionId: this.acpSessionId,
+        sessionMode: this.sessionMode,
+        sessionEventForwarder: this.sessionEventForwarder,
         selectAgentForExecution: (availableAgents) =>
           this.selectAgentForExecution(availableAgents),
         sendProgress: (step, message, details) =>
-          this.sendProgress(step, message, details),
+          sendWorkerProgress(
+            this.callbackClient,
+            this.logger,
+            this.currentJobId,
+            this.currentTenantId,
+            step,
+            message,
+            details,
+          ),
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
           this.cloneRepositoryToWorkspace(repository, branch, workDir),
       });
@@ -173,11 +192,12 @@ export class ViberatorWorker {
       // so Lambda timeout during cleanup no longer causes the job to appear
       // stuck as "running" on the platform.
       this.logForwarder.cleanup();
+      this.sessionEventForwarder.cleanup();
       this.environmentManager.cleanup(
         this.fetchedCredentials || {},
         this.clankerEnvironment,
       );
-      this.cleanupWorkspace(path.join(this.workDir, data.id));
+      cleanupJobWorkspace(this.logger, path.join(this.workDir, data.id));
       this.currentJobId = undefined;
       this.currentTenantId = undefined;
     }
@@ -239,10 +259,12 @@ export class ViberatorWorker {
     this.logger.level = this.config.logging.level;
 
     const agentConfigs = configManager.getAgentConfigs();
+    const acpExecutor = new AcpExecutor(this.logger);
     this.orchestrator = new AgentOrchestrator(
       agentConfigs,
       this.logger,
       configManager,
+      acpExecutor,
     );
     this.gitService = new GitService(this.logger, this.config.git);
 
@@ -254,6 +276,10 @@ export class ViberatorWorker {
     });
 
     this.logForwarder = new LogForwarder(this.logger, this.callbackClient);
+    this.sessionEventForwarder = new SessionEventForwarder(
+      this.callbackClient,
+      this.logger,
+    );
     this.agentAuthLifecycle = this.agentAuthLifecycleFactory.create({
       requestedAgent: this.requestedAgent,
       clankerConfig: this.clankerConfig,
@@ -261,7 +287,15 @@ export class ViberatorWorker {
       callbackClient: this.callbackClient,
       workDir: this.workDir,
       sendProgress: (step, message, details) =>
-        this.sendProgress(step, message, details),
+        sendWorkerProgress(
+          this.callbackClient,
+          this.logger,
+          this.currentJobId,
+          this.currentTenantId,
+          step,
+          message,
+          details,
+        ),
       credentialProvider: this.credentialProvider,
     });
   }
@@ -296,32 +330,6 @@ export class ViberatorWorker {
     return availableAgents[0];
   }
 
-  private async sendProgress(
-    step: string,
-    message: string,
-    details?: Record<string, unknown>,
-  ): Promise<void> {
-    if (!this.currentJobId || !this.currentTenantId) {
-      return;
-    }
-
-    try {
-      await this.callbackClient.sendProgress(
-        this.currentJobId,
-        this.currentTenantId,
-        {
-          step,
-          message,
-          details,
-        },
-      );
-    } catch (error) {
-      this.logger.warn("Failed to send progress update", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
   private async cloneRepositoryToWorkspace(
     repository: string,
     branch: string,
@@ -335,16 +343,5 @@ export class ViberatorWorker {
 
     await this.gitService.cloneRepository(repository, branch, workDir);
     return repoDir;
-  }
-
-  private cleanupWorkspace(workDir: string): void {
-    try {
-      if (fs.existsSync(workDir)) {
-        fs.rmSync(workDir, { recursive: true, force: true });
-        this.logger.info("Workspace cleaned up", { workDir });
-      }
-    } catch (error) {
-      this.logger.warn("Failed to cleanup workspace", { workDir, error });
-    }
   }
 }
