@@ -53,6 +53,7 @@ describe("DockerInvoker", () => {
       branch: "fix/auth-bug",
       baseBranch: "main",
       context: {
+        ticketId: "ticket-123",
         stepsToReproduce: "1. Login\n2. Click profile",
         expectedBehavior: "Profile loads",
         actualBehavior: "Error 500",

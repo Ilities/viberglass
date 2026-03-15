@@ -142,7 +142,16 @@ describe("TicketExecutionService", () => {
 
     mockTicketDAO.getTicket.mockResolvedValue(mockTicket as any);
     mockProjectDAO.getProject.mockResolvedValue(mockProject as any);
-    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue({
+      projectId,
+      integrationId: "integration-1",
+      integrationSystem: "github",
+      sourceRepository: "https://github.com/test/repo",
+      baseBranch: "main",
+      integrationCredentialId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     mockIntegrationCredentialDAO.getById.mockResolvedValue(null);
     mockClankerDAO.getClanker.mockResolvedValue(mockClanker as any);
     mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({
@@ -287,7 +296,16 @@ describe("TicketExecutionService", () => {
       id: "p1",
       repositoryUrl: "url",
     } as any);
-    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue({
+      projectId: "p1",
+      integrationId: "integration-1",
+      integrationSystem: "github",
+      sourceRepository: "https://github.com/test/repo",
+      baseBranch: "main",
+      integrationCredentialId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     mockIntegrationCredentialDAO.getById.mockResolvedValue(null);
     mockClankerDAO.getClanker.mockResolvedValue({
       id: clankerId,
@@ -319,7 +337,16 @@ describe("TicketExecutionService", () => {
       name: "Test Project",
       repositoryUrl: "https://github.com/test/repo",
     } as any);
-    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue({
+      projectId,
+      integrationId: "integration-1",
+      integrationSystem: "github",
+      sourceRepository: "https://github.com/test/repo",
+      baseBranch: "main",
+      integrationCredentialId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     mockIntegrationCredentialDAO.getById.mockResolvedValue(null);
     mockClankerDAO.getClanker.mockResolvedValue({
       id: clankerId,
@@ -458,7 +485,16 @@ describe("TicketExecutionService", () => {
       name: "Docs Project",
       repositoryUrl: "https://github.com/test/repo",
     } as any);
-    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue({
+      projectId,
+      integrationId: "integration-1",
+      integrationSystem: "github",
+      sourceRepository: "https://github.com/test/repo",
+      baseBranch: "main",
+      integrationCredentialId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     mockClankerDAO.getClanker.mockResolvedValue({
       id: clankerId,
       status: "active",
@@ -545,7 +581,16 @@ describe("TicketExecutionService", () => {
       name: "Override Project",
       repositoryUrl: "https://github.com/test/repo",
     } as any);
-    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
+    mockProjectScmConfigDAO.getByProjectId.mockResolvedValue({
+      projectId,
+      integrationId: "integration-1",
+      integrationSystem: "github",
+      sourceRepository: "https://github.com/test/repo",
+      baseBranch: "main",
+      integrationCredentialId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     mockClankerDAO.getClanker.mockResolvedValue({
       id: clankerId,
       status: "active",
