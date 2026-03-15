@@ -100,6 +100,15 @@ export class AgentSessionEventDAO {
     return rows.map((row) => this.mapRow(row));
   }
 
+  async getMaxSequence(sessionId: string): Promise<number> {
+    const row = await db
+      .selectFrom("agent_session_events")
+      .select(db.fn.max("sequence").as("max_seq"))
+      .where("session_id", "=", sessionId)
+      .executeTakeFirst();
+    return Number(row?.max_seq ?? 0);
+  }
+
   private mapRow(row: AgentSessionEventRow): AgentSessionEvent {
     return {
       id: row.id,
