@@ -20,6 +20,7 @@ import secretsRouter from "./routes/secrets";
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
 import clawRouter from "./routes/claw";
+import agentSessionsRouter from "./routes/agentSessions";
 import { attachAuthContext } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
 import {
@@ -145,6 +146,27 @@ app.get("/", (req, res) => {
   });
 });
 
+// API documentation endpoint
+app.get("/api/docs", (req, res) => {
+  res.json({
+    title: "Viberglass Receiver API",
+    version: "1.0.0",
+    endpoints: {
+      "POST /api/tickets": "Create a new ticket",
+      "GET /api/tickets": "List tickets",
+      "GET /api/tickets/:id": "Get a ticket by ID",
+      "PUT /api/tickets/:id": "Update a ticket",
+      "DELETE /api/tickets/:id": "Delete a ticket",
+      "GET /api/projects": "List projects",
+      "POST /api/projects": "Create a project",
+      "GET /api/jobs": "List jobs",
+      "POST /api/jobs": "Submit a job",
+      "GET /api/agent-sessions/:sessionId": "Get agent session detail",
+      "GET /api/agent-sessions/:sessionId/events": "List session events",
+    },
+  });
+});
+
 // API routes
 app.use("/api/projects", projectsRouter);
 app.use("/api/integrations", integrationsRouter);
@@ -157,6 +179,7 @@ app.use("/api/secrets", secretsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/claw", clawRouter);
+app.use("/api/agent-sessions", agentSessionsRouter);
 
 app.use(notFoundHandler);
 app.use(applicationErrorHandler);

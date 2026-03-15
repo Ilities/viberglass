@@ -2,6 +2,52 @@ import type { Express } from "express";
 import request from "supertest";
 import logger from "../../config/logger";
 
+jest.mock("../../persistence/ticketing/TicketDAO", () => ({
+  TicketDAO: jest.fn().mockImplementation(() => ({
+    getTicket: jest.fn().mockResolvedValue(null),
+    getTickets: jest.fn().mockResolvedValue({ tickets: [], total: 0 }),
+    getTicketsWithFilters: jest.fn().mockResolvedValue({ tickets: [], total: 0 }),
+    getTicketsByProject: jest.fn().mockResolvedValue({ tickets: [], total: 0 }),
+    getTicketStats: jest.fn().mockResolvedValue({}),
+    createTicket: jest.fn().mockResolvedValue(null),
+    updateTicket: jest.fn().mockResolvedValue(null),
+    deleteTicket: jest.fn().mockResolvedValue(null),
+    archiveTickets: jest.fn().mockResolvedValue([]),
+    findByExternalId: jest.fn().mockResolvedValue(null),
+  })),
+}));
+
+jest.mock("../../persistence/webhook/WebhookDeliveryDAO", () => ({
+  WebhookDeliveryDAO: jest.fn().mockImplementation(() => ({
+    getPendingDeliveries: jest.fn().mockResolvedValue([]),
+    getDeliveryStatsByProvider: jest.fn().mockResolvedValue({ total: 0, failed: 0, pending: 0 }),
+    getFailedDeliveries: jest.fn().mockResolvedValue([]),
+    createDelivery: jest.fn().mockResolvedValue(null),
+    updateDelivery: jest.fn().mockResolvedValue(null),
+    findById: jest.fn().mockResolvedValue(null),
+    listDeliveries: jest.fn().mockResolvedValue([]),
+  })),
+}));
+
+jest.mock("../../persistence/webhook/WebhookConfigDAO", () => ({
+  WebhookConfigDAO: jest.fn().mockImplementation(() => ({
+    listActiveConfigs: jest.fn().mockResolvedValue([]),
+    findById: jest.fn().mockResolvedValue(null),
+    createConfig: jest.fn().mockResolvedValue(null),
+    updateConfig: jest.fn().mockResolvedValue(null),
+    deleteConfig: jest.fn().mockResolvedValue(null),
+    findByProvider: jest.fn().mockResolvedValue(null),
+    findByProjectAndProvider: jest.fn().mockResolvedValue(null),
+  })),
+}));
+
+jest.mock("../../webhooks/DeduplicationService", () => ({
+  DeduplicationService: jest.fn().mockImplementation(() => ({
+    getFailedDeliveries: jest.fn().mockResolvedValue([]),
+    isDuplicate: jest.fn().mockResolvedValue(false),
+  })),
+}));
+
 let app: Express;
 
 beforeAll(async () => {

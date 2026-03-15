@@ -21,11 +21,23 @@ import {
   JOB_SERVICE_ERROR_CODE,
 } from "../../services/errors/JobServiceError";
 import { isSecretServiceError } from "../../services/errors/SecretServiceError";
+import { AgentSessionWorkerEventService } from "../../services/agentSession/AgentSessionWorkerEventService";
+import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
+import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
+import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
+import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
+import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
 
 const router = Router();
 const jobService = new JobService();
 const secretService = new SecretService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
+const workerEventService = new AgentSessionWorkerEventService(
+  new AgentSessionEventDAO(),
+  new AgentTurnDAO(),
+  new AgentSessionDAO(),
+  new AgentPendingRequestDAO(),
+);
 
 function getDocumentPhaseForJobKind(jobKind: string): "research" | "planning" | null {
   if (jobKind === JOB_KIND.RESEARCH) {
@@ -497,6 +509,73 @@ router.post(
       res.status(500).json({
         error: error instanceof Error ? error.message : "Internal server error",
       });
+    }
+  },
+);
+
+// POST /:jobId/session-events/batch - Worker batch-ingest session events
+router.post(
+  "/:jobId/session-events/batch",
+  tenantMiddleware,
+  validateCallbackToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const { events } = req.body;
+
+      if (!Array.isArray(events) || events.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "events must be a non-empty array" });
+      }
+      if (events.length > 100) {
+        return res
+          .status(400)
+          .json({ error: "events array must not exceed 100 items" });
+      }
+
+      await workerEventService.batchIngest(jobId, events);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error("Failed to ingest session events", {
+        jobId: req.params.jobId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (isAgentSessionServiceError(err)) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// POST /:jobId/acp-session-id - Worker stores ACP session ID
+router.post(
+  "/:jobId/acp-session-id",
+  tenantMiddleware,
+  validateCallbackToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const { acpSessionId } = req.body;
+
+      if (!acpSessionId || typeof acpSessionId !== "string") {
+        return res
+          .status(400)
+          .json({ error: "acpSessionId must be a non-empty string" });
+      }
+
+      await workerEventService.storeAcpSessionId(jobId, acpSessionId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error("Failed to store ACP session ID", {
+        jobId: req.params.jobId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (isAgentSessionServiceError(err)) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      return res.status(500).json({ error: "Internal server error" });
     }
   },
 );

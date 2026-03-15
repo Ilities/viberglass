@@ -18,6 +18,16 @@ import { requireAuth } from "../middleware/authentication";
 import { registerTicketCrudMediaRoutes } from "./tickets/crudMediaRoutes";
 import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
+import { registerTicketAgentSessionRoutes } from "./tickets/agentSessionRoutes";
+import { AgentSessionLaunchService } from "../../services/agentSession/AgentSessionLaunchService";
+import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
+import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
+import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
+import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
+import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
+import { JobService } from "../../services/JobService";
+import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
+import { WorkerExecutionService } from "../../workers";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -68,6 +78,32 @@ registerTicketWorkflowPhaseRoutes(router, {
 registerTicketExecutionRoutes(router, {
   ticketExecutionService,
   ticketWorkflowOverrideService,
+});
+
+const agentSessionDAO = new AgentSessionDAO();
+const agentTurnDAO = new AgentTurnDAO();
+const agentSessionEventDAO = new AgentSessionEventDAO();
+const agentPendingRequestDAO = new AgentPendingRequestDAO();
+
+const agentSessionLaunchService = new AgentSessionLaunchService(
+  agentSessionDAO,
+  agentTurnDAO,
+  agentSessionEventDAO,
+  new JobService(),
+  new CredentialRequirementsService(),
+  new WorkerExecutionService(),
+);
+
+const agentSessionQueryService = new AgentSessionQueryService(
+  agentSessionDAO,
+  agentTurnDAO,
+  agentSessionEventDAO,
+  agentPendingRequestDAO,
+);
+
+registerTicketAgentSessionRoutes(router, {
+  launchService: agentSessionLaunchService,
+  queryService: agentSessionQueryService,
 });
 
 export default router;

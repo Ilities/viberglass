@@ -20,7 +20,7 @@ import {
   WorkerExecutionService,
 } from "../../workers";
 import type { Clanker } from "@viberglass/types";
-import type { JobData } from "../../types/Job";
+import type { TicketJobData } from "../../types/Job";
 
 // Mock AWS SDK at the boundary before any imports that use them
 const mockLambdaSend = jest.fn();
@@ -85,12 +85,15 @@ describe("Worker Execution Integration Tests", () => {
   const generateJobId = (): string =>
     `integration-test-job-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-  const createMockJob = (overrides?: Partial<JobData>): JobData => ({
+  const createMockJob = (
+    overrides?: Partial<TicketJobData>,
+  ): TicketJobData => ({
     id: generateJobId(),
     jobKind: "execution",
     tenantId: "test-tenant",
     repository: "https://github.com/test/repo",
     task: "Fix the bug",
+    context: { ticketId: "test-ticket-id" },
     timestamp: Date.now(),
     ...overrides,
   });
