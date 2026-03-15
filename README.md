@@ -1,8 +1,16 @@
 # Viberglass
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+[![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
+[![GitHub stars](https://img.shields.io/github/stars/Ilities/viberglass?style=social)](https://github.com/Ilities/viberglass/stargazers)
+
 Viberglass is an open-source agent orchestrator and ticket management platform. Team members create tickets describing bugs or code changes, and AI agents automatically research the codebase, write the fix, and open a pull request for review.
 
 No repository access required to file a ticket. QA engineers, PMs, and customer success teams can submit issues directly. Developers review the PR when it's ready.
+
+**[Documentation](docs/)** | **[Architecture](docs/ARCHITECTURE.md)** | **[Contributing](CONTRIBUTING.md)**
 
 ## How it works
 

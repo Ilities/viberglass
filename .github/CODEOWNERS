@@ -1,0 +1,27 @@
+# Code owners for automatic review assignment
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for the entire repository
+* @Ilities
+
+# Platform backend
+/apps/platform-backend/** @Ilities
+
+# Platform frontend
+/apps/platform-frontend/** @Ilities
+
+# Viberator worker
+/apps/viberator/** @Ilities
+
+# Infrastructure (Pulumi)
+/infra/** @Ilities
+
+# Documentation
+/docs/** @Ilities
+*.md @Ilities
+
+# Tests
+/tests/** @Ilities
+
+# GitHub Actions workflows
+/.github/workflows/** @Ilities

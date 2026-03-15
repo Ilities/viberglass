@@ -13,6 +13,14 @@ export class ClaudeCodeAgent extends BaseAgent {
     return true;
   }
 
+  // TODO(Q1): Confirm the exact Claude Code ACP server invocation flag.
+  // Current one-shot flags (--print --dangerously-skip-permissions) do not
+  // support ACP session semantics and must be replaced with the ACP mode flag
+  // before this method is wired into executeAgentCLI.
+  protected getAcpServerCommand(): string[] {
+    return ["claude", "--acp"];
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,
