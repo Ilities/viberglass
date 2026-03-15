@@ -50,6 +50,12 @@ describe("WorkerExecutionService", () => {
       repository: "https://github.com/test/repo",
       task: "Fix the bug",
       timestamp: Date.now(),
+      context: {
+        ticketId: "ticket-123",
+        stepsToReproduce: "1. Login\n2. Click profile",
+        expectedBehavior: "Profile loads",
+        actualBehavior: "Error 500",
+      },
     };
 
     // Mock clanker with lambda deployment strategy
