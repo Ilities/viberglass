@@ -6,6 +6,7 @@ import { PageMeta } from '@/components/page-meta'
 import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
 import {
   ArrowLeftIcon,
+  ChatBubbleIcon,
   CheckCircledIcon,
   ClipboardIcon,
   DotsHorizontalIcon,
@@ -36,6 +37,7 @@ import { ResearchDocumentPanel } from './research-document-panel'
 import { TicketRunButton } from './ticket-run-button'
 import { formatTicketStatus } from './ticket-display'
 import { TicketWorkflowPanel } from './ticket-workflow-panel'
+import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
 
 function getSeverityBadge(severity: string): { label: string; color: 'red' | 'amber' | 'green' | 'zinc' } {
@@ -114,6 +116,7 @@ export function TicketDetailPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [planningApprovalState, setPlanningApprovalState] = useState<ApprovalState | null>(null)
   const [isWorkflowOverrideDialogOpen, setIsWorkflowOverrideDialogOpen] = useState(false)
+  const [isLaunchSessionDialogOpen, setIsLaunchSessionDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -267,6 +270,10 @@ export function TicketDetailPage() {
                     View screenshots
                   </DropdownItem>
                 )}
+                <DropdownItem onClick={() => setIsLaunchSessionDialogOpen(true)}>
+                  <ChatBubbleIcon className="h-4 w-4" />
+                  Start interactive session
+                </DropdownItem>
                 <DropdownItem
                   onClick={() => {
                     void navigator.clipboard.writeText(ticket.id)
@@ -513,6 +520,14 @@ export function TicketDetailPage() {
           setIsWorkflowOverrideDialogOpen(false)
           toast.success('Execution override recorded - ticket moved to execution')
         }}
+      />
+
+      <LaunchSessionDialog
+        open={isLaunchSessionDialogOpen}
+        onClose={() => setIsLaunchSessionDialogOpen(false)}
+        ticketId={ticket.id}
+        project={project}
+        clankers={clankers}
       />
     </>
   )
