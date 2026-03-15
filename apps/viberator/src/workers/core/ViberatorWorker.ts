@@ -56,6 +56,11 @@ export class ViberatorWorker {
   private fetchedCredentials?: Record<string, string | undefined>;
   private currentJobId?: string;
   private currentTenantId?: string;
+  // ACP session fields — populated from payload on interactive (multi-turn) jobs.
+  private agentSessionId?: string;
+  private agentTurnId?: string;
+  private sessionMode?: "research" | "planning" | "execution";
+  private acpSessionId?: string;
 
   constructor(
     agentAuthLifecycleFactory: AgentAuthLifecycleFactory,
@@ -204,6 +209,10 @@ export class ViberatorWorker {
 
     this.projectConfig = payload.projectConfig;
     this.overrides = payload.overrides;
+    this.agentSessionId = payload.agentSessionId;
+    this.agentTurnId = payload.agentTurnId;
+    this.sessionMode = payload.sessionMode;
+    this.acpSessionId = payload.acpSessionId;
   }
 
   private async loadPayloadCredentials(payload: WorkerPayload): Promise<void> {

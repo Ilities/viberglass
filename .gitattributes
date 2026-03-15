@@ -1,0 +1,54 @@
+# Set the default behavior for all files to be text
+* text=auto
+
+# Explicitly declare source files to use LF line endings
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+
+# Batch files should use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+
+# Docker files
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+
+# Git files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# IDE files
+.idea/** binary
+.vscode/** text eol=lf
+
+# Build outputs
+dist/** binary
+build/** binary
+node_modules/** binary
+
+# Documentation
+docs/**/*.md text eol=lf
+docs/**/*.png binary
+*.png binary

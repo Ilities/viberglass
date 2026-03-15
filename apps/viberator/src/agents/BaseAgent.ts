@@ -113,6 +113,21 @@ export abstract class BaseAgent {
   ): Promise<AgentCLIResult>;
 
   /**
+   * Return the command and arguments to start this CLI in ACP server mode.
+   *
+   * The ACP server receives JSON-RPC 2.0 requests on stdin and emits
+   * responses/notifications on stdout (transport: stdio).
+   *
+   * Concrete agents that have switched to the ACP execution path call
+   * AcpClient directly inside executeAgentCLI(), passing this command.
+   *
+   * NOTE: Each implementation must be confirmed against the CLI's own
+   * documentation before use (see open design question Q1 in the ACP
+   * integration planning doc). Placeholder values are in place until then.
+   */
+  protected abstract getAcpServerCommand(): string[];
+
+  /**
    * Prepare working directory for execution
    */
   protected async prepareWorkingDirectory(

@@ -18,6 +18,14 @@ export class OpenCodeAgent extends BaseAgent {
     return false;
   }
 
+  // TODO(Q1): Confirm the OpenCode CLI ACP server invocation.
+  // The current one-shot mode uses `opencode run --format json`.
+  // ACP server mode flag(s) must be confirmed from OpenCode documentation
+  // before this is wired into executeAgentCLI.
+  protected getAcpServerCommand(): string[] {
+    return ["opencode", "--acp-server"];
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,

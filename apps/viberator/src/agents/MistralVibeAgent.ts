@@ -8,6 +8,14 @@ export class MistralVibeAgent extends BaseAgent {
     return true;
   }
 
+  // TODO(Q1): Confirm whether Mistral Vibe supports ACP server mode at all.
+  // If not, this agent should continue using the stream path (executeCommand)
+  // and override supportsAcp() to return false once that hook is added.
+  // Currently falls back to "vibe --acp" as a placeholder.
+  protected getAcpServerCommand(): string[] {
+    return ["vibe", "--acp"];
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,
