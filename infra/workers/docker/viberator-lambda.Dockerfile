@@ -32,7 +32,11 @@ RUN npm install -g \
     @qwen-code/qwen-code@latest \
     @google/gemini-cli \
     @openai/codex \
-    opencode-ai@latest
+    opencode-ai@latest \
+    @zed-industries/claude-agent-acp
+
+# Install Codex ACP adapter for interactive sessions.
+RUN npm install -g codex-acp || echo "Warning: codex-acp not available"
 
 # Ensure user-level CLI installs are available during subsequent build steps.
 ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"

@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 # Create a non-root user
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 
-# Install Claude Code globally
-RUN npm install -g @anthropic-ai/claude-code
+# Install Claude Code and ACP adapter globally
+RUN npm install -g @anthropic-ai/claude-code @zed-industries/claude-agent-acp
 
 # Copy package files required for workspace dependency installation
 COPY package*.json ./

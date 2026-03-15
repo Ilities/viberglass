@@ -9,7 +9,7 @@ class TestBaseAgent extends BaseAgent {
     return false;
   }
 
-  protected getAcpServerCommand(): string[] {
+  public getAcpServerCommand(): string[] {
     return ["test-cli", "--acp"];
   }
 

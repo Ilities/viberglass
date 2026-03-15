@@ -12,11 +12,7 @@ export class QwenCodeAgent extends BaseAgent {
     return true;
   }
 
-  // TODO(Q1): Confirm the Qwen CLI ACP server invocation.
-  // The current one-shot mode uses --auth-type openai --output-format stream-json --yolo.
-  // Qwen CLI derives from the same fork as Claude Code; ACP mode flag likely
-  // mirrors Claude Code but must be confirmed from Qwen CLI documentation.
-  protected getAcpServerCommand(): string[] {
+  public getAcpServerCommand(): string[] {
     return ["qwen", "--acp"];
   }
 

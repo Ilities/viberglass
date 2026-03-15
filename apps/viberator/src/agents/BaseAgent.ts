@@ -125,7 +125,7 @@ export abstract class BaseAgent {
    * documentation before use (see open design question Q1 in the ACP
    * integration planning doc). Placeholder values are in place until then.
    */
-  protected abstract getAcpServerCommand(): string[];
+  public abstract getAcpServerCommand(): string[];
 
   /**
    * Prepare working directory for execution

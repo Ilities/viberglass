@@ -11,12 +11,8 @@ export class KimiCodeAgent extends BaseAgent {
     return true;
   }
 
-  // TODO(Q1): Confirm the Kimi CLI ACP server invocation.
-  // The current one-shot mode uses --print --output-format stream-json --config.
-  // ACP server mode flag(s) must be confirmed from Kimi Code CLI documentation
-  // before this is wired into executeAgentCLI.
-  protected getAcpServerCommand(): string[] {
-    return ["kimi", "--acp"];
+  public getAcpServerCommand(): string[] {
+    return ["kimi", "acp"];
   }
 
   private getNonEmptyTrimmedString(value: unknown): string | undefined {

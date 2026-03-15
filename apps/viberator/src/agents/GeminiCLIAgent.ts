@@ -8,12 +8,8 @@ export class GeminiCLIAgent extends BaseAgent {
     return true;
   }
 
-  // TODO(Q1): Confirm the Gemini CLI ACP server invocation.
-  // The current one-shot mode uses --output-format json --approval-mode yolo.
-  // The ACP server mode flag(s) must be confirmed from Google Gemini CLI
-  // documentation before this is wired into executeAgentCLI.
-  protected getAcpServerCommand(): string[] {
-    return ["gemini", "--acp-server"];
+  public getAcpServerCommand(): string[] {
+    return ["gemini", "--experimental-acp"];
   }
 
   private getNonEmptyTrimmedString(value: unknown): string | undefined {

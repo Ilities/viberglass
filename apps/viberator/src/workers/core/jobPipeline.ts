@@ -19,6 +19,7 @@ import type {
   AgentAuthContext,
   AgentAuthLifecycle,
 } from "./agentAuthLifecycle";
+import type { SessionEventForwarder } from "../../acp/SessionEventForwarder";
 
 export interface JobRunnerParams {
   data: CodingJobData;
@@ -38,6 +39,11 @@ export interface JobRunnerParams {
   environmentManager: EnvironmentManager;
   logForwarder: LogForwarder;
   defaultTimeout: number;
+  agentSessionId?: string;
+  agentTurnId?: string;
+  acpSessionId?: string;
+  sessionMode?: "research" | "planning" | "execution";
+  sessionEventForwarder?: SessionEventForwarder;
   selectAgentForExecution: (availableAgents: AgentConfig[]) => AgentConfig;
   sendProgress: (
     step: string,
@@ -136,6 +142,8 @@ export interface AgentExecutionResult {
   success: boolean;
   changedFiles: string[];
   errorMessage?: string;
+  acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
+  newAcpSessionId?: string;
 }
 
 /**

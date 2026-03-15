@@ -11,8 +11,8 @@
 
 import { spawn, ChildProcess } from "child_process";
 import { Logger } from "winston";
+import type { PlatformSessionEvent } from "./types";
 import {
-  PlatformSessionEvent,
   mapSessionUpdate,
   mapPermissionRequest,
   detectsNeedsInput,

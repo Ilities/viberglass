@@ -1,4 +1,10 @@
 import { Logger } from "winston";
+import {
+  FetchRetryConfig,
+  fetchWithRetry,
+  redactSensitiveInfo,
+  isInternalLogMessage,
+} from "./callbackFetch";
 
 export interface CallbackResult {
   success: boolean;
@@ -12,13 +18,7 @@ export interface CallbackResult {
   branch?: string;
 }
 
-interface RetryConfig {
-  timeoutMs: number;
-  label: string;
-}
-
 export class CallbackClient {
-  private static readonly INTERNAL_LOG_TAG = "[internal]";
   private apiUrl: string;
   private maxRetries: number;
   private retryDelay: number;
@@ -42,17 +42,6 @@ export class CallbackClient {
     this.callbackToken = config.callbackToken;
   }
 
-  private buildHeaders(tenantId: string): Record<string, string> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "X-Tenant-Id": tenantId,
-    };
-    if (this.callbackToken) {
-      headers["X-Callback-Token"] = this.callbackToken;
-    }
-    return headers;
-  }
-
   async sendResult(
     jobId: string,
     tenantId: string,
@@ -61,11 +50,11 @@ export class CallbackClient {
     const body = {
       ...result,
       logs: result.logs
-        .filter((log) => !this.isInternalLogMessage(log))
-        .map((log) => this.redactSensitiveInfo(log)),
+        .filter((log) => !isInternalLogMessage(log))
+        .map((log) => redactSensitiveInfo(log)),
     };
 
-    await this.fetchWithRetry(
+    await this.post(
       `${this.apiUrl}/api/jobs/${jobId}/result`,
       tenantId,
       body,
@@ -85,11 +74,11 @@ export class CallbackClient {
   ): Promise<void> {
     const body = {
       step: progress.step || null,
-      message: this.redactSensitiveInfo(progress.message),
+      message: redactSensitiveInfo(progress.message),
       details: progress.details || null,
     };
 
-    await this.fetchWithRetry(
+    await this.post(
       `${this.apiUrl}/api/jobs/${jobId}/progress`,
       tenantId,
       body,
@@ -113,7 +102,7 @@ export class CallbackClient {
       updatedAt: payload.updatedAt || new Date().toISOString(),
     };
 
-    await this.fetchWithRetry(
+    await this.post(
       `${this.apiUrl}/api/jobs/${jobId}/codex-auth-cache`,
       tenantId,
       body,
@@ -131,17 +120,17 @@ export class CallbackClient {
       source?: string;
     },
   ): Promise<void> {
-    if (this.isInternalLogMessage(log.message)) {
+    if (isInternalLogMessage(log.message)) {
       return;
     }
 
     const body = {
       level: log.level,
-      message: this.redactSensitiveInfo(log.message),
+      message: redactSensitiveInfo(log.message),
       source: log.source || null,
     };
 
-    await this.fetchWithRetry(
+    await this.post(
       `${this.apiUrl}/api/jobs/${jobId}/logs`,
       tenantId,
       body,
@@ -163,19 +152,19 @@ export class CallbackClient {
     if (logs.length === 0) return;
 
     const externalLogs = logs.filter(
-      (log) => !log.internal && !this.isInternalLogMessage(log.message),
+      (log) => !log.internal && !isInternalLogMessage(log.message),
     );
     if (externalLogs.length === 0) return;
 
     const body = {
       logs: externalLogs.map((log) => ({
         level: log.level,
-        message: this.redactSensitiveInfo(log.message),
+        message: redactSensitiveInfo(log.message),
         source: log.source || null,
       })),
     };
 
-    await this.fetchWithRetry(
+    await this.post(
       `${this.apiUrl}/api/jobs/${jobId}/logs/batch`,
       tenantId,
       body,
@@ -184,162 +173,50 @@ export class CallbackClient {
     );
   }
 
-  private async fetchWithRetry(
+  async sendSessionEventBatch(
+    jobId: string,
+    tenantId: string,
+    events: Array<{ eventType: string; payload: Record<string, unknown> }>,
+  ): Promise<void> {
+    if (events.length === 0) return;
+
+    await this.post(
+      `${this.apiUrl}/api/jobs/${jobId}/session-events/batch`,
+      tenantId,
+      { events },
+      { timeoutMs: 10000, label: "session event batch" },
+      { jobId, count: events.length },
+    );
+  }
+
+  async sendAcpSessionId(
+    jobId: string,
+    tenantId: string,
+    acpSessionId: string,
+  ): Promise<void> {
+    await this.post(
+      `${this.apiUrl}/api/jobs/${jobId}/acp-session-id`,
+      tenantId,
+      { acpSessionId },
+      { timeoutMs: 10000, label: "ACP session ID" },
+      { jobId },
+    );
+  }
+
+  private async post(
     url: string,
     tenantId: string,
     body: unknown,
-    config: RetryConfig,
+    config: FetchRetryConfig,
     context: Record<string, unknown>,
   ): Promise<void> {
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
-        this.logger.info(
-          this.tagInternalLog(`Sending ${config.label} to platform`),
-          { ...context, attempt: attempt + 1 },
-        );
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: this.buildHeaders(tenantId),
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(config.timeoutMs),
-        });
-
-        if (!response.ok) {
-          const statusCode = response.status;
-          const errorData = await response
-            .json()
-            .catch(() => ({ error: response.statusText }));
-          const errorMessage =
-            typeof errorData?.error === "string"
-              ? errorData.error
-              : response.statusText;
-
-          // Idempotency: another worker retry may have already finalized this job.
-          if (
-            statusCode === 409 &&
-            errorMessage === "Job already in terminal state"
-          ) {
-            this.logger.warn(
-              this.tagInternalLog(
-                `${config.label} callback skipped because job is already terminal`,
-              ),
-              { ...context, statusCode, message: errorMessage },
-            );
-            return;
-          }
-
-          const isRetryable = statusCode >= 500 || statusCode === 429;
-
-          if (!isRetryable) {
-            this.logger.error(
-              this.tagInternalLog(
-                `Non-retryable error sending ${config.label}`,
-              ),
-              { ...context, statusCode, message: errorMessage },
-            );
-            throw new Error(
-              `${config.label} callback failed: ${errorMessage}`,
-            );
-          }
-
-          if (attempt === this.maxRetries) {
-            this.logger.error(
-              this.tagInternalLog(
-                `Max retries exceeded sending ${config.label}`,
-              ),
-              { ...context, lastStatus: statusCode },
-            );
-            throw new Error(
-              `${config.label} callback failed after ${this.maxRetries + 1} attempts`,
-            );
-          }
-
-          const delay = this.retryDelay * Math.pow(2, attempt);
-          this.logger.warn(
-            this.tagInternalLog(
-              `Retryable error sending ${config.label}, will retry`,
-            ),
-            { ...context, attempt: attempt + 1, statusCode, delay },
-          );
-          await this.sleep(delay);
-          continue;
-        }
-
-        this.logger.info(
-          this.tagInternalLog(`${config.label} sent successfully`),
-          { ...context, status: response.status },
-        );
-        return;
-      } catch (error) {
-        const isLastAttempt = attempt === this.maxRetries;
-
-        if (error instanceof Error && error.name === "AbortError") {
-          this.logger.error(
-            this.tagInternalLog(`${config.label} request timeout`),
-            { ...context, attempt: attempt + 1 },
-          );
-          if (isLastAttempt) {
-            throw new Error(
-              `${config.label} callback timeout after ${this.maxRetries + 1} attempts`,
-            );
-          }
-        } else if (
-          error instanceof Error &&
-          error.message.includes("callback failed")
-        ) {
-          throw error;
-        } else {
-          this.logger.error(
-            this.tagInternalLog(
-              `Unexpected error sending ${config.label}`,
-            ),
-            {
-              ...context,
-              attempt: attempt + 1,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
-          if (isLastAttempt) {
-            throw error;
-          }
-        }
-
-        const delay = this.retryDelay * Math.pow(2, attempt);
-        await this.sleep(delay);
-      }
-    }
+    await fetchWithRetry(url, tenantId, body, config, context, {
+      logger: this.logger,
+      maxRetries: this.maxRetries,
+      retryDelay: this.retryDelay,
+      callbackToken: this.callbackToken,
+    });
   }
 
-  private redactSensitiveInfo(log: string): string {
-    const sensitivePatterns = [
-      /token[a-z]*["\s:=]+[a-zA-Z0-9_\-]{20,}/gi,
-      /password["\s:=]+[^\s]+/gi,
-      /sk-[a-zA-Z0-9]{20,}/g,
-      /ghp_[a-zA-Z0-9]{36}/g,
-      /gho_[a-zA-Z0-9]{36}/g,
-      /ghu_[a-zA-Z0-9]{36}/g,
-      /ghs_[a-zA-Z0-9]{36}/g,
-      /ghr_[a-zA-Z0-9]{36}/g,
-      /Bearer\s+[a-zA-Z0-9_\-]{20,}/gi,
-    ];
-
-    let redacted = log;
-    for (const pattern of sensitivePatterns) {
-      redacted = redacted.replace(pattern, "[REDACTED]");
-    }
-    return redacted;
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  private tagInternalLog(message: string): string {
-    return `${CallbackClient.INTERNAL_LOG_TAG} ${message}`;
-  }
-
-  private isInternalLogMessage(message: string): boolean {
-    return message.includes(CallbackClient.INTERNAL_LOG_TAG);
-  }
 }
+
