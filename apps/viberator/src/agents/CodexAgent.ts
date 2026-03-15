@@ -9,6 +9,14 @@ export class CodexAgent extends BaseAgent {
     return authMode === "api_key";
   }
 
+  // TODO(Q1): Confirm the Codex CLI ACP server invocation.
+  // The current one-shot mode is `codex --yolo exec --json`. The ACP server
+  // mode flag(s) must be confirmed from OpenAI Codex CLI documentation before
+  // this is wired into executeAgentCLI.
+  protected getAcpServerCommand(): string[] {
+    return ["codex", "acp-server"];
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,

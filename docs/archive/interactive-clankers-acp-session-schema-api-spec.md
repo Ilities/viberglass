@@ -508,19 +508,87 @@ Avoid:
 
 ## Worker Contract Changes
 
-The worker bootstrap payload for interactive turns should add:
-- `agentSessionId`
-- `agentTurnId`
-- `sessionMode`
-- `workspaceRef`
-- prior session context needed by the agent
+### Bootstrap Payload — New Fields
 
-Worker runtime behavior for interactive mode:
-- emit structured session events
+The worker bootstrap payload for interactive turns adds the following optional fields
+to `BaseWorkerPayload`. All fields are absent for one-shot jobs; workers treat their
+absence as a signal to run in legacy mode.
+
+```typescript
+agentSessionId?: string;   // Platform session UUID (agent_sessions.id)
+agentTurnId?: string;      // Platform turn UUID (agent_turns.id)
+sessionMode?: "research" | "planning" | "execution";
+acpSessionId?: string;     // CLI's ACP sessionId (sess_abc123), for session/load
+```
+
+The `acpSessionId` is populated by the platform from
+`agent_sessions.metadata_json.acpSessionId` on resume turns. On the first turn for a
+session it is absent, causing the worker to call `session/new` instead of `session/load`.
+
+### ACP Session Lifecycle In The Worker
+
+On first turn (no `acpSessionId`):
+```
+AcpClient.run({ userMessage })
+  → initialize
+  → session/new             ← CLI returns { sessionId: "sess_abc123" }
+  → session/prompt(message) ← CLI streams session/update notifications
+  → turn completes or needs_input or needs_approval
+```
+
+On resume turns (`acpSessionId` present):
+```
+AcpClient.run({ userMessage, acpSessionId: "sess_abc123" })
+  → initialize
+  → session/load({ sessionId }) ← CLI restores conversation history
+  → session/prompt(message)     ← CLI continues the conversation
+  → turn completes or needs_input or needs_approval
+```
+
+### Worker Callback Flow For Session Events
+
+The worker's `AcpClient` translates `session/update` notifications into platform event
+shapes via `acpEventMapper` and delivers them to:
+
+`POST /api/jobs/:jobId/session-events/batch`
+
+When `session/request_permission` arrives:
+1. Worker emits `needs_approval` event batch to platform
+2. Worker responds with `{ action: "reject_once" }` to unblock the CLI
+3. Worker sends `session/cancel` to abort the session
+4. Worker exits cleanly
+5. Platform creates open pending request, marks session `waiting_on_approval`
+
+When turn ends with an open question (assistant asks for input):
+1. Worker emits `needs_input` event batch to platform
+2. Worker exits cleanly
+3. Platform marks session `waiting_on_user`
+
+### Storing The ACP Session ID
+
+After a `session/new` call, the worker must store the returned `acpSessionId` back to
+the platform so subsequent turns can call `session/load`. This is delivered via a
+dedicated callback:
+
+`POST /api/jobs/:jobId/acp-session-id`
+
+```json
+{ "acpSessionId": "sess_abc123" }
+```
+
+The platform writes this into `agent_sessions.metadata_json.acpSessionId`.
+
+### Worker Runtime Behavior For Interactive Mode
+
+- emit structured session events via batch callback
 - stop cleanly when a blocking request is emitted
 - do not wait for the user's browser response
+- include `agentSessionId` and `agentTurnId` in every session event batch so the
+  platform can route them to the correct session without requiring the worker to know
+  the full session graph
 
-This is especially important for execution sessions because current branch creation is job-oriented and must become session-oriented.
+This is especially important for execution sessions because current branch creation is
+job-oriented and must become session-oriented.
 
 ## Frontend Consumption Model
 

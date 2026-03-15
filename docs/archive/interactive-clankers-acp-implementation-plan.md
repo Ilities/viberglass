@@ -200,6 +200,102 @@ Research and planning can adopt the session model first because they do not muta
 - the platform can expose session activity with minimal translation to ACP semantics
 - adapters can evolve incrementally without changing the session contract
 
+## ACP Wire-Level Client Architecture
+
+All supported coding CLIs (Claude Code, Codex, Gemini CLI, Qwen, Kimi, Mistral Vibe,
+OpenCode) speak ACP natively as JSON-RPC 2.0 servers over stdio. The worker is the
+ACP client — this gives session loading, structured permissions, and streaming for free
+instead of reinventing them.
+
+### Transport
+
+JSON-RPC 2.0 over stdio. Worker spawns CLI as subprocess, sends JSON-RPC
+requests on stdin, reads responses and notifications on stdout.
+
+### Worker-to-CLI Requests
+
+| Method | Purpose |
+|--------|---------|
+| `initialize` | Negotiate protocol version and capabilities |
+| `session/new` | Create session, returns `{ sessionId: "sess_abc123" }` |
+| `session/load` | Resume prior session by sessionId (streams history, then ready) |
+| `session/prompt` | Send user message; triggers streaming session/update notifications |
+| `session/cancel` | Abort current operation |
+
+### CLI-to-Worker (Handled By Worker)
+
+| Method | Purpose |
+|--------|---------|
+| `session/update` | Streaming notification during a turn — see subtypes |
+| `session/request_permission` | Agent asks client to approve a sensitive action |
+
+### session/update Subtypes → Platform Events
+
+| ACP subtype | Platform event |
+|-------------|---------------|
+| `agent_message_chunk` | `assistant_message` |
+| `tool_call_update` (started) | `tool_call_started` |
+| `tool_call_update` (completed) | `tool_call_completed` |
+| `plan` | `needs_approval` |
+
+### New Components
+
+**`apps/viberator/src/acp/AcpClient.ts`**
+
+Harness-agnostic ACP JSON-RPC client over stdio. Manages subprocess, request/response
+correlation by JSON-RPC id, session lifecycle (initialize → new/load → prompt), and
+notification routing to a platform event callback.
+
+One instance per job execution. Stateless across jobs. Does NOT implement fs/ or
+terminal/ capabilities — the CLI has direct repo access in the worker environment.
+
+**`apps/viberator/src/acp/acpEventMapper.ts`**
+
+Pure functions mapping ACP notifications to platform session event shapes:
+- `mapSessionUpdate(params)` — maps session/update subtypes to platform events
+- `mapPermissionRequest(params)` — maps session/request_permission to needs_approval
+- `detectsNeedsInput(text)` — heuristic for open-question turn endings
+
+### Modified Agent Layer
+
+Each agent gains an abstract `getAcpServerCommand(): string[]` in `BaseAgent` that
+returns the harness-specific CLI invocation for ACP server mode. Concrete agents that
+have confirmed ACP server flags call `AcpClient` directly inside `executeAgentCLI()`.
+
+The existing `agentStreamNormalizer` stays as fallback for harnesses that do not
+support ACP; each concrete agent chooses which path to use.
+
+### ACP Session ID Lifecycle
+
+| ACP concept | Platform concept |
+|-------------|-----------------|
+| ACP `sessionId` (`sess_abc123`) | Stored in `agent_sessions.metadata_json.acpSessionId` |
+| `session/new` response | Called on first assistant turn for a session |
+| `session/load { sessionId }` | Called on every subsequent assistant turn |
+| `session/prompt { content }` | Sends the current user message |
+| `session/request_permission` | `needs_approval` event + open pending request |
+
+### Open Design Questions
+
+**Q1 — CLI ACP server invocation flags** (blocks `getAcpServerCommand()` wiring):
+Each harness must have its ACP server mode flag(s) confirmed before `executeAgentCLI()`
+is switched from the stream path to the ACP path. Placeholder values are in place.
+Start with the strongest harnesses first, not Claude Code.
+
+**Q2 — session/load after permission denial**: When `session/request_permission` is
+suspended, resume by delivering the permission decision via `session/prompt` in a new
+turn with the decision as context (treat as a `blocked` turn, not a failed one).
+
+**Q3 — agentStreamNormalizer fallback**: BaseAgent supports both execution paths.
+Concrete agents pick one. Remove the normalizer only after all harnesses are verified
+ACP-capable.
+
+**Q4 — acpSessionId storage**: `agent_sessions.metadata_json.acpSessionId` — no
+schema change needed, `metadata_json` is already JSONB nullable.
+
+**Q5 — one-shot jobs**: `agentSessionId` absent in payload → worker skips ACP session
+semantics and runs in legacy mode. Existing one-shot flows stay unchanged.
+
 ## Backend Design Principles
 
 - Keep session orchestration in small dedicated services.
