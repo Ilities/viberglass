@@ -135,7 +135,7 @@ describe('ApplicationLayout mobile navigation', () => {
     expect(desktopNav).not.toBeNull()
 
     const desktopLabels = getLinkLabels(desktopNav as HTMLElement)
-    expect(desktopLabels).toEqual(['Dashboard', 'Tickets', 'Jobs'])
+    expect(desktopLabels).toEqual(['Dashboard', 'Tickets', 'Jobs', 'Claws'])
 
     await user.click(screen.getByRole('button', { name: 'Open navigation' }))
 

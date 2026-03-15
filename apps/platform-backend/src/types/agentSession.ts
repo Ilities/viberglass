@@ -63,6 +63,7 @@ export const AGENT_SESSION_EVENT_TYPE = {
   TURN_FAILED: "turn_failed",
   SESSION_COMPLETED: "session_completed",
   SESSION_FAILED: "session_failed",
+  SESSION_CANCELLED: "session_cancelled",
 } as const;
 
 export type AgentSessionEventType =

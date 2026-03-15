@@ -31,12 +31,21 @@ function getPhaseStatus(
   return 'upcoming'
 }
 
+function getNextPhase(currentPhase: TicketWorkflowPhase): TicketWorkflowPhase | null {
+  const currentIndex = phases.findIndex((p) => p.phase === currentPhase)
+  return currentIndex < phases.length - 1 ? phases[currentIndex + 1].phase : null
+}
+
 export function TicketWorkflowPanel({
   workflowPhase,
+  isAdvancing = false,
+  onAdvance,
   blockingReason = null,
   overrideAudit = null,
 }: TicketWorkflowPanelProps) {
   const isBlocked = Boolean(blockingReason)
+  const nextPhase = getNextPhase(workflowPhase)
+  const nextPhaseLabel = nextPhase ? phases.find((p) => p.phase === nextPhase)?.label : null
 
   return (
     <div
@@ -74,20 +83,27 @@ export function TicketWorkflowPanel({
                   )}
                 </div>
 
-                {/* Label */}
-                <span
-                  className="text-sm font-medium"
-                  style={{
-                    color:
-                      status === 'current'
-                        ? 'var(--gray-12)'
-                        : status === 'completed'
-                          ? 'var(--gray-11)'
-                          : 'var(--gray-8)',
-                  }}
-                >
-                  {entry.label}
-                </span>
+                {/* Label + Current badge */}
+                <div className="flex flex-col">
+                  <span
+                    className="text-sm font-medium"
+                    style={{
+                      color:
+                        status === 'current'
+                          ? 'var(--gray-12)'
+                          : status === 'completed'
+                            ? 'var(--gray-11)'
+                            : 'var(--gray-8)',
+                    }}
+                  >
+                    {entry.label}
+                  </span>
+                  {status === 'current' && (
+                    <span className="text-xs" style={{ color: 'var(--accent-11)' }}>
+                      Current
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Connector */}
@@ -101,6 +117,21 @@ export function TicketWorkflowPanel({
           )
         })}
       </div>
+
+      {/* Advance button */}
+      {nextPhaseLabel && onAdvance && (
+        <div className="mt-3">
+          <button
+            type="button"
+            disabled={isAdvancing}
+            onClick={() => nextPhase && onAdvance(nextPhase)}
+            className="text-sm"
+            style={{ color: isAdvancing ? 'var(--gray-8)' : 'var(--accent-11)' }}
+          >
+            {isAdvancing ? 'Updating...' : `Move to ${nextPhaseLabel}`}
+          </button>
+        </div>
+      )}
 
       {/* Blocking message */}
       {blockingReason && (

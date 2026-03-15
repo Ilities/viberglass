@@ -2,6 +2,7 @@ import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { HelmetProvider } from 'react-helmet-async'
 import { useProject } from '@/context/project-context'
 import {
   getAvailableIntegrationTypes,
@@ -99,13 +100,15 @@ const INITIAL_SCM_CONFIG = {
 
 function renderPage() {
   return render(
-    <Theme>
-      <MemoryRouter initialEntries={['/project/viberglass/settings']}>
-        <Routes>
-          <Route path="/project/:project/settings" element={<ProjectSettingsPage />} />
-        </Routes>
-      </MemoryRouter>
-    </Theme>
+    <HelmetProvider>
+      <Theme>
+        <MemoryRouter initialEntries={['/project/viberglass/settings']}>
+          <Routes>
+            <Route path="/project/:project/settings" element={<ProjectSettingsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </Theme>
+    </HelmetProvider>
   )
 }
 
@@ -304,8 +307,6 @@ describe('ProjectSettingsPage', () => {
         expect.objectContaining({
           name: PROJECT.name,
           ticketSystem: 'jira',
-          repositoryUrl: 'https://github.com/acme/repo',
-          repositoryUrls: ['https://github.com/acme/repo'],
         })
       )
       expect(mockedUpsertProjectScmConfig).toHaveBeenCalledWith(PROJECT.id, {

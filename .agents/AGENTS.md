@@ -80,6 +80,7 @@ These are the single source of truth instructions for agent behavior and backend
 - Confirm the change complies with sections 2 through 7.
 - Ensure tests cover orchestration and extracted behaviors for touched logic.
 - If a user request conflicts with these rules, implement the request and explicitly call out the conflict.
+- **Always fix ALL failing tests before considering a task done — regardless of whether you caused the failure.** If tests were already failing before your changes, fix them anyway.
 
 ### 9) UI Change Verification
 
