@@ -35,6 +35,9 @@ import { JobDetailPage } from '@/pages/project/jobs/JobDetailPage'
 // Claws pages
 import { ClawsPage } from '@/pages/project/claws/ClawsPage'
 
+// Sessions pages
+import { SessionPage } from '@/pages/project/sessions/SessionPage'
+
 
 
 // Settings pages
@@ -98,6 +101,9 @@ export function AppRoutes() {
 
         {/* Project claws */}
         <Route path="/project/:project/claws" element={<ClawsPage />} />
+
+        {/* Project sessions */}
+        <Route path="/project/:project/sessions/:sessionId" element={<SessionPage />} />
 
 
 
