@@ -110,6 +110,18 @@ export interface BaseWorkerPayload {
   scm?: ScmPayload | null;
   /** Callback token for authenticating worker callbacks to the platform */
   callbackToken?: string;
+  /**
+   * ACP session fields — present only on interactive (multi-turn) jobs.
+   * Absent for one-shot jobs; workers must treat null/undefined as one-shot mode.
+   */
+  /** Platform session UUID linking this job to an agent_sessions row */
+  agentSessionId?: string;
+  /** Platform turn UUID linking this job to an agent_turns row */
+  agentTurnId?: string;
+  /** Session mode driving prompt assembly and artifact handling */
+  sessionMode?: "research" | "planning" | "execution";
+  /** CLI's own ACP session ID (sess_abc123) — used to call session/load on resume */
+  acpSessionId?: string;
 }
 
 /**

@@ -1,5 +1,14 @@
 import type { ColumnType } from "kysely";
 import type { TicketWorkflowPhase } from "@viberglass/types";
+import type {
+  AgentPendingRequestStatus,
+  AgentPendingRequestType,
+  AgentSessionEventType,
+  AgentSessionMode,
+  AgentSessionStatus,
+  AgentTurnRole,
+  AgentTurnStatus,
+} from "../../types/agentSession";
 import type { UserRole } from "./user";
 
 export type Generated<T> =
@@ -243,6 +252,8 @@ export interface JobsTable {
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
   job_kind: Generated<"research" | "planning" | "execution" | "claw">;
+  agent_session_id: string | null;
+  agent_turn_id: string | null;
 }
 
 export interface JobProgressUpdatesTable {
@@ -445,6 +456,72 @@ export interface ClawExecutionsTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface AgentSessionsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
+  ticket_id: string;
+  clanker_id: string;
+  mode: AgentSessionMode;
+  status: Generated<AgentSessionStatus>;
+  title: string | null;
+  repository: string | null;
+  base_branch: string | null;
+  workspace_branch: string | null;
+  draft_pull_request_url: string | null;
+  head_commit_hash: string | null;
+  last_job_id: string | null;
+  last_turn_id: string | null;
+  latest_pending_request_id: string | null;
+  metadata_json: Json | null;
+  created_by: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+  completed_at: Timestamp | null;
+}
+
+export interface AgentTurnsTable {
+  id: Generated<string>;
+  session_id: string;
+  role: AgentTurnRole;
+  status: Generated<AgentTurnStatus>;
+  sequence: number;
+  content_markdown: string | null;
+  content_json: Json | null;
+  job_id: string | null;
+  started_at: Timestamp | null;
+  completed_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface AgentSessionEventsTable {
+  id: Generated<string>;
+  session_id: string;
+  turn_id: string | null;
+  job_id: string | null;
+  sequence: number | string;
+  event_type: AgentSessionEventType;
+  payload_json: Json;
+  created_at: Generated<Timestamp>;
+}
+
+export interface AgentPendingRequestsTable {
+  id: Generated<string>;
+  session_id: string;
+  turn_id: string | null;
+  job_id: string | null;
+  request_type: AgentPendingRequestType;
+  status: Generated<AgentPendingRequestStatus>;
+  prompt_markdown: string;
+  request_json: Json | null;
+  response_json: Json | null;
+  resolved_by: string | null;
+  resolved_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -475,4 +552,8 @@ export interface Database {
   claw_task_templates: ClawTaskTemplatesTable;
   claw_schedules: ClawSchedulesTable;
   claw_executions: ClawExecutionsTable;
+  agent_sessions: AgentSessionsTable;
+  agent_turns: AgentTurnsTable;
+  agent_session_events: AgentSessionEventsTable;
+  agent_pending_requests: AgentPendingRequestsTable;
 }
