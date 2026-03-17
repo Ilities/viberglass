@@ -39,6 +39,7 @@ import { formatTicketStatus } from './ticket-display'
 import { TicketWorkflowPanel } from './ticket-workflow-panel'
 import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
+import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
 
 function getSeverityBadge(severity: string): { label: string; color: 'red' | 'amber' | 'green' | 'zinc' } {
   switch (severity) {
@@ -117,6 +118,7 @@ export function TicketDetailPage() {
   const [planningApprovalState, setPlanningApprovalState] = useState<ApprovalState | null>(null)
   const [isWorkflowOverrideDialogOpen, setIsWorkflowOverrideDialogOpen] = useState(false)
   const [isLaunchSessionDialogOpen, setIsLaunchSessionDialogOpen] = useState(false)
+  const [activeSessions, setActiveSessions] = useState<AgentSession[]>([])
 
   useEffect(() => {
     async function loadData() {
@@ -126,7 +128,15 @@ export function TicketDetailPage() {
       }
 
       try {
-        const [t, c, planningPhase] = await Promise.all([getTicketDetails(id), getClankersList(), getPlanningPhase(id)])
+        const [t, c, planningPhase, sessions] = await Promise.all([
+          getTicketDetails(id),
+          getClankersList(),
+          getPlanningPhase(id),
+          listSessionsForTicket(id),
+        ])
+        setActiveSessions(sessions.filter(s =>
+          s.status === 'active' || s.status === 'waiting_on_user' || s.status === 'waiting_on_approval'
+        ))
         if (!t) {
           setIsLoading(false)
           return
@@ -225,6 +235,15 @@ export function TicketDetailPage() {
 
           {/* Actions */}
           <div className="flex shrink-0 items-center gap-2">
+            {activeSessions.length > 0 && (
+              <Button
+                href={`/project/${project}/sessions/${activeSessions[0].id}`}
+                color="violet"
+              >
+                <ChatBubbleIcon className="h-4 w-4" />
+                Resume session
+              </Button>
+            )}
             {/* Primary CTA — context-aware */}
             {isRunnable ? (
               <TicketRunButton
@@ -270,10 +289,17 @@ export function TicketDetailPage() {
                     View screenshots
                   </DropdownItem>
                 )}
-                <DropdownItem onClick={() => setIsLaunchSessionDialogOpen(true)}>
-                  <ChatBubbleIcon className="h-4 w-4" />
-                  Start interactive session
-                </DropdownItem>
+                {activeSessions.length > 0 ? (
+                  <DropdownItem href={`/project/${project}/sessions/${activeSessions[0].id}`}>
+                    <ChatBubbleIcon className="h-4 w-4" />
+                    View active session
+                  </DropdownItem>
+                ) : (
+                  <DropdownItem onClick={() => setIsLaunchSessionDialogOpen(true)}>
+                    <ChatBubbleIcon className="h-4 w-4" />
+                    Start interactive session
+                  </DropdownItem>
+                )}
                 <DropdownItem
                   onClick={() => {
                     void navigator.clipboard.writeText(ticket.id)

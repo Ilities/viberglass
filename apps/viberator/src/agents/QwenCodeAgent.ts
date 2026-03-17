@@ -16,6 +16,16 @@ export class QwenCodeAgent extends BaseAgent {
     return ["qwen", "--acp"];
   }
 
+  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+    const endpoint = this.resolveCompatibleBaseUrl();
+    return {
+      DASHSCOPE_API_KEY: this.config.apiKey!,
+      OPENAI_API_KEY: this.config.apiKey!,
+      OPENAI_BASE_URL: endpoint,
+      OPENAI_MODEL: this.resolveModelName(),
+    };
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,

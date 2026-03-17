@@ -13,8 +13,16 @@ export class AcpExecutor {
   ): Promise<ExecutionResult> {
     const command = agent.getAcpServerCommand();
     const repoDir = context.repoDir ?? process.cwd();
-    const env: NodeJS.ProcessEnv = { ...process.env };
+    const env: NodeJS.ProcessEnv = { ...process.env, ...agent.getAcpEnvironment() };
     const timeoutMs = (context.maxExecutionTime || 1800) * 1000;
+
+    this.logger.info("AcpExecutor starting", {
+      command: command.join(" "),
+      repoDir,
+      timeoutMs,
+      agentSessionId: context.agentSessionId,
+      acpSessionId: context.acpSessionId,
+    });
 
     const client = new AcpClient(
       command,
@@ -25,18 +33,33 @@ export class AcpExecutor {
       timeoutMs,
     );
 
-    const result = await client.run({
-      userMessage: prompt,
-      acpSessionId: context.acpSessionId,
-    });
+    try {
+      const result = await client.run({
+        userMessage: prompt,
+        acpSessionId: context.acpSessionId,
+      });
 
-    return {
-      success: true,
-      changedFiles: [],
-      executionTime: 0,
-      cost: 0,
-      acpTurnOutcome: result.turnOutcome,
-      newAcpSessionId: result.acpSessionId,
-    };
+      this.logger.info("AcpExecutor completed", {
+        turnOutcome: result.turnOutcome,
+        acpSessionId: result.acpSessionId,
+      });
+
+      return {
+        success: true,
+        changedFiles: [],
+        executionTime: 0,
+        cost: 0,
+        acpTurnOutcome: result.turnOutcome,
+        newAcpSessionId: result.acpSessionId,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error("AcpExecutor failed", {
+        command: command.join(" "),
+        error: message,
+        agentSessionId: context.agentSessionId,
+      });
+      throw error;
+    }
   }
 }

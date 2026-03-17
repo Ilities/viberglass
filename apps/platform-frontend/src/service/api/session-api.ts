@@ -185,6 +185,15 @@ export async function replyToSession(sessionId: string, replyText: string): Prom
   if (!res.ok) return throwApiError(res, 'Failed to send reply')
 }
 
+export async function sendMessageToSession(sessionId: string, messageText: string): Promise<void> {
+  const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageText }),
+  })
+  if (!res.ok) return throwApiError(res, 'Failed to send message')
+}
+
 export async function approveSession(sessionId: string, approved: boolean): Promise<void> {
   const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/approve`, {
     method: 'POST',

@@ -32,9 +32,10 @@ const router = Router();
 const jobService = new JobService();
 const secretService = new SecretService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
+const agentTurnDAO = new AgentTurnDAO();
 const workerEventService = new AgentSessionWorkerEventService(
   new AgentSessionEventDAO(),
-  new AgentTurnDAO(),
+  agentTurnDAO,
   new AgentSessionDAO(),
   new AgentPendingRequestDAO(),
 );
@@ -253,28 +254,42 @@ router.post(
 
       // Determine status from success field
       const status = result.success ? "completed" : "failed";
-      const documentPhase = getDocumentPhaseForJobKind(job.jobKind);
 
-      if (
-        documentPhase &&
-        result.success &&
-        job.ticketId &&
-        typeof result.documentContent === "string"
-      ) {
-        await ticketPhaseDocumentService.saveDocument(
-          job.ticketId,
-          documentPhase,
-          result.documentContent,
-          { source: "agent" },
-        );
-      } else if (
-        documentPhase &&
-        result.success &&
-        !result.documentContent
-      ) {
-        return res.status(400).json({
-          error: `${job.jobKind} result missing document content`,
-        });
+      // Check if this job is an ACP session turn (skip document requirement)
+      const agentTurn = await agentTurnDAO.getByJobId(jobId);
+      const isSessionTurn = !!agentTurn;
+
+      if (!isSessionTurn) {
+        const documentPhase = getDocumentPhaseForJobKind(job.jobKind);
+        if (
+          documentPhase &&
+          result.success &&
+          job.ticketId &&
+          typeof result.documentContent === "string"
+        ) {
+          await ticketPhaseDocumentService.saveDocument(
+            job.ticketId,
+            documentPhase,
+            result.documentContent,
+            { source: "agent" },
+          );
+        } else if (
+          documentPhase &&
+          result.success &&
+          !result.documentContent
+        ) {
+          return res.status(400).json({
+            error: `${job.jobKind} result missing document content`,
+          });
+        }
+      }
+
+      // For session turns, emit turn_completed/turn_failed events
+      if (isSessionTurn) {
+        const eventType = result.success ? "turn_completed" : "turn_failed";
+        await workerEventService.batchIngest(jobId, [
+          { eventType, payload: {} },
+        ]);
       }
 
       // Update job status using existing JobService method

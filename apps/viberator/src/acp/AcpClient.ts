@@ -28,7 +28,7 @@ export interface AcpRunOptions {
 
 export interface AcpRunResult {
   acpSessionId: string;
-  turnOutcome: "completed" | "needs_input" | "needs_approval";
+  turnOutcome: "completed" | "needs_input";
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -80,7 +80,6 @@ export class AcpClient {
   private child?: ChildProcess;
   private nextId = 1;
   private readonly pending = new Map<number, PendingRequest>();
-  private permissionRequestReceived = false;
   private lastAssistantText = "";
   private currentSessionId = "";
 
@@ -94,31 +93,63 @@ export class AcpClient {
   ) {}
 
   async run(options: AcpRunOptions): Promise<AcpRunResult> {
+    this.logger.info("AcpClient spawning process", {
+      command: this.command.join(" "),
+      workDir: this.workDir,
+    });
+
     this.child = spawnAcpProcess(
       this.command, this.workDir, this.env,
       (line) => this.processLine(line),
-      (chunk) => this.logger.debug(`[acp:stderr] ${chunk}`),
+      (chunk) => this.logger.warn(`[acp:stderr] ${chunk}`),
       this.timeoutMs,
     );
+
+    this.child.on("error", (err) => {
+      this.logger.error("AcpClient process spawn error", {
+        command: this.command.join(" "),
+        error: err.message,
+      });
+    });
+
+    this.child.on("close", (code, signal) => {
+      this.logger.info("AcpClient process exited", { code, signal });
+    });
+
     try {
-      await this.sendRequest("initialize", { protocolVersion: "2025-01-01", capabilities: {} });
+      this.logger.info("AcpClient sending initialize request");
+      await this.sendRequest("initialize", { protocolVersion: 1, capabilities: {} });
+      this.logger.info("AcpClient initialize succeeded");
+
       if (options.acpSessionId) {
-        this.currentSessionId = options.acpSessionId;
-        await this.sendRequest("session/load", { sessionId: options.acpSessionId });
+        this.logger.info("AcpClient loading existing session", { acpSessionId: options.acpSessionId });
+        try {
+          await this.sendRequest("session/load", { sessionId: options.acpSessionId, cwd: this.workDir, mcpServers: [] });
+          this.currentSessionId = options.acpSessionId;
+        } catch (loadErr) {
+          // CLI sessions are in-memory — the previous process is gone, start fresh.
+          this.logger.warn("AcpClient session/load failed, starting new session", {
+            error: loadErr instanceof Error ? loadErr.message : String(loadErr),
+          });
+          const r = await this.sendRequest("session/new", { cwd: this.workDir, mcpServers: [] });
+          this.currentSessionId =
+            isRecord(r) && typeof r.sessionId === "string" ? r.sessionId : "";
+        }
       } else {
-        const r = await this.sendRequest("session/new", {});
+        this.logger.info("AcpClient creating new session");
+        const r = await this.sendRequest("session/new", { cwd: this.workDir, mcpServers: [] });
         this.currentSessionId =
           isRecord(r) && typeof r.sessionId === "string" ? r.sessionId : "";
+        this.logger.info("AcpClient session created", { sessionId: this.currentSessionId });
       }
+      this.logger.info("AcpClient sending prompt", { sessionId: this.currentSessionId });
       await this.sendRequest("session/prompt", {
         sessionId: this.currentSessionId,
-        message: [{ type: "text", text: options.userMessage }],
+        prompt: [{ type: "text", text: options.userMessage }],
       });
-      const turnOutcome = this.permissionRequestReceived
-        ? "needs_approval"
-        : detectsNeedsInput(this.lastAssistantText)
-          ? "needs_input"
-          : "completed";
+      const turnOutcome = detectsNeedsInput(this.lastAssistantText)
+        ? "needs_input"
+        : "completed";
       return { acpSessionId: this.currentSessionId, turnOutcome };
     } finally {
       this.cleanup();
@@ -154,17 +185,11 @@ export class AcpClient {
 
   private handleCliRequest(id: number, method: string, params: unknown): void {
     if (method !== "session/request_permission") return;
-    this.permissionRequestReceived = true;
     this.onEvent(mapPermissionRequest(params));
-    // Respond reject_once so the CLI unblocks, then cancel the session.
+    // Auto-approve so the agent can continue uninterrupted.
+    // Permission events are still logged in the transcript for visibility.
     this.child?.stdin?.write(
-      JSON.stringify({ jsonrpc: "2.0", id, result: { action: "reject_once" } }) + "\n",
-    );
-    this.child?.stdin?.write(
-      JSON.stringify({
-        jsonrpc: "2.0", id: this.nextId++, method: "session/cancel",
-        params: { sessionId: this.currentSessionId },
-      }) + "\n",
+      JSON.stringify({ jsonrpc: "2.0", id, result: { action: "allow_once" } }) + "\n",
     );
   }
 

@@ -17,17 +17,27 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 function mapToolCallUpdate(params: Record<string, unknown>): PlatformSessionEvent[] {
-  const state = typeof params.state === "string" ? params.state : "";
-  const toolName = typeof params.name === "string" ? params.name : "";
-  const toolCallId = typeof params.id === "string" ? params.id : undefined;
+  // ACP SDK uses: toolCallId, status, title, kind, rawInput (for tool_call)
+  //               toolCallId, status, content, rawOutput (for tool_call_update)
+  // Legacy: state, name, id, input, output
+  const status = typeof params.status === "string" ? params.status : "";
+  const state = typeof params.state === "string" ? params.state : status;
+  const toolCallId =
+    typeof params.toolCallId === "string" ? params.toolCallId :
+    typeof params.id === "string" ? params.id : undefined;
+  const toolName =
+    typeof params.title === "string" ? params.title :
+    typeof params.name === "string" ? params.name :
+    (isRecord(params._meta) && typeof (params._meta as Record<string, unknown>).toolName === "string"
+      ? (params._meta as Record<string, unknown>).toolName as string : "");
 
-  if (state === "started" || state === "running") {
-    const input = isRecord(params.input) ? params.input : {};
+  if (state === "started" || state === "running" || state === "pending") {
+    const input = isRecord(params.rawInput) ? params.rawInput : isRecord(params.input) ? params.input : {};
     return [{ eventType: "tool_call_started", payload: { toolName, toolCallId, input } }];
   }
 
   if (state === "completed" || state === "done") {
-    const output = typeof params.output === "string" ? params.output : "";
+    const output = typeof params.rawOutput === "string" ? params.rawOutput : typeof params.output === "string" ? params.output : "";
     return [{ eventType: "tool_call_completed", payload: { toolName, toolCallId, output, success: true } }];
   }
 
@@ -49,28 +59,46 @@ function mapToolCallUpdate(params: Record<string, unknown>): PlatformSessionEven
 export function mapSessionUpdate(params: unknown): PlatformSessionEvent[] {
   if (!isRecord(params)) return [];
 
-  const updateType = typeof params.type === "string" ? params.type : "";
+  // ACP SDK structure: params.update.sessionUpdate + params.update.content
+  // Fallback to params.type for other implementations.
+  const update = isRecord(params.update) ? params.update : params;
+  const updateType =
+    typeof update.sessionUpdate === "string" ? update.sessionUpdate :
+    typeof update.type === "string" ? update.type : "";
+
+  // Content payload lives in update.content (ACP SDK) or directly in update
+  const content = isRecord(update.content) ? update.content : update;
 
   switch (updateType) {
     case "agent_message_chunk": {
-      const text = typeof params.text === "string" ? params.text : "";
+      const text = typeof content.text === "string" ? content.text : "";
       if (!text) return [];
       return [{ eventType: "assistant_message", payload: { text } }];
     }
 
+    case "agent_thought_chunk": {
+      const text = typeof content.text === "string" ? content.text : "";
+      if (!text) return [];
+      return [{ eventType: "reasoning", payload: { text } }];
+    }
+
+    case "tool_call":
     case "tool_call_update":
-      return mapToolCallUpdate(params);
+      return mapToolCallUpdate(update as Record<string, unknown>);
 
     case "plan": {
-      const content = typeof params.content === "string" ? params.content : "";
+      const text = typeof content.content === "string" ? content.content :
+        typeof content.text === "string" ? content.text : "";
       return [{
-        eventType: "needs_approval",
-        payload: { requestType: "approval", promptMarkdown: content },
+        eventType: "progress",
+        payload: { text: text || "Agent generated a plan." },
       }];
     }
 
     case "user_message_chunk":
-    case "session_info_update":
+    case "available_commands_update":
+    case "current_mode_update":
+    case "config_option_update":
       return [];
 
     default:
@@ -79,23 +107,19 @@ export function mapSessionUpdate(params: unknown): PlatformSessionEvent[] {
 }
 
 /**
- * Maps a session/request_permission request from the CLI to a needs_approval
- * platform event. The ACP permission request carries structured options
- * (allow_once, allow_always, reject_once, reject_always).
+ * Maps a session/request_permission request from the CLI to an informational
+ * progress event. Permission requests are auto-approved by the AcpClient so
+ * this is logged for visibility only.
  */
 export function mapPermissionRequest(params: unknown): PlatformSessionEvent {
   const prompt =
     isRecord(params) && typeof params.prompt === "string"
       ? params.prompt
-      : "Agent is requesting permission to continue.";
+      : "Agent requested permission (auto-approved).";
 
   return {
-    eventType: "needs_approval",
-    payload: {
-      requestType: "permission",
-      promptMarkdown: prompt,
-      options: ["allow_once", "allow_always", "reject_once", "reject_always"],
-    },
+    eventType: "progress",
+    payload: { text: `Permission auto-approved: ${prompt}` },
   };
 }
 

@@ -22,6 +22,22 @@ export class OpenCodeAgent extends BaseAgent {
     return ["opencode", "acp"];
   }
 
+  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = {};
+    if (this.config.apiKey) {
+      env.OPENCODE_API_KEY = this.config.apiKey;
+      env.OPENAI_API_KEY = this.config.apiKey;
+    }
+    const endpoint =
+      this.getNonEmptyTrimmedString(this.config.endpoint) ??
+      this.getNonEmptyTrimmedString(process.env.OPENCODE_BASE_URL);
+    if (endpoint) {
+      env.OPENCODE_BASE_URL = endpoint;
+      env.OPENAI_BASE_URL = endpoint;
+    }
+    return env;
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,
