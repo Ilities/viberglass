@@ -12,6 +12,13 @@ export class GeminiCLIAgent extends BaseAgent {
     return ["gemini", "--experimental-acp"];
   }
 
+  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+    return {
+      GEMINI_API_KEY: this.config.apiKey!,
+      GOOGLE_API_KEY: this.config.apiKey!,
+    };
+  }
+
   private getNonEmptyTrimmedString(value: unknown): string | undefined {
     if (typeof value !== "string") {
       return undefined;

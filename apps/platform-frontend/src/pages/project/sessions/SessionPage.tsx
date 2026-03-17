@@ -3,9 +3,9 @@ import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
-import { type AgentSessionStatus, cancelSession, getSessionDetail, type SessionDetail } from '@/service/api/session-api'
-import { ArrowLeftIcon, CrossCircledIcon } from '@radix-ui/react-icons'
-import { useCallback, useEffect, useState } from 'react'
+import { type AgentSessionStatus, cancelSession, getSessionDetail, sendMessageToSession, type SessionDetail } from '@/service/api/session-api'
+import { ArrowLeftIcon, CrossCircledIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PendingRequestCard } from './PendingRequestCard'
@@ -53,6 +53,9 @@ export function SessionPage() {
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCancelling, setIsCancelling] = useState(false)
+  const [replyText, setReplyText] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const replyRef = useRef<HTMLTextAreaElement>(null)
 
   const loadDetail = useCallback(async () => {
     if (!sessionId) return
@@ -90,12 +93,35 @@ export function SessionPage() {
   const currentStatus = liveStatus ?? detail?.session.status ?? 'active'
   const isTerminal = TERMINAL_STATUSES.has(currentStatus)
 
+  // Detect whether a turn is currently running (between turn_started and turn_completed/failed)
+  const turnInProgress = (() => {
+    for (let i = events.length - 1; i >= 0; i--) {
+      const t = events[i].eventType
+      if (t === 'turn_completed' || t === 'turn_failed') return false
+      if (t === 'turn_started') return true
+    }
+    return false
+  })()
+
   // Refresh detail when we see needs_input / needs_approval to get pendingRequest
   useEffect(() => {
     if (liveStatus === 'waiting_on_user' || liveStatus === 'waiting_on_approval') {
       void loadDetail()
     }
   }, [liveStatus, loadDetail])
+
+  async function handleReply() {
+    if (!sessionId || !replyText.trim() || isSending) return
+    setIsSending(true)
+    try {
+      await sendMessageToSession(sessionId, replyText.trim())
+      setReplyText('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send message')
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   async function handleCancel() {
     if (!sessionId) return
@@ -175,6 +201,35 @@ export function SessionPage() {
             pendingRequest={pendingRequest}
             onResolved={() => void loadDetail()}
           />
+        )}
+
+        {/* Reply input — shown when active and no pending request blocking */}
+        {!isTerminal && !showPending && (
+          <div className="flex items-end gap-2 rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-3">
+            <textarea
+              ref={replyRef}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void handleReply()
+                }
+              }}
+              placeholder={turnInProgress ? 'Agent is working…' : 'Send a message… (Enter to send, Shift+Enter for newline)'}
+              disabled={turnInProgress || isSending}
+              rows={2}
+              className="min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-[var(--gray-12)] placeholder:text-[var(--gray-8)] outline-none disabled:opacity-50"
+            />
+            <Button
+              color="violet"
+              onClick={() => void handleReply()}
+              disabled={!replyText.trim() || turnInProgress || isSending}
+            >
+              <PaperPlaneIcon className="h-4 w-4" />
+              Send
+            </Button>
+          </div>
         )}
       </div>
     </>

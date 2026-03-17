@@ -92,6 +92,8 @@ export class AgentSessionWorkerEventService {
   ): Promise<void> {
     switch (evt.eventType) {
       case AGENT_SESSION_EVENT_TYPE.NEEDS_INPUT: {
+        const existingInput = await this.agentPendingRequestDAO.getOpenBySession(sessionId);
+        if (existingInput) break;
         const prompt =
           typeof evt.payload.prompt === "string" ? evt.payload.prompt : "";
         const req = await this.agentPendingRequestDAO.create({
@@ -112,6 +114,8 @@ export class AgentSessionWorkerEventService {
         break;
       }
       case AGENT_SESSION_EVENT_TYPE.NEEDS_APPROVAL: {
+        const existingApproval = await this.agentPendingRequestDAO.getOpenBySession(sessionId);
+        if (existingApproval) break;
         const prompt =
           typeof evt.payload.prompt === "string" ? evt.payload.prompt : "";
         const req = await this.agentPendingRequestDAO.create({
@@ -144,8 +148,9 @@ export class AgentSessionWorkerEventService {
         await this.agentTurnDAO.update(turnId, {
           status: AGENT_TURN_STATUS.FAILED,
         });
+        // Keep session active so user can retry rather than killing the whole session
         await this.agentSessionDAO.update(sessionId, {
-          status: AGENT_SESSION_STATUS.FAILED,
+          status: AGENT_SESSION_STATUS.ACTIVE,
         });
         break;
     }

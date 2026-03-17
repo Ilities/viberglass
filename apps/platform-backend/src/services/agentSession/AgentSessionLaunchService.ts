@@ -130,6 +130,7 @@ export class AgentSessionLaunchService {
       ticketId: input.ticketId,
       clankerId: input.clankerId,
     });
+    jobData.callbackToken = submitResult.callbackToken;
 
     const requiredCredentials =
       await this.credentialRequirementsService.getRequiredCredentialsForClanker(
@@ -154,12 +155,14 @@ export class AgentSessionLaunchService {
       project: prepared.project,
     });
 
-    await this.jobService.saveBootstrapPayload(jobId, {
+    const fullBootstrap = {
       ...baseBootstrap,
       agentSessionId: session.id,
       agentTurnId: assistantTurn.id,
       sessionMode: input.mode,
-    });
+    };
+    jobData.bootstrapPayload = fullBootstrap;
+    await this.jobService.saveBootstrapPayload(jobId, fullBootstrap);
 
     await this.agentSessionDAO.update(session.id, {
       lastJobId: jobId,

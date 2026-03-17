@@ -91,8 +91,12 @@ export class AgentSessionInteractionService {
         "Session is not waiting for user input",
       );
     }
-    const pendingRequest = await this.agentPendingRequestDAO.getOpenBySession(sessionId);
-    if (!pendingRequest || pendingRequest.requestType !== AGENT_PENDING_REQUEST_TYPE.INPUT) {
+    const pendingRequest =
+      await this.agentPendingRequestDAO.getOpenBySession(sessionId);
+    if (
+      !pendingRequest ||
+      pendingRequest.requestType !== AGENT_PENDING_REQUEST_TYPE.INPUT
+    ) {
       throw new AgentSessionServiceError(
         AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
         "No open input request found",
@@ -156,6 +160,83 @@ export class AgentSessionInteractionService {
     return { currentTurn: assistantTurn, job };
   }
 
+  /**
+   * Send a free-form follow-up message to an active session (no pending request required).
+   * Used when the user wants to continue the conversation after a turn completes normally.
+   */
+  async sendMessage(
+    sessionId: string,
+    messageText: string,
+    userId?: string,
+  ): Promise<ReplyResult> {
+    const session = await this.agentSessionDAO.getById(sessionId);
+    if (!session) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_FOUND,
+        "Session not found",
+      );
+    }
+    const TERMINAL_STATUSES_MSG = new Set<AgentSessionStatus>([
+      AGENT_SESSION_STATUS.COMPLETED,
+      AGENT_SESSION_STATUS.CANCELLED,
+    ]);
+    if (TERMINAL_STATUSES_MSG.has(session.status)) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
+        `Session is already closed (status: ${session.status})`,
+      );
+    }
+
+    const [lastTurn, maxSeq] = await Promise.all([
+      session.lastTurnId
+        ? this.agentTurnDAO.getById(session.lastTurnId)
+        : Promise.resolve(null),
+      this.agentSessionEventDAO.getMaxSequence(sessionId),
+    ]);
+
+    const nextUserSeq = (lastTurn?.sequence ?? 0) + 1;
+    const userTurn = await this.agentTurnDAO.create({
+      sessionId,
+      role: AGENT_TURN_ROLE.USER,
+      sequence: nextUserSeq,
+      status: AGENT_TURN_STATUS.COMPLETED,
+      contentMarkdown: messageText,
+    });
+    await this.agentSessionEventDAO.create({
+      sessionId,
+      turnId: userTurn.id,
+      sequence: maxSeq + 1,
+      eventType: AGENT_SESSION_EVENT_TYPE.USER_MESSAGE,
+      payloadJson: { content: messageText },
+    });
+
+    const assistantTurn = await this.agentTurnDAO.create({
+      sessionId,
+      role: AGENT_TURN_ROLE.ASSISTANT,
+      sequence: nextUserSeq + 1,
+      status: AGENT_TURN_STATUS.QUEUED,
+    });
+    await this.agentSessionEventDAO.create({
+      sessionId,
+      turnId: assistantTurn.id,
+      sequence: maxSeq + 2,
+      eventType: AGENT_SESSION_EVENT_TYPE.TURN_STARTED,
+      payloadJson: { turnId: assistantTurn.id },
+    });
+
+    const job = await this.launchContinuationJob(session, assistantTurn, {
+      task: messageText,
+    });
+
+    await this.agentSessionDAO.update(sessionId, {
+      status: AGENT_SESSION_STATUS.ACTIVE,
+      lastJobId: job.id,
+      lastTurnId: assistantTurn.id,
+    });
+
+    return { currentTurn: assistantTurn, job };
+  }
+
   async approve(
     sessionId: string,
     approved: boolean,
@@ -174,8 +255,12 @@ export class AgentSessionInteractionService {
         "Session is not waiting for approval",
       );
     }
-    const pendingRequest = await this.agentPendingRequestDAO.getOpenBySession(sessionId);
-    if (!pendingRequest || pendingRequest.requestType !== AGENT_PENDING_REQUEST_TYPE.APPROVAL) {
+    const pendingRequest =
+      await this.agentPendingRequestDAO.getOpenBySession(sessionId);
+    if (
+      !pendingRequest ||
+      pendingRequest.requestType !== AGENT_PENDING_REQUEST_TYPE.APPROVAL
+    ) {
       throw new AgentSessionServiceError(
         AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
         "No open approval request found",
@@ -338,6 +423,7 @@ export class AgentSessionInteractionService {
       ticketId: session.ticketId,
       clankerId: session.clankerId,
     });
+    jobData.callbackToken = submitResult.callbackToken;
 
     const requiredCredentials =
       await this.credentialRequirementsService.getRequiredCredentialsForClanker(
@@ -365,14 +451,16 @@ export class AgentSessionInteractionService {
 
     const acpSessionId = extractAcpSessionId(session.metadataJson);
 
-    await this.jobService.saveBootstrapPayload(jobId, {
+    const fullBootstrap = {
       ...baseBootstrap,
       agentSessionId: session.id,
       agentTurnId: assistantTurn.id,
       sessionMode: session.mode,
       acpSessionId,
       ...extras,
-    });
+    };
+    jobData.bootstrapPayload = fullBootstrap;
+    await this.jobService.saveBootstrapPayload(jobId, fullBootstrap);
 
     await this.agentTurnDAO.update(assistantTurn.id, { jobId });
 

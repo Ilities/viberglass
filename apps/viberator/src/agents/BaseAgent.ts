@@ -128,6 +128,16 @@ export abstract class BaseAgent {
   public abstract getAcpServerCommand(): string[];
 
   /**
+   * Return extra environment variables needed when running this agent's CLI
+   * in ACP mode.  The AcpExecutor merges these into process.env before
+   * spawning the subprocess.  Override in concrete agents to inject API keys
+   * and endpoint URLs.
+   */
+  public getAcpEnvironment(): NodeJS.ProcessEnv {
+    return {};
+  }
+
+  /**
    * Prepare working directory for execution
    */
   protected async prepareWorkingDirectory(

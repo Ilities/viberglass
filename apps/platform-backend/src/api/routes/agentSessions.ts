@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Request, Response, Router } from "express";
 import { requireAuth } from "../middleware/authentication";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
@@ -8,10 +8,8 @@ import { AgentSessionQueryService } from "../../services/agentSession/AgentSessi
 import { AgentSessionInteractionService } from "../../services/agentSession/AgentSessionInteractionService";
 import { JobService } from "../../services/JobService";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
-import { WorkerExecutionService } from "../../workers/WorkerExecutionService";
-import {
-  isAgentSessionServiceError,
-} from "../../services/errors/AgentSessionServiceError";
+import { WorkerExecutionService } from "../../workers";
+import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
 import {
   AGENT_SESSION_EVENT_TYPE,
   type AgentSessionEventType,
@@ -52,25 +50,21 @@ const TERMINAL_STATUSES = new Set<string>(["completed", "failed", "cancelled"]);
 const POLL_MS = 2000;
 const HEARTBEAT_MS = 30000;
 
-router.get(
-  "/:sessionId",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const detail = await queryService.getDetail(req.params.sessionId);
-      if (!detail) {
-        return res.status(404).json({ error: "Session not found" });
-      }
-      return res.json({ success: true, data: detail });
-    } catch (err) {
-      logger.error("Failed to get agent session detail", {
-        sessionId: req.params.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return res.status(500).json({ error: "Internal server error" });
+router.get("/:sessionId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const detail = await queryService.getDetail(req.params.sessionId);
+    if (!detail) {
+      return res.status(404).json({ error: "Session not found" });
     }
-  },
-);
+    return res.json({ success: true, data: detail });
+  } catch (err) {
+    logger.error("Failed to get agent session detail", {
+      sessionId: req.params.sessionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 router.get(
   "/:sessionId/events",
@@ -128,7 +122,10 @@ router.get(
     let lastSeq = 0;
     let closed = false;
 
-    const existingEvents = await queryService.listEvents(req.params.sessionId, {});
+    const existingEvents = await queryService.listEvents(
+      req.params.sessionId,
+      {},
+    );
     for (const event of existingEvents) {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
       const seq = Number(event.sequence);
@@ -194,7 +191,7 @@ router.post(
       if (!replyText || typeof replyText !== "string") {
         return res.status(400).json({ error: "replyText is required" });
       }
-      const userId = req.auth?.user.email;
+      const userId = req.auth?.user.id;
       const result = await interactionService.reply(
         req.params.sessionId,
         replyText,
@@ -215,15 +212,46 @@ router.post(
 );
 
 router.post(
+  "/:sessionId/message",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { messageText } = req.body;
+      if (!messageText || typeof messageText !== "string") {
+        return res.status(400).json({ error: "messageText is required" });
+      }
+      const userId = req.auth?.user.id;
+      const result = await interactionService.sendMessage(
+        req.params.sessionId,
+        messageText,
+        userId,
+      );
+      return res.json({ success: true, data: result });
+    } catch (err) {
+      logger.error("Failed to send message to agent session", {
+        sessionId: req.params.sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (isAgentSessionServiceError(err)) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+router.post(
   "/:sessionId/approve",
   requireAuth,
   async (req: Request, res: Response) => {
     try {
       const { approved } = req.body;
       if (typeof approved !== "boolean") {
-        return res.status(400).json({ error: "approved (boolean) is required" });
+        return res
+          .status(400)
+          .json({ error: "approved (boolean) is required" });
       }
-      const userId = req.auth?.user.email;
+      const userId = req.auth?.user.id;
       const result = await interactionService.approve(
         req.params.sessionId,
         approved,
@@ -248,7 +276,7 @@ router.post(
   requireAuth,
   async (req: Request, res: Response) => {
     try {
-      const userId = req.auth?.user.email;
+      const userId = req.auth?.user.id;
       await interactionService.cancel(req.params.sessionId, userId);
       return res.status(204).send();
     } catch (err) {

@@ -4,7 +4,7 @@ import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { launchSession, type AgentSessionMode } from '@/service/api/session-api'
 import type { Clanker } from '@viberglass/types'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -24,6 +24,12 @@ export function LaunchSessionDialog({ open, onClose, ticketId, project, clankers
   const [mode, setMode] = useState<AgentSessionMode>('research')
   const [initialMessage, setInitialMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!clankerId && activeClankers.length > 0) {
+      setClankerId(activeClankers[0].id)
+    }
+  }, [activeClankers, clankerId])
 
   async function handleLaunch() {
     if (!clankerId || !initialMessage.trim()) return
