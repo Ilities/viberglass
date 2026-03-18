@@ -129,15 +129,35 @@ export class AgentSessionLaunchService {
     );
 
     let researchDocumentContent: string | undefined;
+    let planDocumentContent: string | undefined;
+
+    if (input.mode === "research") {
+      const researchDoc = await this.documentService.getOrCreateDocument(
+        input.ticketId,
+        TICKET_WORKFLOW_PHASE.RESEARCH,
+      );
+      if (researchDoc.content?.trim()) {
+        researchDocumentContent = researchDoc.content;
+      }
+    }
+
     if (input.mode === "planning") {
       const researchDoc = await this.documentService.getOrCreateDocument(
         input.ticketId,
         TICKET_WORKFLOW_PHASE.RESEARCH,
       );
       researchDocumentContent = researchDoc.content;
+
+      const planDoc = await this.documentService.getOrCreateDocument(
+        input.ticketId,
+        TICKET_WORKFLOW_PHASE.PLANNING,
+      );
+      if (planDoc.content?.trim()) {
+        planDocumentContent = planDoc.content;
+      }
     }
 
-    const jobData = buildJobData(jobId, input, prepared, ticket, researchDocumentContent);
+    const jobData = buildJobData(jobId, input, prepared, ticket, researchDocumentContent, planDocumentContent);
     const submitResult = await this.jobService.submitJob(jobData, {
       ticketId: input.ticketId,
       clankerId: input.clankerId,
@@ -271,6 +291,7 @@ function buildJobData(
   prepared: PreparedTicketRunContext,
   ticket: { id: string; title: string; description: string; externalTicketId?: string | null },
   researchDocumentContent?: string,
+  planDocumentContent?: string,
 ): JobData {
   const task = buildTicketTask(ticket);
 
@@ -290,6 +311,7 @@ function buildJobData(
       jobKind: "research",
       context: {
         ticketId: input.ticketId,
+        researchDocument: researchDocumentContent,
         instructionFiles: prepared.mergedInstructionFiles,
       },
     };
@@ -302,6 +324,7 @@ function buildJobData(
       context: {
         ticketId: input.ticketId,
         researchDocument: researchDocumentContent ?? "",
+        planDocument: planDocumentContent,
         instructionFiles: prepared.mergedInstructionFiles,
       },
     };

@@ -229,6 +229,11 @@ export function TicketDetailTabs({
                   sessionId={currentSession.id}
                   project={project}
                   onSessionEnded={onSessionEnded}
+                  onRevise={
+                    currentSession.mode === 'research' || currentSession.mode === 'planning'
+                      ? () => { onStartSession(currentSession.mode as AgentSessionMode, ''); onTabChange(currentSession.mode) }
+                      : undefined
+                  }
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-12 text-center">
