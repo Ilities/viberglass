@@ -9,7 +9,7 @@ import {
   sendMessageToSession,
   type SessionDetail,
 } from '@/service/api/session-api'
-import { CrossCircledIcon, ExternalLinkIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
+import { ChatBubbleIcon, CrossCircledIcon, ExternalLinkIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { PendingRequestCard } from '../sessions/PendingRequestCard'
@@ -22,24 +22,38 @@ interface InlineSessionPanelProps {
   onRevise?: () => void
 }
 
-function statusBadge(status: AgentSessionStatus): { label: string; color: 'green' | 'amber' | 'blue' | 'red' | 'zinc' } {
+function statusBadge(status: AgentSessionStatus): {
+  label: string
+  color: 'green' | 'amber' | 'blue' | 'red' | 'zinc'
+} {
   switch (status) {
-    case 'active': return { label: 'Active', color: 'blue' }
-    case 'waiting_on_user': return { label: 'Waiting on you', color: 'amber' }
-    case 'waiting_on_approval': return { label: 'Needs approval', color: 'amber' }
-    case 'completed': return { label: 'Completed', color: 'green' }
-    case 'failed': return { label: 'Failed', color: 'red' }
-    case 'cancelled': return { label: 'Cancelled', color: 'zinc' }
-    default: return { label: status, color: 'zinc' }
+    case 'active':
+      return { label: 'Active', color: 'blue' }
+    case 'waiting_on_user':
+      return { label: 'Waiting on you', color: 'amber' }
+    case 'waiting_on_approval':
+      return { label: 'Needs approval', color: 'amber' }
+    case 'completed':
+      return { label: 'Completed', color: 'green' }
+    case 'failed':
+      return { label: 'Failed', color: 'red' }
+    case 'cancelled':
+      return { label: 'Cancelled', color: 'zinc' }
+    default:
+      return { label: status, color: 'zinc' }
   }
 }
 
 function modeBadge(mode: string): { label: string; color: 'violet' | 'blue' | 'amber' } {
   switch (mode) {
-    case 'research': return { label: 'Research', color: 'violet' }
-    case 'planning': return { label: 'Planning', color: 'blue' }
-    case 'execution': return { label: 'Execution', color: 'amber' }
-    default: return { label: mode, color: 'blue' }
+    case 'research':
+      return { label: 'Research', color: 'violet' }
+    case 'planning':
+      return { label: 'Planning', color: 'blue' }
+    case 'execution':
+      return { label: 'Execution', color: 'amber' }
+    default:
+      return { label: mode, color: 'blue' }
   }
 }
 
@@ -73,12 +87,17 @@ export function InlineSessionPanel({ sessionId, project, onSessionEnded, onRevis
 
   const lastEvent = events.length > 0 ? events[events.length - 1] : null
   const liveStatus: AgentSessionStatus | undefined =
-    lastEvent?.eventType === 'session_completed' ? 'completed'
-    : lastEvent?.eventType === 'session_failed' ? 'failed'
-    : lastEvent?.eventType === 'session_cancelled' ? 'cancelled'
-    : lastEvent?.eventType === 'needs_input' ? 'waiting_on_user'
-    : lastEvent?.eventType === 'needs_approval' ? 'waiting_on_approval'
-    : undefined
+    lastEvent?.eventType === 'session_completed'
+      ? 'completed'
+      : lastEvent?.eventType === 'session_failed'
+        ? 'failed'
+        : lastEvent?.eventType === 'session_cancelled'
+          ? 'cancelled'
+          : lastEvent?.eventType === 'needs_input'
+            ? 'waiting_on_user'
+            : lastEvent?.eventType === 'needs_approval'
+              ? 'waiting_on_approval'
+              : undefined
 
   const currentStatus = liveStatus ?? detail?.session.status ?? 'active'
   const isTerminal = TERMINAL_STATUSES.has(currentStatus)
@@ -154,12 +173,7 @@ export function InlineSessionPanel({ sessionId, project, onSessionEnded, onRevis
           {connected && <span className="inline-block h-2 w-2 rounded-full bg-green-500" title="Live" />}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            plain
-            href={`/project/${project}/sessions/${sessionId}`}
-            target="_blank"
-            className="text-xs"
-          >
+          <Button plain href={`/project/${project}/sessions/${sessionId}`} target="_blank" className="text-xs">
             <ExternalLinkIcon className="h-3 w-3" />
             Full view
           </Button>
@@ -218,7 +232,7 @@ export function InlineSessionPanel({ sessionId, project, onSessionEnded, onRevis
             placeholder={turnInProgress ? 'Agent is working…' : 'Send a message… (Enter to send)'}
             disabled={turnInProgress || isSending}
             rows={2}
-            className="min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-[var(--gray-12)] placeholder:text-[var(--gray-8)] outline-none disabled:opacity-50"
+            className="min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-[var(--gray-12)] outline-none placeholder:text-[var(--gray-8)] disabled:opacity-50"
           />
           <Button
             color="violet"
