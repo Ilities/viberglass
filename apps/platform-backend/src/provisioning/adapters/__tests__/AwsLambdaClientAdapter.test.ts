@@ -240,8 +240,16 @@ describe("AwsLambdaClientAdapter", () => {
   });
 
   describe("createFunction", () => {
-    it("should call CreateFunctionCommand with correct params", async () => {
-      mockSend.mockResolvedValue({});
+    it("should call CreateFunctionCommand and wait for Active state", async () => {
+      mockSend
+        .mockResolvedValueOnce({}) // CreateFunctionCommand response
+        .mockResolvedValueOnce({ Configuration: { State: "Pending" } })
+        .mockResolvedValueOnce({ Configuration: { State: "Active" } });
+
+      const originalSetTimeout = global.setTimeout;
+      jest.spyOn(global, "setTimeout").mockImplementation((fn: () => void, _ms?: number) => {
+        return originalSetTimeout(fn, 10);
+      });
 
       await adapter.createFunction({
         FunctionName: "new-function",
@@ -250,7 +258,9 @@ describe("AwsLambdaClientAdapter", () => {
         PackageType: "Image",
       });
 
-      expect(mockSend).toHaveBeenCalledWith(
+      expect(mockSend).toHaveBeenCalledTimes(3);
+      expect(mockSend).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
           input: {
             FunctionName: "new-function",
@@ -260,6 +270,47 @@ describe("AwsLambdaClientAdapter", () => {
           },
         })
       );
+    });
+
+    it("should throw when function creation fails", async () => {
+      mockSend
+        .mockResolvedValueOnce({}) // CreateFunctionCommand response
+        .mockResolvedValueOnce({
+          Configuration: { State: "Failed", StateReason: "Image pull failed" },
+        });
+
+      await expect(
+        adapter.createFunction({
+          FunctionName: "bad-function",
+          Role: "arn:aws:iam::123456789:role/lambda-role",
+          Code: { ImageUri: "bad-image:latest" },
+          PackageType: "Image",
+        })
+      ).rejects.toThrow("Lambda function creation failed: Image pull failed");
+    });
+
+    it("should throw timeout error if activation takes too long", async () => {
+      const originalDateNow = Date.now;
+      let callCount = 0;
+      jest.spyOn(Date, "now").mockImplementation(() => {
+        callCount++;
+        return originalDateNow() + callCount * 310000;
+      });
+
+      mockSend
+        .mockResolvedValueOnce({}) // CreateFunctionCommand response
+        .mockResolvedValue({ Configuration: { State: "Pending" } });
+
+      await expect(
+        adapter.createFunction({
+          FunctionName: "slow-function",
+          Role: "arn:aws:iam::123456789:role/lambda-role",
+          Code: { ImageUri: "image:latest" },
+          PackageType: "Image",
+        })
+      ).rejects.toThrow(/activation timed out after 300 seconds/);
+
+      jest.restoreAllMocks();
     });
   });
 

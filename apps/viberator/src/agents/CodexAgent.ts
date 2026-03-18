@@ -9,6 +9,20 @@ export class CodexAgent extends BaseAgent {
     return authMode === "api_key";
   }
 
+  public getAcpServerCommand(): string[] {
+    return ["codex-acp"];
+  }
+
+  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+    return {
+      OPENAI_API_KEY:
+        (process.env.CODEX_AUTH_MODE || "api_key") === "api_key"
+          ? this.config.apiKey
+          : undefined,
+      OPENAI_BASE_URL: this.config.endpoint || undefined,
+    };
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,

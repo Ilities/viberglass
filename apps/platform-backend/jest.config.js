@@ -1,3 +1,8 @@
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 export default {
   preset: "ts-jest/presets/default-esm",
   testEnvironment: "node",
@@ -10,7 +15,7 @@ export default {
       "ts-jest",
       {
         useESM: true,
-        tsconfig: "tsconfig.test.json",
+        tsconfig: resolve(__dirname, "tsconfig.test.json"),
       },
     ],
   },

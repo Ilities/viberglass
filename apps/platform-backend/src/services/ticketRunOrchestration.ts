@@ -50,6 +50,7 @@ export interface PrepareTicketRunContextInput {
   clankerId: string;
   jobId: string;
   instructionFiles?: Array<Partial<InlineInstructionFile>>;
+  additionalSecretIds?: string[];
 }
 
 export interface PreparedTicketRunContext {
@@ -152,17 +153,10 @@ export async function prepareTicketRunContext(
     throw new Error("Associated project not found");
   }
 
-  const repositoryUrls =
-    project.repositoryUrls && project.repositoryUrls.length > 0
-      ? project.repositoryUrls
-      : project.repositoryUrl
-        ? [project.repositoryUrl]
-        : [];
   const scmConfig = (await deps.projectScmConfigDAO.getByProjectId(
     project.id,
   )) as ProjectScmConfigWithLegacySecret | null;
-  const sourceRepository =
-    scmConfig?.sourceRepository.trim() || repositoryUrls[0] || "";
+  const sourceRepository = scmConfig?.sourceRepository.trim() ?? "";
   const baseBranch = scmConfig?.baseBranch.trim() || "main";
   if (!sourceRepository) {
     throw new TicketServiceError(
@@ -219,6 +213,7 @@ export async function prepareTicketRunContext(
       new Set([
         ...(clanker.secretIds || []),
         ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
+        ...(input.additionalSecretIds ?? []),
       ]),
     ),
   };
@@ -339,7 +334,7 @@ export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record
 
 export async function submitJobWithBootstrapAndInvoke(
   jobData: JobData,
-  ticketId: string,
+  ticketId: string | undefined,
   clankerId: string,
   phaseLabel: string,
   preparedContext: PreparedTicketRunContext,

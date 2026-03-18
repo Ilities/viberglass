@@ -309,13 +309,13 @@ export class JobService {
       .orderBy("created_at", "desc")
       .execute();
 
-    // Fetch log lines (most recent first, limited to 100)
+    // Fetch log lines (most recent first, limited to 500)
     const logs = await db
       .selectFrom("job_log_lines")
       .selectAll()
       .where("job_id", "=", jobId)
       .orderBy("created_at", "desc")
-      .limit(100)
+      .limit(500)
       .execute();
 
     return {
@@ -416,9 +416,18 @@ export class JobService {
       query = query.where("jobs.ticket_id", "=", ticketId);
     }
 
-    // When filtering by projectId, we need to filter by tickets.project_id
+    // Filter by project: ticket-based jobs via tickets.project_id,
+    // ticketless jobs (e.g. claw) via tenant_id which is set to project.id
     if (projectId) {
-      query = query.where("tickets.project_id", "=", projectId);
+      query = query.where((eb) =>
+        eb.or([
+          eb("tickets.project_id", "=", projectId),
+          eb.and([
+            eb("jobs.ticket_id", "is", null),
+            eb("jobs.tenant_id", "=", projectId),
+          ]),
+        ]),
+      );
     }
 
     const jobs = await query

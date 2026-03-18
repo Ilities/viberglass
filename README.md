@@ -1,116 +1,213 @@
 # Viberglass
 
-Agent Orchestrator and Ticket Management Platform. Users create bug tickets that coding agents (called Viberators) automatically fix, with results flowing back through the system.
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+[![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
+[![GitHub stars](https://img.shields.io/github/stars/Ilities/viberglass?style=social)](https://github.com/Ilities/viberglass/stargazers)
 
-## Quick Start
+Viberglass is an open-source agent orchestrator and ticket management platform. Team members create tickets describing bugs or code changes, and AI agents automatically research the codebase, write the fix, and open a pull request for review.
 
-Start all services locally with a single command:
+No repository access required to file a ticket. QA engineers, PMs, and customer success teams can submit issues directly. Developers review the PR when it's ready.
+
+**[Documentation](docs/)** | **[Architecture](docs/ARCHITECTURE.md)** | **[Contributing](CONTRIBUTING.md)**
+
+## How it works
+
+1. Someone creates a ticket (via the UI, GitHub webhook, Shortcut, Jira, etc.)
+2. The platform dispatches a job to a configured agent worker target (**Clanker**)
+3. A **viberator** starts from that Clanker configuration
+4. The viberator clones the repo, analyzes the code, and pushes a fix
+5. A pull request lands in your repository for standard review
+
+A **Clanker** is the saved configuration for how an agent should run: which AI model, what compute (Docker, Lambda, ECS Fargate), and which credentials to use.
+
+A **viberator** is the running instantiation of a Clanker. You can run multiple viberators from different Clankers side by side.
+
+## Supported agent harnesses
+
+Claude Code, OpenAI Codex, Gemini CLI, Qwen CLI, Mistral Vibe, OpenCode, Kimi Code
+
+## Integrations
+
+**Ticket sources:** GitHub Issues, Shortcut, custom webhooks...
+
+**Compute:** Docker (local or self-hosted), AWS Lambda, AWS ECS Fargate
+
+---
+
+## Quick start
+
+Requires Docker Engine 20.10+ and Docker Compose v2.
 
 ```bash
-# Clone and navigate to repository
+git clone https://github.com/ilities/viberglass.git
 cd viberglass
-
-# Start all services (postgres, redis, backend, frontend)
 docker compose up
 ```
 
-Access the frontend at http://localhost:3000
+The platform is available at http://localhost:3000. The backend API runs on port 8888.
 
-## Local Development
+On first run, the backend runs database migrations automatically. If you need to run them manually:
 
-For complete setup instructions, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)
-
-- One-command setup with Docker Compose
-- Hot-reload for backend and frontend
-- Database migrations
-- Troubleshooting guide
-
-## Production Ready 🚀
-
-Viberglass is production-ready for both **self-hosted** and **AWS SaaS** deployments.
-
-### Self-Hosted Deployment
-
-Deploy on your own infrastructure with Docker Compose in < 15 minutes.
-
-**Features:**
-- ✅ Simple Docker Compose setup
-- ✅ Automated database backups
-- ✅ Security hardening (rate limiting, CORS, Helmet.js)
-- ✅ Health checks and monitoring
-- ✅ Comprehensive documentation
-
-**Get started:** [Self-Hosting Guide](docs/SELF_HOSTING.md)
-
-### AWS SaaS Deployment
-
-Fully automated AWS infrastructure with Pulumi.
-
-**Features:**
-- ✅ Multi-tenant architecture with strict isolation
-- ✅ Automated RDS backups (30-day retention)
-- ✅ CloudWatch monitoring with 16+ alarms
-- ✅ ECS Fargate for zero-server management
-- ✅ CI/CD with automated testing and deployment validation
-- ✅ Disaster recovery procedures
-
-**Security:**
-- Project-level access control
-- Rate limiting on all endpoints
-- Security headers (Helmet.js)
-- Encrypted secrets (AWS SSM)
-- Database encryption at rest
-
-See [Productionization Status](docs/PRODUCTIONIZATION_STATUS.md) for complete details.
-
-## Documentation
-
-| Guide | Description |
-|-------|-------------|
-| [Self-Hosting](docs/SELF_HOSTING.md) | **Production deployment guide for self-hosted** |
-| [Productionization Status](docs/PRODUCTIONIZATION_STATUS.md) | Complete production-readiness checklist |
-| [Local Development](docs/LOCAL_DEVELOPMENT.md) | Docker Compose setup guide |
-| [Shortcut to PR Quickstart](docs/USER_QUICKSTART_SHORTCUT_TO_PR.md) | Fast setup path for Shortcut -> Viberglass -> automated PR flow |
-| [Shortcut to PR Setup](docs/USER_SETUP_SHORTCUT_TO_PR.md) | User-facing setup for Shortcut -> Viberglass -> automated PR flow |
-| [Ticket Create/Run Quickstart](docs/USER_QUICKSTART_CREATE_AND_RUN_TICKET.md) | Fast path for creating a ticket with specific info and running it |
-| [Ticket Create/Run Guide](docs/USER_SETUP_CREATE_AND_RUN_TICKET.md) | Full user guide for ticket quality, execution, and troubleshooting |
-| [Local Docker Clanker Setup](docs/LOCAL_DOCKER_SETUP.md) | Worker containers and local execution |
-| [Worker Harness Images](docs/WORKER_HARNESS_IMAGES.md) | **Setup worker harness images (multi-agent, etc.)** |
-| [AWS ECS Setup](docs/AWS_ECS_SETUP.md) | AWS SaaS deployment |
-| [Database Migrations](docs/operations/database-migrations.md) | Production migration procedures |
-| [Disaster Recovery](docs/operations/disaster-recovery.md) | Recovery procedures and RTO/RPO |
-
-## Project Structure
-
-```
-viberglass/
-├── apps/
-│   ├── platform-backend/   # Express API server
-│   ├── platform-frontend/  # React web UI
-│   ├── slack-app/          # Slack app for workspace install
-│   └── viberator/          # Viberator worker implementation
-├── packages/
-│   └── types/              # Shared TypeScript types
-├── infra/
-│   ├── base/               # Base cloud resources infrastructure (Pulumi)
-│   ├── platform/           # Platform infrastructure (Pulumi)
-│   └── workers/            # Viberator infrastructure (Pulumi + Docker)
-├── tests/
-│   └── e2e/                # Playwright E2E tests
-└── docker-compose.yml      # Local development environment
+```bash
+docker compose exec backend npm run migrate:latest
 ```
 
-**Note:** The repository is `viberglass` (the platform), with `apps/viberator` containing the worker/agent components (Viberators).
+---
 
-## Core Features
+## Running agents
 
-- **Multi-repository ticket management** - Create tickets spanning multiple GitHub repositories
-- **Agent execution** - Integration with Claude Code, Qwen, and other AI agents (called Viberators)
-- **Clanker configuration** - Define runtime environments (Docker, ECS) with agent instructions
-- **Viberator orchestration** - Ephemeral workers in local Docker, AWS Lambda, or ECS Fargate
-- **Webhook integration** - GitHub and Jira webhooks trigger ticket creation
+To be able to start getting your tickets fixed, you need to set up a Clanker, a project and configure credentials for your agent harness.
 
-## Requirements
+**Step 1: Set up your environment secrets**
 
-- Docker Desktop or Docker Engine 20.10+
-- docker compose v2
+Viberglass manages your secrets for you either encrypted in the database or in AWS SSM. You can also use local environment variables and refer to them only via the platform UI for local use.
+
+For the first run, you want to set up at least your GitHub token (GITHUB_TOKEN) and an API key for your favourite agent harness (suggested values in the UI)..
+
+<img src="docs/images/secret-creation.png" width="600" />
+
+**Step 2: Create your Clanker configuration**
+
+To execute tickets, you need at least one Clanker. Clankers are configured and managed entirely through the UI at `/clankers`: pick the compute type, set credentials, and click **Start**. The platform handles provisioning the container, ECS task definition, or Lambda function, then launches a viberator from that configuration.
+
+<img src="docs/images/clanker-config.png" width="600" />
+
+The simplest local setup uses Docker. AWS Lambda and ECS Clankers are for production use and work better once the whole app is deployed.
+
+**Step 3: Deploy/Build your Clanker**
+
+
+Via the UI:
+Click the **Start** button on your configured Clanker page to configure a viberator image ready to be used. Depending on the compute type, the platform will either build a Docker image, create an ECS task definition, or a Lambda function. For more information on how to build your own Clanker images, see Worker Images section below.
+<img src="docs/images/start-clanker.png" width="600" />
+
+**Step 4: Configure your project**
+
+Once your Clanker is running, you can configure your project to use it. Go to `/projects` and click **Create Project**. Within the project settings page, you can select the integration that you want to link to the project. This allows you to configure your SCM (e.g. GitHub) and ticket source (e.g. Jira) and link them to be used by the project with the correct values like repository URL and ticket labels.
+<img src="docs/images/project-config.png" width="600" />
+
+
+**Step 5: Create tickets and put your viberators to work!**
+
+After you've set up your project, you can create tickets in the UI or via an integration webhook. Once you are happy with the ticket you have created, you can put your Clanker to work to step through the 'Research', 'Plan' and 'Execute' phases of the ticket lifecycle.
+
+<img src="docs/images/ticket-page.png" width="600" />
+
+---
+
+## Configuration
+
+The backend reads environment variables from `apps/platform-backend/.env`. Copy `.env.example` to get started.
+
+Key variables:
+
+| Variable                                                  | Description                                 |
+|-----------------------------------------------------------|---------------------------------------------|
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL connection                       |
+| `SECRETS_ENCRYPTION_KEY`                                  | Encrypts tenant credentials at rest         |
+| `WEBHOOK_SECRET_ENCRYPTION_KEY`                           | Encrypts webhook secrets                    |
+| `AUTH_ENABLED`                                            | Set to `false` to disable auth in local dev |
+| `PORT`                                                    | Backend port (default: `8888`)              |
+
+
+Agent API keys go in the worker's environment, not the platform backend. In production, store them in AWS SSM under `/viberglass-viberator/`.
+
+---
+
+## AWS deployment
+
+The `infra/` directory contains three Pulumi stacks that must deploy in order.
+
+**Prerequisites:** Pulumi CLI, AWS credentials, Node.js 20+
+
+```bash
+# Set up S3 state backend
+./infra/setup-pulumi-state.sh
+pulumi login s3://viberglass-pulumi-state
+
+# Deploy base infrastructure (VPC, KMS, logging)
+cd infra/base && npm install && pulumi stack select dev && pulumi up
+
+# Deploy platform (ECS backend, RDS, Amplify frontend)
+cd infra/platform && npm install && pulumi stack select dev && pulumi up
+
+# Deploy workers (Lambda and ECS execution)
+cd infra/workers && npm install && pulumi stack select dev && pulumi up
+```
+
+### Worker images
+
+Before creating ECS or Lambda Clankers, the worker images need to be in ECR. The `deploy-viberators` GitHub Actions workflow handles this.
+
+It runs automatically on any push to `main` that touches `apps/viberator/` or `infra/workers/docker/`. You can also trigger it manually from the Actions tab to target a specific environment and harness type:
+
+- **Environment:** `dev` or `prod`
+- **Harness:** `multi-agent` (default), `claude`, `codex`, `gemini`, `qwen`, `mistral`, `kimi`, `opencode`, `lambda`, or `all`
+
+To push images manually from the command line:
+
+```bash
+# Build and push the default multi-agent harness to dev
+./infra/workers/scripts/setup-harness-images.sh dev multi-agent
+
+# Build and push all harness images to prod
+./infra/workers/scripts/setup-harness-images.sh prod all
+```
+
+The script creates ECR repositories if they don't exist, builds each image, and pushes it. Agent images depend on the base image, so the script builds that first automatically.
+
+### Creating AWS Clankers
+
+Once images are in ECR, go to `/clankers` in the UI, create a Clanker with ECS or Lambda compute, and click **Start**. The platform creates the task definition or Lambda function and wires it up. Network config (subnets, security groups) comes from the Pulumi stack outputs.
+
+Agent credentials in production go in SSM: `/viberator/tenants/{tenantId}/GITHUB_TOKEN` and `/viberator/tenants/{tenantId}/ANTHROPIC_API_KEY`.
+
+### Database migrations
+
+```bash
+# Development
+npm run migrate -w @viberglass/platform-backend
+
+# Staging / production
+./apps/platform-backend/scripts/run-migrations.sh staging
+./apps/platform-backend/scripts/run-migrations.sh prod --dry-run
+./apps/platform-backend/scripts/run-migrations.sh prod
+```
+
+Always test migrations in staging before running in production. Verify an RDS backup exists first.
+
+---
+
+## Testing
+
+```bash
+# Unit and integration tests (from repo root)
+npm test -w @viberglass/platform-backend
+
+# E2E tests (Playwright)
+cd tests/e2e
+
+# Option 1: docker-compose services (fixed ports)
+npm run setup:docker
+
+# Option 2: testcontainers (dynamic ports, written to .env.e2e)
+npm run setup:services
+
+npm test
+```
+
+E2E tests start the frontend and backend automatically via Playwright's webServer config. See `tests/e2e/docker/.env.example` for the expected environment variables.
+
+---
+
+## Managed cloud
+
+If you'd rather not run your own infrastructure, Viberglass is available as a hosted service at [viberglass.io](https://viberglass.io). Plans start at $29/month for 3 seats.
+
+---
+
+## License
+
+[Apache 2.0](LICENSE)

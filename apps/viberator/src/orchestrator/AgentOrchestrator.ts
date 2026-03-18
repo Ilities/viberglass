@@ -8,22 +8,26 @@ import { Logger } from "winston";
 import { AgentFactory } from "../agents";
 import { ConfigManager } from "../config/ConfigManager";
 import { randomUUID } from "crypto";
+import type { AcpExecutor } from "./AcpExecutor";
 
 export class AgentOrchestrator {
   private agents: Map<string, AgentConfig>;
   private activeExecutions: Map<string, AgentExecution>;
   private logger: Logger;
   private configManager: ConfigManager;
+  private acpExecutor?: AcpExecutor;
 
   constructor(
     agentConfigs: AgentConfig[],
     logger: Logger,
     configManager: ConfigManager,
+    acpExecutor?: AcpExecutor,
   ) {
     this.agents = new Map();
     this.activeExecutions = new Map();
     this.logger = logger;
     this.configManager = configManager;
+    this.acpExecutor = acpExecutor;
 
     // Initialize agents
     agentConfigs.forEach((config) => {
@@ -114,9 +118,14 @@ export class AgentOrchestrator {
       // Instantiate the specific agent
       const agent = AgentFactory.createAgent(effectiveAgentConfig, this.logger);
 
-      // Execute the agent
+      // Execute the agent — via ACP if an interactive session is active, else one-shot
       const startTime = Date.now();
-      const result = await agent.execute(prompt, context);
+      let result: ExecutionResult;
+      if (this.acpExecutor && context.agentSessionId) {
+        result = await this.acpExecutor.execute(agent, prompt, context);
+      } else {
+        result = await agent.execute(prompt, context);
+      }
       const executionTime = Date.now() - startTime;
 
       execution.status = "completed";

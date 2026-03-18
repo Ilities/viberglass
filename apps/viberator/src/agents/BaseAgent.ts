@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import GitService from "../services/GitService";
+import { AgentStreamNormalizer } from "./agentStreamNormalizer";
 
 type JsonObject = Record<string, unknown>;
 
@@ -112,6 +113,31 @@ export abstract class BaseAgent {
   ): Promise<AgentCLIResult>;
 
   /**
+   * Return the command and arguments to start this CLI in ACP server mode.
+   *
+   * The ACP server receives JSON-RPC 2.0 requests on stdin and emits
+   * responses/notifications on stdout (transport: stdio).
+   *
+   * Concrete agents that have switched to the ACP execution path call
+   * AcpClient directly inside executeAgentCLI(), passing this command.
+   *
+   * NOTE: Each implementation must be confirmed against the CLI's own
+   * documentation before use (see open design question Q1 in the ACP
+   * integration planning doc). Placeholder values are in place until then.
+   */
+  public abstract getAcpServerCommand(): string[];
+
+  /**
+   * Return extra environment variables needed when running this agent's CLI
+   * in ACP mode.  The AcpExecutor merges these into process.env before
+   * spawning the subprocess.  Override in concrete agents to inject API keys
+   * and endpoint URLs.
+   */
+  public getAcpEnvironment(): NodeJS.ProcessEnv {
+    return {};
+  }
+
+  /**
    * Prepare working directory for execution
    */
   protected async prepareWorkingDirectory(
@@ -153,7 +179,7 @@ export abstract class BaseAgent {
     // If repo directory already exists (passed in context), skip cloning
     const repoPath = path.join(workDir, "repo");
     if (fs.existsSync(repoPath)) {
-      this.logger.info("Repository already exists, skipping clone", {
+      this.logger.debug("Repository already exists, skipping clone", {
         repoPath,
       });
       return;
@@ -172,6 +198,7 @@ export abstract class BaseAgent {
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
       const timeout = options.timeout || this.config.executionTimeLimit * 1000;
+      const normalizer = new AgentStreamNormalizer();
 
       const child = spawn(command, args, {
         cwd: options.cwd,
@@ -202,13 +229,17 @@ export abstract class BaseAgent {
         return remainder;
       };
 
+      const emitLine = (line: string): void => {
+        for (const normalized of normalizer.processLine(line)) {
+          this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
+        }
+      };
+
       child.stdout.on("data", (data) => {
         const chunk = data.toString();
         stdout += chunk;
         stdoutBuffer += chunk;
-        stdoutBuffer = flushBufferedLines(stdoutBuffer, (line) => {
-          this.logger.info(`[agent:${this.config.name}:stdout] ${line}`);
-        });
+        stdoutBuffer = flushBufferedLines(stdoutBuffer, emitLine);
       });
 
       child.stderr.on("data", (data) => {
@@ -229,9 +260,11 @@ export abstract class BaseAgent {
         clearTimeout(timeoutId);
         const remainingStdout = stdoutBuffer.trim();
         if (remainingStdout.length > 0) {
-          this.logger.info(
-            `[agent:${this.config.name}:stdout] ${remainingStdout}`,
-          );
+          emitLine(remainingStdout);
+        }
+        // Flush any partially-assembled multi-line JSON object
+        for (const normalized of normalizer.flush()) {
+          this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
         }
         const remainingStderr = stderrBuffer.trim();
         if (remainingStderr.length > 0) {
@@ -264,9 +297,7 @@ export abstract class BaseAgent {
     return merged;
   }
 
-  private resolveHomeDirectory(
-    candidateHome: string | undefined,
-  ): string {
+  private resolveHomeDirectory(candidateHome: string | undefined): string {
     const candidates: string[] = [];
 
     if (typeof candidateHome === "string" && candidateHome.trim().length > 0) {

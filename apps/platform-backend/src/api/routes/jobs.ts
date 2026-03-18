@@ -21,11 +21,26 @@ import {
   JOB_SERVICE_ERROR_CODE,
 } from "../../services/errors/JobServiceError";
 import { isSecretServiceError } from "../../services/errors/SecretServiceError";
+import { AgentSessionWorkerEventService } from "../../services/agentSession/AgentSessionWorkerEventService";
+import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
+import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
+import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
+import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
+import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
+import { AGENT_SESSION_EVENT_TYPE, AGENT_SESSION_MODE } from "../../types/agentSession";
 
 const router = Router();
 const jobService = new JobService();
 const secretService = new SecretService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
+const agentTurnDAO = new AgentTurnDAO();
+const agentSessionDAO = new AgentSessionDAO();
+const workerEventService = new AgentSessionWorkerEventService(
+  new AgentSessionEventDAO(),
+  agentTurnDAO,
+  agentSessionDAO,
+  new AgentPendingRequestDAO(),
+);
 
 function getDocumentPhaseForJobKind(jobKind: string): "research" | "planning" | null {
   if (jobKind === JOB_KIND.RESEARCH) {
@@ -241,28 +256,69 @@ router.post(
 
       // Determine status from success field
       const status = result.success ? "completed" : "failed";
-      const documentPhase = getDocumentPhaseForJobKind(job.jobKind);
 
-      if (
-        documentPhase &&
-        result.success &&
-        job.ticketId &&
-        typeof result.documentContent === "string"
-      ) {
-        await ticketPhaseDocumentService.saveDocument(
-          job.ticketId,
-          documentPhase,
-          result.documentContent,
-          { source: "agent" },
-        );
-      } else if (
-        documentPhase &&
-        result.success &&
-        !result.documentContent
-      ) {
-        return res.status(400).json({
-          error: `${job.jobKind} result missing document content`,
-        });
+      // Check if this job is an ACP session turn (skip document requirement)
+      const agentTurn = await agentTurnDAO.getByJobId(jobId);
+      const isSessionTurn = !!agentTurn;
+
+      if (!isSessionTurn) {
+        const documentPhase = getDocumentPhaseForJobKind(job.jobKind);
+        if (
+          documentPhase &&
+          result.success &&
+          job.ticketId &&
+          typeof result.documentContent === "string"
+        ) {
+          await ticketPhaseDocumentService.saveDocument(
+            job.ticketId,
+            documentPhase,
+            result.documentContent,
+            { source: "agent" },
+          );
+        } else if (
+          documentPhase &&
+          result.success &&
+          !result.documentContent
+        ) {
+          return res.status(400).json({
+            error: `${job.jobKind} result missing document content`,
+          });
+        }
+      }
+
+      // For session turns, emit turn events and save document if produced
+      if (isSessionTurn) {
+        const session = await agentSessionDAO.getById(agentTurn.sessionId);
+        const isDocumentMode =
+          session?.mode === AGENT_SESSION_MODE.RESEARCH ||
+          session?.mode === AGENT_SESSION_MODE.PLANNING;
+
+        if (
+          result.success &&
+          isDocumentMode &&
+          typeof result.documentContent === "string" &&
+          session?.ticketId
+        ) {
+          const documentPhase =
+            session.mode === AGENT_SESSION_MODE.RESEARCH
+              ? TICKET_WORKFLOW_PHASE.RESEARCH
+              : TICKET_WORKFLOW_PHASE.PLANNING;
+          await ticketPhaseDocumentService.saveDocument(
+            session.ticketId,
+            documentPhase,
+            result.documentContent,
+            { source: "agent" },
+          );
+          await workerEventService.batchIngest(jobId, [
+            { eventType: AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED, payload: {} },
+            { eventType: AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED, payload: { documentSaved: true } },
+          ]);
+        } else {
+          const eventType = result.success
+            ? AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED
+            : AGENT_SESSION_EVENT_TYPE.TURN_FAILED;
+          await workerEventService.batchIngest(jobId, [{ eventType, payload: {} }]);
+        }
       }
 
       // Update job status using existing JobService method
@@ -497,6 +553,73 @@ router.post(
       res.status(500).json({
         error: error instanceof Error ? error.message : "Internal server error",
       });
+    }
+  },
+);
+
+// POST /:jobId/session-events/batch - Worker batch-ingest session events
+router.post(
+  "/:jobId/session-events/batch",
+  tenantMiddleware,
+  validateCallbackToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const { events } = req.body;
+
+      if (!Array.isArray(events) || events.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "events must be a non-empty array" });
+      }
+      if (events.length > 100) {
+        return res
+          .status(400)
+          .json({ error: "events array must not exceed 100 items" });
+      }
+
+      await workerEventService.batchIngest(jobId, events);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error("Failed to ingest session events", {
+        jobId: req.params.jobId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (isAgentSessionServiceError(err)) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// POST /:jobId/acp-session-id - Worker stores ACP session ID
+router.post(
+  "/:jobId/acp-session-id",
+  tenantMiddleware,
+  validateCallbackToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const { acpSessionId } = req.body;
+
+      if (!acpSessionId || typeof acpSessionId !== "string") {
+        return res
+          .status(400)
+          .json({ error: "acpSessionId must be a non-empty string" });
+      }
+
+      await workerEventService.storeAcpSessionId(jobId, acpSessionId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error("Failed to store ACP session ID", {
+        jobId: req.params.jobId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (isAgentSessionServiceError(err)) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      return res.status(500).json({ error: "Internal server error" });
     }
   },
 );

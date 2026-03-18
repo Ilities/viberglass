@@ -62,7 +62,7 @@ class TestGeminiCLIAgent extends GeminiCLIAgent {
     };
   }
 
-  protected override async getChangedFiles(
+  protected async getChangedFiles(
     _repoDir: string,
   ): Promise<string[]> {
     return ["src/example.ts"];

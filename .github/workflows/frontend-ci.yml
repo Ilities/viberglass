@@ -45,7 +45,7 @@ jobs:
         run: npm run build -w @viberglass/frontend
         env:
           # Use placeholder API URL for CI build verification
-          NEXT_PUBLIC_API_URL: https://api.example.com
+          VITE_API_URL: https://api.example.com
 
       - name: Verify build output
         run: |

@@ -8,6 +8,16 @@ export class MistralVibeAgent extends BaseAgent {
     return true;
   }
 
+  public getAcpServerCommand(): string[] {
+    return ["vibe-acp"];
+  }
+
+  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+    return {
+      MISTRAL_API_KEY: this.config.apiKey!,
+    };
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,

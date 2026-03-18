@@ -13,6 +13,19 @@ export class ClaudeCodeAgent extends BaseAgent {
     return true;
   }
 
+  public getAcpServerCommand(): string[] {
+    return ["claude-agent-acp"];
+  }
+
+  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+    return {
+      ANTHROPIC_API_KEY: this.config.apiKey!,
+      CLAUDE_CODE_NON_INTERACTIVE: "true",
+      ANTHROPIC_MODEL: (this.config.model as string) || undefined,
+      ANTHROPIC_BASE_URL: this.config.endpoint || undefined,
+    };
+  }
+
   protected async executeAgentCLI(
     prompt: string,
     context: ExecutionContext,
@@ -34,9 +47,7 @@ export class ClaudeCodeAgent extends BaseAgent {
       const args = [
         "--print",
         prompt,
-        "--include-partial-messages",
-        "--output-format=default",
-        "--verbose",
+        "--output-format=stream-json",
         "--dangerously-skip-permissions",
       ];
 

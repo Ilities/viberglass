@@ -32,6 +32,12 @@ import { TicketMediaPage } from '@/pages/project/tickets/TicketMediaPage'
 import { JobsPage } from '@/pages/project/jobs/JobsPage'
 import { JobDetailPage } from '@/pages/project/jobs/JobDetailPage'
 
+// Claws pages
+import { ClawsPage } from '@/pages/project/claws/ClawsPage'
+
+// Sessions pages
+import { SessionPage } from '@/pages/project/sessions/SessionPage'
+
 
 
 // Settings pages
@@ -92,6 +98,12 @@ export function AppRoutes() {
         {/* Project jobs */}
         <Route path="/project/:project/jobs" element={<JobsPage />} />
         <Route path="/project/:project/jobs/:jobId" element={<JobDetailPage />} />
+
+        {/* Project claws */}
+        <Route path="/project/:project/claws" element={<ClawsPage />} />
+
+        {/* Project sessions */}
+        <Route path="/project/:project/sessions/:sessionId" element={<SessionPage />} />
 
 
 

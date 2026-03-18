@@ -11,6 +11,16 @@ export class KimiCodeAgent extends BaseAgent {
     return true;
   }
 
+  public getAcpServerCommand(): string[] {
+    return ["kimi", "acp"];
+  }
+
+  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+    return {
+      ...(this.config.apiKey ? { KIMI_API_KEY: this.config.apiKey } : {}),
+    };
+  }
+
   private getNonEmptyTrimmedString(value: unknown): string | undefined {
     if (typeof value !== "string") return undefined;
     const trimmed = value.trim();

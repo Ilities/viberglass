@@ -9,6 +9,10 @@ class TestBaseAgent extends BaseAgent {
     return false;
   }
 
+  public getAcpServerCommand(): string[] {
+    return ["test-cli", "--acp"];
+  }
+
   protected async executeAgentCLI(
     _prompt: string,
     _context: ExecutionContext,
