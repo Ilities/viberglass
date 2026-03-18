@@ -113,11 +113,21 @@ function isMessageGroup(item: AgentSessionEvent | MessageGroup): item is Message
   return 'type' in item && 'text' in item && !('eventType' in item)
 }
 
+function parseActorPrefix(text: string): { actor: string | null; body: string } {
+  const match = /^\[([^\]]+)\]:\s*([\s\S]*)$/.exec(text)
+  if (match) return { actor: match[1], body: match[2] }
+  return { actor: null, body: text }
+}
+
 function MessageBubble({ group }: { group: MessageGroup }) {
   const isUser = group.type === 'user_message'
+  const { actor, body } = isUser ? parseActorPrefix(group.text) : { actor: null, body: group.text }
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+      {isUser && actor && (
+        <div className="mb-0.5 text-[10px] text-[var(--gray-8)]">{actor}</div>
+      )}
       <div
         className={`max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
           isUser
@@ -125,7 +135,7 @@ function MessageBubble({ group }: { group: MessageGroup }) {
             : 'border border-[var(--gray-5)] bg-[var(--gray-2)] text-[var(--gray-12)]'
         }`}
       >
-        <div className="whitespace-pre-wrap">{group.text}</div>
+        <div className="whitespace-pre-wrap">{body}</div>
         <div className={`mt-1 text-[10px] ${isUser ? 'text-white/60' : 'text-[var(--gray-8)]'}`}>
           {new Date(group.timestamp).toLocaleTimeString(undefined, {
             hour: 'numeric',

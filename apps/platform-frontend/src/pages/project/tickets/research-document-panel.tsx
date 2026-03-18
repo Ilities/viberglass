@@ -18,6 +18,7 @@ import type { Clanker, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { type AgentSession, type AgentSessionMode } from '@/service/api/session-api'
 import { PhaseDocumentRevisionHistory } from './phase-document-revision-history'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { getApprovalStateBadgeColor, getApprovalStateLabel, getPhaseRunStatusBadgeColor } from './phase-document-ui'
@@ -27,6 +28,10 @@ interface ResearchDocumentPanelProps {
   clankers: Clanker[]
   project: string
   onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
+  activeSession?: AgentSession | null
+  onStartSession?: (mode: AgentSessionMode, prefilledMessage: string) => void
+  onSendToSession?: (message: string) => void
+  refreshKey?: number
 }
 
 export function ResearchDocumentPanel({
@@ -34,6 +39,10 @@ export function ResearchDocumentPanel({
   clankers,
   project,
   onWorkflowPhaseChange,
+  activeSession,
+  onStartSession,
+  onSendToSession,
+  refreshKey,
 }: ResearchDocumentPanelProps) {
   const navigate = useNavigate()
   const [document, setDocument] = useState<PhaseDocumentResponse | null>(null)
@@ -67,6 +76,10 @@ export function ResearchDocumentPanel({
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (refreshKey) void load()
+  }, [refreshKey, load])
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -201,6 +214,11 @@ export function ResearchDocumentPanel({
             </div>
 
             <div className="flex items-center gap-2">
+              {onStartSession && (
+                <Button plain onClick={() => onStartSession('research', `${ticket.title}\n\n${ticket.description ?? ''}`)}>
+                  Start Research Session
+                </Button>
+              )}
               <Button
                 color="brand"
                 onClick={() => setIsRunModalOpen(true)}
@@ -298,7 +316,11 @@ export function ResearchDocumentPanel({
             placeholder="Write research notes in markdown..."
           />
         ) : hasContent ? (
-          <PhaseDocumentComments ticketId={ticket.id} phase="research" content={document!.content} onApplySuggestion={handleApplySuggestion} />
+          <PhaseDocumentComments
+            ticketId={ticket.id} phase="research" content={document!.content}
+            onApplySuggestion={handleApplySuggestion}
+            activeSessionId={activeSession?.id} onSendToSession={onSendToSession}
+          />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-12 text-center">
             <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />

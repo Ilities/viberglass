@@ -19,6 +19,8 @@ import { IntegrationCredentialDAO } from "../../persistence/integrations";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
+import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import {
   AGENT_SESSION_EVENT_TYPE,
   AGENT_TURN_ROLE,
@@ -63,6 +65,7 @@ export class AgentSessionLaunchService {
   private readonly clankerDAO = new ClankerDAO();
   private readonly provisioningService = getClankerProvisioner();
   private readonly instructionStorageService = new InstructionStorageService();
+  private readonly documentService = new TicketPhaseDocumentService();
 
   constructor(
     private readonly agentSessionDAO: AgentSessionDAO,
@@ -125,7 +128,16 @@ export class AgentSessionLaunchService {
       input.initialMessage,
     );
 
-    const jobData = buildJobData(jobId, input, prepared);
+    let researchDocumentContent: string | undefined;
+    if (input.mode === "planning") {
+      const researchDoc = await this.documentService.getOrCreateDocument(
+        input.ticketId,
+        TICKET_WORKFLOW_PHASE.RESEARCH,
+      );
+      researchDocumentContent = researchDoc.content;
+    }
+
+    const jobData = buildJobData(jobId, input, prepared, ticket, researchDocumentContent);
     const submitResult = await this.jobService.submitJob(jobData, {
       ticketId: input.ticketId,
       clankerId: input.clankerId,
@@ -144,9 +156,9 @@ export class AgentSessionLaunchService {
       clankerId: input.clankerId,
       agent: prepared.executionClanker.agent,
       repository: prepared.sourceRepository,
-      task: input.initialMessage,
+      task: jobData.task,
       baseBranch: prepared.baseBranch,
-      context: { ticketId: input.ticketId },
+      context: jobData.context,
       settings: {},
       instructionFiles: prepared.workerInstructionFiles,
       requiredCredentials,
@@ -242,16 +254,31 @@ export class AgentSessionLaunchService {
   }
 }
 
+function buildTicketTask(ticket: {
+  title: string;
+  description: string;
+  externalTicketId?: string | null;
+}): string {
+  const externalLine = ticket.externalTicketId
+    ? `External Ticket ID: ${ticket.externalTicketId}\n\n`
+    : "";
+  return `${externalLine}${ticket.title}\n\n${ticket.description}`;
+}
+
 function buildJobData(
   jobId: string,
   input: LaunchAgentSessionInput,
   prepared: PreparedTicketRunContext,
+  ticket: { id: string; title: string; description: string; externalTicketId?: string | null },
+  researchDocumentContent?: string,
 ): JobData {
+  const task = buildTicketTask(ticket);
+
   const base = {
     id: jobId,
     tenantId: "api-server" as const,
     repository: prepared.sourceRepository,
-    task: input.initialMessage,
+    task,
     baseBranch: prepared.baseBranch,
     settings: {},
     timestamp: Date.now(),
@@ -261,7 +288,10 @@ function buildJobData(
     const data: ResearchJobData = {
       ...base,
       jobKind: "research",
-      context: { ticketId: input.ticketId },
+      context: {
+        ticketId: input.ticketId,
+        instructionFiles: prepared.mergedInstructionFiles,
+      },
     };
     return data;
   }
@@ -269,14 +299,21 @@ function buildJobData(
     const data: PlanningJobData = {
       ...base,
       jobKind: "planning",
-      context: { ticketId: input.ticketId },
+      context: {
+        ticketId: input.ticketId,
+        researchDocument: researchDocumentContent ?? "",
+        instructionFiles: prepared.mergedInstructionFiles,
+      },
     };
     return data;
   }
   const data: TicketJobData = {
     ...base,
     jobKind: "execution",
-    context: { ticketId: input.ticketId },
+    context: {
+      ticketId: input.ticketId,
+      instructionFiles: prepared.mergedInstructionFiles,
+    },
   };
   return data;
 }

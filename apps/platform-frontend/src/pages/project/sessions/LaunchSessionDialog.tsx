@@ -2,7 +2,7 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
-import { launchSession, type AgentSessionMode } from '@/service/api/session-api'
+import { launchSession, type AgentSession, type AgentSessionMode } from '@/service/api/session-api'
 import type { Clanker } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -14,9 +14,21 @@ interface LaunchSessionDialogProps {
   ticketId: string
   project: string
   clankers: Clanker[]
+  defaultMode?: AgentSessionMode
+  defaultInitialMessage?: string
+  onSuccess?: (session: AgentSession) => void
 }
 
-export function LaunchSessionDialog({ open, onClose, ticketId, project, clankers }: LaunchSessionDialogProps) {
+export function LaunchSessionDialog({
+  open,
+  onClose,
+  ticketId,
+  project,
+  clankers,
+  defaultMode,
+  defaultInitialMessage,
+  onSuccess,
+}: LaunchSessionDialogProps) {
   const navigate = useNavigate()
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
 
@@ -31,6 +43,13 @@ export function LaunchSessionDialog({ open, onClose, ticketId, project, clankers
     }
   }, [activeClankers, clankerId])
 
+  useEffect(() => {
+    if (open) {
+      setMode(defaultMode ?? 'research')
+      setInitialMessage(defaultInitialMessage ?? '')
+    }
+  }, [open, defaultMode, defaultInitialMessage])
+
   async function handleLaunch() {
     if (!clankerId || !initialMessage.trim()) return
     setSubmitting(true)
@@ -42,7 +61,11 @@ export function LaunchSessionDialog({ open, onClose, ticketId, project, clankers
       })
       toast.success('Session launched')
       onClose()
-      navigate(`/project/${project}/sessions/${result.session.id}`)
+      if (onSuccess) {
+        onSuccess(result.session)
+      } else {
+        navigate(`/project/${project}/sessions/${result.session.id}`)
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to launch session')
     } finally {

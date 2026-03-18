@@ -8,17 +8,10 @@ import {
 } from '@/service/api/ticket-api'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-
-const SUGGESTION_PREFIX = '@@SUGGESTION@@\n'
+import { CommentEntry, SUGGESTION_PREFIX, decodeSuggestion } from './phase-document-comment-entry'
 
 function encodeSuggestion(text: string) {
   return SUGGESTION_PREFIX + text
-}
-
-function decodeSuggestion(content: string): { isSuggestion: boolean; text: string } {
-  if (content.startsWith(SUGGESTION_PREFIX))
-    return { isSuggestion: true, text: content.slice(SUGGESTION_PREFIX.length) }
-  return { isSuggestion: false, text: content }
 }
 
 interface PhaseDocumentCommentsProps {
@@ -26,9 +19,18 @@ interface PhaseDocumentCommentsProps {
   phase: 'research' | 'planning'
   content: string
   onApplySuggestion?: (lineNumber: number, suggestedText: string) => Promise<void>
+  activeSessionId?: string
+  onSendToSession?: (msg: string) => void
 }
 
-export function PhaseDocumentComments({ ticketId, phase, content, onApplySuggestion }: PhaseDocumentCommentsProps) {
+export function PhaseDocumentComments({
+  ticketId,
+  phase,
+  content,
+  onApplySuggestion,
+  activeSessionId,
+  onSendToSession,
+}: PhaseDocumentCommentsProps) {
   const [comments, setComments] = useState<PhaseDocumentCommentResponse[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [activeLineNumber, setActiveLineNumber] = useState<number | null>(null)
@@ -107,6 +109,7 @@ export function PhaseDocumentComments({ ticketId, phase, content, onApplySuggest
             onCreateComment={onCreateComment}
             onToggleStatus={onToggleStatus}
             onApplySuggestion={onApplySuggestion}
+            onSendToSession={activeSessionId ? onSendToSession : undefined}
           />
         )
       })}
@@ -124,6 +127,7 @@ interface DocumentLineProps {
   onCreateComment: (lineNumber: number, content: string) => Promise<boolean>
   onToggleStatus: (comment: PhaseDocumentCommentResponse) => Promise<void>
   onApplySuggestion?: (lineNumber: number, suggestedText: string) => Promise<void>
+  onSendToSession?: (msg: string) => void
 }
 
 function DocumentLine({
@@ -136,6 +140,7 @@ function DocumentLine({
   onCreateComment,
   onToggleStatus,
   onApplySuggestion,
+  onSendToSession,
 }: DocumentLineProps) {
   const [draft, setDraft] = useState('')
   const [commentMode, setCommentMode] = useState<'comment' | 'suggestion'>('comment')
@@ -171,6 +176,12 @@ function DocumentLine({
     }
   }
 
+  function handleSendComment(comment: PhaseDocumentCommentResponse) {
+    const { text } = decodeSuggestion(comment.content)
+    const msg = `[Line ${lineNumber}]: ${content}\n\nFeedback: ${text}`
+    onSendToSession?.(msg)
+  }
+
   return (
     <div className="border-b border-[var(--gray-5)] last:border-b-0">
       {/* Line header — always visible, toggles the form */}
@@ -201,6 +212,7 @@ function DocumentLine({
               isSaving={isSaving}
               onToggleStatus={onToggleStatus}
               onApplySuggestion={onApplySuggestion ? (suggestedText) => handleApply(comment, suggestedText) : undefined}
+              onSendToSession={onSendToSession ? () => handleSendComment(comment) : undefined}
             />
           ))}
 
@@ -222,6 +234,7 @@ function DocumentLine({
                       isSaving={isSaving}
                       onToggleStatus={onToggleStatus}
                       onApplySuggestion={undefined}
+                      onSendToSession={undefined}
                     />
                   </div>
                 ))}
@@ -302,47 +315,6 @@ function DocumentLine({
             </Button>
           </div>
         </div>
-      )}
-    </div>
-  )
-}
-
-interface CommentEntryProps {
-  comment: PhaseDocumentCommentResponse
-  lineContent: string
-  isSaving: boolean
-  onToggleStatus: (comment: PhaseDocumentCommentResponse) => Promise<void>
-  onApplySuggestion?: (suggestedText: string) => void
-}
-
-function CommentEntry({ comment, lineContent, isSaving, onToggleStatus, onApplySuggestion }: CommentEntryProps) {
-  const { isSuggestion, text } = decodeSuggestion(comment.content)
-
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-2 text-xs text-[var(--gray-9)]">
-        <span>
-          {comment.actor || 'Unknown reviewer'} · {new Date(comment.createdAt).toLocaleString()}
-        </span>
-        <div className="flex items-center gap-2">
-          {isSuggestion && onApplySuggestion && comment.status === 'open' && (
-            <Button color="green" onClick={() => onApplySuggestion(text)} disabled={isSaving}>
-              Apply Suggestion
-            </Button>
-          )}
-          <Button plain onClick={() => void onToggleStatus(comment)} disabled={isSaving}>
-            {comment.status === 'open' ? 'Resolve' : 'Reopen'}
-          </Button>
-        </div>
-      </div>
-
-      {isSuggestion ? (
-        <div className="mt-1 space-y-0.5 font-mono text-xs">
-          <div className="rounded bg-red-50 px-3 py-1 text-red-700">- {lineContent || ' '}</div>
-          <div className="rounded bg-green-50 px-3 py-1 text-green-700">+ {text}</div>
-        </div>
-      ) : (
-        <div className="mt-1 whitespace-pre-wrap font-sans text-sm text-[var(--gray-11)]">{comment.content}</div>
       )}
     </div>
   )

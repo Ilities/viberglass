@@ -2,6 +2,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
+import { useAuth } from '@/context/auth-context'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
 import { type AgentSessionStatus, cancelSession, getSessionDetail, sendMessageToSession, type SessionDetail } from '@/service/api/session-api'
 import { ArrowLeftIcon, CrossCircledIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
@@ -50,6 +51,7 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
 
 export function SessionPage() {
   const { project, sessionId } = useParams<{ project: string; sessionId: string }>()
+  const { user } = useAuth()
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCancelling, setIsCancelling] = useState(false)
@@ -113,8 +115,9 @@ export function SessionPage() {
   async function handleReply() {
     if (!sessionId || !replyText.trim() || isSending) return
     setIsSending(true)
+    const messageText = `[${user?.name ?? 'User'}]: ${replyText.trim()}`
     try {
-      await sendMessageToSession(sessionId, replyText.trim())
+      await sendMessageToSession(sessionId, messageText)
       setReplyText('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to send message')
