@@ -13,7 +13,7 @@ export class QwenCodeAgent extends BaseAgent {
   }
 
   public getAcpServerCommand(): string[] {
-    return ["qwen", "--acp"];
+    return ["qwen", "--acp", "--yolo"];
   }
 
   public override getAcpEnvironment(): NodeJS.ProcessEnv {

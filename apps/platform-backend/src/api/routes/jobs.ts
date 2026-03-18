@@ -27,16 +27,18 @@ import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
 import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
+import { AGENT_SESSION_EVENT_TYPE, AGENT_SESSION_MODE } from "../../types/agentSession";
 
 const router = Router();
 const jobService = new JobService();
 const secretService = new SecretService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 const agentTurnDAO = new AgentTurnDAO();
+const agentSessionDAO = new AgentSessionDAO();
 const workerEventService = new AgentSessionWorkerEventService(
   new AgentSessionEventDAO(),
   agentTurnDAO,
-  new AgentSessionDAO(),
+  agentSessionDAO,
   new AgentPendingRequestDAO(),
 );
 
@@ -284,12 +286,39 @@ router.post(
         }
       }
 
-      // For session turns, emit turn_completed/turn_failed events
+      // For session turns, emit turn events and save document if produced
       if (isSessionTurn) {
-        const eventType = result.success ? "turn_completed" : "turn_failed";
-        await workerEventService.batchIngest(jobId, [
-          { eventType, payload: {} },
-        ]);
+        const session = await agentSessionDAO.getById(agentTurn.sessionId);
+        const isDocumentMode =
+          session?.mode === AGENT_SESSION_MODE.RESEARCH ||
+          session?.mode === AGENT_SESSION_MODE.PLANNING;
+
+        if (
+          result.success &&
+          isDocumentMode &&
+          typeof result.documentContent === "string" &&
+          session?.ticketId
+        ) {
+          const documentPhase =
+            session.mode === AGENT_SESSION_MODE.RESEARCH
+              ? TICKET_WORKFLOW_PHASE.RESEARCH
+              : TICKET_WORKFLOW_PHASE.PLANNING;
+          await ticketPhaseDocumentService.saveDocument(
+            session.ticketId,
+            documentPhase,
+            result.documentContent,
+            { source: "agent" },
+          );
+          await workerEventService.batchIngest(jobId, [
+            { eventType: AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED, payload: {} },
+            { eventType: AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED, payload: { documentSaved: true } },
+          ]);
+        } else {
+          const eventType = result.success
+            ? AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED
+            : AGENT_SESSION_EVENT_TYPE.TURN_FAILED;
+          await workerEventService.batchIngest(jobId, [{ eventType, payload: {} }]);
+        }
       }
 
       // Update job status using existing JobService method

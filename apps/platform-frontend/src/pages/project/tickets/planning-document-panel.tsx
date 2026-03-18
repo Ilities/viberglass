@@ -19,6 +19,7 @@ import type { Clanker, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { type AgentSession, type AgentSessionMode } from '@/service/api/session-api'
 import { PhaseDocumentRevisionHistory } from './phase-document-revision-history'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { getApprovalStateBadgeColor, getApprovalStateLabel, getPhaseRunStatusBadgeColor } from './phase-document-ui'
@@ -29,14 +30,17 @@ interface PlanningDocumentPanelProps {
   project: string
   onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
   onApprovalStateChange?: (state: ApprovalState) => void
+  activeSession?: AgentSession | null
+  onStartSession?: (mode: AgentSessionMode, prefilledMessage: string) => void
+  onSendToSession?: (message: string) => void
+  refreshKey?: number
 }
 
 export function PlanningDocumentPanel({
-  ticket,
-  clankers,
-  project,
-  onWorkflowPhaseChange,
-  onApprovalStateChange,
+  ticket, clankers, project,
+  onWorkflowPhaseChange, onApprovalStateChange,
+  activeSession, onStartSession, onSendToSession,
+  refreshKey,
 }: PlanningDocumentPanelProps) {
   const navigate = useNavigate()
   const [document, setDocument] = useState<PhaseDocumentResponse | null>(null)
@@ -71,6 +75,10 @@ export function PlanningDocumentPanel({
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (refreshKey) void load()
+  }, [refreshKey, load])
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -168,14 +176,16 @@ export function PlanningDocumentPanel({
     }
   }, [document, ticket.id, onApprovalStateChange])
 
+  function handleStartPlanning() {
+    onStartSession?.('planning', `Planning review for: ${ticket.title}\n\nPlan:\n${document?.content ?? ''}`)
+  }
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
   const canEdit = ticket.workflowPhase === 'planning' || ticket.workflowPhase === 'execution'
-  const canRunPlanning = ticket.workflowPhase === 'planning' || ticket.workflowPhase === 'execution'
+  const canRunPlanning = canEdit
   const canRequestApproval = hasContent && document?.approvalState === 'draft'
   const canApprove = document?.approvalState === 'approval_requested'
   const canRevoke = document?.approvalState === 'approved'
-  const approvalIsPending = document?.approvalState === 'approval_requested'
 
   if (isLoading) {
     return (
@@ -212,6 +222,9 @@ export function PlanningDocumentPanel({
             </div>
 
             <div className="flex items-center gap-2">
+              {onStartSession && (
+                <Button plain onClick={handleStartPlanning}>Start Planning Session</Button>
+              )}
               <Button
                 color="brand"
                 onClick={() => setIsRunModalOpen(true)}
@@ -281,7 +294,7 @@ export function PlanningDocumentPanel({
                   {isApproving ? 'Revoking...' : 'Revoke Approval'}
                 </Button>
               )}
-              {approvalIsPending && (
+              {canApprove && (
                 <span className="text-xs text-[var(--gray-9)]">Waiting for approval...</span>
               )}
             </div>
@@ -303,7 +316,11 @@ export function PlanningDocumentPanel({
             placeholder="Write planning notes in markdown..."
           />
         ) : hasContent ? (
-          <PhaseDocumentComments ticketId={ticket.id} phase="planning" content={document!.content} onApplySuggestion={handleApplySuggestion} />
+          <PhaseDocumentComments
+            ticketId={ticket.id} phase="planning" content={document!.content}
+            onApplySuggestion={handleApplySuggestion}
+            activeSessionId={activeSession?.id} onSendToSession={onSendToSession}
+          />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-12 text-center">
             <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />

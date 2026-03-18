@@ -153,6 +153,22 @@ export class AgentSessionWorkerEventService {
           status: AGENT_SESSION_STATUS.ACTIVE,
         });
         break;
+      case AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED:
+        await this.agentTurnDAO.update(turnId, {
+          status: AGENT_TURN_STATUS.COMPLETED,
+          completedAt: new Date(),
+        });
+        await this.agentSessionDAO.update(sessionId, {
+          status: AGENT_SESSION_STATUS.COMPLETED,
+          completedAt: new Date(),
+        });
+        break;
+      case AGENT_SESSION_EVENT_TYPE.SESSION_FAILED:
+        await this.agentSessionDAO.update(sessionId, {
+          status: AGENT_SESSION_STATUS.FAILED,
+          completedAt: new Date(),
+        });
+        break;
     }
   }
 }
