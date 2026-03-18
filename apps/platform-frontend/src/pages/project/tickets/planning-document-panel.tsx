@@ -177,7 +177,7 @@ export function PlanningDocumentPanel({
   }, [document, ticket.id, onApprovalStateChange])
 
   function handleStartPlanning() {
-    onStartSession?.('planning', `Planning review for: ${ticket.title}\n\nPlan:\n${document?.content ?? ''}`)
+    onStartSession?.('planning', `${ticket.title}\n\n${ticket.description ?? ''}`)
   }
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
@@ -223,7 +223,9 @@ export function PlanningDocumentPanel({
 
             <div className="flex items-center gap-2">
               {onStartSession && (
-                <Button plain onClick={handleStartPlanning}>Start Planning Session</Button>
+                <Button plain onClick={handleStartPlanning}>
+                  {hasContent ? 'Revise with Agent' : 'Start Planning Session'}
+                </Button>
               )}
               <Button
                 color="brand"

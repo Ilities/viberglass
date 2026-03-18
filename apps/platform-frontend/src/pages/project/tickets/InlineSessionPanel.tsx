@@ -19,6 +19,7 @@ interface InlineSessionPanelProps {
   sessionId: string
   project: string
   onSessionEnded?: () => void
+  onRevise?: () => void
 }
 
 function statusBadge(status: AgentSessionStatus): { label: string; color: 'green' | 'amber' | 'blue' | 'red' | 'zinc' } {
@@ -44,7 +45,7 @@ function modeBadge(mode: string): { label: string; color: 'violet' | 'blue' | 'a
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
 
-export function InlineSessionPanel({ sessionId, project, onSessionEnded }: InlineSessionPanelProps) {
+export function InlineSessionPanel({ sessionId, project, onSessionEnded, onRevise }: InlineSessionPanelProps) {
   const { user } = useAuth()
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -183,6 +184,22 @@ export function InlineSessionPanel({ sessionId, project, onSessionEnded }: Inlin
           pendingRequest={pendingRequest}
           onResolved={() => void loadDetail()}
         />
+      )}
+
+      {/* Revision CTA for completed document sessions */}
+      {isTerminal && currentStatus === 'completed' && session.mode !== 'execution' && onRevise && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-4">
+          <div>
+            <p className="text-sm font-medium text-[var(--gray-12)]">Session completed</p>
+            <p className="text-xs text-[var(--gray-9)]">
+              Review the document, leave comments, then start a revision session when ready.
+            </p>
+          </div>
+          <Button color="violet" onClick={onRevise}>
+            <ChatBubbleIcon className="h-4 w-4" />
+            Revise with Agent
+          </Button>
+        </div>
       )}
 
       {/* Free message input */}

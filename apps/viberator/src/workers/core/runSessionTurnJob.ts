@@ -29,15 +29,18 @@ function buildSessionPromptOverride(params: JobRunnerParams): string {
     return data.task;
   }
 
-  // First turn of a research session: include the research system prompt
+  // First turn of a research session: include the research system prompt + existing doc if revising
   if (sessionMode === "research") {
     const systemPrompt =
       instructionFiles.get(RESEARCH_SYSTEM_PROMPT_KEY) ??
       DEFAULT_RESEARCH_SYSTEM_PROMPT;
-    return `${systemPrompt}\n\n${data.task}`;
+    const existingDocSection = data.context?.researchDocument?.trim()
+      ? `\n\nExisting Research Document (revise based on the feedback below):\n${data.context.researchDocument}`
+      : "";
+    return `${systemPrompt}\n\n${data.task}${existingDocSection}`;
   }
 
-  // First turn of a planning session: include the planning system prompt + research document
+  // First turn of a planning session: include the planning system prompt + research document + existing plan if revising
   if (sessionMode === "planning") {
     const systemPrompt =
       instructionFiles.get(PLANNING_SYSTEM_PROMPT_KEY) ??
@@ -45,7 +48,10 @@ function buildSessionPromptOverride(params: JobRunnerParams): string {
     const researchSection = data.context?.researchDocument?.trim()
       ? `\n\nResearch Document:\n${data.context.researchDocument}`
       : "";
-    return `${systemPrompt}\n\n${data.task}${researchSection}`;
+    const existingPlanSection = data.context?.planDocument?.trim()
+      ? `\n\nExisting Planning Document (revise based on the feedback below):\n${data.context.planDocument}`
+      : "";
+    return `${systemPrompt}\n\n${data.task}${researchSection}${existingPlanSection}`;
   }
 
   return data.task;
