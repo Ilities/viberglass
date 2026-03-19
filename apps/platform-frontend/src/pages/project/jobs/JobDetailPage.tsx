@@ -9,6 +9,7 @@ import { PageMeta } from '@/components/page-meta'
 import { ProgressTimeline } from '@/components/progress-timeline'
 import { Section } from '@/components/section'
 import { TabButton } from '@/components/tab-button'
+import { TruncatedText } from '@/components/truncated-text'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { JobRefreshButton } from './job-refresh-button'
 
@@ -441,7 +442,7 @@ export function JobDetailPage() {
                       Task
                     </Subheading>
                     <div className="prose prose-sm max-w-none whitespace-pre-wrap text-[var(--gray-11)]">
-                      {job.data.task}
+                      <TruncatedText text={job.data.task} maxLength={500} />
                     </div>
                   </div>
 
