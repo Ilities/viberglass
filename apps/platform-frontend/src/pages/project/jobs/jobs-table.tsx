@@ -1,6 +1,7 @@
 import { Badge } from '@/components/badge'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
+import { TruncatedText } from '@/components/truncated-text'
 import { formatTimestamp } from '@/data'
 import { JobListItem } from '@/service/api/job-api'
 
@@ -23,7 +24,7 @@ function formatDuration(start: string | null, end: string | null): string {
   return `${seconds}s`
 }
 
-function truncateTask(task: string, maxLength: number = 60): string {
+function truncateTask(task: string, maxLength: number = 120): string {
   if (task.length <= maxLength) return task
   return task.slice(0, maxLength) + '...'
 }
@@ -73,9 +74,9 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
               <TableCell className="max-w-md">
                 <div className="flex items-center gap-2">
                   <Badge color={jobKindBadgeColor(job.jobKind)}>{formatJobKind(job.jobKind)}</Badge>
-                  <span className="font-medium" title={job.task}>
-                    {truncateTask(job.task)}
-                  </span>
+                  <div className="font-medium max-w-[300px]">
+                    <TruncatedText text={job.task} maxLength={120} className="inline" />
+                  </div>
                 </div>
               </TableCell>
               <TableCell>

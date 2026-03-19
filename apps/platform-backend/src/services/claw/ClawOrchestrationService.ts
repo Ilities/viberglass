@@ -108,7 +108,7 @@ export class ClawOrchestrationService {
         jobKind: "claw",
         tenantId: preparedContext.project.id,
         repository: preparedContext.sourceRepository,
-        task: template.taskInstructions.slice(0, 200), // Truncate for task field
+        task: template.taskInstructions, // Store full task instructions
         branch: preparedContext.baseBranch,
         baseBranch: preparedContext.baseBranch,
         context: {

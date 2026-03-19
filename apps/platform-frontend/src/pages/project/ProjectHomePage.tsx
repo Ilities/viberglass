@@ -4,6 +4,7 @@ import { FunLoading } from '@/components/fun-loading'
 import { Heading } from '@/components/heading'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
+import { TruncatedText } from '@/components/truncated-text'
 import type { Clanker, JobListItem, TicketStats, TicketSummary } from '@/data'
 import {
   formatSeverity,
@@ -282,7 +283,9 @@ function JobCard({ job }: { job: JobListItem }) {
             <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{job.jobId.slice(-6)}</span>
           </div>
           <h4 className="line-clamp-1 font-medium text-gray-900 dark:text-white">{job.repository}</h4>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{job.task}</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <TruncatedText text={job.task} maxLength={100} className="inline" />
+          </p>
         </div>
         <div className="text-right">
           <span className="text-xs text-gray-400 dark:text-gray-500">{formatTimestamp(job.createdAt)}</span>
