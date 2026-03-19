@@ -224,6 +224,15 @@ export function JobDetailPage() {
                       >
                         {job.ticket.title}
                       </Button>
+                      <span className="ml-2">
+                        <Button
+                          href={`/project/${project}/tickets/${job.ticket.id}?tab=jobs`}
+                          plain
+                          className="text-xs text-[var(--accent-9)] hover:text-[var(--accent-10)] hover:underline"
+                        >
+                          View jobs
+                        </Button>
+                      </span>
                     </span>
                   )}
                   {job.jobKind === 'claw' && job.data.context?.clawTemplateName && (

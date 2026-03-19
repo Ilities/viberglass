@@ -2,7 +2,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import type { ApprovalState } from '@/service/api/ticket-api'
 import type { AgentSession, AgentSessionMode } from '@/service/api/session-api'
-import { ChatBubbleIcon, ClipboardIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
+import { ChatBubbleIcon, ClipboardIcon, ExternalLinkIcon, GearIcon } from '@radix-ui/react-icons'
 import { Tabs } from '@radix-ui/themes'
 import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE } from '@viberglass/types'
 import { toast } from 'sonner'
@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, formatTicketStatus, getSeverityBadge } from
 import { PlanningDocumentPanel } from './planning-document-panel'
 import { ResearchDocumentPanel } from './research-document-panel'
 import { InlineSessionPanel } from './InlineSessionPanel'
+import { TicketJobsTab } from './ticket-jobs-tab'
 
 const ACTIVE_SESSION_STATUSES = new Set(['active', 'waiting_on_user', 'waiting_on_approval'])
 
@@ -169,6 +170,14 @@ export function TicketDetailTabs({
             <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
             <Tabs.Trigger value="research">Research</Tabs.Trigger>
             <Tabs.Trigger value="planning">Planning</Tabs.Trigger>
+            <Tabs.Trigger value="jobs">
+              <span className="flex items-center gap-1.5">
+                Jobs
+                {ticket.id && (
+                  <span className="inline-block h-2 w-2 rounded-full bg-[var(--accent-9)]" title="Associated jobs" />
+                )}
+              </span>
+            </Tabs.Trigger>
             <Tabs.Trigger value="session">
               <span className="flex items-center gap-1.5">
                 Session
@@ -251,6 +260,10 @@ export function TicketDetailTabs({
                 </div>
               )}
             </div>
+          </Tabs.Content>
+
+          <Tabs.Content value="jobs">
+            <TicketJobsTab ticketId={ticket.id} project={project} />
           </Tabs.Content>
         </Tabs.Root>
       </div>
