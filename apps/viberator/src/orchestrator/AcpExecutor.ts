@@ -1,3 +1,4 @@
+import { existsSync } from "fs";
 import { Logger } from "winston";
 import { AcpClient } from "../acp/AcpClient";
 import type { BaseAgent } from "../agents";
@@ -13,7 +14,13 @@ export class AcpExecutor {
   ): Promise<ExecutionResult> {
     const command = agent.getAcpServerCommand();
     const repoDir = context.repoDir ?? process.cwd();
-    const env: NodeJS.ProcessEnv = { ...process.env, ...agent.getAcpEnvironment() };
+    const home = process.env.HOME;
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...agent.getAcpEnvironment(),
+      // In Lambda the sandbox user's home dir may not physically exist; fall back to /tmp.
+      HOME: home && existsSync(home) ? home : "/tmp",
+    };
     const timeoutMs = (context.maxExecutionTime || 1800) * 1000;
 
     this.logger.info("AcpExecutor starting", {
