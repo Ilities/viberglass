@@ -12,6 +12,25 @@ const mockSecretService = {
   upsertWorkerAuthCache: jest.fn(),
 };
 
+const mockAgentTurnDAO = {
+  getByJobId: jest.fn(),
+};
+
+const mockAgentSessionDAO = {
+  getById: jest.fn(),
+};
+
+const mockAgentSessionEventDAO = {
+  getMaxSequence: jest.fn(),
+  create: jest.fn(),
+};
+
+const mockAgentPendingRequestDAO = {};
+
+const mockAgentSessionWorkerEventService = {
+  batchIngest: jest.fn(),
+};
+
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: jest.fn(),
 }));
@@ -44,6 +63,26 @@ jest.mock("../../../../services/TicketPhaseDocumentService", () => ({
   TicketPhaseDocumentService: jest.fn(() => mockTicketPhaseDocumentService),
 }));
 
+jest.mock("../../../../persistence/agentSession/AgentTurnDAO", () => ({
+  AgentTurnDAO: jest.fn(() => mockAgentTurnDAO),
+}));
+
+jest.mock("../../../../persistence/agentSession/AgentSessionDAO", () => ({
+  AgentSessionDAO: jest.fn(() => mockAgentSessionDAO),
+}));
+
+jest.mock("../../../../persistence/agentSession/AgentSessionEventDAO", () => ({
+  AgentSessionEventDAO: jest.fn(() => mockAgentSessionEventDAO),
+}));
+
+jest.mock("../../../../persistence/agentSession/AgentPendingRequestDAO", () => ({
+  AgentPendingRequestDAO: jest.fn(() => mockAgentPendingRequestDAO),
+}));
+
+jest.mock("../../../../services/agentSession/AgentSessionWorkerEventService", () => ({
+  AgentSessionWorkerEventService: jest.fn(() => mockAgentSessionWorkerEventService),
+}));
+
 import jobsRouter from "../../../../api/routes/jobs";
 import {
   JobServiceError,
@@ -73,6 +112,7 @@ function getRouteHandler(path: string, method: string): unknown {
 describe("job result callbacks", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAgentTurnDAO.getByJobId.mockResolvedValue(null);
   });
 
   it("persists generated planning documents when a planning job completes", async () => {

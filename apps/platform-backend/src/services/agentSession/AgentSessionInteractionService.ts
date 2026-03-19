@@ -167,7 +167,7 @@ export class AgentSessionInteractionService {
   async sendMessage(
     sessionId: string,
     messageText: string,
-    userId?: string,
+    _userId?: string,
   ): Promise<ReplyResult> {
     const session = await this.agentSessionDAO.getById(sessionId);
     if (!session) {

@@ -24,10 +24,6 @@ function formatDuration(start: string | null, end: string | null): string {
   return `${seconds}s`
 }
 
-function truncateTask(task: string, maxLength: number = 120): string {
-  if (task.length <= maxLength) return task
-  return task.slice(0, maxLength) + '...'
-}
 
 function formatJobKind(kind: 'research' | 'execution' | 'planning' | 'claw'): string {
   switch (kind) {
