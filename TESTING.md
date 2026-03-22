@@ -36,9 +36,10 @@ viberator/
 │   ├── jest.config.js
 │   └── jest.integration.config.js
 ├── apps/platform-frontend/
-│   ├── app/
-│   │   └── page.tsx
-│   │   └── page.test.tsx                 # Unit tests co-located
+│   ├── src/
+│   │   └── pages/
+│   │       └── SomePage.tsx
+│   │       └── SomePage.test.tsx         # Unit tests co-located
 │   ├── components/
 │   │   ├── Button.tsx
 │   │   └── Button.test.tsx               # Unit tests co-located
@@ -198,7 +199,7 @@ There are two ways to run E2E tests:
 #### Method 1: Using Docker Compose (Recommended)
 
 ```bash
-# Start the E2E stack (PostgreSQL, LocalStack, Redis)
+# Start the E2E stack (PostgreSQL, LocalStack)
 npm run test:e2e:setup
 
 # Run E2E tests
@@ -271,7 +272,6 @@ test('should call API', async ({ request, backendURL }) => {
 The E2E test stack includes:
 - **PostgreSQL** - Test database (port 5433)
 - **LocalStack** - AWS services mock (S3, SQS, Lambda)
-- **Redis** - Cache and message queue
 
 ## Test Configuration
 
@@ -333,7 +333,6 @@ If tests fail due to port conflicts:
 # Check what's using the port
 lsof -i :5433  # PostgreSQL
 lsof -i :4566  # LocalStack
-lsof -i :6380  # Redis
 
 # Kill the process or change ports in docker-compose.e2e.yaml
 ```

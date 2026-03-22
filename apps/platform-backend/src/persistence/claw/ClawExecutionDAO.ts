@@ -6,7 +6,6 @@ import type { Database } from "../types/database";
 import type {
   ClawExecution,
   ClawExecutionStatus,
-  ClawExecutionSummary,
   ClawWebhookDeliveryStatus,
 } from "@viberglass/types";
 

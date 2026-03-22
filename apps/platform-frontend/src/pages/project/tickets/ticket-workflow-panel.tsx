@@ -1,10 +1,12 @@
 import { CheckIcon } from '@radix-ui/react-icons'
+import clsx from 'clsx'
 import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
 
 interface TicketWorkflowPanelProps {
   workflowPhase: TicketWorkflowPhase
   isAdvancing?: boolean
   onAdvance?: (phase: TicketWorkflowPhase) => Promise<void>
+  onPhaseClick?: (phase: TicketWorkflowPhase) => void
   blockingReason?: string | null
   overrideAudit?: {
     reason: string
@@ -40,6 +42,7 @@ export function TicketWorkflowPanel({
   workflowPhase,
   isAdvancing = false,
   onAdvance,
+  onPhaseClick,
   blockingReason = null,
   overrideAudit = null,
 }: TicketWorkflowPanelProps) {
@@ -64,7 +67,15 @@ export function TicketWorkflowPanel({
 
           return (
             <div key={entry.phase} className="flex items-center">
-              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onPhaseClick?.(entry.phase)}
+                className={clsx(
+                  'flex items-center gap-2 rounded-md px-1.5 py-1 -mx-1.5 -my-1 transition-colors',
+                  onPhaseClick && 'hover:bg-[var(--gray-3)] cursor-pointer',
+                  !onPhaseClick && 'cursor-default',
+                )}
+              >
                 {/* Step dot */}
                 <div
                   className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
@@ -84,7 +95,7 @@ export function TicketWorkflowPanel({
                 </div>
 
                 {/* Label + Current badge */}
-                <div className="flex flex-col">
+                <div className="flex flex-col text-left">
                   <span
                     className="text-sm font-medium"
                     style={{
@@ -104,7 +115,7 @@ export function TicketWorkflowPanel({
                     </span>
                   )}
                 </div>
-              </div>
+              </button>
 
               {/* Connector */}
               {!isLast && (

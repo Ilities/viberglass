@@ -1,7 +1,7 @@
 # viberglass Development Environment
 # One-command local development: docker compose up
 #
-# This compose file starts all services (postgres, redis, backend, frontend)
+# This compose file starts all services (postgres, backend, frontend)
 # with proper dependency ordering, health checks, and hot-reload support.
 #
 # Usage:
@@ -12,7 +12,7 @@
 #   docker compose logs backend   # Show backend logs
 #
 # Port Conflicts:
-# If you have PostgreSQL or Redis already running on the host, you may see
+# If you have PostgreSQL already running on the host, you may see
 # "port is already allocated" errors. Options:
 #   1. Stop the host service temporarily: sudo systemctl stop postgresql
 #   2. Change the host port mapping below (e.g., "5433:5432" for postgres)

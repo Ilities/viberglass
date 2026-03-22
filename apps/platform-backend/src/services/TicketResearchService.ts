@@ -29,6 +29,11 @@ import {
   prepareTicketRunContext,
   submitJobWithBootstrapAndInvoke,
 } from "./ticketRunOrchestration";
+import { PromptTemplateService } from "./PromptTemplateService";
+import {
+  PromptTemplateDAO,
+  PROMPT_TYPE,
+} from "../persistence/promptTemplate/PromptTemplateDAO";
 
 export interface RunResearchOptions {
   clankerId: string;
@@ -52,18 +57,6 @@ export interface ResearchPhaseView {
   latestRun: ResearchRunView | null;
 }
 
-function buildResearchTask(input: {
-  ticketTitle: string;
-  ticketDescription: string;
-  externalTicketId?: string;
-}): string {
-  const externalTicketLine = input.externalTicketId
-    ? `External Ticket ID: ${input.externalTicketId}\n\n`
-    : "";
-
-  return `${externalTicketLine}${input.ticketTitle}\n\n${input.ticketDescription}`;
-}
-
 export class TicketResearchService {
   private readonly ticketDAO = new TicketDAO();
   private readonly projectDAO = new ProjectDAO();
@@ -80,6 +73,9 @@ export class TicketResearchService {
   private readonly instructionStorageService = new InstructionStorageService();
   private readonly approvalDAO = new TicketPhaseApprovalDAO();
   private readonly workflowService = new TicketWorkflowService();
+  private readonly promptTemplateService = new PromptTemplateService(
+    new PromptTemplateDAO(),
+  );
   private feedbackService?: FeedbackService;
 
   constructor(feedbackService?: FeedbackService) {
@@ -157,11 +153,15 @@ export class TicketResearchService {
       mergedInstructionFiles,
     } = preparedContext;
 
-    const task = buildResearchTask({
-      ticketTitle: ticket.title,
-      ticketDescription: ticket.description,
-      externalTicketId: ticket.externalTicketId,
-    });
+    const task = await this.promptTemplateService.render(
+      PROMPT_TYPE.ticket_research,
+      ticket.projectId,
+      {
+        externalTicketId: ticket.externalTicketId ?? undefined,
+        ticketTitle: ticket.title,
+        ticketDescription: ticket.description,
+      },
+    );
 
     const jobData: ResearchJobData = {
       id: jobId,

@@ -7,7 +7,8 @@ import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
 import { createTicket } from '@/service/api/ticket-api'
-import type { CreateTicketRequest, Severity } from '@viberglass/types'
+import { cn } from '@/lib/utils'
+import type { CreateTicketRequest, Severity, TicketWorkflowPhase } from '@viberglass/types'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useRef } from 'react'
 
@@ -23,6 +24,7 @@ export function CreateTicketPage() {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [workflowPhase, setWorkflowPhase] = useState<TicketWorkflowPhase>('research')
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
   const [recordingFile, setRecordingFile] = useState<File | null>(null)
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
@@ -85,6 +87,7 @@ export function CreateTicketPage() {
         category: formData.get('category') as string,
         autoFixRequested: false,
         ticketSystem: projectData.ticketSystem,
+        ...(workflowPhase !== 'research' && { workflowPhase }),
         metadata: {
           browser: { name: 'Manual Entry', version: '1.0' },
           os: { name: 'Manual Entry', version: '1.0' },
@@ -131,7 +134,7 @@ export function CreateTicketPage() {
             <Textarea name="description" rows={5} placeholder="Steps to reproduce..." required />
           </Field>
 
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             <Field>
               <Label>Severity</Label>
               <Description>How critical is this issue?</Description>
@@ -148,6 +151,33 @@ export function CreateTicketPage() {
               <Label>Category</Label>
               <Description>What area of the project is affected?</Description>
               <Input name="category" placeholder="e.g. UI, Backend, API" required />
+            </Field>
+
+            <Field>
+              <Label>Starting Phase</Label>
+              <Description>Which phase to start in. Execution skips research and planning.</Description>
+              <div className="mt-2 flex rounded-lg border border-[var(--gray-6)] overflow-hidden">
+                {([
+                  { value: 'research', label: 'Research' },
+                  { value: 'planning', label: 'Planning' },
+                  { value: 'execution', label: 'Execution' },
+                ] as const).map((option, i) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setWorkflowPhase(option.value)}
+                    className={cn(
+                      'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+                      i > 0 && 'border-l border-[var(--gray-6)]',
+                      workflowPhase === option.value
+                        ? 'bg-[var(--accent-9)] text-white'
+                        : 'bg-transparent text-[var(--gray-11)] hover:bg-[var(--gray-3)]'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </Field>
           </div>
 

@@ -193,6 +193,7 @@ function ApplicationLayoutContent() {
         { href: `${basePath}/tickets`, label: 'Tickets', current: pathname.startsWith(`${basePath}/tickets`) },
         { href: `${basePath}/jobs`, label: 'Jobs', current: pathname.startsWith(`${basePath}/jobs`) },
         { href: `${basePath}/claws`, label: 'Claws', current: pathname.startsWith(`${basePath}/claws`) },
+        { href: `${basePath}/prompt-templates`, label: 'Prompt Templates', current: pathname.startsWith(`${basePath}/prompt-templates`) },
       ]
     : [
         { href: '/', label: 'Dashboard', current: pathname === '/' },

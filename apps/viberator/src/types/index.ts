@@ -97,6 +97,9 @@ export interface ExecutionContext {
   // Timeout
   maxExecutionTime: number; // 30-45 minutes
 
+  // Job metadata
+  jobKind?: string;
+
   // Agent and secrets configuration
   agent?: string;
   secrets?: SecretMetadata[];

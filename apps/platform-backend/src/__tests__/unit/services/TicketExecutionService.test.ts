@@ -26,6 +26,14 @@ jest.mock("../../../services/CredentialRequirementsService");
 jest.mock("../../../workers/WorkerExecutionService");
 jest.mock("../../../services/TicketMediaExecutionService");
 jest.mock("../../../services/TicketPhaseDocumentService");
+jest.mock("../../../persistence/promptTemplate/PromptTemplateDAO");
+jest.mock("../../../services/PromptTemplateService", () => ({
+  PromptTemplateService: jest.fn().mockImplementation(() => ({
+    render: jest.fn().mockImplementation((_type: unknown, _projectId: unknown, vars: Record<string, string | undefined>) =>
+      Promise.resolve(`${vars.ticketTitle ?? ""}\n\n${vars.ticketDescription ?? ""}`),
+    ),
+  })),
+}));
 
 describe("TicketExecutionService", () => {
   let service: TicketExecutionService;

@@ -51,6 +51,7 @@ export async function runCodingJob(
       baseBranch: checkoutBaseBranch,
       repoDir,
       commitHash: "",
+      jobKind: data.jobKind,
       bugDescription: fullTask,
       stepsToReproduce:
         params.overrides?.reproductionSteps ||
@@ -73,6 +74,7 @@ export async function runCodingJob(
       runTests: mergedSettings.runTests,
       testCommand: mergedSettings.testCommand,
       maxExecutionTime: mergedSettings.maxExecutionTime,
+      promptOverride: fullTask,
     };
 
     await executeAgentWithRetry(params, executionContext);

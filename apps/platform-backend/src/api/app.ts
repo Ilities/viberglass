@@ -21,6 +21,7 @@ import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
 import clawRouter from "./routes/claw";
 import agentSessionsRouter from "./routes/agentSessions";
+import promptTemplatesRouter from "./routes/promptTemplates";
 import { attachAuthContext } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
 import {
@@ -180,6 +181,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/claw", clawRouter);
 app.use("/api/agent-sessions", agentSessionsRouter);
+app.use("/api/prompt-templates", promptTemplatesRouter);
 
 app.use(notFoundHandler);
 app.use(applicationErrorHandler);

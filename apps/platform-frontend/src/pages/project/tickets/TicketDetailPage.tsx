@@ -267,6 +267,11 @@ export function TicketDetailPage() {
 
         <TicketWorkflowPanel
           workflowPhase={ticket.workflowPhase}
+          onPhaseClick={(phase) => {
+            if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) setActiveTab('research')
+            else if (phase === TICKET_WORKFLOW_PHASE.PLANNING) setActiveTab('planning')
+            else setActiveTab('jobs')
+          }}
           blockingReason={executionBlockingReason}
           overrideAudit={
             ticket.workflowOverriddenAt

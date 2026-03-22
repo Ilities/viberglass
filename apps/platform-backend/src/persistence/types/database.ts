@@ -506,6 +506,15 @@ export interface AgentSessionEventsTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface PromptTemplatesTable {
+  id: Generated<string>;
+  prompt_type: string;
+  project_id: string | null;
+  template: string;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface AgentPendingRequestsTable {
   id: Generated<string>;
   session_id: string;
@@ -556,4 +565,5 @@ export interface Database {
   agent_turns: AgentTurnsTable;
   agent_session_events: AgentSessionEventsTable;
   agent_pending_requests: AgentPendingRequestsTable;
+  prompt_templates: PromptTemplatesTable;
 }

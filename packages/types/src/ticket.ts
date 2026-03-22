@@ -157,6 +157,7 @@ export interface CreateTicketRequest {
   annotations: Annotation[]
   autoFixRequested: boolean
   ticketSystem: TicketSystem
+  workflowPhase?: TicketWorkflowPhase
 }
 
 // Request body for updating a ticket

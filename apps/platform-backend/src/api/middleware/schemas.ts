@@ -83,6 +83,9 @@ export const ticketSchema = Joi.object({
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds)
     .optional(),
+  workflowPhase: Joi.string()
+    .valid("research", "planning", "execution")
+    .optional(),
 });
 
 export const updateTicketSchema = Joi.object({

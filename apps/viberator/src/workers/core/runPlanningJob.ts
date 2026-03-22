@@ -9,29 +9,16 @@ import {
   withJobLifecycle,
 } from "./jobPipeline";
 
-import {
-  PLANNING_SYSTEM_PROMPT_KEY,
-  DEFAULT_PLANNING_SYSTEM_PROMPT,
-} from "./phasePrompts";
-
 const PLANNING_DOCUMENT_NAME = "PLAN.md";
 
 export async function runPlanningJob(
   params: JobRunnerParams,
 ): Promise<JobResult> {
   return withJobLifecycle(params, "Planning", async () => {
-    const { data, instructionFiles, sendProgress } = params;
+    const { data, sendProgress } = params;
 
     const setup = await setupJob(params, "planning");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
-
-    const systemPrompt =
-      instructionFiles.get(PLANNING_SYSTEM_PROMPT_KEY) ??
-      DEFAULT_PLANNING_SYSTEM_PROMPT;
-
-    const researchSection = data.context?.researchDocument?.trim()
-      ? `\n\nResearch Document:\n${data.context.researchDocument}`
-      : "";
 
     const executionContext: ExecutionContext = {
       repoUrl: data.repository,
@@ -47,7 +34,7 @@ export async function runPlanningJob(
       testRequired: false,
       runTests: false,
       maxExecutionTime: mergedSettings.maxExecutionTime,
-      promptOverride: `${systemPrompt}\n\n${data.task}${researchSection}`,
+      promptOverride: data.task,
     };
 
     const result = await executeAgentWithRetry(params, executionContext);

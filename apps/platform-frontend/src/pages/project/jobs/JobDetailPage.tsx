@@ -9,6 +9,7 @@ import { PageMeta } from '@/components/page-meta'
 import { ProgressTimeline } from '@/components/progress-timeline'
 import { Section } from '@/components/section'
 import { TabButton } from '@/components/tab-button'
+import { TruncatedText } from '@/components/truncated-text'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { JobRefreshButton } from './job-refresh-button'
 
@@ -224,6 +225,15 @@ export function JobDetailPage() {
                       >
                         {job.ticket.title}
                       </Button>
+                      <span className="ml-2">
+                        <Button
+                          href={`/project/${project}/tickets/${job.ticket.id}?tab=jobs`}
+                          plain
+                          className="text-xs text-[var(--accent-9)] hover:text-[var(--accent-10)] hover:underline"
+                        >
+                          View jobs
+                        </Button>
+                      </span>
                     </span>
                   )}
                   {job.jobKind === 'claw' && job.data.context?.clawTemplateName && (
@@ -441,7 +451,7 @@ export function JobDetailPage() {
                       Task
                     </Subheading>
                     <div className="prose prose-sm max-w-none whitespace-pre-wrap text-[var(--gray-11)]">
-                      {job.data.task}
+                      <TruncatedText text={job.data.task} maxLength={500} />
                     </div>
                   </div>
 

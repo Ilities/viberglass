@@ -25,6 +25,11 @@ import {
   prepareTicketRunContext,
   submitJobWithBootstrapAndInvoke,
 } from "./ticketRunOrchestration";
+import { PromptTemplateService } from "./PromptTemplateService";
+import {
+  PromptTemplateDAO,
+  PROMPT_TYPE,
+} from "../persistence/promptTemplate/PromptTemplateDAO";
 
 export interface RunPlanningOptions {
   clankerId: string;
@@ -48,18 +53,6 @@ export interface PlanningPhaseView {
   latestRun: PlanningRunView | null;
 }
 
-function buildPlanningTask(input: {
-  ticketTitle: string;
-  ticketDescription: string;
-  externalTicketId?: string;
-}): string {
-  const externalTicketLine = input.externalTicketId
-    ? `External Ticket ID: ${input.externalTicketId}\n\n`
-    : "";
-
-  return `${externalTicketLine}${input.ticketTitle}\n\n${input.ticketDescription}`;
-}
-
 export class TicketPlanningService {
   private readonly ticketDAO = new TicketDAO();
   private readonly projectDAO = new ProjectDAO();
@@ -74,6 +67,9 @@ export class TicketPlanningService {
   private readonly documentService = new TicketPhaseDocumentService();
   private readonly phaseRunDAO = new TicketPhaseRunDAO();
   private readonly instructionStorageService = new InstructionStorageService();
+  private readonly promptTemplateService = new PromptTemplateService(
+    new PromptTemplateDAO(),
+  );
 
   async getPlanningPhase(ticketId: string): Promise<PlanningPhaseView> {
     const document = await this.documentService.getOrCreateDocument(
@@ -154,10 +150,14 @@ export class TicketPlanningService {
       TICKET_WORKFLOW_PHASE.RESEARCH,
     );
 
-    const task = buildPlanningTask({
+    const planningType = researchDocument.content?.trim()
+      ? PROMPT_TYPE.ticket_planning_with_research
+      : PROMPT_TYPE.ticket_planning_without_research;
+    const task = await this.promptTemplateService.render(planningType, ticket.projectId, {
+      externalTicketId: ticket.externalTicketId ?? undefined,
       ticketTitle: ticket.title,
       ticketDescription: ticket.description,
-      externalTicketId: ticket.externalTicketId,
+      researchDocument: researchDocument.content?.trim() || undefined,
     });
 
     const jobData: PlanningJobData = {

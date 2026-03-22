@@ -1,5 +1,6 @@
+import { Dialog, DialogBody, DialogTitle } from '@/components/dialog'
 import type { AgentSessionEvent, AgentSessionEventType } from '@/service/api/session-api'
-import { ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons'
+import { ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon, ReaderIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 function isSystemEvent(type: AgentSessionEventType): boolean {
@@ -119,9 +120,84 @@ function parseActorPrefix(text: string): { actor: string | null; body: string } 
   return { actor: null, body: text }
 }
 
+// ─── Attachment parsing ───────────────────────────────────────────────────────
+
+interface Attachment {
+  title: string
+  content: string
+}
+
+const ATTACHMENT_SEPARATOR = '\n\n---\n\n'
+const ATTACHMENT_HEADING = /^## (.+)\n\n([\s\S]*)$/
+
+function parseMessageWithAttachments(text: string): { body: string; attachments: Attachment[] } {
+  const sections = text.split(ATTACHMENT_SEPARATOR)
+  const body = sections[0]
+  const attachments = sections.slice(1).map((section) => {
+    const match = ATTACHMENT_HEADING.exec(section)
+    if (match) return { title: match[1], content: match[2] }
+    return { title: 'Context', content: section }
+  })
+  return { body, attachments }
+}
+
+function getAttachmentHint(title: string, content: string): string {
+  if (title.toLowerCase().includes('comment')) {
+    const count = content.split('\n').filter((l) => l.startsWith('- ')).length
+    return `${count} comment${count !== 1 ? 's' : ''}`
+  }
+  const lines = content.split('\n').filter((l) => l.trim()).length
+  return `${lines} lines`
+}
+
+function getAttachmentIcon(title: string): typeof ReaderIcon {
+  if (title.toLowerCase().includes('comment')) return ChatBubbleIcon
+  return ReaderIcon
+}
+
+function AttachmentChip({ attachment }: { attachment: Attachment }) {
+  const [open, setOpen] = useState(false)
+  const Icon = getAttachmentIcon(attachment.title)
+  const hint = getAttachmentHint(attachment.title, attachment.content)
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 rounded-md border border-[var(--gray-5)] bg-[var(--gray-2)] px-2.5 py-1.5 text-xs text-[var(--gray-10)] transition-colors hover:border-[var(--gray-6)] hover:bg-[var(--gray-3)] hover:text-[var(--gray-12)]"
+      >
+        <Icon className="h-3 w-3 shrink-0 text-[var(--gray-8)]" />
+        <span className="font-medium">{attachment.title}</span>
+        <span className="text-[var(--gray-6)]">·</span>
+        <span className="text-[var(--gray-7)]">{hint}</span>
+      </button>
+
+      <Dialog open={open} onClose={setOpen} size="4xl">
+        <DialogTitle className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-[var(--accent-9)]" />
+          {attachment.title}
+        </DialogTitle>
+        <DialogBody>
+          <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--gray-4)] bg-[var(--gray-2)] p-4">
+            <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-[var(--gray-11)]">
+              {attachment.content}
+            </pre>
+          </div>
+        </DialogBody>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── Message bubble ───────────────────────────────────────────────────────────
+
 function MessageBubble({ group }: { group: MessageGroup }) {
   const isUser = group.type === 'user_message'
-  const { actor, body } = isUser ? parseActorPrefix(group.text) : { actor: null, body: group.text }
+  const { actor, body: rawBody } = isUser ? parseActorPrefix(group.text) : { actor: null, body: group.text }
+  const { body, attachments } = isUser
+    ? parseMessageWithAttachments(rawBody)
+    : { body: rawBody, attachments: [] }
 
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
@@ -143,9 +219,18 @@ function MessageBubble({ group }: { group: MessageGroup }) {
           })}
         </div>
       </div>
+      {attachments.length > 0 && (
+        <div className="mt-1.5 flex max-w-[80%] flex-wrap gap-1.5">
+          {attachments.map((att) => (
+            <AttachmentChip key={att.title} attachment={att} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
+
+// ─── System / marker rows ─────────────────────────────────────────────────────
 
 function SystemEventRow({ event }: { event: AgentSessionEvent }) {
   const [expanded, setExpanded] = useState(false)
@@ -200,6 +285,8 @@ function MarkerRow({ event }: { event: AgentSessionEvent }) {
     </div>
   )
 }
+
+// ─── TranscriptPanel ──────────────────────────────────────────────────────────
 
 export function TranscriptPanel({ events }: { events: AgentSessionEvent[] }) {
   const bottomRef = useRef<HTMLDivElement>(null)

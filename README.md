@@ -6,11 +6,22 @@
 [![GitHub issues](https://img.shields.io/github/issues/Ilities/viberglass)](https://github.com/Ilities/viberglass/issues)
 [![GitHub stars](https://img.shields.io/github/stars/Ilities/viberglass?style=social)](https://github.com/Ilities/viberglass/stargazers)
 
-Viberglass is an open-source agent orchestrator and ticket management platform. Team members create tickets describing bugs or code changes, and AI agents automatically research the codebase, write the fix, and open a pull request for review.
+**Open-source agent orchestrator that turns tickets into pull requests.** Team members describe bugs or code changes, and AI agents automatically research the codebase, write the fix, and open a PR for review.
 
 No repository access required to file a ticket. QA engineers, PMs, and customer success teams can submit issues directly. Developers review the PR when it's ready.
 
+<img src="docs/images/ticket-page.png" width="700" />
+
 **[Documentation](docs/)** | **[Architecture](docs/ARCHITECTURE.md)** | **[Contributing](CONTRIBUTING.md)**
+
+## Features
+
+- **Multi-phase ticket lifecycle** — tickets progress through Research, Plan, and Execute phases, each driven by an AI agent
+- **Interactive agent sessions (ACP)** — collaborate with agents in real-time via the built-in session UI
+- **Scheduled tasks (Claws)** — define recurring agent jobs on a cron schedule
+- **Customizable prompt templates** — override system prompts per project for full control over agent behavior
+- **Multi-agent support** — run different AI harnesses side by side, pick the best tool for each job
+- **Webhook integrations** — ingest tickets from GitHub Issues, Jira, Shortcut, or any custom webhook source
 
 ## How it works
 
@@ -26,13 +37,23 @@ A **viberator** is the running instantiation of a Clanker. You can run multiple 
 
 ## Supported agent harnesses
 
-Claude Code, OpenAI Codex, Gemini CLI, Qwen CLI, Mistral Vibe, OpenCode, Kimi Code
+| Harness | Provider |
+|---------|----------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Anthropic |
+| [Codex](https://github.com/openai/codex) | OpenAI |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Google |
+| [Qwen CLI](https://github.com/QwenLM/qwen-cli) | Alibaba |
+| [Mistral Vibe](https://github.com/mistralai/mistral-vibe) | Mistral AI |
+| [OpenCode](https://github.com/opencode-ai/opencode) | OpenCode |
+| [Kimi Code](https://github.com/MoonshotAI/kimi-code) | Moonshot AI |
 
 ## Integrations
 
-**Ticket sources:** GitHub Issues, Shortcut, custom webhooks...
+**Ticket sources:** GitHub Issues, Jira, Shortcut, custom webhooks
 
-**Compute:** Docker (local or self-hosted), AWS Lambda, AWS ECS Fargate
+**Compute targets:** Docker (local or self-hosted), AWS Lambda, AWS ECS Fargate
+
+**Source control:** GitHub, GitLab
 
 ---
 
@@ -58,13 +79,13 @@ docker compose exec backend npm run migrate:latest
 
 ## Running agents
 
-To be able to start getting your tickets fixed, you need to set up a Clanker, a project and configure credentials for your agent harness.
+To start getting tickets fixed, you need a Clanker, a project, and credentials for your agent harness.
 
 **Step 1: Set up your environment secrets**
 
 Viberglass manages your secrets for you either encrypted in the database or in AWS SSM. You can also use local environment variables and refer to them only via the platform UI for local use.
 
-For the first run, you want to set up at least your GitHub token (GITHUB_TOKEN) and an API key for your favourite agent harness (suggested values in the UI)..
+For the first run, you want to set up at least your GitHub token (GITHUB_TOKEN) and an API key for your favourite agent harness (suggested values in the UI).
 
 <img src="docs/images/secret-creation.png" width="600" />
 
@@ -78,20 +99,19 @@ The simplest local setup uses Docker. AWS Lambda and ECS Clankers are for produc
 
 **Step 3: Deploy/Build your Clanker**
 
+Via the UI: click the **Start** button on your configured Clanker page to configure a viberator image ready to be used. Depending on the compute type, the platform will either build a Docker image, create an ECS task definition, or a Lambda function. For more information on how to build your own Clanker images, see the [Worker images](#worker-images) section below.
 
-Via the UI:
-Click the **Start** button on your configured Clanker page to configure a viberator image ready to be used. Depending on the compute type, the platform will either build a Docker image, create an ECS task definition, or a Lambda function. For more information on how to build your own Clanker images, see Worker Images section below.
 <img src="docs/images/start-clanker.png" width="600" />
 
 **Step 4: Configure your project**
 
-Once your Clanker is running, you can configure your project to use it. Go to `/projects` and click **Create Project**. Within the project settings page, you can select the integration that you want to link to the project. This allows you to configure your SCM (e.g. GitHub) and ticket source (e.g. Jira) and link them to be used by the project with the correct values like repository URL and ticket labels.
-<img src="docs/images/project-config.png" width="600" />
+Once your Clanker is running, go to `/projects` and click **Create Project**. Within the project settings page, select the integration you want to link. This lets you configure your SCM (e.g. GitHub) and ticket source (e.g. Jira) with the correct values like repository URL and ticket labels.
 
+<img src="docs/images/project-config.png" width="600" />
 
 **Step 5: Create tickets and put your viberators to work!**
 
-After you've set up your project, you can create tickets in the UI or via an integration webhook. Once you are happy with the ticket you have created, you can put your Clanker to work to step through the 'Research', 'Plan' and 'Execute' phases of the ticket lifecycle.
+After you've set up your project, you can create tickets in the UI or via an integration webhook. Once you are happy with the ticket, put your Clanker to work to step through the Research, Plan, and Execute phases of the ticket lifecycle.
 
 <img src="docs/images/ticket-page.png" width="600" />
 
@@ -202,9 +222,11 @@ E2E tests start the frontend and backend automatically via Playwright's webServe
 
 ---
 
-## Managed cloud
+## Community
 
-If you'd rather not run your own infrastructure, Viberglass is available as a hosted service at [viberglass.io](https://viberglass.io). Plans start at $29/month for 3 seats.
+- [GitHub Issues](https://github.com/Ilities/viberglass/issues) — bug reports and feature requests
+- [GitHub Discussions](https://github.com/Ilities/viberglass/discussions) — questions and ideas
+- [Contributing Guide](CONTRIBUTING.md) — how to contribute
 
 ---
 

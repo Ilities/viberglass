@@ -191,7 +191,7 @@ Fixes #456
 Viberglass consists of:
 
 - **Platform Backend** (`apps/platform-backend`): Express.js API server
-- **Platform Frontend** (`apps/platform-frontend`): React/Next.js application
+- **Platform Frontend** (`apps/platform-frontend`): React SPA (Vite)
 - **Viberator Worker** (`apps/viberator`): AI agent execution engine
 - **Infrastructure** (`infra/`): Pulumi-based AWS deployment
 

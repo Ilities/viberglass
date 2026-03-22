@@ -20,6 +20,11 @@ import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import {
+  TicketPhaseDocumentCommentDAO,
+  type PhaseDocumentComment,
+  PHASE_DOCUMENT_COMMENT_STATUS,
+} from "../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import {
   AGENT_SESSION_EVENT_TYPE,
@@ -42,6 +47,11 @@ import type {
   ResearchJobData,
   TicketJobData,
 } from "../../types/Job";
+import { PromptTemplateService } from "../PromptTemplateService";
+import {
+  PromptTemplateDAO,
+  PROMPT_TYPE,
+} from "../../persistence/promptTemplate/PromptTemplateDAO";
 
 export interface LaunchAgentSessionInput {
   ticketId: string;
@@ -57,6 +67,8 @@ export interface LaunchAgentSessionResult {
   job: { id: string; status: string };
 }
 
+const SUGGESTION_PREFIX = "@@SUGGESTION@@\n";
+
 export class AgentSessionLaunchService {
   private readonly ticketDAO = new TicketDAO();
   private readonly projectDAO = new ProjectDAO();
@@ -66,6 +78,10 @@ export class AgentSessionLaunchService {
   private readonly provisioningService = getClankerProvisioner();
   private readonly instructionStorageService = new InstructionStorageService();
   private readonly documentService = new TicketPhaseDocumentService();
+  private readonly commentDAO = new TicketPhaseDocumentCommentDAO();
+  private readonly promptTemplateService = new PromptTemplateService(
+    new PromptTemplateDAO(),
+  );
 
   constructor(
     private readonly agentSessionDAO: AgentSessionDAO,
@@ -112,6 +128,80 @@ export class AgentSessionLaunchService {
       );
     }
 
+    let researchDocumentContent: string | undefined;
+    let planDocumentContent: string | undefined;
+    let openComments: PhaseDocumentComment[] = [];
+
+    if (input.mode === "research") {
+      const researchDoc = await this.documentService.getOrCreateDocument(
+        input.ticketId,
+        TICKET_WORKFLOW_PHASE.RESEARCH,
+      );
+      if (researchDoc.content?.trim()) {
+        researchDocumentContent = researchDoc.content;
+      }
+      const allComments = await this.commentDAO.listByTicketAndPhase(
+        input.ticketId,
+        "research",
+      );
+      openComments = allComments.filter(
+        (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
+      );
+    }
+
+    if (input.mode === "planning") {
+      const researchDoc = await this.documentService.getOrCreateDocument(
+        input.ticketId,
+        TICKET_WORKFLOW_PHASE.RESEARCH,
+      );
+      researchDocumentContent = researchDoc.content;
+
+      const planDoc = await this.documentService.getOrCreateDocument(
+        input.ticketId,
+        TICKET_WORKFLOW_PHASE.PLANNING,
+      );
+      if (planDoc.content?.trim()) {
+        planDocumentContent = planDoc.content;
+      }
+      const allComments = await this.commentDAO.listByTicketAndPhase(
+        input.ticketId,
+        "planning",
+      );
+      openComments = allComments.filter(
+        (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
+      );
+    }
+
+    const openCommentsStr =
+      openComments.length > 0
+        ? openComments
+            .map((c) => {
+              const actor = c.actor ? ` (by ${c.actor})` : "";
+              if (c.content.startsWith(SUGGESTION_PREFIX)) {
+                const suggestion = c.content.slice(SUGGESTION_PREFIX.length);
+                return `- Line ${c.lineNumber}${actor}: **Suggestion:** ${suggestion}`;
+              }
+              return `- Line ${c.lineNumber}${actor}: ${c.content}`;
+            })
+            .join("\n")
+        : undefined;
+
+    const revisionType =
+      input.mode === "research"
+        ? PROMPT_TYPE.ticket_research_revision
+        : PROMPT_TYPE.ticket_planning_revision;
+
+    const enrichedMessage = await this.promptTemplateService.render(
+      revisionType,
+      ticket.projectId,
+      {
+        initialMessage: input.initialMessage,
+        researchDocument: researchDocumentContent,
+        planDocument: planDocumentContent,
+        openComments: openCommentsStr,
+      },
+    );
+
     const session = await this.agentSessionDAO.create({
       tenantId: "api-server",
       projectId: ticket.projectId,
@@ -125,19 +215,10 @@ export class AgentSessionLaunchService {
 
     const assistantTurn = await this.createInitialTurns(
       session.id,
-      input.initialMessage,
+      enrichedMessage,
     );
 
-    let researchDocumentContent: string | undefined;
-    if (input.mode === "planning") {
-      const researchDoc = await this.documentService.getOrCreateDocument(
-        input.ticketId,
-        TICKET_WORKFLOW_PHASE.RESEARCH,
-      );
-      researchDocumentContent = researchDoc.content;
-    }
-
-    const jobData = buildJobData(jobId, input, prepared, ticket, researchDocumentContent);
+    const jobData = await this.buildJobData(jobId, input, prepared, ticket, researchDocumentContent, planDocumentContent);
     const submitResult = await this.jobService.submitJob(jobData, {
       ticketId: input.ticketId,
       clankerId: input.clankerId,
@@ -206,6 +287,86 @@ export class AgentSessionLaunchService {
     };
   }
 
+  private async buildJobData(
+    jobId: string,
+    input: LaunchAgentSessionInput,
+    prepared: PreparedTicketRunContext,
+    ticket: { id: string; title: string; description: string; externalTicketId?: string | null; projectId: string },
+    researchDocumentContent?: string,
+    planDocumentContent?: string,
+  ): Promise<JobData> {
+    const ticketVars = {
+      externalTicketId: ticket.externalTicketId ?? undefined,
+      ticketTitle: ticket.title,
+      ticketDescription: ticket.description,
+    };
+
+    let taskType: typeof PROMPT_TYPE[keyof typeof PROMPT_TYPE];
+    if (input.mode === "research") {
+      taskType = PROMPT_TYPE.ticket_research;
+    } else if (input.mode === "planning") {
+      taskType = researchDocumentContent?.trim()
+        ? PROMPT_TYPE.ticket_planning_with_research
+        : PROMPT_TYPE.ticket_planning_without_research;
+    } else {
+      taskType = PROMPT_TYPE.ticket_developing;
+    }
+
+    const task = await this.promptTemplateService.render(
+      taskType,
+      ticket.projectId,
+      {
+        ...ticketVars,
+        researchDocument: researchDocumentContent?.trim() || undefined,
+      },
+    );
+
+    const base = {
+      id: jobId,
+      tenantId: "api-server" as const,
+      repository: prepared.sourceRepository,
+      task,
+      baseBranch: prepared.baseBranch,
+      settings: {},
+      timestamp: Date.now(),
+    };
+
+    if (input.mode === "research") {
+      const data: ResearchJobData = {
+        ...base,
+        jobKind: "research",
+        context: {
+          ticketId: input.ticketId,
+          researchDocument: researchDocumentContent,
+          instructionFiles: prepared.mergedInstructionFiles,
+        },
+      };
+      return data;
+    }
+    if (input.mode === "planning") {
+      const data: PlanningJobData = {
+        ...base,
+        jobKind: "planning",
+        context: {
+          ticketId: input.ticketId,
+          researchDocument: researchDocumentContent ?? "",
+          planDocument: planDocumentContent,
+          instructionFiles: prepared.mergedInstructionFiles,
+        },
+      };
+      return data;
+    }
+    const data: TicketJobData = {
+      ...base,
+      jobKind: "execution",
+      context: {
+        ticketId: input.ticketId,
+        instructionFiles: prepared.mergedInstructionFiles,
+      },
+    };
+    return data;
+  }
+
   private async createInitialTurns(
     sessionId: string,
     initialMessage: string,
@@ -252,68 +413,4 @@ export class AgentSessionLaunchService {
 
     return assistantTurn;
   }
-}
-
-function buildTicketTask(ticket: {
-  title: string;
-  description: string;
-  externalTicketId?: string | null;
-}): string {
-  const externalLine = ticket.externalTicketId
-    ? `External Ticket ID: ${ticket.externalTicketId}\n\n`
-    : "";
-  return `${externalLine}${ticket.title}\n\n${ticket.description}`;
-}
-
-function buildJobData(
-  jobId: string,
-  input: LaunchAgentSessionInput,
-  prepared: PreparedTicketRunContext,
-  ticket: { id: string; title: string; description: string; externalTicketId?: string | null },
-  researchDocumentContent?: string,
-): JobData {
-  const task = buildTicketTask(ticket);
-
-  const base = {
-    id: jobId,
-    tenantId: "api-server" as const,
-    repository: prepared.sourceRepository,
-    task,
-    baseBranch: prepared.baseBranch,
-    settings: {},
-    timestamp: Date.now(),
-  };
-
-  if (input.mode === "research") {
-    const data: ResearchJobData = {
-      ...base,
-      jobKind: "research",
-      context: {
-        ticketId: input.ticketId,
-        instructionFiles: prepared.mergedInstructionFiles,
-      },
-    };
-    return data;
-  }
-  if (input.mode === "planning") {
-    const data: PlanningJobData = {
-      ...base,
-      jobKind: "planning",
-      context: {
-        ticketId: input.ticketId,
-        researchDocument: researchDocumentContent ?? "",
-        instructionFiles: prepared.mergedInstructionFiles,
-      },
-    };
-    return data;
-  }
-  const data: TicketJobData = {
-    ...base,
-    jobKind: "execution",
-    context: {
-      ticketId: input.ticketId,
-      instructionFiles: prepared.mergedInstructionFiles,
-    },
-  };
-  return data;
 }

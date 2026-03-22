@@ -48,14 +48,6 @@ When adding documentation:
 - **Commands**: Show full commands that can be copied and run
 - **Screenshots**: Store in `images/` directory with descriptive names
 
-## Building API Documentation
-
-API documentation is generated from OpenAPI specs. To regenerate:
-
-```bash
-npm run docs:api -w @viberglass/platform-backend
-```
-
 ## Questions?
 
 If you have questions about the documentation, please:

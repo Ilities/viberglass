@@ -23,6 +23,11 @@ import {
 import { ClawExecutionService } from "./ClawExecutionService";
 import type { ClawJobData } from "../../types/Job";
 import { ClawWebhookService } from "./ClawWebhookService";
+import { PromptTemplateService } from "../PromptTemplateService";
+import {
+  PromptTemplateDAO,
+  PROMPT_TYPE,
+} from "../../persistence/promptTemplate/PromptTemplateDAO";
 
 export class ClawOrchestrationService {
   private projectDAO = new ProjectDAO();
@@ -38,6 +43,7 @@ export class ClawOrchestrationService {
   private workerExecutionService = new WorkerExecutionService();
   private instructionStorageService = new InstructionStorageService();
   private webhookService = new ClawWebhookService();
+  private promptTemplateService = new PromptTemplateService(new PromptTemplateDAO());
 
   /**
    * Execute a scheduled claw task
@@ -102,13 +108,19 @@ export class ClawOrchestrationService {
         },
       );
 
+      const task = await this.promptTemplateService.render(
+        PROMPT_TYPE.claw_scheduled_task,
+        template.projectId,
+        { taskInstructions: template.taskInstructions },
+      );
+
       // Build job data
       const jobData: ClawJobData = {
         id: jobId,
         jobKind: "claw",
         tenantId: preparedContext.project.id,
         repository: preparedContext.sourceRepository,
-        task: template.taskInstructions.slice(0, 200), // Truncate for task field
+        task,
         branch: preparedContext.baseBranch,
         baseBranch: preparedContext.baseBranch,
         context: {

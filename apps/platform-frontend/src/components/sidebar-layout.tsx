@@ -70,7 +70,8 @@ export function SidebarLayout({
       {/* Content */}
       <main className="flex flex-1 flex-col px-3 pt-3 pb-3 lg:min-w-0 lg:pl-64">
         <div className="app-frame grow p-6 lg:p-10">
-          <div className="mx-auto max-w-6xl">{children}</div>
+          {/* App-wide max-width — individual pages use narrower max-w-* on their own containers */}
+          <div className="mx-auto max-w-7xl">{children}</div>
         </div>
       </main>
     </div>

@@ -1,9 +1,9 @@
-import { TICKET_WORKFLOW_PHASE, type Ticket } from "@viberglass/types";
+import { type Ticket } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 import {
-  TicketServiceError,
   TICKET_SERVICE_ERROR_CODE,
+  TicketServiceError,
 } from "./errors/TicketServiceError";
 
 export class TicketWorkflowOverrideService {
@@ -35,13 +35,6 @@ export class TicketWorkflowOverrideService {
       throw new TicketServiceError(
         TICKET_SERVICE_ERROR_CODE.WORKFLOW_ALREADY_OVERRIDDEN,
         "Ticket workflow has already been overridden",
-      );
-    }
-
-    if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION) {
-      throw new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.WORKFLOW_ALREADY_IN_EXECUTION,
-        "Ticket is already in the execution phase",
       );
     }
 

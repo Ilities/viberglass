@@ -9,25 +9,16 @@ import {
   withJobLifecycle,
 } from "./jobPipeline";
 
-import {
-  RESEARCH_SYSTEM_PROMPT_KEY,
-  DEFAULT_RESEARCH_SYSTEM_PROMPT,
-} from "./phasePrompts";
-
 const RESEARCH_DOCUMENT_NAME = "RESEARCH.md";
 
 export async function runResearchJob(
   params: JobRunnerParams,
 ): Promise<JobResult> {
   return withJobLifecycle(params, "Research", async () => {
-    const { data, instructionFiles, sendProgress } = params;
+    const { data, sendProgress } = params;
 
     const setup = await setupJob(params, "research");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
-
-    const systemPrompt =
-      instructionFiles.get(RESEARCH_SYSTEM_PROMPT_KEY) ??
-      DEFAULT_RESEARCH_SYSTEM_PROMPT;
 
     const executionContext: ExecutionContext = {
       repoUrl: data.repository,
@@ -43,7 +34,7 @@ export async function runResearchJob(
       testRequired: false,
       runTests: false,
       maxExecutionTime: mergedSettings.maxExecutionTime,
-      promptOverride: `${systemPrompt}\n\n${data.task}`,
+      promptOverride: data.task,
     };
 
     const result = await executeAgentWithRetry(params, executionContext);

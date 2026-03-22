@@ -22,6 +22,11 @@ import {
   type InlineInstructionFile,
   prepareTicketRunContext,
 } from "./ticketRunOrchestration";
+import { PromptTemplateService } from "./PromptTemplateService";
+import {
+  PromptTemplateDAO,
+  PROMPT_TYPE,
+} from "../persistence/promptTemplate/PromptTemplateDAO";
 
 export interface RunTicketOptions {
   clankerId: string;
@@ -47,6 +52,7 @@ export class TicketExecutionService {
   private ticketMediaExecutionService = new TicketMediaExecutionService();
   private instructionStorageService = new InstructionStorageService();
   private ticketPhaseDocumentService = new TicketPhaseDocumentService();
+  private promptTemplateService = new PromptTemplateService(new PromptTemplateDAO());
 
   async runTicket(
     ticketId: string,
@@ -145,13 +151,25 @@ export class TicketExecutionService {
           executionClanker,
         );
 
+      const task = await this.promptTemplateService.render(
+        PROMPT_TYPE.ticket_developing,
+        ticket.projectId,
+        {
+          externalTicketId: ticket.externalTicketId ?? undefined,
+          ticketTitle: ticket.title,
+          ticketDescription: ticket.description,
+          researchDocument: researchDocument.content || undefined,
+          planDocument: planningDocument.content || undefined,
+        },
+      );
+
       // Create job via JobService.submitJob with ticket and clanker references
       const jobData: TicketJobData = {
         id: jobId,
         jobKind: "execution",
         tenantId: "api-server", // Hardcoded for now, per RESEARCH.md
         repository: sourceRepository,
-        task: `${ticket.title}\n\n${ticket.description}`,
+        task,
         branch: undefined, // Worker creates branch
         baseBranch,
         context: {

@@ -38,6 +38,9 @@ import { ClawsPage } from '@/pages/project/claws/ClawsPage'
 // Sessions pages
 import { SessionPage } from '@/pages/project/sessions/SessionPage'
 
+// Prompt templates pages
+import { PromptTemplatesPage } from '@/pages/project/prompt-templates/PromptTemplatesPage'
+
 
 
 // Settings pages
@@ -104,6 +107,9 @@ export function AppRoutes() {
 
         {/* Project sessions */}
         <Route path="/project/:project/sessions/:sessionId" element={<SessionPage />} />
+
+        {/* Prompt templates */}
+        <Route path="/project/:project/prompt-templates" element={<PromptTemplatesPage />} />
 
 
 

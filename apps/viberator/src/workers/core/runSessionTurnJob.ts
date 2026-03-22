@@ -9,12 +9,6 @@ import {
   withJobLifecycle,
 } from "./jobPipeline";
 
-import {
-  RESEARCH_SYSTEM_PROMPT_KEY,
-  DEFAULT_RESEARCH_SYSTEM_PROMPT,
-  PLANNING_SYSTEM_PROMPT_KEY,
-  DEFAULT_PLANNING_SYSTEM_PROMPT,
-} from "./phasePrompts";
 
 const DOCUMENT_FILES: Record<string, string> = {
   research: "RESEARCH.md",
@@ -22,30 +16,31 @@ const DOCUMENT_FILES: Record<string, string> = {
 };
 
 function buildSessionPromptOverride(params: JobRunnerParams): string {
-  const { data, instructionFiles, sessionMode, acpSessionId } = params;
+  const { data, sessionMode, acpSessionId } = params;
 
   // Continuation turns: ACP session already has context, just send the user message
   if (acpSessionId) {
     return data.task;
   }
 
-  // First turn of a research session: include the research system prompt
+  // First turn of a research session: data.task already contains the full research prompt
+  // (agent instructions + ticket content, from the ticket_research template).
+  // Append any existing research document for revision sessions.
   if (sessionMode === "research") {
-    const systemPrompt =
-      instructionFiles.get(RESEARCH_SYSTEM_PROMPT_KEY) ??
-      DEFAULT_RESEARCH_SYSTEM_PROMPT;
-    return `${systemPrompt}\n\n${data.task}`;
+    const existingDocSection = data.context?.researchDocument?.trim()
+      ? `\n\nExisting Research Document (revise based on the feedback below):\n${data.context.researchDocument}`
+      : "";
+    return `${data.task}${existingDocSection}`;
   }
 
-  // First turn of a planning session: include the planning system prompt + research document
+  // First turn of a planning session: data.task already contains the full planning prompt
+  // (agent instructions + ticket content + research doc, from the ticket_planning_* template).
+  // Append any existing plan document for revision sessions.
   if (sessionMode === "planning") {
-    const systemPrompt =
-      instructionFiles.get(PLANNING_SYSTEM_PROMPT_KEY) ??
-      DEFAULT_PLANNING_SYSTEM_PROMPT;
-    const researchSection = data.context?.researchDocument?.trim()
-      ? `\n\nResearch Document:\n${data.context.researchDocument}`
+    const existingPlanSection = data.context?.planDocument?.trim()
+      ? `\n\nExisting Planning Document (revise based on the feedback below):\n${data.context.planDocument}`
       : "";
-    return `${systemPrompt}\n\n${data.task}${researchSection}`;
+    return `${data.task}${existingPlanSection}`;
   }
 
   return data.task;

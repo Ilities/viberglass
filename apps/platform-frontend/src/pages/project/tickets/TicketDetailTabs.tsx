@@ -1,24 +1,21 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import type { ApprovalState } from '@/service/api/ticket-api'
 import type { AgentSession, AgentSessionMode } from '@/service/api/session-api'
+import type { ApprovalState } from '@/service/api/ticket-api'
 import { ChatBubbleIcon, ClipboardIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
 import { Tabs } from '@radix-ui/themes'
 import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE } from '@viberglass/types'
 import { toast } from 'sonner'
-import { formatDate, formatDateTime, formatTicketStatus, getSeverityBadge } from './ticket-display'
+import { InlineSessionPanel } from './InlineSessionPanel'
 import { PlanningDocumentPanel } from './planning-document-panel'
 import { ResearchDocumentPanel } from './research-document-panel'
-import { InlineSessionPanel } from './InlineSessionPanel'
+import { formatDate, formatDateTime, formatTicketStatus, getSeverityBadge } from './ticket-display'
+import { TicketJobsTab } from './ticket-jobs-tab'
 
 const ACTIVE_SESSION_STATUSES = new Set(['active', 'waiting_on_user', 'waiting_on_approval'])
 
 function SidebarLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--gray-8)]">
-      {children}
-    </span>
-  )
+  return <span className="text-[10px] font-semibold tracking-widest text-[var(--gray-8)] uppercase">{children}</span>
 }
 
 function SidebarField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -64,9 +61,7 @@ export function TicketDetailTabs({
   const sessionIsActive = currentSession ? ACTIVE_SESSION_STATUSES.has(currentSession.status) : false
   const statusBadge = formatTicketStatus(ticket.status)
   const severityBadge = getSeverityBadge(ticket.severity)
-  const displayId = ticket.id.length > 16
-    ? `${ticket.id.slice(0, 8)}…${ticket.id.slice(-6)}`
-    : ticket.id
+  const displayId = ticket.id.length > 16 ? `${ticket.id.slice(0, 8)}…${ticket.id.slice(-6)}` : ticket.id
 
   return (
     <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
@@ -152,9 +147,7 @@ export function TicketDetailTabs({
               <div>
                 <SidebarLabel>Override</SidebarLabel>
                 <div className="mt-3">
-                  <SidebarField label="Overridden at">
-                    {formatDateTime(ticket.workflowOverriddenAt)}
-                  </SidebarField>
+                  <SidebarField label="Overridden at">{formatDateTime(ticket.workflowOverriddenAt)}</SidebarField>
                 </div>
               </div>
             </>
@@ -169,24 +162,35 @@ export function TicketDetailTabs({
             <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
             <Tabs.Trigger value="research">Research</Tabs.Trigger>
             <Tabs.Trigger value="planning">Planning</Tabs.Trigger>
-            <Tabs.Trigger value="session">
+            <Tabs.Trigger value="jobs">
               <span className="flex items-center gap-1.5">
-                Session
-                {sessionIsActive && (
-                  <span className="inline-block h-2 w-2 rounded-full bg-green-500" title="Active session" />
+                Jobs
+                {ticket.id && (
+                  <span className="inline-block h-2 w-2 rounded-full bg-[var(--accent-9)]" title="Associated jobs" />
                 )}
               </span>
             </Tabs.Trigger>
+            {currentSession && (
+              <Tabs.Trigger value="session">
+                <span className="flex items-center gap-1.5">
+                  Session
+                  {sessionIsActive && (
+                    <span className="inline-block h-2 w-2 rounded-full bg-green-500" title="Active session" />
+                  )}
+                </span>
+              </Tabs.Trigger>
+            )}
           </Tabs.List>
 
           <Tabs.Content value="overview">
             <div className="mt-4 rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-7">
               <h3 className="mb-4 text-sm font-semibold text-[var(--gray-12)]">Description</h3>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--gray-11)]">
-                {ticket.description
-                  ? ticket.description.replace(/\\n/g, '\n')
-                  : <span className="italic text-[var(--gray-8)]">No description provided.</span>
-                }
+              <div className="text-sm leading-relaxed whitespace-pre-wrap text-[var(--gray-11)]">
+                {ticket.description ? (
+                  ticket.description.replace(/\\n/g, '\n')
+                ) : (
+                  <span className="text-[var(--gray-8)] italic">No description provided.</span>
+                )}
               </div>
             </div>
           </Tabs.Content>
@@ -229,6 +233,14 @@ export function TicketDetailTabs({
                   sessionId={currentSession.id}
                   project={project}
                   onSessionEnded={onSessionEnded}
+                  onRevise={
+                    currentSession.mode === 'research' || currentSession.mode === 'planning'
+                      ? () => {
+                          onStartSession(currentSession.mode as AgentSessionMode, '')
+                          onTabChange(currentSession.mode)
+                        }
+                      : undefined
+                  }
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-12 text-center">
@@ -246,6 +258,10 @@ export function TicketDetailTabs({
                 </div>
               )}
             </div>
+          </Tabs.Content>
+
+          <Tabs.Content value="jobs">
+            <TicketJobsTab ticketId={ticket.id} project={project} />
           </Tabs.Content>
         </Tabs.Root>
       </div>

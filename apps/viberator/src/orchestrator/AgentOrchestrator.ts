@@ -189,6 +189,54 @@ export class AgentOrchestrator {
       ? `\nPLANNING DOCUMENT:\n${context.planDocument}\n`
       : "";
 
+    if (context.jobKind === "claw") {
+      return `
+You are an expert software engineer. Complete the task described below.
+
+TASK:
+${context.bugDescription}
+${ticketMediaSection}
+${researchSection}
+${planningSection}
+
+REPOSITORY: ${context.repoUrl}
+BRANCH: ${context.branch}
+
+CONSTRAINTS:
+- Make minimal, focused changes
+${context.maxChanges ? `- Maximum ${context.maxChanges} files changed` : ""}
+${context.testRequired ? "- Write tests for your changes" : ""}
+${context.codingStandards ? `- Follow coding standards: ${context.codingStandards}` : ""}
+
+INSTRUCTIONS:
+0. Before making changes, read and follow AGENTS.md (if present), agents/AGENTS.md (if present), and relevant files under skills/ if present.
+1. Analyze the task and the relevant parts of the codebase
+2. Implement the task with minimal, focused changes
+3. ${context.runTests ? "Run tests to verify your changes" : "Verify your changes manually"}
+
+IMPORTANT: After completing the task, you MUST output pull request metadata files in the repository root:
+
+1) \`PR_TITLE.md\` containing only the PR title on a single line.
+   - Use a concise, specific title that describes what was done.
+   - Prefer conventional commit style, for example: \`feat: add user export functionality\`
+
+2) \`PR_DESCRIPTION.md\` using the following format:
+
+\`\`\`markdown
+## Summary
+[Brief description of what this PR does]
+
+## Changes Made
+[List of key changes]
+
+## Testing
+[How the changes were verified]
+\`\`\`
+
+Please proceed with the task.
+`;
+    }
+
     return `
 You are an expert software engineer tasked with fixing a bug.
 

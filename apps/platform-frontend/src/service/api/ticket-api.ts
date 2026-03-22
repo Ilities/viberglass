@@ -184,6 +184,10 @@ export async function createTicket(
     formData.append('ticketSystem', ticket.ticketSystem)
   }
   
+  if (ticket.workflowPhase) {
+    formData.append('workflowPhase', ticket.workflowPhase)
+  }
+
   // Serialize complex objects as JSON strings
   formData.append('metadata', JSON.stringify(ticket.metadata))
   formData.append('annotations', JSON.stringify(ticket.annotations))

@@ -56,7 +56,6 @@ flowchart TB
 
         subgraph Data["Data Layer"]
             PG[("PostgreSQL<br/>(Tickets, Jobs)")]
-            Redis[("Redis<br/>(Cache, Queue)")]
             S3[("S3<br/>(Files, Media)")]
             SSM[("AWS SSM<br/>(Secrets)")]
         end
@@ -103,7 +102,6 @@ flowchart TB
     %% Services to Data
     TS --> PG
     JS --> PG
-    JS --> Redis
     IS --> S3
     IS --> SSM
 
@@ -127,7 +125,7 @@ flowchart TB
     class External,GH,Jira,SC,WH external
     class Platform,API,Gateway platform
     class Services,TS,JS,WS,IS services
-    class Data,PG,Redis,S3,SSM data
+    class Data,PG,S3,SSM data
     class Workers,Orchestrator,Compute,Docker,ECS,Lambda,Agent,A1,A2,A3,Ops,Git,FS,Code workers
     class SCM,GitHub scm
 ```
@@ -155,7 +153,7 @@ Express.js REST API that serves as the central coordination point.
 
 ### Platform Frontend (`apps/platform-frontend`)
 
-React/Next.js application for user interaction.
+React SPA (Vite) for user interaction.
 
 **Responsibilities:**
 - Dashboard and project management UI
@@ -272,7 +270,6 @@ sequenceDiagram
 | TypeScript | Type safety |
 | Kysely | Type-safe SQL query builder |
 | PostgreSQL | Primary database |
-| Redis | Cache and job queue |
 | AWS SSM | Secret storage (production) |
 | AWS S3 | File storage |
 
@@ -280,11 +277,10 @@ sequenceDiagram
 
 | Technology | Purpose |
 |------------|---------|
-| Next.js 14 | React framework |
-| React 18 | UI library |
+| Vite 6 | Build tool and dev server |
+| React 19 | UI library |
 | TypeScript | Type safety |
 | Tailwind CSS | Styling |
-| AWS Amplify | Hosting and CI/CD |
 
 ### Infrastructure
 
@@ -305,21 +301,19 @@ flowchart TB
     subgraph Docker["🐳 Docker Compose"]
         subgraph Services["Services"]
             PG[("PostgreSQL<br/>:5432")]
-            Redis[("Redis<br/>:6379")]
         end
-        
+
         subgraph Apps["Applications"]
             Backend["Backend<br/>:8888"]
             Frontend["Frontend<br/>:3000"]
         end
-        
+
         Services --> Apps
     end
-    
+
     User["👤 Developer"] -->|"http://localhost:3000"| Frontend
     Frontend -->|"API calls"| Backend
     Backend --> PG
-    Backend --> Redis
     
     classDef docker fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#1f2937
     classDef services fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#1f2937
@@ -327,7 +321,7 @@ flowchart TB
     classDef user fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#1f2937
     
     class Docker docker
-    class Services,PG,Redis services
+    class Services,PG services
     class Apps,Backend,Frontend apps
     class User user
 ```
@@ -429,7 +423,6 @@ flowchart TB
 
 ### Job Queue
 
-- Redis-based job queue for distributed processing
 - Multiple Clankers can process jobs concurrently
 - Job prioritization and fair scheduling
 
