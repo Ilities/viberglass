@@ -22,6 +22,7 @@ import usersRouter from "./routes/users";
 import clawRouter from "./routes/claw";
 import agentSessionsRouter from "./routes/agentSessions";
 import promptTemplatesRouter from "./routes/promptTemplates";
+import bot from "../chat";
 import { attachAuthContext } from "./middleware/authentication";
 import { configurePassport } from "./auth/passport";
 import {
@@ -147,32 +148,49 @@ app.get("/", (req, res) => {
   });
 });
 
-// API documentation endpoint
-app.get("/api/docs", (req, res) => {
-  res.json({
-    title: "Viberglass Receiver API",
-    version: "1.0.0",
-    endpoints: {
-      "POST /api/tickets": "Create a new ticket",
-      "GET /api/tickets": "List tickets",
-      "GET /api/tickets/:id": "Get a ticket by ID",
-      "PUT /api/tickets/:id": "Update a ticket",
-      "DELETE /api/tickets/:id": "Delete a ticket",
-      "GET /api/projects": "List projects",
-      "POST /api/projects": "Create a project",
-      "GET /api/jobs": "List jobs",
-      "POST /api/jobs": "Submit a job",
-      "GET /api/agent-sessions/:sessionId": "Get agent session detail",
-      "GET /api/agent-sessions/:sessionId/events": "List session events",
-    },
-  });
-});
-
 // API routes
 app.use("/api/projects", projectsRouter);
 app.use("/api/integrations", integrationsRouter);
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
+
+// Chat SDK Slack webhook (no auth — verified by Slack signing secret)
+app.post("/api/webhooks/slack", (req, res) => {
+  const extReq = req as unknown as ExtendedRequest;
+  const rawBody = extReq.rawBody;
+  const body: string = rawBody
+    ? rawBody.toString("utf-8")
+    : JSON.stringify(req.body);
+  const protocol = req.protocol;
+  const host = req.get("host") ?? "localhost";
+  const url = `${protocol}://${host}${req.originalUrl}`;
+  const headers = new Headers();
+  for (const [key, val] of Object.entries(req.headers)) {
+    if (val) headers.set(key, Array.isArray(val) ? val.join(", ") : val);
+  }
+  const webRequest = new Request(url, {
+    method: req.method,
+    headers,
+    body,
+  });
+
+  bot.webhooks
+    .slack(webRequest)
+    .then(async (webResponse) => {
+      res.status(webResponse.status);
+      webResponse.headers.forEach((val, key) => res.setHeader(key, val));
+      const text = await webResponse.text();
+      res.send(text);
+    })
+    .catch((err: unknown) => {
+      logger.error("Slack webhook error", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+});
 app.use("/api/clankers", clankersRouter);
 app.use("/api/deployment-strategies", deploymentStrategiesRouter);
 app.use("/api/jobs", jobsRouter);

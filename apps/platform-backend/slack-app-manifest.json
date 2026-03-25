@@ -1,0 +1,58 @@
+{
+  "_metadata": {
+    "major_version": 2,
+    "minor_version": 0
+  },
+  "display_information": {
+    "name": "Viberator",
+    "description": "Launch and interact with Viberator agent sessions from Slack",
+    "background_color": "#1a1a2e",
+    "long_description": "Viberator Slack integration allows you to launch AI agent sessions directly from Slack using the /viberator slash command. Sessions stream their progress into a Slack thread where you can reply to continue the conversation, provide input when the agent asks, and approve or reject actions."
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Viberator",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/viberator",
+        "url": "https://YOUR_HOST/api/webhooks/slack",
+        "description": "Launch an agent session",
+        "usage_hint": "[message]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "commands",
+        "chat:write",
+        "chat:write.public",
+        "channels:read",
+        "channels:history",
+        "groups:read",
+        "groups:history",
+        "im:read",
+        "im:history"
+      ]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://YOUR_HOST/api/webhooks/slack"
+    },
+    "event_subscriptions": {
+      "request_url": "https://YOUR_HOST/api/webhooks/slack",
+      "bot_events": [
+        "message.channels",
+        "message.groups"
+      ]
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

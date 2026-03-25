@@ -11,6 +11,7 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 | [../README.md](../README.md) | Quick start and overview |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guidelines |
 | [../TESTING.md](../TESTING.md) | Testing setup and commands |
+| [operations/slack-integration.md](operations/slack-integration.md) | Slack app setup and operations |
 
 ## Documentation Sections
 
@@ -30,6 +31,7 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 ### Operations
 
 - [operations/](operations/) - Operational runbooks and guides
+- [operations/slack-integration.md](operations/slack-integration.md) - Slack integration setup
 
 ## Contributing to Documentation
 

@@ -153,6 +153,21 @@ export class AgentSessionDAO {
     return rows.map((row) => this.mapRow(row));
   }
 
+  async listByStatuses(
+    statuses: readonly AgentSessionStatus[],
+  ): Promise<AgentSession[]> {
+    if (statuses.length === 0) return [];
+
+    const rows = await db
+      .selectFrom("agent_sessions")
+      .selectAll()
+      .where("status", "in", [...statuses])
+      .orderBy("created_at", "desc")
+      .execute();
+
+    return rows.map((row) => this.mapRow(row));
+  }
+
   async update(id: string, updates: UpdateAgentSessionInput): Promise<void> {
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),

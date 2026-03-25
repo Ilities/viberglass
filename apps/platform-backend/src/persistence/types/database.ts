@@ -531,6 +531,14 @@ export interface AgentPendingRequestsTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface SlackSessionThreadsTable {
+  id: Generated<string>;
+  session_id: string;
+  thread_id: string;
+  channel_id: string;
+  created_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -566,4 +574,5 @@ export interface Database {
   agent_session_events: AgentSessionEventsTable;
   agent_pending_requests: AgentPendingRequestsTable;
   prompt_templates: PromptTemplatesTable;
+  slack_session_threads: SlackSessionThreadsTable;
 }
