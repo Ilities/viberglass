@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node ./dist/api/server.js",
     "dev": "nodemon --exec tsx ./src/api/server.ts",
-    "build": "tsc && node ./scripts/writeDistPackageJson.cjs",
+    "build": "tsup && node ./scripts/writeDistPackageJson.cjs",
     "smoke:start": "node ./scripts/smokeStart.cjs",
     "test": "jest",
     "test:unit": "jest --testPathPattern=unit",

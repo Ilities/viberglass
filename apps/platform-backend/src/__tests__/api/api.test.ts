@@ -2,6 +2,10 @@ import type { Express } from "express";
 import request from "supertest";
 import logger from "../../config/logger";
 
+jest.mock("../../chat", () => ({
+  default: { webhooks: { slack: jest.fn().mockResolvedValue(new Response("", { status: 200 })) } },
+}));
+
 jest.mock("../../persistence/ticketing/TicketDAO", () => ({
   TicketDAO: jest.fn().mockImplementation(() => ({
     getTicket: jest.fn().mockResolvedValue(null),

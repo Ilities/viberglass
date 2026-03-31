@@ -9,7 +9,7 @@ const outputPath = path.join(distDir, "package.json");
 fs.mkdirSync(distDir, { recursive: true });
 fs.writeFileSync(
   outputPath,
-  `${JSON.stringify({ type: "commonjs" }, null, 2)}\n`,
+  `${JSON.stringify({ type: "module" }, null, 2)}\n`,
   "utf8",
 );
 
