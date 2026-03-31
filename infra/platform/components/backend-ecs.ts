@@ -29,6 +29,11 @@ export interface BackendEcsOptions {
   };
   /** Webhook encryption key SSM parameter ARN */
   webhookSecretEncryptionKeySsmArn: pulumi.Input<string>;
+  /** Slack integration SSM parameter ARNs (optional) */
+  slackSsm?: {
+    signingSecretArn: pulumi.Input<string>;
+    botTokenArn: pulumi.Input<string>;
+  };
   /** Task CPU units (256, 512, 1024, 2048, 4096) */
   cpu?: string;
   /** Task memory in MB (512, 1024, 2048, 4096, 8192, 16384) */
@@ -159,6 +164,12 @@ export function createBackendEcs(
               options.databaseSsm.urlPathArn,
               options.databaseSsm.hostPathArn,
               options.webhookSecretEncryptionKeySsmArn,
+              ...(options.slackSsm
+                ? [
+                    options.slackSsm.signingSecretArn,
+                    options.slackSsm.botTokenArn,
+                  ]
+                : []),
             ],
           },
           {
@@ -365,6 +376,8 @@ export function createBackendEcs(
           workerLogGroup: options.worker?.logGroupName ?? "",
           uploadsBucketName: options.uploadsBucketName ?? "",
           ticketMediaS3Prefix: options.ticketMediaS3Prefix ?? "ticket-media",
+          slackSigningSecretPath: options.slackSsm?.signingSecretArn ?? "",
+          slackBotTokenPath: options.slackSsm?.botTokenArn ?? "",
         })
         .apply(
           ({
@@ -385,6 +398,8 @@ export function createBackendEcs(
             workerLogGroup,
             uploadsBucketName,
             ticketMediaS3Prefix,
+            slackSigningSecretPath,
+            slackBotTokenPath,
           }) => {
             const normalizedWorkerImage = Array.isArray(workerImage)
               ? workerImage[0]
@@ -527,6 +542,12 @@ export function createBackendEcs(
                     name: "WEBHOOK_SECRET_ENCRYPTION_KEY",
                     valueFrom: webhookSecretEncryptionKeyPath,
                   },
+                  ...(slackSigningSecretPath
+                    ? [{ name: "SLACK_SIGNING_SECRET", valueFrom: slackSigningSecretPath }]
+                    : []),
+                  ...(slackBotTokenPath
+                    ? [{ name: "SLACK_BOT_TOKEN", valueFrom: slackBotTokenPath }]
+                    : []),
                 ],
                 healthCheck: {
                   command: [

@@ -4,7 +4,7 @@ import { createPostgresState } from "@chat-adapter/state-pg";
 import { pool } from "../persistence/config/database";
 
 const adapters: Record<string, ReturnType<typeof createSlackAdapter>> = {};
-if (process.env.SLACK_SIGNING_SECRET) {
+if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_SIGNING_SECRET !== "not-configured") {
   adapters.slack = createSlackAdapter();
 }
 
