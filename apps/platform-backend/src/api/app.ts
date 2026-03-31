@@ -156,6 +156,12 @@ app.use("/api/webhooks", webhooksRouter);
 
 // Chat SDK Slack webhook (no auth — verified by Slack signing secret)
 app.post("/api/webhooks/slack", (req, res) => {
+  if (typeof (bot.webhooks as Record<string, unknown>).slack !== "function") {
+    logger.warn("Slack webhook received but SLACK_SIGNING_SECRET is not configured");
+    res.status(503).json({ error: "Slack integration not configured" });
+    return;
+  }
+
   const extReq = req as unknown as ExtendedRequest;
   const rawBody = extReq.rawBody;
   const body: string = rawBody
