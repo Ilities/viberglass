@@ -12,6 +12,7 @@ import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
 import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
+import bot from "../chat";
 
 // Load environment variables
 dotenv.config();
@@ -152,6 +153,16 @@ async function startServer(): Promise<void> {
     logger.debug(
       "RUN_MIGRATIONS_ON_STARTUP is not enabled, skipping migrations",
     );
+  }
+
+  // Eagerly initialize the chat SDK so Slack webhooks don't time out on the
+  // first request while waiting for PG state + Slack auth.test to complete.
+  if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_SIGNING_SECRET !== "not-configured") {
+    try {
+      await bot.initialize();
+    } catch (error) {
+      logger.warn("Failed to eagerly initialize chat bot; it will retry on first webhook", { error });
+    }
   }
 
   if (port === false) {
