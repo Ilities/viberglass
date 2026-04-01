@@ -56,6 +56,7 @@ bot.onSlashCommand("/viberator", async (event) => {
           Select({
             id: "mode",
             label: "Mode",
+            placeholder: "Select a mode",
             options: [
               SelectOption({ label: "Research", value: "research" }),
               SelectOption({ label: "Planning", value: "planning" }),

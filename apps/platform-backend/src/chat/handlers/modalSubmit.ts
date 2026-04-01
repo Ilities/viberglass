@@ -11,8 +11,8 @@ import { JobService } from "../../services/JobService";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
 import logger from "../../config/logger";
-import type { AgentSessionMode } from "../../types/agentSession";
 import type { CreateTicketRequest } from "@viberglass/types";
+import type { AgentSessionMode } from "../../types/agentSession";
 
 const ticketDAO = new TicketDAO();
 const launchService = new AgentSessionLaunchService(
@@ -74,8 +74,7 @@ bot.onModalSubmit("viberator_launch", async (event) => {
 
     const sent = await channel.post(
       `*Session started:* ${title}\n` +
-        `Project: ${projectId} | Mode: ${mode} | ` +
-        `Ticket: ${ticket.id}`,
+        `Project: ${projectId} | Ticket: ${ticket.id}`,
     );
 
     // Construct a Thread from the sent message's threadId so we can
@@ -106,7 +105,6 @@ bot.onModalSubmit("viberator_launch", async (event) => {
       error: err instanceof Error ? err.message : String(err),
       projectId,
       clankerId,
-      mode,
     });
 
     const channel = event.relatedChannel;
