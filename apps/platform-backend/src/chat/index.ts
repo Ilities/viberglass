@@ -6,6 +6,9 @@ import bot from "./bot";
 import { chatSessionBridge } from "./ChatSessionBridgeService";
 import logger from "../config/logger";
 
+// Register as the global singleton so ThreadImpl lazy resolution works.
+bot.registerSingleton();
+
 // Side-effect imports register handlers on the bot singleton
 import "./handlers/slashCommand";
 import "./handlers/modalSubmit";
