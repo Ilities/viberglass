@@ -95,7 +95,18 @@ app.use(
     },
   }),
 );
-app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+app.use(
+  express.urlencoded({
+    extended: false,
+    limit: "10mb",
+    verify: (req, _res, buf) => {
+      const request = req as unknown as ExtendedRequest & { url?: string };
+      if ((request.url || "").startsWith("/api/webhooks")) {
+        request.rawBody = Buffer.from(buf);
+      }
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(express.static(resolvePublicDirectory()));
 

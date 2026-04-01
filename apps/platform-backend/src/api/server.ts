@@ -155,14 +155,14 @@ async function startServer(): Promise<void> {
     );
   }
 
-  // Eagerly initialize the chat SDK so Slack webhooks don't time out on the
-  // first request while waiting for PG state + Slack auth.test to complete.
+  // Kick off chat SDK initialization in the background so Slack webhooks
+  // don't time out waiting for PG state connect + Slack auth.test on the
+  // first request.  We don't await it — the server must start listening
+  // immediately.  If init fails it will be retried on the first webhook.
   if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_SIGNING_SECRET !== "not-configured") {
-    try {
-      await bot.initialize();
-    } catch (error) {
-      logger.warn("Failed to eagerly initialize chat bot; it will retry on first webhook", { error });
-    }
+    bot.initialize().catch((error) => {
+      logger.warn("Background chat bot initialization failed; will retry on first webhook", { error });
+    });
   }
 
   if (port === false) {
