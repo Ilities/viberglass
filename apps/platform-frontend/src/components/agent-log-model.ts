@@ -320,6 +320,103 @@ function collectToolUseDefinitions(
 }
 
 /**
+ * Handle an opencode event (type: text | tool_use | step_start | step_finish).
+ * Pushes 0 or more timeline events and updates commandIndexById.
+ * Returns true if the event was recognized and handled.
+ */
+function handleOpencodeEvent(
+  log: LogEntry,
+  sourceLabel: string,
+  agentName: string,
+  data: Record<string, unknown>,
+  timeline: TimelineEvent[],
+  commandIndexById: Map<string, number>,
+): boolean {
+  const eventType = readString(data.type)
+  if (!eventType) return false
+
+  // step_start / step_finish — silently consume if this looks like opencode format
+  if (eventType === 'step_start' || eventType === 'step_finish') {
+    return readObject(data.part) !== null
+  }
+
+  const part = readObject(data.part)
+  if (!part) return false
+
+  if (eventType === 'text') {
+    const text = readString(part.text)
+    if (text) {
+      timeline.push({
+        kind: 'agent_message',
+        id: `${log.id}-oc-text`,
+        createdAt: log.createdAt,
+        level: log.level,
+        sourceLabel,
+        agentName,
+        text,
+      })
+    }
+    return true
+  }
+
+  if (eventType === 'tool_use') {
+    const toolName = readString(part.tool) ?? '(unknown tool)'
+    const callId = readString(part.callID) ?? `oc-tool-${log.id}`
+    const stateObj = readObject(part.state)
+    const input = stateObj ? readObject(stateObj.input) ?? {} : {}
+    const rawOutput = stateObj ? stateObj.output : null
+    const output = typeof rawOutput === 'string' ? rawOutput : ''
+    const status = stateObj ? readString(stateObj.status) : null
+    const isFailed = status === 'error' || status === 'failed'
+    const isCompleted = status === 'completed'
+    const commandState: CommandState = isFailed ? 'failed' : isCompleted ? 'completed' : 'running'
+    const command = formatToolCommand(toolName, input)
+
+    const existingIndex = commandIndexById.get(callId)
+    if (existingIndex !== undefined) {
+      const existing = timeline[existingIndex]
+      if (existing.kind === 'command_execution') {
+        timeline[existingIndex] = {
+          ...existing,
+          command: command || existing.command,
+          output: output.length >= existing.output.length ? output : existing.output,
+          exitCode: isFailed ? 1 : isCompleted ? 0 : existing.exitCode,
+          status: status ?? existing.status,
+          state:
+            commandStateRank(existing.state) >= commandStateRank(commandState)
+              ? existing.state
+              : commandState,
+          completedAt: isCompleted || isFailed ? log.createdAt : existing.completedAt,
+          level: maxLevel(existing.level, log.level),
+        }
+      }
+    } else {
+      timeline.push({
+        kind: 'command_execution',
+        id: `command-${callId}`,
+        commandId: callId,
+        createdAt: log.createdAt,
+        startedAt: log.createdAt,
+        completedAt: isCompleted || isFailed ? log.createdAt : null,
+        level: log.level,
+        sourceLabel,
+        agentName,
+        stream: 'stdout',
+        command,
+        output,
+        exitCode: isFailed ? 1 : isCompleted ? 0 : null,
+        status,
+        state: commandState,
+      })
+      commandIndexById.set(callId, timeline.length - 1)
+    }
+    return true
+  }
+
+  return false
+}
+
+/**
  * Handle a Responses API event (assistant/user/result/system format used by qwen-cli, kimi, etc.)
  * Pushes 0 or more timeline events and updates commandIndexById.
  * Returns true if the event was recognized and handled (even if nothing was pushed).
@@ -512,16 +609,19 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
     const { itemPayload, sourceLabel, agentName, stream, rawFallback } = structuredLog
 
     // No viberator `item` wrapper — try Responses API format (assistant/user/result/system)
+    // then opencode format (text/tool_use/step_start/step_finish)
     if (!itemPayload.item) {
-      const handled = handleResponsesApiEvent(
-        log,
-        sourceLabel,
-        agentName,
-        itemPayload.data,
-        timeline,
-        commandIndexById,
-        toolUseDefs,
-      )
+      const handled =
+        handleResponsesApiEvent(
+          log,
+          sourceLabel,
+          agentName,
+          itemPayload.data,
+          timeline,
+          commandIndexById,
+          toolUseDefs,
+        ) ||
+        handleOpencodeEvent(log, sourceLabel, agentName, itemPayload.data, timeline, commandIndexById)
       if (!handled) {
         // Use sourceLabel from the envelope (e.g. "agent:claude") not log.source ("viberator")
         timeline.push({ kind: 'raw', id: log.id, createdAt: log.createdAt, level: log.level, sourceLabel, text: rawFallback })
