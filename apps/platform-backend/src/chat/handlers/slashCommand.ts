@@ -41,7 +41,7 @@ bot.onSlashCommand("/viberator", async (event) => {
             id: "projectId",
             label: "Project",
             placeholder: "Select a project",
-            children: projects.map((p) =>
+            options: projects.map((p) =>
               SelectOption({ label: p.name, value: p.id }),
             ),
           }),
@@ -49,14 +49,14 @@ bot.onSlashCommand("/viberator", async (event) => {
             id: "clankerId",
             label: "Clanker",
             placeholder: "Select a clanker",
-            children: clankers.map((c) =>
+            options: clankers.map((c) =>
               SelectOption({ label: c.name, value: c.id }),
             ),
           }),
           Select({
             id: "mode",
             label: "Mode",
-            children: [
+            options: [
               SelectOption({ label: "Research", value: "research" }),
               SelectOption({ label: "Planning", value: "planning" }),
               SelectOption({ label: "Execution", value: "execution" }),
