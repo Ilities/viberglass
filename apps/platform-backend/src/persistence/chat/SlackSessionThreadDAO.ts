@@ -18,21 +18,30 @@ export class SlackSessionThreadDAO {
     threadId: string,
     channelId: string,
   ): Promise<SlackSessionThread> {
-    const row = await db
-      .insertInto("slack_session_threads")
-      .values({
-        session_id: sessionId,
-        thread_id: threadId,
-        channel_id: channelId,
-      })
-      .onConflict((oc) =>
-        oc.column("session_id").doUpdateSet({
+    const row = await db.transaction().execute(async (trx) => {
+      // Remove any stale mapping for this thread so a new session can take over
+      await trx
+        .deleteFrom("slack_session_threads")
+        .where("thread_id", "=", threadId)
+        .where("session_id", "!=", sessionId)
+        .execute();
+
+      return trx
+        .insertInto("slack_session_threads")
+        .values({
+          session_id: sessionId,
           thread_id: threadId,
           channel_id: channelId,
-        }),
-      )
-      .returningAll()
-      .executeTakeFirstOrThrow();
+        })
+        .onConflict((oc) =>
+          oc.column("session_id").doUpdateSet({
+            thread_id: threadId,
+            channel_id: channelId,
+          }),
+        )
+        .returningAll()
+        .executeTakeFirstOrThrow();
+    });
 
     return this.mapRow(row);
   }
