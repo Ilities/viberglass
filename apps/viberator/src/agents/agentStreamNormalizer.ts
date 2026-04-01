@@ -220,7 +220,68 @@ function normalizeJsonlLine(line: string): string[] {
     return normalizeUserBlocks(blocks);
   }
 
-  // OpenCode format: {"type":"message.part.updated","part":{...}}
+  // New OpenCode format: step_start / step_finish carry no user-visible value
+  if (eventType === "step_start" || eventType === "step_finish") return [];
+
+  // New OpenCode format: {"type":"text","part":{"type":"text","text":"..."}}
+  if (eventType === "text") {
+    const part = isRecord(data.part) ? data.part : null;
+    if (!part) return [];
+    const text = typeof part.text === "string" ? part.text.trim() : "";
+    if (!text) return [];
+    return [JSON.stringify({ type: "item.completed", item: { type: "agent_message", text } })];
+  }
+
+  // New OpenCode format: {"type":"tool_use","part":{"tool":"...","callID":"...","state":{...}}}
+  if (eventType === "tool_use") {
+    const part = isRecord(data.part) ? data.part : null;
+    if (!part) return [];
+
+    const name = typeof part.tool === "string" ? part.tool : "(tool)";
+    const callId = typeof part.callID === "string" ? part.callID : undefined;
+    const state = isRecord(part.state) ? part.state : null;
+    if (!state) return [];
+
+    const status = typeof state.status === "string" ? state.status : "";
+    const input = isRecord(state.input) ? state.input : {};
+
+    // Build a human-readable command string from the tool name and input
+    const cmd = typeof input.command === "string" ? input.command : null;
+    const filePath =
+      typeof input.filePath === "string" ? input.filePath :
+      typeof input.file_path === "string" ? input.file_path :
+      typeof input.path === "string" ? input.path : null;
+    const pattern =
+      typeof input.pattern === "string" ? input.pattern :
+      typeof input.query === "string" ? input.query : null;
+    const url = typeof input.url === "string" ? input.url : null;
+    let command = cmd ?? (filePath ? `${name} ${filePath}` : pattern ? `${name} ${pattern}` : url ? `${name} ${url}` : name);
+
+    const startedItem: Record<string, unknown> = { type: "command_execution", command };
+    if (callId) startedItem.id = callId;
+
+    if (status === "running") {
+      return [JSON.stringify({ type: "item.started", item: startedItem })];
+    }
+
+    const isError = status === "error" || status === "failed";
+    const rawOutput = state.output;
+    const output = typeof rawOutput === "string" ? rawOutput : "";
+    const completedItem: Record<string, unknown> = {
+      ...startedItem,
+      aggregated_output: output,
+      status: isError ? "failed" : "completed",
+      exit_code: isError ? 1 : 0,
+    };
+
+    // Emit started + completed so the frontend can pair them by id
+    return [
+      JSON.stringify({ type: "item.started", item: startedItem }),
+      JSON.stringify({ type: "item.completed", item: completedItem }),
+    ];
+  }
+
+  // Old OpenCode format: {"type":"message.part.updated","part":{...}}
   if (eventType === "message.part.updated") {
     const part = isRecord(data.part) ? data.part : null;
     if (!part) return [];
