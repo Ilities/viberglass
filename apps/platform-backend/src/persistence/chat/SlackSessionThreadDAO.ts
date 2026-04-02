@@ -70,6 +70,14 @@ export class SlackSessionThreadDAO {
     return row ? this.mapRow(row) : null;
   }
 
+  async listAll(): Promise<SlackSessionThread[]> {
+    const rows = await db
+      .selectFrom("slack_session_threads")
+      .selectAll()
+      .execute();
+    return rows.map((row) => this.mapRow(row));
+  }
+
   async unlinkBySessionId(sessionId: string): Promise<void> {
     await db
       .deleteFrom("slack_session_threads")

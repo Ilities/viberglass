@@ -321,6 +321,9 @@ const backendEcs: BackendEcsOutputs = createBackendEcs({
   allowedOrigins: config.appDomain
     ? pulumi.interpolate`https://${config.appDomain}`
     : pulumi.interpolate`https://${amplifyFrontend.defaultDomain}`,
+  platformFrontendUrl: config.appDomain
+    ? pulumi.interpolate`https://${config.appDomain}`
+    : pulumi.interpolate`https://${amplifyFrontend.defaultDomain}`,
   // Platform API URL for worker callbacks (SEC-05)
   platformApiUrl: config.apiDomain
     ? pulumi.interpolate`https://${config.apiDomain}`

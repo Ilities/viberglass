@@ -52,6 +52,8 @@ export interface BackendEcsOptions {
   allowedOrigins?: pulumi.Input<string>;
   /** Platform API URL for worker callbacks (e.g., "https://api.viberglass.io") */
   platformApiUrl?: pulumi.Input<string>;
+  /** Frontend app URL for Slack thread links (e.g., "https://app.viberglass.io") */
+  platformFrontendUrl?: pulumi.Input<string>;
   /** S3 bucket used for uploaded assets and ticket media */
   uploadsBucketName?: pulumi.Input<string>;
   /** S3 key prefix for ticket media objects */
@@ -365,6 +367,7 @@ export function createBackendEcs(
             options.webhookSecretEncryptionKeySsmArn,
           allowedOrigins: options.allowedOrigins ?? "http://localhost:3000",
           platformApiUrl: options.platformApiUrl ?? "",
+          platformFrontendUrl: options.platformFrontendUrl ?? "",
           workerExecRole: options.worker?.executionRoleArn ?? "",
           workerTaskRole: options.worker?.taskRoleArn ?? "",
           workerImage: options.worker?.imageUri ?? "",
@@ -387,6 +390,7 @@ export function createBackendEcs(
             webhookSecretEncryptionKeyPath,
             allowedOrigins,
             platformApiUrl,
+            platformFrontendUrl,
             workerExecRole,
             workerTaskRole,
             workerImage,
@@ -428,6 +432,13 @@ export function createBackendEcs(
               envVars.push({
                 name: "PLATFORM_API_URL",
                 value: platformApiUrl,
+              });
+            }
+
+            if (platformFrontendUrl) {
+              envVars.push({
+                name: "PLATFORM_FRONTEND_URL",
+                value: platformFrontendUrl,
               });
             }
 

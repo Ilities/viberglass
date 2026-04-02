@@ -1,7 +1,8 @@
 import bot from "../bot";
-import { getSessionForThread } from "../sessionThreadMap";
+import { getSessionForThread, linkSessionThread, unlinkSession } from "../sessionThreadMap";
 import { AgentSessionInteractionService } from "../../services/agentSession/AgentSessionInteractionService";
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
+import { AgentSessionLaunchService } from "../../services/agentSession/AgentSessionLaunchService";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
@@ -9,7 +10,8 @@ import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPend
 import { JobService } from "../../services/JobService";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
-import { AGENT_SESSION_STATUS } from "../../types/agentSession";
+import { AGENT_SESSION_MODE, AGENT_SESSION_STATUS } from "../../types/agentSession";
+import { chatSessionBridge } from "../ChatSessionBridgeService";
 import logger from "../../config/logger";
 
 const agentSessionDAO = new AgentSessionDAO();
@@ -22,6 +24,15 @@ const interactionService = new AgentSessionInteractionService(
   agentTurnDAO,
   agentSessionEventDAO,
   agentPendingRequestDAO,
+  new JobService(),
+  new CredentialRequirementsService(),
+  new WorkerExecutionService(),
+);
+
+const launchService = new AgentSessionLaunchService(
+  agentSessionDAO,
+  agentTurnDAO,
+  agentSessionEventDAO,
   new JobService(),
   new CredentialRequirementsService(),
   new WorkerExecutionService(),
@@ -45,6 +56,23 @@ bot.onSubscribedMessage(async (thread, message) => {
     const detail = await queryService.getDetail(sessionId);
     if (!detail) {
       await thread.post("Session not found.");
+      return;
+    }
+
+    if (
+      detail.session.status === AGENT_SESSION_STATUS.COMPLETED &&
+      detail.session.mode !== AGENT_SESSION_MODE.EXECUTION
+    ) {
+      const result = await launchService.launch({
+        ticketId: detail.session.ticketId,
+        clankerId: detail.session.clankerId,
+        mode: detail.session.mode,
+        initialMessage: text,
+      });
+      // Only unlink old session after successful launch to avoid dangling state
+      await unlinkSession(sessionId);
+      await linkSessionThread(result.session.id, thread);
+      chatSessionBridge.startBridge(result.session.id, thread);
       return;
     }
 

@@ -2,6 +2,7 @@ import { ThreadImpl } from "chat";
 import bot from "../bot";
 import { chatSessionBridge } from "../ChatSessionBridgeService";
 import { linkSessionThread } from "../sessionThreadMap";
+import { ticketUrl } from "../platformLinks";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { AgentSessionLaunchService } from "../../services/agentSession/AgentSessionLaunchService";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
@@ -72,10 +73,9 @@ bot.onModalSubmit("viberator_launch", async (event) => {
       return;
     }
 
-    const sent = await channel.post(
-      `*Session started:* ${title}\n` +
-        `Project: ${projectId} | Ticket: ${ticket.id}`,
-    );
+    const url = ticketUrl(projectId, ticket.id);
+    const ticketRef = url ? `[View ticket](${url})` : title;
+    const sent = await channel.post({ markdown: `_${mode}_ | ${ticketRef}` });
 
     // Construct a Thread from the sent message's threadId so we can
     // subscribe and stream session events into the Slack thread.
@@ -89,6 +89,7 @@ bot.onModalSubmit("viberator_launch", async (event) => {
       channelId,
     });
 
+    await thread.post({ markdown: `*Prompt:*\n${message}` });
     await thread.subscribe();
     await linkSessionThread(result.session.id, thread);
     chatSessionBridge.startBridge(result.session.id, thread);
