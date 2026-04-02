@@ -63,10 +63,10 @@ bot.onSubscribedMessage(async (thread, message) => {
       detail.session.status === AGENT_SESSION_STATUS.COMPLETED &&
       detail.session.mode !== AGENT_SESSION_MODE.EXECUTION
     ) {
-      const mentionMatch = text.match(/^@viberator\s*/i);
-      if (!mentionMatch) return;
+      if (!message.isMention) return;
 
-      const instruction = text.slice(mentionMatch[0].length).trim();
+      // Strip the leading @mention to get the instruction text
+      const instruction = text.replace(/^@\S+\s*/, "").trim();
       if (!instruction) {
         await thread.post(
           "_Please include your feedback after @viberator to revise the document._",
