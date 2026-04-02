@@ -48,7 +48,7 @@ const queryService = new AgentSessionQueryService(
 bot.onSubscribedMessage(async (thread, message) => {
   const sessionId = await getSessionForThread(thread.id);
 
-  logger.debug("onSubscribedMessage fired", {
+  logger.info("onSubscribedMessage fired", {
     threadId: thread.id,
     sessionId,
     isMention: message.isMention,
@@ -71,7 +71,7 @@ bot.onSubscribedMessage(async (thread, message) => {
       detail.session.status === AGENT_SESSION_STATUS.COMPLETED &&
       detail.session.mode !== AGENT_SESSION_MODE.EXECUTION
     ) {
-      logger.debug("Completed session thread message", {
+      logger.info("Completed session thread message", {
         sessionId,
         isMention: message.isMention,
         text: text.slice(0, 200),
