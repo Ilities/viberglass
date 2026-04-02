@@ -48,6 +48,7 @@
     "event_subscriptions": {
       "request_url": "https://YOUR_HOST/api/webhooks/slack",
       "bot_events": [
+        "app_mention",
         "message.channels",
         "message.groups"
       ]

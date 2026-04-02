@@ -14,6 +14,7 @@ import "./handlers/slashCommand";
 import "./handlers/modalSubmit";
 import "./handlers/threadReply";
 import "./handlers/approvalAction";
+import "./handlers/mentionDebug";
 
 // Resume bridges for active sessions that were running before restart.
 // Deferred so it doesn't block module loading.
