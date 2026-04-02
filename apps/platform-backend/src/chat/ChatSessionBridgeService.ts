@@ -10,8 +10,11 @@ import type { AgentSessionEvent } from "../persistence/agentSession/AgentSession
 import {
   AGENT_SESSION_EVENT_TYPE,
   AGENT_SESSION_ACTIVE_STATUSES,
+  AGENT_SESSION_MODE,
+  AGENT_SESSION_STATUS,
   type AgentSessionEventType,
 } from "../types/agentSession";
+import { ticketUrl } from "./platformLinks";
 import { SlackSessionThreadDAO } from "../persistence/chat/SlackSessionThreadDAO";
 import { getThreadForSession, unlinkSession } from "./sessionThreadMap";
 
@@ -59,12 +62,14 @@ export class ChatSessionBridgeService {
           const seq = Number(event.sequence);
           if (seq > lastSequence) lastSequence = seq;
 
-          await this.postEvent(event, thread, sessionId);
+          const keepSubscribed = await this.postEvent(event, thread, sessionId);
 
           if (TERMINAL_EVENT_TYPES.has(event.eventType)) {
             this.stopBridge(sessionId);
-            await unlinkSession(sessionId);
-            await thread.unsubscribe();
+            if (!keepSubscribed) {
+              await unlinkSession(sessionId);
+              await thread.unsubscribe();
+            }
             return;
           }
         }
@@ -103,6 +108,30 @@ export class ChatSessionBridgeService {
       if (resumed > 0) {
         logger.info(`Resumed ${resumed} Slack session bridges on startup`);
       }
+
+      // Re-subscribe threads for completed non-execution sessions (continuation support)
+      const allThreads = await this.slackThreadDAO.listAll();
+      const activeIds = new Set(activeSessions.map((s) => s.id));
+      let resubscribed = 0;
+      for (const entry of allThreads) {
+        if (activeIds.has(entry.sessionId)) continue;
+        const session = await this.sessionDAO.getById(entry.sessionId);
+        if (
+          session?.status === AGENT_SESSION_STATUS.COMPLETED &&
+          session.mode !== AGENT_SESSION_MODE.EXECUTION
+        ) {
+          const thread = await getThreadForSession(entry.sessionId);
+          if (thread) {
+            await thread.subscribe();
+            resubscribed++;
+          }
+        }
+      }
+      if (resubscribed > 0) {
+        logger.info(
+          `Re-subscribed ${resubscribed} completed session threads on startup`,
+        );
+      }
     } catch (err) {
       logger.error("Failed to resume Slack session bridges", {
         error: err instanceof Error ? err.message : String(err),
@@ -122,7 +151,8 @@ export class ChatSessionBridgeService {
     event: AgentSessionEvent,
     thread: Thread,
     sessionId: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
+    let keepSubscribed = false;
     const payload = event.payloadJson as Record<string, unknown> | null;
 
     switch (event.eventType) {
@@ -173,9 +203,28 @@ export class ChatSessionBridgeService {
         break;
       }
 
-      case AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED:
-        await thread.post({ markdown: "*Session completed.*" });
+      case AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED: {
+        const session = await this.sessionDAO.getById(sessionId);
+        const parts: string[] = ["*Session completed.*"];
+        if (session) {
+          if (
+            session.mode === AGENT_SESSION_MODE.EXECUTION &&
+            session.draftPullRequestUrl
+          ) {
+            parts.push(`[View pull request](${session.draftPullRequestUrl})`);
+          }
+          const url = ticketUrl(session.projectId, session.ticketId);
+          if (url) {
+            parts.push(`[View ticket](${url})`);
+          }
+          if (session.mode !== AGENT_SESSION_MODE.EXECUTION) {
+            parts.push("_Reply in this thread to revise the document._");
+            keepSubscribed = true;
+          }
+        }
+        await thread.post({ markdown: parts.join("\n") });
         break;
+      }
 
       case AGENT_SESSION_EVENT_TYPE.SESSION_FAILED: {
         const reason = (payload?.reason as string) ?? "Unknown error";
@@ -192,6 +241,8 @@ export class ChatSessionBridgeService {
       default:
         break;
     }
+
+    return keepSubscribed;
   }
 }
 

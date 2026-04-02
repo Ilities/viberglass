@@ -72,6 +72,7 @@ services:
       TICKET_MEDIA_DISK_ROOT: /tmp/viberglass-ticket-media
       TICKET_MEDIA_CONTAINER_ROOT: /tmp/viberglass-ticket-media
       SECRETS_ENCRYPTION_KEY: 'very-berry-secret-key'
+      PLATFORM_FRONTEND_URL: http://localhost:3000
       # Hot-reload in containers (required for some Docker setups)
       CHOKIDAR_USEPOLLING: "true"
     ports:
