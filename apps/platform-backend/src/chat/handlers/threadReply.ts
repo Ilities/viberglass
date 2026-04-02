@@ -47,6 +47,14 @@ const queryService = new AgentSessionQueryService(
 
 bot.onSubscribedMessage(async (thread, message) => {
   const sessionId = await getSessionForThread(thread.id);
+
+  logger.debug("onSubscribedMessage fired", {
+    threadId: thread.id,
+    sessionId,
+    isMention: message.isMention,
+    text: message.text?.slice(0, 200),
+  });
+
   if (!sessionId) return;
 
   const text = message.text?.trim();
@@ -63,6 +71,11 @@ bot.onSubscribedMessage(async (thread, message) => {
       detail.session.status === AGENT_SESSION_STATUS.COMPLETED &&
       detail.session.mode !== AGENT_SESSION_MODE.EXECUTION
     ) {
+      logger.debug("Completed session thread message", {
+        sessionId,
+        isMention: message.isMention,
+        text: text.slice(0, 200),
+      });
       if (!message.isMention) return;
 
       // Strip the leading @mention to get the instruction text
