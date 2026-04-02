@@ -7,6 +7,8 @@ import { AgentTurnDAO } from "../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../persistence/agentSession/AgentPendingRequestDAO";
 import type { AgentSessionEvent } from "../persistence/agentSession/AgentSessionEventDAO";
+import { TicketPhaseDocumentService } from "../services/TicketPhaseDocumentService";
+import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import {
   AGENT_SESSION_EVENT_TYPE,
   AGENT_SESSION_ACTIVE_STATUSES,
@@ -30,6 +32,7 @@ export class ChatSessionBridgeService {
   private readonly queryService: AgentSessionQueryService;
   private readonly sessionDAO: AgentSessionDAO;
   private readonly slackThreadDAO: SlackSessionThreadDAO;
+  private readonly documentService: TicketPhaseDocumentService;
   private timers = new Map<string, ReturnType<typeof setInterval>>();
 
   constructor() {
@@ -44,6 +47,7 @@ export class ChatSessionBridgeService {
       pendingRequestDAO,
     );
     this.slackThreadDAO = new SlackSessionThreadDAO();
+    this.documentService = new TicketPhaseDocumentService();
   }
 
   startBridge(sessionId: string, thread: Thread): void {
@@ -205,6 +209,20 @@ export class ChatSessionBridgeService {
 
       case AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED: {
         const session = await this.sessionDAO.getById(sessionId);
+        if (session && session.mode !== AGENT_SESSION_MODE.EXECUTION) {
+          const phase =
+            session.mode === AGENT_SESSION_MODE.RESEARCH
+              ? TICKET_WORKFLOW_PHASE.RESEARCH
+              : TICKET_WORKFLOW_PHASE.PLANNING;
+          const doc = await this.documentService.getOrCreateDocument(
+            session.ticketId,
+            phase,
+          );
+          if (doc.content?.trim()) {
+            await thread.post({ markdown: doc.content });
+          }
+          keepSubscribed = true;
+        }
         const parts: string[] = ["*Session completed.*"];
         if (session) {
           if (
@@ -218,8 +236,9 @@ export class ChatSessionBridgeService {
             parts.push(`[View ticket](${url})`);
           }
           if (session.mode !== AGENT_SESSION_MODE.EXECUTION) {
-            parts.push("_Reply in this thread to revise the document._");
-            keepSubscribed = true;
+            parts.push(
+              "_Mention @viberator with your feedback to revise the document._",
+            );
           }
         }
         await thread.post({ markdown: parts.join("\n") });

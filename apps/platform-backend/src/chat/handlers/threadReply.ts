@@ -63,11 +63,22 @@ bot.onSubscribedMessage(async (thread, message) => {
       detail.session.status === AGENT_SESSION_STATUS.COMPLETED &&
       detail.session.mode !== AGENT_SESSION_MODE.EXECUTION
     ) {
+      const mentionMatch = text.match(/^@viberator\s*/i);
+      if (!mentionMatch) return;
+
+      const instruction = text.slice(mentionMatch[0].length).trim();
+      if (!instruction) {
+        await thread.post(
+          "_Please include your feedback after @viberator to revise the document._",
+        );
+        return;
+      }
+
       const result = await launchService.launch({
         ticketId: detail.session.ticketId,
         clankerId: detail.session.clankerId,
         mode: detail.session.mode,
-        initialMessage: text,
+        initialMessage: instruction,
       });
       // Only unlink old session after successful launch to avoid dangling state
       await unlinkSession(sessionId);

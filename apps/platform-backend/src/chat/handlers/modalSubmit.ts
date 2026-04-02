@@ -77,12 +77,13 @@ bot.onModalSubmit("viberator_launch", async (event) => {
     const ticketRef = url ? `[View ticket](${url})` : title;
     const sent = await channel.post({ markdown: `_${mode}_ | ${ticketRef}` });
 
-    // Construct a Thread from the sent message's threadId so we can
-    // subscribe and stream session events into the Slack thread.
-    // Slack thread IDs follow format "slack:CHANNEL:TIMESTAMP"
-    const threadId = sent.threadId;
-    const parts = threadId.split(":");
-    const channelId = parts.length >= 2 ? parts.slice(0, -1).join(":") : threadId;
+    // channel.post() returns a synthetic threadId with empty threadTs.
+    // sent.id is the actual message timestamp, which is the thread_ts for replies.
+    // We rebuild the threadId using sent.id so thread.post() creates thread replies.
+    const rawParts = sent.threadId.split(":");
+    const channelId = rawParts.slice(0, -1).join(":");
+    const threadTs = rawParts[rawParts.length - 1] || sent.id;
+    const threadId = `${channelId}:${threadTs}`;
     const thread = new ThreadImpl({
       adapterName: "slack",
       id: threadId,
