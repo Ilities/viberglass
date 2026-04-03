@@ -30,3 +30,6 @@ export * from './workerImages'
 
 // Secret types
 export * from './secret'
+
+// Agent session types
+export * from './agentSession'

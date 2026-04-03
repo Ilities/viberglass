@@ -57,7 +57,8 @@
     "typescript": "^5.3.0",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "@viberglass/chat-slack": "*"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

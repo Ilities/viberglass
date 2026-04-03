@@ -106,10 +106,10 @@ export class ChatSessionBridgeService {
       }
 
       if (resumed > 0) {
-        logger.info(`Resumed ${resumed} Slack session bridges on startup`);
+        logger.info(`Resumed ${resumed} chat session bridges on startup`);
       }
     } catch (err) {
-      logger.error("Failed to resume Slack session bridges", {
+      logger.error("Failed to resume chat session bridges", {
         error: err instanceof Error ? err.message : String(err),
       });
     }

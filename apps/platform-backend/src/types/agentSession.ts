@@ -1,23 +1,15 @@
-export const AGENT_SESSION_MODE = {
-  RESEARCH: "research",
-  PLANNING: "planning",
-  EXECUTION: "execution",
-} as const;
+// AgentSessionMode and AgentSessionStatus are the shared source of truth — defined in @viberglass/types
+export {
+  AGENT_SESSION_MODE,
+  AGENT_SESSION_STATUS,
+  type AgentSessionMode,
+  type AgentSessionStatus,
+} from "@viberglass/types";
 
-export type AgentSessionMode =
-  (typeof AGENT_SESSION_MODE)[keyof typeof AGENT_SESSION_MODE];
-
-export const AGENT_SESSION_STATUS = {
-  ACTIVE: "active",
-  WAITING_ON_USER: "waiting_on_user",
-  WAITING_ON_APPROVAL: "waiting_on_approval",
-  COMPLETED: "completed",
-  FAILED: "failed",
-  CANCELLED: "cancelled",
-} as const;
-
-export type AgentSessionStatus =
-  (typeof AGENT_SESSION_STATUS)[keyof typeof AGENT_SESSION_STATUS];
+import {
+  AGENT_SESSION_STATUS,
+  type AgentSessionStatus,
+} from "@viberglass/types";
 
 export const AGENT_SESSION_ACTIVE_STATUSES: readonly AgentSessionStatus[] = [
   AGENT_SESSION_STATUS.ACTIVE,

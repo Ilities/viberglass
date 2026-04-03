@@ -23,6 +23,7 @@
   ],
   "workspaces": [
     "packages/types",
+    "packages/chat-slack",
     "apps/viberator",
     "apps/platform-backend",
     "apps/platform-frontend",
