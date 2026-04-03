@@ -1,0 +1,68 @@
+import type { AgentSessionMode, AgentSessionStatus } from "@viberglass/types";
+import type { Thread } from "chat";
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+}
+
+export interface ClankerSummary {
+  id: string;
+  name: string;
+}
+
+export interface SessionDetail {
+  session: {
+    status: AgentSessionStatus;
+    mode: AgentSessionMode;
+    ticketId: string;
+    clankerId: string;
+  };
+}
+
+export interface LaunchSessionResult {
+  session: { id: string };
+}
+
+/**
+ * Services the backend must provide to the Slack handler extension.
+ * Implement this interface in the backend composition root and pass it to
+ * registerSlackHandlers().
+ */
+export interface SlackHandlerServices {
+  // Data queries for the slash-command form
+  listProjects(): Promise<ProjectSummary[]>;
+  listClankers(): Promise<ClankerSummary[]>;
+
+  // Ticket + session lifecycle
+  createTicket(params: {
+    projectId: string;
+    title: string;
+    description: string;
+  }): Promise<{ id: string; projectId: string }>;
+  launchSession(params: {
+    ticketId: string;
+    clankerId: string;
+    mode: AgentSessionMode;
+    initialMessage: string;
+  }): Promise<LaunchSessionResult>;
+
+  // Session state queries
+  getSessionDetail(sessionId: string): Promise<SessionDetail | null>;
+
+  // Session interaction
+  replyToSession(sessionId: string, text: string): Promise<void>;
+  sendMessageToSession(sessionId: string, text: string): Promise<void>;
+  approveSession(sessionId: string, approved: boolean): Promise<void>;
+
+  // Thread ↔ session mapping (adapter-agnostic; backend stamps the adapter name)
+  getSessionForThread(threadId: string): Promise<string | undefined>;
+  linkSessionThread(sessionId: string, thread: Thread): Promise<void>;
+  unlinkSession(sessionId: string): Promise<void>;
+
+  // Bridge control
+  startBridge(sessionId: string, thread: Thread): void;
+
+  // URL helpers
+  ticketUrl(projectId: string, ticketId: string): string | null;
+}

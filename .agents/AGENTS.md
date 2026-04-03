@@ -54,6 +54,11 @@ These are the single source of truth instructions for agent behavior and backend
 - Use constructor injection for collaborators; no hidden business-collaborator instantiation.
 - Wire concrete implementations in the composition root.
 
+**Extension Package Pattern:** When a capability has multiple swappable implementations (chat adapters, SCM providers, agent types, secret backends), use the extension package pattern documented in `.claude/skills/extension-pattern.md`. Key rules:
+- Extension logic lives in `packages/<name>` and is injected with a narrow `*Services` interface.
+- Domain types used by extensions belong in `@viberglass/types` — import them, never redefine them.
+- Generic infrastructure (DAOs, registries, bridges) must not reference any specific provider by name.
+
 ### 5) Naming Conventions
 
 - Class files: PascalCase matching the primary exported class name.

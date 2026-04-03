@@ -2,77 +2,76 @@ import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
 
-type SlackSessionThreadRow = Selectable<Database["slack_session_threads"]>;
+type ChatSessionThreadRow = Selectable<Database["chat_session_threads"]>;
 
-export interface SlackSessionThread {
+export interface ChatSessionThread {
   id: string;
   sessionId: string;
   threadId: string;
   channelId: string;
+  adapterName: string;
   createdAt: Date;
 }
 
-export class SlackSessionThreadDAO {
+export class ChatSessionThreadDAO {
   async link(
     sessionId: string,
     threadId: string,
     channelId: string,
-  ): Promise<SlackSessionThread> {
+    adapterName: string,
+  ): Promise<ChatSessionThread> {
     const row = await db.transaction().execute(async (trx) => {
       // Remove any stale mapping for this thread so a new session can take over
       await trx
-        .deleteFrom("slack_session_threads")
+        .deleteFrom("chat_session_threads")
         .where("thread_id", "=", threadId)
         .where("session_id", "!=", sessionId)
         .execute();
 
       return trx
-        .insertInto("slack_session_threads")
+        .insertInto("chat_session_threads")
         .values({
           session_id: sessionId,
           thread_id: threadId,
           channel_id: channelId,
+          adapter_name: adapterName,
         })
         .onConflict((oc) =>
-          oc.column("session_id").doUpdateSet({
-            thread_id: threadId,
-            channel_id: channelId,
-          }),
+          oc
+            .column("session_id")
+            .doUpdateSet({
+              thread_id: threadId,
+              channel_id: channelId,
+              adapter_name: adapterName,
+            }),
         )
         .returningAll()
         .executeTakeFirstOrThrow();
     });
-
     return this.mapRow(row);
   }
 
-  async getBySessionId(
-    sessionId: string,
-  ): Promise<SlackSessionThread | null> {
+  async getBySessionId(sessionId: string): Promise<ChatSessionThread | null> {
     const row = await db
-      .selectFrom("slack_session_threads")
+      .selectFrom("chat_session_threads")
       .selectAll()
       .where("session_id", "=", sessionId)
       .executeTakeFirst();
-
     return row ? this.mapRow(row) : null;
   }
 
-  async getByThreadId(
-    threadId: string,
-  ): Promise<SlackSessionThread | null> {
+  async getByThreadId(threadId: string): Promise<ChatSessionThread | null> {
     const row = await db
-      .selectFrom("slack_session_threads")
+      .selectFrom("chat_session_threads")
       .selectAll()
       .where("thread_id", "=", threadId)
       .executeTakeFirst();
-
     return row ? this.mapRow(row) : null;
   }
 
-  async listAll(): Promise<SlackSessionThread[]> {
+  async listAll(): Promise<ChatSessionThread[]> {
     const rows = await db
-      .selectFrom("slack_session_threads")
+      .selectFrom("chat_session_threads")
       .selectAll()
       .execute();
     return rows.map((row) => this.mapRow(row));
@@ -80,17 +79,18 @@ export class SlackSessionThreadDAO {
 
   async unlinkBySessionId(sessionId: string): Promise<void> {
     await db
-      .deleteFrom("slack_session_threads")
+      .deleteFrom("chat_session_threads")
       .where("session_id", "=", sessionId)
       .execute();
   }
 
-  private mapRow(row: SlackSessionThreadRow): SlackSessionThread {
+  private mapRow(row: ChatSessionThreadRow): ChatSessionThread {
     return {
       id: row.id,
       sessionId: row.session_id,
       threadId: row.thread_id,
       channelId: row.channel_id,
+      adapterName: row.adapter_name,
       createdAt: row.created_at,
     };
   }
