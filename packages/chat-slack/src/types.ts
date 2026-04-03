@@ -3,6 +3,7 @@ import type { Thread } from "chat";
 
 export type SessionAdvanceResult =
   | { kind: "advance"; targetMode: AgentSessionMode }
+  | { kind: "chain"; firstMode: AgentSessionMode; thenMode: AgentSessionMode }
   | { kind: "revise" }
   | { kind: "invalid"; message: string };
 
@@ -70,7 +71,7 @@ export interface SlackHandlerServices {
   unlinkSession(sessionId: string): Promise<void>;
 
   // Bridge control
-  startBridge(sessionId: string, thread: Thread): void;
+  startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode): void;
 
   // URL helpers
   ticketUrl(projectId: string, ticketId: string): string | null;

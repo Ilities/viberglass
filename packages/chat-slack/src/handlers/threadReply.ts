@@ -49,6 +49,20 @@ export function registerThreadReplyHandler(
           return;
         }
 
+        if (advance.kind === "chain") {
+          await thread.post(`_Starting planning session (will advance to execution automatically)…_`);
+          const result = await services.launchSession({
+            ticketId: detail.session.ticketId,
+            clankerId: detail.session.clankerId,
+            mode: advance.firstMode,
+            initialMessage: "",
+          });
+          await services.unlinkSession(sessionId);
+          await services.linkSessionThread(result.session.id, thread);
+          services.startBridge(result.session.id, thread, advance.thenMode);
+          return;
+        }
+
         const targetMode =
           advance.kind === "advance"
             ? advance.targetMode
