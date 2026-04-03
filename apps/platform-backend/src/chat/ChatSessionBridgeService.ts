@@ -13,11 +13,9 @@ import {
   AGENT_SESSION_EVENT_TYPE,
   AGENT_SESSION_ACTIVE_STATUSES,
   AGENT_SESSION_MODE,
-  AGENT_SESSION_STATUS,
   type AgentSessionEventType,
 } from "../types/agentSession";
 import { ticketUrl } from "./platformLinks";
-import { SlackSessionThreadDAO } from "../persistence/chat/SlackSessionThreadDAO";
 import { getThreadForSession, unlinkSession } from "./sessionThreadMap";
 
 const POLL_INTERVAL_MS = 2000;
@@ -31,7 +29,6 @@ const TERMINAL_EVENT_TYPES = new Set<AgentSessionEventType>([
 export class ChatSessionBridgeService {
   private readonly queryService: AgentSessionQueryService;
   private readonly sessionDAO: AgentSessionDAO;
-  private readonly slackThreadDAO: SlackSessionThreadDAO;
   private readonly documentService: TicketPhaseDocumentService;
   private timers = new Map<string, ReturnType<typeof setInterval>>();
 
@@ -46,7 +43,6 @@ export class ChatSessionBridgeService {
       eventDAO,
       pendingRequestDAO,
     );
-    this.slackThreadDAO = new SlackSessionThreadDAO();
     this.documentService = new TicketPhaseDocumentService();
   }
 
@@ -66,13 +62,13 @@ export class ChatSessionBridgeService {
           const seq = Number(event.sequence);
           if (seq > lastSequence) lastSequence = seq;
 
-          const keepSubscribed = await this.postEvent(event, thread, sessionId);
+          const { keepLinked } = await this.postEvent(event, thread, sessionId);
 
           if (TERMINAL_EVENT_TYPES.has(event.eventType)) {
             this.stopBridge(sessionId);
-            if (!keepSubscribed) {
+            await thread.unsubscribe();
+            if (!keepLinked) {
               await unlinkSession(sessionId);
-              await thread.unsubscribe();
             }
             return;
           }
@@ -112,30 +108,6 @@ export class ChatSessionBridgeService {
       if (resumed > 0) {
         logger.info(`Resumed ${resumed} Slack session bridges on startup`);
       }
-
-      // Re-subscribe threads for completed non-execution sessions (continuation support)
-      const allThreads = await this.slackThreadDAO.listAll();
-      const activeIds = new Set(activeSessions.map((s) => s.id));
-      let resubscribed = 0;
-      for (const entry of allThreads) {
-        if (activeIds.has(entry.sessionId)) continue;
-        const session = await this.sessionDAO.getById(entry.sessionId);
-        if (
-          session?.status === AGENT_SESSION_STATUS.COMPLETED &&
-          session.mode !== AGENT_SESSION_MODE.EXECUTION
-        ) {
-          const thread = await getThreadForSession(entry.sessionId);
-          if (thread) {
-            await thread.subscribe();
-            resubscribed++;
-          }
-        }
-      }
-      if (resubscribed > 0) {
-        logger.info(
-          `Re-subscribed ${resubscribed} completed session threads on startup`,
-        );
-      }
     } catch (err) {
       logger.error("Failed to resume Slack session bridges", {
         error: err instanceof Error ? err.message : String(err),
@@ -155,8 +127,8 @@ export class ChatSessionBridgeService {
     event: AgentSessionEvent,
     thread: Thread,
     sessionId: string,
-  ): Promise<boolean> {
-    let keepSubscribed = false;
+  ): Promise<{ keepLinked: boolean }> {
+    let keepLinked = false;
     const payload = event.payloadJson as Record<string, unknown> | null;
 
     switch (event.eventType) {
@@ -221,7 +193,7 @@ export class ChatSessionBridgeService {
           if (doc.content?.trim()) {
             await thread.post({ markdown: doc.content });
           }
-          keepSubscribed = true;
+          keepLinked = true;
         }
         const parts: string[] = ["*Session completed.*"];
         if (session) {
@@ -235,9 +207,13 @@ export class ChatSessionBridgeService {
           if (url) {
             parts.push(`[View ticket](${url})`);
           }
-          if (session.mode !== AGENT_SESSION_MODE.EXECUTION) {
+          if (session.mode === AGENT_SESSION_MODE.RESEARCH) {
             parts.push(
-              "_Mention @viberator with your feedback to revise the document._",
+              '_Mention @viberator with feedback to revise, or "plan it" to move to planning._',
+            );
+          } else if (session.mode === AGENT_SESSION_MODE.PLANNING) {
+            parts.push(
+              '_Mention @viberator with feedback to revise, or "execute" to start execution._',
             );
           }
         }
@@ -261,7 +237,7 @@ export class ChatSessionBridgeService {
         break;
     }
 
-    return keepSubscribed;
+    return { keepLinked };
   }
 }
 
