@@ -6,20 +6,24 @@ import { Input } from '@/components/input'
 import { PageMeta } from '@/components/page-meta'
 import { Strong, Text, TextLink } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
 export function RegisterPage() {
   const { register, status } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const redirect = searchParams.get('redirect')
+
   useEffect(() => {
     if (status === 'authenticated') {
-      navigate('/', { replace: true })
+      const target = redirect && redirect.startsWith('/') ? redirect : '/'
+      navigate(target, { replace: true })
     }
-  }, [navigate, status])
+  }, [navigate, status, redirect])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -39,7 +43,8 @@ export function RegisterPage() {
 
     try {
       await register(name, email, password)
-      navigate('/', { replace: true })
+      const target = redirect && redirect.startsWith('/') ? redirect : '/'
+      navigate(target, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
