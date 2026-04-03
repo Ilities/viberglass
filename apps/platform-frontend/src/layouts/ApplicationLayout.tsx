@@ -164,9 +164,9 @@ function ApplicationLayoutContent() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      navigate('/login', { replace: true })
+      navigate(`/login?redirect=${encodeURIComponent(pathname)}`, { replace: true })
     }
-  }, [navigate, status])
+  }, [navigate, status, pathname])
 
   useEffect(() => {
     getProjects().then(setProjects).catch(console.error)
