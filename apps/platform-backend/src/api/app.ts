@@ -167,10 +167,6 @@ app.use("/api/webhooks", webhooksRouter);
 
 // Chat SDK Slack webhook (no auth — verified by Slack signing secret)
 app.post("/api/webhooks/slack", (req, res) => {
-  logger.info("Slack webhook received", {
-    type: req.body?.type,
-    eventType: req.body?.event?.type,
-  });
   if (typeof (bot.webhooks as Record<string, unknown>).slack !== "function") {
     logger.warn("Slack webhook received but SLACK_SIGNING_SECRET is not configured");
     res.status(503).json({ error: "Slack integration not configured" });
