@@ -116,13 +116,24 @@ const slackServices: SlackHandlerServices = {
   linkSessionThread: (sessionId, thread) =>
     linkSessionThread(sessionId, thread, "slack"),
   unlinkSession,
-  startBridge: (sessionId, thread) =>
-    chatSessionBridge.startBridge(sessionId, thread),
+  startBridge: (sessionId, thread, chainTo) =>
+    chatSessionBridge.startBridge(sessionId, thread, chainTo),
 
   ticketUrl,
 
   resolveSessionAdvance,
 };
+
+chatSessionBridge.configure({
+  approveSession: async (sessionId) => {
+    await interactionService.approve(sessionId, true);
+  },
+  launchAndLink: async ({ ticketId, clankerId, mode, thread }) => {
+    const result = await launchService.launch({ ticketId, clankerId, mode, initialMessage: "" });
+    await linkSessionThread(result.session.id, thread, "slack");
+    return result.session.id;
+  },
+});
 
 registerSlackHandlers(bot, slackServices);
 

@@ -24,6 +24,7 @@ const ADVANCE_TRIGGERS = new Set(["next", "proceed", "continue"]);
 
 export type SessionAdvanceResult =
   | { kind: "advance"; targetMode: AgentSessionMode }
+  | { kind: "chain"; firstMode: AgentSessionMode; thenMode: AgentSessionMode }
   | { kind: "revise" }
   | { kind: "invalid"; message: string };
 
@@ -60,13 +61,8 @@ export function resolveSessionAdvance(
   if (wantsExecute) {
     if (currentMode === AGENT_SESSION_MODE.PLANNING)
       return { kind: "advance", targetMode: AGENT_SESSION_MODE.EXECUTION };
-    if (currentMode === AGENT_SESSION_MODE.RESEARCH) {
-      return {
-        kind: "invalid",
-        message:
-          '_Cannot skip to execution. Start planning first with "plan it"._',
-      };
-    }
+    if (currentMode === AGENT_SESSION_MODE.RESEARCH)
+      return { kind: "chain", firstMode: AGENT_SESSION_MODE.PLANNING, thenMode: AGENT_SESSION_MODE.EXECUTION };
     return { kind: "revise" };
   }
 
