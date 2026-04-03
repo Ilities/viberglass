@@ -2,6 +2,9 @@ import type { Chat } from "chat";
 import { AGENT_SESSION_STATUS, AGENT_SESSION_MODE } from "@viberglass/types";
 import type { SlackHandlerServices } from "../types";
 
+const APPROVAL_WORDS = new Set(["approve", "approved", "yes", "lgtm", "looks good", "ok"]);
+const REJECTION_WORDS = new Set(["reject", "rejected", "no", "deny"]);
+
 export function registerThreadReplyHandler(
   bot: Chat,
   services: SlackHandlerServices,
@@ -72,7 +75,18 @@ export function registerThreadReplyHandler(
         return;
       }
 
-      if (detail.session.status === AGENT_SESSION_STATUS.WAITING_ON_USER) {
+      if (detail.session.status === AGENT_SESSION_STATUS.WAITING_ON_APPROVAL) {
+        const normalized = text.toLowerCase().trim();
+        if (APPROVAL_WORDS.has(normalized)) {
+          await services.approveSession(sessionId, true);
+        } else if (REJECTION_WORDS.has(normalized)) {
+          await services.approveSession(sessionId, false);
+        } else {
+          await thread.post(
+            "_The agent is waiting for approval. Use the Approve/Reject buttons above, or reply `approve` or `reject`._",
+          );
+        }
+      } else if (detail.session.status === AGENT_SESSION_STATUS.WAITING_ON_USER) {
         await services.replyToSession(sessionId, text);
       } else {
         await services.sendMessageToSession(sessionId, text);

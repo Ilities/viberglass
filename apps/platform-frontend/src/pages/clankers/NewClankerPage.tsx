@@ -23,7 +23,7 @@ import { buildClankerDeploymentConfig } from './config/buildConfig'
 import { AgentSelectionCards, DeploymentStrategyCards } from './config/selectionCards'
 import { StrategySpecificFields } from './config/strategies'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
-import { AGENTS_FILE_TYPE, isSkillPath, normalizeInstructionPath, skillPathFromUploadName } from './instructionFiles'
+import { AGENTS_FILE_TYPE, getHarnessConfigFile, isSkillPath, normalizeInstructionPath, skillPathFromUploadName } from './instructionFiles'
 
 interface SkillEntry {
   id: string
@@ -41,12 +41,18 @@ function createSkillEntry(path: string = 'skills/new-skill.md', content = ''): S
 
 function buildConfigFiles(
   agentInstructions: string,
-  skills: SkillEntry[]
+  skills: SkillEntry[],
+  harnessConfigFileType: string,
+  harnessConfigContent: string
 ): { files: ConfigFileInput[]; error: string | null } {
   const files: ConfigFileInput[] = []
 
   if (agentInstructions.trim()) {
     files.push({ fileType: AGENTS_FILE_TYPE, content: agentInstructions.trim() })
+  }
+
+  if (harnessConfigFileType && harnessConfigContent.trim()) {
+    files.push({ fileType: harnessConfigFileType, content: harnessConfigContent.trim() })
   }
 
   const usedSkillPaths = new Set<string>()
@@ -96,6 +102,8 @@ export function NewClankerPage() {
   const [agentInstructions, setAgentInstructions] = useState('')
   const [skills, setSkills] = useState<SkillEntry[]>([])
   const [showAllSecrets, setShowAllSecrets] = useState(false)
+  const [showHarnessConfig, setShowHarnessConfig] = useState(false)
+  const [harnessConfigContent, setHarnessConfigContent] = useState('')
 
   const agentsFileInputRef = useRef<HTMLInputElement | null>(null)
   const skillsFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -195,7 +203,13 @@ export function NewClankerPage() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-    const configFilesResult = buildConfigFiles(agentInstructions, skills)
+    const harnessConfig = getHarnessConfigFile(selectedAgent || '')
+    const configFilesResult = buildConfigFiles(
+      agentInstructions,
+      skills,
+      harnessConfig?.fileType || '',
+      showHarnessConfig ? harnessConfigContent : ''
+    )
     if (configFilesResult.error) {
       setError(configFilesResult.error)
       setIsSubmitting(false)
@@ -298,6 +312,54 @@ export function NewClankerPage() {
               onOpenCodeModelChange={setOpencodeModel}
               onGeminiModelChange={setGeminiModel}
             />
+
+            {getHarnessConfigFile(selectedAgent || '') && !showHarnessConfig && (
+              <Field>
+                <Button
+                  type="button"
+                  outline
+                  onClick={() => {
+                    const config = getHarnessConfigFile(selectedAgent || '')
+                    if (config) {
+                      setHarnessConfigContent(config.placeholder)
+                    }
+                    setShowHarnessConfig(true)
+                  }}
+                >
+                  Add {getHarnessConfigFile(selectedAgent || '')?.label}
+                </Button>
+              </Field>
+            )}
+
+            {showHarnessConfig && getHarnessConfigFile(selectedAgent || '') && (
+              <Field>
+                <div className="flex items-center justify-between">
+                  <Label>{getHarnessConfigFile(selectedAgent || '')?.label}</Label>
+                  <Button
+                    type="button"
+                    plain
+                    onClick={() => {
+                      setShowHarnessConfig(false)
+                      setHarnessConfigContent('')
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+                <Description>
+                  Paste your harness configuration here. Use environment variable names like{' '}
+                  <code>$SECRET_NAME</code> in the config - secrets assigned to this clanker will be
+                  available as environment variables at runtime.
+                </Description>
+                <Textarea
+                  rows={10}
+                  value={harnessConfigContent}
+                  onChange={(event) => setHarnessConfigContent(event.target.value)}
+                  placeholder={getHarnessConfigFile(selectedAgent || '')?.placeholder}
+                  className="font-mono text-sm"
+                />
+              </Field>
+            )}
 
             <Field>
               <div className="flex items-center justify-between">

@@ -1,5 +1,38 @@
 export const AGENTS_FILE_TYPE = 'AGENTS.md'
 
+export interface HarnessConfigFile {
+  fileType: string
+  label: string
+  placeholder: string
+}
+
+export const HARNESS_CONFIG_FILES: Record<string, HarnessConfigFile> = {
+  opencode: {
+    fileType: 'opencode.json',
+    label: 'OpenCode Configuration',
+    placeholder: `{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "provider": {
+    "openai": {}
+  }
+}`,
+  },
+}
+
+export function getHarnessConfigFile(agentType: string): HarnessConfigFile | undefined {
+  return HARNESS_CONFIG_FILES[agentType]
+}
+
+export function isHarnessConfigFile(fileType: string): boolean {
+  for (const config of Object.values(HARNESS_CONFIG_FILES)) {
+    if (config.fileType === fileType) {
+      return true
+    }
+  }
+  return false
+}
+
 function toForwardSlashes(value: string): string {
   return value.replace(/\\/g, '/')
 }
@@ -26,6 +59,10 @@ export function isAllowedInstructionPath(value: string): boolean {
   }
 
   if (normalized === AGENTS_FILE_TYPE) {
+    return true
+  }
+
+  if (isHarnessConfigFile(normalized)) {
     return true
   }
 

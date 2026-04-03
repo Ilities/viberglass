@@ -176,14 +176,15 @@ export class AgentSessionInteractionService {
         "Session not found",
       );
     }
-    const TERMINAL_STATUSES_MSG = new Set<AgentSessionStatus>([
+    const BLOCKED_STATUSES_MSG = new Set<AgentSessionStatus>([
       AGENT_SESSION_STATUS.COMPLETED,
       AGENT_SESSION_STATUS.CANCELLED,
+      AGENT_SESSION_STATUS.WAITING_ON_APPROVAL,
     ]);
-    if (TERMINAL_STATUSES_MSG.has(session.status)) {
+    if (BLOCKED_STATUSES_MSG.has(session.status)) {
       throw new AgentSessionServiceError(
         AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
-        `Session is already closed (status: ${session.status})`,
+        `Session cannot accept messages in status: ${session.status}`,
       );
     }
 
