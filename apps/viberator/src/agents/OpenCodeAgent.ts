@@ -1,6 +1,7 @@
 import { BaseAgent } from "./BaseAgent";
 import { ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import * as fs from "fs";
 import * as path from "path";
 
 export class OpenCodeAgent extends BaseAgent {
@@ -82,6 +83,11 @@ export class OpenCodeAgent extends BaseAgent {
       if (endpoint) {
         env.OPENCODE_BASE_URL = endpoint;
         env.OPENAI_BASE_URL = env.OPENAI_BASE_URL || endpoint;
+      }
+
+      const harnessConfigDir = path.join(workDir, ".harness-config");
+      if (fs.existsSync(harnessConfigDir)) {
+        env.OPENCODE_CONFIG_DIR = harnessConfigDir;
       }
 
       let result;

@@ -12,8 +12,16 @@ import {
 export class InstructionFileManager {
   private static readonly CLANKER_AGENTS_FILE = "AGENTS.md";
   private static readonly CLANKER_AGENTS_TARGET_PATH = "agents/AGENTS.md";
+  private static readonly HARNESS_CONFIG_PATTERNS = ["opencode.json"];
 
   constructor(private readonly logger: Logger) {}
+
+  private isHarnessConfigFile(fileType: string): boolean {
+    const normalized = path.normalize(fileType.replace(/\\/g, "/"));
+    return InstructionFileManager.HARNESS_CONFIG_PATTERNS.some(
+      (pattern) => normalized === pattern || normalized.endsWith("/" + pattern)
+    );
+  }
 
   async loadFromPayload(
     payload: WorkerPayload,
@@ -38,6 +46,19 @@ export class InstructionFileManager {
     let excludeAppend = "";
 
     for (const [fileType, content] of instructionFiles.entries()) {
+      if (this.isHarnessConfigFile(fileType)) {
+        const workDir = path.dirname(repoDir);
+        const harnessConfigDir = path.join(workDir, ".harness-config");
+        const configFileName = path.basename(fileType);
+        const targetPath = path.join(harnessConfigDir, configFileName);
+
+        await fs.promises.mkdir(harnessConfigDir, { recursive: true });
+        await fs.promises.writeFile(targetPath, content, "utf-8");
+
+        this.logger.debug("Materialized harness config file", { fileType, targetPath });
+        continue;
+      }
+
       const targetPath = this.resolveTargetPath(repoDir, fileType);
       if (!targetPath) {
         this.logger.warn("Skipping unsafe instruction file path", { fileType });
