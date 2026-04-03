@@ -1,6 +1,11 @@
 import type { AgentSessionMode, AgentSessionStatus } from "@viberglass/types";
 import type { Thread } from "chat";
 
+export type SessionAdvanceResult =
+  | { kind: "advance"; targetMode: AgentSessionMode }
+  | { kind: "revise" }
+  | { kind: "invalid"; message: string };
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -49,6 +54,10 @@ export interface SlackHandlerServices {
 
   // Session state queries
   getSessionDetail(sessionId: string): Promise<SessionDetail | null>;
+  resolveSessionAdvance(
+    instruction: string,
+    currentMode: AgentSessionMode,
+  ): SessionAdvanceResult;
 
   // Session interaction
   replyToSession(sessionId: string, text: string): Promise<void>;
