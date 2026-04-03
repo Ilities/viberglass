@@ -21,6 +21,7 @@ import { AgentTurnDAO } from "../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../persistence/agentSession/AgentPendingRequestDAO";
 import { AgentSessionLaunchService } from "../services/agentSession/AgentSessionLaunchService";
+import { resolveSessionAdvance } from "../services/agentSession/sessionAdvance";
 import { AgentSessionInteractionService } from "../services/agentSession/AgentSessionInteractionService";
 import { AgentSessionQueryService } from "../services/agentSession/AgentSessionQueryService";
 import { JobService } from "../services/JobService";
@@ -119,6 +120,8 @@ const slackServices: SlackHandlerServices = {
     chatSessionBridge.startBridge(sessionId, thread),
 
   ticketUrl,
+
+  resolveSessionAdvance,
 };
 
 registerSlackHandlers(bot, slackServices);
