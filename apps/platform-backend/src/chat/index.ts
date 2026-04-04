@@ -118,6 +118,7 @@ const slackServices: SlackHandlerServices = {
   unlinkSession,
   startBridge: (sessionId, thread, chainTo) =>
     chatSessionBridge.startBridge(sessionId, thread, chainTo),
+  stopBridge: (sessionId: string) => chatSessionBridge.stopBridge(sessionId),
 
   ticketUrl,
 
