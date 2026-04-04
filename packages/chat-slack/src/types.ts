@@ -72,6 +72,7 @@ export interface SlackHandlerServices {
 
   // Bridge control
   startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode): void;
+  stopBridge(sessionId: string): void;
 
   // URL helpers
   ticketUrl(projectId: string, ticketId: string): string | null;

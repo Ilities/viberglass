@@ -57,6 +57,7 @@ export function registerThreadReplyHandler(
             mode: advance.firstMode,
             initialMessage: "",
           });
+          services.stopBridge(sessionId);
           await services.unlinkSession(sessionId);
           await services.linkSessionThread(result.session.id, thread);
           services.startBridge(result.session.id, thread, advance.thenMode);
@@ -83,6 +84,7 @@ export function registerThreadReplyHandler(
           initialMessage: advance.kind === "advance" ? "" : instruction,
         });
 
+        services.stopBridge(sessionId);
         await services.unlinkSession(sessionId);
         await services.linkSessionThread(result.session.id, thread);
         services.startBridge(result.session.id, thread);
