@@ -276,7 +276,20 @@ export class ChatSessionBridgeService {
             phase,
           );
           if (doc.content?.trim()) {
-            await thread.post({ markdown: doc.content });
+            const filename =
+              phase === TICKET_WORKFLOW_PHASE.RESEARCH
+                ? "research.md"
+                : "planning.md";
+            await thread.post({
+              markdown: `_${phase === TICKET_WORKFLOW_PHASE.RESEARCH ? "Research" : "Planning"} document:_`,
+              files: [
+                {
+                  data: Buffer.from(doc.content),
+                  filename,
+                  mimeType: "text/markdown",
+                },
+              ],
+            });
           }
           keepLinked = true;
         }
