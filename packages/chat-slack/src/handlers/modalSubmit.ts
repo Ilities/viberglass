@@ -67,7 +67,16 @@ export function registerModalSubmitHandler(
         channelId,
       });
 
-      await thread.post({ markdown: `*Prompt:*\n${message}` });
+      await thread.post({
+        markdown: `*Prompt:*`,
+        files: [
+          {
+            data: Buffer.from(message),
+            filename: "prompt.txt",
+            mimeType: "text/plain",
+          },
+        ],
+      });
       await thread.subscribe();
       await services.linkSessionThread(result.session.id, thread);
       services.startBridge(result.session.id, thread);
