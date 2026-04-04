@@ -523,137 +523,6 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/research/request-approval - Request approval for research
-  router.post(
-    "/:id/phases/research/request-approval",
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const actor = req.auth?.user.email;
-        const result = await ticketResearchService.requestApproval(
-          req.params.id,
-          actor,
-        );
-
-        res.json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        const serviceError = resolveTicketRouteServiceError(error);
-        if (
-          serviceError?.serviceError.code ===
-          TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND
-        ) {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        if (
-          serviceError?.serviceError.code ===
-          TICKET_SERVICE_ERROR_CODE.RESEARCH_APPROVAL_INVALID_PHASE
-        ) {
-          return res.status(409).json({
-            error: serviceError.body.message,
-          });
-        }
-
-        logger.error("Error requesting research approval", {
-          ticketId: req.params.id,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to request research approval",
-        });
-      }
-    },
-  );
-
-  // POST /api/tickets/:id/phases/research/approve - Approve research document
-  router.post(
-    "/:id/phases/research/approve",
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const actor = req.auth?.user.email;
-        const result = await ticketResearchService.approve(req.params.id, actor);
-
-        res.json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        const serviceError = resolveTicketRouteServiceError(error);
-        if (
-          serviceError?.serviceError.code ===
-          TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND
-        ) {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        if (
-          serviceError?.serviceError.code ===
-          TICKET_SERVICE_ERROR_CODE.RESEARCH_APPROVAL_INVALID_PHASE
-        ) {
-          return res.status(409).json({
-            error: serviceError.body.message,
-          });
-        }
-
-        logger.error("Error approving research document", {
-          ticketId: req.params.id,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to approve research document",
-        });
-      }
-    },
-  );
-
-  // POST /api/tickets/:id/phases/research/revoke-approval - Revoke research approval
-  router.post(
-    "/:id/phases/research/revoke-approval",
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const actor = req.auth?.user.email;
-        const result = await ticketResearchService.revokeApproval(
-          req.params.id,
-          actor,
-        );
-
-        res.json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        if (message === "Ticket not found") {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        logger.error("Error revoking research approval", {
-          ticketId: req.params.id,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to revoke research approval",
-        });
-      }
-    },
-  );
-
   // GET /api/tickets/:id/phases/planning - Get planning phase document
   router.get(
     "/:id/phases/planning",
@@ -714,15 +583,6 @@ export function registerTicketWorkflowPhaseRoutes(
           });
         }
 
-        if (
-          serviceError?.serviceError.code ===
-          TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_REQUEST_INVALID_PHASE
-        ) {
-          return res.status(409).json({
-            error: serviceError.body.message,
-          });
-        }
-
         logger.error("Error requesting planning approval", {
           ticketId: req.params.id,
           error: message,
@@ -760,15 +620,6 @@ export function registerTicketWorkflowPhaseRoutes(
         ) {
           return res.status(404).json({
             error: "Ticket not found",
-          });
-        }
-
-        if (
-          serviceError?.serviceError.code ===
-          TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_GRANT_INVALID_PHASE
-        ) {
-          return res.status(409).json({
-            error: serviceError.body.message,
           });
         }
 

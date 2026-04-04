@@ -338,23 +338,6 @@ describe("ticket workflow routes", () => {
     expect(response.body.data.document.approvalState).toBe("approved");
   });
 
-  it("returns 409 when planning approval request is made outside planning phase", async () => {
-    mockTicketPlanningApprovalService.requestApproval.mockRejectedValue(
-      new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_REQUEST_INVALID_PHASE,
-        "Approval can only be requested during the planning phase",
-      ),
-    );
-
-    const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/phases/planning/request-approval`)
-      .expect(409);
-
-    expect(response.body).toEqual({
-      error: "Approval can only be requested during the planning phase",
-    });
-  });
-
   it("returns 409 when execution is blocked by planning approval", async () => {
     mockTicketExecutionService.runTicket.mockRejectedValue(
       new TicketServiceError(
