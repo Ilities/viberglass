@@ -2,6 +2,7 @@ import path from "path";
 
 const AGENTS_FILE = "AGENTS.md";
 const SKILLS_PREFIX = "skills/";
+const HARNESS_CONFIG_FILES = ["opencode.json"];
 
 function normalizeSeparators(input: string): string {
   return input.replace(/\\/g, "/");
@@ -43,10 +44,14 @@ export function isAllowedInstructionPath(input: string): boolean {
     return true;
   }
 
+  if (HARNESS_CONFIG_FILES.includes(normalized)) {
+    return true;
+  }
+
   return normalized.startsWith(SKILLS_PREFIX) && normalized.endsWith(".md");
 }
 
 export function instructionPathErrorMessage(input: string): string {
   const normalized = normalizeInstructionPath(input);
-  return `Invalid instruction file path "${normalized || input}". Allowed paths: AGENTS.md and skills/**/*.md.`;
+  return `Invalid instruction file path "${normalized || input}". Allowed paths: AGENTS.md, opencode.json, and skills/**/*.md.`;
 }
