@@ -50,7 +50,7 @@ try {
   });
 }
 
-const ticketResearchService = new TicketResearchService(feedbackService);
+const ticketResearchService = new TicketResearchService();
 const ticketPlanningService = new TicketPlanningService();
 const ticketPlanningApprovalService = new TicketPlanningApprovalService(
   feedbackService,

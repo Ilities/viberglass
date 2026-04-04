@@ -6,14 +6,11 @@ import {
   type PhaseDocumentResponse,
   type PhaseDocumentRevisionResponse,
   type ResearchRunResponse,
-  approveResearch,
   getPhaseDocumentRevisions,
   getResearchDocument,
-  requestResearchApproval,
-  revokeResearchApproval,
   saveResearchDocument,
 } from '@/service/api/ticket-api'
-import { CheckCircledIcon, CrossCircledIcon, Pencil1Icon, PlayIcon, ReaderIcon } from '@radix-ui/react-icons'
+import { Pencil1Icon, PlayIcon, ReaderIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -21,13 +18,12 @@ import { toast } from 'sonner'
 import { type AgentSession, type AgentSessionMode } from '@/service/api/session-api'
 import { PhaseDocumentRevisionHistory } from './phase-document-revision-history'
 import { PhaseDocumentComments } from './phase-document-comments'
-import { getApprovalStateBadgeColor, getApprovalStateLabel, getPhaseRunStatusBadgeColor } from './phase-document-ui'
+import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
 
 interface ResearchDocumentPanelProps {
   ticket: Ticket
   clankers: Clanker[]
   project: string
-  onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
   activeSession?: AgentSession | null
   onStartSession?: (mode: AgentSessionMode, prefilledMessage: string) => void
   onSendToSession?: (message: string) => void
@@ -38,7 +34,6 @@ export function ResearchDocumentPanel({
   ticket,
   clankers,
   project,
-  onWorkflowPhaseChange,
   activeSession,
   onStartSession,
   onSendToSession,
@@ -52,7 +47,6 @@ export function ResearchDocumentPanel({
   const [isSaving, setIsSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isRunModalOpen, setIsRunModalOpen] = useState(false)
-  const [isApproving, setIsApproving] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -109,49 +103,6 @@ export function ResearchDocumentPanel({
     setIsEditing(false)
   }, [document])
 
-  const handleRequestApproval = useCallback(async () => {
-    try {
-      setIsApproving(true)
-      const result = await requestResearchApproval(ticket.id)
-      setDocument(result.document)
-      setLatestRun(result.latestRun)
-      toast.success('Approval requested')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to request approval')
-    } finally {
-      setIsApproving(false)
-    }
-  }, [ticket.id])
-
-  const handleApprove = useCallback(async () => {
-    try {
-      setIsApproving(true)
-      const result = await approveResearch(ticket.id)
-      setDocument(result.document)
-      setLatestRun(result.latestRun)
-      onWorkflowPhaseChange?.('planning')
-      toast.success('Research approved - ticket advanced to planning')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to approve research')
-    } finally {
-      setIsApproving(false)
-    }
-  }, [ticket.id, onWorkflowPhaseChange])
-
-  const handleRevokeApproval = useCallback(async () => {
-    try {
-      setIsApproving(true)
-      const result = await revokeResearchApproval(ticket.id)
-      setDocument(result.document)
-      setLatestRun(result.latestRun)
-      toast.success('Approval revoked')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to revoke approval')
-    } finally {
-      setIsApproving(false)
-    }
-  }, [ticket.id])
-
   const handleApplySuggestion = useCallback(async (lineNumber: number, suggestedText: string) => {
     const lines = (document?.content ?? '').split('\n')
     lines[lineNumber - 1] = suggestedText
@@ -174,10 +125,6 @@ export function ResearchDocumentPanel({
 
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
-  const canRequestApproval = hasContent && document?.approvalState === 'draft'
-  const canApprove = document?.approvalState === 'approval_requested'
-  const canRevoke = document?.approvalState === 'approved'
-  const approvalIsPending = document?.approvalState === 'approval_requested'
 
   if (isLoading) {
     return (
@@ -250,55 +197,6 @@ export function ResearchDocumentPanel({
             </div>
           </div>
 
-          {/* Approval state badges and actions */}
-          {document && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge color={getApprovalStateBadgeColor(document.approvalState)}>
-                {getApprovalStateLabel(document.approvalState)}
-              </Badge>
-              {document.approvalState === 'approved' && document.approvedBy && (
-                <span className="text-xs text-[var(--gray-9)]">
-                  by {document.approvedBy} on {new Date(document.approvedAt!).toLocaleString()}
-                </span>
-              )}
-              {canRequestApproval && (
-                <Button
-                  color="green"
-                  onClick={handleRequestApproval}
-                  disabled={isApproving || !hasContent}
-                  title={hasContent ? 'Request approval for this research document' : 'Add content before requesting approval'}
-                >
-                  <CheckCircledIcon className="h-3.5 w-3.5" />
-                  Request Approval
-                </Button>
-              )}
-              {canApprove && (
-                <Button
-                  color="green"
-                  onClick={handleApprove}
-                  disabled={isApproving}
-                >
-                  <CheckCircledIcon className="h-3.5 w-3.5" />
-                  {isApproving ? 'Approving...' : 'Approve'}
-                </Button>
-              )}
-              {canRevoke && (
-                <Button
-                  plain
-                  onClick={handleRevokeApproval}
-                  disabled={isApproving}
-                >
-                  <CrossCircledIcon className="h-3.5 w-3.5" />
-                  {isApproving ? 'Revoking...' : 'Revoke Approval'}
-                </Button>
-              )}
-              {approvalIsPending && (
-                <span className="text-xs text-[var(--gray-9)]">
-                  Waiting for approval...
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         {document?.updatedAt && hasContent && (

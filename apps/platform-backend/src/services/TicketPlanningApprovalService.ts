@@ -58,13 +58,6 @@ export class TicketPlanningApprovalService {
         "Ticket not found",
       );
     }
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING) {
-      throw new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_REQUEST_INVALID_PHASE,
-        "Approval can only be requested during the planning phase",
-      );
-    }
-
     const document = await this.documentService.requestApproval(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
@@ -89,13 +82,6 @@ export class TicketPlanningApprovalService {
         "Ticket not found",
       );
     }
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING) {
-      throw new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.PLANNING_APPROVAL_GRANT_INVALID_PHASE,
-        "Approval can only be granted during the planning phase",
-      );
-    }
-
     const document = await this.documentService.approveDocument(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
@@ -110,10 +96,12 @@ export class TicketPlanningApprovalService {
       "Planning document approved",
     );
 
-    await this.workflowService.advancePhase(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.EXECUTION,
-    );
+    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.EXECUTION) {
+      await this.workflowService.advancePhase(
+        ticketId,
+        TICKET_WORKFLOW_PHASE.EXECUTION,
+      );
+    }
 
     if (this.feedbackService) {
       this.feedbackService

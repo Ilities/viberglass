@@ -445,42 +445,6 @@ export async function runResearch(
   return response.json()
 }
 
-export async function requestResearchApproval(ticketId: string): Promise<ResearchPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/request-approval`, {
-    method: 'POST',
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to request research approval')
-  }
-  const data: ApiResponse<ResearchPhaseResponse> = await response.json()
-  return data.data
-}
-
-export async function approveResearch(ticketId: string): Promise<ResearchPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/approve`, {
-    method: 'POST',
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to approve research')
-  }
-  const data: ApiResponse<ResearchPhaseResponse> = await response.json()
-  return data.data
-}
-
-export async function revokeResearchApproval(ticketId: string): Promise<ResearchPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/revoke-approval`, {
-    method: 'POST',
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to revoke research approval')
-  }
-  const data: ApiResponse<ResearchPhaseResponse> = await response.json()
-  return data.data
-}
-
 // Planning Document API
 
 export async function getPlanningDocument(ticketId: string): Promise<PhaseDocumentResponse> {

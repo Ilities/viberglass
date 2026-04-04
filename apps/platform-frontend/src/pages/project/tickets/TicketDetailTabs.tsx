@@ -201,7 +201,6 @@ export function TicketDetailTabs({
                 ticket={ticket}
                 clankers={clankers}
                 project={project}
-                onWorkflowPhaseChange={onWorkflowPhaseChange}
                 activeSession={currentSession}
                 onStartSession={onStartSession}
                 onSendToSession={(msg) => onSendToSession(msg, 'research')}
