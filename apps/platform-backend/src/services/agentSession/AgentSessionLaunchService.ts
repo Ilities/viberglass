@@ -303,11 +303,15 @@ export class AgentSessionLaunchService {
 
     let taskType: typeof PROMPT_TYPE[keyof typeof PROMPT_TYPE];
     if (input.mode === "research") {
-      taskType = PROMPT_TYPE.ticket_research;
-    } else if (input.mode === "planning") {
       taskType = researchDocumentContent?.trim()
-        ? PROMPT_TYPE.ticket_planning_with_research
-        : PROMPT_TYPE.ticket_planning_without_research;
+        ? PROMPT_TYPE.ticket_research_revision_task
+        : PROMPT_TYPE.ticket_research;
+    } else if (input.mode === "planning") {
+      taskType = planDocumentContent?.trim()
+        ? PROMPT_TYPE.ticket_planning_revision_task
+        : researchDocumentContent?.trim()
+          ? PROMPT_TYPE.ticket_planning_with_research
+          : PROMPT_TYPE.ticket_planning_without_research;
     } else {
       taskType = PROMPT_TYPE.ticket_developing;
     }

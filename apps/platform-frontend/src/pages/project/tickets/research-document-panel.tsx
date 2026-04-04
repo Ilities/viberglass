@@ -162,7 +162,7 @@ export function ResearchDocumentPanel({
 
             <div className="flex items-center gap-2">
               {onStartSession && (
-                <Button plain onClick={() => onStartSession('research', `${ticket.title}\n\n${ticket.description ?? ''}`)}>
+                <Button plain onClick={() => onStartSession('research', '')}>
                   {hasContent ? 'Revise with Agent' : 'Start Research Session'}
                 </Button>
               )}

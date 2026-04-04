@@ -177,7 +177,7 @@ export function PlanningDocumentPanel({
   }, [document, ticket.id, onApprovalStateChange])
 
   function handleStartPlanning() {
-    onStartSession?.('planning', `${ticket.title}\n\n${ticket.description ?? ''}`)
+    onStartSession?.('planning', '')
   }
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
