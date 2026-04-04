@@ -9,9 +9,11 @@ WORKDIR /app
 # Copy monorepo root package.json for workspace resolution
 COPY package*.json ./
 
-# Create backend directory and copy its package.json
-RUN mkdir -p apps/platform-backend
+# Create workspace directories and copy their package.json files
+RUN mkdir -p apps/platform-backend packages/types packages/chat-slack
 COPY apps/platform-backend/package*.json ./apps/platform-backend/
+COPY packages/types/package*.json ./packages/types/
+COPY packages/chat-slack/package*.json ./packages/chat-slack/
 
 # Install all dependencies (workspace-aware from root)
 RUN npm install --legacy-peer-deps
@@ -19,6 +21,7 @@ RUN npm install --legacy-peer-deps
 # Copy all workspace packages (types, backend source, etc.)
 # Note: In docker-compose, source is mounted via volume, overriding these copies
 COPY packages/types ./packages/types
+COPY packages/chat-slack ./packages/chat-slack
 COPY apps/platform-backend ./apps/platform-backend
 
 # Expose backend API port

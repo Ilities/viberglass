@@ -17,6 +17,7 @@ RUN apk add --no-cache python3 make g++
 # Copy workspace package files first for better Docker caching
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/
+COPY packages/chat-slack/package*.json ./packages/chat-slack/
 COPY apps/platform-backend/package*.json ./apps/platform-backend/
 
 # Install all workspace dependencies
@@ -26,10 +27,12 @@ RUN npm ci --legacy-peer-deps --ignore-scripts
 
 # Copy source files
 COPY packages/types ./packages/types
+COPY packages/chat-slack ./packages/chat-slack
 COPY apps/platform-backend ./apps/platform-backend
 
-# Build shared types package first (required by backend)
+# Build shared packages first (required by backend)
 RUN npm run build -w @viberglass/types
+RUN npm run build -w @viberglass/chat-slack
 
 # Build backend (TypeScript compilation)
 RUN npm run build -w @viberglass/platform-backend
@@ -53,6 +56,7 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy package files
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/
+COPY packages/chat-slack/package*.json ./packages/chat-slack/
 COPY apps/platform-backend/package*.json ./apps/platform-backend/
 
 # Install only production dependencies
@@ -64,9 +68,11 @@ RUN npm ci --legacy-peer-deps --production --ignore-scripts && \
 # Includes dist/migrations with compiled migration files
 COPY --from=builder /build/apps/platform-backend/dist ./dist
 
-# Copy shared types package (required at runtime for type imports)
+# Copy shared packages (required at runtime)
 COPY --from=builder /build/packages/types/dist ./packages/types/dist
 COPY --from=builder /build/packages/types/package.json ./packages/types/
+COPY --from=builder /build/packages/chat-slack/dist ./packages/chat-slack/dist
+COPY --from=builder /build/packages/chat-slack/package.json ./packages/chat-slack/
 
 # Set ownership to non-root user
 RUN chown -R nodejs:nodejs /app

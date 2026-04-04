@@ -81,6 +81,7 @@ services:
       # Mount source with cached mode for better performance on macOS/Windows
       - ./apps/platform-backend:/app/apps/platform-backend:cached
       - ./packages/types:/app/packages/types:cached
+      - ./packages/chat-slack:/app/packages/chat-slack:cached
       # Persist ticket media files on host disk for Docker strategy mounts
       - /tmp/viberglass-ticket-media:/tmp/viberglass-ticket-media
       # Docker socket for provisioning clanker containers
