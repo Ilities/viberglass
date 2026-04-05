@@ -6,7 +6,10 @@ import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseRunDAO } from "../persistence/ticketing/TicketPhaseRunDAO";
-import { TicketPhaseDocumentCommentDAO, PHASE_DOCUMENT_COMMENT_STATUS } from "../persistence/ticketing/TicketPhaseDocumentCommentDAO";
+import {
+  TicketPhaseDocumentCommentDAO,
+  PHASE_DOCUMENT_COMMENT_STATUS,
+} from "../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { JobService } from "./JobService";
@@ -265,6 +268,12 @@ export class TicketResearchService {
       mergedInstructionFiles,
     } = preparedContext;
 
+    const planDoc = await this.documentService.getOrCreateDocument(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+    );
+    const planDocumentContent = planDoc.content?.trim() || undefined;
+
     // Use revision task type since we have an existing document
     const task = await this.promptTemplateService.render(
       PROMPT_TYPE.ticket_research_revision_task,
@@ -274,6 +283,7 @@ export class TicketResearchService {
         ticketTitle: ticket.title,
         ticketDescription: ticket.description,
         researchDocument: researchDocumentContent,
+        planDocument: planDocumentContent,
         revisionMessage: options.revisionMessage,
         openComments: openCommentsStr,
       },
@@ -289,6 +299,7 @@ export class TicketResearchService {
       context: {
         ticketId: ticket.id,
         researchDocument: researchDocumentContent,
+        planDocument: planDocumentContent,
         instructionFiles: mergedInstructionFiles,
       },
       settings: {

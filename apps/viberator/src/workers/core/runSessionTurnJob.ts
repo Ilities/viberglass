@@ -19,7 +19,6 @@ import {
   retrieveAndRestore,
 } from "../runtime/SessionStateManager";
 
-
 const DOCUMENT_FILES: Record<string, string> = {
   research: "RESEARCH.md",
   planning: "PLAN.md",
@@ -46,19 +45,30 @@ function buildSessionPromptOverride(params: JobRunnerParams): string {
   const mode = effectiveSessionMode(params);
 
   // For continuation turns with ACP session, data.task already contains the
-  // enriched revision template output. Still append the latest document content
-  // from context to ensure the agent always has the current version.
+  // enriched revision template output (rendered by platform-backend).
+  // This already includes Ticket Information, Research/Planning documents,
+  // User Revision Message, and Inline Comments.
+  // We only append current documents if they're NOT already in data.task
+  // to avoid duplication while ensuring the agent has the very latest version.
   let prompt = data.task;
 
   if (mode === "research" && data.context?.researchDocument?.trim()) {
-    prompt += `\n\nCurrent Research Document (revise this):\n${data.context.researchDocument}`;
+    if (!prompt.includes(data.context.researchDocument.trim())) {
+      prompt += `\n\nCurrent Research Document (revise this):\n${data.context.researchDocument}`;
+    }
   }
 
   if (mode === "planning") {
-    if (data.context?.researchDocument?.trim()) {
+    if (
+      data.context?.researchDocument?.trim() &&
+      !prompt.includes(data.context.researchDocument.trim())
+    ) {
       prompt += `\n\nApproved Research Document:\n${data.context.researchDocument}`;
     }
-    if (data.context?.planDocument?.trim()) {
+    if (
+      data.context?.planDocument?.trim() &&
+      !prompt.includes(data.context.planDocument.trim())
+    ) {
       prompt += `\n\nCurrent Planning Document (revise this):\n${data.context.planDocument}`;
     }
   }
@@ -76,7 +86,9 @@ async function completeExecutionWithPR(
   repoDir: string,
   checkoutBaseBranch: string,
   executionContext: ExecutionContext,
-): Promise<Pick<JobResult, "branch" | "pullRequestUrl" | "commitHash" | "changedFiles">> {
+): Promise<
+  Pick<JobResult, "branch" | "pullRequestUrl" | "commitHash" | "changedFiles">
+> {
   const { data, gitService, sendProgress } = params;
   const { id, repository, task, context, scm } = data;
 
@@ -166,10 +178,13 @@ export async function runSessionTurnJob(
           conversationStateUrl: params.conversationStateUrl,
         });
       } catch (err) {
-        logger.warn("Failed to restore conversation state, continuing with fresh session", {
-          conversationStateUrl: params.conversationStateUrl,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        logger.warn(
+          "Failed to restore conversation state, continuing with fresh session",
+          {
+            conversationStateUrl: params.conversationStateUrl,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
       }
     }
 
@@ -192,24 +207,24 @@ export async function runSessionTurnJob(
       commitHash: "",
       jobKind: data.jobKind,
       bugDescription: isExecution ? fullTask : data.task,
-      stepsToReproduce:
-        isExecution
-          ? (params.overrides?.reproductionSteps ||
-            data.context?.stepsToReproduce ||
-            "")
-          : "",
-      expectedBehavior:
-        isExecution
-          ? (params.overrides?.expectedBehavior ||
-            data.context?.expectedBehavior ||
-            "")
-          : "",
-      actualBehavior: isExecution ? (data.context?.actualBehavior || "") : "",
+      stepsToReproduce: isExecution
+        ? params.overrides?.reproductionSteps ||
+          data.context?.stepsToReproduce ||
+          ""
+        : "",
+      expectedBehavior: isExecution
+        ? params.overrides?.expectedBehavior ||
+          data.context?.expectedBehavior ||
+          ""
+        : "",
+      actualBehavior: isExecution ? data.context?.actualBehavior || "" : "",
       stackTrace: isExecution ? data.context?.stackTrace : undefined,
-      consoleErrors: isExecution ? (data.context?.consoleErrors || []) : [],
-      affectedFiles: isExecution ? (data.context?.affectedFiles || []) : [],
-      ticketMedia: isExecution ? (data.context?.ticketMedia || []) : [],
-      researchDocument: isExecution ? data.context?.researchDocument : undefined,
+      consoleErrors: isExecution ? data.context?.consoleErrors || [] : [],
+      affectedFiles: isExecution ? data.context?.affectedFiles || [] : [],
+      ticketMedia: isExecution ? data.context?.ticketMedia || [] : [],
+      researchDocument: isExecution
+        ? data.context?.researchDocument
+        : undefined,
       planDocument: isExecution ? data.context?.planDocument : undefined,
       maxChanges: mergedSettings.maxChanges,
       testRequired: isExecution ? mergedSettings.testRequired : false,
@@ -265,10 +280,13 @@ export async function runSessionTurnJob(
             url,
           );
         } else {
-          logger.warn("captureAndStore returned undefined - no state to archive or storage failed", {
-            jobId: data.id,
-            agent: executionContext.agent,
-          });
+          logger.warn(
+            "captureAndStore returned undefined - no state to archive or storage failed",
+            {
+              jobId: data.id,
+              agent: executionContext.agent,
+            },
+          );
         }
       } catch (err) {
         logger.warn("Failed to capture conversation state", {
@@ -290,7 +308,11 @@ export async function runSessionTurnJob(
     // "completed" (not needs_input / needs_approval).  For one-shot execution
     // jobs (no agentSessionId) the agent always completes in one turn, so the
     // PR flow always runs.
-    if (isExecution && result.acpTurnOutcome !== "needs_input" && result.acpTurnOutcome !== "needs_approval") {
+    if (
+      isExecution &&
+      result.acpTurnOutcome !== "needs_input" &&
+      result.acpTurnOutcome !== "needs_approval"
+    ) {
       const prResult = await completeExecutionWithPR(
         params,
         repoDir,
@@ -323,7 +345,11 @@ export async function runSessionTurnJob(
 
     // For one-shot (non-session) research/planning jobs, the document must exist.
     // Session-backed jobs may produce the document across multiple turns.
-    if (isOneShot && (mode === "research" || mode === "planning") && !documentContent) {
+    if (
+      isOneShot &&
+      (mode === "research" || mode === "planning") &&
+      !documentContent
+    ) {
       throw new Error(`${documentFileName} was not generated`);
     }
 

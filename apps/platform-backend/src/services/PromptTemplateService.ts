@@ -47,8 +47,21 @@ export class PromptTemplateService {
     template: string,
     vars: Record<string, string | undefined>,
   ): string {
-    // Process conditional blocks: {{#var}}...{{/var}}
+    // Process inverted blocks: {{^var}}...{{/var}}
     let result = template.replace(
+      /\{\{\^(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g,
+      (_, key: string, inner: string) => {
+        const value = vars[key];
+        if (value) return ""; // If value exists, don't show inner content
+        return inner.replace(
+          /\{\{(\w+)\}\}/g,
+          (_m: string, innerKey: string) => vars[innerKey] ?? "",
+        );
+      },
+    );
+
+    // Process conditional blocks: {{#var}}...{{/var}}
+    result = result.replace(
       /\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g,
       (_, key: string, inner: string) => {
         const value = vars[key];
