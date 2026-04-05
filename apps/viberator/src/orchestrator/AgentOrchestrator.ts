@@ -179,12 +179,20 @@ export class AgentOrchestrator {
             })
             .join("\n")}\n`
         : "";
-    const researchSection = context.researchDocument?.trim()
-      ? `\nRESEARCH DOCUMENT:\n${context.researchDocument}\n`
-      : "";
-    const planningSection = context.planDocument?.trim()
-      ? `\nPLANNING DOCUMENT:\n${context.planDocument}\n`
-      : "";
+    const researchSection =
+      context.researchDocument?.trim() &&
+      !context.bugDescription.includes(context.researchDocument.trim()) &&
+      (!context.promptOverride ||
+        !context.promptOverride.includes(context.researchDocument.trim()))
+        ? `\nRESEARCH DOCUMENT:\n${context.researchDocument}\n`
+        : "";
+    const planningSection =
+      context.planDocument?.trim() &&
+      !context.bugDescription.includes(context.planDocument.trim()) &&
+      (!context.promptOverride ||
+        !context.promptOverride.includes(context.planDocument.trim()))
+        ? `\nPLANNING DOCUMENT:\n${context.planDocument}\n`
+        : "";
 
     if (context.jobKind === "claw") {
       return `

@@ -84,6 +84,7 @@ export interface TicketJobContext extends BaseJobContext {
 export interface ResearchJobContext extends BaseJobContext {
   ticketId: string;
   researchDocument?: string;
+  planDocument?: string;
 }
 
 export interface PlanningJobContext extends BaseJobContext {
@@ -99,10 +100,10 @@ export interface ClawJobContext extends BaseJobContext {
 }
 
 export type JobContext =
-  | { jobKind: 'execution'; context: TicketJobContext }
-  | { jobKind: 'research'; context: ResearchJobContext }
-  | { jobKind: 'planning'; context: PlanningJobContext }
-  | { jobKind: 'claw'; context: ClawJobContext };
+  | { jobKind: "execution"; context: TicketJobContext }
+  | { jobKind: "research"; context: ResearchJobContext }
+  | { jobKind: "planning"; context: PlanningJobContext }
+  | { jobKind: "claw"; context: ClawJobContext };
 
 // Discriminated union for JobData based on jobKind
 export interface BaseJobData {
@@ -126,22 +127,22 @@ export interface BaseJobData {
 }
 
 export interface TicketJobData extends BaseJobData {
-  jobKind: 'execution';
+  jobKind: "execution";
   context: TicketJobContext;
 }
 
 export interface ResearchJobData extends BaseJobData {
-  jobKind: 'research';
+  jobKind: "research";
   context: ResearchJobContext;
 }
 
 export interface PlanningJobData extends BaseJobData {
-  jobKind: 'planning';
+  jobKind: "planning";
   context: PlanningJobContext;
 }
 
 export interface ClawJobData extends BaseJobData {
-  jobKind: 'claw';
+  jobKind: "claw";
   context: ClawJobContext;
 }
 
