@@ -20,20 +20,17 @@ import {
   CheckCircledIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  RotateCounterClockwiseIcon,
   CrossCircledIcon,
   ExternalLinkIcon,
   Pencil1Icon,
   PlayIcon,
   ReaderIcon,
 } from '@radix-ui/react-icons'
-import type { AgentSession, AgentSessionMode } from '@/service/api/session-api'
-import { type TicketWorkflowPhase, type Ticket, type Clanker } from '@viberglass/types'
+import { type TicketWorkflowPhase, type Ticket, type Clanker, TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PhaseLogs } from './phase-logs'
-import { PhaseSessionPanel, PhaseNoSession } from './phase-session-panel'
 import { JobListItem } from '@/service/api/job-api'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
@@ -44,14 +41,10 @@ interface PhaseSectionProps {
   project: string
   phase: 'research' | 'planning' | 'execution'
   currentPhase: TicketWorkflowPhase
-  activeSession: AgentSession | null
-  onStartSession: (mode: AgentSessionMode, prefilledMessage: string) => void
-  onSendToSession: (message: string, mode: AgentSessionMode) => void
-  onSessionEnded: () => void
   onWorkflowPhaseChange?: (phase: Ticket['workflowPhase']) => void
   onApprovalStateChange?: (state: ApprovalState) => void
+  onResolve?: () => Promise<void>
   jobs: JobListItem[]
-  documentRefreshKey?: number
 }
 
 function PhaseHeader({
@@ -128,14 +121,10 @@ export function PhaseSection({
   project,
   phase,
   currentPhase,
-  activeSession,
-  onStartSession,
-  onSendToSession,
-  onSessionEnded,
   onWorkflowPhaseChange,
   onApprovalStateChange,
+  onResolve,
   jobs,
-  documentRefreshKey,
 }: PhaseSectionProps) {
   const navigate = useNavigate()
   const [isExpanded, setIsExpanded] = useState(phase === currentPhase)
@@ -146,6 +135,7 @@ export function PhaseSection({
   const [isEditing, setIsEditing] = useState(false)
   const [isRunModalOpen, setIsRunModalOpen] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
+  const [isResolving, setIsResolving] = useState(false)
   const [draft, setDraft] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -178,10 +168,6 @@ export function PhaseSection({
   useEffect(() => {
     void loadDocument()
   }, [loadDocument])
-
-  useEffect(() => {
-    if (documentRefreshKey) void loadDocument()
-  }, [documentRefreshKey, loadDocument])
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -289,22 +275,22 @@ export function PhaseSection({
     }
   }, [ticket.id, onWorkflowPhaseChange])
 
+  const handleResolve = useCallback(async () => {
+    if (!onResolve) return
+    try {
+      setIsResolving(true)
+      await onResolve()
+    } finally {
+      setIsResolving(false)
+    }
+  }, [onResolve])
+
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
   const canEdit = phase === 'planning' || phase === 'execution' || (phase === 'research' && currentPhase === 'research')
   const canRequestApproval = phase === 'planning' && hasContent && document?.approvalState === 'draft'
   const canApprove = phase === 'planning' && document?.approvalState === 'approval_requested'
   const canRevoke = phase === 'planning' && document?.approvalState === 'approved'
-
-  const sessionForPhase = activeSession?.mode === phase ? activeSession : null
-
-  const handleRevise = useCallback(() => {
-    onStartSession(phase, '')
-  }, [onStartSession, phase])
-
-  const handleStartSession = useCallback(() => {
-    onStartSession(phase, '')
-  }, [onStartSession, phase])
 
   return (
     <div className="space-y-2">
@@ -345,18 +331,34 @@ export function PhaseSection({
                   </div>
 
                   {ticket.pullRequestUrl ? (
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--green-6)] bg-[var(--green-2)] p-4">
-                      <div className="flex items-center gap-3">
-                        <CheckCircledIcon className="h-5 w-5 text-[var(--green-9)]" />
-                        <div>
-                          <p className="text-sm font-medium text-[var(--gray-12)]">Pull Request Created</p>
-                          <p className="text-xs text-[var(--gray-9)]">The agent has created a pull request for this ticket.</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--green-6)] bg-[var(--green-2)] p-4">
+                        <div className="flex items-center gap-3">
+                          <CheckCircledIcon className="h-5 w-5 text-[var(--green-9)]" />
+                          <div>
+                            <p className="text-sm font-medium text-[var(--gray-12)]">Pull Request Created</p>
+                            <p className="text-xs text-[var(--gray-9)]">The agent has created a pull request for this ticket.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button plain href={ticket.pullRequestUrl} target="_blank">
+                            <ExternalLinkIcon className="h-3.5 w-3.5" />
+                            View PR
+                          </Button>
                         </div>
                       </div>
-                      <Button color="brand" href={ticket.pullRequestUrl} target="_blank">
-                        <ExternalLinkIcon className="h-3.5 w-3.5" />
-                        View Pull Request
-                      </Button>
+                      {ticket.status === TICKET_STATUS.IN_REVIEW && onResolve && (
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] p-4">
+                          <div>
+                            <p className="text-sm font-medium text-[var(--gray-12)]">Review the pull request</p>
+                            <p className="text-xs text-[var(--gray-9)]">Once you've reviewed the changes, mark this ticket as resolved.</p>
+                          </div>
+                          <Button color="green" onClick={handleResolve} disabled={isResolving}>
+                            <CheckCircledIcon className="h-3.5 w-3.5" />
+                            {isResolving ? 'Resolving...' : 'Mark as Resolved'}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
@@ -397,11 +399,6 @@ export function PhaseSection({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {sessionForPhase && (
-                      <Button plain onClick={handleRevise}>
-                        {hasContent ? 'Revise with Agent' : 'Start Session'}
-                      </Button>
-                    )}
                     <Button
                       color="brand"
                       onClick={() => setIsRunModalOpen(true)}
@@ -494,8 +491,6 @@ export function PhaseSection({
                     phase={phase}
                     content={document!.content}
                     onApplySuggestion={handleApplySuggestion}
-                    activeSessionId={sessionForPhase?.id}
-                    onSendToSession={(msg: string) => onSendToSession(msg, phase as 'research' | 'planning')}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
@@ -512,33 +507,11 @@ export function PhaseSection({
               )}
 
               <div className="space-y-3">
-                <h4 className="text-sm font-medium text-[var(--gray-11)]">Agent Session</h4>
-                {sessionForPhase ? (
-                  <PhaseSessionPanel
-                    session={sessionForPhase}
-                    project={project}
-                    onSessionEnded={onSessionEnded}
-                    onRevise={handleRevise}
-                  />
-                ) : (
-                  <PhaseNoSession mode={phase} onStartSession={handleStartSession} />
-                )}
-              </div>
-
-              <div className="space-y-3">
                 <PhaseLogs jobs={jobs} phase={phase} project={project} />
               </div>
 
               {isCurrentPhase && phase !== 'execution' && (
-                <div className="flex items-center justify-between border-t border-[var(--gray-4)] pt-4">
-                  <Button
-                    outline
-                    onClick={() => onStartSession(phase, '')}
-                    className="text-xs"
-                  >
-                    <RotateCounterClockwiseIcon className="h-3.5 w-3.5" />
-                    Restart from Fresh State
-                  </Button>
+                <div className="flex items-center justify-end border-t border-[var(--gray-4)] pt-4">
                   {phase === 'research' && hasContent && (
                     <Button color="green" onClick={handleApproveResearch} disabled={isApproving}>
                       <CheckCircledIcon className="h-4 w-4" />

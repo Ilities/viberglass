@@ -40,12 +40,17 @@ export interface SlackHandlerServices {
   listProjects(): Promise<ProjectSummary[]>;
   listClankers(): Promise<ClankerSummary[]>;
 
-  // Ticket + session lifecycle
+  // Ticket + job lifecycle
   createTicket(params: {
     projectId: string;
     title: string;
     description: string;
   }): Promise<{ id: string; projectId: string }>;
+  runJob(params: {
+    ticketId: string;
+    clankerId: string;
+    mode: "research" | "planning" | "execution";
+  }): Promise<{ jobId: string; status: string }>;
   launchSession(params: {
     ticketId: string;
     clankerId: string;

@@ -7,6 +7,7 @@ import { AutoFixStatus, Severity, TicketSystem } from './common'
 export const TICKET_STATUS = {
   OPEN: 'open',
   IN_PROGRESS: 'in_progress',
+  IN_REVIEW: 'in_review',
   RESOLVED: 'resolved',
 } as const
 

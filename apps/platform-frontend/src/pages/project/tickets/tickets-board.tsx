@@ -53,9 +53,9 @@ export function TicketsBoard({
 
   const phaseGroups = useMemo(() => {
     const groups: Record<TicketWorkflowPhase, Record<TicketLifecycleStatus, Ticket[]>> = {
-      research: { open: [], in_progress: [], resolved: [] },
-      planning: { open: [], in_progress: [], resolved: [] },
-      execution: { open: [], in_progress: [], resolved: [] },
+      research: { open: [], in_progress: [], in_review: [], resolved: [] },
+      planning: { open: [], in_progress: [], in_review: [], resolved: [] },
+      execution: { open: [], in_progress: [], in_review: [], resolved: [] },
     }
 
     for (const ticket of tickets) {

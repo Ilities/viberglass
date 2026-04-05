@@ -166,7 +166,7 @@ export class JobService {
             : status === "completed"
               ? {
                   autoFixStatus: "completed" as const,
-                  status: TICKET_STATUS.RESOLVED,
+                  status: TICKET_STATUS.IN_REVIEW,
                   pullRequestUrl: updates.result?.pullRequestUrl,
                 }
               : {

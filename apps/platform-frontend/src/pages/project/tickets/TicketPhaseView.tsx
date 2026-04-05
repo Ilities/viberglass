@@ -1,6 +1,5 @@
 import { Badge } from '@/components/badge'
 import { ClipboardIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
-import type { AgentSession, AgentSessionMode } from '@/service/api/session-api'
 import type { ApprovalState } from '@/service/api/ticket-api'
 import { TICKET_WORKFLOW_PHASE, type Clanker, type Ticket } from '@viberglass/types'
 import { toast } from 'sonner'
@@ -13,13 +12,9 @@ interface TicketPhaseViewProps {
   ticket: Ticket
   clankers: Clanker[]
   project: string
-  currentSession: AgentSession | null
   onWorkflowPhaseChange: (phase: Ticket['workflowPhase']) => void
   onApprovalStateChange: (state: ApprovalState) => void
-  onStartSession: (mode: AgentSessionMode, prefilledMessage: string) => void
-  onSendToSession: (message: string, mode: AgentSessionMode) => void
-  onSessionEnded: () => void
-  documentRefreshKey?: number
+  onResolve: () => Promise<void>
   jobs: JobListItem[]
 }
 
@@ -40,13 +35,9 @@ export function TicketPhaseView({
   ticket,
   clankers,
   project,
-  currentSession,
   onWorkflowPhaseChange,
   onApprovalStateChange,
-  onStartSession,
-  onSendToSession,
-  onSessionEnded,
-  documentRefreshKey,
+  onResolve,
   jobs,
 }: TicketPhaseViewProps) {
   const statusBadge = formatTicketStatus(ticket.status)
@@ -171,14 +162,9 @@ export function TicketPhaseView({
           project={project}
           phase="research"
           currentPhase={currentPhase}
-          activeSession={currentSession}
-          onStartSession={onStartSession}
-          onSendToSession={onSendToSession}
-          onSessionEnded={onSessionEnded}
           onWorkflowPhaseChange={onWorkflowPhaseChange}
           onApprovalStateChange={onApprovalStateChange}
           jobs={jobs}
-          documentRefreshKey={documentRefreshKey}
         />
 
         <PhaseSection
@@ -187,14 +173,9 @@ export function TicketPhaseView({
           project={project}
           phase="planning"
           currentPhase={currentPhase}
-          activeSession={currentSession}
-          onStartSession={onStartSession}
-          onSendToSession={onSendToSession}
-          onSessionEnded={onSessionEnded}
           onWorkflowPhaseChange={onWorkflowPhaseChange}
           onApprovalStateChange={onApprovalStateChange}
           jobs={jobs}
-          documentRefreshKey={documentRefreshKey}
         />
 
         <PhaseSection
@@ -203,14 +184,10 @@ export function TicketPhaseView({
           project={project}
           phase="execution"
           currentPhase={currentPhase}
-          activeSession={currentSession}
-          onStartSession={onStartSession}
-          onSendToSession={onSendToSession}
-          onSessionEnded={onSessionEnded}
           onWorkflowPhaseChange={onWorkflowPhaseChange}
           onApprovalStateChange={onApprovalStateChange}
+          onResolve={onResolve}
           jobs={jobs}
-          documentRefreshKey={documentRefreshKey}
         />
       </div>
     </div>
