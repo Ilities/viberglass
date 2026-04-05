@@ -36,7 +36,8 @@
         "groups:history",
         "im:read",
         "im:history",
-        "users:read"
+        "users:read",
+        "files:write"
       ]
     }
   },

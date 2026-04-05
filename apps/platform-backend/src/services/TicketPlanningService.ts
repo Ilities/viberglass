@@ -6,6 +6,7 @@ import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseRunDAO } from "../persistence/ticketing/TicketPhaseRunDAO";
+import { TicketPhaseDocumentCommentDAO, PHASE_DOCUMENT_COMMENT_STATUS } from "../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { JobService } from "./JobService";
@@ -66,6 +67,7 @@ export class TicketPlanningService {
   private readonly workerExecutionService = new WorkerExecutionService();
   private readonly documentService = new TicketPhaseDocumentService();
   private readonly phaseRunDAO = new TicketPhaseRunDAO();
+  private readonly commentDAO = new TicketPhaseDocumentCommentDAO();
   private readonly instructionStorageService = new InstructionStorageService();
   private readonly promptTemplateService = new PromptTemplateService(
     new PromptTemplateDAO(),
@@ -194,6 +196,137 @@ export class TicketPlanningService {
     );
 
     // Record phase run
+    await this.phaseRunDAO.createRun(
+      ticket.id,
+      jobData.id,
+      executionClanker.id,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+    );
+
+    return result;
+  }
+
+  async runPlanningRevision(
+    ticketId: string,
+    options: { clankerId: string; revisionMessage: string },
+  ): Promise<{ jobId: string; status: string }> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
+        "Ticket not found",
+      );
+    }
+
+    // Get existing research + planning documents
+    const researchDoc = await this.documentService.getOrCreateDocument(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
+    const researchDocumentContent = researchDoc.content;
+
+    const planDoc = await this.documentService.getOrCreateDocument(
+      ticketId,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+    );
+    const planDocumentContent = planDoc.content?.trim() || undefined;
+
+    // Gather open comments for planning phase
+    const allComments = await this.commentDAO.listByTicketAndPhase(
+      ticketId,
+      "planning",
+    );
+    const openComments = allComments.filter(
+      (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
+    );
+
+    const SUGGESTION_PREFIX = "@@SUGGESTION@@\n";
+    const openCommentsStr =
+      openComments.length > 0
+        ? openComments
+            .map((c) => {
+              const actor = c.actor ? ` (by ${c.actor})` : "";
+              if (c.content.startsWith(SUGGESTION_PREFIX)) {
+                const suggestion = c.content.slice(SUGGESTION_PREFIX.length);
+                return `- Line ${c.lineNumber}${actor}: **Suggestion:** ${suggestion}`;
+              }
+              return `- Line ${c.lineNumber}${actor}: ${c.content}`;
+            })
+            .join("\n")
+        : undefined;
+
+    const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
+    const preparedContext = await prepareTicketRunContext(
+      {
+        projectId: ticket.projectId,
+        clankerId: options.clankerId,
+        jobId,
+        instructionFiles: [],
+      },
+      {
+        projectDAO: this.projectDAO,
+        projectScmConfigDAO: this.projectScmConfigDAO,
+        integrationCredentialDAO: this.integrationCredentialDAO,
+        clankerDAO: this.clankerDAO,
+        provisioningService: this.provisioningService,
+        instructionStorageService: this.instructionStorageService,
+      },
+    );
+
+    const {
+      sourceRepository,
+      baseBranch,
+      executionClanker,
+      mergedInstructionFiles,
+    } = preparedContext;
+
+    const task = await this.promptTemplateService.render(
+      PROMPT_TYPE.ticket_planning_revision_task,
+      ticket.projectId,
+      {
+        externalTicketId: ticket.externalTicketId ?? undefined,
+        ticketTitle: ticket.title,
+        ticketDescription: ticket.description,
+        researchDocument: researchDocumentContent?.trim() || undefined,
+        planDocument: planDocumentContent,
+        revisionMessage: options.revisionMessage,
+        openComments: openCommentsStr,
+      },
+    );
+
+    const jobData: PlanningJobData = {
+      id: jobId,
+      jobKind: "planning",
+      tenantId: "api-server",
+      repository: sourceRepository,
+      task,
+      baseBranch,
+      context: {
+        ticketId: ticket.id,
+        researchDocument: researchDocumentContent ?? "",
+        planDocument: planDocumentContent,
+        instructionFiles: mergedInstructionFiles,
+      },
+      settings: {
+        testRequired: false,
+        maxChanges: 1,
+      },
+      timestamp: Date.now(),
+    };
+
+    const result = await submitJobWithBootstrapAndInvoke(
+      jobData,
+      ticket.id,
+      executionClanker.id,
+      "Planning Revision",
+      preparedContext,
+      {
+        jobService: this.jobService,
+        credentialRequirementsService: this.credentialRequirementsService,
+        workerExecutionService: this.workerExecutionService,
+      },
+    );
+
     await this.phaseRunDAO.createRun(
       ticket.id,
       jobData.id,

@@ -79,6 +79,16 @@ export interface SlackHandlerServices {
   startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode): void;
   stopBridge(sessionId: string): void;
 
+  // Ticket job flow (non-session)
+  runRevisionJob(params: {
+    ticketId: string;
+    clankerId: string;
+    mode: "research" | "planning";
+    revisionMessage: string;
+  }): Promise<{ jobId: string; status: string }>;
+  linkTicketThread(ticketId: string, thread: Thread, clankerId: string, mode: string): Promise<void>;
+  getTicketForThread(threadId: string): Promise<{ ticketId: string; clankerId: string; mode: string } | undefined>;
+
   // URL helpers
   ticketUrl(projectId: string, ticketId: string): string | null;
 }

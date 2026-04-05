@@ -11,7 +11,10 @@ import type { Router } from "express";
 import logger from "../../../config/logger";
 import type { ProjectDAO } from "../../../persistence/project/ProjectDAO";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
-import { upload, type FileUploadService } from "../../../services/FileUploadService";
+import {
+  upload,
+  type FileUploadService,
+} from "../../../services/FileUploadService";
 import {
   handleMulterError,
   parseMultipartJsonFields,
@@ -34,6 +37,7 @@ const uuidRegex =
 const ticketLifecycleStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
+  TICKET_STATUS.IN_REVIEW,
   TICKET_STATUS.RESOLVED,
 ];
 
@@ -146,7 +150,11 @@ function parseSeverityQuery(
 
 export function registerTicketCrudMediaRoutes(
   router: Router,
-  { ticketService, projectService, fileUploadService }: TicketCrudMediaRouteDependencies,
+  {
+    ticketService,
+    projectService,
+    fileUploadService,
+  }: TicketCrudMediaRouteDependencies,
 ): void {
   // POST /api/tickets - Create a new ticket
   router.post(
@@ -269,10 +277,8 @@ export function registerTicketCrudMediaRoutes(
           });
         }
 
-        const signedUrl = await fileUploadService.generateSignedUrlFromStorageUrl(
-          source,
-          3600,
-        );
+        const signedUrl =
+          await fileUploadService.generateSignedUrlFromStorageUrl(source, 3600);
         return res.redirect(signedUrl);
       } catch (error) {
         logger.error("Error streaming media asset", {
@@ -290,7 +296,9 @@ export function registerTicketCrudMediaRoutes(
   // POST /api/tickets/archive - Archive multiple tickets
   router.post("/archive", validateArchiveTickets, async (req, res) => {
     try {
-      const updatedCount = await ticketService.archiveTickets(req.body.ticketIds);
+      const updatedCount = await ticketService.archiveTickets(
+        req.body.ticketIds,
+      );
       res.json({
         success: true,
         data: { updatedCount },

@@ -82,6 +82,27 @@ export class TicketPhaseRunDAO {
 
     return this.toPhaseRunRow(row);
   }
+  /**
+   * Find the most recent active (queued/active) job ID for a ticket+phase.
+   * Returns null if no active job exists.
+   */
+  async findActiveJobId(
+    ticketId: string,
+    phase: TicketWorkflowPhase,
+  ): Promise<string | null> {
+    const row = await db
+      .selectFrom("ticket_phase_runs as runs")
+      .innerJoin("jobs", "jobs.id", "runs.job_id")
+      .select(["jobs.id"])
+      .where("runs.ticket_id", "=", ticketId)
+      .where("runs.phase", "=", phase)
+      .where("jobs.status", "in", ["queued", "active"])
+      .orderBy("runs.created_at", "desc")
+      .executeTakeFirst();
+
+    return row?.id ?? null;
+  }
+
   private toPhaseRunRow(row: LatestPhaseRunRow): LatestPhaseRun {
     return {
       id: row.id,

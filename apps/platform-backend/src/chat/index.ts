@@ -4,11 +4,17 @@
  */
 import bot from "./bot";
 import { chatSessionBridge } from "./ChatSessionBridgeService";
+import { ticketJobBridge } from "./TicketJobBridge";
 import {
   linkSessionThread,
   unlinkSession,
   getSessionForThread,
 } from "./sessionThreadMap";
+import {
+  linkTicketThread,
+  getTicketForThread,
+  getThreadForTicket,
+} from "./ticketThreadMap";
 import { ticketUrl } from "./platformLinks";
 import logger from "../config/logger";
 import { registerSlackHandlers } from "@viberglass/chat-slack";
@@ -93,13 +99,22 @@ const slackServices: SlackHandlerServices = {
     }),
 
   runJob: async ({ ticketId, clankerId, mode }) => {
+    let result;
     if (mode === "research") {
-      return ticketResearchService.runResearch(ticketId, { clankerId });
+      result = await ticketResearchService.runResearch(ticketId, { clankerId });
+    } else if (mode === "planning") {
+      result = await ticketPlanningService.runPlanning(ticketId, { clankerId });
+    } else {
+      result = await ticketExecutionService.runTicket(ticketId, { clankerId });
     }
-    if (mode === "planning") {
-      return ticketPlanningService.runPlanning(ticketId, { clankerId });
+
+    // Start the ticket job bridge to post the document on completion
+    const thread = await getThreadForTicket(ticketId);
+    if (thread) {
+      ticketJobBridge.startBridge(result.jobId, ticketId, thread, mode);
     }
-    return ticketExecutionService.runTicket(ticketId, { clankerId });
+
+    return result;
   },
 
   launchSession: (params) => launchService.launch(params),
@@ -136,6 +151,27 @@ const slackServices: SlackHandlerServices = {
     chatSessionBridge.startBridge(sessionId, thread, chainTo),
   stopBridge: (sessionId: string) => chatSessionBridge.stopBridge(sessionId),
 
+  // Ticket job flow
+  runRevisionJob: async ({ ticketId, clankerId, mode, revisionMessage }) => {
+    let result;
+    if (mode === "research") {
+      result = await ticketResearchService.runResearchRevision(ticketId, { clankerId, revisionMessage });
+    } else {
+      result = await ticketPlanningService.runPlanningRevision(ticketId, { clankerId, revisionMessage });
+    }
+
+    // Start the ticket job bridge to post the revised document on completion
+    const thread = await getThreadForTicket(ticketId);
+    if (thread) {
+      ticketJobBridge.startBridge(result.jobId, ticketId, thread, mode);
+    }
+
+    return result;
+  },
+  linkTicketThread: (ticketId, thread, clankerId, mode) =>
+    linkTicketThread(ticketId, thread, clankerId, mode),
+  getTicketForThread: (threadId) => getTicketForThread(threadId),
+
   ticketUrl,
 
   resolveSessionAdvance,
@@ -154,11 +190,16 @@ chatSessionBridge.configure({
 
 registerSlackHandlers(bot, slackServices);
 
-// Resume bridges for active sessions that were running before restart.
+// Resume bridges for active sessions and ticket jobs that were running before restart.
 // Deferred so it doesn't block module loading.
 setTimeout(() => {
   chatSessionBridge.resumeActiveBridges().catch((err) => {
     logger.error("Failed to resume active chat bridges", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+  ticketJobBridge.resumeActiveBridges().catch((err) => {
+    logger.error("Failed to resume ticket job bridges", {
       error: err instanceof Error ? err.message : String(err),
     });
   });
