@@ -182,16 +182,38 @@ export class InstructionFileManager {
         fileTypes: payload.instructionFiles.map((f) => f.fileType),
       },
     );
-    const files = await configLoader.fetchInstructionFiles(
-      payload.instructionFiles.map((file) => ({
-        fileType: file.fileType,
-        s3Url: file.s3Url,
-      })),
-    );
 
     const instructionFiles = new Map<string, string>();
-    for (const file of files) {
-      instructionFiles.set(file.fileType, file.content);
+    const s3FilesToFetch: Array<{ fileType: string; s3Url: string }> = [];
+
+    for (const file of payload.instructionFiles) {
+      if (file.content && file.content.trim().length > 0) {
+        this.logger.info(
+          "InstructionFileManager: Using inline content for instruction file",
+          {
+            fileType: file.fileType,
+            contentLength: file.content.length,
+          },
+        );
+        instructionFiles.set(file.fileType, file.content);
+      } else if (file.s3Url) {
+        s3FilesToFetch.push({ fileType: file.fileType, s3Url: file.s3Url });
+      } else {
+        this.logger.warn(
+          "InstructionFileManager: Instruction file missing both content and s3Url",
+          {
+            fileType: file.fileType,
+          },
+        );
+      }
+    }
+
+    if (s3FilesToFetch.length > 0) {
+      const fetchedFiles =
+        await configLoader.fetchInstructionFiles(s3FilesToFetch);
+      for (const file of fetchedFiles) {
+        instructionFiles.set(file.fileType, file.content);
+      }
     }
 
     return instructionFiles;
