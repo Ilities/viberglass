@@ -12,14 +12,14 @@ import {
   withJobLifecycle,
 } from "./jobPipeline";
 
-export async function runCodingJob(
+export async function runClawJob(
   params: JobRunnerParams,
 ): Promise<JobResult> {
-  return withJobLifecycle(params, "Job", async () => {
+  return withJobLifecycle(params, "Claw job", async () => {
     const { data, gitService, sendProgress } = params;
     const { id, repository, task, context, scm } = data;
 
-    const setup = await setupJob(params, "coding");
+    const setup = await setupJob(params, "claw");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
 
     const pullRequestBaseBranch =
