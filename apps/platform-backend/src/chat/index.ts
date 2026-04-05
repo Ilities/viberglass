@@ -181,6 +181,11 @@ const slackServices: SlackHandlerServices = {
 
   ticketUrl,
 
+  getProject: async (id: string) => {
+    const project = await projectDAO.getProject(id);
+    return project ? { id: project.id, slug: project.slug } : null;
+  },
+
   resolveSessionAdvance,
 };
 

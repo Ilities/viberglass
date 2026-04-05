@@ -305,7 +305,7 @@ export class ChatSessionBridgeService {
             ) {
               parts.push(`[View pull request](${session.draftPullRequestUrl})`);
             }
-            const url = ticketUrl(session.projectId, session.ticketId);
+            const url = ticketUrl(session.projectSlug ?? session.projectId, session.ticketId);
             if (url) {
               parts.push(`[View ticket](${url})`);
             }

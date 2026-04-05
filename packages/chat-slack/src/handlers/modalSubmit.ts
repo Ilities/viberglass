@@ -51,9 +51,11 @@ export function registerModalSubmitHandler(
       const channel = event.relatedChannel;
       if (!channel) return;
 
-      const url = services.ticketUrl(projectId, ticket.id);
+      const project = await services.getProject(projectId);
+      const projectSlug = project?.slug ?? projectId;
+      const url = services.ticketUrl(projectSlug, ticket.id);
       const ticketRef = url ? `[${title}](${url})` : title;
-      const sent = await channel.post({ markdown: `_${mode}_ | ${ticketRef} — job \`${job.jobId}\` queued.` });
+      const sent = await channel.post({ markdown: `_${mode}_ | ${ticketRef} — job queued.` });
 
       // Build a Thread from the sent message for the ticket-thread mapping
       const thread = new ThreadImpl({ adapterName: "slack", id: sent.threadId, channelId: channel.id });
