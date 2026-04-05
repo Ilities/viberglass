@@ -42,38 +42,28 @@ function effectiveSessionMode(
 }
 
 function buildSessionPromptOverride(params: JobRunnerParams): string {
-  const { data, acpSessionId } = params;
+  const { data } = params;
   const mode = effectiveSessionMode(params);
 
-  // Continuation turns with an existing ACP session: the agent already has the
-  // full conversation context.  The task has been enriched by the platform
-  // (Phase 1: includes rendered template with documents/comments), so we can
-  // send it directly.  Only append document sections for first-turn sessions.
-  if (acpSessionId) {
-    return data.task;
+  // For continuation turns with ACP session, data.task already contains the
+  // enriched revision template output. Still append the latest document content
+  // from context to ensure the agent always has the current version.
+  let prompt = data.task;
+
+  if (mode === "research" && data.context?.researchDocument?.trim()) {
+    prompt += `\n\nCurrent Research Document (revise this):\n${data.context.researchDocument}`;
   }
 
-  // First turn of a research session: data.task already contains the full research prompt
-  // (agent instructions + ticket content, from the ticket_research template).
-  // Append any existing research document for revision sessions.
-  if (mode === "research") {
-    const existingDocSection = data.context?.researchDocument?.trim()
-      ? `\n\nExisting Research Document (revise based on the feedback below):\n${data.context.researchDocument}`
-      : "";
-    return `${data.task}${existingDocSection}`;
-  }
-
-  // First turn of a planning session: data.task already contains the full planning prompt
-  // (agent instructions + ticket content + research doc, from the ticket_planning_* template).
-  // Append any existing plan document for revision sessions.
   if (mode === "planning") {
-    const existingPlanSection = data.context?.planDocument?.trim()
-      ? `\n\nExisting Planning Document (revise based on the feedback below):\n${data.context.planDocument}`
-      : "";
-    return `${data.task}${existingPlanSection}`;
+    if (data.context?.researchDocument?.trim()) {
+      prompt += `\n\nApproved Research Document:\n${data.context.researchDocument}`;
+    }
+    if (data.context?.planDocument?.trim()) {
+      prompt += `\n\nCurrent Planning Document (revise this):\n${data.context.planDocument}`;
+    }
   }
 
-  return data.task;
+  return prompt;
 }
 
 /**

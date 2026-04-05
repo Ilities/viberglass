@@ -22,6 +22,7 @@ import {
   ChevronRightIcon,
   RotateCounterClockwiseIcon,
   CrossCircledIcon,
+  ExternalLinkIcon,
   Pencil1Icon,
   PlayIcon,
   ReaderIcon,
@@ -323,6 +324,53 @@ export function PhaseSection({
             </div>
           ) : (
             <>
+              {phase === 'execution' ? (
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1.5">
+                      <Subheading className="flex items-center gap-2">
+                        <ReaderIcon className="h-5 w-5 text-[var(--accent-9)]" />
+                        Execution Results
+                      </Subheading>
+                    </div>
+                    <Button
+                      color="brand"
+                      onClick={() => setIsRunModalOpen(true)}
+                      disabled={!isCurrentPhase}
+                      title={isCurrentPhase ? 'Run Execution' : 'Execution only available in current phase'}
+                    >
+                      <PlayIcon className="h-3.5 w-3.5" />
+                      Run Execution
+                    </Button>
+                  </div>
+
+                  {ticket.pullRequestUrl ? (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--green-6)] bg-[var(--green-2)] p-4">
+                      <div className="flex items-center gap-3">
+                        <CheckCircledIcon className="h-5 w-5 text-[var(--green-9)]" />
+                        <div>
+                          <p className="text-sm font-medium text-[var(--gray-12)]">Pull Request Created</p>
+                          <p className="text-xs text-[var(--gray-9)]">The agent has created a pull request for this ticket.</p>
+                        </div>
+                      </div>
+                      <Button color="brand" href={ticket.pullRequestUrl} target="_blank">
+                        <ExternalLinkIcon className="h-3.5 w-3.5" />
+                        View Pull Request
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
+                      <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />
+                      <div>
+                        <p className="text-sm font-medium text-[var(--gray-11)]">No pull request yet</p>
+                        <p className="mt-1 text-sm text-[var(--gray-9)]">
+                          Run execution to generate a pull request for this ticket.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1.5">
@@ -333,8 +381,8 @@ export function PhaseSection({
                     {latestRun && (
                       <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gray-9)]">
                         <Badge color={getPhaseRunStatusBadgeColor(latestRun.status)}>
-                          {latestRun.status === 'active' 
-                            ? `${phase.charAt(0).toUpperCase() + phase.slice(1)} Running` 
+                          {latestRun.status === 'active'
+                            ? `${phase.charAt(0).toUpperCase() + phase.slice(1)} Running`
                             : `${phase.charAt(0).toUpperCase() + phase.slice(1)} ${latestRun.status}`}
                         </Badge>
                         <span>
@@ -361,7 +409,7 @@ export function PhaseSection({
                       title={isCurrentPhase ? `Run ${phase}` : `${phase} only available in current phase`}
                     >
                       <PlayIcon className="h-3.5 w-3.5" />
-                      {phase === 'research' ? 'Run Research' : phase === 'planning' ? 'Run Plan' : 'Run Execution'}
+                      {phase === 'research' ? 'Run Research' : 'Run Plan'}
                     </Button>
                     {isEditing ? (
                       <>
@@ -441,20 +489,14 @@ export function PhaseSection({
                     placeholder={`Write ${phase} notes in markdown...`}
                   />
                 ) : hasContent ? (
-                  phase !== 'execution' ? (
-                    <PhaseDocumentComments
-                      ticketId={ticket.id}
-                      phase={phase}
-                      content={document!.content}
-                      onApplySuggestion={handleApplySuggestion}
-                      activeSessionId={sessionForPhase?.id}
-                      onSendToSession={(msg: string) => onSendToSession(msg, phase as 'research' | 'planning')}
-                    />
-                  ) : (
-                    <div className="prose prose-sm max-w-none rounded-lg border border-[var(--gray-5)] bg-[var(--gray-1)] p-4 text-sm text-[var(--gray-11)]">
-                      <pre className="whitespace-pre-wrap font-mono text-xs">{document!.content}</pre>
-                    </div>
-                  )
+                  <PhaseDocumentComments
+                    ticketId={ticket.id}
+                    phase={phase}
+                    content={document!.content}
+                    onApplySuggestion={handleApplySuggestion}
+                    activeSessionId={sessionForPhase?.id}
+                    onSendToSession={(msg: string) => onSendToSession(msg, phase as 'research' | 'planning')}
+                  />
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
                     <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />
@@ -467,6 +509,7 @@ export function PhaseSection({
                   </div>
                 )}
               </div>
+              )}
 
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-[var(--gray-11)]">Agent Session</h4>

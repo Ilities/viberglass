@@ -11,7 +11,7 @@ import {
   type SessionDetail,
 } from '@/service/api/session-api'
 import { ChatBubbleIcon, CrossCircledIcon, ExternalLinkIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { PendingRequestCard } from '../sessions/PendingRequestCard'
 import { TranscriptPanel } from '../sessions/TranscriptPanel'
@@ -84,7 +84,8 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onRevise }
     void loadDetail()
   }, [loadDetail])
 
-  const { events, connected } = useSessionEventStream(session.id, detail?.latestEvents ?? [])
+  const initialEvents = useMemo(() => detail?.latestEvents ?? [], [detail?.latestEvents])
+  const { events, connected } = useSessionEventStream(session.id, initialEvents)
 
   const lastEvent = events.length > 0 ? events[events.length - 1] : null
   const liveStatus: AgentSessionStatus | undefined =
