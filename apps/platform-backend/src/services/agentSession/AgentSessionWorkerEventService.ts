@@ -84,6 +84,36 @@ export class AgentSessionWorkerEventService {
     });
   }
 
+  async storeConversationStateUrl(jobId: string, conversationStateUrl: string): Promise<void> {
+    const turn = await this.agentTurnDAO.getByJobId(jobId);
+    if (!turn) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_FOUND,
+        `No turn found for job ${jobId}`,
+        404,
+      );
+    }
+
+    const session = await this.agentSessionDAO.getById(turn.sessionId);
+    if (!session) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_FOUND,
+        `Session not found for turn ${turn.id}`,
+      );
+    }
+
+    const existingMeta =
+      session.metadataJson !== null &&
+      typeof session.metadataJson === "object" &&
+      !Array.isArray(session.metadataJson)
+        ? (session.metadataJson as Record<string, unknown>)
+        : {};
+
+    await this.agentSessionDAO.update(session.id, {
+      metadataJson: { ...existingMeta, conversationStateUrl },
+    });
+  }
+
   private async applyEventTransition(
     sessionId: string,
     turnId: string,

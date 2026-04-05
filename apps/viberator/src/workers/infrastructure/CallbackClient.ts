@@ -203,6 +203,20 @@ export class CallbackClient {
     );
   }
 
+  async sendConversationStateUrl(
+    jobId: string,
+    tenantId: string,
+    conversationStateUrl: string,
+  ): Promise<void> {
+    await this.post(
+      `${this.apiUrl}/api/jobs/${jobId}/conversation-state-url`,
+      tenantId,
+      { conversationStateUrl },
+      { timeoutMs: 10000, label: "conversation state URL" },
+      { jobId },
+    );
+  }
+
   private async post(
     url: string,
     tenantId: string,

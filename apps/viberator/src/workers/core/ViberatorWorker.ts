@@ -66,6 +66,7 @@ export class ViberatorWorker {
   private agentTurnId?: string;
   private sessionMode?: "research" | "planning" | "execution";
   private acpSessionId?: string;
+  private conversationStateUrl?: string;
 
   constructor(
     agentAuthLifecycleFactory: AgentAuthLifecycleFactory,
@@ -170,6 +171,7 @@ export class ViberatorWorker {
         agentSessionId: this.agentSessionId,
         agentTurnId: this.agentTurnId,
         acpSessionId: this.acpSessionId,
+        conversationStateUrl: this.conversationStateUrl,
         sessionMode: this.sessionMode,
         sessionEventForwarder: this.sessionEventForwarder,
         selectAgentForExecution: (availableAgents) =>
@@ -233,6 +235,7 @@ export class ViberatorWorker {
     this.agentTurnId = payload.agentTurnId;
     this.sessionMode = payload.sessionMode;
     this.acpSessionId = payload.acpSessionId;
+    this.conversationStateUrl = payload.conversationStateUrl;
   }
 
   private async loadPayloadCredentials(payload: WorkerPayload): Promise<void> {

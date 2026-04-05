@@ -624,4 +624,35 @@ router.post(
   },
 );
 
+// POST /:jobId/conversation-state-url - Worker stores conversation state S3 URL
+router.post(
+  "/:jobId/conversation-state-url",
+  tenantMiddleware,
+  validateCallbackToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const { conversationStateUrl } = req.body;
+
+      if (!conversationStateUrl || typeof conversationStateUrl !== "string") {
+        return res
+          .status(400)
+          .json({ error: "conversationStateUrl must be a non-empty string" });
+      }
+
+      await workerEventService.storeConversationStateUrl(jobId, conversationStateUrl);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error("Failed to store conversation state URL", {
+        jobId: req.params.jobId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (isAgentSessionServiceError(err)) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
 export default router;
