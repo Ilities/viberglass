@@ -4,7 +4,7 @@
   "private": true,
   "description": "Viberglass monorepo - AI Agent Orchestrator and Platform",
   "author": "Viberglass Contributors",
-  "license": "Apache-2.0",
+  "license": "BSL-1.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/Ilities/viberglass.git"
