@@ -38,6 +38,12 @@ export class AcpExecutor {
       timeoutMs,
       agentSessionId: context.agentSessionId,
       acpSessionId: context.acpSessionId,
+      env: {
+        HOME: env.HOME,
+        OPENCODE_CONFIG_DIR: env.OPENCODE_CONFIG_DIR,
+        OPENCODE_BASE_URL: env.OPENCODE_BASE_URL,
+        HAS_API_KEY: !!env.OPENCODE_API_KEY,
+      },
     });
 
     const client = new AcpClient(

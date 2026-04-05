@@ -66,7 +66,7 @@ export class ConfigLoader {
     try {
       const { bucket, key } = this.parseS3Url(s3Url);
 
-      this.logger.debug("Fetching instruction file from S3", {
+      this.logger.info("ConfigLoader: Fetching instruction file from S3", {
         bucket,
         key,
         s3Url,
@@ -85,19 +85,26 @@ export class ConfigLoader {
       }
       const content = await response.Body.transformToString();
 
-      this.logger.debug("Successfully fetched instruction file from S3", {
-        bucket,
-        key,
-        contentLength: content.length,
-      });
+      this.logger.info(
+        "ConfigLoader: Successfully fetched instruction file from S3",
+        {
+          bucket,
+          key,
+          contentLength: content.length,
+        },
+      );
 
       return content;
     } catch (error) {
-      // Log warning but continue (per CONTEXT.md decision)
-      this.logger.warn("Failed to fetch instruction file from S3", {
-        s3Url,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      // Log error and continue (per CONTEXT.md decision)
+      this.logger.error(
+        "ConfigLoader: Failed to fetch instruction file from S3",
+        {
+          s3Url,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      );
       return null;
     }
   }

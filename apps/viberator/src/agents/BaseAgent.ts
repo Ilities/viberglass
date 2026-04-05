@@ -325,19 +325,30 @@ export abstract class BaseAgent {
             const testFile = path.join(candidate, `.write-test-${Date.now()}`);
             fs.writeFileSync(testFile, "test");
             fs.unlinkSync(testFile);
+            this.logger.info("Selected writable HOME directory", { candidate });
             return candidate;
-          } catch {
+          } catch (err) {
+            this.logger.warn("HOME candidate not writable in Lambda", {
+              candidate,
+              error: err instanceof Error ? err.message : String(err),
+            });
             continue;
           }
         }
+        this.logger.debug("Selected HOME directory", { candidate });
         return candidate;
       }
     }
 
+    this.logger.warn("No suitable HOME directory found; falling back to /tmp", {
+      candidates,
+    });
     try {
       fs.mkdirSync("/tmp", { recursive: true });
-    } catch {
-      // Best effort only; command execution will still proceed.
+    } catch (err) {
+      this.logger.error("Failed to create /tmp fallback", {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     return "/tmp";

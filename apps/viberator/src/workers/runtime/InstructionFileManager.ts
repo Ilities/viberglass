@@ -57,15 +57,37 @@ export class InstructionFileManager {
             const testFile = path.join(candidate, `.write-test-${Date.now()}`);
             fs.writeFileSync(testFile, "test");
             fs.unlinkSync(testFile);
+            this.logger.info(
+              "InstructionFileManager: Selected writable HOME directory",
+              {
+                candidate,
+              },
+            );
             return candidate;
-          } catch {
+          } catch (err) {
+            this.logger.warn(
+              "InstructionFileManager: HOME candidate not writable in Lambda",
+              {
+                candidate,
+                error: err instanceof Error ? err.message : String(err),
+              },
+            );
             continue;
           }
         }
+        this.logger.debug("InstructionFileManager: Selected HOME directory", {
+          candidate,
+        });
         return candidate;
       }
     }
 
+    this.logger.warn(
+      "InstructionFileManager: No suitable HOME directory found; falling back to /tmp",
+      {
+        candidates,
+      },
+    );
     return "/tmp";
   }
 
@@ -81,6 +103,10 @@ export class InstructionFileManager {
     let excludeAppend = "";
 
     for (const [fileType, content] of instructionFiles.entries()) {
+      this.logger.info("InstructionFileManager: Materializing file", {
+        fileType,
+        contentLength: content.length,
+      });
       if (this.isHarnessConfigFile(fileType)) {
         const workDir = path.dirname(repoDir);
         const harnessConfigDir = path.join(workDir, ".harness-config");
@@ -90,10 +116,13 @@ export class InstructionFileManager {
         await fs.promises.mkdir(harnessConfigDir, { recursive: true });
         await fs.promises.writeFile(targetPath, content, "utf-8");
 
-        this.logger.debug("Materialized harness config file", {
-          fileType,
-          targetPath,
-        });
+        this.logger.info(
+          "InstructionFileManager: Materialized harness config file",
+          {
+            fileType,
+            targetPath,
+          },
+        );
 
         // For OpenCode, also materialize to $HOME/.opencode/opencode.json if HOME is set.
         // Some versions of the CLI or certain commands might not respect OPENCODE_CONFIG_DIR
@@ -104,21 +133,32 @@ export class InstructionFileManager {
           const homeTargetPath = path.join(homeOpencodeDir, "opencode.json");
           await fs.promises.mkdir(homeOpencodeDir, { recursive: true });
           await fs.promises.writeFile(homeTargetPath, content, "utf-8");
-          this.logger.debug("Materialized opencode.json to HOME", {
-            targetPath: homeTargetPath,
-          });
+          this.logger.info(
+            "InstructionFileManager: Materialized opencode.json to HOME",
+            {
+              targetPath: homeTargetPath,
+            },
+          );
         }
         continue;
       }
 
       const targetPath = this.resolveTargetPath(repoDir, fileType);
       if (!targetPath) {
-        this.logger.warn("Skipping unsafe instruction file path", { fileType });
+        this.logger.warn(
+          "InstructionFileManager: Skipping unsafe instruction file path",
+          { fileType },
+        );
         continue;
       }
 
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.promises.writeFile(targetPath, content, "utf-8");
+
+      this.logger.info("InstructionFileManager: Materialized file to repo", {
+        fileType,
+        targetPath,
+      });
 
       const relativePath = path
         .relative(repoDir, targetPath)
@@ -135,6 +175,13 @@ export class InstructionFileManager {
     payload: LambdaPayload | EcsPayload,
     configLoader: ConfigLoader,
   ): Promise<Map<string, string>> {
+    this.logger.info(
+      "InstructionFileManager: Fetching instruction files for AWS environment",
+      {
+        count: payload.instructionFiles.length,
+        fileTypes: payload.instructionFiles.map((f) => f.fileType),
+      },
+    );
     const files = await configLoader.fetchInstructionFiles(
       payload.instructionFiles.map((file) => ({
         fileType: file.fileType,
