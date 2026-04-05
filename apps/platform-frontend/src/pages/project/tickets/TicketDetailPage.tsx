@@ -34,7 +34,7 @@ import {
   sendMessageToSession,
 } from '@/service/api/session-api'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
@@ -133,13 +133,16 @@ export function TicketDetailPage() {
     setCurrentSession(session)
   }, [])
 
+  const currentSessionRef = useRef(currentSession)
+  currentSessionRef.current = currentSession
+
   const handleSessionEnded = useCallback(() => {
-    const mode = currentSession?.mode
+    const mode = currentSessionRef.current?.mode
     void reloadSessions()
     if (mode === 'research' || mode === 'planning') {
       setDocumentRefreshKey((k) => k + 1)
     }
-  }, [currentSession])
+  }, [reloadSessions])
 
   const executionBlockingReason = useMemo(() => {
     if (!ticket) return null
