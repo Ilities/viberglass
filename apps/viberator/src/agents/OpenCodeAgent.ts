@@ -88,6 +88,17 @@ export class OpenCodeAgent extends BaseAgent {
       }
       env.HOME = this.resolveHomeDirectory(env.HOME);
 
+      this.logger.info("Executing OpenCode CLI", {
+        args,
+        workDir: repoDir,
+        env: {
+          HOME: env.HOME,
+          OPENCODE_CONFIG_DIR: env.OPENCODE_CONFIG_DIR,
+          OPENCODE_BASE_URL: env.OPENCODE_BASE_URL,
+          HAS_API_KEY: !!env.OPENCODE_API_KEY,
+        },
+      });
+
       let result;
       try {
         result = await this.executeCommand("opencode", args, {
