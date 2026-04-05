@@ -85,7 +85,7 @@ const slackServices: SlackHandlerServices = {
   listProjects: () => projectDAO.listProjects(),
   listClankers: () => clankerDAO.listClankers(),
 
-  createTicket: ({ projectId, title, description }) =>
+  createTicket: ({ projectId, title, description, phase }) =>
     ticketDAO.createTicket({
       projectId,
       title,
@@ -96,6 +96,7 @@ const slackServices: SlackHandlerServices = {
       annotations: [],
       autoFixRequested: false,
       ticketSystem: "slack",
+      workflowPhase: phase,
     }),
 
   runJob: async ({ ticketId, clankerId, mode }) => {
@@ -155,9 +156,15 @@ const slackServices: SlackHandlerServices = {
   runRevisionJob: async ({ ticketId, clankerId, mode, revisionMessage }) => {
     let result;
     if (mode === "research") {
-      result = await ticketResearchService.runResearchRevision(ticketId, { clankerId, revisionMessage });
+      result = await ticketResearchService.runResearchRevision(ticketId, {
+        clankerId,
+        revisionMessage,
+      });
     } else {
-      result = await ticketPlanningService.runPlanningRevision(ticketId, { clankerId, revisionMessage });
+      result = await ticketPlanningService.runPlanningRevision(ticketId, {
+        clankerId,
+        revisionMessage,
+      });
     }
 
     // Start the ticket job bridge to post the revised document on completion
@@ -182,7 +189,12 @@ chatSessionBridge.configure({
     await interactionService.approve(sessionId, true);
   },
   launchAndLink: async ({ ticketId, clankerId, mode, thread }) => {
-    const result = await launchService.launch({ ticketId, clankerId, mode, initialMessage: "" });
+    const result = await launchService.launch({
+      ticketId,
+      clankerId,
+      mode,
+      initialMessage: "",
+    });
     await linkSessionThread(result.session.id, thread, "slack");
     return result.session.id;
   },

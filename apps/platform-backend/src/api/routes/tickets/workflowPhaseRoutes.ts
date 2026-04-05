@@ -478,6 +478,49 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
+  // POST /api/tickets/:id/phases/research/revision - Run research revision
+  router.post(
+    "/:id/phases/research/revision",
+    validateUuidParam("id"),
+    async (req, res) => {
+      try {
+        const { clankerId, revisionMessage } = req.body;
+        if (typeof clankerId !== "string" || typeof revisionMessage !== "string") {
+          return res.status(400).json({
+            error: "Validation error",
+            message: "clankerId and revisionMessage must be strings",
+          });
+        }
+
+        const result = await ticketResearchService.runResearchRevision(
+          req.params.id,
+          { clankerId, revisionMessage },
+        );
+
+        return res.status(202).json({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        logger.error("Error running research revision", {
+          ticketId: req.params.id,
+          error: message,
+        });
+
+        const serviceError = resolveTicketRouteServiceError(error);
+        if (serviceError) {
+          return res.status(serviceError.statusCode).json(serviceError.body);
+        }
+
+        return res.status(500).json({
+          error: "Internal server error",
+          message,
+        });
+      }
+    },
+  );
+
   // PUT /api/tickets/:id/phases/research/document - Save research phase document
   router.put(
     "/:id/phases/research/document",
@@ -735,6 +778,49 @@ export function registerTicketWorkflowPhaseRoutes(
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         logger.error("Error running planning", {
+          ticketId: req.params.id,
+          error: message,
+        });
+
+        const serviceError = resolveTicketRouteServiceError(error);
+        if (serviceError) {
+          return res.status(serviceError.statusCode).json(serviceError.body);
+        }
+
+        return res.status(500).json({
+          error: "Internal server error",
+          message,
+        });
+      }
+    },
+  );
+
+  // POST /api/tickets/:id/phases/planning/revision - Run planning revision
+  router.post(
+    "/:id/phases/planning/revision",
+    validateUuidParam("id"),
+    async (req, res) => {
+      try {
+        const { clankerId, revisionMessage } = req.body;
+        if (typeof clankerId !== "string" || typeof revisionMessage !== "string") {
+          return res.status(400).json({
+            error: "Validation error",
+            message: "clankerId and revisionMessage must be strings",
+          });
+        }
+
+        const result = await ticketPlanningService.runPlanningRevision(
+          req.params.id,
+          { clankerId, revisionMessage },
+        );
+
+        return res.status(202).json({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        logger.error("Error running planning revision", {
           ticketId: req.params.id,
           error: message,
         });

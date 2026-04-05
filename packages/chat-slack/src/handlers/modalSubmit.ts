@@ -33,17 +33,19 @@ export function registerModalSubmitHandler(
       rawTitle?.trim() || message.split("\n")[0].slice(0, 120) || "Chat-initiated job";
 
     try {
+
+      const ticketPhase = toSessionMode(mode);
       const ticket = await services.createTicket({
         projectId,
         title,
         description: message,
+        phase: ticketPhase,
       });
 
-      const sessionMode = toSessionMode(mode);
       const job = await services.runJob({
         ticketId: ticket.id,
         clankerId,
-        mode: sessionMode,
+        mode: ticketPhase,
       });
 
       const channel = event.relatedChannel;
@@ -55,7 +57,7 @@ export function registerModalSubmitHandler(
 
       // Build a Thread from the sent message for the ticket-thread mapping
       const thread = new ThreadImpl({ adapterName: "slack", id: sent.threadId, channelId: channel.id });
-      await services.linkTicketThread(ticket.id, thread, clankerId, sessionMode);
+      await services.linkTicketThread(ticket.id, thread, clankerId, ticketPhase);
     } catch (err) {
       const channel = event.relatedChannel;
       if (channel) {
