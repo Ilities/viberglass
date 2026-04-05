@@ -24,4 +24,4 @@ LABEL agent.type="codex" \
       agent.provider="openai" \
       viberator.worker-type="agent"
 
-CMD ["node", "dist/cli-worker.js", "--help"]
+CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

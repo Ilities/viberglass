@@ -112,10 +112,7 @@ export class AgentOrchestrator {
         });
       }
 
-      // Generate prompt for the agent
       const prompt = context.promptOverride || this.buildAgentPrompt(context);
-
-      // Instantiate the specific agent
       const agent = AgentFactory.createAgent(effectiveAgentConfig, this.logger);
 
       // Execute the agent — via ACP if an interactive session is active, else one-shot

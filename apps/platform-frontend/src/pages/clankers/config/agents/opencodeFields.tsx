@@ -28,10 +28,15 @@ export function OpenCodeAgentFields({ endpoint, model, onEndpointChange, onModel
       <Field>
         <Label>OpenCode Model</Label>
         <Description>
-          Optional model passed as <code>--model</code> to the OpenCode CLI for this clanker. Use `opencode models` to
-          list available models.
+          Optional model override for this clanker. Use <code>provider/model</code> format (e.g.,{' '}
+          <code>minimax/minimax-2.7</code>). See <code>opencode models</code> to list available models, or configure
+          models via JSON config file at <code>~/.config/opencode/opencode.json</code>:
         </Description>
-        <Input value={model} onChange={(event) => onModelChange(event.target.value)} placeholder="gpt-5-codex" />
+        <Input
+          value={model}
+          onChange={(event) => onModelChange(event.target.value)}
+          placeholder="provider/model-name"
+        />
       </Field>
     </>
   )

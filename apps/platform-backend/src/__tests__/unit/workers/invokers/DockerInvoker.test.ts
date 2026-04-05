@@ -482,7 +482,7 @@ describe("DockerInvoker", () => {
 
         expect(createContainerCall.Cmd).toEqual([
           "node",
-          "dist/cli-worker.js",
+          "apps/viberator/dist/cli-worker.js",
           "--job-ref",
           mockJob.id,
         ]);
