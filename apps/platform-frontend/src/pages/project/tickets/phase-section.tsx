@@ -1,22 +1,25 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Subheading } from '@/components/heading'
+import { RevisionModal } from '@/components/revision-modal'
+import { RunTicketModal } from '@/components/run-ticket-modal'
+import { JobListItem } from '@/service/api/job-api'
 import {
+  type ApprovalState,
   approvePlanning,
   getPlanningPhase,
   getResearchDocument,
-  requestPlanningApproval,
-  revokePlanningApproval,
-  savePlanningDocument,
-  setTicketWorkflowPhase,
-  type ApprovalState,
   type PhaseDocumentResponse,
   type PlanningRunResponse,
+  requestPlanningApproval,
   type ResearchRunResponse,
+  revokePlanningApproval,
+  savePlanningDocument,
   saveResearchDocument,
+  setTicketWorkflowPhase,
 } from '@/service/api/ticket-api'
 import {
+  ChatBubbleIcon,
   CheckCircledIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -26,14 +29,13 @@ import {
   PlayIcon,
   ReaderIcon,
 } from '@radix-ui/react-icons'
-import { type TicketWorkflowPhase, type Ticket, type Clanker, TICKET_STATUS } from '@viberglass/types'
+import { type Clanker, type Ticket, TICKET_STATUS, type TicketWorkflowPhase } from '@viberglass/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { PhaseLogs } from './phase-logs'
-import { JobListItem } from '@/service/api/job-api'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
+import { PhaseLogs } from './phase-logs'
 
 interface PhaseSectionProps {
   ticket: Ticket
@@ -66,7 +68,10 @@ function PhaseHeader({
     execution: 'Execution',
   }
 
-  const statusConfig: Record<'completed' | 'in_progress' | 'upcoming', { label: string; color: 'green' | 'blue' | 'zinc' }> = {
+  const statusConfig: Record<
+    'completed' | 'in_progress' | 'upcoming',
+    { label: string; color: 'green' | 'blue' | 'zinc' }
+  > = {
     completed: { label: 'Complete', color: 'green' },
     in_progress: { label: 'In Progress', color: 'blue' },
     upcoming: { label: 'Upcoming', color: 'zinc' },
@@ -84,11 +89,12 @@ function PhaseHeader({
         <div
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
           style={{
-            backgroundColor: status === 'completed' 
-              ? 'var(--green-9)' 
-              : status === 'in_progress' 
-                ? 'var(--accent-9)' 
-                : 'var(--gray-4)',
+            backgroundColor:
+              status === 'completed'
+                ? 'var(--green-9)'
+                : status === 'in_progress'
+                  ? 'var(--accent-9)'
+                  : 'var(--gray-4)',
             color: status === 'upcoming' ? 'var(--gray-9)' : 'white',
           }}
         >
@@ -134,6 +140,7 @@ export function PhaseSection({
   const [isSaving, setIsSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isRunModalOpen, setIsRunModalOpen] = useState(false)
+  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [isResolving, setIsResolving] = useState(false)
   const [draft, setDraft] = useState('')
@@ -178,9 +185,10 @@ export function PhaseSection({
   const handleSave = useCallback(async () => {
     try {
       setIsSaving(true)
-      const saved = phase === 'research'
-        ? await saveResearchDocument(ticket.id, draft)
-        : await savePlanningDocument(ticket.id, draft)
+      const saved =
+        phase === 'research'
+          ? await saveResearchDocument(ticket.id, draft)
+          : await savePlanningDocument(ticket.id, draft)
       setDocument(saved)
       setIsEditing(false)
       toast.success(`${phase} document saved`)
@@ -196,25 +204,29 @@ export function PhaseSection({
     setIsEditing(false)
   }, [document])
 
-  const handleApplySuggestion = useCallback(async (lineNumber: number, suggestedText: string) => {
-    const lines = (document?.content ?? '').split('\n')
-    lines[lineNumber - 1] = suggestedText
-    const newContent = lines.join('\n')
-    try {
-      setIsSaving(true)
-      const saved = phase === 'research'
-        ? await saveResearchDocument(ticket.id, newContent)
-        : await savePlanningDocument(ticket.id, newContent)
-      setDocument(saved)
-      setDraft(saved.content)
-      toast.success(`Suggestion applied to line ${lineNumber}`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to apply suggestion')
-      throw error
-    } finally {
-      setIsSaving(false)
-    }
-  }, [document, ticket.id, phase])
+  const handleApplySuggestion = useCallback(
+    async (lineNumber: number, suggestedText: string) => {
+      const lines = (document?.content ?? '').split('\n')
+      lines[lineNumber - 1] = suggestedText
+      const newContent = lines.join('\n')
+      try {
+        setIsSaving(true)
+        const saved =
+          phase === 'research'
+            ? await saveResearchDocument(ticket.id, newContent)
+            : await savePlanningDocument(ticket.id, newContent)
+        setDocument(saved)
+        setDraft(saved.content)
+        toast.success(`Suggestion applied to line ${lineNumber}`)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to apply suggestion')
+        throw error
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [document, ticket.id, phase]
+  )
 
   const handleRequestApproval = useCallback(async () => {
     try {
@@ -292,6 +304,17 @@ export function PhaseSection({
   const canApprove = phase === 'planning' && document?.approvalState === 'approval_requested'
   const canRevoke = phase === 'planning' && document?.approvalState === 'approved'
 
+  const runButtonTitle = isCurrentPhase
+    ? `${hasContent ? 'Recreate' : 'Run'} ${phase}`
+    : `${phase} only available in current phase`
+
+  const getRunButtonLabel = () => {
+    if (phase === 'research') {
+      return hasContent ? 'Recreate Research' : 'Run Research'
+    }
+    return hasContent ? 'Recreate Plan' : 'Run Plan'
+  }
+
   return (
     <div className="space-y-2">
       <PhaseHeader
@@ -337,7 +360,9 @@ export function PhaseSection({
                           <CheckCircledIcon className="h-5 w-5 text-[var(--green-9)]" />
                           <div>
                             <p className="text-sm font-medium text-[var(--gray-12)]">Pull Request Created</p>
-                            <p className="text-xs text-[var(--gray-9)]">The agent has created a pull request for this ticket.</p>
+                            <p className="text-xs text-[var(--gray-9)]">
+                              The agent has created a pull request for this ticket.
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -351,7 +376,9 @@ export function PhaseSection({
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] p-4">
                           <div>
                             <p className="text-sm font-medium text-[var(--gray-12)]">Review the pull request</p>
-                            <p className="text-xs text-[var(--gray-9)]">Once you've reviewed the changes, mark this ticket as resolved.</p>
+                            <p className="text-xs text-[var(--gray-9)]">
+                              Once you've reviewed the changes, mark this ticket as resolved.
+                            </p>
                           </div>
                           <Button color="green" onClick={handleResolve} disabled={isResolving}>
                             <CheckCircledIcon className="h-3.5 w-3.5" />
@@ -373,137 +400,154 @@ export function PhaseSection({
                   )}
                 </div>
               ) : (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <Subheading className="flex items-center gap-2">
-                      <ReaderIcon className="h-5 w-5 text-[var(--accent-9)]" />
-                      {phase === 'research' ? 'Research Document' : 'Planning Document'}
-                    </Subheading>
-                    {latestRun && (
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gray-9)]">
-                        <Badge color={getPhaseRunStatusBadgeColor(latestRun.status)}>
-                          {latestRun.status === 'active'
-                            ? `${phase.charAt(0).toUpperCase() + phase.slice(1)} Running`
-                            : `${phase.charAt(0).toUpperCase() + phase.slice(1)} ${latestRun.status}`}
-                        </Badge>
-                        <span>
-                          Latest run with {latestRun.clankerName || 'Unknown clanker'} on{' '}
-                          {new Date(latestRun.createdAt).toLocaleString()}
-                        </span>
-                        <Button plain onClick={() => navigate(`/project/${project}/jobs/${latestRun.jobId}`)}>
-                          View Job
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1.5">
+                      <Subheading className="flex items-center gap-2">
+                        <ReaderIcon className="h-5 w-5 text-[var(--accent-9)]" />
+                        {phase === 'research' ? 'Research Document' : 'Planning Document'}
+                      </Subheading>
+                      {latestRun && (
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--gray-9)]">
+                          <Badge color={getPhaseRunStatusBadgeColor(latestRun.status)}>
+                            {latestRun.status === 'active'
+                              ? `${phase.charAt(0).toUpperCase() + phase.slice(1)} Running`
+                              : `${phase.charAt(0).toUpperCase() + phase.slice(1)} ${latestRun.status}`}
+                          </Badge>
+                          <span>
+                            Latest run with {latestRun.clankerName || 'Unknown clanker'} on{' '}
+                            {new Date(latestRun.createdAt).toLocaleString()}
+                          </span>
+                          <Button plain onClick={() => navigate(`/project/${project}/jobs/${latestRun.jobId}`)}>
+                            View Job
+                          </Button>
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      color="brand"
-                      onClick={() => setIsRunModalOpen(true)}
-                      disabled={!isCurrentPhase}
-                      title={isCurrentPhase ? `Run ${phase}` : `${phase} only available in current phase`}
-                    >
-                      <PlayIcon className="h-3.5 w-3.5" />
-                      {phase === 'research' ? 'Run Research' : 'Run Plan'}
-                    </Button>
-                    {isEditing ? (
-                      <>
-                        <Button plain onClick={handleCancel} disabled={isSaving}>
-                          Cancel
-                        </Button>
-                        <Button color="brand" onClick={handleSave} disabled={isSaving || !isDirty}>
-                          {isSaving ? 'Saving...' : 'Save'}
-                        </Button>
-                      </>
-                    ) : (
+                    <div className="flex items-center gap-2">
                       <Button
-                        plain
-                        onClick={() => setIsEditing(true)}
-                        disabled={!canEdit}
-                        title={canEdit ? 'Edit document' : 'Not editable in current phase'}
+                        color="brand"
+                        onClick={() => setIsRunModalOpen(true)}
+                        disabled={!isCurrentPhase}
+                        title={runButtonTitle}
                       >
-                        <Pencil1Icon className="h-3.5 w-3.5" />
-                        Edit
+                        <PlayIcon className="h-3.5 w-3.5" />
+                        {getRunButtonLabel()}
                       </Button>
-                    )}
-                  </div>
-                </div>
-
-                {phase === 'planning' && document && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge color={
-                      document.approvalState === 'approved' ? 'green' :
-                      document.approvalState === 'approval_requested' ? 'amber' : 'zinc'
-                    }>
-                      {document.approvalState === 'draft' ? 'Draft' :
-                       document.approvalState === 'approval_requested' ? 'Approval Requested' : 'Approved'}
-                    </Badge>
-                    {document.approvalState === 'approved' && document.approvedBy && (
-                      <span className="text-xs text-[var(--gray-9)]">
-                        by {document.approvedBy} on {new Date(document.approvedAt!).toLocaleString()}
-                      </span>
-                    )}
-                    {canRequestApproval && (
-                      <Button
-                        color="green"
-                        onClick={handleRequestApproval}
-                        disabled={isApproving || !hasContent}
-                        size="small"
-                      >
-                        <CheckCircledIcon className="h-3.5 w-3.5" />
-                        Request Approval
-                      </Button>
-                    )}
-                    {canApprove && (
-                      <Button color="green" onClick={handleApprove} disabled={isApproving} size="small">
-                        <CheckCircledIcon className="h-3.5 w-3.5" />
-                        {isApproving ? 'Approving...' : 'Approve'}
-                      </Button>
-                    )}
-                    {canRevoke && (
-                      <Button plain onClick={handleRevokeApproval} disabled={isApproving} size="small">
-                        <CrossCircledIcon className="h-3.5 w-3.5" />
-                        {isApproving ? 'Revoking...' : 'Revoke Approval'}
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {document?.updatedAt && hasContent && (
-                  <div className="text-xs text-[var(--gray-9)]">
-                    Last updated {new Date(document.updatedAt).toLocaleString()}
-                  </div>
-                )}
-
-                {isEditing ? (
-                  <textarea
-                    ref={textareaRef}
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    className="w-full min-h-[200px] resize-y rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-4 font-mono text-sm text-[var(--gray-12)] placeholder:text-[var(--gray-8)] focus:border-[var(--accent-8)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-8)]"
-                    placeholder={`Write ${phase} notes in markdown...`}
-                  />
-                ) : hasContent ? (
-                  <PhaseDocumentComments
-                    ticketId={ticket.id}
-                    phase={phase}
-                    content={document!.content}
-                    onApplySuggestion={handleApplySuggestion}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
-                    <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />
-                    <div>
-                      <p className="text-sm font-medium text-[var(--gray-11)]">No {phase} document yet</p>
-                      <p className="mt-1 text-sm text-[var(--gray-9)]">
-                        Run {phase} or click Edit to start writing.
-                      </p>
+                      {(phase === 'research' || phase === 'planning') && hasContent && (
+                        <Button
+                          color="violet"
+                          onClick={() => setIsRevisionModalOpen(true)}
+                          disabled={!isCurrentPhase}
+                          title={isCurrentPhase ? `Revise ${phase}` : `${phase} only available in current phase`}
+                        >
+                          <ChatBubbleIcon className="h-3.5 w-3.5" />
+                          Revise
+                        </Button>
+                      )}
+                      {isEditing ? (
+                        <>
+                          <Button plain onClick={handleCancel} disabled={isSaving}>
+                            Cancel
+                          </Button>
+                          <Button color="brand" onClick={handleSave} disabled={isSaving || !isDirty}>
+                            {isSaving ? 'Saving...' : 'Save'}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          plain
+                          onClick={() => setIsEditing(true)}
+                          disabled={!canEdit}
+                          title={canEdit ? 'Edit document' : 'Not editable in current phase'}
+                        >
+                          <Pencil1Icon className="h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {phase === 'planning' && document && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        color={
+                          document.approvalState === 'approved'
+                            ? 'green'
+                            : document.approvalState === 'approval_requested'
+                              ? 'amber'
+                              : 'zinc'
+                        }
+                      >
+                        {document.approvalState === 'draft'
+                          ? 'Draft'
+                          : document.approvalState === 'approval_requested'
+                            ? 'Approval Requested'
+                            : 'Approved'}
+                      </Badge>
+                      {document.approvalState === 'approved' && document.approvedBy && (
+                        <span className="text-xs text-[var(--gray-9)]">
+                          by {document.approvedBy} on {new Date(document.approvedAt!).toLocaleString()}
+                        </span>
+                      )}
+                      {canRequestApproval && (
+                        <Button
+                          color="green"
+                          onClick={handleRequestApproval}
+                          disabled={isApproving || !hasContent}
+                          size="small"
+                        >
+                          <CheckCircledIcon className="h-3.5 w-3.5" />
+                          Request Approval
+                        </Button>
+                      )}
+                      {canApprove && (
+                        <Button color="green" onClick={handleApprove} disabled={isApproving} size="small">
+                          <CheckCircledIcon className="h-3.5 w-3.5" />
+                          {isApproving ? 'Approving...' : 'Approve'}
+                        </Button>
+                      )}
+                      {canRevoke && (
+                        <Button plain onClick={handleRevokeApproval} disabled={isApproving} size="small">
+                          <CrossCircledIcon className="h-3.5 w-3.5" />
+                          {isApproving ? 'Revoking...' : 'Revoke Approval'}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {document?.updatedAt && hasContent && (
+                    <div className="text-xs text-[var(--gray-9)]">
+                      Last updated {new Date(document.updatedAt).toLocaleString()}
+                    </div>
+                  )}
+
+                  {isEditing ? (
+                    <textarea
+                      ref={textareaRef}
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      className="min-h-[200px] w-full resize-y rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-4 font-mono text-sm text-[var(--gray-12)] placeholder:text-[var(--gray-8)] focus:border-[var(--accent-8)] focus:ring-1 focus:ring-[var(--accent-8)] focus:outline-none"
+                      placeholder={`Write ${phase} notes in markdown...`}
+                    />
+                  ) : hasContent ? (
+                    <PhaseDocumentComments
+                      ticketId={ticket.id}
+                      phase={phase}
+                      content={document!.content}
+                      onApplySuggestion={handleApplySuggestion}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-8 text-center">
+                      <ReaderIcon className="h-8 w-8 text-[var(--gray-8)]" />
+                      <div>
+                        <p className="text-sm font-medium text-[var(--gray-11)]">No {phase} document yet</p>
+                        <p className="mt-1 text-sm text-[var(--gray-9)]">Run {phase} or click Edit to start writing.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="space-y-3">
@@ -541,6 +585,17 @@ export function PhaseSection({
           void loadDocument()
         }}
         mode={phase}
+      />
+      <RevisionModal
+        ticket={ticket}
+        clankers={clankers}
+        project={project}
+        open={isRevisionModalOpen}
+        onClose={() => {
+          setIsRevisionModalOpen(false)
+          void loadDocument()
+        }}
+        mode={phase === 'execution' ? 'planning' : phase}
       />
     </div>
   )

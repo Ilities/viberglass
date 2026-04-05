@@ -445,6 +445,27 @@ export async function runResearch(
   return response.json()
 }
 
+export async function runResearchRevision(
+  ticketId: string,
+  clankerId: string,
+  revisionMessage: string,
+): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/revision`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ clankerId, revisionMessage }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to run research revision')
+  }
+
+  return response.json()
+}
+
 // Planning Document API
 
 export async function getPlanningDocument(ticketId: string): Promise<PhaseDocumentResponse> {
@@ -517,6 +538,27 @@ export async function runPlanning(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.error || error.message || 'Failed to run planning')
+  }
+
+  return response.json()
+}
+
+export async function runPlanningRevision(
+  ticketId: string,
+  clankerId: string,
+  revisionMessage: string,
+): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/revision`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ clankerId, revisionMessage }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to run planning revision')
   }
 
   return response.json()

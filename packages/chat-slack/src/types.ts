@@ -1,4 +1,4 @@
-import type { AgentSessionMode, AgentSessionStatus } from "@viberglass/types";
+import {AgentSessionMode, AgentSessionStatus, TicketWorkflowPhase} from "@viberglass/types";
 import type { Thread } from "chat";
 
 export type SessionAdvanceResult =
@@ -45,6 +45,7 @@ export interface SlackHandlerServices {
     projectId: string;
     title: string;
     description: string;
+    phase: TicketWorkflowPhase;
   }): Promise<{ id: string; projectId: string }>;
   runJob(params: {
     ticketId: string;
