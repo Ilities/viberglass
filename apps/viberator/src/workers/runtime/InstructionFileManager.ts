@@ -19,7 +19,7 @@ export class InstructionFileManager {
   private isHarnessConfigFile(fileType: string): boolean {
     const normalized = path.normalize(fileType.replace(/\\/g, "/"));
     return InstructionFileManager.HARNESS_CONFIG_PATTERNS.some(
-      (pattern) => normalized === pattern || normalized.endsWith("/" + pattern)
+      (pattern) => normalized === pattern || normalized.endsWith("/" + pattern),
     );
   }
 
@@ -55,7 +55,23 @@ export class InstructionFileManager {
         await fs.promises.mkdir(harnessConfigDir, { recursive: true });
         await fs.promises.writeFile(targetPath, content, "utf-8");
 
-        this.logger.debug("Materialized harness config file", { fileType, targetPath });
+        this.logger.debug("Materialized harness config file", {
+          fileType,
+          targetPath,
+        });
+
+        // For OpenCode, also materialize to $HOME/.opencode/opencode.json if HOME is set.
+        // Some versions of the CLI or certain commands might not respect OPENCODE_CONFIG_DIR
+        // or might need a persistent state dir for the database migration to succeed.
+        if (configFileName === "opencode.json" && process.env.HOME) {
+          const homeOpencodeDir = path.join(process.env.HOME, ".opencode");
+          const homeTargetPath = path.join(homeOpencodeDir, "opencode.json");
+          await fs.promises.mkdir(homeOpencodeDir, { recursive: true });
+          await fs.promises.writeFile(homeTargetPath, content, "utf-8");
+          this.logger.debug("Materialized opencode.json to HOME", {
+            targetPath: homeTargetPath,
+          });
+        }
         continue;
       }
 
@@ -68,7 +84,9 @@ export class InstructionFileManager {
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.promises.writeFile(targetPath, content, "utf-8");
 
-      const relativePath = path.relative(repoDir, targetPath).replace(/\\/g, "/");
+      const relativePath = path
+        .relative(repoDir, targetPath)
+        .replace(/\\/g, "/");
       excludeAppend += `\n${relativePath}`;
     }
 
@@ -96,7 +114,9 @@ export class InstructionFileManager {
     return instructionFiles;
   }
 
-  private loadDockerInstructionFiles(payload: DockerPayload): Map<string, string> {
+  private loadDockerInstructionFiles(
+    payload: DockerPayload,
+  ): Map<string, string> {
     const instructionFiles = new Map<string, string>();
 
     for (const file of payload.instructionFiles) {
