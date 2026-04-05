@@ -1,4 +1,5 @@
 import { AGENT_SESSION_MODE, type AgentSessionMode } from "@viberglass/types";
+import { ThreadImpl } from "chat";
 import type { SlackHandlerServices } from "../types";
 
 const VALID_MODES = new Set<string>(Object.values(AGENT_SESSION_MODE));
@@ -50,7 +51,11 @@ export function registerModalSubmitHandler(
 
       const url = services.ticketUrl(projectId, ticket.id);
       const ticketRef = url ? `[${title}](${url})` : title;
-      await channel.post({ markdown: `_${mode}_ | ${ticketRef} — job \`${job.jobId}\` queued.` });
+      const sent = await channel.post({ markdown: `_${mode}_ | ${ticketRef} — job \`${job.jobId}\` queued.` });
+
+      // Build a Thread from the sent message for the ticket-thread mapping
+      const thread = new ThreadImpl({ adapterName: "slack", id: sent.threadId, channelId: channel.id });
+      await services.linkTicketThread(ticket.id, thread, clankerId, sessionMode);
     } catch (err) {
       const channel = event.relatedChannel;
       if (channel) {

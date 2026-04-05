@@ -540,6 +540,17 @@ export interface ChatSessionThreadsTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface ChatTicketThreadsTable {
+  id: Generated<string>;
+  ticket_id: string;
+  thread_id: string;
+  channel_id: string;
+  adapter_name: string;
+  clanker_id: string;
+  mode: string;
+  created_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -576,4 +587,5 @@ export interface Database {
   agent_pending_requests: AgentPendingRequestsTable;
   prompt_templates: PromptTemplatesTable;
   chat_session_threads: ChatSessionThreadsTable;
+  chat_ticket_threads: ChatTicketThreadsTable;
 }

@@ -7,11 +7,44 @@ export function registerThreadMentionHandler(
   services: SlackHandlerServices,
 ): void {
   bot.onNewMention(async (thread, message) => {
-    const sessionId = await services.getSessionForThread(thread.id);
-    if (!sessionId) return;
-
     const text = message.text?.trim();
     if (!text) return;
+
+    // First check if this is a ticket-based thread (job flow)
+    const ticketMapping = await services.getTicketForThread(thread.id);
+    if (ticketMapping) {
+      const instruction = text.replace(/^<@\S+>\s*/, "").trim();
+      if (!instruction) {
+        await thread.post(
+          "_Please include your feedback after @viberator to revise the document._",
+        );
+        return;
+      }
+
+      if (ticketMapping.mode === "execution") {
+        await thread.post("_Execution jobs cannot be revised. Create a new ticket to start over._");
+        return;
+      }
+
+      try {
+        await thread.post("_Revision job queued…_");
+        await services.runRevisionJob({
+          ticketId: ticketMapping.ticketId,
+          clankerId: ticketMapping.clankerId,
+          mode: ticketMapping.mode as "research" | "planning",
+          revisionMessage: instruction,
+        });
+      } catch (err) {
+        await thread.post(
+          `Error: ${err instanceof Error ? err.message : "Failed to launch revision job"}`,
+        );
+      }
+      return;
+    }
+
+    // Fall through to session-based logic for backward compatibility
+    const sessionId = await services.getSessionForThread(thread.id);
+    if (!sessionId) return;
 
     try {
       const detail = await services.getSessionDetail(sessionId);
