@@ -10,23 +10,34 @@ import { getClankerBySlug } from '@/data'
 import { getDeploymentStrategies, updateClanker } from '@/service/api/clanker-api'
 import { getSecrets, type Secret } from '@/service/api/secret-api'
 import {
-  DEFAULT_AGENT_TYPE,
   type AgentType,
   type Clanker,
   type CodexAuthMode,
   type ConfigFileInput,
+  DEFAULT_AGENT_TYPE,
   type DeploymentStrategy,
 } from '@viberglass/types'
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AgentSpecificFields } from './config/agents'
-import { filterSecretsForAgent, getAllSecrets, getSecretPickerDescription, getSecretPickerEmptyMessage } from './config/agentSecrets'
+import {
+  filterSecretsForAgent,
+  getAllSecrets,
+  getSecretPickerDescription,
+  getSecretPickerEmptyMessage,
+} from './config/agentSecrets'
 import { buildClankerDeploymentConfig } from './config/buildConfig'
 import { readClankerDeploymentConfig } from './config/readConfig'
 import { AgentSelectionCards, DeploymentStrategyCards } from './config/selectionCards'
 import { StrategySpecificFields } from './config/strategies'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
-import { AGENTS_FILE_TYPE, getHarnessConfigFile, isSkillPath, normalizeInstructionPath, skillPathFromUploadName } from './instructionFiles'
+import {
+  AGENTS_FILE_TYPE,
+  getHarnessConfigFile,
+  isSkillPath,
+  normalizeInstructionPath,
+  skillPathFromUploadName,
+} from './instructionFiles'
 
 interface SkillEntry {
   id: string
@@ -168,9 +179,13 @@ export function EditClankerPage() {
       setSkills(loadedSkills)
 
       // Auto-enable "Show all secrets" if the clanker has secrets that don't match the current agent preset
-      const applicableSecrets = filterSecretsForAgent(secretsData, clankerData.agent || DEFAULT_AGENT_TYPE, parsedConfig.form.codexAuthMode)
-      const applicableIds = new Set(applicableSecrets.map(s => s.id))
-      if ((clankerData.secretIds || []).some(id => !applicableIds.has(id))) {
+      const applicableSecrets = filterSecretsForAgent(
+        secretsData,
+        clankerData.agent || DEFAULT_AGENT_TYPE,
+        parsedConfig.form.codexAuthMode
+      )
+      const applicableIds = new Set(applicableSecrets.map((s) => s.id))
+      if ((clankerData.secretIds || []).some((id) => !applicableIds.has(id))) {
         setShowAllSecrets(true)
       }
 
@@ -182,7 +197,7 @@ export function EditClankerPage() {
 
   const selectedStrategy = deploymentStrategies.find((strategy) => strategy.id === selectedStrategyId)
   const selectableSecrets = useMemo(
-    () => showAllSecrets ? getAllSecrets(secrets) : filterSecretsForAgent(secrets, selectedAgent, codexAuthMode),
+    () => (showAllSecrets ? getAllSecrets(secrets) : filterSecretsForAgent(secrets, selectedAgent, codexAuthMode)),
     [codexAuthMode, secrets, selectedAgent, showAllSecrets]
   )
   const selectableSecretIds = useMemo(() => new Set(selectableSecrets.map((secret) => secret.id)), [selectableSecrets])
@@ -421,9 +436,9 @@ export function EditClankerPage() {
                   </Button>
                 </div>
                 <Description>
-                  Paste your harness configuration here. Use environment variable names like{' '}
-                  <code>$SECRET_NAME</code> in the config - secrets assigned to this clanker will be
-                  available as environment variables at runtime.
+                  Paste your harness configuration here. Use environment variable names like <code>$SECRET_NAME</code>{' '}
+                  or <code>{'{env:MINIMAX_API_KEY}'}</code> (for OpenCode) in the config - secrets assigned to this
+                  clanker will be available as environment variables at runtime.
                 </Description>
                 <Textarea
                   rows={10}
