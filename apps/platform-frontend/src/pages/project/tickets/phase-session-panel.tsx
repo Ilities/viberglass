@@ -1,7 +1,9 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { LogViewer } from '@/components/log-viewer'
 import { useAuth } from '@/context/auth-context'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
+import { type LogEntry, getJob } from '@/service/api/job-api'
 import {
   type AgentSession,
   type AgentSessionStatus,
@@ -10,7 +12,7 @@ import {
   sendMessageToSession,
   type SessionDetail,
 } from '@/service/api/session-api'
-import { ChatBubbleIcon, CrossCircledIcon, ExternalLinkIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
+import { ChevronDownIcon, ChevronRightIcon, ChatBubbleIcon, CrossCircledIcon, ExternalLinkIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { PendingRequestCard } from '../sessions/PendingRequestCard'
@@ -67,6 +69,7 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onRevise }
   const [isCancelling, setIsCancelling] = useState(false)
   const [messageText, setMessageText] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [logsExpanded, setLogsExpanded] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const loadDetail = useCallback(async () => {
@@ -103,6 +106,63 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onRevise }
 
   const currentStatus = liveStatus ?? detail?.session.status ?? 'active'
   const isTerminal = TERMINAL_STATUSES.has(currentStatus)
+
+  const jobId = detail?.session.lastJobId
+  const [jobLogs, setJobLogs] = useState<LogEntry[] | null>(null)
+  const [isJobLoading, setIsJobLoading] = useState(false)
+  const [isJobPolling, setIsJobPolling] = useState(false)
+  const jobPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Fetch logs for the session's current job — polling while active, stop when terminal
+  useEffect(() => {
+    if (jobPollRef.current) {
+      clearInterval(jobPollRef.current)
+      jobPollRef.current = null
+    }
+
+    if (!jobId) {
+      setJobLogs(null)
+      setIsJobPolling(false)
+      return
+    }
+
+    let terminal = false
+
+    async function fetchLogs() {
+      try {
+        const job = await getJob(jobId!)
+        setJobLogs(job.logs ?? [])
+        if (job.status === 'completed' || job.status === 'failed') {
+          terminal = true
+          setIsJobPolling(false)
+          if (jobPollRef.current) {
+            clearInterval(jobPollRef.current)
+            jobPollRef.current = null
+          }
+        }
+      } catch {
+        // Silently ignore — logs are supplementary
+      } finally {
+        setIsJobLoading(false)
+      }
+    }
+
+    setIsJobLoading(true)
+    void fetchLogs()
+
+    // Poll every 3s until terminal
+    jobPollRef.current = setInterval(() => {
+      if (!terminal) void fetchLogs()
+    }, 3000)
+    setIsJobPolling(true)
+
+    return () => {
+      if (jobPollRef.current) {
+        clearInterval(jobPollRef.current)
+        jobPollRef.current = null
+      }
+    }
+  }, [jobId])
 
   const turnInProgress = (() => {
     for (let i = events.length - 1; i >= 0; i--) {
@@ -190,6 +250,45 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onRevise }
       <div className="max-h-80 overflow-y-auto rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-4">
         <TranscriptPanel events={events} />
       </div>
+
+      {jobId && (
+        <div className="rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)]">
+          <button
+            type="button"
+            onClick={() => setLogsExpanded((prev) => !prev)}
+            className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm font-medium text-[var(--gray-12)] hover:bg-[var(--gray-3)] transition"
+          >
+            <div className="flex items-center gap-2">
+              {logsExpanded ? (
+                <ChevronDownIcon className="h-3.5 w-3.5 text-[var(--gray-9)]" />
+              ) : (
+                <ChevronRightIcon className="h-3.5 w-3.5 text-[var(--gray-9)]" />
+              )}
+              Agent Logs
+            </div>
+            <div className="flex items-center gap-2 text-xs text-[var(--gray-9)]">
+              {isJobPolling && (
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                </span>
+              )}
+              {jobLogs != null && (
+                <span>{jobLogs.length} entries</span>
+              )}
+            </div>
+          </button>
+          {logsExpanded && (
+            <div className="h-80 border-t border-[var(--gray-5)] px-3 pb-3">
+              {isJobLoading ? (
+                <div className="flex items-center justify-center py-8 text-sm text-[var(--gray-9)]">Loading logs…</div>
+              ) : (
+                <LogViewer logs={jobLogs ?? []} isConnected={isJobPolling} />
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {showPending && pendingRequest && (
         <PendingRequestCard

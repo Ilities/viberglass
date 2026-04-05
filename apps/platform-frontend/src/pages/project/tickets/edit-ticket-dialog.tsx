@@ -28,7 +28,7 @@ function isSeverity(value: string): value is Severity {
 }
 
 function isTicketStatus(value: string): value is TicketLifecycleStatus {
-  return value === TICKET_STATUS.OPEN || value === TICKET_STATUS.IN_PROGRESS || value === TICKET_STATUS.RESOLVED
+  return value === TICKET_STATUS.OPEN || value === TICKET_STATUS.IN_PROGRESS || value === TICKET_STATUS.IN_REVIEW || value === TICKET_STATUS.RESOLVED
 }
 
 function isWorkflowPhase(value: string): value is TicketWorkflowPhase {
@@ -132,6 +132,7 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
               }}>
                 <option value={TICKET_STATUS.OPEN}>Open</option>
                 <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
+                <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
                 <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
               </Select>
             </Field>

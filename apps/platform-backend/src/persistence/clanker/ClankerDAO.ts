@@ -529,17 +529,17 @@ export class ClankerDAO {
       );
     }
 
-    const content = await this.instructionStorage
-      .readInstruction(row.storage_url)
-      .catch((error) => {
-        logger.error("Failed to read clanker instruction file", {
-          clankerId: row.clanker_id,
-          fileType: row.file_type,
-          storageUrl: row.storage_url,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        throw error;
+    let content = row.content ?? "";
+    try {
+      content = await this.instructionStorage.readInstruction(row.storage_url);
+    } catch (error) {
+      logger.warn("Instruction file missing on disk, using DB content fallback", {
+        clankerId: row.clanker_id,
+        fileType: row.file_type,
+        storageUrl: row.storage_url,
+        error: error instanceof Error ? error.message : String(error),
       });
+    }
 
     return {
       id: row.id,

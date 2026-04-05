@@ -32,6 +32,10 @@ export class TicketLifecycleStatusService {
       return TICKET_STATUS.RESOLVED;
     }
 
+    if (ticket.status === TICKET_STATUS.IN_REVIEW) {
+      return TICKET_STATUS.IN_REVIEW;
+    }
+
     if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION) {
       const hasExecutionJob = await this.ticketDAO.hasExecutionJob(ticket.id);
       return hasExecutionJob

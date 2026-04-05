@@ -1,5 +1,3 @@
-import { ThreadImpl } from "chat";
-import type { Chat } from "chat";
 import { AGENT_SESSION_MODE, type AgentSessionMode } from "@viberglass/types";
 import type { SlackHandlerServices } from "../types";
 
@@ -12,11 +10,11 @@ function toSessionMode(value: string): AgentSessionMode {
 }
 
 export function registerModalSubmitHandler(
-  bot: Chat,
+  bot: import("chat").Chat,
   services: SlackHandlerServices,
 ): void {
   bot.onModalSubmit("viberator_launch", async (event) => {
-    const { projectId, clankerId, mode, message } = event.values;
+    const { projectId, clankerId, mode, message, title: rawTitle } = event.values;
 
     if (!projectId || !clankerId || !mode || !message) {
       return {
@@ -31,7 +29,7 @@ export function registerModalSubmitHandler(
     }
 
     const title =
-      message.split("\n")[0].slice(0, 120) || "Chat-initiated session";
+      rawTitle?.trim() || message.split("\n")[0].slice(0, 120) || "Chat-initiated job";
 
     try {
       const ticket = await services.createTicket({
@@ -40,51 +38,24 @@ export function registerModalSubmitHandler(
         description: message,
       });
 
-      const result = await services.launchSession({
+      const sessionMode = toSessionMode(mode);
+      const job = await services.runJob({
         ticketId: ticket.id,
         clankerId,
-        mode: toSessionMode(mode),
-        initialMessage: message,
+        mode: sessionMode,
       });
 
       const channel = event.relatedChannel;
       if (!channel) return;
 
       const url = services.ticketUrl(projectId, ticket.id);
-      const ticketRef = url ? `[View ticket](${url})` : title;
-      const sent = await channel.post({ markdown: `_${mode}_ | ${ticketRef}` });
-
-      // channel.post() returns a synthetic threadId with empty threadTs.
-      // sent.id is the actual message timestamp (thread_ts). Rebuild so that
-      // subsequent thread.post() calls create replies in the correct thread.
-      const rawParts = sent.threadId.split(":");
-      const channelId = rawParts.slice(0, -1).join(":");
-      const threadTs = rawParts[rawParts.length - 1] || sent.id;
-      const threadId = `${channelId}:${threadTs}`;
-      const thread = new ThreadImpl({
-        adapterName: "slack",
-        id: threadId,
-        channelId,
-      });
-
-      await thread.post({
-        markdown: `*Prompt:*`,
-        files: [
-          {
-            data: Buffer.from(message),
-            filename: "prompt.txt",
-            mimeType: "text/plain",
-          },
-        ],
-      });
-      await thread.subscribe();
-      await services.linkSessionThread(result.session.id, thread);
-      services.startBridge(result.session.id, thread);
+      const ticketRef = url ? `[${title}](${url})` : title;
+      await channel.post({ markdown: `_${mode}_ | ${ticketRef} — job \`${job.jobId}\` queued.` });
     } catch (err) {
       const channel = event.relatedChannel;
       if (channel) {
         await channel.post(
-          `Failed to launch session: ${err instanceof Error ? err.message : "Unknown error"}`,
+          `Failed to launch job: ${err instanceof Error ? err.message : "Unknown error"}`,
         );
       }
     }

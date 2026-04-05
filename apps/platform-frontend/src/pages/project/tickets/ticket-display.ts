@@ -46,6 +46,7 @@ export function formatDateTime(dateString: string): string {
 export const ticketStatusOrder: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
+  TICKET_STATUS.IN_REVIEW,
   TICKET_STATUS.RESOLVED,
 ]
 
@@ -60,6 +61,12 @@ export function formatTicketStatus(status: TicketLifecycleStatus): { label: stri
     return {
       label: 'Resolved',
       className: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
+    }
+  }
+  if (status === TICKET_STATUS.IN_REVIEW) {
+    return {
+      label: 'In Review',
+      className: 'bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200',
     }
   }
   if (status === TICKET_STATUS.IN_PROGRESS) {

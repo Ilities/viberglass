@@ -26,6 +26,9 @@ import { AgentSessionInteractionService } from "../services/agentSession/AgentSe
 import { AgentSessionQueryService } from "../services/agentSession/AgentSessionQueryService";
 import { JobService } from "../services/JobService";
 import { CredentialRequirementsService } from "../services/CredentialRequirementsService";
+import { TicketResearchService } from "../services/TicketResearchService";
+import { TicketPlanningService } from "../services/TicketPlanningService";
+import { TicketExecutionService } from "../services/TicketExecutionService";
 import { WorkerExecutionService } from "../workers";
 
 // Register as the global singleton so ThreadImpl lazy resolution works.
@@ -68,6 +71,9 @@ const queryService = new AgentSessionQueryService(
 const ticketDAO = new TicketDAO();
 const projectDAO = new ProjectDAO();
 const clankerDAO = new ClankerDAO();
+const ticketResearchService = new TicketResearchService();
+const ticketPlanningService = new TicketPlanningService();
+const ticketExecutionService = new TicketExecutionService();
 
 const slackServices: SlackHandlerServices = {
   listProjects: () => projectDAO.listProjects(),
@@ -85,6 +91,16 @@ const slackServices: SlackHandlerServices = {
       autoFixRequested: false,
       ticketSystem: "slack",
     }),
+
+  runJob: async ({ ticketId, clankerId, mode }) => {
+    if (mode === "research") {
+      return ticketResearchService.runResearch(ticketId, { clankerId });
+    }
+    if (mode === "planning") {
+      return ticketPlanningService.runPlanning(ticketId, { clankerId });
+    }
+    return ticketExecutionService.runTicket(ticketId, { clankerId });
+  },
 
   launchSession: (params) => launchService.launch(params),
 

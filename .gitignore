@@ -49,6 +49,9 @@ apps/platform-frontend/out/
 # Slack app
 apps/slack-app/data/
 
+# Clanker instruction files (persist across container restarts)
+.clanker-instructions/
+
 # Temporary files
 *.swp
 *.swo

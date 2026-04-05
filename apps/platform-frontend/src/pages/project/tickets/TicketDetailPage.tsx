@@ -3,11 +3,9 @@ import { Button } from '@/components/button'
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
-import { useAuth } from '@/context/auth-context'
 import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
 import {
   ArrowLeftIcon,
-  ChatBubbleIcon,
   CheckCircledIcon,
   ClipboardIcon,
   DotsHorizontalIcon,
@@ -18,7 +16,7 @@ import {
   PlayIcon,
   TrashIcon,
 } from '@radix-ui/react-icons'
-import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE } from '@viberglass/types'
+import { type Clanker, type Ticket, TICKET_STATUS, TICKET_WORKFLOW_PHASE } from '@viberglass/types'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   type ApprovalState,
@@ -27,29 +25,19 @@ import {
   setTicketWorkflowPhase,
   updateTicket,
 } from '@/service/api/ticket-api'
-import {
-  type AgentSession,
-  type AgentSessionMode,
-  listSessionsForTicket,
-  sendMessageToSession,
-} from '@/service/api/session-api'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
 import { TicketPhaseView } from './TicketPhaseView'
 import { TicketRunButton } from './ticket-run-button'
 import { formatTicketStatus, getSeverityBadge, getAutoFixBadge } from './ticket-display'
-import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
-
-const ACTIVE_STATUSES = new Set<AgentSession['status']>(['active', 'waiting_on_user', 'waiting_on_approval'])
 
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -60,11 +48,6 @@ export function TicketDetailPage() {
     setPlanningApprovalState(state)
   }, [])
   const [isWorkflowOverrideDialogOpen, setIsWorkflowOverrideDialogOpen] = useState(false)
-  const [isLaunchSessionDialogOpen, setIsLaunchSessionDialogOpen] = useState(false)
-  const [currentSession, setCurrentSession] = useState<AgentSession | null>(null)
-  const [documentRefreshKey, setDocumentRefreshKey] = useState(0)
-  const [sessionDialogDefaultMode, setSessionDialogDefaultMode] = useState<AgentSessionMode>('research')
-  const [sessionDialogDefaultMessage, setSessionDialogDefaultMessage] = useState('')
   const [jobs, setJobs] = useState<JobListItem[]>([])
 
   useEffect(() => {
@@ -72,11 +55,10 @@ export function TicketDetailPage() {
     async function loadData() {
       if (!id) { setIsLoading(false); return }
       try {
-        const [t, c, planningPhase, sessions, jobsData] = await Promise.all([
+        const [t, c, planningPhase, jobsData] = await Promise.all([
           getTicketDetails(id),
           getClankersList(),
           getPlanningPhase(id),
-          listSessionsForTicket(id),
           getJobs({ ticketId: id, limit: 50 }),
         ])
         if (cancelled) return
@@ -85,13 +67,6 @@ export function TicketDetailPage() {
         setClankers(c)
         setPlanningApprovalState(planningPhase.document.approvalState)
         setJobs(jobsData.jobs)
-
-        const sorted = [...sessions].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
-        const active = sorted.find((s) => ACTIVE_STATUSES.has(s.status))
-        const completed = sorted.find((s) => s.status === 'completed')
-        setCurrentSession(active ?? completed ?? null)
       } finally {
         if (!cancelled) setIsLoading(false)
       }
@@ -99,50 +74,6 @@ export function TicketDetailPage() {
     void loadData()
     return () => { cancelled = true }
   }, [id])
-
-  const reloadSessions = useCallback(async () => {
-    if (!id) return
-    const sessions = await listSessionsForTicket(id).catch(() => [])
-    const sorted = [...sessions].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-    const active = sorted.find((s) => ACTIVE_STATUSES.has(s.status))
-    const completed = sorted.find((s) => s.status === 'completed')
-    setCurrentSession(active ?? completed ?? null)
-  }, [id])
-
-  const handleStartSession = useCallback((mode: AgentSessionMode, prefilledMessage: string) => {
-    setSessionDialogDefaultMode(mode)
-    setSessionDialogDefaultMessage(prefilledMessage)
-    setIsLaunchSessionDialogOpen(true)
-  }, [])
-
-  const handleSendToSession = useCallback(async (message: string, mode: AgentSessionMode) => {
-    if (currentSession && ACTIVE_STATUSES.has(currentSession.status)) {
-      try {
-        await sendMessageToSession(currentSession.id, `[${user?.name ?? 'User'}]: ${message}`)
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to send message')
-      }
-    } else {
-      handleStartSession(mode, message)
-    }
-  }, [currentSession, handleStartSession])
-
-  const handleSessionLaunched = useCallback((session: AgentSession) => {
-    setCurrentSession(session)
-  }, [])
-
-  const currentSessionRef = useRef(currentSession)
-  currentSessionRef.current = currentSession
-
-  const handleSessionEnded = useCallback(() => {
-    const mode = currentSessionRef.current?.mode
-    void reloadSessions()
-    if (mode === 'research' || mode === 'planning') {
-      setDocumentRefreshKey((k) => k + 1)
-    }
-  }, [reloadSessions])
 
   const executionBlockingReason = useMemo(() => {
     if (!ticket) return null
@@ -152,6 +83,17 @@ export function TicketDetailPage() {
       return 'Execution is blocked until research is completed and the planning document is approved.'
     return 'Execution is blocked until the planning document is approved.'
   }, [planningApprovalState, ticket])
+
+  const handleResolve = useCallback(async () => {
+    if (!ticket) return
+    try {
+      const updated = await updateTicket(ticket.id, { status: TICKET_STATUS.RESOLVED })
+      setTicket(updated)
+      toast.success('Ticket resolved')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resolve ticket')
+    }
+  }, [ticket])
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><div className="text-[var(--gray-9)]">Loading ticket details...</div></div>
@@ -165,7 +107,6 @@ export function TicketDetailPage() {
   const statusBadge = formatTicketStatus(ticket.status)
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const isRunnable = !executionBlockingReason && activeClankers.length > 0
-  const sessionIsActive = currentSession ? ACTIVE_STATUSES.has(currentSession.status) : false
 
   return (
     <>
@@ -202,12 +143,6 @@ export function TicketDetailPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {sessionIsActive && (
-              <Button color="violet" onClick={() => setIsLaunchSessionDialogOpen(true)}>
-                <ChatBubbleIcon className="h-4 w-4" />
-                Resume session
-              </Button>
-            )}
             {isRunnable ? (
               <TicketRunButton ticket={ticket} clankers={clankers} project={project} disabled={false} />
             ) : executionBlockingReason ? (
@@ -236,15 +171,6 @@ export function TicketDetailPage() {
                     <EyeOpenIcon className="h-4 w-4" />View screenshots
                   </DropdownItem>
                 )}
-                {sessionIsActive ? (
-                  <DropdownItem onClick={() => setIsLaunchSessionDialogOpen(true)}>
-                    <ChatBubbleIcon className="h-4 w-4" />View active session
-                  </DropdownItem>
-                ) : (
-                  <DropdownItem onClick={() => setIsLaunchSessionDialogOpen(true)}>
-                    <ChatBubbleIcon className="h-4 w-4" />Start interactive session
-                  </DropdownItem>
-                )}
                 <DropdownItem onClick={() => { void navigator.clipboard.writeText(ticket.id); toast.success('Ticket ID copied') }}>
                   <ClipboardIcon className="h-4 w-4" />Copy ticket ID
                 </DropdownItem>
@@ -269,15 +195,11 @@ export function TicketDetailPage() {
           ticket={ticket}
           clankers={clankers}
           project={project}
-          currentSession={currentSession}
           onWorkflowPhaseChange={(workflowPhase) =>
             setTicket((t) => t ? { ...t, workflowPhase } : t)
           }
           onApprovalStateChange={stableSetPlanningApprovalState}
-          onStartSession={handleStartSession}
-          onSendToSession={handleSendToSession}
-          onSessionEnded={handleSessionEnded}
-          documentRefreshKey={documentRefreshKey}
+          onResolve={handleResolve}
           jobs={jobs}
         />
       </div>
@@ -324,16 +246,6 @@ export function TicketDetailPage() {
           setIsWorkflowOverrideDialogOpen(false)
           toast.success('Execution override recorded - ticket moved to execution')
         }}
-      />
-      <LaunchSessionDialog
-        open={isLaunchSessionDialogOpen}
-        onClose={() => setIsLaunchSessionDialogOpen(false)}
-        ticketId={ticket.id}
-        project={project}
-        clankers={clankers}
-        defaultMode={sessionDialogDefaultMode}
-        defaultInitialMessage={sessionDialogDefaultMessage}
-        onSuccess={handleSessionLaunched}
       />
     </>
   )

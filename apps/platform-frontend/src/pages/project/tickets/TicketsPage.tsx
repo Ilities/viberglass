@@ -31,11 +31,12 @@ type TicketTab = 'active' | 'archived'
 const allStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
+  TICKET_STATUS.IN_REVIEW,
   TICKET_STATUS.RESOLVED,
 ]
 
 function isTicketLifecycleStatus(value: string): value is TicketLifecycleStatus {
-  return value === TICKET_STATUS.OPEN || value === TICKET_STATUS.IN_PROGRESS || value === TICKET_STATUS.RESOLVED
+  return value === TICKET_STATUS.OPEN || value === TICKET_STATUS.IN_PROGRESS || value === TICKET_STATUS.IN_REVIEW || value === TICKET_STATUS.RESOLVED
 }
 
 function isTicketWorkflowPhase(value: string): value is TicketWorkflowPhase {
@@ -77,7 +78,7 @@ function parsePositiveInt(value: string | null, fallback: number): number {
 
 function statusesFromFilter(filter: StatusFilter): TicketLifecycleStatus[] {
   if (filter === 'actionable') {
-    return [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS]
+    return [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.IN_REVIEW]
   }
   if (filter === 'all') {
     return allStatuses
@@ -327,6 +328,7 @@ export function TicketsPage() {
           <option value="all">All Statuses</option>
           <option value={TICKET_STATUS.OPEN}>Open</option>
           <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
+          <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
           <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
         </Select>
 

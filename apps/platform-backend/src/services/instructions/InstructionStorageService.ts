@@ -37,7 +37,7 @@ export class InstructionStorageService {
       "";
     this.fsRoot =
       process.env.CLANKER_INSTRUCTION_FILES_ROOT ||
-      "/tmp/viberator-clanker-instructions";
+      path.resolve(process.cwd(), ".clanker-instructions");
 
     this.s3Client = new S3Client({
       region: this.region,

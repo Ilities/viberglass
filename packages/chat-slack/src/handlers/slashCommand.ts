@@ -61,6 +61,11 @@ export function registerSlashCommandHandler(
               ],
             }),
             TextInput({
+              id: "title",
+              label: "Title",
+              placeholder: "Short summary of the task",
+            }),
+            TextInput({
               id: "message",
               label: "Message",
               placeholder: "Describe what you want the agent to do",
