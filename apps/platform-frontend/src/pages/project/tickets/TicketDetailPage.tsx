@@ -18,8 +18,8 @@ import {
   PlayIcon,
   TrashIcon,
 } from '@radix-ui/react-icons'
-import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from '@viberglass/types'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { type Clanker, type Ticket, TICKET_WORKFLOW_PHASE } from '@viberglass/types'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   type ApprovalState,
   deleteTicket,
@@ -33,29 +33,22 @@ import {
   listSessionsForTicket,
   sendMessageToSession,
 } from '@/service/api/session-api'
-import { useEffect, useMemo, useState } from 'react'
+import { getJobs, type JobListItem } from '@/service/api/job-api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
-import { TicketDetailTabs } from './TicketDetailTabs'
+import { TicketPhaseView } from './TicketPhaseView'
 import { TicketRunButton } from './ticket-run-button'
 import { formatTicketStatus, getSeverityBadge, getAutoFixBadge } from './ticket-display'
-import { TicketWorkflowPanel } from './ticket-workflow-panel'
 import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
 
 const ACTIVE_STATUSES = new Set<AgentSession['status']>(['active', 'waiting_on_user', 'waiting_on_approval'])
 
-function phaseToTab(phase: TicketWorkflowPhase): string {
-  if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) return 'research'
-  if (phase === TICKET_WORKFLOW_PHASE.PLANNING) return 'planning'
-  return 'overview'
-}
-
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [clankers, setClankers] = useState<Clanker[]>([])
@@ -63,28 +56,35 @@ export function TicketDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [planningApprovalState, setPlanningApprovalState] = useState<ApprovalState | null>(null)
+  const stableSetPlanningApprovalState = useCallback((state: ApprovalState) => {
+    setPlanningApprovalState(state)
+  }, [])
   const [isWorkflowOverrideDialogOpen, setIsWorkflowOverrideDialogOpen] = useState(false)
   const [isLaunchSessionDialogOpen, setIsLaunchSessionDialogOpen] = useState(false)
   const [currentSession, setCurrentSession] = useState<AgentSession | null>(null)
-  const [activeTab, setActiveTab] = useState<string | null>(null)
   const [documentRefreshKey, setDocumentRefreshKey] = useState(0)
   const [sessionDialogDefaultMode, setSessionDialogDefaultMode] = useState<AgentSessionMode>('research')
   const [sessionDialogDefaultMessage, setSessionDialogDefaultMessage] = useState('')
+  const [jobs, setJobs] = useState<JobListItem[]>([])
 
   useEffect(() => {
+    let cancelled = false
     async function loadData() {
       if (!id) { setIsLoading(false); return }
       try {
-        const [t, c, planningPhase, sessions] = await Promise.all([
+        const [t, c, planningPhase, sessions, jobsData] = await Promise.all([
           getTicketDetails(id),
           getClankersList(),
           getPlanningPhase(id),
           listSessionsForTicket(id),
+          getJobs({ ticketId: id, limit: 50 }),
         ])
+        if (cancelled) return
         if (!t) { setIsLoading(false); return }
         setTicket(t)
         setClankers(c)
         setPlanningApprovalState(planningPhase.document.approvalState)
+        setJobs(jobsData.jobs)
 
         const sorted = [...sessions].sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -92,15 +92,15 @@ export function TicketDetailPage() {
         const active = sorted.find((s) => ACTIVE_STATUSES.has(s.status))
         const completed = sorted.find((s) => s.status === 'completed')
         setCurrentSession(active ?? completed ?? null)
-        setActiveTab((prev) => prev ?? searchParams.get('tab') ?? phaseToTab(t.workflowPhase))
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
     void loadData()
-  }, [id, searchParams])
+    return () => { cancelled = true }
+  }, [id])
 
-  async function reloadSessions() {
+  const reloadSessions = useCallback(async () => {
     if (!id) return
     const sessions = await listSessionsForTicket(id).catch(() => [])
     const sorted = [...sessions].sort(
@@ -109,40 +109,37 @@ export function TicketDetailPage() {
     const active = sorted.find((s) => ACTIVE_STATUSES.has(s.status))
     const completed = sorted.find((s) => s.status === 'completed')
     setCurrentSession(active ?? completed ?? null)
-  }
+  }, [id])
 
-  function handleStartSession(mode: AgentSessionMode, prefilledMessage: string) {
+  const handleStartSession = useCallback((mode: AgentSessionMode, prefilledMessage: string) => {
     setSessionDialogDefaultMode(mode)
     setSessionDialogDefaultMessage(prefilledMessage)
     setIsLaunchSessionDialogOpen(true)
-  }
+  }, [])
 
-  async function handleSendToSession(message: string, mode: AgentSessionMode) {
+  const handleSendToSession = useCallback(async (message: string, mode: AgentSessionMode) => {
     if (currentSession && ACTIVE_STATUSES.has(currentSession.status)) {
       try {
         await sendMessageToSession(currentSession.id, `[${user?.name ?? 'User'}]: ${message}`)
-        setActiveTab('session')
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to send message')
       }
     } else {
       handleStartSession(mode, message)
     }
-  }
+  }, [currentSession, handleStartSession])
 
-  function handleSessionLaunched(session: AgentSession) {
+  const handleSessionLaunched = useCallback((session: AgentSession) => {
     setCurrentSession(session)
-    setActiveTab('session')
-  }
+  }, [])
 
-  function handleSessionEnded() {
+  const handleSessionEnded = useCallback(() => {
     const mode = currentSession?.mode
     void reloadSessions()
     if (mode === 'research' || mode === 'planning') {
       setDocumentRefreshKey((k) => k + 1)
-      setActiveTab(mode)
     }
-  }
+  }, [currentSession])
 
   const executionBlockingReason = useMemo(() => {
     if (!ticket) return null
@@ -203,7 +200,7 @@ export function TicketDetailPage() {
 
           <div className="flex shrink-0 items-center gap-2">
             {sessionIsActive && (
-              <Button color="violet" onClick={() => setActiveTab('session')}>
+              <Button color="violet" onClick={() => setIsLaunchSessionDialogOpen(true)}>
                 <ChatBubbleIcon className="h-4 w-4" />
                 Resume session
               </Button>
@@ -237,7 +234,7 @@ export function TicketDetailPage() {
                   </DropdownItem>
                 )}
                 {sessionIsActive ? (
-                  <DropdownItem onClick={() => setActiveTab('session')}>
+                  <DropdownItem onClick={() => setIsLaunchSessionDialogOpen(true)}>
                     <ChatBubbleIcon className="h-4 w-4" />View active session
                   </DropdownItem>
                 ) : (
@@ -265,37 +262,20 @@ export function TicketDetailPage() {
           </div>
         </div>
 
-        <TicketWorkflowPanel
-          workflowPhase={ticket.workflowPhase}
-          onPhaseClick={(phase) => {
-            if (phase === TICKET_WORKFLOW_PHASE.RESEARCH) setActiveTab('research')
-            else if (phase === TICKET_WORKFLOW_PHASE.PLANNING) setActiveTab('planning')
-            else setActiveTab('jobs')
-          }}
-          blockingReason={executionBlockingReason}
-          overrideAudit={
-            ticket.workflowOverriddenAt
-              ? { reason: ticket.workflowOverrideReason || '', overriddenAt: ticket.workflowOverriddenAt, overriddenBy: ticket.workflowOverriddenBy || null }
-              : null
-          }
-        />
-
-        <TicketDetailTabs
+        <TicketPhaseView
           ticket={ticket}
           clankers={clankers}
           project={project}
           currentSession={currentSession}
-          activeTab={activeTab ?? 'overview'}
-          onTabChange={setActiveTab}
           onWorkflowPhaseChange={(workflowPhase) =>
             setTicket((t) => t ? { ...t, workflowPhase } : t)
           }
-          onApprovalStateChange={setPlanningApprovalState}
+          onApprovalStateChange={stableSetPlanningApprovalState}
           onStartSession={handleStartSession}
-          onSendToSession={(msg, mode) => void handleSendToSession(msg, mode)}
+          onSendToSession={handleSendToSession}
           onSessionEnded={handleSessionEnded}
-          onOpenSessionDialog={() => setIsLaunchSessionDialogOpen(true)}
           documentRefreshKey={documentRefreshKey}
+          jobs={jobs}
         />
       </div>
 
