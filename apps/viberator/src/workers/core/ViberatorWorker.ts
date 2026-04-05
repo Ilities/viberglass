@@ -23,9 +23,7 @@ import { SessionEventForwarder } from "../../acp/SessionEventForwarder";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
 import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
-import { runCodingJob } from "./runCodingJob";
-import { runResearchJob } from "./runResearchJob";
-import { runPlanningJob } from "./runPlanningJob";
+import { runClawJob } from "./runClawJob";
 import { runSessionTurnJob } from "./runSessionTurnJob";
 import {
   extractClankerEnvironment,
@@ -142,13 +140,9 @@ export class ViberatorWorker {
     this.currentTenantId = data.tenantId;
 
     try {
-      const jobRunner = this.agentSessionId
-        ? runSessionTurnJob
-        : data.jobKind === "research"
-          ? runResearchJob
-          : data.jobKind === "planning"
-            ? runPlanningJob
-            : runCodingJob;
+      const jobRunner = data.jobKind === "claw"
+        ? runClawJob
+        : runSessionTurnJob;
 
       return await jobRunner({
         data,
