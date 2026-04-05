@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync, unlinkSync } from "fs";
+import { existsSync } from "fs";
 import * as path from "path";
 import { Logger } from "winston";
 import { AcpClient } from "../acp/AcpClient";
@@ -15,37 +15,20 @@ export class AcpExecutor {
   ): Promise<ExecutionResult> {
     const command = agent.getAcpServerCommand();
     const repoDir = context.repoDir ?? process.cwd();
-    const home = process.env.HOME;
     const workDir = path.dirname(repoDir);
     const harnessConfigDir = path.join(workDir, ".harness-config");
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       ...agent.getAcpEnvironment(),
-      // In Lambda the sandbox user's home dir may not physically exist; fall back to /tmp.
-      HOME: home && existsSync(home) ? home : "/tmp",
-      ...(existsSync(harnessConfigDir)
-        ? { OPENCODE_CONFIG_DIR: harnessConfigDir }
-        : {}),
     };
 
-    // Ensure HOME is writable in Lambda. If HOME is not writable, some CLIs
-    // (like OpenCode) fail during database migration or state initialization.
-    if (process.env.AWS_LAMBDA_FUNCTION_NAME && env.HOME) {
-      try {
-        const testFile = path.join(env.HOME, `.write-test-${Date.now()}`);
-        writeFileSync(testFile, "test");
-        unlinkSync(testFile);
-      } catch (err) {
-        this.logger.warn(
-          "HOME is not writable in Lambda, falling back to /tmp",
-          {
-            home: env.HOME,
-            error: err instanceof Error ? err.message : String(err),
-          },
-        );
-        env.HOME = "/tmp";
-      }
+    // In Lambda the sandbox user's home dir may not physically exist or be writable.
+    // Use the agent's logic to resolve a suitable HOME.
+    env.HOME = agent.resolveHomeDirectory(env.HOME);
+
+    if (existsSync(harnessConfigDir)) {
+      env.OPENCODE_CONFIG_DIR = harnessConfigDir;
     }
     const timeoutMs = (context.maxExecutionTime || 1800) * 1000;
 
