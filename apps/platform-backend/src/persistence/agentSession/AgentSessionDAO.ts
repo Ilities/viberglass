@@ -18,6 +18,7 @@ export interface AgentSession {
   id: string;
   tenantId: string;
   projectId: string;
+  projectSlug: string | null;
   ticketId: string;
   clankerId: string;
   mode: AgentSessionMode;
@@ -105,11 +106,13 @@ export class AgentSessionDAO {
   async getById(id: string): Promise<AgentSession | null> {
     const row = await db
       .selectFrom("agent_sessions")
-      .selectAll()
-      .where("id", "=", id)
+      .innerJoin("projects", "projects.id", "agent_sessions.project_id")
+      .selectAll("agent_sessions")
+      .select("projects.slug as project_slug")
+      .where("agent_sessions.id", "=", id)
       .executeTakeFirst();
 
-    return row ? this.mapRow(row) : null;
+    return row ? this.mapRow(row as AgentSessionRow & { project_slug: string | null }) : null;
   }
 
   async getActiveByTicketAndMode(
@@ -201,11 +204,12 @@ export class AgentSessionDAO {
     await db.updateTable("agent_sessions").set(updateData).where("id", "=", id).execute();
   }
 
-  private mapRow(row: AgentSessionRow): AgentSession {
+  private mapRow(row: AgentSessionRow & { project_slug?: string | null }): AgentSession {
     return {
       id: row.id,
       tenantId: row.tenant_id,
       projectId: row.project_id,
+      projectSlug: row.project_slug ?? null,
       ticketId: row.ticket_id,
       clankerId: row.clanker_id,
       mode: row.mode,

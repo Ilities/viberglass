@@ -2,7 +2,7 @@
 # One-stop script to set up and publish worker harness images to ECR
 # Usage: ./setup-harness-images.sh [environment] [harness-type]
 #   environment: dev | prod (default: dev)
-#   harness-type: multi-agent | claude | lambda | qwen | gemini | mistral | codex | opencode | kimi | testing | deployment | base | all (default: multi-agent)
+#   harness-type: multi-agent | claude | lambda | qwen | gemini | mistral | codex | opencode | kimi | | base | all (default: multi-agent)
 
 set -e
 

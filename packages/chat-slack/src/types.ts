@@ -91,5 +91,6 @@ export interface SlackHandlerServices {
   getTicketForThread(threadId: string): Promise<{ ticketId: string; clankerId: string; mode: string } | undefined>;
 
   // URL helpers
-  ticketUrl(projectId: string, ticketId: string): string | null;
+  ticketUrl(projectSlug: string, ticketId: string): string | null;
+  getProject(id: string): Promise<{ id: string; slug: string } | null>;
 }

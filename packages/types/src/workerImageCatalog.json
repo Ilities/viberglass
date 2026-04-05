@@ -149,31 +149,5 @@
     "isAgentImage": true,
     "supportedAgents": ["kimi-code"],
     "defaultForAgents": ["kimi-code"]
-  },
-  {
-    "variant": "testing",
-    "repositoryName": "viberator-worker-testing",
-    "scriptImageName": "worker-testing",
-    "dockerfilePath": "infra/workers/docker/tasks/viberator-worker-testing.Dockerfile",
-    "includeInHarnessSetup": true,
-    "includeInInfraProvisioning": true,
-    "includeInBuildScript": true,
-    "includeInPushScript": true,
-    "isAgentImage": false,
-    "supportedAgents": [],
-    "defaultForAgents": []
-  },
-  {
-    "variant": "deployment",
-    "repositoryName": "viberator-worker-deployment",
-    "scriptImageName": "worker-deployment",
-    "dockerfilePath": "infra/workers/docker/tasks/viberator-worker-deployment.Dockerfile",
-    "includeInHarnessSetup": true,
-    "includeInInfraProvisioning": true,
-    "includeInBuildScript": true,
-    "includeInPushScript": true,
-    "isAgentImage": false,
-    "supportedAgents": [],
-    "defaultForAgents": []
   }
 ]
