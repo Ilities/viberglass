@@ -116,12 +116,15 @@ export class ConfigLoader {
    * @returns Array of successfully fetched files
    */
   async fetchInstructionFiles(
-    files: Array<{ fileType: string; s3Url: string }>,
+    files: Array<{ fileType: string; s3Url?: string }>,
   ): Promise<InstructionFile[]> {
     const results: InstructionFile[] = [];
 
     await Promise.all(
       files.map(async (file) => {
+        if (!file.s3Url) {
+          return;
+        }
         const content = await this.fetchInstructionFile(file.s3Url);
         if (content) {
           results.push({ fileType: file.fileType, content });

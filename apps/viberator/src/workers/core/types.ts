@@ -128,11 +128,13 @@ export interface BaseWorkerPayload {
 
 /**
  * Instruction file reference for AWS workers (Lambda/ECS)
- * Files are fetched from S3 using platform credentials
+ * Files are usually fetched from S3 using platform credentials,
+ * but can also be provided inline.
  */
 export interface S3InstructionFile {
   fileType: string; // e.g., 'AGENTS.md', 'skills/code-review.md'
-  s3Url: string; // s3://bucket/key format
+  s3Url?: string; // s3://bucket/key format
+  content?: string; // inline content override
 }
 
 /**
