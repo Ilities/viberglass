@@ -1,13 +1,11 @@
 import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
-import { ClankerHealthBadge } from '@/components/clanker-health-badge'
 import { Heading, Subheading } from '@/components/heading'
 import { InfoItem } from '@/components/info-item'
 import { PageMeta } from '@/components/page-meta'
 import { Section } from '@/components/section'
 import { formatClankerStatus, formatDeploymentStrategy, getClankerBySlug } from '@/data'
-import { getClankerHealth } from '@/service/api/clanker-api'
 import type { Secret } from '@/service/api/secret-api'
 import { getSecret } from '@/service/api/secret-api'
 import {
@@ -17,10 +15,9 @@ import {
   CubeIcon,
   ExternalLinkIcon,
   Pencil1Icon,
-  ReloadIcon,
   StackIcon,
 } from '@radix-ui/react-icons'
-import { getAgentLabel, isObjectRecord, type Clanker, type ClankerHealthStatus } from '@viberglass/types'
+import { getAgentLabel, isObjectRecord, type Clanker } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
@@ -119,9 +116,6 @@ export function ClankerDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const [clanker, setClanker] = useState<Clanker | null>(null)
   const [secrets, setSecrets] = useState<Secret[]>([])
-  const [health, setHealth] = useState<ClankerHealthStatus | null>(null)
-  const [healthError, setHealthError] = useState<string | null>(null)
-  const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -135,7 +129,7 @@ export function ClankerDetailPage() {
         const clankerData = await getClankerBySlug(slug)
         if (!clankerData) return
 
-        const [secretResults, healthResult] = await Promise.all([
+        const [secretResults] = await Promise.all([
           Promise.all(
             (clankerData.secretIds || []).map(async (secretId) => {
               try {
@@ -146,16 +140,10 @@ export function ClankerDetailPage() {
               }
             })
           ).then((results) => results.filter((secret): secret is Secret => secret !== null)),
-          getClankerHealth(clankerData.id).catch((error) => {
-            const message = error instanceof Error ? error.message : 'Failed to fetch health'
-            setHealthError(message)
-            return null
-          }),
         ])
 
         setClanker(clankerData)
         setSecrets(secretResults)
-        setHealth(healthResult)
       } finally {
         setIsLoading(false)
       }
@@ -181,20 +169,6 @@ export function ClankerDetailPage() {
 
     return () => window.clearInterval(intervalId)
   }, [slug, clanker])
-
-  const refreshHealth = async () => {
-    if (!clanker) return
-    setIsRefreshingHealth(true)
-    setHealthError(null)
-    try {
-      const updatedHealth = await getClankerHealth(clanker.id)
-      setHealth(updatedHealth)
-    } catch (error) {
-      setHealthError(error instanceof Error ? error.message : 'Failed to refresh health')
-    } finally {
-      setIsRefreshingHealth(false)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -480,43 +454,6 @@ export function ClankerDetailPage() {
                     label="Updated"
                     value={new Date(clanker.updatedAt).toLocaleString()}
                   />
-                </Section>
-              </div>
-
-              <div className="app-frame rounded-lg p-4">
-                <Section title="Health">
-                  <div className="px-1 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-xs font-medium tracking-wider text-[var(--gray-9)] uppercase">Status</div>
-                      <div className="flex items-center gap-2">
-                        {health ? (
-                          <ClankerHealthBadge health={health} />
-                        ) : healthError ? (
-                          <Badge color="red">Error</Badge>
-                        ) : (
-                          <Badge color="zinc">Checking...</Badge>
-                        )}
-                        <Button plain onClick={() => void refreshHealth()} disabled={isRefreshingHealth}>
-                          <ReloadIcon className={`h-4 w-4 ${isRefreshingHealth ? 'animate-spin' : ''}`} />
-                        </Button>
-                      </div>
-                    </div>
-                    {health?.message && <p className="mt-2 text-sm text-[var(--gray-9)]">{health.message}</p>}
-                    {healthError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{healthError}</p>}
-                  </div>
-                  {health && (
-                    <>
-                      <div className="mx-1 h-px bg-[var(--gray-6)]" />
-                      <div className="space-y-1 px-1 py-3 text-sm text-[var(--gray-11)]">
-                        <div>{health.checks.resourceExists ? '✓' : '✗'} Resource exists</div>
-                        <div>{health.checks.deploymentConfigured ? '✓' : '✗'} Deployment configured</div>
-                        <div>{health.checks.invokerAvailable ? '✓' : '✗'} Invoker available</div>
-                        <div className="pt-1 text-xs text-[var(--gray-9)]">
-                          Last checked: {new Date(health.lastChecked).toLocaleString()}
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </Section>
               </div>
             </div>

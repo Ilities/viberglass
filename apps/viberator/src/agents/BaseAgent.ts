@@ -297,7 +297,7 @@ export abstract class BaseAgent {
     return merged;
   }
 
-  private resolveHomeDirectory(candidateHome: string | undefined): string {
+  public resolveHomeDirectory(candidateHome?: string): string {
     const candidates: string[] = [];
 
     if (typeof candidateHome === "string" && candidateHome.trim().length > 0) {
@@ -318,6 +318,18 @@ export abstract class BaseAgent {
 
     for (const candidate of candidates) {
       if (fs.existsSync(candidate)) {
+        // In Lambda, some directories like /home/viberator might exist but not be writable.
+        // We check writability if we are in Lambda.
+        if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+          try {
+            const testFile = path.join(candidate, `.write-test-${Date.now()}`);
+            fs.writeFileSync(testFile, "test");
+            fs.unlinkSync(testFile);
+            return candidate;
+          } catch {
+            continue;
+          }
+        }
         return candidate;
       }
     }

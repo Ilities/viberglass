@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { Logger } from "winston";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
 import {
@@ -34,6 +35,40 @@ export class InstructionFileManager {
     return this.loadDockerInstructionFiles(payload);
   }
 
+  private resolveHomeDirectory(): string {
+    const candidates: string[] = [];
+
+    const runtimeHome = process.env.HOME?.trim();
+    if (runtimeHome) {
+      candidates.push(runtimeHome);
+    }
+
+    const systemHome = os.homedir().trim();
+    if (systemHome.length > 0) {
+      candidates.push(systemHome);
+    }
+
+    candidates.push("/tmp");
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+          try {
+            const testFile = path.join(candidate, `.write-test-${Date.now()}`);
+            fs.writeFileSync(testFile, "test");
+            fs.unlinkSync(testFile);
+            return candidate;
+          } catch {
+            continue;
+          }
+        }
+        return candidate;
+      }
+    }
+
+    return "/tmp";
+  }
+
   async materialize(
     repoDir: string,
     instructionFiles: Map<string, string>,
@@ -63,8 +98,9 @@ export class InstructionFileManager {
         // For OpenCode, also materialize to $HOME/.opencode/opencode.json if HOME is set.
         // Some versions of the CLI or certain commands might not respect OPENCODE_CONFIG_DIR
         // or might need a persistent state dir for the database migration to succeed.
-        if (configFileName === "opencode.json" && process.env.HOME) {
-          const homeOpencodeDir = path.join(process.env.HOME, ".opencode");
+        if (configFileName === "opencode.json") {
+          const resolvedHome = this.resolveHomeDirectory();
+          const homeOpencodeDir = path.join(resolvedHome, ".opencode");
           const homeTargetPath = path.join(homeOpencodeDir, "opencode.json");
           await fs.promises.mkdir(homeOpencodeDir, { recursive: true });
           await fs.promises.writeFile(homeTargetPath, content, "utf-8");

@@ -53,14 +53,11 @@ export class OpenCodeAgent extends BaseAgent {
         effectivePrompt += `\n\nLimit changes to ${context.maxChanges} files.`;
       }
       if (context.testRequired) {
-        effectivePrompt += "\n\nRun tests to verify your changes before finishing.";
+        effectivePrompt +=
+          "\n\nRun tests to verify your changes before finishing.";
       }
 
-      const args = [
-        "run",
-        "--format",
-        "json",
-      ];
+      const args = ["run", "--format", "json"];
 
       const model =
         this.getNonEmptyTrimmedString(this.config.model) ??
@@ -89,6 +86,7 @@ export class OpenCodeAgent extends BaseAgent {
       if (fs.existsSync(harnessConfigDir)) {
         env.OPENCODE_CONFIG_DIR = harnessConfigDir;
       }
+      env.HOME = this.resolveHomeDirectory(env.HOME);
 
       let result;
       try {
