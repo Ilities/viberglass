@@ -1,6 +1,6 @@
 import type { Context } from "aws-lambda";
 import { ViberatorWorker } from "../core/ViberatorWorker";
-import { LambdaPayload } from "../core/types";
+import { LambdaPayload, S3InstructionFile } from "../core/types";
 import { CodingJobData, JobResult } from "../core/types";
 import { ClankerAgentAuthLifecycleFactory } from "../runtime/ClankerAgentAuthLifecycleFactory";
 import { ClankerAgentEndpointEnvironmentFactory } from "../runtime/ClankerAgentEndpointEnvironmentFactory";
@@ -32,13 +32,22 @@ const isSqsEventLike = (value: unknown): value is SqsEventLike => {
   return Array.isArray(records) && records.every(isSqsRecordLike);
 };
 
-const isBodyWrappedEventLike = (value: unknown): value is BodyWrappedEventLike =>
-  isRecord(value) && "body" in value;
+const isBodyWrappedEventLike = (
+  value: unknown,
+): value is BodyWrappedEventLike => isRecord(value) && "body" in value;
 
-const isS3InstructionFile = (value: unknown): boolean =>
+const isS3InstructionFile = (value: unknown): value is S3InstructionFile =>
   isRecord(value) &&
   typeof value["fileType"] === "string" &&
   typeof value["s3Url"] === "string";
+
+const isContextInstructionFile = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value["fileType"] === "string" &&
+  typeof value["content"] === "string";
+
+const isInstructionFile = (value: unknown): boolean =>
+  isS3InstructionFile(value) || isContextInstructionFile(value);
 
 const isLambdaPayload = (value: unknown): value is LambdaPayload => {
   if (!isRecord(value)) {
@@ -53,7 +62,7 @@ const isLambdaPayload = (value: unknown): value is LambdaPayload => {
     typeof value["repository"] === "string" &&
     typeof value["task"] === "string" &&
     Array.isArray(value["instructionFiles"]) &&
-    value["instructionFiles"].every(isS3InstructionFile) &&
+    value["instructionFiles"].every(isInstructionFile) &&
     Array.isArray(value["requiredCredentials"]) &&
     value["requiredCredentials"].every(
       (credential) => typeof credential === "string",
@@ -92,7 +101,10 @@ const extractPayloads = (event: unknown): LambdaPayload[] => {
   return [parsePayloadValue(event, "event")];
 };
 
-export const handler = async (event: unknown, context?: Context): Promise<void> => {
+export const handler = async (
+  event: unknown,
+  context?: Context,
+): Promise<void> => {
   // Tell Lambda not to wait for the event loop to drain after this handler
   // resolves. sendResult is fully awaited before we return; remaining async
   // operations (log-batch flushes) can be safely abandoned.
