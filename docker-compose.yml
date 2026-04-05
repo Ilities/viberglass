@@ -25,6 +25,8 @@ networks:
 volumes:
   postgres-data:
     name: viberglass-postgres-data
+  session-state:
+    name: viberglass-session-state
 
 services:
   # PostgreSQL Database
@@ -72,6 +74,7 @@ services:
       TICKET_MEDIA_DISK_ROOT: /tmp/viberglass-ticket-media
       TICKET_MEDIA_CONTAINER_ROOT: /tmp/viberglass-ticket-media
       SECRETS_ENCRYPTION_KEY: 'very-berry-secret-key'
+      SESSION_STATE_ROOT: /tmp/viberglass-session-state
       PLATFORM_FRONTEND_URL: http://localhost:3000
       # Hot-reload in containers (required for some Docker setups)
       CHOKIDAR_USEPOLLING: "true"
@@ -84,6 +87,8 @@ services:
       - ./packages/chat-slack:/app/packages/chat-slack:cached
       # Persist ticket media files on host disk for Docker strategy mounts
       - /tmp/viberglass-ticket-media:/tmp/viberglass-ticket-media
+      # Persist session state archives for local conversation continuity
+      - session-state:/tmp/viberglass-session-state
       # Docker socket for provisioning clanker containers
       - /var/run/docker.sock:/var/run/docker.sock
       # Worker Dockerfiles and source needed for clanker provisioning

@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { ExecutionContext } from "../../types";
 import { JobResult } from "./types";
@@ -8,6 +9,10 @@ import {
   executeAgentWithRetry,
   withJobLifecycle,
 } from "./jobPipeline";
+import {
+  captureAndStore,
+  retrieveAndRestore,
+} from "../runtime/SessionStateManager";
 
 
 const DOCUMENT_FILES: Record<string, string> = {
@@ -18,7 +23,10 @@ const DOCUMENT_FILES: Record<string, string> = {
 function buildSessionPromptOverride(params: JobRunnerParams): string {
   const { data, sessionMode, acpSessionId } = params;
 
-  // Continuation turns: ACP session already has context, just send the user message
+  // Continuation turns with an existing ACP session: the agent already has the
+  // full conversation context.  The task has been enriched by the platform
+  // (Phase 1: includes rendered template with documents/comments), so we can
+  // send it directly.  Only append document sections for first-turn sessions.
   if (acpSessionId) {
     return data.task;
   }
@@ -50,12 +58,32 @@ export async function runSessionTurnJob(
   params: JobRunnerParams,
 ): Promise<JobResult> {
   return withJobLifecycle(params, "Session turn", async () => {
-    const { data, callbackClient, sendProgress } = params;
+    const { data, callbackClient, sendProgress, logger } = params;
 
     params.sessionEventForwarder?.setupForJob(data.id, data.tenantId);
 
     const setup = await setupJob(params, "session-turn");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
+
+    // Restore conversation state before agent execution (continuation turns)
+    if (params.conversationStateUrl) {
+      await sendProgress("restore-state", "Restoring conversation state");
+      try {
+        await retrieveAndRestore(
+          params.conversationStateUrl,
+          os.homedir(),
+          logger,
+        );
+        logger.info("Conversation state restored from previous turn", {
+          conversationStateUrl: params.conversationStateUrl,
+        });
+      } catch (err) {
+        logger.warn("Failed to restore conversation state, continuing with fresh session", {
+          conversationStateUrl: params.conversationStateUrl,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     const promptOverride = buildSessionPromptOverride(params);
 
@@ -92,6 +120,31 @@ export async function runSessionTurnJob(
       );
     }
 
+    // Capture conversation state after successful execution for future turns
+    let conversationStateUrl: string | undefined;
+    if (result.newAcpSessionId) {
+      try {
+        const url = await captureAndStore(
+          executionContext.agent || "",
+          params.agentSessionId || data.id,
+          os.homedir(),
+          logger,
+        );
+        if (url) {
+          conversationStateUrl = url;
+          await callbackClient.sendConversationStateUrl(
+            data.id,
+            data.tenantId,
+            url,
+          );
+        }
+      } catch (err) {
+        logger.warn("Failed to capture conversation state", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     const changedFiles = await params.gitService.getChangedFiles(repoDir);
 
     // For document modes (research/planning), read the generated document if present.
@@ -106,6 +159,12 @@ export async function runSessionTurnJob(
       }
     }
 
-    return { success: true, changedFiles, executionTime: 0, documentContent };
+    return {
+      success: true,
+      changedFiles,
+      executionTime: 0,
+      documentContent,
+      conversationStateUrl,
+    };
   });
 }

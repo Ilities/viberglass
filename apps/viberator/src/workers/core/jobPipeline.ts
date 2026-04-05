@@ -44,6 +44,8 @@ export interface JobRunnerParams {
   acpSessionId?: string;
   sessionMode?: "research" | "planning" | "execution";
   sessionEventForwarder?: SessionEventForwarder;
+  /** S3 URL of conversation state archive to restore before CLI launch */
+  conversationStateUrl?: string;
   selectAgentForExecution: (availableAgents: AgentConfig[]) => AgentConfig;
   sendProgress: (
     step: string,

@@ -122,6 +122,8 @@ export interface BaseWorkerPayload {
   sessionMode?: "research" | "planning" | "execution";
   /** CLI's own ACP session ID (sess_abc123) — used to call session/load on resume */
   acpSessionId?: string;
+  /** S3 URL of conversation state archive to restore before CLI launch */
+  conversationStateUrl?: string;
 }
 
 /**
@@ -233,5 +235,7 @@ export interface JobResult {
   executionTime: number;
   errorMessage?: string;
   commitHash?: string;
+  /** S3 URL of the uploaded conversation state archive (for session turns) */
+  conversationStateUrl?: string;
 }
 import type { JobKind } from "@viberglass/types";

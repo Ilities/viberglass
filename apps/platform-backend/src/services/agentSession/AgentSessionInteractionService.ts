@@ -13,12 +13,20 @@ import type { AgentPendingRequestDAO } from "../../persistence/agentSession/Agen
 import type { CredentialRequirementsService } from "../CredentialRequirementsService";
 import type { JobService } from "../JobService";
 import type { WorkerExecutionService } from "../../workers";
+import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { IntegrationCredentialDAO } from "../../persistence/integrations";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
+import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import {
+  TicketPhaseDocumentCommentDAO,
+  type PhaseDocumentComment,
+  PHASE_DOCUMENT_COMMENT_STATUS,
+} from "../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
+import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import {
   AGENT_SESSION_EVENT_TYPE,
   AGENT_SESSION_STATUS,
@@ -29,6 +37,7 @@ import {
 } from "../../types/agentSession";
 import {
   buildBootstrapPayload,
+  type PreparedTicketRunContext,
   prepareTicketRunContext,
 } from "../ticketRunOrchestration";
 import {
@@ -42,6 +51,11 @@ import type {
   TicketJobData,
 } from "../../types/Job";
 import type { JsonValue } from "../../persistence/types/database";
+import { PromptTemplateService } from "../PromptTemplateService";
+import {
+  PromptTemplateDAO,
+  PROMPT_TYPE,
+} from "../../persistence/promptTemplate/PromptTemplateDAO";
 
 interface ContinuationExtras {
   task: string;
@@ -55,13 +69,21 @@ export interface ReplyResult {
 
 export type ApproveResult = ReplyResult | { cancelled: true };
 
+const SUGGESTION_PREFIX = "@@SUGGESTION@@\n";
+
 export class AgentSessionInteractionService {
+  private readonly ticketDAO = new TicketDAO();
   private readonly projectDAO = new ProjectDAO();
   private readonly projectScmConfigDAO = new ProjectScmConfigDAO();
   private readonly integrationCredentialDAO = new IntegrationCredentialDAO();
   private readonly clankerDAO = new ClankerDAO();
   private readonly provisioningService = getClankerProvisioner();
   private readonly instructionStorageService = new InstructionStorageService();
+  private readonly documentService = new TicketPhaseDocumentService();
+  private readonly commentDAO = new TicketPhaseDocumentCommentDAO();
+  private readonly promptTemplateService = new PromptTemplateService(
+    new PromptTemplateDAO(),
+  );
 
   constructor(
     private readonly agentSessionDAO: AgentSessionDAO,
@@ -404,7 +426,7 @@ export class AgentSessionInteractionService {
     assistantTurn: AgentTurn,
     extras: ContinuationExtras,
   ): Promise<{ id: string; status: string }> {
-    const { task } = extras;
+    const rawTask = extras.task;
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
     const prepared = await prepareTicketRunContext(
@@ -419,7 +441,91 @@ export class AgentSessionInteractionService {
       },
     );
 
-    const jobData = buildContinuationJobData(jobId, session, task);
+    const ticket = await this.ticketDAO.getTicket(session.ticketId);
+
+    let researchDocumentContent: string | undefined;
+    let planDocumentContent: string | undefined;
+    let openComments: PhaseDocumentComment[] = [];
+
+    if (session.mode === "research") {
+      const researchDoc = await this.documentService.getOrCreateDocument(
+        session.ticketId,
+        TICKET_WORKFLOW_PHASE.RESEARCH,
+      );
+      if (researchDoc.content?.trim()) {
+        researchDocumentContent = researchDoc.content;
+      }
+      const allComments = await this.commentDAO.listByTicketAndPhase(
+        session.ticketId,
+        "research",
+      );
+      openComments = allComments.filter(
+        (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
+      );
+    }
+
+    if (session.mode === "planning") {
+      const researchDoc = await this.documentService.getOrCreateDocument(
+        session.ticketId,
+        TICKET_WORKFLOW_PHASE.RESEARCH,
+      );
+      researchDocumentContent = researchDoc.content;
+
+      const planDoc = await this.documentService.getOrCreateDocument(
+        session.ticketId,
+        TICKET_WORKFLOW_PHASE.PLANNING,
+      );
+      if (planDoc.content?.trim()) {
+        planDocumentContent = planDoc.content;
+      }
+      const allComments = await this.commentDAO.listByTicketAndPhase(
+        session.ticketId,
+        "planning",
+      );
+      openComments = allComments.filter(
+        (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
+      );
+    }
+
+    const openCommentsStr =
+      openComments.length > 0
+        ? openComments
+            .map((c) => {
+              const actor = c.actor ? ` (by ${c.actor})` : "";
+              if (c.content.startsWith(SUGGESTION_PREFIX)) {
+                const suggestion = c.content.slice(SUGGESTION_PREFIX.length);
+                return `- Line ${c.lineNumber}${actor}: **Suggestion:** ${suggestion}`;
+              }
+              return `- Line ${c.lineNumber}${actor}: ${c.content}`;
+            })
+            .join("\n")
+        : undefined;
+
+    const revisionType =
+      session.mode === "research"
+        ? PROMPT_TYPE.ticket_research_revision
+        : PROMPT_TYPE.ticket_planning_revision;
+
+    const enrichedTask = await this.promptTemplateService.render(
+      revisionType,
+      session.projectId,
+      {
+        initialMessage: rawTask,
+        researchDocument: researchDocumentContent,
+        planDocument: planDocumentContent,
+        openComments: openCommentsStr,
+      },
+    );
+
+    const jobData = buildContinuationJobData(
+      jobId,
+      session,
+      enrichedTask,
+      prepared,
+      ticket,
+      researchDocumentContent,
+      planDocumentContent,
+    );
     const submitResult = await this.jobService.submitJob(jobData, {
       ticketId: session.ticketId,
       clankerId: session.clankerId,
@@ -439,9 +545,9 @@ export class AgentSessionInteractionService {
       clankerId: session.clankerId,
       agent: prepared.executionClanker.agent,
       repository: prepared.sourceRepository,
-      task,
+      task: enrichedTask,
       baseBranch: prepared.baseBranch,
-      context: { ticketId: session.ticketId },
+      context: jobData.context,
       settings: {},
       instructionFiles: prepared.workerInstructionFiles,
       requiredCredentials,
@@ -451,6 +557,9 @@ export class AgentSessionInteractionService {
     });
 
     const acpSessionId = extractAcpSessionId(session.metadataJson);
+    const conversationStateUrl = extractConversationStateUrl(
+      session.metadataJson,
+    );
 
     const fullBootstrap = {
       ...baseBootstrap,
@@ -458,6 +567,7 @@ export class AgentSessionInteractionService {
       agentTurnId: assistantTurn.id,
       sessionMode: session.mode,
       acpSessionId,
+      conversationStateUrl,
       ...extras,
     };
     jobData.bootstrapPayload = fullBootstrap;
@@ -490,6 +600,16 @@ function buildContinuationJobData(
   jobId: string,
   session: AgentSession,
   task: string,
+  prepared: PreparedTicketRunContext,
+  ticket: {
+    id: string;
+    title: string;
+    description: string;
+    externalTicketId?: string | null;
+    projectId: string;
+  } | null,
+  researchDocumentContent?: string,
+  planDocumentContent?: string,
 ): JobData {
   const base = {
     id: jobId,
@@ -505,7 +625,11 @@ function buildContinuationJobData(
     const data: ResearchJobData = {
       ...base,
       jobKind: "research",
-      context: { ticketId: session.ticketId },
+      context: {
+        ticketId: session.ticketId,
+        researchDocument: researchDocumentContent,
+        instructionFiles: prepared.mergedInstructionFiles,
+      },
     };
     return data;
   }
@@ -513,14 +637,22 @@ function buildContinuationJobData(
     const data: PlanningJobData = {
       ...base,
       jobKind: "planning",
-      context: { ticketId: session.ticketId },
+      context: {
+        ticketId: session.ticketId,
+        researchDocument: researchDocumentContent ?? "",
+        planDocument: planDocumentContent,
+        instructionFiles: prepared.mergedInstructionFiles,
+      },
     };
     return data;
   }
   const data: TicketJobData = {
     ...base,
     jobKind: "execution",
-    context: { ticketId: session.ticketId },
+    context: {
+      ticketId: session.ticketId,
+      instructionFiles: prepared.mergedInstructionFiles,
+    },
   };
   return data;
 }
@@ -532,6 +664,20 @@ function extractAcpSessionId(metadata: JsonValue | null): string | null {
     !Array.isArray(metadata)
   ) {
     const val = metadata.acpSessionId;
+    return typeof val === "string" ? val : null;
+  }
+  return null;
+}
+
+function extractConversationStateUrl(
+  metadata: JsonValue | null,
+): string | null {
+  if (
+    metadata !== null &&
+    typeof metadata === "object" &&
+    !Array.isArray(metadata)
+  ) {
+    const val = metadata.conversationStateUrl;
     return typeof val === "string" ? val : null;
   }
   return null;

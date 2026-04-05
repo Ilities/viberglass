@@ -267,6 +267,11 @@ const lambdaS3Policy = new aws.iam.Policy(
           Effect: "Allow",
           Resource: uploadsBucketArn,
         },
+        {
+          Action: ["s3:PutObject"],
+          Effect: "Allow",
+          Resource: pulumi.interpolate`${uploadsBucketArn}/conversation-state/*`,
+        },
       ],
     },
     tags: config.tags,
@@ -498,6 +503,11 @@ const ecsS3Policy = new aws.iam.Policy(
           Action: ["s3:ListBucket"],
           Effect: "Allow",
           Resource: uploadsBucketArn,
+        },
+        {
+          Action: ["s3:PutObject"],
+          Effect: "Allow",
+          Resource: pulumi.interpolate`${uploadsBucketArn}/conversation-state/*`,
         },
       ],
     },

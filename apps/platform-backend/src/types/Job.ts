@@ -160,6 +160,8 @@ export interface JobResult {
   executionTime: number;
   errorMessage?: string;
   commitHash?: string;
+  /** S3 URL of the uploaded conversation state archive (for session turns) */
+  conversationStateUrl?: string;
 }
 
 // Job status type from database schema
