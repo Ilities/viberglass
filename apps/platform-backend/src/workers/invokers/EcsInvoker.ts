@@ -138,8 +138,8 @@ export class EcsInvoker implements WorkerInvoker {
             {
               name: containerName,
               command: canUseJobRef
-                ? ["node", "dist/cli-worker.js", "--job-ref", job.id]
-                : ["node", "dist/cli-worker.js", "--job-data", payloadJson],
+                ? ["node", "apps/viberator/dist/cli-worker.js", "--job-ref", job.id]
+                : ["node", "apps/viberator/dist/cli-worker.js", "--job-data", payloadJson],
               environment,
             },
           ],

@@ -12,9 +12,20 @@ export const HARNESS_CONFIG_FILES: Record<string, HarnessConfigFile> = {
     label: 'OpenCode Configuration',
     placeholder: `{
   "$schema": "https://opencode.ai/config.json",
-  "model": "anthropic/claude-sonnet-4-5",
   "provider": {
-    "openai": {}
+    "openai": {},
+    "minimax": {
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "baseURL": "https://api.minimax.io/anthropic/v1",
+        "apiKey": "{env:MINIMAX_API_KEY}"
+      },
+      "models": {
+        "minimax-2.7": {
+          "name": "minimax-2.7"
+        }
+      }
+    }
   }
 }`,
   },
@@ -76,7 +87,10 @@ export function isSkillPath(value: string): boolean {
 
 export function skillPathFromUploadName(fileName: string): string {
   const rawName = fileName.split('/').pop()?.split('\\').pop() || 'skill.md'
-  const cleaned = rawName.trim().replace(/\s+/g, '-').replace(/[^A-Za-z0-9._-]/g, '-')
+  const cleaned = rawName
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^A-Za-z0-9._-]/g, '-')
   const withExtension = cleaned.toLowerCase().endsWith('.md') ? cleaned : `${cleaned}.md`
 
   return `skills/${withExtension}`

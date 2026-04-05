@@ -249,6 +249,13 @@ export async function runSessionTurnJob(
     // Capture conversation state after successful execution for future turns
     let conversationStateUrl: string | undefined;
     if (result.newAcpSessionId) {
+      logger.info("New ACP session established, capturing conversation state", {
+        jobId: data.id,
+        agentSessionId: params.agentSessionId,
+        newAcpSessionId: result.newAcpSessionId,
+        agent: executionContext.agent,
+        homeDir: os.homedir(),
+      });
       try {
         const url = await captureAndStore(
           executionContext.agent || "",
@@ -258,17 +265,33 @@ export async function runSessionTurnJob(
         );
         if (url) {
           conversationStateUrl = url;
+          logger.info("Conversation state captured and stored", {
+            jobId: data.id,
+            conversationStateUrl: url,
+          });
           await callbackClient.sendConversationStateUrl(
             data.id,
             data.tenantId,
             url,
           );
+        } else {
+          logger.warn("captureAndStore returned undefined - no state to archive or storage failed", {
+            jobId: data.id,
+            agent: executionContext.agent,
+          });
         }
       } catch (err) {
         logger.warn("Failed to capture conversation state", {
+          jobId: data.id,
           error: err instanceof Error ? err.message : String(err),
         });
       }
+    } else {
+      logger.debug("No new ACP session - skipping conversation state capture", {
+        jobId: data.id,
+        agentSessionId: params.agentSessionId,
+        acpTurnOutcome: result.acpTurnOutcome,
+      });
     }
 
     // ── Execution completion: create branch / commit / PR ──

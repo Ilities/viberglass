@@ -120,6 +120,14 @@ export class DockerInvoker implements WorkerInvoker {
       const canUseJobRef = Boolean(job.bootstrapPayload && job.callbackToken);
       const binds = this.buildVolumeBinds(job);
 
+      // Mount session state directory so multi-turn sessions persist across containers
+      const sessionStateRoot =
+        process.env.SESSION_STATE_ROOT || "/tmp/viberglass-session-state";
+      fs.mkdirSync(sessionStateRoot, { recursive: true });
+      // Worker containers run as non-root user; ensure the directory is world-writable
+      fs.chmodSync(sessionStateRoot, 0o1777);
+      binds.push(`${sessionStateRoot}:${sessionStateRoot}:rw`);
+
       const container = await this.docker.createContainer({
         Image: dockerConfig.containerImage,
         name: `viberator-job-${job.id}`,
@@ -127,6 +135,7 @@ export class DockerInvoker implements WorkerInvoker {
           `TENANT_ID=${job.tenantId}`,
           `JOB_ID=${job.id}`,
           `PLATFORM_API_URL=${platformApiUrl}`,
+          `SESSION_STATE_ROOT=${sessionStateRoot}`,
           ...(canUseJobRef && job.callbackToken
             ? [`CALLBACK_TOKEN=${job.callbackToken}`]
             : []),
@@ -137,8 +146,8 @@ export class DockerInvoker implements WorkerInvoker {
           }),
         ],
         Cmd: canUseJobRef
-          ? ["node", "dist/cli-worker.js", "--job-ref", job.id]
-          : ["node", "dist/cli-worker.js", "--job-data", jsonPayload],
+          ? ["node", "apps/viberator/dist/cli-worker.js", "--job-ref", job.id]
+          : ["node", "apps/viberator/dist/cli-worker.js", "--job-data", jsonPayload],
         HostConfig: {
           AutoRemove: true, // Clean up after completion
           NetworkMode: dockerConfig.networkMode || "host",

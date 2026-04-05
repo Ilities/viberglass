@@ -25,8 +25,6 @@ networks:
 volumes:
   postgres-data:
     name: viberglass-postgres-data
-  session-state:
-    name: viberglass-session-state
 
 services:
   # PostgreSQL Database
@@ -88,7 +86,9 @@ services:
       # Persist ticket media files on host disk for Docker strategy mounts
       - /tmp/viberglass-ticket-media:/tmp/viberglass-ticket-media
       # Persist session state archives for local conversation continuity
-      - session-state:/tmp/viberglass-session-state
+      - /tmp/viberglass-session-state:/tmp/viberglass-session-state
+      # Persist clanker instruction files so they survive container restarts
+      - /tmp/viberator-clanker-instructions:/tmp/viberator-clanker-instructions
       # Docker socket for provisioning clanker containers
       - /var/run/docker.sock:/var/run/docker.sock
       # Worker Dockerfiles and source needed for clanker provisioning

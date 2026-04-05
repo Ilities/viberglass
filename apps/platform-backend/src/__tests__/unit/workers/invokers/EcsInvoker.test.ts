@@ -486,7 +486,7 @@ describe("EcsInvoker", () => {
         expect(override.name).toBe("worker");
         expect(override.command.slice(0, 3)).toEqual([
           "node",
-          "dist/cli-worker.js",
+          "apps/viberator/dist/cli-worker.js",
           "--job-data",
         ]);
 
@@ -534,7 +534,7 @@ describe("EcsInvoker", () => {
 
           expect(override.command).toEqual([
             "node",
-            "dist/cli-worker.js",
+            "apps/viberator/dist/cli-worker.js",
             "--job-ref",
             mockJob.id,
           ]);

@@ -23,4 +23,4 @@ LABEL agent.type="kimi-code" \
       agent.provider="moonshot" \
       viberator.worker-type="agent"
 
-CMD ["node", "dist/cli-worker.js", "--help"]
+CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

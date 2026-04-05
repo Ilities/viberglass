@@ -31,6 +31,22 @@ const AGENT_STATE_DIRS: Record<string, string> = {
   "mistral-vibe": ".mistral",
 };
 
+// Patterns to exclude from the archive — large/irrelevant directories that
+// would bloat the archive and make capture extremely slow (node_modules can
+// easily be hundreds of MB).
+const TAR_EXCLUDES = [
+  "--exclude",
+  "node_modules",
+  "--exclude",
+  ".cache",
+  "--exclude",
+  ".npm",
+  "--exclude",
+  "_cacache",
+  "--exclude",
+  "*.log",
+];
+
 /**
  * Returns the HOME-relative state directories for a given agent.
  * Falls back to `.<agentName>/` for unknown agents.
@@ -76,8 +92,15 @@ async function captureConversationState(
 
   try {
     await new Promise<void>((resolve, reject) => {
-      const args = ["czf", archivePath, "-C", homeDir, ...existingPaths];
-      execFile("tar", args, (err) => {
+      const args = [
+        "czf",
+        archivePath,
+        ...TAR_EXCLUDES,
+        "-C",
+        homeDir,
+        ...existingPaths,
+      ];
+      execFile("tar", args, { timeout: 30_000 }, (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -119,6 +142,7 @@ async function restoreConversationState(
       execFile(
         "tar",
         ["xzf", archivePath, "-C", targetHomeDir],
+        { timeout: 30_000 },
         (err) => {
           if (err) reject(err);
           else resolve();

@@ -50,7 +50,7 @@ COPY packages/types/package*.json ./packages/types/
 RUN npm install --omit=dev --workspace=@viberator/orchestrator --workspace=@viberglass/types
 
 # Copy built files from builder
-COPY --from=builder /app/apps/viberator/dist ./dist
+COPY --from=builder /app/apps/viberator/dist ./apps/viberator/dist
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 
 # Install common testing frameworks globally
@@ -78,4 +78,4 @@ LABEL viberator.worker-type="task-testing" \
       viberator.capabilities="testing,jest,vitest,pytest" \
       viberator.frameworks="jest,vitest,mocha,pytest"
 
-CMD ["node", "dist/cli-worker.js", "--help"]
+CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

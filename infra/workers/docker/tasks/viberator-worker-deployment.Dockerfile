@@ -61,7 +61,7 @@ COPY packages/types/package*.json ./packages/types/
 RUN npm install --omit=dev --workspace=@viberator/orchestrator --workspace=@viberglass/types
 
 # Copy built files from builder
-COPY --from=builder /app/apps/viberator/dist ./dist
+COPY --from=builder /app/apps/viberator/dist ./apps/viberator/dist
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 
 # Install Node.js deployment tools
@@ -85,4 +85,4 @@ LABEL viberator.worker-type="task-deployment" \
       viberator.capabilities="deployment,kubernetes,aws,terraform" \
       viberator.tools="kubectl,helm,awscli,terraform,docker,pulumi,serverless"
 
-CMD ["node", "dist/cli-worker.js", "--help"]
+CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]

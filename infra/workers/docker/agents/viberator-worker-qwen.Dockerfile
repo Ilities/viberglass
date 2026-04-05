@@ -23,4 +23,4 @@ LABEL agent.type="qwen-cli" \
       agent.supported-modes="cli" \
       viberator.worker-type="agent"
 
-CMD ["node", "dist/cli-worker.js", "--help"]
+CMD ["node", "apps/viberator/dist/cli-worker.js", "--help"]
