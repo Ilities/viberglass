@@ -166,6 +166,14 @@ export function EditClankerPage() {
       }
 
       setSkills(loadedSkills)
+
+      // Auto-enable "Show all secrets" if the clanker has secrets that don't match the current agent preset
+      const applicableSecrets = filterSecretsForAgent(secretsData, clankerData.agent || DEFAULT_AGENT_TYPE, parsedConfig.form.codexAuthMode)
+      const applicableIds = new Set(applicableSecrets.map(s => s.id))
+      if ((clankerData.secretIds || []).some(id => !applicableIds.has(id))) {
+        setShowAllSecrets(true)
+      }
+
       setIsLoading(false)
     }
 
