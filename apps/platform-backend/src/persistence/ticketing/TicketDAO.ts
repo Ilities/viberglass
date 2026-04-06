@@ -580,12 +580,20 @@ export class TicketDAO {
         sql<string>`COUNT(*) FILTER (WHERE t.auto_fix_status = 'pending' OR (t.auto_fix_requested IS TRUE AND t.auto_fix_status IS NULL))`.as(
           "auto_fix_pending",
         ),
+        sql<string>`COUNT(*) FILTER (WHERE t.ticket_status = ${TICKET_STATUS.IN_REVIEW})`.as(
+          "in_review",
+        ),
       ])
       .executeTakeFirst();
 
     const severityRows = await baseQuery
       .select(["t.severity", sql<string>`COUNT(*)`.as("count")])
       .groupBy("t.severity")
+      .execute();
+
+    const phaseRows = await baseQuery
+      .select(["t.workflow_phase", sql<string>`COUNT(*)`.as("count")])
+      .groupBy("t.workflow_phase")
       .execute();
 
     const categoryRows = await baseQuery
@@ -617,16 +625,32 @@ export class TicketDAO {
     const resolved = parseInt(statsRow?.resolved || "0");
     const inProgress = parseInt(statsRow?.in_progress || "0");
     const open = parseInt(statsRow?.open || "0");
+    const inReview = parseInt(statsRow?.in_review || "0");
     const autoFixRequested = parseInt(statsRow?.auto_fix_requested || "0");
     const autoFixCompleted = parseInt(statsRow?.auto_fix_completed || "0");
     const autoFixPending = parseInt(statsRow?.auto_fix_pending || "0");
     const autoFixFailed = parseInt(statsRow?.auto_fix_failed || "0");
+
+    const byPhase = {
+      research: 0,
+      planning: 0,
+      execution: 0,
+    };
+
+    for (const row of phaseRows) {
+      const key = row.workflow_phase as keyof typeof byPhase;
+      if (key in byPhase) {
+        byPhase[key] = parseInt(row.count || "0");
+      }
+    }
 
     return {
       total,
       open,
       resolved,
       inProgress,
+      inReview,
+      byPhase,
       bySeverity,
       byCategory,
       autoFixStats: {

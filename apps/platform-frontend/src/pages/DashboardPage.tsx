@@ -147,7 +147,7 @@ export function DashboardPage() {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <MetricCard label="Project Constellation" value={projects.length} />
-        <MetricCard label="Unresolved Bugs" value={ticketStats?.open ?? 0} />
+        <MetricCard label="Unresolved Bugs" value={(ticketStats?.open ?? 0) + (ticketStats?.inProgress ?? 0) + (ticketStats?.inReview ?? 0)} />
         <MetricCard label="Queue Pressure" value={queuePressure} />
       </div>
 
@@ -274,8 +274,8 @@ export function DashboardPage() {
                 : 'Crew alert: nobody is on duty yet. Marvin would call this "a waste of consciousness."'}
             </p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Ticket radar: {ticketStats?.open ?? 0} open across the constellation
-              {(ticketStats?.open ?? 0) > 10 ? '. That is, in fact, a lot. Even by galactic standards.' : '.'}
+              Ticket radar: {(ticketStats?.open ?? 0) + (ticketStats?.inProgress ?? 0) + (ticketStats?.inReview ?? 0)} unresolved across the constellation
+              {(ticketStats?.open ?? 0) + (ticketStats?.inProgress ?? 0) + (ticketStats?.inReview ?? 0) > 10 ? '. That is, in fact, a lot. Even by galactic standards.' : '.'}
             </p>
           </div>
         </div>

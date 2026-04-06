@@ -214,6 +214,12 @@ export interface TicketStats {
   open: number
   resolved: number
   inProgress: number
+  inReview: number
+  byPhase: {
+    research: number
+    planning: number
+    execution: number
+  }
   bySeverity: {
     critical: number
     high: number

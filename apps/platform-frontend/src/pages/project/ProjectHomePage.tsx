@@ -8,6 +8,7 @@ import { Timestamp } from '@/components/timestamp'
 import { TruncatedText } from '@/components/truncated-text'
 import type { Clanker, JobListItem, TicketStats, TicketSummary } from '@/data'
 import {
+  formatJobKind,
   formatSeverity,
   formatTicketSystem,
   getClankersList,
@@ -15,7 +16,8 @@ import {
   getRecentTickets,
   getTicketStats,
 } from '@/data'
-import { formatJobStatus } from '@/lib/formatters'
+import { formatJobStatus, jobKindBadgeColor } from '@/lib/formatters'
+import { formatTicketWorkflowPhase } from './tickets/ticket-display'
 import { TICKET_STATUS } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
@@ -236,6 +238,7 @@ function TimelineBar({ tickets, jobs }: { tickets: TicketSummary[]; jobs: JobLis
 
 function TicketCard({ ticket, project }: { ticket: TicketSummary; project: string }) {
   const severity = formatSeverity(ticket.severity)
+  const phase = formatTicketWorkflowPhase(ticket.workflowPhase)
 
   return (
     <Link
@@ -247,6 +250,7 @@ function TicketCard({ ticket, project }: { ticket: TicketSummary; project: strin
           <div className="mb-2 flex items-center gap-2">
             <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{ticket.id.slice(-4)}</span>
             <Badge color={severity.badgeColor}>{severity.label}</Badge>
+            <Badge className={phase.className}>{phase.label}</Badge>
             {ticket.autoFixStatus && (
               <Badge
                 className={
@@ -292,6 +296,7 @@ function JobCard({ job }: { job: JobListItem }) {
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2">
             <Badge color={status.color}>{status.label}</Badge>
+            <Badge color={jobKindBadgeColor(job.jobKind)}>{formatJobKind(job.jobKind)}</Badge>
             <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{job.jobId.slice(-6)}</span>
           </div>
           <h4 className="line-clamp-1 font-medium text-gray-900 dark:text-white">{job.repository}</h4>
@@ -391,6 +396,7 @@ export function ProjectHomePage() {
       total: stats.total,
       open: stats.open,
       inProgress: stats.inProgress,
+      inReview: stats.inReview,
       autoFixRequested: stats.autoFixStats.requested,
       autoFixPending: stats.autoFixStats.pending,
       autoFixCompleted: stats.autoFixStats.completed,
@@ -405,6 +411,7 @@ export function ProjectHomePage() {
   }
 
   const inProgressTickets = tickets.filter((t) => t.status === TICKET_STATUS.IN_PROGRESS).slice(0, 2)
+  const inReviewTickets = tickets.filter((t) => t.status === TICKET_STATUS.IN_REVIEW).slice(0, 2)
   const openTickets = tickets.filter((t) => t.status === TICKET_STATUS.OPEN).slice(0, 2)
   const resolvedTickets = tickets.filter((t) => t.status === TICKET_STATUS.RESOLVED).slice(0, 2)
   const activeJobs = jobs.filter((j) => j.status === 'active')
@@ -433,7 +440,7 @@ export function ProjectHomePage() {
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard label="Total Tickets" value={metrics.total} subtext={`${metrics.todayTickets} created today`} />
-          <MetricCard label="Open Issues" value={metrics.open} subtext={`${metrics.inProgress} in progress`} />
+          <MetricCard label="Open Issues" value={metrics.open} subtext={`${metrics.inProgress} in progress · ${metrics.inReview} in review`} />
           <MetricCard
             label="Auto-Fix Queue"
             value={metrics.autoFixPending}
@@ -453,6 +460,17 @@ export function ProjectHomePage() {
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
                   {inProgressTickets.map((ticket) => (
+                    <TicketCard key={ticket.id} ticket={ticket} project={project!} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {inReviewTickets.length > 0 && (
+              <section>
+                <SectionHeader title="In Review" count={inReviewTickets.length} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {inReviewTickets.map((ticket) => (
                     <TicketCard key={ticket.id} ticket={ticket} project={project!} />
                   ))}
                 </div>
@@ -551,6 +569,44 @@ export function ProjectHomePage() {
                           />
                         </div>
                         <div className="w-8 text-right text-xs text-gray-700 dark:text-gray-300">{count}</div>
+                      </div>
+                    )
+                  })}
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
+              <h3 className="mb-4 text-sm font-semibold tracking-wider text-gray-900 uppercase dark:text-white">
+                Workflow Phase
+              </h3>
+              <div className="space-y-3">
+                {stats &&
+                  (['research', 'planning', 'execution'] as const).map((phase) => {
+                    const count = stats.byPhase[phase]
+                    const total = stats.total || 1
+                    const percentage = Math.round((count / total) * 100)
+                    const barColor =
+                      phase === 'research'
+                        ? 'bg-amber-500'
+                        : phase === 'planning'
+                          ? 'bg-violet-500'
+                          : 'bg-cyan-500'
+                    const label =
+                      phase === 'research'
+                        ? 'Research'
+                        : phase === 'planning'
+                          ? 'Planning'
+                          : 'Execution'
+                    return (
+                      <div key={phase} className="flex items-center gap-3">
+                        <div className="w-20 text-xs text-gray-500 dark:text-gray-400">{label}</div>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                          <div
+                            className={`h-full rounded-full ${barColor}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <div className="w-8 text-right text-xs text-gray-700 dark:text-zinc-300">{count}</div>
                       </div>
                     )
                   })}
