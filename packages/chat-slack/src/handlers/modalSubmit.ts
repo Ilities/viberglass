@@ -59,16 +59,20 @@ export function registerModalSubmitHandler(
       if (!channel) return;
 
       const sent = await channel.post({
-        markdown:
-          `*Job started:* ${ticketRef}\n` +
-          `> *Mode:* _${mode}_\n` +
-          `> *Clanker:* ${clankerName}\n` +
-          `> *Task:* ${message.length > 500 ? message.slice(0, 500) + "..." : message}`,
+        markdown: `*Job started:* ${ticketRef}`,
       });
 
       // Build a Thread from the sent message for the ticket-thread mapping
       const thread = new ThreadImpl({adapterName: "slack", id: sent.threadId, channelId: channel.id});
       await services.linkTicketThread(ticket.id, thread, clankerId, ticketPhase);
+
+      // Post the detailed message to the new thread
+      await thread.post({
+        markdown:
+          `> *Mode:* _${mode}_\n` +
+          `> *Clanker:* ${clankerName}\n` +
+          `> *Task:* ${message.length > 500 ? message.slice(0, 500) + "..." : message}`,
+      });
     } catch (err) {
       const channel = event.relatedChannel;
       if (channel) {
