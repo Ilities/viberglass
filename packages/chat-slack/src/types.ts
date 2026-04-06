@@ -7,6 +7,11 @@ export type SessionAdvanceResult =
   | { kind: "revise" }
   | { kind: "invalid"; message: string };
 
+export type TicketAdvanceResult =
+  | { kind: "advance"; targetPhase: TicketWorkflowPhase }
+  | { kind: "chain"; firstPhase: TicketWorkflowPhase; thenPhase: TicketWorkflowPhase }
+  | { kind: "revise" };
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -81,6 +86,15 @@ export interface SlackHandlerServices {
   stopBridge(sessionId: string): void;
 
   // Ticket job flow (non-session)
+  resolveTicketAdvance(
+    instruction: string,
+    currentPhase: TicketWorkflowPhase,
+  ): TicketAdvanceResult;
+  advanceAndRunTicketJob(params: {
+    ticketId: string;
+    clankerId: string;
+    targetPhase: TicketWorkflowPhase;
+  }): Promise<{ jobId: string; status: string }>;
   runRevisionJob(params: {
     ticketId: string;
     clankerId: string;

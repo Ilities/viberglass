@@ -1,11 +1,11 @@
 import { Badge } from '@/components/badge'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Button } from '@/components/button'
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
 import {
-  ArrowLeftIcon,
   CheckCircledIcon,
   ClipboardIcon,
   DotsHorizontalIcon,
@@ -112,12 +112,13 @@ export function TicketDetailPage() {
     <>
       <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Ticket` : 'Ticket'} />
       <div className="flex h-full flex-col gap-5">
-        <div>
-          <Button href={`/project/${project}/tickets`} plain className="-ml-1">
-            <ArrowLeftIcon className="h-4 w-4" />
-            Back to Tickets
-          </Button>
-        </div>
+        <Breadcrumbs
+          items={[
+            { label: project, href: `/project/${project}` },
+            { label: 'Tickets', href: `/project/${project}/tickets` },
+            { label: ticket.title },
+          ]}
+        />
 
         <div className="flex items-start justify-between gap-6">
           <div className="flex min-w-0 items-start gap-4">

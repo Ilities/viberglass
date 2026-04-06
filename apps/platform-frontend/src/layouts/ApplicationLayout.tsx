@@ -3,39 +3,50 @@ import {
   Dropdown,
   DropdownButton,
   DropdownDivider,
+  DropdownHeader,
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
-  DropdownHeader,
 } from '@/components/dropdown'
+import { Link } from '@/components/link'
 import { Navbar, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/components/navbar'
 import {
   Sidebar,
   SidebarBody,
+  SidebarCollapseToggle,
   SidebarFooter,
+  SidebarHeader,
   SidebarHeading,
   SidebarItem,
   SidebarLabel,
   SidebarSection,
 } from '@/components/sidebar'
 import { StackedLayout } from '@/components/stacked-layout'
+import { useAuth } from '@/context/auth-context'
 import { ProjectProvider } from '@/context/project-context'
 import { ProjectTheme } from '@/context/project-theme'
-import { useAuth } from '@/context/auth-context'
 import { useTheme } from '@/context/theme-context'
-import { getProjects, Project } from '@/service/api/project-api'
 import type { AuthUser } from '@/service/api/auth-api'
+import { getProjects, Project } from '@/service/api/project-api'
 import {
+  ActivityLogIcon,
   ChevronDownIcon,
+  ClipboardCopyIcon,
+  ClockIcon,
   ExitIcon,
+  FileTextIcon,
   GearIcon,
   HomeIcon,
+  LayersIcon,
+  LockClosedIcon,
   MoonIcon,
+  PersonIcon,
   PlusIcon,
+  RocketIcon,
   SunIcon,
 } from '@radix-ui/react-icons'
-import { useParams, useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
 // Wrap Radix icons with data-slot attribute for proper styling
@@ -55,6 +66,7 @@ type NavLinkItem = {
   current: boolean
   href: string
   label: string
+  icon: React.ReactNode
 }
 
 function ProjectDropdownMenu({ projectSlug, projects }: { projectSlug?: string; projects: Project[] }) {
@@ -114,12 +126,10 @@ function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: (
             square
             src={user.avatarUrl ?? undefined}
             initials={getInitials(user.name, user.email)}
-            className="size-8 bg-brand-gradient text-brand-charcoal"
+            className="bg-brand-gradient size-8 text-brand-charcoal"
           />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">
-              {user.name}
-            </div>
+            <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{user.name}</div>
             <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.email}</div>
           </div>
         </div>
@@ -170,7 +180,7 @@ function ApplicationLayoutContent() {
 
   useEffect(() => {
     getProjects().then(setProjects).catch(console.error)
-  }, [pathname])
+  }, [])
 
   if (status === 'loading') {
     return (
@@ -187,27 +197,68 @@ function ApplicationLayoutContent() {
   const basePath = `/project/${projectSlug}`
   const isAdmin = user.role === 'admin'
   const isProjectRoute = pathname.startsWith('/project/')
-  const navItems: NavLinkItem[] = isProjectRoute
-    ? [
-        { href: basePath, label: 'Dashboard', current: pathname === basePath },
-        { href: `${basePath}/tickets`, label: 'Tickets', current: pathname.startsWith(`${basePath}/tickets`) },
-        { href: `${basePath}/jobs`, label: 'Jobs', current: pathname.startsWith(`${basePath}/jobs`) },
-        { href: `${basePath}/claws`, label: 'Claws', current: pathname.startsWith(`${basePath}/claws`) },
-        { href: `${basePath}/prompt-templates`, label: 'Prompt Templates', current: pathname.startsWith(`${basePath}/prompt-templates`) },
-      ]
-    : [
-        { href: '/', label: 'Dashboard', current: pathname === '/' },
-        { href: '/clankers', label: 'Clankers', current: pathname.startsWith('/clankers') },
-        { href: '/secrets', label: 'Secrets', current: pathname.startsWith('/secrets') },
-        {
-          href: '/settings/integrations',
-          label: 'Integrations',
-          current: pathname.startsWith('/settings/integrations'),
-        },
-        ...(isAdmin
-          ? [{ href: '/settings/users', label: 'Users', current: pathname.startsWith('/settings/users') }]
-          : []),
-      ]
+
+  const platformNavItems: NavLinkItem[] = [
+    { href: '/', label: 'Dashboard', current: !isProjectRoute && pathname === '/', icon: <HomeIcon /> },
+    { href: '/clankers', label: 'Clankers', current: pathname.startsWith('/clankers'), icon: <RocketIcon /> },
+    { href: '/secrets', label: 'Secrets', current: pathname.startsWith('/secrets'), icon: <LockClosedIcon /> },
+    {
+      href: '/settings/integrations',
+      label: 'Integrations',
+      current: pathname.startsWith('/settings/integrations'),
+      icon: <LayersIcon />,
+    },
+    ...(isAdmin
+      ? [
+          {
+            href: '/settings/users',
+            label: 'Users',
+            current: pathname.startsWith('/settings/users'),
+            icon: <PersonIcon />,
+          },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          {
+            href: '/settings/prompt-templates',
+            label: 'Prompt Templates',
+            current: pathname.startsWith('/settings/prompt-templates'),
+            icon: <FileTextIcon />,
+          },
+        ]
+      : []),
+  ]
+
+  const projectNavItems: NavLinkItem[] = [
+    { href: basePath, label: 'Dashboard', current: pathname === basePath, icon: <HomeIcon /> },
+    {
+      href: `${basePath}/tickets`,
+      label: 'Tickets',
+      current: pathname.startsWith(`${basePath}/tickets`),
+      icon: <ClipboardCopyIcon />,
+    },
+    {
+      href: `${basePath}/claws`,
+      label: 'Claws',
+      current: pathname.startsWith(`${basePath}/claws`),
+      icon: <ClockIcon />,
+    },
+    {
+      href: `${basePath}/jobs`,
+      label: 'Jobs',
+      current: pathname.startsWith(`${basePath}/jobs`),
+      icon: <ActivityLogIcon />,
+    },
+    {
+      href: `${basePath}/settings`,
+      label: 'Settings',
+      current: pathname.startsWith(`${basePath}/settings`),
+      icon: <GearIcon />,
+    },
+  ]
+
+  const navItems = isProjectRoute ? projectNavItems : platformNavItems
 
   const handleSignOut = async () => {
     await logout()
@@ -219,119 +270,136 @@ function ApplicationLayoutContent() {
       <ProjectTheme>
         <StackedLayout
           navbar={
-          <Navbar>
-            <Dropdown>
-              <DropdownButton as={NavbarItem} className="max-lg:hidden">
-                <Avatar src="/teams/viberglass.svg" />
-                <NavbarLabel>{projectSlug ?? 'Projects'}</NavbarLabel>
-                <Icon>
-                  <ChevronDownIcon />
-                </Icon>
-              </DropdownButton>
-              <ProjectDropdownMenu projectSlug={projectSlug} projects={projects} />
-            </Dropdown>
-            <NavbarSection className="hidden lg:flex">
-              {navItems.map((item) => (
-                <NavbarItem key={item.href} href={item.href} current={item.current}>
-                  {item.label}
-                </NavbarItem>
-              ))}
-            </NavbarSection>
-            <NavbarSpacer />
-            <NavbarSection>
+            <Navbar>
               <Dropdown>
-                <DropdownButton as={NavbarItem}>
-                  <Avatar
-                    square
-                    src={user.avatarUrl ?? undefined}
-                    initials={getInitials(user.name, user.email)}
-                    className="bg-brand-gradient text-brand-charcoal"
-                  />
+                <DropdownButton as={NavbarItem} className="max-lg:hidden">
+                  <Avatar src="/teams/viberglass.svg" />
+                  <NavbarLabel>{projectSlug ?? 'Projects'}</NavbarLabel>
+                  <Icon>
+                    <ChevronDownIcon />
+                  </Icon>
                 </DropdownButton>
-                <AccountDropdownMenu user={user} onSignOut={handleSignOut} />
+                <ProjectDropdownMenu projectSlug={projectSlug} projects={projects} />
               </Dropdown>
-            </NavbarSection>
-          </Navbar>
-        }
-        sidebar={
-          <Sidebar>
-            <SidebarBody>
-              {isProjectRoute ? (
+              <NavbarSpacer />
+              <NavbarSection>
+                <Dropdown>
+                  <DropdownButton as={NavbarItem}>
+                    <Avatar
+                      square
+                      src={user.avatarUrl ?? undefined}
+                      initials={getInitials(user.name, user.email)}
+                      className="bg-brand-gradient text-brand-charcoal"
+                    />
+                  </DropdownButton>
+                  <AccountDropdownMenu user={user} onSignOut={handleSignOut} />
+                </Dropdown>
+              </NavbarSection>
+            </Navbar>
+          }
+          sidebar={
+            <Sidebar>
+              <SidebarHeader>
+                <Link href="/">
+                  <div className="flex items-center gap-2.5">
+                    <img src="/logos/viberglass.svg" alt="Viberglass logo" className="size-7 shrink-0 sm:size-6" />
+                    <SidebarLabel className="text-sm font-semibold text-zinc-950 dark:text-white">
+                      Viberglass
+                    </SidebarLabel>
+                  </div>
+                </Link>
+              </SidebarHeader>
+              <SidebarBody>
+                {isProjectRoute && (
+                  <SidebarSection>
+                    <SidebarItem href="/" title="Home">
+                      <Icon>
+                        <HomeIcon />
+                      </Icon>
+                      <SidebarLabel>Home</SidebarLabel>
+                    </SidebarItem>
+                  </SidebarSection>
+                )}
                 <SidebarSection>
-                  <SidebarHeading>Workspace</SidebarHeading>
-                  <SidebarItem href="/">
+                  <SidebarHeading>{isProjectRoute ? 'Project' : 'Platform'}</SidebarHeading>
+                  {navItems.map((item) => (
+                    <SidebarItem key={item.href} href={item.href} current={item.current}>
+                      <Icon>{item.icon}</Icon>
+                      <SidebarLabel>{item.label}</SidebarLabel>
+                    </SidebarItem>
+                  ))}
+                </SidebarSection>
+                <SidebarSection>
+                  <SidebarHeading>Projects</SidebarHeading>
+                  {projects.map((project) => (
+                    <SidebarItem
+                      key={project.id}
+                      href={`/project/${project.slug}`}
+                      current={
+                        pathname === `/project/${project.slug}` || pathname.startsWith(`/project/${project.slug}/`)
+                      }
+                    >
+                      {project.slug === 'viberglass' ? (
+                        <Avatar slot="avatar" src="/teams/viberglass.svg" />
+                      ) : (
+                        <Avatar
+                          slot="avatar"
+                          initials={project.name.substring(0, 2).toUpperCase()}
+                          className="bg-brand-gradient text-brand-charcoal"
+                        />
+                      )}
+                      <SidebarLabel>{project.name}</SidebarLabel>
+                    </SidebarItem>
+                  ))}
+                  <SidebarItem href="/new">
                     <Icon>
-                      <HomeIcon />
+                      <PlusIcon />
                     </Icon>
-                    <SidebarLabel>Back to Home</SidebarLabel>
+                    <SidebarLabel>New Project</SidebarLabel>
                   </SidebarItem>
                 </SidebarSection>
-              ) : null}
-              <SidebarSection>
-                <SidebarHeading>Projects</SidebarHeading>
-                {projects.map((project) => (
+              </SidebarBody>
+              <SidebarFooter>
+                <SidebarSection>
+                  <SidebarItem href="/settings/users">
+                    <Avatar
+                      square
+                      slot="avatar"
+                      src={user.avatarUrl ?? undefined}
+                      initials={getInitials(user.name, user.email)}
+                      className="bg-brand-gradient text-brand-charcoal"
+                    />
+                    <SidebarLabel>{user.name}</SidebarLabel>
+                  </SidebarItem>
+                </SidebarSection>
+                <SidebarSection>
                   <SidebarItem
-                    key={project.id}
-                    href={`/project/${project.slug}`}
-                    current={
-                      pathname === `/project/${project.slug}` ||
-                      pathname.startsWith(`/project/${project.slug}/`)
-                    }
+                    onClick={(event) => {
+                      event.preventDefault()
+                      toggleTheme()
+                    }}
                   >
-                    {project.slug === 'viberglass' ? (
-                      <Avatar slot="avatar" src="/teams/viberglass.svg" />
-                    ) : (
-                      <Avatar
-                        slot="avatar"
-                        initials={project.name.substring(0, 2).toUpperCase()}
-                        className="bg-brand-gradient text-brand-charcoal"
-                      />
-                    )}
-                    <SidebarLabel>{project.name}</SidebarLabel>
+                    <Icon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</Icon>
+                    <SidebarLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</SidebarLabel>
                   </SidebarItem>
-                ))}
-                <SidebarItem href="/new">
-                  <Icon>
-                    <PlusIcon />
-                  </Icon>
-                  <SidebarLabel>New Project</SidebarLabel>
-                </SidebarItem>
-              </SidebarSection>
-              <SidebarSection>
-                <SidebarHeading>Navigation</SidebarHeading>
-                {navItems.map((item) => (
-                  <SidebarItem key={item.href} href={item.href} current={item.current}>
-                    <SidebarLabel>{item.label}</SidebarLabel>
+                  <SidebarItem
+                    onClick={(event) => {
+                      event.preventDefault()
+                      void handleSignOut()
+                    }}
+                  >
+                    <Icon>
+                      <ExitIcon />
+                    </Icon>
+                    <SidebarLabel>Sign out</SidebarLabel>
                   </SidebarItem>
-                ))}
-              </SidebarSection>
-            </SidebarBody>
-            <SidebarFooter>
-              <SidebarSection>
-                <SidebarItem
-                  onClick={(event) => {
-                    event.preventDefault()
-                    toggleTheme()
-                  }}
-                >
-                  <Icon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</Icon>
-                  <SidebarLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</SidebarLabel>
-                </SidebarItem>
-                <SidebarItem
-                  onClick={(event) => {
-                    event.preventDefault()
-                    void handleSignOut()
-                  }}
-                >
-                  <Icon>
-                    <ExitIcon />
-                  </Icon>
-                  <SidebarLabel>Sign out</SidebarLabel>
-                </SidebarItem>
-              </SidebarSection>
-            </SidebarFooter>
-          </Sidebar>
-        }
+                </SidebarSection>
+              </SidebarFooter>
+              <div className="max-lg:hidden">
+                <SidebarCollapseToggle />
+              </div>
+            </Sidebar>
+          }
         >
           <Outlet />
         </StackedLayout>

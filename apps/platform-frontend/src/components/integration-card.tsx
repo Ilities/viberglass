@@ -59,13 +59,29 @@ export function IntegrationCard({ integration, hrefBase = '/settings/integration
         ? 'View'
         : 'Configure'
 
+  const isConfigured = integration.configStatus === 'configured'
+  const isStub = integration.configStatus === 'stub'
+
   return (
-    <div className="group relative flex flex-col rounded-xl border border-zinc-950/10 bg-white p-6 shadow-sm transition-all hover:border-brand-burnt-orange/30 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30">
+    <div className={`group relative flex flex-col rounded-xl border p-6 shadow-sm transition-all ${
+      isStub
+        ? 'border-zinc-950/5 bg-zinc-50/50 opacity-70 dark:border-white/5 dark:bg-zinc-900/50'
+        : isConfigured
+          ? 'border-green-200 bg-white hover:border-green-300 hover:shadow-md dark:border-green-900/30 dark:bg-zinc-900 dark:hover:border-green-800/40'
+          : 'border-zinc-950/10 bg-white hover:border-brand-burnt-orange/30 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-brand-burnt-orange/30'
+    }`}>
       <div className="absolute right-4 top-4">
-        <Badge color={status.color}>
-          <StatusIcon className="mr-1 inline-block size-3" />
-          {status.label}
-        </Badge>
+        {isConfigured ? (
+          <Badge color="green">
+            <span className="mr-1.5 inline-block size-1.5 rounded-full bg-current" />
+            Connected
+          </Badge>
+        ) : (
+          <Badge color={status.color}>
+            <StatusIcon className="mr-1 inline-block size-3" />
+            {status.label}
+          </Badge>
+        )}
       </div>
 
       <Link href={cardHref} className="flex-1">

@@ -14,6 +14,7 @@ import {
   linkTicketThread,
   getTicketForThread,
   getThreadForTicket,
+  updateTicketThreadMode,
 } from "./ticketThreadMap";
 import { ticketUrl } from "./platformLinks";
 import logger from "../config/logger";
@@ -27,7 +28,7 @@ import { AgentTurnDAO } from "../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../persistence/agentSession/AgentPendingRequestDAO";
 import { AgentSessionLaunchService } from "../services/agentSession/AgentSessionLaunchService";
-import { resolveSessionAdvance } from "../services/agentSession/sessionAdvance";
+import { resolveSessionAdvance, resolveTicketAdvance } from "../services/agentSession/sessionAdvance";
 import { AgentSessionInteractionService } from "../services/agentSession/AgentSessionInteractionService";
 import { AgentSessionQueryService } from "../services/agentSession/AgentSessionQueryService";
 import { JobService } from "../services/JobService";
@@ -35,6 +36,7 @@ import { CredentialRequirementsService } from "../services/CredentialRequirement
 import { TicketResearchService } from "../services/TicketResearchService";
 import { TicketPlanningService } from "../services/TicketPlanningService";
 import { TicketExecutionService } from "../services/TicketExecutionService";
+import { TicketWorkflowService } from "../services/TicketWorkflowService";
 import { WorkerExecutionService } from "../workers";
 
 // Register as the global singleton so ThreadImpl lazy resolution works.
@@ -80,6 +82,7 @@ const clankerDAO = new ClankerDAO();
 const ticketResearchService = new TicketResearchService();
 const ticketPlanningService = new TicketPlanningService();
 const ticketExecutionService = new TicketExecutionService();
+const ticketWorkflowService = new TicketWorkflowService();
 
 const slackServices: SlackHandlerServices = {
   listProjects: () => projectDAO.listProjects(),
@@ -153,6 +156,28 @@ const slackServices: SlackHandlerServices = {
   stopBridge: (sessionId: string) => chatSessionBridge.stopBridge(sessionId),
 
   // Ticket job flow
+  resolveTicketAdvance,
+  advanceAndRunTicketJob: async ({ ticketId, clankerId, targetPhase }) => {
+    await ticketWorkflowService.advancePhase(ticketId, targetPhase);
+    await updateTicketThreadMode(ticketId, targetPhase);
+
+    const mode = targetPhase as "research" | "planning" | "execution";
+    let result;
+    if (mode === "research") {
+      result = await ticketResearchService.runResearch(ticketId, { clankerId });
+    } else if (mode === "planning") {
+      result = await ticketPlanningService.runPlanning(ticketId, { clankerId });
+    } else {
+      result = await ticketExecutionService.runTicket(ticketId, { clankerId });
+    }
+
+    const thread = await getThreadForTicket(ticketId);
+    if (thread) {
+      ticketJobBridge.startBridge(result.jobId, ticketId, thread, mode);
+    }
+
+    return result;
+  },
   runRevisionJob: async ({ ticketId, clankerId, mode, revisionMessage }) => {
     let result;
     if (mode === "research") {

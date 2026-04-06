@@ -16,7 +16,7 @@ export function registerThreadMentionHandler(
       const instruction = text.replace(/^<@\S+>\s*/, "").trim();
       if (!instruction) {
         await thread.post(
-          "_Please include your feedback after @viberator to revise the document._",
+          "_Please include your feedback after @viberator to revise, or say \"plan it\" / \"execute\" to advance._",
         );
         return;
       }
@@ -26,6 +26,45 @@ export function registerThreadMentionHandler(
         return;
       }
 
+      const advance = services.resolveTicketAdvance(
+        instruction,
+        ticketMapping.mode as import("@viberglass/types").TicketWorkflowPhase,
+      );
+
+      if (advance.kind === "advance") {
+        try {
+          await thread.post(`_Advancing to ${advance.targetPhase}…_`);
+          await services.advanceAndRunTicketJob({
+            ticketId: ticketMapping.ticketId,
+            clankerId: ticketMapping.clankerId,
+            targetPhase: advance.targetPhase,
+          });
+        } catch (err) {
+          await thread.post(
+            `Error: ${err instanceof Error ? err.message : "Failed to advance phase"}`,
+          );
+        }
+        return;
+      }
+
+      if (advance.kind === "chain") {
+        try {
+          await thread.post(`_Advancing to ${advance.firstPhase}…_`);
+          await services.advanceAndRunTicketJob({
+            ticketId: ticketMapping.ticketId,
+            clankerId: ticketMapping.clankerId,
+            targetPhase: advance.firstPhase,
+          });
+          await thread.post(`_After ${advance.firstPhase} completes, mention @viberator with "execute" to continue._`);
+        } catch (err) {
+          await thread.post(
+            `Error: ${err instanceof Error ? err.message : "Failed to advance phase"}`,
+          );
+        }
+        return;
+      }
+
+      // No keyword matched — treat as revision
       try {
         await thread.post("_Revision job queued…_");
         await services.runRevisionJob({

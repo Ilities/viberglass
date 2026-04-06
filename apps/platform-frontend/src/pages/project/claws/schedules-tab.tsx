@@ -6,7 +6,7 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import { formatTimestamp } from '@/lib/formatters'
+import { Timestamp } from '@/components/timestamp'
 import {
   createClawSchedule,
   deleteClawSchedule,
@@ -254,7 +254,7 @@ export function SchedulesTab({ projectId }: Props) {
                   <Badge color={s.isActive ? 'green' : 'zinc'}>{s.isActive ? 'Active' : 'Paused'}</Badge>
                 </TableCell>
                 <TableCell className="text-zinc-500 dark:text-zinc-400">
-                  {s.lastRunAt ? formatTimestamp(s.lastRunAt) : '—'}
+                  {s.lastRunAt ? <Timestamp date={s.lastRunAt} /> : '—'}
                 </TableCell>
                 <TableCell className="text-zinc-500 dark:text-zinc-400">
                   {s.runCount} / {s.failureCount}

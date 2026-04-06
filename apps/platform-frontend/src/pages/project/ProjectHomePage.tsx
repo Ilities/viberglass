@@ -4,6 +4,7 @@ import { FunLoading } from '@/components/fun-loading'
 import { Heading } from '@/components/heading'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
+import { Timestamp } from '@/components/timestamp'
 import { TruncatedText } from '@/components/truncated-text'
 import type { Clanker, JobListItem, TicketStats, TicketSummary } from '@/data'
 import {
@@ -14,7 +15,7 @@ import {
   getRecentTickets,
   getTicketStats,
 } from '@/data'
-import { formatJobStatus, formatTimestamp } from '@/lib/formatters'
+import { formatJobStatus } from '@/lib/formatters'
 import { TICKET_STATUS } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
@@ -35,24 +36,35 @@ function getGreeting(): string {
       "The Guide says you're doing fine",
       'Another day in this wholly remarkable universe',
       'Tea first, then bugs',
+      'According to the Guide, mornings are best faced with a towel',
+      'Ford Prefect never had a dashboard this hoopy',
+      'The early bird catches the vogon, or so they say',
     ],
     afternoon: [
       'Time is an illusion',
       'Halfway through another improbable day',
-      'The universe is big. Really big',
+      "The universe is big. Really big. You just won't believe how vastly hugely mind-bogglingly big it is",
       'Mostly harmless progress',
+      'Lunchtime doubly so — but the bugs wait for no one',
+      'Bit busy trying not to be thrown out of an airlock',
     ],
     evening: [
       "The ships hung in the sky much as bricks don't",
       'Evening approaches with alarming regularity',
       'Almost time for a Pan Galactic Gargle Blaster',
       'The Answer is still 42',
+      'So long, and thanks for all the commits',
+      'Arthur Dent would have fixed that bug by now. Probably.',
+      'The Restaurant at the End of the Universe is fully booked tonight',
     ],
     night: [
       'Share and Enjoy',
       "Life. Don't talk to me about life",
       'Here you are, brain the size of a planet',
       'So it goes, in the late hours',
+      'Marvin says: "I think you ought to know I\'m feeling very depressed." Same.',
+      'The Infinite Improbability Drive works better at night. Fact.',
+      'Even the dolphins have logged off for the evening',
     ],
   }
 
@@ -259,7 +271,7 @@ function TicketCard({ ticket, project }: { ticket: TicketSummary; project: strin
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{ticket.category}</p>
         </div>
         <div className="text-right">
-          <span className="text-xs text-gray-400 dark:text-gray-500">{formatTimestamp(ticket.timestamp)}</span>
+          <Timestamp date={ticket.timestamp} className="text-xs text-gray-400 dark:text-gray-500" />
           <div className="mt-1">
             <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
               {formatTicketSystem(ticket.ticketSystem)}
@@ -288,7 +300,7 @@ function JobCard({ job }: { job: JobListItem }) {
           </p>
         </div>
         <div className="text-right">
-          <span className="text-xs text-gray-400 dark:text-gray-500">{formatTimestamp(job.createdAt)}</span>
+          <Timestamp date={job.createdAt} className="text-xs text-gray-400 dark:text-gray-500" />
         </div>
       </div>
     </div>
@@ -408,11 +420,11 @@ export function ProjectHomePage() {
             <Heading className="mt-1">Mission Control</Heading>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button href={`/project/${project}/tickets`} outline className="w-full justify-center sm:w-auto">
-              View Tickets
+            <Button href={`/project/${project}/tickets/create`} outline className="w-full justify-center sm:w-auto">
+              Create Ticket
             </Button>
-            <Button href={`/project/${project}/jobs`} className="w-full justify-center sm:w-auto">
-              Queue Job
+            <Button href={`/project/${project}/claws`} className="w-full justify-center sm:w-auto">
+              View Claws
             </Button>
           </div>
         </div>
@@ -511,7 +523,9 @@ export function ProjectHomePage() {
               {clankers.length === 0 && (
                 <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
                   <p className="text-gray-500 dark:text-gray-400">No active Clankers</p>
-                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">The fleet is dormant</p>
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                    The fleet is dormant. Marvin says: "Brain the size of a planet, and they ask me to wait."
+                  </p>
                 </div>
               )}
             </section>

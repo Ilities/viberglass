@@ -1,7 +1,8 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
-import { formatTimestamp } from '@/data'
+import { Timestamp } from '@/components/timestamp'
+import { formatJobKind } from '@/data'
 import { JobListItem } from '@/service/api/job-api'
 import { ChevronDownIcon, ChevronRightIcon, ExternalLinkIcon, ListBulletIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
@@ -24,19 +25,6 @@ function formatDuration(start: string | null, end: string | null): string {
     return `${minutes}m ${seconds % 60}s`
   }
   return `${seconds}s`
-}
-
-function formatJobKind(kind: 'research' | 'execution' | 'planning' | 'claw'): string {
-  switch (kind) {
-    case 'research':
-      return 'Research'
-    case 'execution':
-      return 'Execution'
-    case 'planning':
-      return 'Planning'
-    case 'claw':
-      return 'Scheduled'
-  }
 }
 
 function jobKindBadgeColor(kind: 'research' | 'execution' | 'planning' | 'claw') {
@@ -85,7 +73,7 @@ export function PhaseLogs({ jobs, phase, project }: PhaseLogsProps) {
         </div>
         <div className="flex items-center gap-3 text-xs text-[var(--gray-9)]">
           <span>
-            Latest: {statusLabel} · {formatTimestamp(latestRun.createdAt)}
+            Latest: {statusLabel} · <Timestamp date={latestRun.createdAt} className="inherit-colors" />
           </span>
         </div>
       </button>
@@ -112,9 +100,7 @@ export function PhaseLogs({ jobs, phase, project }: PhaseLogsProps) {
                 <span className="text-xs text-[var(--gray-9)]">
                   {formatDuration(job.processedAt, job.finishedAt)}
                 </span>
-                <span className="text-xs text-[var(--gray-9)]">
-                  {formatTimestamp(job.createdAt)}
-                </span>
+                <Timestamp date={job.createdAt} className="text-xs text-[var(--gray-9)]" />
                 <Button
                   plain
                   href={`/project/${project}/jobs/${job.jobId}`}

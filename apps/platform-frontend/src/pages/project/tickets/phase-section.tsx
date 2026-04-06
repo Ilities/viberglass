@@ -418,9 +418,13 @@ export function PhaseSection({
                             Latest run with {latestRun.clankerName || 'Unknown clanker'} on{' '}
                             {new Date(latestRun.createdAt).toLocaleString()}
                           </span>
-                          <Button plain onClick={() => navigate(`/project/${project}/jobs/${latestRun.jobId}`)}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/project/${project}/jobs/${latestRun.jobId}`)}
+                            className="text-[var(--accent-11)] hover:underline"
+                          >
                             View Job
-                          </Button>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -437,7 +441,7 @@ export function PhaseSection({
                       </Button>
                       {(phase === 'research' || phase === 'planning') && hasContent && (
                         <Button
-                          color="violet"
+                          plain
                           onClick={() => setIsRevisionModalOpen(true)}
                           disabled={!isCurrentPhase}
                           title={isCurrentPhase ? `Revise ${phase}` : `${phase} only available in current phase`}

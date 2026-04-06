@@ -1,4 +1,5 @@
 import { Badge } from '@/components/badge'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { InfoItem } from '@/components/info-item'
@@ -10,11 +11,11 @@ import { ProgressTimeline } from '@/components/progress-timeline'
 import { Section } from '@/components/section'
 import { TabButton } from '@/components/tab-button'
 import { TruncatedText } from '@/components/truncated-text'
+import { formatJobKind } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { JobRefreshButton } from './job-refresh-button'
 
 import {
-  ArrowLeftIcon,
   CalendarIcon,
   ChatBubbleIcon,
   CheckCircledIcon,
@@ -102,13 +103,6 @@ function formatJobId(jobId: string): string {
   return `${jobId.slice(0, 8)}...${jobId.slice(-6)}`
 }
 
-function formatJobKind(kind: 'research' | 'planning' | 'execution' | 'claw'): string {
-  if (kind === 'research') return 'Research'
-  if (kind === 'planning') return 'Planning'
-  if (kind === 'claw') return 'Scheduled'
-  return 'Execution'
-}
-
 function jobKindBadgeColor(kind: 'research' | 'planning' | 'execution' | 'claw') {
   if (kind === 'research') return 'blue' as const
   if (kind === 'planning') return 'teal' as const
@@ -192,12 +186,13 @@ export function JobDetailPage() {
       <PageMeta title={job ? `${job.jobId.slice(-6)} | Job` : 'Job'} />
       <div className="flex h-full flex-col">
         {/* Breadcrumb */}
-        <div className="mb-6 flex items-center gap-4">
-          <Button href={`/project/${project}/jobs`} plain>
-            <ArrowLeftIcon className="h-4 w-4" />
-            Back to Jobs
-          </Button>
-        </div>
+        <Breadcrumbs
+          items={[
+            { label: project!, href: `/project/${project}` },
+            { label: 'Jobs', href: `/project/${project}/jobs` },
+            { label: formatJobId(job.jobId) },
+          ]}
+        />
 
         {/* Header Section */}
         <div className="mb-6">

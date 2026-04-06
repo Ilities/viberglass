@@ -44,6 +44,20 @@ export async function getTicketForThread(
   return entry;
 }
 
+export async function updateTicketThreadMode(
+  ticketId: string,
+  mode: string,
+): Promise<void> {
+  await dao.updateMode(ticketId, mode);
+  // Update in-memory cache: find the threadId for this ticket and refresh
+  // The cache is keyed by threadId, so we need to find it
+  for (const [threadId, entry] of ticketCache.entries()) {
+    if (entry.ticketId === ticketId) {
+      ticketCache.set(threadId, { ...entry, mode });
+    }
+  }
+}
+
 export async function getThreadForTicket(
   ticketId: string,
 ): Promise<Thread | undefined> {

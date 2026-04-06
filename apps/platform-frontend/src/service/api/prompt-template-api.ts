@@ -3,10 +3,10 @@ import { apiFetch } from '@/service/api/client'
 
 export type PromptType =
   | 'ticket_research'
-  | 'ticket_research_revision'
+  | 'ticket_research_revision_task'
   | 'ticket_planning_with_research'
   | 'ticket_planning_without_research'
-  | 'ticket_planning_revision'
+  | 'ticket_planning_revision_task'
   | 'ticket_developing'
   | 'claw_scheduled_task'
 
@@ -59,4 +59,28 @@ export async function deleteProjectPromptTemplate(
     { method: 'DELETE' },
   )
   if (!res.ok) await throwApiError(res, 'Failed to reset prompt template')
+}
+
+export async function listSystemPromptTemplates(): Promise<PromptTemplateEntry[]> {
+  const res = await apiFetch(`${API_BASE_URL}/api/prompt-templates`)
+  if (!res.ok) return throwApiError(res, 'Failed to fetch system prompt templates')
+  const data = await res.json()
+  return data.data
+}
+
+export async function updateSystemPromptTemplate(
+  type: PromptType,
+  template: string,
+): Promise<PromptTemplateEntry> {
+  const res = await apiFetch(
+    `${API_BASE_URL}/api/prompt-templates/${type}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template }),
+    },
+  )
+  if (!res.ok) return throwApiError(res, 'Failed to update system prompt template')
+  const data = await res.json()
+  return data.data
 }

@@ -7,11 +7,12 @@ import { Heading, Subheading } from '@/components/heading'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
 import { AsciiGalaxy, AsciiRobot, AsciiSpaceship, AsciiWhale } from '@/components/retro-decorations'
+import { Timestamp } from '@/components/timestamp'
 import type { Clanker, JobListItem, JobQueueStats, Project, TicketStats, TicketSummary } from '@/data'
 import {
+  formatJobKind,
   formatJobStatus,
   formatSeverity,
-  formatTimestamp,
   getClankersList,
   getJobQueueStats,
   getProjectsList,
@@ -116,8 +117,8 @@ export function DashboardPage() {
         const status = formatJobStatus(job.status)
         return {
           id: `job-${job.jobId}`,
-          title: job.repository,
-          detail: `${job.projectSlug} • ${status.label}`,
+          title: job.ticket?.title ?? job.task,
+          detail: `${job.projectSlug} • ${formatJobKind(job.jobKind)} • ${status.label}`,
           timestamp: job.createdAt,
           href: `/project/${job.projectSlug}/jobs/${job.jobId}`,
           kind: 'job',
@@ -168,7 +169,7 @@ export function DashboardPage() {
         <div className="mt-4">
           <EmptyBay
             title="[ MOSTLY HARMLESS ]"
-            description="No projects in orbit yet. Launch one and this deck turns into a proper space opera."
+            description="No projects in orbit yet. Launch one and this deck turns into a proper space opera. Bring a towel."
             asciiArt={<AsciiSpaceship />}
             href="/new"
             actionLabel="Launch Project"
@@ -195,7 +196,7 @@ export function DashboardPage() {
             <div className="mt-4">
               <EmptyBay
                 title="[ STARS ARE QUIET ]"
-                description="No ticket pings or job thruster trails yet. That calm will not last."
+                description="No ticket pings or job thruster trails yet. That calm will not last. The dolphins tried to warn us."
                 asciiArt={<AsciiWhale />}
               />
             </div>
@@ -214,9 +215,10 @@ export function DashboardPage() {
                     </div>
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{item.detail}</p>
                   </div>
-                  <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                    {formatTimestamp(item.timestamp)}
-                  </span>
+                  <Timestamp
+                    date={item.timestamp}
+                    className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400"
+                  />
                 </Link>
               ))}
             </div>
@@ -230,7 +232,7 @@ export function DashboardPage() {
               <div className="mt-4">
                 <EmptyBay
                   title="[ NO TIN COMPANIONS ]"
-                  description="Your loyal clankers have not yet been assembled. Build one and give it a noble quest."
+                  description="Your loyal clankers have not yet been assembled. Even Marvin started somewhere."
                   asciiArt={<AsciiRobot />}
                   href="/clankers/new"
                   actionLabel="Assemble Clanker"
@@ -244,10 +246,15 @@ export function DashboardPage() {
                     href={`/clankers/${clanker.slug}`}
                     className="hover-lift flex items-center gap-3 rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900"
                   >
-                    <Avatar initials={clanker.name.substring(0, 2).toUpperCase()} className="bg-brand-gradient size-9 text-brand-charcoal" />
+                    <Avatar
+                      initials={clanker.name.substring(0, 2).toUpperCase()}
+                      className="bg-brand-gradient size-9 text-brand-charcoal"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{clanker.name}</div>
-                      <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">{clanker.description || 'Awaiting dramatic backstory'}</div>
+                      <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                        {clanker.description || 'Awaiting dramatic backstory'}
+                      </div>
                     </div>
                     <Badge color={clankerStatusColor[clanker.status]}>{clanker.status}</Badge>
                   </Link>
@@ -263,14 +270,12 @@ export function DashboardPage() {
             <Subheading>Deck Mood</Subheading>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
               {activeClankers > 0
-                ? `Crew alert: ${activeClankers} clanker${activeClankers === 1 ? '' : 's'} standing by for chaos.`
-                : 'Crew alert: nobody is on duty yet, which is either peaceful or deeply concerning.'}
-            </p>
-            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              Queue: {queueStats?.waiting ?? 0} waiting, {queueStats?.active ?? 0} running, {queueStats?.failed ?? 0} failed.
+                ? `Crew alert: ${activeClankers} clanker${activeClankers === 1 ? '' : 's'} standing by for chaos. Share and Enjoy.`
+                : 'Crew alert: nobody is on duty yet. Marvin would call this "a waste of consciousness."'}
             </p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Ticket radar: {ticketStats?.open ?? 0} open across the constellation.
+              Ticket radar: {ticketStats?.open ?? 0} open across the constellation
+              {(ticketStats?.open ?? 0) > 10 ? '. That is, in fact, a lot. Even by galactic standards.' : '.'}
             </p>
           </div>
         </div>

@@ -188,8 +188,8 @@ export class AgentSessionLaunchService {
 
     const revisionType =
       input.mode === "research"
-        ? PROMPT_TYPE.ticket_research_revision
-        : PROMPT_TYPE.ticket_planning_revision;
+        ? PROMPT_TYPE.ticket_research_revision_task
+        : PROMPT_TYPE.ticket_planning_revision_task;
 
     const enrichedMessage = await this.promptTemplateService.render(
       revisionType,

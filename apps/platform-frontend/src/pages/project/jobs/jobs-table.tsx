@@ -1,8 +1,8 @@
 import { Badge } from '@/components/badge'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import { TruncatedText } from '@/components/truncated-text'
-import { formatTimestamp } from '@/data'
+import { Timestamp } from '@/components/timestamp'
+import { formatJobKind } from '@/data'
 import { JobListItem } from '@/service/api/job-api'
 
 interface JobsTableProps {
@@ -24,25 +24,17 @@ function formatDuration(start: string | null, end: string | null): string {
   return `${seconds}s`
 }
 
-
-function formatJobKind(kind: 'research' | 'execution' | 'planning' | 'claw'): string {
-  switch (kind) {
-    case 'research':
-      return 'Research'
-    case 'execution':
-      return 'Execution'
-    case 'planning':
-      return 'Planning'
-    case 'claw':
-      return 'Scheduled'
-  }
-}
-
 function jobKindBadgeColor(kind: 'research' | 'execution' | 'planning' | 'claw') {
   if (kind === 'research') return 'blue' as const
   if (kind === 'planning') return 'teal' as const
   if (kind === 'claw') return 'amber' as const
   return 'violet' as const
+}
+
+function jobTitle(job: JobListItem): string {
+  if (job.ticket?.title) return job.ticket.title
+  if (job.jobKind === 'claw') return job.task.split('\n')[0].slice(0, 80)
+  return formatJobKind(job.jobKind)
 }
 
 export function JobsTable({ jobs, project }: JobsTableProps) {
@@ -51,8 +43,7 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
       <TableHead>
         <TableRow>
           <TableHeader>Status</TableHeader>
-          <TableHeader>Task</TableHeader>
-          <TableHeader>Related Ticket</TableHeader>
+          <TableHeader>Job</TableHeader>
           <TableHeader>Repository</TableHeader>
           <TableHeader>Duration</TableHeader>
           <TableHeader>Created</TableHeader>
@@ -63,36 +54,17 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
           const jobProject = job.projectSlug || project
           if (!jobProject) return null
           return (
-            <TableRow key={job.jobId} href={`/project/${jobProject}/jobs/${job.jobId}`} title={`View job ${job.jobId}`}>
+            <TableRow key={job.jobId} href={`/project/${jobProject}/jobs/${job.jobId}`}>
               <TableCell>
                 <JobStatusIndicator status={job.status} />
               </TableCell>
               <TableCell className="max-w-md">
                 <div className="flex items-center gap-2">
                   <Badge color={jobKindBadgeColor(job.jobKind)}>{formatJobKind(job.jobKind)}</Badge>
-                  <div className="font-medium max-w-[300px]">
-                    <TruncatedText text={job.task} maxLength={120} className="inline" />
-                  </div>
+                  <span className="truncate text-sm font-medium text-zinc-950 dark:text-white" title={jobTitle(job)}>
+                    {jobTitle(job)}
+                  </span>
                 </div>
-              </TableCell>
-              <TableCell>
-                {job.ticket ? (
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200">
-                      {job.ticket.externalTicketId || 'Internal'}
-                    </Badge>
-                    <span
-                      className="max-w-32 truncate text-sm text-zinc-600 dark:text-zinc-400"
-                      title={job.ticket.title}
-                    >
-                      {job.ticket.title}
-                    </span>
-                  </div>
-                ) : job.jobKind === 'claw' ? (
-                  <span className="text-sm text-amber-600 dark:text-amber-400">Scheduled task</span>
-                ) : (
-                  <span className="text-zinc-400">-</span>
-                )}
               </TableCell>
               <TableCell>
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -102,7 +74,7 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
               <TableCell className="text-zinc-500 dark:text-zinc-400">
                 {formatDuration(job.processedAt, job.finishedAt)}
               </TableCell>
-              <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(job.createdAt)}</TableCell>
+              <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={job.createdAt} /></TableCell>
             </TableRow>
           )
         })}

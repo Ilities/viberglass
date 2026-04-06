@@ -1,5 +1,5 @@
 import { Link } from '@/components/link'
-import { useParams, useLocation, Outlet } from 'react-router-dom'
+import { Outlet, useLocation, useParams } from 'react-router-dom'
 
 export function SettingsLayout() {
   const pathname = useLocation().pathname
@@ -9,6 +9,7 @@ export function SettingsLayout() {
   const settingsNavigation = [
     { name: 'Project', href: `/project/${project}/settings/project` },
     { name: 'Integrations', href: `/project/${project}/settings/integrations` },
+    { name: 'Prompt Templates', href: `/project/${project}/settings/prompt-templates` },
   ]
 
   return (
@@ -39,7 +40,9 @@ export function SettingsLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1"><Outlet /></main>
+      <main className="min-w-0 flex-1 p-6 lg:p-8">
+        <Outlet />
+      </main>
     </div>
   )
 }

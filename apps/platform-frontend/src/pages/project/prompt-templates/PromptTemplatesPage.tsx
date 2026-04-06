@@ -11,6 +11,7 @@ import {
   updateProjectPromptTemplate,
   deleteProjectPromptTemplate,
 } from '@/service/api/prompt-template-api'
+import { renderTemplatePreview } from './renderTemplatePreview'
 
 interface TemplateCardProps {
   entry: PromptTemplateEntry
@@ -22,6 +23,7 @@ function TemplateCard({ entry, onSave, onReset }: TemplateCardProps) {
   const [value, setValue] = useState(entry.effectiveTemplate)
   const [saving, setSaving] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     setValue(entry.effectiveTemplate)
@@ -46,55 +48,75 @@ function TemplateCard({ entry, onSave, onReset }: TemplateCardProps) {
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-      <div className="mb-1 flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{entry.label}</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{entry.description}</p>
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full items-start justify-between gap-3 p-4 text-left"
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{entry.label}</p>
+            {!entry.isDefault && (
+              <span className="shrink-0 rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                Custom
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{entry.description}</p>
         </div>
-        {!entry.isDefault && (
-          <span className="shrink-0 rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-            Custom
-          </span>
-        )}
-      </div>
+        <span className="mt-0.5 shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
+          {expanded ? 'Collapse' : 'Expand'}
+        </span>
+      </button>
 
-      <textarea
-        className="mt-3 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-        rows={6}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-      />
+      {expanded && (
+        <div className="border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-800">
+          <textarea
+            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            rows={8}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
 
-      {!entry.isDefault && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-            View system default
-          </summary>
-          <pre className="mt-1 overflow-x-auto rounded bg-zinc-50 p-2 font-mono text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-            {entry.systemDefault}
-          </pre>
-        </details>
+          <div className="mt-2 rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
+            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Preview</p>
+            <div className="text-xs leading-5">
+              {renderTemplatePreview(value)}
+            </div>
+          </div>
+
+          {!entry.isDefault && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                View system default
+              </summary>
+              <pre className="mt-1 overflow-x-auto rounded bg-zinc-50 p-2 font-mono text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                {entry.systemDefault}
+              </pre>
+            </details>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            {!entry.isDefault && (
+              <button
+                onClick={handleReset}
+                disabled={resetting}
+                className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                {resetting ? 'Resetting…' : 'Reset to default'}
+              </button>
+            )}
+          </div>
+        </div>
       )}
-
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        {!entry.isDefault && (
-          <button
-            onClick={handleReset}
-            disabled={resetting}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            {resetting ? 'Resetting…' : 'Reset to default'}
-          </button>
-        )}
-      </div>
     </div>
   )
 }
@@ -166,7 +188,7 @@ export function PromptTemplatesPage() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-4">
+      <div className="mt-6 grid gap-3">
         {entries.map((entry) => (
           <TemplateCard
             key={entry.type}
