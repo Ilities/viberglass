@@ -1,6 +1,6 @@
-import { AGENT_SESSION_MODE, type AgentSessionMode } from "@viberglass/types";
-import { ThreadImpl } from "chat";
-import type { SlackHandlerServices } from "../types";
+import {AGENT_SESSION_MODE, type AgentSessionMode} from "@viberglass/types";
+import {ThreadImpl} from "chat";
+import type {SlackHandlerServices} from "../types";
 
 const VALID_MODES = new Set<string>(Object.values(AGENT_SESSION_MODE));
 
@@ -15,16 +15,16 @@ export function registerModalSubmitHandler(
   services: SlackHandlerServices,
 ): void {
   bot.onModalSubmit("viberator_launch", async (event) => {
-    const { projectId, clankerId, mode, message, title: rawTitle } = event.values;
+    const {projectId, clankerId, mode, message, title: rawTitle} = event.values;
 
     if (!projectId || !clankerId || !mode || !message) {
       return {
         action: "errors" as const,
         errors: {
-          ...(projectId ? {} : { projectId: "Required" }),
-          ...(clankerId ? {} : { clankerId: "Required" }),
-          ...(mode ? {} : { mode: "Required" }),
-          ...(message ? {} : { message: "Required" }),
+          ...(projectId ? {} : {projectId: "Required"}),
+          ...(clankerId ? {} : {clankerId: "Required"}),
+          ...(mode ? {} : {mode: "Required"}),
+          ...(message ? {} : {message: "Required"}),
         },
       };
     }
@@ -41,24 +41,33 @@ export function registerModalSubmitHandler(
         description: message,
         phase: ticketPhase,
       });
-
-      const job = await services.runJob({
+      await services.runJob({
         ticketId: ticket.id,
         clankerId,
         mode: ticketPhase,
       });
 
-      const channel = event.relatedChannel;
-      if (!channel) return;
+      const clanker = (await services.listClankers()).find((c) => c.id === clankerId);
+      const clankerName = clanker?.name ?? clankerId;
 
       const project = await services.getProject(projectId);
       const projectSlug = project?.slug ?? projectId;
       const url = services.ticketUrl(projectSlug, ticket.id);
       const ticketRef = url ? `[${title}](${url})` : title;
-      const sent = await channel.post({ markdown: `_${mode}_ | ${ticketRef} — job queued.` });
+
+      const channel = event.relatedChannel;
+      if (!channel) return;
+
+      const sent = await channel.post({
+        markdown:
+          `*Job started:* ${ticketRef}\n` +
+          `> *Mode:* _${mode}_\n` +
+          `> *Clanker:* ${clankerName}\n` +
+          `> *Task:* ${message.length > 500 ? message.slice(0, 500) + "..." : message}`,
+      });
 
       // Build a Thread from the sent message for the ticket-thread mapping
-      const thread = new ThreadImpl({ adapterName: "slack", id: sent.threadId, channelId: channel.id });
+      const thread = new ThreadImpl({adapterName: "slack", id: sent.threadId, channelId: channel.id});
       await services.linkTicketThread(ticket.id, thread, clankerId, ticketPhase);
     } catch (err) {
       const channel = event.relatedChannel;
