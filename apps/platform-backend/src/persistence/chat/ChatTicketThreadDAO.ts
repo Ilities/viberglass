@@ -68,6 +68,14 @@ export class ChatTicketThreadDAO {
     return row ? this.mapRow(row) : null;
   }
 
+  async updateMode(ticketId: string, mode: string): Promise<void> {
+    await db
+      .updateTable("chat_ticket_threads")
+      .set({ mode })
+      .where("ticket_id", "=", ticketId)
+      .execute();
+  }
+
   async listAll(): Promise<ChatTicketThread[]> {
     const rows = await db
       .selectFrom("chat_ticket_threads")

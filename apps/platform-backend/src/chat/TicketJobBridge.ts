@@ -165,11 +165,11 @@ export class TicketJobBridge {
 
       if (mode === "research") {
         parts.push(
-          '_Mention @viberator with feedback to revise, or "plan it" to move to planning._',
+          '_Mention @viberator with feedback to revise, or say "plan it" / "next" / "lgtm" to move to planning._',
         );
       } else if (mode === "planning") {
         parts.push(
-          '_Mention @viberator with feedback to revise, or "execute" to start execution._',
+          '_Mention @viberator with feedback to revise, or say "execute" / "ship it" / "go" to start execution._',
         );
       }
 

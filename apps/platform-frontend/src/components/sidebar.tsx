@@ -1,10 +1,14 @@
 import * as Dialog from '@radix-ui/react-dialog'
+import { DoubleArrowLeftIcon, DoubleArrowRightIcon } from '@radix-ui/react-icons'
 import clsx from 'clsx'
 import { LayoutGroup, motion } from 'motion/react'
 import React, { forwardRef, useContext, useId } from 'react'
 import { TouchTarget } from './button'
 import { composeEventHandlers, useDataInteraction } from './interaction'
 import { Link } from './link'
+import { SidebarCollapseContext } from './stacked-layout'
+
+export const SidebarCollapsedContext = React.createContext(false)
 
 export function Sidebar({ className, ...props }: React.ComponentPropsWithoutRef<'nav'>) {
   return <nav {...props} className={clsx(className, 'app-sidebar-panel flex h-full min-h-0 flex-col')} />
@@ -65,8 +69,9 @@ export function SidebarSpacer({ className, ...props }: React.ComponentPropsWitho
 }
 
 export function SidebarHeading({ className, ...props }: React.ComponentPropsWithoutRef<'h3'>) {
+  const collapsed = useContext(SidebarCollapsedContext)
   return (
-    <h3 {...props} className={clsx(className, 'mb-1 px-2 text-xs/6 font-medium text-zinc-500 dark:text-zinc-400')} />
+    <h3 {...props} className={clsx(className, 'mb-1 px-2 text-xs/6 font-medium text-zinc-500 dark:text-zinc-400', collapsed && 'sr-only')} />
   )
 }
 
@@ -84,9 +89,13 @@ export const SidebarItem = forwardRef(function SidebarItem(
   ),
   ref: React.ForwardedRef<HTMLAnchorElement | HTMLButtonElement>
 ) {
+  const collapsed = useContext(SidebarCollapsedContext)
+
   const classes = clsx(
     // Base
     'sidebar-item flex w-full items-center gap-3 border border-transparent px-2 py-2.5 text-left text-base/6 font-semibold tracking-[0.01em] text-zinc-950 sm:py-2 sm:text-sm/5',
+    // Collapsed: center icon only
+    collapsed && 'justify-center px-0',
     // Leading icon/icon-only (Radix icons use stroke)
     '*:data-[slot=icon]:size-6 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:stroke-zinc-500 sm:*:data-[slot=icon]:size-5',
     // Trailing icon (down chevron or similar)
@@ -162,8 +171,8 @@ export const SidebarItem = forwardRef(function SidebarItem(
   )
 
   return (
-    <span className={clsx(className, 'relative')}>
-      {current && (
+    <span className={clsx(className, 'relative', collapsed && '-mx-4')}>
+      {current && !collapsed && (
         <motion.span
           layoutId="current-indicator"
           className="absolute inset-y-2 -left-4 w-1 bg-brand-golden-brass"
@@ -175,5 +184,20 @@ export const SidebarItem = forwardRef(function SidebarItem(
 })
 
 export function SidebarLabel({ className, ...props }: React.ComponentPropsWithoutRef<'span'>) {
-  return <span {...props} className={clsx(className, 'truncate')} />
+  const collapsed = useContext(SidebarCollapsedContext)
+  return <span {...props} className={clsx(className, 'truncate', collapsed && 'sr-only')} />
+}
+
+export function SidebarCollapseToggle() {
+  const { collapsed, onToggleCollapsed } = useContext(SidebarCollapseContext)
+  return (
+    <button
+      type="button"
+      onClick={onToggleCollapsed}
+      className="flex w-full items-center justify-center border-t border-zinc-950/10 p-3 text-zinc-500 transition hover:bg-zinc-950/5 hover:text-zinc-950 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
+      aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+    >
+      {collapsed ? <DoubleArrowRightIcon className="size-4" /> : <DoubleArrowLeftIcon className="size-4" />}
+    </button>
+  )
 }

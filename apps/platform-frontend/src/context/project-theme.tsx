@@ -14,23 +14,17 @@ interface ProjectThemeProps {
  * Falls back to the default theme accent color when no project is loaded.
  */
 export function ProjectTheme({ children }: ProjectThemeProps) {
-  const { project, isLoading } = useProject()
+  const { project } = useProject()
   const { theme } = useTheme()
 
-  // While loading or if no project, render children without nested theme
-  if (isLoading || !project) {
-    return <>{children}</>
-  }
-
-  const projectAccentColor = getProjectAccentColor(project.name)
+  const projectAccentColor = project ? getProjectAccentColor(project.name) : undefined
 
   return (
     <RadixTheme
       appearance={theme ?? 'light'}
-      accentColor={projectAccentColor}
+      {...(projectAccentColor ? { accentColor: projectAccentColor } : {})}
       grayColor="sand"
       radius="none"
-      // Apply as a nested theme that inherits most settings but overrides accent
       asChild={false}
     >
       {children}

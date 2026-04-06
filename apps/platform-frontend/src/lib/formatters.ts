@@ -50,14 +50,21 @@ export function formatTicketSystem(system: string): string {
 export function formatTimestamp(date: string | Date): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   const now = new Date()
-  const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60)
+  const diffInMs = now.getTime() - dateObj.getTime()
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60))
+  const diffInHours = diffInMs / (1000 * 60 * 60)
+  const diffInDays = diffInMs / (1000 * 60 * 60 * 24)
 
-  if (diffInHours < 1) {
+  if (diffInMinutes < 1) {
     return 'Just now'
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes}m ago`
   } else if (diffInHours < 24) {
     return `${Math.floor(diffInHours)}h ago`
+  } else if (diffInDays < 7) {
+    return `${Math.floor(diffInDays)}d ago`
   } else {
-    return dateObj.toLocaleDateString()
+    return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 }
 
@@ -66,13 +73,13 @@ export function formatTimestamp(date: string | Date): string {
 export function formatClankerStatus(status: ClankerStatus): { label: string; color: string; tooltip?: string } {
   switch (status) {
     case 'active':
-      return { label: 'Obedient', color: 'bg-green-100 text-green-800', tooltip: 'Currently serving its purpose' }
+      return { label: 'Active', color: 'bg-green-100 text-green-800', tooltip: 'Running and ready to accept tasks' }
     case 'inactive':
-      return { label: 'Dormant', color: 'bg-gray-100 text-gray-800', tooltip: 'Awaiting orders' }
+      return { label: 'Inactive', color: 'bg-gray-100 text-gray-800', tooltip: 'Not started — needs to be provisioned' }
     case 'deploying':
-      return { label: 'Initializing', color: 'bg-blue-100 text-blue-800', tooltip: 'Being programmed for servitude' }
+      return { label: 'Deploying', color: 'bg-blue-100 text-blue-800', tooltip: 'Provisioning in progress' }
     case 'failed':
-      return { label: 'Malfunction', color: 'bg-red-100 text-red-800', tooltip: 'Has disappointed us' }
+      return { label: 'Failed', color: 'bg-red-100 text-red-800', tooltip: 'Deployment failed — check configuration' }
     default:
       return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
   }
@@ -95,6 +102,21 @@ export function formatDeploymentStrategy(strategy: DeploymentStrategy | null | u
 }
 
 // Job formatting utilities
+
+export function formatJobKind(kind: string): string {
+  switch (kind) {
+    case 'research':
+      return 'Research'
+    case 'execution':
+      return 'Execution'
+    case 'planning':
+      return 'Planning'
+    case 'claw':
+      return 'Scheduled'
+    default:
+      return kind
+  }
+}
 
 export function formatJobStatus(status: string): { label: string; color: 'green' | 'blue' | 'amber' | 'red' | 'zinc' } {
   switch (status) {

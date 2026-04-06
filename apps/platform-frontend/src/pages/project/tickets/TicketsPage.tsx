@@ -315,6 +315,7 @@ export function TicketsPage() {
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(18rem,1.7fr)_repeat(4,minmax(9rem,0.7fr))]">
         <div className="min-w-0">
+          <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Search</label>
           <SearchInput
             placeholder="Search tickets..."
             name="search"
@@ -323,39 +324,51 @@ export function TicketsPage() {
           />
         </div>
 
-        <Select name="status" value={status} onChange={(value) => updateFilters({ status: parseStatusFilter(value, status), page: 1 })}>
-          <option value="actionable">Actionable</option>
-          <option value="all">All Statuses</option>
-          <option value={TICKET_STATUS.OPEN}>Open</option>
-          <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
-          <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
-          <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
-        </Select>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Status</label>
+          <Select name="status" value={status} onChange={(value) => updateFilters({ status: parseStatusFilter(value, status), page: 1 })}>
+            <option value="actionable">Actionable</option>
+            <option value="all">All Statuses</option>
+            <option value={TICKET_STATUS.OPEN}>Open</option>
+            <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
+            <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
+            <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
+          </Select>
+        </div>
 
-        <Select name="phase" value={phase} onChange={(value) => updateFilters({ phase: parsePhaseFilter(value), page: 1 })}>
-          <option value="all">All Phases</option>
-          <option value={TICKET_WORKFLOW_PHASE.RESEARCH}>Research</option>
-          <option value={TICKET_WORKFLOW_PHASE.PLANNING}>Planning</option>
-          <option value={TICKET_WORKFLOW_PHASE.EXECUTION}>Execution</option>
-        </Select>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Phase</label>
+          <Select name="phase" value={phase} onChange={(value) => updateFilters({ phase: parsePhaseFilter(value), page: 1 })}>
+            <option value="all">All Phases</option>
+            <option value={TICKET_WORKFLOW_PHASE.RESEARCH}>Research</option>
+            <option value={TICKET_WORKFLOW_PHASE.PLANNING}>Planning</option>
+            <option value={TICKET_WORKFLOW_PHASE.EXECUTION}>Execution</option>
+          </Select>
+        </div>
 
-        <Select name="severity" value={severity} onChange={(value) => updateFilters({ severity: parseSeverity(value), page: 1 })}>
-          <option value="all">All Severities</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </Select>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Severity</label>
+          <Select name="severity" value={severity} onChange={(value) => updateFilters({ severity: parseSeverity(value), page: 1 })}>
+            <option value="all">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </Select>
+        </div>
 
-        <Select
-          name="page_size"
-          value={String(pageSize)}
-          onChange={(value) => updateFilters({ pageSize: parsePositiveInt(value, 25), page: 1 })}
-        >
-          <option value="25">25 / page</option>
-          <option value="50">50 / page</option>
-          <option value="100">100 / page</option>
-        </Select>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Per page</label>
+          <Select
+            name="page_size"
+            value={String(pageSize)}
+            onChange={(value) => updateFilters({ pageSize: parsePositiveInt(value, 25), page: 1 })}
+          >
+            <option value="25">25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+          </Select>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">

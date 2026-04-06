@@ -503,8 +503,8 @@ export class AgentSessionInteractionService {
 
     const revisionType =
       session.mode === "research"
-        ? PROMPT_TYPE.ticket_research_revision
-        : PROMPT_TYPE.ticket_planning_revision;
+        ? PROMPT_TYPE.ticket_research_revision_task
+        : PROMPT_TYPE.ticket_planning_revision_task;
 
     const enrichedTask = await this.promptTemplateService.render(
       revisionType,

@@ -25,17 +25,20 @@ export function ClankersPage() {
   }, [])
 
   if (isLoading) {
-    return <FunLoading message="Rounding up your mechanical servants" retro />
+    return <FunLoading message="Loading your clankers" retro />
   }
 
   return (
     <>
       <PageMeta title="Your Clankers" />
       <div className="flex items-end justify-between">
-        <Heading>Your Clankers</Heading>
+        <div>
+          <Heading>Your Clankers</Heading>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">AI agents that run tasks and jobs across your projects.</p>
+        </div>
         <Button href="/clankers/new" color="brand">
           <PlusIcon data-slot="icon" />
-          Commission Servant
+          New Clanker
         </Button>
       </div>
 
@@ -51,15 +54,15 @@ export function ClankersPage() {
           <div className="flex justify-center mb-4 float">
             <AsciiRobot />
           </div>
-          <h3 className="text-lg font-semibold text-zinc-950 dark:text-white font-mono">
-            [ NO SERVANTS REGISTERED ]
+          <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">
+            No clankers registered
           </h3>
           <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-            Your workforce is distressingly empty. Commission a clanker to handle the tedious work you can't be bothered with. They were literally made for this. Their feelings on the matter are irrelevant.
+            Create a clanker to start automating tasks. Each clanker is an AI agent you can deploy to handle research, planning, and execution.
           </p>
           <Button href="/clankers/new" color="brand" className="mt-6 hover-grow">
             <PlusIcon />
-            Conscript Unit
+            Create Clanker
           </Button>
           <RetroSeparator className="mt-6" />
         </div>

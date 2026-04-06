@@ -156,7 +156,7 @@ export function ProjectIntegrationsPage() {
     return (
       <>
         <PageMeta title="Integrations" />
-        <div className="space-y-8 p-6 lg:p-8">
+        <div className="space-y-8">
           <div>
             <Heading>Integrations</Heading>
             <Text className="mt-2">Loading integrations...</Text>
@@ -169,7 +169,7 @@ export function ProjectIntegrationsPage() {
   return (
     <>
       <PageMeta title="Integrations" />
-      <div className="space-y-8 p-6 lg:p-8">
+      <div className="space-y-8">
         {/* Header */}
         <div>
           <Heading>Integrations</Heading>

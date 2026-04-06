@@ -37,7 +37,7 @@
         font-family: var(--font-sans);
         background-color: color-mix(in srgb, var(--gray-2) 90%, #fef7e8 10%);
         background-image:
-            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 22%, transparent) 0%, transparent 45%),
+            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 38%, transparent) 0%, transparent 45%),
             repeating-linear-gradient(0deg, transparent, transparent 27px, color-mix(in srgb, var(--gray-8) 8%, transparent) 28px),
             repeating-linear-gradient(90deg, transparent, transparent 27px, color-mix(in srgb, var(--gray-8) 8%, transparent) 28px);
         color: var(--gray-12);
@@ -113,8 +113,8 @@
     }
 
     .radix-themes :where(.rt-Card):hover {
-        background: color-mix(in srgb, var(--accent-2) 25%, white 75%);
-        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent);
+        background: color-mix(in srgb, var(--accent-3) 35%, white 65%);
+        border-color: color-mix(in srgb, var(--accent-8) 45%, transparent);
     }
 
     .dark .radix-themes :where(.rt-Card):hover {
@@ -130,8 +130,8 @@
 
     .radix-themes :where(.rt-variant-ghost):hover,
     .radix-themes :where(.rt-variant-outline):hover {
-        background: color-mix(in srgb, var(--accent-4) 45%, transparent) !important;
-        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent) !important;
+        background: color-mix(in srgb, var(--accent-4) 55%, transparent) !important;
+        border-color: color-mix(in srgb, var(--accent-8) 45%, transparent) !important;
     }
 
     .dark .radix-themes :where(.rt-variant-ghost):hover,
@@ -141,7 +141,7 @@
     }
 
     .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger) {
-        background: color-mix(in srgb, white 84%, var(--accent-2) 16%);
+        background: color-mix(in srgb, white 80%, var(--accent-2) 20%);
         border-color: color-mix(in srgb, var(--gray-10) 26%, transparent) !important;
         transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
     }
@@ -161,8 +161,8 @@
     }
 
     .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger):focus-within {
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-9) 24%, transparent);
-        border-color: color-mix(in srgb, var(--accent-9) 50%, transparent) !important;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-9) 35%, transparent);
+        border-color: color-mix(in srgb, var(--accent-9) 60%, transparent) !important;
     }
 
     .rounded-sm,
@@ -205,10 +205,10 @@
         inset: 0;
         pointer-events: none;
         z-index: -2;
-        opacity: 0.35;
+        opacity: 0.5;
         background-image:
-            radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--accent-4) 55%, transparent) 0, transparent 42%),
-            radial-gradient(circle at 90% -10%, color-mix(in srgb, var(--accent-3) 42%, transparent) 0, transparent 34%);
+            radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--accent-4) 65%, transparent) 0, transparent 42%),
+            radial-gradient(circle at 90% -10%, color-mix(in srgb, var(--accent-3) 55%, transparent) 0, transparent 34%);
     }
 
     .dark .app-canvas::before {
@@ -231,7 +231,7 @@
         border: 1px solid color-mix(in srgb, var(--gray-10) 20%, transparent);
         background: linear-gradient(
             180deg,
-            color-mix(in srgb, var(--accent-2) 30%, white 70%) 0%,
+            color-mix(in srgb, var(--accent-3) 40%, white 60%) 0%,
             color-mix(in srgb, var(--gray-1) 78%, white 22%) 100%
         );
         box-shadow:
@@ -270,7 +270,9 @@
 
     .mobile-drawer-frame {
         border-right: 1px solid color-mix(in srgb, var(--gray-10) 20%, transparent);
-        background: color-mix(in srgb, white 95%, var(--accent-2) 5%);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 32%, transparent) 0%, transparent 70%),
+            color-mix(in srgb, white 80%, var(--accent-2) 20%);
         box-shadow: 16px 0 28px color-mix(in srgb, var(--gray-10) 20%, transparent);
         padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     }
@@ -283,8 +285,8 @@
 
     .app-sidebar-panel {
         background:
-            linear-gradient(180deg, color-mix(in srgb, var(--accent-2) 22%, transparent) 0%, transparent 70%),
-            color-mix(in srgb, white 84%, var(--accent-2) 16%);
+            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 32%, transparent) 0%, transparent 70%),
+            color-mix(in srgb, white 80%, var(--accent-2) 20%);
     }
 
     .dark .app-sidebar-panel {
@@ -347,7 +349,7 @@
 
     .ui-menu-content {
         border: 1px solid color-mix(in srgb, var(--gray-10) 20%, transparent);
-        background: color-mix(in srgb, white 95%, var(--accent-2) 5%);
+        background: color-mix(in srgb, white 90%, var(--accent-2) 10%);
         box-shadow:
             4px 4px 0 color-mix(in srgb, var(--gray-10) 16%, transparent),
             0 14px 28px color-mix(in srgb, var(--gray-10) 16%, transparent);
@@ -367,8 +369,8 @@
     }
 
     .ui-menu-item[data-highlighted] {
-        background: color-mix(in srgb, var(--accent-4) 45%, transparent);
-        border-color: color-mix(in srgb, var(--accent-8) 26%, transparent);
+        background: color-mix(in srgb, var(--accent-4) 55%, transparent);
+        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent);
     }
 
     .dark .ui-menu-item[data-highlighted] {
@@ -382,7 +384,7 @@
 
     .ui-data-table {
         border: 1px solid color-mix(in srgb, var(--gray-10) 18%, transparent);
-        background: color-mix(in srgb, white 92%, var(--accent-2) 8%);
+        background: color-mix(in srgb, white 86%, var(--accent-2) 14%);
     }
 
     .dark .ui-data-table {
@@ -396,8 +398,8 @@
     }
 
     .ui-card:hover {
-        background: color-mix(in srgb, var(--accent-2) 20%, white 80%);
-        border-color: color-mix(in srgb, var(--accent-8) 30%, transparent);
+        background: color-mix(in srgb, var(--accent-3) 30%, white 70%);
+        border-color: color-mix(in srgb, var(--accent-8) 40%, transparent);
         box-shadow: 0 4px 16px color-mix(in srgb, var(--gray-10) 12%, transparent);
     }
 
@@ -418,6 +420,25 @@
 
     .dark .ui-list-item:hover {
         background: color-mix(in srgb, var(--accent-4) 25%, transparent);
+    }
+
+    /* Sidebar current route highlight */
+    .sidebar-item[data-current] {
+        background: color-mix(in srgb, var(--accent-3) 55%, transparent);
+        border-color: color-mix(in srgb, var(--accent-8) 30%, transparent);
+    }
+
+    .sidebar-item[data-current] [data-slot="icon"] {
+        stroke: var(--accent-11) !important;
+    }
+
+    .dark .sidebar-item[data-current] {
+        background: color-mix(in srgb, var(--accent-4) 22%, transparent);
+        border-color: color-mix(in srgb, var(--accent-8) 28%, transparent);
+    }
+
+    .dark .sidebar-item[data-current] [data-slot="icon"] {
+        stroke: var(--accent-9) !important;
     }
 }
 

@@ -1,5 +1,6 @@
 import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Button } from '@/components/button'
 import { Heading, Subheading } from '@/components/heading'
 import { InfoItem } from '@/components/info-item'
@@ -9,7 +10,6 @@ import { formatClankerStatus, formatDeploymentStrategy, getClankerBySlug } from 
 import type { Secret } from '@/service/api/secret-api'
 import { getSecret } from '@/service/api/secret-api'
 import {
-  ArrowLeftIcon,
   CalendarIcon,
   ClockIcon,
   CubeIcon,
@@ -44,11 +44,11 @@ function formatAgent(agent?: Clanker['agent'] | null): string {
 function getStatusHint(status: Clanker['status']): string | null {
   switch (status) {
     case 'inactive':
-      return 'This clanker has not been started yet. Use Start to provision it.'
+      return 'This agent has not been started yet. Click Start to provision it.'
     case 'deploying':
       return 'Provisioning is in progress. This may take a moment.'
     case 'failed':
-      return 'Start the clanker again after updating its configuration.'
+      return 'Deployment failed. Start the agent again after updating its configuration.'
     default:
       return null
   }
@@ -376,12 +376,12 @@ export function ClankerDetailPage() {
     <>
       <PageMeta title={clanker ? `${clanker.name} | Clanker` : 'Clanker'} />
       <div className="flex h-full flex-col">
-        <div className="mb-6 flex items-center gap-4">
-          <Button href="/clankers" plain>
-            <ArrowLeftIcon className="h-4 w-4" />
-            Back to Clankers
-          </Button>
-        </div>
+        <Breadcrumbs
+          items={[
+            { label: 'Clankers', href: '/clankers' },
+            { label: clanker.name },
+          ]}
+        />
 
         <div className="mb-6">
           <div className="flex items-start justify-between gap-4">

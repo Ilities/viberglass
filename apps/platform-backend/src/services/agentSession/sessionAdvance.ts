@@ -1,4 +1,9 @@
-import { AGENT_SESSION_MODE, type AgentSessionMode } from "@viberglass/types";
+import {
+  AGENT_SESSION_MODE,
+  type AgentSessionMode,
+  TICKET_WORKFLOW_PHASE,
+  type TicketWorkflowPhase,
+} from "@viberglass/types";
 
 const PLAN_TRIGGERS = new Set([
   "plan",
@@ -18,7 +23,7 @@ const EXECUTE_TRIGGERS = new Set([
   "go",
 ]);
 
-const APPROVE_TRIGGERS = new Set(["lgtm", "approved", "looks good"]);
+const APPROVE_TRIGGERS = new Set(["lgtm", "approved", "looks good", "approve"]);
 
 const ADVANCE_TRIGGERS = new Set(["next", "proceed", "continue"]);
 
@@ -27,6 +32,11 @@ export type SessionAdvanceResult =
   | { kind: "chain"; firstMode: AgentSessionMode; thenMode: AgentSessionMode }
   | { kind: "revise" }
   | { kind: "invalid"; message: string };
+
+export type TicketAdvanceResult =
+  | { kind: "advance"; targetPhase: TicketWorkflowPhase }
+  | { kind: "chain"; firstPhase: TicketWorkflowPhase; thenPhase: TicketWorkflowPhase }
+  | { kind: "revise" };
 
 export function resolveSessionAdvance(
   instruction: string,
@@ -63,6 +73,49 @@ export function resolveSessionAdvance(
       return { kind: "advance", targetMode: AGENT_SESSION_MODE.EXECUTION };
     if (currentMode === AGENT_SESSION_MODE.RESEARCH)
       return { kind: "chain", firstMode: AGENT_SESSION_MODE.PLANNING, thenMode: AGENT_SESSION_MODE.EXECUTION };
+    return { kind: "revise" };
+  }
+
+  return { kind: "revise" };
+}
+
+/**
+ * Resolve a user instruction for a ticket-based workflow.
+ * Same keyword logic as resolveSessionAdvance but returns TicketWorkflowPhase values.
+ */
+export function resolveTicketAdvance(
+  instruction: string,
+  currentPhase: TicketWorkflowPhase,
+): TicketAdvanceResult {
+  const normalized = instruction.toLowerCase().trim();
+
+  const wantsPlan = PLAN_TRIGGERS.has(normalized) || APPROVE_TRIGGERS.has(normalized);
+  const wantsExecute = EXECUTE_TRIGGERS.has(normalized);
+  const wantsNext = ADVANCE_TRIGGERS.has(normalized);
+
+  if (wantsNext) {
+    if (currentPhase === TICKET_WORKFLOW_PHASE.RESEARCH)
+      return { kind: "advance", targetPhase: TICKET_WORKFLOW_PHASE.PLANNING };
+    if (currentPhase === TICKET_WORKFLOW_PHASE.PLANNING)
+      return { kind: "advance", targetPhase: TICKET_WORKFLOW_PHASE.EXECUTION };
+    return { kind: "revise" };
+  }
+
+  if (wantsPlan) {
+    if (currentPhase === TICKET_WORKFLOW_PHASE.RESEARCH)
+      return { kind: "advance", targetPhase: TICKET_WORKFLOW_PHASE.PLANNING };
+    return { kind: "revise" };
+  }
+
+  if (wantsExecute) {
+    if (currentPhase === TICKET_WORKFLOW_PHASE.PLANNING)
+      return { kind: "advance", targetPhase: TICKET_WORKFLOW_PHASE.EXECUTION };
+    if (currentPhase === TICKET_WORKFLOW_PHASE.RESEARCH)
+      return {
+        kind: "chain",
+        firstPhase: TICKET_WORKFLOW_PHASE.PLANNING,
+        thenPhase: TICKET_WORKFLOW_PHASE.EXECUTION,
+      };
     return { kind: "revise" };
   }
 

@@ -61,7 +61,7 @@ export function ProjectConstellationCard({
           href={`/project/${project.slug}`}
           className="ui-text-action"
         >
-          Open
+          Open Project
         </Link>
       </div>
     </div>

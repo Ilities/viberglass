@@ -7,7 +7,7 @@ import { MultiSelect } from '@/components/multi-select'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { Textarea } from '@/components/textarea'
-import { formatTimestamp } from '@/lib/formatters'
+import { Timestamp } from '@/components/timestamp'
 import type { Clanker } from '@/service/api/clanker-api'
 import { getClankers } from '@/service/api/clanker-api'
 import {
@@ -203,7 +203,7 @@ export function TemplatesTab({ projectId }: Props) {
                 <TableCell className="max-w-xs truncate text-zinc-500 dark:text-zinc-400">
                   {t.description ?? '—'}
                 </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(t.updatedAt)}</TableCell>
+                <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={t.updatedAt} /></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Button plain onClick={() => openEdit(t)}>

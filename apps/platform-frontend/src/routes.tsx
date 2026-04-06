@@ -1,12 +1,12 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthLayout } from '@/components/auth-layout'
 import { ApplicationLayout } from '@/layouts/ApplicationLayout'
 import { SettingsLayout } from '@/layouts/SettingsLayout'
+import { Navigate, Route, Routes } from 'react-router-dom'
 
 // Auth pages
+import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
-import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
 
 // Main pages
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -14,23 +14,23 @@ import { NewProjectPage } from '@/pages/NewProjectPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // Clanker pages
-import { ClankersPage } from '@/pages/clankers/ClankersPage'
-import { NewClankerPage } from '@/pages/clankers/NewClankerPage'
 import { ClankerDetailPage } from '@/pages/clankers/ClankerDetailPage'
+import { ClankersPage } from '@/pages/clankers/ClankersPage'
 import { EditClankerPage } from '@/pages/clankers/EditClankerPage'
+import { NewClankerPage } from '@/pages/clankers/NewClankerPage'
 
 // Project pages
 import { ProjectHomePage } from '@/pages/project/ProjectHomePage'
 
 // Tickets pages
-import { TicketsPage } from '@/pages/project/tickets/TicketsPage'
 import { CreateTicketPage } from '@/pages/project/tickets/CreateTicketPage'
 import { TicketDetailPage } from '@/pages/project/tickets/TicketDetailPage'
 import { TicketMediaPage } from '@/pages/project/tickets/TicketMediaPage'
+import { TicketsPage } from '@/pages/project/tickets/TicketsPage'
 
 // Jobs pages
-import { JobsPage } from '@/pages/project/jobs/JobsPage'
 import { JobDetailPage } from '@/pages/project/jobs/JobDetailPage'
+import { JobsPage } from '@/pages/project/jobs/JobsPage'
 
 // Claws pages
 import { ClawsPage } from '@/pages/project/claws/ClawsPage'
@@ -39,18 +39,16 @@ import { ClawsPage } from '@/pages/project/claws/ClawsPage'
 import { SessionPage } from '@/pages/project/sessions/SessionPage'
 
 // Prompt templates pages
-import { PromptTemplatesPage } from '@/pages/project/prompt-templates/PromptTemplatesPage'
-
-
+import { PromptTemplatesPage as ProjectPromptTemplatesPage } from '@/pages/project/prompt-templates/PromptTemplatesPage'
+import { PromptTemplatesPage } from '@/pages/settings/PromptTemplatesPage'
 
 // Settings pages
-import { SecretsPage } from '@/pages/secrets/SecretsPage'
-import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
-import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
-import { UsersPage } from '@/pages/settings/UsersPage'
-import { ProjectSettingsPage } from '@/pages/project/settings/ProjectSettingsPage'
 import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegrationsPage'
-import { TicketingSettingsPage } from '@/pages/project/settings/TicketingSettingsPage'
+import { ProjectSettingsPage } from '@/pages/project/settings/ProjectSettingsPage'
+import { SecretsPage } from '@/pages/secrets/SecretsPage'
+import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
+import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
+import { UsersPage } from '@/pages/settings/UsersPage'
 
 export function AppRoutes() {
   return (
@@ -79,15 +77,10 @@ export function AppRoutes() {
 
         {/* Settings */}
         <Route path="/settings/integrations" element={<IntegrationsPage />} />
-        <Route
-          path="/settings/integrations/new/:integrationSystem"
-          element={<IntegrationDetailPage />}
-        />
-        <Route
-          path="/settings/integrations/:integrationEntityId"
-          element={<IntegrationDetailPage />}
-        />
+        <Route path="/settings/integrations/new/:integrationSystem" element={<IntegrationDetailPage />} />
+        <Route path="/settings/integrations/:integrationEntityId" element={<IntegrationDetailPage />} />
         <Route path="/settings/users" element={<UsersPage />} />
+        <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
 
         {/* Project routes */}
         <Route path="/project/:project" element={<ProjectHomePage />} />
@@ -108,17 +101,12 @@ export function AppRoutes() {
         {/* Project sessions */}
         <Route path="/project/:project/sessions/:sessionId" element={<SessionPage />} />
 
-        {/* Prompt templates */}
-        <Route path="/project/:project/prompt-templates" element={<PromptTemplatesPage />} />
-
-
-
         {/* Project settings with nested routes */}
         <Route path="/project/:project/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="project" replace />} />
           <Route path="project" element={<ProjectSettingsPage />} />
           <Route path="integrations" element={<ProjectIntegrationsPage />} />
-          <Route path="ticketing" element={<TicketingSettingsPage />} />
+          <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />
         </Route>
       </Route>
 

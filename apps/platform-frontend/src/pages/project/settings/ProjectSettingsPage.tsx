@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
@@ -9,7 +9,6 @@ import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
-import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
 import { getErrorMessage } from '@/lib/project-form'
 import {
@@ -67,7 +66,6 @@ export function ProjectSettingsPage() {
   const [name, setName] = useState('')
   const [autoFixEnabled, setAutoFixEnabled] = useState(false)
   const [autoFixTags, setAutoFixTags] = useState('')
-  const [agentInstructions, setAgentInstructions] = useState('')
 
   const [linkedIntegrations, setLinkedIntegrations] = useState<LinkedIntegrationOption[]>([])
   const [ticketingIntegrationId, setTicketingIntegrationId] = useState<string>(NONE_OPTION)
@@ -113,7 +111,7 @@ export function ProjectSettingsPage() {
     setName(projectData.name ?? '')
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
-    setAgentInstructions(projectData.agentInstructions ?? '')
+
     setError(null)
     setSuccess(null)
   }, [projectData])
@@ -337,7 +335,6 @@ export function ProjectSettingsPage() {
     setName(projectData.name ?? '')
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
-    setAgentInstructions(projectData.agentInstructions ?? '')
 
     // Phase 2: Use primaryTicketingIntegrationId instead of deprecated ticketSystem
     const primaryTicketingId = projectData.primaryTicketingIntegrationId
@@ -412,7 +409,6 @@ export function ProjectSettingsPage() {
           .split(',')
           .map((tag) => tag.trim())
           .filter(Boolean),
-        agentInstructions: normalizeOptionalText(agentInstructions),
       }
 
       const updatedProject = await updateProject(projectData.id, updates)
@@ -449,7 +445,6 @@ export function ProjectSettingsPage() {
       setName(updatedProject.name ?? '')
       setAutoFixEnabled(Boolean(updatedProject.autoFixEnabled))
       setAutoFixTags(updatedProject.autoFixTags?.join(', ') ?? '')
-      setAgentInstructions(updatedProject.agentInstructions ?? '')
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Failed to update project'))
     } finally {
@@ -469,7 +464,7 @@ export function ProjectSettingsPage() {
   return (
     <>
       <PageMeta title={projectData?.name ? `${projectData.name} | Settings` : 'Project Settings'} />
-      <div className="mx-auto max-w-4xl">
+      <div className="max-w-4xl">
         <Heading>Project Settings</Heading>
 
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
@@ -776,20 +771,6 @@ export function ProjectSettingsPage() {
                   )}
                 </div>
 
-                <Field>
-                  <Label>Additional Agent Instructions</Label>
-                  <Description>
-                    Provide any extra guidance the AI agent should follow when working on this project.
-                  </Description>
-                  <Textarea
-                    name="agent_instructions"
-                    rows={4}
-                    value={agentInstructions}
-                    onChange={(event) => setAgentInstructions(event.target.value)}
-                    placeholder="e.g. Prioritize safety fixes, avoid large refactors, follow internal guidelines..."
-                  />
-                </Field>
-
                 <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
                   <Button type="button" outline onClick={resetForm}>
                     Reset
@@ -811,7 +792,14 @@ export function ProjectSettingsPage() {
                 Permanently delete this project and all associated data. This cannot be undone.
               </p>
               <div className="mt-4">
-                <Button color="red" onClick={() => { setDeleteConfirmName(''); setDeleteError(null); setShowDeleteDialog(true) }}>
+                <Button
+                  color="red"
+                  onClick={() => {
+                    setDeleteConfirmName('')
+                    setDeleteError(null)
+                    setShowDeleteDialog(true)
+                  }}
+                >
                   Delete Project
                 </Button>
               </div>
@@ -820,10 +808,17 @@ export function ProjectSettingsPage() {
         )}
       </div>
 
-      <Dialog open={showDeleteDialog} onClose={(open) => { if (!isDeleting) setShowDeleteDialog(open) }} size="md">
+      <Dialog
+        open={showDeleteDialog}
+        onClose={(open) => {
+          if (!isDeleting) setShowDeleteDialog(open)
+        }}
+        size="md"
+      >
         <DialogTitle>Delete Project</DialogTitle>
         <DialogDescription>
-          This will permanently delete <strong>{projectData?.name}</strong> and all its tickets, jobs, and configuration. This action cannot be undone.
+          This will permanently delete <strong>{projectData?.name}</strong> and all its tickets, jobs, and
+          configuration. This action cannot be undone.
         </DialogDescription>
         <DialogBody>
           <div className="space-y-3">
@@ -836,9 +831,7 @@ export function ProjectSettingsPage() {
               placeholder={projectData?.name}
               disabled={isDeleting}
             />
-            {deleteError && (
-              <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
-            )}
+            {deleteError && <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>}
           </div>
         </DialogBody>
         <DialogActions>

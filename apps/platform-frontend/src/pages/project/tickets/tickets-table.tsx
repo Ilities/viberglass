@@ -2,7 +2,8 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import { formatAutoFixStatus, formatSeverity, formatTimestamp } from '@/data'
+import { formatAutoFixStatus, formatSeverity } from '@/data'
+import { Timestamp } from '@/components/timestamp'
 import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useMemo, useState } from 'react'
@@ -140,7 +141,7 @@ export function TicketsTable({
                     <span className="text-zinc-400">-</span>
                   )}
                 </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(ticket.timestamp)}</TableCell>
+                <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={ticket.timestamp} /></TableCell>
                 <TableCell excludeRowLink>
                   {showArchived ? (
                     <Button

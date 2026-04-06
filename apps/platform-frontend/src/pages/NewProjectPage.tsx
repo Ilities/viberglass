@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading } from '@/components/heading'
@@ -8,7 +6,6 @@ import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
 import { Select } from '@/components/select'
 import { Switch, SwitchField } from '@/components/switch'
-import { Textarea } from '@/components/textarea'
 import { getErrorMessage } from '@/lib/project-form'
 import {
   getAvailableIntegrationTypes,
@@ -23,6 +20,8 @@ import {
   type CreateProjectRequest,
 } from '@/service/api/project-api'
 import type { IntegrationCredential, TicketSystem } from '@viberglass/types'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const NONE_OPTION = '__none__'
 
@@ -70,10 +69,7 @@ export function NewProjectPage() {
     () => allIntegrations.filter((i) => i.category !== 'scm' && i.category !== 'inbound'),
     [allIntegrations]
   )
-  const scmIntegrations = useMemo(
-    () => allIntegrations.filter((i) => i.category === 'scm'),
-    [allIntegrations]
-  )
+  const scmIntegrations = useMemo(() => allIntegrations.filter((i) => i.category === 'scm'), [allIntegrations])
 
   useEffect(() => {
     let isActive = true
@@ -81,10 +77,7 @@ export function NewProjectPage() {
       setIsLoadingIntegrations(true)
       setIntegrationLoadError(null)
       try {
-        const [availableTypes, integrations] = await Promise.all([
-          getAvailableIntegrationTypes(),
-          getIntegrations(),
-        ])
+        const [availableTypes, integrations] = await Promise.all([getAvailableIntegrationTypes(), getIntegrations()])
         if (!isActive) return
         const categoryBySystem = new Map(availableTypes.map((t) => [t.id, t.category]))
         setAllIntegrations(
@@ -102,7 +95,9 @@ export function NewProjectPage() {
       }
     }
     void load()
-    return () => { isActive = false }
+    return () => {
+      isActive = false
+    }
   }, [])
 
   useEffect(() => {
@@ -129,7 +124,9 @@ export function NewProjectPage() {
       }
     }
     void load()
-    return () => { isActive = false }
+    return () => {
+      isActive = false
+    }
   }, [scmIntegrationId])
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
@@ -149,7 +146,6 @@ export function NewProjectPage() {
             .split(',')
             .map((tag) => tag.trim())
             .filter(Boolean),
-          agentInstructions: ((formData.get('agent_instructions') as string) || '').trim() || undefined,
         }
         const project = await createProject(projectData)
         projectId = project.id
@@ -167,7 +163,8 @@ export function NewProjectPage() {
       if (scmIntegrationId !== NONE_OPTION) {
         const selectedScm = scmIntegrations.find((i) => i.id === scmIntegrationId)
         if (!selectedScm) throw new Error('Select a valid SCM integration')
-        if (!sourceRepository.trim()) throw new Error('Source repository is required when an SCM integration is selected')
+        if (!sourceRepository.trim())
+          throw new Error('Source repository is required when an SCM integration is selected')
         await linkIntegrationToProject(projectId, selectedScm.id)
         await upsertProjectScmConfig(projectId, {
           integrationId: selectedScm.id,
@@ -236,7 +233,9 @@ export function NewProjectPage() {
                   <Field>
                     <Select
                       value={ticketingIntegrationId}
-                      onChange={(v) => { if (v !== '') setTicketingIntegrationId(v) }}
+                      onChange={(v) => {
+                        if (v !== '') setTicketingIntegrationId(v)
+                      }}
                       disabled={ticketingIntegrations.length === 0}
                     >
                       <option value={NONE_OPTION}>
@@ -245,7 +244,9 @@ export function NewProjectPage() {
                           : 'Use Viberglass as ticketing system (no external integration)'}
                       </option>
                       {ticketingIntegrations.map((i) => (
-                        <option key={i.id} value={i.id}>{i.name} ({i.system})</option>
+                        <option key={i.id} value={i.id}>
+                          {i.name} ({i.system})
+                        </option>
                       ))}
                     </Select>
                     {ticketingIntegrations.length === 0 && (
@@ -272,12 +273,16 @@ export function NewProjectPage() {
                     <Label>SCM Integration</Label>
                     <Select
                       value={scmIntegrationId}
-                      onChange={(v) => { if (v !== '') setScmIntegrationId(v) }}
+                      onChange={(v) => {
+                        if (v !== '') setScmIntegrationId(v)
+                      }}
                       disabled={isLoadingIntegrations || scmIntegrations.length === 0}
                     >
                       <option value={NONE_OPTION}>No SCM integration configured</option>
                       {scmIntegrations.map((i) => (
-                        <option key={i.id} value={i.id}>{i.name} ({i.system})</option>
+                        <option key={i.id} value={i.id}>
+                          {i.name} ({i.system})
+                        </option>
                       ))}
                     </Select>
                     {!isLoadingIntegrations && scmIntegrations.length === 0 && (
@@ -337,7 +342,8 @@ export function NewProjectPage() {
                   <Field>
                     <Label>Branch Name Template (Optional)</Label>
                     <Description>
-                      Template for fix branch names. Placeholders: <code>{'{{ ticket }}'}</code>, <code>{'{{ original_ticket }}'}</code>, <code>{'{{ clanker }}'}</code>.
+                      Template for fix branch names. Placeholders: <code>{'{{ ticket }}'}</code>,{' '}
+                      <code>{'{{ original_ticket }}'}</code>, <code>{'{{ clanker }}'}</code>.
                     </Description>
                     <Input
                       placeholder="viberator/{{ ticket }}"
@@ -352,15 +358,22 @@ export function NewProjectPage() {
                     <Description>
                       Select a credential for SCM authentication. Managed in{' '}
                       <Link
-                        href={scmIntegrationId !== NONE_OPTION ? `/settings/integrations/${scmIntegrationId}` : '/settings/integrations'}
+                        href={
+                          scmIntegrationId !== NONE_OPTION
+                            ? `/settings/integrations/${scmIntegrationId}`
+                            : '/settings/integrations'
+                        }
                         className="text-brand-burnt-orange hover:underline"
                       >
                         integration settings
-                      </Link>.
+                      </Link>
+                      .
                     </Description>
                     <Select
                       value={integrationCredentialId}
-                      onChange={(v) => { if (v !== '') setIntegrationCredentialId(v) }}
+                      onChange={(v) => {
+                        if (v !== '') setIntegrationCredentialId(v)
+                      }}
                       disabled={scmIntegrationId === NONE_OPTION || isLoadingCredentials}
                     >
                       <option value={NONE_OPTION}>
@@ -368,21 +381,29 @@ export function NewProjectPage() {
                       </option>
                       {integrationCredentials.map((cred) => (
                         <option key={cred.id} value={cred.id}>
-                          {cred.name}{cred.isDefault ? ' (default)' : ''}
+                          {cred.name}
+                          {cred.isDefault ? ' (default)' : ''}
                         </option>
                       ))}
                     </Select>
                     {credentialsError && (
                       <Description className="mt-2 text-red-600 dark:text-red-400">{credentialsError}</Description>
                     )}
-                    {!isLoadingCredentials && integrationCredentials.length === 0 && scmIntegrationId !== NONE_OPTION && !credentialsError && (
-                      <Description className="mt-2">
-                        No credentials configured. Create one in{' '}
-                        <Link href={`/settings/integrations/${scmIntegrationId}`} className="text-brand-burnt-orange hover:underline">
-                          integration settings
-                        </Link>.
-                      </Description>
-                    )}
+                    {!isLoadingCredentials &&
+                      integrationCredentials.length === 0 &&
+                      scmIntegrationId !== NONE_OPTION &&
+                      !credentialsError && (
+                        <Description className="mt-2">
+                          No credentials configured. Create one in{' '}
+                          <Link
+                            href={`/settings/integrations/${scmIntegrationId}`}
+                            className="text-brand-burnt-orange hover:underline"
+                          >
+                            integration settings
+                          </Link>
+                          .
+                        </Description>
+                      )}
                   </Field>
                 </FieldGroup>
               </div>
@@ -396,20 +417,18 @@ export function NewProjectPage() {
                 {autoFixEnabled && (
                   <Field className="mt-4">
                     <Label>Auto-fix Tags</Label>
-                    <Description>Comma-separated tags to trigger automatic fixes (e.g. &quot;bug, high-priority&quot;).</Description>
+                    <Description>
+                      Comma-separated tags to trigger automatic fixes (e.g. &quot;bug, high-priority&quot;).
+                    </Description>
                     <Input name="auto_fix_tags" placeholder="bug, fix-requested" />
                   </Field>
                 )}
               </div>
 
-              <Field>
-                <Label>Additional Agent Instructions</Label>
-                <Description>Provide any extra guidance the AI agent should follow when working on this project.</Description>
-                <Textarea name="agent_instructions" rows={4} placeholder="e.g. Prioritize safety fixes, avoid large refactors..." />
-              </Field>
-
               <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
-                <Button outline href="/">Cancel</Button>
+                <Button outline href="/">
+                  Cancel
+                </Button>
                 <Button type="submit" color="brand" disabled={isSubmitting}>
                   {isSubmitting ? 'Creating...' : createdProjectId ? 'Finish Setup' : 'Create Project'}
                 </Button>

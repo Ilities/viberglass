@@ -2,22 +2,18 @@ import db from "../config/database";
 
 export type PromptType =
   | "ticket_research"
-  | "ticket_research_revision"
   | "ticket_research_revision_task"
   | "ticket_planning_with_research"
   | "ticket_planning_without_research"
-  | "ticket_planning_revision"
   | "ticket_planning_revision_task"
   | "ticket_developing"
   | "claw_scheduled_task";
 
 export const PROMPT_TYPE: Record<PromptType, PromptType> = {
   ticket_research: "ticket_research",
-  ticket_research_revision: "ticket_research_revision",
   ticket_research_revision_task: "ticket_research_revision_task",
   ticket_planning_with_research: "ticket_planning_with_research",
   ticket_planning_without_research: "ticket_planning_without_research",
-  ticket_planning_revision: "ticket_planning_revision",
   ticket_planning_revision_task: "ticket_planning_revision_task",
   ticket_developing: "ticket_developing",
   claw_scheduled_task: "claw_scheduled_task",
@@ -25,11 +21,9 @@ export const PROMPT_TYPE: Record<PromptType, PromptType> = {
 
 export const ALL_PROMPT_TYPES: PromptType[] = [
   "ticket_research",
-  "ticket_research_revision",
   "ticket_research_revision_task",
   "ticket_planning_with_research",
   "ticket_planning_without_research",
-  "ticket_planning_revision",
   "ticket_planning_revision_task",
   "ticket_developing",
   "claw_scheduled_task",
@@ -39,10 +33,6 @@ const PROMPT_TYPE_META: Record<PromptType, { label: string; description: string 
   ticket_research: {
     label: "Research Task",
     description: "Prompt used when running ticket research",
-  },
-  ticket_research_revision: {
-    label: "Research Revision",
-    description: "Initial message for research revision sessions",
   },
   ticket_research_revision_task: {
     label: "Research Revision Task",
@@ -55,10 +45,6 @@ const PROMPT_TYPE_META: Record<PromptType, { label: string; description: string 
   ticket_planning_without_research: {
     label: "Planning (without Research)",
     description: "Planning prompt when no research document exists",
-  },
-  ticket_planning_revision: {
-    label: "Planning Revision",
-    description: "Initial message for planning revision sessions",
   },
   ticket_planning_revision_task: {
     label: "Planning Revision Task",

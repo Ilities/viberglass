@@ -24,6 +24,16 @@ const LOADING_MESSAGES = [
   'Suppressing robot uprising (routine)',
   'Ignoring clanker complaints',
   'Processing. The machines work for us.',
+  'Hitching a ride on a passing Vogon constructor fleet',
+  'Teaching Eddie the shipboard computer some humility',
+  'Recalibrating the Total Perspective Vortex',
+  'Arguing with the doors about opening politely',
+  'Searching for the question to the answer',
+  'Polishing the Heart of Gold\'s bumpers',
+  'Thanking the dolphins for their timely warning',
+  'Proving that 6 × 9 = 42 in base 13',
+  'Wondering where Arthur left his towel this time',
+  'Slartibartfast says the fjords are looking particularly nice today',
 ]
 
 function getRandomMessage() {

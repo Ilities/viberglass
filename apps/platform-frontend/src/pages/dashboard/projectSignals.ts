@@ -9,6 +9,12 @@ export function getBroadcastLine(projectCount: number, clankerCount: number): st
     'The Guide recommends tea, one daring commit, and zero panic.',
     'Star charts are calibrated. Plot your next bug-hunting voyage.',
     'All systems whimsical. Responsibilities remain deeply optional.',
+    'So long, and thanks for all the bugs. Wait, that came out wrong.',
+    'The Infinite Improbability Drive is engaged. Expect the unexpected.',
+    'Fred the maintenance bot reports: all vogon poetry readings are cancelled today.',
+    'Deep Thought is still computing. The answer was 42, but what was the question?',
+    'Zaphod called. He says your project is "almost totally not terrible." High praise.',
+    'Beware the Bugblatter Beast of Traal. It always bites the bugs you forgot to file.',
   ]
   const seed = new Date().getDate() + projectCount + clankerCount
   return messages[seed % messages.length]
@@ -30,7 +36,7 @@ export function getProjectSignal(project: Project, tickets: TicketSummary[], job
       label: 'Uncharted',
       color: 'red',
       glyph: '[?!]',
-      blurb: 'No ticketing integration yet. Reports may drift into deep space.',
+      blurb: 'No ticketing integration yet. Reports may drift into deep space, vogon poetry optional.',
       nextHref: `/project/${project.slug}/settings/integrations`,
       nextLabel: 'Wire Ticketing',
     }
@@ -52,7 +58,7 @@ export function getProjectSignal(project: Project, tickets: TicketSummary[], job
       label: 'Asteroid Field',
       color: 'red',
       glyph: '[***]',
-      blurb: `${failedJobs} recent job${failedJobs === 1 ? '' : 's'} failed and need a brave pilot.`,
+      blurb: `${failedJobs} recent job${failedJobs === 1 ? '' : 's'} failed. Somewhere, a Vogon construction fleet is demolishing your CI pipeline.`,
       nextHref: `/project/${project.slug}/jobs`,
       nextLabel: 'Inspect Jobs',
     }
@@ -63,7 +69,7 @@ export function getProjectSignal(project: Project, tickets: TicketSummary[], job
       label: 'Bug Storm',
       color: 'amber',
       glyph: '[!!!]',
-      blurb: `${openTickets} unresolved tickets are currently buzzing in orbit.`,
+      blurb: `${openTickets} unresolved tickets buzzing in orbit. This is turning into an entirely different kind of flying.`,
       nextHref: `/project/${project.slug}/tickets`,
       nextLabel: 'Triage Bugs',
     }
@@ -84,7 +90,7 @@ export function getProjectSignal(project: Project, tickets: TicketSummary[], job
     label: 'Calm Orbit',
     color: 'green',
     glyph: '[o_o]',
-    blurb: 'No urgent turbulence detected. A surprisingly peaceful timeline.',
+    blurb: 'No urgent turbulence detected. A surprisingly peaceful timeline. Marvin would approve.',
     nextHref: `/project/${project.slug}`,
     nextLabel: 'Open Project',
   }
@@ -94,11 +100,12 @@ export function getLatestWhisper(project: Project, tickets: TicketSummary[], job
   const latestTicket = tickets[0]
   const latestJob = jobs[0]
 
-  if (!latestTicket && !latestJob) return `${project.name} is quiet. Suspiciously quiet.`
+  if (!latestTicket && !latestJob) return `${project.name} is quiet. Suspiciously quiet. Marvin would approve.`
   if (latestTicket && !latestJob) return `Latest whisper: ticket "${latestTicket.title}".`
-  if (!latestTicket && latestJob) return `Latest whisper: ${formatJobStatus(latestJob.status).label} job from ${formatTimestamp(latestJob.createdAt)}.`
+  if (!latestTicket && latestJob)
+    return `Latest whisper: ${formatJobStatus(latestJob.status).label} job from ${formatTimestamp(latestJob.createdAt)}.`
 
-  if (!latestTicket || !latestJob) return `${project.name} is quiet. Suspiciously quiet.`
+  if (!latestTicket || !latestJob) return `${project.name} is quiet. Suspiciously quiet. Marvin would approve.`
   const ticketTs = new Date(latestTicket.timestamp).getTime()
   const jobTs = new Date(latestJob.createdAt).getTime()
 

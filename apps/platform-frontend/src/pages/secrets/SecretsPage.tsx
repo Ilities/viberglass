@@ -10,7 +10,7 @@ import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import { formatTimestamp } from '@/lib/formatters'
+import { Timestamp } from '@/components/timestamp'
 import {
   createSecret,
   deleteSecret,
@@ -267,7 +267,7 @@ export function SecretsPage() {
                 <TableCell className="text-zinc-500 dark:text-zinc-400">
                   {secret.secretLocation === 'ssm' ? secret.secretPath || '—' : '—'}
                 </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">{formatTimestamp(secret.updatedAt)}</TableCell>
+                <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={secret.updatedAt} /></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Button
