@@ -5,11 +5,11 @@ import {
   type TicketWorkflowPhase,
 } from '@viberglass/types'
 
-export function getSeverityBadge(severity: string): { label: string; color: 'red' | 'amber' | 'green' | 'zinc' } {
+export function getSeverityBadge(severity: string): { label: string; color: 'red' | 'orange' | 'yellow' | 'green' | 'zinc' } {
   switch (severity) {
     case 'critical': return { label: 'Critical', color: 'red' }
-    case 'high': return { label: 'High', color: 'amber' }
-    case 'medium': return { label: 'Medium', color: 'amber' }
+    case 'high': return { label: 'High', color: 'orange' }
+    case 'medium': return { label: 'Medium', color: 'yellow' }
     case 'low': return { label: 'Low', color: 'green' }
     default: return { label: 'Unknown', color: 'zinc' }
   }

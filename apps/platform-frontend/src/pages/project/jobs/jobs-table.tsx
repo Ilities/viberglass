@@ -2,7 +2,7 @@ import { Badge } from '@/components/badge'
 import { JobStatusIndicator } from '@/components/job-status-indicator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { Timestamp } from '@/components/timestamp'
-import { formatJobKind } from '@/data'
+import { formatJobKind, jobKindBadgeColor } from '@/data'
 import { JobListItem } from '@/service/api/job-api'
 
 interface JobsTableProps {
@@ -22,13 +22,6 @@ function formatDuration(start: string | null, end: string | null): string {
     return `${minutes}m ${seconds % 60}s`
   }
   return `${seconds}s`
-}
-
-function jobKindBadgeColor(kind: 'research' | 'execution' | 'planning' | 'claw') {
-  if (kind === 'research') return 'blue' as const
-  if (kind === 'planning') return 'teal' as const
-  if (kind === 'claw') return 'amber' as const
-  return 'violet' as const
 }
 
 function jobTitle(job: JobListItem): string {

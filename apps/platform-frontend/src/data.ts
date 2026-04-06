@@ -28,6 +28,7 @@ import type {
   Ticket,
   TicketLifecycleStatus,
   TicketStats,
+  TicketWorkflowPhase,
 } from '@viberglass/types'
 
 // Extended ticket with computed status for UI
@@ -42,6 +43,7 @@ export interface TicketSummary {
   ticketSystem: string
   autoFixStatus?: AutoFixStatus
   status: TicketLifecycleStatus
+  workflowPhase: TicketWorkflowPhase
 }
 
 // Project functions
@@ -58,7 +60,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
   const { tickets } = await getTickets({
     projectSlug,
     limit: 10,
-    statuses: [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.RESOLVED],
+    statuses: [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.IN_REVIEW, TICKET_STATUS.RESOLVED],
     archived: TICKET_ARCHIVE_FILTER.EXCLUDE,
   })
   return tickets.map((ticket) => ({
@@ -72,6 +74,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
     ticketSystem: ticket.ticketSystem,
     autoFixStatus: ticket.autoFixStatus,
     status: ticket.status,
+    workflowPhase: ticket.workflowPhase,
   }))
 }
 

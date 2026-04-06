@@ -132,3 +132,10 @@ export function formatJobStatus(status: string): { label: string; color: 'green'
       return { label: 'Unknown', color: 'zinc' }
   }
 }
+
+export function jobKindBadgeColor(kind: string): 'blue' | 'teal' | 'amber' | 'violet' {
+  if (kind === 'research') return 'blue'
+  if (kind === 'planning') return 'teal'
+  if (kind === 'claw') return 'amber'
+  return 'violet'
+}
