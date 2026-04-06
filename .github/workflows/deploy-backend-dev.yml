@@ -9,6 +9,7 @@ on:
     paths:
       - 'apps/platform-backend/**'
       - 'packages/types/**'
+      - 'packages/chat-slack/**'
       - '.github/workflows/deploy-backend-dev.yml'
       - 'apps/platform-backend/Dockerfile.prod'
 
