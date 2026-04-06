@@ -6,7 +6,7 @@ import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import { getThreadForTicket } from "./ticketThreadMap";
 import { ChatTicketThreadDAO } from "../persistence/chat/ChatTicketThreadDAO";
 import { TicketPhaseRunDAO } from "../persistence/ticketing/TicketPhaseRunDAO";
-import type { JobStatus } from "../types/Job";
+import type { JobStatus, JobStatusResponse } from "../types/Job";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -30,7 +30,12 @@ export class TicketJobBridge {
   /**
    * Start polling a job and post the document to the thread when it completes.
    */
-  startBridge(jobId: string, ticketId: string, thread: Thread, mode: Mode): void {
+  startBridge(
+    jobId: string,
+    ticketId: string,
+    thread: Thread,
+    mode: Mode,
+  ): void {
     const key = `${ticketId}:${jobId}`;
     if (this.bridges.has(key)) return;
 
@@ -46,10 +51,12 @@ export class TicketJobBridge {
         lastStatus = status.status;
 
         if (status.status === "completed") {
-          await this.handleCompleted(ticketId, thread, mode);
+          await this.handleCompleted(ticketId, thread, mode, status);
           this.stopBridge(key);
         } else if (status.status === "failed") {
-          await thread.post({ markdown: "*Job failed.* An error occurred during processing." });
+          await thread.post({
+            markdown: "*Job failed.* An error occurred during processing.",
+          });
           this.stopBridge(key);
         }
       } catch (err) {
@@ -114,15 +121,21 @@ export class TicketJobBridge {
     ticketId: string,
     thread: Thread,
     mode: Mode,
+    status: JobStatusResponse,
   ): Promise<void> {
     try {
+      const result = status.result as { pullRequestUrl?: string };
+
       if (mode !== "execution") {
         const phase =
           mode === "research"
             ? TICKET_WORKFLOW_PHASE.RESEARCH
             : TICKET_WORKFLOW_PHASE.PLANNING;
 
-        const doc = await this.documentService.getOrCreateDocument(ticketId, phase);
+        const doc = await this.documentService.getOrCreateDocument(
+          ticketId,
+          phase,
+        );
         if (doc.content?.trim()) {
           const filename =
             phase === TICKET_WORKFLOW_PHASE.RESEARCH
@@ -139,6 +152,10 @@ export class TicketJobBridge {
             ],
           });
         }
+      } else if (result?.pullRequestUrl) {
+        await thread.post({
+          markdown: `*Pull Request created:* [${result.pullRequestUrl}](${result.pullRequestUrl})`,
+        });
       }
 
       const parts: string[] = ["*Job completed.*"];
