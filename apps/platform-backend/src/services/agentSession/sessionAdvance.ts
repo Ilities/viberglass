@@ -89,8 +89,12 @@ export function resolveTicketAdvance(
 ): TicketAdvanceResult {
   const normalized = instruction.toLowerCase().trim();
 
-  const wantsPlan = PLAN_TRIGGERS.has(normalized) || APPROVE_TRIGGERS.has(normalized);
-  const wantsExecute = EXECUTE_TRIGGERS.has(normalized);
+  const wantsPlan =
+    PLAN_TRIGGERS.has(normalized) ||
+    (APPROVE_TRIGGERS.has(normalized) && currentPhase === TICKET_WORKFLOW_PHASE.RESEARCH);
+  const wantsExecute =
+    EXECUTE_TRIGGERS.has(normalized) ||
+    (APPROVE_TRIGGERS.has(normalized) && currentPhase === TICKET_WORKFLOW_PHASE.PLANNING);
   const wantsNext = ADVANCE_TRIGGERS.has(normalized);
 
   if (wantsNext) {
