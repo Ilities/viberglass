@@ -43,6 +43,16 @@ export class TicketWorkflowService {
       throw new Error("Ticket not found");
     }
 
+    // Idempotent: already in the target phase is a no-op. This makes
+    // re-triggering the current phase (retries, double-clicks, Slack chain
+    // hand-offs) safe.
+    if (ticket.workflowPhase === targetPhase) {
+      return {
+        ticketId,
+        workflowPhase: targetPhase,
+      };
+    }
+
     if (!this.canAdvance(ticket.workflowPhase, targetPhase)) {
       throw new Error(
         `Cannot advance ticket workflow from ${ticket.workflowPhase} to ${targetPhase}`,

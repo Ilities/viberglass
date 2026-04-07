@@ -2,10 +2,16 @@ import type { Thread } from "chat";
 import logger from "../config/logger";
 import { JobService } from "../services/JobService";
 import { TicketPhaseDocumentService } from "../services/TicketPhaseDocumentService";
-import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
-import { getThreadForTicket } from "./ticketThreadMap";
+import {
+  TICKET_WORKFLOW_PHASE,
+  type TicketWorkflowPhase,
+} from "@viberglass/types";
+import { getThreadForTicket, updateTicketThreadMode } from "./ticketThreadMap";
 import { ChatTicketThreadDAO } from "../persistence/chat/ChatTicketThreadDAO";
+import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { TicketPhaseRunDAO } from "../persistence/ticketing/TicketPhaseRunDAO";
+import { ticketUrl } from "./platformLinks";
 import type { JobStatus, JobStatusResponse } from "../types/Job";
 
 const POLL_INTERVAL_MS = 2000;
@@ -18,6 +24,16 @@ interface ActiveBridge {
   thread: Thread;
   mode: Mode;
   timer: ReturnType<typeof setInterval>;
+  chainTo?: TicketWorkflowPhase;
+  clankerId?: string;
+}
+
+export interface TicketBridgeCallbacks {
+  advanceAndRun: (params: {
+    ticketId: string;
+    clankerId: string;
+    targetPhase: TicketWorkflowPhase;
+  }) => Promise<{ jobId: string; status: string }>;
 }
 
 export class TicketJobBridge {
@@ -25,16 +41,27 @@ export class TicketJobBridge {
   private readonly documentService = new TicketPhaseDocumentService();
   private readonly threadDAO = new ChatTicketThreadDAO();
   private readonly phaseRunDAO = new TicketPhaseRunDAO();
+  private readonly ticketDAO = new TicketDAO();
+  private readonly projectDAO = new ProjectDAO();
   private readonly bridges = new Map<string, ActiveBridge>();
+  private callbacks: TicketBridgeCallbacks | null = null;
+
+  configure(callbacks: TicketBridgeCallbacks): void {
+    this.callbacks = callbacks;
+  }
 
   /**
    * Start polling a job and post the document to the thread when it completes.
+   * If `chainTo` is set, on completion the bridge will auto-advance the ticket
+   * to that phase and start a new bridge for the follow-up job.
    */
   startBridge(
     jobId: string,
     ticketId: string,
     thread: Thread,
     mode: Mode,
+    chainTo?: TicketWorkflowPhase,
+    clankerId?: string,
   ): void {
     const key = `${ticketId}:${jobId}`;
     if (this.bridges.has(key)) return;
@@ -51,8 +78,14 @@ export class TicketJobBridge {
         lastStatus = status.status;
 
         if (status.status === "completed") {
+          const current = this.bridges.get(key);
+          const chainTo = current?.chainTo;
+          const chainClankerId = current?.clankerId;
           await this.handleCompleted(ticketId, thread, mode, status);
           this.stopBridge(key);
+          if (chainTo && chainClankerId) {
+            await this.handleChain(ticketId, thread, chainTo, chainClankerId);
+          }
         } else if (status.status === "failed") {
           await thread.post({
             markdown: "*Job failed.* An error occurred during processing.",
@@ -69,7 +102,15 @@ export class TicketJobBridge {
     };
 
     const timer = setInterval(poll, POLL_INTERVAL_MS);
-    this.bridges.set(key, { jobId, ticketId, thread, mode, timer });
+    this.bridges.set(key, {
+      jobId,
+      ticketId,
+      thread,
+      mode,
+      timer,
+      chainTo,
+      clankerId,
+    });
     poll();
   }
 
@@ -153,9 +194,27 @@ export class TicketJobBridge {
           });
         }
       } else if (result?.pullRequestUrl) {
-        await thread.post({
-          markdown: `*Pull Request created:* [${result.pullRequestUrl}](${result.pullRequestUrl})`,
-        });
+        // Persist PR URL on the ticket so the UI reflects completion.
+        try {
+          await this.ticketDAO.updatePullRequestUrl(
+            ticketId,
+            result.pullRequestUrl,
+          );
+        } catch (err) {
+          logger.error("Failed to persist pull request URL on ticket", {
+            ticketId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+
+        const ticketLink = await this.buildTicketLink(ticketId);
+        const lines = [
+          `*Pull Request created:* [${result.pullRequestUrl}](${result.pullRequestUrl})`,
+        ];
+        if (ticketLink) {
+          lines.push(`_View ticket:_ ${ticketLink}`);
+        }
+        await thread.post({ markdown: lines.join("\n") });
       }
 
       const parts: string[] = ["*Job completed.*"];
@@ -178,6 +237,55 @@ export class TicketJobBridge {
       logger.error("TicketJobBridge handleCompleted error", {
         ticketId,
         error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async buildTicketLink(ticketId: string): Promise<string | null> {
+    try {
+      const ticket = await this.ticketDAO.getTicket(ticketId);
+      if (!ticket) return null;
+      const project = await this.projectDAO.getProject(ticket.projectId);
+      if (!project) return null;
+      return ticketUrl(project.slug, ticketId);
+    } catch {
+      return null;
+    }
+  }
+
+  private async handleChain(
+    ticketId: string,
+    thread: Thread,
+    chainTo: TicketWorkflowPhase,
+    clankerId: string,
+  ): Promise<void> {
+    if (!this.callbacks) {
+      logger.error(
+        "TicketJobBridge chain requested but callbacks not configured",
+        { ticketId, chainTo },
+      );
+      return;
+    }
+    try {
+      await thread.post({ markdown: `_Advancing to ${chainTo}…_` });
+      await updateTicketThreadMode(ticketId, chainTo);
+      const result = await this.callbacks.advanceAndRun({
+        ticketId,
+        clankerId,
+        targetPhase: chainTo,
+      });
+      const mode = chainTo as Mode;
+      this.startBridge(result.jobId, ticketId, thread, mode);
+    } catch (err) {
+      logger.error("TicketJobBridge chain advance failed", {
+        ticketId,
+        chainTo,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await thread.post({
+        markdown: `Error advancing to ${chainTo}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       });
     }
   }

@@ -37,6 +37,9 @@ import { TicketResearchService } from "../services/TicketResearchService";
 import { TicketPlanningService } from "../services/TicketPlanningService";
 import { TicketExecutionService } from "../services/TicketExecutionService";
 import { TicketWorkflowService } from "../services/TicketWorkflowService";
+import { TicketPlanningApprovalService } from "../services/TicketPlanningApprovalService";
+import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
+import { getFeedbackService } from "../webhooks/webhookServiceFactory";
 import { WorkerExecutionService } from "../workers";
 
 // Register as the global singleton so ThreadImpl lazy resolution works.
@@ -84,6 +87,32 @@ const ticketPlanningService = new TicketPlanningService();
 const ticketExecutionService = new TicketExecutionService();
 const ticketWorkflowService = new TicketWorkflowService();
 
+let chatFeedbackService;
+try {
+  chatFeedbackService = getFeedbackService();
+} catch (error) {
+  logger.warn("Feedback service unavailable for chat phase orchestration", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+
+const ticketPlanningApprovalService = new TicketPlanningApprovalService(
+  chatFeedbackService,
+);
+
+const ticketPhaseOrchestrationService = new TicketPhaseOrchestrationService(
+  ticketDAO,
+  ticketWorkflowService,
+  ticketPlanningApprovalService,
+  ticketResearchService,
+  ticketPlanningService,
+  ticketExecutionService,
+);
+
+ticketJobBridge.configure({
+  advanceAndRun: (params) => ticketPhaseOrchestrationService.advanceAndRun(params),
+});
+
 const slackServices: SlackHandlerServices = {
   listProjects: () => projectDAO.listProjects(),
   listClankers: () => clankerDAO.listClankers(),
@@ -115,7 +144,14 @@ const slackServices: SlackHandlerServices = {
     // Start the ticket job bridge to post the document on completion
     const thread = await getThreadForTicket(ticketId);
     if (thread) {
-      ticketJobBridge.startBridge(result.jobId, ticketId, thread, mode);
+      ticketJobBridge.startBridge(
+        result.jobId,
+        ticketId,
+        thread,
+        mode,
+        undefined,
+        clankerId,
+      );
     }
 
     return result;
@@ -158,22 +194,55 @@ const slackServices: SlackHandlerServices = {
   // Ticket job flow
   resolveTicketAdvance,
   advanceAndRunTicketJob: async ({ ticketId, clankerId, targetPhase }) => {
-    await ticketWorkflowService.advancePhase(ticketId, targetPhase);
     await updateTicketThreadMode(ticketId, targetPhase);
 
-    const mode = targetPhase as "research" | "planning" | "execution";
-    let result;
-    if (mode === "research") {
-      result = await ticketResearchService.runResearch(ticketId, { clankerId });
-    } else if (mode === "planning") {
-      result = await ticketPlanningService.runPlanning(ticketId, { clankerId });
-    } else {
-      result = await ticketExecutionService.runTicket(ticketId, { clankerId });
-    }
+    const result = await ticketPhaseOrchestrationService.advanceAndRun({
+      ticketId,
+      clankerId,
+      targetPhase,
+    });
 
+    const mode = targetPhase as "research" | "planning" | "execution";
     const thread = await getThreadForTicket(ticketId);
     if (thread) {
-      ticketJobBridge.startBridge(result.jobId, ticketId, thread, mode);
+      ticketJobBridge.startBridge(
+        result.jobId,
+        ticketId,
+        thread,
+        mode,
+        undefined,
+        clankerId,
+      );
+    }
+
+    return result;
+  },
+  chainAndRunTicketJob: async ({
+    ticketId,
+    clankerId,
+    firstPhase,
+    thenPhase,
+  }) => {
+    await updateTicketThreadMode(ticketId, firstPhase);
+
+    const result = await ticketPhaseOrchestrationService.advanceAndRunChain({
+      ticketId,
+      clankerId,
+      firstPhase,
+      thenPhase,
+    });
+
+    const mode = firstPhase as "research" | "planning" | "execution";
+    const thread = await getThreadForTicket(ticketId);
+    if (thread) {
+      ticketJobBridge.startBridge(
+        result.jobId,
+        ticketId,
+        thread,
+        mode,
+        thenPhase,
+        clankerId,
+      );
     }
 
     return result;
@@ -195,7 +264,14 @@ const slackServices: SlackHandlerServices = {
     // Start the ticket job bridge to post the revised document on completion
     const thread = await getThreadForTicket(ticketId);
     if (thread) {
-      ticketJobBridge.startBridge(result.jobId, ticketId, thread, mode);
+      ticketJobBridge.startBridge(
+        result.jobId,
+        ticketId,
+        thread,
+        mode,
+        undefined,
+        clankerId,
+      );
     }
 
     return result;

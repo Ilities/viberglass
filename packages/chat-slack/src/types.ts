@@ -95,6 +95,12 @@ export interface SlackHandlerServices {
     clankerId: string;
     targetPhase: TicketWorkflowPhase;
   }): Promise<{ jobId: string; status: string }>;
+  chainAndRunTicketJob(params: {
+    ticketId: string;
+    clankerId: string;
+    firstPhase: TicketWorkflowPhase;
+    thenPhase: TicketWorkflowPhase;
+  }): Promise<{ jobId: string; status: string }>;
   runRevisionJob(params: {
     ticketId: string;
     clankerId: string;

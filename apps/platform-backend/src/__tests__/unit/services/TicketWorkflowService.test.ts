@@ -140,17 +140,22 @@ describe("TicketWorkflowService", () => {
     );
   });
 
-  it("rejects same-phase transitions", async () => {
+  it("treats same-phase advances as a no-op", async () => {
     mockTicketDAO.getTicket.mockResolvedValue({
       id: "ticket-1",
       workflowPhase: TICKET_WORKFLOW_PHASE.EXECUTION,
     } as any);
 
-    await expect(
-      service.advancePhase("ticket-1", TICKET_WORKFLOW_PHASE.EXECUTION),
-    ).rejects.toThrow(
-      "Cannot advance ticket workflow from execution to execution",
+    const result = await service.advancePhase(
+      "ticket-1",
+      TICKET_WORKFLOW_PHASE.EXECUTION,
     );
+
+    expect(result).toEqual({
+      ticketId: "ticket-1",
+      workflowPhase: TICKET_WORKFLOW_PHASE.EXECUTION,
+    });
+    expect(mockTicketDAO.updateWorkflowPhase).not.toHaveBeenCalled();
   });
 
   it("throws when the ticket is missing", async () => {
