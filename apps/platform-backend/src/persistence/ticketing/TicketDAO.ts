@@ -305,6 +305,17 @@ export class TicketDAO {
       .execute();
   }
 
+  async updatePullRequestUrl(id: string, pullRequestUrl: string): Promise<void> {
+    await db
+      .updateTable("tickets")
+      .set({
+        pull_request_url: pullRequestUrl,
+        updated_at: new Date(),
+      })
+      .where("id", "=", id)
+      .execute();
+  }
+
   async updateWorkflowPhase(
     id: string,
     workflowPhase: TicketWorkflowPhase,

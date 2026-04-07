@@ -49,13 +49,15 @@ export function registerThreadMentionHandler(
 
       if (advance.kind === "chain") {
         try {
-          await thread.post(`_Advancing to ${advance.firstPhase}…_`);
-          await services.advanceAndRunTicketJob({
+          await thread.post(
+            `_Advancing to ${advance.firstPhase} (will auto-continue to ${advance.thenPhase})…_`,
+          );
+          await services.chainAndRunTicketJob({
             ticketId: ticketMapping.ticketId,
             clankerId: ticketMapping.clankerId,
-            targetPhase: advance.firstPhase,
+            firstPhase: advance.firstPhase,
+            thenPhase: advance.thenPhase,
           });
-          await thread.post(`_After ${advance.firstPhase} completes, mention @viberator with "execute" to continue._`);
         } catch (err) {
           await thread.post(
             `Error: ${err instanceof Error ? err.message : "Failed to advance phase"}`,

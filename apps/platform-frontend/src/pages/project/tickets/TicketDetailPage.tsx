@@ -75,6 +75,30 @@ export function TicketDetailPage() {
     return () => { cancelled = true }
   }, [id])
 
+  // While execution is in progress and no pull request has landed yet, poll
+  // the ticket so the PR URL (persisted by TicketJobBridge on job completion)
+  // shows up without requiring a manual page refresh.
+  useEffect(() => {
+    if (!id || !ticket) return
+    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.EXECUTION) return
+    if (ticket.pullRequestUrl) return
+    let cancelled = false
+    const timer = setInterval(async () => {
+      try {
+        const latest = await getTicketDetails(id)
+        if (cancelled || !latest) return
+        setTicket(latest)
+        if (latest.pullRequestUrl) clearInterval(timer)
+      } catch {
+        // swallow — next tick will retry
+      }
+    }, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [id, ticket?.workflowPhase, ticket?.pullRequestUrl, ticket])
+
   const executionBlockingReason = useMemo(() => {
     if (!ticket) return null
     if (ticket.workflowOverriddenAt) return null

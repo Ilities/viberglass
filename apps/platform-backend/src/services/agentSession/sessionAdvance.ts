@@ -87,7 +87,19 @@ export function resolveTicketAdvance(
   instruction: string,
   currentPhase: TicketWorkflowPhase,
 ): TicketAdvanceResult {
-  const normalized = instruction.toLowerCase().trim();
+  // Normalize: lowercase, trim whitespace, strip leading/trailing punctuation
+  // so "lgtm!" / "lgtm." / " lgtm " all match.
+  const normalized = instruction
+    .toLowerCase()
+    .trim()
+    .replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, "")
+    .trim();
+
+  // Once execution has started, everything is a revision request (which the
+  // Slack handler rejects). This keeps the resolver behaviour tidy.
+  if (currentPhase === TICKET_WORKFLOW_PHASE.EXECUTION) {
+    return { kind: "revise" };
+  }
 
   const wantsPlan =
     PLAN_TRIGGERS.has(normalized) ||
