@@ -8,10 +8,12 @@
 const ACCENT_COLORS = [
   'amber',
   'blue',
+  'bronze',
   'crimson',
   'cyan',
   'gold',
   'grass',
+  'gray',
   'green',
   'indigo',
   'iris',
@@ -31,6 +33,9 @@ const ACCENT_COLORS = [
 ] as const
 
 export type AccentColor = (typeof ACCENT_COLORS)[number]
+
+export const GRAY_PALETTES = ['sand', 'gray', 'mauve', 'olive', 'sage', 'slate'] as const
+export type GrayPalette = (typeof GRAY_PALETTES)[number]
 
 /**
  * Simple hash function for strings.
@@ -57,8 +62,25 @@ export function getProjectAccentColor(projectName: string): AccentColor {
 }
 
 /**
+ * Gets a consistent gray palette for a project based on its name.
+ * The same project name will always return the same gray palette.
+ */
+export function getProjectGrayPalette(projectName: string): GrayPalette {
+  const hash = hashString(projectName.toLowerCase().trim())
+  const index = hash % GRAY_PALETTES.length
+  return GRAY_PALETTES[index]
+}
+
+/**
  * Gets all available accent colors.
  */
 export function getAvailableAccentColors(): readonly AccentColor[] {
   return ACCENT_COLORS
+}
+
+/**
+ * Gets all available gray palettes.
+ */
+export function getAvailableGrayPalettes(): readonly GrayPalette[] {
+  return GRAY_PALETTES
 }

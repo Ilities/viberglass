@@ -1,5 +1,5 @@
 import type { Chat } from "chat";
-import { AGENT_SESSION_STATUS, AGENT_SESSION_MODE } from "@viberglass/types";
+import { AGENT_SESSION_STATUS, AGENT_SESSION_MODE,TicketWorkflowPhase } from "@viberglass/types";
 import type { SlackHandlerServices } from "../types";
 
 export function registerThreadMentionHandler(
@@ -28,7 +28,7 @@ export function registerThreadMentionHandler(
 
       const advance = services.resolveTicketAdvance(
         instruction,
-        ticketMapping.mode as import("@viberglass/types").TicketWorkflowPhase,
+        ticketMapping.mode as TicketWorkflowPhase
       );
 
       if (advance.kind === "advance") {
