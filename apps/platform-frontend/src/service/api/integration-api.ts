@@ -946,6 +946,17 @@ export async function deleteIntegrationCredential(integrationId: string, credent
   }
 }
 
+/**
+ * Check whether the workspace-level Slack bot is configured on the backend.
+ */
+export async function getSlackBotStatus(): Promise<{ configured: boolean }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/integrations/slack/status`)
+  if (!response.ok) {
+    return { configured: false }
+  }
+  return response.json() as Promise<{ configured: boolean }>
+}
+
 // Re-export types for convenience
 export type {
   ConfigureIntegrationRequest,
