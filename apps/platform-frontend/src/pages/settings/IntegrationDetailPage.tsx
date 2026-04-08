@@ -14,6 +14,7 @@ import {
   createIntegration,
   getAvailableIntegrationTypes,
   getIntegration,
+  getSlackBotStatus,
   testIntegration,
   updateIntegration,
   type AvailableIntegrationType,
@@ -74,6 +75,7 @@ export function IntegrationDetailPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [isAutoCreating, setIsAutoCreating] = useState(false)
+  const [slackBotConfigured, setSlackBotConfigured] = useState<boolean | null>(null)
 
   const integrationEntityId = existingIntegration?.id
   const integrationSystem = integrationType?.id
@@ -288,6 +290,15 @@ export function IntegrationDetailPage() {
     }
   }, [integrationEntityIdParam, integrationSystemParam, navigate])
 
+  useEffect(() => {
+    if (!isSlackIntegration) {
+      return
+    }
+    getSlackBotStatus()
+      .then(({ configured }) => setSlackBotConfigured(configured))
+      .catch(() => setSlackBotConfigured(false))
+  }, [isSlackIntegration])
+
   if (isPageLoading || isAutoCreating) {
     return <IntegrationDetailLoadingState />
   }
@@ -300,7 +311,16 @@ export function IntegrationDetailPage() {
     return <IntegrationDetailNotFoundState />
   }
 
-  const configStatus = integrationType.status === 'stub' ? 'stub' : isConfigured ? 'configured' : 'not_configured'
+  const configStatus =
+    integrationType.status === 'stub'
+      ? 'stub'
+      : isSlackIntegration
+        ? slackBotConfigured
+          ? 'configured'
+          : 'not_configured'
+        : isConfigured
+          ? 'configured'
+          : 'not_configured'
   const IconComponent = getIntegrationIcon(integrationType.id)
   const status = getIntegrationStatusConfig(configStatus)
   const category = getIntegrationCategoryConfig(integrationType.category)
