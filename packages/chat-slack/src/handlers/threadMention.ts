@@ -10,10 +10,29 @@ export function registerThreadMentionHandler(
     const text = message.text?.trim();
     if (!text) return;
 
+    console.info("[chat-slack:threadMention] handler entry", {
+      threadId: thread.id,
+      rawText: text,
+    });
+
     // First check if this is a ticket-based thread (job flow)
     const ticketMapping = await services.getTicketForThread(thread.id);
+
+    console.info("[chat-slack:threadMention] ticket mapping lookup", {
+      threadId: thread.id,
+      ticketId: ticketMapping?.ticketId ?? null,
+      mode: ticketMapping?.mode ?? null,
+    });
+
     if (ticketMapping) {
-      const instruction = text.replace(/^<@\S+>\s*/, "").trim();
+      // Strip all @mentions (including trailing ones from Slack mobile) and collapse whitespace
+      const instruction = text.replace(/<@\S+>/g, " ").replace(/\s+/g, " ").trim();
+
+      console.info("[chat-slack:threadMention] cleaned instruction", {
+        threadId: thread.id,
+        instruction,
+      });
+
       if (!instruction) {
         await thread.post(
           "_Please include your feedback after @viberator to revise, or say \"plan it\" / \"execute\" to advance._",
@@ -30,6 +49,13 @@ export function registerThreadMentionHandler(
         instruction,
         ticketMapping.mode as TicketWorkflowPhase
       );
+
+      console.info("[chat-slack:threadMention] resolveTicketAdvance result", {
+        threadId: thread.id,
+        kind: advance.kind,
+        ...(advance.kind === "advance" ? { targetPhase: advance.targetPhase } : {}),
+        ...(advance.kind === "chain" ? { firstPhase: advance.firstPhase, thenPhase: advance.thenPhase } : {}),
+      });
 
       if (advance.kind === "advance") {
         try {
@@ -98,7 +124,7 @@ export function registerThreadMentionHandler(
         return;
       }
 
-      const instruction = text.replace(/^<@\S+>\s*/, "").trim();
+      const instruction = text.replace(/<@\S+>/g, " ").replace(/\s+/g, " ").trim();
       if (!instruction) {
         await thread.post(
           "_Please include your feedback after @viberator to revise the document._",

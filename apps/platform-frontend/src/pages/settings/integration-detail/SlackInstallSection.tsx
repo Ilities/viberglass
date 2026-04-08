@@ -216,8 +216,12 @@ export function SlackInstallSection() {
           ticket and streams progress there.
         </Text>
         <Text className="text-[var(--gray-9)]">
-          Once a job completes, <strong>@mention the bot</strong> in the thread with a keyword to
-          advance to the next phase:
+          Once a job completes, the bot posts an <strong>Approve / Reject</strong> card in the
+          thread. Click <strong>Approve</strong> to advance to the next phase, or{' '}
+          <strong>Reject</strong> to keep the current phase open for revision.
+        </Text>
+        <Text className="text-[var(--gray-9)]">
+          You can also <strong>@mention the bot</strong> with a keyword as an alternative path:
         </Text>
         <ul className="list-disc list-inside space-y-1 text-sm text-[var(--gray-11)]">
           <li>
@@ -239,7 +243,8 @@ export function SlackInstallSection() {
         <Text className="text-[var(--gray-9)]">
           Keywords are case-insensitive and punctuation is stripped, so <code>LGTM!</code> and{' '}
           <code>lgtm.</code> both work. When execution completes the bot posts the pull request link.
-          Use the <strong>Approve / Reject</strong> buttons if the agent requests approval mid-run.
+          The same <strong>Approve / Reject</strong> buttons also appear if the agent requests
+          approval mid-run during execution.
         </Text>
       </div>
 

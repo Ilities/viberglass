@@ -19,9 +19,10 @@ The integration provides:
 
 - `/viberator` slash command that opens a modal to create a ticket and launch the first AI agent job
 - Job progress streamed into a Slack thread (documents posted on completion, PR link on execution finish)
-- Keyword commands in thread mentions to advance or revise the current phase
+- Approve/Reject buttons posted after each research/planning job for one-click phase advancement
+- Keyword commands in thread @mentions as an alternative path to advance or revise
 - Chained phase execution (e.g. research → planning → execution in one command)
-- Approve/Reject buttons when the agent needs approval during execution
+- Approve/Reject buttons when the agent needs approval mid-run during execution
 
 ## Prerequisites
 
@@ -114,9 +115,15 @@ Slack workspace
   │     │     → (default): runRevisionJob()
   │     └── TicketJobBridge.startBridge() for follow-up job
   │
-  └── Approve/Reject button click
+  ├── ticket_approve_phase / ticket_reject_phase button click
+  │     ↓
+  │   ticketApprovalAction handler
+  │     ├── reject → posts "Rejected by {user}" message (no state change)
+  │     └── approve → advanceAndRunTicketJob() + TicketJobBridge.startBridge()
+  │
+  └── session_approve / session_reject button click
         ↓
-      onAction handler
+      approvalAction handler
         └── AgentSessionInteractionService.approve()
 ```
 
@@ -152,9 +159,18 @@ Slack workspace
 4. Click **Launch**
 5. The bot creates a ticket, starts the job, and posts a thread with a link to the ticket
 
-### Advancing Phases with Keyword Commands
+### Advancing Phases
 
-Once a job completes, @mention the bot in the thread with a keyword to move to the next phase. Keywords are case-insensitive and trailing/leading punctuation is stripped (so `lgtm!` and `LGTM.` both work).
+#### Approve / Reject Buttons (Primary)
+
+When a research or planning job completes, the bot posts a card in the thread with **Approve** and **Reject** buttons:
+
+- **Approve** — advances to the next phase (research → planning, planning → execution) and starts the follow-up job immediately.
+- **Reject** — posts a "Rejected" message and keeps the current phase open. @mention the bot with feedback to queue a revision job.
+
+#### Keyword Commands (Alternative)
+
+@mention the bot in the thread with a keyword to move to the next phase. Keywords are case-insensitive and trailing/leading punctuation is stripped (so `lgtm!` and `LGTM.` both work).
 
 | Keyword(s) | Current phase | Action |
 |---|---|---|
@@ -173,8 +189,8 @@ Once a job completes, @mention the bot in the thread with a keyword to move to t
 | Event | Slack message posted |
 |---|---|
 | Job launched | Thread root with ticket link and initial prompt |
-| Research job completes | `research.md` file attachment + advance prompt |
-| Planning job completes | `planning.md` file attachment + advance prompt |
+| Research job completes | `research.md` file attachment + "Research complete" card with Approve/Reject buttons |
+| Planning job completes | `planning.md` file attachment + "Planning complete" card with Approve/Reject buttons |
 | Execution job completes | Pull request URL + ticket link |
 | Chain auto-advance | _Advancing to planning…_ (then proceeds automatically) |
 | Job failed | _Job failed. An error occurred during processing._ |
@@ -184,7 +200,7 @@ Once a job completes, @mention the bot in the thread with a keyword to move to t
 
 ### Approvals During Execution
 
-If the agent requests approval (e.g. before destructive operations), the bot posts a card with **Approve** and **Reject** buttons directly in the thread.
+If the agent requests approval mid-run (e.g. before destructive operations), the bot also posts a card with **Approve** and **Reject** buttons directly in the thread. These use different action IDs (`session_approve` / `session_reject`) from the phase-advancement buttons (`ticket_approve_phase` / `ticket_reject_phase`) and are handled independently.
 
 ## Troubleshooting
 
