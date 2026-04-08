@@ -25,8 +25,8 @@ export function registerThreadMentionHandler(
     });
 
     if (ticketMapping) {
-      // Strip all @mentions (including trailing ones from Slack mobile) and collapse whitespace
-      const instruction = text.replace(/<@\S+>/g, " ").replace(/\s+/g, " ").trim();
+      // Strip all @mentions (both <@U123> and plain @U123 formats) and collapse whitespace
+      const instruction = text.replace(/<@\S+?>|@\w+/g, " ").replace(/\s+/g, " ").trim();
 
       console.info("[chat-slack:threadMention] cleaned instruction", {
         threadId: thread.id,
@@ -124,7 +124,7 @@ export function registerThreadMentionHandler(
         return;
       }
 
-      const instruction = text.replace(/<@\S+>/g, " ").replace(/\s+/g, " ").trim();
+      const instruction = text.replace(/<@\S+?>|@\w+/g, " ").replace(/\s+/g, " ").trim();
       if (!instruction) {
         await thread.post(
           "_Please include your feedback after @viberator to revise the document._",
