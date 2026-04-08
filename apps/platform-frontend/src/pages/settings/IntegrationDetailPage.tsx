@@ -40,6 +40,7 @@ import { JiraOutboundWebhookSection } from './integration-detail/JiraOutboundWeb
 import { OutboundWebhookSection } from './integration-detail/OutboundWebhookSection'
 import { ShortcutInboundWebhookSection } from './integration-detail/ShortcutInboundWebhookSection'
 import { ShortcutOutboundWebhookSection } from './integration-detail/ShortcutOutboundWebhookSection'
+import { SlackInstallSection } from './integration-detail/SlackInstallSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
 
@@ -81,6 +82,7 @@ export function IntegrationDetailPage() {
   const isJiraIntegration = integrationSystem === 'jira'
   const isShortcutIntegration = integrationSystem === 'shortcut'
   const isCustomIntegration = integrationSystem === 'custom'
+  const isSlackIntegration = integrationSystem === 'slack'
 
   const webhook = useIntegrationWebhookSettings({
     integrationEntityId,
@@ -611,7 +613,9 @@ export function IntegrationDetailPage() {
         </div>
       </div>
 
-      {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && !isGithubIntegration && (
+      {isSlackIntegration && <SlackInstallSection />}
+
+      {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && !isGithubIntegration && !isSlackIntegration && (
         <section className="app-frame rounded-lg p-6">
           <Subheading>Configuration</Subheading>
           <div className="mt-6">
