@@ -1,3 +1,4 @@
+import { Card, CardText, Actions, Button } from "chat";
 import type { Thread } from "chat";
 import logger from "../config/logger";
 import { JobService } from "../services/JobService";
@@ -217,22 +218,37 @@ export class TicketJobBridge {
         await thread.post({ markdown: lines.join("\n") });
       }
 
-      const parts: string[] = ["*Job completed.*"];
-
-      // We don't have project ID here easily — skip ticket URL for now
-      // (the modal already posted it)
-
-      if (mode === "research") {
-        parts.push(
-          '_Mention @viberator with feedback to revise, or say "plan it" / "next" / "lgtm" to move to planning._',
+      if (mode === "research" || mode === "planning") {
+        const phaseLabel = mode === "research" ? "Research" : "Planning";
+        const hint =
+          mode === "research"
+            ? 'Click Approve to advance to planning, or @mention with feedback to revise. You can also say "plan it" / "next" / "lgtm".'
+            : 'Click Approve to start execution, or @mention with feedback to revise. You can also say "execute" / "ship it" / "go".';
+        await thread.post(
+          Card({
+            title: `${phaseLabel} complete`,
+            children: [
+              CardText(hint),
+              Actions([
+                Button({
+                  id: "ticket_approve_phase",
+                  label: "Approve",
+                  style: "primary",
+                  value: ticketId,
+                }),
+                Button({
+                  id: "ticket_reject_phase",
+                  label: "Reject",
+                  style: "danger",
+                  value: ticketId,
+                }),
+              ]),
+            ],
+          }),
         );
-      } else if (mode === "planning") {
-        parts.push(
-          '_Mention @viberator with feedback to revise, or say "execute" / "ship it" / "go" to start execution._',
-        );
+      } else {
+        await thread.post({ markdown: "*Job completed.*" });
       }
-
-      await thread.post({ markdown: parts.join("\n") });
     } catch (err) {
       logger.error("TicketJobBridge handleCompleted error", {
         ticketId,
