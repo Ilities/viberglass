@@ -53,23 +53,23 @@ function buildSessionPromptOverride(params: JobRunnerParams): string {
   let prompt = data.task;
 
   if (mode === "research" && data.context?.researchDocument?.trim()) {
-    if (!prompt.includes(data.context.researchDocument.trim())) {
-      prompt += `\n\nCurrent Research Document (revise this):\n${data.context.researchDocument}`;
+    if (!prompt.includes("<current-research-document>")) {
+      prompt += `\n\n<current-research-document>\n${data.context.researchDocument}\n</current-research-document>`;
     }
   }
 
   if (mode === "planning") {
     if (
       data.context?.researchDocument?.trim() &&
-      !prompt.includes(data.context.researchDocument.trim())
+      !prompt.includes("<approved-research-document>")
     ) {
-      prompt += `\n\nApproved Research Document:\n${data.context.researchDocument}`;
+      prompt += `\n\n<approved-research-document>\n${data.context.researchDocument}\n</approved-research-document>`;
     }
     if (
       data.context?.planDocument?.trim() &&
-      !prompt.includes(data.context.planDocument.trim())
+      !prompt.includes("<current-planning-document>")
     ) {
-      prompt += `\n\nCurrent Planning Document (revise this):\n${data.context.planDocument}`;
+      prompt += `\n\n<current-planning-document>\n${data.context.planDocument}\n</current-planning-document>`;
     }
   }
 
