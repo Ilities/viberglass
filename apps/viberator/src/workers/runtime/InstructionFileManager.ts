@@ -13,7 +13,10 @@ import {
 export class InstructionFileManager {
   private static readonly CLANKER_AGENTS_FILE = "AGENTS.md";
   private static readonly CLANKER_AGENTS_TARGET_PATH = "agents/AGENTS.md";
-  private static readonly HARNESS_CONFIG_PATTERNS = ["opencode.json"];
+  private static readonly HARNESS_CONFIG_PATTERNS = [
+    "opencode.json",
+    "pi/models.json",
+  ];
 
   constructor(private readonly logger: Logger) {}
 
@@ -110,10 +113,36 @@ export class InstructionFileManager {
       if (this.isHarnessConfigFile(fileType)) {
         const workDir = path.dirname(repoDir);
         const harnessConfigDir = path.join(workDir, ".harness-config");
-        const configFileName = path.basename(fileType);
-        const targetPath = path.join(harnessConfigDir, configFileName);
 
-        await fs.promises.mkdir(harnessConfigDir, { recursive: true });
+        // Preserve the relative path within .harness-config/ so that
+        // subdirectory patterns like "pi/models.json" land in
+        // .harness-config/pi/models.json rather than being flattened.
+        const normalizedRelative = path
+          .normalize(fileType.replace(/\\/g, "/"))
+          .replace(/^(\.\.(\/|\\|$))+/, "");
+
+        if (!normalizedRelative || path.isAbsolute(normalizedRelative)) {
+          this.logger.warn(
+            "InstructionFileManager: Skipping unsafe harness config path",
+            { fileType },
+          );
+          continue;
+        }
+
+        const targetPath = path.resolve(harnessConfigDir, normalizedRelative);
+        const resolvedHarnessDir = path.resolve(harnessConfigDir);
+        if (
+          targetPath !== resolvedHarnessDir &&
+          !targetPath.startsWith(`${resolvedHarnessDir}${path.sep}`)
+        ) {
+          this.logger.warn(
+            "InstructionFileManager: Skipping harness config path outside harness dir",
+            { fileType },
+          );
+          continue;
+        }
+
+        await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
         await fs.promises.writeFile(targetPath, content, "utf-8");
 
         this.logger.info(
@@ -127,6 +156,7 @@ export class InstructionFileManager {
         // For OpenCode, also materialize to $HOME/.opencode/opencode.json if HOME is set.
         // Some versions of the CLI or certain commands might not respect OPENCODE_CONFIG_DIR
         // or might need a persistent state dir for the database migration to succeed.
+        const configFileName = path.basename(normalizedRelative);
         if (configFileName === "opencode.json") {
           const resolvedHome = this.resolveHomeDirectory();
           const homeOpencodeDir = path.join(resolvedHome, ".opencode");

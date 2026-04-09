@@ -17,7 +17,7 @@ export class ClaudeCodeAgent extends BaseAgent {
     return ["claude-agent-acp"];
   }
 
-  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     return {
       ANTHROPIC_API_KEY: this.config.apiKey!,
       CLAUDE_CODE_NON_INTERACTIVE: "true",

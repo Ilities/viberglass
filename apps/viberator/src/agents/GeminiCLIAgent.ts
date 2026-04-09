@@ -12,7 +12,7 @@ export class GeminiCLIAgent extends BaseAgent {
     return ["gemini", "--experimental-acp"];
   }
 
-  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     return {
       GEMINI_API_KEY: this.config.apiKey!,
       GOOGLE_API_KEY: this.config.apiKey!,

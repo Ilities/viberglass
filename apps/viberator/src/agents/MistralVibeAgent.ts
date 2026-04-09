@@ -12,7 +12,7 @@ export class MistralVibeAgent extends BaseAgent {
     return ["vibe-acp"];
   }
 
-  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     return {
       MISTRAL_API_KEY: this.config.apiKey!,
     };

@@ -15,7 +15,7 @@ export class KimiCodeAgent extends BaseAgent {
     return ["kimi", "acp"];
   }
 
-  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     return {
       ...(this.config.apiKey ? { KIMI_API_KEY: this.config.apiKey } : {}),
     };

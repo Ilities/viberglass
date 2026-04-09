@@ -23,7 +23,7 @@ export class OpenCodeAgent extends BaseAgent {
     return ["opencode", "acp"];
   }
 
-  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(harnessConfigDir: string): NodeJS.ProcessEnv {
     const env: NodeJS.ProcessEnv = {};
     if (this.config.apiKey) {
       env.OPENCODE_API_KEY = this.config.apiKey;
@@ -35,6 +35,9 @@ export class OpenCodeAgent extends BaseAgent {
     if (endpoint) {
       env.OPENCODE_BASE_URL = endpoint;
       env.OPENAI_BASE_URL = endpoint;
+    }
+    if (fs.existsSync(harnessConfigDir)) {
+      env.OPENCODE_CONFIG_DIR = harnessConfigDir;
     }
     return env;
   }

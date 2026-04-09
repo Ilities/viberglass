@@ -68,7 +68,8 @@
       "mistral-vibe",
       "codex",
       "opencode",
-      "kimi-code"
+      "kimi-code",
+      "pi"
     ],
     "defaultForAgents": ["claude-code"]
   },
@@ -149,5 +150,18 @@
     "isAgentImage": true,
     "supportedAgents": ["kimi-code"],
     "defaultForAgents": ["kimi-code"]
+  },
+  {
+    "variant": "pi",
+    "repositoryName": "viberator-worker-pi",
+    "scriptImageName": "worker-pi",
+    "dockerfilePath": "infra/workers/docker/agents/viberator-worker-pi.Dockerfile",
+    "includeInHarnessSetup": true,
+    "includeInInfraProvisioning": true,
+    "includeInBuildScript": true,
+    "includeInPushScript": true,
+    "isAgentImage": true,
+    "supportedAgents": ["pi"],
+    "defaultForAgents": ["pi"]
   }
 ]
