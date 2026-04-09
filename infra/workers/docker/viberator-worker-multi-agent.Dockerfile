@@ -53,6 +53,11 @@ RUN npm install -g @openai/codex
 # Source: https://opencode.ai/docs
 RUN npm install -g opencode-ai@latest
 
+# Install Pi coding agent CLI and ACP bridge
+# Source: https://github.com/mariozechner/pi-coding-agent
+# Source: https://github.com/svkozak/pi-acp
+RUN npm install -g @mariozechner/pi-coding-agent pi-acp
+
 # Install Kimi Code CLI for the runtime user to avoid /root permission issues.
 USER viberator
 ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
@@ -99,7 +104,7 @@ ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
 # Multi-agent labels
-LABEL agent.types="claude-code,qwen-cli,gemini-cli,mistral-vibe,codex,opencode,kimi-code" \
+LABEL agent.types="claude-code,qwen-cli,gemini-cli,mistral-vibe,codex,opencode,kimi-code,pi" \
       viberator.worker-type="multi-agent" \
       viberator.capabilities="all-agents"
 

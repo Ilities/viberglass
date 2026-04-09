@@ -7,4 +7,5 @@ export { OpenCodeAgent } from "./OpenCodeAgent";
 export { KimiCodeAgent } from "./KimiCodeAgent";
 export { MistralVibeAgent } from "./MistralVibeAgent";
 export { GeminiCLIAgent } from "./GeminiCLIAgent";
+export { PiCodingAgent } from "./PiCodingAgent";
 export { AgentFactory } from "./AgentFactory";
