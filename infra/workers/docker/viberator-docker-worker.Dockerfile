@@ -32,6 +32,8 @@ RUN npm install -g \
     @google/gemini-cli \
     @openai/codex \
     opencode-ai@latest \
+    @mariozechner/pi-coding-agent \
+    pi-acp \
     typescript jest \
     @zed-industries/claude-agent-acp
 

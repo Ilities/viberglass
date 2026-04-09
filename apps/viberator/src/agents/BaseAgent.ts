@@ -130,10 +130,14 @@ export abstract class BaseAgent {
   /**
    * Return extra environment variables needed when running this agent's CLI
    * in ACP mode.  The AcpExecutor merges these into process.env before
-   * spawning the subprocess.  Override in concrete agents to inject API keys
-   * and endpoint URLs.
+   * spawning the subprocess.  Override in concrete agents to inject API keys,
+   * endpoint URLs, and any harness config dir env vars the agent requires.
+   *
+   * @param harnessConfigDir  Absolute path to the job's .harness-config/ dir.
+   *                          The dir may or may not exist; agents that need it
+   *                          should guard with existsSync before using the path.
    */
-  public getAcpEnvironment(): NodeJS.ProcessEnv {
+  public getAcpEnvironment(harnessConfigDir: string): NodeJS.ProcessEnv {
     return {};
   }
 

@@ -16,7 +16,7 @@ export class QwenCodeAgent extends BaseAgent {
     return ["qwen", "--acp", "--yolo"];
   }
 
-  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     const endpoint = this.resolveCompatibleBaseUrl();
     return {
       DASHSCOPE_API_KEY: this.config.apiKey!,

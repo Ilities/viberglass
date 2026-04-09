@@ -154,6 +154,28 @@ export const DEFAULT_AGENT_CONFIGS: Configuration["agents"] = {
     },
     approvalMode: "yolo",
   },
+  pi: {
+    name: "pi",
+    apiKey: "",
+    capabilities: [
+      "python",
+      "javascript",
+      "typescript",
+      "java",
+      "go",
+      "rust",
+      "cpp",
+    ],
+    costPerExecution: 0.5,
+    averageSuccessRate: 0.83,
+    executionTimeLimit: 2700,
+    resourceLimits: {
+      maxMemoryMB: 2048,
+      maxCpuPercent: 80,
+      maxDiskSpaceMB: 1024,
+      maxNetworkRequests: 100,
+    },
+  },
 };
 
 /**
@@ -189,5 +211,8 @@ export const AGENT_ENV_ALIASES: Record<
   },
   "mistral-vibe": {
     apiKey: ["MISTRAL_API_KEY"],
+  },
+  pi: {
+    apiKey: ["ANTHROPIC_API_KEY"],
   },
 };
