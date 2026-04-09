@@ -6,6 +6,7 @@ import { OpenCodeAgent } from "./OpenCodeAgent";
 import { KimiCodeAgent } from "./KimiCodeAgent";
 import { MistralVibeAgent } from "./MistralVibeAgent";
 import { GeminiCLIAgent } from "./GeminiCLIAgent";
+import { PiCodingAgent } from "./PiCodingAgent";
 import { AgentConfig } from "../types";
 import { Logger } from "winston";
 
@@ -26,6 +27,8 @@ export class AgentFactory {
         return new MistralVibeAgent(config, logger);
       case "gemini-cli":
         return new GeminiCLIAgent(config, logger);
+      case "pi":
+        return new PiCodingAgent(config, logger);
       default:
         throw new Error(`Unknown agent type: ${(config as any).name}`);
     }

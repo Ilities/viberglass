@@ -127,6 +127,13 @@ export interface MistralVibeConfig extends BaseAgentConfig {
   autoApprove?: boolean; // Auto-approve tool execution in CLI
 }
 
+// Pi coding agent configuration
+// ACP bridge: https://github.com/svkozak/pi-acp (spawns pi --mode rpc)
+export interface PiConfig extends BaseAgentConfig {
+  name: "pi";
+  apiKey: string; // ANTHROPIC_API_KEY; leave empty to rely on ambient env
+}
+
 // Union type for all agent configurations
 export type AgentConfig =
   | ClaudeCodeConfig
@@ -135,4 +142,5 @@ export type AgentConfig =
   | OpenCodeConfig
   | KimiCodeConfig
   | GeminiConfig
-  | MistralVibeConfig;
+  | MistralVibeConfig
+  | PiConfig;

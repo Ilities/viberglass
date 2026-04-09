@@ -29,6 +29,7 @@ const AGENT_STATE_DIRS: Record<string, string> = {
   "gemini-cli": ".gemini",
   "kimi-code": ".kimi",
   "mistral-vibe": ".mistral",
+  pi: ".pi",
 };
 
 // Patterns to exclude from the archive — large/irrelevant directories that

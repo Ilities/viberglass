@@ -13,7 +13,7 @@ export class CodexAgent extends BaseAgent {
     return ["codex-acp"];
   }
 
-  public override getAcpEnvironment(): NodeJS.ProcessEnv {
+  public override getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     return {
       OPENAI_API_KEY:
         (process.env.CODEX_AUTH_MODE || "api_key") === "api_key"

@@ -1,4 +1,3 @@
-import { existsSync } from "fs";
 import * as path from "path";
 import { Logger } from "winston";
 import { AcpClient } from "../acp/AcpClient";
@@ -20,16 +19,13 @@ export class AcpExecutor {
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      ...agent.getAcpEnvironment(),
+      ...agent.getAcpEnvironment(harnessConfigDir),
     };
 
     // In Lambda the sandbox user's home dir may not physically exist or be writable.
     // Use the agent's logic to resolve a suitable HOME.
     env.HOME = agent.resolveHomeDirectory(env.HOME);
 
-    if (existsSync(harnessConfigDir)) {
-      env.OPENCODE_CONFIG_DIR = harnessConfigDir;
-    }
     const timeoutMs = (context.maxExecutionTime || 1800) * 1000;
 
     this.logger.info("AcpExecutor starting", {
@@ -38,12 +34,7 @@ export class AcpExecutor {
       timeoutMs,
       agentSessionId: context.agentSessionId,
       acpSessionId: context.acpSessionId,
-      env: {
-        HOME: env.HOME,
-        OPENCODE_CONFIG_DIR: env.OPENCODE_CONFIG_DIR,
-        OPENCODE_BASE_URL: env.OPENCODE_BASE_URL,
-        HAS_API_KEY: !!env.OPENCODE_API_KEY,
-      },
+      env: { HOME: env.HOME },
     });
 
     const client = new AcpClient(
