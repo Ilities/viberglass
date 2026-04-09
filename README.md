@@ -109,9 +109,9 @@ Once your Clanker is running, go to `/projects` and click **Create Project**. Wi
 
 <img src="docs/images/project-config.png" width="600" />
 
-**Step 5: Create tickets and put your viberators to work!**
+**Step 5: Create tickets**
 
-After you've set up your project, you can create tickets in the UI or via an integration webhook. Once you are happy with the ticket, put your Clanker to work to step through the Research, Plan, and Execute phases of the ticket lifecycle.
+Create tickets in the UI or via an integration webhook. Each ticket steps through the Research, Plan, and Execute phases and eventually ends with a pull request in your repository.
 
 <img src="docs/images/ticket-page.png" width="600" />
 

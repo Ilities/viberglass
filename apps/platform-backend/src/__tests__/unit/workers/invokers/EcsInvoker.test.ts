@@ -23,6 +23,14 @@ jest.mock("@aws-sdk/client-ecs", () => ({
   RunTaskCommand: jest.fn().mockImplementation((input) => ({ input })),
 }));
 
+// Mock JobService
+const mockSaveBootstrapPayload = jest.fn().mockResolvedValue(undefined);
+jest.mock("../../../../services/JobService", () => ({
+  JobService: jest.fn().mockImplementation(() => ({
+    saveBootstrapPayload: mockSaveBootstrapPayload,
+  })),
+}));
+
 describe("EcsInvoker", () => {
   let invoker: EcsInvoker;
   let mockJob: JobData;
@@ -30,6 +38,7 @@ describe("EcsInvoker", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSaveBootstrapPayload.mockResolvedValue(undefined);
 
     invoker = new EcsInvoker({ region: "eu-west-1" });
 
@@ -501,7 +510,7 @@ describe("EcsInvoker", () => {
         expect(payload.instructionFiles).toEqual([]);
       });
 
-      it("should use job-ref command when bootstrap payload is available", async () => {
+      it("should use job-ref command when bootstrap payload is pre-stored", async () => {
         const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
         process.env.PLATFORM_API_URL = "https://platform.example.com";
 
@@ -541,6 +550,55 @@ describe("EcsInvoker", () => {
           expect(override.environment).toEqual(
             expect.arrayContaining([
               { name: "CALLBACK_TOKEN", value: "cb-token-123" },
+            ]),
+          );
+          expect(mockSaveBootstrapPayload).not.toHaveBeenCalled();
+        } finally {
+          process.env.PLATFORM_API_URL = previousPlatformApiUrl;
+        }
+      });
+
+      it("should store bootstrap payload on-demand and use job-ref when callbackToken is set", async () => {
+        const previousPlatformApiUrl = process.env.PLATFORM_API_URL;
+        process.env.PLATFORM_API_URL = "https://platform.example.com";
+
+        try {
+          mockSend.mockResolvedValueOnce({
+            $metadata: {},
+            tasks: [
+              {
+                taskArn:
+                  "arn:aws:ecs:eu-west-1:123456789:task/viberator/on-demand",
+              },
+            ],
+            failures: [],
+          });
+
+          const jobWithToken: JobData = {
+            ...mockJob,
+            callbackToken: "cb-token-456",
+            // bootstrapPayload intentionally absent
+          };
+
+          await invoker.invoke(jobWithToken, mockClanker);
+
+          expect(mockSaveBootstrapPayload).toHaveBeenCalledWith(
+            mockJob.id,
+            expect.objectContaining({ workerType: "ecs", jobId: mockJob.id }),
+          );
+
+          const runTaskInput = mockSend.mock.calls[0][0].input;
+          const override = runTaskInput.overrides.containerOverrides[0];
+
+          expect(override.command).toEqual([
+            "node",
+            "apps/viberator/dist/cli-worker.js",
+            "--job-ref",
+            mockJob.id,
+          ]);
+          expect(override.environment).toEqual(
+            expect.arrayContaining([
+              { name: "CALLBACK_TOKEN", value: "cb-token-456" },
             ]),
           );
         } finally {
