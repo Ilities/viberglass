@@ -9,6 +9,7 @@ import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
+import { JobService } from "../../services/JobService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
 
@@ -28,12 +29,14 @@ export class EcsInvoker implements WorkerInvoker {
   readonly name = "EcsInvoker";
   private client: ECSClient;
   private credentialRequirementsService: CredentialRequirementsService;
+  private jobService: JobService;
 
   constructor(config?: { region?: string }) {
     this.client = new ECSClient({
       region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
     this.credentialRequirementsService = new CredentialRequirementsService();
+    this.jobService = new JobService();
   }
 
   async invoke(
@@ -84,13 +87,34 @@ export class EcsInvoker implements WorkerInvoker {
       );
     }
 
-    const payload =
-      job.bootstrapPayload || (await this.buildPayload(job, clanker, project));
-    const payloadJson = JSON.stringify(payload);
     const canUseJobRef = Boolean(
-      job.bootstrapPayload && job.callbackToken && process.env.PLATFORM_API_URL,
+      job.callbackToken && process.env.PLATFORM_API_URL,
     );
     const containerName = ecsConfig.containerName || "worker";
+
+    let containerCommand: string[];
+    if (canUseJobRef) {
+      if (!job.bootstrapPayload) {
+        const built = await this.buildPayload(job, clanker, project);
+        await this.jobService.saveBootstrapPayload(job.id, built);
+      }
+      containerCommand = [
+        "node",
+        "apps/viberator/dist/cli-worker.js",
+        "--job-ref",
+        job.id,
+      ];
+    } else {
+      const payload =
+        job.bootstrapPayload ?? (await this.buildPayload(job, clanker, project));
+      containerCommand = [
+        "node",
+        "apps/viberator/dist/cli-worker.js",
+        "--job-data",
+        JSON.stringify(payload),
+      ];
+    }
+
     const environment = [
       { name: "TENANT_ID", value: job.tenantId },
       { name: "JOB_ID", value: job.id },
@@ -137,9 +161,7 @@ export class EcsInvoker implements WorkerInvoker {
           containerOverrides: [
             {
               name: containerName,
-              command: canUseJobRef
-                ? ["node", "apps/viberator/dist/cli-worker.js", "--job-ref", job.id]
-                : ["node", "apps/viberator/dist/cli-worker.js", "--job-data", payloadJson],
+              command: containerCommand,
               environment,
             },
           ],
@@ -253,7 +275,7 @@ export class EcsInvoker implements WorkerInvoker {
     job: JobData,
     clanker: Clanker,
     project?: Project,
-  ): Promise<object> {
+  ): Promise<Record<string, unknown>> {
     const requiredCredentials =
       await this.credentialRequirementsService.getRequiredCredentialsForClanker(
         clanker,

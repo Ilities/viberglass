@@ -377,6 +377,7 @@ export async function submitJobWithBootstrapAndInvoke(
     project,
   });
 
+  jobData.bootstrapPayload = bootstrapPayload;
   await deps.jobService.saveBootstrapPayload(jobData.id, bootstrapPayload);
 
   // Invoke worker (fire-and-forget)
