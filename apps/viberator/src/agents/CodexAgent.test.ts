@@ -53,7 +53,7 @@ class TestCodexAgent extends CodexAgent {
   }
 }
 
-function createCodexConfig(overrides: Partial<CodexConfig> = {}): AgentConfig {
+function createCodexConfig(overrides: Partial<CodexConfig> = {}): CodexConfig {
   return {
     name: "codex",
     apiKey: "sk-test",

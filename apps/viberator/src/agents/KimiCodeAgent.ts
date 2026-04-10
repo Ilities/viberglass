@@ -1,9 +1,13 @@
-import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext } from "../types";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
+import type { KimiCodeConfig, ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import { Logger } from "winston";
 import * as path from "path";
 
-export class KimiCodeAgent extends BaseAgent {
+export class KimiCodeAgent extends ViberatorBaseAgent<KimiCodeConfig> {
+  constructor(config: KimiCodeConfig, logger: Logger) {
+    super(config, logger);
+  }
   private readonly defaultModelName = "kimi-for-coding";
   private readonly defaultBaseUrl = "https://api.kimi.com/coding/v1";
 

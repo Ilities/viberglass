@@ -23,6 +23,7 @@
   ],
   "workspaces": [
     "packages/types",
+    "packages/agent-core",
     "packages/chat-slack",
     "apps/viberator",
     "apps/platform-backend",
@@ -34,7 +35,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n be,fe \"npm run dev -w @viberglass/platform-backend\" \"npm run dev -w @viberglass/frontend\"",
-    "build": "npm run build -w @viberglass/types && npm run build --workspaces --if-present",
+    "build": "npm run build -w @viberglass/types && npm run build -w @viberglass/agent-core && npm run build --workspaces --if-present",
     "types:build": "npm run build -w @viberglass/types",
     "types:dev": "npm run dev -w @viberglass/types",
     "test": "npm run test:unit --workspaces --if-present",

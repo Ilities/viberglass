@@ -1,18 +1,7 @@
-export interface ResourceLimits {
-  maxMemoryMB: number;
-  maxCpuPercent: number;
-  maxDiskSpaceMB: number;
-  maxNetworkRequests: number;
-}
+import type { BaseAgentConfig } from "@viberglass/agent-core";
 
-// Base configuration shared by all agents
-export interface BaseAgentConfig extends Record<string, unknown> {
-  capabilities: string[]; // ['python', 'javascript', 'java', 'typescript', 'go', 'rust']
-  costPerExecution: number;
-  averageSuccessRate: number;
-  executionTimeLimit: number; // seconds
-  resourceLimits: ResourceLimits;
-}
+// ResourceLimits and BaseAgentConfig live in agent-core; re-exported here.
+export type { ResourceLimits, BaseAgentConfig } from "@viberglass/agent-core";
 
 // Claude Code specific configuration
 // Docs: https://code.claude.com/docs/en/cli-reference

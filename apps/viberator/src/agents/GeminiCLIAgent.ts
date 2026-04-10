@@ -1,9 +1,13 @@
-import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext } from "../types";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
+import type { GeminiConfig, ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import { Logger } from "winston";
 import * as path from "path";
 
-export class GeminiCLIAgent extends BaseAgent {
+export class GeminiCLIAgent extends ViberatorBaseAgent<GeminiConfig> {
+  constructor(config: GeminiConfig, logger: Logger) {
+    super(config, logger);
+  }
   protected requiresApiKey(): boolean {
     return true;
   }

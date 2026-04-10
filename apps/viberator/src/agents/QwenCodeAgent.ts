@@ -1,9 +1,13 @@
 import type { AgentCLIResult } from "./BaseAgent";
-import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext } from "../types";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
+import type { QwenCodeConfig, ExecutionContext } from "../types";
+import { Logger } from "winston";
 import * as path from "path";
 
-export class QwenCodeAgent extends BaseAgent {
+export class QwenCodeAgent extends ViberatorBaseAgent<QwenCodeConfig> {
+  constructor(config: QwenCodeConfig, logger: Logger) {
+    super(config, logger);
+  }
   private readonly defaultCompatibleBaseUrl =
     "https://dashscope.aliyuncs.com/compatible-mode/v1";
   private readonly defaultModel = "qwen3-coder-plus";

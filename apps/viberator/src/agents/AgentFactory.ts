@@ -1,4 +1,4 @@
-import { BaseAgent } from "./BaseAgent";
+import { BaseAgent } from "@viberglass/agent-core";
 import { ClaudeCodeAgent } from "./ClaudeCodeAgent";
 import { QwenCodeAgent } from "./QwenCodeAgent";
 import { CodexAgent } from "./CodexAgent";
