@@ -1,5 +1,6 @@
 // Export all agents
 export { BaseAgent } from "./BaseAgent";
+export { ViberatorBaseAgent } from "./ViberatorBaseAgent";
 export { ClaudeCodeAgent } from "./ClaudeCodeAgent";
 export { QwenCodeAgent } from "./QwenCodeAgent";
 export { CodexAgent } from "./CodexAgent";

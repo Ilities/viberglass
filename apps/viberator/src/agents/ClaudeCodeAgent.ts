@@ -1,11 +1,11 @@
 import type { AgentCLIResult } from "./BaseAgent";
-import { BaseAgent } from "./BaseAgent";
-import { AgentConfig, ExecutionContext } from "../types";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
+import type { ClaudeCodeConfig, ExecutionContext } from "../types";
 import { Logger } from "winston";
 import * as path from "path";
 
-export class ClaudeCodeAgent extends BaseAgent {
-  constructor(config: AgentConfig, logger: Logger) {
+export class ClaudeCodeAgent extends ViberatorBaseAgent<ClaudeCodeConfig> {
+  constructor(config: ClaudeCodeConfig, logger: Logger) {
     super(config, logger);
   }
 

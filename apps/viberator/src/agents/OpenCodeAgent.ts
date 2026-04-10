@@ -1,10 +1,14 @@
-import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext } from "../types";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
+import type { OpenCodeConfig, ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import { Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
 
-export class OpenCodeAgent extends BaseAgent {
+export class OpenCodeAgent extends ViberatorBaseAgent<OpenCodeConfig> {
+  constructor(config: OpenCodeConfig, logger: Logger) {
+    super(config, logger);
+  }
   private getNonEmptyTrimmedString(value: unknown): string | undefined {
     if (typeof value !== "string") {
       return undefined;

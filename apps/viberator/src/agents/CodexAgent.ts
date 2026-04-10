@@ -1,9 +1,13 @@
-import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext } from "../types";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
+import type { CodexConfig, ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import { Logger } from "winston";
 import * as path from "path";
 
-export class CodexAgent extends BaseAgent {
+export class CodexAgent extends ViberatorBaseAgent<CodexConfig> {
+  constructor(config: CodexConfig, logger: Logger) {
+    super(config, logger);
+  }
   protected requiresApiKey(): boolean {
     const authMode = process.env.CODEX_AUTH_MODE || "api_key";
     return authMode === "api_key";

@@ -1,9 +1,13 @@
-import { BaseAgent } from "./BaseAgent";
-import { ExecutionContext } from "../types";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
+import type { MistralVibeConfig, ExecutionContext } from "../types";
 import type { AgentCLIResult } from "./BaseAgent";
+import { Logger } from "winston";
 import * as path from "path";
 
-export class MistralVibeAgent extends BaseAgent {
+export class MistralVibeAgent extends ViberatorBaseAgent<MistralVibeConfig> {
+  constructor(config: MistralVibeConfig, logger: Logger) {
+    super(config, logger);
+  }
   protected requiresApiKey(): boolean {
     return true;
   }

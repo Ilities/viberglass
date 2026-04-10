@@ -1,6 +1,7 @@
-import { BaseAgent } from "./BaseAgent";
+import { ViberatorBaseAgent } from "./ViberatorBaseAgent";
 import type { AgentCLIResult } from "./BaseAgent";
-import { ExecutionContext } from "../types";
+import type { PiConfig, ExecutionContext } from "../types";
+import { Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -12,7 +13,10 @@ import * as path from "path";
  *
  * Install: npm install -g @mariozechner/pi-coding-agent pi-acp
  */
-export class PiCodingAgent extends BaseAgent {
+export class PiCodingAgent extends ViberatorBaseAgent<PiConfig> {
+  constructor(config: PiConfig, logger: Logger) {
+    super(config, logger);
+  }
   /**
    * Pi resolves API credentials from its config directory (PI_CODING_AGENT_DIR)
    * rather than requiring them in the viberator agent config.
