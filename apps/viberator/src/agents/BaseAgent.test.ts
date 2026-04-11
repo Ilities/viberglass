@@ -1,7 +1,6 @@
 import { createLogger, transports } from "winston";
-import { BaseAgent } from "./BaseAgent";
-import type { AgentConfig, ExecutionContext } from "../types";
-import type { AgentCLIResult } from "./BaseAgent";
+import { BaseAgent } from "@viberglass/agent-core";
+import type { BaseAgentConfig, ExecutionContext, AgentCLIResult } from "@viberglass/agent-core";
 import * as fs from "fs";
 
 class TestBaseAgent extends BaseAgent {
@@ -29,7 +28,7 @@ class TestBaseAgent extends BaseAgent {
   }
 }
 
-function createConfig(): AgentConfig {
+function createConfig(): BaseAgentConfig {
   return {
     name: "codex",
     apiKey: "",

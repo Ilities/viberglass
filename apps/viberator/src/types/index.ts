@@ -1,7 +1,15 @@
-import { AgentConfig } from "./agents";
-import type { PlatformSessionEvent } from "../acp/types";
+// ExecutionContext, ExecutionResult, and related types now live in agent-core.
+export type {
+  ExecutionContext,
+  ExecutionResult,
+  TestResult,
+  SecretMetadata,
+  TicketMediaContext,
+  ResourceLimits,
+  BaseAgentConfig,
+} from "@viberglass/agent-core";
 
-export * from "./agents";
+import type { ExecutionResult as ExecutionResultType, BaseAgentConfig } from "@viberglass/agent-core";
 
 // Core types for the AI Agent Orchestrator
 export interface BugReport {
@@ -32,83 +40,13 @@ export interface Ticket {
 export interface ProjectSettings {
   repoUrl: string;
   branch: string;
-  agentName?: AgentConfig["name"];
-  preferredAgents?: AgentConfig["name"][];
+  agentName?: BaseAgentConfig["name"];
+  preferredAgents?: BaseAgentConfig["name"][];
   costLimit?: number;
   timeLimit?: number;
   testingRequired: boolean;
   codingStandards?: string;
   excludeFiles?: string[];
-}
-
-export interface SecretMetadata {
-  id: string;
-  name: string;
-  secretLocation: "env" | "database" | "ssm";
-  secretPath: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TicketMediaContext {
-  id: string;
-  kind: "screenshot" | "recording";
-  filename: string;
-  mimeType: string;
-  size: number;
-  uploadedAt: string;
-  storageUrl: string;
-  mountPath?: string;
-  s3Url?: string;
-  accessUrl?: string;
-}
-
-export interface ExecutionContext {
-  // Repository
-  repoUrl: string;
-  branch: string;
-  baseBranch?: string;
-  repoDir?: string;
-  commitHash: string;
-
-  // Bug information
-  bugDescription: string;
-  stepsToReproduce: string;
-  expectedBehavior: string;
-  actualBehavior: string;
-
-  // Technical context
-  stackTrace?: string;
-  consoleErrors?: string[];
-  affectedFiles?: string[];
-  ticketMedia?: TicketMediaContext[];
-  researchDocument?: string;
-  planDocument?: string;
-
-  // Constraints
-  maxChanges: number;
-  testRequired: boolean;
-  codingStandards?: string;
-
-  // CI/CD
-  runTests: boolean;
-  testCommand?: string;
-
-  // Timeout
-  maxExecutionTime: number; // 30-45 minutes
-
-  // Job metadata
-  jobKind?: string;
-
-  // Agent and secrets configuration
-  agent?: string;
-  secrets?: SecretMetadata[];
-  promptOverride?: string;
-
-  // ACP interactive session fields
-  agentSessionId?: string;
-  acpSessionId?: string;
-  onAcpEvent?: (event: PlatformSessionEvent) => void;
 }
 
 export interface AgentExecution {
@@ -117,29 +55,9 @@ export interface AgentExecution {
   startTime: Date;
   endTime?: Date;
   status: "pending" | "running" | "completed" | "failed" | "timeout";
-  result?: ExecutionResult;
+  result?: ExecutionResultType;
   logs: string[];
   resourceUsage: ResourceUsage;
-}
-
-export interface ExecutionResult {
-  success: boolean;
-  changedFiles: string[];
-  commitHash?: string;
-  pullRequestUrl?: string;
-  testResults?: TestResult[];
-  errorMessage?: string;
-  executionTime: number;
-  cost: number;
-  acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
-  newAcpSessionId?: string;
-}
-
-export interface TestResult {
-  name: string;
-  status: "passed" | "failed" | "skipped";
-  duration: number;
-  errorMessage?: string;
 }
 
 export interface ResourceUsage {
@@ -155,7 +73,7 @@ export interface GitConfig {
 }
 
 export interface Configuration {
-  agents: Record<string, AgentConfig>;
+  agents: Record<string, BaseAgentConfig>;
   aws?: {
     region: string;
     ssmParameterPath: string;

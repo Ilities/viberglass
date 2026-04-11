@@ -1,0 +1,12 @@
+# Fragment: Gemini CLI agent
+# Source: https://geminicli.com/docs/get-started/installation/
+RUN npm install -g @google/gemini-cli
+
+RUN which gemini || echo "Warning: gemini not found in PATH"
+
+ENV AGENT_TYPE=gemini-cli
+ENV GEMINI_CONFIG_DIR=/tmp/gemini-config
+
+LABEL agent.type="gemini-cli" \
+      agent.provider="google" \
+      viberator.worker-type="agent"

@@ -1,4 +1,4 @@
-import { isCodexStoredAuthFailure } from "../runtime/CodexAgentAuthLifecycle";
+import { isCodexStoredAuthFailure } from "@viberglass/agent-codex";
 
 describe("isCodexStoredAuthFailure", () => {
   test("matches unauthorized auth failures", () => {

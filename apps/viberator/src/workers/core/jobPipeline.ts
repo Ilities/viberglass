@@ -1,7 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { Logger } from "winston";
-import { AgentConfig, ExecutionContext } from "../../types";
+import type { BaseAgentConfig } from "@viberglass/agent-core";
+import { ExecutionContext } from "../../types";
 import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import {
@@ -46,7 +47,7 @@ export interface JobRunnerParams {
   sessionEventForwarder?: SessionEventForwarder;
   /** S3 URL of conversation state archive to restore before CLI launch */
   conversationStateUrl?: string;
-  selectAgentForExecution: (availableAgents: AgentConfig[]) => AgentConfig;
+  selectAgentForExecution: (availableAgents: BaseAgentConfig[]) => BaseAgentConfig;
   sendProgress: (
     step: string,
     message: string,

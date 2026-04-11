@@ -6,13 +6,13 @@ FROM node:24-slim AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/
-COPY packages/types/package*.json ./packages/types/
 COPY apps/viberator/tsup.config.ts ./apps/viberator/
-RUN npm install --workspace=@viberator/orchestrator --workspace=@viberglass/types
+COPY packages/types/ ./packages/types/
+COPY packages/agent-core/ ./packages/agent-core/
+COPY packages/agents/ ./packages/agents/
+RUN npm install --workspace=@viberator/orchestrator
 COPY apps/viberator ./apps/viberator
-COPY packages/types ./packages/types
-RUN npm run build --workspace=@viberglass/types && \
-    npm run build --workspace=@viberator/orchestrator
+RUN npm run build:worker
 
 # Production stage
 FROM node:24-slim
@@ -34,17 +34,16 @@ RUN npm install -g typescript jest
 # Create a non-root user
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 
-# Copy package files required for workspace dependency installation
+# Copy package files and install production dependencies
 COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/
-COPY packages/types/package*.json ./packages/types/
+COPY --from=builder /app/packages/types/ ./packages/types/
+COPY --from=builder /app/packages/agent-core/ ./packages/agent-core/
+COPY --from=builder /app/packages/agents/ ./packages/agents/
+RUN npm install --omit=dev --workspace=@viberator/orchestrator
 
-# Install production dependencies (without agents)
-RUN npm install --omit=dev --workspace=@viberator/orchestrator --workspace=@viberglass/types
-
-# Copy built files from builder
+# Copy built app from builder
 COPY --from=builder /app/apps/viberator/dist ./apps/viberator/dist
-COPY --from=builder /app/packages/types/dist ./packages/types/dist
 
 # Create a work directory for git clones
 RUN mkdir -p /tmp/viberator-work && \
