@@ -1,4 +1,2 @@
-export interface PlatformSessionEvent {
-  eventType: string;
-  payload: Record<string, unknown>;
-}
+// Re-export from agent-core.
+export type { PlatformSessionEvent } from "@viberglass/agent-core";

@@ -16,20 +16,10 @@ import * as path from "path";
 import { execFile } from "child_process";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Logger } from "winston";
+import { agentRegistry } from "../../agents/registerPlugins";
 
 const SESSION_STATE_ROOT =
   process.env.SESSION_STATE_ROOT || "/tmp/viberglass-session-state";
-
-// Agent name → subdirectory inside $HOME where conversation state lives
-const AGENT_STATE_DIRS: Record<string, string> = {
-  "claude-code": ".claude",
-  codex: ".codex",
-  "qwen-cli": ".qwen",
-  opencode: ".opencode",
-  "gemini-cli": ".gemini",
-  "kimi-code": ".kimi",
-  "mistral-vibe": ".mistral",
-};
 
 // Patterns to exclude from the archive — large/irrelevant directories that
 // would bloat the archive and make capture extremely slow (node_modules can
@@ -52,7 +42,8 @@ const TAR_EXCLUDES = [
  * Falls back to `.<agentName>/` for unknown agents.
  */
 function getStateDirs(agentName: string): string[] {
-  const known = AGENT_STATE_DIRS[agentName];
+  const stateDirsMap = agentRegistry().getStateDirs();
+  const known = stateDirsMap[agentName];
   if (known) return [known];
   return [`.${agentName}`];
 }

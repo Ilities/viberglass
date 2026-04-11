@@ -1,8 +1,8 @@
 import { createLogger, transports } from "winston";
 import { CallbackClient } from "../infrastructure/CallbackClient";
 import { ClankerAgentAuthLifecycleFactory } from "./ClankerAgentAuthLifecycleFactory";
-import { CodexAgentAuthLifecycle } from "./CodexAgentAuthLifecycle";
-import { NoopAgentAuthLifecycle } from "./NoopAgentAuthLifecycle";
+import { CodexAgentAuthLifecycle } from "@viberglass/agent-codex";
+import { NoopAgentAuthLifecycle } from "@viberglass/agent-core";
 
 describe("ClankerAgentAuthLifecycleFactory", () => {
   const logger = createLogger({

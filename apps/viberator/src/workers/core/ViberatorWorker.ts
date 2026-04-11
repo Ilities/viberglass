@@ -1,17 +1,18 @@
-import { createLogger, format, transports, Logger } from "winston";
+import { createLogger, format, Logger, transports } from "winston";
 import * as path from "path";
 import * as fs from "fs";
 import { ConfigManager } from "../../config/ConfigManager";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
-import { AcpExecutor } from "../../orchestrator/AcpExecutor";
-import { AgentConfig, Configuration } from "../../types";
+import type { BaseAgentConfig } from "@viberglass/agent-core";
+import { AcpExecutor } from "@viberglass/agent-core";
+import { Configuration } from "../../types";
 import GitService from "../../services/GitService";
 import {
   CodingJobData,
-  JobResult,
-  WorkerPayload,
   JobOverrides,
+  JobResult,
   ProjectConfigPayload,
+  WorkerPayload,
 } from "./types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
 import { CredentialProvider } from "../infrastructure/CredentialProvider";
@@ -30,7 +31,7 @@ import {
   normalizeAgentName,
   resolveClankerConfig,
 } from "./workerConfig";
-import { sendWorkerProgress, cleanupJobWorkspace } from "./workerHelpers";
+import { cleanupJobWorkspace, sendWorkerProgress } from "./workerHelpers";
 
 export class ViberatorWorker {
   private logger: Logger;
@@ -140,9 +141,8 @@ export class ViberatorWorker {
     this.currentTenantId = data.tenantId;
 
     try {
-      const jobRunner = data.jobKind === "claw"
-        ? runClawJob
-        : runSessionTurnJob;
+      const jobRunner =
+        data.jobKind === "claw" ? runClawJob : runSessionTurnJob;
 
       return await jobRunner({
         data,
@@ -216,6 +216,7 @@ export class ViberatorWorker {
       .create({
         requestedAgent: this.requestedAgent,
         clankerConfig: this.clankerConfig,
+        logger: this.logger,
       })
       .resolve();
     this.clankerEnvironment = extractClankerEnvironment(
@@ -297,7 +298,9 @@ export class ViberatorWorker {
     });
   }
 
-  private selectAgentForExecution(availableAgents: AgentConfig[]): AgentConfig {
+  private selectAgentForExecution(
+    availableAgents: BaseAgentConfig[],
+  ): BaseAgentConfig {
     if (availableAgents.length === 0) {
       throw new Error("No agents available");
     }

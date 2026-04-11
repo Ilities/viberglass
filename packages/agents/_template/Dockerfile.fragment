@@ -1,0 +1,13 @@
+# Fragment: __DISPLAY_NAME__ agent
+# TODO: Replace with the actual install command for your agent CLI
+# Source: https://example.com/your-agent/install
+RUN npm install -g your-agent-cli
+
+RUN which your-agent || echo "Warning: your-agent not found in PATH"
+
+ENV AGENT_TYPE=__NAME__
+# ENV __NAME_UPPER___CONFIG_DIR=/tmp/__NAME__-config
+
+LABEL agent.type="__NAME__" \
+      agent.provider="your-provider" \
+      viberator.worker-type="agent"

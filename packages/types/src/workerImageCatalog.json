@@ -13,19 +13,6 @@
     "defaultForAgents": []
   },
   {
-    "variant": "claude",
-    "repositoryName": "viberator-worker",
-    "scriptImageName": "worker",
-    "dockerfilePath": "infra/workers/docker/viberator-docker-worker.Dockerfile",
-    "includeInHarnessSetup": true,
-    "includeInInfraProvisioning": true,
-    "includeInBuildScript": true,
-    "includeInPushScript": true,
-    "isAgentImage": false,
-    "supportedAgents": ["claude-code"],
-    "defaultForAgents": []
-  },
-  {
     "variant": "ecs",
     "repositoryName": "viberator-ecs-worker",
     "scriptImageName": "ecs-worker",
@@ -63,91 +50,150 @@
     "isAgentImage": false,
     "supportedAgents": [
       "claude-code",
-      "qwen-cli",
-      "gemini-cli",
-      "mistral-vibe",
       "codex",
+      "gemini-cli",
+      "kimi-code",
+      "mistral-vibe",
       "opencode",
-      "kimi-code"
+      "pi",
+      "qwen-cli"
     ],
-    "defaultForAgents": ["claude-code"]
+    "defaultForAgents": [
+      "claude-code"
+    ]
   },
   {
-    "variant": "qwen",
-    "repositoryName": "viberator-worker-qwen",
-    "scriptImageName": "worker-qwen",
-    "dockerfilePath": "infra/workers/docker/agents/viberator-worker-qwen.Dockerfile",
+    "variant": "claude",
+    "repositoryName": "viberator-worker",
+    "scriptImageName": "worker",
+    "dockerfilePath": "infra/workers/docker/generated/claude.Dockerfile",
     "includeInHarnessSetup": true,
     "includeInInfraProvisioning": true,
     "includeInBuildScript": true,
     "includeInPushScript": true,
     "isAgentImage": true,
-    "supportedAgents": ["qwen-cli"],
-    "defaultForAgents": ["qwen-cli"]
-  },
-  {
-    "variant": "gemini",
-    "repositoryName": "viberator-worker-gemini",
-    "scriptImageName": "worker-gemini",
-    "dockerfilePath": "infra/workers/docker/agents/viberator-worker-gemini.Dockerfile",
-    "includeInHarnessSetup": true,
-    "includeInInfraProvisioning": true,
-    "includeInBuildScript": true,
-    "includeInPushScript": true,
-    "isAgentImage": true,
-    "supportedAgents": ["gemini-cli"],
-    "defaultForAgents": ["gemini-cli"]
-  },
-  {
-    "variant": "mistral",
-    "repositoryName": "viberator-worker-mistral",
-    "scriptImageName": "worker-mistral",
-    "dockerfilePath": "infra/workers/docker/agents/viberator-worker-mistral.Dockerfile",
-    "includeInHarnessSetup": true,
-    "includeInInfraProvisioning": true,
-    "includeInBuildScript": true,
-    "includeInPushScript": true,
-    "isAgentImage": true,
-    "supportedAgents": ["mistral-vibe"],
-    "defaultForAgents": ["mistral-vibe"]
+    "supportedAgents": [
+      "claude-code"
+    ],
+    "defaultForAgents": []
   },
   {
     "variant": "codex",
     "repositoryName": "viberator-worker-codex",
     "scriptImageName": "worker-codex",
-    "dockerfilePath": "infra/workers/docker/agents/viberator-worker-codex.Dockerfile",
+    "dockerfilePath": "infra/workers/docker/generated/codex.Dockerfile",
     "includeInHarnessSetup": true,
     "includeInInfraProvisioning": true,
     "includeInBuildScript": true,
     "includeInPushScript": true,
     "isAgentImage": true,
-    "supportedAgents": ["codex"],
-    "defaultForAgents": ["codex"]
+    "supportedAgents": [
+      "codex"
+    ],
+    "defaultForAgents": [
+      "codex"
+    ]
   },
   {
-    "variant": "opencode",
-    "repositoryName": "viberator-worker-opencode",
-    "scriptImageName": "worker-opencode",
-    "dockerfilePath": "infra/workers/docker/agents/viberator-worker-opencode.Dockerfile",
+    "variant": "gemini",
+    "repositoryName": "viberator-worker-gemini",
+    "scriptImageName": "worker-gemini",
+    "dockerfilePath": "infra/workers/docker/generated/gemini.Dockerfile",
     "includeInHarnessSetup": true,
     "includeInInfraProvisioning": true,
     "includeInBuildScript": true,
     "includeInPushScript": true,
     "isAgentImage": true,
-    "supportedAgents": ["opencode"],
-    "defaultForAgents": ["opencode"]
+    "supportedAgents": [
+      "gemini-cli"
+    ],
+    "defaultForAgents": [
+      "gemini-cli"
+    ]
   },
   {
     "variant": "kimi",
     "repositoryName": "viberator-worker-kimi",
     "scriptImageName": "worker-kimi",
-    "dockerfilePath": "infra/workers/docker/agents/viberator-worker-kimi.Dockerfile",
+    "dockerfilePath": "infra/workers/docker/generated/kimi.Dockerfile",
     "includeInHarnessSetup": true,
     "includeInInfraProvisioning": true,
     "includeInBuildScript": true,
     "includeInPushScript": true,
     "isAgentImage": true,
-    "supportedAgents": ["kimi-code"],
-    "defaultForAgents": ["kimi-code"]
+    "supportedAgents": [
+      "kimi-code"
+    ],
+    "defaultForAgents": [
+      "kimi-code"
+    ]
+  },
+  {
+    "variant": "mistral",
+    "repositoryName": "viberator-worker-mistral",
+    "scriptImageName": "worker-mistral",
+    "dockerfilePath": "infra/workers/docker/generated/mistral.Dockerfile",
+    "includeInHarnessSetup": true,
+    "includeInInfraProvisioning": true,
+    "includeInBuildScript": true,
+    "includeInPushScript": true,
+    "isAgentImage": true,
+    "supportedAgents": [
+      "mistral-vibe"
+    ],
+    "defaultForAgents": [
+      "mistral-vibe"
+    ]
+  },
+  {
+    "variant": "opencode",
+    "repositoryName": "viberator-worker-opencode",
+    "scriptImageName": "worker-opencode",
+    "dockerfilePath": "infra/workers/docker/generated/opencode.Dockerfile",
+    "includeInHarnessSetup": true,
+    "includeInInfraProvisioning": true,
+    "includeInBuildScript": true,
+    "includeInPushScript": true,
+    "isAgentImage": true,
+    "supportedAgents": [
+      "opencode"
+    ],
+    "defaultForAgents": [
+      "opencode"
+    ]
+  },
+  {
+    "variant": "pi",
+    "repositoryName": "viberator-worker-pi",
+    "scriptImageName": "worker-pi",
+    "dockerfilePath": "infra/workers/docker/generated/pi.Dockerfile",
+    "includeInHarnessSetup": true,
+    "includeInInfraProvisioning": true,
+    "includeInBuildScript": true,
+    "includeInPushScript": true,
+    "isAgentImage": true,
+    "supportedAgents": [
+      "pi"
+    ],
+    "defaultForAgents": [
+      "pi"
+    ]
+  },
+  {
+    "variant": "qwen",
+    "repositoryName": "viberator-worker-qwen",
+    "scriptImageName": "worker-qwen",
+    "dockerfilePath": "infra/workers/docker/generated/qwen.Dockerfile",
+    "includeInHarnessSetup": true,
+    "includeInInfraProvisioning": true,
+    "includeInBuildScript": true,
+    "includeInPushScript": true,
+    "isAgentImage": true,
+    "supportedAgents": [
+      "qwen-cli"
+    ],
+    "defaultForAgents": [
+      "qwen-cli"
+    ]
   }
 ]

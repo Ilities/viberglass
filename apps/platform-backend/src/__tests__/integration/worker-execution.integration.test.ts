@@ -48,6 +48,13 @@ jest.mock("dockerode", () => {
   }));
 });
 
+// Mock fs operations for session state directory (DockerInvoker)
+jest.mock("fs", () => ({
+  ...jest.requireActual("fs"),
+  mkdirSync: jest.fn(),
+  chmodSync: jest.fn(),
+}));
+
 // Mock JobService but allow real WorkerExecutionService to use it
 const mockJobStatusUpdates: Map<
   string,
