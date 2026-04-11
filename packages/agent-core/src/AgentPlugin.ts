@@ -4,6 +4,7 @@ import type { BaseAgent } from "./BaseAgent";
 import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
 import type { AgentEndpointEnvironment } from "./agentEndpointEnvironment";
+import type { IAgentGitService } from "./git/IAgentGitService";
 
 /**
  * Runtime context supplied to plugin factory functions for auth lifecycle
@@ -30,8 +31,10 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
   /** Human-readable name (e.g. "Pi Coding Agent") */
   readonly displayName: string;
 
-  /** Factory — replaces AgentFactory switch */
-  create(config: C, logger: Logger): BaseAgent;
+  /** Factory — replaces AgentFactory switch.
+   * Pass gitService to inject a real git implementation (apps/viberator injects GitService).
+   * Implementations may omit the parameter if they do not need one-shot git operations. */
+  create(config: C, logger: Logger, gitService?: IAgentGitService): BaseAgent;
 
   /** Default config values, merged with { name: id } at runtime */
   readonly defaultConfig: Omit<C, "name">;
@@ -75,6 +78,15 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
     scriptImageName: string;
     supportedAgents: string[];
     defaultForAgents: string[];
-    fragmentPath: string;
+    /**
+     * Set to false for agents that share a non-agent-specific image (e.g. claude-code
+     * uses viberator-docker-worker). Defaults to true in the catalog generator.
+     */
+    isAgentImage?: boolean;
+    /**
+     * Custom Dockerfile path. If absent, the generator computes
+     * infra/workers/docker/generated/<variant>.Dockerfile for agent images.
+     */
+    dockerfilePath?: string;
   };
 }

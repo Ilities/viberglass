@@ -1,13 +1,20 @@
+import { createLogger, transports } from "winston";
 import { ClankerAgentEndpointEnvironmentFactory } from "./ClankerAgentEndpointEnvironmentFactory";
-import { NoopAgentEndpointEnvironment } from "./NoopAgentEndpointEnvironment";
-import { OpenCodeAgentEndpointEnvironment } from "./OpenCodeAgentEndpointEnvironment";
-import { QwenAgentEndpointEnvironment } from "./QwenAgentEndpointEnvironment";
+import { NoopAgentEndpointEnvironment } from "@viberglass/agent-core";
+import { OpenCodeAgentEndpointEnvironment } from "@viberglass/agent-opencode";
+import { QwenAgentEndpointEnvironment } from "@viberglass/agent-qwen";
+
+const logger = createLogger({
+  silent: true,
+  transports: [new transports.Console({ silent: true })],
+});
 
 describe("ClankerAgentEndpointEnvironmentFactory", () => {
   test("returns noop environment for non-qwen agents", () => {
     const factory = new ClankerAgentEndpointEnvironmentFactory();
     const environment = factory.create({
       requestedAgent: "claude-code",
+      logger,
     });
 
     expect(environment).toBeInstanceOf(NoopAgentEndpointEnvironment);
@@ -17,6 +24,7 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
   test("returns qwen endpoint environment from v1 deployment config", () => {
     const factory = new ClankerAgentEndpointEnvironmentFactory();
     const environment = factory.create({
+      logger,
       clankerConfig: {
         version: 1,
         strategy: { type: "ecs" },
@@ -37,6 +45,7 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
   test("returns qwen endpoint environment from legacy config", () => {
     const factory = new ClankerAgentEndpointEnvironmentFactory();
     const environment = factory.create({
+      logger,
       clankerConfig: {
         agent: "qwen-cli",
         qwenEndpoint: "https://qwen.legacy.example.com/v1",
@@ -53,6 +62,7 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
   test("returns noop when qwen endpoint is missing", () => {
     const factory = new ClankerAgentEndpointEnvironmentFactory();
     const environment = factory.create({
+      logger,
       requestedAgent: "qwen-cli",
       clankerConfig: {
         version: 1,
@@ -69,6 +79,7 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
   test("returns opencode environment from v1 deployment config", () => {
     const factory = new ClankerAgentEndpointEnvironmentFactory();
     const environment = factory.create({
+      logger,
       clankerConfig: {
         version: 1,
         strategy: { type: "docker" },
@@ -91,6 +102,7 @@ describe("ClankerAgentEndpointEnvironmentFactory", () => {
   test("returns opencode environment from legacy config", () => {
     const factory = new ClankerAgentEndpointEnvironmentFactory();
     const environment = factory.create({
+      logger,
       clankerConfig: {
         agent: "opencode",
         endpoint: "https://api.openai.com/v1",

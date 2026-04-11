@@ -4,6 +4,7 @@ import type { BaseAgentConfig } from "./types";
 import type { BaseAgent } from "./BaseAgent";
 import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 import { defaultAcpEventMapper } from "./acp/acpEventMapper";
+import type { IAgentGitService } from "./git/IAgentGitService";
 
 export class AgentRegistry {
   private readonly plugins = new Map<string, AgentPlugin>();
@@ -30,8 +31,8 @@ export class AgentRegistry {
     return [...this.plugins.values()];
   }
 
-  createAgent(config: BaseAgentConfig, logger: Logger): BaseAgent {
-    return this.get(config.name).create(config, logger);
+  createAgent(config: BaseAgentConfig, logger: Logger, gitService?: IAgentGitService): BaseAgent {
+    return this.get(config.name).create(config, logger, gitService);
   }
 
   getAcpEventMapper(id: string): AcpEventMapper {
@@ -62,5 +63,19 @@ export class AgentRegistry {
 
   getHarnessConfigPatterns(): string[] {
     return this.list().flatMap((p) => p.harnessConfigPatterns ?? []);
+  }
+
+  /**
+   * Find the plugin whose harnessConfigPatterns include the given relative path,
+   * so callers can invoke its materializeHarnessConfig hook.
+   */
+  findByHarnessConfigPath(relativePath: string): AgentPlugin | undefined {
+    const normalized = relativePath.replace(/\\/g, "/");
+    return this.list().find((p) =>
+      (p.harnessConfigPatterns ?? []).some(
+        (pattern) =>
+          normalized === pattern || normalized.endsWith("/" + pattern),
+      ),
+    );
   }
 }

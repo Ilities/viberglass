@@ -108,7 +108,10 @@ export interface ExecutionResult {
   newAcpSessionId?: string;
 }
 
-// Intermediate type for CLI results that may include optional cost
-export type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost"> & {
+// Intermediate type for CLI results that may include optional cost.
+// changedFiles is optional — BaseAgent.execute collects it via gitService after
+// executeAgentCLI returns, so individual agents don't need to call getChangedFiles.
+export type AgentCLIResult = Omit<ExecutionResult, "executionTime" | "cost" | "changedFiles"> & {
   cost?: number;
+  changedFiles?: string[];
 };

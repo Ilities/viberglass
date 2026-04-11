@@ -1,24 +1,25 @@
 import {
-  AgentConfig,
   AgentExecution,
   ExecutionContext,
   ExecutionResult,
 } from "../types";
+import type { BaseAgentConfig } from "@viberglass/agent-core";
 import { Logger } from "winston";
-import { AgentFactory } from "../agents";
+import GitService from "../services/GitService";
 import { ConfigManager } from "../config/ConfigManager";
 import { randomUUID } from "crypto";
 import type { AcpExecutor } from "./AcpExecutor";
+import { agentRegistry } from "../agents/registerPlugins";
 
 export class AgentOrchestrator {
-  private agents: Map<string, AgentConfig>;
+  private agents: Map<string, BaseAgentConfig>;
   private activeExecutions: Map<string, AgentExecution>;
   private logger: Logger;
   private configManager: ConfigManager;
   private acpExecutor?: AcpExecutor;
 
   constructor(
-    agentConfigs: AgentConfig[],
+    agentConfigs: BaseAgentConfig[],
     logger: Logger,
     configManager: ConfigManager,
     acpExecutor?: AcpExecutor,
@@ -38,7 +39,7 @@ export class AgentOrchestrator {
   /**
    * Select a specific AI agent by identifier
    */
-  async selectAgent(agentName: AgentConfig["name"]): Promise<AgentConfig> {
+  async selectAgent(agentName: string): Promise<BaseAgentConfig> {
     this.logger.info("Selecting agent by identifier", { agentName });
 
     const selectedAgent = this.agents.get(agentName);
@@ -53,7 +54,7 @@ export class AgentOrchestrator {
    * Execute agent with the given context
    */
   async executeAgent(
-    agentConfig: AgentConfig,
+    agentConfig: BaseAgentConfig,
     context: ExecutionContext,
   ): Promise<ExecutionResult> {
     const executionId = `exec_${Date.now()}_${randomUUID().slice(0, 8)}`;
@@ -113,13 +114,18 @@ export class AgentOrchestrator {
       }
 
       const prompt = context.promptOverride || this.buildAgentPrompt(context);
-      const agent = AgentFactory.createAgent(effectiveAgentConfig, this.logger);
+      const gitService = new GitService(this.logger, {
+        userName: process.env.GIT_USER_NAME || "Vibes Viber",
+        userEmail: process.env.GIT_USER_EMAIL || "viberator@viberglass.io",
+      });
+      const agent = agentRegistry().createAgent(effectiveAgentConfig, this.logger, gitService);
 
       // Execute the agent — via ACP if an interactive session is active, else one-shot
       const startTime = Date.now();
       let result: ExecutionResult;
       if (this.acpExecutor && context.agentSessionId) {
-        result = await this.acpExecutor.execute(agent, prompt, context);
+        const mapper = agentRegistry().getAcpEventMapper(effectiveAgentConfig.name);
+        result = await this.acpExecutor.execute(agent, prompt, context, mapper);
       } else {
         result = await agent.execute(prompt, context);
       }
@@ -318,7 +324,7 @@ Please proceed with fixing this bug.
   /**
    * Get available agents
    */
-  getAvailableAgents(): AgentConfig[] {
+  getAvailableAgents(): BaseAgentConfig[] {
     return Array.from(this.agents.values());
   }
 }

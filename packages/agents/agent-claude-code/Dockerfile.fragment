@@ -1,0 +1,13 @@
+# Fragment: Claude Code agent
+# Note: Claude Code uses viberator-docker-worker.Dockerfile directly, not the
+# compose script. This fragment is included in multi-agent builds only.
+# Source: https://github.com/anthropics/claude-code
+RUN npm install -g @anthropic-ai/claude-code claude-agent-acp
+
+RUN which claude || echo "Warning: claude not found in PATH"
+
+ENV AGENT_TYPE=claude-code
+
+LABEL agent.type="claude-code" \
+      agent.provider="anthropic" \
+      viberator.worker-type="agent"

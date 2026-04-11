@@ -1,0 +1,12 @@
+# Fragment: OpenCode agent
+# Source: https://opencode.ai/docs
+RUN npm install -g opencode-ai@latest
+
+RUN which opencode || echo "Warning: opencode not found in PATH"
+
+ENV AGENT_TYPE=opencode
+ENV OPENCODE_CONFIG_DIR=/tmp/opencode-config
+
+LABEL agent.type="opencode" \
+      agent.provider="opencode" \
+      viberator.worker-type="agent"

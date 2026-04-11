@@ -3,13 +3,13 @@ FROM public.ecr.aws/lambda/nodejs:24 AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/
-COPY packages/types/package*.json ./packages/types/
-RUN npm install --workspace=@viberator/orchestrator --workspace=@viberglass/types
+COPY packages/types/ ./packages/types/
+COPY packages/agent-core/ ./packages/agent-core/
+COPY packages/agents/ ./packages/agents/
+RUN npm install --workspace=@viberator/orchestrator
 COPY apps/viberator ./apps/viberator
-COPY packages/types ./packages/types
 COPY apps/viberator/tsup.config.lambda.ts ./apps/viberator/tsup.config.ts
-RUN npm run build --workspace=@viberglass/types && \
-    npm run build --workspace=@viberator/orchestrator
+RUN npm run build:worker
 
 FROM public.ecr.aws/lambda/nodejs:24
 
@@ -17,11 +17,6 @@ FROM public.ecr.aws/lambda/nodejs:24
 RUN dnf install -y git findutils ca-certificates tar && dnf clean all
 
 WORKDIR ${LAMBDA_TASK_ROOT}
-
-# Copy package files required for workspace dependency installation
-COPY package*.json ${LAMBDA_TASK_ROOT}/
-COPY apps/viberator/package*.json ${LAMBDA_TASK_ROOT}/apps/viberator/
-COPY packages/types/package*.json ${LAMBDA_TASK_ROOT}/packages/types/
 
 # Provide common CLI build tools expected by agent tasks.
 RUN npm install -g typescript
@@ -55,12 +50,16 @@ RUN uv tool install mistral-vibe || \
     pip install mistral-vibe || \
     echo "Warning: Failed to install mistral-vibe"
 
-# Install production dependencies
-RUN npm install --omit=dev --workspace=@viberator/orchestrator --workspace=@viberglass/types
+# Copy package files and install production dependencies
+COPY package*.json ${LAMBDA_TASK_ROOT}/
+COPY apps/viberator/package*.json ${LAMBDA_TASK_ROOT}/apps/viberator/
+COPY --from=builder /app/packages/types/ ${LAMBDA_TASK_ROOT}/packages/types/
+COPY --from=builder /app/packages/agent-core/ ${LAMBDA_TASK_ROOT}/packages/agent-core/
+COPY --from=builder /app/packages/agents/ ${LAMBDA_TASK_ROOT}/packages/agents/
+RUN npm install --omit=dev --workspace=@viberator/orchestrator
 
-# Copy built files
+# Copy built app from builder
 COPY --from=builder /app/apps/viberator/dist/lambda-handler.js ${LAMBDA_TASK_ROOT}/
-COPY --from=builder /app/packages/types/dist ${LAMBDA_TASK_ROOT}/packages/types/dist
 
 # Set the CMD to your handler (filename.method)
 CMD [ "lambda-handler.handler" ]
