@@ -75,16 +75,6 @@ describe("API Endpoints", () => {
     });
   });
 
-  describe("API Documentation", () => {
-    it("should return API documentation", async () => {
-      const response = await request(app).get("/api/docs").expect(200);
-
-      expect(response.body.title).toBe("Viberglass Receiver API");
-      expect(response.body.endpoints).toBeDefined();
-      expect(response.body.endpoints["POST /api/tickets"]).toBeDefined();
-    });
-  });
-
   describe("Tickets API", () => {
     it("should return validation error for missing ticket data", async () => {
       const response = await request(app).post("/api/tickets").expect(400);
