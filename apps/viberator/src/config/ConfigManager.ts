@@ -1,10 +1,11 @@
 import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
 import { DEFAULT_AGENT_TYPE } from "@viberglass/types";
-import { AgentConfig, Configuration, SecretMetadata } from "../types";
+import type { BaseAgentConfig } from "@viberglass/agent-core";
+import { Configuration, SecretMetadata } from "../types";
 import type { Logger } from "winston";
 import * as dotenv from "dotenv";
-import { DEFAULT_AGENT_CONFIGS, AGENT_ENV_ALIASES } from "./AgentDefaults";
 import { SsmConfigLoader } from "./SsmConfigLoader";
+import { agentRegistry } from "../agents/registerPlugins";
 
 export class ConfigManager {
   private ssmClient?: SSMClient;
@@ -60,7 +61,7 @@ export class ConfigManager {
    */
   private loadDefaultConfiguration(): Configuration {
     return {
-      agents: structuredClone(DEFAULT_AGENT_CONFIGS),
+      agents: structuredClone(agentRegistry().getDefaultConfigs()) as Configuration["agents"],
       logging: {
         level: "info",
         format: "json",
@@ -91,7 +92,7 @@ export class ConfigManager {
     });
 
     // Apply official environment variable aliases
-    Object.entries(AGENT_ENV_ALIASES).forEach(([agentName, aliases]) => {
+    Object.entries(agentRegistry().getEnvAliases()).forEach(([agentName, aliases]) => {
       const agent = config.agents[agentName];
       if (!agent) return;
 
@@ -171,14 +172,14 @@ export class ConfigManager {
   /**
    * Get agent configurations
    */
-  getAgentConfigs(): AgentConfig[] {
+  getAgentConfigs(): BaseAgentConfig[] {
     return Object.values(this.config.agents);
   }
 
   /**
    * Get specific agent configuration
    */
-  getAgentConfig(name: string): AgentConfig | undefined {
+  getAgentConfig(name: string): BaseAgentConfig | undefined {
     return this.config.agents[name];
   }
 
@@ -218,7 +219,7 @@ export class ConfigManager {
   /**
    * Load agent configuration by name
    */
-  loadAgentConfig(agentName?: string): AgentConfig {
+  loadAgentConfig(agentName?: string): BaseAgentConfig {
     const name = agentName || process.env.DEFAULT_AGENT || DEFAULT_AGENT_TYPE;
 
     const agentConfig = this.config.agents[name];

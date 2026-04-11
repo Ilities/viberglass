@@ -59,6 +59,16 @@ These are the single source of truth instructions for agent behavior and backend
 - Domain types used by extensions belong in `@viberglass/types` — import them, never redefine them.
 - Generic infrastructure (DAOs, registries, bridges) must not reference any specific provider by name.
 
+**Adding a new agent:** The agent system uses a plugin registry. Use `npm run new:agent <name>` to scaffold from the template, then:
+1. Implement the agent class in `packages/agents/agent-<name>/src/<Name>Agent.ts` (extend `BaseAgent`).
+2. Fill in `plugin.ts` — `defaultConfig`, `envAliases`, `stateDir`, `docker` metadata.
+3. Write `Dockerfile.fragment` — install command, ENV, LABEL.
+4. Add `"@viberglass/agent-<name>": "*"` to `apps/viberator/package.json`.
+5. Add one line in `apps/viberator/src/agents/registerPlugins.ts`: `.register(myPlugin)`.
+6. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
+
+No other files need to change — `SessionStateManager`, `InstructionFileManager`, `ClankerAgent*Factory`, `ConfigManager` are all registry-driven. For a full guide see `packages/agents/README.md`.
+
 ### 5) Naming Conventions
 
 - Class files: PascalCase matching the primary exported class name.

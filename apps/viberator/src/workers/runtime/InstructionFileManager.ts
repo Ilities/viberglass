@@ -9,20 +9,21 @@ import {
   LambdaPayload,
   WorkerPayload,
 } from "../core/types";
+import { agentRegistry } from "../../agents/registerPlugins";
 
 export class InstructionFileManager {
   private static readonly CLANKER_AGENTS_FILE = "AGENTS.md";
   private static readonly CLANKER_AGENTS_TARGET_PATH = "agents/AGENTS.md";
-  private static readonly HARNESS_CONFIG_PATTERNS = [
-    "opencode.json",
-    "pi/models.json",
-  ];
 
   constructor(private readonly logger: Logger) {}
 
+  private getHarnessConfigPatterns(): string[] {
+    return agentRegistry().getHarnessConfigPatterns();
+  }
+
   private isHarnessConfigFile(fileType: string): boolean {
     const normalized = path.normalize(fileType.replace(/\\/g, "/"));
-    return InstructionFileManager.HARNESS_CONFIG_PATTERNS.some(
+    return this.getHarnessConfigPatterns().some(
       (pattern) => normalized === pattern || normalized.endsWith("/" + pattern),
     );
   }
@@ -153,22 +154,17 @@ export class InstructionFileManager {
           },
         );
 
-        // For OpenCode, also materialize to $HOME/.opencode/opencode.json if HOME is set.
-        // Some versions of the CLI or certain commands might not respect OPENCODE_CONFIG_DIR
-        // or might need a persistent state dir for the database migration to succeed.
-        const configFileName = path.basename(normalizedRelative);
-        if (configFileName === "opencode.json") {
+        // Delegate agent-specific materialization (e.g. OpenCode $HOME/.opencode)
+        // to the plugin descriptor's hook.
+        const plugin = agentRegistry().findByHarnessConfigPath(normalizedRelative);
+        if (plugin?.materializeHarnessConfig) {
           const resolvedHome = this.resolveHomeDirectory();
-          const homeOpencodeDir = path.join(resolvedHome, ".opencode");
-          const homeTargetPath = path.join(homeOpencodeDir, "opencode.json");
-          await fs.promises.mkdir(homeOpencodeDir, { recursive: true });
-          await fs.promises.writeFile(homeTargetPath, content, "utf-8");
-          this.logger.info(
-            "InstructionFileManager: Materialized opencode.json to HOME",
-            {
-              targetPath: homeTargetPath,
-            },
-          );
+          await plugin.materializeHarnessConfig({
+            configRelativePath: normalizedRelative,
+            absoluteSourcePath: targetPath,
+            contents: content,
+            homeDir: resolvedHome,
+          });
         }
         continue;
       }

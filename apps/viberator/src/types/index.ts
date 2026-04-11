@@ -5,10 +5,11 @@ export type {
   TestResult,
   SecretMetadata,
   TicketMediaContext,
+  ResourceLimits,
+  BaseAgentConfig,
 } from "@viberglass/agent-core";
 
-// Agent config types (concrete configs + union) remain in this package.
-export * from "./agents";
+import type { ExecutionResult as ExecutionResultType, BaseAgentConfig } from "@viberglass/agent-core";
 
 // Core types for the AI Agent Orchestrator
 export interface BugReport {
@@ -39,8 +40,8 @@ export interface Ticket {
 export interface ProjectSettings {
   repoUrl: string;
   branch: string;
-  agentName?: import("./agents").AgentConfig["name"];
-  preferredAgents?: import("./agents").AgentConfig["name"][];
+  agentName?: BaseAgentConfig["name"];
+  preferredAgents?: BaseAgentConfig["name"][];
   costLimit?: number;
   timeLimit?: number;
   testingRequired: boolean;
@@ -54,7 +55,7 @@ export interface AgentExecution {
   startTime: Date;
   endTime?: Date;
   status: "pending" | "running" | "completed" | "failed" | "timeout";
-  result?: ExecutionResult;
+  result?: ExecutionResultType;
   logs: string[];
   resourceUsage: ResourceUsage;
 }
@@ -72,7 +73,7 @@ export interface GitConfig {
 }
 
 export interface Configuration {
-  agents: Record<string, import("./agents").AgentConfig>;
+  agents: Record<string, BaseAgentConfig>;
   aws?: {
     region: string;
     ssmParameterPath: string;

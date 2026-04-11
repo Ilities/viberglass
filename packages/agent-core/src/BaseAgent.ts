@@ -40,10 +40,15 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
 
       const result = await this.executeAgentCLI(prompt, context, workDir);
 
+      const changedFiles =
+        result.changedFiles ??
+        (await this.gitService.getChangedFiles(path.join(workDir, "repo")));
+
       const executionTime = Date.now() - startTime;
 
       return {
         ...result,
+        changedFiles,
         executionTime,
         cost: result.cost ?? this.config.costPerExecution,
       };

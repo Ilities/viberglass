@@ -15,6 +15,7 @@ export class AcpExecutor {
     agent: BaseAgent,
     prompt: string,
     context: ExecutionContext,
+    mapperOverride?: AcpEventMapper,
   ): Promise<ExecutionResult> {
     const command = agent.getAcpServerCommand();
     const repoDir = context.repoDir ?? process.cwd();
@@ -46,7 +47,7 @@ export class AcpExecutor {
       (event) => context.onAcpEvent?.(event),
       this.logger,
       timeoutMs,
-      this.mapper,
+      mapperOverride ?? this.mapper,
     );
 
     try {

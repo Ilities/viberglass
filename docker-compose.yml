@@ -94,6 +94,11 @@ services:
       # Worker Dockerfiles and source needed for clanker provisioning
       - ./infra:/app/infra:cached
       - ./apps/viberator:/app/apps/viberator:cached
+      - ./packages/agent-core:/app/packages/agent-core:cached
+      - ./packages/agents:/app/packages/agents:cached
+      # Root package files needed for workspace-aware Docker builds
+      - ./package.json:/app/package.json:cached
+      - ./package-lock.json:/app/package-lock.json:cached
     depends_on:
       postgres:
         condition: service_healthy
