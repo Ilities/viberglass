@@ -23,6 +23,20 @@ jest.mock("dockerode", () => {
   }));
 });
 
+// Mock fs operations for session state directory
+jest.mock("fs", () => ({
+  ...jest.requireActual("fs"),
+  mkdirSync: jest.fn(),
+  chmodSync: jest.fn(),
+}));
+
+// Mock SecretResolutionService
+jest.mock("../../../../services/SecretResolutionService", () => ({
+  SecretResolutionService: jest.fn().mockImplementation(() => ({
+    resolveSecretsForClanker: jest.fn().mockResolvedValue({}),
+  })),
+}));
+
 describe("DockerInvoker", () => {
   let invoker: DockerInvoker;
   let mockJob: JobData;
