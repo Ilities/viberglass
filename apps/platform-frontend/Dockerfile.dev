@@ -9,9 +9,10 @@ WORKDIR /app
 # Copy monorepo root package.json for workspace resolution
 COPY package*.json ./
 
-# Create frontend directory and copy its package.json
-RUN mkdir -p apps/platform-frontend
+# Create workspace directories and copy their package.json files
+RUN mkdir -p apps/platform-frontend packages/types
 COPY apps/platform-frontend/package*.json ./apps/platform-frontend/
+COPY packages/types/package*.json ./packages/types/
 
 # Install all dependencies (workspace-aware from root)
 RUN npm install --legacy-peer-deps
@@ -21,11 +22,14 @@ RUN npm install --legacy-peer-deps
 COPY packages/types ./packages/types
 COPY apps/platform-frontend ./apps/platform-frontend
 
+# Build shared types package (needed before frontend can start)
+RUN npm run build -w @viberglass/types
+
 # Expose Vite default port
 EXPOSE 3000
 
 # Set working directory to frontend for running the dev server
 WORKDIR /app/apps/platform-frontend
 
-# Use Vite dev server for HMR (matches "npm run dev" script)
+# Image-built dist/ is used directly — no runtime build needed
 CMD ["npm", "run", "dev"]

@@ -24,11 +24,14 @@ COPY packages/types ./packages/types
 COPY packages/chat-slack ./packages/chat-slack
 COPY apps/platform-backend ./apps/platform-backend
 
+# Build shared workspace packages (needed before backend can start)
+RUN npm run build -w @viberglass/types && npm run build -w @viberglass/chat-slack
+
 # Expose backend API port
 EXPOSE 8888
 
 # Set working directory to backend for running the server
 WORKDIR /app/apps/platform-backend
 
-# Use nodemon for hot-reload (matches "npm run dev" script)
+# tsx resolves workspace packages via tsconfig paths — no build step needed
 CMD ["npm", "run", "dev"]
