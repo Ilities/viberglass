@@ -13,6 +13,7 @@ import { getClankers } from '@/service/api/clanker-api'
 import {
   createClawTaskTemplate,
   deleteClawTaskTemplate,
+  getClawTaskTemplate,
   getClawTaskTemplates,
   updateClawTaskTemplate,
 } from '@/service/api/claw-api'
@@ -75,14 +76,19 @@ export function TemplatesTab({ projectId }: Props) {
     setDialogOpen(true)
   }
 
-  const openEdit = (t: ClawTaskTemplateSummary) => {
+  const openEdit = async (t: ClawTaskTemplateSummary) => {
     setDialogMode('edit')
     setActiveTemplate(t)
+    let taskInstructions = ''
+    try {
+      const full = await getClawTaskTemplate(t.id)
+      taskInstructions = full.taskInstructions
+    } catch { /* use empty default */ }
     setForm({
       name: t.name,
       description: t.description ?? '',
       clankerId: t.clankerId,
-      taskInstructions: '',
+      taskInstructions,
       secretIds: t.secretIds,
     })
     setDialogOpen(true)
@@ -272,7 +278,6 @@ export function TemplatesTab({ projectId }: Props) {
                 </Field>
                 <Field>
                   <Label>Task instructions</Label>
-                  {dialogMode === 'edit' && <Description>Leave blank to keep the existing instructions.</Description>}
                   <Textarea
                     value={form.taskInstructions}
                     onChange={(e) => setForm((p) => ({ ...p, taskInstructions: e.target.value }))}

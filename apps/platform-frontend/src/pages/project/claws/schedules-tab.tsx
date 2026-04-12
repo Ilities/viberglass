@@ -6,11 +6,13 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
+import { Textarea } from '@/components/textarea'
 import { Timestamp } from '@/components/timestamp'
 import {
   createClawSchedule,
   deleteClawSchedule,
   getClawSchedules,
+  getClawTaskTemplate,
   getClawTaskTemplates,
   pauseClawSchedule,
   resumeClawSchedule,
@@ -28,6 +30,7 @@ type ScheduleForm = {
   name: string
   description: string
   taskTemplateId: string
+  taskInstructions: string
   scheduleType: 'interval' | 'cron'
   intervalValue: string
   intervalUnit: IntervalUnit
@@ -39,6 +42,7 @@ const emptyForm: ScheduleForm = {
   name: '',
   description: '',
   taskTemplateId: '',
+  taskInstructions: '',
   scheduleType: 'interval',
   intervalValue: '1',
   intervalUnit: 'hours',
@@ -92,14 +96,24 @@ export function SchedulesTab({ projectId }: Props) {
     void loadData()
   }, [loadData])
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setDialogMode('create')
     setActiveSchedule(null)
-    setForm({ ...emptyForm, taskTemplateId: templates[0]?.id ?? '' })
+    const firstTemplateId = templates[0]?.id ?? ''
+    let taskInstructions = ''
+    if (firstTemplateId) {
+      try {
+        const tmpl = await getClawTaskTemplate(firstTemplateId)
+        taskInstructions = tmpl.taskInstructions
+      } catch {
+        /* use empty default */
+      }
+    }
+    setForm({ ...emptyForm, taskTemplateId: firstTemplateId, taskInstructions })
     setDialogOpen(true)
   }
 
-  const openEdit = (s: ClawScheduleSummary) => {
+  const openEdit = async (s: ClawScheduleSummary) => {
     setDialogMode('edit')
     setActiveSchedule(s)
     let intervalValue = '1'
@@ -111,10 +125,18 @@ export function SchedulesTab({ projectId }: Props) {
         intervalUnit = parsed.unit
       }
     }
+    let taskInstructions = ''
+    try {
+      const tmpl = await getClawTaskTemplate(s.taskTemplateId)
+      taskInstructions = tmpl.taskInstructions
+    } catch {
+      /* use empty default */
+    }
     setForm({
       name: s.name,
       description: s.description ?? '',
       taskTemplateId: s.taskTemplateId,
+      taskInstructions,
       scheduleType: s.scheduleType,
       intervalValue,
       intervalUnit,
@@ -122,6 +144,16 @@ export function SchedulesTab({ projectId }: Props) {
       timezone: s.timezone,
     })
     setDialogOpen(true)
+  }
+
+  const handleTemplateChange = async (templateId: string) => {
+    setForm((p) => ({ ...p, taskTemplateId: templateId }))
+    try {
+      const tmpl = await getClawTaskTemplate(templateId)
+      setForm((p) => ({ ...p, taskInstructions: tmpl.taskInstructions }))
+    } catch {
+      /* keep current instructions */
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -315,13 +347,18 @@ export function SchedulesTab({ projectId }: Props) {
                 </Field>
                 <Field>
                   <Label>Task template</Label>
-                  <Select value={form.taskTemplateId} onChange={(v) => setForm((p) => ({ ...p, taskTemplateId: v }))}>
+                  <Select value={form.taskTemplateId} onChange={handleTemplateChange}>
                     {templates.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
                   </Select>
+                </Field>
+                <Field>
+                  <Label>Task instructions</Label>
+                  <Description>The instructions that will be sent to the agent when this schedule runs.</Description>
+                  <Textarea readOnly value={form.taskInstructions} rows={6} />
                 </Field>
                 <Field>
                   <Label>Schedule type</Label>
