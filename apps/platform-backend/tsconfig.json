@@ -12,7 +12,11 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "paths": {
+      "@viberglass/types": ["../packages/types/src/index.ts"],
+      "@viberglass/chat-slack": ["../packages/chat-slack/src/index.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/__tests__", "**/*.test.ts"]
