@@ -6,15 +6,18 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
+import { Textarea } from '@/components/textarea'
 import { Timestamp } from '@/components/timestamp'
 import {
   createClawSchedule,
   deleteClawSchedule,
   getClawSchedules,
+  getClawTaskTemplate,
   getClawTaskTemplates,
   pauseClawSchedule,
   resumeClawSchedule,
   updateClawSchedule,
+  updateClawTaskTemplate,
 } from '@/service/api/claw-api'
 import { PauseIcon, Pencil1Icon, PlayIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { parseIntervalExpression, type ClawScheduleSummary, type ClawTaskTemplateSummary } from '@viberglass/types'
@@ -28,6 +31,7 @@ type ScheduleForm = {
   name: string
   description: string
   taskTemplateId: string
+  taskInstructions: string
   scheduleType: 'interval' | 'cron'
   intervalValue: string
   intervalUnit: IntervalUnit
@@ -39,6 +43,7 @@ const emptyForm: ScheduleForm = {
   name: '',
   description: '',
   taskTemplateId: '',
+  taskInstructions: '',
   scheduleType: 'interval',
   intervalValue: '1',
   intervalUnit: 'hours',
@@ -92,14 +97,22 @@ export function SchedulesTab({ projectId }: Props) {
     void loadData()
   }, [loadData])
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setDialogMode('create')
     setActiveSchedule(null)
-    setForm({ ...emptyForm, taskTemplateId: templates[0]?.id ?? '' })
+    const firstTemplateId = templates[0]?.id ?? ''
+    let taskInstructions = ''
+    if (firstTemplateId) {
+      try {
+        const tmpl = await getClawTaskTemplate(firstTemplateId)
+        taskInstructions = tmpl.taskInstructions
+      } catch { /* use empty default */ }
+    }
+    setForm({ ...emptyForm, taskTemplateId: firstTemplateId, taskInstructions })
     setDialogOpen(true)
   }
 
-  const openEdit = (s: ClawScheduleSummary) => {
+  const openEdit = async (s: ClawScheduleSummary) => {
     setDialogMode('edit')
     setActiveSchedule(s)
     let intervalValue = '1'
@@ -111,10 +124,16 @@ export function SchedulesTab({ projectId }: Props) {
         intervalUnit = parsed.unit
       }
     }
+    let taskInstructions = ''
+    try {
+      const tmpl = await getClawTaskTemplate(s.taskTemplateId)
+      taskInstructions = tmpl.taskInstructions
+    } catch { /* use empty default */ }
     setForm({
       name: s.name,
       description: s.description ?? '',
       taskTemplateId: s.taskTemplateId,
+      taskInstructions,
       scheduleType: s.scheduleType,
       intervalValue,
       intervalUnit,
@@ -122,6 +141,14 @@ export function SchedulesTab({ projectId }: Props) {
       timezone: s.timezone,
     })
     setDialogOpen(true)
+  }
+
+  const handleTemplateChange = async (templateId: string) => {
+    setForm((p) => ({ ...p, taskTemplateId: templateId }))
+    try {
+      const tmpl = await getClawTaskTemplate(templateId)
+      setForm((p) => ({ ...p, taskInstructions: tmpl.taskInstructions }))
+    } catch { /* keep current instructions */ }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -145,6 +172,11 @@ export function SchedulesTab({ projectId }: Props) {
     setIsSubmitting(true)
     try {
       if (dialogMode === 'create') {
+        if (form.taskInstructions.trim()) {
+          await updateClawTaskTemplate(form.taskTemplateId, {
+            taskInstructions: form.taskInstructions.trim(),
+          })
+        }
         await createClawSchedule({
           projectId,
           taskTemplateId: form.taskTemplateId,
@@ -158,6 +190,9 @@ export function SchedulesTab({ projectId }: Props) {
         })
         toast.success('Schedule created')
       } else if (activeSchedule) {
+        await updateClawTaskTemplate(form.taskTemplateId, {
+          taskInstructions: form.taskInstructions.trim(),
+        })
         await updateClawSchedule(activeSchedule.id, {
           name: form.name.trim(),
           description: form.description.trim() || null,
@@ -315,13 +350,23 @@ export function SchedulesTab({ projectId }: Props) {
                 </Field>
                 <Field>
                   <Label>Task template</Label>
-                  <Select value={form.taskTemplateId} onChange={(v) => setForm((p) => ({ ...p, taskTemplateId: v }))}>
+                  <Select value={form.taskTemplateId} onChange={handleTemplateChange}>
                     {templates.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
                   </Select>
+                </Field>
+                <Field>
+                  <Label>Task instructions</Label>
+                  <Description>The instructions that will be sent to the agent when this schedule runs.</Description>
+                  <Textarea
+                    value={form.taskInstructions}
+                    onChange={(e) => setForm((p) => ({ ...p, taskInstructions: e.target.value }))}
+                    placeholder="Describe what the task should do..."
+                    rows={6}
+                  />
                 </Field>
                 <Field>
                   <Label>Schedule type</Label>
