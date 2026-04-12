@@ -27,13 +27,6 @@ export async function getClawTaskTemplates(projectId: string): Promise<ClawTaskT
   return data.data
 }
 
-export async function getClawTaskTemplate(id: string): Promise<ClawTaskTemplate> {
-  const res = await apiFetch(`${BASE}/task-templates/${id}`)
-  if (!res.ok) return throwApiError(res, 'Failed to fetch task template')
-  const data = await res.json()
-  return data.data
-}
-
 export async function createClawTaskTemplate(body: CreateClawTaskTemplateRequest): Promise<ClawTaskTemplate> {
   const res = await apiFetch(`${BASE}/task-templates`, {
     method: 'POST',
