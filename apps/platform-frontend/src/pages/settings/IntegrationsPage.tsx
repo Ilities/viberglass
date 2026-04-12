@@ -3,13 +3,14 @@ import type { IntegrationCardData } from '@/components/integration-card'
 import { IntegrationGrid } from '@/components/integration-grid'
 import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
-import { getIntegrationSettingsListItems } from '@/service/api/integration-api'
+import { getIntegrationSettingsListItems, getSlackBotStatus } from '@/service/api/integration-api'
 import { useEffect, useState } from 'react'
 
 export function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<IntegrationCardData[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [slackBotConfigured, setSlackBotConfigured] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -34,6 +35,12 @@ export function IntegrationsPage() {
       setIsLoading(false)
     }
     loadData()
+  }, [])
+
+  useEffect(() => {
+    getSlackBotStatus()
+      .then(({ configured }) => setSlackBotConfigured(configured))
+      .catch(() => setSlackBotConfigured(false))
   }, [])
 
   if (isLoading) {
@@ -87,7 +94,7 @@ export function IntegrationsPage() {
         <section>
           <Subheading>All Integrations</Subheading>
           <div className="mt-4">
-            <IntegrationGrid integrations={integrations} />
+            <IntegrationGrid integrations={integrations} configured={{ slack: slackBotConfigured }} />
           </div>
         </section>
       </div>
