@@ -123,7 +123,8 @@ services:
     volumes:
       # Mount source with cached mode for better performance
       - ./apps/platform-frontend:/app/apps/platform-frontend:cached
-      - ./packages/types:/app/packages/types:cached
+      # Note: packages/types is NOT mounted — image-built dist/ is used directly.
+      # Rebuild image when types change: docker compose build frontend
     depends_on:
       backend:
         condition: service_started
