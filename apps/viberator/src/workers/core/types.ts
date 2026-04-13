@@ -53,6 +53,8 @@ export interface ScmPayload {
   pullRequestBaseBranch: string;
   branchNameTemplate?: string | null;
   credentialSecretId?: string | null;
+  /** Resolved secret name — worker looks this up in fetchedCredentials to get the token value */
+  credentialSecretName?: string | null;
 }
 
 export interface TicketMediaPayload {

@@ -16,9 +16,10 @@ export interface SCMAuthProvider {
   /**
    * Authenticate a repository URL with the appropriate credentials
    * @param repoUrl The original repository URL
+   * @param token Optional explicit token to use instead of environment variable lookup
    * @returns The authenticated URL with credentials injected
    */
-  authenticateUrl(repoUrl: string): string;
+  authenticateUrl(repoUrl: string, token?: string): string;
 
   /**
    * Check if authentication credentials are available
@@ -28,8 +29,9 @@ export interface SCMAuthProvider {
   /**
    * Get the authentication token for this provider, if available.
    * This is used to authenticate with the SCM API.
+   * @param token Optional explicit token — returned as-is when provided
    */
-  getToken(): string | undefined;
+  getToken(token?: string): string | undefined;
 }
 
 export interface SCMAuthConfig {

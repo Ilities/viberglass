@@ -52,12 +52,13 @@ class GitService {
     repoUrl: string,
     branch: string,
     workDir: string,
+    scmToken?: string,
   ): Promise<void> {
     try {
       this.logger.info("Cloning repository", { repoUrl, branch });
 
       // Use SCM authentication factory to get authenticated URL
-      const authenticatedUrl = SCMAuthFactory.authenticateUrl(repoUrl);
+      const authenticatedUrl = SCMAuthFactory.authenticateUrl(repoUrl, scmToken);
 
       if (authenticatedUrl !== repoUrl) {
         this.logger.info("Using authenticated URL for repository clone");
@@ -165,8 +166,24 @@ class GitService {
   /**
    * Push branch using simple-git
    */
-  public async pushBranch(repoDir: string, branchName: string): Promise<void> {
+  public async pushBranch(repoDir: string, branchName: string, scmToken?: string): Promise<void> {
     try {
+      // Re-authenticate the remote URL if a token is provided
+      if (scmToken) {
+        const git = simpleGit({ baseDir: repoDir });
+        const remotes = await git.getRemotes(true);
+        const origin = remotes.find((r) => r.name === "origin");
+        if (origin) {
+          const currentUrl = origin.refs.push || origin.refs.fetch;
+          if (currentUrl) {
+            const authenticatedUrl = SCMAuthFactory.authenticateUrl(currentUrl, scmToken);
+            if (authenticatedUrl !== currentUrl) {
+              await git.remote(["set-url", "origin", authenticatedUrl]);
+            }
+          }
+        }
+      }
+
       const git = simpleGit({ baseDir: repoDir });
       await git.push("origin", branchName, ["--set-upstream"]);
       this.logger.info("Branch pushed", { branchName });
@@ -188,6 +205,7 @@ class GitService {
     title: string,
     description?: string,
     options?: PullRequestOptions,
+    scmToken?: string,
   ): Promise<string> {
     const sourceRepo = options?.sourceRepositoryUrl
       ? this.getRepoMetadataFromUrl(options.sourceRepositoryUrl)
@@ -212,7 +230,7 @@ class GitService {
       options?.destinationRepositoryUrl ||
       `https://github.com/${sourceRepo.owner}/${sourceRepo.repo}`;
     try {
-      token = SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
+      token = scmToken || SCMAuthFactory.getProvider(providerLookupUrl)?.getToken();
 
       if (!token) {
         throw new Error(
