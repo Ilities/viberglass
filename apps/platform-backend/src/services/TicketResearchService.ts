@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { IntegrationCredentialDAO } from "../persistence/integrations";
+import { SecretService } from "./SecretService";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
@@ -62,6 +63,7 @@ export class TicketResearchService {
   private readonly projectDAO = new ProjectDAO();
   private readonly projectScmConfigDAO = new ProjectScmConfigDAO();
   private readonly integrationCredentialDAO = new IntegrationCredentialDAO();
+  private readonly secretService = new SecretService();
   private readonly clankerDAO = new ClankerDAO();
   private readonly provisioningService = getClankerProvisioner();
   private readonly jobService = new JobService();
@@ -134,6 +136,7 @@ export class TicketResearchService {
         projectDAO: this.projectDAO,
         projectScmConfigDAO: this.projectScmConfigDAO,
         integrationCredentialDAO: this.integrationCredentialDAO,
+        secretService: this.secretService,
         clankerDAO: this.clankerDAO,
         provisioningService: this.provisioningService,
         instructionStorageService: this.instructionStorageService,
@@ -255,6 +258,7 @@ export class TicketResearchService {
         projectDAO: this.projectDAO,
         projectScmConfigDAO: this.projectScmConfigDAO,
         integrationCredentialDAO: this.integrationCredentialDAO,
+        secretService: this.secretService,
         clankerDAO: this.clankerDAO,
         provisioningService: this.provisioningService,
         instructionStorageService: this.instructionStorageService,

@@ -98,7 +98,7 @@ export async function runClawJob(
     const commitHash = await gitService.commitChanges(repoDir, task);
 
     await sendProgress("push", "Pushing branch to remote");
-    await gitService.pushBranch(repoDir, featureBranch);
+    await gitService.pushBranch(repoDir, featureBranch, params.scmToken);
 
     await sendProgress("pr", "Creating pull request");
     const pullRequestUrl = await gitService.createPullRequest(
@@ -111,6 +111,7 @@ export async function runClawJob(
         sourceRepositoryUrl: scm?.sourceRepository || repository,
         destinationRepositoryUrl: pullRequestRepository,
       },
+      params.scmToken,
     );
 
     return {

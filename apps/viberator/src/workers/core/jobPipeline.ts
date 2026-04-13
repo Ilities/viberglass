@@ -47,6 +47,8 @@ export interface JobRunnerParams {
   sessionEventForwarder?: SessionEventForwarder;
   /** S3 URL of conversation state archive to restore before CLI launch */
   conversationStateUrl?: string;
+  /** Per-project SCM token resolved from fetchedCredentials */
+  scmToken?: string;
   selectAgentForExecution: (availableAgents: BaseAgentConfig[]) => BaseAgentConfig;
   sendProgress: (
     step: string,

@@ -140,6 +140,11 @@ export class ViberatorWorker {
     this.currentJobId = data.id;
     this.currentTenantId = data.tenantId;
 
+    // Resolve per-project SCM token from fetched credentials
+    const scmToken = data.scm?.credentialSecretName
+      ? this.fetchedCredentials?.[data.scm.credentialSecretName]
+      : undefined;
+
     try {
       const jobRunner =
         data.jobKind === "claw" ? runClawJob : runSessionTurnJob;
@@ -180,8 +185,9 @@ export class ViberatorWorker {
             message,
             details,
           ),
+        scmToken,
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
-          this.cloneRepositoryToWorkspace(repository, branch, workDir),
+          this.cloneRepositoryToWorkspace(repository, branch, workDir, scmToken),
       });
     } finally {
       // Cleanup runs after sendResult has already been called inside jobRunner,
@@ -334,6 +340,7 @@ export class ViberatorWorker {
     repository: string,
     branch: string,
     workDir: string,
+    scmToken?: string,
   ): Promise<string> {
     const repoDir = path.join(workDir, "repo");
 
@@ -341,7 +348,7 @@ export class ViberatorWorker {
       fs.rmSync(repoDir, { recursive: true, force: true });
     }
 
-    await this.gitService.cloneRepository(repository, branch, workDir);
+    await this.gitService.cloneRepository(repository, branch, workDir, scmToken);
     return repoDir;
   }
 }

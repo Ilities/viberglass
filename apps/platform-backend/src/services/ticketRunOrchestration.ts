@@ -2,10 +2,11 @@ import { getStrategyType } from "../clanker-config";
 import type { Clanker, ClankerStrategyType, Project, ProjectScmConfig } from "@viberglass/types";
 import type { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import type { IntegrationCredentialDAO } from "../persistence/integrations";
+import type { SecretService } from "./SecretService";
 import type { ProjectDAO } from "../persistence/project/ProjectDAO";
 import type { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import type { ClankerProvisioner } from "../provisioning/ClankerProvisioner";
-import type { JobData } from "../types/Job";
+import type { JobData, JobScmConfig } from "../types/Job";
 import {
   type InlineInstructionFile as StoredInlineInstructionFile,
   type InstructionStorageService,
@@ -37,6 +38,7 @@ export interface TicketRunOrchestrationDependencies {
   projectDAO: Pick<ProjectDAO, "getProject">;
   projectScmConfigDAO: Pick<ProjectScmConfigDAO, "getByProjectId">;
   integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById">;
+  secretService: Pick<SecretService, "getSecret">;
   clankerDAO: Pick<ClankerDAO, "getClanker" | "updateStatus">;
   provisioningService: Pick<ClankerProvisioner, "resolveAvailabilityStatus">;
   instructionStorageService: Pick<
@@ -61,6 +63,7 @@ export interface PreparedTicketRunContext {
   clanker: Clanker;
   executionClanker: Clanker;
   scmCredentialSecretId: string | null;
+  scmCredentialSecretName: string | null;
   workerType: ClankerStrategyType;
   mergedInstructionFiles: InlineInstructionFile[];
   workerInstructionFiles: WorkerInstructionFileReference[];
@@ -207,6 +210,11 @@ export async function prepareTicketRunContext(
     deps.integrationCredentialDAO,
     scmConfig,
   );
+  let scmCredentialSecretName: string | null = null;
+  if (scmCredentialSecretId) {
+    const secretMeta = await deps.secretService.getSecret(scmCredentialSecretId);
+    scmCredentialSecretName = secretMeta?.name ?? null;
+  }
   const executionClanker: Clanker = {
     ...clanker,
     secretIds: Array.from(
@@ -240,6 +248,7 @@ export async function prepareTicketRunContext(
     clanker,
     executionClanker,
     scmCredentialSecretId,
+    scmCredentialSecretName,
     workerType,
     mergedInstructionFiles,
     workerInstructionFiles,
@@ -280,6 +289,7 @@ export interface BuildBootstrapPayloadInput {
   callbackToken: string;
   executionClanker: Clanker;
   project: Project;
+  scm?: JobScmConfig | null;
 }
 
 export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record<string, unknown> {
@@ -301,6 +311,7 @@ export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record
     callbackToken,
     executionClanker,
     project,
+    scm,
   } = input;
 
   return {
@@ -329,7 +340,29 @@ export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record
       customFieldMappings: project.customFieldMappings,
       workerSettings: project.workerSettings,
     },
+    ...(scm ? { scm } : {}),
   };
+}
+
+export function buildScmPayloadFromContext(
+  preparedContext: PreparedTicketRunContext,
+): JobScmConfig | null {
+  const { scmConfig, scmCredentialSecretId, scmCredentialSecretName } = preparedContext;
+  if (!scmConfig) return null;
+  const payload: JobScmConfig = {
+    integrationId: scmConfig.integrationId,
+    integrationSystem: scmConfig.integrationSystem,
+    sourceRepository: scmConfig.sourceRepository.trim(),
+    baseBranch: scmConfig.baseBranch.trim() || "main",
+    pullRequestRepository:
+      scmConfig.pullRequestRepository?.trim() || scmConfig.sourceRepository.trim(),
+    pullRequestBaseBranch:
+      scmConfig.pullRequestBaseBranch?.trim() || scmConfig.baseBranch.trim() || "main",
+    branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
+    credentialSecretId: scmCredentialSecretId || undefined,
+    credentialSecretName: scmCredentialSecretName || undefined,
+  };
+  return payload;
 }
 
 export async function submitJobWithBootstrapAndInvoke(
@@ -356,6 +389,8 @@ export async function submitJobWithBootstrapAndInvoke(
       executionClanker,
     );
 
+  const scm = buildScmPayloadFromContext(preparedContext);
+
   // Build and save bootstrap payload
   const bootstrapPayload = buildBootstrapPayload({
     workerType,
@@ -375,6 +410,7 @@ export async function submitJobWithBootstrapAndInvoke(
     callbackToken: submitResult.callbackToken,
     executionClanker,
     project,
+    scm,
   });
 
   jobData.bootstrapPayload = bootstrapPayload;

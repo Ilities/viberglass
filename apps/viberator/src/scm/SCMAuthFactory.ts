@@ -27,20 +27,21 @@ export class SCMAuthFactory {
   /**
    * Authenticate a repository URL using the appropriate provider
    * @param repoUrl The original repository URL
+   * @param token Optional explicit token to use instead of environment variable lookup
    * @returns The authenticated URL or the original URL if no provider found
    */
-  static authenticateUrl(repoUrl: string): string {
+  static authenticateUrl(repoUrl: string, token?: string): string {
     const provider = this.getProvider(repoUrl);
 
     if (!provider) {
       return repoUrl;
     }
 
-    if (!provider.hasCredentials()) {
+    if (!token && !provider.hasCredentials()) {
       return repoUrl;
     }
 
-    return provider.authenticateUrl(repoUrl);
+    return provider.authenticateUrl(repoUrl, token);
   }
 
   /**

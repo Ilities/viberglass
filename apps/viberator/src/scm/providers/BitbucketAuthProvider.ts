@@ -13,13 +13,17 @@ export class BitbucketAuthProvider implements SCMAuthProvider {
     return repoUrl.includes("bitbucket.org") || repoUrl.includes("bitbucket.");
   }
 
-  getToken(): string | undefined {
+  getToken(token?: string): string | undefined {
+    if (token) {
+      return token;
+    }
+
     // Primary: exact match for standard token names
     const primaryToken = process.env.BITBUCKET_TOKEN || process.env.BITBUCKET_APP_PASSWORD;
     if (primaryToken) {
       return primaryToken;
     }
-    
+
     // Fallback: search for any env var that looks like a Bitbucket token
     const envVars = Object.keys(process.env);
     const bitbucketTokenVar = envVars.find(
@@ -27,12 +31,12 @@ export class BitbucketAuthProvider implements SCMAuthProvider {
         key.toUpperCase().includes("BITBUCKET") &&
         (key.toUpperCase().includes("TOKEN") || key.toUpperCase().includes("PASSWORD")),
     );
-    
+
     if (bitbucketTokenVar) {
       console.log(`Bitbucket auth: Found token in ${bitbucketTokenVar}`);
       return process.env[bitbucketTokenVar];
     }
-    
+
     return undefined;
   }
 
@@ -44,10 +48,10 @@ export class BitbucketAuthProvider implements SCMAuthProvider {
     return !!this.getToken();
   }
 
-  authenticateUrl(repoUrl: string): string {
-    const token = this.getToken();
+  authenticateUrl(repoUrl: string, token?: string): string {
+    const resolvedToken = this.getToken(token);
 
-    if (!token) {
+    if (!resolvedToken) {
       return repoUrl;
     }
 
@@ -58,7 +62,7 @@ export class BitbucketAuthProvider implements SCMAuthProvider {
       // 1. App Password: https://USERNAME:APP_PASSWORD@bitbucket.org/owner/repo.git
       // 2. Access Token: https://x-token-auth:TOKEN@bitbucket.org/owner/repo.git
       url.username = this.getUsername();
-      url.password = token;
+      url.password = resolvedToken;
 
       return url.toString();
     } catch (error) {

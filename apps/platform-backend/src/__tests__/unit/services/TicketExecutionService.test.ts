@@ -11,6 +11,7 @@ import { CredentialRequirementsService } from "../../../services/CredentialRequi
 import { WorkerExecutionService } from "../../../workers";
 import { TicketMediaExecutionService } from "../../../services/TicketMediaExecutionService";
 import { TicketPhaseDocumentService } from "../../../services/TicketPhaseDocumentService";
+import { SecretService } from "../../../services/SecretService";
 
 // Mock dependencies
 jest.mock("../../../persistence/ticketing/TicketDAO");
@@ -26,6 +27,7 @@ jest.mock("../../../services/CredentialRequirementsService");
 jest.mock("../../../workers/WorkerExecutionService");
 jest.mock("../../../services/TicketMediaExecutionService");
 jest.mock("../../../services/TicketPhaseDocumentService");
+jest.mock("../../../services/SecretService");
 jest.mock("../../../persistence/promptTemplate/PromptTemplateDAO");
 jest.mock("../../../services/PromptTemplateService", () => ({
   PromptTemplateService: jest.fn().mockImplementation(() => ({
@@ -48,6 +50,7 @@ describe("TicketExecutionService", () => {
   let mockWorkerExecutionService: jest.Mocked<WorkerExecutionService>;
   let mockTicketMediaExecutionService: jest.Mocked<TicketMediaExecutionService>;
   let mockTicketPhaseDocumentService: jest.Mocked<TicketPhaseDocumentService>;
+  let mockSecretService: jest.Mocked<SecretService>;
 
   const mockedGetClankerProvisioner = jest.mocked(getClankerProvisioner);
 
@@ -76,6 +79,8 @@ describe("TicketExecutionService", () => {
       new TicketMediaExecutionService() as jest.Mocked<TicketMediaExecutionService>;
     mockTicketPhaseDocumentService =
       new TicketPhaseDocumentService() as jest.Mocked<TicketPhaseDocumentService>;
+    mockSecretService = new SecretService() as jest.Mocked<SecretService>;
+    mockSecretService.getSecret.mockResolvedValue(null);
 
     (TicketDAO as jest.Mock).mockImplementation(() => mockTicketDAO);
     (ProjectDAO as jest.Mock).mockImplementation(() => mockProjectDAO);
@@ -100,6 +105,7 @@ describe("TicketExecutionService", () => {
     (TicketPhaseDocumentService as jest.Mock).mockImplementation(
       () => mockTicketPhaseDocumentService,
     );
+    (SecretService as jest.Mock).mockImplementation(() => mockSecretService);
     mockTicketMediaExecutionService.prepareForExecution.mockResolvedValue({
       media: [],
       mounts: [],
@@ -231,6 +237,14 @@ describe("TicketExecutionService", () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     } as any);
+    mockSecretService.getSecret.mockResolvedValue({
+      id: "secret-scm",
+      name: "GITHUB_TOKEN",
+      secretLocation: "env",
+      secretPath: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     mockClankerDAO.getClanker.mockResolvedValue({
       id: clankerId,
       status: "active",

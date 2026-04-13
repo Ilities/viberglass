@@ -34,6 +34,7 @@ export interface JobScmConfig {
   pullRequestBaseBranch: string;
   branchNameTemplate?: string | null;
   credentialSecretId?: string | null;
+  credentialSecretName?: string | null;
 }
 
 // Override configuration for per-ticket/enhance screen overrides

@@ -4,6 +4,7 @@ import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { IntegrationCredentialDAO } from "../persistence/integrations";
+import { SecretService } from "./SecretService";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { getClankerProvisioner } from "../provisioning/provisioningFactory";
 import { JobService } from "./JobService";
@@ -20,6 +21,7 @@ import {
 } from "./errors/TicketServiceError";
 import {
   type InlineInstructionFile,
+  buildScmPayloadFromContext,
   prepareTicketRunContext,
 } from "./ticketRunOrchestration";
 import { PromptTemplateService } from "./PromptTemplateService";
@@ -44,6 +46,7 @@ export class TicketExecutionService {
   private projectDAO = new ProjectDAO();
   private projectScmConfigDAO = new ProjectScmConfigDAO();
   private integrationCredentialDAO = new IntegrationCredentialDAO();
+  private secretService = new SecretService();
   private clankerDAO = new ClankerDAO();
   private provisioningService = getClankerProvisioner();
   private jobService = new JobService();
@@ -102,6 +105,7 @@ export class TicketExecutionService {
         clanker,
         executionClanker,
         scmCredentialSecretId,
+        scmCredentialSecretName,
         workerType,
         mergedInstructionFiles,
         workerInstructionFiles,
@@ -116,35 +120,26 @@ export class TicketExecutionService {
           projectDAO: this.projectDAO,
           projectScmConfigDAO: this.projectScmConfigDAO,
           integrationCredentialDAO: this.integrationCredentialDAO,
+          secretService: this.secretService,
           clankerDAO: this.clankerDAO,
           provisioningService: this.provisioningService,
           instructionStorageService: this.instructionStorageService,
         },
       );
 
-      const normalizedScmConfig = scmConfig
-        ? {
-            integrationId: scmConfig.integrationId,
-            integrationSystem: scmConfig.integrationSystem,
-            sourceRepository: scmConfig.sourceRepository.trim(),
-            baseBranch: scmConfig.baseBranch.trim() || "main",
-            pullRequestRepository:
-              scmConfig.pullRequestRepository?.trim() ||
-              scmConfig.sourceRepository.trim(),
-            pullRequestBaseBranch:
-              scmConfig.pullRequestBaseBranch?.trim() ||
-              scmConfig.baseBranch.trim() ||
-              "main",
-            branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
-          }
-        : null;
-      const normalizedScmConfigWithCredential =
-        normalizedScmConfig && scmCredentialSecretId
-          ? {
-              ...normalizedScmConfig,
-              credentialSecretId: scmCredentialSecretId,
-            }
-          : normalizedScmConfig;
+      const normalizedScmConfigWithCredential = buildScmPayloadFromContext({
+        project,
+        scmConfig,
+        sourceRepository,
+        baseBranch,
+        clanker,
+        executionClanker,
+        scmCredentialSecretId,
+        scmCredentialSecretName,
+        workerType,
+        mergedInstructionFiles,
+        workerInstructionFiles,
+      });
       const ticketMediaExecution =
         await this.ticketMediaExecutionService.prepareForExecution(
           ticket,
