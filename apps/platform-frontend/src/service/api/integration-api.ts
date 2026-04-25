@@ -416,16 +416,18 @@ export async function getIntegrationSettingsListItems(): Promise<IntegrationSett
 
 export interface IntegrationInboundWebhookConfig {
   id: string
+  integrationId: string
   provider: string
   webhookUrl: string
-  events: string[]
-  autoExecute: boolean
-  active: boolean
+  webhookSecret: string | null
   hasSecret: boolean
-  webhookSecret?: string
-  providerProjectId?: string | null
-  projectId?: string | null
-  labelMappings?: Record<string, unknown>
+  providerProjectId: string | null
+  projectId: string | null
+  active: boolean
+  autoExecute: boolean
+  inboundEvents: string[]
+  labelMappings: Record<string, unknown> | null
+  events: string[]
   createdAt: string
   updatedAt: string
 }
@@ -717,7 +719,7 @@ export async function saveIntegrationOutboundWebhook(
 export async function testIntegrationOutboundWebhook(
   integrationEntityId: string,
   configId: string,
-  eventType?: 'job_started' | 'job_ended'
+  eventType?: string
 ): Promise<IntegrationOutboundWebhookTestResult> {
   const endpointPaths = [
     `${API_BASE_URL}/api/integrations/${integrationEntityId}/webhooks/outbound/${configId}/test`,
