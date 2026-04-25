@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-burnt-orange: #d97706;
+  --color-brand-golden-brass: #f59e0b;
+  --color-brand-warm-gold: #fbbf24;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+}

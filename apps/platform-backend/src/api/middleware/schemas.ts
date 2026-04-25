@@ -1,6 +1,6 @@
 import Joi from "joi";
 import { SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
-import { integrationRegistry } from "../../integration-plugins";
+import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
   isAllowedInstructionPath,

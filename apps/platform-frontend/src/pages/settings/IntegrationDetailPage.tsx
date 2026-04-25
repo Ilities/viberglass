@@ -12,23 +12,25 @@ import {
 import { Text } from '@/components/text'
 import {
   createIntegration,
+  deleteIntegrationOutboundWebhook,
   getAvailableIntegrationTypes,
   getIntegration,
+  getIntegrationOutboundWebhooks,
   getSlackBotStatus,
+  saveIntegrationOutboundWebhook,
   testIntegration,
+  testIntegrationOutboundWebhook,
   updateIntegration,
   type AvailableIntegrationType,
 } from '@/service/api/integration-api'
 import { getProjects, type Project } from '@/service/api/project-api'
+import { integrationFrontendRegistry } from '@/integrations/registerFrontendIntegrationPlugins'
 import { ArrowLeftIcon } from '@radix-ui/react-icons'
 import type { Integration, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { CustomInboundWebhookSection } from './integration-detail/CustomInboundWebhookSection'
-import { CustomOutboundWebhookSection } from './integration-detail/CustomOutboundWebhookSection'
-import { GitHubInboundWebhookSection } from './integration-detail/GitHubInboundWebhookSection'
-import { GitHubOutboundWebhookSection } from './integration-detail/GitHubOutboundWebhookSection'
 import { InboundWebhookSection } from './integration-detail/InboundWebhookSection'
 import { IntegrationCredentialSection } from './integration-detail/IntegrationCredentialSection'
 import {
@@ -36,12 +38,7 @@ import {
   IntegrationDetailLoadingState,
   IntegrationDetailNotFoundState,
 } from './integration-detail/IntegrationDetailStates'
-import { JiraInboundWebhookSection } from './integration-detail/JiraInboundWebhookSection'
-import { JiraOutboundWebhookSection } from './integration-detail/JiraOutboundWebhookSection'
 import { OutboundWebhookSection } from './integration-detail/OutboundWebhookSection'
-import { ShortcutInboundWebhookSection } from './integration-detail/ShortcutInboundWebhookSection'
-import { ShortcutOutboundWebhookSection } from './integration-detail/ShortcutOutboundWebhookSection'
-import { SlackInstallSection } from './integration-detail/SlackInstallSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
 
@@ -326,129 +323,14 @@ export function IntegrationDetailPage() {
   const category = getIntegrationCategoryConfig(integrationType.category)
   const StatusIcon = status.icon
 
-  const handleSubmit = async (config: Record<string, unknown>) => {
-    if (!integrationSystem) {
-      return
-    }
+  // Registry lookup — provides integration-specific section components.
+  const frontendPlugin = integrationFrontendRegistry.get(integrationSystem!)
+  const AuthSection = frontendPlugin?.AuthSetupSection
+  const RegistryInboundSection = frontendPlugin?.InboundWebhookSection
+  const RegistryOutboundSection = frontendPlugin?.OutboundWebhookSection
+  const SelfManagedOutboundSection = frontendPlugin?.SelfManagedOutboundWebhookSection
 
-    setIsSavingConfig(true)
-
-    try {
-      const savedIntegration = existingIntegration
-        ? await updateIntegration(existingIntegration.id, {
-            name: existingIntegration.name,
-            config,
-          })
-        : await createIntegration({
-            name: `${integrationType.label} Integration`,
-            system: integrationSystem,
-            config,
-          })
-
-      setExistingIntegration(savedIntegration)
-      navigate(`/settings/integrations/${savedIntegration.id}`, {
-        replace: !existingIntegration,
-      })
-    } catch (error) {
-      console.error('Failed to save integration configuration:', error)
-    } finally {
-      setIsSavingConfig(false)
-    }
-  }
-
-  const handleTest = async (_config: Record<string, unknown>) => {
-    setIsTesting(true)
-    setTestResult(null)
-
-    try {
-      if (!existingIntegration) {
-        setTestResult({
-          success: false,
-          message: 'Save the integration first to test the connection',
-        })
-        return
-      }
-
-      const result = await testIntegration(existingIntegration.id)
-      setTestResult(result)
-    } catch (error) {
-      setTestResult({
-        success: false,
-        message: error instanceof Error ? error.message : 'Connection failed',
-      })
-    } finally {
-      setIsTesting(false)
-    }
-  }
-
-  const handleCancel = () => {
-    navigate('/settings/integrations')
-  }
-
-  const handleJiraCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleJiraGenerateSecret = () => {
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleJiraSaveInboundWebhook = () => {
-    void webhook.handleSaveInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleJiraSaveOutboundWebhook = () => {
-    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
-      toast.error('Jira API token is required to create outbound webhook settings')
-      return
-    }
-
-    void webhook.handleSaveOutboundWebhook(jiraProjectMapping, {
-      forcedEvents: ['job_started', 'job_ended'],
-      projectId: webhook.selectedInboundProjectId,
-    })
-  }
-
-  const handleShortcutCreateInboundWebhook = () => {
-    void webhook.handleCreateInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutGenerateSecret = () => {
-    void webhook.handleGenerateSecret(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutSaveInboundWebhook = () => {
-    void webhook.handleSaveInboundWebhook(
-      webhook.selectedInboundProviderProjectId,
-      webhook.selectedInboundProjectId,
-    )
-  }
-
-  const handleShortcutSaveOutboundWebhook = () => {
-    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
-      toast.error('Shortcut API token is required to create outbound webhook settings')
-      return
-    }
-
-    void webhook.handleSaveOutboundWebhook(shortcutProjectMapping, {
-      forcedEvents: ['job_started', 'job_ended'],
-    })
-  }
+  // ---- Per-system inbound handlers -------------------------------------------
 
   const buildGitHubInboundLabelMappings = () => {
     if (!webhook.autoExecute) {
@@ -538,6 +420,75 @@ export function IntegrationDetailPage() {
     )
   }
 
+  const handleJiraCreateInboundWebhook = () => {
+    void webhook.handleCreateInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
+  }
+
+  const handleJiraGenerateSecret = () => {
+    void webhook.handleGenerateSecret(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
+  }
+
+  const handleJiraSaveInboundWebhook = () => {
+    void webhook.handleSaveInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
+  }
+
+  const handleShortcutCreateInboundWebhook = () => {
+    void webhook.handleCreateInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
+  }
+
+  const handleShortcutGenerateSecret = () => {
+    void webhook.handleGenerateSecret(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
+  }
+
+  const handleShortcutSaveInboundWebhook = () => {
+    void webhook.handleSaveInboundWebhook(
+      webhook.selectedInboundProviderProjectId,
+      webhook.selectedInboundProjectId,
+    )
+  }
+
+  // Pick inbound callbacks based on integration system.
+  const onCreateInboundWebhook = isGithubIntegration
+    ? handleGitHubCreateInboundWebhook
+    : isJiraIntegration
+      ? handleJiraCreateInboundWebhook
+      : isShortcutIntegration
+        ? handleShortcutCreateInboundWebhook
+        : () => void webhook.handleCreateInboundWebhook()
+
+  const onGenerateInboundSecret = isGithubIntegration
+    ? handleGitHubGenerateSecret
+    : isJiraIntegration
+      ? handleJiraGenerateSecret
+      : isShortcutIntegration
+        ? handleShortcutGenerateSecret
+        : () => void webhook.handleGenerateSecret()
+
+  const onSaveInboundWebhook = isGithubIntegration
+    ? handleGitHubSaveInboundWebhook
+    : isJiraIntegration
+      ? handleJiraSaveInboundWebhook
+      : isShortcutIntegration
+        ? handleShortcutSaveInboundWebhook
+        : () => void webhook.handleSaveInboundWebhook()
+
+  // ---- Per-system outbound handlers ------------------------------------------
+
   const handleGitHubSaveOutboundWebhook = () => {
     if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
       toast.error('GitHub API token is required to enable outbound feedback')
@@ -554,6 +505,114 @@ export function IntegrationDetailPage() {
       forcedEvents: ['job_started', 'job_ended'],
       projectId: webhook.selectedInboundProjectId,
     })
+  }
+
+  const handleJiraSaveOutboundWebhook = () => {
+    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
+      toast.error('Jira API token is required to create outbound webhook settings')
+      return
+    }
+
+    void webhook.handleSaveOutboundWebhook(jiraProjectMapping, {
+      forcedEvents: ['job_started', 'job_ended'],
+      projectId: webhook.selectedInboundProjectId,
+    })
+  }
+
+  const handleShortcutSaveOutboundWebhook = () => {
+    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
+      toast.error('Shortcut API token is required to create outbound webhook settings')
+      return
+    }
+
+    void webhook.handleSaveOutboundWebhook(shortcutProjectMapping, {
+      forcedEvents: ['job_started', 'job_ended'],
+    })
+  }
+
+  // Pick outbound callbacks + provider mapping based on integration system.
+  const outboundProviderProjectMapping = isGithubIntegration
+    ? githubRepositoryMapping
+    : isJiraIntegration
+      ? jiraProjectMapping
+      : isShortcutIntegration
+        ? shortcutProjectMapping
+        : null
+
+  const onSaveOutboundWebhook = isGithubIntegration
+    ? handleGitHubSaveOutboundWebhook
+    : isJiraIntegration
+      ? handleJiraSaveOutboundWebhook
+      : isShortcutIntegration
+        ? handleShortcutSaveOutboundWebhook
+        : () => void webhook.handleSaveOutboundWebhook()
+
+  // Type-safe bridge for saveIntegrationOutboundWebhook — the SelfManagedOutboundWebhookSectionProps
+  // interface uses Record<string,unknown> for the data parameter, while the API function expects a
+  // specific config shape. The cast is safe because CustomOutboundWebhookSection always passes
+  // a compatible data structure.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const customSaveOutboundWebhook = saveIntegrationOutboundWebhook as any
+
+  // ---- Form handlers ---------------------------------------------------------
+
+  const handleSubmit = async (config: Record<string, unknown>) => {
+    if (!integrationSystem) {
+      return
+    }
+
+    setIsSavingConfig(true)
+
+    try {
+      const savedIntegration = existingIntegration
+        ? await updateIntegration(existingIntegration.id, {
+            name: existingIntegration.name,
+            config,
+          })
+        : await createIntegration({
+            name: `${integrationType.label} Integration`,
+            system: integrationSystem,
+            config,
+          })
+
+      setExistingIntegration(savedIntegration)
+      navigate(`/settings/integrations/${savedIntegration.id}`, {
+        replace: !existingIntegration,
+      })
+    } catch (error) {
+      console.error('Failed to save integration configuration:', error)
+    } finally {
+      setIsSavingConfig(false)
+    }
+  }
+
+  const handleTest = async (_config: Record<string, unknown>) => {
+    setIsTesting(true)
+    setTestResult(null)
+
+    try {
+      if (!existingIntegration) {
+        setTestResult({
+          success: false,
+          message: 'Save the integration first to test the connection',
+        })
+        return
+      }
+
+      const result = await testIntegration(existingIntegration.id)
+      setTestResult(result)
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Connection failed',
+      })
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  const handleCancel = () => {
+    navigate('/settings/integrations')
   }
 
   if (integrationType.status === 'stub') {
@@ -618,7 +677,7 @@ export function IntegrationDetailPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent-4)] to-[var(--accent-3)] text-[var(--accent-11)] shadow-sm">
             <IconComponent className="h-7 w-7" />
           </div>
-          
+
           <div>
             <div className="flex items-center gap-3">
               <Heading className="text-2xl">{integrationType.label}</Heading>
@@ -633,7 +692,8 @@ export function IntegrationDetailPage() {
         </div>
       </div>
 
-      {isSlackIntegration && <SlackInstallSection />}
+      {/* Auth setup section (e.g. Slack install guide) */}
+      {AuthSection && <AuthSection getBotStatus={getSlackBotStatus} />}
 
       {!isCustomIntegration && !isShortcutIntegration && !isJiraIntegration && !isGithubIntegration && !isSlackIntegration && (
         <section className="app-frame rounded-lg p-6">
@@ -653,106 +713,9 @@ export function IntegrationDetailPage() {
         </section>
       )}
 
-      {(isConfigured || isCustomIntegration) &&
-        capabilities.supportsInboundWebhooks &&
-        (isGithubIntegration ? (
-          <GitHubInboundWebhookSection
-            autoExecute={webhook.autoExecute}
-            deliveries={webhook.deliveries}
-            hasInboundChanges={webhook.hasInboundChanges}
-            inboundEvents={webhook.inboundEvents}
-            inboundWebhooks={webhook.inboundWebhooks}
-            isLoadingDeliveries={webhook.isLoadingDeliveries}
-            isLoadingWebhook={webhook.isLoadingWebhook}
-            isSavingWebhook={webhook.isSavingWebhook}
-            projects={projects}
-            selectedInboundProjectId={webhook.selectedInboundProjectId}
-            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
-            selectedInboundConfig={webhook.selectedInboundConfig}
-            selectedInboundConfigId={webhook.selectedInboundConfigId}
-            showSecret={webhook.showSecret}
-            githubAutoExecuteMode={webhook.githubAutoExecuteMode}
-            githubRequiredLabels={webhook.githubRequiredLabels}
-            onAutoExecuteChange={webhook.setAutoExecute}
-            onGitHubAutoExecuteModeChange={webhook.setGitHubAutoExecuteMode}
-            onGitHubRequiredLabelsChange={webhook.setGitHubRequiredLabels}
-            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
-            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={handleGitHubCreateInboundWebhook}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={handleGitHubGenerateSecret}
-            onInboundProjectChange={webhook.setSelectedInboundProjectId}
-            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
-            onRefreshDeliveries={webhook.handleRefreshDeliveries}
-            onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={handleGitHubSaveInboundWebhook}
-            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleInboundEvent={webhook.handleToggleInboundEvent}
-            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
-          />
-        ) : isJiraIntegration ? (
-          <JiraInboundWebhookSection
-            autoExecute={webhook.autoExecute}
-            deliveries={webhook.deliveries}
-            hasInboundChanges={webhook.hasInboundChanges}
-            inboundEvents={webhook.inboundEvents}
-            inboundWebhooks={webhook.inboundWebhooks}
-            isLoadingDeliveries={webhook.isLoadingDeliveries}
-            isLoadingWebhook={webhook.isLoadingWebhook}
-            isSavingWebhook={webhook.isSavingWebhook}
-            projects={projects}
-            selectedInboundProjectId={webhook.selectedInboundProjectId}
-            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
-            selectedInboundConfig={webhook.selectedInboundConfig}
-            selectedInboundConfigId={webhook.selectedInboundConfigId}
-            showSecret={webhook.showSecret}
-            onAutoExecuteChange={webhook.setAutoExecute}
-            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
-            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={handleJiraCreateInboundWebhook}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={handleJiraGenerateSecret}
-            onInboundProjectChange={webhook.setSelectedInboundProjectId}
-            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
-            onRefreshDeliveries={webhook.handleRefreshDeliveries}
-            onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={handleJiraSaveInboundWebhook}
-            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleInboundEvent={webhook.handleToggleInboundEvent}
-            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
-          />
-        ) : isShortcutIntegration ? (
-          <ShortcutInboundWebhookSection
-            autoExecute={webhook.autoExecute}
-            deliveries={webhook.deliveries}
-            hasInboundChanges={webhook.hasInboundChanges}
-            inboundEvents={webhook.inboundEvents}
-            inboundWebhooks={webhook.inboundWebhooks}
-            isLoadingDeliveries={webhook.isLoadingDeliveries}
-            isLoadingWebhook={webhook.isLoadingWebhook}
-            isSavingWebhook={webhook.isSavingWebhook}
-            projects={projects}
-            selectedInboundProjectId={webhook.selectedInboundProjectId}
-            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
-            selectedInboundConfig={webhook.selectedInboundConfig}
-            selectedInboundConfigId={webhook.selectedInboundConfigId}
-            showSecret={webhook.showSecret}
-            onAutoExecuteChange={webhook.setAutoExecute}
-            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
-            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
-            onCreateInboundWebhook={handleShortcutCreateInboundWebhook}
-            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
-            onGenerateSecret={handleShortcutGenerateSecret}
-            onInboundProjectChange={webhook.setSelectedInboundProjectId}
-            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
-            onRefreshDeliveries={webhook.handleRefreshDeliveries}
-            onRetryDelivery={webhook.handleRetryDelivery}
-            onSaveWebhook={handleShortcutSaveInboundWebhook}
-            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
-            onToggleInboundEvent={webhook.handleToggleInboundEvent}
-            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
-          />
-        ) : isCustomIntegration ? (
+      {/* Inbound webhook section */}
+      {(isConfigured || isCustomIntegration) && capabilities.supportsInboundWebhooks && (
+        isCustomIntegration ? (
           <CustomInboundWebhookSection
             autoExecute={webhook.autoExecute}
             deliveries={webhook.deliveries}
@@ -783,6 +746,41 @@ export function IntegrationDetailPage() {
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
+        ) : RegistryInboundSection ? (
+          <RegistryInboundSection
+            autoExecute={webhook.autoExecute}
+            deliveries={webhook.deliveries}
+            hasInboundChanges={webhook.hasInboundChanges}
+            inboundEvents={webhook.inboundEvents}
+            inboundWebhooks={webhook.inboundWebhooks}
+            isLoadingDeliveries={webhook.isLoadingDeliveries}
+            isLoadingWebhook={webhook.isLoadingWebhook}
+            isSavingWebhook={webhook.isSavingWebhook}
+            projects={projects}
+            selectedInboundConfig={webhook.selectedInboundConfig}
+            selectedInboundConfigId={webhook.selectedInboundConfigId}
+            selectedInboundProjectId={webhook.selectedInboundProjectId}
+            selectedInboundProviderProjectId={webhook.selectedInboundProviderProjectId}
+            showSecret={webhook.showSecret}
+            githubAutoExecuteMode={webhook.githubAutoExecuteMode}
+            githubRequiredLabels={webhook.githubRequiredLabels}
+            onAutoExecuteChange={webhook.setAutoExecute}
+            onCopyWebhookSecret={webhook.handleCopyWebhookSecret}
+            onCopyWebhookUrl={webhook.handleCopyWebhookUrl}
+            onCreateInboundWebhook={onCreateInboundWebhook}
+            onDeleteInboundWebhook={webhook.handleDeleteInboundWebhook}
+            onGenerateSecret={onGenerateInboundSecret}
+            onGitHubAutoExecuteModeChange={webhook.setGitHubAutoExecuteMode}
+            onGitHubRequiredLabelsChange={webhook.setGitHubRequiredLabels}
+            onInboundProjectChange={webhook.setSelectedInboundProjectId}
+            onProviderProjectIdChange={webhook.setSelectedInboundProviderProjectId}
+            onRefreshDeliveries={webhook.handleRefreshDeliveries}
+            onRetryDelivery={webhook.handleRetryDelivery}
+            onSaveWebhook={onSaveInboundWebhook}
+            onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
+            onToggleInboundEvent={webhook.handleToggleInboundEvent}
+            onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
+          />
         ) : (
           <InboundWebhookSection
             autoExecute={webhook.autoExecute}
@@ -808,7 +806,8 @@ export function IntegrationDetailPage() {
             onSelectInboundWebhook={webhook.handleSelectInboundWebhook}
             onToggleSecretVisibility={() => webhook.setShowSecret(!webhook.showSecret)}
           />
-        ))}
+        )
+      )}
 
       {isConfigured && existingIntegration && (isGithubIntegration || integrationSystem === 'gitlab' || integrationSystem === 'bitbucket') && (
         <IntegrationCredentialSection
@@ -817,38 +816,30 @@ export function IntegrationDetailPage() {
         />
       )}
 
-      {(isConfigured || isCustomIntegration) &&
-        capabilities.supportsOutboundWebhooks &&
-        (isGithubIntegration ? (
-          <GitHubOutboundWebhookSection
+      {/* Outbound webhook section */}
+      {(isConfigured || isCustomIntegration) && capabilities.supportsOutboundWebhooks && (
+        SelfManagedOutboundSection ? (
+          // Custom integration: section manages its own state and calls the API directly.
+          <SelfManagedOutboundSection
+            integrationEntityId={integrationEntityId}
+            projects={projects}
+            onGetOutboundWebhooks={getIntegrationOutboundWebhooks}
+            onSaveOutboundWebhook={customSaveOutboundWebhook}
+            onDeleteOutboundWebhook={deleteIntegrationOutboundWebhook}
+            onTestOutboundWebhook={testIntegrationOutboundWebhook}
+          />
+        ) : RegistryOutboundSection ? (
+          // Integration-specific controlled outbound section (GitHub, Jira, Shortcut, etc.).
+          <RegistryOutboundSection
             isSavingWebhook={webhook.isSavingWebhook}
             outboundApiToken={webhook.outboundApiToken}
             outboundWebhook={webhook.outboundWebhook}
-            repositoryMapping={githubRepositoryMapping}
+            providerProjectMapping={outboundProviderProjectMapping}
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
-            onSaveOutboundWebhook={handleGitHubSaveOutboundWebhook}
+            onSaveOutboundWebhook={onSaveOutboundWebhook}
           />
-        ) : isJiraIntegration ? (
-          <JiraOutboundWebhookSection
-            isSavingWebhook={webhook.isSavingWebhook}
-            outboundApiToken={webhook.outboundApiToken}
-            outboundWebhook={webhook.outboundWebhook}
-            projectMapping={jiraProjectMapping}
-            onOutboundApiTokenChange={webhook.setOutboundApiToken}
-            onSaveOutboundWebhook={handleJiraSaveOutboundWebhook}
-          />
-        ) : isShortcutIntegration ? (
-          <ShortcutOutboundWebhookSection
-            isSavingWebhook={webhook.isSavingWebhook}
-            outboundApiToken={webhook.outboundApiToken}
-            outboundWebhook={webhook.outboundWebhook}
-            projectMapping={shortcutProjectMapping}
-            onOutboundApiTokenChange={webhook.setOutboundApiToken}
-            onSaveOutboundWebhook={handleShortcutSaveOutboundWebhook}
-          />
-        ) : isCustomIntegration ? (
-          <CustomOutboundWebhookSection integrationEntityId={integrationEntityId} projects={projects} />
         ) : (
+          // Generic outbound section for integrations without a custom implementation.
           <OutboundWebhookSection
             emitJobEnded={webhook.emitJobEnded}
             emitJobStarted={webhook.emitJobStarted}
@@ -862,7 +853,8 @@ export function IntegrationDetailPage() {
             onOutboundApiTokenChange={webhook.setOutboundApiToken}
             onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
           />
-        ))}
+        )
+      )}
     </div>
     </>
   )

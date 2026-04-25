@@ -1,0 +1,32 @@
+{
+  "name": "@viberglass/platform-ui",
+  "version": "1.0.0",
+  "description": "Shared UI primitives for Viberglass platform packages",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "peerDependencies": {
+    "@radix-ui/themes": "^3.0.0",
+    "clsx": "^2.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-router-dom": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

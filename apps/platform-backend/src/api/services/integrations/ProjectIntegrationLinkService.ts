@@ -1,9 +1,11 @@
+import { IntegrationRegistry } from "@viberglass/integration-core";
+import type { TicketSystem } from '@viberglass/types'
 import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../../persistence/integrations'
 import { ProjectDAO } from '../../../persistence/project/ProjectDAO'
 import { IntegrationRouteServiceError } from './errors'
 import type { LinkProjectIntegrationInput } from './types'
-import { integrationRegistry } from '../../../integration-plugins/TicketingIntegrationRegistry'
-import type { TicketSystem } from '@viberglass/types'
+
+const integrationRegistry = new IntegrationRegistry();
 
 export class ProjectIntegrationLinkService {
   constructor(

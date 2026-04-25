@@ -4,7 +4,7 @@ import {
   IntegrationCredentialDAO,
 } from "../../../persistence/integrations";
 import { WebhookConfigDAO } from "../../../persistence/webhook/WebhookConfigDAO";
-import { integrationRegistry } from "../../../integration-plugins";
+import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
 import type { TicketSystem, AuthCredentials } from "@viberglass/types";
 import { INTEGRATION_DESCRIPTIONS } from "@viberglass/types";
 import { IntegrationRouteServiceError } from "./errors";

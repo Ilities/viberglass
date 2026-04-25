@@ -30,7 +30,8 @@ const mistralVibePlugin: AgentPlugin<MistralVibeConfig> = {
     apiKey: ["MISTRAL_API_KEY"],
   },
 
-  stateDir: ".mistral",
+  // vibe-acp stores sessions in ~/.vibe/logs/session/ (VIBE_HOME defaults to ~/.vibe/)
+  stateDir: ".vibe/logs/session",
 
   docker: {
     variant: "mistral",

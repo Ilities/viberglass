@@ -23,8 +23,8 @@ import {
   PromptTemplateDAO,
 } from "../../persistence/promptTemplate/PromptTemplateDAO";
 import { PromptTemplateService } from "../../services/PromptTemplateService";
-import { integrationRegistry } from "../../integration-plugins";
-import type { IntegrationFieldDefinition as PluginFieldDefinition } from "../../integration-plugins/plugin";
+import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
+import type { IntegrationFieldDefinition } from "@viberglass/integration-core";
 import type {
   AuthCredentials,
   ConfigureIntegrationRequest,
@@ -95,7 +95,7 @@ const mapConfigRecord = (
 };
 
 const isMissingRequiredField = (
-  field: PluginFieldDefinition,
+  field: IntegrationFieldDefinition,
   value: unknown,
 ): boolean => {
   if (value === null || value === undefined) return true;
