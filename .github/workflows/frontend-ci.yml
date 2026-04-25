@@ -8,6 +8,9 @@ on:
     paths:
       - 'apps/platform-frontend/**'
       - 'packages/types/**'
+      - 'packages/platform-ui/**'
+      - 'packages/integration-core/**'
+      - 'packages/integrations/**'
       - '.github/workflows/frontend-ci.yml'
 
 permissions:
@@ -32,7 +35,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build shared packages
-        run: npm run build -w @viberglass/types
+        run: npm run frontend:build-deps
 
       - name: Run lint
         run: npm run lint -w @viberglass/frontend

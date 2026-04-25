@@ -84,6 +84,7 @@ describe('GitHub webhook sections', () => {
           inboundWebhooks: [
             {
               id: 'inbound-1',
+              integrationId: 'test-integration-id',
               provider: 'github',
               webhookUrl: '/api/webhooks/github',
               events: ['issues.opened'],
@@ -93,6 +94,7 @@ describe('GitHub webhook sections', () => {
               webhookSecret: 'secret',
               providerProjectId: 'acme/repo',
               projectId: 'project-1',
+              inboundEvents: [],
               labelMappings: {
                 github: {
                   autoExecuteMode: 'label_gated',
@@ -105,6 +107,7 @@ describe('GitHub webhook sections', () => {
           ],
           selectedInboundConfig: {
             id: 'inbound-1',
+            integrationId: 'test-integration-id',
             provider: 'github',
             webhookUrl: '/api/webhooks/github',
             events: ['issues.opened'],
@@ -114,6 +117,7 @@ describe('GitHub webhook sections', () => {
             webhookSecret: 'secret',
             providerProjectId: 'acme/repo',
             projectId: 'project-1',
+            inboundEvents: [],
             labelMappings: {
               github: {
                 autoExecuteMode: 'label_gated',
@@ -146,6 +150,7 @@ describe('GitHub webhook sections', () => {
           inboundWebhooks: [
             {
               id: 'inbound-1',
+              integrationId: 'test-integration-id',
               provider: 'github',
               webhookUrl: '/api/webhooks/github',
               events: ['issues.opened'],
@@ -153,12 +158,17 @@ describe('GitHub webhook sections', () => {
               active: true,
               hasSecret: true,
               webhookSecret: 'secret',
+              providerProjectId: null,
+              projectId: null,
+              inboundEvents: [],
+              labelMappings: null,
               createdAt: '2026-02-10T00:00:00.000Z',
               updatedAt: '2026-02-10T00:00:00.000Z',
             },
           ],
           selectedInboundConfig: {
             id: 'inbound-1',
+            integrationId: 'test-integration-id',
             provider: 'github',
             webhookUrl: '/api/webhooks/github',
             events: ['issues.opened'],
@@ -166,6 +176,10 @@ describe('GitHub webhook sections', () => {
             active: true,
             hasSecret: true,
             webhookSecret: 'secret',
+            providerProjectId: null,
+            projectId: null,
+            inboundEvents: [],
+            labelMappings: null,
             createdAt: '2026-02-10T00:00:00.000Z',
             updatedAt: '2026-02-10T00:00:00.000Z',
           },
