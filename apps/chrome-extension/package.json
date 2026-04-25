@@ -1,0 +1,29 @@
+{
+  "name": "@viberglass/chrome-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsx scripts/build-content.ts",
+    "build:content": "tsx scripts/build-content.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.15",
+    "@types/chrome": "^0.0.287",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.3.0",
+    "esbuild": "^0.24.0",
+    "postcss": "^8",
+    "tailwindcss": "^4.1.15",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.0.0"
+  }
+}

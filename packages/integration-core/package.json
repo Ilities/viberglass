@@ -1,0 +1,44 @@
+{
+  "name": "@viberglass/integration-core",
+  "version": "1.0.0",
+  "description": "Shared integration framework for Viberglass platform",
+  "main": "./dist/backend/index.js",
+  "module": "./dist/backend/index.mjs",
+  "types": "./dist/backend/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/backend/index.d.ts",
+      "import": "./dist/backend/index.mjs",
+      "require": "./dist/backend/index.js"
+    },
+    "./frontend": {
+      "types": "./dist/frontend/index.d.ts",
+      "import": "./dist/frontend/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@viberglass/types": "*"
+  },
+  "peerDependencies": {
+    "@radix-ui/themes": "^3.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-router-dom": "^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@radix-ui/themes": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "react-router-dom": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

@@ -6,7 +6,7 @@ import {
 } from "../../../webhooks/feedback/customOutboundTargetConfig";
 import type { WebhookProvider } from "../../../persistence/webhook/WebhookConfigDAO";
 import type { DeliveryStatus } from "../../../persistence/webhook/WebhookDeliveryDAO";
-import { integrationRegistry } from "../../../integration-plugins";
+import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
 
 export function mapSystemToWebhookProvider(
   system: string,
