@@ -122,7 +122,10 @@ app.use(
       // Allow requests with no origin (like mobile apps or Postman)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.startsWith("chrome-extension://")
+      ) {
         callback(null, true);
       } else {
         logger.warn("CORS blocked request from unauthorized origin", {

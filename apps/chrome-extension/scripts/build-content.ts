@@ -1,8 +1,7 @@
 import { build, type BuildOptions } from "esbuild";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { resolve } from "path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = process.cwd();
 
 const contentScripts = [
   "src/content/area-selector.ts",
@@ -23,8 +22,8 @@ const sharedOptions: Omit<BuildOptions, "outdir" | "outfile"> = {
 async function buildBackground() {
   await build({
     ...sharedOptions,
-    entryPoints: [resolve(__dirname, "..", backgroundScript)],
-    outfile: resolve(__dirname, "../dist/background.js"),
+    entryPoints: [resolve(rootDir, backgroundScript)],
+    outfile: resolve(rootDir, "dist/background.js"),
     format: "esm",
     minify: false,
   });
@@ -36,21 +35,11 @@ async function buildContentScripts() {
     const name = script.split("/").pop()!.replace(".ts", ".js");
     await build({
       ...sharedOptions,
-      entryPoints: [resolve(__dirname, "..", script)],
-      outfile: resolve(__dirname, "../dist/content", name),
+      entryPoints: [resolve(rootDir, script)],
+      outfile: resolve(rootDir, "dist/content", name),
       format: "iife",
       minify: true,
     });
     console.log(`Built content/${name}`);
   }
 }
-
-async function main() {
-  await Promise.all([buildBackground(), buildContentScripts()]);
-  console.log("Content scripts and background built successfully");
-}
-
-main().catch((err) => {
-  console.error("Build failed:", err);
-  process.exit(1);
-});
