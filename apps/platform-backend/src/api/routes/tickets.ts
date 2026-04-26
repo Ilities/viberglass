@@ -15,6 +15,8 @@ import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 import { getFeedbackService } from "../../webhooks/webhookServiceFactory";
 import type { FeedbackService } from "../../webhooks/FeedbackService";
 import { requireAuth } from "../middleware/authentication";
+import { validateUuidParam } from "../middleware/validation";
+import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
 import { registerTicketCrudMediaRoutes } from "./tickets/crudMediaRoutes";
 import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
@@ -58,6 +60,52 @@ const ticketPlanningApprovalService = new TicketPlanningApprovalService(
 const ticketWorkflowOverrideService = new TicketWorkflowOverrideService();
 
 router.use(requireAuth);
+
+const validSetStatuses: TicketLifecycleStatus[] = [
+  TICKET_STATUS.OPEN,
+  TICKET_STATUS.IN_PROGRESS,
+  TICKET_STATUS.IN_REVIEW,
+  TICKET_STATUS.RESOLVED,
+];
+
+router.post("/:id/set-status", validateUuidParam("id"), async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body as { status: unknown };
+
+  if (!status || !validSetStatuses.includes(status as TicketLifecycleStatus)) {
+    return res.status(400).json({ error: "Invalid status" });
+  }
+
+  try {
+    if (status === TICKET_STATUS.IN_REVIEW) {
+      const ticket = await ticketService.getTicket(id);
+      if (!ticket) {
+        return res.status(404).json({ error: "Ticket not found" });
+      }
+      await ticketPhaseDocumentService.requestApproval(
+        id,
+        ticket.workflowPhase,
+        req.auth?.user.email,
+      );
+    } else {
+      await ticketService.updateTicket(id, {
+        status: status as TicketLifecycleStatus,
+      });
+    }
+
+    const updated = await ticketService.getTicket(id);
+    if (!updated) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    logger.error("Error setting ticket status", {
+      ticketId: id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 registerTicketCrudMediaRoutes(router, {
   ticketService,

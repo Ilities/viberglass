@@ -32,10 +32,6 @@ export class TicketLifecycleStatusService {
       return TICKET_STATUS.RESOLVED;
     }
 
-    if (ticket.status === TICKET_STATUS.IN_REVIEW) {
-      return TICKET_STATUS.IN_REVIEW;
-    }
-
     if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION) {
       const hasExecutionJob = await this.ticketDAO.hasExecutionJob(ticket.id);
       return hasExecutionJob
@@ -51,10 +47,11 @@ export class TicketLifecycleStatusService {
       return TICKET_STATUS.OPEN;
     }
 
-    if (
-      document.approvalState === "approval_requested" ||
-      document.content.trim().length > 0
-    ) {
+    if (document.approvalState === "approval_requested") {
+      return TICKET_STATUS.IN_REVIEW;
+    }
+
+    if (document.content.trim().length > 0) {
       return TICKET_STATUS.IN_PROGRESS;
     }
 

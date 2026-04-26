@@ -98,6 +98,20 @@ export class TicketPhaseDocumentService {
       source: options.source ?? PHASE_DOCUMENT_REVISION_SOURCE.MANUAL,
       actor: options.actor,
     });
+
+    if (
+      options.source !== PHASE_DOCUMENT_REVISION_SOURCE.AGENT &&
+      content.trim().length > 0 &&
+      doc.approvalState !== "approval_requested"
+    ) {
+      await this.documentDAO.updateApprovalState(
+        ticketId,
+        phase,
+        "approval_requested",
+        options.actor,
+      );
+    }
+
     await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);

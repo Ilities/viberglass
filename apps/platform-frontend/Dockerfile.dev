@@ -10,9 +10,14 @@ WORKDIR /app
 COPY package*.json ./
 
 # Create workspace directories and copy their package.json files
-RUN mkdir -p apps/platform-frontend packages/types
+RUN mkdir -p apps/platform-frontend packages/types packages/integration-core packages/platform-ui
 COPY apps/platform-frontend/package*.json ./apps/platform-frontend/
 COPY packages/types/package*.json ./packages/types/
+COPY packages/integration-core/package*.json ./packages/integration-core/
+COPY packages/platform-ui/package*.json ./packages/platform-ui/
+
+# Integration plugins use a glob workspace; copy full source for package.json resolution
+COPY packages/integrations ./packages/integrations
 
 # Install all dependencies (workspace-aware from root)
 RUN npm install --legacy-peer-deps
@@ -20,10 +25,12 @@ RUN npm install --legacy-peer-deps
 # Copy all workspace packages (types, frontend source, etc.)
 # Note: In docker-compose, source is mounted via volume, overriding these copies
 COPY packages/types ./packages/types
+COPY packages/integration-core ./packages/integration-core
+COPY packages/platform-ui ./packages/platform-ui
 COPY apps/platform-frontend ./apps/platform-frontend
 
-# Build shared types package (needed before frontend can start)
-RUN npm run build -w @viberglass/types
+# Build shared packages (needed before frontend can start)
+RUN npm run build -w @viberglass/types && npm run build -w @viberglass/integration-core && npm run build -w @viberglass/platform-ui && npm run build --workspaces --if-present -w @viberglass/integration-bitbucket -w @viberglass/integration-custom -w @viberglass/integration-github -w @viberglass/integration-gitlab -w @viberglass/integration-jira -w @viberglass/integration-linear -w @viberglass/integration-monday -w @viberglass/integration-shortcut -w @viberglass/integration-slack
 
 # Expose Vite default port
 EXPOSE 3000

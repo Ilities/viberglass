@@ -71,15 +71,10 @@ class GitService {
       const git = simpleGit({ baseDir: workDir });
       const repoPath = path.join(workDir, "repo");
 
-      // Disable credential prompting completely
-      await git.clone(authenticatedUrl, repoPath, [
+      await git.env("GIT_TERMINAL_PROMPT", "0").clone(authenticatedUrl, repoPath, [
         "--branch",
         branch,
         "--single-branch",
-        "-c",
-        "core.askPass=",
-        "-c",
-        "credential.helper=",
       ]);
 
       this.logger.debug("Repository cloned successfully", { repoUrl, branch });
