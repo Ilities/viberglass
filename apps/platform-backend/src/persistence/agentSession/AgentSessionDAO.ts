@@ -20,6 +20,7 @@ export interface AgentSession {
   projectId: string;
   projectSlug: string | null;
   ticketId: string;
+  ticketTitle: string | null;
   clankerId: string;
   mode: AgentSessionMode;
   status: AgentSessionStatus;
@@ -163,12 +164,49 @@ export class AgentSessionDAO {
 
     const rows = await db
       .selectFrom("agent_sessions")
-      .selectAll()
+      .innerJoin("projects", "projects.id", "agent_sessions.project_id")
+      .leftJoin("tickets", "tickets.id", "agent_sessions.ticket_id")
+      .selectAll("agent_sessions")
+      .select([
+        "projects.slug as project_slug",
+        "tickets.title as ticket_title",
+      ])
       .where("status", "in", [...statuses])
-      .orderBy("created_at", "desc")
+      .orderBy("agent_sessions.created_at", "desc")
       .execute();
 
-    return rows.map((row) => this.mapRow(row));
+    return rows.map((row) =>
+      this.mapRow(row as AgentSessionRow & { project_slug: string | null; ticket_title: string | null }),
+    );
+  }
+
+  async listByProject(
+    projectId: string,
+    options: AgentSessionListOptions = {},
+  ): Promise<AgentSession[]> {
+    let query = db
+      .selectFrom("agent_sessions")
+      .innerJoin("projects", "projects.id", "agent_sessions.project_id")
+      .leftJoin("tickets", "tickets.id", "agent_sessions.ticket_id")
+      .selectAll("agent_sessions")
+      .select([
+        "projects.slug as project_slug",
+        "tickets.title as ticket_title",
+      ])
+      .where("agent_sessions.project_id", "=", projectId);
+
+    if (options.statuses && options.statuses.length > 0) {
+      query = query.where("agent_sessions.status", "in", [...options.statuses]);
+    }
+
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+
+    const rows = await query.orderBy("agent_sessions.updated_at", "desc").execute();
+    return rows.map((row) =>
+      this.mapRow(row as AgentSessionRow & { project_slug: string | null; ticket_title: string | null }),
+    );
   }
 
   async update(id: string, updates: UpdateAgentSessionInput): Promise<void> {
@@ -204,13 +242,16 @@ export class AgentSessionDAO {
     await db.updateTable("agent_sessions").set(updateData).where("id", "=", id).execute();
   }
 
-  private mapRow(row: AgentSessionRow & { project_slug?: string | null }): AgentSession {
+  private mapRow(
+    row: AgentSessionRow & { project_slug?: string | null; ticket_title?: string | null },
+  ): AgentSession {
     return {
       id: row.id,
       tenantId: row.tenant_id,
       projectId: row.project_id,
       projectSlug: row.project_slug ?? null,
       ticketId: row.ticket_id,
+      ticketTitle: row.ticket_title ?? null,
       clankerId: row.clanker_id,
       mode: row.mode,
       status: row.status,

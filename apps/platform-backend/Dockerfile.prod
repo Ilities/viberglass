@@ -37,6 +37,10 @@ RUN npm run build -w @viberglass/chat-slack
 # Build backend (TypeScript compilation)
 RUN npm run build -w @viberglass/platform-backend
 
+# Prune dev dependencies after all builds complete
+RUN npm prune --production --ignore-scripts && \
+    npm cache clean --force
+
 # ==========================================
 # Stage 2: Production Runtime
 # Minimal image with only compiled code and production dependencies
@@ -53,26 +57,13 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files
-COPY package*.json ./
-COPY packages/types/package*.json ./packages/types/
-COPY packages/chat-slack/package*.json ./packages/chat-slack/
-COPY apps/platform-backend/package*.json ./apps/platform-backend/
-
-# Install only production dependencies
-# --ignore-scripts prevents root postinstall (next telemetry disable) from failing
-RUN npm ci --legacy-peer-deps --production --ignore-scripts && \
-    npm cache clean --force
+# Copy production dependencies from builder stage
+# Builder has complete workspace tree; npm prune removed devDependencies
+COPY --from=builder /build/node_modules ./node_modules
 
 # Copy compiled backend output from builder stage
 # Includes dist/migrations with compiled migration files
 COPY --from=builder /build/apps/platform-backend/dist ./dist
-
-# Copy shared packages (required at runtime)
-COPY --from=builder /build/packages/types/dist ./packages/types/dist
-COPY --from=builder /build/packages/types/package.json ./packages/types/
-COPY --from=builder /build/packages/chat-slack/dist ./packages/chat-slack/dist
-COPY --from=builder /build/packages/chat-slack/package.json ./packages/chat-slack/
 
 # Set ownership to non-root user
 RUN chown -R nodejs:nodejs /app

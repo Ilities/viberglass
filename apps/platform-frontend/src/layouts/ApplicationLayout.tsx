@@ -24,10 +24,15 @@ import {
 import { StackedLayout } from '@/components/stacked-layout'
 import { useAuth } from '@/context/auth-context'
 import { ProjectProvider } from '@/context/project-context'
+import { useProject } from '@/context/project-context'
 import { ProjectTheme } from '@/context/project-theme'
 import { useTheme } from '@/context/theme-context'
+import { usePolling } from '@/hooks/usePolling'
 import type { AuthUser } from '@/service/api/auth-api'
 import { getProjects, Project } from '@/service/api/project-api'
+import { listProjectActiveSessions, type AgentSession } from '@/service/api/session-api'
+import { getTickets } from '@/service/api/ticket-api'
+import type { Ticket } from '@viberglass/types'
 import {
   ActivityLogIcon,
   ChevronDownIcon,
@@ -45,7 +50,7 @@ import {
   RocketIcon,
   SunIcon,
 } from '@radix-ui/react-icons'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
@@ -160,6 +165,77 @@ function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: (
   )
 }
 
+function SessionStatusDot({ status }: { status: AgentSession['status'] }) {
+  const isActive = status === 'active'
+  return (
+    <span
+      className={`inline-block h-2 w-2 shrink-0 rounded-full ${isActive ? 'bg-green-500' : 'bg-amber-500'}`}
+    />
+  )
+}
+
+function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
+  const { project } = useProject()
+
+  const fetchSessions = useCallback(
+    () => (project ? listProjectActiveSessions(project.id) : Promise.resolve<AgentSession[]>([])),
+    [project],
+  )
+
+  const fetchTickets = useCallback(
+    () => getTickets({ projectSlug, statuses: ['in_review'], limit: 10 }),
+    [projectSlug],
+  )
+
+  const { data: sessions } = usePolling<AgentSession[]>({
+    fn: fetchSessions,
+    interval: 15000,
+    enabled: !!project,
+  })
+
+  const { data: ticketList } = usePolling<Awaited<ReturnType<typeof getTickets>>>({
+    fn: fetchTickets,
+    interval: 15000,
+  })
+
+  const tickets: Ticket[] = ticketList?.tickets ?? []
+  const activeSessions: AgentSession[] = sessions ?? []
+
+  if (!activeSessions.length && !tickets.length) return null
+
+  return (
+    <>
+      {activeSessions.length > 0 && (
+        <SidebarSection>
+          <SidebarHeading>Active Sessions</SidebarHeading>
+          {activeSessions.map((session) => (
+            <SidebarItem
+              key={session.id}
+              href={`/project/${projectSlug}/sessions/${session.id}`}
+            >
+              <SessionStatusDot status={session.status} />
+              <SidebarLabel>{session.ticketTitle ?? 'Session'}</SidebarLabel>
+            </SidebarItem>
+          ))}
+        </SidebarSection>
+      )}
+      {tickets.length > 0 && (
+        <SidebarSection>
+          <SidebarHeading>Awaiting Review</SidebarHeading>
+          {tickets.map((ticket) => (
+            <SidebarItem
+              key={ticket.id}
+              href={`/project/${projectSlug}/tickets/${ticket.id}`}
+            >
+              <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
+            </SidebarItem>
+          ))}
+        </SidebarSection>
+      )}
+    </>
+  )
+}
+
 export function ApplicationLayout() {
   return <ApplicationLayoutContent />
 }
@@ -207,6 +283,12 @@ function ApplicationLayoutContent() {
       label: 'Integrations',
       current: pathname.startsWith('/settings/integrations'),
       icon: <LayersIcon />,
+    },
+    {
+      href: '/sessions',
+      label: 'Sessions',
+      current: pathname.startsWith('/sessions'),
+      icon: <ActivityLogIcon />,
     },
     ...(isAdmin
       ? [
@@ -329,35 +411,40 @@ function ApplicationLayoutContent() {
                     </SidebarItem>
                   ))}
                 </SidebarSection>
-                <SidebarSection>
-                  <SidebarHeading>Projects</SidebarHeading>
-                  {projects.map((project) => (
-                    <SidebarItem
-                      key={project.id}
-                      href={`/project/${project.slug}`}
-                      current={
-                        pathname === `/project/${project.slug}` || pathname.startsWith(`/project/${project.slug}/`)
-                      }
-                    >
-                      {project.slug === 'viberglass' ? (
-                        <Avatar slot="avatar" src="/teams/viberglass.svg" />
-                      ) : (
-                        <Avatar
-                          slot="avatar"
-                          initials={project.name.substring(0, 2).toUpperCase()}
-                          className="bg-brand-gradient text-brand-charcoal"
-                        />
-                      )}
-                      <SidebarLabel>{project.name}</SidebarLabel>
+                {isProjectRoute && projectSlug ? (
+                  <ProjectActivitySidebar projectSlug={projectSlug} />
+                ) : (
+                  <SidebarSection>
+                    <SidebarHeading>Projects</SidebarHeading>
+                    {projects.map((project) => (
+                      <SidebarItem
+                        key={project.id}
+                        href={`/project/${project.slug}`}
+                        current={
+                          pathname === `/project/${project.slug}` ||
+                          pathname.startsWith(`/project/${project.slug}/`)
+                        }
+                      >
+                        {project.slug === 'viberglass' ? (
+                          <Avatar slot="avatar" src="/teams/viberglass.svg" />
+                        ) : (
+                          <Avatar
+                            slot="avatar"
+                            initials={project.name.substring(0, 2).toUpperCase()}
+                            className="bg-brand-gradient text-brand-charcoal"
+                          />
+                        )}
+                        <SidebarLabel>{project.name}</SidebarLabel>
+                      </SidebarItem>
+                    ))}
+                    <SidebarItem href="/new">
+                      <Icon>
+                        <PlusIcon />
+                      </Icon>
+                      <SidebarLabel>New Project</SidebarLabel>
                     </SidebarItem>
-                  ))}
-                  <SidebarItem href="/new">
-                    <Icon>
-                      <PlusIcon />
-                    </Icon>
-                    <SidebarLabel>New Project</SidebarLabel>
-                  </SidebarItem>
-                </SidebarSection>
+                  </SidebarSection>
+                )}
               </SidebarBody>
               <SidebarFooter>
                 <SidebarSection>

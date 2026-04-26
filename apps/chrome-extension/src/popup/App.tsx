@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import type { AuthState, CaptureState } from "@/types";
 import { getAuth, clearAuth } from "@/storage";
-import { LoginForm } from "./components/LoginForm";
 import { TicketForm } from "./components/TicketForm";
 
 const initialCapture: CaptureState = {
@@ -105,9 +104,23 @@ export function App() {
 
   if (!auth) {
     return (
-      <LoginForm
-        onLogin={(a) => setAuth(a)}
-      />
+      <div className="flex items-center justify-center h-[200px] p-5">
+        <div className="text-center">
+          <div className="flex items-center gap-2 justify-center mb-4">
+            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">V</span>
+            </div>
+            <span className="text-base font-semibold text-gray-900">Viberglass</span>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Sign in to capture bugs</p>
+          <button
+            onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL("login.html") })}
+            className="w-full py-2 px-4 text-sm font-medium text-white bg-amber-500 rounded-md hover:bg-amber-600 transition-colors"
+          >
+            Sign in
+          </button>
+        </div>
+      </div>
     );
   }
 

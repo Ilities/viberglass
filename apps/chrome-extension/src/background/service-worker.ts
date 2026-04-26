@@ -48,6 +48,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "API_REQUEST") {
+    handleApiRequest(message.data)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ error: err.message, status: err.status }));
+    return true;
+  }
+
   if (message.type === "CROP_IMAGE") {
     handleCropImage(
       message.data.dataUrl,
@@ -61,6 +68,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 });
+
+async function handleApiRequest(data: {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}): Promise<{ ok: boolean; status: number; body: unknown }> {
+  const response = await fetch(data.url, {
+    method: data.method,
+    headers: data.headers,
+    body: data.body,
+  });
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    body = await response.text();
+  }
+
+  return { ok: response.ok, status: response.status, body };
+}
 
 async function handleCaptureVisibleTab(
   _scale?: number,

@@ -1,12 +1,20 @@
-import type { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
-import type { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
-import type { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
-import type { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
-import type { AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
-import type { AgentTurn } from "../../persistence/agentSession/AgentTurnDAO";
-import type { AgentSessionEvent } from "../../persistence/agentSession/AgentSessionEventDAO";
-import type { AgentPendingRequest } from "../../persistence/agentSession/AgentPendingRequestDAO";
-import type { AgentSessionMode, AgentSessionStatus } from "../../types/agentSession";
+import type {
+  AgentSession,
+  AgentSessionDAO,
+} from "../../persistence/agentSession/AgentSessionDAO";
+import type {
+  AgentTurn,
+  AgentTurnDAO,
+} from "../../persistence/agentSession/AgentTurnDAO";
+import type {
+  AgentSessionEvent,
+  AgentSessionEventDAO,
+} from "../../persistence/agentSession/AgentSessionEventDAO";
+import type {
+  AgentPendingRequest,
+  AgentPendingRequestDAO,
+} from "../../persistence/agentSession/AgentPendingRequestDAO";
+import type { AgentSessionMode, AgentSessionStatus } from "@viberglass/types";
 
 export interface AgentSessionDetail {
   session: AgentSession;
@@ -56,6 +64,16 @@ export class AgentSessionQueryService {
     return this.agentSessionDAO.listByTicket(ticketId, {
       mode: options.mode,
       statuses: options.status ? [options.status] : undefined,
+      limit: options.limit,
+    });
+  }
+
+  async listForProject(
+    projectId: string,
+    options: { statuses?: AgentSessionStatus[]; limit?: number } = {},
+  ): Promise<AgentSession[]> {
+    return this.agentSessionDAO.listByProject(projectId, {
+      statuses: options.statuses,
       limit: options.limit,
     });
   }

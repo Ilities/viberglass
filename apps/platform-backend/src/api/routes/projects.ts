@@ -25,7 +25,13 @@ import {
 import { PromptTemplateService } from "../../services/PromptTemplateService";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import type { IntegrationFieldDefinition } from "@viberglass/integration-core";
+import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
+import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
+import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
+import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
+import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
 import type {
+  AgentSessionStatus,
   AuthCredentials,
   ConfigureIntegrationRequest,
   IntegrationConfig,
@@ -35,6 +41,7 @@ import type {
   UpsertProjectScmConfigRequest,
 } from "@viberglass/types";
 import { INTEGRATION_DESCRIPTIONS } from "@viberglass/types";
+import { AGENT_SESSION_ACTIVE_STATUSES } from "../../types/agentSession";
 
 const router = express.Router();
 const projectService = new ProjectDAO();
@@ -45,6 +52,12 @@ const integrationDAO = new IntegrationDAO();
 const integrationCredentialDAO = new IntegrationCredentialDAO();
 const promptTemplateService = new PromptTemplateService(
   new PromptTemplateDAO(),
+);
+const agentSessionQueryService = new AgentSessionQueryService(
+  new AgentSessionDAO(),
+  new AgentTurnDAO(),
+  new AgentSessionEventDAO(),
+  new AgentPendingRequestDAO(),
 );
 
 router.use(requireAuth);
@@ -700,6 +713,45 @@ router.delete(
         error: error instanceof Error ? error.message : error,
       });
       res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// GET /api/projects/:projectId/agent-sessions
+router.get(
+  "/:projectId/agent-sessions",
+  validateUuidParam("projectId"),
+  async (req, res) => {
+    try {
+      const { projectId } = req.params;
+
+      const rawStatuses =
+        typeof req.query.statuses === "string"
+          ? (req.query.statuses
+              .split(",")
+              .filter(Boolean) as AgentSessionStatus[])
+          : [...AGENT_SESSION_ACTIVE_STATUSES];
+
+      const limit =
+        typeof req.query.limit === "string"
+          ? parseInt(req.query.limit, 10) || 20
+          : 20;
+
+      const sessions = await agentSessionQueryService.listForProject(
+        projectId,
+        {
+          statuses: rawStatuses,
+          limit,
+        },
+      );
+
+      return res.json({ success: true, data: sessions });
+    } catch (error) {
+      logger.error("Error fetching project agent sessions", {
+        error: error instanceof Error ? error.message : error,
+        projectId: req.params.projectId,
+      });
+      return res.status(500).json({ error: "Internal server error" });
     }
   },
 );

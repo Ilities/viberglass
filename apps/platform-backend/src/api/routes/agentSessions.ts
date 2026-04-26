@@ -11,8 +11,10 @@ import { CredentialRequirementsService } from "../../services/CredentialRequirem
 import { WorkerExecutionService } from "../../workers";
 import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
 import {
+  AGENT_SESSION_ACTIVE_STATUSES,
   AGENT_SESSION_EVENT_TYPE,
   type AgentSessionEventType,
+  type AgentSessionStatus,
 } from "../../types/agentSession";
 import logger from "../../config/logger";
 
@@ -49,6 +51,23 @@ const TERMINAL_STATUSES = new Set<string>(["completed", "failed", "cancelled"]);
 
 const POLL_MS = 2000;
 const HEARTBEAT_MS = 30000;
+
+router.get("/", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const rawStatuses =
+      typeof req.query.statuses === "string"
+        ? (req.query.statuses.split(",").filter(Boolean) as AgentSessionStatus[])
+        : [...AGENT_SESSION_ACTIVE_STATUSES];
+
+    const sessions = await sessionDAO.listByStatuses(rawStatuses);
+    return res.json({ success: true, data: sessions });
+  } catch (err) {
+    logger.error("Failed to list agent sessions", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 router.get("/:sessionId", requireAuth, async (req: Request, res: Response) => {
   try {
