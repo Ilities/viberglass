@@ -18,7 +18,6 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/
 COPY packages/chat-slack/package*.json ./packages/chat-slack/
-COPY packages/platform-ui/package*.json ./packages/platform-ui/
 COPY packages/integration-core/package*.json ./packages/integration-core/
 COPY packages/integrations/integration-bitbucket/package*.json ./packages/integrations/integration-bitbucket/
 COPY packages/integrations/integration-custom/package*.json ./packages/integrations/integration-custom/
@@ -40,7 +39,6 @@ RUN npm ci --legacy-peer-deps --ignore-scripts
 COPY packages/types ./packages/types
 COPY packages/chat-slack ./packages/chat-slack
 COPY packages/integration-core ./packages/integration-core
-COPY packages/platform-ui ./packages/platform-ui
 COPY packages/integrations/integration-bitbucket ./packages/integrations/integration-bitbucket
 COPY packages/integrations/integration-custom ./packages/integrations/integration-custom
 COPY packages/integrations/integration-github ./packages/integrations/integration-github
@@ -52,20 +50,34 @@ COPY packages/integrations/integration-shortcut ./packages/integrations/integrat
 COPY packages/integrations/integration-slack ./packages/integrations/integration-slack
 COPY apps/platform-backend ./apps/platform-backend
 
-# Build workspace packages in dependency order
+# Build shared packages using their own build scripts
 RUN npm run build -w @viberglass/types
 RUN npm run build -w @viberglass/chat-slack
-RUN npm run build -w @viberglass/platform-ui
-RUN npm run build -w @viberglass/integration-core
-RUN npm run build -w @viberglass/integration-bitbucket \
-    -w @viberglass/integration-custom \
-    -w @viberglass/integration-github \
-    -w @viberglass/integration-gitlab \
-    -w @viberglass/integration-jira \
-    -w @viberglass/integration-linear \
-    -w @viberglass/integration-monday \
-    -w @viberglass/integration-shortcut \
-    -w @viberglass/integration-slack
+
+# Build integration-core and plugins — backend entry only, no DTS.
+# Frontend entries require @viberglass/platform-ui + React types which are not
+# needed at runtime, so we use a minimal tsup config that skips them entirely.
+RUN <<BUILD
+cat > /build/tsup.backend-only.ts <<'TSCONFIG'
+import { defineConfig } from "tsup";
+export default defineConfig({
+  entry: { "backend/index": "src/backend/index.ts" },
+  format: ["cjs", "esm"],
+  outDir: "dist",
+  clean: false,
+  splitting: false,
+  external: ["@viberglass/types", "@viberglass/integration-core"],
+});
+TSCONFIG
+
+cd /build/packages/integration-core && npx tsup --config /build/tsup.backend-only.ts
+
+for pkg in integration-bitbucket integration-custom integration-github \
+           integration-gitlab integration-jira integration-linear integration-monday \
+           integration-shortcut integration-slack; do
+  cd /build/packages/integrations/$pkg && npx tsup --config /build/tsup.backend-only.ts
+done
+BUILD
 
 # Build backend (TypeScript compilation)
 RUN npm run build -w @viberglass/platform-backend
