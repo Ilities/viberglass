@@ -264,7 +264,7 @@ function ApplicationLayoutContent() {
     },
     {
       href: '/sessions',
-      label: 'Sessions',
+      label: 'Pulse',
       current: pathname.startsWith('/sessions'),
       icon: <ActivityLogIcon />,
     },
