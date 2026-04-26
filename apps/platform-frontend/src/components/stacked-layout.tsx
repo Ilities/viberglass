@@ -97,7 +97,7 @@ export function StackedLayout({
         <motion.main
           animate={{ paddingLeft: collapsed ? 64 : 256 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="flex flex-1 flex-col px-3 pt-3 pb-3 lg:min-w-0"
+          className="flex flex-1 flex-col px-3 pt-3 pb-3 lg:min-w-0 max-lg:!pl-3"
         >
           <div className="app-frame grow p-6 lg:p-10">
             <div className="mx-auto max-w-screen-2xl">{children}</div>
