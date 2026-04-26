@@ -15,6 +15,6 @@ export default defineConfig([
     dts: { compilerOptions: { skipLibCheck: true } },
     splitting: false,
     jsx: 'react-jsx',
-    external: ['react', 'react-dom', '@radix-ui/themes', 'react-router-dom', '@viberglass/types', '@viberglass/platform-ui'],
+    external: ['react', 'react-dom', '@radix-ui/themes', '@radix-ui/react-icons', 'react-router-dom', 'sonner', '@viberglass/types', '@viberglass/platform-ui'],
   },
 ])

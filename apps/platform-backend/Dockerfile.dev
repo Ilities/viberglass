@@ -10,10 +10,15 @@ WORKDIR /app
 COPY package*.json ./
 
 # Create workspace directories and copy their package.json files
-RUN mkdir -p apps/platform-backend packages/types packages/chat-slack
+RUN mkdir -p apps/platform-backend packages/types packages/chat-slack packages/integration-core packages/platform-ui
 COPY apps/platform-backend/package*.json ./apps/platform-backend/
 COPY packages/types/package*.json ./packages/types/
 COPY packages/chat-slack/package*.json ./packages/chat-slack/
+COPY packages/integration-core/package*.json ./packages/integration-core/
+COPY packages/platform-ui/package*.json ./packages/platform-ui/
+
+# Integration plugins use a glob workspace; copy full source for package.json resolution
+COPY packages/integrations ./packages/integrations
 
 # Install all dependencies (workspace-aware from root)
 RUN npm install --legacy-peer-deps
@@ -22,10 +27,13 @@ RUN npm install --legacy-peer-deps
 # Note: In docker-compose, source is mounted via volume, overriding these copies
 COPY packages/types ./packages/types
 COPY packages/chat-slack ./packages/chat-slack
+COPY packages/integration-core ./packages/integration-core
+COPY packages/platform-ui ./packages/platform-ui
 COPY apps/platform-backend ./apps/platform-backend
 
 # Build shared workspace packages (needed before backend can start)
-RUN npm run build -w @viberglass/types && npm run build -w @viberglass/chat-slack
+# Note: tsx resolves integration packages via tsconfig paths, no dist/ needed
+RUN npm run build -w @viberglass/types && npm run build -w @viberglass/chat-slack && npm run build -w @viberglass/integration-core
 
 # Expose backend API port
 EXPOSE 8888

@@ -15,7 +15,17 @@
     "sourceMap": true,
     "paths": {
       "@viberglass/types": ["../packages/types/src/index.ts"],
-      "@viberglass/chat-slack": ["../packages/chat-slack/src/index.ts"]
+      "@viberglass/chat-slack": ["../packages/chat-slack/src/index.ts"],
+      "@viberglass/integration-core": ["../packages/integration-core/src/backend/index.ts"],
+      "@viberglass/integration-bitbucket": ["../packages/integrations/integration-bitbucket/src/backend/index.ts"],
+      "@viberglass/integration-custom": ["../packages/integrations/integration-custom/src/backend/index.ts"],
+      "@viberglass/integration-github": ["../packages/integrations/integration-github/src/backend/index.ts"],
+      "@viberglass/integration-gitlab": ["../packages/integrations/integration-gitlab/src/backend/index.ts"],
+      "@viberglass/integration-jira": ["../packages/integrations/integration-jira/src/backend/index.ts"],
+      "@viberglass/integration-linear": ["../packages/integrations/integration-linear/src/backend/index.ts"],
+      "@viberglass/integration-monday": ["../packages/integrations/integration-monday/src/backend/index.ts"],
+      "@viberglass/integration-shortcut": ["../packages/integrations/integration-shortcut/src/backend/index.ts"],
+      "@viberglass/integration-slack": ["../packages/integrations/integration-slack/src/backend/index.ts"]
     }
   },
   "include": ["src/**/*"],

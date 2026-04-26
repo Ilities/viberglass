@@ -5,6 +5,7 @@ import type {
   CreateTicketRequest,
   PaginatedResponse,
   Ticket,
+  TicketLifecycleStatus,
   TicketListParams,
   TicketStats,
   TicketWorkflowPhase,
@@ -597,6 +598,20 @@ export async function revokePlanningApproval(ticketId: string): Promise<Planning
     throw new Error(error.error || error.message || 'Failed to revoke planning approval')
   }
   const data: ApiResponse<PlanningPhaseResponse> = await response.json()
+  return data.data
+}
+
+export async function setTicketStatus(id: string, status: TicketLifecycleStatus): Promise<Ticket> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/set-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || 'Failed to set ticket status')
+  }
+  const data: ApiResponse<Ticket> = await response.json()
   return data.data
 }
 

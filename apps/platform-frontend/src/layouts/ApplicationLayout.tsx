@@ -24,13 +24,11 @@ import {
 import { StackedLayout } from '@/components/stacked-layout'
 import { useAuth } from '@/context/auth-context'
 import { ProjectProvider } from '@/context/project-context'
-import { useProject } from '@/context/project-context'
 import { ProjectTheme } from '@/context/project-theme'
 import { useTheme } from '@/context/theme-context'
 import { usePolling } from '@/hooks/usePolling'
 import type { AuthUser } from '@/service/api/auth-api'
 import { getProjects, Project } from '@/service/api/project-api'
-import { listProjectActiveSessions, type AgentSession } from '@/service/api/session-api'
 import { getTickets } from '@/service/api/ticket-api'
 import type { Ticket } from '@viberglass/types'
 import {
@@ -165,33 +163,11 @@ function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: (
   )
 }
 
-function SessionStatusDot({ status }: { status: AgentSession['status'] }) {
-  const isActive = status === 'active'
-  return (
-    <span
-      className={`inline-block h-2 w-2 shrink-0 rounded-full ${isActive ? 'bg-green-500' : 'bg-amber-500'}`}
-    />
-  )
-}
-
 function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
-  const { project } = useProject()
-
-  const fetchSessions = useCallback(
-    () => (project ? listProjectActiveSessions(project.id) : Promise.resolve<AgentSession[]>([])),
-    [project],
-  )
-
   const fetchTickets = useCallback(
-    () => getTickets({ projectSlug, statuses: ['in_review'], limit: 10 }),
+    () => getTickets({ projectSlug, statuses: ['in_review', 'in_progress'], limit: 15 }),
     [projectSlug],
   )
-
-  const { data: sessions } = usePolling<AgentSession[]>({
-    fn: fetchSessions,
-    interval: 15000,
-    enabled: !!project,
-  })
 
   const { data: ticketList } = usePolling<Awaited<ReturnType<typeof getTickets>>>({
     fn: fetchTickets,
@@ -199,34 +175,36 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
   })
 
   const tickets: Ticket[] = ticketList?.tickets ?? []
-  const activeSessions: AgentSession[] = sessions ?? []
+  const inReviewTickets = tickets.filter((t) => t.status === 'in_review')
+  const inProgressTickets = tickets.filter((t) => t.status === 'in_progress')
 
-  if (!activeSessions.length && !tickets.length) return null
+  if (!inReviewTickets.length && !inProgressTickets.length) return null
 
   return (
     <>
-      {activeSessions.length > 0 && (
+      {inReviewTickets.length > 0 && (
         <SidebarSection>
-          <SidebarHeading>Active Sessions</SidebarHeading>
-          {activeSessions.map((session) => (
-            <SidebarItem
-              key={session.id}
-              href={`/project/${projectSlug}/sessions/${session.id}`}
-            >
-              <SessionStatusDot status={session.status} />
-              <SidebarLabel>{session.ticketTitle ?? 'Session'}</SidebarLabel>
-            </SidebarItem>
-          ))}
-        </SidebarSection>
-      )}
-      {tickets.length > 0 && (
-        <SidebarSection>
-          <SidebarHeading>Awaiting Review</SidebarHeading>
-          {tickets.map((ticket) => (
+          <SidebarHeading>Needs Review</SidebarHeading>
+          {inReviewTickets.map((ticket) => (
             <SidebarItem
               key={ticket.id}
               href={`/project/${projectSlug}/tickets/${ticket.id}`}
             >
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+              <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
+            </SidebarItem>
+          ))}
+        </SidebarSection>
+      )}
+      {inProgressTickets.length > 0 && (
+        <SidebarSection>
+          <SidebarHeading>In Progress</SidebarHeading>
+          {inProgressTickets.map((ticket) => (
+            <SidebarItem
+              key={ticket.id}
+              href={`/project/${projectSlug}/tickets/${ticket.id}`}
+            >
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-blue-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>
           ))}

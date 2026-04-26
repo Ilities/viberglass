@@ -14,6 +14,7 @@ import {
   FileTextIcon,
   Pencil1Icon,
   PlayIcon,
+  ResetIcon,
   TrashIcon,
 } from '@radix-ui/react-icons'
 import { type Clanker, type Ticket, TICKET_STATUS, TICKET_WORKFLOW_PHASE } from '@viberglass/types'
@@ -22,6 +23,7 @@ import {
   type ApprovalState,
   deleteTicket,
   getPlanningPhase,
+  setTicketStatus,
   setTicketWorkflowPhase,
   updateTicket,
 } from '@/service/api/ticket-api'
@@ -119,6 +121,28 @@ export function TicketDetailPage() {
     }
   }, [ticket])
 
+  const handleSubmitForReview = useCallback(async () => {
+    if (!ticket) return
+    try {
+      const updated = await setTicketStatus(ticket.id, TICKET_STATUS.IN_REVIEW)
+      setTicket(updated)
+      toast.success('Submitted for review')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit for review')
+    }
+  }, [ticket])
+
+  const handleMarkOpen = useCallback(async () => {
+    if (!ticket) return
+    try {
+      const updated = await setTicketStatus(ticket.id, TICKET_STATUS.OPEN)
+      setTicket(updated)
+      toast.success('Marked as open')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to mark as open')
+    }
+  }, [ticket])
+
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><div className="text-[var(--gray-9)]">Loading ticket details...</div></div>
   }
@@ -206,6 +230,22 @@ export function TicketDetailPage() {
                       <CheckCircledIcon className="h-4 w-4" />Force execute (skip R&amp;P)
                     </DropdownItem>
                   </>
+                )}
+                <DropdownDivider />
+                {ticket.status !== 'in_review' && ticket.status !== 'resolved' && (
+                  <DropdownItem onClick={() => { void handleSubmitForReview() }}>
+                    <EyeOpenIcon className="h-4 w-4" />Submit for Review
+                  </DropdownItem>
+                )}
+                {ticket.status === 'in_review' && (
+                  <DropdownItem onClick={() => { void handleMarkOpen() }}>
+                    <ResetIcon className="h-4 w-4" />Mark as Open
+                  </DropdownItem>
+                )}
+                {ticket.status !== 'resolved' && (
+                  <DropdownItem onClick={() => { void handleResolve() }}>
+                    <CheckCircledIcon className="h-4 w-4" />Resolve
+                  </DropdownItem>
                 )}
                 <DropdownDivider />
                 <DropdownItem onClick={() => setIsDeleteDialogOpen(true)} className="text-red-600">

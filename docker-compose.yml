@@ -83,12 +83,15 @@ services:
       - ./apps/platform-backend:/app/apps/platform-backend:cached
       - ./packages/types:/app/packages/types:cached
       - ./packages/chat-slack:/app/packages/chat-slack:cached
+      - ./packages/integration-core:/app/packages/integration-core:cached
+      - ./packages/platform-ui:/app/packages/platform-ui:cached
+      - ./packages/integrations:/app/packages/integrations:cached
       # Persist ticket media files on host disk for Docker strategy mounts
       - /tmp/viberglass-ticket-media:/tmp/viberglass-ticket-media
       # Persist session state archives for local conversation continuity
       - /tmp/viberglass-session-state:/tmp/viberglass-session-state
       # Persist clanker instruction files in repo (survives container restarts)
-      - ./.clanker-instructions:/app/.clanker-instructions
+      - ./.clanker-instructions:/app/apps/platform-backend/.clanker-instructions
       # Docker socket for provisioning clanker containers
       - /var/run/docker.sock:/var/run/docker.sock
       # Worker Dockerfiles and source needed for clanker provisioning
