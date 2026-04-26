@@ -43,3 +43,8 @@ async function buildContentScripts() {
     console.log(`Built content/${name}`);
   }
 }
+
+void (async () => {
+  await buildBackground();
+  await buildContentScripts();
+})();
