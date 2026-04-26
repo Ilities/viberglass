@@ -18,6 +18,16 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/
 COPY packages/chat-slack/package*.json ./packages/chat-slack/
+COPY packages/integration-core/package*.json ./packages/integration-core/
+COPY packages/integrations/integration-bitbucket/package*.json ./packages/integrations/integration-bitbucket/
+COPY packages/integrations/integration-custom/package*.json ./packages/integrations/integration-custom/
+COPY packages/integrations/integration-github/package*.json ./packages/integrations/integration-github/
+COPY packages/integrations/integration-gitlab/package*.json ./packages/integrations/integration-gitlab/
+COPY packages/integrations/integration-jira/package*.json ./packages/integrations/integration-jira/
+COPY packages/integrations/integration-linear/package*.json ./packages/integrations/integration-linear/
+COPY packages/integrations/integration-monday/package*.json ./packages/integrations/integration-monday/
+COPY packages/integrations/integration-shortcut/package*.json ./packages/integrations/integration-shortcut/
+COPY packages/integrations/integration-slack/package*.json ./packages/integrations/integration-slack/
 COPY apps/platform-backend/package*.json ./apps/platform-backend/
 
 # Install all workspace dependencies
@@ -28,11 +38,31 @@ RUN npm ci --legacy-peer-deps --ignore-scripts
 # Copy source files
 COPY packages/types ./packages/types
 COPY packages/chat-slack ./packages/chat-slack
+COPY packages/integration-core ./packages/integration-core
+COPY packages/integrations/integration-bitbucket ./packages/integrations/integration-bitbucket
+COPY packages/integrations/integration-custom ./packages/integrations/integration-custom
+COPY packages/integrations/integration-github ./packages/integrations/integration-github
+COPY packages/integrations/integration-gitlab ./packages/integrations/integration-gitlab
+COPY packages/integrations/integration-jira ./packages/integrations/integration-jira
+COPY packages/integrations/integration-linear ./packages/integrations/integration-linear
+COPY packages/integrations/integration-monday ./packages/integrations/integration-monday
+COPY packages/integrations/integration-shortcut ./packages/integrations/integration-shortcut
+COPY packages/integrations/integration-slack ./packages/integrations/integration-slack
 COPY apps/platform-backend ./apps/platform-backend
 
-# Build shared packages first (required by backend)
+# Build workspace packages in dependency order
 RUN npm run build -w @viberglass/types
 RUN npm run build -w @viberglass/chat-slack
+RUN npm run build -w @viberglass/integration-core
+RUN npm run build -w @viberglass/integration-bitbucket \
+    -w @viberglass/integration-custom \
+    -w @viberglass/integration-github \
+    -w @viberglass/integration-gitlab \
+    -w @viberglass/integration-jira \
+    -w @viberglass/integration-linear \
+    -w @viberglass/integration-monday \
+    -w @viberglass/integration-shortcut \
+    -w @viberglass/integration-slack
 
 # Build backend (TypeScript compilation)
 RUN npm run build -w @viberglass/platform-backend
@@ -40,6 +70,16 @@ RUN npm run build -w @viberglass/platform-backend
 # Prune dev dependencies after all builds complete
 RUN npm prune --production --ignore-scripts && \
     npm cache clean --force
+
+# Resolve workspace symlinks to real directories so they survive the COPY to production stage.
+# npm workspaces create symlinks like node_modules/@viberglass/types -> ../../packages/types,
+# but the packages/ tree does not exist in the production image — only node_modules/ is copied.
+RUN cd node_modules/@viberglass && \
+    for link in */; do \
+      target=$(readlink -f "${link%/}") && \
+      rm -rf "$link" && \
+      cp -r "$target" "$link"; \
+    done
 
 # ==========================================
 # Stage 2: Production Runtime
