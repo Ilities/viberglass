@@ -41,7 +41,9 @@ export interface AgentSession {
   id: string
   tenantId: string
   projectId: string
+  projectSlug: string | null
   ticketId: string
+  ticketTitle: string | null
   clankerId: string
   mode: AgentSessionMode
   status: AgentSessionStatus
@@ -212,4 +214,24 @@ export async function cancelSession(sessionId: string): Promise<void> {
 
 export function getEventStreamUrl(sessionId: string): string {
   return `${API_BASE_URL}/api/agent-sessions/${sessionId}/events/stream`
+}
+
+const ACTIVE_STATUSES = 'active,waiting_on_user,waiting_on_approval'
+
+export async function listProjectActiveSessions(projectId: string): Promise<AgentSession[]> {
+  const res = await apiFetch(
+    `${API_BASE_URL}/api/projects/${projectId}/agent-sessions?statuses=${ACTIVE_STATUSES}&limit=20`,
+  )
+  if (!res.ok) return throwApiError(res, 'Failed to list project sessions')
+  const data = await res.json()
+  return data.data
+}
+
+export async function listAllActiveSessions(): Promise<AgentSession[]> {
+  const res = await apiFetch(
+    `${API_BASE_URL}/api/agent-sessions?statuses=${ACTIVE_STATUSES}`,
+  )
+  if (!res.ok) return throwApiError(res, 'Failed to list active sessions')
+  const data = await res.json()
+  return data.data
 }

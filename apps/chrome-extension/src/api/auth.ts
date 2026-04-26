@@ -1,30 +1,16 @@
 import { apiJson, apiRequest } from "./client";
-import { getPlatformUrl } from "@/storage";
 import type { AuthState } from "@/types";
 
 export async function login(
   email: string,
   password: string,
 ): Promise<AuthState> {
-  const baseUrl = await getPlatformUrl();
-  const response = await fetch(`${baseUrl}/api/auth/login`, {
+  const result = await apiRequest("/api/auth/login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-
-  if (!response.ok) {
-    let message = "Login failed";
-    try {
-      const body = await response.json();
-      if (body.error) message = body.error;
-    } catch {}
-    throw new Error(message);
-  }
-
-  const data = await response.json();
-  const auth: AuthState = { token: data.token, user: data.user };
-  return auth;
+  const data = result.data as { token: string; user: AuthState["user"] };
+  return { token: data.token, user: data.user };
 }
 
 export async function getMe(): Promise<AuthState["user"]> {

@@ -12,6 +12,7 @@ import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { NewProjectPage } from '@/pages/NewProjectPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { SessionsPulsePage } from '@/pages/sessions/SessionsPulsePage'
 
 // Clanker pages
 import { ClankerDetailPage } from '@/pages/clankers/ClankerDetailPage'
@@ -65,6 +66,7 @@ export function AppRoutes() {
         {/* Main routes */}
         <Route path="/" element={<DashboardPage />} />
         <Route path="/new" element={<NewProjectPage />} />
+        <Route path="/sessions" element={<SessionsPulsePage />} />
 
         {/* Clankers */}
         <Route path="/clankers" element={<ClankersPage />} />
