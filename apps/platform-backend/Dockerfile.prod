@@ -86,6 +86,10 @@ RUN npm run build -w @viberglass/platform-backend
 RUN npm prune --production --ignore-scripts && \
     npm cache clean --force
 
+# Merge workspace-local node_modules into root so packages not hoisted by npm
+# (e.g. uuid) are available when only root node_modules is copied to production.
+RUN cp -rn /build/apps/platform-backend/node_modules/. /build/node_modules/ 2>/dev/null; exit 0
+
 # Resolve workspace symlinks to real directories so they survive the COPY to production stage.
 # npm workspaces create symlinks like node_modules/@viberglass/types -> ../../packages/types,
 # but the packages/ tree does not exist in the production image — only node_modules/ is copied.
