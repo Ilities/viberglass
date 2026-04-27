@@ -13,8 +13,9 @@
       width: "100vw",
       height: "100vh",
       zIndex: "2147483646",
-      cursor: "crosshair",
+      pointerEvents: "none",
     });
+    document.documentElement.style.cursor = "crosshair";
 
     highlightBox = document.createElement("div");
     Object.assign(highlightBox.style, {
@@ -102,6 +103,7 @@
     document.removeEventListener("mousemove", onMouseMove, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKeydown, true);
+    document.documentElement.style.cursor = "";
     overlay?.remove();
     highlightBox?.remove();
     overlay = null;

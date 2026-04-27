@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AuthState } from "@/types";
 import { login } from "@/api/auth";
 import { setAuth } from "@/storage";
+import { Logo } from "@/components/Logo";
 
 interface Props {
   onLogin: (auth: AuthState) => void;
@@ -31,9 +32,7 @@ export function LoginForm({ onLogin }: Props) {
   return (
     <div className="p-5">
       <div className="flex items-center gap-2 mb-5">
-        <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">V</span>
-        </div>
+        <Logo className="w-8 h-8 rounded-lg" />
         <div>
           <h1 className="text-base font-semibold text-gray-900">Viberglass</h1>
           <p className="text-xs text-gray-500">Sign in to your account</p>
@@ -49,7 +48,7 @@ export function LoginForm({ onLogin }: Props) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange focus:border-transparent"
             required
             autoFocus
           />
@@ -63,7 +62,7 @@ export function LoginForm({ onLogin }: Props) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange focus:border-transparent"
             required
           />
         </div>
@@ -77,7 +76,7 @@ export function LoginForm({ onLogin }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 text-sm font-medium text-white bg-amber-500 rounded-md hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-2 px-4 text-sm font-medium text-white bg-brand-burnt-orange rounded-md hover:bg-brand-golden-brass disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>

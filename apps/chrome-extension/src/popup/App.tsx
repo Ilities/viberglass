@@ -10,6 +10,7 @@ import {
   clearAllCapture,
 } from "@/storage";
 import { TicketForm } from "./components/TicketForm";
+import { Logo } from "@/components/Logo";
 
 const initialCapture: CaptureState = {
   screenshotDataUrl: null,
@@ -54,14 +55,67 @@ export function App() {
         recordingBlob = await res.blob();
       }
 
+      const ua = navigator.userAgent;
+      const browserMatch = ua.match(/(Chrome|Firefox|Safari|Edge)\/([\d.]+)/);
+      const osMatch = ua.match(/\(([^)]+)\)/);
+
+      let tabUrl = "";
+      let tabTitle = "";
+      let pageMetadata: CaptureState["pageMetadata"] | null = null;
+
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        tabUrl = tab?.url || "";
+        tabTitle = tab?.title || "";
+
+        if (tab?.id && tab.url && !tab.url.startsWith("chrome")) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ["content/context-collector.js"],
+            });
+
+            const response = await new Promise<{
+              data?: { metadata?: CaptureState["pageMetadata"] };
+            }>((resolve) => {
+              chrome.tabs.sendMessage(
+                tab.id!,
+                { type: "COLLECT_CONTEXT" },
+                (res) => resolve(res ?? {}),
+              );
+            });
+
+            if (response?.data?.metadata) {
+              pageMetadata = response.data.metadata;
+            }
+          } catch {}
+        }
+      } catch {}
+
       setAuth(storedAuth);
-      if (storedScreenshot || recordingBlob) {
-        setCapture((prev) => ({
-          ...prev,
-          screenshotDataUrl: storedScreenshot,
-          recordingBlob,
-        }));
-      }
+      setCapture((prev) => ({
+        ...prev,
+        screenshotDataUrl: storedScreenshot,
+        recordingBlob,
+        pageMetadata: pageMetadata ?? {
+          url: tabUrl,
+          title: tabTitle,
+          referrer: "",
+          browserName: browserMatch?.[1] || "Chrome",
+          browserVersion: browserMatch?.[2] || "",
+          osName: osMatch?.[1]?.split(";")[0]?.trim() || "",
+          osVersion: osMatch?.[1]?.split(";")[1]?.trim() || "",
+          screenWidth: window.screen.width || 1,
+          screenHeight: window.screen.height || 1,
+          viewportWidth: window.innerWidth || window.screen.width || 1,
+          viewportHeight: window.innerHeight || window.screen.height || 1,
+          pixelRatio: window.devicePixelRatio || 1,
+          userAgent: ua,
+          language: navigator.language,
+          cookiesEnabled: navigator.cookieEnabled,
+          onLine: navigator.onLine,
+        },
+      }));
       captureSyncedRef.current = true;
       setLoading(false);
     }
@@ -93,7 +147,7 @@ export function App() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[200px]">
-        <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-burnt-orange border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -103,9 +157,7 @@ export function App() {
       <div className="flex items-center justify-center h-[200px] p-5">
         <div className="text-center">
           <div className="flex items-center gap-2 justify-center mb-4">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">V</span>
-            </div>
+            <Logo className="w-8 h-8 rounded-lg" />
             <span className="text-base font-semibold text-gray-900">
               Viberglass
             </span>
@@ -117,7 +169,7 @@ export function App() {
                 url: chrome.runtime.getURL("login.html"),
               })
             }
-            className="w-full py-2 px-4 text-sm font-medium text-white bg-amber-500 rounded-md hover:bg-amber-600 transition-colors"
+            className="w-full py-2 px-4 text-sm font-medium text-white bg-brand-burnt-orange rounded-md hover:bg-brand-golden-brass transition-colors"
           >
             Sign in
           </button>

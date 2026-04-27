@@ -279,7 +279,31 @@ export function registerTicketCrudMediaRoutes(
 
         const signedUrl =
           await fileUploadService.generateSignedUrlFromStorageUrl(source, 3600);
-        return res.redirect(signedUrl);
+
+        try {
+          const s3Response = await fetch(signedUrl);
+          if (!s3Response.ok) {
+            return res.status(s3Response.status).json({
+              error: "Failed to fetch media from storage",
+            });
+          }
+          const buffer = await s3Response.arrayBuffer();
+          res.set({
+            "Content-Type": media.mimeType,
+            "Content-Disposition": `inline; filename="${media.filename}"`,
+            "Content-Length": buffer.byteLength,
+          });
+          return res.send(Buffer.from(buffer));
+        } catch (error) {
+          logger.error("Error proxying media from S3", {
+            mediaId: req.params.mediaId,
+            error: error instanceof Error ? error.message : error,
+          });
+          return res.status(500).json({
+            error: "Internal server error",
+            message: "Failed to fetch media",
+          });
+        }
       } catch (error) {
         logger.error("Error streaming media asset", {
           mediaId: req.params.mediaId,

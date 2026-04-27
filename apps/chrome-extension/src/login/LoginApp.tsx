@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AuthState } from "@/types";
 import { login } from "@/api/auth";
 import { setAuth } from "@/storage";
+import { Logo } from "@/components/Logo";
 import "@/popup/popup.css";
 
 export function LoginApp() {
@@ -47,9 +48,7 @@ export function LoginApp() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-sm p-8 bg-white rounded-xl shadow-sm">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">V</span>
-          </div>
+          <Logo className="w-10 h-10 rounded-lg" />
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Viberglass</h1>
             <p className="text-sm text-gray-500">Sign in to your account</p>
@@ -65,7 +64,7 @@ export function LoginApp() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange focus:border-transparent"
               required
               autoFocus
             />
@@ -79,7 +78,7 @@ export function LoginApp() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange focus:border-transparent"
               required
             />
           </div>
@@ -93,7 +92,7 @@ export function LoginApp() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 text-sm font-medium text-white bg-amber-500 rounded-md hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-2.5 px-4 text-sm font-medium text-white bg-brand-burnt-orange rounded-md hover:bg-brand-golden-brass disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
