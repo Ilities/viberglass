@@ -10,7 +10,7 @@
 
 No repository access required to file a ticket. QA engineers, PMs, and customer success teams can submit issues directly. Developers review the PR when it's ready.
 
-<img src="docs/images/ticket-page.png" width="700" />
+<img src="docs/images/infographic.png" width="800" />
 
 **[Documentation](docs/)** | **[Architecture](docs/ARCHITECTURE.md)** | **[Contributing](CONTRIBUTING.md)**
 
