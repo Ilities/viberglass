@@ -3,6 +3,7 @@ import type { AuthState } from "@/types";
 const KEYS = {
   AUTH: "viberglass_auth",
   PLATFORM_URL: "viberglass_platform_url",
+  APP_URL: "viberglass_app_url",
   DEFAULT_PROJECT: "viberglass_default_project",
   DEFAULT_CLANKER: "viberglass_default_clanker",
   DEFAULT_PHASE: "viberglass_default_phase",
@@ -35,6 +36,15 @@ export async function getPlatformUrl(): Promise<string> {
 
 export async function setPlatformUrl(url: string): Promise<void> {
   await getStorage().set({ [KEYS.PLATFORM_URL]: url });
+}
+
+export async function getAppUrl(): Promise<string> {
+  const result = await getStorage().get(KEYS.APP_URL);
+  return result[KEYS.APP_URL] || "http://localhost:3000";
+}
+
+export async function setAppUrl(url: string): Promise<void> {
+  await getStorage().set({ [KEYS.APP_URL]: url });
 }
 
 export async function getDefaultProject(): Promise<string | null> {
@@ -107,4 +117,8 @@ export async function getFormState(): Promise<FormState | null> {
 
 export async function setFormState(state: FormState): Promise<void> {
   await getStorage().set({ [KEYS.FORM_STATE]: state });
+}
+
+export async function clearAllState(): Promise<void> {
+  await getStorage().clear();
 }

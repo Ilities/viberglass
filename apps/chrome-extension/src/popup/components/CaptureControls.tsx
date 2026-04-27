@@ -60,43 +60,6 @@ export function CaptureControls({ capture, setCapture }: Props) {
     });
   }
 
-  async function handleStartRecording() {
-    const response: { success?: boolean; error?: string } =
-      await chrome.runtime.sendMessage({ type: "START_RECORDING" });
-    if (response.success) {
-      setCapture(
-        (prev) =>
-          ({ ...prev, _recordingState: "recording" }) as CaptureState & {
-            _recordingState?: string;
-          },
-      );
-    }
-  }
-
-  async function handleStopRecording() {
-    const response: { success?: boolean; error?: string } =
-      await chrome.runtime.sendMessage({ type: "STOP_RECORDING" });
-    if (response.success) {
-      const result = await chrome.storage.local.get("viberglass_recording");
-      if (result.viberglass_recording) {
-        const res = await fetch(result.viberglass_recording);
-        const blob = await res.blob();
-        setCapture(
-          (prev) =>
-            ({
-              ...prev,
-              recordingBlob: blob,
-              _recordingState: "stopped",
-            }) as CaptureState & { _recordingState?: string },
-        );
-      }
-    }
-  }
-
-  const isRecording =
-    (capture as CaptureState & { _recordingState?: string })._recordingState ===
-    "recording";
-
   return (
     <div>
       <label className="block text-xs font-medium text-gray-700 mb-1.5">
@@ -132,23 +95,13 @@ export function CaptureControls({ capture, setCapture }: Props) {
 
         <button
           type="button"
-          onClick={isRecording ? handleStopRecording : handleStartRecording}
+          onClick={handleCollectContext}
           className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-            isRecording
-              ? "text-red-700 bg-red-50 border border-red-300 hover:bg-red-100"
+            capture.pageMetadata.url
+              ? "text-brand-burnt-orange bg-brand-cream border border-brand-golden-brass"
               : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
           }`}
-          title={isRecording ? "Stop recording" : "Start recording"}
-        >
-          <span className="mr-1">{isRecording ? "⏹" : "⏺"}</span>{" "}
-          {isRecording ? "Stop" : "Record"}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleCollectContext}
-          className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-          title="Collect console errors and network info"
+          title="Collect console errors, network errors, and page metadata from this tab"
         >
           <span className="mr-1">⚙</span> Context
         </button>
@@ -157,7 +110,7 @@ export function CaptureControls({ capture, setCapture }: Props) {
           <button
             type="button"
             onClick={handleAnnotate}
-            className="px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-300 rounded hover:bg-amber-100 transition-colors"
+            className="px-2.5 py-1 text-xs font-medium text-brand-burnt-orange bg-brand-cream border border-brand-golden-brass rounded hover:bg-brand-cream/80 transition-colors"
             title="Annotate screenshot"
           >
             <span className="mr-1">✎</span> Annotate
@@ -165,11 +118,15 @@ export function CaptureControls({ capture, setCapture }: Props) {
         )}
       </div>
 
-      {(capture.consoleEntries.length > 0 ||
-        capture.networkErrors.length > 0) && (
+      {capture.pageMetadata.url && (
         <p className="text-xs text-gray-500 mt-1.5">
-          Captured {capture.consoleEntries.length} console entries,{" "}
-          {capture.networkErrors.length} network errors
+          Context captured from{" "}
+          <span className="text-gray-600 font-medium" title={capture.pageMetadata.url}>
+            {new URL(capture.pageMetadata.url).host}
+          </span>
+          {capture.consoleEntries.length > 0 || capture.networkErrors.length > 0
+            ? ` — ${capture.consoleEntries.length} console ${capture.consoleEntries.length === 1 ? "entry" : "entries"}, ${capture.networkErrors.length} network ${capture.networkErrors.length === 1 ? "error" : "errors"}`
+            : " — no console or network errors found"}
         </p>
       )}
     </div>

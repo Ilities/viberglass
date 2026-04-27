@@ -17,9 +17,11 @@ import {
   getFormState,
   setFormState,
   clearRecording,
+  clearAllCapture,
 } from "@/storage";
 import { CaptureControls } from "./CaptureControls";
 import { MediaPreview } from "./MediaPreview";
+import { Logo } from "@/components/Logo";
 
 interface Props {
   auth: AuthState;
@@ -117,6 +119,15 @@ export function TicketForm({
     }
   }, [projectId]);
 
+  const handleReset = useCallback(async () => {
+    setTitle("");
+    setDescription("");
+    setSeverity("medium");
+    setAutoRun(true);
+    await clearAllCapture();
+    onClearCapture();
+  }, [onClearCapture]);
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -178,10 +189,10 @@ export function TicketForm({
         );
 
         const ticketId = result.data.id;
-        const platformUrl = (
-          await chrome.storage.local.get("viberglass_platform_url")
-        ).viberglass_platform_url || "http://localhost:8888";
-        const ticketUrl = `${platformUrl}/tickets/${ticketId}`;
+        const appUrl = (
+          await chrome.storage.local.get("viberglass_app_url")
+        ).viberglass_app_url || "http://localhost:3000";
+        const ticketUrl = `${appUrl}/tickets/${ticketId}`;
 
         if (autoRun && clankerId) {
           await runPhase(ticketId, phase, clankerId);
@@ -227,7 +238,7 @@ export function TicketForm({
           href={success.ticketUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="block w-full py-2 px-4 text-sm font-medium text-center text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100 transition-colors mb-3"
+          className="block w-full py-2 px-4 text-sm font-medium text-center text-brand-burnt-orange bg-brand-cream rounded-md hover:bg-brand-cream/80 transition-colors mb-3"
         >
           Open ticket
         </a>
@@ -251,13 +262,18 @@ export function TicketForm({
     <div className="p-4 max-h-[600px] overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-amber-500 flex items-center justify-center">
-            <span className="text-white font-bold text-xs">V</span>
-          </div>
+          <Logo className="w-6 h-6 rounded" />
           <span className="text-sm font-semibold text-gray-900">New Ticket</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">{auth.user.email}</span>
+          <button
+            onClick={handleReset}
+            className="text-xs text-gray-400 hover:text-gray-600"
+            title="Reset form and captures"
+          >
+            Reset
+          </button>
           <button
             onClick={onLogout}
             className="text-xs text-gray-400 hover:text-gray-600"
@@ -292,7 +308,7 @@ export function TicketForm({
           <select
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange bg-white"
             required
           >
             <option value="">Select project</option>
@@ -315,7 +331,7 @@ export function TicketForm({
             <select
               value={clankerId}
               onChange={(e) => setClankerId(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange bg-white"
             >
               <option value="">Select worker</option>
               {clankers.map((c) => (
@@ -336,7 +352,7 @@ export function TicketForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Bug description..."
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange"
           />
         </div>
 
@@ -349,7 +365,7 @@ export function TicketForm({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Steps to reproduce, expected vs actual behavior..."
             rows={3}
-            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange resize-none"
           />
         </div>
 
@@ -383,7 +399,7 @@ export function TicketForm({
             <select
               value={phase}
               onChange={(e) => setPhase(e.target.value as TicketWorkflowPhase)}
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange bg-white"
             >
               {PHASES.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -399,7 +415,7 @@ export function TicketForm({
             type="checkbox"
             checked={autoRun}
             onChange={(e) => setAutoRun(e.target.checked)}
-            className="w-3.5 h-3.5 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+            className="w-3.5 h-3.5 rounded border-gray-300 text-brand-burnt-orange focus:ring-brand-burnt-orange"
           />
           <span className="text-xs text-gray-700">
             Auto-run {phase} pipeline
@@ -415,7 +431,7 @@ export function TicketForm({
         <button
           type="submit"
           disabled={loading || !projectId}
-          className="w-full py-2 px-4 text-sm font-medium text-white bg-amber-500 rounded-md hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-2 px-4 text-sm font-medium text-white bg-brand-burnt-orange rounded-md hover:bg-brand-golden-brass disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? "Creating..." : "Create ticket"}
         </button>

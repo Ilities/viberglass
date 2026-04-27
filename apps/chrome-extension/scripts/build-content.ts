@@ -11,6 +11,7 @@ const contentScripts = [
 ];
 
 const backgroundScript = "src/background/service-worker.ts";
+const offscreenScript = "src/background/offscreen.ts";
 
 const sharedOptions: Omit<BuildOptions, "outdir" | "outfile"> = {
   bundle: true,
@@ -28,6 +29,15 @@ async function buildBackground() {
     minify: false,
   });
   console.log("Built background.js");
+
+  await build({
+    ...sharedOptions,
+    entryPoints: [resolve(rootDir, offscreenScript)],
+    outfile: resolve(rootDir, "dist/offscreen.js"),
+    format: "iife",
+    minify: false,
+  });
+  console.log("Built offscreen.js");
 }
 
 async function buildContentScripts() {

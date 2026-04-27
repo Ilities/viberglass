@@ -139,14 +139,28 @@ async function handleCropImage(
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(bitmap, 0, 0);
   const croppedBlob = await canvas.convertToBlob({ type: "image/png" });
-  const reader = new FileReaderSync();
-  const croppedDataUrl = reader.readAsDataURL(croppedBlob);
 
-  return { dataUrl: croppedDataUrl };
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ dataUrl: reader.result as string });
+    reader.onerror = () => reject(new Error("Failed to read cropped image"));
+    reader.readAsDataURL(croppedBlob);
+  });
 }
 
-let mediaRecorder: MediaRecorder | null = null;
-let recordedChunks: Blob[] = [];
+async function ensureOffscreenDocument(): Promise<void> {
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+    documentUrls: [chrome.runtime.getURL("offscreen.html")],
+  });
+  if (existingContexts.length === 0) {
+    await chrome.offscreen.createDocument({
+      url: chrome.runtime.getURL("offscreen.html"),
+      reasons: [chrome.offscreen.Reason.USER_MEDIA],
+      justification: "Record tab video for bug reports",
+    });
+  }
+}
 
 async function handleStartRecording(): Promise<{ success: boolean }> {
   const [tab] = await chrome.tabs.query({
@@ -155,6 +169,8 @@ async function handleStartRecording(): Promise<{ success: boolean }> {
   });
   if (!tab?.id) throw new Error("No active tab");
 
+  await ensureOffscreenDocument();
+
   const streamId: string = await new Promise((resolve) => {
     chrome.tabCapture.getMediaStreamId(
       { targetTabId: tab.id } as chrome.tabCapture.GetMediaStreamOptions,
@@ -162,56 +178,29 @@ async function handleStartRecording(): Promise<{ success: boolean }> {
     );
   });
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSource: "tab",
-        chromeMediaSourceId: streamId,
-      },
-    } as MediaTrackConstraints,
-  });
+  const response = await chrome.runtime.sendMessage({
+    type: "START_RECORDING_OFFSCREEN",
+    target: "offscreen",
+    streamId,
+  }) as { success?: boolean; error?: string };
 
-  recordedChunks = [];
-  mediaRecorder = new MediaRecorder(stream, {
-    mimeType: "video/webm;codecs=vp9",
-  });
-
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data.size > 0) recordedChunks.push(e.data);
-  };
-
-  mediaRecorder.start(1000);
+  if (!response?.success) throw new Error(response?.error ?? "Failed to start recording");
   return { success: true };
 }
 
 async function handleStopRecording(): Promise<{ success: boolean }> {
-  return new Promise((resolve, reject) => {
-    if (!mediaRecorder || mediaRecorder.state === "inactive") {
-      reject(new Error("No active recording"));
-      return;
-    }
+  const response = await chrome.runtime.sendMessage({
+    type: "STOP_RECORDING_OFFSCREEN",
+    target: "offscreen",
+  }) as { dataUrl?: string; error?: string };
 
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(recordedChunks, { type: "video/webm" });
-      recordedChunks = [];
+  if (response?.dataUrl) {
+    await chrome.storage.local.set({ viberglass_recording: response.dataUrl });
+    await chrome.offscreen.closeDocument().catch(() => {});
+    return { success: true };
+  }
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        chrome.storage.local.set({
-          viberglass_recording: reader.result,
-        });
-        resolve({ success: true });
-      };
-      reader.onerror = () => reject(new Error("Failed to read recording"));
-      reader.readAsDataURL(blob);
-
-      mediaRecorder?.stream.getTracks().forEach((t) => t.stop());
-      mediaRecorder = null;
-    };
-
-    mediaRecorder.stop();
-  });
+  throw new Error(response?.error ?? "Failed to stop recording");
 }
 
 async function injectContentScript(
