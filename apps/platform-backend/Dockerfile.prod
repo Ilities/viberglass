@@ -98,8 +98,11 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# @viberglass/* is bundled into server.js — a single node_modules COPY suffices
+# Copy production dependencies. Two-step merge: root node_modules first, then any
+# packages npm didn't hoist (e.g. express). @viberglass/* was removed from root
+# node_modules in the builder stage — server.js has them bundled.
 COPY --from=builder /build/node_modules ./node_modules
+COPY --from=builder /build/apps/platform-backend/node_modules ./node_modules
 
 # Copy compiled backend output (server.js + migration files)
 COPY --from=builder /build/apps/platform-backend/dist ./dist
