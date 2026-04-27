@@ -89,7 +89,6 @@ export function CaptureControls({ capture, setCapture }: Props) {
               _recordingState: "stopped",
             }) as CaptureState & { _recordingState?: string },
         );
-        chrome.storage.local.remove("viberglass_recording");
       }
     }
   }

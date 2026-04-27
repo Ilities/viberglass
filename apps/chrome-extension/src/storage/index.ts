@@ -6,6 +6,9 @@ const KEYS = {
   DEFAULT_PROJECT: "viberglass_default_project",
   DEFAULT_CLANKER: "viberglass_default_clanker",
   DEFAULT_PHASE: "viberglass_default_phase",
+  SCREENSHOT: "viberglass_screenshot",
+  RECORDING: "viberglass_recording",
+  FORM_STATE: "viberglass_form_state",
 } as const;
 
 function getStorage(): chrome.storage.LocalStorageArea {
@@ -59,4 +62,49 @@ export async function getDefaultPhase(): Promise<string | null> {
 
 export async function setDefaultPhase(phase: string): Promise<void> {
   await getStorage().set({ [KEYS.DEFAULT_PHASE]: phase });
+}
+
+export async function getScreenshot(): Promise<string | null> {
+  const result = await getStorage().get(KEYS.SCREENSHOT);
+  return result[KEYS.SCREENSHOT] ?? null;
+}
+
+export async function setScreenshot(dataUrl: string): Promise<void> {
+  await getStorage().set({ [KEYS.SCREENSHOT]: dataUrl });
+}
+
+export async function clearScreenshot(): Promise<void> {
+  await getStorage().remove(KEYS.SCREENSHOT);
+}
+
+export async function getRecordingDataUrl(): Promise<string | null> {
+  const result = await getStorage().get(KEYS.RECORDING);
+  return result[KEYS.RECORDING] ?? null;
+}
+
+export async function clearRecording(): Promise<void> {
+  await getStorage().remove(KEYS.RECORDING);
+}
+
+export async function clearAllCapture(): Promise<void> {
+  await getStorage().remove([KEYS.SCREENSHOT, KEYS.RECORDING]);
+}
+
+export interface FormState {
+  projectId: string;
+  clankerId: string;
+  phase: string;
+  title: string;
+  description: string;
+  severity: string;
+  autoRun: boolean;
+}
+
+export async function getFormState(): Promise<FormState | null> {
+  const result = await getStorage().get(KEYS.FORM_STATE);
+  return result[KEYS.FORM_STATE] ?? null;
+}
+
+export async function setFormState(state: FormState): Promise<void> {
+  await getStorage().set({ [KEYS.FORM_STATE]: state });
 }
