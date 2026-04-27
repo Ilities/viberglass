@@ -11,7 +11,8 @@ const migrationEntries = Object.fromEntries(
 );
 
 export default defineConfig([
-  // Server bundle — all node_modules kept external so CJS packages aren't inlined into ESM
+  // Server bundle — @viberglass/* inlined so production image needs no workspace symlinks;
+  // all other node_modules kept external so CJS packages aren't double-bundled into ESM
   {
     entry: { "api/server": "src/api/server.ts" },
     format: ["esm"],
@@ -20,6 +21,7 @@ export default defineConfig([
     sourcemap: true,
     target: "node20",
     external: [/^[^.]/],
+    noExternal: [/@viberglass\/.*/],
   },
   // Migration files — transpiled individually (not bundled) so FileMigrationProvider can load them
   {

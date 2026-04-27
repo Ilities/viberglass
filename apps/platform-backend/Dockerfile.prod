@@ -1,62 +1,55 @@
 # Production Dockerfile for Viberator Backend
 # Multi-stage build for minimal image size and optimal performance
 # Build context: Monorepo root (/home/jussi/Development/viberator)
+#
+# Stage 1 (pkg-files): extract all package manifests without listing them manually
+# Stage 2 (builder):   compile; tsup inlines @viberglass/* into server.js
+# Stage 3 (production): minimal runtime — no workspace symlinks needed
 
 # ==========================================
-# Stage 1: Build
+# Stage 1: Package files
+# Copies every package*.json into /pkgs/, preserving directory structure.
+# This layer drives npm ci caching without manually listing every workspace package.
+# ==========================================
+FROM node:24-alpine AS pkg-files
+WORKDIR /build
+COPY . .
+RUN find . -name "package*.json" -not -path "*/node_modules/*" | \
+    while IFS= read -r f; do \
+      dir="/pkgs/$(dirname "$f")"; \
+      mkdir -p "$dir" && cp "$f" "$dir/"; \
+    done
+
+# ==========================================
+# Stage 2: Build
 # Compiles TypeScript and builds workspace dependencies
 # ==========================================
 FROM node:24-alpine AS builder
 
-# Set working directory
 WORKDIR /build
 
 # Install build dependencies
 RUN apk add --no-cache python3 make g++
 
-# Copy workspace package files first for better Docker caching
-COPY package*.json ./
-COPY packages/types/package*.json ./packages/types/
-COPY packages/chat-slack/package*.json ./packages/chat-slack/
-COPY packages/integration-core/package*.json ./packages/integration-core/
-COPY packages/integrations/integration-bitbucket/package*.json ./packages/integrations/integration-bitbucket/
-COPY packages/integrations/integration-custom/package*.json ./packages/integrations/integration-custom/
-COPY packages/integrations/integration-github/package*.json ./packages/integrations/integration-github/
-COPY packages/integrations/integration-gitlab/package*.json ./packages/integrations/integration-gitlab/
-COPY packages/integrations/integration-jira/package*.json ./packages/integrations/integration-jira/
-COPY packages/integrations/integration-linear/package*.json ./packages/integrations/integration-linear/
-COPY packages/integrations/integration-monday/package*.json ./packages/integrations/integration-monday/
-COPY packages/integrations/integration-shortcut/package*.json ./packages/integrations/integration-shortcut/
-COPY packages/integrations/integration-slack/package*.json ./packages/integrations/integration-slack/
-COPY apps/platform-backend/package*.json ./apps/platform-backend/
+# Copy only package manifests — npm ci layer is invalidated only when deps change
+COPY --from=pkg-files /pkgs/ .
 
 # Install all workspace dependencies
 # --legacy-peer-deps required for npm workspace compatibility
 # --ignore-scripts prevents root postinstall (next telemetry disable) from failing
 RUN npm ci --legacy-peer-deps --ignore-scripts
 
-# Copy source files
-COPY packages/types ./packages/types
-COPY packages/chat-slack ./packages/chat-slack
-COPY packages/integration-core ./packages/integration-core
-COPY packages/integrations/integration-bitbucket ./packages/integrations/integration-bitbucket
-COPY packages/integrations/integration-custom ./packages/integrations/integration-custom
-COPY packages/integrations/integration-github ./packages/integrations/integration-github
-COPY packages/integrations/integration-gitlab ./packages/integrations/integration-gitlab
-COPY packages/integrations/integration-jira ./packages/integrations/integration-jira
-COPY packages/integrations/integration-linear ./packages/integrations/integration-linear
-COPY packages/integrations/integration-monday ./packages/integrations/integration-monday
-COPY packages/integrations/integration-shortcut ./packages/integrations/integration-shortcut
-COPY packages/integrations/integration-slack ./packages/integrations/integration-slack
-COPY apps/platform-backend ./apps/platform-backend
+# Copy full source
+COPY . .
 
-# Build shared packages using their own build scripts
+# Build shared packages
 RUN npm run build -w @viberglass/types
 RUN npm run build -w @viberglass/chat-slack
 
-# Build integration-core and plugins — backend entry only, no DTS.
-# Frontend entries require @viberglass/platform-ui + React types which are not
-# needed at runtime, so we use a minimal tsup config that skips them entirely.
+# Build integration-core and all integration plugins — backend entry only.
+# The normal build scripts also compile frontend entries which require
+# @viberglass/platform-ui and React types not present in the backend image.
+# The inline tsup config below skips those frontend builds.
 RUN <<BUILD
 cat > /build/tsup.backend-only.ts <<'TSCONFIG'
 import { defineConfig } from "tsup";
@@ -72,32 +65,24 @@ TSCONFIG
 
 cd /build/packages/integration-core && npx tsup --config /build/tsup.backend-only.ts
 
-for pkg in integration-bitbucket integration-custom integration-github \
-           integration-gitlab integration-jira integration-linear integration-monday \
-           integration-shortcut integration-slack; do
-  cd /build/packages/integrations/$pkg && npx tsup --config /build/tsup.backend-only.ts
+for pkg_dir in /build/packages/integrations/*/; do
+  pkg=$(basename "$pkg_dir")
+  [ "$pkg" = "_template" ] && continue
+  cd "$pkg_dir" && npx tsup --config /build/tsup.backend-only.ts
 done
 BUILD
 
-# Build backend (TypeScript compilation)
+# Build backend — noExternal config inlines all @viberglass/* into dist/api/server.js
 RUN npm run build -w @viberglass/platform-backend
 
-# Prune dev dependencies after all builds complete
+# Prune dev dependencies and remove @viberglass/* workspace packages.
+# server.js has them bundled, so the production image does not need them in node_modules.
 RUN npm prune --production --ignore-scripts && \
-    npm cache clean --force
-
-# Resolve workspace symlinks to real directories so they survive the COPY to production stage.
-# npm workspaces create symlinks like node_modules/@viberglass/types -> ../../packages/types,
-# but the packages/ tree does not exist in the production image — only node_modules/ is copied.
-RUN cd node_modules/@viberglass && \
-    for link in */; do \
-      target=$(readlink -f "${link%/}") && \
-      rm -rf "$link" && \
-      cp -r "$target" "$link"; \
-    done
+    npm cache clean --force && \
+    rm -rf node_modules/@viberglass
 
 # ==========================================
-# Stage 2: Production Runtime
+# Stage 3: Production Runtime
 # Minimal image with only compiled code and production dependencies
 # ==========================================
 FROM node:24-alpine AS production
@@ -112,15 +97,10 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy production dependencies from builder stage.
-# Two-step COPY: root workspace node_modules first, then the backend's workspace-local
-# node_modules on top. Docker merges directories, so packages not hoisted by npm
-# (e.g. uuid) get added without overwriting already-present root packages.
+# @viberglass/* is bundled into server.js — a single node_modules COPY suffices
 COPY --from=builder /build/node_modules ./node_modules
-COPY --from=builder /build/apps/platform-backend/node_modules ./node_modules
 
-# Copy compiled backend output from builder stage
-# Includes dist/migrations with compiled migration files
+# Copy compiled backend output (server.js + migration files)
 COPY --from=builder /build/apps/platform-backend/dist ./dist
 
 # Set ownership to non-root user
