@@ -18,12 +18,12 @@ export const ticketSchema = Joi.object({
   category: Joi.string().min(1).max(100).required(),
   metadata: Joi.object({
     browser: Joi.object({
-      name: Joi.string().optional(),
-      version: Joi.string().optional(),
+      name: Joi.string().allow("").optional(),
+      version: Joi.string().allow("").optional(),
     }),
     os: Joi.object({
-      name: Joi.string().optional(),
-      version: Joi.string().optional(),
+      name: Joi.string().allow("").optional(),
+      version: Joi.string().allow("").optional(),
     }),
     screen: Joi.object({
       width: Joi.number().positive().optional(),

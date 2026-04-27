@@ -67,6 +67,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch((err) => sendResponse({ error: err.message }));
     return true;
   }
+
+  if (message.type === "AREA_SELECTED" || message.type === "ELEMENT_SELECTED") {
+    handleSelectionCapture(message.data)
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+
+  if (message.type === "ANNOTATION_COMPLETE") {
+    const dataUrl = (message.data as { dataUrl: string }).dataUrl;
+    chrome.storage.local
+      .set({ viberglass_screenshot: dataUrl })
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
 });
 
 async function handleApiRequest(data: {
@@ -219,6 +235,23 @@ async function injectContentScript(
       data,
     });
   }
+}
+
+async function handleSelectionCapture(region: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): Promise<void> {
+  const captureResult = await handleCaptureVisibleTab();
+  const cropResult = await handleCropImage(
+    captureResult.dataUrl,
+    region.x,
+    region.y,
+    region.width,
+    region.height,
+  );
+  await chrome.storage.local.set({ viberglass_screenshot: cropResult.dataUrl });
 }
 
 export {};

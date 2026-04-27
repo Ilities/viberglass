@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type {
   AuthState,
   CaptureState,
@@ -14,6 +14,9 @@ import {
   getDefaultProject,
   getDefaultClanker,
   getDefaultPhase,
+  getFormState,
+  setFormState,
+  clearRecording,
 } from "@/storage";
 import { CaptureControls } from "./CaptureControls";
 import { MediaPreview } from "./MediaPreview";
@@ -23,6 +26,7 @@ interface Props {
   capture: CaptureState;
   setCapture: React.Dispatch<React.SetStateAction<CaptureState>>;
   onLogout: () => void;
+  onClearCapture: () => void;
 }
 
 const PHASES: { value: TicketWorkflowPhase; label: string }[] = [
@@ -43,6 +47,7 @@ export function TicketForm({
   capture,
   setCapture,
   onLogout,
+  onClearCapture,
 }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [clankers, setClankers] = useState<Clanker[]>([]);
@@ -55,25 +60,48 @@ export function TicketForm({
   const [autoRun, setAutoRun] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [projectsError, setProjectsError] = useState("");
   const [success, setSuccess] = useState<{ ticketId: string; ticketUrl: string } | null>(null);
+  const formSyncedRef = useRef(false);
 
   useEffect(() => {
     listProjects()
       .then(setProjects)
-      .catch(() => {});
+      .catch((err) =>
+        setProjectsError(err instanceof Error ? err.message : "Failed to load projects"),
+      );
   }, []);
 
   useEffect(() => {
-    getDefaultProject().then((p) => {
-      if (p) setProjectId(p);
-    });
-    getDefaultClanker().then((c) => {
-      if (c) setClankerId(c);
-    });
-    getDefaultPhase().then((p) => {
-      if (p) setPhase(p as TicketWorkflowPhase);
-    });
+    async function loadFormState() {
+      const saved = await getFormState();
+      if (saved) {
+        setProjectId(saved.projectId || "");
+        setClankerId(saved.clankerId || "");
+        if (saved.phase) setPhase(saved.phase as TicketWorkflowPhase);
+        if (saved.title) setTitle(saved.title);
+        if (saved.description) setDescription(saved.description);
+        if (saved.severity) setSeverity(saved.severity as Severity);
+        if (saved.autoRun !== undefined) setAutoRun(saved.autoRun);
+      } else {
+        const [dp, dc, dph] = await Promise.all([
+          getDefaultProject(),
+          getDefaultClanker(),
+          getDefaultPhase(),
+        ]);
+        if (dp) setProjectId(dp);
+        if (dc) setClankerId(dc);
+        if (dph) setPhase(dph as TicketWorkflowPhase);
+      }
+      formSyncedRef.current = true;
+    }
+    loadFormState();
   }, []);
+
+  useEffect(() => {
+    if (!formSyncedRef.current) return;
+    setFormState({ projectId, clankerId, phase, title, description, severity, autoRun });
+  }, [projectId, clankerId, phase, title, description, severity, autoRun]);
 
   useEffect(() => {
     if (projectId) {
@@ -209,12 +237,7 @@ export function TicketForm({
             setSuccess(null);
             setTitle("");
             setDescription("");
-            setCapture((prev) => ({
-              ...prev,
-              screenshotDataUrl: null,
-              recordingBlob: null,
-              annotations: [],
-            }));
+            onClearCapture();
           }}
           className="w-full py-2 px-4 text-sm text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
         >
@@ -256,9 +279,10 @@ export function TicketForm({
           onRemoveScreenshot={() =>
             setCapture((prev) => ({ ...prev, screenshotDataUrl: null }))
           }
-          onRemoveRecording={() =>
-            setCapture((prev) => ({ ...prev, recordingBlob: null }))
-          }
+          onRemoveRecording={() => {
+            clearRecording();
+            setCapture((prev) => ({ ...prev, recordingBlob: null }));
+          }}
         />
 
         <div>
@@ -278,6 +302,9 @@ export function TicketForm({
               </option>
             ))}
           </select>
+          {projectsError && (
+            <p className="text-xs text-red-600 mt-1">{projectsError}</p>
+          )}
         </div>
 
         {clankers.length > 0 && (

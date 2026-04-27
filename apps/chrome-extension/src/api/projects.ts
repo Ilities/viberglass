@@ -17,10 +17,10 @@ export async function getProject(projectId: string): Promise<Project> {
   return result.data;
 }
 
-export async function listClankers(projectId: string): Promise<Clanker[]> {
+export async function listClankers(_projectId: string): Promise<Clanker[]> {
   const result = await apiJson<{
     success: boolean;
     data: Clanker[];
-  }>(`/api/projects/${projectId}/clankers`);
+  }>("/api/clankers");
   return result.data;
 }

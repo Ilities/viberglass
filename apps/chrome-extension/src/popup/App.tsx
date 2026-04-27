@@ -1,6 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { AuthState, CaptureState } from "@/types";
-import { getAuth, clearAuth } from "@/storage";
+import {
+  getAuth,
+  clearAuth,
+  getScreenshot,
+  setScreenshot,
+  clearScreenshot,
+  getRecordingDataUrl,
+  clearAllCapture,
+} from "@/storage";
 import { TicketForm } from "./components/TicketForm";
 
 const initialCapture: CaptureState = {
@@ -33,65 +41,53 @@ export function App() {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [loading, setLoading] = useState(true);
   const [capture, setCapture] = useState<CaptureState>(initialCapture);
+  const captureSyncedRef = useRef(false);
 
   useEffect(() => {
-    getAuth().then((stored) => {
-      setAuth(stored);
+    async function load() {
+      const [storedAuth, storedScreenshot, recordingResult] =
+        await Promise.all([getAuth(), getScreenshot(), getRecordingDataUrl()]);
+
+      let recordingBlob: Blob | null = null;
+      if (recordingResult) {
+        const res = await fetch(recordingResult);
+        recordingBlob = await res.blob();
+      }
+
+      setAuth(storedAuth);
+      if (storedScreenshot || recordingBlob) {
+        setCapture((prev) => ({
+          ...prev,
+          screenshotDataUrl: storedScreenshot,
+          recordingBlob,
+        }));
+      }
+      captureSyncedRef.current = true;
       setLoading(false);
-    });
+    }
+    load();
   }, []);
 
   useEffect(() => {
-    const listener = (message: {
-      type: string;
-      data?: unknown;
-    }) => {
-      if (message.type === "AREA_SELECTED" || message.type === "ELEMENT_SELECTED") {
-        const region = message.data as {
-          x: number;
-          y: number;
-          width: number;
-          height: number;
-        };
-        chrome.runtime.sendMessage(
-          { type: "CAPTURE_VISIBLE_TAB" },
-          (response: { dataUrl?: string; error?: string }) => {
-            if (response?.dataUrl) {
-              chrome.runtime.sendMessage(
-                {
-                  type: "CROP_IMAGE",
-                  data: {
-                    dataUrl: response.dataUrl,
-                    ...region,
-                  },
-                },
-                (cropResponse: { dataUrl?: string; error?: string }) => {
-                  if (cropResponse?.dataUrl) {
-                    setCapture((prev) => ({
-                      ...prev,
-                      screenshotDataUrl: cropResponse.dataUrl ?? null,
-                    }));
-                  }
-                },
-              );
-            }
-          },
-        );
-      }
+    if (!captureSyncedRef.current) return;
+    if (capture.screenshotDataUrl) {
+      setScreenshot(capture.screenshotDataUrl);
+    } else {
+      clearScreenshot();
+    }
+  }, [capture.screenshotDataUrl]);
 
-      if (message.type === "ANNOTATION_COMPLETE") {
-        const data = message.data as { dataUrl: string };
-            setCapture((prev) => ({
-              ...prev,
-              screenshotDataUrl: null,
-              recordingBlob: null,
-              annotations: [],
-            }));
+  useEffect(() => {
+    function listener(changes: {
+      [key: string]: chrome.storage.StorageChange;
+    }) {
+      if (changes.viberglass_screenshot) {
+        const newValue = changes.viberglass_screenshot.newValue ?? null;
+        setCapture((prev) => ({ ...prev, screenshotDataUrl: newValue }));
       }
-    };
-
-    chrome.runtime.onMessage.addListener(listener);
-    return () => chrome.runtime.onMessage.removeListener(listener);
+    }
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
 
   if (loading) {
@@ -110,11 +106,17 @@ export function App() {
             <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
               <span className="text-white font-bold text-sm">V</span>
             </div>
-            <span className="text-base font-semibold text-gray-900">Viberglass</span>
+            <span className="text-base font-semibold text-gray-900">
+              Viberglass
+            </span>
           </div>
           <p className="text-xs text-gray-500 mb-4">Sign in to capture bugs</p>
           <button
-            onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL("login.html") })}
+            onClick={() =>
+              chrome.tabs.create({
+                url: chrome.runtime.getURL("login.html"),
+              })
+            }
             className="w-full py-2 px-4 text-sm font-medium text-white bg-amber-500 rounded-md hover:bg-amber-600 transition-colors"
           >
             Sign in
@@ -132,6 +134,10 @@ export function App() {
       onLogout={async () => {
         await clearAuth();
         setAuth(null);
+      }}
+      onClearCapture={async () => {
+        await clearAllCapture();
+        setCapture(initialCapture);
       }}
     />
   );
