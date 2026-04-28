@@ -12,7 +12,7 @@
       "require": "./dist/backend/index.js"
     },
     "./frontend": {
-      "types": "./dist/frontend/index.d.ts",
+      "types": "./dist/frontend/index.d.mts",
       "import": "./dist/frontend/index.mjs"
     }
   },
