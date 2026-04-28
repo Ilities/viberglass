@@ -1,0 +1,332 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" fill="none">
+  <defs>
+    <linearGradient id="platformGrad" x1="400" y1="80" x2="940" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0.01"/>
+    </linearGradient>
+
+    <!-- Arrow markers -->
+    <marker id="arrowW" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5" fill="#fff" opacity="0.35"/>
+    </marker>
+    <marker id="arrowAccent" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5" fill="#d4520a" opacity="0.6"/>
+    </marker>
+    <marker id="arrowGold" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5" fill="#c9a869" opacity="0.5"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#1a1a1a" rx="12"/>
+
+  <!-- Subtle dot grid -->
+  <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+    <circle cx="20" cy="20" r="0.5" fill="#fff" opacity="0.06"/>
+  </pattern>
+  <rect width="1280" height="720" fill="url(#dots)" rx="12"/>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- LEFT COLUMN: INPUT SOURCES                -->
+  <!-- ══════════════════════════════════════════ -->
+
+  <!-- Ticketing Systems -->
+  <rect x="32" y="52" width="260" height="180" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="162" y="78" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.45)" letter-spacing="0.1em">TICKETING SYSTEMS</text>
+  <line x1="56" y1="88" x2="268" y2="88" stroke="rgba(255,255,255,0.05)"/>
+
+  <rect x="52" y="100" width="100" height="30" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="102" y="119" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">Jira</text>
+
+  <rect x="164" y="100" width="100" height="30" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="214" y="119" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">Shortcut</text>
+
+  <rect x="52" y="140" width="100" height="30" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="102" y="159" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">GitHub Issues</text>
+
+  <rect x="164" y="140" width="100" height="30" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" stroke-dasharray="3 2"/>
+  <text x="214" y="159" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.35)">ClickUp</text>
+
+  <rect x="52" y="180" width="100" height="30" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" stroke-dasharray="3 2"/>
+  <text x="102" y="199" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.35)">Monday.com</text>
+
+
+  <!-- Chat Apps -->
+  <rect x="32" y="252" width="260" height="140" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="162" y="278" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.45)" letter-spacing="0.1em">CHAT APPS</text>
+  <line x1="56" y1="288" x2="268" y2="288" stroke="rgba(255,255,255,0.05)"/>
+
+  <rect x="52" y="300" width="100" height="30" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="102" y="319" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">Slack</text>
+
+  <rect x="164" y="300" width="100" height="30" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" stroke-dasharray="3 2"/>
+  <text x="214" y="319" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.35)">Teams</text>
+
+  <rect x="52" y="340" width="100" height="30" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" stroke-dasharray="3 2"/>
+  <text x="102" y="359" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.35)">Discord</text>
+
+
+  <!-- Browser Extension -->
+  <rect x="32" y="412" width="260" height="92" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="162" y="438" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.45)" letter-spacing="0.1em">BROWSER EXTENSION</text>
+  <line x1="56" y1="448" x2="268" y2="448" stroke="rgba(255,255,255,0.05)"/>
+
+  <rect x="52" y="458" width="212" height="30" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="158" y="477" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">Chrome Extension</text>
+
+
+  <!-- Custom Webhooks -->
+  <rect x="32" y="524" width="260" height="92" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="162" y="550" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.45)" letter-spacing="0.1em">CUSTOM WEBHOOKS</text>
+  <line x1="56" y1="560" x2="268" y2="560" stroke="rgba(255,255,255,0.05)"/>
+
+  <rect x="52" y="570" width="212" height="30" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="158" y="589" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">Inbound HTTP / JSON</text>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- FLOW ARROWS: Inputs → Platform           -->
+  <!-- ══════════════════════════════════════════ -->
+
+  <path d="M292,142 C330,142 330,200 355,200" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)" fill="none"/>
+  <path d="M292,322 C330,322 330,290 355,290" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)" fill="none"/>
+  <path d="M292,458 C330,458 330,380 355,380" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)" fill="none"/>
+  <path d="M292,570 C330,570 330,460 355,460" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)" fill="none"/>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- CENTER: VIBERGLASS PLATFORM               -->
+  <!-- ══════════════════════════════════════════ -->
+
+  <!-- Platform container — the only element with brand accent border -->
+  <rect x="355" y="30" width="580" height="660" rx="14" fill="url(#platformGrad)" stroke="#d4520a" stroke-opacity="0.18" stroke-width="1.5"/>
+
+  <!-- Platform label -->
+  <text x="645" y="58" text-anchor="middle" font-family="'Familjen Grotesk', Inter, system-ui, sans-serif" font-size="15" font-weight="700" fill="#f5e6d3" letter-spacing="0.06em">VIBERGLASS PLATFORM</text>
+  <line x1="385" y1="70" x2="905" y2="70" stroke="rgba(255,255,255,0.05)"/>
+
+
+  <!-- ── Phase 1: RESEARCH ── -->
+  <rect x="385" y="86" width="220" height="64" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <circle cx="406" cy="118" r="10" fill="#d4520a" fill-opacity="0.12" stroke="#d4520a" stroke-opacity="0.35" stroke-width="0.75"/>
+  <text x="406" y="122" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700" fill="#d4520a">1</text>
+  <text x="424" y="110" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">Research</text>
+  <text x="424" y="126" font-family="Inter, system-ui, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">Analyze codebase &amp; context</text>
+
+  <!-- Arrow: Research → Agent -->
+  <line x1="605" y1="118" x2="630" y2="118" stroke="#d4520a" stroke-opacity="0.4" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+
+
+  <!-- ── Agent Box (shared, tall) ── -->
+  <rect x="633" y="83" width="232" height="530" rx="10" fill="rgba(255,255,255,0.03)" stroke="#e8923e" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="749" y="108" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="#e8923e" letter-spacing="0.08em">AI AGENT HARNESSES</text>
+  <line x1="658" y1="118" x2="840" y2="118" stroke="rgba(255,255,255,0.05)"/>
+
+  <!-- Agent pills - Column 1 -->
+  <rect x="648" y="130" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="697" y="146" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">Claude Code</text>
+
+  <rect x="648" y="160" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="697" y="176" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">Codex CLI</text>
+
+  <rect x="648" y="190" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="697" y="206" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">Gemini CLI</text>
+
+  <rect x="648" y="220" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="697" y="236" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">Mistral Vibe</text>
+
+  <!-- Agent pills - Column 2 -->
+  <rect x="754" y="130" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="803" y="146" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">Qwen Code</text>
+
+  <rect x="754" y="160" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="803" y="176" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">Kimi Code</text>
+
+  <rect x="754" y="190" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="803" y="206" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">OpenCode</text>
+
+  <rect x="754" y="220" width="98" height="24" rx="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <text x="803" y="236" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="#c9a869">Pi</text>
+
+  <!-- Separator -->
+  <line x1="658" y1="256" x2="840" y2="256" stroke="rgba(255,255,255,0.05)"/>
+
+  <!-- Execution environments -->
+  <text x="749" y="274" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="600" fill="rgba(255,255,255,0.35)" letter-spacing="0.08em">EXECUTION</text>
+
+  <rect x="660" y="284" width="72" height="20" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+  <text x="696" y="298" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Docker</text>
+
+  <rect x="738" y="284" width="72" height="20" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+  <text x="774" y="298" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Lambda</text>
+
+  <rect x="699" y="308" width="72" height="20" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+  <text x="735" y="322" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">ECS Fargate</text>
+
+
+  <!-- ── Human Review 1 ── -->
+  <rect x="385" y="170" width="220" height="48" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <!-- Person icon -->
+  <circle cx="404" cy="190" r="4" fill="none" stroke="#c9a869" stroke-opacity="0.5" stroke-width="0.75"/>
+  <path d="M397,202 a7,5 0 0 1 14,0" fill="none" stroke="#c9a869" stroke-opacity="0.4" stroke-width="0.75"/>
+  <text x="420" y="191" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#f5e6d3">Human Review</text>
+  <text x="420" y="205" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.35)">Approve or revise research</text>
+
+  <!-- Arrow: Research ↓ Human Review 1 -->
+  <line x1="495" y1="150" x2="495" y2="170" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)"/>
+
+
+  <!-- ── Phase 2: PLANNING ── -->
+  <rect x="385" y="238" width="220" height="64" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <circle cx="406" cy="270" r="10" fill="#d4520a" fill-opacity="0.12" stroke="#d4520a" stroke-opacity="0.35" stroke-width="0.75"/>
+  <text x="406" y="274" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700" fill="#d4520a">2</text>
+  <text x="424" y="262" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">Planning</text>
+  <text x="424" y="278" font-family="Inter, system-ui, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">Draft implementation plan</text>
+
+  <!-- Arrow: Human Review 1 ↓ Planning -->
+  <line x1="495" y1="218" x2="495" y2="238" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)"/>
+  <!-- Arrow: Planning → Agent -->
+  <line x1="605" y1="270" x2="630" y2="270" stroke="#d4520a" stroke-opacity="0.4" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+
+
+  <!-- ── Human Review 2 ── -->
+  <rect x="385" y="322" width="220" height="48" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <circle cx="404" cy="342" r="4" fill="none" stroke="#c9a869" stroke-opacity="0.5" stroke-width="0.75"/>
+  <path d="M397,354 a7,5 0 0 1 14,0" fill="none" stroke="#c9a869" stroke-opacity="0.4" stroke-width="0.75"/>
+  <text x="420" y="343" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#f5e6d3">Human Review</text>
+  <text x="420" y="357" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.35)">Approve or revise plan</text>
+
+  <!-- Arrow: Planning ↓ Human Review 2 -->
+  <line x1="495" y1="302" x2="495" y2="322" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)"/>
+
+
+  <!-- ── Phase 3: EXECUTION ── -->
+  <rect x="385" y="390" width="220" height="64" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <circle cx="406" cy="422" r="10" fill="#d4520a" fill-opacity="0.12" stroke="#d4520a" stroke-opacity="0.35" stroke-width="0.75"/>
+  <text x="406" y="426" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700" fill="#d4520a">3</text>
+  <text x="424" y="414" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">Execution</text>
+  <text x="424" y="430" font-family="Inter, system-ui, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">Write code &amp; create PR</text>
+
+  <!-- Arrow: Human Review 2 ↓ Execution -->
+  <line x1="495" y1="370" x2="495" y2="390" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)"/>
+  <!-- Arrow: Execution → Agent -->
+  <line x1="605" y1="422" x2="630" y2="422" stroke="#d4520a" stroke-opacity="0.4" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+
+
+  <!-- ── Interactive Sessions ── -->
+  <rect x="385" y="474" width="220" height="48" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <path d="M399,494 h10 a2,2 0 0 1 2,2 v6 a2,2 0 0 1 -2,2 h-6 l-3,3 v-3 h-1 a2,2 0 0 1 -2,-2 v-6 a2,2 0 0 1 2,-2z" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.75"/>
+  <text x="420" y="495" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="rgba(255,255,255,0.7)">Interactive Sessions</text>
+  <text x="420" y="509" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">Real-time collaboration via ACP</text>
+
+  <!-- Bidirectional arrows -->
+  <line x1="605" y1="495" x2="630" y2="495" stroke="rgba(255,255,255,0.15)" stroke-width="1" marker-end="url(#arrowW)"/>
+  <line x1="630" y1="503" x2="605" y2="503" stroke="rgba(255,255,255,0.15)" stroke-width="1" marker-end="url(#arrowW)"/>
+
+
+  <!-- ── Prompt Templates ── -->
+  <rect x="385" y="542" width="220" height="48" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <rect x="396" y="556" rx="1.5" width="14" height="16" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.75"/>
+  <line x1="400" y1="561" x2="406" y2="561" stroke="rgba(255,255,255,0.2)" stroke-width="0.75"/>
+  <line x1="400" y1="565" x2="406" y2="565" stroke="rgba(255,255,255,0.2)" stroke-width="0.75"/>
+  <line x1="400" y1="569" x2="404" y2="569" stroke="rgba(255,255,255,0.2)" stroke-width="0.75"/>
+  <text x="420" y="563" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="rgba(255,255,255,0.7)">Prompt Templates</text>
+  <text x="420" y="577" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">Per-project agent instructions</text>
+
+  <line x1="605" y1="566" x2="630" y2="566" stroke="rgba(255,255,255,0.12)" stroke-width="1" marker-end="url(#arrowW)"/>
+
+
+  <!-- ── Claws ── -->
+  <rect x="385" y="610" width="220" height="48" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <circle cx="403" cy="634" r="8" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.75"/>
+  <line x1="403" y1="630" x2="403" y2="634" stroke="rgba(255,255,255,0.25)" stroke-width="0.75"/>
+  <line x1="403" y1="634" x2="407" y2="636" stroke="rgba(255,255,255,0.25)" stroke-width="0.75"/>
+  <text x="420" y="631" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="rgba(255,255,255,0.7)">Claws</text>
+  <text x="420" y="645" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">Cron-scheduled agent tasks</text>
+
+  <line x1="605" y1="634" x2="630" y2="588" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrowW)"/>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- RIGHT COLUMN: OUTPUTS                     -->
+  <!-- ══════════════════════════════════════════ -->
+
+  <!-- Main output arrow: Agent → SCM -->
+  <path d="M865,350 C910,350 920,260 960,260" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrowW)" fill="none"/>
+
+  <!-- PR label -->
+  <g transform="translate(888, 278)">
+    <rect x="0" y="-11" width="62" height="16" rx="3" fill="#d4520a" fill-opacity="0.12"/>
+    <text x="31" y="1" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="600" fill="#e8923e">Pull Request</text>
+  </g>
+
+
+  <!-- Source Control (SCM) -->
+  <rect x="960" y="132" width="280" height="184" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="1100" y="158" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.45)" letter-spacing="0.1em">SOURCE CONTROL</text>
+  <line x1="990" y1="168" x2="1210" y2="168" stroke="rgba(255,255,255,0.05)"/>
+
+  <rect x="980" y="180" width="120" height="34" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="1040" y="201" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="500" fill="rgba(255,255,255,0.7)">GitHub</text>
+
+  <rect x="1110" y="180" width="120" height="34" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+  <text x="1170" y="201" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="500" fill="rgba(255,255,255,0.7)">Bitbucket</text>
+
+  <rect x="980" y="224" width="120" height="34" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" stroke-dasharray="3 2"/>
+  <text x="1040" y="245" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="500" fill="rgba(255,255,255,0.35)">GitLab</text>
+
+  <!-- PR status indicator -->
+  <rect x="980" y="272" width="250" height="30" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/>
+  <!-- Git merge icon -->
+  <circle cx="1000" cy="287" r="3" fill="none" stroke="#c9a869" stroke-opacity="0.5" stroke-width="0.75"/>
+  <circle cx="1000" cy="287" r="1" fill="#c9a869" fill-opacity="0.4"/>
+  <text x="1012" y="291" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" fill="rgba(255,255,255,0.5)">PR created for engineer review</text>
+
+
+  <!-- Outbound Webhooks -->
+  <rect x="960" y="352" width="280" height="148" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="1100" y="378" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.45)" letter-spacing="0.1em">OUTBOUND WEBHOOKS</text>
+  <line x1="990" y1="388" x2="1210" y2="388" stroke="rgba(255,255,255,0.05)"/>
+
+  <rect x="980" y="398" width="120" height="26" rx="5" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+  <text x="1040" y="415" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9.5" font-weight="500" fill="rgba(255,255,255,0.5)">job_started</text>
+
+  <rect x="1110" y="398" width="120" height="26" rx="5" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+  <text x="1170" y="415" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9.5" font-weight="500" fill="rgba(255,255,255,0.5)">job_completed</text>
+
+  <rect x="980" y="430" width="120" height="26" rx="5" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+  <text x="1040" y="447" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9.5" font-weight="500" fill="rgba(255,255,255,0.5)">approval_request</text>
+
+  <rect x="1110" y="430" width="120" height="26" rx="5" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+  <text x="1170" y="447" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9.5" font-weight="500" fill="rgba(255,255,255,0.5)">job_failed</text>
+
+  <text x="1100" y="478" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.25)">Feedback to Jira, GitHub, Shortcut, Slack, or custom URL</text>
+
+
+  <!-- Arrow: Agent → Outbound Webhooks (dashed) -->
+  <path d="M865,420 C910,420 920,426 960,426" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" marker-end="url(#arrowW)" fill="none" stroke-dasharray="6 3"/>
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- LEGEND                                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <g transform="translate(968, 540)">
+    <text x="0" y="0" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="600" fill="rgba(255,255,255,0.3)" letter-spacing="0.08em">LEGEND</text>
+
+    <circle cx="6" cy="16" r="4" fill="#d4520a" fill-opacity="0.12" stroke="#d4520a" stroke-opacity="0.35" stroke-width="0.75"/>
+    <text x="18" y="19" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Workflow phase</text>
+
+    <rect x="0" y="28" width="12" height="12" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+    <text x="18" y="37" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Human approval gate</text>
+
+    <rect x="0" y="46" width="12" height="12" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.75"/>
+    <text x="18" y="55" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Live integration</text>
+
+    <rect x="140" y="10" width="12" height="12" rx="2" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.75" stroke-dasharray="2 1.5"/>
+    <text x="158" y="19" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Coming soon</text>
+
+    <rect x="140" y="28" width="12" height="12" rx="2" fill="rgba(255,255,255,0.03)" stroke="#e8923e" stroke-opacity="0.15" stroke-width="0.75"/>
+    <text x="158" y="37" font-family="Inter, system-ui, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Agent harnesses</text>
+  </g>
+</svg>
