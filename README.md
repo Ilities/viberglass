@@ -15,7 +15,7 @@ No repository access required to file a ticket. QA engineers, PMs, and customer 
 **[Documentation](docs/)** | **[Architecture](docs/ARCHITECTURE.md)** | **[Contributing](CONTRIBUTING.md)**
 
 ## Features
-
+![how-it-works.svg](docs/images/how-it-works.svg)
 - **Multi-phase ticket lifecycle** — tickets progress through Research, Plan, and Execute phases, each driven by an AI agent
 - **Interactive agent sessions (ACP)** — collaborate with agents in real-time via the built-in session UI
 - **Scheduled tasks (Claws)** — define recurring agent jobs on a cron schedule
