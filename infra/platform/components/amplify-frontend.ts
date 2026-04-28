@@ -72,7 +72,9 @@ applications:
         preBuild:
           commands:
             - npm ci --legacy-peer-deps
-            - npm run frontend:build-deps
+            - npm run build -w @viberglass/types
+            - npm run build -w @viberglass/platform-ui -w @viberglass/integration-core
+            - npm run build -w @viberglass/integration-bitbucket -w @viberglass/integration-custom -w @viberglass/integration-github -w @viberglass/integration-gitlab -w @viberglass/integration-jira -w @viberglass/integration-linear -w @viberglass/integration-monday -w @viberglass/integration-shortcut -w @viberglass/integration-slack
         build:
           commands:
             - npm run build -w @viberglass/frontend
