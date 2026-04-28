@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to Dev (Amplify)
+    name: Deploy to Dev (AWS Amplify)
     runs-on: ubuntu-latest
     environment:
       name: dev
