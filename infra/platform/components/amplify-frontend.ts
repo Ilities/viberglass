@@ -71,17 +71,13 @@ applications:
       phases:
         preBuild:
           commands:
-            # Install all dependencies (required for monorepo workspace support)
             - npm ci --legacy-peer-deps
-            # Build shared packages first (types, etc.)
-            - npm run build -w @viberglass/types
+            - npm run frontend:build-deps
         build:
           commands:
-            # Build the frontend package as static export
             - npm run build -w @viberglass/frontend
         postBuild:
           commands:
-            # Verify static build output
             - ls -la dist
             - echo "Static build completed successfully"
       artifacts:
