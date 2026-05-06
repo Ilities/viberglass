@@ -47,6 +47,7 @@ import { PromptTemplatesPage } from '@/pages/settings/PromptTemplatesPage'
 import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegrationsPage'
 import { ProjectSettingsPage } from '@/pages/project/settings/ProjectSettingsPage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
+import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { UsersPage } from '@/pages/settings/UsersPage'
@@ -83,6 +84,7 @@ export function AppRoutes() {
         <Route path="/settings/integrations/:integrationEntityId" element={<IntegrationDetailPage />} />
         <Route path="/settings/users" element={<UsersPage />} />
         <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
+        <Route path="/settings/api-tokens" element={<ApiTokensPage />} />
 
         {/* Project routes */}
         <Route path="/project/:project" element={<ProjectHomePage />} />

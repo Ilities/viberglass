@@ -120,6 +120,68 @@ export const attachAuthContext = authenticateRequest({ required: false });
 
 export const requireAuth = authenticateRequest({ required: true });
 
+function authenticateWithApiToken() {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!isAuthEnabled()) {
+      const mockUser = {
+        id: "mock-user-id",
+        email: "mock@example.com",
+        name: "Mock Admin",
+        avatarUrl: null,
+        role: "admin" as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const mockSession = {
+        id: "mock-session-id",
+        userId: mockUser.id,
+        tokenHash: "mock-token-hash",
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 86400000),
+        revokedAt: null,
+      };
+
+      const mockContext: AuthContext = {
+        user: mockUser,
+        session: mockSession,
+        roles: ["admin"],
+        permissions: [],
+      };
+
+      req.auth = mockContext;
+      req.user = mockContext;
+      next();
+      return;
+    }
+
+    passport.authenticate(
+      "api-token",
+      { session: false },
+      (err: unknown, user: Express.User | false | null, info?: PassportInfo) => {
+        if (err) {
+          next(err as Error);
+          return;
+        }
+
+        if (!user) {
+          res.status(401).json({
+            error: getFailureMessage(info, "API token required"),
+          });
+          return;
+        }
+
+        const context = user as AuthContext;
+        req.auth = context;
+        req.user = context;
+        next();
+      },
+    )(req, res, next);
+  };
+}
+
+export const requireApiToken = authenticateWithApiToken();
+
 export function requireRole(required: UserRole | UserRole[]) {
   const roles = Array.isArray(required) ? required : [required];
   return authenticateRequest({

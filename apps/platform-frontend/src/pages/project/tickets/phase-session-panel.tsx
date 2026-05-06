@@ -22,6 +22,7 @@ interface PhaseSessionPanelProps {
   session: AgentSession
   project: string
   onSessionEnded?: () => void
+  onTurnCompleted?: () => void
   onRevise?: () => void
 }
 
@@ -62,7 +63,7 @@ function modeBadge(mode: string): { label: string; color: 'violet' | 'blue' | 'a
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
 
-export function PhaseSessionPanel({ session, project, onSessionEnded, onRevise }: PhaseSessionPanelProps) {
+export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnCompleted, onRevise }: PhaseSessionPanelProps) {
   const { user } = useAuth()
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -184,6 +185,23 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onRevise }
       onSessionEnded?.()
     }
   }, [isTerminal, onSessionEnded])
+
+  // Track the last seen event count to detect new turn_completed/turn_failed events
+  const prevEventCountRef = useRef(events.length)
+  useEffect(() => {
+    const prevCount = prevEventCountRef.current
+    prevEventCountRef.current = events.length
+    if (events.length <= prevCount) return
+
+    // Check if any new events are turn_completed or turn_failed
+    for (let i = prevCount; i < events.length; i++) {
+      const t = events[i].eventType
+      if (t === 'turn_completed' || t === 'turn_failed') {
+        onTurnCompleted?.()
+        break
+      }
+    }
+  }, [events, onTurnCompleted])
 
   async function handleSend() {
     if (!messageText.trim() || isSending) return

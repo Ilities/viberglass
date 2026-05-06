@@ -37,6 +37,7 @@
     "@viberglass/integration-bitbucket": "*",
     "@viberglass/integration-core": "*",
     "@viberglass/integration-custom": "*",
+    "@viberglass/mcp-server": "*",
     "@viberglass/integration-github": "*",
     "@viberglass/integration-gitlab": "*",
     "@viberglass/integration-jira": "*",

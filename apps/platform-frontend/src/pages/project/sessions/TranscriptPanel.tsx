@@ -4,7 +4,7 @@ import { ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon, ReaderIcon } from '@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 function isSystemEvent(type: AgentSessionEventType): boolean {
-  return type === 'progress' || type === 'tool_call_started' || type === 'tool_call_completed' || type === 'reasoning'
+  return type === 'progress' || type === 'tool_call_started' || type === 'tool_call_completed'
 }
 
 function isMarkerEvent(type: AgentSessionEventType): boolean {
@@ -63,27 +63,27 @@ function getSystemLabel(event: AgentSessionEvent): string {
 
 /** Merged group of consecutive same-type message events */
 interface MessageGroup {
-  type: 'user_message' | 'assistant_message'
+  type: 'user_message' | 'assistant_message' | 'reasoning'
   text: string
   timestamp: string
   id: string
 }
 
-/** Merge consecutive assistant_message chunks into single groups */
+/** Merge consecutive assistant_message and reasoning chunks into single groups */
 function mergeMessages(events: AgentSessionEvent[]): (AgentSessionEvent | MessageGroup)[] {
   const result: (AgentSessionEvent | MessageGroup)[] = []
   let currentGroup: MessageGroup | null = null
 
   for (const event of events) {
-    if (event.eventType === 'assistant_message') {
+    if (event.eventType === 'assistant_message' || event.eventType === 'reasoning') {
       const text = getEventText(event)
-      if (currentGroup && currentGroup.type === 'assistant_message') {
+      if (currentGroup && currentGroup.type === event.eventType) {
         currentGroup.text += text
         currentGroup.timestamp = event.createdAt
       } else {
         if (currentGroup) result.push(currentGroup)
         currentGroup = {
-          type: 'assistant_message',
+          type: event.eventType,
           text,
           timestamp: event.createdAt,
           id: `group-${event.id}`,
@@ -230,6 +230,22 @@ function MessageBubble({ group }: { group: MessageGroup }) {
   )
 }
 
+// ─── Reasoning block ─────────────────────────────────────────────────────────
+
+function ReasoningBlock({ group }: { group: MessageGroup }) {
+  return (
+    <details className="group/reasoning rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-11)]">
+      <summary className="cursor-pointer list-none select-none font-medium text-[var(--gray-11)] marker:content-none after:ml-2 after:text-[10px] after:text-[var(--gray-9)] after:content-['(expand)'] group-open/reasoning:after:content-['(collapse)']">
+        <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent-9)] align-middle opacity-60" />
+        Reasoning
+      </summary>
+      <div className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--gray-12)]">
+        {group.text}
+      </div>
+    </details>
+  )
+}
+
 // ─── System / marker rows ─────────────────────────────────────────────────────
 
 function SystemEventRow({ event }: { event: AgentSessionEvent }) {
@@ -308,6 +324,9 @@ export function TranscriptPanel({ events }: { events: AgentSessionEvent[] }) {
     <div ref={containerRef} className="flex flex-col gap-3 overflow-y-auto">
       {merged.map((item) => {
         if (isMessageGroup(item)) {
+          if (item.type === 'reasoning') {
+            return <ReasoningBlock key={item.id} group={item} />
+          }
           return <MessageBubble key={item.id} group={item} />
         }
         const event = item as AgentSessionEvent

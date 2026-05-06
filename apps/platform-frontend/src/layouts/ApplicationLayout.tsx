@@ -30,7 +30,6 @@ import { usePolling } from '@/hooks/usePolling'
 import type { AuthUser } from '@/service/api/auth-api'
 import { getProjects, Project } from '@/service/api/project-api'
 import { getTickets } from '@/service/api/ticket-api'
-import type { Ticket } from '@viberglass/types'
 import {
   ActivityLogIcon,
   ChevronDownIcon,
@@ -48,6 +47,7 @@ import {
   RocketIcon,
   SunIcon,
 } from '@radix-ui/react-icons'
+import type { Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
@@ -166,7 +166,7 @@ function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: (
 function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
   const fetchTickets = useCallback(
     () => getTickets({ projectSlug, statuses: ['in_review', 'in_progress'], limit: 15 }),
-    [projectSlug],
+    [projectSlug]
   )
 
   const { data: ticketList } = usePolling<Awaited<ReturnType<typeof getTickets>>>({
@@ -186,10 +186,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
         <SidebarSection>
           <SidebarHeading>Needs Review</SidebarHeading>
           {inReviewTickets.map((ticket) => (
-            <SidebarItem
-              key={ticket.id}
-              href={`/project/${projectSlug}/tickets/${ticket.id}`}
-            >
+            <SidebarItem key={ticket.id} href={`/project/${projectSlug}/tickets/${ticket.id}`}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-amber-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>
@@ -200,10 +197,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
         <SidebarSection>
           <SidebarHeading>In Progress</SidebarHeading>
           {inProgressTickets.map((ticket) => (
-            <SidebarItem
-              key={ticket.id}
-              href={`/project/${projectSlug}/tickets/${ticket.id}`}
-            >
+            <SidebarItem key={ticket.id} href={`/project/${projectSlug}/tickets/${ticket.id}`}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-blue-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>
@@ -288,6 +282,12 @@ function ApplicationLayoutContent() {
           },
         ]
       : []),
+    {
+      href: '/settings/api-tokens',
+      label: 'API Tokens',
+      current: pathname.startsWith('/settings/api-tokens'),
+      icon: <LockClosedIcon />,
+    },
   ]
 
   const projectNavItems: NavLinkItem[] = [
@@ -399,8 +399,7 @@ function ApplicationLayoutContent() {
                         key={project.id}
                         href={`/project/${project.slug}`}
                         current={
-                          pathname === `/project/${project.slug}` ||
-                          pathname.startsWith(`/project/${project.slug}/`)
+                          pathname === `/project/${project.slug}` || pathname.startsWith(`/project/${project.slug}/`)
                         }
                       >
                         {project.slug === 'viberglass' ? (

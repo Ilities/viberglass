@@ -1,0 +1,31 @@
+{
+  "name": "@viberglass/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server package for Viberglass platform",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  },
+  "peerDependencies": {
+    "@viberglass/types": "*"
+  },
+  "devDependencies": {
+    "@viberglass/types": "*",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

@@ -233,6 +233,23 @@ function maxLevel(a: LogEntry['level'], b: LogEntry['level']): LogEntry['level']
   return rank[a] >= rank[b] ? a : b
 }
 
+function pushOrMergeReasoning(
+  timeline: TimelineEvent[],
+  event: ReasoningTimelineEvent,
+): void {
+  const last = timeline[timeline.length - 1]
+  if (
+    last &&
+    last.kind === 'reasoning' &&
+    last.sourceLabel === event.sourceLabel &&
+    last.agentName === event.agentName
+  ) {
+    last.text += event.text
+  } else {
+    timeline.push(event)
+  }
+}
+
 function buildRawEvent(log: LogEntry, text?: string): RawTimelineEvent {
   const sourceLabel = readString(log.source) ?? 'viberator'
   return {
@@ -477,7 +494,7 @@ function handleResponsesApiEvent(
       } else if (blockType === 'thinking') {
         const text = readString(block.thinking)
         if (text) {
-          timeline.push({
+          pushOrMergeReasoning(timeline, {
             kind: 'reasoning',
             id: `${log.id}-thinking`,
             createdAt: log.createdAt,
@@ -695,7 +712,7 @@ export function buildLogTimeline(logs: LogEntry[]): TimelineEvent[] {
     }
 
     if (itemType === 'reasoning') {
-      timeline.push({
+      pushOrMergeReasoning(timeline, {
         kind: 'reasoning',
         id: itemId ?? log.id,
         createdAt: log.createdAt,

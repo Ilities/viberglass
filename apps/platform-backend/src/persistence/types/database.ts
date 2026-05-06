@@ -551,6 +551,18 @@ export interface ChatTicketThreadsTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface ApiTokensTable {
+  id: Generated<string>;
+  user_id: string;
+  name: string;
+  token_hash: string;
+  token_prefix: string;
+  last_used_at: Timestamp | null;
+  expires_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Database {
   projects: ProjectsTable;
   media_assets: MediaAssetsTable;
@@ -588,4 +600,5 @@ export interface Database {
   prompt_templates: PromptTemplatesTable;
   chat_session_threads: ChatSessionThreadsTable;
   chat_ticket_threads: ChatTicketThreadsTable;
+  api_tokens: ApiTokensTable;
 }

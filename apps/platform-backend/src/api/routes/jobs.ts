@@ -232,10 +232,21 @@ router.post(
   validateCallbackToken,
   validateResultCallback,
   async (req: Request, res: Response) => {
+    const { jobId } = req.params;
+    logger.info("RESULT_CALLBACK_ENTERED", { jobId, url: req.url });
+
     try {
-      const { jobId } = req.params;
       const tenantId = req.tenantId!;
       const result = req.body;
+
+      logger.debug("Result callback raw body", {
+        jobId,
+        bodyKeys: Object.keys(result),
+        success: result.success,
+        executionTime: result.executionTime,
+        executionTimeType: typeof result.executionTime,
+        documentContentLength: typeof result.documentContent === "string" ? result.documentContent.length : null,
+      });
 
       // Verify job belongs to tenant (SEC-03)
       const job = await jobService.getJobStatus(jobId);
@@ -258,8 +269,31 @@ router.post(
       const status = result.success ? "completed" : "failed";
 
       // Check if this job is an ACP session turn (skip document requirement)
-      const agentTurn = await agentTurnDAO.getByJobId(jobId);
-      const isSessionTurn = !!agentTurn;
+      let agentTurn = await agentTurnDAO.getByJobId(jobId);
+      let isSessionTurn = !!agentTurn;
+
+      // Fallback: if not found by jobId, try to find via session's lastJobId
+      if (!isSessionTurn) {
+        const sessionsWithLastJob = await agentSessionDAO.listByLastJobId(jobId);
+        if (sessionsWithLastJob.length > 0) {
+          const session = sessionsWithLastJob[0];
+          if (session.lastTurnId) {
+            agentTurn = await agentTurnDAO.getById(session.lastTurnId);
+            isSessionTurn = !!agentTurn;
+          }
+        }
+      }
+
+      logger.info("Job result callback received", {
+        jobId,
+        isSessionTurn,
+        hasAgentTurn: !!agentTurn,
+        success: result.success,
+        jobStatus: job.status,
+        jobKind: job.jobKind,
+        hasTicketId: !!job.ticketId,
+        hasDocumentContent: typeof result.documentContent === "string",
+      });
 
       if (!isSessionTurn) {
         const documentPhase = getDocumentPhaseForJobKind(job.jobKind);
@@ -303,6 +337,13 @@ router.post(
             session.mode === AGENT_SESSION_MODE.RESEARCH
               ? TICKET_WORKFLOW_PHASE.RESEARCH
               : TICKET_WORKFLOW_PHASE.PLANNING;
+          logger.info("Saving session turn document", {
+            jobId,
+            sessionId: session.id,
+            mode: session.mode,
+            documentPhase,
+            contentLength: result.documentContent.length,
+          });
           await ticketPhaseDocumentService.saveDocument(
             session.ticketId,
             documentPhase,
@@ -314,6 +355,15 @@ router.post(
             { eventType: AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED, payload: { documentSaved: true } },
           ]);
         } else {
+          logger.info("Session turn completed without document save", {
+            jobId,
+            sessionId: session?.id,
+            mode: session?.mode,
+            success: result.success,
+            isDocumentMode,
+            hasDocumentContent: typeof result.documentContent === "string",
+            hasTicketId: !!session?.ticketId,
+          });
           const eventType = result.success
             ? AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED
             : AGENT_SESSION_EVENT_TYPE.TURN_FAILED;

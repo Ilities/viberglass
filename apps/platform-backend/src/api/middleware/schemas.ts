@@ -251,6 +251,7 @@ export const resultCallbackSchema = Joi.object({
   changedFiles: Joi.array().items(Joi.string()).default([]),
   executionTime: Joi.number().integer().min(0).required(),
   branch: Joi.string().optional(),
+  conversationStateUrl: Joi.string().uri().allow(null, "").optional(),
 });
 
 export const runTicketSchema = Joi.object({
@@ -419,4 +420,9 @@ export const updateClawScheduleSchema = Joi.object({
   timezone: Joi.string().optional(),
   isActive: Joi.boolean().optional(),
   webhookConfig: clawWebhookConfigSchema.optional().allow(null),
+});
+
+export const createApiTokenSchema = Joi.object({
+  name: Joi.string().min(1).max(255).required(),
+  expiresAt: Joi.string().isoDate().optional().allow(null),
 });

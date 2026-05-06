@@ -4,6 +4,7 @@ import { Subheading } from '@/components/heading'
 import { RevisionModal } from '@/components/revision-modal'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import { JobListItem } from '@/service/api/job-api'
+import { type AgentSession } from '@/service/api/session-api'
 import {
   type ApprovalState,
   approvePlanning,
@@ -33,9 +34,11 @@ import { type Clanker, type Ticket, TICKET_STATUS, type TicketWorkflowPhase } fr
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
 import { PhaseLogs } from './phase-logs'
+import { PhaseNoSession, PhaseSessionPanel } from './phase-session-panel'
 
 interface PhaseSectionProps {
   ticket: Ticket
@@ -47,6 +50,8 @@ interface PhaseSectionProps {
   onApprovalStateChange?: (state: ApprovalState) => void
   onResolve?: () => Promise<void>
   jobs: JobListItem[]
+  activeSession?: AgentSession
+  onSessionsChanged: () => void
 }
 
 function PhaseHeader({
@@ -131,6 +136,8 @@ export function PhaseSection({
   onApprovalStateChange,
   onResolve,
   jobs,
+  activeSession,
+  onSessionsChanged,
 }: PhaseSectionProps) {
   const navigate = useNavigate()
   const [isExpanded, setIsExpanded] = useState(phase === currentPhase)
@@ -141,6 +148,7 @@ export function PhaseSection({
   const [isEditing, setIsEditing] = useState(false)
   const [isRunModalOpen, setIsRunModalOpen] = useState(false)
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false)
+  const [isLaunchDialogOpen, setIsLaunchDialogOpen] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [isResolving, setIsResolving] = useState(false)
   const [draft, setDraft] = useState('')
@@ -558,6 +566,23 @@ export function PhaseSection({
                 <PhaseLogs jobs={jobs} phase={phase} project={project} />
               </div>
 
+              <div className="my-2 h-px bg-[var(--gray-4)]" />
+
+              {activeSession ? (
+                <PhaseSessionPanel
+                  session={activeSession}
+                  project={project}
+                  onSessionEnded={() => {
+                    onSessionsChanged()
+                    void loadDocument()
+                  }}
+                  onTurnCompleted={() => void loadDocument()}
+                  onRevise={() => setIsLaunchDialogOpen(true)}
+                />
+              ) : (
+                <PhaseNoSession mode={phase} onStartSession={() => setIsLaunchDialogOpen(true)} />
+              )}
+
               {isCurrentPhase && phase !== 'execution' && (
                 <div className="flex items-center justify-end border-t border-[var(--gray-4)] pt-4">
                   {phase === 'research' && hasContent && (
@@ -600,6 +625,18 @@ export function PhaseSection({
           void loadDocument()
         }}
         mode={phase === 'execution' ? 'planning' : phase}
+      />
+      <LaunchSessionDialog
+        open={isLaunchDialogOpen}
+        onClose={() => setIsLaunchDialogOpen(false)}
+        ticketId={ticket.id}
+        project={project}
+        clankers={clankers}
+        defaultMode={phase}
+        onSuccess={() => {
+          setIsLaunchDialogOpen(false)
+          onSessionsChanged()
+        }}
       />
     </div>
   )

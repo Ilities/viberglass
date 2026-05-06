@@ -31,6 +31,7 @@ import {
   updateClawTaskTemplateSchema,
   clawScheduleSchema,
   updateClawScheduleSchema,
+  createApiTokenSchema,
 } from "./schemas";
 
 const logger = createChildLogger({ middleware: "validation" });
@@ -78,19 +79,17 @@ function createValidator(
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.body);
     if (error) {
-      if (options) {
-        logger.warn("Request payload validation failed", {
-          validator: options.name,
-          method: req.method,
-          path: req.originalUrl || req.path,
-          bodyKeys: getBodyKeys(req.body),
-          authJsonLength: getStringFieldLength(req.body, "authJson"),
-          details: error.details.map((detail) => ({
-            field: detail.path.join("."),
-            message: detail.message,
-          })),
-        });
-      }
+      logger.warn("Request payload validation failed", {
+        validator: options?.name || "unnamed",
+        method: req.method,
+        path: req.originalUrl || req.path,
+        bodyKeys: getBodyKeys(req.body),
+        authJsonLength: getStringFieldLength(req.body, "authJson"),
+        details: error.details.map((detail) => ({
+          field: detail.path.join("."),
+          message: detail.message,
+        })),
+      });
 
       return res.status(400).json({
         error: "Validation error",
@@ -155,6 +154,8 @@ export const validateCreateClawTaskTemplate = createValidator(clawTaskTemplateSc
 export const validateUpdateClawTaskTemplate = createValidator(updateClawTaskTemplateSchema);
 export const validateCreateClawSchedule = createValidator(clawScheduleSchema);
 export const validateUpdateClawSchedule = createValidator(updateClawScheduleSchema);
+
+export const validateCreateApiToken = createValidator(createApiTokenSchema);
 
 // Custom validators with special logic
 
