@@ -7,14 +7,19 @@ COPY package*.json ./
 
 # Copy workspace package.json files to preserve monorepo structure
 COPY packages/types/package.json ./packages/types/
+COPY packages/mcp-server/package.json ./packages/mcp-server/
 COPY apps/platform-backend/package.json ./apps/platform-backend/
 
 # Install all dependencies (workspaces will be linked properly)
-RUN npm install --workspace=@viberglass/platform-backend --workspace=@viberglass/types
+RUN npm install --workspace=@viberglass/platform-backend --workspace=@viberglass/types --workspace=@viberglass/mcp-server
 
 # Copy types package source and build it
 COPY packages/types ./packages/types
 RUN npm run build --workspace=@viberglass/types
+
+# Copy mcp-server package source and build it
+COPY packages/mcp-server ./packages/mcp-server
+RUN npm run build --workspace=@viberglass/mcp-server
 
 # Copy the backend source code
 COPY apps/platform-backend ./apps/platform-backend

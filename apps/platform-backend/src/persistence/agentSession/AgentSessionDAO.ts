@@ -180,6 +180,24 @@ export class AgentSessionDAO {
     );
   }
 
+  async listByLastJobId(lastJobId: string): Promise<AgentSession[]> {
+    const rows = await db
+      .selectFrom("agent_sessions")
+      .innerJoin("projects", "projects.id", "agent_sessions.project_id")
+      .leftJoin("tickets", "tickets.id", "agent_sessions.ticket_id")
+      .selectAll("agent_sessions")
+      .select([
+        "projects.slug as project_slug",
+        "tickets.title as ticket_title",
+      ])
+      .where("last_job_id", "=", lastJobId)
+      .execute();
+
+    return rows.map((row) =>
+      this.mapRow(row as AgentSessionRow & { project_slug: string | null; ticket_title: string | null }),
+    );
+  }
+
   async listByProject(
     projectId: string,
     options: AgentSessionListOptions = {},

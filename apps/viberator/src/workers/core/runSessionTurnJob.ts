@@ -341,6 +341,20 @@ export async function runSessionTurnJob(
       const documentPath = path.join(repoDir, documentFileName);
       if (fs.existsSync(documentPath)) {
         documentContent = fs.readFileSync(documentPath, "utf-8");
+        logger.info("Document file read successfully", {
+          mode,
+          documentFileName,
+          documentPath,
+          contentLength: documentContent.length,
+        });
+      } else {
+        logger.warn("Document file not found at expected path", {
+          mode,
+          documentFileName,
+          documentPath,
+          repoDir,
+          changedFiles,
+        });
       }
     }
 

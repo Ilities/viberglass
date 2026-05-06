@@ -180,7 +180,6 @@ async function startServer(): Promise<void> {
   server.on("error", onError);
   server.on("listening", onListening);
 
-  // Graceful shutdown
   process.on("SIGTERM", async () => {
     logger.info("SIGTERM received, shutting down gracefully");
     orphanSweeper?.stop();

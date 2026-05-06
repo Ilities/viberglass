@@ -9,3 +9,4 @@ export { createJiraRoutes } from './jira.routes';
 export { createShortcutRoutes } from './shortcut.routes';
 export { createCustomRoutes } from './custom.routes';
 export { createManagementRoutes } from './management.routes';
+export { createSlackRoutes } from './slack.routes';

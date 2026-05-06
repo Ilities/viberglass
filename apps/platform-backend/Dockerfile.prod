@@ -46,6 +46,7 @@ COPY . .
 # Build shared packages
 RUN npm run build -w @viberglass/types
 RUN npm run build -w @viberglass/chat-slack
+RUN npm run build -w @viberglass/mcp-server
 
 # Build integration-core and all integration plugins — backend entry only.
 # The normal build scripts also compile frontend entries which require

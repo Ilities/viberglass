@@ -1,7 +1,9 @@
 import { Badge } from '@/components/badge'
 import { ClipboardIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
 import type { ApprovalState } from '@/service/api/ticket-api'
+import { type AgentSession, listSessionsForTicket } from '@/service/api/session-api'
 import { TICKET_WORKFLOW_PHASE, type Clanker, type Ticket } from '@viberglass/types'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { PhaseSection } from './phase-section'
 import { TicketLogsSummary } from './phase-logs'
@@ -45,6 +47,26 @@ export function TicketPhaseView({
   const displayId = ticket.id.length > 16 ? `${ticket.id.slice(0, 8)}…${ticket.id.slice(-6)}` : ticket.id
 
   const currentPhase = ticket.workflowPhase
+
+  const [sessions, setSessions] = useState<AgentSession[]>([])
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const result = await listSessionsForTicket(ticket.id)
+      setSessions(result)
+    } catch {
+      toast.error('Failed to load sessions')
+    }
+  }, [ticket.id])
+
+  useEffect(() => {
+    void loadSessions()
+  }, [loadSessions])
+
+  const activeSessionForPhase = (mode: string) =>
+    sessions.find(
+      (s) => s.mode === mode && ['active', 'waiting_on_user', 'waiting_on_approval'].includes(s.status),
+    )
 
   return (
     <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
@@ -165,6 +187,8 @@ export function TicketPhaseView({
           onWorkflowPhaseChange={onWorkflowPhaseChange}
           onApprovalStateChange={onApprovalStateChange}
           jobs={jobs}
+          activeSession={activeSessionForPhase('research')}
+          onSessionsChanged={loadSessions}
         />
 
         <PhaseSection
@@ -176,6 +200,8 @@ export function TicketPhaseView({
           onWorkflowPhaseChange={onWorkflowPhaseChange}
           onApprovalStateChange={onApprovalStateChange}
           jobs={jobs}
+          activeSession={activeSessionForPhase('planning')}
+          onSessionsChanged={loadSessions}
         />
 
         <PhaseSection
@@ -188,6 +214,8 @@ export function TicketPhaseView({
           onApprovalStateChange={onApprovalStateChange}
           onResolve={onResolve}
           jobs={jobs}
+          activeSession={activeSessionForPhase('execution')}
+          onSessionsChanged={loadSessions}
         />
       </div>
     </div>

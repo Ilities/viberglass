@@ -13,15 +13,16 @@ import {
   createShortcutRoutes,
   createCustomRoutes,
   createManagementRoutes,
+  createSlackRoutes,
 } from './webhooks/index';
 
 const router = express.Router();
 
-// Mount provider-specific routes
 router.use('/github', createGitHubRoutes(getWebhookService));
 router.use('/jira', createJiraRoutes(getWebhookService));
 router.use('/shortcut', createShortcutRoutes(getWebhookService));
 router.use('/custom', createCustomRoutes());
 router.use('/', createManagementRoutes(getWebhookService));
+router.use('/slack', createSlackRoutes());
 
 export default router;
