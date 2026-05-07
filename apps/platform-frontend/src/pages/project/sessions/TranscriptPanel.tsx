@@ -3,8 +3,55 @@ import type { AgentSessionEvent, AgentSessionEventType } from '@/service/api/ses
 import { ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon, ReaderIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+// ─── User color utility ─────────────────────────────────────────────────────
+
+const AVATAR_COLORS = [
+  'bg-blue-500',
+  'bg-violet-500',
+  'bg-emerald-500',
+  'bg-amber-500',
+  'bg-rose-500',
+  'bg-cyan-500',
+  'bg-pink-500',
+  'bg-teal-500',
+  'bg-indigo-500',
+  'bg-orange-500',
+]
+
+export function getUserColor(userId: string): string {
+  let hash = 0
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash * 31 + userId.charCodeAt(i)) | 0
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+export function getUserInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
+function UserAvatar({ userId, name }: { userId: string; name: string }) {
+  const color = getUserColor(userId)
+  const initials = getUserInitials(name)
+  return (
+    <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white ${color}`}>
+      {initials}
+    </span>
+  )
+}
+
 function isSystemEvent(type: AgentSessionEventType): boolean {
   return type === 'progress' || type === 'tool_call_started' || type === 'tool_call_completed'
+}
+
+function isPresenceEvent(type: AgentSessionEventType): boolean {
+  return type === 'user_joined' || type === 'user_left' || type === 'presence_update'
 }
 
 function isMarkerEvent(type: AgentSessionEventType): boolean {
@@ -67,14 +114,17 @@ interface MessageGroup {
   text: string
   timestamp: string
   id: string
+  userId: string | null
 }
 
-/** Merge consecutive assistant_message and reasoning chunks into single groups */
+/** Merge consecutive assistant_message and reasoning chunks into single groups, filtering presence events */
 function mergeMessages(events: AgentSessionEvent[]): (AgentSessionEvent | MessageGroup)[] {
   const result: (AgentSessionEvent | MessageGroup)[] = []
   let currentGroup: MessageGroup | null = null
 
   for (const event of events) {
+    if (isPresenceEvent(event.eventType)) continue
+
     if (event.eventType === 'assistant_message' || event.eventType === 'reasoning') {
       const text = getEventText(event)
       if (currentGroup && currentGroup.type === event.eventType) {
@@ -87,6 +137,7 @@ function mergeMessages(events: AgentSessionEvent[]): (AgentSessionEvent | Messag
           text,
           timestamp: event.createdAt,
           id: `group-${event.id}`,
+          userId: event.userId ?? null,
         }
       }
     } else {
@@ -100,6 +151,7 @@ function mergeMessages(events: AgentSessionEvent[]): (AgentSessionEvent | Messag
           text: getEventText(event),
           timestamp: event.createdAt,
           id: `group-${event.id}`,
+          userId: event.userId ?? null,
         })
       } else {
         result.push(event)
@@ -198,11 +250,15 @@ function MessageBubble({ group }: { group: MessageGroup }) {
   const { body, attachments } = isUser
     ? parseMessageWithAttachments(rawBody)
     : { body: rawBody, attachments: [] }
+  const showAvatar = isUser && actor && group.userId
 
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
       {isUser && actor && (
-        <div className="mb-0.5 text-[10px] text-[var(--gray-8)]">{actor}</div>
+        <div className="mb-0.5 flex items-center gap-1">
+          {showAvatar && <UserAvatar userId={group.userId!} name={actor} />}
+          <span className="text-[10px] text-[var(--gray-8)]">{actor}</span>
+        </div>
       )}
       <div
         className={`max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed ${

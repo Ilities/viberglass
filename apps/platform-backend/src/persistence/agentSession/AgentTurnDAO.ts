@@ -22,6 +22,7 @@ export interface AgentTurn {
   contentMarkdown: string | null;
   contentJson: JsonValue | null;
   jobId: string | null;
+  userId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -36,6 +37,7 @@ export interface CreateAgentTurnInput {
   contentMarkdown?: string | null;
   contentJson?: JsonValue | null;
   jobId?: string | null;
+  userId?: string | null;
   startedAt?: Date | null;
   completedAt?: Date | null;
 }
@@ -61,6 +63,7 @@ export class AgentTurnDAO {
         content_markdown: input.contentMarkdown ?? null,
         content_json: serializeJson(input.contentJson),
         job_id: input.jobId ?? null,
+        user_id: input.userId ?? null,
         started_at: input.startedAt ?? null,
         completed_at: input.completedAt ?? null,
       })
@@ -132,6 +135,7 @@ export class AgentTurnDAO {
       contentMarkdown: row.content_markdown,
       contentJson: row.content_json,
       jobId: row.job_id,
+      userId: row.user_id,
       startedAt: row.started_at,
       completedAt: row.completed_at,
       createdAt: row.created_at,

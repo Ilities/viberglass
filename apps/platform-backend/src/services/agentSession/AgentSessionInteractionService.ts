@@ -146,6 +146,7 @@ export class AgentSessionInteractionService {
       sequence: nextUserSeq,
       status: AGENT_TURN_STATUS.COMPLETED,
       contentMarkdown: replyText,
+      userId: userId ?? null,
     });
     await this.agentSessionEventDAO.create({
       sessionId,
@@ -153,6 +154,7 @@ export class AgentSessionInteractionService {
       sequence: maxSeq + 1,
       eventType: AGENT_SESSION_EVENT_TYPE.USER_MESSAGE,
       payloadJson: { content: replyText },
+      userId: userId ?? null,
     });
 
     const assistantTurn = await this.agentTurnDAO.create({
@@ -226,6 +228,7 @@ export class AgentSessionInteractionService {
       sequence: nextUserSeq,
       status: AGENT_TURN_STATUS.COMPLETED,
       contentMarkdown: messageText,
+      userId: _userId ?? null,
     });
     await this.agentSessionEventDAO.create({
       sessionId,
@@ -233,6 +236,7 @@ export class AgentSessionInteractionService {
       sequence: maxSeq + 1,
       eventType: AGENT_SESSION_EVENT_TYPE.USER_MESSAGE,
       payloadJson: { content: messageText },
+      userId: _userId ?? null,
     });
 
     const assistantTurn = await this.agentTurnDAO.create({
@@ -310,6 +314,7 @@ export class AgentSessionInteractionService {
       sequence: nextSeq++,
       eventType: AGENT_SESSION_EVENT_TYPE.APPROVAL_RESOLVED,
       payloadJson: { approved },
+      userId: userId ?? null,
     });
 
     if (!approved) {
@@ -344,6 +349,7 @@ export class AgentSessionInteractionService {
       sequence: nextUserSeq,
       status: AGENT_TURN_STATUS.COMPLETED,
       contentMarkdown: "Approval granted",
+      userId: userId ?? null,
     });
     await this.agentSessionEventDAO.create({
       sessionId,
@@ -351,6 +357,7 @@ export class AgentSessionInteractionService {
       sequence: nextSeq++,
       eventType: AGENT_SESSION_EVENT_TYPE.USER_MESSAGE,
       payloadJson: { content: "Approval granted" },
+      userId: userId ?? null,
     });
 
     const assistantTurn = await this.agentTurnDAO.create({

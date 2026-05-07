@@ -56,6 +56,9 @@ export const AGENT_SESSION_EVENT_TYPE = {
   SESSION_COMPLETED: "session_completed",
   SESSION_FAILED: "session_failed",
   SESSION_CANCELLED: "session_cancelled",
+  USER_JOINED: "user_joined",
+  USER_LEFT: "user_left",
+  PRESENCE_UPDATE: "presence_update",
 } as const;
 
 export type AgentSessionEventType =

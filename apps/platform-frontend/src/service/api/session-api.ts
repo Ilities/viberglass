@@ -31,6 +31,9 @@ export type AgentSessionEventType =
   | 'session_completed'
   | 'session_failed'
   | 'session_cancelled'
+  | 'user_joined'
+  | 'user_left'
+  | 'presence_update'
 
 export type AgentPendingRequestType = 'input' | 'approval'
 export type AgentPendingRequestStatus = 'open' | 'resolved' | 'expired' | 'cancelled'
@@ -70,6 +73,7 @@ export interface AgentTurn {
   sequence: number
   contentMarkdown: string | null
   jobId: string | null
+  userId: string | null
   startedAt: string | null
   completedAt: string | null
   createdAt: string
@@ -84,6 +88,7 @@ export interface AgentSessionEvent {
   sequence: number
   eventType: AgentSessionEventType
   payloadJson: Record<string, unknown>
+  userId: string | null
   createdAt: string
 }
 
@@ -118,6 +123,13 @@ export interface LaunchSessionResult {
   session: AgentSession
   currentTurn: AgentTurn
   job: { id: string; status: string }
+}
+
+export interface ParticipantInfo {
+  userId: string
+  name: string
+  avatarUrl: string | null
+  lastActiveAt: string
 }
 
 const TERMINAL_EVENT_TYPES: AgentSessionEventType[] = [
@@ -232,6 +244,13 @@ export async function listAllActiveSessions(): Promise<AgentSession[]> {
     `${API_BASE_URL}/api/agent-sessions?statuses=${ACTIVE_STATUSES}`,
   )
   if (!res.ok) return throwApiError(res, 'Failed to list active sessions')
+  const data = await res.json()
+  return data.data
+}
+
+export async function getSessionParticipants(sessionId: string): Promise<ParticipantInfo[]> {
+  const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/participants`)
+  if (!res.ok) return throwApiError(res, 'Failed to fetch participants')
   const data = await res.json()
   return data.data
 }

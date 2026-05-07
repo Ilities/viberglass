@@ -3,6 +3,7 @@ import { Button } from '@/components/button'
 import { LogViewer } from '@/components/log-viewer'
 import { useAuth } from '@/context/auth-context'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
+import { useSessionPresence } from '@/hooks/useSessionPresence'
 import { type LogEntry, getJob } from '@/service/api/job-api'
 import {
   type AgentSession,
@@ -16,6 +17,7 @@ import { ChevronDownIcon, ChevronRightIcon, ChatBubbleIcon, CrossCircledIcon, Ex
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { PendingRequestCard } from '../sessions/PendingRequestCard'
+import { PresenceBar } from '../sessions/PresenceBar'
 import { TranscriptPanel } from '../sessions/TranscriptPanel'
 
 interface PhaseSessionPanelProps {
@@ -90,6 +92,7 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
 
   const initialEvents = useMemo(() => detail?.latestEvents ?? [], [detail?.latestEvents])
   const { events, connected } = useSessionEventStream(session.id, initialEvents)
+  const presentUsers = useSessionPresence(events)
 
   const lastEvent = events.length > 0 ? events[events.length - 1] : null
   const liveStatus: AgentSessionStatus | undefined =
@@ -252,6 +255,7 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
           {connected && <span className="inline-block h-2 w-2 rounded-full bg-green-500" title="Live" />}
         </div>
         <div className="flex items-center gap-2">
+          {presentUsers.length > 0 && <PresenceBar presentUsers={presentUsers} />}
           <Button plain href={`/project/${project}/sessions/${session.id}`} target="_blank" className="text-xs">
             <ExternalLinkIcon className="h-3 w-3" />
             Full view
@@ -313,6 +317,7 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
           sessionId={session.id}
           pendingRequest={pendingRequest}
           onResolved={() => void loadDetail()}
+          presentUsers={presentUsers}
         />
       )}
 

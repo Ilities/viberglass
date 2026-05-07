@@ -4,12 +4,22 @@ import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { useAuth } from '@/context/auth-context'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
-import { type AgentSessionStatus, cancelSession, getSessionDetail, sendMessageToSession, type SessionDetail } from '@/service/api/session-api'
+import { useSessionPresence } from '@/hooks/useSessionPresence'
+import {
+  cancelSession,
+  getSessionDetail,
+  getSessionParticipants,
+  sendMessageToSession,
+  type AgentSessionStatus,
+  type ParticipantInfo,
+  type SessionDetail,
+} from '@/service/api/session-api'
 import { ArrowLeftIcon, CrossCircledIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PendingRequestCard } from './PendingRequestCard'
+import { PresenceBar } from './PresenceBar'
 import { TranscriptPanel } from './TranscriptPanel'
 
 function statusBadge(status: AgentSessionStatus): {
@@ -76,6 +86,26 @@ export function SessionPage() {
   }, [loadDetail])
 
   const { events, connected } = useSessionEventStream(sessionId, detail?.latestEvents ?? [])
+  const presentUsers = useSessionPresence(events)
+  const [participants, setParticipants] = useState<ParticipantInfo[]>([])
+
+  useEffect(() => {
+    if (!sessionId) return
+    getSessionParticipants(sessionId)
+      .then(setParticipants)
+      .catch(() => {})
+  }, [sessionId])
+
+  // Refresh participants when new user messages stream in
+  useEffect(() => {
+    if (!sessionId) return
+    const hasNewUserMessage = events.length > 0 && events[events.length - 1].eventType === 'user_message'
+    if (hasNewUserMessage) {
+      getSessionParticipants(sessionId)
+        .then(setParticipants)
+        .catch(() => {})
+    }
+  }, [sessionId, events.length, events])
 
   // Derive live status from terminal events
   const lastEvent = events.length > 0 ? events[events.length - 1] : null
@@ -184,13 +214,29 @@ export function SessionPage() {
             </div>
           </div>
 
-          {!isTerminal && (
-            <Button color="red" onClick={() => void handleCancel()} disabled={isCancelling}>
-              <CrossCircledIcon className="h-4 w-4" />
-              Cancel
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            {presentUsers.length > 0 && <PresenceBar presentUsers={presentUsers} />}
+            {!isTerminal && (
+              <Button color="red" onClick={() => void handleCancel()} disabled={isCancelling}>
+                <CrossCircledIcon className="h-4 w-4" />
+                Cancel
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Participants */}
+        {participants.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-[var(--gray-8)]">
+            <span className="font-medium">Participants:</span>
+            {participants.map((p) => (
+              <span key={p.userId} className="flex items-center gap-1 rounded-full bg-[var(--gray-3)] px-2 py-0.5">
+                <span className="inline-block h-3.5 w-3.5 rounded-full bg-[var(--gray-5)]" />
+                {p.name}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Transcript */}
         <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-5">
@@ -203,6 +249,7 @@ export function SessionPage() {
             sessionId={sessionId}
             pendingRequest={pendingRequest}
             onResolved={() => void loadDetail()}
+            presentUsers={presentUsers}
           />
         )}
 
@@ -219,10 +266,12 @@ export function SessionPage() {
                   void handleReply()
                 }
               }}
-              placeholder={turnInProgress ? 'Agent is working…' : 'Send a message… (Enter to send, Shift+Enter for newline)'}
+              placeholder={
+                turnInProgress ? 'Agent is working…' : 'Send a message… (Enter to send, Shift+Enter for newline)'
+              }
               disabled={turnInProgress || isSending}
               rows={2}
-              className="min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-[var(--gray-12)] placeholder:text-[var(--gray-8)] outline-none disabled:opacity-50"
+              className="min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-[var(--gray-12)] outline-none placeholder:text-[var(--gray-8)] disabled:opacity-50"
             />
             <Button
               color="violet"
