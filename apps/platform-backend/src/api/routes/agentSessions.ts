@@ -18,6 +18,48 @@ import {
 } from "../../types/agentSession";
 import logger from "../../config/logger";
 
+// ─── In-memory presence tracking ────────────────────────────────────────────
+
+interface PresenceUser {
+  userId: string;
+  userName: string;
+  avatarUrl: string | null;
+}
+
+type PresenceSet = Map<string, PresenceUser>;
+const presenceBySession = new Map<string, PresenceSet>();
+const sseConnections = new Map<string, Set<Response>>();
+
+function broadcastToSession(sessionId: string, data: unknown): void {
+  const connections = sseConnections.get(sessionId);
+  if (!connections) return;
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const res of connections) {
+    try {
+      res.write(payload);
+    } catch {
+      // Connection may have closed
+    }
+  }
+}
+
+function broadcastPresenceUpdate(sessionId: string): void {
+  const users = presenceBySession.get(sessionId);
+  if (!users) return;
+  const userList = [...users.values()];
+  broadcastToSession(sessionId, {
+    id: `presence_${Date.now()}`,
+    sessionId,
+    turnId: null,
+    jobId: null,
+    sequence: -1,
+    eventType: "presence_update",
+    payloadJson: { users: userList },
+    userId: null,
+    createdAt: new Date().toISOString(),
+  });
+}
+
 const router = Router();
 const sessionDAO = new AgentSessionDAO();
 const agentTurnDAO = new AgentTurnDAO();
@@ -86,6 +128,29 @@ router.get("/:sessionId", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.get(
+  "/:sessionId/participants",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const session = await sessionDAO.getById(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      const participants = await queryService.getSessionParticipants(
+        req.params.sessionId,
+      );
+      return res.json({ success: true, data: participants });
+    } catch (err) {
+      logger.error("Failed to get session participants", {
+        sessionId: req.params.sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+router.get(
   "/:sessionId/events",
   requireAuth,
   async (req: Request, res: Response) => {
@@ -132,6 +197,11 @@ router.get(
       return res.status(404).json({ error: "Session not found" });
     }
 
+    const sessionId = req.params.sessionId;
+    const userId = req.auth?.user.id;
+    const userName = req.auth?.user.name ?? "Unknown";
+    const avatarUrl = req.auth?.user.avatarUrl ?? null;
+
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -141,10 +211,7 @@ router.get(
     let lastSeq = 0;
     let closed = false;
 
-    const existingEvents = await queryService.listEvents(
-      req.params.sessionId,
-      {},
-    );
+    const existingEvents = await queryService.listEvents(sessionId, {});
     for (const event of existingEvents) {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
       const seq = Number(event.sequence);
@@ -159,6 +226,40 @@ router.get(
       return;
     }
 
+    // Register SSE connection
+    if (!sseConnections.has(sessionId)) {
+      sseConnections.set(sessionId, new Set());
+    }
+    sseConnections.get(sessionId)!.add(res);
+
+    // Add user to presence
+    if (userId) {
+      if (!presenceBySession.has(sessionId)) {
+        presenceBySession.set(sessionId, new Map());
+      }
+      presenceBySession.get(sessionId)!.set(userId, {
+        userId,
+        userName,
+        avatarUrl,
+      });
+
+      // Broadcast user_joined
+      broadcastToSession(sessionId, {
+        id: `join_${userId}_${Date.now()}`,
+        sessionId,
+        turnId: null,
+        jobId: null,
+        sequence: -1,
+        eventType: "user_joined",
+        payloadJson: { userId, userName, avatarUrl },
+        userId: null,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Broadcast updated presence
+      broadcastPresenceUpdate(sessionId);
+    }
+
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -170,12 +271,48 @@ router.get(
     req.on("close", () => {
       closed = true;
       cleanup();
+
+      // Remove SSE connection
+      const connections = sseConnections.get(sessionId);
+      if (connections) {
+        connections.delete(res);
+        if (connections.size === 0) {
+          sseConnections.delete(sessionId);
+        }
+      }
+
+      // Remove user from presence
+      if (userId) {
+        const presence = presenceBySession.get(sessionId);
+        if (presence) {
+          presence.delete(userId);
+          if (presence.size === 0) {
+            presenceBySession.delete(sessionId);
+          }
+        }
+
+        // Broadcast user_left
+        broadcastToSession(sessionId, {
+          id: `left_${userId}_${Date.now()}`,
+          sessionId,
+          turnId: null,
+          jobId: null,
+          sequence: -1,
+          eventType: "user_left",
+          payloadJson: { userId, userName },
+          userId: null,
+          createdAt: new Date().toISOString(),
+        });
+
+        // Broadcast updated presence
+        broadcastPresenceUpdate(sessionId);
+      }
     });
 
     pollTimer = setInterval(async () => {
       if (closed) return;
       try {
-        const newEvents = await queryService.listEvents(req.params.sessionId, {
+        const newEvents = await queryService.listEvents(sessionId, {
           afterSequence: lastSeq,
         });
         for (const event of newEvents) {
@@ -189,7 +326,7 @@ router.get(
         }
       } catch (err) {
         logger.error("SSE poll error", {
-          sessionId: req.params.sessionId,
+          sessionId,
           error: err instanceof Error ? err.message : String(err),
         });
       }

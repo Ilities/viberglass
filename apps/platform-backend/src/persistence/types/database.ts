@@ -489,6 +489,7 @@ export interface AgentTurnsTable {
   content_markdown: string | null;
   content_json: Json | null;
   job_id: string | null;
+  user_id: string | null;
   started_at: Timestamp | null;
   completed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
@@ -503,6 +504,7 @@ export interface AgentSessionEventsTable {
   sequence: number | string;
   event_type: AgentSessionEventType;
   payload_json: Json;
+  user_id: string | null;
   created_at: Generated<Timestamp>;
 }
 

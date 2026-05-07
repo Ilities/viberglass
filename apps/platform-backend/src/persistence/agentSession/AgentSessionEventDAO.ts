@@ -17,6 +17,7 @@ export interface AgentSessionEvent {
   sequence: number | string;
   eventType: AgentSessionEventType;
   payloadJson: JsonValue;
+  userId: string | null;
   createdAt: Date;
 }
 
@@ -27,6 +28,7 @@ export interface CreateAgentSessionEventInput {
   sequence: number;
   eventType: AgentSessionEventType;
   payloadJson: JsonValue;
+  userId?: string | null;
 }
 
 export interface AgentSessionEventListOptions {
@@ -47,6 +49,7 @@ export class AgentSessionEventDAO {
         sequence: input.sequence,
         event_type: input.eventType,
         payload_json: serializeJson(input.payloadJson),
+        user_id: input.userId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -71,6 +74,7 @@ export class AgentSessionEventDAO {
           sequence: input.sequence,
           event_type: input.eventType,
           payload_json: serializeJson(input.payloadJson),
+          user_id: input.userId ?? null,
         })),
       )
       .returningAll()
@@ -118,6 +122,7 @@ export class AgentSessionEventDAO {
       sequence: row.sequence,
       eventType: row.event_type,
       payloadJson: row.payload_json,
+      userId: row.user_id,
       createdAt: row.created_at,
     };
   }

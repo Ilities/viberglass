@@ -15,6 +15,7 @@ import type {
   AgentPendingRequestDAO,
 } from "../../persistence/agentSession/AgentPendingRequestDAO";
 import type { AgentSessionMode, AgentSessionStatus } from "@viberglass/types";
+import db from "../../persistence/config/database";
 
 export interface AgentSessionDetail {
   session: AgentSession;
@@ -32,6 +33,13 @@ export interface ListSessionsOptions {
 export interface ListEventsOptions {
   afterSequence?: number;
   limit?: number;
+}
+
+export interface SessionParticipant {
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  lastActiveAt: Date;
 }
 
 export class AgentSessionQueryService {
@@ -86,5 +94,56 @@ export class AgentSessionQueryService {
       afterSequence: options.afterSequence,
       limit: options.limit,
     });
+  }
+
+  async getSessionParticipants(
+    sessionId: string,
+  ): Promise<SessionParticipant[]> {
+    // Get distinct user_ids from user turns, plus the session creator
+    const rows = await db
+      .selectFrom("agent_turns")
+      .innerJoin("users", "users.id", "agent_turns.user_id")
+      .select([
+        "users.id as userId",
+        "users.name",
+        "users.avatar_url as avatarUrl",
+        db.fn.max("agent_turns.created_at").as("lastActiveAt"),
+      ])
+      .where("agent_turns.session_id", "=", sessionId)
+      .where("agent_turns.role", "=", "user")
+      .where("agent_turns.user_id", "is not", null)
+      .groupBy(["users.id", "users.name", "users.avatar_url"])
+      .execute();
+
+    const participantMap = new Map<string, SessionParticipant>();
+    for (const row of rows) {
+      participantMap.set(row.userId!, {
+        userId: row.userId!,
+        name: row.name,
+        avatarUrl: row.avatarUrl,
+        lastActiveAt: row.lastActiveAt ?? new Date(),
+      });
+    }
+
+    // Also include the session creator
+    const session = await this.agentSessionDAO.getById(sessionId);
+    if (session?.createdBy && !participantMap.has(session.createdBy)) {
+      const creator = await db
+        .selectFrom("users")
+        .select(["id", "name", "avatar_url"])
+        .where("id", "=", session.createdBy)
+        .executeTakeFirst();
+
+      if (creator) {
+        participantMap.set(creator.id, {
+          userId: creator.id,
+          name: creator.name,
+          avatarUrl: creator.avatar_url,
+          lastActiveAt: session.createdAt,
+        });
+      }
+    }
+
+    return [...participantMap.values()];
   }
 }
