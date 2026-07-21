@@ -11,6 +11,7 @@ import {
   type AgentSessionEventType,
 } from "../../types/agentSession";
 import { AgentSessionServiceError, AGENT_SESSION_SERVICE_ERROR_CODE } from "../errors/AgentSessionServiceError";
+import { agentSessionMutex } from "./AgentSessionMutex";
 
 export interface IngestEvent {
   eventType: AgentSessionEventType;
@@ -36,22 +37,24 @@ export class AgentSessionWorkerEventService {
     }
 
     const sessionId = turn.sessionId;
-    const maxSeq = await this.agentSessionEventDAO.getMaxSequence(sessionId);
+    await agentSessionMutex.runExclusive(sessionId, async () => {
+      const maxSeq = await this.agentSessionEventDAO.getMaxSequence(sessionId);
 
-    const eventInputs = events.map((evt, i) => ({
-      sessionId,
-      turnId: turn.id,
-      jobId,
-      sequence: maxSeq + i + 1,
-      eventType: evt.eventType,
-      payloadJson: evt.payload,
-    }));
+      const eventInputs = events.map((evt, i) => ({
+        sessionId,
+        turnId: turn.id,
+        jobId,
+        sequence: maxSeq + i + 1,
+        eventType: evt.eventType,
+        payloadJson: evt.payload,
+      }));
 
-    await this.agentSessionEventDAO.createMany(eventInputs);
+      await this.agentSessionEventDAO.createMany(eventInputs);
 
-    for (const evt of events) {
-      await this.applyEventTransition(sessionId, turn.id, jobId, evt);
-    }
+      for (const evt of events) {
+        await this.applyEventTransition(sessionId, turn.id, jobId, evt);
+      }
+    });
   }
 
   async storeAcpSessionId(jobId: string, acpSessionId: string): Promise<void> {

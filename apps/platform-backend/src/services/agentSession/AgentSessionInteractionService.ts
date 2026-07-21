@@ -57,6 +57,7 @@ import {
   PromptTemplateDAO,
   PROMPT_TYPE,
 } from "../../persistence/promptTemplate/PromptTemplateDAO";
+import { agentSessionMutex } from "./AgentSessionMutex";
 
 interface ContinuationExtras {
   task: string;
@@ -102,6 +103,16 @@ export class AgentSessionInteractionService {
     replyText: string,
     userId?: string,
   ): Promise<ReplyResult> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.replyExclusive(sessionId, replyText, userId),
+    );
+  }
+
+  private async replyExclusive(
+    sessionId: string,
+    replyText: string,
+    userId?: string,
+  ): Promise<ReplyResult> {
     const session = await this.agentSessionDAO.getById(sessionId);
     if (!session) {
       throw new AgentSessionServiceError(
@@ -127,10 +138,19 @@ export class AgentSessionInteractionService {
       );
     }
 
-    await this.agentPendingRequestDAO.resolve(pendingRequest.id, {
-      responseJson: { replyText },
-      resolvedBy: userId,
-    });
+    const resolved = await this.agentPendingRequestDAO.resolve(
+      pendingRequest.id,
+      {
+        responseJson: { replyText },
+        resolvedBy: userId,
+      },
+    );
+    if (!resolved) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
+        "Request already resolved by another user",
+      );
+    }
 
     const [lastTurn, maxSeq] = await Promise.all([
       session.lastTurnId
@@ -191,6 +211,16 @@ export class AgentSessionInteractionService {
    * Used when the user wants to continue the conversation after a turn completes normally.
    */
   async sendMessage(
+    sessionId: string,
+    messageText: string,
+    userId?: string,
+  ): Promise<ReplyResult> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.sendMessageExclusive(sessionId, messageText, userId),
+    );
+  }
+
+  private async sendMessageExclusive(
     sessionId: string,
     messageText: string,
     _userId?: string,
@@ -271,6 +301,16 @@ export class AgentSessionInteractionService {
     approved: boolean,
     userId?: string,
   ): Promise<ApproveResult> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.approveExclusive(sessionId, approved, userId),
+    );
+  }
+
+  private async approveExclusive(
+    sessionId: string,
+    approved: boolean,
+    userId?: string,
+  ): Promise<ApproveResult> {
     const session = await this.agentSessionDAO.getById(sessionId);
     if (!session) {
       throw new AgentSessionServiceError(
@@ -296,10 +336,19 @@ export class AgentSessionInteractionService {
       );
     }
 
-    await this.agentPendingRequestDAO.resolve(pendingRequest.id, {
-      responseJson: { approved },
-      resolvedBy: userId,
-    });
+    const resolved = await this.agentPendingRequestDAO.resolve(
+      pendingRequest.id,
+      {
+        responseJson: { approved },
+        resolvedBy: userId,
+      },
+    );
+    if (!resolved) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
+        "Request already resolved by another user",
+      );
+    }
 
     const [lastTurn, maxSeq] = await Promise.all([
       session.lastTurnId
@@ -390,6 +439,15 @@ export class AgentSessionInteractionService {
   }
 
   async cancel(sessionId: string, userId?: string): Promise<void> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.cancelExclusive(sessionId, userId),
+    );
+  }
+
+  private async cancelExclusive(
+    sessionId: string,
+    userId?: string,
+  ): Promise<void> {
     const session = await this.agentSessionDAO.getById(sessionId);
     if (!session) {
       throw new AgentSessionServiceError(

@@ -91,8 +91,8 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
   }, [loadDetail])
 
   const initialEvents = useMemo(() => detail?.latestEvents ?? [], [detail?.latestEvents])
-  const { events, connected } = useSessionEventStream(session.id, initialEvents)
-  const presentUsers = useSessionPresence(events)
+  const { events, presenceEvents, connected } = useSessionEventStream(session.id, initialEvents)
+  const presentUsers = useSessionPresence(presenceEvents)
 
   const lastEvent = events.length > 0 ? events[events.length - 1] : null
   const liveStatus: AgentSessionStatus | undefined =

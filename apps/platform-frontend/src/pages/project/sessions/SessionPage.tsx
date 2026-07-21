@@ -85,8 +85,8 @@ export function SessionPage() {
     void loadDetail()
   }, [loadDetail])
 
-  const { events, connected } = useSessionEventStream(sessionId, detail?.latestEvents ?? [])
-  const presentUsers = useSessionPresence(events)
+  const { events, presenceEvents, connected } = useSessionEventStream(sessionId, detail?.latestEvents ?? [])
+  const presentUsers = useSessionPresence(presenceEvents)
   const [participants, setParticipants] = useState<ParticipantInfo[]>([])
 
   useEffect(() => {
