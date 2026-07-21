@@ -166,6 +166,34 @@ function isMessageGroup(item: AgentSessionEvent | MessageGroup): item is Message
   return 'type' in item && 'text' in item && !('eventType' in item)
 }
 
+/**
+ * Ids of user-message groups that were sent while a turn was in flight
+ * (i.e. arrived after a turn_started, before that turn ended). These are
+ * the multiplayer queued messages, batched into the next turn on drain.
+ */
+function computeQueuedIds(items: (AgentSessionEvent | MessageGroup)[]): Set<string> {
+  const queued = new Set<string>()
+  let inTurn = false
+  for (const item of items) {
+    if (isMessageGroup(item)) {
+      if (item.type === 'user_message' && inTurn) queued.add(item.id)
+      continue
+    }
+    if (item.eventType === 'turn_started') {
+      inTurn = true
+    } else if (
+      item.eventType === 'turn_completed' ||
+      item.eventType === 'turn_failed' ||
+      item.eventType === 'session_completed' ||
+      item.eventType === 'session_failed' ||
+      item.eventType === 'session_cancelled'
+    ) {
+      inTurn = false
+    }
+  }
+  return queued
+}
+
 function parseActorPrefix(text: string): { actor: string | null; body: string } {
   const match = /^\[([^\]]+)\]:\s*([\s\S]*)$/.exec(text)
   if (match) return { actor: match[1], body: match[2] }
@@ -244,7 +272,7 @@ function AttachmentChip({ attachment }: { attachment: Attachment }) {
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
-function MessageBubble({ group }: { group: MessageGroup }) {
+function MessageBubble({ group, queued }: { group: MessageGroup; queued?: boolean }) {
   const isUser = group.type === 'user_message'
   const { actor, body: rawBody } = isUser ? parseActorPrefix(group.text) : { actor: null, body: group.text }
   const { body, attachments } = isUser
@@ -254,6 +282,11 @@ function MessageBubble({ group }: { group: MessageGroup }) {
 
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+      {queued && (
+        <span className="mb-0.5 rounded-full bg-[var(--gray-3)] px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--gray-9)]">
+          Queued
+        </span>
+      )}
       {isUser && actor && (
         <div className="mb-0.5 flex items-center gap-1">
           {showAvatar && <UserAvatar userId={group.userId!} name={actor} />}
@@ -365,6 +398,7 @@ export function TranscriptPanel({ events }: { events: AgentSessionEvent[] }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const merged = useMemo(() => mergeMessages(events), [events])
+  const queuedIds = useMemo(() => computeQueuedIds(merged), [merged])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -383,7 +417,7 @@ export function TranscriptPanel({ events }: { events: AgentSessionEvent[] }) {
           if (item.type === 'reasoning') {
             return <ReasoningBlock key={item.id} group={item} />
           }
-          return <MessageBubble key={item.id} group={item} />
+          return <MessageBubble key={item.id} group={item} queued={queuedIds.has(item.id)} />
         }
         const event = item as AgentSessionEvent
         if (isSystemEvent(event.eventType)) {

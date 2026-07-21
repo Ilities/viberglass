@@ -12,6 +12,7 @@ import {
 } from "../../types/agentSession";
 import { AgentSessionServiceError, AGENT_SESSION_SERVICE_ERROR_CODE } from "../errors/AgentSessionServiceError";
 import { agentSessionMutex } from "./AgentSessionMutex";
+import type { SessionTurnContinuationService } from "./SessionTurnContinuationService";
 
 export interface IngestEvent {
   eventType: AgentSessionEventType;
@@ -24,6 +25,7 @@ export class AgentSessionWorkerEventService {
     private readonly agentTurnDAO: AgentTurnDAO,
     private readonly agentSessionDAO: AgentSessionDAO,
     private readonly agentPendingRequestDAO: AgentPendingRequestDAO,
+    private readonly turnContinuationService: SessionTurnContinuationService,
   ) {}
 
   async batchIngest(jobId: string, events: IngestEvent[]): Promise<void> {
@@ -53,6 +55,18 @@ export class AgentSessionWorkerEventService {
 
       for (const evt of events) {
         await this.applyEventTransition(sessionId, turn.id, jobId, evt);
+      }
+
+      // Turn ended → launch a continuation for any messages users queued
+      // while the agent was working (multiplayer drain). Guarded internally
+      // to ACTIVE sessions with unconsumed user turns.
+      const turnEnded = events.some(
+        (evt) =>
+          evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED ||
+          evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_FAILED,
+      );
+      if (turnEnded) {
+        await this.turnContinuationService.drainQueuedMessages(sessionId);
       }
     });
   }
