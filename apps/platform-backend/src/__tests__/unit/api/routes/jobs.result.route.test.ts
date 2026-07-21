@@ -18,6 +18,7 @@ const mockAgentTurnDAO = {
 
 const mockAgentSessionDAO = {
   getById: jest.fn(),
+  listByLastJobId: jest.fn(),
 };
 
 const mockAgentSessionEventDAO = {
@@ -113,6 +114,7 @@ describe("job result callbacks", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAgentTurnDAO.getByJobId.mockResolvedValue(null);
+    mockAgentSessionDAO.listByLastJobId.mockResolvedValue([]);
   });
 
   it("persists generated planning documents when a planning job completes", async () => {

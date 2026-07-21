@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import db from "../config/database";
 import { SecretService } from "../../services/SecretService";
 import type {
@@ -25,7 +25,7 @@ export class IntegrationCredentialDAO {
   async create(
     input: CreateIntegrationCredentialInput
   ): Promise<IntegrationCredential> {
-    const id = uuidv4();
+    const id = randomUUID();
     const timestamp = new Date();
 
     // If this is marked as default, unset any existing default for this integration

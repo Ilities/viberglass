@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import db from "../config/database";
 
 export type SecretLocation = "env" | "database" | "ssm";
@@ -29,7 +29,7 @@ export interface UpdateSecretDTO {
 
 export class SecretDAO {
   async createSecret(dto: CreateSecretDTO): Promise<SecretRecord> {
-    const id = uuidv4();
+    const id = randomUUID();
     const timestamp = new Date();
 
     const result = await db

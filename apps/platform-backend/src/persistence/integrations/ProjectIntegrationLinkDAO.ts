@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 import db from '../config/database'
 import type { ProjectIntegrationLink, ProjectIntegrationLinkWithCategory, TicketSystem, IntegrationCategory } from '@viberglass/types'
 
@@ -22,7 +22,7 @@ export class ProjectIntegrationLinkDAO {
    * Link an integration to a project
    */
   async linkIntegration(input: CreateProjectIntegrationLinkInput): Promise<ProjectIntegrationLink> {
-    const linkId = uuidv4()
+    const linkId = randomUUID()
     const timestamp = new Date()
 
     // If this is set as primary, unset any existing primary for this project

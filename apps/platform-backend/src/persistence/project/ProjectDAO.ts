@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
@@ -26,7 +26,7 @@ export class ProjectDAO {
   async createProject(
     request: Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">,
   ): Promise<ProjectConfig> {
-    const projectId = uuidv4();
+    const projectId = randomUUID();
     const timestamp = new Date();
     const slug = slugify(request.name);
 

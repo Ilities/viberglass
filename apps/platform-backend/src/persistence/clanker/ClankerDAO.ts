@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
@@ -102,7 +102,7 @@ export class ClankerDAO {
   private readonly instructionStorage = new InstructionStorageService();
 
   async createClanker(request: CreateClankerRequest): Promise<Clanker> {
-    const clankerId = uuidv4();
+    const clankerId = randomUUID();
     const timestamp = new Date();
     const slug = slugify(request.name);
 
@@ -432,7 +432,7 @@ export class ClankerDAO {
         await db
           .insertInto("clanker_config_files")
           .values({
-            id: uuidv4(),
+            id: randomUUID(),
             clanker_id: clankerId,
             file_type: file.fileType,
             content: file.content,
