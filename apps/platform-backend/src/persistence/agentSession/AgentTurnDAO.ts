@@ -23,6 +23,8 @@ export interface AgentTurn {
   contentJson: JsonValue | null;
   jobId: string | null;
   userId: string | null;
+  /** Assistant turn that consumed this user message; null while queued */
+  consumedByTurnId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -104,6 +106,51 @@ export class AgentTurnDAO {
     return rows.map((row) => this.mapRow(row));
   }
 
+  /**
+   * User turns not yet consumed by any assistant turn, oldest first.
+   * These are the queued multiplayer messages awaiting a continuation.
+   */
+  async listUnconsumedUserTurns(sessionId: string): Promise<AgentTurn[]> {
+    const rows = await db
+      .selectFrom("agent_turns")
+      .selectAll()
+      .where("session_id", "=", sessionId)
+      .where("role", "=", "user")
+      .where("consumed_by_turn_id", "is", null)
+      .orderBy("sequence", "asc")
+      .execute();
+
+    return rows.map((row) => this.mapRow(row));
+  }
+
+  async markConsumed(ids: string[], assistantTurnId: string): Promise<void> {
+    if (ids.length === 0) return;
+    await db
+      .updateTable("agent_turns")
+      .set({ consumed_by_turn_id: assistantTurnId, updated_at: new Date() })
+      .where("id", "in", ids)
+      .execute();
+  }
+
+  /** Assistant turn with an in-flight worker job (queued or running), if any */
+  async getInFlightAssistantTurn(
+    sessionId: string,
+  ): Promise<AgentTurn | null> {
+    const row = await db
+      .selectFrom("agent_turns")
+      .selectAll()
+      .where("session_id", "=", sessionId)
+      .where("role", "=", "assistant")
+      .where("status", "in", [
+        AGENT_TURN_STATUS.QUEUED,
+        AGENT_TURN_STATUS.RUNNING,
+      ])
+      .orderBy("sequence", "desc")
+      .executeTakeFirst();
+
+    return row ? this.mapRow(row) : null;
+  }
+
   async update(id: string, updates: UpdateAgentTurnInput): Promise<void> {
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
@@ -136,6 +183,7 @@ export class AgentTurnDAO {
       contentJson: row.content_json,
       jobId: row.job_id,
       userId: row.user_id,
+      consumedByTurnId: row.consumed_by_turn_id,
       startedAt: row.started_at,
       completedAt: row.completed_at,
       createdAt: row.created_at,

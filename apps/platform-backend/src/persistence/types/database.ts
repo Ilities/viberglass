@@ -490,6 +490,7 @@ export interface AgentTurnsTable {
   content_json: Json | null;
   job_id: string | null;
   user_id: string | null;
+  consumed_by_turn_id: string | null;
   started_at: Timestamp | null;
   completed_at: Timestamp | null;
   created_at: Generated<Timestamp>;

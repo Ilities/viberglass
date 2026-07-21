@@ -6,6 +6,7 @@ import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessio
 import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
 import { AgentSessionInteractionService } from "../../services/agentSession/AgentSessionInteractionService";
+import { SessionTurnContinuationService } from "../../services/agentSession/SessionTurnContinuationService";
 import { JobService } from "../../services/JobService";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
@@ -33,14 +34,20 @@ const queryService = new AgentSessionQueryService(
 );
 const presenceService = new SessionPresenceService();
 
+const turnContinuationService = new SessionTurnContinuationService(
+  sessionDAO,
+  agentTurnDAO,
+  agentSessionEventDAO,
+  new JobService(),
+  new CredentialRequirementsService(),
+  new WorkerExecutionService(),
+);
 const interactionService = new AgentSessionInteractionService(
   sessionDAO,
   agentTurnDAO,
   agentSessionEventDAO,
   agentPendingRequestDAO,
-  new JobService(),
-  new CredentialRequirementsService(),
-  new WorkerExecutionService(),
+  turnContinuationService,
 );
 
 const TERMINAL_EVENT_TYPES = new Set<AgentSessionEventType>([
@@ -275,10 +282,12 @@ router.post(
         return res.status(400).json({ error: "messageText is required" });
       }
       const userId = req.auth?.user.id;
+      const userName = req.auth?.user.name;
       const result = await interactionService.sendMessage(
         req.params.sessionId,
         messageText,
         userId,
+        userName,
       );
       return res.json({ success: true, data: result });
     } catch (err) {

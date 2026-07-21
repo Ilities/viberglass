@@ -2,7 +2,6 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
-import { useAuth } from '@/context/auth-context'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
 import { useSessionPresence } from '@/hooks/useSessionPresence'
 import {
@@ -61,7 +60,6 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
 
 export function SessionPage() {
   const { project, sessionId } = useParams<{ project: string; sessionId: string }>()
-  const { user } = useAuth()
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCancelling, setIsCancelling] = useState(false)
@@ -145,9 +143,8 @@ export function SessionPage() {
   async function handleReply() {
     if (!sessionId || !replyText.trim() || isSending) return
     setIsSending(true)
-    const messageText = `[${user?.name ?? 'User'}]: ${replyText.trim()}`
     try {
-      await sendMessageToSession(sessionId, messageText)
+      await sendMessageToSession(sessionId, replyText.trim())
       setReplyText('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to send message')
@@ -267,16 +264,18 @@ export function SessionPage() {
                 }
               }}
               placeholder={
-                turnInProgress ? 'Agent is working…' : 'Send a message… (Enter to send, Shift+Enter for newline)'
+                turnInProgress
+                  ? 'Agent is working — your message will be queued'
+                  : 'Send a message… (Enter to send, Shift+Enter for newline)'
               }
-              disabled={turnInProgress || isSending}
+              disabled={isSending}
               rows={2}
               className="min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-[var(--gray-12)] outline-none placeholder:text-[var(--gray-8)] disabled:opacity-50"
             />
             <Button
               color="violet"
               onClick={() => void handleReply()}
-              disabled={!replyText.trim() || turnInProgress || isSending}
+              disabled={!replyText.trim() || isSending}
             >
               <PaperPlaneIcon className="h-4 w-4" />
               Send

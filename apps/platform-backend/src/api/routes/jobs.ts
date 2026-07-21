@@ -22,6 +22,9 @@ import {
 } from "../../services/errors/JobServiceError";
 import { isSecretServiceError } from "../../services/errors/SecretServiceError";
 import { AgentSessionWorkerEventService } from "../../services/agentSession/AgentSessionWorkerEventService";
+import { SessionTurnContinuationService } from "../../services/agentSession/SessionTurnContinuationService";
+import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
+import { WorkerExecutionService } from "../../workers";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
@@ -35,11 +38,20 @@ const secretService = new SecretService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionDAO = new AgentSessionDAO();
+const turnContinuationService = new SessionTurnContinuationService(
+  agentSessionDAO,
+  agentTurnDAO,
+  new AgentSessionEventDAO(),
+  jobService,
+  new CredentialRequirementsService(),
+  new WorkerExecutionService(),
+);
 const workerEventService = new AgentSessionWorkerEventService(
   new AgentSessionEventDAO(),
   agentTurnDAO,
   agentSessionDAO,
   new AgentPendingRequestDAO(),
+  turnContinuationService,
 );
 
 function getDocumentPhaseForJobKind(jobKind: string): "research" | "planning" | null {
