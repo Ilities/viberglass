@@ -17,48 +17,7 @@ import {
   type AgentSessionStatus,
 } from "../../types/agentSession";
 import logger from "../../config/logger";
-
-// ─── In-memory presence tracking ────────────────────────────────────────────
-
-interface PresenceUser {
-  userId: string;
-  userName: string;
-  avatarUrl: string | null;
-}
-
-type PresenceSet = Map<string, PresenceUser>;
-const presenceBySession = new Map<string, PresenceSet>();
-const sseConnections = new Map<string, Set<Response>>();
-
-function broadcastToSession(sessionId: string, data: unknown): void {
-  const connections = sseConnections.get(sessionId);
-  if (!connections) return;
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const res of connections) {
-    try {
-      res.write(payload);
-    } catch {
-      // Connection may have closed
-    }
-  }
-}
-
-function broadcastPresenceUpdate(sessionId: string): void {
-  const users = presenceBySession.get(sessionId);
-  if (!users) return;
-  const userList = [...users.values()];
-  broadcastToSession(sessionId, {
-    id: `presence_${Date.now()}`,
-    sessionId,
-    turnId: null,
-    jobId: null,
-    sequence: -1,
-    eventType: "presence_update",
-    payloadJson: { users: userList },
-    userId: null,
-    createdAt: new Date().toISOString(),
-  });
-}
+import { SessionPresenceService } from "../../services/agentSession/SessionPresenceService";
 
 const router = Router();
 const sessionDAO = new AgentSessionDAO();
@@ -72,6 +31,7 @@ const queryService = new AgentSessionQueryService(
   agentSessionEventDAO,
   agentPendingRequestDAO,
 );
+const presenceService = new SessionPresenceService();
 
 const interactionService = new AgentSessionInteractionService(
   sessionDAO,
@@ -226,39 +186,12 @@ router.get(
       return;
     }
 
-    // Register SSE connection
-    if (!sseConnections.has(sessionId)) {
-      sseConnections.set(sessionId, new Set());
-    }
-    sseConnections.get(sessionId)!.add(res);
-
-    // Add user to presence
-    if (userId) {
-      if (!presenceBySession.has(sessionId)) {
-        presenceBySession.set(sessionId, new Map());
-      }
-      presenceBySession.get(sessionId)!.set(userId, {
-        userId,
-        userName,
-        avatarUrl,
-      });
-
-      // Broadcast user_joined
-      broadcastToSession(sessionId, {
-        id: `join_${userId}_${Date.now()}`,
-        sessionId,
-        turnId: null,
-        jobId: null,
-        sequence: -1,
-        eventType: "user_joined",
-        payloadJson: { userId, userName, avatarUrl },
-        userId: null,
-        createdAt: new Date().toISOString(),
-      });
-
-      // Broadcast updated presence
-      broadcastPresenceUpdate(sessionId);
-    }
+    // Register SSE connection + presence (broadcasts join/update to viewers)
+    presenceService.registerConnection(
+      sessionId,
+      res,
+      userId ? { userId, userName, avatarUrl } : undefined,
+    );
 
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -271,42 +204,7 @@ router.get(
     req.on("close", () => {
       closed = true;
       cleanup();
-
-      // Remove SSE connection
-      const connections = sseConnections.get(sessionId);
-      if (connections) {
-        connections.delete(res);
-        if (connections.size === 0) {
-          sseConnections.delete(sessionId);
-        }
-      }
-
-      // Remove user from presence
-      if (userId) {
-        const presence = presenceBySession.get(sessionId);
-        if (presence) {
-          presence.delete(userId);
-          if (presence.size === 0) {
-            presenceBySession.delete(sessionId);
-          }
-        }
-
-        // Broadcast user_left
-        broadcastToSession(sessionId, {
-          id: `left_${userId}_${Date.now()}`,
-          sessionId,
-          turnId: null,
-          jobId: null,
-          sequence: -1,
-          eventType: "user_left",
-          payloadJson: { userId, userName },
-          userId: null,
-          createdAt: new Date().toISOString(),
-        });
-
-        // Broadcast updated presence
-        broadcastPresenceUpdate(sessionId);
-      }
+      presenceService.removeConnection(sessionId, res, userId);
     });
 
     pollTimer = setInterval(async () => {
