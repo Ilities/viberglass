@@ -67,11 +67,11 @@ describe("TicketLifecycleStatusService", () => {
     });
   });
 
-  it("resets non-resolved tickets to open when the current phase has no progress signals", async () => {
+  it("resets research-phase tickets to open when there are no progress signals", async () => {
     mockTicketDAO.getTicket.mockResolvedValue({
       id: "ticket-3",
       status: TICKET_STATUS.IN_PROGRESS,
-      workflowPhase: TICKET_WORKFLOW_PHASE.PLANNING,
+      workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
     });
     mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({
       id: "doc-3",
@@ -85,6 +85,24 @@ describe("TicketLifecycleStatusService", () => {
     expect(mockTicketDAO.updateTicket).toHaveBeenCalledWith("ticket-3", {
       status: TICKET_STATUS.OPEN,
     });
+  });
+
+  it("keeps later-phase tickets in progress even without progress signals", async () => {
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: "ticket-3b",
+      status: TICKET_STATUS.IN_PROGRESS,
+      workflowPhase: TICKET_WORKFLOW_PHASE.PLANNING,
+    });
+    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({
+      id: "doc-3b",
+      content: "   ",
+      approvalState: "draft",
+    });
+
+    const result = await service.synchronize("ticket-3b");
+
+    expect(result).toBe(TICKET_STATUS.IN_PROGRESS);
+    expect(mockTicketDAO.updateTicket).not.toHaveBeenCalled();
   });
 
   it("preserves resolved tickets", async () => {

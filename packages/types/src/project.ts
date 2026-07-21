@@ -43,6 +43,9 @@ export type AuthCredentialType = 'api_key' | 'oauth' | 'basic' | 'token'
 
 // Flexible authentication credentials for different systems
 export interface AuthCredentials {
+  // Integration-specific extensions (owner, repo, instanceUrl, ...) flow
+  // through this bag, keeping subtypes assignable to Record<string, unknown>
+  [key: string]: unknown
   type: AuthCredentialType
   apiKey?: string
   username?: string

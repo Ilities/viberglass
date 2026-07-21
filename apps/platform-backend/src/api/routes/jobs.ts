@@ -321,7 +321,7 @@ router.post(
       }
 
       // For session turns, emit turn events and save document if produced
-      if (isSessionTurn) {
+      if (isSessionTurn && agentTurn) {
         const session = await agentSessionDAO.getById(agentTurn.sessionId);
         const isDocumentMode =
           session?.mode === AGENT_SESSION_MODE.RESEARCH ||

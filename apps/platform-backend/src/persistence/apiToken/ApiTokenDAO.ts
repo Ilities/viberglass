@@ -1,5 +1,4 @@
-import { randomBytes, createHash } from "node:crypto";
-import { v4 as uuidv4 } from "uuid";
+import { randomBytes, createHash, randomUUID } from "node:crypto";
 import db from "../config/database";
 import type { Selectable } from "kysely";
 import type { Database } from "../types/database";
@@ -63,7 +62,7 @@ export class ApiTokenDAO {
     tokenPrefix: string;
     expiresAt?: Date | null;
   }): Promise<ApiTokenRecord> {
-    const id = uuidv4();
+    const id = randomUUID();
     const timestamp = new Date();
 
     const row = await db

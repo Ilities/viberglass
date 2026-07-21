@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import type { Selectable } from "kysely";
 import { sql } from "kysely";
 import db from "../config/database";
@@ -86,7 +86,7 @@ export class TicketDAO {
     recordingAsset?: MediaAsset,
   ): Promise<Ticket> {
     return await db.transaction().execute(async (trx) => {
-      const ticketId = uuidv4();
+      const ticketId = randomUUID();
       const timestamp = new Date();
 
       if (screenshotAsset) {
