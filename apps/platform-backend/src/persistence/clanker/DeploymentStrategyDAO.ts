@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
@@ -14,7 +14,7 @@ export class DeploymentStrategyDAO {
   async createDeploymentStrategy(
     request: CreateDeploymentStrategyRequest,
   ): Promise<DeploymentStrategy> {
-    const id = uuidv4();
+    const id = randomUUID();
     const timestamp = new Date();
 
     const result = await db

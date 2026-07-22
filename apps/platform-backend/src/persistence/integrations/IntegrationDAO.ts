@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 import db from '../config/database'
 import type { Integration, TicketSystem } from '@viberglass/types'
 
@@ -19,7 +19,7 @@ export class IntegrationDAO {
    * Create a new top-level integration
    */
   async createIntegration(input: CreateIntegrationInput): Promise<Integration> {
-    const integrationId = uuidv4()
+    const integrationId = randomUUID()
     const timestamp = new Date()
 
     const result = await db

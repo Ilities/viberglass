@@ -5,6 +5,7 @@ const customJestConfig = {
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@/lib$': '<rootDir>/src/lib/index.test-stub.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   transform: {

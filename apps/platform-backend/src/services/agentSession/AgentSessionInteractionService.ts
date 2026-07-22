@@ -1,33 +1,10 @@
-import { randomUUID } from "crypto";
-import logger from "../../config/logger";
 import type {
   AgentSession,
   AgentSessionDAO,
 } from "../../persistence/agentSession/AgentSessionDAO";
-import type {
-  AgentTurn,
-  AgentTurnDAO,
-} from "../../persistence/agentSession/AgentTurnDAO";
+import type { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import type { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import type { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
-import type { CredentialRequirementsService } from "../CredentialRequirementsService";
-import type { JobService } from "../JobService";
-import type { WorkerExecutionService } from "../../workers";
-import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
-import { ProjectDAO } from "../../persistence/project/ProjectDAO";
-import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
-import { IntegrationCredentialDAO } from "../../persistence/integrations";
-import { SecretService } from "../SecretService";
-import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
-import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
-import { InstructionStorageService } from "../instructions/InstructionStorageService";
-import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
-import {
-  TicketPhaseDocumentCommentDAO,
-  type PhaseDocumentComment,
-  PHASE_DOCUMENT_COMMENT_STATUS,
-} from "../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
-import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import {
   AGENT_SESSION_EVENT_TYPE,
   AGENT_SESSION_STATUS,
@@ -37,67 +14,38 @@ import {
   type AgentSessionStatus,
 } from "../../types/agentSession";
 import {
-  buildBootstrapPayload,
-  type PreparedTicketRunContext,
-  prepareTicketRunContext,
-} from "../ticketRunOrchestration";
-import {
   AGENT_SESSION_SERVICE_ERROR_CODE,
   AgentSessionServiceError,
 } from "../errors/AgentSessionServiceError";
-import type {
-  JobData,
-  PlanningJobData,
-  ResearchJobData,
-  TicketJobData,
-} from "../../types/Job";
-import type { JsonValue } from "../../persistence/types/database";
-import { PromptTemplateService } from "../PromptTemplateService";
 import {
-  PromptTemplateDAO,
-  PROMPT_TYPE,
-} from "../../persistence/promptTemplate/PromptTemplateDAO";
+  SessionTurnContinuationService,
+  type ReplyResult,
+} from "./SessionTurnContinuationService";
+import { agentSessionMutex } from "./AgentSessionMutex";
 
-interface ContinuationExtras {
-  task: string;
-  [key: string]: unknown;
-}
-
-export interface ReplyResult {
-  currentTurn: AgentTurn;
-  job: { id: string; status: string };
-}
-
+export type { ReplyResult };
 export type ApproveResult = ReplyResult | { cancelled: true };
 
-const SUGGESTION_PREFIX = "@@SUGGESTION@@\n";
-
 export class AgentSessionInteractionService {
-  private readonly ticketDAO = new TicketDAO();
-  private readonly projectDAO = new ProjectDAO();
-  private readonly projectScmConfigDAO = new ProjectScmConfigDAO();
-  private readonly integrationCredentialDAO = new IntegrationCredentialDAO();
-  private readonly secretService = new SecretService();
-  private readonly clankerDAO = new ClankerDAO();
-  private readonly provisioningService = getClankerProvisioner();
-  private readonly instructionStorageService = new InstructionStorageService();
-  private readonly documentService = new TicketPhaseDocumentService();
-  private readonly commentDAO = new TicketPhaseDocumentCommentDAO();
-  private readonly promptTemplateService = new PromptTemplateService(
-    new PromptTemplateDAO(),
-  );
-
   constructor(
     private readonly agentSessionDAO: AgentSessionDAO,
     private readonly agentTurnDAO: AgentTurnDAO,
     private readonly agentSessionEventDAO: AgentSessionEventDAO,
     private readonly agentPendingRequestDAO: AgentPendingRequestDAO,
-    private readonly jobService: JobService,
-    private readonly credentialRequirementsService: CredentialRequirementsService,
-    private readonly workerExecutionService: WorkerExecutionService,
+    private readonly turnContinuationService: SessionTurnContinuationService,
   ) {}
 
   async reply(
+    sessionId: string,
+    replyText: string,
+    userId?: string,
+  ): Promise<ReplyResult> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.replyExclusive(sessionId, replyText, userId),
+    );
+  }
+
+  private async replyExclusive(
     sessionId: string,
     replyText: string,
     userId?: string,
@@ -127,10 +75,19 @@ export class AgentSessionInteractionService {
       );
     }
 
-    await this.agentPendingRequestDAO.resolve(pendingRequest.id, {
-      responseJson: { replyText },
-      resolvedBy: userId,
-    });
+    const resolved = await this.agentPendingRequestDAO.resolve(
+      pendingRequest.id,
+      {
+        responseJson: { replyText },
+        resolvedBy: userId,
+      },
+    );
+    if (!resolved) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
+        "Request already resolved by another user",
+      );
+    }
 
     const [lastTurn, maxSeq] = await Promise.all([
       session.lastTurnId
@@ -157,43 +114,31 @@ export class AgentSessionInteractionService {
       userId: userId ?? null,
     });
 
-    const assistantTurn = await this.agentTurnDAO.create({
-      sessionId,
-      role: AGENT_TURN_ROLE.ASSISTANT,
-      sequence: nextUserSeq + 1,
-      status: AGENT_TURN_STATUS.QUEUED,
-    });
-    await this.agentSessionEventDAO.create({
-      sessionId,
-      turnId: assistantTurn.id,
-      sequence: maxSeq + 2,
-      eventType: AGENT_SESSION_EVENT_TYPE.TURN_STARTED,
-      payloadJson: { turnId: assistantTurn.id },
-    });
-
-    const job = await this.launchContinuationJob(session, assistantTurn, {
-      task: replyText,
-      replyContent: replyText,
-    });
-
-    await this.agentSessionDAO.update(sessionId, {
-      status: AGENT_SESSION_STATUS.ACTIVE,
-      lastJobId: job.id,
-      lastTurnId: assistantTurn.id,
-      latestPendingRequestId: null,
-    });
-
-    return { currentTurn: assistantTurn, job };
+    return this.launchPending(session, { clearPendingRequest: true });
   }
 
   /**
-   * Send a free-form follow-up message to an active session (no pending request required).
-   * Used when the user wants to continue the conversation after a turn completes normally.
+   * Send a free-form follow-up message to an active session (no pending
+   * request required). In multiplayer sessions the message may arrive
+   * while a turn is in flight — it is then queued and batched into the
+   * next continuation turn when the current one ends.
    */
   async sendMessage(
     sessionId: string,
     messageText: string,
-    _userId?: string,
+    userId?: string,
+    userName?: string,
+  ): Promise<ReplyResult> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.sendMessageExclusive(sessionId, messageText, userId, userName),
+    );
+  }
+
+  private async sendMessageExclusive(
+    sessionId: string,
+    messageText: string,
+    userId?: string,
+    userName?: string,
   ): Promise<ReplyResult> {
     const session = await this.agentSessionDAO.getById(sessionId);
     if (!session) {
@@ -214,6 +159,9 @@ export class AgentSessionInteractionService {
       );
     }
 
+    // Multiplayer attribution: the agent (and transcript) see who said what
+    const content = userName ? `[${userName}]: ${messageText}` : messageText;
+
     const [lastTurn, maxSeq] = await Promise.all([
       session.lastTurnId
         ? this.agentTurnDAO.getById(session.lastTurnId)
@@ -227,46 +175,42 @@ export class AgentSessionInteractionService {
       role: AGENT_TURN_ROLE.USER,
       sequence: nextUserSeq,
       status: AGENT_TURN_STATUS.COMPLETED,
-      contentMarkdown: messageText,
-      userId: _userId ?? null,
+      contentMarkdown: content,
+      userId: userId ?? null,
     });
     await this.agentSessionEventDAO.create({
       sessionId,
       turnId: userTurn.id,
       sequence: maxSeq + 1,
       eventType: AGENT_SESSION_EVENT_TYPE.USER_MESSAGE,
-      payloadJson: { content: messageText },
-      userId: _userId ?? null,
+      payloadJson: { content },
+      userId: userId ?? null,
     });
 
-    const assistantTurn = await this.agentTurnDAO.create({
-      sessionId,
-      role: AGENT_TURN_ROLE.ASSISTANT,
-      sequence: nextUserSeq + 1,
-      status: AGENT_TURN_STATUS.QUEUED,
-    });
-    await this.agentSessionEventDAO.create({
-      sessionId,
-      turnId: assistantTurn.id,
-      sequence: maxSeq + 2,
-      eventType: AGENT_SESSION_EVENT_TYPE.TURN_STARTED,
-      payloadJson: { turnId: assistantTurn.id },
-    });
+    const inFlightTurn =
+      await this.agentTurnDAO.getInFlightAssistantTurn(sessionId);
+    if (inFlightTurn) {
+      // Queued: the running turn's completion will batch this message in
+      return {
+        currentTurn: inFlightTurn,
+        job: { id: inFlightTurn.jobId, status: "queued" },
+      };
+    }
 
-    const job = await this.launchContinuationJob(session, assistantTurn, {
-      task: messageText,
-    });
-
-    await this.agentSessionDAO.update(sessionId, {
-      status: AGENT_SESSION_STATUS.ACTIVE,
-      lastJobId: job.id,
-      lastTurnId: assistantTurn.id,
-    });
-
-    return { currentTurn: assistantTurn, job };
+    return this.launchPending(session);
   }
 
   async approve(
+    sessionId: string,
+    approved: boolean,
+    userId?: string,
+  ): Promise<ApproveResult> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.approveExclusive(sessionId, approved, userId),
+    );
+  }
+
+  private async approveExclusive(
     sessionId: string,
     approved: boolean,
     userId?: string,
@@ -296,10 +240,19 @@ export class AgentSessionInteractionService {
       );
     }
 
-    await this.agentPendingRequestDAO.resolve(pendingRequest.id, {
-      responseJson: { approved },
-      resolvedBy: userId,
-    });
+    const resolved = await this.agentPendingRequestDAO.resolve(
+      pendingRequest.id,
+      {
+        responseJson: { approved },
+        resolvedBy: userId,
+      },
+    );
+    if (!resolved) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
+        "Request already resolved by another user",
+      );
+    }
 
     const [lastTurn, maxSeq] = await Promise.all([
       session.lastTurnId
@@ -360,36 +313,19 @@ export class AgentSessionInteractionService {
       userId: userId ?? null,
     });
 
-    const assistantTurn = await this.agentTurnDAO.create({
-      sessionId,
-      role: AGENT_TURN_ROLE.ASSISTANT,
-      sequence: nextUserSeq + 1,
-      status: AGENT_TURN_STATUS.QUEUED,
-    });
-    await this.agentSessionEventDAO.create({
-      sessionId,
-      turnId: assistantTurn.id,
-      sequence: nextSeq,
-      eventType: AGENT_SESSION_EVENT_TYPE.TURN_STARTED,
-      payloadJson: { turnId: assistantTurn.id },
-    });
-
-    const job = await this.launchContinuationJob(session, assistantTurn, {
-      task: "Approval granted",
-      approvalGranted: true,
-    });
-
-    await this.agentSessionDAO.update(sessionId, {
-      status: AGENT_SESSION_STATUS.ACTIVE,
-      lastJobId: job.id,
-      lastTurnId: assistantTurn.id,
-      latestPendingRequestId: null,
-    });
-
-    return { currentTurn: assistantTurn, job };
+    return this.launchPending(session, { clearPendingRequest: true });
   }
 
   async cancel(sessionId: string, userId?: string): Promise<void> {
+    return agentSessionMutex.runExclusive(sessionId, () =>
+      this.cancelExclusive(sessionId, userId),
+    );
+  }
+
+  private async cancelExclusive(
+    sessionId: string,
+    userId?: string,
+  ): Promise<void> {
     const session = await this.agentSessionDAO.getById(sessionId);
     if (!session) {
       throw new AgentSessionServiceError(
@@ -430,265 +366,22 @@ export class AgentSessionInteractionService {
     });
   }
 
-  private async launchContinuationJob(
+  private async launchPending(
     session: AgentSession,
-    assistantTurn: AgentTurn,
-    extras: ContinuationExtras,
-  ): Promise<{ id: string; status: string }> {
-    const rawTask = extras.task;
-    const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
-
-    const prepared = await prepareTicketRunContext(
-      { projectId: session.projectId, clankerId: session.clankerId, jobId },
-      {
-        projectDAO: this.projectDAO,
-        projectScmConfigDAO: this.projectScmConfigDAO,
-        integrationCredentialDAO: this.integrationCredentialDAO,
-        secretService: this.secretService,
-        clankerDAO: this.clankerDAO,
-        provisioningService: this.provisioningService,
-        instructionStorageService: this.instructionStorageService,
-      },
-    );
-
-    const ticket = await this.ticketDAO.getTicket(session.ticketId);
-
-    let researchDocumentContent: string | undefined;
-    let planDocumentContent: string | undefined;
-    let openComments: PhaseDocumentComment[] = [];
-
-    if (session.mode === "research") {
-      const researchDoc = await this.documentService.getOrCreateDocument(
-        session.ticketId,
-        TICKET_WORKFLOW_PHASE.RESEARCH,
+    options?: { clearPendingRequest?: boolean },
+  ): Promise<ReplyResult> {
+    const launched =
+      await this.turnContinuationService.launchForPendingMessages(
+        session,
+        options,
       );
-      if (researchDoc.content?.trim()) {
-        researchDocumentContent = researchDoc.content;
-      }
-      const allComments = await this.commentDAO.listByTicketAndPhase(
-        session.ticketId,
-        "research",
-      );
-      openComments = allComments.filter(
-        (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
+    if (!launched) {
+      // Invariant: callers always create a user turn immediately before
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
+        "No pending messages to launch",
       );
     }
-
-    if (session.mode === "planning") {
-      const researchDoc = await this.documentService.getOrCreateDocument(
-        session.ticketId,
-        TICKET_WORKFLOW_PHASE.RESEARCH,
-      );
-      researchDocumentContent = researchDoc.content;
-
-      const planDoc = await this.documentService.getOrCreateDocument(
-        session.ticketId,
-        TICKET_WORKFLOW_PHASE.PLANNING,
-      );
-      if (planDoc.content?.trim()) {
-        planDocumentContent = planDoc.content;
-      }
-      const allComments = await this.commentDAO.listByTicketAndPhase(
-        session.ticketId,
-        "planning",
-      );
-      openComments = allComments.filter(
-        (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
-      );
-    }
-
-    const openCommentsStr =
-      openComments.length > 0
-        ? openComments
-            .map((c) => {
-              const actor = c.actor ? ` (by ${c.actor})` : "";
-              if (c.content.startsWith(SUGGESTION_PREFIX)) {
-                const suggestion = c.content.slice(SUGGESTION_PREFIX.length);
-                return `- Line ${c.lineNumber}${actor}: **Suggestion:** ${suggestion}`;
-              }
-              return `- Line ${c.lineNumber}${actor}: ${c.content}`;
-            })
-            .join("\n")
-        : undefined;
-
-    const revisionType =
-      session.mode === "research"
-        ? PROMPT_TYPE.ticket_research_revision_task
-        : PROMPT_TYPE.ticket_planning_revision_task;
-
-    const enrichedTask = await this.promptTemplateService.render(
-      revisionType,
-      session.projectId,
-      {
-        initialMessage: rawTask,
-        researchDocument: researchDocumentContent,
-        planDocument: planDocumentContent,
-        openComments: openCommentsStr,
-      },
-    );
-
-    const jobData = buildContinuationJobData(
-      jobId,
-      session,
-      enrichedTask,
-      prepared,
-      ticket,
-      researchDocumentContent,
-      planDocumentContent,
-    );
-    const submitResult = await this.jobService.submitJob(jobData, {
-      ticketId: session.ticketId,
-      clankerId: session.clankerId,
-    });
-    jobData.callbackToken = submitResult.callbackToken;
-
-    const requiredCredentials =
-      await this.credentialRequirementsService.getRequiredCredentialsForClanker(
-        prepared.executionClanker,
-      );
-
-    const baseBootstrap = buildBootstrapPayload({
-      workerType: prepared.workerType,
-      jobKind: session.mode,
-      tenantId: "api-server",
-      jobId,
-      clankerId: session.clankerId,
-      agent: prepared.executionClanker.agent,
-      repository: prepared.sourceRepository,
-      task: enrichedTask,
-      baseBranch: prepared.baseBranch,
-      context: jobData.context,
-      settings: {},
-      instructionFiles: prepared.workerInstructionFiles,
-      requiredCredentials,
-      callbackToken: submitResult.callbackToken,
-      executionClanker: prepared.executionClanker,
-      project: prepared.project,
-    });
-
-    const acpSessionId = extractAcpSessionId(session.metadataJson);
-    const conversationStateUrl = extractConversationStateUrl(
-      session.metadataJson,
-    );
-
-    const fullBootstrap = {
-      ...baseBootstrap,
-      agentSessionId: session.id,
-      agentTurnId: assistantTurn.id,
-      sessionMode: session.mode,
-      acpSessionId,
-      conversationStateUrl,
-      ...extras,
-    };
-    jobData.bootstrapPayload = fullBootstrap;
-    await this.jobService.saveBootstrapPayload(jobId, fullBootstrap);
-
-    await this.agentTurnDAO.update(assistantTurn.id, { jobId });
-
-    this.workerExecutionService
-      .executeJob(jobData, prepared.executionClanker, prepared.project)
-      .then((result) => {
-        logger.info("Agent session continuation worker invoked", {
-          sessionId: session.id,
-          jobId,
-          executionId: result.executionId,
-        });
-      })
-      .catch((err: unknown) => {
-        logger.error("Agent session continuation worker invocation failed", {
-          sessionId: session.id,
-          jobId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
-
-    return { id: jobId, status: "pending" };
+    return launched;
   }
-}
-
-function buildContinuationJobData(
-  jobId: string,
-  session: AgentSession,
-  task: string,
-  prepared: PreparedTicketRunContext,
-  ticket: {
-    id: string;
-    title: string;
-    description: string;
-    externalTicketId?: string | null;
-    projectId: string;
-  } | null,
-  researchDocumentContent?: string,
-  planDocumentContent?: string,
-): JobData {
-  const base = {
-    id: jobId,
-    tenantId: "api-server" as const,
-    repository: session.repository ?? "",
-    task,
-    baseBranch: session.baseBranch ?? undefined,
-    settings: {},
-    timestamp: Date.now(),
-  };
-
-  if (session.mode === "research") {
-    const data: ResearchJobData = {
-      ...base,
-      jobKind: "research",
-      context: {
-        ticketId: session.ticketId,
-        researchDocument: researchDocumentContent,
-        instructionFiles: prepared.mergedInstructionFiles,
-      },
-    };
-    return data;
-  }
-  if (session.mode === "planning") {
-    const data: PlanningJobData = {
-      ...base,
-      jobKind: "planning",
-      context: {
-        ticketId: session.ticketId,
-        researchDocument: researchDocumentContent ?? "",
-        planDocument: planDocumentContent,
-        instructionFiles: prepared.mergedInstructionFiles,
-      },
-    };
-    return data;
-  }
-  const data: TicketJobData = {
-    ...base,
-    jobKind: "execution",
-    context: {
-      ticketId: session.ticketId,
-      instructionFiles: prepared.mergedInstructionFiles,
-    },
-  };
-  return data;
-}
-
-function extractAcpSessionId(metadata: JsonValue | null): string | null {
-  if (
-    metadata !== null &&
-    typeof metadata === "object" &&
-    !Array.isArray(metadata)
-  ) {
-    const val = metadata.acpSessionId;
-    return typeof val === "string" ? val : null;
-  }
-  return null;
-}
-
-function extractConversationStateUrl(
-  metadata: JsonValue | null,
-): string | null {
-  if (
-    metadata !== null &&
-    typeof metadata === "object" &&
-    !Array.isArray(metadata)
-  ) {
-    const val = metadata.conversationStateUrl;
-    return typeof val === "string" ? val : null;
-  }
-  return null;
 }

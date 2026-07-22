@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import db from "../config/database";
 
 /**
@@ -79,7 +79,7 @@ export class WebhookDeliveryDAO {
   async recordDeliveryAttempt(
     dto: CreateDeliveryAttemptDTO
   ): Promise<WebhookDeliveryAttempt> {
-    const id = uuidv4();
+    const id = randomUUID();
     const timestamp = new Date();
 
     try {

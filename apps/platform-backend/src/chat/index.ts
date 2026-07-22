@@ -30,6 +30,7 @@ import { AgentPendingRequestDAO } from "../persistence/agentSession/AgentPending
 import { AgentSessionLaunchService } from "../services/agentSession/AgentSessionLaunchService";
 import { resolveSessionAdvance, resolveTicketAdvance } from "../services/agentSession/sessionAdvance";
 import { AgentSessionInteractionService } from "../services/agentSession/AgentSessionInteractionService";
+import { SessionTurnContinuationService } from "../services/agentSession/SessionTurnContinuationService";
 import { AgentSessionQueryService } from "../services/agentSession/AgentSessionQueryService";
 import { JobService } from "../services/JobService";
 import { CredentialRequirementsService } from "../services/CredentialRequirementsService";
@@ -62,14 +63,21 @@ const launchService = new AgentSessionLaunchService(
   workerService,
 );
 
+const turnContinuationService = new SessionTurnContinuationService(
+  agentSessionDAO,
+  agentTurnDAO,
+  agentSessionEventDAO,
+  jobService,
+  credentialService,
+  workerService,
+);
+
 const interactionService = new AgentSessionInteractionService(
   agentSessionDAO,
   agentTurnDAO,
   agentSessionEventDAO,
   agentPendingRequestDAO,
-  jobService,
-  credentialService,
-  workerService,
+  turnContinuationService,
 );
 
 const queryService = new AgentSessionQueryService(

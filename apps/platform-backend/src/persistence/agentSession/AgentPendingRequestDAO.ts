@@ -86,11 +86,16 @@ export class AgentPendingRequestDAO {
     return row ? this.mapRow(row) : null;
   }
 
+  /**
+   * Resolve a pending request atomically. Only an OPEN request can be
+   * resolved — returns null when the request was already resolved (e.g. by
+   * another team member in a multiplayer session).
+   */
   async resolve(
     id: string,
     input: ResolveAgentPendingRequestInput = {},
-  ): Promise<AgentPendingRequest> {
-    await db
+  ): Promise<AgentPendingRequest | null> {
+    const result = await db
       .updateTable("agent_pending_requests")
       .set({
         status: input.status ?? AGENT_PENDING_REQUEST_STATUS.RESOLVED,
@@ -100,7 +105,12 @@ export class AgentPendingRequestDAO {
         updated_at: new Date(),
       })
       .where("id", "=", id)
-      .execute();
+      .where("status", "=", AGENT_PENDING_REQUEST_STATUS.OPEN)
+      .executeTakeFirst();
+
+    if (Number(result.numUpdatedRows) === 0) {
+      return null;
+    }
 
     const row = await this.getById(id);
     if (!row) {
