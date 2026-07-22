@@ -44,7 +44,7 @@ export interface RunResearchOptions {
 export interface ResearchRunView {
   id: string;
   jobId: string;
-  status: "queued" | "active" | "completed" | "failed";
+  status: "queued" | "active" | "completed" | "failed" | "cancelled";
   clankerId: string;
   clankerName: string | null;
   clankerSlug: string | null;

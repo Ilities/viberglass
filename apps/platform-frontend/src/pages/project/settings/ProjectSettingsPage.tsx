@@ -18,11 +18,14 @@ import {
   type ProjectIntegrationWithDetails,
 } from '@/service/api/integration-api'
 import {
+  archiveProject,
   deleteProject,
   deleteProjectScmConfig,
+  getProjectDeletionSummary,
   getProjectScmConfig,
   updateProject,
   upsertProjectScmConfig,
+  type ProjectDeletionSummary,
   type ProjectScmConfig,
   type UpdateProjectRequest,
 } from '@/service/api/project-api'
@@ -53,7 +56,7 @@ function mapLinkedIntegrations(
     integrationEntityId: link.integration.id,
     system: link.integration.system,
     label: link.integration.name,
-    category: categoryBySystem.get(link.integration.system) || 'ticketing',
+    category: categoryBySystem.get(link.integration.system) || 'inbound',
     isPrimary: link.isPrimary,
   }))
 }
@@ -96,9 +99,11 @@ export function ProjectSettingsPage() {
   const [deleteConfirmName, setDeleteConfirmName] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deletionSummary, setDeletionSummary] = useState<ProjectDeletionSummary | null>(null)
+  const [isArchiving, setIsArchiving] = useState(false)
 
   const ticketingIntegrations = useMemo(
-    () => linkedIntegrations.filter((integration) => integration.category !== 'scm'),
+    () => linkedIntegrations.filter((integration) => integration.category === 'ticketing'),
     [linkedIntegrations]
   )
   const scmIntegrations = useMemo(
@@ -144,13 +149,14 @@ export function ProjectSettingsPage() {
         const primaryTicketingId = projectData.primaryTicketingIntegrationId
         if (primaryTicketingId) {
           const primaryMatch = mapped.find(
-            (integration) => integration.category !== 'scm' && integration.integrationEntityId === primaryTicketingId
+            (integration) =>
+              integration.category === 'ticketing' && integration.integrationEntityId === primaryTicketingId
           )
           setTicketingIntegrationId(primaryMatch?.integrationEntityId ?? NONE_OPTION)
         } else {
           // Fallback to deprecated ticketSystem field for backward compatibility
           const ticketingMatch = mapped.find(
-            (integration) => integration.category !== 'scm' && integration.system === projectData.ticketSystem
+            (integration) => integration.category === 'ticketing' && integration.system === projectData.ticketSystem
           )
           setTicketingIntegrationId(ticketingMatch?.integrationEntityId ?? NONE_OPTION)
         }
@@ -330,6 +336,18 @@ export function ProjectSettingsPage() {
     }
   }
 
+  async function handleArchiveProject() {
+    if (!projectData) return
+    setIsArchiving(true)
+    try {
+      await archiveProject(projectData.id)
+      navigate('/')
+    } catch (archiveError) {
+      setError(getErrorMessage(archiveError, 'Failed to archive project'))
+      setIsArchiving(false)
+    }
+  }
+
   const resetForm = () => {
     if (!projectData) return
     setName(projectData.name ?? '')
@@ -403,7 +421,8 @@ export function ProjectSettingsPage() {
 
       const updates: UpdateProjectRequest = {
         name: name.trim(),
-        ticketSystem: selectedTicketingIntegration?.system,
+        primaryTicketingIntegrationId: selectedTicketingIntegration?.integrationEntityId ?? null,
+        primaryScmIntegrationId: scmIntegrationId !== NONE_OPTION ? scmIntegrationId : null,
         autoFixEnabled,
         autoFixTags: autoFixTags
           .split(',')
@@ -627,7 +646,7 @@ export function ProjectSettingsPage() {
 
                     <Field>
                       <Label>Source Repository</Label>
-                      <Description>Repository cloned by clankers when executing jobs.</Description>
+                      <Description>Repository used by agent runners when executing runs.</Description>
                       <Input
                         name="source_repository"
                         placeholder="https://github.com/org/repo"
@@ -785,7 +804,16 @@ export function ProjectSettingsPage() {
         )}
 
         {projectData && (
-          <div className="mt-16 border-t border-red-200 pt-8 dark:border-red-900/50">
+          <div className="mt-16 space-y-6 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-6 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Archive project</h3>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Hide this project from active lists while retaining all tickets, runs, and configuration.
+              </p>
+              <Button className="mt-4" outline disabled={isArchiving} onClick={() => void handleArchiveProject()}>
+                {isArchiving ? 'Archiving…' : 'Archive project'}
+              </Button>
+            </div>
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
               <h3 className="text-base font-semibold text-red-700 dark:text-red-400">Danger Zone</h3>
               <p className="mt-1 text-sm text-red-600/80 dark:text-red-400/80">
@@ -798,6 +826,9 @@ export function ProjectSettingsPage() {
                     setDeleteConfirmName('')
                     setDeleteError(null)
                     setShowDeleteDialog(true)
+                    void getProjectDeletionSummary(projectData.id)
+                      .then(setDeletionSummary)
+                      .catch(() => setDeletionSummary(null))
                   }}
                 >
                   Delete Project
@@ -817,11 +848,17 @@ export function ProjectSettingsPage() {
       >
         <DialogTitle>Delete Project</DialogTitle>
         <DialogDescription>
-          This will permanently delete <strong>{projectData?.name}</strong> and all its tickets, jobs, and
+          This will permanently delete <strong>{projectData?.name}</strong> and all its tickets, runs, and
           configuration. This action cannot be undone.
         </DialogDescription>
         <DialogBody>
           <div className="space-y-3">
+            {deletionSummary ? (
+              <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
+                Affected records: {deletionSummary.tickets} tickets, {deletionSummary.runs} runs, and{' '}
+                {deletionSummary.sessions} sessions.
+              </p>
+            ) : null}
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Type <strong className="font-mono text-zinc-900 dark:text-white">{projectData?.name}</strong> to confirm.
             </p>

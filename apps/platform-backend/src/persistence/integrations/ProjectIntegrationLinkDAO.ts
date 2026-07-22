@@ -25,15 +25,6 @@ export class ProjectIntegrationLinkDAO {
     const linkId = randomUUID()
     const timestamp = new Date()
 
-    // If this is set as primary, unset any existing primary for this project
-    if (input.isPrimary) {
-      await db
-        .updateTable('project_integrations')
-        .set({ is_primary: false })
-        .where('project_id', '=', input.projectId)
-        .execute()
-    }
-
     const result = await db
       .insertInto('project_integrations')
       .values({
@@ -129,13 +120,19 @@ export class ProjectIntegrationLinkDAO {
    * Set an integration as the primary one for a project
    * @deprecated Use ProjectIntegrationLinkService with category-specific columns instead
    */
-  async setPrimaryIntegration(projectId: string, integrationId: string): Promise<void> {
-    // First, unset any existing primary
-    await db
-      .updateTable('project_integrations')
-      .set({ is_primary: false })
-      .where('project_id', '=', projectId)
-      .execute()
+  async setPrimaryIntegration(
+    projectId: string,
+    integrationId: string,
+    siblingIntegrationIds: string[] = [],
+  ): Promise<void> {
+    if (siblingIntegrationIds.length > 0) {
+      await db
+        .updateTable('project_integrations')
+        .set({ is_primary: false })
+        .where('project_id', '=', projectId)
+        .where('integration_id', 'in', siblingIntegrationIds)
+        .execute()
+    }
 
     // Then set the new primary
     await db

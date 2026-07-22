@@ -63,18 +63,19 @@ router.post("/register", validateRegister, async (req, res) => {
       return res.status(400).json({ error: "Name is required" });
     }
 
-    const existingUser = await userDao.findByEmail(email);
-    if (existingUser) {
-      return res.status(409).json({ error: "Email already in use" });
-    }
-
     const passwordHash = await hashPassword(password);
-    const user = await userDao.createUser({
+    const user = await userDao.createInitialAdmin({
       email,
       name,
       passwordHash,
-      role: "admin",
     });
+
+    if (!user) {
+      return res.status(403).json({
+        error: "Initial setup has already been completed",
+        message: "Sign in or ask an administrator to create your account.",
+      });
+    }
 
     const { token, tokenHash, expiresAt } = createSessionToken();
     await sessionDao.createSession({
@@ -87,6 +88,17 @@ router.post("/register", validateRegister, async (req, res) => {
     res.status(201).json({ token, ...buildAuthResponse(user) });
   } catch (error) {
     logger.error("Error registering user", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/setup-status", async (_req, res) => {
+  try {
+    res.json({ requiresInitialUser: !(await userDao.hasAnyUsers()) });
+  } catch (error) {
+    logger.error("Error checking initial setup status", {
       error: error instanceof Error ? error.message : error,
     });
     res.status(500).json({ error: "Internal server error" });
@@ -145,7 +157,7 @@ router.get("/me", requireAuth, (req, res) => {
     return;
   }
 
-  res.json(buildAuthResponse(req.auth!.user));
+  res.json(buildAuthResponse(req.authContext!.user));
 });
 
 router.post("/logout", async (req, res) => {

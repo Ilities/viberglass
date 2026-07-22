@@ -40,7 +40,7 @@ export interface WebhookEventDefinition {
   description?: string
 }
 
-export interface IntegrationPlugin<Config = Record<string, unknown>> {
+export interface IntegrationPlugin<Config = object> {
   id: TicketSystem
   label: string
   category: IntegrationCategory

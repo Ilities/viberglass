@@ -173,7 +173,7 @@ export function ClankerDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[var(--gray-9)]">Loading clanker details...</div>
+        <div className="text-[var(--gray-9)]">Loading agent runner details...</div>
       </div>
     )
   }
@@ -181,7 +181,7 @@ export function ClankerDetailPage() {
   if (!clanker) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-red-600 dark:text-red-400">Clanker not found</div>
+        <div className="text-red-600 dark:text-red-400">Agent runner not found</div>
       </div>
     )
   }
@@ -374,11 +374,11 @@ export function ClankerDetailPage() {
 
   return (
     <>
-      <PageMeta title={clanker ? `${clanker.name} | Clanker` : 'Clanker'} />
+      <PageMeta title={clanker ? `${clanker.name} | Agent runner` : 'Agent runner'} />
       <div className="flex h-full flex-col">
         <Breadcrumbs
           items={[
-            { label: 'Clankers', href: '/clankers' },
+            { label: 'Agent runners', href: '/clankers' },
             { label: clanker.name },
           ]}
         />
@@ -418,7 +418,7 @@ export function ClankerDetailPage() {
           <div className="grid h-full gap-6 lg:grid-cols-12">
             <div className="space-y-1 lg:col-span-4 xl:col-span-3">
               <div className="app-frame rounded-lg p-4">
-                <Section title="Clanker Information">
+                <Section title="Agent runner information">
                   <InfoItem
                     icon={<StackIcon className="h-4 w-4" />}
                     label="Slug"

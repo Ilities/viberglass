@@ -9,6 +9,7 @@ export default {
   extensionsToTreatAsEsm: [".ts"],
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^uuid$": "<rootDir>/src/__tests__/helpers/uuid.ts",
   },
   transform: {
     "^.+\\.tsx?$": [

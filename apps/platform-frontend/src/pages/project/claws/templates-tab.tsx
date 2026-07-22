@@ -179,7 +179,7 @@ export function TemplatesTab({ projectId }: Props) {
         <div className="mt-6 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
           <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No task templates</h3>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Create a template to define what a scheduled claw will do.
+            Create a template to define what a schedule will do.
           </p>
           <Button color="brand" className="mt-6" onClick={openCreate}>
             <PlusIcon />
@@ -191,7 +191,7 @@ export function TemplatesTab({ projectId }: Props) {
           <TableHead>
             <TableRow>
               <TableHeader>Name</TableHeader>
-              <TableHeader>Clanker</TableHeader>
+              <TableHeader>Agent runner</TableHeader>
               <TableHeader>Credentials</TableHeader>
               <TableHeader>Description</TableHeader>
               <TableHeader>Updated</TableHeader>
@@ -236,7 +236,7 @@ export function TemplatesTab({ projectId }: Props) {
       <Dialog open={dialogOpen} onClose={() => !isSubmitting && setDialogOpen(false)} size="lg">
         <form onSubmit={handleSubmit}>
           <DialogTitle>{dialogMode === 'create' ? 'New Task Template' : 'Edit Template'}</DialogTitle>
-          <DialogDescription>Define the task a scheduled claw will execute.</DialogDescription>
+          <DialogDescription>Define the task this schedule will execute.</DialogDescription>
           <DialogBody>
             <Fieldset>
               <FieldGroup>
@@ -259,14 +259,14 @@ export function TemplatesTab({ projectId }: Props) {
                   />
                 </Field>
                 <Field>
-                  <Label>Clanker</Label>
+                  <Label>Agent runner</Label>
                   <Select
                     value={form.clankerId}
                     onChange={(v) => setForm((p) => ({ ...p, clankerId: v }))}
                     disabled={clankers.length === 0}
                   >
                     {clankers.length === 0 ? (
-                      <option value="">No clankers available</option>
+                      <option value="">No agent runners available</option>
                     ) : (
                       clankers.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -281,13 +281,13 @@ export function TemplatesTab({ projectId }: Props) {
                   <Textarea
                     value={form.taskInstructions}
                     onChange={(e) => setForm((p) => ({ ...p, taskInstructions: e.target.value }))}
-                    placeholder="Describe what the clanker should do each time this task runs..."
+                    placeholder="Describe what the agent runner should do each time this task runs..."
                     rows={6}
                   />
                 </Field>
                 <MultiSelect
                   label="Credentials"
-                  description="Secrets injected into the worker alongside the clanker's own credentials."
+                  description="Secrets injected into the worker alongside the agent runner's own credentials."
                   options={secretOptions}
                   value={form.secretIds}
                   onChange={(ids) => setForm((p) => ({ ...p, secretIds: ids }))}

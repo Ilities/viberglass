@@ -28,7 +28,9 @@ const clankerDAO = new ClankerDAO();
 const projectDAO = new ProjectDAO();
 const workflowService = new TicketWorkflowService();
 const commentService = new TicketPhaseDocumentCommentService();
-const planningApprovalService = new TicketPlanningApprovalService(feedbackService);
+const planningApprovalService = new TicketPlanningApprovalService(
+  feedbackService,
+);
 const researchService = new TicketResearchService();
 const planningService = new TicketPlanningService();
 const executionService = new TicketExecutionService();
@@ -45,7 +47,10 @@ const orchestrationService = new TicketPhaseOrchestrationService(
 export const mcpToolServices: McpToolServices = {
   clankers: {
     async list(filters) {
-      let clankers = await clankerDAO.listClankers(filters?.limit ?? 50, filters?.offset ?? 0);
+      let clankers = await clankerDAO.listClankers(
+        filters?.limit ?? 50,
+        filters?.offset ?? 0,
+      );
       if (filters?.status) {
         clankers = clankers.filter((c) => c.status === filters.status);
       }
@@ -55,7 +60,10 @@ export const mcpToolServices: McpToolServices = {
 
   projects: {
     async list(filters) {
-      const projects = await projectDAO.listProjects(filters?.limit ?? 50, filters?.offset ?? 0);
+      const projects = await projectDAO.listProjects(
+        filters?.limit ?? 50,
+        filters?.offset ?? 0,
+      );
       return { projects, total: projects.length };
     },
   },
@@ -66,10 +74,19 @@ export const mcpToolServices: McpToolServices = {
         limit: filters.limit ?? 50,
         offset: filters.offset ?? 0,
         projectId: filters.projectId,
-        statuses: (filters.statuses as Array<"open" | "in_progress" | "in_review" | "resolved">) ?? [],
+        statuses:
+          (filters.statuses as Array<
+            "open" | "in_progress" | "in_review" | "resolved"
+          >) ?? [],
         workflowPhases: (filters.workflowPhases as TicketWorkflowPhase[]) ?? [],
-        archived: (filters.archived as "exclude" | "only" | "include") ?? "exclude",
-        severity: filters.severity as "low" | "medium" | "high" | "critical" | undefined,
+        archived:
+          (filters.archived as "exclude" | "only" | "include") ?? "exclude",
+        severity: filters.severity as
+          | "low"
+          | "medium"
+          | "high"
+          | "critical"
+          | undefined,
         search: filters.search,
       });
     },
@@ -83,10 +100,29 @@ export const mcpToolServices: McpToolServices = {
         projectId: params.projectId,
         title: params.title,
         description: params.description,
-        severity: (params.severity as "low" | "medium" | "high" | "critical") ?? "medium",
+        severity:
+          (params.severity as "low" | "medium" | "high" | "critical") ??
+          "medium",
         category: params.category ?? "general",
-        ticketSystem: (params.ticketSystem as "jira" | "linear" | "github" | "gitlab" | "bitbucket" | "azure" | "asana" | "trello" | "monday" | "clickup" | "shortcut" | "slack" | "custom") ?? "github",
-        metadata: {},
+        ticketSystem:
+          (params.ticketSystem as
+            | "jira"
+            | "linear"
+            | "github"
+            | "gitlab"
+            | "bitbucket"
+            | "azure"
+            | "asana"
+            | "trello"
+            | "monday"
+            | "clickup"
+            | "shortcut"
+            | "slack"
+            | "custom") ?? "github",
+        metadata: {
+          timestamp: new Date().toISOString(),
+          timezone: "UTC",
+        },
         annotations: [],
         autoFixRequested: false,
       });
@@ -106,10 +142,17 @@ export const mcpToolServices: McpToolServices = {
     async getState(ticketId) {
       const workflow = await workflowService.getTicketWorkflow(ticketId);
 
-      const phases: Array<TicketWorkflowPhase> = ["research", "planning", "execution"];
+      const phases: Array<TicketWorkflowPhase> = [
+        "research",
+        "planning",
+        "execution",
+      ];
       const documents = await Promise.all(
         phases.map(async (phase) => {
-          const doc = await ticketPhaseDocumentDAO.getByTicketAndPhase(ticketId, phase);
+          const doc = await ticketPhaseDocumentDAO.getByTicketAndPhase(
+            ticketId,
+            phase,
+          );
           let comments: Array<{
             id: string;
             lineNumber: number;
@@ -154,7 +197,10 @@ export const mcpToolServices: McpToolServices = {
     },
 
     async requestApproval(ticketId, actor) {
-      const result = await planningApprovalService.requestApproval(ticketId, actor);
+      const result = await planningApprovalService.requestApproval(
+        ticketId,
+        actor,
+      );
       return {
         approvalState: result.document.approvalState,
       };
@@ -170,7 +216,10 @@ export const mcpToolServices: McpToolServices = {
     },
 
     async revokeApproval(ticketId, actor) {
-      const result = await planningApprovalService.revokeApproval(ticketId, actor);
+      const result = await planningApprovalService.revokeApproval(
+        ticketId,
+        actor,
+      );
       return {
         approvalState: result.document.approvalState,
       };

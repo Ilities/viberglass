@@ -6,6 +6,7 @@ import type {
   PaginatedResponse,
   Project,
   ProjectScmConfig,
+  ProjectReadiness,
   UpsertProjectScmConfigRequest,
   UpdateProjectRequest,
 } from '@viberglass/types'
@@ -82,6 +83,33 @@ export async function deleteProject(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error('Failed to delete project')
   }
+}
+
+export async function archiveProject(id: string): Promise<Project> {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}/archive`, { method: 'POST' })
+  if (!response.ok) throw new Error('Failed to archive project')
+  const data: ApiResponse<Project> = await response.json()
+  return data.data
+}
+
+export async function getProjectReadiness(id: string): Promise<ProjectReadiness> {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}/readiness`)
+  if (!response.ok) throw new Error('Failed to check project readiness')
+  const data: ApiResponse<ProjectReadiness> = await response.json()
+  return data.data
+}
+
+export interface ProjectDeletionSummary {
+  tickets: number
+  runs: number
+  sessions: number
+}
+
+export async function getProjectDeletionSummary(id: string): Promise<ProjectDeletionSummary> {
+  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}/deletion-summary`)
+  if (!response.ok) throw new Error('Failed to load affected record counts')
+  const data: ApiResponse<ProjectDeletionSummary> = await response.json()
+  return data.data
 }
 
 export async function getProjectScmConfig(projectId: string): Promise<ProjectScmConfig | null> {

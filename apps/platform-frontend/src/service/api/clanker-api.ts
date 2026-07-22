@@ -16,7 +16,7 @@ import type {
 export async function getClankers(limit: number = 50, offset: number = 0): Promise<Clanker[]> {
   const response = await apiFetch(`${API_BASE_URL}/api/clankers?limit=${limit}&offset=${offset}`)
   if (!response.ok) {
-    throw new Error('Failed to fetch clankers')
+    throw new Error('Failed to fetch agent runners')
   }
   const data: PaginatedResponse<Clanker> = await response.json()
   return data.data
@@ -26,9 +26,9 @@ export async function getClankerBySlug(slug: string): Promise<Clanker> {
   const response = await apiFetch(`${API_BASE_URL}/api/clankers/by-slug/${slug}`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Clanker not found')
+      throw new Error('Agent runner not found')
     }
-    throw new Error('Failed to fetch clanker')
+    throw new Error('Failed to fetch agent runner')
   }
   const data: ApiResponse<Clanker> = await response.json()
   return data.data
@@ -38,9 +38,9 @@ export async function getClanker(id: string): Promise<Clanker> {
   const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Clanker not found')
+      throw new Error('Agent runner not found')
     }
-    throw new Error('Failed to fetch clanker')
+    throw new Error('Failed to fetch agent runner')
   }
   const data: ApiResponse<Clanker> = await response.json()
   return data.data
@@ -56,7 +56,7 @@ export async function createClanker(clanker: CreateClankerRequest): Promise<Clan
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to create clanker')
+    throw new Error(error.message || 'Failed to create agent runner')
   }
   const data: ApiResponse<Clanker> = await response.json()
   return data.data
@@ -72,7 +72,7 @@ export async function updateClanker(id: string, updates: UpdateClankerRequest): 
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to update clanker')
+    throw new Error(error.message || 'Failed to update agent runner')
   }
   const data: ApiResponse<Clanker> = await response.json()
   return data.data
@@ -83,7 +83,7 @@ export async function deleteClanker(id: string): Promise<void> {
     method: 'DELETE',
   })
   if (!response.ok) {
-    throw new Error('Failed to delete clanker')
+    throw new Error('Failed to delete agent runner')
   }
 }
 
@@ -93,7 +93,7 @@ export async function startClanker(id: string): Promise<Clanker> {
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || error.error || 'Failed to start clanker')
+    throw new Error(error.message || error.error || 'Failed to start agent runner')
   }
   const data: ApiResponse<Clanker> = await response.json()
   return data.data
@@ -105,7 +105,7 @@ export async function deactivateClanker(id: string): Promise<Clanker> {
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || error.error || 'Failed to deactivate clanker')
+    throw new Error(error.message || error.error || 'Failed to deactivate agent runner')
   }
   const data: ApiResponse<Clanker> = await response.json()
   return data.data
@@ -120,9 +120,9 @@ export async function getClankerHealth(id: string): Promise<ClankerHealthStatus>
   const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/health`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Clanker not found')
+      throw new Error('Agent runner not found')
     }
-    throw new Error('Failed to fetch clanker health')
+    throw new Error('Failed to fetch agent runner health')
   }
   const data: ApiResponse<ClankerHealthStatus> = await response.json()
   return data.data

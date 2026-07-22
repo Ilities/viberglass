@@ -58,6 +58,7 @@ export interface ProjectsTable {
   agent_instructions: string | null;
   primary_ticketing_integration_id: string | null;
   primary_scm_integration_id: string | null;
+  archived_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -238,7 +239,7 @@ export interface JobsTable {
   base_branch: string | null;
   context: Json | null;
   settings: Json | null;
-  status: Generated<"queued" | "active" | "completed" | "failed">;
+  status: Generated<"queued" | "active" | "completed" | "failed" | "cancelled">;
   progress: Json | null;
   result: Json | null;
   error_message: string | null;

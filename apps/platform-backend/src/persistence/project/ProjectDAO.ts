@@ -153,6 +153,7 @@ export class ProjectDAO {
       agentInstructions: row.agent_instructions ?? undefined,
       primaryTicketingIntegrationId: row.primary_ticketing_integration_id ?? undefined,
       primaryScmIntegrationId: row.primary_scm_integration_id ?? undefined,
+      archivedAt: row.archived_at ? this.toISOString(row.archived_at) : undefined,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
       updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
     };
@@ -168,5 +169,20 @@ export class ProjectDAO {
     if (!row) return null;
 
     return this.mapRowToProject(row);
+  }
+
+  async archiveProject(id: string): Promise<ProjectConfig> {
+    const result = await db
+      .updateTable("projects")
+      .set({ archived_at: new Date(), updated_at: new Date() })
+      .where("id", "=", id)
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    return this.mapRowToProject(result);
+  }
+
+  private toISOString(value: Date | string): string {
+    return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
   }
 }

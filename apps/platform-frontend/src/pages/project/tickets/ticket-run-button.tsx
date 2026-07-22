@@ -24,7 +24,7 @@ export function TicketRunButton({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const activeClankers = clankers.filter((c) => c.status === 'active' && c.deploymentStrategyId)
   const defaultClanker = activeClankers[0]
-  const title = disabledReason || (activeClankers.length > 0 ? `Run with ${defaultClanker?.name}` : 'No active clankers')
+  const title = disabledReason || (activeClankers.length > 0 ? `Run with ${defaultClanker?.name}` : 'No active agent runners')
 
   return (
     <>

@@ -47,8 +47,8 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
   const selectedClanker = activeClankers.find((clanker) => clanker.id === selectedClankerId) ?? null
   const noClankersMessage =
     configuredClankers.length > 0
-      ? `You have ${configuredClankers.length} configured clanker${configuredClankers.length === 1 ? '' : 's'}, but none are "started".`
-      : 'No clankers are configured yet. Configure and start one before running this ticket.'
+      ? `You have ${configuredClankers.length} configured agent runner${configuredClankers.length === 1 ? '' : 's'}, but none are started.`
+      : 'No agent runners are configured yet. Configure and start one before running this ticket.'
 
   async function handleRun() {
     if (!ticket || !selectedClanker || !revisionMessage.trim()) return
@@ -64,12 +64,11 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
       toast.success(mode === 'research' ? 'Research revision started' : 'Planning revision started', {
         description: `Revising "${ticket.title}" with ${selectedClanker.name}`,
         action: {
-          label: 'View Job',
+          label: 'View run',
           onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
         },
       })
 
-      navigate(`/project/${project}/jobs/${jobId}`)
       onClose()
     } catch (error) {
       console.error('Failed to run revision:', error)
@@ -84,11 +83,11 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
 
   return (
     <Dialog open={open} onClose={onClose} size="lg">
-      <DialogTitle>{mode === 'research' ? 'Revise Research with Clanker' : 'Revise Planning with Clanker'}</DialogTitle>
+      <DialogTitle>{mode === 'research' ? 'Revise research' : 'Revise planning'}</DialogTitle>
       <DialogDescription>
         {mode === 'research'
-          ? 'Create a job to revise the research document for this ticket based on your feedback.'
-          : 'Create a job to revise the planning document for this ticket based on your feedback.'}
+          ? 'Start a run to revise the research document using your feedback.'
+          : 'Start a run to revise the planning document using your feedback.'}
       </DialogDescription>
       <DialogBody>
         <div className="space-y-6">
@@ -98,9 +97,9 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
           </div>
 
           <div>
-            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Select Clanker</h4>
+            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Agent runner</h4>
             {activeClankers.length > 0 ? (
-              <Listbox value={selectedClankerId} onChange={setSelectedClankerId} placeholder="Select a clanker...">
+              <Listbox value={selectedClankerId} onChange={setSelectedClankerId} placeholder="Select an agent runner...">
                 {activeClankers.map((clanker) => (
                   <ListboxOption key={clanker.id} value={clanker.id}>
                     <ListboxLabel>{clanker.name}</ListboxLabel>
@@ -112,11 +111,11 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
                 <p className="text-sm text-zinc-700 dark:text-zinc-300">{noClankersMessage}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button href="/clankers" color="brand">
-                    Configure Clankers
+                    Configure agent runners
                   </Button>
                   {firstConfiguredClanker && (
                     <Button href={`/clankers/${firstConfiguredClanker.slug}/edit`} outline>
-                      Open Clanker Configuration
+                      Open runner configuration
                     </Button>
                   )}
                 </div>
@@ -145,7 +144,7 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
           Cancel
         </Button>
         <Button color="brand" disabled={isRunning || !selectedClanker || !revisionMessage.trim()} onClick={handleRun}>
-          {isRunning ? 'Starting...' : `Revise with ${selectedClanker?.name || 'Clanker'}`}
+          {isRunning ? 'Starting...' : `Revise with ${selectedClanker?.name || 'agent runner'}`}
         </Button>
       </DialogActions>
     </Dialog>

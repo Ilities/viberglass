@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron, { type ScheduledTask as CronScheduledTask } from "node-cron";
 import logger from "../../config/logger";
 import { ClawScheduleDAO } from "../../persistence/claw/ClawScheduleDAO";
 import { ClawOrchestrationService } from "./ClawOrchestrationService";
@@ -7,7 +7,7 @@ import { ClawSchedule, intervalToCron } from "@viberglass/types";
 interface ScheduledTask {
   id: string;
   schedule: ClawSchedule;
-  cronTask: cron.ScheduledTask;
+  cronTask: CronScheduledTask;
 }
 
 /**
@@ -174,7 +174,6 @@ export class ClawSchedulingEngine {
           });
         },
         {
-          scheduled: true,
           timezone: schedule.timezone,
         },
       );
@@ -250,13 +249,19 @@ export class ClawSchedulingEngine {
       try {
         await this.scheduleDAO.pauseSchedule(scheduleId);
         this.removeSchedule(scheduleId);
-        logger.warn("Schedule auto-paused after execution failure to prevent retry loop", {
-          scheduleId,
-        });
+        logger.warn(
+          "Schedule auto-paused after execution failure to prevent retry loop",
+          {
+            scheduleId,
+          },
+        );
       } catch (pauseError) {
         logger.error("Failed to auto-pause schedule after execution failure", {
           scheduleId,
-          error: pauseError instanceof Error ? pauseError.message : String(pauseError),
+          error:
+            pauseError instanceof Error
+              ? pauseError.message
+              : String(pauseError),
         });
       }
     }

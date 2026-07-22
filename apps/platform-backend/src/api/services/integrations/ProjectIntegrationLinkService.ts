@@ -1,11 +1,9 @@
-import { IntegrationRegistry } from "@viberglass/integration-core";
 import type { TicketSystem } from '@viberglass/types'
 import { IntegrationDAO, ProjectIntegrationLinkDAO } from '../../../persistence/integrations'
 import { ProjectDAO } from '../../../persistence/project/ProjectDAO'
 import { IntegrationRouteServiceError } from './errors'
 import type { LinkProjectIntegrationInput } from './types'
-
-const integrationRegistry = new IntegrationRegistry();
+import { integrationRegistry } from '../../../integrations/registerIntegrationPlugins'
 
 export class ProjectIntegrationLinkService {
   constructor(
@@ -129,12 +127,25 @@ export class ProjectIntegrationLinkService {
       throw new IntegrationRouteServiceError(404, 'Integration is not linked to this project')
     }
 
-    await this.projectLinkDAO.setPrimaryIntegration(projectId, integrationId)
-
-    // Also update the category-specific primary column
     const integration = await this.integrationDAO.getIntegration(integrationId)
-    if (integration) {
-      await this.updateProjectPrimaryIntegration(projectId, integration.system, integrationId)
+    if (!integration) {
+      throw new IntegrationRouteServiceError(404, 'Integration not found')
     }
+
+    const plugin = integrationRegistry.get(integration.system)
+    if (!plugin || plugin.category === 'inbound') {
+      throw new IntegrationRouteServiceError(400, 'Inbound integrations cannot be primary')
+    }
+
+    const links = await this.projectLinkDAO.getProjectIntegrations(projectId)
+    const siblingIntegrationIds = links
+      .filter((link) => {
+        const linkedPlugin = integrationRegistry.get(link.integration.system)
+        return link.integrationId !== integrationId && linkedPlugin?.category === plugin.category
+      })
+      .map((link) => link.integrationId)
+
+    await this.projectLinkDAO.setPrimaryIntegration(projectId, integrationId, siblingIntegrationIds)
+    await this.updateProjectPrimaryIntegration(projectId, integration.system, integrationId)
   }
 }

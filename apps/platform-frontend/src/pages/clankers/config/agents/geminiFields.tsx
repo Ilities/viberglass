@@ -11,7 +11,7 @@ export function GeminiAgentFields({ model, onModelChange }: GeminiAgentFieldsPro
     <Field>
       <Label>Gemini Model</Label>
       <Description>
-        Optional model passed as <code>--model</code> to the Gemini CLI for this clanker.
+        Optional model passed as <code>--model</code> to the Gemini CLI for this agent runner.
       </Description>
       <Input
         value={model}

@@ -5,12 +5,15 @@ import {
   type Severity,
   type TicketArchiveFilter,
   type TicketLifecycleStatus,
+  type TicketSystem,
   type TicketWorkflowPhase,
 } from "@viberglass/types";
 import type { Router } from "express";
 import logger from "../../../config/logger";
 import type { ProjectDAO } from "../../../persistence/project/ProjectDAO";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
+import type { IntegrationDAO } from "../../../persistence/integrations";
+import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
 import {
   upload,
   type FileUploadService,
@@ -29,6 +32,7 @@ interface TicketCrudMediaRouteDependencies {
   ticketService: TicketDAO;
   projectService: ProjectDAO;
   fileUploadService: FileUploadService;
+  integrationDAO: IntegrationDAO;
 }
 
 const uuidRegex =
@@ -154,6 +158,7 @@ export function registerTicketCrudMediaRoutes(
     ticketService,
     projectService,
     fileUploadService,
+    integrationDAO,
   }: TicketCrudMediaRouteDependencies,
 ): void {
   // POST /api/tickets - Create a new ticket
@@ -188,10 +193,28 @@ export function registerTicketCrudMediaRoutes(
           }
         }
 
+        const project = await projectService.getProject(req.body.projectId);
+        if (!project) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+
+        let ticketSystem: TicketSystem = "custom";
+        if (project.primaryTicketingIntegrationId) {
+          const integration = await integrationDAO.getIntegration(
+            project.primaryTicketingIntegrationId,
+          );
+          const plugin =
+            integration && integrationRegistry.get(integration.system);
+          if (integration && plugin?.category === "ticketing") {
+            ticketSystem = integration.system;
+          }
+        }
+
         const ticket = await ticketService.createTicket(
-          req.body,
+          { ...req.body, ticketSystem },
           screenshotAsset,
           recordingAsset,
+          req.authContext?.user.email,
         );
 
         res.status(201).json({

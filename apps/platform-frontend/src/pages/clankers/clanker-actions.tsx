@@ -34,7 +34,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
       }
     } catch (error) {
       console.error('Failed to start clanker:', error)
-      setActionError(error instanceof Error ? error.message : 'Failed to start clanker')
+      setActionError(error instanceof Error ? error.message : 'Failed to start agent runner')
     } finally {
       setIsStarting(false)
     }
@@ -52,7 +52,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
       }
     } catch (error) {
       console.error('Failed to deactivate clanker:', error)
-      setActionError(error instanceof Error ? error.message : 'Failed to deactivate clanker')
+      setActionError(error instanceof Error ? error.message : 'Failed to deactivate agent runner')
     } finally {
       setIsDeactivating(false)
     }
@@ -90,19 +90,19 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
         surface
         color="red"
         onClick={() => setShowDeleteDialog(true)}
-        aria-label="Delete clanker"
+        aria-label="Delete agent runner"
       >
         <TrashIcon />
       </Button>
 
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete Clanker</DialogTitle>
+        <DialogTitle>Delete agent runner</DialogTitle>
         <DialogDescription>
           Are you sure you want to delete &quot;{clanker.name}&quot;? This action cannot be undone.
         </DialogDescription>
         <DialogBody>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            All configuration and settings for this clanker will be permanently removed.
+            All configuration and settings for this agent runner will be permanently removed.
           </p>
         </DialogBody>
         <DialogActions>

@@ -6,3 +6,12 @@ export const JOB_KIND = {
 } as const
 
 export type JobKind = (typeof JOB_KIND)[keyof typeof JOB_KIND]
+
+export type JobStatus = 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
+
+export interface JobFailure {
+  code: string
+  summary: string
+  technicalDetail?: string
+  retryable: boolean
+}

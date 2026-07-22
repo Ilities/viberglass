@@ -142,10 +142,9 @@ describe("ticket phase comment routes", () => {
 
     await handler(req, res);
 
-    expect(mockTicketPhaseDocumentCommentService.listComments).toHaveBeenCalledWith(
-      "11111111-1111-4111-8111-111111111111",
-      "research",
-    );
+    expect(
+      mockTicketPhaseDocumentCommentService.listComments,
+    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", "research");
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       data: [
@@ -197,7 +196,7 @@ describe("ticket phase comment routes", () => {
         lineNumber: 4,
         content: "This needs a rollback plan.",
       },
-      auth: {
+      authContext: {
         user: {
           email: "reviewer@example.com",
         },
@@ -210,15 +209,13 @@ describe("ticket phase comment routes", () => {
 
     await handler(req, res);
 
-    expect(mockTicketPhaseDocumentCommentService.createComment).toHaveBeenCalledWith(
-      "11111111-1111-4111-8111-111111111111",
-      "planning",
-      {
-        lineNumber: 4,
-        content: "This needs a rollback plan.",
-        actor: "reviewer@example.com",
-      },
-    );
+    expect(
+      mockTicketPhaseDocumentCommentService.createComment,
+    ).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", "planning", {
+      lineNumber: 4,
+      content: "This needs a rollback plan.",
+      actor: "reviewer@example.com",
+    });
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
@@ -255,7 +252,7 @@ describe("ticket phase comment routes", () => {
       body: {
         status: "resolved",
       },
-      auth: {
+      authContext: {
         user: {
           email: "reviewer@example.com",
         },
@@ -268,7 +265,9 @@ describe("ticket phase comment routes", () => {
 
     await handler(req, res);
 
-    expect(mockTicketPhaseDocumentCommentService.updateComment).toHaveBeenCalledWith(
+    expect(
+      mockTicketPhaseDocumentCommentService.updateComment,
+    ).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
       "research",
       "22222222-2222-4222-8222-222222222222",

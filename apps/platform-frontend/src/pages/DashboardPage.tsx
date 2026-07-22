@@ -159,7 +159,7 @@ export function DashboardPage() {
             New Project
           </Button>
           <Link href="/clankers" className="ui-text-action">
-            Manage Clankers
+            Manage agent runners
           </Link>
         </div>
       </div>
@@ -196,7 +196,7 @@ export function DashboardPage() {
             <div className="mt-4">
               <EmptyBay
                 title="[ STARS ARE QUIET ]"
-                description="No ticket pings or job thruster trails yet. That calm will not last. The dolphins tried to warn us."
+                description="No ticket pings or run thruster trails yet. That calm will not last. The dolphins tried to warn us."
                 asciiArt={<AsciiWhale />}
               />
             </div>
@@ -232,10 +232,10 @@ export function DashboardPage() {
               <div className="mt-4">
                 <EmptyBay
                   title="[ NO TIN COMPANIONS ]"
-                  description="Your loyal clankers have not yet been assembled. Even Marvin started somewhere."
+                  description="Your agent runners have not yet been configured. Even Marvin started somewhere."
                   asciiArt={<AsciiRobot />}
                   href="/clankers/new"
-                  actionLabel="Assemble Clanker"
+                  actionLabel="Configure agent runner"
                 />
               </div>
             ) : (
@@ -260,7 +260,7 @@ export function DashboardPage() {
                   </Link>
                 ))}
                 <Link href="/clankers" className="ui-text-action">
-                  View All Clankers
+                  View all agent runners
                 </Link>
               </div>
             )}
@@ -270,7 +270,7 @@ export function DashboardPage() {
             <Subheading>Deck Mood</Subheading>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
               {activeClankers > 0
-                ? `Crew alert: ${activeClankers} clanker${activeClankers === 1 ? '' : 's'} standing by for chaos. Share and Enjoy.`
+                ? `Crew alert: ${activeClankers} agent runner${activeClankers === 1 ? '' : 's'} standing by for chaos. Share and Enjoy.`
                 : 'Crew alert: nobody is on duty yet. Marvin would call this "a waste of consciousness."'}
             </p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">

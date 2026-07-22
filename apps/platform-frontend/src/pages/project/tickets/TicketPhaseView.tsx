@@ -1,14 +1,14 @@
 import { Badge } from '@/components/badge'
-import { ClipboardIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
+import { JobListItem } from '@/service/api/job-api'
+import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
 import type { ApprovalState } from '@/service/api/ticket-api'
-import { type AgentSession, listSessionsForTicket } from '@/service/api/session-api'
+import { ClipboardIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
 import { TICKET_WORKFLOW_PHASE, type Clanker, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { PhaseSection } from './phase-section'
 import { TicketLogsSummary } from './phase-logs'
+import { PhaseSection } from './phase-section'
 import { formatDate, formatDateTime, formatTicketStatus, getSeverityBadge } from './ticket-display'
-import { JobListItem } from '@/service/api/job-api'
 
 interface TicketPhaseViewProps {
   ticket: Ticket
@@ -64,9 +64,7 @@ export function TicketPhaseView({
   }, [loadSessions])
 
   const activeSessionForPhase = (mode: string) =>
-    sessions.find(
-      (s) => s.mode === mode && ['active', 'waiting_on_user', 'waiting_on_approval'].includes(s.status),
-    )
+    sessions.find((s) => s.mode === mode && ['active', 'waiting_on_user', 'waiting_on_approval'].includes(s.status))
 
   return (
     <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
@@ -140,7 +138,7 @@ export function TicketPhaseView({
               <SidebarField label="Created">{formatDate(ticket.createdAt)}</SidebarField>
               <SidebarField label="Updated">{formatDateTime(ticket.updatedAt)}</SidebarField>
               {ticket.metadata?.timestamp && (
-                <SidebarField label="Reported">{formatDate(ticket.metadata.timestamp as string)}</SidebarField>
+                <SidebarField label="Reported">{formatDate(ticket.metadata.timestamp)}</SidebarField>
               )}
             </div>
           </div>
@@ -168,7 +166,7 @@ export function TicketPhaseView({
         </div>
       </div>
 
-      <div className="lg:col-span-9 xl:col-span-9 space-y-4">
+      <div className="space-y-4 lg:col-span-9 xl:col-span-9">
         {ticket.description && (
           <div className="rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-6">
             <h3 className="mb-3 text-sm font-semibold text-[var(--gray-12)]">Description</h3>
@@ -217,6 +215,33 @@ export function TicketPhaseView({
           activeSession={activeSessionForPhase('execution')}
           onSessionsChanged={loadSessions}
         />
+
+        {sessions.some((session) => ['completed', 'failed', 'cancelled'].includes(session.status)) ? (
+          <section className="rounded-xl border border-[var(--gray-5)] bg-[var(--gray-1)] p-5">
+            <h3 className="text-sm font-semibold text-[var(--gray-12)]">Collaboration history</h3>
+            <div className="mt-3 space-y-2">
+              {sessions
+                .filter((session) => ['completed', 'failed', 'cancelled'].includes(session.status))
+                .map((session) => (
+                  <a
+                    key={session.id}
+                    href={`/project/${project}/sessions/${session.id}`}
+                    className="flex items-center justify-between rounded-lg border border-[var(--gray-5)] px-3 py-2 text-sm hover:bg-[var(--gray-2)]"
+                  >
+                    <span className="text-[var(--gray-12)] capitalize">{session.mode} session</span>
+                    <span className="flex items-center gap-2">
+                      <Badge
+                        color={session.status === 'completed' ? 'green' : session.status === 'failed' ? 'red' : 'zinc'}
+                      >
+                        {session.status}
+                      </Badge>
+                      <span className="text-xs text-[var(--gray-9)]">{formatDateTime(session.updatedAt)}</span>
+                    </span>
+                  </a>
+                ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   )

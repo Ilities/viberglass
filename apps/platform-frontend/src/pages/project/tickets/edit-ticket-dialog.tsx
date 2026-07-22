@@ -4,14 +4,7 @@ import { Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
-import {
-  TICKET_STATUS,
-  TICKET_WORKFLOW_PHASE,
-  type Severity,
-  type Ticket,
-  type TicketLifecycleStatus,
-  type TicketWorkflowPhase,
-} from '@viberglass/types'
+import { TICKET_STATUS, type Severity, type Ticket, type TicketLifecycleStatus } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 export interface EditTicketValues {
@@ -20,7 +13,6 @@ export interface EditTicketValues {
   severity: Severity
   category: string
   status: TicketLifecycleStatus
-  workflowPhase: TicketWorkflowPhase
 }
 
 function isSeverity(value: string): value is Severity {
@@ -28,14 +20,11 @@ function isSeverity(value: string): value is Severity {
 }
 
 function isTicketStatus(value: string): value is TicketLifecycleStatus {
-  return value === TICKET_STATUS.OPEN || value === TICKET_STATUS.IN_PROGRESS || value === TICKET_STATUS.IN_REVIEW || value === TICKET_STATUS.RESOLVED
-}
-
-function isWorkflowPhase(value: string): value is TicketWorkflowPhase {
   return (
-    value === TICKET_WORKFLOW_PHASE.RESEARCH ||
-    value === TICKET_WORKFLOW_PHASE.PLANNING ||
-    value === TICKET_WORKFLOW_PHASE.EXECUTION
+    value === TICKET_STATUS.OPEN ||
+    value === TICKET_STATUS.IN_PROGRESS ||
+    value === TICKET_STATUS.IN_REVIEW ||
+    value === TICKET_STATUS.RESOLVED
   )
 }
 
@@ -52,7 +41,6 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
   const [severity, setSeverity] = useState<Severity>(ticket.severity)
   const [category, setCategory] = useState(ticket.category)
   const [status, setStatus] = useState<TicketLifecycleStatus>(ticket.status)
-  const [workflowPhase, setWorkflowPhase] = useState<TicketWorkflowPhase>(ticket.workflowPhase)
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
@@ -65,7 +53,6 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
     setSeverity(ticket.severity)
     setCategory(ticket.category)
     setStatus(ticket.status)
-    setWorkflowPhase(ticket.workflowPhase)
   }, [open, ticket])
 
   const handleSave = async () => {
@@ -77,7 +64,6 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
         severity,
         category,
         status,
-        workflowPhase,
       })
     } finally {
       setIsSaving(false)
@@ -104,11 +90,14 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
           <div className="grid grid-cols-2 gap-4">
             <Field>
               <Label>Severity</Label>
-              <Select value={severity} onChange={(value) => {
-                if (isSeverity(value)) {
-                  setSeverity(value)
-                }
-              }}>
+              <Select
+                value={severity}
+                onChange={(value) => {
+                  if (isSeverity(value)) {
+                    setSeverity(value)
+                  }
+                }}
+              >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -122,34 +111,22 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field>
-              <Label>Status</Label>
-              <Select value={status} onChange={(value) => {
+          <Field>
+            <Label>Status</Label>
+            <Select
+              value={status}
+              onChange={(value) => {
                 if (isTicketStatus(value)) {
                   setStatus(value)
                 }
-              }}>
-                <option value={TICKET_STATUS.OPEN}>Open</option>
-                <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
-                <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
-                <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
-              </Select>
-            </Field>
-
-            <Field>
-              <Label>Workflow Phase</Label>
-              <Select value={workflowPhase} onChange={(value) => {
-                if (isWorkflowPhase(value)) {
-                  setWorkflowPhase(value)
-                }
-              }}>
-                <option value={TICKET_WORKFLOW_PHASE.RESEARCH}>Research</option>
-                <option value={TICKET_WORKFLOW_PHASE.PLANNING}>Planning</option>
-                <option value={TICKET_WORKFLOW_PHASE.EXECUTION}>Execution</option>
-              </Select>
-            </Field>
-          </div>
+              }}
+            >
+              <option value={TICKET_STATUS.OPEN}>Open</option>
+              <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
+              <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
+              <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
+            </Select>
+          </Field>
         </div>
       </DialogBody>
 

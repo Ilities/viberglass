@@ -39,10 +39,13 @@ export function registerTicketAgentSessionRoutes(
       if (!initialMessage || typeof initialMessage !== "string") {
         return res
           .status(400)
-          .json({ error: "Bad request", message: "initialMessage is required" });
+          .json({
+            error: "Bad request",
+            message: "initialMessage is required",
+          });
       }
 
-      const userId = req.auth?.user.id;
+      const userId = req.authContext?.user.id;
       const result = await launchService.launch(
         {
           ticketId,

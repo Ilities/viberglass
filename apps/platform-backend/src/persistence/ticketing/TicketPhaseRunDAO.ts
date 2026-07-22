@@ -25,7 +25,7 @@ export interface LatestPhaseRun {
   clankerName: string | null;
   clankerSlug: string | null;
   jobKind: JobKind;
-  status: "queued" | "active" | "completed" | "failed";
+  status: "queued" | "active" | "completed" | "failed" | "cancelled";
   createdAt: Date;
   startedAt: Date | null;
   finishedAt: Date | null;

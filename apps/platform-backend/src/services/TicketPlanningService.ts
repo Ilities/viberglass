@@ -41,7 +41,7 @@ export interface RunPlanningOptions {
 export interface PlanningRunView {
   id: string;
   jobId: string;
-  status: "queued" | "active" | "completed" | "failed";
+  status: "queued" | "active" | "completed" | "failed" | "cancelled";
   clankerId: string;
   clankerName: string | null;
   clankerSlug: string | null;

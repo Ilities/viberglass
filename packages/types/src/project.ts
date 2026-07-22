@@ -97,8 +97,33 @@ export interface Project {
    * Replaces the ambiguous isPrimary flag on project_integrations.
    */
   primaryScmIntegrationId?: string | null
+  archivedAt?: string | null
   createdAt: string
   updatedAt: string
+}
+
+export type ProjectReadinessState = 'ready' | 'missing' | 'invalid' | 'unavailable'
+
+export type ProjectReadinessCode =
+  | 'configure_repository'
+  | 'select_scm_credential'
+  | 'replace_expired_scm_credential'
+  | 'start_agent_runner'
+  | 'configure_agent_credentials'
+
+export interface ProjectReadinessCheck {
+  key: 'repository' | 'scmCredential' | 'agentRunner' | 'agentCredentials'
+  label: string
+  state: ProjectReadinessState
+  code?: ProjectReadinessCode
+  summary: string
+  remediationUrl?: string
+}
+
+export interface ProjectReadiness {
+  projectId: string
+  automationAvailable: boolean
+  checks: ProjectReadinessCheck[]
 }
 
 // Request body for creating a project
@@ -161,6 +186,7 @@ export interface ProjectSummary {
    * Replaces the deprecated ticketSystem field.
    */
   primaryTicketingIntegrationId?: string | null
+  archivedAt?: string | null
   createdAt: string
   updatedAt: string
   // Stats (computed on frontend or via separate endpoint)

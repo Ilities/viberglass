@@ -69,6 +69,10 @@ docker compose up
 
 The platform is available at http://localhost:3000. The backend API runs on port 8888.
 
+With authentication enabled, opening the login page against an empty database starts a one-time
+administrator setup. The first account is created as an administrator and signed in immediately;
+after that, new users can only be added by an administrator.
+
 On first run, the backend runs database migrations automatically. If you need to run them manually:
 
 ```bash

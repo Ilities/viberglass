@@ -161,7 +161,7 @@ export function TicketsTable({
                   <Button
                     plain
                     onClick={(event) => handleRunClick(ticket, event)}
-                    title={canRun ? `Run with clanker` : 'No active clankers available'}
+                    title={canRun ? 'Start a run' : 'No active agent runners available'}
                   >
                     <PlayIcon className="h-4 w-4" />
                   </Button>

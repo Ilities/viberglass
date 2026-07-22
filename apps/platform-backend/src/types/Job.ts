@@ -167,7 +167,7 @@ export interface JobResult {
 }
 
 // Job status type from database schema
-export type JobStatus = "queued" | "active" | "completed" | "failed";
+export type JobStatus = "queued" | "active" | "completed" | "failed" | "cancelled";
 export interface JobClankerInfo {
   id: string;
   name: string;

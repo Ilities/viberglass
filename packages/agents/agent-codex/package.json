@@ -16,7 +16,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "jest",
-    "test:unit": "jest --testPathPattern=unit"
+    "test:unit": "jest"
   },
   "dependencies": {
     "@viberglass/agent-core": "*",

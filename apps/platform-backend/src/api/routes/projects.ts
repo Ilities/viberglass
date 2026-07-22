@@ -42,6 +42,7 @@ import type {
 } from "@viberglass/types";
 import { INTEGRATION_DESCRIPTIONS } from "@viberglass/types";
 import { AGENT_SESSION_ACTIVE_STATUSES } from "../../types/agentSession";
+import { ProjectReadinessService } from "../../services/ProjectReadinessService";
 
 const router = express.Router();
 const projectService = new ProjectDAO();
@@ -59,6 +60,7 @@ const agentSessionQueryService = new AgentSessionQueryService(
   new AgentSessionEventDAO(),
   new AgentPendingRequestDAO(),
 );
+const projectReadinessService = new ProjectReadinessService();
 
 router.use(requireAuth);
 
@@ -301,6 +303,26 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+router.get(
+  "/:projectId/readiness",
+  validateUuidParam("projectId"),
+  async (req, res) => {
+    try {
+      const readiness = await projectReadinessService.getReadiness(req.params.projectId);
+      if (!readiness) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      return res.json({ success: true, data: readiness });
+    } catch (error) {
+      logger.error("Error fetching project readiness", {
+        projectId: req.params.projectId,
+        error: error instanceof Error ? error.message : error,
+      });
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
 
 router.get(
   "/:projectId/scm-config",

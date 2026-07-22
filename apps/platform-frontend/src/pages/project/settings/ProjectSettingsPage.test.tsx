@@ -306,7 +306,8 @@ describe('ProjectSettingsPage', () => {
         PROJECT.id,
         expect.objectContaining({
           name: PROJECT.name,
-          ticketSystem: 'jira',
+          primaryTicketingIntegrationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          primaryScmIntegrationId: INITIAL_SCM_CONFIG.integrationId,
         })
       )
       expect(mockedUpsertProjectScmConfig).toHaveBeenCalledWith(PROJECT.id, {

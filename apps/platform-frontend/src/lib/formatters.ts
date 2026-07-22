@@ -128,6 +128,8 @@ export function formatJobStatus(status: string): { label: string; color: 'green'
       return { label: 'Queued', color: 'amber' }
     case 'failed':
       return { label: 'Failed', color: 'red' }
+    case 'cancelled':
+      return { label: 'Cancelled', color: 'zinc' }
     default:
       return { label: 'Unknown', color: 'zinc' }
   }

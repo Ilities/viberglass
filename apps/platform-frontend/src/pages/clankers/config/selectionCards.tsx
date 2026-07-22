@@ -56,7 +56,7 @@ function getStrategyVisual(strategyName: string): StrategyVisual {
     return {
       logoPath: '/logos/strategies/ecs.svg',
       logoAlt: 'AWS ECS logo',
-      summary: 'Runs jobs as ECS tasks with managed or pre-built resources.',
+      summary: 'Runs work as ECS tasks with managed or pre-built resources.',
     }
   }
 
@@ -71,7 +71,7 @@ function getStrategyVisual(strategyName: string): StrategyVisual {
   return {
     logoPath: '/logos/strategies/docker.svg',
     logoAlt: 'Docker logo',
-    summary: 'Runs jobs in a Docker image, ideal for local or custom infra.',
+    summary: 'Runs work in a Docker image, ideal for local or custom infrastructure.',
   }
 }
 

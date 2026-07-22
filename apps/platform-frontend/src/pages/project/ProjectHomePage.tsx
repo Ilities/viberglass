@@ -4,6 +4,7 @@ import { FunLoading } from '@/components/fun-loading'
 import { Heading } from '@/components/heading'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
+import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { Timestamp } from '@/components/timestamp'
 import { TruncatedText } from '@/components/truncated-text'
 import type { Clanker, JobListItem, TicketStats, TicketSummary } from '@/data'
@@ -17,12 +18,13 @@ import {
   getTicketStats,
 } from '@/data'
 import { formatJobStatus, jobKindBadgeColor } from '@/lib/formatters'
+import { useProject } from '@/context/project-context'
 import { formatTicketWorkflowPhase } from './tickets/ticket-display'
 import { TICKET_STATUS } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-// ASCII Art decorations for Clankers
+// ASCII art decorations for agent runners
 const clankerAvatars: Record<string, string> = {
   active: `[^_^]`,
   inactive: `[._.]`,
@@ -200,7 +202,7 @@ function TimelineBar({ tickets, jobs }: { tickets: TicketSummary[]; jobs: JobLis
                         height: `${(data.jobCount / maxActivity) * 100}%`,
                         minHeight: data.jobCount > 0 ? '4px' : '0',
                       }}
-                      title={`${data.jobCount} jobs at ${data.label}`}
+                      title={`${data.jobCount} runs at ${data.label}`}
                     />
                   )}
                   {/* Empty state indicator */}
@@ -225,7 +227,7 @@ function TimelineBar({ tickets, jobs }: { tickets: TicketSummary[]; jobs: JobLis
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-sm bg-sky-500 dark:bg-sky-600" />
-          <span className="text-xs text-gray-500 dark:text-gray-400">Jobs</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Runs</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-full bg-brand-burnt-orange" />
@@ -358,6 +360,7 @@ function SectionHeader({ title, count, action }: { title: string; count?: number
 
 export function ProjectHomePage() {
   const { project } = useParams<{ project: string }>()
+  const { project: projectDetails } = useProject()
   const [tickets, setTickets] = useState<TicketSummary[]>([])
   const [stats, setStats] = useState<TicketStats | null>(null)
   const [clankers, setClankers] = useState<Clanker[]>([])
@@ -430,11 +433,13 @@ export function ProjectHomePage() {
             <Button href={`/project/${project}/tickets/create`} outline className="w-full justify-center sm:w-auto">
               Create Ticket
             </Button>
-            <Button href={`/project/${project}/claws`} className="w-full justify-center sm:w-auto">
-              View Claws
+            <Button href={`/project/${project}/tickets`} className="w-full justify-center sm:w-auto">
+              View tickets
             </Button>
           </div>
         </div>
+
+        {projectDetails && <ProjectReadinessBanner projectId={projectDetails.id} />}
 
         <TimelineBar tickets={tickets} jobs={jobs} />
 
@@ -456,7 +461,7 @@ export function ProjectHomePage() {
                 <SectionHeader
                   title="In Progress"
                   count={inProgressTickets.length}
-                  action={<span className="text-xs text-gray-500 dark:text-gray-400">Clankers working</span>}
+                  action={<span className="text-xs text-gray-500 dark:text-gray-400">Agent runners working</span>}
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
                   {inProgressTickets.map((ticket) => (
@@ -502,7 +507,7 @@ export function ProjectHomePage() {
             {(activeJobs.length > 0 || queuedJobs.length > 0) && (
               <section>
                 <SectionHeader
-                  title="Job Queue"
+                  title="Active runs"
                   count={jobs.length}
                   action={
                     <Link href={`/project/${project}/jobs`} className="text-xs text-brand-burnt-orange hover:underline">
@@ -525,7 +530,7 @@ export function ProjectHomePage() {
           <div className="space-y-6">
             <section>
               <SectionHeader
-                title="Clanker Fleet"
+                title="Agent runners"
                 count={clankers.length}
                 action={
                   <Link href="/clankers" className="text-xs text-brand-burnt-orange hover:underline">
@@ -540,7 +545,7 @@ export function ProjectHomePage() {
               </div>
               {clankers.length === 0 && (
                 <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
-                  <p className="text-gray-500 dark:text-gray-400">No active Clankers</p>
+                  <p className="text-gray-500 dark:text-gray-400">No active agent runners</p>
                   <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                     The fleet is dormant. Marvin says: "Brain the size of a planet, and they ask me to wait."
                   </p>

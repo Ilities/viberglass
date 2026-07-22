@@ -248,7 +248,7 @@ function ApplicationLayoutContent() {
 
   const platformNavItems: NavLinkItem[] = [
     { href: '/', label: 'Dashboard', current: !isProjectRoute && pathname === '/', icon: <HomeIcon /> },
-    { href: '/clankers', label: 'Clankers', current: pathname.startsWith('/clankers'), icon: <RocketIcon /> },
+    { href: '/clankers', label: 'Agent runners', current: pathname.startsWith('/clankers'), icon: <RocketIcon /> },
     { href: '/secrets', label: 'Secrets', current: pathname.startsWith('/secrets'), icon: <LockClosedIcon /> },
     {
       href: '/settings/integrations',
@@ -299,22 +299,25 @@ function ApplicationLayoutContent() {
       icon: <ClipboardCopyIcon />,
     },
     {
-      href: `${basePath}/claws`,
-      label: 'Claws',
-      current: pathname.startsWith(`${basePath}/claws`),
-      icon: <ClockIcon />,
-    },
-    {
-      href: `${basePath}/jobs`,
-      label: 'Jobs',
-      current: pathname.startsWith(`${basePath}/jobs`),
-      icon: <ActivityLogIcon />,
-    },
-    {
       href: `${basePath}/settings`,
       label: 'Settings',
       current: pathname.startsWith(`${basePath}/settings`),
       icon: <GearIcon />,
+    },
+  ]
+
+  const projectOperationsNavItems: NavLinkItem[] = [
+    {
+      href: `${basePath}/jobs`,
+      label: 'Runs',
+      current: pathname.startsWith(`${basePath}/jobs`),
+      icon: <ActivityLogIcon />,
+    },
+    {
+      href: `${basePath}/claws`,
+      label: 'Schedules',
+      current: pathname.startsWith(`${basePath}/claws`),
+      icon: <ClockIcon />,
     },
   ]
 
@@ -389,6 +392,17 @@ function ApplicationLayoutContent() {
                     </SidebarItem>
                   ))}
                 </SidebarSection>
+                {isProjectRoute ? (
+                  <SidebarSection>
+                    <SidebarHeading>Operations</SidebarHeading>
+                    {projectOperationsNavItems.map((item) => (
+                      <SidebarItem key={item.href} href={item.href} current={item.current}>
+                        <Icon>{item.icon}</Icon>
+                        <SidebarLabel>{item.label}</SidebarLabel>
+                      </SidebarItem>
+                    ))}
+                  </SidebarSection>
+                ) : null}
                 {isProjectRoute && projectSlug ? (
                   <ProjectActivitySidebar projectSlug={projectSlug} />
                 ) : (

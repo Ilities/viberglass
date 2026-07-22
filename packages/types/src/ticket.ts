@@ -159,6 +159,7 @@ export interface CreateTicketRequest {
   autoFixRequested: boolean
   ticketSystem: TicketSystem
   workflowPhase?: TicketWorkflowPhase
+  workflowOverrideReason?: string
 }
 
 // Request body for updating a ticket

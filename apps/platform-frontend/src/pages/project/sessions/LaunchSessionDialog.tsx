@@ -82,8 +82,8 @@ export function LaunchSessionDialog({
       <DialogBody>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[var(--gray-11)]">Clanker</label>
-            <Select value={clankerId} onChange={setClankerId} placeholder="Select a clanker">
+            <label className="mb-1.5 block text-sm font-medium text-[var(--gray-11)]">Agent runner</label>
+            <Select value={clankerId} onChange={setClankerId} placeholder="Select an agent runner">
               {activeClankers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -91,7 +91,7 @@ export function LaunchSessionDialog({
               ))}
             </Select>
             {activeClankers.length === 0 && (
-              <p className="mt-1 text-xs text-[var(--gray-8)]">No active clankers with deployment strategies available.</p>
+              <p className="mt-1 text-xs text-[var(--gray-8)]">No active agent runners are available.</p>
             )}
           </div>
 

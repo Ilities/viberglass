@@ -308,7 +308,7 @@ export function SecretsPage() {
                 {dialogMode === 'create' && (
                   <Field>
                     <Label>Predefined values</Label>
-                    <Description>Pick a clanker variant and click a value to autofill the secret name.</Description>
+                    <Description>Pick an agent runner variant and click a value to autofill the secret name.</Description>
                     <div className="mt-3 space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
                       <Select value={selectedPresetGroup.id} onChange={setSelectedPresetGroupId}>
                         {SECRET_NAME_PRESET_GROUPS.map((group) => (

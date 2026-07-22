@@ -234,7 +234,7 @@ export function LogViewer({ logs, isConnected = false }: LogViewerProps) {
           <div className="text-[var(--gray-9)]">
             <LayersIcon className="mx-auto mb-3 h-10 w-10 text-[var(--gray-6)]" />
             <p className="text-sm">No logs available</p>
-            <p className="mt-1 text-xs text-[var(--gray-8)]">Logs will appear here once the job starts</p>
+            <p className="mt-1 text-xs text-[var(--gray-8)]">Logs will appear here once the run starts</p>
           </div>
         </div>
       ) : (

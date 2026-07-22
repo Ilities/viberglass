@@ -88,7 +88,7 @@ export function getSecretPickerDescription(
     return 'Select an agent to see the applicable secrets.'
   }
 
-  const base = `Select which ${AGENT_LABELS[selectedAgent]} secrets should be available to this clanker during execution.`
+  const base = `Select which ${AGENT_LABELS[selectedAgent]} secrets should be available to this agent runner during execution.`
   const allSecretsNote = showAllSecrets ? ' Showing all configured secrets.' : ''
 
   if (selectedAgent === 'qwen-cli') {

@@ -39,15 +39,15 @@ export class TicketLifecycleStatusService {
         : TICKET_STATUS.OPEN;
     }
 
-    const isResearch =
-      ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH;
-
     const document = await this.documentDAO.getByTicketAndPhase(
       ticket.id,
       ticket.workflowPhase,
     );
+    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH && !document) {
+      return TICKET_STATUS.IN_PROGRESS;
+    }
     if (!document) {
-      return isResearch ? TICKET_STATUS.OPEN : TICKET_STATUS.IN_PROGRESS;
+      return TICKET_STATUS.OPEN;
     }
 
     if (document.approvalState === "approval_requested") {
@@ -58,6 +58,8 @@ export class TicketLifecycleStatusService {
       return TICKET_STATUS.IN_PROGRESS;
     }
 
-    return isResearch ? TICKET_STATUS.OPEN : TICKET_STATUS.IN_PROGRESS;
+    return ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH
+      ? TICKET_STATUS.OPEN
+      : TICKET_STATUS.IN_PROGRESS;
   }
 }
