@@ -63,6 +63,7 @@
     "platform-backend:start": "npm run start -w @viberglass/platform-backend",
     "platform-backend:migrate": "npm run migrate:latest -w @viberglass/platform-backend",
     "frontend:dev": "npm run dev -w @viberglass/frontend",
+    "backend:build-deps": "bash scripts/build-backend-deps.sh",
     "frontend:build-deps": "bash scripts/build-frontend-deps.sh",
     "frontend:build": "npm run build -w @viberglass/frontend",
     "frontend:start": "npm run start -w @viberglass/frontend",
