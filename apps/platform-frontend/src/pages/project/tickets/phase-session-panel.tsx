@@ -1,7 +1,6 @@
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { LogViewer } from '@/components/log-viewer'
-import { useAuth } from '@/context/auth-context'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
 import { useSessionPresence } from '@/hooks/useSessionPresence'
 import { type LogEntry, getJob } from '@/service/api/job-api'
@@ -66,7 +65,6 @@ function modeBadge(mode: string): { label: string; color: 'violet' | 'blue' | 'a
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
 
 export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnCompleted, onRevise }: PhaseSessionPanelProps) {
-  const { user } = useAuth()
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCancelling, setIsCancelling] = useState(false)
@@ -91,8 +89,8 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
   }, [loadDetail])
 
   const initialEvents = useMemo(() => detail?.latestEvents ?? [], [detail?.latestEvents])
-  const { events, connected } = useSessionEventStream(session.id, initialEvents)
-  const presentUsers = useSessionPresence(events)
+  const { events, presenceEvents, connected } = useSessionEventStream(session.id, initialEvents)
+  const presentUsers = useSessionPresence(presenceEvents)
 
   const lastEvent = events.length > 0 ? events[events.length - 1] : null
   const liveStatus: AgentSessionStatus | undefined =
@@ -209,9 +207,8 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
   async function handleSend() {
     if (!messageText.trim() || isSending) return
     setIsSending(true)
-    const prefixed = `[${user?.name ?? 'User'}]: ${messageText.trim()}`
     try {
-      await sendMessageToSession(session.id, prefixed)
+      await sendMessageToSession(session.id, messageText.trim())
       setMessageText('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to send message')
@@ -348,15 +345,15 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
                 void handleSend()
               }
             }}
-            placeholder={turnInProgress ? 'Agent is working…' : 'Send a message… (Enter to send)'}
-            disabled={turnInProgress || isSending}
+            placeholder={turnInProgress ? 'Agent is working — your message will be queued' : 'Send a message… (Enter to send)'}
+            disabled={isSending}
             rows={2}
             className="min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-[var(--gray-12)] outline-none placeholder:text-[var(--gray-8)] disabled:opacity-50"
           />
           <Button
             color="violet"
             onClick={() => void handleSend()}
-            disabled={!messageText.trim() || turnInProgress || isSending}
+            disabled={!messageText.trim() || isSending}
           >
             <PaperPlaneIcon className="h-4 w-4" />
             Send

@@ -8,7 +8,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
 import path from "path";
 import multer from "multer";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import type { MediaAsset } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 import { buildMediaContentUrl } from "./ticket-media/publicApiUrl";
@@ -95,7 +95,7 @@ export class FileUploadService {
     file: Express.Multer.File,
     kind: TicketMediaKind,
   ): Promise<MediaAsset> {
-    const mediaId = uuidv4();
+    const mediaId = randomUUID();
     const uploadedAt = new Date().toISOString();
     const diskPath = buildDiskPath(kind, mediaId, file.originalname);
 

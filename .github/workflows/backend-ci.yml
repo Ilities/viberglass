@@ -8,6 +8,10 @@ on:
       - 'apps/platform-backend/**'
       - 'packages/types/**'
       - 'packages/chat-slack/**'
+      - 'packages/mcp-server/**'
+      - 'packages/integration-core/**'
+      - 'packages/integrations/**'
+      - 'scripts/build-backend-deps.sh'
       - '.github/workflows/backend-ci.yml'
 
 jobs:
@@ -28,11 +32,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Build types package
-        run: npm run build -w @viberglass/types
-
-      - name: Build chat-slack package
-        run: npm run build -w @viberglass/chat-slack
+      - name: Build backend dependency packages
+        run: npm run backend:build-deps
 
       - name: Run unit tests
         run: npm run test:unit -w @viberglass/platform-backend

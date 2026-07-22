@@ -47,7 +47,7 @@ export interface IntegrationPlugin<Config = Record<string, unknown>> {
   authTypes: AuthCredentialType[]
   configFields: IntegrationFieldDefinition[]
   supports: IntegrationSupport
-  createIntegration: (config: AuthCredentials & Config) => PMIntegration
+  createIntegration(config: AuthCredentials & Config): PMIntegration
   status?: 'ready' | 'stub'
   webhookProvider?: string
   defaultInboundEvents?: string[]

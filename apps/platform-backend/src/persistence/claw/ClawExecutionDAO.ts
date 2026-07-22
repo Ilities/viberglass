@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import type { Selectable } from "kysely";
 import { sql } from "kysely";
 import db from "../config/database";
@@ -25,7 +25,7 @@ interface ClawExecutionListResult {
 
 export class ClawExecutionDAO {
   async createExecution(scheduleId: string): Promise<ClawExecution> {
-    const executionId = uuidv4();
+    const executionId = randomUUID();
     const timestamp = new Date();
 
     const result = await db

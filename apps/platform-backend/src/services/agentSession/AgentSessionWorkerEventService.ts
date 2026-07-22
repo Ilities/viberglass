@@ -11,6 +11,8 @@ import {
   type AgentSessionEventType,
 } from "../../types/agentSession";
 import { AgentSessionServiceError, AGENT_SESSION_SERVICE_ERROR_CODE } from "../errors/AgentSessionServiceError";
+import { agentSessionMutex } from "./AgentSessionMutex";
+import type { SessionTurnContinuationService } from "./SessionTurnContinuationService";
 
 export interface IngestEvent {
   eventType: AgentSessionEventType;
@@ -23,6 +25,7 @@ export class AgentSessionWorkerEventService {
     private readonly agentTurnDAO: AgentTurnDAO,
     private readonly agentSessionDAO: AgentSessionDAO,
     private readonly agentPendingRequestDAO: AgentPendingRequestDAO,
+    private readonly turnContinuationService: SessionTurnContinuationService,
   ) {}
 
   async batchIngest(jobId: string, events: IngestEvent[]): Promise<void> {
@@ -36,22 +39,36 @@ export class AgentSessionWorkerEventService {
     }
 
     const sessionId = turn.sessionId;
-    const maxSeq = await this.agentSessionEventDAO.getMaxSequence(sessionId);
+    await agentSessionMutex.runExclusive(sessionId, async () => {
+      const maxSeq = await this.agentSessionEventDAO.getMaxSequence(sessionId);
 
-    const eventInputs = events.map((evt, i) => ({
-      sessionId,
-      turnId: turn.id,
-      jobId,
-      sequence: maxSeq + i + 1,
-      eventType: evt.eventType,
-      payloadJson: evt.payload,
-    }));
+      const eventInputs = events.map((evt, i) => ({
+        sessionId,
+        turnId: turn.id,
+        jobId,
+        sequence: maxSeq + i + 1,
+        eventType: evt.eventType,
+        payloadJson: evt.payload,
+      }));
 
-    await this.agentSessionEventDAO.createMany(eventInputs);
+      await this.agentSessionEventDAO.createMany(eventInputs);
 
-    for (const evt of events) {
-      await this.applyEventTransition(sessionId, turn.id, jobId, evt);
-    }
+      for (const evt of events) {
+        await this.applyEventTransition(sessionId, turn.id, jobId, evt);
+      }
+
+      // Turn ended → launch a continuation for any messages users queued
+      // while the agent was working (multiplayer drain). Guarded internally
+      // to ACTIVE sessions with unconsumed user turns.
+      const turnEnded = events.some(
+        (evt) =>
+          evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED ||
+          evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_FAILED,
+      );
+      if (turnEnded) {
+        await this.turnContinuationService.drainQueuedMessages(sessionId);
+      }
+    });
   }
 
   async storeAcpSessionId(jobId: string, acpSessionId: string): Promise<void> {
