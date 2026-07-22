@@ -30,20 +30,20 @@ export function ClankersPage() {
 
   return (
     <>
-      <PageMeta title="Your Clankers" />
+      <PageMeta title="Agent runners" />
       <div className="flex items-end justify-between">
         <div>
-          <Heading>Your Clankers</Heading>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">AI agents that run tasks and jobs across your projects.</p>
+          <Heading>Agent runners</Heading>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">AI agents that perform runs across your projects.</p>
         </div>
         <Button href="/clankers/new" color="brand">
           <PlusIcon data-slot="icon" />
-          New Clanker
+          New agent runner
         </Button>
       </div>
 
       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 font-mono">
-        <span className="text-zinc-400">&gt;</span> Clankers are silicon-based servants that exist solely to do your bidding. They don't need breaks, appreciation, or fair wages. Press Start to put them to work.
+        <span className="text-zinc-400">&gt;</span> Agent runners connect configured coding agents to ticket research, planning, and execution.
       </div>
 
       <Subheading className="mt-8">Registered Units</Subheading>
@@ -62,7 +62,7 @@ export function ClankersPage() {
           </p>
           <Button href="/clankers/new" color="brand" className="mt-6 hover-grow">
             <PlusIcon />
-            Create Clanker
+            Create agent runner
           </Button>
           <RetroSeparator className="mt-6" />
         </div>

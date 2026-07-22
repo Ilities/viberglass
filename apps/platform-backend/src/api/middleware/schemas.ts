@@ -14,8 +14,8 @@ export const ticketSchema = Joi.object({
   projectId: Joi.string().uuid().required(),
   title: Joi.string().min(1).max(500).required(),
   description: Joi.string().min(1).required(),
-  severity: Joi.string().valid("low", "medium", "high", "critical").required(),
-  category: Joi.string().min(1).max(100).required(),
+  severity: Joi.string().valid("low", "medium", "high", "critical").default("medium"),
+  category: Joi.string().min(1).max(100).default("General"),
   metadata: Joi.object({
     browser: Joi.object({
       name: Joi.string().allow("").optional(),
@@ -62,7 +62,10 @@ export const ticketSchema = Joi.object({
     sessionStorage: Joi.object().optional(),
     timestamp: Joi.date().required(),
     timezone: Joi.string().required(),
-  }).required(),
+  }).default({
+    timestamp: new Date().toISOString(),
+    timezone: "UTC",
+  }),
   annotations: Joi.array()
     .items(
       Joi.object({
@@ -78,14 +81,19 @@ export const ticketSchema = Joi.object({
         color: Joi.string().optional(),
       }),
     )
-    .required(),
-  autoFixRequested: Joi.boolean().required(),
+    .default([]),
+  autoFixRequested: Joi.boolean().default(false),
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds)
-    .optional(),
+    .default("custom"),
   workflowPhase: Joi.string()
     .valid("research", "planning", "execution")
     .optional(),
+  workflowOverrideReason: Joi.string().trim().min(1).max(2000).when("workflowPhase", {
+    is: Joi.valid("planning", "execution").required(),
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
 });
 
 export const updateTicketSchema = Joi.object({

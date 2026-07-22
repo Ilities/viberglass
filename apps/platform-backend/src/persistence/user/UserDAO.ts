@@ -1,4 +1,4 @@
-import type { Selectable } from "kysely";
+import { sql, type Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
 import type { UserRole } from "../types/user";
@@ -146,5 +146,39 @@ export class UserDAO {
       .executeTakeFirst();
 
     return Boolean(row);
+  }
+
+  async createInitialAdmin(input: {
+    email: string;
+    name: string;
+    passwordHash: string;
+  }): Promise<PublicUser | null> {
+    return db.transaction().execute(async (trx) => {
+      await sql`SELECT pg_advisory_xact_lock(hashtext('viberglass.initial_admin'))`.execute(trx);
+
+      const existingUser = await trx
+        .selectFrom("users")
+        .select("id")
+        .limit(1)
+        .executeTakeFirst();
+      if (existingUser) return null;
+
+      const timestamp = new Date();
+      const row = await trx
+        .insertInto("users")
+        .values({
+          email: input.email,
+          name: input.name,
+          password_hash: input.passwordHash,
+          avatar_url: null,
+          role: "admin",
+          created_at: timestamp,
+          updated_at: timestamp,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+
+      return this.mapPublicUser(row);
+    });
   }
 }

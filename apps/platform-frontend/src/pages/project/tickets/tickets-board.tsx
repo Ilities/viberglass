@@ -4,15 +4,10 @@ import { Link } from '@/components/link'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Timestamp } from '@/components/timestamp'
 import { formatAutoFixStatus, formatSeverity } from '@/data'
-import { ChevronDownIcon, PlayIcon } from '@radix-ui/react-icons'
+import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket, TicketLifecycleStatus, TicketWorkflowPhase } from '@viberglass/types'
 import { useMemo, useState } from 'react'
-import {
-  formatTicketStatus,
-  formatTicketWorkflowPhase,
-  ticketStatusOrder,
-  ticketWorkflowPhaseOrder,
-} from './ticket-display'
+import { formatTicketStatus, formatTicketWorkflowPhase, ticketWorkflowPhaseOrder } from './ticket-display'
 
 interface TicketsBoardProps {
   tickets: Ticket[]
@@ -48,26 +43,24 @@ export function TicketsBoard({
   onUnarchiveTicket,
 }: TicketsBoardProps) {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
   const activeClankers = clankers.filter((clanker) => clanker.status === 'active' && clanker.deploymentStrategyId)
   const canRun = activeClankers.length > 0
 
   const phaseGroups = useMemo(() => {
-    const groups: Record<TicketWorkflowPhase, Record<TicketLifecycleStatus, Ticket[]>> = {
-      research: { open: [], in_progress: [], in_review: [], resolved: [] },
-      planning: { open: [], in_progress: [], in_review: [], resolved: [] },
-      execution: { open: [], in_progress: [], in_review: [], resolved: [] },
+    const groups: Record<TicketWorkflowPhase, Ticket[]> = {
+      research: [],
+      planning: [],
+      execution: [],
     }
 
     for (const ticket of tickets) {
-      groups[ticket.workflowPhase][ticket.status].push(ticket)
+      if (visibleStatuses.includes(ticket.status)) groups[ticket.workflowPhase].push(ticket)
     }
 
     return groups
-  }, [tickets])
+  }, [tickets, visibleStatuses])
 
   const orderedPhases = ticketWorkflowPhaseOrder.filter((phase) => visiblePhases.includes(phase))
-  const orderedStatuses = ticketStatusOrder.filter((status) => visibleStatuses.includes(status))
 
   function handleRunClick(ticket: Ticket, event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault()
@@ -92,19 +85,12 @@ export function TicketsBoard({
     onToggleTicketSelection(ticketId)
   }
 
-  function toggleSection(sectionKey: string) {
-    setCollapsedSections((previous) => ({
-      ...previous,
-      [sectionKey]: !previous[sectionKey],
-    }))
-  }
-
   return (
     <>
       <div className={`mt-8 grid gap-4 ${orderedPhases.length === 1 ? 'grid-cols-1' : orderedPhases.length === 2 ? 'xl:grid-cols-2' : 'xl:grid-cols-3'}`}>
         {orderedPhases.map((phaseKey) => {
           const phaseInfo = formatTicketWorkflowPhase(phaseKey)
-          const phaseTickets = orderedStatuses.flatMap((statusKey) => phaseGroups[phaseKey][statusKey])
+          const phaseTickets = phaseGroups[phaseKey]
 
           return (
             <section key={phaseKey} className={`rounded-2xl border p-4 ${boardColumnStyles[phaseKey]}`}>
@@ -120,40 +106,15 @@ export function TicketsBoard({
                 <Badge className={phaseInfo.className}>{phaseTickets.length}</Badge>
               </div>
 
-              <div className="mt-4 space-y-4">
-                {orderedStatuses.map((statusKey) => {
-                  const statusInfo = formatTicketStatus(statusKey)
-                  const statusTickets = phaseGroups[phaseKey][statusKey]
-                  const sectionKey = `${phaseKey}:${statusKey}`
-                  const isCollapsed = collapsedSections[sectionKey] ?? statusTickets.length === 0
-
-                  return (
-                    <div key={statusKey} className="space-y-3">
-                      {statusTickets.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-zinc-300/60 bg-white/30 px-3 py-3 text-center dark:border-zinc-700/60 dark:bg-zinc-950/20">
-                          <span className="text-xs text-zinc-400 dark:text-zinc-500">{statusInfo.label} — no tickets</span>
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => toggleSection(sectionKey)}
-                            className="flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-zinc-300/80 bg-white/50 px-3 py-2 text-left transition hover:border-zinc-400 hover:bg-white/70 dark:border-zinc-700 dark:bg-zinc-950/30 dark:hover:border-zinc-600 dark:hover:bg-zinc-950/50"
-                            aria-expanded={!isCollapsed}
-                          >
-                            <span className="flex items-center gap-2">
-                              <ChevronDownIcon
-                                className={`h-4 w-4 text-zinc-500 transition-transform dark:text-zinc-400 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`}
-                              />
-                              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{statusInfo.label}</span>
-                            </span>
-                            <Badge className={statusInfo.className}>{statusTickets.length}</Badge>
-                          </button>
-
-                          {!isCollapsed ? (
-                            <div className="space-y-2">
-                            {statusTickets.map((ticket) => {
+              <div className="mt-4 space-y-2">
+                {phaseTickets.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-zinc-300/60 bg-white/30 px-3 py-8 text-center text-xs text-zinc-500 dark:border-zinc-700/60 dark:bg-zinc-950/20">
+                    No tickets in this phase
+                  </div>
+                ) : (
+                  phaseTickets.map((ticket) => {
                               const severityInfo = formatSeverity(ticket.severity)
+                              const statusInfo = formatTicketStatus(ticket.status)
                               const autoFixInfo = ticket.autoFixStatus ? formatAutoFixStatus(ticket.autoFixStatus) : null
                               const isSelected = selectedTicketIds.has(ticket.id)
 
@@ -195,6 +156,7 @@ export function TicketsBoard({
                                       {severityInfo.label}
                                     </Badge>
                                     <Badge className={`${phaseInfo.className} text-[10px]`}>{phaseInfo.label}</Badge>
+                                    <Badge className={`${statusInfo.className} text-[10px]`}>{statusInfo.label}</Badge>
                                     {autoFixInfo ? (
                                       <Badge className={`${autoFixInfo.color} text-[10px]`}>{autoFixInfo.label}</Badge>
                                     ) : null}
@@ -225,21 +187,15 @@ export function TicketsBoard({
                                       plain
                                       className="px-1"
                                       onClick={(event) => handleRunClick(ticket, event)}
-                                      title={canRun ? 'Run with clanker' : 'No active clankers available'}
+                                      title={canRun ? 'Start a run' : 'No active agent runners available'}
                                     >
                                       <PlayIcon className="h-3.5 w-3.5" />
                                     </Button>
                                   </div>
                                 </article>
                               )
-                            })}
-                            </div>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  )
-                })}
+                  })
+                )}
               </div>
             </section>
           )
@@ -252,6 +208,7 @@ export function TicketsBoard({
         project={project}
         open={selectedTicket !== null}
         onClose={() => setSelectedTicket(null)}
+        mode={selectedTicket?.workflowPhase ?? 'research'}
       />
     </>
   )

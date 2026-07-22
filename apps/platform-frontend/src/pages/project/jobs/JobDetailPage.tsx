@@ -14,6 +14,7 @@ import { TruncatedText } from '@/components/truncated-text'
 import { formatJobKind } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { JobRefreshButton } from './job-refresh-button'
+import { cancelJob } from '@/service/api/job-api'
 
 import {
   CalendarIcon,
@@ -36,6 +37,7 @@ import {
 import { isObjectRecord } from '@viberglass/types'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 /**
  * Build a repository URL from a repository identifier.
@@ -158,11 +160,12 @@ export function JobDetailPage() {
   const { project, jobId } = useParams<{ project: string; jobId: string }>()
   const { job, isLoading, error, isPolling, refetch } = useJobStatus(jobId)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [isCancelling, setIsCancelling] = useState(false)
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[var(--gray-9)]">Loading job details...</div>
+        <div className="text-[var(--gray-9)]">Loading run details...</div>
       </div>
     )
   }
@@ -170,7 +173,7 @@ export function JobDetailPage() {
   if (error || !job || !jobId || !project) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-red-600 dark:text-red-400">Job not found</div>
+        <div className="text-red-600 dark:text-red-400">Run not found</div>
       </div>
     )
   }
@@ -183,13 +186,13 @@ export function JobDetailPage() {
 
   return (
     <>
-      <PageMeta title={job ? `${job.jobId.slice(-6)} | Job` : 'Job'} />
+      <PageMeta title={job ? `${job.jobId.slice(-6)} | Run` : 'Run'} />
       <div className="flex h-full flex-col">
         {/* Breadcrumb */}
         <Breadcrumbs
           items={[
             { label: project!, href: `/project/${project}` },
-            { label: 'Jobs', href: `/project/${project}/jobs` },
+            { label: 'Runs', href: `/project/${project}/jobs` },
             { label: formatJobId(job.jobId) },
           ]}
         />
@@ -204,7 +207,7 @@ export function JobDetailPage() {
               </div>
 
               <div>
-                <Heading className="text-2xl">Job {formatJobId(job.jobId)}</Heading>
+                <Heading className="text-2xl">Run {formatJobId(job.jobId)}</Heading>
                 <div className="mt-1.5 flex items-center gap-3">
                   <JobStatusIndicator status={job.status} isPolling={isPolling} />
                   <Badge color={jobKindBadgeColor(job.jobKind)}>
@@ -226,7 +229,7 @@ export function JobDetailPage() {
                           plain
                           className="text-xs text-[var(--accent-9)] hover:text-[var(--accent-10)] hover:underline"
                         >
-                          View jobs
+                          View runs
                         </Button>
                       </span>
                     </span>
@@ -255,6 +258,26 @@ export function JobDetailPage() {
                 <Button href={`/project/${project}/tickets/${job.ticketId}?tab=${job.jobKind}`} plain>
                   <ReaderIcon className="h-4 w-4" />
                   View {formatJobKind(job.jobKind)}
+                </Button>
+              )}
+              {(job.status === 'queued' || job.status === 'active') && (
+                <Button
+                  color="red"
+                  disabled={isCancelling}
+                  onClick={async () => {
+                    setIsCancelling(true)
+                    try {
+                      await cancelJob(job.jobId)
+                      await refetch()
+                      toast.success('Run cancelled')
+                    } catch (cancelError) {
+                      toast.error(cancelError instanceof Error ? cancelError.message : 'Failed to cancel run')
+                    } finally {
+                      setIsCancelling(false)
+                    }
+                  }}
+                >
+                  {isCancelling ? 'Cancelling…' : 'Cancel run'}
                 </Button>
               )}
               <JobRefreshButton onRefresh={() => void refetch()} />
@@ -296,10 +319,10 @@ export function JobDetailPage() {
             <div className="space-y-1 lg:col-span-4 xl:col-span-3">
               {/* Job Information Section */}
               <div className="app-frame rounded-lg p-4">
-                <Section title="Job Information">
+                <Section title="Run Information">
                   <InfoItem
                     icon={<StackIcon className="h-4 w-4" />}
-                    label="Job ID"
+                    label="Run ID"
                     value={<span className="font-mono text-xs">{job.jobId}</span>}
                   />
                   <div className="mx-1 h-px bg-[var(--gray-6)]" />
@@ -338,7 +361,7 @@ export function JobDetailPage() {
               {/* Clanker Section */}
               {job.clanker && (
                 <div className="app-frame rounded-lg p-4">
-                  <Section title="Clanker">
+                  <Section title="Agent runner">
                     <InfoItem
                       icon={<GearIcon className="h-4 w-4" />}
                       label="Name"
@@ -564,10 +587,38 @@ export function JobDetailPage() {
                     <div className="app-frame rounded-lg border-red-200 p-6 dark:border-red-500/30">
                       <Subheading className="mb-4 flex items-center gap-2 text-red-600">
                         <CrossCircledIcon className="h-5 w-5" />
-                        Error
+                        Run needs attention
                       </Subheading>
-                      <div className="rounded bg-red-50 p-4 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-200">
-                        {job.result?.errorMessage || job.failedReason || 'Unknown error'}
+                      <div className="rounded bg-red-50 p-4 text-sm text-red-900 dark:bg-red-500/10 dark:text-red-100">
+                        <p className="font-medium">
+                          {job.result?.failure?.summary || 'The run stopped before it could finish.'}
+                        </p>
+                        <p className="mt-2 text-xs text-red-800/80 dark:text-red-200/80">
+                          {job.result?.failure?.code === 'SCM_CREDENTIAL_INVALID'
+                            ? 'Replace the SCM credential in project settings, then retry from the ticket.'
+                            : job.result?.failure?.code === 'AGENT_QUOTA_EXHAUSTED'
+                              ? 'Restore quota or update the agent credential before retrying.'
+                              : job.result?.failure?.code === 'AGENT_RUNNER_UNAVAILABLE'
+                                ? 'Start an agent runner, then retry from the ticket.'
+                                : job.result?.failure?.code === 'REPOSITORY_ACCESS_FAILED'
+                                  ? 'Check the repository URL and credential permissions in project settings.'
+                                  : 'Review the technical details, correct the issue, and retry from the ticket.'}
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            href={job.result?.failure?.code === 'AGENT_RUNNER_UNAVAILABLE' ? '/clankers' : `/project/${project}/settings`}
+                            outline
+                          >
+                            Fix setup
+                          </Button>
+                          {job.ticketId ? <Button href={`/project/${project}/tickets/${job.ticketId}`} plain>Return to ticket</Button> : null}
+                        </div>
+                        <details className="mt-4 border-t border-red-200 pt-3 dark:border-red-900/60">
+                          <summary className="cursor-pointer text-xs font-medium">Technical details</summary>
+                          <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs">
+                            {job.result?.failure?.technicalDetail || job.result?.errorMessage || job.failedReason || 'No technical details were reported.'}
+                          </pre>
+                        </details>
                       </div>
                     </div>
                   )}

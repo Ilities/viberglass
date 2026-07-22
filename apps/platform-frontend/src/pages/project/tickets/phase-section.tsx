@@ -12,7 +12,6 @@ import {
   getResearchDocument,
   type PhaseDocumentResponse,
   type PlanningRunResponse,
-  requestPlanningApproval,
   type ResearchRunResponse,
   revokePlanningApproval,
   savePlanningDocument,
@@ -38,7 +37,7 @@ import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
 import { PhaseLogs } from './phase-logs'
-import { PhaseNoSession, PhaseSessionPanel } from './phase-session-panel'
+import { PhaseSessionPanel } from './phase-session-panel'
 
 interface PhaseSectionProps {
   ticket: Ticket
@@ -185,6 +184,10 @@ export function PhaseSection({
   }, [loadDocument])
 
   useEffect(() => {
+    setIsExpanded(phase === currentPhase)
+  }, [currentPhase, phase])
+
+  useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus()
     }
@@ -235,21 +238,6 @@ export function PhaseSection({
     },
     [document, ticket.id, phase]
   )
-
-  const handleRequestApproval = useCallback(async () => {
-    try {
-      setIsApproving(true)
-      const result = await requestPlanningApproval(ticket.id)
-      setDocument(result.document)
-      setLatestRun(result.latestRun)
-      onApprovalStateChange?.(result.document.approvalState)
-      toast.success('Planning approval requested')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to request planning approval')
-    } finally {
-      setIsApproving(false)
-    }
-  }, [ticket.id, onApprovalStateChange])
 
   const handleApprove = useCallback(async () => {
     try {
@@ -308,8 +296,6 @@ export function PhaseSection({
   const isDirty = draft !== (document?.content ?? '')
   const hasContent = (document?.content ?? '').trim().length > 0
   const canEdit = phase === 'planning' || phase === 'execution' || (phase === 'research' && currentPhase === 'research')
-  const canRequestApproval = phase === 'planning' && hasContent && document?.approvalState === 'draft'
-  const canApprove = phase === 'planning' && document?.approvalState === 'approval_requested'
   const canRevoke = phase === 'planning' && document?.approvalState === 'approved'
 
   const runButtonTitle = isCurrentPhase
@@ -350,15 +336,17 @@ export function PhaseSection({
                         Execution Results
                       </Subheading>
                     </div>
-                    <Button
-                      color="brand"
-                      onClick={() => setIsRunModalOpen(true)}
-                      disabled={!isCurrentPhase}
-                      title={isCurrentPhase ? 'Run Execution' : 'Execution only available in current phase'}
-                    >
-                      <PlayIcon className="h-3.5 w-3.5" />
-                      Run Execution
-                    </Button>
+                    {!ticket.pullRequestUrl ? (
+                      <Button
+                        color="brand"
+                        onClick={() => setIsRunModalOpen(true)}
+                        disabled={!isCurrentPhase}
+                        title={isCurrentPhase ? 'Run execution' : 'Execution only available in current phase'}
+                      >
+                        <PlayIcon className="h-3.5 w-3.5" />
+                        Run execution
+                      </Button>
+                    ) : null}
                   </div>
 
                   {ticket.pullRequestUrl ? (
@@ -374,7 +362,7 @@ export function PhaseSection({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button plain href={ticket.pullRequestUrl} target="_blank">
+                          <Button color="brand" href={ticket.pullRequestUrl} target="_blank">
                             <ExternalLinkIcon className="h-3.5 w-3.5" />
                             View PR
                           </Button>
@@ -423,7 +411,7 @@ export function PhaseSection({
                               : `${phase.charAt(0).toUpperCase() + phase.slice(1)} ${latestRun.status}`}
                           </Badge>
                           <span>
-                            Latest run with {latestRun.clankerName || 'Unknown clanker'} on{' '}
+                            Latest run with {latestRun.clankerName || 'Unknown agent runner'} on{' '}
                             {new Date(latestRun.createdAt).toLocaleString()}
                           </span>
                           <button
@@ -431,22 +419,24 @@ export function PhaseSection({
                             onClick={() => navigate(`/project/${project}/jobs/${latestRun.jobId}`)}
                             className="text-[var(--accent-11)] hover:underline"
                           >
-                            View Job
+                            View run
                           </button>
                         </div>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Button
-                        color="brand"
-                        onClick={() => setIsRunModalOpen(true)}
-                        disabled={!isCurrentPhase}
-                        title={runButtonTitle}
-                      >
-                        <PlayIcon className="h-3.5 w-3.5" />
-                        {getRunButtonLabel()}
-                      </Button>
+                      {!hasContent ? (
+                        <Button
+                          color="brand"
+                          onClick={() => setIsRunModalOpen(true)}
+                          disabled={!isCurrentPhase}
+                          title={runButtonTitle}
+                        >
+                          <PlayIcon className="h-3.5 w-3.5" />
+                          {getRunButtonLabel()}
+                        </Button>
+                      ) : null}
                       {(phase === 'research' || phase === 'planning') && hasContent && (
                         <Button
                           plain
@@ -475,7 +465,7 @@ export function PhaseSection({
                           title={canEdit ? 'Edit document' : 'Not editable in current phase'}
                         >
                           <Pencil1Icon className="h-3.5 w-3.5" />
-                          Edit
+                          Edit source
                         </Button>
                       )}
                     </div>
@@ -502,23 +492,6 @@ export function PhaseSection({
                         <span className="text-xs text-[var(--gray-9)]">
                           by {document.approvedBy} on {new Date(document.approvedAt!).toLocaleString()}
                         </span>
-                      )}
-                      {canRequestApproval && (
-                        <Button
-                          color="green"
-                          onClick={handleRequestApproval}
-                          disabled={isApproving || !hasContent}
-                          size="small"
-                        >
-                          <CheckCircledIcon className="h-3.5 w-3.5" />
-                          Request Approval
-                        </Button>
-                      )}
-                      {canApprove && (
-                        <Button color="green" onClick={handleApprove} disabled={isApproving} size="small">
-                          <CheckCircledIcon className="h-3.5 w-3.5" />
-                          {isApproving ? 'Approving...' : 'Approve'}
-                        </Button>
                       )}
                       {canRevoke && (
                         <Button plain onClick={handleRevokeApproval} disabled={isApproving} size="small">
@@ -579,9 +552,7 @@ export function PhaseSection({
                   onTurnCompleted={() => void loadDocument()}
                   onRevise={() => setIsLaunchDialogOpen(true)}
                 />
-              ) : (
-                <PhaseNoSession mode={phase} onStartSession={() => setIsLaunchDialogOpen(true)} />
-              )}
+              ) : null}
 
               {isCurrentPhase && phase !== 'execution' && (
                 <div className="flex items-center justify-end border-t border-[var(--gray-4)] pt-4">

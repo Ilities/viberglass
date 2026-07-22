@@ -150,7 +150,7 @@ export function ResearchDocumentPanel({
                     {latestRun.status === 'active' ? 'Research Running' : `Research ${latestRun.status}`}
                   </Badge>
                   <span>
-                    Latest run with {latestRun.clankerName || 'Unknown clanker'} on{' '}
+                    Latest run with {latestRun.clankerName || 'Unknown agent runner'} on{' '}
                     {new Date(latestRun.createdAt).toLocaleString()}
                   </span>
                   <Button plain onClick={() => navigate(`/project/${project}/jobs/${latestRun.jobId}`)}>
@@ -172,7 +172,7 @@ export function ResearchDocumentPanel({
                 disabled={ticket.workflowPhase !== 'research'}
                 title={
                   ticket.workflowPhase === 'research'
-                    ? 'Generate research with a clanker'
+                    ? 'Generate research with an agent runner'
                     : 'Research runs are only available during the research phase'
                 }
               >
@@ -191,7 +191,7 @@ export function ResearchDocumentPanel({
               ) : (
                 <Button plain onClick={() => setIsEditing(true)}>
                   <Pencil1Icon className="h-3.5 w-3.5" />
-                  Edit
+                  Edit source
                 </Button>
               )}
             </div>

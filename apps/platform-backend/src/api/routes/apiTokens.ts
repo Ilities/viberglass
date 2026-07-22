@@ -1,6 +1,9 @@
 import express from "express";
 import { requireAuth } from "../middleware/authentication";
-import { validateCreateApiToken, validateUuidParam } from "../middleware/validation";
+import {
+  validateCreateApiToken,
+  validateUuidParam,
+} from "../middleware/validation";
 import {
   ApiTokenDAO,
   generateApiToken,
@@ -15,7 +18,7 @@ router.use(requireAuth);
 
 router.get("/", async (req, res) => {
   try {
-    const userId = req.auth!.user.id;
+    const userId = req.authContext!.user.id;
     const tokens = await apiTokenDao.listByUser(userId);
     res.json({ success: true, data: tokens });
   } catch (error) {
@@ -28,7 +31,7 @@ router.get("/", async (req, res) => {
 
 router.post("/", validateCreateApiToken, async (req, res) => {
   try {
-    const userId = req.auth!.user.id;
+    const userId = req.authContext!.user.id;
     const { name, expiresAt } = req.body as {
       name: string;
       expiresAt?: string | null;
@@ -64,7 +67,7 @@ router.post("/", validateCreateApiToken, async (req, res) => {
 
 router.delete("/:id", validateUuidParam("id"), async (req, res) => {
   try {
-    const userId = req.auth!.user.id;
+    const userId = req.authContext!.user.id;
     const deleted = await apiTokenDao.deleteById(req.params.id, userId);
     if (!deleted) {
       return res.status(404).json({ error: "API token not found" });

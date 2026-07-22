@@ -51,7 +51,7 @@ export function QwenAgentFields({ endpoint, onEndpointChange }: QwenAgentFieldsP
     <Field>
       <Label>Qwen API Endpoint</Label>
       <Description>
-        Choose the endpoint region for this clanker. This is stored as regular clanker config and injected at runtime.
+        Choose the endpoint region for this agent runner. This is stored as regular runner config and injected at runtime.
       </Description>
       <Select
         value={selectValue}

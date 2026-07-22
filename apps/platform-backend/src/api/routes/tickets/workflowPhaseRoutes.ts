@@ -118,7 +118,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
 
         if (message === "Ticket not found") {
           return res.status(404).json({
@@ -146,43 +147,48 @@ export function registerTicketWorkflowPhaseRoutes(
   );
 
   // PUT /api/tickets/:id/workflow/phase - Manually set workflow phase
-  router.put("/:id/workflow/phase", validateUuidParam("id"), async (req, res) => {
-    try {
-      const targetPhase = parseWorkflowPhaseParam(req.body?.workflowPhase);
-      if (!targetPhase) {
-        return res.status(400).json({
-          error: "Invalid workflow phase",
+  router.put(
+    "/:id/workflow/phase",
+    validateUuidParam("id"),
+    async (req, res) => {
+      try {
+        const targetPhase = parseWorkflowPhaseParam(req.body?.workflowPhase);
+        if (!targetPhase) {
+          return res.status(400).json({
+            error: "Invalid workflow phase",
+          });
+        }
+
+        const ticket = await ticketWorkflowService.setPhase(
+          req.params.id,
+          targetPhase,
+        );
+
+        return res.json({
+          success: true,
+          data: ticket,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        if (message === "Ticket not found") {
+          return res.status(404).json({
+            error: "Ticket not found",
+          });
+        }
+
+        logger.error("Error setting ticket workflow phase", {
+          ticketId: req.params.id,
+          workflowPhase: req.body?.workflowPhase,
+          error: message,
+        });
+        return res.status(500).json({
+          error: "Internal server error",
+          message: "Failed to update ticket workflow phase",
         });
       }
-
-      const ticket = await ticketWorkflowService.setPhase(
-        req.params.id,
-        targetPhase,
-      );
-
-      return res.json({
-        success: true,
-        data: ticket,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      if (message === "Ticket not found") {
-        return res.status(404).json({
-          error: "Ticket not found",
-        });
-      }
-
-      logger.error("Error setting ticket workflow phase", {
-        ticketId: req.params.id,
-        workflowPhase: req.body?.workflowPhase,
-        error: message,
-      });
-      return res.status(500).json({
-        error: "Internal server error",
-        message: "Failed to update ticket workflow phase",
-      });
-    }
-  });
+    },
+  );
 
   // GET /api/tickets/:id/phases/research - Get research phase document
   router.get(
@@ -190,14 +196,17 @@ export function registerTicketWorkflowPhaseRoutes(
     validateUuidParam("id"),
     async (req, res) => {
       try {
-        const phase = await ticketResearchService.getResearchPhase(req.params.id);
+        const phase = await ticketResearchService.getResearchPhase(
+          req.params.id,
+        );
 
         res.json({
           success: true,
           data: phase,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -229,17 +238,19 @@ export function registerTicketWorkflowPhaseRoutes(
       }
 
       try {
-        const revisions = await ticketPhaseDocumentRevisionService.listRevisions(
-          req.params.id,
-          phase,
-        );
+        const revisions =
+          await ticketPhaseDocumentRevisionService.listRevisions(
+            req.params.id,
+            phase,
+          );
 
         return res.json({
           success: true,
           data: revisions,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -282,7 +293,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: comments,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -329,7 +341,7 @@ export function registerTicketWorkflowPhaseRoutes(
           {
             lineNumber,
             content,
-            actor: req.auth?.user.email,
+            actor: req.authContext?.user.email,
           },
         );
 
@@ -338,7 +350,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: comment,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -403,7 +416,7 @@ export function registerTicketWorkflowPhaseRoutes(
           {
             content,
             status,
-            actor: req.auth?.user.email,
+            actor: req.authContext?.user.email,
           },
         );
 
@@ -412,7 +425,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: comment,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Comment not found" || message === "Ticket not found") {
           return res.status(404).json({
             error: message,
@@ -459,7 +473,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error("Error running research", {
           ticketId: req.params.id,
           error: message,
@@ -485,7 +500,10 @@ export function registerTicketWorkflowPhaseRoutes(
     async (req, res) => {
       try {
         const { clankerId, revisionMessage } = req.body;
-        if (typeof clankerId !== "string" || typeof revisionMessage !== "string") {
+        if (
+          typeof clankerId !== "string" ||
+          typeof revisionMessage !== "string"
+        ) {
           return res.status(400).json({
             error: "Validation error",
             message: "clankerId and revisionMessage must be strings",
@@ -502,7 +520,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error("Error running research revision", {
           ticketId: req.params.id,
           error: message,
@@ -539,7 +558,7 @@ export function registerTicketWorkflowPhaseRoutes(
           req.params.id,
           TICKET_WORKFLOW_PHASE.RESEARCH,
           content,
-          { actor: req.auth?.user.email },
+          { actor: req.authContext?.user.email },
         );
 
         res.json({
@@ -547,7 +566,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: document,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -572,14 +592,17 @@ export function registerTicketWorkflowPhaseRoutes(
     validateUuidParam("id"),
     async (req, res) => {
       try {
-        const phase = await ticketPlanningService.getPlanningPhase(req.params.id);
+        const phase = await ticketPlanningService.getPlanningPhase(
+          req.params.id,
+        );
 
         res.json({
           success: true,
           data: phase,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -604,7 +627,7 @@ export function registerTicketWorkflowPhaseRoutes(
     validateUuidParam("id"),
     async (req, res) => {
       try {
-        const actor = req.auth?.user.email;
+        const actor = req.authContext?.user.email;
         const result = await ticketPlanningApprovalService.requestApproval(
           req.params.id,
           actor,
@@ -615,7 +638,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         const serviceError = resolveTicketRouteServiceError(error);
         if (
           serviceError?.serviceError.code ===
@@ -644,7 +668,7 @@ export function registerTicketWorkflowPhaseRoutes(
     validateUuidParam("id"),
     async (req, res) => {
       try {
-        const actor = req.auth?.user.email;
+        const actor = req.authContext?.user.email;
         const result = await ticketPlanningApprovalService.approve(
           req.params.id,
           actor,
@@ -655,7 +679,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         const serviceError = resolveTicketRouteServiceError(error);
         if (
           serviceError?.serviceError.code ===
@@ -684,7 +709,7 @@ export function registerTicketWorkflowPhaseRoutes(
     validateUuidParam("id"),
     async (req, res) => {
       try {
-        const actor = req.auth?.user.email;
+        const actor = req.authContext?.user.email;
         const result = await ticketPlanningApprovalService.revokeApproval(
           req.params.id,
           actor,
@@ -695,7 +720,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -732,7 +758,7 @@ export function registerTicketWorkflowPhaseRoutes(
           req.params.id,
           TICKET_WORKFLOW_PHASE.PLANNING,
           content,
-          { actor: req.auth?.user.email },
+          { actor: req.authContext?.user.email },
         );
 
         res.json({
@@ -740,7 +766,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: document,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         if (message === "Ticket not found") {
           return res.status(404).json({
             error: "Ticket not found",
@@ -776,7 +803,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error("Error running planning", {
           ticketId: req.params.id,
           error: message,
@@ -802,7 +830,10 @@ export function registerTicketWorkflowPhaseRoutes(
     async (req, res) => {
       try {
         const { clankerId, revisionMessage } = req.body;
-        if (typeof clankerId !== "string" || typeof revisionMessage !== "string") {
+        if (
+          typeof clankerId !== "string" ||
+          typeof revisionMessage !== "string"
+        ) {
           return res.status(400).json({
             error: "Validation error",
             message: "clankerId and revisionMessage must be strings",
@@ -819,7 +850,8 @@ export function registerTicketWorkflowPhaseRoutes(
           data: result,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error("Error running planning revision", {
           ticketId: req.params.id,
           error: message,

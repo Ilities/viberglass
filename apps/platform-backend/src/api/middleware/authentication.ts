@@ -13,7 +13,7 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      auth?: AuthContext;
+      authContext?: AuthContext;
     }
   }
 }
@@ -63,7 +63,7 @@ function authenticateRequest(options: AuthOptions) {
         permissions: [],
       };
 
-      req.auth = mockContext;
+      req.authContext = mockContext;
       req.user = mockContext;
 
       next();
@@ -73,7 +73,11 @@ function authenticateRequest(options: AuthOptions) {
     passport.authenticate(
       "session-token",
       { session: false },
-      async (err: unknown, user: Express.User | false | null, info?: PassportInfo) => {
+      async (
+        err: unknown,
+        user: Express.User | false | null,
+        info?: PassportInfo,
+      ) => {
         if (err) {
           next(err as Error);
           return;
@@ -92,7 +96,7 @@ function authenticateRequest(options: AuthOptions) {
         }
 
         const context = user as AuthContext;
-        req.auth = context;
+        req.authContext = context;
         req.user = context;
 
         if (options.check) {
@@ -149,7 +153,7 @@ function authenticateWithApiToken() {
         permissions: [],
       };
 
-      req.auth = mockContext;
+      req.authContext = mockContext;
       req.user = mockContext;
       next();
       return;
@@ -158,7 +162,11 @@ function authenticateWithApiToken() {
     passport.authenticate(
       "api-token",
       { session: false },
-      (err: unknown, user: Express.User | false | null, info?: PassportInfo) => {
+      (
+        err: unknown,
+        user: Express.User | false | null,
+        info?: PassportInfo,
+      ) => {
         if (err) {
           next(err as Error);
           return;
@@ -172,7 +180,7 @@ function authenticateWithApiToken() {
         }
 
         const context = user as AuthContext;
-        req.auth = context;
+        req.authContext = context;
         req.user = context;
         next();
       },

@@ -105,7 +105,7 @@ export interface JobStatusClanker {
 export interface JobStatus {
   jobId: string
   jobKind: 'research' | 'planning' | 'execution' | 'claw'
-  status: 'queued' | 'active' | 'completed' | 'failed'
+  status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
   progress: Record<string, unknown> | null
   lastHeartbeat: string | null
   progressUpdates: ProgressUpdate[]
@@ -130,6 +130,12 @@ export interface JobStatus {
     changedFiles?: string[]
     executionTime?: number
     errorMessage?: string
+    failure?: {
+      code: string
+      summary: string
+      technicalDetail?: string
+      retryable: boolean
+    }
     commitHash?: string
   } | null
   failedReason: string | null
@@ -177,10 +183,18 @@ export async function getJob(jobId: string): Promise<JobStatus> {
     if (response.status === 404) {
       throw new Error('Job not found')
     }
-    throw new Error('Failed to fetch job')
+    throw new Error('Failed to fetch run')
   }
 
   return response.json()
+}
+
+export async function cancelJob(jobId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/jobs/${jobId}/cancel`, { method: 'POST' })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to cancel run')
+  }
 }
 
 export interface JobListItemTicket {
@@ -192,7 +206,7 @@ export interface JobListItemTicket {
 export interface JobListItem {
   jobId: string
   jobKind: 'research' | 'planning' | 'execution' | 'claw'
-  status: 'queued' | 'active' | 'completed' | 'failed'
+  status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
   repository: string
   task: string
   tenantId: string
@@ -233,7 +247,7 @@ export async function getJobs(params?: { status?: string; limit?: number; projec
   const response = await apiFetch(url)
 
   if (!response.ok) {
-    throw new Error('Failed to fetch jobs')
+    throw new Error('Failed to fetch runs')
   }
 
   return response.json()
@@ -246,7 +260,7 @@ export async function getJobQueueStats(): Promise<JobQueueStats> {
   const response = await apiFetch(`${API_BASE_URL}/api/jobs/stats/queue`)
 
   if (!response.ok) {
-    throw new Error('Failed to fetch job queue stats')
+    throw new Error('Failed to fetch run queue stats')
   }
 
   return response.json()

@@ -177,7 +177,7 @@ export function PromptTemplatesPage() {
         <div>
           <Heading>Prompt Templates</Heading>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Customize how prompts are built for each job type. Leave unchanged to use system defaults.
+            Customize how prompts are built for each run type. Leave unchanged to use system defaults.
           </p>
         </div>
       </div>

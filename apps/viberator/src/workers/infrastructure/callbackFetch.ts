@@ -60,6 +60,18 @@ export function isInternalLogMessage(message: string): boolean {
   return message.includes(INTERNAL_LOG_TAG);
 }
 
+function getCallbackErrorMessage(value: unknown, fallback: string): string {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "error" in value &&
+    typeof value.error === "string"
+  ) {
+    return value.error;
+  }
+  return fallback;
+}
+
 export async function fetchWithRetry(
   url: string,
   tenantId: string,
@@ -72,10 +84,10 @@ export async function fetchWithRetry(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      logger.info(
-        tagInternalLog(`Sending ${config.label} to platform`),
-        { ...context, attempt: attempt + 1 },
-      );
+      logger.info(tagInternalLog(`Sending ${config.label} to platform`), {
+        ...context,
+        attempt: attempt + 1,
+      });
 
       const response = await fetch(url, {
         method: "POST",
@@ -86,13 +98,13 @@ export async function fetchWithRetry(
 
       if (!response.ok) {
         const statusCode = response.status;
-        const errorData = await response
+        const errorData: unknown = await response
           .json()
           .catch(() => ({ error: response.statusText }));
-        const errorMessage =
-          typeof errorData?.error === "string"
-            ? errorData.error
-            : response.statusText;
+        const errorMessage = getCallbackErrorMessage(
+          errorData,
+          response.statusText,
+        );
 
         // Idempotency: another worker retry may have already finalized this job.
         if (
@@ -130,28 +142,26 @@ export async function fetchWithRetry(
 
         const delay = retryDelay * Math.pow(2, attempt);
         logger.warn(
-          tagInternalLog(
-            `Retryable error sending ${config.label}, will retry`,
-          ),
+          tagInternalLog(`Retryable error sending ${config.label}, will retry`),
           { ...context, attempt: attempt + 1, statusCode, delay },
         );
         await sleep(delay);
         continue;
       }
 
-      logger.info(
-        tagInternalLog(`${config.label} sent successfully`),
-        { ...context, status: response.status },
-      );
+      logger.info(tagInternalLog(`${config.label} sent successfully`), {
+        ...context,
+        status: response.status,
+      });
       return;
     } catch (error) {
       const isLastAttempt = attempt === maxRetries;
 
       if (error instanceof Error && error.name === "AbortError") {
-        logger.error(
-          tagInternalLog(`${config.label} request timeout`),
-          { ...context, attempt: attempt + 1 },
-        );
+        logger.error(tagInternalLog(`${config.label} request timeout`), {
+          ...context,
+          attempt: attempt + 1,
+        });
         if (isLastAttempt) {
           throw new Error(
             `${config.label} callback timeout after ${maxRetries + 1} attempts`,

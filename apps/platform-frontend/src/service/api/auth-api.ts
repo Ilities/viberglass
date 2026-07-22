@@ -8,6 +8,8 @@ export type AuthUser = {
   role?: 'admin' | 'member'
 }
 
+export type SetupStatus = { requiresInitialUser: boolean }
+
 type AuthResponse = {
   token: string
   user: AuthUser
@@ -51,6 +53,13 @@ export async function register(name: string, email: string, password: string): P
   })
 
   return handleResponse<AuthResponse>(response)
+}
+
+export async function getSetupStatus(): Promise<SetupStatus> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/setup-status`, {
+    credentials: 'include',
+  })
+  return handleResponse<SetupStatus>(response)
 }
 
 export async function getCurrentUser(token?: string): Promise<AuthUser> {

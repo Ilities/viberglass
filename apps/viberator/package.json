@@ -9,7 +9,7 @@
     "dev:worker": "tsup --watch --onSuccess \"node dist/cli-worker.js\"",
     "dev:lambda-worker": "tsup --watch --onSuccess \"node dist/lambda-handler.js\"",
     "test": "jest",
-    "test:unit": "jest --testPathPattern=unit",
+    "test:unit": "jest",
     "test:integration": "jest --testPathPattern=integration",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

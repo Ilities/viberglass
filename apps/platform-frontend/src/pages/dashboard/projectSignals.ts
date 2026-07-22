@@ -21,26 +21,12 @@ export function getBroadcastLine(projectCount: number, clankerCount: number): st
 }
 
 export function getProjectSignal(project: Project, tickets: TicketSummary[], jobs: JobListItem[]): ProjectSignal {
-  const hasNativeTicketing = project.ticketSystem === 'custom'
-  const hasObservedTicketFlow = tickets.length > 0
-  const hasTicketing = Boolean(project.primaryTicketingIntegrationId) || hasNativeTicketing || hasObservedTicketFlow
   const hasScmConfig = Boolean(project.primaryScmIntegrationId || project.scmConfig?.sourceRepository)
   const hasObservedRepositoryFlow = jobs.some((job) => job.repository.trim().length > 0)
   const hasScm = hasScmConfig || hasObservedRepositoryFlow
   const openTickets = tickets.filter((ticket) => ticket.status !== TICKET_STATUS.RESOLVED).length
   const failedJobs = jobs.filter((job) => job.status === 'failed').length
   const activeJobs = jobs.filter((job) => job.status === 'active' || job.status === 'queued').length
-
-  if (!hasTicketing) {
-    return {
-      label: 'Uncharted',
-      color: 'red',
-      glyph: '[?!]',
-      blurb: 'No ticketing integration yet. Reports may drift into deep space, vogon poetry optional.',
-      nextHref: `/project/${project.slug}/settings/integrations`,
-      nextLabel: 'Wire Ticketing',
-    }
-  }
 
   if (!hasScm) {
     return {
@@ -58,9 +44,9 @@ export function getProjectSignal(project: Project, tickets: TicketSummary[], job
       label: 'Asteroid Field',
       color: 'red',
       glyph: '[***]',
-      blurb: `${failedJobs} recent job${failedJobs === 1 ? '' : 's'} failed. Somewhere, a Vogon construction fleet is demolishing your CI pipeline.`,
+      blurb: `${failedJobs} recent run${failedJobs === 1 ? '' : 's'} failed. Somewhere, a Vogon construction fleet is demolishing your CI pipeline.`,
       nextHref: `/project/${project.slug}/jobs`,
-      nextLabel: 'Inspect Jobs',
+      nextLabel: 'Inspect runs',
     }
   }
 
@@ -103,7 +89,7 @@ export function getLatestWhisper(project: Project, tickets: TicketSummary[], job
   if (!latestTicket && !latestJob) return `${project.name} is quiet. Suspiciously quiet. Marvin would approve.`
   if (latestTicket && !latestJob) return `Latest whisper: ticket "${latestTicket.title}".`
   if (!latestTicket && latestJob)
-    return `Latest whisper: ${formatJobStatus(latestJob.status).label} job from ${formatTimestamp(latestJob.createdAt)}.`
+    return `Latest whisper: ${formatJobStatus(latestJob.status).label} run from ${formatTimestamp(latestJob.createdAt)}.`
 
   if (!latestTicket || !latestJob) return `${project.name} is quiet. Suspiciously quiet. Marvin would approve.`
   const ticketTs = new Date(latestTicket.timestamp).getTime()
@@ -111,7 +97,7 @@ export function getLatestWhisper(project: Project, tickets: TicketSummary[], job
 
   return ticketTs >= jobTs
     ? `Latest whisper: ticket "${latestTicket.title}".`
-    : `Latest whisper: ${formatJobStatus(latestJob.status).label} job from ${formatTimestamp(latestJob.createdAt)}.`
+    : `Latest whisper: ${formatJobStatus(latestJob.status).label} run from ${formatTimestamp(latestJob.createdAt)}.`
 }
 
 export const clankerStatusColor: Record<'active' | 'inactive' | 'deploying' | 'failed', SignalColor> = {

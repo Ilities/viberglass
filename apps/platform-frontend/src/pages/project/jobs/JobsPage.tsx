@@ -54,9 +54,9 @@ export function JobsPage() {
 
   return (
     <>
-      <PageMeta title={project ? `${project} | Jobs` : 'Jobs'} />
+      <PageMeta title={project ? `${project} | Runs` : 'Runs'} />
       <div className="flex items-end justify-between">
-        <Heading>Jobs</Heading>
+        <Heading>Runs</Heading>
         <div className="flex gap-4">
           <Button href={`/project/${project}`}>Back to Project</Button>
         </div>
@@ -65,7 +65,7 @@ export function JobsPage() {
       <div className="mt-8 flex items-center gap-4">
         <div className="min-w-75 flex-2">
           <SearchInput
-            placeholder="Search jobs..."
+            placeholder="Search runs..."
             name="search"
             defaultValue={search}
           />
@@ -84,7 +84,7 @@ export function JobsPage() {
       ) : (
         <div className="mt-8 text-center">
           <p className="text-zinc-500 dark:text-zinc-400">
-            {jobs.length === 0 ? 'No jobs found for this project.' : 'No jobs found matching your criteria.'}
+            {jobs.length === 0 ? 'No runs found for this project.' : 'No runs found matching your criteria.'}
           </p>
         </div>
       )}

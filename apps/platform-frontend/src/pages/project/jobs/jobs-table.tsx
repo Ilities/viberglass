@@ -36,7 +36,7 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
       <TableHead>
         <TableRow>
           <TableHeader>Status</TableHeader>
-          <TableHeader>Job</TableHeader>
+          <TableHeader>Run</TableHeader>
           <TableHeader>Repository</TableHeader>
           <TableHeader>Duration</TableHeader>
           <TableHeader>Created</TableHeader>

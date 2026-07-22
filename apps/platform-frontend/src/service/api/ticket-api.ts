@@ -177,9 +177,9 @@ export async function createTicket(
   formData.append('projectId', ticket.projectId)
   formData.append('title', ticket.title)
   formData.append('description', ticket.description)
-  formData.append('severity', ticket.severity)
-  formData.append('category', ticket.category)
-  formData.append('autoFixRequested', String(ticket.autoFixRequested))
+  if (ticket.severity) formData.append('severity', ticket.severity)
+  if (ticket.category) formData.append('category', ticket.category)
+  formData.append('autoFixRequested', String(ticket.autoFixRequested ?? false))
   
   if (ticket.ticketSystem) {
     formData.append('ticketSystem', ticket.ticketSystem)
@@ -189,9 +189,13 @@ export async function createTicket(
     formData.append('workflowPhase', ticket.workflowPhase)
   }
 
+  if (ticket.workflowOverrideReason) {
+    formData.append('workflowOverrideReason', ticket.workflowOverrideReason)
+  }
+
   // Serialize complex objects as JSON strings
-  formData.append('metadata', JSON.stringify(ticket.metadata))
-  formData.append('annotations', JSON.stringify(ticket.annotations))
+  if (ticket.metadata) formData.append('metadata', JSON.stringify(ticket.metadata))
+  if (ticket.annotations) formData.append('annotations', JSON.stringify(ticket.annotations))
   
   const response = await apiFetch(`${API_BASE_URL}/api/tickets`, {
     method: 'POST',
@@ -321,7 +325,7 @@ export interface PhaseDocumentCommentResponse {
 export interface ResearchRunResponse {
   id: string
   jobId: string
-  status: 'queued' | 'active' | 'completed' | 'failed'
+  status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
   clankerId: string
   clankerName: string | null
   clankerSlug: string | null
@@ -499,7 +503,7 @@ export async function savePlanningDocument(
 export interface PlanningRunResponse {
   id: string
   jobId: string
-  status: 'queued' | 'active' | 'completed' | 'failed'
+  status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
   clankerId: string
   clankerName: string | null
   clankerSlug: string | null

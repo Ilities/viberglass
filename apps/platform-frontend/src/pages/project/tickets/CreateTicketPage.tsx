@@ -3,12 +3,12 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Heading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { PageMeta } from '@/components/page-meta'
+import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { useProject } from '@/context/project-context'
 import { createTicket } from '@/service/api/ticket-api'
-import { cn } from '@/lib/utils'
-import type { CreateTicketRequest, Severity, TicketWorkflowPhase } from '@viberglass/types'
+import type { CreateTicketRequest, Severity } from '@viberglass/types'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useRef } from 'react'
 
@@ -24,7 +24,6 @@ export function CreateTicketPage() {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [workflowPhase, setWorkflowPhase] = useState<TicketWorkflowPhase>('research')
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
   const [recordingFile, setRecordingFile] = useState<File | null>(null)
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
@@ -83,11 +82,10 @@ export function CreateTicketPage() {
         projectId: projectData.id,
         title: formData.get('title') as string,
         description: formData.get('description') as string,
-        severity: formData.get('severity') as Severity,
-        category: formData.get('category') as string,
+        severity: (formData.get('severity') as Severity | null) ?? 'medium',
+        category: (formData.get('category') as string)?.trim() || 'General',
         autoFixRequested: false,
         ticketSystem: projectData.ticketSystem,
-        ...(workflowPhase !== 'research' && { workflowPhase }),
         metadata: {
           browser: { name: 'Manual Entry', version: '1.0' },
           os: { name: 'Manual Entry', version: '1.0' },
@@ -114,6 +112,12 @@ export function CreateTicketPage() {
       <form className="mx-auto max-w-4xl" onSubmit={handleSubmit}>
       <Heading>Create New Ticket</Heading>
 
+      {projectData ? <div className="mt-6"><ProjectReadinessBanner projectId={projectData.id} /></div> : null}
+
+      <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+        Every new ticket starts in Research so the agent can understand the codebase before planning changes.
+      </p>
+
       {error && (
         <div className="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
           {error}
@@ -134,57 +138,27 @@ export function CreateTicketPage() {
             <Textarea name="description" rows={5} placeholder="Steps to reproduce..." required />
           </Field>
 
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <Field>
-              <Label>Severity</Label>
-              <Description>How critical is this issue?</Description>
-              <Select name="severity" defaultValue="medium">
-                {severities.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field>
-              <Label>Category</Label>
-              <Description>What area of the project is affected?</Description>
-              <Input name="category" placeholder="e.g. UI, Backend, API" required />
-            </Field>
-          </div>
-
-          <Field>
-            <Label>Starting Phase</Label>
-            <Description>Which phase to start in. Execution skips research and planning.</Description>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {([
-                { value: 'research', label: 'Research', desc: 'Investigate first, then plan and execute' },
-                { value: 'planning', label: 'Planning', desc: 'Skip research, create a plan then execute' },
-                { value: 'execution', label: 'Execution', desc: 'Skip research and planning, execute directly' },
-              ] as const).map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setWorkflowPhase(option.value)}
-                  className={cn(
-                    'text-left px-4 py-2.5 transition-colors rounded-lg border',
-                    workflowPhase === option.value
-                      ? 'bg-[var(--accent-2)] border-[var(--accent-7)]'
-                      : 'bg-transparent border-[var(--gray-6)] hover:bg-[var(--gray-3)]'
-                  )}
-                >
-                  <div className={cn(
-                    'text-sm font-medium',
-                    workflowPhase === option.value ? 'text-[var(--accent-12)]' : 'text-[var(--gray-12)]'
-                  )}>
-                    {option.label}
-                  </div>
-                  <div className="text-xs text-[var(--gray-9)] mt-0.5">{option.desc}</div>
-                </button>
-              ))}
+          <details className="rounded-xl border border-zinc-950/10 p-4 dark:border-white/10">
+            <summary className="cursor-pointer text-sm font-medium text-zinc-900 dark:text-white">
+              Optional details
+            </summary>
+            <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <Field>
+                <Label>Severity</Label>
+                <Description>How urgent is this change?</Description>
+                <Select name="severity" defaultValue="medium">
+                  {severities.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field>
+                <Label>Category</Label>
+                <Description>Which area is affected?</Description>
+                <Input name="category" placeholder="General" />
+              </Field>
             </div>
-          </Field>
+          </details>
 
           <Field>
             <Label>Screenshot (Optional)</Label>

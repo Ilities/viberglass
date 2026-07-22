@@ -211,7 +211,7 @@ export function PlanningDocumentPanel({
                     {latestRun.status === 'active' ? 'Planning Running' : `Planning ${latestRun.status}`}
                   </Badge>
                   <span>
-                    Latest run with {latestRun.clankerName || 'Unknown clanker'} on{' '}
+                    Latest run with {latestRun.clankerName || 'Unknown agent runner'} on{' '}
                     {new Date(latestRun.createdAt).toLocaleString()}
                   </span>
                   <Button plain onClick={() => navigate(`/project/${project}/jobs/${latestRun.jobId}`)}>
@@ -233,7 +233,7 @@ export function PlanningDocumentPanel({
                 disabled={!canRunPlanning}
                 title={
                   canRunPlanning
-                    ? 'Generate planning with a clanker'
+                    ? 'Generate planning with an agent runner'
                     : 'Planning runs are only available during the planning phase'
                 }
               >
@@ -257,7 +257,7 @@ export function PlanningDocumentPanel({
                   title={canEdit ? 'Edit planning document' : 'Planning document is read-only in current phase'}
                 >
                   <Pencil1Icon className="h-3.5 w-3.5" />
-                  Edit
+                  Edit source
                 </Button>
               )}
             </div>

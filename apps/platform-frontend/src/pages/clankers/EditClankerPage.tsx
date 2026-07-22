@@ -324,7 +324,7 @@ export function EditClankerPage() {
       })
       navigate(`/clankers/${updated.slug}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update clanker')
+      setError(err instanceof Error ? err.message : 'Failed to update agent runner')
       setIsSubmitting(false)
     }
   }
@@ -348,8 +348,8 @@ export function EditClankerPage() {
 
   return (
     <>
-      <PageMeta title={clanker ? `Edit ${clanker.name}` : 'Edit Clanker'} />
-      <Heading>Edit Clanker</Heading>
+      <PageMeta title={clanker ? `Edit ${clanker.name}` : 'Edit agent runner'} />
+      <Heading>Edit agent runner</Heading>
       <Subheading className="mt-2">Update the configuration for {clanker.name}.</Subheading>
 
       <form onSubmit={handleSubmit} className="mt-8 w-full max-w-6xl">
@@ -361,17 +361,17 @@ export function EditClankerPage() {
 
         <Fieldset>
           <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Metadata</legend>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Core identity for this clanker.</p>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Core identity for this agent runner.</p>
           <FieldGroup className="mt-6">
             <Field>
               <Label>Name</Label>
-              <Description>A unique name for your clanker.</Description>
+              <Description>A unique name for your agent runner.</Description>
               <Input name="name" required defaultValue={clanker.name} />
             </Field>
 
             <Field>
               <Label>Description</Label>
-              <Description>A brief description of what this clanker does.</Description>
+              <Description>A brief description of what this agent runner does.</Description>
               <Textarea name="description" rows={3} defaultValue={clanker.description || ''} />
             </Field>
           </FieldGroup>
@@ -383,7 +383,7 @@ export function EditClankerPage() {
           <FieldGroup className="mt-6">
             <Field>
               <Label>Agent Selection</Label>
-              <Description>Select which AI agent powers this clanker.</Description>
+              <Description>Select which AI agent powers this runner.</Description>
               <AgentSelectionCards value={selectedAgent} onChange={setSelectedAgent} />
             </Field>
 
@@ -438,7 +438,7 @@ export function EditClankerPage() {
                 <Description>
                   Paste your harness configuration here. Use environment variable names like <code>$SECRET_NAME</code>{' '}
                   or <code>{'{env:MINIMAX_API_KEY}'}</code> (for OpenCode) in the config - secrets assigned to this
-                  clanker will be available as environment variables at runtime.
+                  agent runner will be available as environment variables at runtime.
                 </Description>
                 <Textarea
                   rows={10}
@@ -487,12 +487,12 @@ export function EditClankerPage() {
         <Fieldset className="mt-10">
           <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Deployment</legend>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Choose where this clanker runs and provide strategy-specific runtime settings.
+            Choose where this agent runner runs and provide strategy-specific runtime settings.
           </p>
           <FieldGroup className="mt-6">
             <Field>
               <Label>Deployment Strategy</Label>
-              <Description>Choose where this clanker runs.</Description>
+              <Description>Choose where this agent runner operates.</Description>
               <DeploymentStrategyCards
                 strategies={deploymentStrategies}
                 value={selectedStrategyId}
@@ -535,12 +535,12 @@ export function EditClankerPage() {
                   </Button>
                 </div>
               </div>
-              <Description>Main instruction file used to guide this clanker.</Description>
+              <Description>Main instruction file used to guide this agent runner.</Description>
               <Textarea
                 rows={8}
                 value={agentInstructions}
                 onChange={(event) => setAgentInstructions(event.target.value)}
-                placeholder="Describe how this clanker should behave..."
+                placeholder="Describe how this agent runner should behave..."
                 className="font-mono"
               />
             </Field>

@@ -2,6 +2,7 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { runTicket } from '@/service/api/job-api'
+import { launchSession } from '@/service/api/session-api'
 import { runPlanning, runResearch } from '@/service/api/ticket-api'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useNavigate } from 'react-router-dom'
@@ -54,7 +55,7 @@ export function RunTicketModal({
   // Reset selection when modal opens with new ticket
   // (handled by parent re-mounting or passing key)
 
-  async function handleRun() {
+  async function handleRun(runMode: 'automatic' | 'live') {
     if (!ticket || !selectedClanker) return
 
     setIsRunning(true)
@@ -62,6 +63,17 @@ export function RunTicketModal({
       const instructionFiles = extraInstructions.trim().length > 0
         ? [{ fileType: 'AGENTS.md', content: extraInstructions.trim() }]
         : undefined
+
+      if (runMode === 'live') {
+        const session = await launchSession(ticket.id, {
+          clankerId: selectedClanker.id,
+          mode,
+          initialMessage: extraInstructions.trim() || `Start ${mode}`,
+        })
+        navigate(`/project/${project}/sessions/${session.session.id}`)
+        onClose()
+        return
+      }
 
       const response =
         mode === 'research'
@@ -76,7 +88,7 @@ export function RunTicketModal({
           ? 'Research started'
           : mode === 'planning'
             ? 'Planning started'
-            : 'Job started',
+          : 'Run started',
         {
           description:
             mode === 'research'
@@ -85,13 +97,12 @@ export function RunTicketModal({
                 ? `Planning "${ticket.title}" with ${selectedClanker.name}`
                 : `Running "${ticket.title}" with ${selectedClanker.name}`,
           action: {
-            label: 'View Job',
+            label: 'View run',
             onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
           },
         }
       )
 
-      // Navigate to job page
       navigate(`/project/${project}/jobs/${jobId}`)
       onClose()
     } catch (error) {
@@ -109,17 +120,17 @@ export function RunTicketModal({
     <Dialog open={open} onClose={onClose} size="lg">
       <DialogTitle>
         {mode === 'research'
-          ? 'Run Research with Clanker'
+          ? 'Start Research'
           : mode === 'planning'
-            ? 'Run Planning with Clanker'
-            : 'Run Ticket with Clanker'}
+            ? 'Start Planning'
+            : 'Start Execution'}
       </DialogTitle>
       <DialogDescription>
         {mode === 'research'
-          ? 'Create a job to generate a research document for this ticket.'
+          ? 'Choose how you want to work through this ticket.'
           : mode === 'planning'
-            ? 'Create a job to generate a planning document for this ticket based on the research.'
-            : 'Create a job to fix this ticket using an AI coding agent.'}
+            ? 'Choose whether the agent should plan automatically or collaborate with you.'
+            : 'Start an automated execution or collaborate with the agent.'}
       </DialogDescription>
       <DialogBody>
         <div className="space-y-6">
@@ -134,12 +145,12 @@ export function RunTicketModal({
 
           {/* Clanker Selection */}
           <div>
-            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Select Clanker</h4>
+            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Agent runner</h4>
             {activeClankers.length > 0 ? (
               <Listbox
                 value={selectedClankerId}
                 onChange={setSelectedClankerId}
-                placeholder="Select a clanker..."
+                placeholder="Select an agent runner..."
               >
                 {activeClankers.map((clanker) => (
                   <ListboxOption key={clanker.id} value={clanker.id}>
@@ -170,7 +181,7 @@ export function RunTicketModal({
           </div>
 
           <div>
-            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Extra Instructions (Optional)</h4>
+            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Extra instructions (optional)</h4>
             <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
               Saved as <code>AGENTS.md</code> for this run only.
             </p>
@@ -188,14 +199,11 @@ export function RunTicketModal({
         <Button plain onClick={onClose} disabled={isRunning}>
           Cancel
         </Button>
-        <Button color="brand" disabled={isRunning || !selectedClanker} onClick={handleRun}>
-          {isRunning
-            ? 'Starting...'
-            : mode === 'research'
-              ? `Run research with ${selectedClanker?.name || 'Clanker'}`
-              : mode === 'planning'
-                ? `Run planning with ${selectedClanker?.name || 'Clanker'}`
-                : `Run with ${selectedClanker?.name || 'Clanker'}`}
+        <Button color="brand" disabled={isRunning || !selectedClanker} onClick={() => void handleRun('automatic')}>
+          {isRunning ? 'Starting...' : 'Run automatically'}
+        </Button>
+        <Button outline disabled={isRunning || !selectedClanker} onClick={() => void handleRun('live')}>
+          Collaborate live
         </Button>
       </DialogActions>
     </Dialog>

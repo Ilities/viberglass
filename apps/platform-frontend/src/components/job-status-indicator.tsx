@@ -2,7 +2,7 @@ import { Badge } from '@/components/badge'
 import { ClockIcon, CheckCircledIcon, CrossCircledIcon } from '@radix-ui/react-icons'
 import { motion } from 'motion/react'
 
-export type JobStatusType = 'queued' | 'active' | 'completed' | 'failed'
+export type JobStatusType = 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
 
 export interface JobStatusIndicatorProps {
   status: JobStatusType
@@ -28,6 +28,11 @@ const statusConfig = {
   failed: {
     label: 'Failed',
     color: 'red' as const,
+    icon: CrossCircledIcon,
+  },
+  cancelled: {
+    label: 'Cancelled',
+    color: 'zinc' as const,
     icon: CrossCircledIcon,
   },
 } as const

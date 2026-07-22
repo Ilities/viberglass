@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { getJob, JobStatus } from '@/service/api/job-api'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 export interface UseJobStatusResult {
@@ -39,7 +39,7 @@ export function useJobStatus(jobId: string | undefined): UseJobStatusResult {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Determine if job is in terminal state
-  const isTerminal = job?.status === 'completed' || job?.status === 'failed'
+  const isTerminal = job?.status === 'completed' || job?.status === 'failed' || job?.status === 'cancelled'
 
   // Fetch job data and handle status changes
   const fetchJob = useCallback(async () => {
@@ -53,29 +53,33 @@ export function useJobStatus(jobId: string | undefined): UseJobStatusResult {
       // Check for status change to terminal state for toast
       const prevStatus = previousStatusRef.current
       const statusChanged = prevStatus !== null && prevStatus !== jobData.status
-      const nowTerminal = jobData.status === 'completed' || jobData.status === 'failed'
+      const nowTerminal =
+        jobData.status === 'completed' || jobData.status === 'failed' || jobData.status === 'cancelled'
 
       if (nowTerminal && statusChanged) {
         if (jobData.status === 'completed') {
-          toast.success('Job completed successfully', {
+          const pullRequestUrl = jobData.result?.pullRequestUrl
+          toast.success('Run completed successfully', {
             description: 'Your changes have been applied',
-            action: jobData.result?.pullRequestUrl
+            action: pullRequestUrl
               ? {
                   label: 'View PR',
-                  onClick: () => window.open(jobData.result!.pullRequestUrl!, '_blank'),
+                  onClick: () => window.open(pullRequestUrl, '_blank'),
                 }
               : undefined,
           })
         } else if (jobData.status === 'failed') {
-          toast.error('Job failed', {
+          toast.error('Run failed', {
             description: jobData.result?.errorMessage || jobData.failedReason || 'An error occurred',
           })
+        } else {
+          toast.info('Run cancelled')
         }
       }
 
       previousStatusRef.current = jobData.status
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch job'))
+      setError(err instanceof Error ? err : new Error('Failed to fetch run'))
     }
   }, [jobId])
 
@@ -100,7 +104,7 @@ export function useJobStatus(jobId: string | undefined): UseJobStatusResult {
         setIsLoading(false)
       })
       .catch((err) => {
-        setError(err instanceof Error ? err : new Error('Failed to fetch job'))
+        setError(err instanceof Error ? err : new Error('Failed to fetch run'))
         setIsLoading(false)
       })
   }, [jobId])

@@ -30,6 +30,7 @@ import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPend
 import { JobService } from "../../services/JobService";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
+import { IntegrationDAO } from "../../persistence/integrations";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -85,7 +86,7 @@ router.post("/:id/set-status", validateUuidParam("id"), async (req, res) => {
       await ticketPhaseDocumentService.requestApproval(
         id,
         ticket.workflowPhase,
-        req.auth?.user.email,
+        req.authContext?.user.email,
       );
     } else {
       await ticketService.updateTicket(id, {
@@ -111,6 +112,7 @@ registerTicketCrudMediaRoutes(router, {
   ticketService,
   projectService,
   fileUploadService,
+  integrationDAO: new IntegrationDAO(),
 });
 
 registerTicketWorkflowPhaseRoutes(router, {

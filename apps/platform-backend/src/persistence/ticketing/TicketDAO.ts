@@ -128,18 +128,24 @@ export class TicketDAO {
           timestamp: timestamp,
           title: request.title,
           description: request.description,
-          severity: request.severity,
-          category: request.category,
+          severity: request.severity ?? "medium",
+          category: request.category ?? "General",
           metadata: JSON.stringify(request.metadata),
           screenshot_id: screenshotAsset?.id ?? null,
           recording_id: recordingAsset?.id || null,
           annotations: JSON.stringify(request.annotations),
-          ticket_system: request.ticketSystem,
-          auto_fix_requested: request.autoFixRequested,
+          ticket_system: request.ticketSystem ?? "custom",
+          auto_fix_requested: request.autoFixRequested ?? false,
           ticket_status: TICKET_STATUS.OPEN,
           workflow_phase: request.workflowPhase ?? TICKET_WORKFLOW_PHASE.RESEARCH,
-          workflow_overridden_at: request.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION ? timestamp : null,
-          workflow_override_reason: request.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION ? "Created with execution phase" : null,
+          workflow_overridden_at:
+            request.workflowPhase && request.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH
+              ? timestamp
+              : null,
+          workflow_override_reason:
+            request.workflowPhase && request.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH
+              ? request.workflowOverrideReason ?? "Created with workflow phase override"
+              : null,
           archived_at: null,
           created_at: timestamp,
           updated_at: timestamp,

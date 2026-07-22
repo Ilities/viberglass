@@ -94,26 +94,58 @@ export function PhaseDocumentComments({
   }, [])
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] font-mono text-sm">
-      {lines.map((line, index) => {
-        const lineNumber = index + 1
-        return (
-          <DocumentLine
-            key={lineNumber}
-            lineNumber={lineNumber}
-            content={line}
-            comments={commentsByLine.get(lineNumber) ?? []}
-            formOpen={activeLineNumber === lineNumber}
-            isSaving={isSaving}
-            onToggleLine={toggleLine}
-            onCreateComment={onCreateComment}
-            onToggleStatus={onToggleStatus}
-            onApplySuggestion={onApplySuggestion}
-            onSendToSession={activeSessionId ? onSendToSession : undefined}
-          />
-        )
-      })}
+    <div className="space-y-4">
+      <RenderedMarkdown content={content} />
+      <details className="overflow-hidden rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] text-sm">
+        <summary className="cursor-pointer px-4 py-3 font-medium text-[var(--gray-11)]">
+          Review source and line comments
+        </summary>
+        <div className="border-t border-[var(--gray-5)] font-mono">
+          {lines.map((line, index) => {
+            const lineNumber = index + 1
+            return (
+              <DocumentLine
+                key={lineNumber}
+                lineNumber={lineNumber}
+                content={line}
+                comments={commentsByLine.get(lineNumber) ?? []}
+                formOpen={activeLineNumber === lineNumber}
+                isSaving={isSaving}
+                onToggleLine={toggleLine}
+                onCreateComment={onCreateComment}
+                onToggleStatus={onToggleStatus}
+                onApplySuggestion={onApplySuggestion}
+                onSendToSession={activeSessionId ? onSendToSession : undefined}
+              />
+            )
+          })}
+        </div>
+      </details>
     </div>
+  )
+}
+
+function RenderedMarkdown({ content }: { content: string }) {
+  return (
+    <article className="space-y-3 rounded-lg border border-[var(--gray-5)] bg-[var(--gray-1)] p-6 text-sm leading-6 text-[var(--gray-11)]">
+      {content.split('\n').map((line, index) => {
+        const heading = /^(#{1,3})\s+(.+)$/.exec(line)
+        if (heading) {
+          const className = heading[1].length === 1 ? 'text-xl' : heading[1].length === 2 ? 'text-lg' : 'text-base'
+          return <h4 key={index} className={`${className} mt-5 font-semibold text-[var(--gray-12)] first:mt-0`}>{heading[2]}</h4>
+        }
+        if (/^[-*]\s+/.test(line)) {
+          return <div key={index} className="flex gap-2 pl-2"><span aria-hidden>•</span><span>{line.replace(/^[-*]\s+/, '')}</span></div>
+        }
+        if (/^\d+\.\s+/.test(line)) {
+          const marker = line.match(/^\d+\./)?.[0]
+          return <div key={index} className="flex gap-2 pl-2"><span>{marker}</span><span>{line.replace(/^\d+\.\s+/, '')}</span></div>
+        }
+        if (line.startsWith('```')) return <div key={index} className="h-1" />
+        if (line.trim().length === 0) return <div key={index} className="h-2" />
+        return <p key={index}>{line}</p>
+      })}
+    </article>
   )
 }
 

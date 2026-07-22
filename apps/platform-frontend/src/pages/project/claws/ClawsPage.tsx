@@ -26,10 +26,10 @@ export function ClawsPage() {
 
   return (
     <>
-      <PageMeta title={projectSlug ? `${projectSlug} | Claws` : 'Claws'} />
+      <PageMeta title={projectSlug ? `${projectSlug} | Schedules` : 'Schedules'} />
 
       <div className="flex items-end justify-between">
-        <Heading>Claws</Heading>
+        <Heading>Schedules</Heading>
       </div>
 
       <div className="mt-6 border-b border-zinc-200 dark:border-zinc-800">

@@ -248,18 +248,18 @@ export function NewClankerPage() {
       })
       navigate(`/clankers/${clanker.slug}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create clanker')
+      setError(err instanceof Error ? err.message : 'Failed to create agent runner')
       setIsSubmitting(false)
     }
   }
 
   return (
     <>
-      <PageMeta title="New Clanker" />
-      <Heading>Create New Clanker</Heading>
+      <PageMeta title="New agent runner" />
+      <Heading>Create agent runner</Heading>
       <Subheading className="mt-2">Configure a new agent worker for your Viberator tasks.</Subheading>
       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-        Creating a clanker stores its settings only. Use the Start action on the clanker page when you are ready to
+        Creating an agent runner stores its settings only. Use the Start action on the runner page when you are ready to
         provision it.
       </div>
 
@@ -272,18 +272,18 @@ export function NewClankerPage() {
 
         <Fieldset>
           <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Metadata</legend>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Core identity for this clanker.</p>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Core identity for this agent runner.</p>
           <FieldGroup className="mt-6">
             <Field>
               <Label>Name</Label>
-              <Description>A unique name for your clanker.</Description>
-              <Input name="name" required placeholder="My Awesome Clanker" />
+              <Description>A unique name for your agent runner.</Description>
+              <Input name="name" required placeholder="Main coding runner" />
             </Field>
 
             <Field>
               <Label>Description</Label>
-              <Description>A brief description of what this clanker does.</Description>
-              <Textarea name="description" rows={3} placeholder="This clanker handles..." />
+              <Description>A brief description of what this agent runner does.</Description>
+              <Textarea name="description" rows={3} placeholder="This agent runner handles..." />
             </Field>
           </FieldGroup>
         </Fieldset>
@@ -294,7 +294,7 @@ export function NewClankerPage() {
           <FieldGroup className="mt-6">
             <Field>
               <Label>Agent Selection</Label>
-              <Description>Select which AI agent powers this clanker.</Description>
+              <Description>Select which AI agent powers this runner.</Description>
               <AgentSelectionCards value={selectedAgent} onChange={setSelectedAgent} />
             </Field>
 
@@ -348,7 +348,7 @@ export function NewClankerPage() {
                 </div>
                 <Description>
                   Paste your harness configuration here. Use environment variable names like{' '}
-                  <code>$SECRET_NAME</code> in the config - secrets assigned to this clanker will be
+                  <code>$SECRET_NAME</code> in the config - secrets assigned to this agent runner will be
                   available as environment variables at runtime.
                 </Description>
                 <Textarea
@@ -398,12 +398,12 @@ export function NewClankerPage() {
         <Fieldset className="mt-10">
           <legend className="text-base/6 font-semibold text-zinc-950 dark:text-white">Deployment</legend>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Choose where this clanker runs and provide strategy-specific runtime settings.
+            Choose where this agent runner operates and provide strategy-specific runtime settings.
           </p>
           <FieldGroup className="mt-6">
             <Field>
               <Label>Deployment Strategy</Label>
-              <Description>Choose where this clanker runs.</Description>
+              <Description>Choose where this agent runner operates.</Description>
               <DeploymentStrategyCards
                 strategies={deploymentStrategies}
                 value={selectedStrategyId}
@@ -446,12 +446,12 @@ export function NewClankerPage() {
                   </Button>
                 </div>
               </div>
-              <Description>Main instruction file used to guide this clanker.</Description>
+              <Description>Main instruction file used to guide this agent runner.</Description>
               <Textarea
                 rows={8}
                 value={agentInstructions}
                 onChange={(event) => setAgentInstructions(event.target.value)}
-                placeholder="Describe how this clanker should behave..."
+                placeholder="Describe how this agent runner should behave..."
                 className="font-mono"
               />
             </Field>
@@ -512,7 +512,7 @@ export function NewClankerPage() {
 
         <div className="mt-10 flex gap-4">
           <Button type="submit" color="brand" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Clanker'}
+            {isSubmitting ? 'Creating...' : 'Create agent runner'}
           </Button>
           <Button type="button" plain onClick={() => navigate(-1)}>
             Cancel

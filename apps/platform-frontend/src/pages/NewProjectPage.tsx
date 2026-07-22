@@ -156,8 +156,8 @@ export function NewProjectPage() {
 
       const selectedTicketing = ticketingIntegrations.find((i) => i.id === ticketingIntegrationId)
       if (selectedTicketing) {
-        await linkIntegrationToProject(projectId, selectedTicketing.id)
-        await updateProject(projectId, { ticketSystem: selectedTicketing.system })
+        await linkIntegrationToProject(projectId, selectedTicketing.id, true)
+        await updateProject(projectId, { primaryTicketingIntegrationId: selectedTicketing.id })
       }
 
       if (scmIntegrationId !== NONE_OPTION) {
@@ -165,7 +165,7 @@ export function NewProjectPage() {
         if (!selectedScm) throw new Error('Select a valid SCM integration')
         if (!sourceRepository.trim())
           throw new Error('Source repository is required when an SCM integration is selected')
-        await linkIntegrationToProject(projectId, selectedScm.id)
+        await linkIntegrationToProject(projectId, selectedScm.id, true)
         await upsertProjectScmConfig(projectId, {
           integrationId: selectedScm.id,
           sourceRepository: sourceRepository.trim(),
@@ -265,7 +265,7 @@ export function NewProjectPage() {
               <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
                 <div className="mb-4">
                   <Label className="text-base">SCM Execution</Label>
-                  <Description>Configure the repository and branch strategy used by clankers.</Description>
+                  <Description>Configure the repository and branch strategy used by agent runners.</Description>
                 </div>
 
                 <FieldGroup className="space-y-4">
@@ -297,7 +297,7 @@ export function NewProjectPage() {
 
                   <Field>
                     <Label>Source Repository</Label>
-                    <Description>Repository cloned by clankers when executing jobs.</Description>
+                    <Description>Repository used by agent runners when executing runs.</Description>
                     <Input
                       placeholder="https://github.com/org/repo"
                       value={sourceRepository}

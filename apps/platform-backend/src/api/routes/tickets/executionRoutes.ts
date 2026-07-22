@@ -2,7 +2,10 @@ import type { Router } from "express";
 import logger from "../../../config/logger";
 import type { TicketExecutionService } from "../../../services/TicketExecutionService";
 import type { TicketWorkflowOverrideService } from "../../../services/TicketWorkflowOverrideService";
-import { validateRunTicket, validateUuidParam } from "../../middleware/validation";
+import {
+  validateRunTicket,
+  validateUuidParam,
+} from "../../middleware/validation";
 import { resolveTicketRouteServiceError } from "./routeErrors";
 
 interface TicketExecutionRouteDependencies {
@@ -12,7 +15,10 @@ interface TicketExecutionRouteDependencies {
 
 export function registerTicketExecutionRoutes(
   router: Router,
-  { ticketExecutionService, ticketWorkflowOverrideService }: TicketExecutionRouteDependencies,
+  {
+    ticketExecutionService,
+    ticketWorkflowOverrideService,
+  }: TicketExecutionRouteDependencies,
 ): void {
   // POST /api/tickets/:id/run - Run a ticket as a job with worker invocation
   router.post(
@@ -22,7 +28,10 @@ export function registerTicketExecutionRoutes(
     async (req, res) => {
       try {
         const ticketId = req.params.id;
-        const result = await ticketExecutionService.runTicket(ticketId, req.body);
+        const result = await ticketExecutionService.runTicket(
+          ticketId,
+          req.body,
+        );
 
         return res.status(202).json({
           success: true,
@@ -55,7 +64,7 @@ export function registerTicketExecutionRoutes(
       try {
         const reason =
           typeof req.body?.reason === "string" ? req.body.reason : "";
-        const actor = req.auth?.user.email;
+        const actor = req.authContext?.user.email;
         const ticket = await ticketWorkflowOverrideService.overrideToExecution(
           req.params.id,
           reason,

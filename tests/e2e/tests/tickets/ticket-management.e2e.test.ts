@@ -1,520 +1,175 @@
-import { test, expect, TestHelpers } from '../../playwright/fixtures';
+import type { APIRequestContext } from "@playwright/test";
+import { expect, test, TestHelpers } from "../../playwright/fixtures";
+import {
+  SUBMITTER_FIXTURES,
+  type SubmitterTicketFixture,
+} from "../../fixtures/submitterTickets";
 
-test.describe('Ticket Management E2E Tests', () => {
-  const helpers = TestHelpers;
+interface SeededProject {
+  id: string;
+  slug: string;
+}
 
-  test.describe('T-1 to T-6: Ticket CRUD Operations', () => {
-    test('T-1: should create a new ticket', async ({ authenticatedPage: page }) => {
-      // First navigate to a project
-      await page.goto('/');
+interface SeededTicket {
+  id: string;
+}
 
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-      if (count === 0) {
-        test.skip(true, 'No projects found. Create a project first.');
-        return;
-      }
+function readProject(value: unknown): SeededProject {
+  if (!isRecord(value) || !isRecord(value.data))
+    throw new Error("Project seed response is malformed");
+  const { id, slug } = value.data;
+  if (typeof id !== "string" || typeof slug !== "string")
+    throw new Error("Project seed is missing its identity");
+  return { id, slug };
+}
 
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
+function readTicket(value: unknown): SeededTicket {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.data) ||
+    typeof value.data.id !== "string"
+  ) {
+    throw new Error("Ticket seed response is malformed");
+  }
+  return { id: value.data.id };
+}
 
-      // Get project slug from URL
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
+async function seedProject(
+  request: APIRequestContext,
+  backendURL: string,
+): Promise<SeededProject> {
+  const response = await request.post(`${backendURL}/api/projects`, {
+    data: {
+      name: `Submitter UX ${TestHelpers.generateUniqueId()}`,
+      ticketSystem: "custom",
+      autoFixEnabled: false,
+      autoFixTags: [],
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body: unknown = await response.json();
+  return readProject(body);
+}
 
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
+async function seedTicket(
+  request: APIRequestContext,
+  backendURL: string,
+  projectId: string,
+  fixture: SubmitterTicketFixture,
+): Promise<SeededTicket> {
+  const response = await request.post(`${backendURL}/api/tickets`, {
+    data: {
+      projectId,
+      title: fixture.title,
+      description: `Deterministic fixture for ${fixture.title}.`,
+      workflowPhase: fixture.phase,
+      workflowOverrideReason:
+        fixture.phase === "research"
+          ? undefined
+          : "Seeded E2E fixture requires this workflow phase",
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body: unknown = await response.json();
+  const ticket = readTicket(body);
 
-      // Navigate to create ticket page
-      await page.goto(`/project/${projectSlug}/tickets/create`);
-
-      // Check page title
-      await expect(page.getByText('Create New Ticket')).toBeVisible();
-
-      // Fill in ticket details
-      await page.fill('input[name="title"]', `E2E Test Ticket ${helpers.generateUniqueId()}`);
-
-      // Fill description
-      await page.fill('textarea[name="description"]', 'This is a test ticket created by E2E tests. Steps to reproduce: 1. Go to homepage 2. Observe behavior');
-
-      // Select severity
-      await page.selectOption('select[name="severity"]', 'high');
-
-      // Fill category
-      await page.fill('input[name="category"]', 'E2E Testing');
-
-      // Submit form
-      await page.click('button[type="submit"]:has-text("Create Ticket")');
-
-      // Should navigate to ticket detail page or show success
-      await page.waitForTimeout(2000);
-
-      const currentUrl = page.url();
-      if (currentUrl.includes('/tickets/')) {
-        expect(currentUrl).toMatch(/\/project\/[^/]+\/tickets\/[^/]+$/);
-      }
+  if (fixture.status !== "open" || fixture.pullRequestUrl) {
+    const update = await request.put(`${backendURL}/api/tickets/${ticket.id}`, {
+      data: {
+        status: fixture.status,
+        pullRequestUrl: fixture.pullRequestUrl,
+      },
     });
+    expect(update.ok()).toBeTruthy();
+  }
+  return ticket;
+}
 
-    test('T-2: should create ticket with screenshot', async ({ authenticatedPage: page }) => {
-      // Navigate to a project
-      await page.goto('/');
+test.describe("Submitter-first ticket journey", () => {
+  test("submits a minimal ticket into Research without operational concepts", async ({
+    authenticatedPage: page,
+    request,
+    backendURL,
+  }) => {
+    const project = await seedProject(request, backendURL);
+    await page.goto(`/project/${project.slug}/tickets/create`);
 
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
+    await expect(
+      page.getByRole("heading", { name: "Create New Ticket" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Every new ticket starts in Research"),
+    ).toBeVisible();
+    await expect(page.getByText("Optional details")).toBeVisible();
+    await expect(page.getByText("Workflow Phase")).toHaveCount(0);
 
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
+    const title = `Submit checkout issue ${TestHelpers.generateUniqueId()}`;
+    await page.locator('input[name="title"]').fill(title);
+    await page
+      .locator('textarea[name="description"]')
+      .fill("The checkout button does not respond.");
+    await page.getByRole("button", { name: "Create Ticket" }).click();
 
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      await page.goto(`/project/${projectSlug}/tickets/create`);
-
-      // Fill basic ticket info
-      await page.fill('input[name="title"]', `E2E Test Ticket with Screenshot ${helpers.generateUniqueId()}`);
-      await page.fill('textarea[name="description"]', 'Test ticket with screenshot');
-      await page.selectOption('select[name="severity"]', 'medium');
-      await page.fill('input[name="category"]', 'UI');
-
-      // Create a small test image buffer
-      // In a real scenario, we'd upload an actual file
-      const fileInput = page.locator('input[name="screenshot"]');
-      const hasFileInput = await fileInput.count() > 0;
-
-      if (hasFileInput) {
-        // We're not actually uploading a file in this test
-        // Just verifying the file input exists
-        await expect(fileInput).toHaveAttribute('type', 'file');
-      }
-    });
-
-    test('T-3: should create ticket with recording', async ({ authenticatedPage: page }) => {
-      // Navigate to a project
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      await page.goto(`/project/${projectSlug}/tickets/create`);
-
-      // Check for recording input
-      const recordingInput = page.locator('input[name="recording"]');
-      const hasRecordingInput = await recordingInput.count() > 0;
-
-      if (hasRecordingInput) {
-        await expect(recordingInput).toHaveAttribute('type', 'file');
-        await expect(recordingInput).toHaveAttribute('accept', /video/);
-      }
-    });
-
-    test('T-4: should run ticket (create job)', async ({ authenticatedPage: page }) => {
-      // Navigate to a project with tickets
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      // Go to tickets list
-      await page.goto(`/project/${projectSlug}/tickets`);
-
-      // Look for existing tickets
-      const ticketRows = page.locator('a[href^="/tickets/"]');
-      const ticketCount = await ticketRows.count();
-
-      if (ticketCount === 0) {
-        test.skip(true, 'No tickets found');
-        return;
-      }
-
-      // Navigate to first ticket
-      await ticketRows.first().click();
-      await page.waitForURL(/\/tickets\/[^/]+$/);
-
-      // Look for "Run" or "Execute" button
-      const runButton = page.getByRole('button', { name: /run|execute|fix/i })
-        .or(page.locator('button:has-text("Run")'))
-        .or(page.locator('button:has-text("Execute")'));
-
-      if (await runButton.count() > 0) {
-        // Found run button - clicking it would create a job
-        // We won't actually click it to avoid triggering real jobs
-        await expect(runButton.first()).toBeVisible();
-      } else {
-        test.skip(true, 'Run button not found on ticket page');
-      }
-    });
-
-    test('T-6: should list tickets by project', async ({ authenticatedPage: page }) => {
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      // Navigate to tickets page
-      await page.goto(`/project/${projectSlug}/tickets`);
-
-      // Should show tickets list
-      await page.waitForTimeout(1000);
-
-      // Check for tickets table or list
-      const table = page.locator('table');
-      const hasTable = await table.count() > 0;
-
-      if (!hasTable) {
-        // Might show empty state
-        const emptyState = page.getByText(/no tickets|empty/i);
-        if (await emptyState.count() > 0) {
-          // Empty state is OK
-          expect(true).toBe(true);
-        }
-      }
-    });
+    await expect(page).toHaveURL(
+      new RegExp(`/project/${project.slug}/tickets/[a-f0-9-]+$`),
+    );
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(
+      page.getByText("Automation needs setup").first(),
+    ).toBeVisible();
+    await expect(page.getByText("(Current)").first()).toBeVisible();
   });
 
-  test.describe('Ticket Detail Page', () => {
-    test('should display ticket details', async ({ authenticatedPage: page }) => {
-      await page.goto('/');
+  test("groups seeded tickets directly into Research, Planning, and Execution", async ({
+    authenticatedPage: page,
+    request,
+    backendURL,
+  }) => {
+    const project = await seedProject(request, backendURL);
+    for (const fixture of SUBMITTER_FIXTURES) {
+      await seedTicket(request, backendURL, project.id, fixture);
+    }
 
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
+    await page.goto(`/project/${project.slug}/tickets?status=all`);
+    await expect(page.getByRole("heading", { name: "Research" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Planning" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Execution" }),
+    ).toBeVisible();
 
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      // Go to tickets list
-      await page.goto(`/project/${projectSlug}/tickets`);
-
-      const ticketRows = page.locator('a[href^="/tickets/"]');
-      const ticketCount = await ticketRows.count();
-
-      if (ticketCount === 0) {
-        test.skip(true, 'No tickets found');
-        return;
-      }
-
-      // Click first ticket
-      await ticketRows.first().click();
-      await page.waitForURL(/\/tickets\/[^/]+$/);
-
-      // Should show ticket title
-      const titleElement = page.locator('h1, h2').filter({ hasText: /.+/ });
-      await expect(titleElement.first()).toBeVisible();
-    });
-
-    test('T-5: should display PR URL when available', async ({ authenticatedPage: page }) => {
-      // This test requires a ticket with a completed job
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      // Go to jobs instead
-      await page.goto(`/project/${projectSlug}/jobs`);
-
-      // Look for completed jobs with PR URLs
-      const prLink = page.locator('a[href*="github.com"]').or(page.locator('a[href*="pull"]'));
-      const hasPrLink = await prLink.count() > 0;
-
-      if (hasPrLink) {
-        await expect(prLink.first()).toBeVisible();
-      } else {
-        test.skip(true, 'No completed jobs with PR URLs found');
-      }
-    });
+    for (const fixture of SUBMITTER_FIXTURES) {
+      await expect(
+        page.getByRole("link", { name: fixture.title }),
+      ).toBeVisible();
+    }
   });
 
-  test.describe('Ticket Severity and Category', () => {
-    test('should display severity badges', async ({ authenticatedPage: page }) => {
-      await page.goto('/');
+  test("requires one audited confirmation to skip directly to Execution", async ({
+    authenticatedPage: page,
+    request,
+    backendURL,
+  }) => {
+    const project = await seedProject(request, backendURL);
+    const fixture = SUBMITTER_FIXTURES[0];
+    if (!fixture) throw new Error("Ready submitter fixture is missing");
+    const ticket = await seedTicket(request, backendURL, project.id, fixture);
+    await page.goto(`/project/${project.slug}/tickets/${ticket.id}`);
 
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
+    await page.getByRole("button", { name: "More actions" }).click();
+    await page.getByText("Skip to execution…").click();
+    await expect(
+      page.getByRole("heading", { name: "Execute without Research/Planning" }),
+    ).toBeVisible();
+    await page
+      .getByLabel("Override Reason")
+      .fill("Production incident already has an externally reviewed plan.");
+    await page.getByRole("button", { name: "Override to Execution" }).click();
 
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      await page.goto(`/project/${projectSlug}/tickets`);
-
-      // Look for severity badges
-      const badges = page.locator('[class*="badge"]');
-      const badgeCount = await badges.count();
-
-      if (badgeCount === 0) {
-        test.skip(true, 'No tickets with severity badges found');
-      }
-    });
-
-    test('should allow selecting severity when creating ticket', async ({ authenticatedPage: page }) => {
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      await page.goto(`/project/${projectSlug}/tickets/create`);
-
-      // Check severity dropdown
-      const severitySelect = page.locator('select[name="severity"]');
-      await expect(severitySelect).toBeVisible();
-
-      // Check options
-      const options = await severitySelect.locator('option').allTextContents();
-      expect(options.length).toBeGreaterThan(0);
-
-      // Should have common severity levels
-      const severityText = options.join(' ');
-      expect(severityText.toLowerCase()).toMatch(/low|medium|high|critical/);
-    });
-  });
-
-  test.describe('Ticket Validation', () => {
-    test('should require title and description', async ({ authenticatedPage: page }) => {
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      await page.goto(`/project/${projectSlug}/tickets/create`);
-
-      // Try to submit without filling fields
-      const submitButton = page.locator('button[type="submit"]');
-      await submitButton.click();
-
-      // Should show validation errors
-      const titleInput = page.locator('input[name="title"]');
-      await expect(titleInput).toHaveAttribute('required');
-
-      const descInput = page.locator('textarea[name="description"]');
-      await expect(descInput).toHaveAttribute('required');
-    });
-  });
-
-  test.describe('Ticket List Filtering', () => {
-    test('should display ticket list with proper columns', async ({ authenticatedPage: page }) => {
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      await page.goto(`/project/${projectSlug}/tickets`);
-
-      // Look for table headers
-      const headers = page.locator('th');
-      const headerCount = await headers.count();
-
-      if (headerCount > 0) {
-        const headerText = await headers.allTextContents();
-        const headersJoined = headerText.join(' ').toLowerCase();
-        // Should have at least some common columns
-        expect(headersJoined).toBeTruthy();
-      }
-    });
-  });
-
-  test.describe('Manual Ticket Flow', () => {
-    test('should support complete manual ticket creation flow', async ({ authenticatedPage: page }) => {
-      // This is the manual flow from the testing plan
-      await page.goto('/');
-
-      const projectLinks = page.locator('a[href^="/project/"]');
-      const count = await projectLinks.count();
-
-      if (count === 0) {
-        test.skip(true, 'No projects found');
-        return;
-      }
-
-      // Navigate to first project
-      await projectLinks.first().click();
-      await page.waitForURL(/\/project\/[^/]+$/);
-
-      const url = page.url();
-      const match = url.match(/\/project\/([^/]+)/);
-      const projectSlug = match ? match[1] : null;
-
-      if (!projectSlug) {
-        test.skip(true, 'Could not extract project slug');
-        return;
-      }
-
-      // Create ticket
-      await page.goto(`/project/${projectSlug}/tickets/create`);
-
-      const uniqueId = helpers.generateUniqueId();
-      await page.fill('input[name="title"]', `Manual Test Ticket ${uniqueId}`);
-      await page.fill('textarea[name="description"]', 'This is a manually created test ticket');
-      await page.selectOption('select[name="severity"]', 'medium');
-      await page.fill('input[name="category"]', 'Manual Test');
-
-      await page.click('button[type="submit"]:has-text("Create Ticket")');
-
-      // Wait for navigation
-      await page.waitForTimeout(2000);
-
-      // Should be on ticket detail page or back in list
-      const currentUrl = page.url();
-      expect(currentUrl).toMatch(/\/project\/${projectSlug}\/tickets\/.+/);
-    });
+    await expect(page.getByText("Execution").first()).toBeVisible();
+    await expect(page.getByText("(Current)").first()).toBeVisible();
   });
 });

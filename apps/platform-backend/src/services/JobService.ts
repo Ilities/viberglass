@@ -8,10 +8,6 @@ import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 import {
-  JOB_SERVICE_ERROR_CODE,
-  JobServiceError,
-} from "./errors/JobServiceError";
-import {
   JOB_KIND,
   TICKET_STATUS,
   type TicketLifecycleStatus,
@@ -26,6 +22,7 @@ import {
   validateCallbackToken,
   getCallbackToken,
 } from "./job/JobCallbackService";
+import { classifyJobFailure } from "./job/classifyJobFailure";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -123,10 +120,19 @@ export class JobService {
       errorMessage?: string;
     } = {},
   ): Promise<void> {
+    const failure =
+      status === "failed" && updates.errorMessage
+        ? updates.result?.failure ?? classifyJobFailure(updates.errorMessage)
+        : updates.result?.failure;
+    const result = updates.result
+      ? { ...updates.result, ...(failure ? { failure } : {}) }
+      : status === "failed" && failure
+        ? { success: false, changedFiles: [], executionTime: 0, errorMessage: updates.errorMessage, failure }
+        : undefined;
     const updateData: Record<string, unknown> = {
       status,
       ...(updates.progress !== undefined && { progress: updates.progress }),
-      ...(updates.result !== undefined && { result: updates.result }),
+      ...(result !== undefined && { result }),
       ...(updates.errorMessage !== undefined && {
         error_message: updates.errorMessage,
       }),
@@ -136,7 +142,7 @@ export class JobService {
       updateData.started_at = new Date();
     }
 
-    if (status === "completed" || status === "failed") {
+    if (status === "completed" || status === "failed" || status === "cancelled") {
       updateData.finished_at = new Date();
       // Also update heartbeat - result callback proves worker is alive
       updateData.last_heartbeat = new Date();
@@ -475,24 +481,6 @@ export class JobService {
     });
 
     return { jobs: jobsData, count: jobsData.length };
-  }
-
-  async deleteJob(jobId: string): Promise<{ message: string; jobId: string }> {
-    const result = await db
-      .deleteFrom("jobs")
-      .where("id", "=", jobId)
-      .executeTakeFirst();
-
-    if (result.numDeletedRows === 0n) {
-      throw new JobServiceError(
-        JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND,
-        "Job not found",
-      );
-    }
-
-    logger.info("Job removed", { jobId });
-
-    return { message: "Job removed successfully", jobId };
   }
 
   async getQueueStats(): Promise<{
