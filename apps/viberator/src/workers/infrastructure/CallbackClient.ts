@@ -1,4 +1,5 @@
 import { Logger } from "winston";
+import type { ExecutionManifest } from "@viberglass/telemetry";
 import {
   FetchRetryConfig,
   fetchWithRetry,
@@ -16,6 +17,15 @@ export interface CallbackResult {
   changedFiles: string[];
   executionTime: number;
   branch?: string;
+  /**
+   * Execution half of the run manifest.
+   *
+   * Only the worker knows the model, token usage, base SHA and harness
+   * version; the backend persists what arrives here into
+   * `job_run_manifests`. Optional so an older worker talking to a newer
+   * backend still reports results normally.
+   */
+  runManifest?: ExecutionManifest;
 }
 
 export class CallbackClient {

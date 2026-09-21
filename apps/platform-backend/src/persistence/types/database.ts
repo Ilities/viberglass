@@ -257,6 +257,64 @@ export interface JobsTable {
   agent_turn_id: string | null;
 }
 
+/**
+ * One row per job: the record needed to reproduce or re-grade the run.
+ *
+ * Written in two halves — dispatch fields by the backend at submit time,
+ * execution fields from the worker's result callback. See migration
+ * 064_job_run_manifests.
+ */
+export interface JobRunManifestsTable {
+  job_id: string;
+  manifest_version: number;
+  tenant_id: string;
+
+  // Dispatch half
+  job_kind: string;
+  ticket_id: string | null;
+  project_id: string | null;
+  clanker_id: string | null;
+  requested_agent: string | null;
+  repository: string;
+  base_branch: string | null;
+  worker_type: string | null;
+  compute_image: string | null;
+  config_hash: string | null;
+  instructions_hash: string | null;
+  /** Credential names only — never values. */
+  granted_credential_names: Json | null;
+  dispatched_at: Timestamp;
+
+  // Execution half
+  agent: string | null;
+  harness_version: string | null;
+  model_snapshot: string | null;
+  base_sha: string | null;
+  commit_sha: string | null;
+  branch: string | null;
+  pull_request_url: string | null;
+  changed_file_count: number | null;
+  prompt_hash: string | null;
+  prompt_characters: number | null;
+  tool_permissions: Json | null;
+  usage: Json | null;
+  /** False means the CLI reported no usage — distinct from zero tokens. */
+  usage_available: boolean | null;
+  /** numeric in Postgres; pg returns it as a string to preserve precision. */
+  cost_usd: ColumnType<string | null, number | null, number | null>;
+  cost_provenance: "actual" | "estimated" | "unavailable" | null;
+  stop_reason: string | null;
+  success: boolean | null;
+  error_message: string | null;
+  started_at: Timestamp | null;
+  finished_at: Timestamp | null;
+  duration_ms: number | null;
+  grader_version: string | null;
+
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface JobProgressUpdatesTable {
   id: Generated<string>;
   job_id: string;
@@ -581,6 +639,7 @@ export interface Database {
   clanker_config_files: ClankerConfigFilesTable;
   clankers: ClankersTable;
   jobs: JobsTable;
+  job_run_manifests: JobRunManifestsTable;
   job_progress_updates: JobProgressUpdatesTable;
   job_log_lines: JobLogLinesTable;
   webhook_provider_configs: WebhookProviderConfigsTable;

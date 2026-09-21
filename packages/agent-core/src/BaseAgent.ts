@@ -3,11 +3,46 @@ import { spawn } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import {
+  ATTR_GEN_AI_AGENT_NAME,
+  ATTR_GEN_AI_CONVERSATION_ID,
+  ATTR_GEN_AI_OPERATION_NAME,
+  ATTR_GEN_AI_PROVIDER_NAME,
+  ATTR_GEN_AI_REQUEST_MODEL,
+  ATTR_GEN_AI_RESPONSE_FINISH_REASONS,
+  ATTR_GEN_AI_RESPONSE_MODEL,
+  ATTR_GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_INPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+  ATTR_VG_AGENT_HARNESS_VERSION,
+  ATTR_VG_AGENT_SESSION_ID,
+  ATTR_VG_CHANGED_FILE_COUNT,
+  ATTR_VG_COMMIT_SHA,
+  ATTR_VG_COST_PROVENANCE,
+  ATTR_VG_COST_USD,
+  ATTR_VG_PULL_REQUEST_URL,
+  ATTR_VG_USAGE_AVAILABLE,
+  COST_PROVENANCE_ACTUAL,
+  COST_PROVENANCE_ESTIMATED,
+  COST_PROVENANCE_UNAVAILABLE,
+  definedAttributes,
+  GEN_AI_OPERATION_NAME_VALUE_INVOKE_AGENT,
+  hashPrompt,
+  markSpanFailed,
+  providerNameForAgent,
+  recordSpanError,
+  SpanKind,
+  withSpan,
+  type Span,
+} from "@viberglass/telemetry";
 import { AgentStreamNormalizer } from "./agentStreamNormalizer";
 import { sanitizeAgentEnvironment } from "./agentEnvironment";
 import type { IAgentGitService } from "./git/IAgentGitService";
 import { NoopAgentGitService } from "./git/NoopAgentGitService";
 import type { BaseAgentConfig, ExecutionContext, ExecutionResult, AgentCLIResult } from "./types";
+import type { AgentUsageReport } from "./usage";
 
 export type { AgentCLIResult };
 
@@ -23,9 +58,49 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     this.gitService = gitService ?? new NoopAgentGitService();
   }
 
+  /**
+   * Runs the agent CLI inside the GenAI `invoke_agent` span.
+   *
+   * This is the layer that actually knows the model and the token usage, so
+   * the GenAI attributes live here rather than on the orchestration span
+   * above it — one `gen_ai.operation.name` span per agent invocation, so
+   * per-operation aggregates don't double-count.
+   *
+   * Note this covers the one-shot CLI path only. Interactive ACP turns run
+   * through `AcpExecutor` and do not pass through here; instrumenting those
+   * is separate
+   */
   async execute(
     prompt: string,
     context: ExecutionContext,
+  ): Promise<ExecutionResult> {
+    return withSpan(
+      `${GEN_AI_OPERATION_NAME_VALUE_INVOKE_AGENT} ${this.config.name}`,
+      {
+        kind: SpanKind.CLIENT,
+        attributes: definedAttributes({
+          [ATTR_GEN_AI_OPERATION_NAME]: GEN_AI_OPERATION_NAME_VALUE_INVOKE_AGENT,
+          [ATTR_GEN_AI_AGENT_NAME]: this.config.name,
+          [ATTR_GEN_AI_PROVIDER_NAME]: providerNameForAgent(this.config.name),
+          // The configured model is a request-time intent; the CLI may
+          // override it, which is why the response model is recorded too.
+          [ATTR_GEN_AI_REQUEST_MODEL]:
+            typeof this.config.model === "string" ? this.config.model : undefined,
+          [ATTR_GEN_AI_CONVERSATION_ID]: context.acpSessionId,
+          [ATTR_VG_AGENT_SESSION_ID]: context.agentSessionId,
+          // Length, not content: prompts embed ticket bodies from untrusted
+          // webhook senders. Content capture is opt-in and handled elsewhere.
+          "vg.prompt.characters": prompt.length,
+        }),
+      },
+      (span) => this.runAgent(prompt, context, span),
+    );
+  }
+
+  private async runAgent(
+    prompt: string,
+    context: ExecutionContext,
+    span: Span,
   ): Promise<ExecutionResult> {
     const startTime = Date.now();
 
@@ -47,11 +122,27 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
 
       const executionTime = Date.now() - startTime;
 
+      this.recordUsageOnSpan(span, result.usage, result.cost);
+      span.setAttributes(
+        definedAttributes({
+          [ATTR_VG_CHANGED_FILE_COUNT]: changedFiles.length,
+          [ATTR_VG_COMMIT_SHA]: result.commitHash,
+          [ATTR_VG_PULL_REQUEST_URL]: result.pullRequestUrl,
+        }),
+      );
+
+      // A CLI can exit 0 and still report failure in its output.
+      if (!result.success) {
+        markSpanFailed(span, result.errorMessage ?? "agent reported failure");
+      }
+
       return {
         ...result,
         changedFiles,
         executionTime,
         cost: result.cost ?? this.config.costPerExecution,
+        promptHash: hashPrompt(prompt),
+        promptCharacters: prompt.length,
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
@@ -68,6 +159,11 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
         branch: context.branch,
       });
 
+      // Failures are returned as data, not rethrown — callers depend on that —
+      // so the span has to be failed explicitly here.
+      recordSpanError(span, error);
+      this.recordUsageOnSpan(span, undefined, undefined);
+
       return {
         success: false,
         changedFiles: [],
@@ -75,6 +171,58 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
         executionTime,
         cost: this.config.costPerExecution,
       };
+    }
+  }
+
+  /**
+   * Writes token usage and cost onto the span.
+   *
+   * The `vg.usage.available` and `vg.cost.provenance` attributes are the point
+   * of this method: PLAN.md Phase 0 requires that a CLI which reports no usage
+   * is recorded as reporting none, rather than silently backfilled from the
+   * plugin's `costPerExecution` constant and later mistaken for a measurement.
+   */
+  private recordUsageOnSpan(
+    span: Span,
+    usage: AgentUsageReport | undefined,
+    fallbackCost: number | undefined,
+  ): void {
+    span.setAttribute(ATTR_VG_USAGE_AVAILABLE, Boolean(usage));
+
+    if (usage) {
+      span.setAttributes(
+        definedAttributes({
+          [ATTR_GEN_AI_USAGE_INPUT_TOKENS]: usage.inputTokens,
+          [ATTR_GEN_AI_USAGE_OUTPUT_TOKENS]: usage.outputTokens,
+          [ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS]: usage.reasoningOutputTokens,
+          [ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS]: usage.cacheReadInputTokens,
+          [ATTR_GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS]:
+            usage.cacheCreationInputTokens,
+          [ATTR_GEN_AI_RESPONSE_MODEL]: usage.model,
+          [ATTR_VG_AGENT_HARNESS_VERSION]: usage.harnessVersion,
+          "vg.agent.turns": usage.turns,
+        }),
+      );
+      if (usage.stopReason) {
+        span.setAttribute(ATTR_GEN_AI_RESPONSE_FINISH_REASONS, [usage.stopReason]);
+      }
+    }
+
+    const reportedCost = usage?.costUsd;
+    if (reportedCost !== undefined) {
+      span.setAttribute(ATTR_VG_COST_USD, reportedCost);
+      span.setAttribute(ATTR_VG_COST_PROVENANCE, COST_PROVENANCE_ACTUAL);
+      return;
+    }
+
+    const configuredCost = fallbackCost ?? this.config.costPerExecution;
+    if (typeof configuredCost === "number" && Number.isFinite(configuredCost)) {
+      // A per-plugin constant, not a measurement. Labelled so nothing
+      // downstream mistakes it for one.
+      span.setAttribute(ATTR_VG_COST_USD, configuredCost);
+      span.setAttribute(ATTR_VG_COST_PROVENANCE, COST_PROVENANCE_ESTIMATED);
+    } else {
+      span.setAttribute(ATTR_VG_COST_PROVENANCE, COST_PROVENANCE_UNAVAILABLE);
     }
   }
 

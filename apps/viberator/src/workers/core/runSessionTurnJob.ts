@@ -18,6 +18,17 @@ import {
   captureAndStore,
   retrieveAndRestore,
 } from "../runtime/SessionStateManager";
+import {
+  ATTR_VG_BASE_BRANCH,
+  ATTR_VG_BRANCH,
+  ATTR_VG_CHANGED_FILE_COUNT,
+  ATTR_VG_COMMIT_SHA,
+  ATTR_VG_PULL_REQUEST_URL,
+  ATTR_VG_REPOSITORY,
+  definedAttributes,
+  SpanKind,
+  withSpan,
+} from "@viberglass/telemetry";
 
 const DOCUMENT_FILES: Record<string, string> = {
   research: "RESEARCH.md",
@@ -126,23 +137,56 @@ async function completeExecutionWithPR(
   });
 
   await sendProgress("commit", "Committing changes");
-  const commitHash = await gitService.commitChanges(repoDir, task);
+  const commitHash = await withSpan(
+    "git.commit",
+    {
+      attributes: definedAttributes({
+        [ATTR_VG_BRANCH]: featureBranch,
+        [ATTR_VG_CHANGED_FILE_COUNT]: changedFiles.length,
+      }),
+    },
+    async () => gitService.commitChanges(repoDir, task),
+  );
 
   await sendProgress("push", "Pushing branch to remote");
-  await gitService.pushBranch(repoDir, featureBranch, params.scmToken);
+  await withSpan(
+    "git.push",
+    {
+      attributes: definedAttributes({
+        [ATTR_VG_BRANCH]: featureBranch,
+        [ATTR_VG_COMMIT_SHA]: commitHash,
+      }),
+    },
+    async () => gitService.pushBranch(repoDir, featureBranch, params.scmToken),
+  );
 
   await sendProgress("pr", "Creating pull request");
-  const pullRequestUrl = await gitService.createPullRequest(
-    repoDir,
-    featureBranch,
-    pullRequestBaseBranch,
-    pullRequestTitle,
-    pullRequestDescription,
+  const pullRequestUrl = await withSpan(
+    "scm.create_pull_request",
     {
-      sourceRepositoryUrl: scm?.sourceRepository || repository,
-      destinationRepositoryUrl: pullRequestRepository,
+      kind: SpanKind.CLIENT,
+      attributes: definedAttributes({
+        [ATTR_VG_BRANCH]: featureBranch,
+        [ATTR_VG_BASE_BRANCH]: pullRequestBaseBranch,
+        [ATTR_VG_REPOSITORY]: pullRequestRepository,
+      }),
     },
-    params.scmToken,
+    async (span) => {
+      const url = await gitService.createPullRequest(
+        repoDir,
+        featureBranch,
+        pullRequestBaseBranch,
+        pullRequestTitle,
+        pullRequestDescription,
+        {
+          sourceRepositoryUrl: scm?.sourceRepository || repository,
+          destinationRepositoryUrl: pullRequestRepository,
+        },
+        params.scmToken,
+      );
+      if (url) span.setAttribute(ATTR_VG_PULL_REQUEST_URL, url);
+      return url;
+    },
   );
 
   return {

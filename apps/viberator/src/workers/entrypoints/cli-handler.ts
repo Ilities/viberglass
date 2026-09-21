@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// Side-effect import, kept first: registers the tracer provider before
+// anything that might open a span is evaluated.
+import { shutdownTelemetryAndExit } from "../../config/telemetry";
+import { withRemoteTraceContext } from "@viberglass/telemetry";
 import { ViberatorWorker } from "../core/ViberatorWorker";
 import {
   CodingJobData,
@@ -202,40 +206,48 @@ async function main() {
 
     console.log(`Starting ephemeral worker for job: ${payload.jobId}`);
 
-    // Initialize worker with CLI payload
-    const worker = new ViberatorWorker(
-      new ClankerAgentAuthLifecycleFactory(),
-      new ClankerAgentEndpointEnvironmentFactory(),
+    // Everything below runs under the backend's trace context, carried in the
+    // payload because there is no HTTP request from backend to worker to put
+    // headers on. Absent or malformed, the worker starts its own trace.
+    const result: JobResult = await withRemoteTraceContext(
+      payload.telemetry,
+      async () => {
+        // Initialize worker with CLI payload
+        const worker = new ViberatorWorker(
+          new ClankerAgentAuthLifecycleFactory(),
+          new ClankerAgentEndpointEnvironmentFactory(),
+        );
+        await worker.initialize(payload);
+
+        // Convert payload to CodingJobData for executeTask
+        const jobData: CodingJobData = {
+          id: payload.jobId,
+          jobKind: payload.jobKind,
+          tenantId: payload.tenantId,
+          repository: payload.repository,
+          task: payload.task,
+          branch: payload.branch,
+          baseBranch: payload.baseBranch,
+          context: payload.context,
+          settings: payload.settings,
+          scm: payload.scm,
+          timestamp: Date.now(),
+        };
+
+        return worker.executeTask(jobData);
+      },
     );
-    await worker.initialize(payload);
-
-    // Convert payload to CodingJobData for executeTask
-    const jobData: CodingJobData = {
-      id: payload.jobId,
-      jobKind: payload.jobKind,
-      tenantId: payload.tenantId,
-      repository: payload.repository,
-      task: payload.task,
-      branch: payload.branch,
-      baseBranch: payload.baseBranch,
-      context: payload.context,
-      settings: payload.settings,
-      scm: payload.scm,
-      timestamp: Date.now(),
-    };
-
-    const result: JobResult = await worker.executeTask(jobData);
 
     console.log(
       `Job ${payload.jobId} completed with status: ${result.success ? "SUCCESS" : "FAILED"}`,
     );
     console.log(JSON.stringify(result, null, 2));
 
-    // Exit with appropriate code
-    process.exit(result.success ? 0 : 1);
+    // Flush before exiting — batched spans are otherwise lost.
+    await shutdownTelemetryAndExit(result.success ? 0 : 1);
   } catch (error) {
     console.error("Worker execution failed:", error);
-    process.exit(1);
+    await shutdownTelemetryAndExit(1);
   }
 }
 

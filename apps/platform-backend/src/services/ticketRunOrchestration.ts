@@ -20,6 +20,20 @@ import {
   TICKET_SERVICE_ERROR_CODE,
 } from "./errors/TicketServiceError";
 import logger from "../config/logger";
+import {
+  ATTR_VG_CLANKER_ID,
+  ATTR_VG_JOB_ID,
+  ATTR_VG_JOB_KIND,
+  ATTR_VG_PROJECT_ID,
+  ATTR_VG_REPOSITORY,
+  ATTR_VG_TENANT_ID,
+  ATTR_VG_TICKET_ID,
+  ATTR_VG_WORKER_TYPE,
+  definedAttributes,
+  injectTraceContext,
+  TRACE_CARRIER_PAYLOAD_KEY,
+  withSpan,
+} from "@viberglass/telemetry";
 
 type ProjectScmConfigWithLegacySecret = ProjectScmConfig & {
   credentialSecretId?: string | null;
@@ -341,7 +355,26 @@ export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record
       workerSettings: project.workerSettings,
     },
     ...(scm ? { scm } : {}),
+    ...traceCarrierField(),
   };
+}
+
+/**
+ * W3C trace context for the worker, as a payload field.
+ *
+ * There is no HTTP call from backend to worker — jobs are dispatched to
+ * Lambda, ECS or Docker — so trace context cannot ride on headers and travels
+ * in the bootstrap payload instead. It is added here, where every payload is
+ * built, rather than at dispatch, because ECS and Docker workers started with
+ * `--job-ref` re-fetch the *persisted* payload; a carrier attached only to the
+ * in-memory copy would never reach them.
+ *
+ * Yields nothing when tracing is disabled or no span is active, leaving the
+ * payload byte-identical to before.
+ */
+export function traceCarrierField(): Record<string, unknown> {
+  const carrier = injectTraceContext();
+  return carrier ? { [TRACE_CARRIER_PAYLOAD_KEY]: carrier } : {};
 }
 
 export function buildScmPayloadFromContext(
@@ -366,6 +399,43 @@ export function buildScmPayloadFromContext(
 }
 
 export async function submitJobWithBootstrapAndInvoke(
+  jobData: JobData,
+  ticketId: string | undefined,
+  clankerId: string,
+  phaseLabel: string,
+  preparedContext: PreparedTicketRunContext,
+  deps: JobSubmissionDependencies,
+): Promise<{ jobId: string; status: string }> {
+  const { project, executionClanker, workerType, workerInstructionFiles } =
+    preparedContext;
+
+  return withSpan(
+    "job.dispatch",
+    {
+      attributes: definedAttributes({
+        [ATTR_VG_JOB_ID]: jobData.id,
+        [ATTR_VG_JOB_KIND]: jobData.jobKind,
+        [ATTR_VG_TENANT_ID]: jobData.tenantId,
+        [ATTR_VG_TICKET_ID]: ticketId,
+        [ATTR_VG_PROJECT_ID]: project.id,
+        [ATTR_VG_CLANKER_ID]: clankerId,
+        [ATTR_VG_WORKER_TYPE]: workerType,
+        [ATTR_VG_REPOSITORY]: jobData.repository,
+      }),
+    },
+    async () =>
+      dispatchJob(
+        jobData,
+        ticketId,
+        clankerId,
+        phaseLabel,
+        preparedContext,
+        deps,
+      ),
+  );
+}
+
+async function dispatchJob(
   jobData: JobData,
   ticketId: string | undefined,
   clankerId: string,

@@ -136,7 +136,10 @@ export class AgentOrchestrator {
       execution.result = {
         ...result,
         executionTime,
-        cost: effectiveAgentConfig.costPerExecution,
+        // Prefer whatever the agent reported. Unconditionally overwriting
+        // with the plugin's costPerExecution constant would discard a real
+        // measured cost in favour of a hardcoded one.
+        cost: result.cost ?? effectiveAgentConfig.costPerExecution,
       };
 
       this.logger.info("Agent execution completed", {

@@ -31,9 +31,71 @@ import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO"
 import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
 import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
 import { AGENT_SESSION_EVENT_TYPE, AGENT_SESSION_MODE } from "../../types/agentSession";
+import { RunManifestDAO } from "../../persistence/job/RunManifestDAO";
+import {
+  RUN_MANIFEST_VERSION,
+  type ExecutionManifest,
+} from "@viberglass/telemetry";
 
 const router = Router();
 const jobService = new JobService();
+const runManifestDAO = new RunManifestDAO();
+
+/**
+ * Stores the worker's execution manifest.
+ *
+ * Never throws — a manifest is evidence about a run, and losing it must not
+ * turn a successful job into a 500 at the callback boundary.
+ *
+ * Older workers do not send `runManifest`. Rather than skipping those jobs
+ * entirely, a minimal manifest is derived from the result the worker does
+ * send, with `usageAvailable: false` and `costProvenance: "unavailable"` —
+ * honest about what was not reported instead of silently absent.
+ */
+async function persistExecutionManifest(
+  jobId: string,
+  tenantId: string,
+  job: { jobKind: string; data: { repository: string | null } },
+  result: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const reported = result.runManifest as ExecutionManifest | undefined;
+
+    const execution: ExecutionManifest = reported ?? {
+      manifestVersion: RUN_MANIFEST_VERSION,
+      success: Boolean(result.success),
+      usageAvailable: false,
+      costProvenance: "unavailable",
+      errorMessage:
+        typeof result.errorMessage === "string" ? result.errorMessage : undefined,
+      branch: typeof result.branch === "string" ? result.branch : undefined,
+      commitSha:
+        typeof result.commitHash === "string" ? result.commitHash : undefined,
+      pullRequestUrl:
+        typeof result.pullRequestUrl === "string"
+          ? result.pullRequestUrl
+          : undefined,
+      changedFileCount: Array.isArray(result.changedFiles)
+        ? result.changedFiles.length
+        : undefined,
+      durationMs:
+        typeof result.executionTime === "number"
+          ? result.executionTime
+          : undefined,
+      stopReason: result.success ? "completed" : "failed",
+      finishedAt: new Date().toISOString(),
+    };
+
+    await runManifestDAO.recordExecution(jobId, tenantId, execution, {
+      jobKind: job.jobKind,
+      // Only used if no dispatch row exists to update; the dispatch half is
+      // authoritative when it does.
+      repository: job.data.repository ?? "unknown",
+    });
+  } catch (error) {
+    logger.warn("Failed to persist execution manifest", { jobId, error });
+  }
+}
 const secretService = new SecretService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 const agentTurnDAO = new AgentTurnDAO();
@@ -279,6 +341,11 @@ router.post(
 
       // Determine status from success field
       const status = result.success ? "completed" : "failed";
+
+      // Execution half of the run manifest. Persisted before the rest of the
+      // callback's work so a later failure in document handling or session
+      // bookkeeping cannot cost us the record of what the agent actually did.
+      await persistExecutionManifest(jobId, tenantId, job, result);
 
       // Check if this job is an ACP session turn (skip document requirement)
       let agentTurn = await agentTurnDAO.getByJobId(jobId);

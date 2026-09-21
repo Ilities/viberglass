@@ -253,6 +253,51 @@ export const updateDeploymentStrategySchema = Joi.object({
   configSchema: Joi.object().allow(null).optional(),
 });
 
+const runManifestUsageSchema = Joi.object({
+  inputTokens: Joi.number().integer().min(0).optional(),
+  outputTokens: Joi.number().integer().min(0).optional(),
+  reasoningOutputTokens: Joi.number().integer().min(0).optional(),
+  cacheReadInputTokens: Joi.number().integer().min(0).optional(),
+  cacheCreationInputTokens: Joi.number().integer().min(0).optional(),
+}).unknown(true);
+
+/**
+ * Execution half of the run manifest, reported by the worker.
+ *
+ * `.unknown(true)`: workers and the backend are deployed independently, and
+ * this validator rejects unknown keys by default. Without it, a worker that
+ * starts reporting a new manifest field would make every result callback fail
+ * validation against a backend that has not been updated yet — losing the job
+ * result, not just the extra field.
+ */
+const runManifestSchema = Joi.object({
+  manifestVersion: Joi.number().integer().min(1).optional(),
+  agent: Joi.string().allow(null, "").optional(),
+  harnessVersion: Joi.string().allow(null, "").optional(),
+  modelSnapshot: Joi.string().allow(null, "").optional(),
+  baseSha: Joi.string().allow(null, "").optional(),
+  commitSha: Joi.string().allow(null, "").optional(),
+  branch: Joi.string().allow(null, "").optional(),
+  pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
+  changedFileCount: Joi.number().integer().min(0).optional(),
+  promptHash: Joi.string().allow(null, "").optional(),
+  promptCharacters: Joi.number().integer().min(0).optional(),
+  toolPermissions: Joi.array().items(Joi.string()).optional(),
+  usage: runManifestUsageSchema.optional(),
+  usageAvailable: Joi.boolean().optional(),
+  costUsd: Joi.number().min(0).optional(),
+  costProvenance: Joi.string()
+    .valid("actual", "estimated", "unavailable")
+    .optional(),
+  stopReason: Joi.string().allow(null, "").optional(),
+  success: Joi.boolean().optional(),
+  errorMessage: Joi.string().allow(null, "").optional(),
+  startedAt: Joi.string().isoDate().optional(),
+  finishedAt: Joi.string().isoDate().optional(),
+  durationMs: Joi.number().integer().min(0).optional(),
+  graderVersion: Joi.string().allow(null, "").optional(),
+}).unknown(true);
+
 export const resultCallbackSchema = Joi.object({
   success: Joi.boolean().required(),
   commitHash: Joi.string().allow(null, "").optional(),
@@ -264,6 +309,7 @@ export const resultCallbackSchema = Joi.object({
   executionTime: Joi.number().integer().min(0).required(),
   branch: Joi.string().optional(),
   conversationStateUrl: Joi.string().uri().allow(null, "").optional(),
+  runManifest: runManifestSchema.optional(),
 });
 
 export const runTicketSchema = Joi.object({

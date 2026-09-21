@@ -1,4 +1,17 @@
 import type { Clanker, Project } from "@viberglass/types";
+import {
+  ATTR_VG_CLANKER_ID,
+  ATTR_VG_JOB_ID,
+  ATTR_VG_JOB_KIND,
+  ATTR_VG_TENANT_ID,
+  ATTR_VG_WORKER_EXECUTION_ID,
+  ATTR_VG_WORKER_INVOKE_ATTEMPTS,
+  ATTR_VG_WORKER_TYPE,
+  definedAttributes,
+  markSpanFailed,
+  SpanKind,
+  withSpan,
+} from "@viberglass/telemetry";
 import type { JobData } from "../types/Job";
 import { getWorkerInvokerFactory } from "./WorkerInvokerFactory";
 import { WorkerError } from "./errors/WorkerError";
@@ -41,6 +54,47 @@ export class WorkerExecutionService {
    * Handles retries for transient errors
    */
   async executeJob(
+    job: JobData,
+    clanker: Clanker,
+    project?: Project,
+  ): Promise<ExecutionResult> {
+    // PRODUCER: this span is the dispatch side of the backend→worker link.
+    // The worker's own root span joins it via the traceparent in the
+    // bootstrap payload, so the two processes render as one trace.
+    return withSpan(
+      "worker.invoke",
+      {
+        kind: SpanKind.PRODUCER,
+        attributes: definedAttributes({
+          [ATTR_VG_JOB_ID]: job.id,
+          [ATTR_VG_JOB_KIND]: job.jobKind,
+          [ATTR_VG_TENANT_ID]: job.tenantId,
+          [ATTR_VG_CLANKER_ID]: clanker.id,
+        }),
+      },
+      async (span) => {
+        const result = await this.invokeWithRetries(job, clanker, project);
+
+        span.setAttributes(
+          definedAttributes({
+            [ATTR_VG_WORKER_INVOKE_ATTEMPTS]: result.attempts,
+            [ATTR_VG_WORKER_EXECUTION_ID]: result.executionId,
+            [ATTR_VG_WORKER_TYPE]: result.workerType,
+          }),
+        );
+
+        // Invocation failure is returned as data, not thrown, so the span has
+        // to be failed explicitly or a job that never started would look fine.
+        if (!result.success) {
+          markSpanFailed(span, result.error ?? "worker invocation failed");
+        }
+
+        return result;
+      },
+    );
+  }
+
+  private async invokeWithRetries(
     job: JobData,
     clanker: Clanker,
     project?: Project,

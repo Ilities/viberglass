@@ -1,4 +1,8 @@
 import type { Context } from "aws-lambda";
+// Side-effect import, kept first: registers the tracer provider before
+// anything that might open a span is evaluated.
+import { flushTelemetryBeforeFreeze } from "../../config/telemetry";
+import { withRemoteTraceContext } from "@viberglass/telemetry";
 import { ViberatorWorker } from "../core/ViberatorWorker";
 import { LambdaPayload, S3InstructionFile } from "../core/types";
 import { CodingJobData, JobResult } from "../core/types";
@@ -132,29 +136,36 @@ export const handler = async (
         throw new Error("Missing task in payload");
       }
 
-      // Initialize worker with payload - handles credential fetching and injection
-      const worker = new ViberatorWorker(
-        new ClankerAgentAuthLifecycleFactory(),
-        new ClankerAgentEndpointEnvironmentFactory(),
+      // Run under the backend's trace context, carried in the payload because
+      // there is no HTTP request from backend to worker to put headers on.
+      const result: JobResult = await withRemoteTraceContext(
+        payload.telemetry,
+        async () => {
+          // Initialize worker with payload - handles credential fetching and injection
+          const worker = new ViberatorWorker(
+            new ClankerAgentAuthLifecycleFactory(),
+            new ClankerAgentEndpointEnvironmentFactory(),
+          );
+          await worker.initialize(payload);
+
+          // Convert LambdaPayload to CodingJobData for executeTask
+          const jobData: CodingJobData = {
+            id: payload.jobId,
+            jobKind: payload.jobKind,
+            tenantId: payload.tenantId,
+            repository: payload.repository,
+            task: payload.task,
+            branch: payload.branch,
+            baseBranch: payload.baseBranch,
+            context: payload.context,
+            settings: payload.settings,
+            scm: payload.scm,
+            timestamp: Date.now(),
+          };
+
+          return worker.executeTask(jobData);
+        },
       );
-      await worker.initialize(payload);
-
-      // Convert LambdaPayload to CodingJobData for executeTask
-      const jobData: CodingJobData = {
-        id: payload.jobId,
-        jobKind: payload.jobKind,
-        tenantId: payload.tenantId,
-        repository: payload.repository,
-        task: payload.task,
-        branch: payload.branch,
-        baseBranch: payload.baseBranch,
-        context: payload.context,
-        settings: payload.settings,
-        scm: payload.scm,
-        timestamp: Date.now(),
-      };
-
-      const result: JobResult = await worker.executeTask(jobData);
 
       if (!result.success) {
         console.error(`Task failed: ${result.errorMessage}`);
@@ -165,6 +176,12 @@ export const handler = async (
     } catch (error) {
       console.error("Error in Lambda execution loop:", error);
       throw error;
+    } finally {
+      // The handler sets callbackWaitsForEmptyEventLoop = false, so Lambda
+      // freezes the container as soon as it returns and any span still sitting
+      // in the batch processor is lost. Flush — but do not shut the provider
+      // down, because the frozen container is reused for the next invocation.
+      await flushTelemetryBeforeFreeze();
     }
   }
 };

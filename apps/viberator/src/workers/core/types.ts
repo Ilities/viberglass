@@ -126,6 +126,23 @@ export interface BaseWorkerPayload {
   acpSessionId?: string;
   /** S3 URL of conversation state archive to restore before CLI launch */
   conversationStateUrl?: string;
+  /**
+   * W3C trace context linking this job's worker spans to the backend span
+   * that dispatched it.
+   *
+   * There is no HTTP request from backend to worker — jobs go to Lambda, ECS
+   * or Docker — so trace context cannot ride on headers. Field names match
+   * the W3C header names. Optional: payloads built before this existed, and
+   * deployments with tracing disabled, simply omit it and the worker starts
+   * its own trace.
+   *
+   * Key must stay in sync with `TRACE_CARRIER_PAYLOAD_KEY` in
+   * `@viberglass/telemetry`.
+   */
+  telemetry?: {
+    traceparent: string;
+    tracestate?: string;
+  };
 }
 
 /**
@@ -241,5 +258,14 @@ export interface JobResult {
   commitHash?: string;
   /** S3 URL of the uploaded conversation state archive (for session turns) */
   conversationStateUrl?: string;
+  /**
+   * Execution half of the run manifest, sent with the result callback.
+   *
+   * Only the worker knows the model, token usage, base SHA and harness
+   * version, so it reports them rather than the backend guessing. The backend
+   * persists it into `job_run_manifests` alongside the dispatch half.
+   */
+  runManifest?: ExecutionManifest;
 }
 import type { JobKind } from "@viberglass/types";
+import type { ExecutionManifest } from "@viberglass/telemetry";
