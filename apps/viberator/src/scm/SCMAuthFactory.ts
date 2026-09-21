@@ -25,23 +25,62 @@ export class SCMAuthFactory {
   }
 
   /**
-   * Authenticate a repository URL using the appropriate provider
-   * @param repoUrl The original repository URL
-   * @param token Optional explicit token to use instead of environment variable lookup
-   * @returns The authenticated URL or the original URL if no provider found
+   * Normalise a repository URL to the HTTPS form git should use as its remote.
+   *
+   * The returned URL never carries credentials — those travel out of band via
+   * {@link buildGitAuthEnvironment}.
    */
-  static authenticateUrl(repoUrl: string, token?: string): string {
+  static toRemoteUrl(repoUrl: string): string {
+    const sshMatch = repoUrl.match(/^(?:ssh:\/\/)?git@([^/:]+)[:/](.+)$/);
+    if (sshMatch) {
+      return `https://${sshMatch[1]}/${sshMatch[2]}`;
+    }
+    return repoUrl;
+  }
+
+  /**
+   * Build the environment that authenticates a single git invocation.
+   *
+   * Uses git's `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` (git ≥ 2.31),
+   * which apply to that one process and are never written to `.git/config`.
+   *
+   * The `http.<origin>.extraheader` key is scoped to the repository's origin so the
+   * header is not replayed to another host on redirect.
+   *
+   * @returns Environment additions, or an empty object when no credentials apply.
+   */
+  static buildGitAuthEnvironment(
+    repoUrl: string,
+    token?: string,
+  ): NodeJS.ProcessEnv {
     const provider = this.getProvider(repoUrl);
-
     if (!provider) {
-      return repoUrl;
+      return {};
     }
 
-    if (!token && !provider.hasCredentials()) {
-      return repoUrl;
+    const credentials = provider.getCredentials(token);
+    if (!credentials) {
+      return {};
     }
 
-    return provider.authenticateUrl(repoUrl, token);
+    let origin: string;
+    try {
+      const url = new URL(this.toRemoteUrl(repoUrl));
+      origin = `${url.protocol}//${url.host}/`;
+    } catch {
+      return {};
+    }
+
+    const basic = Buffer.from(
+      `${credentials.username}:${credentials.password}`,
+      "utf8",
+    ).toString("base64");
+
+    return {
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: `http.${origin}.extraheader`,
+      GIT_CONFIG_VALUE_0: `Authorization: Basic ${basic}`,
+    };
   }
 
   /**

@@ -383,6 +383,27 @@ describe("DockerInvoker", () => {
         );
       });
 
+      it("should default to bridge networking rather than host", async () => {
+        mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
+
+        const clankerWithoutNetwork: Clanker = {
+          ...mockClanker,
+          deploymentConfig: {
+            containerImage: "viberator/worker:latest",
+          },
+        };
+
+        await invoker.invoke(mockJob, clankerWithoutNetwork);
+
+        expect(mockCreateContainer).toHaveBeenCalledWith(
+          expect.objectContaining({
+            HostConfig: expect.objectContaining({
+              NetworkMode: "bridge",
+            }),
+          }),
+        );
+      });
+
       it("should handle empty environment variables", async () => {
         mockCreateContainer.mockResolvedValueOnce(mockContainer as any);
 

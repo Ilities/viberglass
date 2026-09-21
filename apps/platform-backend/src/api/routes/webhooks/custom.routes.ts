@@ -49,29 +49,34 @@ export function createCustomRoutes() {
           return res.status(404).json({ error: 'Webhook configuration not found' });
         }
 
-        // Verify signature if a secret is configured
-        if (config.webhookSecretEncrypted) {
-          const signatureHeader = req.headers['x-webhook-signature-256'];
-          const signature = Array.isArray(signatureHeader)
-            ? signatureHeader[0]
-            : signatureHeader;
-          if (!signature) {
-            return res.status(401).json({ error: 'Missing X-Webhook-Signature-256 header' });
-          }
+        // A signature is mandatory. Without one this endpoint is unauthenticated
+        // ticket creation, and ticket bodies reach the agent prompt verbatim.
+        if (!config.webhookSecretEncrypted) {
+          return res
+            .status(401)
+            .json({ error: 'Webhook secret is not configured for this endpoint' });
+        }
 
-          const provider = new CustomWebhookProvider({
-            type: 'custom',
-            secretLocation: 'database',
-            algorithm: 'sha256',
-            allowedEvents: ['ticket_created'],
-            webhookSecret: config.webhookSecretEncrypted,
-          });
+        const signatureHeader = req.headers['x-webhook-signature-256'];
+        const signature = Array.isArray(signatureHeader)
+          ? signatureHeader[0]
+          : signatureHeader;
+        if (!signature) {
+          return res.status(401).json({ error: 'Missing X-Webhook-Signature-256 header' });
+        }
 
-          const bodyBuffer = getRequestRawBody(req);
-          const isValid = provider.verifySignature(bodyBuffer, signature, config.webhookSecretEncrypted);
-          if (!isValid) {
-            return res.status(401).json({ error: 'Invalid webhook signature' });
-          }
+        const provider = new CustomWebhookProvider({
+          type: 'custom',
+          secretLocation: 'database',
+          algorithm: 'sha256',
+          allowedEvents: ['ticket_created'],
+          webhookSecret: config.webhookSecretEncrypted,
+        });
+
+        const bodyBuffer = getRequestRawBody(req);
+        const isValid = provider.verifySignature(bodyBuffer, signature, config.webhookSecretEncrypted);
+        if (!isValid) {
+          return res.status(401).json({ error: 'Invalid webhook signature' });
         }
 
         // Parse and validate the payload

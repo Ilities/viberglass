@@ -49,42 +49,20 @@ export class GithubAuthProvider implements SCMAuthProvider {
     return !!this.getToken();
   }
 
-  authenticateUrl(repoUrl: string, token?: string): string {
+  getCredentials(
+    token?: string,
+  ): { username: string; password: string } | undefined {
     const resolvedToken = this.getToken(token);
 
     if (!resolvedToken) {
       console.warn(
         "GitHub token not found. Set GITHUB_TOKEN or GH_TOKEN environment variable.",
       );
-      console.warn(
-        "Available env vars:",
-        Object.keys(process.env).filter(
-          (k) => k.includes("GIT") || k.includes("TOKEN"),
-        ),
-      );
-      return repoUrl;
+      return undefined;
     }
 
-    try {
-      // Convert SSH URLs to HTTPS format
-      let httpsUrl = repoUrl;
-      if (repoUrl.startsWith("git@github.com:")) {
-        httpsUrl = repoUrl.replace("git@github.com:", "https://github.com/");
-      }
-
-      const url = new URL(httpsUrl);
-
-      // GitHub supports token authentication via:
-      // https://x-access-token:TOKEN@github.com/owner/repo.git
-      url.username = "x-access-token";
-      url.password = resolvedToken;
-
-      const authenticatedUrl = url.toString();
-      console.log("GitHub auth: URL authenticated successfully");
-      return authenticatedUrl;
-    } catch (error) {
-      console.error("GitHub auth: Failed to parse URL", error);
-      return repoUrl;
-    }
+    // GitHub accepts the token as the basic-auth password for the
+    // `x-access-token` user, for both PATs and App installation tokens.
+    return { username: "x-access-token", password: resolvedToken };
   }
 }

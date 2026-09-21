@@ -1,4 +1,5 @@
 import { Logger } from "winston";
+import { AGENT_ENV_PASSTHROUGH_VAR } from "@viberglass/agent-core";
 
 export class EnvironmentManager {
   constructor(private readonly logger: Logger) {}
@@ -25,6 +26,14 @@ export class EnvironmentManager {
         key,
       });
     }
+
+    // Agent CLIs get a deny-by-default environment (see sanitizeAgentEnvironment).
+    // Clanker-config variables are operator-declared and meant for the agent, so
+    // name them explicitly as passthrough — still subject to the denylist.
+    const declared = Object.keys(environment);
+    if (declared.length > 0) {
+      process.env[AGENT_ENV_PASSTHROUGH_VAR] = declared.join(",");
+    }
   }
 
   cleanup(
@@ -49,6 +58,8 @@ export class EnvironmentManager {
         key,
       });
     }
+
+    delete process.env[AGENT_ENV_PASSTHROUGH_VAR];
   }
 
   private keyToEnvVar(key: string): string {

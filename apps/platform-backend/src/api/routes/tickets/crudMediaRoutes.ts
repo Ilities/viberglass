@@ -214,7 +214,6 @@ export function registerTicketCrudMediaRoutes(
           { ...req.body, ticketSystem },
           screenshotAsset,
           recordingAsset,
-          req.authContext?.user.email,
         );
 
         res.status(201).json({

@@ -4,6 +4,7 @@ import * as path from "path";
 import { spawn } from "child_process";
 import { gunzipSync } from "node:zlib";
 import { Logger } from "winston";
+import { sanitizeAgentEnvironment } from "@viberglass/agent-core";
 import type { CodexAuthSettings } from "./codexAuthSettings";
 
 // Minimal interface for the callback client (implemented by apps/viberator's CallbackClient)
@@ -386,7 +387,7 @@ export class CodexAuthManager {
     await new Promise<void>((resolve, reject) => {
       const child = spawn("codex", ["login", "--device-auth"], {
         cwd: this.workDir,
-        env: process.env,
+        env: sanitizeAgentEnvironment(process.env).env,
         stdio: ["ignore", "pipe", "pipe"],
       });
 

@@ -165,9 +165,9 @@ router.get(
     }
 
     const sessionId = req.params.sessionId;
-    const userId = req.auth?.user.id;
-    const userName = req.auth?.user.name ?? "Unknown";
-    const avatarUrl = req.auth?.user.avatarUrl ?? null;
+    const userId = req.authContext?.user.id;
+    const userName = req.authContext?.user.name ?? "Unknown";
+    const avatarUrl = req.authContext?.user.avatarUrl ?? null;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -252,7 +252,7 @@ router.post(
       if (!replyText || typeof replyText !== "string") {
         return res.status(400).json({ error: "replyText is required" });
       }
-      const userId = req.auth?.user.id;
+      const userId = req.authContext?.user.id;
       const result = await interactionService.reply(
         req.params.sessionId,
         replyText,
@@ -281,8 +281,8 @@ router.post(
       if (!messageText || typeof messageText !== "string") {
         return res.status(400).json({ error: "messageText is required" });
       }
-      const userId = req.auth?.user.id;
-      const userName = req.auth?.user.name;
+      const userId = req.authContext?.user.id;
+      const userName = req.authContext?.user.name;
       const result = await interactionService.sendMessage(
         req.params.sessionId,
         messageText,
@@ -314,7 +314,7 @@ router.post(
           .status(400)
           .json({ error: "approved (boolean) is required" });
       }
-      const userId = req.auth?.user.id;
+      const userId = req.authContext?.user.id;
       const result = await interactionService.approve(
         req.params.sessionId,
         approved,
@@ -339,7 +339,7 @@ router.post(
   requireAuth,
   async (req: Request, res: Response) => {
     try {
-      const userId = req.auth?.user.id;
+      const userId = req.authContext?.user.id;
       await interactionService.cancel(req.params.sessionId, userId);
       return res.status(204).send();
     } catch (err) {

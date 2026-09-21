@@ -48,27 +48,17 @@ export class GitlabAuthProvider implements SCMAuthProvider {
     return !!this.getToken();
   }
 
-  authenticateUrl(repoUrl: string, token?: string): string {
+  getCredentials(
+    token?: string,
+  ): { username: string; password: string } | undefined {
     const resolvedToken = this.getToken(token);
 
     if (!resolvedToken) {
-      return repoUrl;
+      return undefined;
     }
 
-    try {
-      const url = new URL(repoUrl);
-
-      // GitLab supports multiple authentication formats:
-      // 1. Personal Access Token: https://oauth2:TOKEN@gitlab.com/owner/repo.git
-      // 2. Deploy Token: https://USERNAME:TOKEN@gitlab.com/owner/repo.git
-      // 3. CI Job Token: https://gitlab-ci-token:TOKEN@gitlab.com/owner/repo.git
-      url.username = this.getUsername();
-      url.password = resolvedToken;
-
-      return url.toString();
-    } catch (error) {
-      // If URL parsing fails, return original URL
-      return repoUrl;
-    }
+    // GitLab accepts basic auth as oauth2/TOKEN for personal and project access
+    // tokens, USERNAME/TOKEN for deploy tokens, gitlab-ci-token/TOKEN in CI.
+    return { username: this.getUsername(), password: resolvedToken };
   }
 }

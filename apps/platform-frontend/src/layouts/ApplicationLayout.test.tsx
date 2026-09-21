@@ -121,7 +121,7 @@ describe('ApplicationLayout mobile navigation', () => {
 
     for (const label of [
       'Dashboard',
-      'Clankers',
+      'Agent runners',
       'Secrets',
       'Integrations',
       'Pulse',
@@ -149,7 +149,8 @@ describe('ApplicationLayout mobile navigation', () => {
 
     const mobileDrawer = screen.getByRole('dialog')
 
-    for (const label of ['Home', 'Dashboard', 'Tickets', 'Claws', 'Jobs', 'Settings']) {
+    // Project section, then the Operations section beneath it
+    for (const label of ['Dashboard', 'Tickets', 'Settings', 'Runs', 'Schedules']) {
       expect(
         within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') }),
       ).toBeInTheDocument()

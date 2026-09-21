@@ -14,12 +14,18 @@ export interface SCMAuthProvider {
   canHandle(repoUrl: string): boolean;
 
   /**
-   * Authenticate a repository URL with the appropriate credentials
-   * @param repoUrl The original repository URL
-   * @param token Optional explicit token to use instead of environment variable lookup
-   * @returns The authenticated URL with credentials injected
+   * Resolve the HTTP basic credentials this provider authenticates with.
+   *
+   * Deliberately returns the pair rather than a URL with credentials embedded:
+   * a token in the remote URL is written to `.git/config`, which lives inside the
+   * agent's working directory and is therefore readable by the agent (and by
+   * anything the agent has been talked into running).
+   *
+   * @param token Optional explicit token, used instead of environment lookup
    */
-  authenticateUrl(repoUrl: string, token?: string): string;
+  getCredentials(
+    token?: string,
+  ): { username: string; password: string } | undefined;
 
   /**
    * Check if authentication credentials are available

@@ -20,6 +20,19 @@ config:
   # Prefix for ticket media objects in S3
   viberglass-workers:ticketMediaS3Prefix: ticket-media
   # ---------------------------------------------------------------------------
+  # RECOMMENDED: Tenant scoping for worker SSM grants
+  # ---------------------------------------------------------------------------
+  # Workers fetch their own tenant credentials from SSM at runtime. Listing the
+  # tenants this stack serves narrows the IAM grant from `tenants/*` to those
+  # paths, so a worker compromised via prompt injection cannot decrypt another
+  # tenant's credentials. Unset, the stack deploys with the wildcard and warns.
+  #
+  # viberglass-workers:tenantIds:
+  #   - acme
+  #   - globex
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
   # OPTIONAL: Custom image URIs
   # ---------------------------------------------------------------------------
   # By default, image URIs are derived from workerImageCatalog.json:

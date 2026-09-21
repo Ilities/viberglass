@@ -150,7 +150,12 @@ export class DockerInvoker implements WorkerInvoker {
           : ["node", "apps/viberator/dist/cli-worker.js", "--job-data", jsonPayload],
         HostConfig: {
           AutoRemove: true, // Clean up after completion
-          NetworkMode: dockerConfig.networkMode || "host",
+          // Bridge, not host. Under host networking the agent shares the host's
+          // network namespace and can reach anything bound to localhost — the
+          // platform backend included — while running with its permission rails off
+          // on prompts built from untrusted ticket text. Operators who need host
+          // networking must opt in explicitly via clanker config.
+          NetworkMode: dockerConfig.networkMode || "bridge",
           ExtraHosts: extraHosts.length > 0 ? extraHosts : undefined,
           Binds: binds.length > 0 ? binds : undefined,
         },

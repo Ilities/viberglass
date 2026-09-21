@@ -1,4 +1,4 @@
-import type { JobKind, TicketSystem } from "@viberglass/types";
+import type { JobFailure, JobKind, TicketSystem } from "@viberglass/types";
 
 interface InstructionFile {
   fileType: string;
@@ -164,6 +164,8 @@ export interface JobResult {
   commitHash?: string;
   /** S3 URL of the uploaded conversation state archive (for session turns) */
   conversationStateUrl?: string;
+  /** Classified failure detail, set by JobService.updateJobStatus on failure */
+  failure?: JobFailure;
 }
 
 // Job status type from database schema

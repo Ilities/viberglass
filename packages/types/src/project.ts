@@ -168,6 +168,10 @@ export interface UpdateProjectRequest {
   customFieldMappings?: Record<string, string>
   agentInstructions?: string | null
   workerSettings?: ProjectWorkerSettings | null
+  /** ID of the primary ticketing integration; null clears it. */
+  primaryTicketingIntegrationId?: string | null
+  /** ID of the primary SCM integration; null clears it. */
+  primaryScmIntegrationId?: string | null
 }
 
 // Project summary for list views
