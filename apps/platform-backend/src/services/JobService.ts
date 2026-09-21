@@ -27,6 +27,8 @@ import {
   getCallbackToken,
 } from "./job/JobCallbackService";
 import { classifyJobFailure } from "./job/classifyJobFailure";
+import { RunManifestDAO } from "../persistence/job/RunManifestDAO";
+import { hashConfig, RUN_MANIFEST_VERSION } from "@viberglass/telemetry";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -43,17 +45,44 @@ export interface SubmitJobOptions {
   clankerId?: string;
 }
 
+/**
+ * Container image the worker will run in, if the payload names one.
+ *
+ * Docker payloads carry the full clanker config; Lambda and ECS carry only
+ * `deploymentConfig`. Both are checked, and undefined is recorded when
+ * neither names an image rather than substituting a plausible default — a
+ * wrong image in a manifest makes a run look reproducible when it is not.
+ */
+function extractComputeImage(
+  payload: Record<string, unknown>,
+): string | undefined {
+  const candidates = [payload.clankerConfig, payload.deploymentConfig];
+
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const config = candidate as Record<string, unknown>;
+    for (const key of ["image", "imageUri", "workerImage", "containerImage"]) {
+      const value = config[key];
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  }
+
+  return undefined;
+}
+
 export class JobService {
   private feedbackService?: FeedbackService;
   private ticketDAO: TicketDAO;
   private clankerDAO: ClankerDAO;
   private lifecycleStatusService: TicketLifecycleStatusService;
+  private runManifestDAO: RunManifestDAO;
 
   constructor(feedbackService?: FeedbackService) {
     this.feedbackService = feedbackService;
     this.ticketDAO = new TicketDAO();
     this.clankerDAO = new ClankerDAO();
     this.lifecycleStatusService = new TicketLifecycleStatusService();
+    this.runManifestDAO = new RunManifestDAO();
   }
   async submitJob(
     data: JobData,
@@ -679,6 +708,12 @@ export class JobService {
 
   /**
    * Persist or replace bootstrap payload for a job.
+   *
+   * Also writes the dispatch half of the run manifest. This is the one point
+   * every dispatch path converges on — ticket runs, claw jobs, session
+   * launches and session continuations all call it with the fully assembled
+   * payload — so recording here covers all of them instead of four
+   * near-identical call sites drifting apart.
    */
   async saveBootstrapPayload(
     jobId: string,
@@ -691,6 +726,68 @@ export class JobService {
       })
       .where("id", "=", jobId)
       .execute();
+
+    await this.recordDispatchManifest(jobId, payload);
+  }
+
+  /**
+   * Derives and stores the dispatch manifest from a bootstrap payload.
+   *
+   * Never throws: telemetry must not be able to fail a job dispatch. A lost
+   * manifest costs an eval sample; a thrown error costs the run.
+   */
+  private async recordDispatchManifest(
+    jobId: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      const readString = (key: string): string | undefined => {
+        const value = payload[key];
+        return typeof value === "string" && value.trim() ? value : undefined;
+      };
+
+      const projectConfig = payload.projectConfig as
+        | { id?: string }
+        | undefined;
+      const scm = payload.scm as { baseBranch?: string } | undefined;
+      const context = payload.context as { ticketId?: string } | undefined;
+
+      await this.runManifestDAO.recordDispatch({
+        manifestVersion: RUN_MANIFEST_VERSION,
+        jobId,
+        tenantId: readString("tenantId") ?? "unknown",
+        jobKind: readString("jobKind") ?? "unknown",
+        ticketId: context?.ticketId,
+        projectId: projectConfig?.id,
+        clankerId: readString("clankerId"),
+        requestedAgent: readString("agent"),
+        repository: readString("repository") ?? "unknown",
+        baseBranch: scm?.baseBranch ?? readString("baseBranch"),
+        workerType: readString("workerType"),
+        computeImage: extractComputeImage(payload),
+        // Hashes rather than copies: the settings are already on the job row,
+        // and what the manifest needs to answer is "was the configuration the
+        // same as the previous run", which a hash answers exactly.
+        configHash: hashConfig({
+          settings: payload.settings ?? null,
+          overrides: payload.overrides ?? null,
+          workerSettings:
+            (payload.projectConfig as { workerSettings?: unknown } | undefined)
+              ?.workerSettings ?? null,
+        }),
+        instructionsHash: hashConfig(payload.instructionFiles ?? null),
+        // Names only. The payload's requiredCredentials field holds variable
+        // names, never values, and nothing else from it is copied here.
+        grantedCredentialNames: Array.isArray(payload.requiredCredentials)
+          ? payload.requiredCredentials.filter(
+              (name): name is string => typeof name === "string",
+            )
+          : undefined,
+        dispatchedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.warn("Failed to record dispatch manifest", { jobId, error });
+    }
   }
 
   /**

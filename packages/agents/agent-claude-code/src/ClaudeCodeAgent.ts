@@ -1,4 +1,4 @@
-import { BaseAgent } from "@viberglass/agent-core";
+import { BaseAgent, parseClaudeCodeStreamJsonUsage } from "@viberglass/agent-core";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as path from "path";
@@ -96,6 +96,12 @@ export class ClaudeCodeAgent extends BaseAgent<ClaudeCodeConfig> {
       // Parse results
       const cliOutput = this.parseCliOutput(result.stdout);
 
+      // Real token usage and cost, from the stream-json result event. Claude
+      // Code is currently the only agent here that reports them; the rest
+      // return no usage, which is recorded as "unavailable" rather than
+      // estimated from the plugin's costPerExecution constant.
+      const usage = parseClaudeCodeStreamJsonUsage(result.stdout);
+
       // Clean up
       await this.cleanup(workDir);
 
@@ -110,6 +116,7 @@ export class ClaudeCodeAgent extends BaseAgent<ClaudeCodeConfig> {
         testResults: Array.isArray(cliOutput.testResults)
           ? cliOutput.testResults
           : undefined,
+        usage,
       };
     } catch (error) {
       await this.cleanup(workDir);

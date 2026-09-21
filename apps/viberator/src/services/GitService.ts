@@ -120,6 +120,26 @@ class GitService {
   }
 
   /**
+   * The commit the working tree is currently at.
+   *
+   * Captured before the agent runs so the run manifest records the exact
+   * repository state a run started from.
+   *
+   * Returns undefined rather than throwing — a missing SHA must not fail a
+   * job, and an absent value is recorded honestly as absent.
+   */
+  public async getHeadSha(repoDir: string): Promise<string | undefined> {
+    try {
+      const git = simpleGit({ baseDir: repoDir });
+      const sha = await git.revparse(["HEAD"]);
+      return sha.trim() || undefined;
+    } catch (error) {
+      this.logger.warn("Could not resolve HEAD sha", { repoDir, error });
+      return undefined;
+    }
+  }
+
+  /**
    * Create a new branch using simple-git
    */
   public async createBranch(

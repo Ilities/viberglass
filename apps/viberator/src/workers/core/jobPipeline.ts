@@ -2,6 +2,30 @@ import * as fs from "fs";
 import * as path from "path";
 import { Logger } from "winston";
 import type { BaseAgentConfig } from "@viberglass/agent-core";
+import {
+  ATTR_GEN_AI_AGENT_NAME,
+  ATTR_GEN_AI_PROVIDER_NAME,
+  ATTR_VG_AGENT_AUTH_RETRIED,
+  ATTR_VG_AGENT_SESSION_ID,
+  ATTR_VG_AGENT_TURN_ID,
+  ATTR_VG_BASE_BRANCH,
+  ATTR_VG_CHANGED_FILE_COUNT,
+  ATTR_VG_JOB_ID,
+  ATTR_VG_JOB_KIND,
+  ATTR_VG_REPOSITORY,
+  ATTR_VG_SESSION_MODE,
+  ATTR_VG_STOP_REASON,
+  ATTR_VG_TENANT_ID,
+  definedAttributes,
+  markSpanFailed,
+  providerNameForAgent,
+  RUN_MANIFEST_VERSION,
+  SpanKind,
+  withSpan,
+  type CostProvenance,
+  type ExecutionManifest,
+  type TokenUsage,
+} from "@viberglass/telemetry";
 import { ExecutionContext } from "../../types";
 import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
@@ -60,6 +84,34 @@ export interface JobRunnerParams {
     branch: string,
     workDir: string,
   ) => Promise<string>;
+  /**
+   * Mutable scratch space for the run manifest.
+   *
+   * The facts the manifest needs are discovered at different depths —
+   * base SHA during setup, agent and token usage during execution, commit
+   * and PR at the end — and `withJobLifecycle`, which assembles the final
+   * manifest, sits above all of them. Rather than changing every return type
+   * along the way, each stage records what it learns here.
+   *
+   * Assigned by `withJobLifecycle` before the runner executes.
+   */
+  manifest?: ManifestScratch;
+}
+
+/** Facts collected during a run, assembled into an ExecutionManifest at the end. */
+export interface ManifestScratch {
+  agent?: string;
+  harnessVersion?: string;
+  modelSnapshot?: string;
+  baseSha?: string;
+  promptHash?: string;
+  promptCharacters?: number;
+  usage?: TokenUsage;
+  usageAvailable: boolean;
+  costUsd?: number;
+  costProvenance: CostProvenance;
+  stopReason?: string;
+  startedAt: string;
 }
 
 export interface MergedSettings {
@@ -119,17 +171,38 @@ export async function setupJob(
   }
 
   await sendProgress("clone", "Cloning repository", { repository });
-  const repoDir = await cloneRepositoryToWorkspace(
-    repository,
-    checkoutBaseBranch,
-    jobWorkDir,
+  // Cloning is a common and slow failure point (auth, large repos, network
+  // policy), and it is worth being able to separate it from agent time when
+  // reading job latency.
+  const repoDir = await withSpan(
+    "git.clone",
+    {
+      attributes: definedAttributes({
+        [ATTR_VG_REPOSITORY]: repository,
+        [ATTR_VG_BASE_BRANCH]: checkoutBaseBranch,
+      }),
+    },
+    async () =>
+      cloneRepositoryToWorkspace(repository, checkoutBaseBranch, jobWorkDir),
   );
+
+  // The exact commit the run starts from, captured before instruction files
+  // are written and before the agent touches anything. "base branch was main"
+  // is not reproducible; a SHA is.
+  const baseSha = await params.gitService.getHeadSha(repoDir);
+  if (params.manifest) {
+    params.manifest.baseSha = baseSha;
+  }
 
   if (instructionFiles.size > 0) {
     await sendProgress("instructions", "Applying instruction files", {
       count: instructionFiles.size,
     });
-    await instructionFileManager.materialize(repoDir, instructionFiles);
+    await withSpan(
+      "instructions.materialize",
+      { attributes: { "vg.instructions.count": instructionFiles.size } },
+      async () => instructionFileManager.materialize(repoDir, instructionFiles),
+    );
   }
 
   const mergedSettings = mergeWorkerSettings({
@@ -185,41 +258,206 @@ export async function executeAgentWithRetry(
     agentName: selectedAgent.name,
   });
   logger.info("Agent selected", { agentName: selectedAgent.name });
-  let result = await executeSelectedAgent();
 
-  if (agentAuthLifecycle.shouldRetryAfterFailure(authContext, result)) {
-    logger.warn(
-      "Agent execution failed due to auth; retrying after auth refresh",
-      {
-        jobId: data.id,
-        agentName: selectedAgent.name,
-        errorMessage: result.errorMessage,
-      },
-    );
-    await sendProgress(
-      "auth",
-      "Agent auth failed, refreshing authentication",
-      { agentName: selectedAgent.name },
-    );
-    await agentAuthLifecycle.refreshAfterFailure(authContext);
-    await sendProgress("execute", "Retrying AI agent after auth refresh", {
-      agentName: selectedAgent.name,
-      retry: 1,
-    });
-    result = await executeSelectedAgent();
+  // Orchestration span: agent selection, auth readiness and the auth retry.
+  // Deliberately *not* tagged with `gen_ai.operation.name` — the GenAI
+  // `invoke_agent` span is the one BaseAgent opens around the CLI itself,
+  // which is where the model and token usage are actually known. Tagging both
+  // would double-count every agent invocation in per-operation aggregates.
+  return withSpan(
+    `agent.execute ${selectedAgent.name}`,
+    {
+      kind: SpanKind.INTERNAL,
+      attributes: definedAttributes({
+        [ATTR_GEN_AI_AGENT_NAME]: selectedAgent.name,
+        [ATTR_GEN_AI_PROVIDER_NAME]: providerNameForAgent(selectedAgent.name),
+        [ATTR_VG_JOB_ID]: data.id,
+        [ATTR_VG_TENANT_ID]: data.tenantId,
+        [ATTR_VG_AGENT_SESSION_ID]: params.agentSessionId,
+        [ATTR_VG_AGENT_TURN_ID]: params.agentTurnId,
+        [ATTR_VG_SESSION_MODE]: params.sessionMode,
+      }),
+    },
+    async (span) => {
+      let result = await executeSelectedAgent();
+      let authRetried = false;
+
+      if (agentAuthLifecycle.shouldRetryAfterFailure(authContext, result)) {
+        authRetried = true;
+        logger.warn(
+          "Agent execution failed due to auth; retrying after auth refresh",
+          {
+            jobId: data.id,
+            agentName: selectedAgent.name,
+            errorMessage: result.errorMessage,
+          },
+        );
+        // Recorded as an event rather than a second span: the retry is the
+        // same logical agent invocation, and splitting it would double-count
+        // agent runs in any per-attempt aggregate.
+        span.addEvent("agent.auth_refresh", {
+          "vg.agent.first_attempt_error": result.errorMessage ?? "",
+        });
+        await sendProgress(
+          "auth",
+          "Agent auth failed, refreshing authentication",
+          { agentName: selectedAgent.name },
+        );
+        await agentAuthLifecycle.refreshAfterFailure(authContext);
+        await sendProgress("execute", "Retrying AI agent after auth refresh", {
+          agentName: selectedAgent.name,
+          retry: 1,
+        });
+        result = await executeSelectedAgent();
+      }
+
+      const stopReason =
+        result.acpTurnOutcome ?? (result.success ? "completed" : "failed");
+
+      span.setAttributes(
+        definedAttributes({
+          [ATTR_VG_AGENT_AUTH_RETRIED]: authRetried,
+          [ATTR_VG_CHANGED_FILE_COUNT]: result.changedFiles?.length,
+          [ATTR_VG_STOP_REASON]: stopReason,
+        }),
+      );
+
+      recordAgentResultInManifest(params.manifest, selectedAgent.name, result, stopReason);
+
+      if (!result.success) {
+        // Thrown so the job fails as before; marked first so the reason is on
+        // the span even though withSpan would also record the exception.
+        markSpanFailed(span, result.errorMessage || "Agent execution failed");
+        throw new Error(result.errorMessage || "Agent execution failed");
+      }
+
+      return result;
+    },
+  );
+}
+
+/**
+ * Copies what the agent reported into the manifest scratch.
+ *
+ * Cost provenance is the point of the branching below. A CLI-reported cost is
+ * `actual`; the plugin's `costPerExecution` constant is `estimated`; a plugin
+ * with neither records `unavailable`. Collapsing these would make a hardcoded
+ * constant indistinguishable from a measurement in the eval corpus.
+ */
+function recordAgentResultInManifest(
+  manifest: ManifestScratch | undefined,
+  agentName: string,
+  result: ExecutionResultLike,
+  stopReason: string,
+): void {
+  if (!manifest) return;
+
+  manifest.agent = agentName;
+  manifest.stopReason = stopReason;
+  manifest.promptHash = result.promptHash;
+  manifest.promptCharacters = result.promptCharacters;
+
+  const usage = result.usage;
+  manifest.usageAvailable = Boolean(usage);
+
+  if (usage) {
+    manifest.modelSnapshot = usage.model;
+    manifest.harnessVersion = usage.harnessVersion;
+    manifest.usage = {
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      reasoningOutputTokens: usage.reasoningOutputTokens,
+      cacheReadInputTokens: usage.cacheReadInputTokens,
+      cacheCreationInputTokens: usage.cacheCreationInputTokens,
+    };
   }
 
-  if (!result.success) {
-    throw new Error(result.errorMessage || "Agent execution failed");
+  if (usage?.costUsd !== undefined) {
+    manifest.costUsd = usage.costUsd;
+    manifest.costProvenance = "actual";
+  } else if (typeof result.cost === "number" && Number.isFinite(result.cost)) {
+    manifest.costUsd = result.cost;
+    manifest.costProvenance = "estimated";
+  } else {
+    manifest.costProvenance = "unavailable";
   }
+}
 
-  return result;
+/** The subset of the agent's ExecutionResult the manifest reads. */
+interface ExecutionResultLike {
+  cost?: number;
+  promptHash?: string;
+  promptCharacters?: number;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    reasoningOutputTokens?: number;
+    cacheReadInputTokens?: number;
+    cacheCreationInputTokens?: number;
+    costUsd?: number;
+    model?: string;
+    harnessVersion?: string;
+  };
 }
 
 /**
  * Wraps a job runner function with shared error handling and result callbacks.
  */
 export async function withJobLifecycle(
+  params: JobRunnerParams,
+  jobLabel: string,
+  execute: () => Promise<JobResult>,
+): Promise<JobResult> {
+  // CONSUMER: the receiving end of the backend's `worker.invoke` PRODUCER
+  // span. This is the worker's root span, and it is the parent of every
+  // clone / agent / commit / PR span for the job.
+  return withSpan(
+    "job.execute",
+    {
+      kind: SpanKind.CONSUMER,
+      attributes: definedAttributes({
+        [ATTR_VG_JOB_ID]: params.data.id,
+        [ATTR_VG_JOB_KIND]: params.data.jobKind,
+        [ATTR_VG_TENANT_ID]: params.data.tenantId,
+        [ATTR_VG_REPOSITORY]: params.data.repository,
+        [ATTR_VG_AGENT_SESSION_ID]: params.agentSessionId,
+        [ATTR_VG_AGENT_TURN_ID]: params.agentTurnId,
+        [ATTR_VG_SESSION_MODE]: params.sessionMode,
+      }),
+    },
+    async (span) => {
+      // Created here, before the runner starts, so every stage below can
+      // record what it learns. `usageAvailable: false` / `unavailable` are
+      // the correct defaults: a job that dies before the agent runs reported
+      // no usage, and saying so is the point.
+      params.manifest = {
+        usageAvailable: false,
+        costProvenance: "unavailable",
+        startedAt: new Date().toISOString(),
+      };
+
+      const result = await runJobLifecycle(params, jobLabel, execute);
+
+      span.setAttributes(
+        definedAttributes({
+          [ATTR_VG_CHANGED_FILE_COUNT]: result.changedFiles.length,
+          [ATTR_VG_STOP_REASON]: result.success ? "completed" : "failed",
+        }),
+      );
+
+      // runJobLifecycle catches everything and reports failure as data — it
+      // must, because the platform needs the result callback either way — so
+      // the span has to be failed explicitly or every job would look green.
+      if (!result.success) {
+        markSpanFailed(span, result.errorMessage ?? `${jobLabel} failed`);
+      }
+
+      return result;
+    },
+  );
+}
+
+async function runJobLifecycle(
   params: JobRunnerParams,
   jobLabel: string,
   execute: () => Promise<JobResult>,
@@ -234,7 +472,18 @@ export async function withJobLifecycle(
     await sendProgress("complete", `${jobLabel} completed successfully`);
     logForwarder.flush();
 
-    const workerResult: JobResult = { ...result, executionTime };
+    const workerResult: JobResult = {
+      ...result,
+      executionTime,
+      runManifest: buildExecutionManifest(params.manifest, {
+        success: result.success,
+        executionTime,
+        branch: result.branch,
+        commitSha: result.commitHash,
+        pullRequestUrl: result.pullRequestUrl,
+        changedFileCount: result.changedFiles.length,
+      }),
+    };
 
     try {
       await callbackClient.sendResult(data.id, data.tenantId, {
@@ -267,6 +516,15 @@ export async function withJobLifecycle(
     });
     logForwarder.flush();
 
+    // A failed run is still a run, and a failure is exactly the case the eval
+    // corpus needs recorded — so the manifest goes out on this path too.
+    const failureManifest = buildExecutionManifest(params.manifest, {
+      success: false,
+      executionTime,
+      errorMessage,
+      changedFileCount: 0,
+    });
+
     try {
       await callbackClient.sendResult(data.id, data.tenantId, {
         success: false,
@@ -274,6 +532,7 @@ export async function withJobLifecycle(
         errorMessage,
         logs: [],
         changedFiles: [],
+        runManifest: failureManifest,
       });
     } catch (callbackError) {
       logger.warn(`Failed to send ${jobLabel} failure result to platform`, {
@@ -290,6 +549,53 @@ export async function withJobLifecycle(
       changedFiles: [],
       executionTime,
       errorMessage,
+      runManifest: failureManifest,
     };
   }
+}
+
+interface ManifestOutcome {
+  success: boolean;
+  executionTime: number;
+  errorMessage?: string;
+  branch?: string;
+  commitSha?: string;
+  pullRequestUrl?: string;
+  changedFileCount?: number;
+}
+
+/** Merges the scratch collected during the run with its final outcome. */
+function buildExecutionManifest(
+  scratch: ManifestScratch | undefined,
+  outcome: ManifestOutcome,
+): ExecutionManifest {
+  const finishedAt = new Date().toISOString();
+
+  return {
+    manifestVersion: RUN_MANIFEST_VERSION,
+    agent: scratch?.agent,
+    harnessVersion: scratch?.harnessVersion,
+    modelSnapshot: scratch?.modelSnapshot,
+    baseSha: scratch?.baseSha,
+    commitSha: outcome.commitSha,
+    branch: outcome.branch,
+    pullRequestUrl: outcome.pullRequestUrl,
+    changedFileCount: outcome.changedFileCount,
+    promptHash: scratch?.promptHash,
+    promptCharacters: scratch?.promptCharacters,
+    usage: scratch?.usage,
+    usageAvailable: scratch?.usageAvailable ?? false,
+    costUsd: scratch?.costUsd,
+    costProvenance: scratch?.costProvenance ?? "unavailable",
+    // The agent's own stop reason when it got that far, otherwise the job
+    // outcome — a job can fail during clone or PR creation, never reaching
+    // the agent at all.
+    stopReason:
+      scratch?.stopReason ?? (outcome.success ? "completed" : "failed"),
+    success: outcome.success,
+    errorMessage: outcome.errorMessage,
+    startedAt: scratch?.startedAt,
+    finishedAt,
+    durationMs: outcome.executionTime,
+  };
 }

@@ -13,6 +13,10 @@ export type {
 // Base agent
 export { BaseAgent } from "./BaseAgent";
 
+// Usage / cost reporting
+export type { AgentUsageReport } from "./usage";
+export { parseClaudeCodeStreamJsonUsage } from "./usage";
+
 // Agent environment boundary
 export {
   sanitizeAgentEnvironment,

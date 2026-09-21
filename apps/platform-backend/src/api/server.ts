@@ -2,6 +2,9 @@
 
 console.log("[boot] server.ts starting");
 
+// Side-effect import, kept first: registers the tracer provider before any
+// module that might open a span is evaluated.
+import { telemetry } from "../config/telemetry";
 import "../config/env";
 import { env } from "../config/env";
 import app from "./app";
@@ -180,27 +183,24 @@ async function startServer(): Promise<void> {
   server.on("error", onError);
   server.on("listening", onListening);
 
-  process.on("SIGTERM", async () => {
-    logger.info("SIGTERM received, shutting down gracefully");
+  const shutdown = (signal: string) => async (): Promise<void> => {
+    logger.info(`${signal} received, shutting down gracefully`);
     orphanSweeper?.stop();
     heartbeatSweeper?.stop();
     await clawSchedulingEngine.stop();
-    server.close(() => {
+    server.close(async () => {
+      // Spans are batched, so anything recorded since the last export would be
+      // dropped by process.exit. Failing to flush must not block the exit.
+      await telemetry.shutdown().catch((error: unknown) => {
+        logger.warn("Failed to flush telemetry on shutdown", { error });
+      });
       logger.info("Server closed");
       process.exit(0);
     });
-  });
+  };
 
-  process.on("SIGINT", async () => {
-    logger.info("SIGINT received, shutting down gracefully");
-    orphanSweeper?.stop();
-    heartbeatSweeper?.stop();
-    await clawSchedulingEngine.stop();
-    server.close(() => {
-      logger.info("Server closed");
-      process.exit(0);
-    });
-  });
+  process.on("SIGTERM", shutdown("SIGTERM"));
+  process.on("SIGINT", shutdown("SIGINT"));
 }
 
 // Start the server

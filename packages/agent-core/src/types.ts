@@ -1,4 +1,5 @@
 import type { PlatformSessionEvent } from "./acp/types";
+import type { AgentUsageReport } from "./usage";
 
 export interface ResourceLimits {
   maxMemoryMB: number;
@@ -106,6 +107,23 @@ export interface ExecutionResult {
   cost: number;
   acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
   newAcpSessionId?: string;
+  /**
+   * Token usage and cost as reported by the CLI itself.
+   *
+   * Distinct from `cost`, which falls back to the plugin's
+   * `costPerExecution` constant. Undefined means the CLI reported nothing —
+   * recorded as such rather than estimated. See {@link AgentUsageReport}.
+   */
+  usage?: AgentUsageReport;
+  /**
+   * SHA-256 of the fully assembled prompt, for the run manifest.
+   *
+   * The hash rather than the prompt: prompts embed ticket bodies from
+   * untrusted webhook senders, and "was this the same prompt as last run" is
+   * the question the manifest actually needs to answer.
+   */
+  promptHash?: string;
+  promptCharacters?: number;
 }
 
 // Intermediate type for CLI results that may include optional cost.

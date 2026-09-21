@@ -33,6 +33,7 @@ import {
   applicationErrorHandler,
 } from "./middleware/notFoundHandling";
 import mcpRouter from "./routes/mcp";
+import { tracingMiddleware } from "./middleware/tracing";
 
 function resolvePublicDirectory(): string {
   const cwd = process.cwd();
@@ -65,6 +66,10 @@ app.use(
 // Block malicious/bot scanning requests early
 app.use(maliciousRequestBlocker);
 app.use(suspiciousIpTracker);
+
+// Tracing after the blocker so scanner traffic doesn't generate spans, and
+// before everything else so the whole request is inside the server span.
+app.use(tracingMiddleware);
 
 // HTTP request logging middleware with Winston
 app.use((req, res, next) => {

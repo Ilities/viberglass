@@ -23,6 +23,7 @@ import {
   type InlineInstructionFile,
   buildScmPayloadFromContext,
   prepareTicketRunContext,
+  traceCarrierField,
 } from "./ticketRunOrchestration";
 import { PromptTemplateService } from "./PromptTemplateService";
 import {
@@ -231,6 +232,11 @@ export class TicketExecutionService {
         },
         scm: normalizedScmConfigWithCredential,
         overrides: jobData.overrides,
+        // This payload is assembled inline rather than through
+        // buildBootstrapPayload, so the trace carrier has to be added here too
+        // or execution jobs would be the one dispatch path whose worker spans
+        // start an orphaned trace.
+        ...traceCarrierField(),
       };
 
       jobData.bootstrapPayload = bootstrapPayload;
