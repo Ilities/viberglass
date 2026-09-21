@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { AgentStreamNormalizer } from "./agentStreamNormalizer";
+import { sanitizeAgentEnvironment } from "./agentEnvironment";
 import type { IAgentGitService } from "./git/IAgentGitService";
 import { NoopAgentGitService } from "./git/NoopAgentGitService";
 import type { BaseAgentConfig, ExecutionContext, ExecutionResult, AgentCLIResult } from "./types";
@@ -234,15 +235,32 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
     });
   }
 
+  /**
+   * Build the environment for a spawned agent CLI.
+   *
+   * The merged environment is filtered through {@link sanitizeAgentEnvironment} —
+   * deny-by-default — so that neither the worker's own inherited `process.env` nor an
+   * agent plugin that spreads it into `overrides` can hand the CLI the SCM token or
+   * any other platform credential.
+   */
   protected buildCommandEnvironment(
     overrides?: NodeJS.ProcessEnv,
   ): NodeJS.ProcessEnv {
-    const merged: NodeJS.ProcessEnv = {
+    const { env, removed } = sanitizeAgentEnvironment({
       ...process.env,
       ...overrides,
-    };
-    merged.HOME = this.resolveHomeDirectory(merged.HOME);
-    return merged;
+    });
+
+    if (removed.length > 0) {
+      this.logger.debug("Withheld environment variables from agent CLI", {
+        agent: this.config.name,
+        count: removed.length,
+        names: removed,
+      });
+    }
+
+    env.HOME = this.resolveHomeDirectory(env.HOME);
+    return env;
   }
 
   public resolveHomeDirectory(candidateHome?: string): string {

@@ -48,26 +48,16 @@ export class BitbucketAuthProvider implements SCMAuthProvider {
     return !!this.getToken();
   }
 
-  authenticateUrl(repoUrl: string, token?: string): string {
+  getCredentials(
+    token?: string,
+  ): { username: string; password: string } | undefined {
     const resolvedToken = this.getToken(token);
 
     if (!resolvedToken) {
-      return repoUrl;
+      return undefined;
     }
 
-    try {
-      const url = new URL(repoUrl);
-
-      // Bitbucket supports:
-      // 1. App Password: https://USERNAME:APP_PASSWORD@bitbucket.org/owner/repo.git
-      // 2. Access Token: https://x-token-auth:TOKEN@bitbucket.org/owner/repo.git
-      url.username = this.getUsername();
-      url.password = resolvedToken;
-
-      return url.toString();
-    } catch (error) {
-      // If URL parsing fails, return original URL
-      return repoUrl;
-    }
+    // Bitbucket accepts USERNAME/APP_PASSWORD or x-token-auth/TOKEN as basic auth.
+    return { username: this.getUsername(), password: resolvedToken };
   }
 }

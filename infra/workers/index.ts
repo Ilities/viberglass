@@ -26,12 +26,67 @@ const config = getConfig();
 const tenantConfigPathPrefix = "/viberator/tenants";
 const uploadsBucketArn = `arn:aws:s3:::${config.uploadsBucketName}`;
 const uploadsBucketObjectArn = `${uploadsBucketArn}/*`;
-const workerSsmParameterArns = [
-  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/tenants/*`,
-  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberator/tenants/*`,
-  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberglass/secrets/*`,
-  `arn:aws:ssm:${config.awsRegion}:*:parameter/viberator/secrets/*`,
-];
+
+const accountId = aws.getCallerIdentityOutput().accountId;
+
+/**
+ * SSM parameter ARNs the worker roles may read.
+ *
+ * Workers fetch their own tenant credentials at runtime, so the grant has to cover
+ * whichever tenant a given job belongs to. With `tenantIds` configured we enumerate
+ * them, which means a worker that is talked into reading SSM directly still cannot
+ * reach a tenant this stack does not serve. Without it the grant stays a wildcard
+ * across tenants.
+ */
+const tenantPathSegments = config.tenantIds ?? ["*"];
+
+if (!config.tenantIds) {
+  pulumi.log.warn(
+    "workers stack: `tenantIds` is not configured, so worker SSM grants cover " +
+      "every tenant path (`tenants/*`). A worker compromised via prompt injection " +
+      "could read another tenant's credentials. Set `tenantIds` to close this.",
+  );
+}
+
+const workerSsmParameterArns = accountId.apply((account) => [
+  ...tenantPathSegments.flatMap((tenant) => [
+    `arn:aws:ssm:${config.awsRegion}:${account}:parameter/viberglass/tenants/${tenant}/*`,
+    `arn:aws:ssm:${config.awsRegion}:${account}:parameter/viberator/tenants/${tenant}/*`,
+  ]),
+  // Shared, non-tenant parameters (e.g. the Codex device-auth cache).
+  `arn:aws:ssm:${config.awsRegion}:${account}:parameter/viberglass/secrets/*`,
+  `arn:aws:ssm:${config.awsRegion}:${account}:parameter/viberator/secrets/*`,
+]);
+
+/**
+ * KMS grant for the worker roles, usable only *through* SSM.
+ *
+ * Without `kms:ViaService` the key can decrypt anything encrypted under it, so a
+ * worker holding these credentials is a general-purpose decryption oracle. The
+ * condition restricts it to the one service the workers need.
+ */
+function workerKmsPolicy(): pulumi.Output<string> {
+  return pulumi
+    .all([kmsKeyArn, accountId])
+    .apply(([keyArn, account]) =>
+      JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Action: ["kms:Decrypt", "kms:GenerateDataKey*"],
+            Resource: keyArn,
+            Condition: {
+              StringEquals: {
+                "kms:ViaService": `ssm.${config.awsRegion}.amazonaws.com`,
+                "kms:CallerAccount": account,
+              },
+            },
+          },
+        ],
+      }),
+    );
+}
 
 // =============================================================================
 // BASE STACK REFERENCE
@@ -286,17 +341,10 @@ new aws.iam.RolePolicyAttachment(
   },
 );
 
-// KMS decrypt permission for Lambda
+// KMS decrypt permission for Lambda, restricted to use via SSM
 new aws.iam.RolePolicy(`${config.environment}-viberglass-lambda-kms`, {
   role: lambdaRole.name,
-  policy: pulumi.interpolate`{
-    "Version": "2012-10-17",
-    "Statement": [{
-      "Effect": "Allow",
-      "Action": ["kms:Decrypt", "kms:GenerateDataKey*"],
-      "Resource": "${kmsKeyArn}"
-    }]
-  }`,
+  policy: workerKmsPolicy(),
 });
 
 // Create the Lambda function
@@ -438,17 +486,10 @@ new aws.iam.RolePolicyAttachment(
   },
 );
 
-// KMS decrypt permission for ECS task execution role
+// KMS decrypt permission for ECS task execution role, restricted to use via SSM
 new aws.iam.RolePolicy(`${config.environment}-viberglass-ecs-exec-kms`, {
   role: ecsTaskExecutionRole.name,
-  policy: pulumi.interpolate`{
-    "Version": "2012-10-17",
-    "Statement": [{
-      "Effect": "Allow",
-      "Action": ["kms:Decrypt", "kms:GenerateDataKey*"],
-      "Resource": "${kmsKeyArn}"
-    }]
-  }`,
+  policy: workerKmsPolicy(),
 });
 
 // IAM role for ECS task (for SSM access)
@@ -523,17 +564,12 @@ new aws.iam.RolePolicyAttachment(
   },
 );
 
-// KMS decrypt permission for ECS task
+// KMS decrypt permission for the ECS task role, restricted to use via SSM.
+// This role is the one reachable from inside the agent container via the task
+// metadata endpoint, so it is the one that most needs the ViaService condition.
 new aws.iam.RolePolicy(`${config.environment}-viberglass-ecs-kms`, {
   role: ecsTaskRole.name,
-  policy: pulumi.interpolate`{
-    "Version": "2012-10-17",
-    "Statement": [{
-      "Effect": "Allow",
-      "Action": ["kms:Decrypt", "kms:GenerateDataKey*"],
-      "Resource": "${kmsKeyArn}"
-    }]
-  }`,
+  policy: workerKmsPolicy(),
 });
 
 // ECS task definition for workers

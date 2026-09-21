@@ -3,6 +3,7 @@ import { Logger } from "winston";
 import { AcpClient } from "./acp/AcpClient";
 import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 import type { BaseAgent } from "./BaseAgent";
+import { sanitizeAgentEnvironment } from "./agentEnvironment";
 import type { ExecutionContext, ExecutionResult } from "./types";
 
 export class AcpExecutor {
@@ -22,10 +23,17 @@ export class AcpExecutor {
     const workDir = path.dirname(repoDir);
     const harnessConfigDir = path.join(workDir, ".harness-config");
 
-    const env: NodeJS.ProcessEnv = {
+    const { env, removed } = sanitizeAgentEnvironment({
       ...process.env,
       ...agent.getAcpEnvironment(harnessConfigDir),
-    };
+    });
+
+    if (removed.length > 0) {
+      this.logger.debug("Withheld environment variables from ACP agent", {
+        count: removed.length,
+        names: removed,
+      });
+    }
 
     env.HOME = agent.resolveHomeDirectory(env.HOME);
 

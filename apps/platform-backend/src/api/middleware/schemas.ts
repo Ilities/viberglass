@@ -141,6 +141,10 @@ export const updateProjectSchema = Joi.object({
   autoFixTags: Joi.array().items(Joi.string()).optional(),
   customFieldMappings: Joi.object().optional(),
   agentInstructions: Joi.string().allow(null, "").optional(),
+  // Joi rejects unknown keys, so these have to be declared for the project
+  // settings form to be able to set or clear the primary integrations.
+  primaryTicketingIntegrationId: Joi.string().uuid().allow(null).optional(),
+  primaryScmIntegrationId: Joi.string().uuid().allow(null).optional(),
 });
 
 export const projectScmConfigSchema = Joi.object({

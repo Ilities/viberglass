@@ -8,6 +8,10 @@ import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 import {
+  JOB_SERVICE_ERROR_CODE,
+  JobServiceError,
+} from "./errors/JobServiceError";
+import {
   JOB_KIND,
   TICKET_STATUS,
   type TicketLifecycleStatus,
@@ -481,6 +485,24 @@ export class JobService {
     });
 
     return { jobs: jobsData, count: jobsData.length };
+  }
+
+  async deleteJob(jobId: string): Promise<{ message: string; jobId: string }> {
+    const result = await db
+      .deleteFrom("jobs")
+      .where("id", "=", jobId)
+      .executeTakeFirst();
+
+    if (result.numDeletedRows === 0n) {
+      throw new JobServiceError(
+        JOB_SERVICE_ERROR_CODE.JOB_NOT_FOUND,
+        "Job not found",
+      );
+    }
+
+    logger.info("Job removed", { jobId });
+
+    return { message: "Job removed successfully", jobId };
   }
 
   async getQueueStats(): Promise<{

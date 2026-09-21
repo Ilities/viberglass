@@ -780,7 +780,7 @@ describe("WebhookService", () => {
     );
   });
 
-  it("allows unsigned Jira deliveries when no secret is configured", async () => {
+  it("rejects unsigned Jira deliveries when no secret is configured", async () => {
     const config = createConfig("jira");
     config.webhookSecretEncrypted = null;
     const event: ParsedWebhookEvent = {
@@ -827,7 +827,39 @@ describe("WebhookService", () => {
       { providerName: "jira" },
     );
 
-    expect(result.status).toBe("processed");
+    expect(result).toEqual({
+      status: "rejected",
+      reason: "Webhook secret is not configured",
+    });
+    expect(providerFixture.verifySignature).not.toHaveBeenCalled();
+    expect(mocks.ticketDAO.createTicket).not.toHaveBeenCalled();
+  });
+
+  it("rejects signed deliveries for providers with no configured secret", async () => {
+    const config = createConfig("shortcut");
+    config.webhookSecretEncrypted = null;
+    const event = createEvent("shortcut", { repositoryId: "shortcut-project-1" });
+    const { service, providerFixture, mocks } = createHarness({
+      providerName: "shortcut",
+      event,
+      config,
+    });
+    mocks.secretService.getSecret.mockResolvedValue("");
+
+    const result = await service.processWebhook(
+      {
+        "payload-signature": "sha256=some-signature",
+      },
+      event.payload,
+      rawBody,
+      undefined,
+      { providerName: "shortcut" },
+    );
+
+    expect(result).toEqual({
+      status: "rejected",
+      reason: "Webhook secret is not configured",
+    });
     expect(providerFixture.verifySignature).not.toHaveBeenCalled();
   });
 

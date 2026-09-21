@@ -224,6 +224,9 @@ async function verifySignature(params: {
   rawBody: Buffer;
   tenantId?: string;
 }): Promise<{ valid: boolean; reason?: string }> {
+  // Every provider must have a configured secret. An unsigned delivery is an
+  // unauthenticated request that can create tickets, and ticket bodies reach the
+  // agent prompt verbatim.
   let secret: string | undefined;
   try {
     secret = await params.secretService.getSecret(
@@ -231,17 +234,6 @@ async function verifySignature(params: {
       params.tenantId,
     );
   } catch {
-    if (params.providerName === "github") {
-      return {
-        valid: false,
-        reason: "Webhook secret is not configured",
-      };
-    }
-
-    if (!params.signatureHeader) {
-      return { valid: true };
-    }
-
     return {
       valid: false,
       reason: "Webhook secret is not configured",
@@ -249,13 +241,10 @@ async function verifySignature(params: {
   }
 
   if (!secret) {
-    if (params.providerName === "github" || params.signatureHeader) {
-      return {
-        valid: false,
-        reason: "Webhook secret is not configured",
-      };
-    }
-    return { valid: true };
+    return {
+      valid: false,
+      reason: "Webhook secret is not configured",
+    };
   }
 
   if (!params.signatureHeader) {

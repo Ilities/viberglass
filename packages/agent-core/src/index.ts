@@ -13,6 +13,17 @@ export type {
 // Base agent
 export { BaseAgent } from "./BaseAgent";
 
+// Agent environment boundary
+export {
+  sanitizeAgentEnvironment,
+  agentEnvironmentAllowlist,
+  AGENT_ENV_PASSTHROUGH_VAR,
+} from "./agentEnvironment";
+export type {
+  SanitizeAgentEnvironmentOptions,
+  SanitizedAgentEnvironment,
+} from "./agentEnvironment";
+
 // Stream normalizer
 export {
   AgentStreamNormalizer,

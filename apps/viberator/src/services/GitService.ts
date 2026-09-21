@@ -46,6 +46,33 @@ class GitService {
   }
 
   /**
+   * Environment for a single authenticated git invocation.
+   *
+   * Credentials are supplied per-process via `GIT_CONFIG_*` rather than embedded in
+   * the remote URL, so nothing is written to `.git/config` — the agent runs with the
+   * repository as its working directory and can read that file.
+   */
+  private buildGitEnvironment(
+    repoUrl: string,
+    scmToken?: string,
+  ): NodeJS.ProcessEnv {
+    const authEnv = SCMAuthFactory.buildGitAuthEnvironment(repoUrl, scmToken);
+
+    if (Object.keys(authEnv).length === 0) {
+      this.logger.warn(
+        "No SCM credentials resolved for repository; git will run unauthenticated",
+        { repoUrl },
+      );
+    }
+
+    return {
+      ...process.env,
+      ...authEnv,
+      GIT_TERMINAL_PROMPT: "0",
+    };
+  }
+
+  /**
    * Clone repository with automatic SCM authentication using simple-git
    */
   public async cloneRepository(
@@ -57,21 +84,13 @@ class GitService {
     try {
       this.logger.info("Cloning repository", { repoUrl, branch });
 
-      // Use SCM authentication factory to get authenticated URL
-      const authenticatedUrl = SCMAuthFactory.authenticateUrl(repoUrl, scmToken);
-
-      if (authenticatedUrl !== repoUrl) {
-        this.logger.info("Using authenticated URL for repository clone");
-      } else {
-        this.logger.warn(
-          "No authentication applied - URL unchanged. Check if token is set.",
-        );
-      }
+      const remoteUrl = SCMAuthFactory.toRemoteUrl(repoUrl);
+      const env = this.buildGitEnvironment(repoUrl, scmToken);
 
       const git = simpleGit({ baseDir: workDir });
       const repoPath = path.join(workDir, "repo");
 
-      await git.env("GIT_TERMINAL_PROMPT", "0").clone(authenticatedUrl, repoPath, [
+      await git.env(env).clone(remoteUrl, repoPath, [
         "--branch",
         branch,
         "--single-branch",
@@ -163,24 +182,21 @@ class GitService {
    */
   public async pushBranch(repoDir: string, branchName: string, scmToken?: string): Promise<void> {
     try {
-      // Re-authenticate the remote URL if a token is provided
-      if (scmToken) {
-        const git = simpleGit({ baseDir: repoDir });
-        const remotes = await git.getRemotes(true);
-        const origin = remotes.find((r) => r.name === "origin");
-        if (origin) {
-          const currentUrl = origin.refs.push || origin.refs.fetch;
-          if (currentUrl) {
-            const authenticatedUrl = SCMAuthFactory.authenticateUrl(currentUrl, scmToken);
-            if (authenticatedUrl !== currentUrl) {
-              await git.remote(["set-url", "origin", authenticatedUrl]);
-            }
-          }
-        }
+      const git = simpleGit({ baseDir: repoDir });
+
+      // The remote URL stays credential-free; auth is attached to this invocation
+      // only. Resolving the origin tells us which provider's credentials to use.
+      const remotes = await git.getRemotes(true);
+      const origin = remotes.find((r) => r.name === "origin");
+      const originUrl = origin?.refs.push || origin?.refs.fetch;
+
+      if (!originUrl) {
+        throw new Error("No 'origin' remote found in repository");
       }
 
-      const git = simpleGit({ baseDir: repoDir });
-      await git.push("origin", branchName, ["--set-upstream"]);
+      const env = this.buildGitEnvironment(originUrl, scmToken);
+
+      await git.env(env).push("origin", branchName, ["--set-upstream"]);
       this.logger.info("Branch pushed", { branchName });
     } catch (error) {
       const errorMessage =
