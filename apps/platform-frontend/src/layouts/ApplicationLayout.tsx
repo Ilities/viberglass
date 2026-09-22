@@ -187,7 +187,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
           <SidebarHeading>Needs Review</SidebarHeading>
           {inReviewTickets.map((ticket) => (
             <SidebarItem key={ticket.id} href={`/project/${projectSlug}/tickets/${ticket.id}`}>
-              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-warning-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>
           ))}

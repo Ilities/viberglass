@@ -30,7 +30,7 @@ COPY packages/platform-ui ./packages/platform-ui
 COPY apps/platform-frontend ./apps/platform-frontend
 
 # Build shared packages (needed before frontend can start)
-RUN npm run build -w @viberglass/types && npm run build -w @viberglass/integration-core && npm run build -w @viberglass/platform-ui && npm run build --workspaces --if-present -w @viberglass/integration-bitbucket -w @viberglass/integration-custom -w @viberglass/integration-github -w @viberglass/integration-gitlab -w @viberglass/integration-jira -w @viberglass/integration-linear -w @viberglass/integration-monday -w @viberglass/integration-shortcut -w @viberglass/integration-slack
+RUN npm run build -w @viberglass/types && npm run build -w @viberglass/platform-ui && npm run build -w @viberglass/integration-core && npm run build --workspaces --if-present -w @viberglass/integration-bitbucket -w @viberglass/integration-custom -w @viberglass/integration-github -w @viberglass/integration-gitlab -w @viberglass/integration-jira -w @viberglass/integration-linear -w @viberglass/integration-monday -w @viberglass/integration-shortcut -w @viberglass/integration-slack
 
 # Expose Vite default port
 EXPOSE 3000

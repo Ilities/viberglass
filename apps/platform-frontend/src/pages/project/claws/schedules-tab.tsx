@@ -256,7 +256,7 @@ export function SchedulesTab({ projectId }: Props) {
         </Button>
       </div>
       {templates.length === 0 && (
-        <p className="mt-4 text-sm text-amber-600 dark:text-amber-400">
+        <p className="mt-4 text-sm text-warning-600 dark:text-warning-400">
           Create a task template first before adding schedules.
         </p>
       )}
