@@ -25,12 +25,12 @@ export function ProjectReadinessBanner({ projectId }: { projectId: string }) {
 
   const incomplete = readiness.checks.filter((check) => check.state !== 'ready')
   return (
-    <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+    <section className="rounded-xl border border-warning-300 bg-warning-50 p-4 dark:border-warning-900 dark:bg-warning-950/30">
       <div className="flex items-start gap-3">
-        <ExclamationTriangleIcon className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
+        <ExclamationTriangleIcon className="mt-0.5 size-5 shrink-0 text-warning-700 dark:text-warning-400" />
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-100">Automation needs setup</h2>
-          <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-200/80">
+          <h2 className="text-sm font-semibold text-warning-950 dark:text-warning-100">Automation needs setup</h2>
+          <p className="mt-1 text-sm text-warning-900/80 dark:text-warning-200/80">
             You can submit tickets now. Complete these items before starting research or execution.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">

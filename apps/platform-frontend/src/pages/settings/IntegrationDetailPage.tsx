@@ -644,9 +644,9 @@ export function IntegrationDetailPage() {
           </div>
         </div>
 
-        <div className="app-frame rounded-lg p-8 text-center border-amber-200 dark:border-amber-900/50">
-          <StatusIcon className="mx-auto h-12 w-12 text-amber-500" />
-          <h2 className="mt-4 text-lg font-semibold text-amber-900 dark:text-amber-400">Coming Soon</h2>
+        <div className="app-frame rounded-lg p-8 text-center border-warning-200 dark:border-warning-900/50">
+          <StatusIcon className="mx-auto h-12 w-12 text-warning-500" />
+          <h2 className="mt-4 text-lg font-semibold text-warning-900 dark:text-warning-400">Coming Soon</h2>
           <p className="mt-2 text-[var(--gray-9)]">
             The {integrationType.label} integration is currently under development. Check back soon!
           </p>

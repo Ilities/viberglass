@@ -47,7 +47,7 @@ export function JiraOutboundWebhookSection({
           <code className="rounded bg-zinc-200 px-2 py-1 dark:bg-zinc-700">Issue: {issuePreview}</code>
         </div>
         {!projectMapping && (
-          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+          <p className="mt-2 text-xs text-warning-700 dark:text-warning-400">
             Save an inbound Jira project key to strengthen project-scoped outbound config matching.
           </p>
         )}
