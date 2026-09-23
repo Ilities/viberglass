@@ -88,5 +88,10 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
      * infra/workers/docker/generated/<variant>.Dockerfile for agent images.
      */
     dockerfilePath?: string;
+    /**
+     * Test-only images (the e2e fake agent) are buildable locally but never
+     * provisioned in infrastructure or pushed to a registry.
+     */
+    testOnly?: boolean;
   };
 }
