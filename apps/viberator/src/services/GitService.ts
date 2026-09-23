@@ -5,6 +5,16 @@ import axios from "axios";
 import { SCMAuthFactory } from "../scm";
 import { GitConfig } from "../types";
 
+/**
+ * simple-git blocks GIT_CONFIG_COUNT by default. Credentials are supplied through
+ * it (see SCMAuthFactory.buildGitAuthEnvironment), so authenticated invocations
+ * have to opt in. `http.<origin>.extraheader` is not separately block-listed, so
+ * this flag alone is enough.
+ */
+const AUTHENTICATED_GIT_OPTIONS = {
+  unsafe: { allowUnsafeConfigEnvCount: true },
+} as const;
+
 interface PullRequestOptions {
   sourceRepositoryUrl?: string;
   destinationRepositoryUrl?: string;
@@ -87,7 +97,7 @@ class GitService {
       const remoteUrl = SCMAuthFactory.toRemoteUrl(repoUrl);
       const env = this.buildGitEnvironment(repoUrl, scmToken);
 
-      const git = simpleGit({ baseDir: workDir });
+      const git = simpleGit({ baseDir: workDir, ...AUTHENTICATED_GIT_OPTIONS });
       const repoPath = path.join(workDir, "repo");
 
       await git.env(env).clone(remoteUrl, repoPath, [
@@ -202,7 +212,7 @@ class GitService {
    */
   public async pushBranch(repoDir: string, branchName: string, scmToken?: string): Promise<void> {
     try {
-      const git = simpleGit({ baseDir: repoDir });
+      const git = simpleGit({ baseDir: repoDir, ...AUTHENTICATED_GIT_OPTIONS });
 
       // The remote URL stays credential-free; auth is attached to this invocation
       // only. Resolving the origin tells us which provider's credentials to use.

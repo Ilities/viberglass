@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/
 COPY packages/types/ ./packages/types/
+COPY packages/telemetry/ ./packages/telemetry/
 COPY packages/agent-core/ ./packages/agent-core/
 COPY packages/agents/ ./packages/agents/
 RUN npm install --workspace=@viberator/orchestrator
@@ -54,6 +55,7 @@ RUN uv tool install mistral-vibe || \
 COPY package*.json ${LAMBDA_TASK_ROOT}/
 COPY apps/viberator/package*.json ${LAMBDA_TASK_ROOT}/apps/viberator/
 COPY --from=builder /app/packages/types/ ${LAMBDA_TASK_ROOT}/packages/types/
+COPY --from=builder /app/packages/telemetry/ ${LAMBDA_TASK_ROOT}/packages/telemetry/
 COPY --from=builder /app/packages/agent-core/ ${LAMBDA_TASK_ROOT}/packages/agent-core/
 COPY --from=builder /app/packages/agents/ ${LAMBDA_TASK_ROOT}/packages/agents/
 RUN npm install --omit=dev --workspace=@viberator/orchestrator

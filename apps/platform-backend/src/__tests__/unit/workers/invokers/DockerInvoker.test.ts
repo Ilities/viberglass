@@ -554,6 +554,86 @@ describe("DockerInvoker", () => {
     });
   });
 
+  describe("OTEL forwarding", () => {
+    const readEnv = async (): Promise<Record<string, string>> => {
+      mockCreateContainer.mockResolvedValueOnce(mockContainer);
+      await invoker.invoke(mockJob, mockClanker);
+
+      const env: string[] = mockCreateContainer.mock.calls[0][0].Env;
+      return Object.fromEntries(
+        env.map((entry) => {
+          const separator = entry.indexOf("=");
+          return [entry.slice(0, separator), entry.slice(separator + 1)];
+        }),
+      );
+    };
+
+    // Cleared before as well as after: a developer's .env is loaded into the
+    // test process and would otherwise decide the outcome of these cases.
+    const clearOtelEnv = () => {
+      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+      delete process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+      delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+      delete process.env.WORKER_OTEL_EXPORTER_OTLP_ENDPOINT;
+    };
+
+    beforeEach(clearOtelEnv);
+    afterEach(clearOtelEnv);
+
+    it("forwards OTEL_* variables to the worker container", async () => {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector:4318";
+      process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Basic abc123";
+
+      const env = await readEnv();
+
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("http://collector:4318");
+      expect(env.OTEL_EXPORTER_OTLP_HEADERS).toBe("Authorization=Basic abc123");
+    });
+
+    it("does not forward unrelated backend variables", async () => {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector:4318";
+
+      const env = await readEnv();
+
+      expect(env.WEBHOOK_SECRET_ENCRYPTION_KEY).toBeUndefined();
+      expect(env.SECRETS_ENCRYPTION_KEY).toBeUndefined();
+    });
+
+    it("substitutes the worker-reachable endpoint when set", async () => {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://langfuse-web:3000/otel";
+      process.env.WORKER_OTEL_EXPORTER_OTLP_ENDPOINT =
+        "http://host.docker.internal:3001/otel";
+
+      const env = await readEnv();
+
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe(
+        "http://host.docker.internal:3001/otel",
+      );
+    });
+
+    it("drops the signal-specific endpoint when overriding, so it cannot win", async () => {
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT =
+        "http://langfuse-web:3000/otel/v1/traces";
+      process.env.WORKER_OTEL_EXPORTER_OTLP_ENDPOINT =
+        "http://host.docker.internal:3001/otel";
+
+      const env = await readEnv();
+
+      expect(env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT).toBeUndefined();
+    });
+
+    it("lets clanker config override the forwarded endpoint", async () => {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector:4318";
+      mockClanker.deploymentConfig!.environmentVariables = {
+        OTEL_EXPORTER_OTLP_ENDPOINT: "http://per-clanker:4318",
+      };
+
+      const env = await readEnv();
+
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("http://per-clanker:4318");
+    });
+  });
+
   describe("constructor", () => {
     it("should use default socket path when not provided", () => {
       const defaultInvoker = new DockerInvoker();
