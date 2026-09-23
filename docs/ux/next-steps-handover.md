@@ -1,6 +1,6 @@
 # Handover: next steps after the correctness pass
 
-Status as of 2026-09-23 · Branch `ux-plan-and-core-fixes` (not pushed) · Owner of decisions: Jussi
+Status as of 2026-09-23 · The correctness pass merged to `main` (PR #38); Step A is on `e2e-smoke-test` · Owner of decisions: Jussi
 
 This hands the work over to whoever picks it up next, whether a person or an agent session. Read it together with:
 
@@ -40,7 +40,7 @@ All nine correctness blockers from plan §11.0 are fixed. Each was verified agai
 | viberator (worker) | 80 |
 | agent-core | 14 |
 
-All green. The Playwright suite in `tests/e2e` was **not** run.
+All green at merge time. Step A (below) since added the smoke suite, 11 fake-agent tests and one backend test (697).
 
 ### 1.2 Deliberately not done
 
@@ -59,6 +59,11 @@ All green. The Playwright suite in `tests/e2e` was **not** run.
 | Project-level prompt templates are editable by any member | project settings → prompt templates | PG17. Global templates are admin-only now; project ones aren't. |
 | 90 stale `viberator/*` branches on the demo repo | GitHub `ilities/token.observer` | LC12, quick win #17. |
 | Dead component | `apps/platform-frontend/src/pages/project/tickets/planning-document-panel.tsx` | Not rendered anywhere. Delete it when touching that area. |
+| Docker "start" always rebuilds the worker image under the runner's tag | `DockerProvisioningHandler.provision` | There is no pre-built mode for Docker (ECS and Lambda have one). Starting a runner that points at a pre-built image overwrites it with the multi-agent build. Phase 1's "prefer pre-built images" needs this first. The e2e seed marks its runner active instead of starting it. |
+| Runner config stores up to 200 lines of Docker build log | `deployment_config.strategy.dockerBuild.logs` | Every clanker read carries it. Belongs in job/provisioning logs. |
+| Startup errors are logged as `{}` | winston metadata for `Error` objects | "Failed to run migrations on startup, exiting {"error":{}}" hid the cause of the late-database bug. |
+| The Pi agent can't be selected in the platform | `AgentType` in `packages/types/src/clanker.ts` | The worker has the plugin; the platform lists, normalisers and DB constraint don't. See `packages/agents/README.md` for every list. |
+| `npm run new:agent` leaves the template's placeholder `build`/`test` scripts and a stale `executeAgentCLI` signature | `packages/agents/_template` | Fixed by hand for `agent-fake`. |
 | Files over the AGENTS.md size limits | `AgentSessionInteractionService.ts` (~395), `AgentSessionLaunchService.ts` (~420), `SecretService.ts` (~550), `api/routes/projects.ts`, `api/routes/jobs.ts`, `DockerInvoker.ts`, `IntegrationDetailPage.tsx` (~880), `phase-section.tsx` (~620), `ProjectSettingsPage.tsx` | They were already over. Split them opportunistically when a change lands in them, not as a separate refactor. |
 
 ---
@@ -137,22 +142,20 @@ curl -s -b /tmp/cj.txt -X POST localhost:8888/api/jobs/<jobId>/cancel
 
 ## 3. Next steps, in priority order
 
-### Step A: End-to-end smoke test (Phase 0 exit), about 1–2 days
+### Step A: End-to-end smoke test (Phase 0 exit): done
 
-**Why first:** blockers 1 and 3 were invisible to 600+ unit tests and only showed up by driving the product. Without this, they can return.
+On branch `e2e-smoke-test`. `npm run test:e2e` resets the e2e database and runs six journeys in about 75 seconds against the real backend, frontend and Docker workers, with no model keys. Three consecutive runs passed. How to run and extend it: `TESTING.md` → E2E Tests.
 
-**Scope:** extend the existing Playwright suite in `tests/e2e` (it has `main-flow.e2e.test.ts` and `docker/docker-compose.e2e.yaml`). First run it as-is and record what passes; it wasn't run during this work.
+**Journeys covered:** sign-in; automatic research → document → approve; live session with a message queued mid-turn; cancel; member vs admin (API and navigation); backend starting before Postgres.
 
-**Journeys to cover:**
-1. Create a task → run research automatically → a research document appears → approve.
-2. Start a live session → queue a message mid-turn → the follow-up turn runs → the document reflects the message → the session completes.
-3. Start a run → cancel → the run is `cancelled`, no document is written, and the container is gone.
-4. Member vs admin: a member can't reach secrets, runner changes or project deletion.
-5. Stack restart: the backend comes up before Postgres and recovers.
+**What it took:**
+- **Fake agent** (`packages/agents/agent-fake`): writes `RESEARCH.md`/`PLAN.md` echoing its prompt, and obeys `[fake:sleep=N]`, `[fake:no-document]` and `[fake:fail]` in the task text. One-shot runs execute it in-process; live sessions spawn its small ACP server. It is marked `testOnly`: hidden from the runner picker and never provisioned or pushed by infrastructure. The platform had to learn the agent in several hardcoded lists, now documented in `packages/agents/README.md` (AGENTS.md used to say none were needed).
+- **Self-contained stack:** its own ports beside the dev stack, Postgres on tmpfs, a fixture git repository served over plain HTTP to worker containers, and seeding through the public API.
+- **Legacy specs quarantined:** the 78 older specs (5 of 83 passed at baseline, all failing on a login user that was never seeded) now run only with `npm run test:legacy -w @viberator/e2e-tests`. Revive or delete them one by one.
 
-**Agent:** real harnesses need model keys. Add a deterministic **fake agent** plugin (`npm run new:agent fake`) that writes a canned `RESEARCH.md`/`PLAN.md` and sleeps when asked, so CI can run without keys. It also makes cancel timing testable.
-
-**Done when** the suite runs with `npm run test:e2e` against the e2e compose file in under 10 minutes and is documented in `TESTING.md`.
+**Bugs it found, fixed on the branch:**
+- Backend CI on `main` failed since the telemetry commit: `@viberglass/telemetry` was never built before tests or in `Dockerfile.prod`.
+- A backend that starts before a *freshly created* Postgres still crashed (blocker 9 covered only a restarting one): the connection resets during initialisation (`ECONNRESET`, "Connection terminated unexpectedly") weren't treated as "not reachable yet".
 
 ### Step B: UX quick wins (plan §11.1), about 1–1.5 weeks
 
@@ -255,8 +258,8 @@ Phase 3's agent questions (J6) are the next big collaboration win after the Phas
 
 | # | Decision | Needed before |
 |---|---|---|
-| 1 | Merge strategy for `ux-plan-and-core-fixes`: PR into `main` now, or keep stacking? | Step A |
-| 2 | Is a fake agent plugin acceptable in the repo for tests? | Step A |
+| 1 | ~~Merge strategy for `ux-plan-and-core-fixes`~~ Merged to `main` (PR #38). | — |
+| 2 | ~~Is a fake agent plugin acceptable?~~ Yes; added as `agent-fake`, test-only. | — |
 | 3 | Quick wins before Phase 1, or Phase 1 first (only the FR8 fix from #12)? | Step B/C |
 | 4 | First-cut providers for three-input setup | Step C |
 | 5 | Setup vs first-admin registration: one flow or two? | Step C |

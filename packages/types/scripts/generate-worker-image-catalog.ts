@@ -25,6 +25,7 @@ interface PluginDockerMeta {
   defaultForAgents: string[];
   isAgentImage?: boolean;
   dockerfilePath?: string;
+  testOnly?: boolean;
 }
 
 interface CatalogEntry {
@@ -68,6 +69,7 @@ function loadPluginDocker(packageDirName: string): PluginDockerMeta {
 const PLUGIN_PACKAGES = [
   "agent-claude-code",
   "agent-codex",
+  "agent-fake",
   "agent-gemini",
   "agent-kimi",
   "agent-mistral-vibe",
@@ -86,10 +88,10 @@ function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
     repositoryName: docker.repositoryName,
     scriptImageName: docker.scriptImageName,
     dockerfilePath,
-    includeInHarnessSetup: true,
-    includeInInfraProvisioning: true,
+    includeInHarnessSetup: !docker.testOnly,
+    includeInInfraProvisioning: !docker.testOnly,
     includeInBuildScript: true,
-    includeInPushScript: true,
+    includeInPushScript: !docker.testOnly,
     isAgentImage,
     supportedAgents: docker.supportedAgents,
     defaultForAgents: docker.defaultForAgents,
@@ -101,6 +103,7 @@ const plugins = PLUGIN_PACKAGES.map(loadPluginDocker);
 
 // All agent IDs for the multi-agent image (sorted for determinism)
 const allAgentIds = plugins
+  .filter((p) => !p.testOnly)
   .flatMap((p) => p.supportedAgents)
   .sort();
 

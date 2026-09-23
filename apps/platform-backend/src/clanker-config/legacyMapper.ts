@@ -32,6 +32,7 @@ function normalizeGenericAgent(agent?: AgentType | null): GenericAgentConfig {
     case "claude-code":
     case "kimi-code":
     case "mistral-vibe":
+    case "fake":
       return { type: agent };
     default:
       return { type: "claude-code" };
