@@ -623,6 +623,8 @@ Self-hosted portfolio software has no product analytics (ADR 0002). These are **
 
 ### 11.0 Correctness blockers first (found in the second pass)
 These break the core loop or data safety. Fix them before any UX work, and add end-to-end tests for each:
+
+> **Status (2026-09-23):** all nine done on branch `ux-plan-and-core-fixes`, each verified live on the local stack. Item 8 is partial by design (approvals move to the Phase 2 approval policy). The end-to-end smoke test from Phase 0 is still open.
 1. **Follow-up and execution runs start outside the repo** (LC1, FL13, PG5). The agent's working directory must be the cloned repo; never let it read or write `/app`.
 2. **Cancel must stop work** (FL1–FL3): add `POST /api/jobs/:id/cancel` wired to `JobCancellationService`; have live-session cancel stop the job and container; never let a cancelled session flip to `completed`; add confirmation and show who cancelled.
 3. **Human input must reach the agent** (LC2): queued session messages must trigger a follow-up turn, never be marked consumed silently. Unresolved comments must block or warn on approval.

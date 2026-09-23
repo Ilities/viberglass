@@ -15,6 +15,7 @@ import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
 import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
+import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
 import bot from "../chat";
 
 // Load environment variables
@@ -147,7 +148,15 @@ async function startServer(): Promise<void> {
   if (env.RUN_MIGRATIONS_ON_STARTUP) {
     logger.info("RUN_MIGRATIONS_ON_STARTUP is enabled, running migrations...");
     try {
-      await migrateToLatest();
+      await retryWhileDatabaseUnreachable(migrateToLatest, {
+        attempts: 30,
+        delayMs: 2000,
+        onRetry: (attempt, error) =>
+          logger.warn("Database not reachable yet, retrying migrations", {
+            attempt,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+      });
     } catch (error) {
       logger.error("Failed to run migrations on startup, exiting", { error });
       process.exit(1);
