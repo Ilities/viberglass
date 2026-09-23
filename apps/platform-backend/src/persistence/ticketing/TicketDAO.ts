@@ -60,6 +60,7 @@ function normalizeTicketStatus(value: unknown): TicketLifecycleStatus {
   if (
     value === TICKET_STATUS.OPEN ||
     value === TICKET_STATUS.IN_PROGRESS ||
+    value === TICKET_STATUS.IN_REVIEW ||
     value === TICKET_STATUS.RESOLVED
   ) {
     return value;
