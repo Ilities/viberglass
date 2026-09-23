@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/auth-context'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { Button } from '@/components/button'
@@ -101,6 +102,8 @@ export function ProjectSettingsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletionSummary, setDeletionSummary] = useState<ProjectDeletionSummary | null>(null)
   const [isArchiving, setIsArchiving] = useState(false)
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
 
   const ticketingIntegrations = useMemo(
     () => linkedIntegrations.filter((integration) => integration.category === 'ticketing'),
@@ -343,7 +346,10 @@ export function ProjectSettingsPage() {
       await archiveProject(projectData.id)
       navigate('/')
     } catch (archiveError) {
-      setError(getErrorMessage(archiveError, 'Failed to archive project'))
+      const message = getErrorMessage(archiveError, 'Failed to archive project')
+      // Shown in the delete dialog when archiving from there, otherwise at the top.
+      setError(message)
+      setDeleteError(message)
       setIsArchiving(false)
     }
   }
@@ -814,6 +820,7 @@ export function ProjectSettingsPage() {
                 {isArchiving ? 'Archiving…' : 'Archive project'}
               </Button>
             </div>
+            {isAdmin && (
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
               <h3 className="text-base font-semibold text-red-700 dark:text-red-400">Danger Zone</h3>
               <p className="mt-1 text-sm text-red-600/80 dark:text-red-400/80">
@@ -835,6 +842,7 @@ export function ProjectSettingsPage() {
                 </Button>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>
@@ -855,8 +863,8 @@ export function ProjectSettingsPage() {
           <div className="space-y-3">
             {deletionSummary ? (
               <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
-                Affected records: {deletionSummary.tickets} tickets, {deletionSummary.runs} runs, and{' '}
-                {deletionSummary.sessions} sessions.
+                Also deleted: {deletionSummary.tickets} tickets, {deletionSummary.runs} runs,{' '}
+                {deletionSummary.sessions} agent sessions, and {deletionSummary.schedules} schedules.
               </p>
             ) : null}
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -874,6 +882,9 @@ export function ProjectSettingsPage() {
         <DialogActions>
           <Button plain onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
             Cancel
+          </Button>
+          <Button outline onClick={() => void handleArchiveProject()} disabled={isDeleting || isArchiving}>
+            {isArchiving ? 'Archiving…' : 'Archive instead'}
           </Button>
           <Button
             color="red"

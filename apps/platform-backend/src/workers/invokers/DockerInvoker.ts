@@ -9,6 +9,7 @@ import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
+import { dockerJobContainerName } from "./dockerJobContainerName";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
@@ -17,6 +18,33 @@ interface DockerDeploymentConfig {
   environmentVariables?: Record<string, string>;
   networkMode?: string;
   logFilePath?: string;
+}
+
+/**
+ * OTEL_* variables forwarded from the backend process to the worker container.
+ *
+ * Workers run on a bridge network, so an endpoint naming a compose service is
+ * unreachable from inside one. Set WORKER_OTEL_EXPORTER_OTLP_ENDPOINT to a
+ * worker-reachable address (typically via host.docker.internal) to override it.
+ */
+function collectOtelEnvironment(): Record<string, string> {
+  const otel: Record<string, string> = {};
+
+  for (const [name, value] of Object.entries(process.env)) {
+    if (name.startsWith("OTEL_") && value) {
+      otel[name] = value;
+    }
+  }
+
+  const workerEndpoint = process.env.WORKER_OTEL_EXPORTER_OTLP_ENDPOINT?.trim();
+  if (workerEndpoint) {
+    otel.OTEL_EXPORTER_OTLP_ENDPOINT = workerEndpoint;
+    // The signal-specific variable wins over the generic one, so leaving the
+    // backend's copy in place would send the worker to the address just overridden.
+    delete otel.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+  }
+
+  return otel;
 }
 
 export class DockerInvoker implements WorkerInvoker {
@@ -130,7 +158,7 @@ export class DockerInvoker implements WorkerInvoker {
 
       const container = await this.docker.createContainer({
         Image: dockerConfig.containerImage,
-        name: `viberator-job-${job.id}`,
+        name: dockerJobContainerName(job.id),
         Env: [
           `TENANT_ID=${job.tenantId}`,
           `JOB_ID=${job.id}`,
@@ -140,6 +168,8 @@ export class DockerInvoker implements WorkerInvoker {
             ? [`CALLBACK_TOKEN=${job.callbackToken}`]
             : []),
           ...this.formatEnvironmentVars({
+            // First, so clanker config can override per runner.
+            ...collectOtelEnvironment(),
             ...workerSsmEnvironment,
             ...secretEnvironment,
             ...dockerConfig.environmentVariables,

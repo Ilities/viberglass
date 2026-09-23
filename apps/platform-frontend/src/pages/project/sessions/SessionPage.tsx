@@ -1,3 +1,4 @@
+import { CancelRunButton } from '@/components/cancel-run-button'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
@@ -13,7 +14,7 @@ import {
   type ParticipantInfo,
   type SessionDetail,
 } from '@/service/api/session-api'
-import { ArrowLeftIcon, CrossCircledIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
+import { ArrowLeftIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -214,10 +215,7 @@ export function SessionPage() {
           <div className="flex items-center gap-3">
             {presentUsers.length > 0 && <PresenceBar presentUsers={presentUsers} />}
             {!isTerminal && (
-              <Button color="red" onClick={() => void handleCancel()} disabled={isCancelling}>
-                <CrossCircledIcon className="h-4 w-4" />
-                Cancel
-              </Button>
+              <CancelRunButton label="Cancel" isCancelling={isCancelling} onConfirm={() => void handleCancel()} />
             )}
           </div>
         </div>

@@ -35,6 +35,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { PhaseDocumentComments } from './phase-document-comments'
+import { ApprovePhaseButton } from './approve-phase-button'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
 import { PhaseLogs } from './phase-logs'
 import { PhaseSessionPanel } from './phase-session-panel'
@@ -557,16 +558,24 @@ export function PhaseSection({
               {isCurrentPhase && phase !== 'execution' && (
                 <div className="flex items-center justify-end border-t border-[var(--gray-4)] pt-4">
                   {phase === 'research' && hasContent && (
-                    <Button color="green" onClick={handleApproveResearch} disabled={isApproving}>
-                      <CheckCircledIcon className="h-4 w-4" />
-                      Approve Research & Continue
-                    </Button>
+                    <ApprovePhaseButton
+                      ticketId={ticket.id}
+                      phase="research"
+                      label="Approve Research & Continue"
+                      runInProgress={latestRun?.status === 'active' || Boolean(activeSession)}
+                      isApproving={isApproving}
+                      onApprove={() => void handleApproveResearch()}
+                    />
                   )}
                   {phase === 'planning' && hasContent && (
-                    <Button color="green" onClick={handleApprove} disabled={isApproving}>
-                      <CheckCircledIcon className="h-4 w-4" />
-                      Approve Planning & Continue
-                    </Button>
+                    <ApprovePhaseButton
+                      ticketId={ticket.id}
+                      phase="planning"
+                      label="Approve Planning & Continue"
+                      runInProgress={latestRun?.status === 'active' || Boolean(activeSession)}
+                      isApproving={isApproving}
+                      onApprove={() => void handleApprove()}
+                    />
                   )}
                 </div>
               )}

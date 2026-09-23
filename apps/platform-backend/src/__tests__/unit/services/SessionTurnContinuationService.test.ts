@@ -52,7 +52,14 @@ jest.mock("../../../workers", () => ({
   WorkerExecutionService: jest.fn(() => mockWorkerExecutionService),
 }));
 jest.mock("../../../persistence/ticketing/TicketDAO", () => ({
-  TicketDAO: jest.fn(() => ({ getTicket: jest.fn().mockResolvedValue(null) })),
+  TicketDAO: jest.fn(() => ({
+    getTicket: jest.fn().mockResolvedValue({
+      id: "ticket-1",
+      title: "Add a dark mode toggle",
+      description: "Users want to switch themes",
+      externalTicketId: null,
+    }),
+  })),
 }));
 jest.mock("../../../persistence/project/ProjectDAO", () => ({
   ProjectDAO: jest.fn(() => ({})),
@@ -243,7 +250,9 @@ describe("SessionTurnContinuationService", () => {
       expect.anything(),
       "proj-1",
       expect.objectContaining({
-        initialMessage: "[Jussi]: do X\n\n[Anna]: do Y",
+        revisionMessage: "[Jussi]: do X\n\n[Anna]: do Y",
+        ticketTitle: "Add a dark mode toggle",
+        ticketDescription: "Users want to switch themes",
       }),
     );
     expect(mockJobService.submitJob).toHaveBeenCalledTimes(1);

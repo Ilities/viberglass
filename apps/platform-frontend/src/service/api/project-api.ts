@@ -103,6 +103,7 @@ export interface ProjectDeletionSummary {
   tickets: number
   runs: number
   sessions: number
+  schedules: number
 }
 
 export async function getProjectDeletionSummary(id: string): Promise<ProjectDeletionSummary> {

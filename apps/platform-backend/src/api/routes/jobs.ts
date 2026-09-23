@@ -32,6 +32,8 @@ import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPend
 import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
 import { AGENT_SESSION_EVENT_TYPE, AGENT_SESSION_MODE } from "../../types/agentSession";
 import { RunManifestDAO } from "../../persistence/job/RunManifestDAO";
+import { JobCancellationService } from "../../services/job/JobCancellationService";
+import { isTerminalJobStatus } from "../../services/job/jobStatus";
 import {
   RUN_MANIFEST_VERSION,
   type ExecutionManifest,
@@ -39,6 +41,7 @@ import {
 
 const router = Router();
 const jobService = new JobService();
+const jobCancellationService = new JobCancellationService();
 const runManifestDAO = new RunManifestDAO();
 
 /**
@@ -285,6 +288,27 @@ router.delete("/:jobId", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+router.post("/:jobId/cancel", requireAuth, async (req: Request, res: Response) => {
+  const { jobId } = req.params;
+  try {
+    const result = await jobCancellationService.cancel(jobId, req.authContext?.user.id);
+    switch (result) {
+      case "not_found":
+        return res.status(404).json({ error: "Run not found" });
+      case "terminal":
+        return res.status(409).json({ error: "Run has already finished" });
+      default:
+        return res.json({ jobId, status: "cancelled" });
+    }
+  } catch (error) {
+    logger.error("Failed to cancel job", {
+      error: error instanceof Error ? error.message : String(error),
+      jobId,
+    });
+    return res.status(500).json({ error: "Failed to cancel run" });
+  }
+});
+
 router.get("/stats/queue", requireAuth, async (req: Request, res: Response) => {
   try {
     const stats = await jobService.getQueueStats();
@@ -331,8 +355,9 @@ router.post(
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Idempotency: Reject updates to terminal states
-      if (job.status === "completed" || job.status === "failed") {
+      // Idempotency: Reject updates to terminal states. A cancelled run stays
+      // cancelled even if its worker finishes and reports afterwards.
+      if (isTerminalJobStatus(job.status)) {
         return res.status(409).json({
           error: "Job already in terminal state",
           status: job.status,

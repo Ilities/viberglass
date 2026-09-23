@@ -4,6 +4,7 @@ export {
   type CreateProjectIntegrationLinkInput,
   type ProjectIntegrationWithDetails,
 } from './ProjectIntegrationLinkDAO'
+export { IntegrationUsageDAO, type IntegrationUser } from './IntegrationUsageDAO'
 export {
   IntegrationCredentialDAO,
   type CreateIntegrationCredentialInput,

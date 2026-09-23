@@ -10,6 +10,7 @@ import { spawn, ChildProcess } from "child_process";
 import { Logger } from "winston";
 import type { PlatformSessionEvent } from "./types";
 import { defaultAcpEventMapper } from "./acpEventMapper";
+import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
@@ -40,7 +41,11 @@ function spawnAcpProcess(
   const [cmd, ...args] = command;
   if (!cmd) throw new Error("ACP command is empty");
 
-  const child = spawn(cmd, args, { cwd: workDir, env, stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(cmd, args, {
+    cwd: workDir,
+    env: withWorkingDirectory(env, workDir),
+    stdio: ["pipe", "pipe", "pipe"],
+  });
 
   let buf = "";
   child.stdout?.on("data", (data: Buffer) => {

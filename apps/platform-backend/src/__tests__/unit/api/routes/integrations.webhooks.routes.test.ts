@@ -40,6 +40,7 @@ jest.mock("../../../../persistence/integrations", () => ({
   IntegrationDAO: jest.fn(() => mockIntegrationDAO),
   ProjectIntegrationLinkDAO: jest.fn(() => mockProjectLinkDAO),
   IntegrationCredentialDAO: jest.fn(() => mockCredentialDAO),
+  IntegrationUsageDAO: jest.fn(() => ({ listProjectsUsing: jest.fn().mockResolvedValue([]) })),
 }));
 
 jest.mock("../../../../persistence/webhook/WebhookConfigDAO", () => ({

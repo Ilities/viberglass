@@ -381,6 +381,7 @@ describe("AwsSsmProvider", () => {
 
       const beforeTime = Date.now();
       await provider.get("tenant-123", "KEY");
+      const afterTime = Date.now();
 
       const cache = provider["cache"] as Map<
         string,
@@ -388,8 +389,8 @@ describe("AwsSsmProvider", () => {
       >;
       const cached = cache.get("/viberator/tenants/tenant-123/KEY");
 
-      expect(cached?.expiry).toBeGreaterThan(beforeTime + 1000 * 60 * 5 - 1000);
-      expect(cached?.expiry).toBeLessThanOrEqual(beforeTime + 1000 * 60 * 5);
+      expect(cached?.expiry).toBeGreaterThanOrEqual(beforeTime + 1000 * 60 * 5);
+      expect(cached?.expiry).toBeLessThanOrEqual(afterTime + 1000 * 60 * 5);
     });
   });
 
