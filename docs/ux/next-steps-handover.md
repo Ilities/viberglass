@@ -67,7 +67,7 @@ All green. The Playwright suite in `tests/e2e` was **not** run.
 
 ### 2.1 Environment
 
-- **Stack:** `docker compose up` gives Postgres :5432, backend :8888 (nodemon hot reload, runs migrations on start), frontend :3000 (Vite HMR). Langfuse (:3001) is optional under the `langfuse` profile (Jussi's uncommitted telemetry work).
+- **Stack:** `docker compose up` gives Postgres :5432, backend :8888 (nodemon hot reload, runs migrations on start), frontend :3000 (Vite HMR). Langfuse (:3001) is optional under the `langfuse` profile (see `docs/telemetry-local.md`).
 - **Accounts:** admin `jussi@hallila.com` / `salasana`; member `maria.pm@example.com` / `salasana123` (created for the audit).
 - **Test data:** project `ux-walkthrough` (repo `ilities/token.observer`) holds the audit ticket plus several verification tickets. Runner "Opencode Local" (Docker, pre-built `viberator-worker-opencode:latest`).
 - **Worker image:** the local image was rebuilt with the PWD fix:
@@ -77,17 +77,16 @@ All green. The Playwright suite in `tests/e2e` was **not** run.
   docker build -f infra/workers/docker/generated/opencode.Dockerfile --build-arg BASE_IMAGE=base-worker -t viberator-worker-opencode:latest .
   ```
 
-  The build includes whatever is uncommitted in the working tree. Worker code changes (`packages/agent-core`, `apps/viberator`) only take effect after a rebuild; backend and frontend changes hot-reload.
+  The build uses the working tree as-is. Worker code changes (`packages/agent-core`, `apps/viberator`) only take effect after a rebuild; backend and frontend changes hot-reload.
 
-### 2.2 Jussi's uncommitted work: leave it alone
+### 2.2 Committing alongside other work
 
-These are Jussi's in-progress changes and are intentionally outside every commit:
+Jussi's telemetry and worker changes, previously uncommitted, landed in "Modify local runs to contain telemetry from OTEL so we can create evals". That includes the GIT_CONFIG_COUNT fix in `GitService.ts` (PG4's platform bug), the OTEL passthrough in `DockerInvoker.ts`, the worker Dockerfiles and the Langfuse compose profile. The working tree was clean at handover.
 
-- **Modified:** `DockerInvoker.ts` (and its test), `GitService.ts` (GIT_CONFIG_COUNT fix, which is PG4's platform bug), `agentEnvironment.ts`, the worker Dockerfiles, `docker-compose.yml` (telemetry services), `tailwind.css`.
-- **Staged:** `docs/telemetry-local.md`.
-- **Untracked:** `apps/viberator/src/agents/agentEnvironmentAllowlist.test.ts`.
-
-To commit your own change in a file that also holds his hunks, build a patch against `HEAD` and `git apply --cached` it (that's how the `docker-compose.yml` and `DockerInvoker.ts` lines were committed). Otherwise use `git commit -- <paths>` for files that are entirely yours. Check `git diff --cached --stat` before every commit; the index has already surprised us once.
+If someone else's uncommitted hunks share a file with your change:
+- Build a patch against `HEAD` and `git apply --cached` it.
+- Otherwise commit with `git commit -- <paths>`.
+- Check `git diff --cached --stat` before every commit.
 
 Jussi rewords commits in IntelliJ, so hashes change. Refer to commits by subject.
 
