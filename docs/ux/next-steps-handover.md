@@ -166,7 +166,7 @@ On branch `e2e-smoke-test`. `npm run test:e2e` resets the e2e database and runs 
 3. **#9 + #13**: readable failure reasons from structured worker error codes, with copy per audience.
 4. **#1**: session opens with the human's intent; the system prompt goes behind "View full prompt".
 
-About 4–5 days, on branch `quick-win-slice`. Cover each item with a smoke journey using the fake agent (for example `[fake:fail]` for failure copy). Decisions 4–6 get answered in the meantime; Phase 1 starts with a Docker pre-built image mode. The remaining quick wins fit alongside or after Phase 1.
+About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, not yet merged: all four items landed with a smoke journey each (14 journeys total), plus two bugs found on the way (tickets in review read back as open; a live session's opening message never reached the agent). Test totals: backend 708, frontend 98, viberator 91, agent-core 14. Next: decisions 4–6, then Phase 1. Cover each item with a smoke journey using the fake agent (for example `[fake:fail]` for failure copy). Decisions 4–6 get answered in the meantime; Phase 1 starts with a Docker pre-built image mode. The remaining quick wins fit alongside or after Phase 1.
 
 **Status after the correctness pass:**
 - **Done:** #5 (plumbing hidden from members, routes enforced), #10 (server-unreachable message), #12's "cancel keeps history" part.
