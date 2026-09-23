@@ -50,6 +50,7 @@ import type {
 } from "../../types/Job";
 import { PromptTemplateService } from "../PromptTemplateService";
 import { TicketPhaseRunGuard } from "../TicketPhaseRunGuard";
+import { withOpeningMessage } from "./openingMessage";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
@@ -309,7 +310,7 @@ export class AgentSessionLaunchService {
       taskType = PROMPT_TYPE.ticket_developing;
     }
 
-    const task = await this.promptTemplateService.render(
+    const renderedTask = await this.promptTemplateService.render(
       taskType,
       ticket.projectId,
       {
@@ -320,6 +321,7 @@ export class AgentSessionLaunchService {
         openComments: documents.openComments,
       },
     );
+    const task = withOpeningMessage(taskType, renderedTask, input.initialMessage);
 
     const base = {
       id: jobId,
