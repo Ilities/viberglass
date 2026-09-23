@@ -207,10 +207,14 @@ export class AgentSessionLaunchService {
       repository: prepared.sourceRepository,
       baseBranch: prepared.baseBranch,
       createdBy: userId ?? null,
+      title: ticket.title,
     });
 
-    // The opening turn shows exactly what the agent is asked to do.
-    const assistantTurn = await this.createInitialTurns(session.id, jobData.task);
+    const assistantTurn = await this.createInitialTurns(
+      session.id,
+      input.initialMessage,
+      jobData.task,
+    );
 
     const submitResult = await this.jobService.submitJob(jobData, {
       ticketId: input.ticketId,
@@ -369,9 +373,15 @@ export class AgentSessionLaunchService {
     return data;
   }
 
+  /**
+   * Opens the transcript with what the person wrote. The full prompt the
+   * agent received (which includes that message) is kept alongside it, so
+   * it can be shown on request rather than as the first thing people read.
+   */
   private async createInitialTurns(
     sessionId: string,
     initialMessage: string,
+    fullPrompt: string,
   ): Promise<AgentTurn> {
     let seq = 1;
 
@@ -388,6 +398,7 @@ export class AgentSessionLaunchService {
       sequence: 1,
       status: AGENT_TURN_STATUS.COMPLETED,
       contentMarkdown: initialMessage,
+      contentJson: { fullPrompt },
     });
 
     await this.agentSessionEventDAO.create({
@@ -395,7 +406,7 @@ export class AgentSessionLaunchService {
       turnId: userTurn.id,
       sequence: seq++,
       eventType: AGENT_SESSION_EVENT_TYPE.USER_MESSAGE,
-      payloadJson: { content: initialMessage },
+      payloadJson: { content: initialMessage, fullPrompt },
     });
 
     const assistantTurn = await this.agentTurnDAO.create({
