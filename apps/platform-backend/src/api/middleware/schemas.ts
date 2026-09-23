@@ -304,6 +304,9 @@ export const resultCallbackSchema = Joi.object({
   pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
   documentContent: Joi.string().allow(null, "").optional(),
   errorMessage: Joi.string().allow(null, "").optional(),
+  // Any string: a code this backend doesn't know yet is shown as an
+  // unrecognised failure rather than rejecting the whole result.
+  failureCode: Joi.string().max(100).optional(),
   logs: Joi.array().items(Joi.string()).default([]),
   changedFiles: Joi.array().items(Joi.string()).default([]),
   executionTime: Joi.number().integer().min(0).required(),

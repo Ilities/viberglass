@@ -1,4 +1,4 @@
-import type { Clanker, Project } from "@viberglass/types";
+import { JOB_FAILURE_CODE, type Clanker, type Project } from "@viberglass/types";
 import {
   ATTR_VG_CLANKER_ID,
   ATTR_VG_JOB_ID,
@@ -301,6 +301,7 @@ export class WorkerExecutionService {
   ): Promise<void> {
     await this.jobService.updateJobStatus(jobId, "failed", {
       errorMessage,
+      failureCode: JOB_FAILURE_CODE.RUNNER_UNAVAILABLE,
     });
   }
 

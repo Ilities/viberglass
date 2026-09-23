@@ -1,3 +1,4 @@
+import { JOB_FAILURE_CODE } from '@viberglass/types';
 import { JobService } from '../services/JobService';
 import { createChildLogger } from '../config/logger';
 
@@ -75,6 +76,7 @@ export class OrphanSweeper {
 
       await this.jobService.updateJobStatus(job.id, 'failed', {
         errorMessage: `Job timed out after ${this.config.jobTimeoutMs / 1000}s without callback`,
+        failureCode: JOB_FAILURE_CODE.RUN_LOST,
       });
     }
 

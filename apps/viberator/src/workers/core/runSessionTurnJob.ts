@@ -2,7 +2,9 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { ExecutionContext } from "../../types";
+import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
+import { failingWith, JobFailureError } from "./JobFailureError";
 import { buildFeatureBranchName } from "../runtime/branchNaming";
 import {
   resolvePullRequestDescription,
@@ -123,7 +125,8 @@ async function completeExecutionWithPR(
 
   const changedFiles = await gitService.getChangedFiles(repoDir);
   if (changedFiles.length === 0) {
-    throw new Error(
+    throw new JobFailureError(
+      JOB_FAILURE_CODE.AGENT_NO_CHANGES,
       "No code changes detected after agent execution; pull request was not created",
     );
   }
@@ -157,7 +160,10 @@ async function completeExecutionWithPR(
         [ATTR_VG_COMMIT_SHA]: commitHash,
       }),
     },
-    async () => gitService.pushBranch(repoDir, featureBranch, params.scmToken),
+    async () =>
+      failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
+        gitService.pushBranch(repoDir, featureBranch, params.scmToken),
+      ),
   );
 
   await sendProgress("pr", "Creating pull request");
@@ -172,7 +178,8 @@ async function completeExecutionWithPR(
       }),
     },
     async (span) => {
-      const url = await gitService.createPullRequest(
+      const url = await failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
+        gitService.createPullRequest(
         repoDir,
         featureBranch,
         pullRequestBaseBranch,
@@ -183,6 +190,7 @@ async function completeExecutionWithPR(
           destinationRepositoryUrl: pullRequestRepository,
         },
         params.scmToken,
+        ),
       );
       if (url) span.setAttribute(ATTR_VG_PULL_REQUEST_URL, url);
       return url;
@@ -409,7 +417,10 @@ export async function runSessionTurnJob(
       (mode === "research" || mode === "planning") &&
       !documentContent
     ) {
-      throw new Error(`${documentFileName} was not generated`);
+      throw new JobFailureError(
+        JOB_FAILURE_CODE.AGENT_NO_DOCUMENT,
+        `${documentFileName} was not generated`,
+      );
     }
 
     return {

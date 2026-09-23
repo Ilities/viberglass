@@ -13,6 +13,8 @@ export interface CallbackResult {
   pullRequestUrl?: string;
   documentContent?: string;
   errorMessage?: string;
+  /** Why the run failed (JOB_FAILURE_CODE), decided by the stage that failed. */
+  failureCode?: string;
   logs: string[];
   changedFiles: string[];
   executionTime: number;

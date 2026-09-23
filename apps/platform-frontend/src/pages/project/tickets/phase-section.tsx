@@ -241,10 +241,12 @@ export function PhaseSection({
   const canRevoke = phase === 'planning' && document?.approvalState === 'approved'
 
   const busyReason = describePhaseActivity(phase, jobs, activeSession, latestRun?.status)
+  const latestPhaseJob = jobs.find((job) => job.jobKind === phase)
   const phaseStatus = derivePhaseStatus({
     position,
     isBusy: busyReason !== null,
-    latestRunStatus: jobs.find((job) => job.jobKind === phase)?.status ?? latestRun?.status,
+    latestRunStatus: latestPhaseJob?.status ?? latestRun?.status,
+    latestFailureTitle: latestPhaseJob?.failure?.title,
     hasResult: phase === 'execution' ? Boolean(ticket.pullRequestUrl) : hasContent,
     isResolved: phase === 'execution' && ticket.status === TICKET_STATUS.RESOLVED,
   })

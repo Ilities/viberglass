@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
+import type { JobFailure } from '@viberglass/types'
 
 export interface JobOverrides {
   additionalContext?: string
@@ -130,12 +131,7 @@ export interface JobStatus {
     changedFiles?: string[]
     executionTime?: number
     errorMessage?: string
-    failure?: {
-      code: string
-      summary: string
-      technicalDetail?: string
-      retryable: boolean
-    }
+    failure?: JobFailure
     commitHash?: string
   } | null
   failedReason: string | null
@@ -216,6 +212,7 @@ export interface JobListItem {
   ticketId: string | null
   ticket: JobListItemTicket | null
   projectSlug?: string
+  failure?: JobFailure | null
 }
 
 export interface JobListResponse {

@@ -37,6 +37,7 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
         <TableRow>
           <TableHeader>Status</TableHeader>
           <TableHeader>Run</TableHeader>
+          <TableHeader>Reason</TableHeader>
           <TableHeader>Repository</TableHeader>
           <TableHeader>Duration</TableHeader>
           <TableHeader>Created</TableHeader>
@@ -58,6 +59,13 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
                     {jobTitle(job)}
                   </span>
                 </div>
+              </TableCell>
+              <TableCell className="text-sm text-zinc-600 dark:text-zinc-400">
+                {job.status === 'failed' ? (
+                  <span title={job.failure?.summary}>{job.failure?.title ?? 'Run failed'}</span>
+                ) : (
+                  '-'
+                )}
               </TableCell>
               <TableCell>
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">

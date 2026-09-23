@@ -1,5 +1,7 @@
 import { ExecutionContext } from "../../types";
+import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
+import { failingWith, JobFailureError } from "./JobFailureError";
 import { buildFeatureBranchName } from "../runtime/branchNaming";
 import {
   resolvePullRequestDescription,
@@ -92,7 +94,8 @@ export async function runClawJob(
 
     const changedFiles = await gitService.getChangedFiles(repoDir);
     if (changedFiles.length === 0) {
-      throw new Error(
+      throw new JobFailureError(
+        JOB_FAILURE_CODE.AGENT_NO_CHANGES,
         "No code changes detected after agent execution; pull request was not created",
       );
     }
@@ -126,7 +129,10 @@ export async function runClawJob(
           [ATTR_VG_COMMIT_SHA]: commitHash,
         }),
       },
-      async () => gitService.pushBranch(repoDir, featureBranch, params.scmToken),
+      async () =>
+        failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
+          gitService.pushBranch(repoDir, featureBranch, params.scmToken),
+        ),
     );
 
     await sendProgress("pr", "Creating pull request");
@@ -141,17 +147,19 @@ export async function runClawJob(
         }),
       },
       async (span) => {
-        const url = await gitService.createPullRequest(
-          repoDir,
-          featureBranch,
-          pullRequestBaseBranch,
-          pullRequestTitle,
-          pullRequestDescription,
-          {
-            sourceRepositoryUrl: scm?.sourceRepository || repository,
-            destinationRepositoryUrl: pullRequestRepository,
-          },
-          params.scmToken,
+        const url = await failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
+          gitService.createPullRequest(
+            repoDir,
+            featureBranch,
+            pullRequestBaseBranch,
+            pullRequestTitle,
+            pullRequestDescription,
+            {
+              sourceRepositoryUrl: scm?.sourceRepository || repository,
+              destinationRepositoryUrl: pullRequestRepository,
+            },
+            params.scmToken,
+          ),
         );
         if (url) span.setAttribute(ATTR_VG_PULL_REQUEST_URL, url);
         return url;
