@@ -39,6 +39,7 @@ import {
 } from "@viberglass/telemetry";
 import { AgentStreamNormalizer } from "./agentStreamNormalizer";
 import { sanitizeAgentEnvironment } from "./agentEnvironment";
+import { withWorkingDirectory } from "./workingDirectoryEnvironment";
 import type { IAgentGitService } from "./git/IAgentGitService";
 import { NoopAgentGitService } from "./git/NoopAgentGitService";
 import type { BaseAgentConfig, ExecutionContext, ExecutionResult, AgentCLIResult } from "./types";
@@ -300,7 +301,10 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
 
       const child = spawn(command, args, {
         cwd: options.cwd,
-        env: this.buildCommandEnvironment(options.env),
+        env: withWorkingDirectory(
+          this.buildCommandEnvironment(options.env),
+          options.cwd,
+        ),
         stdio: ["ignore", "pipe", "pipe"],
       });
 
