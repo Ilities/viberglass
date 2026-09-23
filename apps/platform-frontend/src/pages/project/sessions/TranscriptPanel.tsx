@@ -115,6 +115,8 @@ interface MessageGroup {
   timestamp: string
   id: string
   userId: string | null
+  /** The full prompt the agent received, on the message that opened the session. */
+  fullPrompt?: string
 }
 
 /** Merge consecutive assistant_message and reasoning chunks into single groups, filtering presence events */
@@ -146,12 +148,14 @@ function mergeMessages(events: AgentSessionEvent[]): (AgentSessionEvent | Messag
         currentGroup = null
       }
       if (event.eventType === 'user_message') {
+        const fullPrompt = event.payloadJson?.fullPrompt
         result.push({
           type: 'user_message',
           text: getEventText(event),
           timestamp: event.createdAt,
           id: `group-${event.id}`,
           userId: event.userId ?? null,
+          ...(typeof fullPrompt === 'string' ? { fullPrompt } : {}),
         })
       } else {
         result.push(event)
@@ -308,6 +312,12 @@ function MessageBubble({ group, queued }: { group: MessageGroup; queued?: boolea
           })}
         </div>
       </div>
+      {group.fullPrompt && (
+        <details className="mt-1.5 max-w-[80%] rounded-lg border border-[var(--gray-5)] bg-[var(--gray-2)] px-3 py-2 text-xs text-[var(--gray-11)]">
+          <summary className="cursor-pointer font-medium select-none">View full prompt</summary>
+          <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap font-mono">{group.fullPrompt}</pre>
+        </details>
+      )}
       {attachments.length > 0 && (
         <div className="mt-1.5 flex max-w-[80%] flex-wrap gap-1.5">
           {attachments.map((att) => (
