@@ -16,7 +16,7 @@ import {
   validateUpdateProject,
   validateUuidParam,
 } from "../middleware/validation";
-import { requireAuth } from "../middleware/authentication";
+import { requireAuth, requireRole } from "../middleware/authentication";
 import logger from "../../config/logger";
 import type { PromptType } from "../../persistence/promptTemplate/PromptTemplateDAO";
 import {
@@ -325,7 +325,7 @@ router.get("/:id/deletion-summary", validateUuidParam("id"), async (req, res) =>
 });
 
 // DELETE /api/projects/:id - Delete a project
-router.delete("/:id", validateUuidParam("id"), async (req, res) => {
+router.delete("/:id", requireRole("admin"), validateUuidParam("id"), async (req, res) => {
   try {
     const project = await projectService.getProject(req.params.id);
     if (!project) {

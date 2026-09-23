@@ -141,6 +141,29 @@ describe('ApplicationLayout mobile navigation', () => {
     expect(within(mobileDrawer).getByRole('link', { name: /New Project/i })).toBeInTheDocument()
   })
 
+  it('hides workspace plumbing from members', async () => {
+    mockedUseAuth.mockReturnValue({
+      user: { ...USER, role: 'member' },
+      status: 'authenticated',
+      login: jest.fn(),
+      register: jest.fn(),
+      logout: jest.fn().mockResolvedValue(undefined),
+    })
+    const user = userEvent.setup()
+    renderLayout('/')
+
+    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
+    const mobileDrawer = screen.getByRole('dialog')
+    expect(await within(mobileDrawer).findByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
+
+    for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates']) {
+      expect(within(mobileDrawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
+    }
+    for (const label of ['Dashboard', 'Pulse', 'API Tokens']) {
+      expect(within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
+    }
+  })
+
   it('shows project nav items in the drawer on project routes', async () => {
     const user = userEvent.setup()
     renderLayout('/project/viberglass')
