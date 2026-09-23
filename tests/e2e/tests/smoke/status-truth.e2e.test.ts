@@ -48,6 +48,6 @@ test("a failed run shows as failed, and the task is no longer in progress", asyn
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
   const researchHeader = await openTask(page, workspace.projectSlug, task.id);
-  await expect(researchHeader).toContainText("Failed");
+  await expect(researchHeader).toContainText("Failed: Agent failed");
   expect(await taskStatus(adminApi, task.id)).toBe("open");
 });

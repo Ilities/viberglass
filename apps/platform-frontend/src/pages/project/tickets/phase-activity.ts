@@ -40,6 +40,8 @@ interface PhaseStatusInput {
   /** An agent is working on the phase right now (see describePhaseActivity). */
   isBusy: boolean
   latestRunStatus?: JobStatus
+  /** Short reason the latest run failed, when it did. */
+  latestFailureTitle?: string
   /** A document or pull request exists for a human to review. */
   hasResult: boolean
   isResolved: boolean
@@ -50,6 +52,7 @@ export function derivePhaseStatus({
   position,
   isBusy,
   latestRunStatus,
+  latestFailureTitle,
   hasResult,
   isResolved,
 }: PhaseStatusInput): PhaseStatus {
@@ -57,7 +60,9 @@ export function derivePhaseStatus({
   if (position === 'upcoming') return { label: 'Upcoming', color: 'zinc' }
   if (isResolved) return { label: 'Complete', color: 'green' }
   if (isBusy) return { label: 'Agent working', color: 'blue' }
-  if (latestRunStatus === 'failed') return { label: 'Failed', color: 'red' }
+  if (latestRunStatus === 'failed') {
+    return { label: latestFailureTitle ? `Failed: ${latestFailureTitle}` : 'Failed', color: 'red' }
+  }
   if (hasResult) return { label: 'Awaiting review', color: 'amber' }
   if (latestRunStatus === 'cancelled') return { label: 'Cancelled', color: 'zinc' }
   return { label: 'Not started', color: 'zinc' }

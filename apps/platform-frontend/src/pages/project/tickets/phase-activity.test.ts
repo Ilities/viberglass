@@ -24,6 +24,12 @@ describe('derivePhaseStatus', () => {
     })
   })
 
+  it('names the reason a run failed when it is known', () => {
+    expect(
+      derivePhaseStatus({ ...current, latestRunStatus: 'failed', latestFailureTitle: 'Model quota used up' }).label
+    ).toBe('Failed: Model quota used up')
+  })
+
   it('reports a cancelled run, unless an earlier result still awaits review', () => {
     expect(derivePhaseStatus({ ...current, latestRunStatus: 'cancelled' }).label).toBe('Cancelled')
     expect(derivePhaseStatus({ ...current, hasResult: true, latestRunStatus: 'cancelled' }).label).toBe(

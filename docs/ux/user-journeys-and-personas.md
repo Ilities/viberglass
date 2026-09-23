@@ -652,11 +652,11 @@ Ordered by impact/effort. Each maps to findings above.
 6. **Show reporter/creator, session starter and approver names** on the ticket, history and session (F25, F30).
 7. **Markdown rendering fix** for bold in list items (F29).
 8. **Live session discoverability** (F36): "● Live" badge on ticket card/page with a join link; title the session with the ticket title.
-9. **Readable failure reasons** for the top 3 causes: credential expired, credit/quota exhausted, repo access denied (F22). Pattern-match worker errors → reason code → message + fix link.
+9. **Readable failure reasons** for the top 3 causes: credential expired, credit/quota exhausted, repo access denied (F22). Pattern-match worker errors → reason code → message + fix link. **Done:** structured codes from the worker stage that failed, not pattern-matching afterwards (only the agent stage reads the provider's message).
 10. **Backend-down message** on login (F1): "Can't reach the Viberglass server" plus a health link.
 11. **Human-readable default integration names** (F12) and remove the duplicate GitHub token field (F17).
 12. **Readiness banner shows the real next step** (FR7, FR8): order the items, include secrets and integration, deep-link to the specific runner's Start, and show "Ready, try your first run" when everything is green.
-13. **Failure copy by audience** (LC4, FL14): requesters see plain status and who was notified; "Fix setup" only for configuration failures and only for admins; Retry for agent failures; a reason column in the Runs list (FL17, PG6).
+13. **Failure copy by audience** (LC4, FL14): requesters see plain status and who was notified; "Fix setup" only for configuration failures and only for admins; Retry for agent failures; a reason column in the Runs list (FL17, PG6). **Done:** "Fix setup" only for setup failures and only for admins; members are told an admin is needed; agent and platform failures offer a retry; Reason column in Runs. "Who was notified" waits for notifications (Phase 2).
 14. **Execution confirmation** (LC11): "This will push branch `x` to `repo` and open a PR against `base`."
 15. **Disable Run buttons while a run or session for that phase is active** (LC10, FL6). **Done:** backend 409 guard plus disabled buttons with the reason.
 16. **Show names, not emails**, in comments and history (LC7).

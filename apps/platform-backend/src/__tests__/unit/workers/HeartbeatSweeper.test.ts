@@ -64,9 +64,11 @@ describe('HeartbeatSweeper', () => {
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(2);
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-1', 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
+        failureCode: 'RUN_LOST',
       });
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-2', 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
+        failureCode: 'RUN_LOST',
       });
 
       expect(count).toBe(2);
@@ -349,6 +351,7 @@ describe('HeartbeatSweeper', () => {
       expect(count).toBe(1); // Found 1 stale job (mock returns it)
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-just-finished', 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
+        failureCode: 'RUN_LOST',
       });
 
       // In reality, with the fix, findStaleJobs should NOT return jobs where:
