@@ -343,7 +343,10 @@ export function ProjectSettingsPage() {
       await archiveProject(projectData.id)
       navigate('/')
     } catch (archiveError) {
-      setError(getErrorMessage(archiveError, 'Failed to archive project'))
+      const message = getErrorMessage(archiveError, 'Failed to archive project')
+      // Shown in the delete dialog when archiving from there, otherwise at the top.
+      setError(message)
+      setDeleteError(message)
       setIsArchiving(false)
     }
   }
@@ -855,8 +858,8 @@ export function ProjectSettingsPage() {
           <div className="space-y-3">
             {deletionSummary ? (
               <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
-                Affected records: {deletionSummary.tickets} tickets, {deletionSummary.runs} runs, and{' '}
-                {deletionSummary.sessions} sessions.
+                Also deleted: {deletionSummary.tickets} tickets, {deletionSummary.runs} runs,{' '}
+                {deletionSummary.sessions} agent sessions, and {deletionSummary.schedules} schedules.
               </p>
             ) : null}
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -874,6 +877,9 @@ export function ProjectSettingsPage() {
         <DialogActions>
           <Button plain onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
             Cancel
+          </Button>
+          <Button outline onClick={() => void handleArchiveProject()} disabled={isDeleting || isArchiving}>
+            {isArchiving ? 'Archiving…' : 'Archive instead'}
           </Button>
           <Button
             color="red"
