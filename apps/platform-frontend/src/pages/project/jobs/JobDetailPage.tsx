@@ -1,3 +1,4 @@
+import { CancelRunButton } from '@/components/cancel-run-button'
 import { Badge } from '@/components/badge'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Button } from '@/components/button'
@@ -261,10 +262,10 @@ export function JobDetailPage() {
                 </Button>
               )}
               {(job.status === 'queued' || job.status === 'active') && (
-                <Button
-                  color="red"
-                  disabled={isCancelling}
-                  onClick={async () => {
+                <CancelRunButton
+                  label="Cancel run"
+                  isCancelling={isCancelling}
+                  onConfirm={async () => {
                     setIsCancelling(true)
                     try {
                       await cancelJob(job.jobId)
@@ -276,9 +277,7 @@ export function JobDetailPage() {
                       setIsCancelling(false)
                     }
                   }}
-                >
-                  {isCancelling ? 'Cancelling…' : 'Cancel run'}
-                </Button>
+                />
               )}
               <JobRefreshButton onRefresh={() => void refetch()} />
             </div>

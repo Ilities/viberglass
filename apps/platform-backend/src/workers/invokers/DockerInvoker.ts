@@ -9,6 +9,7 @@ import { createChildLogger } from "../../config/logger";
 import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
+import { dockerJobContainerName } from "./dockerJobContainerName";
 
 const logger = createChildLogger({ invoker: "Docker" });
 
@@ -130,7 +131,7 @@ export class DockerInvoker implements WorkerInvoker {
 
       const container = await this.docker.createContainer({
         Image: dockerConfig.containerImage,
-        name: `viberator-job-${job.id}`,
+        name: dockerJobContainerName(job.id),
         Env: [
           `TENANT_ID=${job.tenantId}`,
           `JOB_ID=${job.id}`,

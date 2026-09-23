@@ -22,6 +22,7 @@ import {
   type ReplyResult,
 } from "./SessionTurnContinuationService";
 import { agentSessionMutex } from "./AgentSessionMutex";
+import type { SessionJobStopper } from "./SessionJobStopper";
 
 export type { ReplyResult };
 export type ApproveResult = ReplyResult | { cancelled: true };
@@ -33,6 +34,7 @@ export class AgentSessionInteractionService {
     private readonly agentSessionEventDAO: AgentSessionEventDAO,
     private readonly agentPendingRequestDAO: AgentPendingRequestDAO,
     private readonly turnContinuationService: SessionTurnContinuationService,
+    private readonly jobStopper: SessionJobStopper,
   ) {}
 
   async reply(
@@ -344,6 +346,12 @@ export class AgentSessionInteractionService {
         AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
         "Session is already in a terminal state",
       );
+    }
+
+    // Stop the worker first; otherwise it keeps running and can report a
+    // result for a session the user already cancelled.
+    if (session.lastJobId) {
+      await this.jobStopper.stopJob(session.lastJobId);
     }
 
     if (session.lastTurnId) {
