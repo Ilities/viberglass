@@ -21,8 +21,6 @@ import {
 import {
   ChatBubbleIcon,
   CheckCircledIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   CrossCircledIcon,
   ExternalLinkIcon,
   Pencil1Icon,
@@ -36,8 +34,9 @@ import { toast } from 'sonner'
 import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { ApprovePhaseButton } from './approve-phase-button'
-import { describePhaseActivity } from './phase-activity'
+import { derivePhaseStatus, describePhaseActivity, type PhasePosition } from './phase-activity'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
+import { PhaseHeader } from './phase-header'
 import { PhaseLogs } from './phase-logs'
 import { PhaseSessionPanel } from './phase-session-panel'
 
@@ -53,78 +52,6 @@ interface PhaseSectionProps {
   jobs: JobListItem[]
   activeSession?: AgentSession
   onSessionsChanged: () => void
-}
-
-function PhaseHeader({
-  phase,
-  status,
-  isCurrent,
-  isExpanded,
-  onToggle,
-}: {
-  phase: 'research' | 'planning' | 'execution'
-  status: 'completed' | 'in_progress' | 'upcoming'
-  isCurrent: boolean
-  isExpanded: boolean
-  onToggle: () => void
-}) {
-  const labels = {
-    research: 'Research',
-    planning: 'Planning',
-    execution: 'Execution',
-  }
-
-  const statusConfig: Record<
-    'completed' | 'in_progress' | 'upcoming',
-    { label: string; color: 'green' | 'blue' | 'zinc' }
-  > = {
-    completed: { label: 'Complete', color: 'green' },
-    in_progress: { label: 'In Progress', color: 'blue' },
-    upcoming: { label: 'Upcoming', color: 'zinc' },
-  }
-
-  const config = statusConfig[status]
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="flex w-full items-center justify-between rounded-lg border border-[var(--gray-5)] bg-[var(--gray-1)] px-4 py-3 text-left transition-colors hover:bg-[var(--gray-2)]"
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-          style={{
-            backgroundColor:
-              status === 'completed'
-                ? 'var(--green-9)'
-                : status === 'in_progress'
-                  ? 'var(--accent-9)'
-                  : 'var(--gray-4)',
-            color: status === 'upcoming' ? 'var(--gray-9)' : 'white',
-          }}
-        >
-          {status === 'completed' ? (
-            <CheckCircledIcon className="h-4 w-4" />
-          ) : (
-            <span>{phase === 'research' ? '1' : phase === 'planning' ? '2' : '3'}</span>
-          )}
-        </div>
-        <span className="text-sm font-semibold text-[var(--gray-12)]">{labels[phase]}</span>
-        <Badge color={config.color} className="text-xs">
-          {config.label}
-        </Badge>
-        {isCurrent && <span className="text-xs text-[var(--accent-11)]">(Current)</span>}
-      </div>
-      <div className="flex items-center gap-2">
-        {isExpanded ? (
-          <ChevronDownIcon className="h-4 w-4 text-[var(--gray-9)]" />
-        ) : (
-          <ChevronRightIcon className="h-4 w-4 text-[var(--gray-9)]" />
-        )}
-      </div>
-    </button>
-  )
 }
 
 export function PhaseSection({
@@ -159,8 +86,8 @@ export function PhaseSection({
   const phaseIndex = ['research', 'planning', 'execution'].indexOf(phase)
   const currentIndex = ['research', 'planning', 'execution'].indexOf(currentPhase)
 
-  const status: 'completed' | 'in_progress' | 'upcoming' =
-    phaseIndex < currentIndex ? 'completed' : phaseIndex === currentIndex ? 'in_progress' : 'upcoming'
+  const position: PhasePosition =
+    phaseIndex < currentIndex ? 'completed' : phaseIndex === currentIndex ? 'current' : 'upcoming'
 
   const loadDocument = useCallback(async () => {
     try {
@@ -314,6 +241,13 @@ export function PhaseSection({
   const canRevoke = phase === 'planning' && document?.approvalState === 'approved'
 
   const busyReason = describePhaseActivity(phase, jobs, activeSession, latestRun?.status)
+  const phaseStatus = derivePhaseStatus({
+    position,
+    isBusy: busyReason !== null,
+    latestRunStatus: jobs.find((job) => job.jobKind === phase)?.status ?? latestRun?.status,
+    hasResult: phase === 'execution' ? Boolean(ticket.pullRequestUrl) : hasContent,
+    isResolved: phase === 'execution' && ticket.status === TICKET_STATUS.RESOLVED,
+  })
   const canStartRun = isCurrentPhase && !busyReason
   const notCurrentPhaseTitle = `${phase} only available in current phase`
   const runButtonTitle = busyReason ?? (isCurrentPhase ? `${hasContent ? 'Recreate' : 'Run'} ${phase}` : notCurrentPhaseTitle)
@@ -329,8 +263,8 @@ export function PhaseSection({
     <div className="space-y-2">
       <PhaseHeader
         phase={phase}
-        status={status}
-        isCurrent={isCurrentPhase}
+        position={position}
+        status={phaseStatus}
         isExpanded={isExpanded}
         onToggle={() => setIsExpanded(!isExpanded)}
       />

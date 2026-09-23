@@ -3,7 +3,7 @@ import { Heading } from '@/components/heading'
 import { Link } from '@/components/link'
 import { SegmentedControl } from '@/components/segmented-control'
 import { usePolling } from '@/hooks/usePolling'
-import { getSeverityBadge } from '@/pages/project/tickets/ticket-display'
+import { getSeverityBadge, TICKET_STATUS_LABEL } from '@/pages/project/tickets/ticket-display'
 import { getProjects, type Project } from '@/service/api/project-api'
 import { getTickets } from '@/service/api/ticket-api'
 import type { Ticket } from '@viberglass/types'
@@ -32,8 +32,8 @@ function phaseBadge(phase: string): { label: string; color: 'amber' | 'violet' |
 
 function statusBadge(status: string): { label: string; color: 'amber' | 'blue' } {
   return status === 'in_review'
-    ? { label: 'Needs Review', color: 'amber' }
-    : { label: 'In Progress',  color: 'blue'  }
+    ? { label: TICKET_STATUS_LABEL.in_review, color: 'amber' }
+    : { label: TICKET_STATUS_LABEL.in_progress, color: 'blue' }
 }
 
 function TicketRow({
@@ -129,8 +129,8 @@ function GroupedByStatus({ tickets, slugById }: { tickets: Ticket[]; slugById: M
   const inProgress = tickets.filter((t) => t.status === 'in_progress')
   return (
     <div className="flex flex-col gap-4">
-      <Section title="Needs Review" tickets={inReview}   slugById={slugById} groupBy="status" accent="amber" />
-      <Section title="In Progress"  tickets={inProgress} slugById={slugById} groupBy="status" accent="blue"  />
+      <Section title={TICKET_STATUS_LABEL.in_review} tickets={inReview} slugById={slugById} groupBy="status" accent="amber" />
+      <Section title={TICKET_STATUS_LABEL.in_progress} tickets={inProgress} slugById={slugById} groupBy="status" accent="blue"  />
     </div>
   )
 }

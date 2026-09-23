@@ -43,6 +43,14 @@ export function formatDateTime(dateString: string): string {
   })
 }
 
+/** What each ticket status means to a person: is an agent working, or is a human needed? */
+export const TICKET_STATUS_LABEL: Record<TicketLifecycleStatus, string> = {
+  [TICKET_STATUS.OPEN]: 'Open',
+  [TICKET_STATUS.IN_PROGRESS]: 'Agent working',
+  [TICKET_STATUS.IN_REVIEW]: 'Awaiting review',
+  [TICKET_STATUS.RESOLVED]: 'Resolved',
+}
+
 export const ticketStatusOrder: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
   TICKET_STATUS.IN_PROGRESS,
@@ -59,24 +67,24 @@ export const ticketWorkflowPhaseOrder: TicketWorkflowPhase[] = [
 export function formatTicketStatus(status: TicketLifecycleStatus): { label: string; className: string } {
   if (status === TICKET_STATUS.RESOLVED) {
     return {
-      label: 'Resolved',
+      label: TICKET_STATUS_LABEL[TICKET_STATUS.RESOLVED],
       className: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
     }
   }
   if (status === TICKET_STATUS.IN_REVIEW) {
     return {
-      label: 'In Review',
+      label: TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW],
       className: 'bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200',
     }
   }
   if (status === TICKET_STATUS.IN_PROGRESS) {
     return {
-      label: 'In Progress',
+      label: TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS],
       className: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200',
     }
   }
   return {
-    label: 'Open',
+    label: TICKET_STATUS_LABEL[TICKET_STATUS.OPEN],
     className: 'bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-zinc-200',
   }
 }

@@ -100,6 +100,27 @@ describe('PhaseSection', () => {
     )
   })
 
+  it('says a new ticket has not started instead of claiming progress', async () => {
+    jest.mocked(getResearchDocument).mockResolvedValue({
+      ...researchPhase,
+      document: { ...researchPhase.document, content: '' },
+    })
+    renderResearchSection([])
+
+    expect(await screen.findByRole('button', { name: /research not started/i })).toBeInTheDocument()
+    expect(screen.queryByText(/in progress/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the agent working while a run is in progress', async () => {
+    renderResearchSection([researchJob('active')])
+    expect(await screen.findByRole('button', { name: /research agent working/i })).toBeInTheDocument()
+  })
+
+  it('shows a finished document as awaiting review', async () => {
+    renderResearchSection([researchJob('completed')])
+    expect(await screen.findByRole('button', { name: /research awaiting review/i })).toBeInTheDocument()
+  })
+
   it('allows Revise once the run has finished', async () => {
     renderResearchSection([researchJob('completed')])
 

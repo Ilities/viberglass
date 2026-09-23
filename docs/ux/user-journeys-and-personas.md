@@ -647,7 +647,7 @@ Ordered by impact/effort. Each maps to findings above.
 1. **Fix the session initial message** (F33): render the correct template (fresh vs revision) with ticket vars, and show the human's intent as the first bubble with the system prompt behind "View full prompt". `apps/platform-backend/src/services/agentSession/AgentSessionLaunchService.ts:192-206`.
 2. **Replace whimsical functional copy** (F3, F9) with plain labels; unify names (glossary §5.2). Keep one easter egg in empty states if desired.
 3. **SCM dropdown placeholder** "Select an integration…" instead of "No SCM integration configured" when options exist (F10). `NewProjectPage.tsx:281`, `ProjectSettingsPage.tsx:626`.
-4. **Status truth** (F24, F26): "Not started" until a run starts; "Awaiting review" when a doc exists and isn't approved; Pulse → "Inbox"-lite showing *awaiting review* separately.
+4. **Status truth** (F24, F26): "Not started" until a run starts; "Awaiting review" when a doc exists and isn't approved; Pulse → "Inbox"-lite showing *awaiting review* separately. **Done:** derived phase and ticket statuses; Pulse and the nav list "Awaiting review" separately from "Agent working".
 5. **Hide plumbing from members** in nav and **enforce admin on secrets/clankers/integrations routes** (F7, F39).
 6. **Show reporter/creator, session starter and approver names** on the ticket, history and session (F25, F30).
 7. **Markdown rendering fix** for bold in list items (F29).

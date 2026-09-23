@@ -27,6 +27,12 @@ export async function taskPhase(api: APIRequestContext, taskId: string): Promise
   return String(body?.data?.workflowPhase);
 }
 
+/** The task's lifecycle status: open, in_progress, in_review or resolved. */
+export async function taskStatus(api: APIRequestContext, taskId: string): Promise<string> {
+  const body = await (await api.get(`/api/tickets/${taskId}`)).json();
+  return String(body?.data?.status);
+}
+
 /** Starts an automatic research run and returns its job id. */
 export async function startResearch(
   api: APIRequestContext,

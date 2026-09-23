@@ -120,6 +120,10 @@ export class JobService {
       })
       .execute();
 
+    if (options?.ticketId) {
+      await this.synchronizeTicketStatus(options.ticketId);
+    }
+
     logger.info("Job enqueued", {
       jobId,
       repository: data.repository,
@@ -213,9 +217,10 @@ export class JobService {
                 };
 
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
-        if (status !== "completed") {
-          await this.lifecycleStatusService.synchronize(job.ticket_id);
-        }
+      }
+
+      if (job?.ticket_id) {
+        await this.synchronizeTicketStatus(job.ticket_id);
       }
 
       if (this.feedbackService && job?.ticket_id) {
@@ -272,6 +277,18 @@ export class JobService {
             });
         }
       }
+    }
+  }
+
+  /** Best effort: a ticket status that lags must not fail the run update. */
+  private async synchronizeTicketStatus(ticketId: string): Promise<void> {
+    try {
+      await this.lifecycleStatusService.synchronize(ticketId);
+    } catch (error) {
+      logger.warn("Failed to synchronize ticket status", {
+        ticketId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

@@ -106,16 +106,21 @@ export function TicketDetailPage() {
     }
   }, [id, ticket?.workflowPhase, ticket?.pullRequestUrl, ticket])
 
-  // While any run of this ticket is queued or active, poll its jobs so the
-  // phases see the run finish and re-enable their Run and Revise buttons.
+  // While any run of this ticket is queued or active, poll its jobs and the
+  // ticket so the phases and the status see the run finish without a reload.
   const hasRunningJob = jobs.some((job) => job.status === 'queued' || job.status === 'active')
   useEffect(() => {
     if (!id || !hasRunningJob) return
     let cancelled = false
     const timer = setInterval(async () => {
       try {
-        const latest = await getJobs({ ticketId: id, limit: 50 })
-        if (!cancelled) setJobs(latest.jobs)
+        const [latestJobs, latestTicket] = await Promise.all([
+          getJobs({ ticketId: id, limit: 50 }),
+          getTicketDetails(id),
+        ])
+        if (cancelled) return
+        setJobs(latestJobs.jobs)
+        if (latestTicket) setTicket(latestTicket)
       } catch {
         // swallow — next tick will retry
       }

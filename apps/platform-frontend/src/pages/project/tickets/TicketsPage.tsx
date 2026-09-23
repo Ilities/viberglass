@@ -19,7 +19,7 @@ import {
 } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { ticketWorkflowPhaseOrder } from './ticket-display'
+import { TICKET_STATUS_LABEL, ticketWorkflowPhaseOrder } from './ticket-display'
 import { TicketsBoard } from './tickets-board'
 import { TicketsTable } from './tickets-table'
 
@@ -329,10 +329,10 @@ export function TicketsPage() {
           <Select name="status" value={status} onChange={(value) => updateFilters({ status: parseStatusFilter(value, status), page: 1 })}>
             <option value="actionable">Actionable</option>
             <option value="all">All Statuses</option>
-            <option value={TICKET_STATUS.OPEN}>Open</option>
-            <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
-            <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
-            <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
+            <option value={TICKET_STATUS.OPEN}>{TICKET_STATUS_LABEL[TICKET_STATUS.OPEN]}</option>
+            <option value={TICKET_STATUS.IN_PROGRESS}>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}</option>
+            <option value={TICKET_STATUS.IN_REVIEW}>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]}</option>
+            <option value={TICKET_STATUS.RESOLVED}>{TICKET_STATUS_LABEL[TICKET_STATUS.RESOLVED]}</option>
           </Select>
         </div>
 

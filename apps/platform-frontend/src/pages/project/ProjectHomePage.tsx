@@ -19,7 +19,7 @@ import {
 } from '@/data'
 import { formatJobStatus, jobKindBadgeColor } from '@/lib/formatters'
 import { useProject } from '@/context/project-context'
-import { formatTicketWorkflowPhase } from './tickets/ticket-display'
+import { formatTicketWorkflowPhase, TICKET_STATUS_LABEL } from './tickets/ticket-display'
 import { TICKET_STATUS } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
@@ -459,7 +459,7 @@ export function ProjectHomePage() {
             {inProgressTickets.length > 0 && (
               <section>
                 <SectionHeader
-                  title="In Progress"
+                  title={TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}
                   count={inProgressTickets.length}
                   action={<span className="text-xs text-gray-500 dark:text-gray-400">Agent runners working</span>}
                 />
@@ -473,7 +473,7 @@ export function ProjectHomePage() {
 
             {inReviewTickets.length > 0 && (
               <section>
-                <SectionHeader title="In Review" count={inReviewTickets.length} />
+                <SectionHeader title={TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]} count={inReviewTickets.length} />
                 <div className="grid gap-3 sm:grid-cols-2">
                   {inReviewTickets.map((ticket) => (
                     <TicketCard key={ticket.id} ticket={ticket} project={project!} />
