@@ -28,6 +28,7 @@ import {
   submitJobWithBootstrapAndInvoke,
 } from "./ticketRunOrchestration";
 import { PromptTemplateService } from "./PromptTemplateService";
+import { TicketPhaseRunGuard } from "./TicketPhaseRunGuard";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
@@ -74,6 +75,7 @@ export class TicketPlanningService {
   private readonly promptTemplateService = new PromptTemplateService(
     new PromptTemplateDAO(),
   );
+  private readonly phaseRunGuard = new TicketPhaseRunGuard();
 
   async getPlanningPhase(ticketId: string): Promise<PlanningPhaseView> {
     const document = await this.documentService.getOrCreateDocument(
@@ -123,6 +125,10 @@ export class TicketPlanningService {
         "Planning runs are only allowed during the planning or execution phase",
       );
     }
+    await this.phaseRunGuard.assertIdle(
+      ticket.id,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+    );
 
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const preparedContext = await prepareTicketRunContext(
@@ -220,6 +226,10 @@ export class TicketPlanningService {
         "Ticket not found",
       );
     }
+    await this.phaseRunGuard.assertIdle(
+      ticket.id,
+      TICKET_WORKFLOW_PHASE.PLANNING,
+    );
 
     // Get existing research + planning documents
     const researchDoc = await this.documentService.getOrCreateDocument(

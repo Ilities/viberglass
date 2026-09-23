@@ -21,6 +21,9 @@ function getErrorLabel(statusCode: number): string {
   if (statusCode === 404) {
     return "Not found";
   }
+  if (statusCode === 409) {
+    return "Conflict";
+  }
   return "Bad request";
 }
 

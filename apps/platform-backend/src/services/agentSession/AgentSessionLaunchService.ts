@@ -49,6 +49,7 @@ import type {
   TicketJobData,
 } from "../../types/Job";
 import { PromptTemplateService } from "../PromptTemplateService";
+import { TicketPhaseRunGuard } from "../TicketPhaseRunGuard";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
@@ -84,6 +85,7 @@ export class AgentSessionLaunchService {
   private readonly promptTemplateService = new PromptTemplateService(
     new PromptTemplateDAO(),
   );
+  private readonly phaseRunGuard = new TicketPhaseRunGuard();
 
   constructor(
     private readonly agentSessionDAO: AgentSessionDAO,
@@ -106,6 +108,17 @@ export class AgentSessionLaunchService {
       );
     }
 
+    const conflict = await this.phaseRunGuard.findConflict(
+      input.ticketId,
+      input.mode,
+    );
+    if (conflict) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_ALREADY_ACTIVE,
+        conflict,
+      );
+    }
+
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const prepared = await prepareTicketRunContext(
       { projectId: ticket.projectId, clankerId: input.clankerId, jobId },
@@ -119,17 +132,6 @@ export class AgentSessionLaunchService {
         instructionStorageService: this.instructionStorageService,
       },
     );
-
-    const existing = await this.agentSessionDAO.getActiveByTicketAndMode(
-      input.ticketId,
-      input.mode,
-    );
-    if (existing) {
-      throw new AgentSessionServiceError(
-        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_ALREADY_ACTIVE,
-        "An active session already exists for this ticket and mode",
-      );
-    }
 
     let researchDocumentContent: string | undefined;
     let planDocumentContent: string | undefined;

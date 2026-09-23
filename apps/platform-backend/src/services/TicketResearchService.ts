@@ -31,6 +31,7 @@ import {
   submitJobWithBootstrapAndInvoke,
 } from "./ticketRunOrchestration";
 import { PromptTemplateService } from "./PromptTemplateService";
+import { TicketPhaseRunGuard } from "./TicketPhaseRunGuard";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
@@ -77,6 +78,7 @@ export class TicketResearchService {
   private readonly promptTemplateService = new PromptTemplateService(
     new PromptTemplateDAO(),
   );
+  private readonly phaseRunGuard = new TicketPhaseRunGuard();
 
   async getResearchPhase(ticketId: string): Promise<ResearchPhaseView> {
     const document = await this.documentService.getOrCreateDocument(
@@ -123,6 +125,10 @@ export class TicketResearchService {
         "Research runs are only allowed during the research phase",
       );
     }
+    await this.phaseRunGuard.assertIdle(
+      ticket.id,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
 
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const preparedContext = await prepareTicketRunContext(
@@ -214,6 +220,10 @@ export class TicketResearchService {
         "Ticket not found",
       );
     }
+    await this.phaseRunGuard.assertIdle(
+      ticket.id,
+      TICKET_WORKFLOW_PHASE.RESEARCH,
+    );
 
     // Get existing research document
     const researchDoc = await this.documentService.getOrCreateDocument(
