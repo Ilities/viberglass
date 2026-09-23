@@ -33,14 +33,15 @@ const secretNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 const locationOptions: Array<{ value: SecretLocation; label: string; helper: string }> = [
   {
-    value: 'env',
-    label: 'Name only (env)',
-    helper: 'Reads the value from an existing environment variable on the API server.',
+    value: 'database',
+    label: 'Store the value (encrypted)',
+    helper: 'Stores the secret value encrypted at rest in the platform database.',
   },
   {
-    value: 'database',
-    label: 'Database (encrypted)',
-    helper: 'Stores the secret value encrypted at rest in the platform database.',
+    value: 'env',
+    label: 'Server environment variable (advanced)',
+    helper:
+      'Reads the value from an environment variable with this name on the Viberglass server. The variable must already be set there.',
   },
   {
     value: 'ssm',
@@ -57,7 +58,7 @@ const badgeColors: Record<SecretLocation, 'green' | 'blue' | 'amber'> = {
 
 const emptyForm: SecretFormState = {
   name: '',
-  secretLocation: 'env',
+  secretLocation: 'database',
   secretPath: '',
   secretValue: '',
 }
