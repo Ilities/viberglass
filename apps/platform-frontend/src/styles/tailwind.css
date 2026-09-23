@@ -20,11 +20,8 @@
     --color-brand-secondary: var(--accent-10);
     --color-brand-accent: var(--accent-11);
 
-    /* Semantic warning scale.
-       `amber-*` is remapped onto the project accent below, so it cannot carry
-       "caution" meaning — a plum-accented project would render warnings in plum.
-       These are Tailwind's stock amber values, deliberately kept off the accent
-       remap so warning UI reads as a warning under every project theme. */
+    /* Stock Tailwind amber, kept off the accent remap below so warning UI stays
+       amber under every project theme. Use these for warnings, not `amber-*`. */
     --color-warning-50: oklch(98.7% 0.022 95.277);
     --color-warning-100: oklch(96.2% 0.059 95.617);
     --color-warning-200: oklch(92.4% 0.12 95.746);
@@ -78,9 +75,8 @@
         letter-spacing: -0.03em;
     }
 
-    /* Binds Tailwind's amber utilities to the active Radix accent so brand-tinted
-       UI follows the project theme. Consequence: `amber-*` means "brand", not
-       "caution" — use `warning-*` for warning and error states. */
+    /* Binds amber utilities to the active Radix accent, so `amber-*` means
+       "brand", not "caution". Warnings and errors use `warning-*`. */
     .radix-themes {
         --color-amber-50: var(--accent-2);
         --color-amber-100: var(--accent-3);

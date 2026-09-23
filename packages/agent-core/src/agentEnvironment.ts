@@ -84,6 +84,7 @@ const PROVIDER_ALLOWLIST: readonly string[] = [
   "OPENAI_MODEL",
   "CODEX_AUTH_MODE",
   "CODEX_CONFIG_DIR",
+  "CODEX_ENDPOINT",
   "CODEX_HOME",
   // Google / Gemini
   "GEMINI_API_KEY",
@@ -93,17 +94,23 @@ const PROVIDER_ALLOWLIST: readonly string[] = [
   // Alibaba / Qwen
   "DASHSCOPE_API_KEY",
   "QWEN_API_ENDPOINT",
+  "QWEN_CLI_API_KEY",
   "QWEN_CLI_ENDPOINT",
   // Moonshot / Kimi
   "KIMI_API_KEY",
   "KIMI_BASE_URL",
+  "KIMI_CODE_ENDPOINT",
   "KIMI_MODEL_NAME",
+  "MOONSHOT_API_KEY",
+  "MOONSHOT_BASE_URL",
   // Mistral
   "MISTRAL_API_KEY",
   "MISTRAL_BASE_URL",
   // OpenCode
+  "OPENCODE_API_KEY",
   "OPENCODE_BASE_URL",
   "OPENCODE_CONFIG_DIR",
+  "OPENCODE_ENDPOINT",
   "OPENCODE_MODEL",
   // Pi
   "PI_CODING_AGENT_DIR",
