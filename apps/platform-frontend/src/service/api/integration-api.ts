@@ -107,7 +107,8 @@ export async function deleteIntegration(integrationId: string): Promise<void> {
   })
 
   if (!response.ok) {
-    throw new Error('Failed to delete integration')
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to delete integration')
   }
 }
 
