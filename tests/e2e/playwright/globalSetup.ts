@@ -1,49 +1,19 @@
-import { readFileSync } from "fs";
-import { join } from "path";
+import { writeFileSync } from "fs";
+import { E2E } from "./e2eEnvironment";
+import { GitFixtureServer } from "./gitFixtureServer";
+import { seedWorkspace } from "./seedWorkspace";
+import { SEED_FILE } from "./seededWorkspace";
 
 /**
- * Loads .env.e2e (if present) into process.env before playwright starts the
- * webServer processes, so the backend picks up the test database config.
- *
- * Falls back to docker-compose fixed ports when the file doesn't exist.
+ * Runs after Playwright has started the backend and frontend (webServer) and
+ * before any test: serves the fixture repository and seeds the empty database.
  */
-export default async function globalSetup() {
-  // Defaults matching docker/docker-compose.e2e.yaml fixed ports
-  const defaults: Record<string, string> = {
-    DB_HOST: "localhost",
-    DB_PORT: "5433",
-    DB_NAME: "viberator",
-    DB_USER: "viberator",
-    DB_PASSWORD: "viberator",
-    AWS_ENDPOINT_URL: "http://localhost:4566",
-    AWS_ACCESS_KEY_ID: "test",
-    AWS_SECRET_ACCESS_KEY: "test",
-    AWS_REGION: "eu-west-1",
-    NODE_ENV: "test",
-    AUTH_ENABLED: "false",
-  };
+export default async function globalSetup(): Promise<() => Promise<void>> {
+  const gitServer = new GitFixtureServer();
+  await gitServer.start(E2E.gitFixturePort);
 
-  for (const [key, value] of Object.entries(defaults)) {
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
-  }
+  const seeded = await seedWorkspace();
+  writeFileSync(SEED_FILE, JSON.stringify(seeded, null, 2));
 
-  // Override with .env.e2e if present (written by setup:services testcontainers run)
-  const envFile = join(process.cwd(), ".env.e2e");
-  try {
-    const content = readFileSync(envFile, "utf-8");
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eqIdx = trimmed.indexOf("=");
-      if (eqIdx === -1) continue;
-      const key = trimmed.slice(0, eqIdx);
-      const value = trimmed.slice(eqIdx + 1);
-      process.env[key] = value;
-    }
-    console.log("E2E: Loaded .env.e2e");
-  } catch {
-    console.log("E2E: No .env.e2e found, using docker-compose defaults");
-  }
+  return () => gitServer.stop();
 }

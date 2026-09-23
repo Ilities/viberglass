@@ -46,13 +46,16 @@ viberator/
 │   ├── jest.config.js
 │   └── jest.setup.js
 └── tests/e2e/                            # Separate E2E test package
-    ├── tests/                            # Playwright E2E tests
+    ├── tests/smoke/                      # The smoke journeys (default run)
+    ├── tests/<feature>/                  # Quarantined legacy specs (opt-in)
     ├── playwright/
-    │   ├── fixtures.ts                   # Custom test fixtures
-    │   ├── setupServices.ts              # Setup testcontainers
-    │   └── teardownServices.ts           # Teardown testcontainers
+    │   ├── e2eEnvironment.ts             # Ports, URLs, accounts, backend env
+    │   ├── globalSetup.ts                # Git fixture server + database seed
+    │   ├── seedWorkspace.ts              # Seeds through the public API
+    │   ├── smokeFixtures.ts              # Signed-in pages and API clients
+    │   └── tasks.ts                      # Task, run and session helpers
     ├── docker/
-    │   └── docker-compose.e2e.yaml       # Docker compose for E2E stack
+    │   └── docker-compose.e2e.yaml       # Postgres for the E2E stack
     ├── playwright.config.ts
     └── package.json
 ```
@@ -176,102 +179,81 @@ No manual database setup required!
 
 ## E2E Tests
 
-E2E tests use Playwright to test the full application stack.
+The smoke suite drives the product the way a person does: the real backend and
+frontend, real Docker worker containers, and a deterministic **fake agent**
+instead of a model. It needs no API keys and runs in about a minute and a half.
 
-### Setup
+### What it covers
 
-First, install the dependencies:
+| Journey | Spec |
+|---|---|
+| Sign in as the seeded admin | `sign-in.e2e.test.ts` |
+| Automatic research writes a document, which is approved | `research-and-approve.e2e.test.ts` |
+| A message queued during a live turn reaches the agent, then the session completes | `live-session-message.e2e.test.ts` |
+| Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
+| Members can't reach secrets, runner changes or project deletion, and don't see plumbing | `member-permissions.e2e.test.ts` |
+| A backend that starts before Postgres recovers once it is up | `late-database.e2e.test.ts` |
+
+### One-time setup
 
 ```bash
 npm install
+npx playwright install chromium        # from tests/e2e
+
+# The fake worker image. Rebuild after changing apps/viberator or packages/agent*.
+docker build -f infra/workers/docker/base/base-worker.Dockerfile -t base-worker .
+docker build -f infra/workers/docker/generated/fake.Dockerfile \
+  --build-arg BASE_IMAGE=base-worker -t viberator-worker-fake:latest .
 ```
 
-Then, install Playwright browsers:
+### Running
 
 ```bash
-npx playwright install
+npm run test:e2e                       # resets the database, runs the smoke journeys
+npm run test:e2e -- cancel-run         # one spec (still resets first)
+npm run test:e2e:teardown              # stop the e2e Postgres
+npm run test:legacy -w @viberator/e2e-tests   # quarantined older specs
 ```
 
-### Running E2E Tests
+The suite runs beside the dev stack. It uses its own ports: frontend 3100,
+backend 8988, Postgres 5433, git fixture 8989, and 8990/5434 for the
+late-database journey. `npx playwright test` on its own refuses to run
+against a database that isn't empty; use `npm run test:e2e`, which resets it.
 
-There are two ways to run E2E tests:
+### How it works
 
-#### Method 1: Using Docker Compose (Recommended)
+- **Stack.** `docker-compose.e2e.yaml` runs Postgres on a tmpfs, so each run
+  starts empty. Playwright starts the backend (`tsx`) and frontend (Vite) on the
+  host. Workers reach the backend through `host.docker.internal`.
+- **Seed.** `globalSetup` serves a one-commit fixture repository over plain HTTP
+  and seeds through the public API: first admin, a member, a runner using the
+  fake agent image, and a space whose repository is the fixture.
+- **Fake agent** (`packages/agents/agent-fake`). It writes `RESEARCH.md` or
+  `PLAN.md` depending on the prompt, echoing the prompt so tests can see what
+  reached the agent. Directives in the task description steer it:
+  `[fake:sleep=N]`, `[fake:no-document]`, `[fake:fail]`. It is test-only: not in
+  the runner picker, not provisioned or pushed by infrastructure.
 
-```bash
-# Start the E2E stack (PostgreSQL, LocalStack)
-npm run test:e2e:setup
-
-# Run E2E tests
-npm run test:e2e
-
-# Stop the E2E stack
-npm run test:e2e:teardown
-```
-
-#### Method 2: Using Programmatic Testcontainers
-
-```bash
-# Setup services programmatically
-npm run setup:services -w @viberator/e2e-tests
-
-# Run E2E tests
-npm run test -w @viberator/e2e-tests
-
-# Teardown services
-npm run teardown:services -w @viberator/e2e-tests
-```
-
-### E2E Test Commands
-
-```bash
-# Run E2E tests
-npm run test:e2e
-
-# Run E2E tests in headed mode (see browser)
-npm run test:e2e -- --headed
-
-# Run E2E tests in debug mode
-npm run test:e2e -- --debug
-
-# Run E2E tests with UI
-npm run test:e2e -- --ui
-
-# View test report
-npm run test:e2e -- --report
-```
-
-### Writing E2E Tests
-
-E2E tests are written using Playwright and use custom fixtures:
+### Writing a journey
 
 ```typescript
-import { test, expect } from '../playwright/fixtures';
+import { createTask, startResearch } from "../../playwright/tasks";
+import { expect, test } from "../../playwright/smokeFixtures";
 
-test('should load homepage', async ({ page }) => {
-  await page.goto('/');
-  await expect(page).toHaveTitle(/Viberator/);
-});
-
-test('should login', async ({ page }) => {
-  await page.goto('/login');
-  await page.fill('input[name="email"]', 'test@example.com');
-  await page.fill('input[name="password"]', 'password');
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL('/dashboard');
-});
-
-test('should call API', async ({ request, backendURL }) => {
-  const response = await request.get(`${backendURL}/api/health`);
-  expect(response.ok()).toBeTruthy();
+test("...", async ({ adminApi, adminPage: page, workspace }) => {
+  const task = await createTask(adminApi, workspace.projectId, "Do X. [fake:sleep=5]");
+  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  await page.goto(`/project/${workspace.projectSlug}/jobs/${jobId}`);
+  // ...
 });
 ```
 
-### E2E Stack Components
-
-The E2E test stack includes:
-- **PostgreSQL** - Test database (port 5433)
-- **LocalStack** - AWS services mock (S3, SQS, Lambda)
+- Set up through the API, then drive the step under test in the UI.
+- Assert outcomes through the API where the UI is ambiguous (`runStatus`,
+  `researchDocument`, `sessionStatus`, `taskPhase`).
+- Starting a worker container changes the host's network interfaces, and
+  Chromium aborts loads that are in flight with `ERR_NETWORK_CHANGED`. Navigate
+  after the container is up, and retry the navigation with `expect(...).toPass()`.
 
 ## Test Configuration
 
@@ -300,9 +282,7 @@ The E2E test stack includes:
 
 ### E2E Tests
 - `@playwright/test` - E2E test framework
-- `@testcontainers/postgresql` - PostgreSQL container
-- `@testcontainers/localstack` - LocalStack container
-- `dockerode` - Docker control
+- Docker, for the e2e Postgres and the worker containers
 
 ## Best Practices
 
@@ -332,7 +312,8 @@ If tests fail due to port conflicts:
 ```bash
 # Check what's using the port
 lsof -i :5433  # PostgreSQL
-lsof -i :4566  # LocalStack
+lsof -i :8988  # E2E backend
+lsof -i :3100  # E2E frontend
 
 # Kill the process or change ports in docker-compose.e2e.yaml
 ```

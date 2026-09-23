@@ -1,38 +1,20 @@
-version: '3.8'
+name: viberglass-e2e
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: viberator-e2e-postgres
+    container_name: viberglass-e2e-postgres
     environment:
-      POSTGRES_DB: viberator
-      POSTGRES_USER: viberator
-      POSTGRES_PASSWORD: viberator
+      POSTGRES_DB: viberglass-e2e
+      POSTGRES_USER: viberglass
+      POSTGRES_PASSWORD: viberglass
     ports:
       - "5433:5432"
+    # No volume: every `up` after `down` starts from an empty database.
+    tmpfs:
+      - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U viberator"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  localstack:
-    image: localstack/localstack:latest
-    container_name: viberator-e2e-localstack
-    environment:
-      SERVICES: s3,sqs,lambda
-      DEBUG: 1
-      DATA_DIR: /tmp/localstack/data
-    ports:
-      - "4566:4566"
-    volumes:
-      - "./localstack-data:/tmp/localstack/data"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:4566/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-networks:
-  default:
-    name: viberator-e2e-network
+      test: ["CMD-SHELL", "pg_isready -U viberglass -d viberglass-e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
