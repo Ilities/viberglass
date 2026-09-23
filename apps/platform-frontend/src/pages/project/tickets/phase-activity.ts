@@ -27,3 +27,38 @@ export function describePhaseActivity(
   }
   return null
 }
+
+export type PhasePosition = 'completed' | 'current' | 'upcoming'
+
+export interface PhaseStatus {
+  label: string
+  color: 'green' | 'blue' | 'amber' | 'red' | 'zinc'
+}
+
+interface PhaseStatusInput {
+  position: PhasePosition
+  /** An agent is working on the phase right now (see describePhaseActivity). */
+  isBusy: boolean
+  latestRunStatus?: JobStatus
+  /** A document or pull request exists for a human to review. */
+  hasResult: boolean
+  isResolved: boolean
+}
+
+/** The phase's status as a person would describe it; never "in progress" when nothing runs. */
+export function derivePhaseStatus({
+  position,
+  isBusy,
+  latestRunStatus,
+  hasResult,
+  isResolved,
+}: PhaseStatusInput): PhaseStatus {
+  if (position === 'completed') return { label: 'Complete', color: 'green' }
+  if (position === 'upcoming') return { label: 'Upcoming', color: 'zinc' }
+  if (isResolved) return { label: 'Complete', color: 'green' }
+  if (isBusy) return { label: 'Agent working', color: 'blue' }
+  if (latestRunStatus === 'failed') return { label: 'Failed', color: 'red' }
+  if (hasResult) return { label: 'Awaiting review', color: 'amber' }
+  if (latestRunStatus === 'cancelled') return { label: 'Cancelled', color: 'zinc' }
+  return { label: 'Not started', color: 'zinc' }
+}

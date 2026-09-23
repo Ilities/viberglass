@@ -192,6 +192,7 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | A message queued during a live turn reaches the agent, then the session completes | `live-session-message.e2e.test.ts` |
 | Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
 | A phase can't start a second run or session while one is in progress; the page re-enables when it ends | `no-duplicate-runs.e2e.test.ts` |
+| Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |
 | Members can't reach secrets, runner changes or project deletion, and don't see plumbing | `member-permissions.e2e.test.ts` |
 | A backend that starts before Postgres recovers once it is up | `late-database.e2e.test.ts` |
 
