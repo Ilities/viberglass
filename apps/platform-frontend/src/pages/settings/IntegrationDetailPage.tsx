@@ -39,6 +39,8 @@ import {
   IntegrationDetailNotFoundState,
 } from './integration-detail/IntegrationDetailStates'
 import { OutboundWebhookSection } from './integration-detail/OutboundWebhookSection'
+import { CreateIntegrationPrompt } from './integration-detail/CreateIntegrationPrompt'
+import { RemoveIntegrationSection } from './integration-detail/RemoveIntegrationSection'
 import { getIntegrationDetailCapabilities } from './integration-detail/capabilities'
 import { useIntegrationWebhookSettings } from './integration-detail/useIntegrationWebhookSettings'
 
@@ -71,7 +73,6 @@ export function IntegrationDetailPage() {
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [projects, setProjects] = useState<Project[] | null>(null)
-  const [isAutoCreating, setIsAutoCreating] = useState(false)
   const [slackBotConfigured, setSlackBotConfigured] = useState<boolean | null>(null)
 
   const integrationEntityId = existingIntegration?.id
@@ -191,37 +192,6 @@ export function IntegrationDetailPage() {
           const type = typeMap.get(integrationSystemParam as TicketSystem)
           setIntegrationType(type || null)
           setExistingIntegration(null)
-
-          // Auto-create webhook-first integrations when visiting the new page.
-          if (
-            (integrationSystemParam === 'custom' ||
-              integrationSystemParam === 'github' ||
-              integrationSystemParam === 'shortcut' ||
-              integrationSystemParam === 'jira') &&
-            type
-          ) {
-            setIsAutoCreating(true)
-            try {
-              const autoName = `${type.label} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`
-              const newIntegration = await createIntegration({
-                name: autoName,
-                system: integrationSystemParam as TicketSystem,
-                config: {},
-              })
-              if (!isActive) {
-                return
-              }
-              navigate(`/settings/integrations/${newIntegration.id}`, { replace: true })
-              return
-            } catch (error) {
-              console.error('Failed to auto-create integration:', error)
-              setLoadError(error instanceof Error ? error.message : 'Failed to create integration')
-            } finally {
-              if (isActive) {
-                setIsAutoCreating(false)
-              }
-            }
-          }
           return
         }
 
@@ -296,7 +266,7 @@ export function IntegrationDetailPage() {
       .catch(() => setSlackBotConfigured(false))
   }, [isSlackIntegration])
 
-  if (isPageLoading || isAutoCreating) {
+  if (isPageLoading) {
     return <IntegrationDetailLoadingState />
   }
 
@@ -692,6 +662,14 @@ export function IntegrationDetailPage() {
         </div>
       </div>
 
+      {!existingIntegration && (isCustomIntegration || isShortcutIntegration || isJiraIntegration || isGithubIntegration) ? (
+        <CreateIntegrationPrompt
+          label={integrationType.label}
+          system={integrationType.id}
+          onCreated={(integrationId) => navigate(`/settings/integrations/${integrationId}`, { replace: true })}
+        />
+      ) : (
+      <>
       {/* Auth setup section (e.g. Slack install guide) */}
       {AuthSection && <AuthSection getBotStatus={getSlackBotStatus} />}
 
@@ -854,6 +832,16 @@ export function IntegrationDetailPage() {
             onSaveOutboundWebhook={webhook.handleSaveOutboundWebhook}
           />
         )
+      )}
+
+      {existingIntegration && (
+        <RemoveIntegrationSection
+          integrationId={existingIntegration.id}
+          name={existingIntegration.name}
+          onRemoved={() => navigate('/settings/integrations')}
+        />
+      )}
+      </>
       )}
     </div>
     </>

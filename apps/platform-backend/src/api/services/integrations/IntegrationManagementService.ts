@@ -2,6 +2,7 @@ import {
   IntegrationDAO,
   ProjectIntegrationLinkDAO,
   IntegrationCredentialDAO,
+  IntegrationUsageDAO,
 } from "../../../persistence/integrations";
 import { WebhookConfigDAO } from "../../../persistence/webhook/WebhookConfigDAO";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
@@ -18,6 +19,7 @@ export class IntegrationManagementService {
     private readonly webhookConfigDAO = new WebhookConfigDAO(),
     private readonly credentialDAO = new IntegrationCredentialDAO(),
     private readonly secretService = new SecretService(),
+    private readonly usageDAO = new IntegrationUsageDAO(),
   ) {}
 
   async listIntegrations(system?: TicketSystem) {
@@ -75,6 +77,18 @@ export class IntegrationManagementService {
 
   async deleteIntegration(integrationId: string) {
     await this.getIntegrationOrThrow(integrationId);
+
+    // Deleting cascades to project repository settings, so a project using
+    // this integration would silently lose its repository and credential.
+    const users = await this.usageDAO.listProjectsUsing(integrationId);
+    if (users.length > 0) {
+      const names = users.map((user) => user.projectName).join(", ");
+      const message = `This integration is used by ${names}. Remove it from ${users.length === 1 ? "that project" : "those projects"} first.`;
+      throw new IntegrationRouteServiceError(409, message, {
+        error: message,
+        projects: users,
+      });
+    }
 
     // Delete related data in proper order to handle foreign key constraints
     // 1. Delete webhook configurations (these reference integrations)
