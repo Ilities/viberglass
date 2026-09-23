@@ -74,6 +74,7 @@ function normalizeAgent(
     case "kimi-code":
     case "mistral-vibe":
     case "claude-code":
+    case "fake":
       return { type: candidate };
     default:
       return { type: "claude-code" };

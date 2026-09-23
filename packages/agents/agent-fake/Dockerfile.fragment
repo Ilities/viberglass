@@ -1,0 +1,8 @@
+# Fragment: Fake agent (end-to-end tests only)
+# Ships no CLI: the ACP server is part of @viberglass/agent-fake, already in the base image.
+
+ENV AGENT_TYPE=fake
+
+LABEL agent.type="fake" \
+      agent.provider="none" \
+      viberator.worker-type="agent"

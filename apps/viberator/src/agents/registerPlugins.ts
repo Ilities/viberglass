@@ -7,6 +7,7 @@ import kimiCodePlugin from "@viberglass/agent-kimi";
 import mistralVibePlugin from "@viberglass/agent-mistral-vibe";
 import geminiCLIPlugin from "@viberglass/agent-gemini";
 import piPlugin from "@viberglass/agent-pi";
+import fakePlugin from "@viberglass/agent-fake";
 
 export function buildAgentRegistry(): AgentRegistry {
   return new AgentRegistry()
@@ -17,7 +18,8 @@ export function buildAgentRegistry(): AgentRegistry {
     .register(kimiCodePlugin)
     .register(mistralVibePlugin)
     .register(geminiCLIPlugin)
-    .register(piPlugin);
+    .register(piPlugin)
+    .register(fakePlugin);
 }
 
 // Singleton for places that can't easily receive a reference
