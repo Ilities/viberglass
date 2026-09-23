@@ -68,9 +68,10 @@ export async function startLiveResearchSession(
   api: APIRequestContext,
   taskId: string,
   clankerId: string,
+  initialMessage = "Start research",
 ): Promise<{ sessionId: string; jobId: string }> {
   const response = await api.post(`/api/tickets/${taskId}/agent-sessions`, {
-    data: { clankerId, mode: "research", initialMessage: "Start research" },
+    data: { clankerId, mode: "research", initialMessage },
   });
   if (!response.ok()) {
     throw new Error(`Starting a session failed: ${response.status()} ${await response.text()}`);
