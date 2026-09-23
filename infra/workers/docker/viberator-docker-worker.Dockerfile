@@ -9,6 +9,7 @@ COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/
 COPY apps/viberator/tsup.config.ts ./apps/viberator/
 COPY packages/types/ ./packages/types/
+COPY packages/telemetry/ ./packages/telemetry/
 COPY packages/agent-core/ ./packages/agent-core/
 COPY packages/agents/ ./packages/agents/
 RUN npm install --workspace=@viberator/orchestrator
@@ -58,6 +59,7 @@ USER root
 COPY package*.json ./
 COPY apps/viberator/package*.json ./apps/viberator/
 COPY --from=builder /app/packages/types/ ./packages/types/
+COPY --from=builder /app/packages/telemetry/ ./packages/telemetry/
 COPY --from=builder /app/packages/agent-core/ ./packages/agent-core/
 COPY --from=builder /app/packages/agents/ ./packages/agents/
 RUN npm install --omit=dev --workspace=@viberator/orchestrator

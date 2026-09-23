@@ -19,6 +19,7 @@ import {
 } from "../../types/agentSession";
 import logger from "../../config/logger";
 import { SessionPresenceService } from "../../services/agentSession/SessionPresenceService";
+import { JobCancellationService } from "../../services/job/JobCancellationService";
 
 const router = Router();
 const sessionDAO = new AgentSessionDAO();
@@ -48,6 +49,7 @@ const interactionService = new AgentSessionInteractionService(
   agentSessionEventDAO,
   agentPendingRequestDAO,
   turnContinuationService,
+  new JobCancellationService(),
 );
 
 const TERMINAL_EVENT_TYPES = new Set<AgentSessionEventType>([

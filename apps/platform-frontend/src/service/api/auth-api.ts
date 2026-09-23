@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/lib'
+import { fetchOrExplain } from './client'
 
 export type AuthUser = {
   id: string
@@ -30,7 +31,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  const response = await fetchOrExplain(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -43,7 +44,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
 }
 
 export async function register(name: string, email: string, password: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  const response = await fetchOrExplain(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -56,7 +57,7 @@ export async function register(name: string, email: string, password: string): P
 }
 
 export async function getSetupStatus(): Promise<SetupStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/setup-status`, {
+  const response = await fetchOrExplain(`${API_BASE_URL}/api/auth/setup-status`, {
     credentials: 'include',
   })
   return handleResponse<SetupStatus>(response)
@@ -68,7 +69,7 @@ export async function getCurrentUser(token?: string): Promise<AuthUser> {
     headers.Authorization = `Bearer ${token}`
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+  const response = await fetchOrExplain(`${API_BASE_URL}/api/auth/me`, {
     headers,
     credentials: 'include',
   })
@@ -78,7 +79,7 @@ export async function getCurrentUser(token?: string): Promise<AuthUser> {
 }
 
 export async function logout(): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+  const response = await fetchOrExplain(`${API_BASE_URL}/api/auth/logout`, {
     method: 'POST',
     credentials: 'include',
   })
@@ -90,7 +91,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+  const response = await fetchOrExplain(`${API_BASE_URL}/api/auth/forgot-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

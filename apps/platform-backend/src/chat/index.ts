@@ -42,6 +42,7 @@ import { TicketPlanningApprovalService } from "../services/TicketPlanningApprova
 import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
 import { getFeedbackService } from "../webhooks/webhookServiceFactory";
 import { WorkerExecutionService } from "../workers";
+import { JobCancellationService } from "../services/job/JobCancellationService";
 
 // Register as the global singleton so ThreadImpl lazy resolution works.
 bot.registerSingleton();
@@ -78,6 +79,7 @@ const interactionService = new AgentSessionInteractionService(
   agentSessionEventDAO,
   agentPendingRequestDAO,
   turnContinuationService,
+  new JobCancellationService(),
 );
 
 const queryService = new AgentSessionQueryService(

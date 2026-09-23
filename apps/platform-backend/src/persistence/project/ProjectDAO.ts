@@ -117,10 +117,12 @@ export class ProjectDAO {
     return this.mapRowToProject(result);
   }
 
+  /** Active projects only; archived projects stay reachable by id. */
   async listProjects(limit = 50, offset = 0): Promise<ProjectConfig[]> {
     const rows = await db
       .selectFrom("projects")
       .selectAll()
+      .where("archived_at", "is", null)
       .orderBy("created_at", "desc")
       .limit(limit)
       .offset(offset)

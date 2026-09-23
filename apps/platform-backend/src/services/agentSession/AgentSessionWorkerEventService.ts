@@ -40,9 +40,10 @@ export class AgentSessionWorkerEventService {
 
     const sessionId = turn.sessionId;
     await agentSessionMutex.runExclusive(sessionId, async () => {
+      const applied = await this.withoutCompletionWhileMessagesQueued(sessionId, events);
       const maxSeq = await this.agentSessionEventDAO.getMaxSequence(sessionId);
 
-      const eventInputs = events.map((evt, i) => ({
+      const eventInputs = applied.map((evt, i) => ({
         sessionId,
         turnId: turn.id,
         jobId,
@@ -53,14 +54,14 @@ export class AgentSessionWorkerEventService {
 
       await this.agentSessionEventDAO.createMany(eventInputs);
 
-      for (const evt of events) {
+      for (const evt of applied) {
         await this.applyEventTransition(sessionId, turn.id, jobId, evt);
       }
 
       // Turn ended → launch a continuation for any messages users queued
       // while the agent was working (multiplayer drain). Guarded internally
       // to ACTIVE sessions with unconsumed user turns.
-      const turnEnded = events.some(
+      const turnEnded = applied.some(
         (evt) =>
           evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED ||
           evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_FAILED,
@@ -69,6 +70,28 @@ export class AgentSessionWorkerEventService {
         await this.turnContinuationService.drainQueuedMessages(sessionId);
       }
     });
+  }
+
+  /**
+   * A session is not complete while people have messages the agent has not
+   * seen. Drop the completion so the turn just ends; the drain below then
+   * launches a follow-up turn for the queued messages.
+   */
+  private async withoutCompletionWhileMessagesQueued(
+    sessionId: string,
+    events: IngestEvent[],
+  ): Promise<IngestEvent[]> {
+    const completes = events.some(
+      (evt) => evt.eventType === AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED,
+    );
+    if (!completes) return events;
+
+    const queued = await this.agentTurnDAO.listUnconsumedUserTurns(sessionId);
+    if (queued.length === 0) return events;
+
+    return events.filter(
+      (evt) => evt.eventType !== AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED,
+    );
   }
 
   async storeAcpSessionId(jobId: string, acpSessionId: string): Promise<void> {
