@@ -49,6 +49,8 @@ import type {
   TicketJobData,
 } from "../../types/Job";
 import { PromptTemplateService } from "../PromptTemplateService";
+import { TicketPhaseRunGuard } from "../TicketPhaseRunGuard";
+import { withOpeningMessage } from "./openingMessage";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
@@ -84,6 +86,7 @@ export class AgentSessionLaunchService {
   private readonly promptTemplateService = new PromptTemplateService(
     new PromptTemplateDAO(),
   );
+  private readonly phaseRunGuard = new TicketPhaseRunGuard();
 
   constructor(
     private readonly agentSessionDAO: AgentSessionDAO,
@@ -106,6 +109,17 @@ export class AgentSessionLaunchService {
       );
     }
 
+    const conflict = await this.phaseRunGuard.findConflict(
+      input.ticketId,
+      input.mode,
+    );
+    if (conflict) {
+      throw new AgentSessionServiceError(
+        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_ALREADY_ACTIVE,
+        conflict,
+      );
+    }
+
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const prepared = await prepareTicketRunContext(
       { projectId: ticket.projectId, clankerId: input.clankerId, jobId },
@@ -119,17 +133,6 @@ export class AgentSessionLaunchService {
         instructionStorageService: this.instructionStorageService,
       },
     );
-
-    const existing = await this.agentSessionDAO.getActiveByTicketAndMode(
-      input.ticketId,
-      input.mode,
-    );
-    if (existing) {
-      throw new AgentSessionServiceError(
-        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_ALREADY_ACTIVE,
-        "An active session already exists for this ticket and mode",
-      );
-    }
 
     let researchDocumentContent: string | undefined;
     let planDocumentContent: string | undefined;
@@ -204,10 +207,14 @@ export class AgentSessionLaunchService {
       repository: prepared.sourceRepository,
       baseBranch: prepared.baseBranch,
       createdBy: userId ?? null,
+      title: ticket.title,
     });
 
-    // The opening turn shows exactly what the agent is asked to do.
-    const assistantTurn = await this.createInitialTurns(session.id, jobData.task);
+    const assistantTurn = await this.createInitialTurns(
+      session.id,
+      input.initialMessage,
+      jobData.task,
+    );
 
     const submitResult = await this.jobService.submitJob(jobData, {
       ticketId: input.ticketId,
@@ -307,7 +314,7 @@ export class AgentSessionLaunchService {
       taskType = PROMPT_TYPE.ticket_developing;
     }
 
-    const task = await this.promptTemplateService.render(
+    const renderedTask = await this.promptTemplateService.render(
       taskType,
       ticket.projectId,
       {
@@ -318,6 +325,7 @@ export class AgentSessionLaunchService {
         openComments: documents.openComments,
       },
     );
+    const task = withOpeningMessage(taskType, renderedTask, input.initialMessage);
 
     const base = {
       id: jobId,
@@ -365,9 +373,15 @@ export class AgentSessionLaunchService {
     return data;
   }
 
+  /**
+   * Opens the transcript with what the person wrote. The full prompt the
+   * agent received (which includes that message) is kept alongside it, so
+   * it can be shown on request rather than as the first thing people read.
+   */
   private async createInitialTurns(
     sessionId: string,
     initialMessage: string,
+    fullPrompt: string,
   ): Promise<AgentTurn> {
     let seq = 1;
 
@@ -384,6 +398,7 @@ export class AgentSessionLaunchService {
       sequence: 1,
       status: AGENT_TURN_STATUS.COMPLETED,
       contentMarkdown: initialMessage,
+      contentJson: { fullPrompt },
     });
 
     await this.agentSessionEventDAO.create({
@@ -391,7 +406,7 @@ export class AgentSessionLaunchService {
       turnId: userTurn.id,
       sequence: seq++,
       eventType: AGENT_SESSION_EVENT_TYPE.USER_MESSAGE,
-      payloadJson: { content: initialMessage },
+      payloadJson: { content: initialMessage, fullPrompt },
     });
 
     const assistantTurn = await this.agentTurnDAO.create({

@@ -26,6 +26,7 @@ import {
   traceCarrierField,
 } from "./ticketRunOrchestration";
 import { PromptTemplateService } from "./PromptTemplateService";
+import { TicketPhaseRunGuard } from "./TicketPhaseRunGuard";
 import {
   PromptTemplateDAO,
   PROMPT_TYPE,
@@ -57,6 +58,7 @@ export class TicketExecutionService {
   private instructionStorageService = new InstructionStorageService();
   private ticketPhaseDocumentService = new TicketPhaseDocumentService();
   private promptTemplateService = new PromptTemplateService(new PromptTemplateDAO());
+  private phaseRunGuard = new TicketPhaseRunGuard();
 
   async runTicket(
     ticketId: string,
@@ -74,6 +76,10 @@ export class TicketExecutionService {
           "Ticket not found",
         );
       }
+      await this.phaseRunGuard.assertIdle(
+        ticket.id,
+        TICKET_WORKFLOW_PHASE.EXECUTION,
+      );
 
       const planningDocument =
         await this.ticketPhaseDocumentService.getOrCreateDocument(

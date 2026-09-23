@@ -26,6 +26,7 @@ import {
   type ExecutionManifest,
   type TokenUsage,
 } from "@viberglass/telemetry";
+import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { ExecutionContext } from "../../types";
 import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
@@ -40,6 +41,8 @@ import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
 import { LogForwarder } from "../runtime/LogForwarder";
 import { mergeWorkerSettings } from "../runtime/workerSettings";
+import { classifyAgentFailure } from "./classifyAgentFailure";
+import { failingWith, JobFailureError } from "./JobFailureError";
 import type {
   AgentAuthContext,
   AgentAuthLifecycle,
@@ -183,7 +186,9 @@ export async function setupJob(
       }),
     },
     async () =>
-      cloneRepositoryToWorkspace(repository, checkoutBaseBranch, jobWorkDir),
+      failingWith(JOB_FAILURE_CODE.REPOSITORY_ACCESS_FAILED, () =>
+        cloneRepositoryToWorkspace(repository, checkoutBaseBranch, jobWorkDir),
+      ),
   );
 
   // The exact commit the run starts from, captured before instruction files
@@ -249,7 +254,9 @@ export async function executeAgentWithRetry(
     jobId: data.id,
     tenantId: data.tenantId,
   };
-  await agentAuthLifecycle.ensureReady(authContext);
+  await failingWith(JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID, () =>
+    agentAuthLifecycle.ensureReady(authContext),
+  );
 
   const executeSelectedAgent = () =>
     orchestrator.executeAgent(selectedAgent, executionContext);
@@ -328,7 +335,10 @@ export async function executeAgentWithRetry(
         // Thrown so the job fails as before; marked first so the reason is on
         // the span even though withSpan would also record the exception.
         markSpanFailed(span, result.errorMessage || "Agent execution failed");
-        throw new Error(result.errorMessage || "Agent execution failed");
+        throw new JobFailureError(
+          classifyAgentFailure(result.errorMessage),
+          result.errorMessage || "Agent execution failed",
+        );
       }
 
       return result;
@@ -505,6 +515,8 @@ async function runJobLifecycle(
     const executionTime = Date.now() - startTime;
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
+    const failureCode =
+      error instanceof JobFailureError ? error.code : JOB_FAILURE_CODE.RUN_FAILED;
 
     await sendProgress("failed", `${jobLabel} failed`, {
       error: errorMessage,
@@ -512,6 +524,7 @@ async function runJobLifecycle(
     logger.error(`${jobLabel} failed`, {
       jobId: data.id,
       error: errorMessage,
+      failureCode,
       executionTime,
     });
     logForwarder.flush();
@@ -530,6 +543,7 @@ async function runJobLifecycle(
         success: false,
         executionTime,
         errorMessage,
+        failureCode,
         logs: [],
         changedFiles: [],
         runManifest: failureManifest,

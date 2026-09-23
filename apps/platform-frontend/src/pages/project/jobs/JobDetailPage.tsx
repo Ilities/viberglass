@@ -14,6 +14,7 @@ import { TabButton } from '@/components/tab-button'
 import { TruncatedText } from '@/components/truncated-text'
 import { formatJobKind } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
+import { JobFailurePanel } from './job-failure-panel'
 import { JobRefreshButton } from './job-refresh-button'
 import { cancelJob } from '@/service/api/job-api'
 
@@ -23,7 +24,6 @@ import {
   CheckCircledIcon,
   ClockIcon,
   CommitIcon,
-  CrossCircledIcon,
   CubeIcon,
   ExternalLinkIcon,
   FileTextIcon,
@@ -583,43 +583,17 @@ export function JobDetailPage() {
 
                   {/* Error Section */}
                   {(hasError || (job.status === 'failed' && job.failedReason)) && (
-                    <div className="app-frame rounded-lg border-red-200 p-6 dark:border-red-500/30">
-                      <Subheading className="mb-4 flex items-center gap-2 text-red-600">
-                        <CrossCircledIcon className="h-5 w-5" />
-                        Run needs attention
-                      </Subheading>
-                      <div className="rounded bg-red-50 p-4 text-sm text-red-900 dark:bg-red-500/10 dark:text-red-100">
-                        <p className="font-medium">
-                          {job.result?.failure?.summary || 'The run stopped before it could finish.'}
-                        </p>
-                        <p className="mt-2 text-xs text-red-800/80 dark:text-red-200/80">
-                          {job.result?.failure?.code === 'SCM_CREDENTIAL_INVALID'
-                            ? 'Replace the SCM credential in project settings, then retry from the ticket.'
-                            : job.result?.failure?.code === 'AGENT_QUOTA_EXHAUSTED'
-                              ? 'Restore quota or update the agent credential before retrying.'
-                              : job.result?.failure?.code === 'AGENT_RUNNER_UNAVAILABLE'
-                                ? 'Start an agent runner, then retry from the ticket.'
-                                : job.result?.failure?.code === 'REPOSITORY_ACCESS_FAILED'
-                                  ? 'Check the repository URL and credential permissions in project settings.'
-                                  : 'Review the technical details, correct the issue, and retry from the ticket.'}
-                        </p>
-                        <div className="mt-3 flex gap-2">
-                          <Button
-                            href={job.result?.failure?.code === 'AGENT_RUNNER_UNAVAILABLE' ? '/clankers' : `/project/${project}/settings`}
-                            outline
-                          >
-                            Fix setup
-                          </Button>
-                          {job.ticketId ? <Button href={`/project/${project}/tickets/${job.ticketId}`} plain>Return to ticket</Button> : null}
-                        </div>
-                        <details className="mt-4 border-t border-red-200 pt-3 dark:border-red-900/60">
-                          <summary className="cursor-pointer text-xs font-medium">Technical details</summary>
-                          <pre className="mt-2 overflow-auto whitespace-pre-wrap text-xs">
-                            {job.result?.failure?.technicalDetail || job.result?.errorMessage || job.failedReason || 'No technical details were reported.'}
-                          </pre>
-                        </details>
-                      </div>
-                    </div>
+                    <JobFailurePanel
+                      failure={job.result?.failure}
+                      technicalDetail={
+                        job.result?.failure?.technicalDetail ||
+                        job.result?.errorMessage ||
+                        job.failedReason ||
+                        'No technical details were reported.'
+                      }
+                      project={project}
+                      ticketId={job.ticketId}
+                    />
                   )}
 
                   {/* Active Progress */}

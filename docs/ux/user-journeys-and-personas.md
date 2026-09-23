@@ -644,21 +644,21 @@ These break the core loop or data safety. Fix them before any UX work, and add e
 ### 11.1 UX quick wins
 Ordered by impact/effort. Each maps to findings above.
 
-1. **Fix the session initial message** (F33): render the correct template (fresh vs revision) with ticket vars, and show the human's intent as the first bubble with the system prompt behind "View full prompt". `apps/platform-backend/src/services/agentSession/AgentSessionLaunchService.ts:192-206`.
+1. **Fix the session initial message** (F33): render the correct template (fresh vs revision) with ticket vars, and show the human's intent as the first bubble with the system prompt behind "View full prompt". `apps/platform-backend/src/services/agentSession/AgentSessionLaunchService.ts:192-206`. **Done:** intent first, full prompt on request, session titled with the task; the opening message now also reaches the agent for fresh sessions (it was dropped).
 2. **Replace whimsical functional copy** (F3, F9) with plain labels; unify names (glossary §5.2). Keep one easter egg in empty states if desired.
 3. **SCM dropdown placeholder** "Select an integration…" instead of "No SCM integration configured" when options exist (F10). `NewProjectPage.tsx:281`, `ProjectSettingsPage.tsx:626`.
-4. **Status truth** (F24, F26): "Not started" until a run starts; "Awaiting review" when a doc exists and isn't approved; Pulse → "Inbox"-lite showing *awaiting review* separately.
+4. **Status truth** (F24, F26): "Not started" until a run starts; "Awaiting review" when a doc exists and isn't approved; Pulse → "Inbox"-lite showing *awaiting review* separately. **Done:** derived phase and ticket statuses; Pulse and the nav list "Awaiting review" separately from "Agent working".
 5. **Hide plumbing from members** in nav and **enforce admin on secrets/clankers/integrations routes** (F7, F39).
 6. **Show reporter/creator, session starter and approver names** on the ticket, history and session (F25, F30).
 7. **Markdown rendering fix** for bold in list items (F29).
 8. **Live session discoverability** (F36): "● Live" badge on ticket card/page with a join link; title the session with the ticket title.
-9. **Readable failure reasons** for the top 3 causes: credential expired, credit/quota exhausted, repo access denied (F22). Pattern-match worker errors → reason code → message + fix link.
+9. **Readable failure reasons** for the top 3 causes: credential expired, credit/quota exhausted, repo access denied (F22). Pattern-match worker errors → reason code → message + fix link. **Done:** structured codes from the worker stage that failed, not pattern-matching afterwards (only the agent stage reads the provider's message).
 10. **Backend-down message** on login (F1): "Can't reach the Viberglass server" plus a health link.
 11. **Human-readable default integration names** (F12) and remove the duplicate GitHub token field (F17).
 12. **Readiness banner shows the real next step** (FR7, FR8): order the items, include secrets and integration, deep-link to the specific runner's Start, and show "Ready, try your first run" when everything is green.
-13. **Failure copy by audience** (LC4, FL14): requesters see plain status and who was notified; "Fix setup" only for configuration failures and only for admins; Retry for agent failures; a reason column in the Runs list (FL17, PG6).
+13. **Failure copy by audience** (LC4, FL14): requesters see plain status and who was notified; "Fix setup" only for configuration failures and only for admins; Retry for agent failures; a reason column in the Runs list (FL17, PG6). **Done:** "Fix setup" only for setup failures and only for admins; members are told an admin is needed; agent and platform failures offer a retry; Reason column in Runs. "Who was notified" waits for notifications (Phase 2).
 14. **Execution confirmation** (LC11): "This will push branch `x` to `repo` and open a PR against `base`."
-15. **Disable Run buttons while a run or session for that phase is active** (LC10, FL6).
+15. **Disable Run buttons while a run or session for that phase is active** (LC10, FL6). **Done:** backend 409 guard plus disabled buttons with the reason.
 16. **Show names, not emails**, in comments and history (LC7).
 17. **Branch hygiene** (LC12): delete agent branches for failed or cancelled runs, or offer cleanup.
 
