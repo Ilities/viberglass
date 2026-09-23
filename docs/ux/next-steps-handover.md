@@ -176,7 +176,7 @@ About 4–5 days, on branch `quick-win-slice`. Cover each item with a smoke jour
 
 | # | Item | Main files | Acceptance |
 |---|---|---|---|
-| 15 | Disable Run/Revise buttons while a run or session for that phase is active | `pages/project/tickets/phase-section.tsx`, `run-ticket-modal.tsx` | No duplicate runs from the ticket page |
+| 15 | ~~Disable Run/Revise buttons while a run or session for that phase is active~~ **Done** on `quick-win-slice`: the backend refuses (409) a run, revision or session while one is queued, running or open for the ticket and phase; the page disables the buttons with the reason and re-enables them when the run ends | `TicketPhaseRunGuard`, `phase-section.tsx` | No duplicate runs from the ticket page |
 | 14 | Execution confirmation: "Pushes branch `x` to `repo`, opens a PR against `base`" | `components/run-ticket-modal.tsx` (execution mode) | Repo, branch template and base shown before start |
 | 4 | Status truth: "Not started", "Agent working", "Awaiting review", "Failed: reason" instead of a blanket "In Progress" | backend ticket/phase status derivation, `phase-section.tsx` header, Pulse (`/sessions`) | Status never says "In Progress" when nothing runs |
 | 13 | Failure copy by audience: plain status for requesters; "Fix setup" only for configuration failures, only for admins; Retry for agent failures; reason column in Runs | `services/job/classifyJobFailure.ts`, `pages/project/jobs/*`, phase header | Each FL/PG failure case shows the right audience copy |

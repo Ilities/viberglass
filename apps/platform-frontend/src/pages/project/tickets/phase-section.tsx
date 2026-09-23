@@ -36,6 +36,7 @@ import { toast } from 'sonner'
 import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { ApprovePhaseButton } from './approve-phase-button'
+import { describePhaseActivity } from './phase-activity'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
 import { PhaseLogs } from './phase-logs'
 import { PhaseSessionPanel } from './phase-session-panel'
@@ -184,6 +185,19 @@ export function PhaseSection({
     void loadDocument()
   }, [loadDocument])
 
+  // A run of this phase changed status (for example it finished while the
+  // page was open): reload so the document and latest run are current.
+  const phaseJobStatuses = jobs
+    .filter((job) => job.jobKind === phase)
+    .map((job) => `${job.jobId}:${job.status}`)
+    .join(',')
+  const previousPhaseJobStatuses = useRef(phaseJobStatuses)
+  useEffect(() => {
+    if (previousPhaseJobStatuses.current === phaseJobStatuses) return
+    previousPhaseJobStatuses.current = phaseJobStatuses
+    void loadDocument()
+  }, [phaseJobStatuses, loadDocument])
+
   useEffect(() => {
     setIsExpanded(phase === currentPhase)
   }, [currentPhase, phase])
@@ -299,9 +313,10 @@ export function PhaseSection({
   const canEdit = phase === 'planning' || phase === 'execution' || (phase === 'research' && currentPhase === 'research')
   const canRevoke = phase === 'planning' && document?.approvalState === 'approved'
 
-  const runButtonTitle = isCurrentPhase
-    ? `${hasContent ? 'Recreate' : 'Run'} ${phase}`
-    : `${phase} only available in current phase`
+  const busyReason = describePhaseActivity(phase, jobs, activeSession, latestRun?.status)
+  const canStartRun = isCurrentPhase && !busyReason
+  const notCurrentPhaseTitle = `${phase} only available in current phase`
+  const runButtonTitle = busyReason ?? (isCurrentPhase ? `${hasContent ? 'Recreate' : 'Run'} ${phase}` : notCurrentPhaseTitle)
 
   const getRunButtonLabel = () => {
     if (phase === 'research') {
@@ -341,8 +356,8 @@ export function PhaseSection({
                       <Button
                         color="brand"
                         onClick={() => setIsRunModalOpen(true)}
-                        disabled={!isCurrentPhase}
-                        title={isCurrentPhase ? 'Run execution' : 'Execution only available in current phase'}
+                        disabled={!canStartRun}
+                        title={busyReason ?? (isCurrentPhase ? 'Run execution' : 'Execution only available in current phase')}
                       >
                         <PlayIcon className="h-3.5 w-3.5" />
                         Run execution
@@ -431,7 +446,7 @@ export function PhaseSection({
                         <Button
                           color="brand"
                           onClick={() => setIsRunModalOpen(true)}
-                          disabled={!isCurrentPhase}
+                          disabled={!canStartRun}
                           title={runButtonTitle}
                         >
                           <PlayIcon className="h-3.5 w-3.5" />
@@ -442,8 +457,8 @@ export function PhaseSection({
                         <Button
                           plain
                           onClick={() => setIsRevisionModalOpen(true)}
-                          disabled={!isCurrentPhase}
-                          title={isCurrentPhase ? `Revise ${phase}` : `${phase} only available in current phase`}
+                          disabled={!canStartRun}
+                          title={busyReason ?? (isCurrentPhase ? `Revise ${phase}` : notCurrentPhaseTitle)}
                         >
                           <ChatBubbleIcon className="h-3.5 w-3.5" />
                           Revise
@@ -562,7 +577,7 @@ export function PhaseSection({
                       ticketId={ticket.id}
                       phase="research"
                       label="Approve Research & Continue"
-                      runInProgress={latestRun?.status === 'active' || Boolean(activeSession)}
+                      runInProgress={busyReason !== null}
                       isApproving={isApproving}
                       onApprove={() => void handleApproveResearch()}
                     />
@@ -572,7 +587,7 @@ export function PhaseSection({
                       ticketId={ticket.id}
                       phase="planning"
                       label="Approve Planning & Continue"
-                      runInProgress={latestRun?.status === 'active' || Boolean(activeSession)}
+                      runInProgress={busyReason !== null}
                       isApproving={isApproving}
                       onApprove={() => void handleApprove()}
                     />

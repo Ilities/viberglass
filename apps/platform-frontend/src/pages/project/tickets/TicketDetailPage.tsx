@@ -106,6 +106,26 @@ export function TicketDetailPage() {
     }
   }, [id, ticket?.workflowPhase, ticket?.pullRequestUrl, ticket])
 
+  // While any run of this ticket is queued or active, poll its jobs so the
+  // phases see the run finish and re-enable their Run and Revise buttons.
+  const hasRunningJob = jobs.some((job) => job.status === 'queued' || job.status === 'active')
+  useEffect(() => {
+    if (!id || !hasRunningJob) return
+    let cancelled = false
+    const timer = setInterval(async () => {
+      try {
+        const latest = await getJobs({ ticketId: id, limit: 50 })
+        if (!cancelled) setJobs(latest.jobs)
+      } catch {
+        // swallow — next tick will retry
+      }
+    }, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [id, hasRunningJob])
+
   const executionBlockingReason = useMemo(() => {
     if (!ticket) return null
     if (ticket.workflowOverriddenAt) return null

@@ -658,7 +658,7 @@ Ordered by impact/effort. Each maps to findings above.
 12. **Readiness banner shows the real next step** (FR7, FR8): order the items, include secrets and integration, deep-link to the specific runner's Start, and show "Ready, try your first run" when everything is green.
 13. **Failure copy by audience** (LC4, FL14): requesters see plain status and who was notified; "Fix setup" only for configuration failures and only for admins; Retry for agent failures; a reason column in the Runs list (FL17, PG6).
 14. **Execution confirmation** (LC11): "This will push branch `x` to `repo` and open a PR against `base`."
-15. **Disable Run buttons while a run or session for that phase is active** (LC10, FL6).
+15. **Disable Run buttons while a run or session for that phase is active** (LC10, FL6). **Done:** backend 409 guard plus disabled buttons with the reason.
 16. **Show names, not emails**, in comments and history (LC7).
 17. **Branch hygiene** (LC12): delete agent branches for failed or cancelled runs, or offer cleanup.
 
