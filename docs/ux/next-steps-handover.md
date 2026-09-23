@@ -51,7 +51,7 @@ All green at merge time. Step A (below) since added the smoke suite, 11 fake-age
 
 | Issue | Where | Notes |
 |---|---|---|
-| The session's first bubble is the full system prompt | `AgentSessionLaunchService` → `createInitialTurns(session.id, jobData.task)` | Now accurate: it's what the agent really gets. Quick win #1 still applies: show the human's intent, with "View full prompt". |
+| ~~The session's first bubble is the full system prompt~~ Fixed (quick win #1) | `AgentSessionLaunchService.createInitialTurns` | The opening message is shown, and now also reaches the agent for fresh sessions; the full prompt is on the event and turn. |
 | A follow-up turn that ends without writing the document leaves the session `active` forever | `api/routes/jobs.ts` result callback, session-turn branch | Only `TURN_COMPLETED` is emitted when `documentContent` is missing. Probably should be a turn failure with a readable reason. |
 | Deleting a project still hard-deletes tickets and sessions | migrations 001/046/043 cascades | F31. Archive is the escape hatch now; the real fix is the Phase 4 model change (workspace-owned tasks). |
 | `ticketSystem = "custom"` means both "Viberglass-native" and "Custom Webhook" | `CreateTicketPage`, project `ticketSystem` | PG3. F15-class bugs can return. Introduce an explicit native value. |
@@ -159,6 +159,15 @@ On branch `e2e-smoke-test`. `npm run test:e2e` resets the e2e database and runs 
 
 ### Step B: UX quick wins (plan §11.1), about 1–1.5 weeks
 
+**Decided (decision 3): a short slice first, then Phase 1.** The slice is the quick wins that decide whether a first run reads as a success or a confusing failure, which Phase 1's first-result goal depends on:
+
+1. **#15**: disable Run/Revise while a run or session for that phase is active.
+2. **#4**: status truth (no "In Progress" when nothing runs).
+3. **#9 + #13**: readable failure reasons from structured worker error codes, with copy per audience.
+4. **#1**: session opens with the human's intent; the system prompt goes behind "View full prompt".
+
+About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, not yet merged: all four items landed with a smoke journey each (14 journeys total), plus two bugs found on the way (tickets in review read back as open; a live session's opening message never reached the agent). Test totals: backend 708, frontend 98, viberator 91, agent-core 14. Next: decisions 4–6, then Phase 1. Cover each item with a smoke journey using the fake agent (for example `[fake:fail]` for failure copy). Decisions 4–6 get answered in the meantime; Phase 1 starts with a Docker pre-built image mode. The remaining quick wins fit alongside or after Phase 1.
+
 **Status after the correctness pass:**
 - **Done:** #5 (plumbing hidden from members, routes enforced), #10 (server-unreachable message), #12's "cancel keeps history" part.
 - **Partly done:** #1 (prompt accurate, still shown raw), #11 (new integrations get a chosen name; the duplicate GitHub token field remains).
@@ -167,13 +176,13 @@ On branch `e2e-smoke-test`. `npm run test:e2e` resets the e2e database and runs 
 
 | # | Item | Main files | Acceptance |
 |---|---|---|---|
-| 15 | Disable Run/Revise buttons while a run or session for that phase is active | `pages/project/tickets/phase-section.tsx`, `run-ticket-modal.tsx` | No duplicate runs from the ticket page |
+| 15 | ~~Disable Run/Revise buttons while a run or session for that phase is active~~ **Done** on `quick-win-slice`: the backend refuses (409) a run, revision or session while one is queued, running or open for the ticket and phase; the page disables the buttons with the reason and re-enables them when the run ends | `TicketPhaseRunGuard`, `phase-section.tsx` | No duplicate runs from the ticket page |
 | 14 | Execution confirmation: "Pushes branch `x` to `repo`, opens a PR against `base`" | `components/run-ticket-modal.tsx` (execution mode) | Repo, branch template and base shown before start |
-| 4 | Status truth: "Not started", "Agent working", "Awaiting review", "Failed: reason" instead of a blanket "In Progress" | backend ticket/phase status derivation, `phase-section.tsx` header, Pulse (`/sessions`) | Status never says "In Progress" when nothing runs |
-| 13 | Failure copy by audience: plain status for requesters; "Fix setup" only for configuration failures, only for admins; Retry for agent failures; reason column in Runs | `services/job/classifyJobFailure.ts`, `pages/project/jobs/*`, phase header | Each FL/PG failure case shows the right audience copy |
-| 9 | Readable reasons for the top causes: credential expired, credit/quota exhausted, repo access denied, agent produced no document | `classifyJobFailure.ts` plus worker error codes | Classify on structured codes from the worker, not error-text regexes |
+| 4 | ~~Status truth~~ **Done** on `quick-win-slice`: phase headers say Not started / Agent working / Awaiting review / Failed / Cancelled; the ticket status is `in_progress` only while a run is queued or active, `in_review` while a document or PR waits on a human (labels "Agent working" and "Awaiting review" everywhere); migration 067 re-derives existing tickets. Failure *reasons* come with #9/#13 | backend ticket/phase status derivation, `phase-section.tsx` header, Pulse (`/sessions`) | Status never says "In Progress" when nothing runs |
+| 13 | ~~Failure copy by audience: plain status for requesters; "Fix setup" only for configuration failures, only for admins; Retry for agent failures; reason column in Runs~~ **Done** on `quick-win-slice` (with #9): the worker reports a `JOB_FAILURE_CODE` from the stage that failed; the backend maps codes to title, summary and category (setup / agent / platform) and no longer reads error text; the run page, Runs list (Reason column) and phase header show copy by audience | `services/job/classifyJobFailure.ts`, `pages/project/jobs/*`, phase header | Each FL/PG failure case shows the right audience copy |
+| 9 | ~~Readable reasons for the top causes: credential expired, credit/quota exhausted, repo access denied, agent produced no document~~ **Done** on `quick-win-slice` (with #13): the worker reports a `JOB_FAILURE_CODE` from the stage that failed; the backend maps codes to title, summary and category (setup / agent / platform) and no longer reads error text; the run page, Runs list (Reason column) and phase header show copy by audience | `classifyJobFailure.ts` plus worker error codes | Classify on structured codes from the worker, not error-text regexes |
 | 6 / 16 | Show names, not emails: comment author, session starter, approver, canceller (`cancelledBy` is stored, never shown) | comment DAO/actor fields, collaboration history, session header | No email addresses where a name is known |
-| 1 | Session: first bubble shows the human's intent; system prompt behind "View full prompt"; session title = task title | `SessionPage.tsx`, `phase-session-panel.tsx`, launch service (store intent on the turn) | A PM can read the opening of a session |
+| 1 | ~~Session: first bubble shows the human's intent; system prompt behind "View full prompt"; session title = task title~~ **Done** on `quick-win-slice`: the opening bubble is what the person wrote, the full prompt is behind "View full prompt", and the session is titled with the task. Sessions started before this keep their old first bubble | `SessionPage.tsx`, `phase-session-panel.tsx`, launch service (store intent on the turn) | A PM can read the opening of a session |
 | 8 | "● Live" badge plus join link on task cards and page | tickets board/table, `phase-section.tsx` | A teammate can find and join a live session from the board |
 | 2 | Replace whimsical functional copy; apply the Space/Task glossary (ADR 0004) to copy | `pages/dashboard/*`, project dashboard, nav labels | Copy only; URLs and code names move in Phase 2 |
 | 3 | SCM dropdown placeholder "Select an integration…" | `NewProjectPage.tsx`, `ProjectSettingsPage.tsx` | — |
@@ -260,7 +269,7 @@ Phase 3's agent questions (J6) are the next big collaboration win after the Phas
 |---|---|---|
 | 1 | ~~Merge strategy for `ux-plan-and-core-fixes`~~ Merged to `main` (PR #38). | — |
 | 2 | ~~Is a fake agent plugin acceptable?~~ Yes; added as `agent-fake`, test-only. | — |
-| 3 | Quick wins before Phase 1, or Phase 1 first (only the FR8 fix from #12)? | Step B/C |
+| 3 | ~~Quick wins or Phase 1 first?~~ A slice of quick wins (#15, #4, #9 + #13, #1), then Phase 1. See Step B. | — |
 | 4 | First-cut providers for three-input setup | Step C |
 | 5 | Setup vs first-admin registration: one flow or two? | Step C |
 | 6 | Demo workspace seed: in or out of Phase 1 | Step C |

@@ -63,9 +63,11 @@ describe('OrphanSweeper', () => {
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(2);
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-1', 'failed', {
         errorMessage: 'Job timed out after 1800s without callback',
+        failureCode: 'RUN_LOST',
       });
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-2', 'failed', {
         errorMessage: 'Job timed out after 1800s without callback',
+        failureCode: 'RUN_LOST',
       });
 
       expect(count).toBe(2);
@@ -138,6 +140,7 @@ describe('OrphanSweeper', () => {
 
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-timeout', 'failed', {
         errorMessage: 'Job timed out after 300s without callback',
+        failureCode: 'RUN_LOST',
       });
     });
 

@@ -1,3 +1,4 @@
+import { JOB_FAILURE_CODE } from '@viberglass/types';
 import { JobService } from '../services/JobService';
 import { createChildLogger } from '../config/logger';
 
@@ -76,6 +77,7 @@ export class HeartbeatSweeper {
 
       await this.jobService.updateJobStatus(job.id, 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
+        failureCode: JOB_FAILURE_CODE.RUN_LOST,
       });
     }
 

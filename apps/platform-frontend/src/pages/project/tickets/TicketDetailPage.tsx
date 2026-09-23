@@ -106,6 +106,31 @@ export function TicketDetailPage() {
     }
   }, [id, ticket?.workflowPhase, ticket?.pullRequestUrl, ticket])
 
+  // While any run of this ticket is queued or active, poll its jobs and the
+  // ticket so the phases and the status see the run finish without a reload.
+  const hasRunningJob = jobs.some((job) => job.status === 'queued' || job.status === 'active')
+  useEffect(() => {
+    if (!id || !hasRunningJob) return
+    let cancelled = false
+    const timer = setInterval(async () => {
+      try {
+        const [latestJobs, latestTicket] = await Promise.all([
+          getJobs({ ticketId: id, limit: 50 }),
+          getTicketDetails(id),
+        ])
+        if (cancelled) return
+        setJobs(latestJobs.jobs)
+        if (latestTicket) setTicket(latestTicket)
+      } catch {
+        // swallow — next tick will retry
+      }
+    }, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [id, hasRunningJob])
+
   const executionBlockingReason = useMemo(() => {
     if (!ticket) return null
     if (ticket.workflowOverriddenAt) return null

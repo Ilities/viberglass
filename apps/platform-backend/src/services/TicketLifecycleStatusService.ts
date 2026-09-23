@@ -7,6 +7,11 @@ import {
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
 
+/**
+ * Keeps a ticket's status true to what is happening: in progress only while
+ * an agent is working, in review while a result waits on a human, and open
+ * otherwise. Call it whenever a run or the current phase document changes.
+ */
 export class TicketLifecycleStatusService {
   private readonly ticketDAO = new TicketDAO();
   private readonly documentDAO = new TicketPhaseDocumentDAO();
@@ -26,40 +31,36 @@ export class TicketLifecycleStatusService {
   }
 
   private async deriveStatus(
-    ticket: Pick<Ticket, "id" | "status" | "workflowPhase">,
+    ticket: Pick<Ticket, "id" | "status" | "workflowPhase" | "pullRequestUrl">,
   ): Promise<TicketLifecycleStatus> {
     if (ticket.status === TICKET_STATUS.RESOLVED) {
       return TICKET_STATUS.RESOLVED;
     }
 
+    if (await this.ticketDAO.hasRunningJob(ticket.id)) {
+      return TICKET_STATUS.IN_PROGRESS;
+    }
+
+    return (await this.hasResultAwaitingReview(ticket))
+      ? TICKET_STATUS.IN_REVIEW
+      : TICKET_STATUS.OPEN;
+  }
+
+  private async hasResultAwaitingReview(
+    ticket: Pick<Ticket, "id" | "workflowPhase" | "pullRequestUrl">,
+  ): Promise<boolean> {
     if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION) {
-      const hasExecutionJob = await this.ticketDAO.hasExecutionJob(ticket.id);
-      return hasExecutionJob
-        ? TICKET_STATUS.IN_PROGRESS
-        : TICKET_STATUS.OPEN;
+      return Boolean(ticket.pullRequestUrl);
     }
 
     const document = await this.documentDAO.getByTicketAndPhase(
       ticket.id,
       ticket.workflowPhase,
     );
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.RESEARCH && !document) {
-      return TICKET_STATUS.IN_PROGRESS;
-    }
-    if (!document) {
-      return TICKET_STATUS.OPEN;
-    }
-
-    if (document.approvalState === "approval_requested") {
-      return TICKET_STATUS.IN_REVIEW;
-    }
-
-    if (document.content.trim().length > 0) {
-      return TICKET_STATUS.IN_PROGRESS;
-    }
-
-    return ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH
-      ? TICKET_STATUS.OPEN
-      : TICKET_STATUS.IN_PROGRESS;
+    return (
+      document !== null &&
+      document.approvalState !== "approved" &&
+      document.content.trim().length > 0
+    );
   }
 }

@@ -28,6 +28,7 @@ jest.mock("../../../workers/WorkerExecutionService");
 jest.mock("../../../services/TicketMediaExecutionService");
 jest.mock("../../../services/TicketPhaseDocumentService");
 jest.mock("../../../services/SecretService");
+jest.mock("../../../services/TicketPhaseRunGuard");
 jest.mock("../../../persistence/promptTemplate/PromptTemplateDAO");
 jest.mock("../../../services/PromptTemplateService", () => ({
   PromptTemplateService: jest.fn().mockImplementation(() => ({

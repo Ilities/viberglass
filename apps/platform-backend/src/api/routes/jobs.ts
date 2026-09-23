@@ -488,6 +488,8 @@ router.post(
           commitHash: result.commitHash,
         },
         errorMessage: result.errorMessage,
+        failureCode:
+          typeof result.failureCode === "string" ? result.failureCode : undefined,
       });
 
       return res.json({

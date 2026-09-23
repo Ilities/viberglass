@@ -5,6 +5,7 @@ import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
 import { TICKET_STATUS, type Severity, type Ticket, type TicketLifecycleStatus } from '@viberglass/types'
+import { TICKET_STATUS_LABEL } from './ticket-display'
 import { useEffect, useState } from 'react'
 
 export interface EditTicketValues {
@@ -121,10 +122,10 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
                 }
               }}
             >
-              <option value={TICKET_STATUS.OPEN}>Open</option>
-              <option value={TICKET_STATUS.IN_PROGRESS}>In Progress</option>
-              <option value={TICKET_STATUS.IN_REVIEW}>In Review</option>
-              <option value={TICKET_STATUS.RESOLVED}>Resolved</option>
+              <option value={TICKET_STATUS.OPEN}>{TICKET_STATUS_LABEL[TICKET_STATUS.OPEN]}</option>
+              <option value={TICKET_STATUS.IN_PROGRESS}>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}</option>
+              <option value={TICKET_STATUS.IN_REVIEW}>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]}</option>
+              <option value={TICKET_STATUS.RESOLVED}>{TICKET_STATUS_LABEL[TICKET_STATUS.RESOLVED]}</option>
             </Select>
           </Field>
         </div>

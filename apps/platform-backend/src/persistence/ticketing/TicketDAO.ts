@@ -60,6 +60,7 @@ function normalizeTicketStatus(value: unknown): TicketLifecycleStatus {
   if (
     value === TICKET_STATUS.OPEN ||
     value === TICKET_STATUS.IN_PROGRESS ||
+    value === TICKET_STATUS.IN_REVIEW ||
     value === TICKET_STATUS.RESOLVED
   ) {
     return value;
@@ -368,12 +369,13 @@ export class TicketDAO {
     return normalizeWorkflowPhase(row.workflow_phase);
   }
 
-  async hasExecutionJob(ticketId: string): Promise<boolean> {
+  /** Whether any run of the ticket is queued or active right now. */
+  async hasRunningJob(ticketId: string): Promise<boolean> {
     const row = await db
       .selectFrom("jobs")
       .select("id")
       .where("ticket_id", "=", ticketId)
-      .where("job_kind", "=", "execution")
+      .where("status", "in", ["queued", "active"])
       .limit(1)
       .executeTakeFirst();
 

@@ -21,8 +21,6 @@ import {
 import {
   ChatBubbleIcon,
   CheckCircledIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   CrossCircledIcon,
   ExternalLinkIcon,
   Pencil1Icon,
@@ -36,7 +34,9 @@ import { toast } from 'sonner'
 import { LaunchSessionDialog } from '../sessions/LaunchSessionDialog'
 import { PhaseDocumentComments } from './phase-document-comments'
 import { ApprovePhaseButton } from './approve-phase-button'
+import { derivePhaseStatus, describePhaseActivity, type PhasePosition } from './phase-activity'
 import { getPhaseRunStatusBadgeColor } from './phase-document-ui'
+import { PhaseHeader } from './phase-header'
 import { PhaseLogs } from './phase-logs'
 import { PhaseSessionPanel } from './phase-session-panel'
 
@@ -52,78 +52,6 @@ interface PhaseSectionProps {
   jobs: JobListItem[]
   activeSession?: AgentSession
   onSessionsChanged: () => void
-}
-
-function PhaseHeader({
-  phase,
-  status,
-  isCurrent,
-  isExpanded,
-  onToggle,
-}: {
-  phase: 'research' | 'planning' | 'execution'
-  status: 'completed' | 'in_progress' | 'upcoming'
-  isCurrent: boolean
-  isExpanded: boolean
-  onToggle: () => void
-}) {
-  const labels = {
-    research: 'Research',
-    planning: 'Planning',
-    execution: 'Execution',
-  }
-
-  const statusConfig: Record<
-    'completed' | 'in_progress' | 'upcoming',
-    { label: string; color: 'green' | 'blue' | 'zinc' }
-  > = {
-    completed: { label: 'Complete', color: 'green' },
-    in_progress: { label: 'In Progress', color: 'blue' },
-    upcoming: { label: 'Upcoming', color: 'zinc' },
-  }
-
-  const config = statusConfig[status]
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="flex w-full items-center justify-between rounded-lg border border-[var(--gray-5)] bg-[var(--gray-1)] px-4 py-3 text-left transition-colors hover:bg-[var(--gray-2)]"
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-          style={{
-            backgroundColor:
-              status === 'completed'
-                ? 'var(--green-9)'
-                : status === 'in_progress'
-                  ? 'var(--accent-9)'
-                  : 'var(--gray-4)',
-            color: status === 'upcoming' ? 'var(--gray-9)' : 'white',
-          }}
-        >
-          {status === 'completed' ? (
-            <CheckCircledIcon className="h-4 w-4" />
-          ) : (
-            <span>{phase === 'research' ? '1' : phase === 'planning' ? '2' : '3'}</span>
-          )}
-        </div>
-        <span className="text-sm font-semibold text-[var(--gray-12)]">{labels[phase]}</span>
-        <Badge color={config.color} className="text-xs">
-          {config.label}
-        </Badge>
-        {isCurrent && <span className="text-xs text-[var(--accent-11)]">(Current)</span>}
-      </div>
-      <div className="flex items-center gap-2">
-        {isExpanded ? (
-          <ChevronDownIcon className="h-4 w-4 text-[var(--gray-9)]" />
-        ) : (
-          <ChevronRightIcon className="h-4 w-4 text-[var(--gray-9)]" />
-        )}
-      </div>
-    </button>
-  )
 }
 
 export function PhaseSection({
@@ -158,8 +86,8 @@ export function PhaseSection({
   const phaseIndex = ['research', 'planning', 'execution'].indexOf(phase)
   const currentIndex = ['research', 'planning', 'execution'].indexOf(currentPhase)
 
-  const status: 'completed' | 'in_progress' | 'upcoming' =
-    phaseIndex < currentIndex ? 'completed' : phaseIndex === currentIndex ? 'in_progress' : 'upcoming'
+  const position: PhasePosition =
+    phaseIndex < currentIndex ? 'completed' : phaseIndex === currentIndex ? 'current' : 'upcoming'
 
   const loadDocument = useCallback(async () => {
     try {
@@ -183,6 +111,19 @@ export function PhaseSection({
   useEffect(() => {
     void loadDocument()
   }, [loadDocument])
+
+  // A run of this phase changed status (for example it finished while the
+  // page was open): reload so the document and latest run are current.
+  const phaseJobStatuses = jobs
+    .filter((job) => job.jobKind === phase)
+    .map((job) => `${job.jobId}:${job.status}`)
+    .join(',')
+  const previousPhaseJobStatuses = useRef(phaseJobStatuses)
+  useEffect(() => {
+    if (previousPhaseJobStatuses.current === phaseJobStatuses) return
+    previousPhaseJobStatuses.current = phaseJobStatuses
+    void loadDocument()
+  }, [phaseJobStatuses, loadDocument])
 
   useEffect(() => {
     setIsExpanded(phase === currentPhase)
@@ -299,9 +240,19 @@ export function PhaseSection({
   const canEdit = phase === 'planning' || phase === 'execution' || (phase === 'research' && currentPhase === 'research')
   const canRevoke = phase === 'planning' && document?.approvalState === 'approved'
 
-  const runButtonTitle = isCurrentPhase
-    ? `${hasContent ? 'Recreate' : 'Run'} ${phase}`
-    : `${phase} only available in current phase`
+  const busyReason = describePhaseActivity(phase, jobs, activeSession, latestRun?.status)
+  const latestPhaseJob = jobs.find((job) => job.jobKind === phase)
+  const phaseStatus = derivePhaseStatus({
+    position,
+    isBusy: busyReason !== null,
+    latestRunStatus: latestPhaseJob?.status ?? latestRun?.status,
+    latestFailureTitle: latestPhaseJob?.failure?.title,
+    hasResult: phase === 'execution' ? Boolean(ticket.pullRequestUrl) : hasContent,
+    isResolved: phase === 'execution' && ticket.status === TICKET_STATUS.RESOLVED,
+  })
+  const canStartRun = isCurrentPhase && !busyReason
+  const notCurrentPhaseTitle = `${phase} only available in current phase`
+  const runButtonTitle = busyReason ?? (isCurrentPhase ? `${hasContent ? 'Recreate' : 'Run'} ${phase}` : notCurrentPhaseTitle)
 
   const getRunButtonLabel = () => {
     if (phase === 'research') {
@@ -314,8 +265,8 @@ export function PhaseSection({
     <div className="space-y-2">
       <PhaseHeader
         phase={phase}
-        status={status}
-        isCurrent={isCurrentPhase}
+        position={position}
+        status={phaseStatus}
         isExpanded={isExpanded}
         onToggle={() => setIsExpanded(!isExpanded)}
       />
@@ -341,8 +292,8 @@ export function PhaseSection({
                       <Button
                         color="brand"
                         onClick={() => setIsRunModalOpen(true)}
-                        disabled={!isCurrentPhase}
-                        title={isCurrentPhase ? 'Run execution' : 'Execution only available in current phase'}
+                        disabled={!canStartRun}
+                        title={busyReason ?? (isCurrentPhase ? 'Run execution' : 'Execution only available in current phase')}
                       >
                         <PlayIcon className="h-3.5 w-3.5" />
                         Run execution
@@ -431,7 +382,7 @@ export function PhaseSection({
                         <Button
                           color="brand"
                           onClick={() => setIsRunModalOpen(true)}
-                          disabled={!isCurrentPhase}
+                          disabled={!canStartRun}
                           title={runButtonTitle}
                         >
                           <PlayIcon className="h-3.5 w-3.5" />
@@ -442,8 +393,8 @@ export function PhaseSection({
                         <Button
                           plain
                           onClick={() => setIsRevisionModalOpen(true)}
-                          disabled={!isCurrentPhase}
-                          title={isCurrentPhase ? `Revise ${phase}` : `${phase} only available in current phase`}
+                          disabled={!canStartRun}
+                          title={busyReason ?? (isCurrentPhase ? `Revise ${phase}` : notCurrentPhaseTitle)}
                         >
                           <ChatBubbleIcon className="h-3.5 w-3.5" />
                           Revise
@@ -562,7 +513,7 @@ export function PhaseSection({
                       ticketId={ticket.id}
                       phase="research"
                       label="Approve Research & Continue"
-                      runInProgress={latestRun?.status === 'active' || Boolean(activeSession)}
+                      runInProgress={busyReason !== null}
                       isApproving={isApproving}
                       onApprove={() => void handleApproveResearch()}
                     />
@@ -572,7 +523,7 @@ export function PhaseSection({
                       ticketId={ticket.id}
                       phase="planning"
                       label="Approve Planning & Continue"
-                      runInProgress={latestRun?.status === 'active' || Boolean(activeSession)}
+                      runInProgress={busyReason !== null}
                       isApproving={isApproving}
                       onApprove={() => void handleApprove()}
                     />

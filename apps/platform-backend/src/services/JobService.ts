@@ -26,7 +26,8 @@ import {
   validateCallbackToken,
   getCallbackToken,
 } from "./job/JobCallbackService";
-import { classifyJobFailure } from "./job/classifyJobFailure";
+import { describeJobFailure } from "./job/describeJobFailure";
+import { readJobFailure } from "./job/readJobFailure";
 import { RunManifestDAO } from "../persistence/job/RunManifestDAO";
 import { hashConfig, RUN_MANIFEST_VERSION } from "@viberglass/telemetry";
 
@@ -120,6 +121,10 @@ export class JobService {
       })
       .execute();
 
+    if (options?.ticketId) {
+      await this.synchronizeTicketStatus(options.ticketId);
+    }
+
     logger.info("Job enqueued", {
       jobId,
       repository: data.repository,
@@ -151,12 +156,14 @@ export class JobService {
       progress?: Record<string, unknown>;
       result?: JobResult;
       errorMessage?: string;
+      /** Why the run failed, from JOB_FAILURE_CODE; set by whoever saw it fail. */
+      failureCode?: string;
     } = {},
   ): Promise<void> {
     const failure =
-      status === "failed" && updates.errorMessage
-        ? updates.result?.failure ?? classifyJobFailure(updates.errorMessage)
-        : updates.result?.failure;
+      status === "failed"
+        ? describeJobFailure(updates.failureCode, updates.errorMessage)
+        : undefined;
     const result = updates.result
       ? { ...updates.result, ...(failure ? { failure } : {}) }
       : status === "failed" && failure
@@ -213,9 +220,10 @@ export class JobService {
                 };
 
         await this.updateTicketAutoFixStatus(job.ticket_id, ticketUpdate);
-        if (status !== "completed") {
-          await this.lifecycleStatusService.synchronize(job.ticket_id);
-        }
+      }
+
+      if (job?.ticket_id) {
+        await this.synchronizeTicketStatus(job.ticket_id);
       }
 
       if (this.feedbackService && job?.ticket_id) {
@@ -272,6 +280,18 @@ export class JobService {
             });
         }
       }
+    }
+  }
+
+  /** Best effort: a ticket status that lags must not fail the run update. */
+  private async synchronizeTicketStatus(ticketId: string): Promise<void> {
+    try {
+      await this.lifecycleStatusService.synchronize(ticketId);
+    } catch (error) {
+      logger.warn("Failed to synchronize ticket status", {
+        ticketId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -481,6 +501,7 @@ export class JobService {
         "jobs.finished_at",
         "jobs.ticket_id",
         "jobs.job_kind",
+        sql<unknown>`jobs.result -> 'failure'`.as("failure"),
         "tickets.id as ticket_id",
         "tickets.title as ticket_title",
         "tickets.external_ticket_id as ticket_external_id",
@@ -503,6 +524,7 @@ export class JobService {
         finishedAt: job.finished_at,
         ticketId: job.ticket_id,
         projectSlug: job.project_slug,
+        failure: readJobFailure(job.failure),
         ticket: job.ticket_id
           ? {
               id: job.ticket_id,

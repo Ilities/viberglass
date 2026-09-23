@@ -47,7 +47,8 @@ import {
   RocketIcon,
   SunIcon,
 } from '@radix-ui/react-icons'
-import type { Ticket } from '@viberglass/types'
+import { TICKET_STATUS_LABEL } from '@/pages/project/tickets/ticket-display'
+import { TICKET_STATUS, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
@@ -184,7 +185,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
     <>
       {inReviewTickets.length > 0 && (
         <SidebarSection>
-          <SidebarHeading>Needs Review</SidebarHeading>
+          <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]}</SidebarHeading>
           {inReviewTickets.map((ticket) => (
             <SidebarItem key={ticket.id} href={`/project/${projectSlug}/tickets/${ticket.id}`}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-warning-500" />
@@ -195,7 +196,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
       )}
       {inProgressTickets.length > 0 && (
         <SidebarSection>
-          <SidebarHeading>In Progress</SidebarHeading>
+          <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}</SidebarHeading>
           {inProgressTickets.map((ticket) => (
             <SidebarItem key={ticket.id} href={`/project/${projectSlug}/tickets/${ticket.id}`}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-blue-500" />
