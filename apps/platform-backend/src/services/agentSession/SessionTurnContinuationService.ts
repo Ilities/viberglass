@@ -260,7 +260,12 @@ export class SessionTurnContinuationService {
       revisionType,
       session.projectId,
       {
-        initialMessage: rawTask,
+        // The messages people sent during or after the last turn are the
+        // feedback this turn must act on.
+        revisionMessage: rawTask,
+        ticketTitle: ticket?.title,
+        ticketDescription: ticket?.description,
+        externalTicketId: ticket?.externalTicketId ?? undefined,
         researchDocument: researchDocumentContent,
         planDocument: planDocumentContent,
         openComments: openCommentsStr,

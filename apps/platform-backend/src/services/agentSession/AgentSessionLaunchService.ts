@@ -189,21 +189,11 @@ export class AgentSessionLaunchService {
             .join("\n")
         : undefined;
 
-    const revisionType =
-      input.mode === "research"
-        ? PROMPT_TYPE.ticket_research_revision_task
-        : PROMPT_TYPE.ticket_planning_revision_task;
-
-    const enrichedMessage = await this.promptTemplateService.render(
-      revisionType,
-      ticket.projectId,
-      {
-        initialMessage: input.initialMessage,
-        researchDocument: researchDocumentContent,
-        planDocument: planDocumentContent,
-        openComments: openCommentsStr,
-      },
-    );
+    const jobData = await this.buildJobData(jobId, input, prepared, ticket, {
+      researchDocument: researchDocumentContent,
+      planDocument: planDocumentContent,
+      openComments: openCommentsStr,
+    });
 
     const session = await this.agentSessionDAO.create({
       tenantId: "api-server",
@@ -216,12 +206,9 @@ export class AgentSessionLaunchService {
       createdBy: userId ?? null,
     });
 
-    const assistantTurn = await this.createInitialTurns(
-      session.id,
-      enrichedMessage,
-    );
+    // The opening turn shows exactly what the agent is asked to do.
+    const assistantTurn = await this.createInitialTurns(session.id, jobData.task);
 
-    const jobData = await this.buildJobData(jobId, input, prepared, ticket, researchDocumentContent, planDocumentContent);
     const submitResult = await this.jobService.submitJob(jobData, {
       ticketId: input.ticketId,
       clankerId: input.clankerId,
@@ -295,9 +282,10 @@ export class AgentSessionLaunchService {
     input: LaunchAgentSessionInput,
     prepared: PreparedTicketRunContext,
     ticket: { id: string; title: string; description: string; externalTicketId?: string | null; projectId: string },
-    researchDocumentContent?: string,
-    planDocumentContent?: string,
+    documents: { researchDocument?: string; planDocument?: string; openComments?: string },
   ): Promise<JobData> {
+    const researchDocumentContent = documents.researchDocument;
+    const planDocumentContent = documents.planDocument;
     const ticketVars = {
       externalTicketId: ticket.externalTicketId ?? undefined,
       ticketTitle: ticket.title,
@@ -325,6 +313,9 @@ export class AgentSessionLaunchService {
       {
         ...ticketVars,
         researchDocument: researchDocumentContent?.trim() || undefined,
+        planDocument: planDocumentContent?.trim() || undefined,
+        revisionMessage: input.initialMessage,
+        openComments: documents.openComments,
       },
     );
 
@@ -409,6 +400,9 @@ export class AgentSessionLaunchService {
       sequence: 2,
       status: AGENT_TURN_STATUS.QUEUED,
     });
+    // The opening prompt is answered by this turn; it must not be re-sent
+    // as a queued message later.
+    await this.agentTurnDAO.markConsumed([userTurn.id], assistantTurn.id);
 
     await this.agentSessionEventDAO.create({
       sessionId,
