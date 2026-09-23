@@ -123,6 +123,7 @@ export class SecretService {
     let secretValueEncrypted: string | null = null;
 
     if (secretLocation === "env") {
+      this.assertEnvironmentVariableSet(name);
       secretPath = null;
     }
 
@@ -176,6 +177,13 @@ export class SecretService {
       updates.secretPath !== undefined
         ? this.normalizePath(updates.secretPath)
         : existing.secretPath;
+
+    const becomesEnvReference =
+      nextLocation === "env" &&
+      (existing.secretLocation !== "env" || nextName !== existing.name);
+    if (becomesEnvReference) {
+      this.assertEnvironmentVariableSet(nextName);
+    }
 
     let nextPath: string | null = null;
     let nextEncrypted: string | null = null;
@@ -310,6 +318,20 @@ export class SecretService {
       secretLocation: "ssm",
       secretValue: preparedAuthJson,
     });
+  }
+
+  /**
+   * An env secret only names a variable; the value is read from this server's
+   * environment at run time. Refuse to save one that cannot resolve, rather
+   * than letting runs fail later.
+   */
+  private assertEnvironmentVariableSet(name: string): void {
+    if (process.env[name]) return;
+    throw new SecretServiceError(
+      SECRET_SERVICE_ERROR_CODE.ENV_VARIABLE_NOT_SET,
+      `${name} is not set on the Viberglass server, so this secret would have no value. ` +
+        "Store the value in the database instead, or set the variable and restart the server.",
+    );
   }
 
   private async resolveSecretValue(secret: SecretRecord): Promise<string> {
