@@ -15,6 +15,7 @@ import {
   ClankerServiceError,
   CLANKER_SERVICE_ERROR_CODE,
 } from "../../services/errors/ClankerServiceError";
+import { nextClankerStatus } from "../../services/clankerStatusTransition";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
@@ -52,18 +53,15 @@ async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
 
   const availability =
     await provisioningService.resolveAvailabilityStatus(clanker);
-  const currentMessage = clanker.statusMessage ?? null;
-  const nextMessage = availability.statusMessage ?? null;
-
-  if (availability.status === clanker.status && currentMessage === nextMessage) {
+  const next = nextClankerStatus(
+    { status: clanker.status, statusMessage: clanker.statusMessage ?? null },
+    { status: availability.status, statusMessage: availability.statusMessage ?? null },
+  );
+  if (!next) {
     return clanker;
   }
 
-  return clankerService.updateStatus(
-    clanker.id,
-    availability.status,
-    nextMessage,
-  );
+  return clankerService.updateStatus(clanker.id, next.status, next.statusMessage);
 }
 
 async function validateSecretIds(secretIds?: string[]): Promise<void> {
