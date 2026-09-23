@@ -1,5 +1,6 @@
 import express from "express";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
+import { ProjectDeletionSummaryDAO } from "../../persistence/project/ProjectDeletionSummaryDAO";
 import { ProjectConfig } from "../../models/PMIntegration";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import {
@@ -46,6 +47,7 @@ import { ProjectReadinessService } from "../../services/ProjectReadinessService"
 
 const router = express.Router();
 const projectService = new ProjectDAO();
+const projectDeletionSummaryDAO = new ProjectDeletionSummaryDAO();
 const projectScmConfigDAO = new ProjectScmConfigDAO();
 const integrationConfigDAO = new IntegrationConfigDAO();
 const projectIntegrationLinkDAO = new ProjectIntegrationLinkDAO();
@@ -285,6 +287,42 @@ router.put(
     }
   },
 );
+
+// POST /api/projects/:id/archive - Hide a project without deleting its data
+router.post("/:id/archive", validateUuidParam("id"), async (req, res) => {
+  try {
+    const project = await projectService.getProject(req.params.id);
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const archived = await projectService.archiveProject(req.params.id);
+    res.json({ success: true, data: archived });
+  } catch (error) {
+    logger.error("Error archiving project", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/projects/:id/deletion-summary - What deleting the project also deletes
+router.get("/:id/deletion-summary", validateUuidParam("id"), async (req, res) => {
+  try {
+    const project = await projectService.getProject(req.params.id);
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const summary = await projectDeletionSummaryDAO.summarize(req.params.id);
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    logger.error("Error summarizing project deletion", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // DELETE /api/projects/:id - Delete a project
 router.delete("/:id", validateUuidParam("id"), async (req, res) => {
