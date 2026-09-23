@@ -2,6 +2,8 @@
 
 Status: proposal · Author: UX walkthrough (2026-09-23) · Scope: user journey / information architecture / collaboration model. **Not** visual design.
 
+> **Next steps and handover:** see [`next-steps-handover.md`](./next-steps-handover.md) for what is done, how to work on the repo, and the prioritised plan (e2e smoke test → quick wins → three-input setup → people primitives).
+
 ---
 
 ## 0. TL;DR
