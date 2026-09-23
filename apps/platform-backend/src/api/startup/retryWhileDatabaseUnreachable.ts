@@ -3,8 +3,15 @@ const UNREACHABLE_CODES = new Set([
   "EAI_AGAIN", // compose service name not resolvable yet
   "ENOTFOUND",
   "ETIMEDOUT",
+  "ECONNRESET", // a freshly created postgres container accepts, then drops, connections
   "57P03", // postgres: cannot_connect_now (still starting up)
 ]);
+
+// pg reports these without an error code.
+const UNREACHABLE_MESSAGES = [
+  "Connection terminated due to connection timeout",
+  "Connection terminated unexpectedly", // dropped while postgres initialises
+];
 
 function errorCode(error: unknown): string | undefined {
   if (typeof error === "object" && error !== null && "code" in error) {
@@ -18,7 +25,8 @@ function errorCode(error: unknown): string | undefined {
 export function isDatabaseUnreachable(error: unknown): boolean {
   const code = errorCode(error);
   if (code && UNREACHABLE_CODES.has(code)) return true;
-  return error instanceof Error && error.message.includes("Connection terminated due to connection timeout");
+  if (!(error instanceof Error)) return false;
+  return UNREACHABLE_MESSAGES.some((message) => error.message.includes(message));
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
