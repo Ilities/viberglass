@@ -15,6 +15,7 @@ export type AgentType =
   | 'kimi-code'
   | 'gemini-cli'
   | 'mistral-vibe'
+  | 'fake'
 
 export const DEFAULT_AGENT_TYPE: AgentType = 'claude-code'
 
@@ -26,6 +27,8 @@ export const SUPPORTED_AGENT_TYPES: AgentType[] = [
   'kimi-code',
   'gemini-cli',
   'mistral-vibe',
+  // Deterministic e2e test agent. Accepted by the API, not offered in AGENT_OPTIONS.
+  'fake',
 ]
 
 export const AGENT_LABELS: Record<AgentType, string> = {
@@ -36,6 +39,7 @@ export const AGENT_LABELS: Record<AgentType, string> = {
   'kimi-code': 'Kimi Code',
   'gemini-cli': 'Gemini CLI',
   'mistral-vibe': 'Mistral Vibe',
+  fake: 'Fake (end-to-end tests)',
 }
 
 export const AGENT_OPTIONS: Array<{

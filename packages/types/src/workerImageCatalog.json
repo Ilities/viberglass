@@ -66,12 +66,12 @@
     "variant": "claude",
     "repositoryName": "viberator-worker",
     "scriptImageName": "worker",
-    "dockerfilePath": "infra/workers/docker/generated/claude.Dockerfile",
+    "dockerfilePath": "infra/workers/docker/viberator-docker-worker.Dockerfile",
     "includeInHarnessSetup": true,
     "includeInInfraProvisioning": true,
     "includeInBuildScript": true,
     "includeInPushScript": true,
-    "isAgentImage": true,
+    "isAgentImage": false,
     "supportedAgents": [
       "claude-code"
     ],
@@ -92,6 +92,23 @@
     ],
     "defaultForAgents": [
       "codex"
+    ]
+  },
+  {
+    "variant": "fake",
+    "repositoryName": "viberator-worker-fake",
+    "scriptImageName": "worker-fake",
+    "dockerfilePath": "infra/workers/docker/generated/fake.Dockerfile",
+    "includeInHarnessSetup": false,
+    "includeInInfraProvisioning": false,
+    "includeInBuildScript": true,
+    "includeInPushScript": false,
+    "isAgentImage": true,
+    "supportedAgents": [
+      "fake"
+    ],
+    "defaultForAgents": [
+      "fake"
     ]
   },
   {

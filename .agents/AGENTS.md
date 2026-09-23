@@ -67,7 +67,7 @@ These are the single source of truth instructions for agent behavior and backend
 5. Add one line in `apps/viberator/src/agents/registerPlugins.ts`: `.register(myPlugin)`.
 6. Run: `npm install && npm run build && npm run generate:catalog && npm run generate:dockerfiles`
 
-No other files need to change — `SessionStateManager`, `InstructionFileManager`, `ClankerAgent*Factory`, `ConfigManager` are all registry-driven. For a full guide see `packages/agents/README.md`.
+Inside the worker, `SessionStateManager`, `InstructionFileManager`, `ClankerAgent*Factory` and `ConfigManager` are registry-driven. Several lists are not: the worker build script, the catalog generator, the Dockerfile generator, the platform's `AgentType` and backend agent normalisers, and a database constraint. `packages/agents/README.md` lists them all; the platform won't run the agent until they are updated.
 
 ### 5) Naming Conventions
 

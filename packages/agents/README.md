@@ -134,7 +134,12 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
    npm test -w @viberglass/agent-aider
    ```
 
-**No other files need to change.** `SessionStateManager`, `InstructionFileManager`, `ClankerAgent*Factory`, and `ConfigManager` are all registry-driven.
+Inside the worker, `SessionStateManager`, `InstructionFileManager`, `ClankerAgent*Factory` and `ConfigManager` are registry-driven. These lists are not, and need the new agent too:
+
+- **Worker build:** the `build:worker` script in the root `package.json`, `PLUGIN_PACKAGES` in `packages/types/scripts/generate-worker-image-catalog.ts`, and a `--agent` line in `infra/workers/docker/scripts/generate-all-dockerfiles.sh`.
+- **Platform**, so runners can use the agent: `AgentType`, `SUPPORTED_AGENT_TYPES`, `AGENT_LABELS` and (to offer it in the UI) `AGENT_OPTIONS` in `packages/types/src/clanker.ts`; `AGENT_VISUALS` in the frontend's `selectionCards.tsx`; the `normalizeAgent` switch in `apps/platform-backend/src/clanker-config/index.ts` and `normalizeGenericAgent` in `legacyMapper.ts` (unknown agents silently become `claude-code`); and a migration that adds the agent to the `check_valid_agent` constraint on `clankers`.
+
+Set `docker.testOnly: true` for agents that must never be provisioned in infrastructure or pushed to a registry (see `agent-fake`).
 
 ---
 

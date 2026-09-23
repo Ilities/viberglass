@@ -36,6 +36,11 @@ const AGENT_VISUALS: Record<AgentType, AgentVisual> = {
     logoPath: '/logos/agents/mistral-vibe.ico',
     summary: 'Mistral-native coding option optimized for quick iterative execution.',
   },
+  // Not in AGENT_OPTIONS, so never rendered as a card; present to keep the record total.
+  fake: {
+    logoPath: '/logos/viberglass.svg',
+    summary: 'Deterministic agent for end-to-end tests. Needs no model key.',
+  },
 }
 
 interface StrategyVisual {

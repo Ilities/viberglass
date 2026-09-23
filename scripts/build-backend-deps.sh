@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-npm run build -w @viberglass/types
+npm run build -w @viberglass/types -w @viberglass/telemetry
 
 npm run build -w @viberglass/platform-ui -w @viberglass/chat-slack -w @viberglass/mcp-server -w @viberglass/integration-core
 

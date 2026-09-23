@@ -4,25 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug",
-    "test:ui": "playwright test --ui",
+    "test": "npm run stack:up && playwright test --project=smoke",
+    "test:legacy": "playwright test --project=legacy",
+    "test:headed": "playwright test --project=smoke --headed",
     "test:report": "playwright show-report",
-    "setup:docker": "docker compose -f docker/docker-compose.e2e.yaml up -d",
-    "teardown:docker": "docker compose -f docker/docker-compose.e2e.yaml down -v",
-    "setup:services": "tsx playwright/setupServices.ts",
-    "teardown:services": "tsx playwright/teardownServices.ts"
+    "stack:up": "docker compose -f docker/docker-compose.e2e.yaml down -v && docker compose -f docker/docker-compose.e2e.yaml up -d --wait",
+    "stack:down": "docker compose -f docker/docker-compose.e2e.yaml down -v"
   },
   "dependencies": {
-    "@playwright/test": "^1.40.0",
-    "@testcontainers/postgresql": "^10.0.0",
-    "@testcontainers/localstack": "^10.0.0",
-    "dockerode": "^4.0.0",
-    "dotenv": "^16.3.1"
+    "@playwright/test": "^1.40.0"
   },
   "devDependencies": {
-    "@types/dockerode": "^3.3.0",
     "@types/node": "^20.10.0",
     "prettier": "^3.8.0",
     "tsx": "^4.21.0",

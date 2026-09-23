@@ -12,6 +12,7 @@ COMPOSE="$SCRIPT_DIR/compose-dockerfile.sh"
 # claude-code uses viberator-docker-worker.Dockerfile directly (not composed from a fragment)
 # Each entry is: <variant> [--package <packageDirSuffix>] when they differ
 "$COMPOSE" --agent codex
+"$COMPOSE" --agent fake
 "$COMPOSE" --agent gemini
 "$COMPOSE" --agent kimi
 "$COMPOSE" --agent mistral --package mistral-vibe

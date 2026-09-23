@@ -48,6 +48,11 @@ describe("isDatabaseUnreachable", () => {
     expect(isDatabaseUnreachable(new Error("Connection terminated due to connection timeout"))).toBe(true);
   });
 
+  it("recognises the connection drops of a postgres that is still initialising", () => {
+    expect(isDatabaseUnreachable(codedError("ECONNRESET"))).toBe(true);
+    expect(isDatabaseUnreachable(new Error("Connection terminated unexpectedly"))).toBe(true);
+  });
+
   it("does not treat query errors as unreachable", () => {
     expect(isDatabaseUnreachable(codedError("42P01"))).toBe(false);
   });
