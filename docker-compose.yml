@@ -46,6 +46,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - viberglass-dev-network
+    restart: unless-stopped
 
   # Backend API
   backend:
