@@ -159,6 +159,15 @@ On branch `e2e-smoke-test`. `npm run test:e2e` resets the e2e database and runs 
 
 ### Step B: UX quick wins (plan §11.1), about 1–1.5 weeks
 
+**Decided (decision 3): a short slice first, then Phase 1.** The slice is the quick wins that decide whether a first run reads as a success or a confusing failure, which Phase 1's first-result goal depends on:
+
+1. **#15**: disable Run/Revise while a run or session for that phase is active.
+2. **#4**: status truth (no "In Progress" when nothing runs).
+3. **#9 + #13**: readable failure reasons from structured worker error codes, with copy per audience.
+4. **#1**: session opens with the human's intent; the system prompt goes behind "View full prompt".
+
+About 4–5 days, on branch `quick-win-slice`. Cover each item with a smoke journey using the fake agent (for example `[fake:fail]` for failure copy). Decisions 4–6 get answered in the meantime; Phase 1 starts with a Docker pre-built image mode. The remaining quick wins fit alongside or after Phase 1.
+
 **Status after the correctness pass:**
 - **Done:** #5 (plumbing hidden from members, routes enforced), #10 (server-unreachable message), #12's "cancel keeps history" part.
 - **Partly done:** #1 (prompt accurate, still shown raw), #11 (new integrations get a chosen name; the duplicate GitHub token field remains).
@@ -260,7 +269,7 @@ Phase 3's agent questions (J6) are the next big collaboration win after the Phas
 |---|---|---|
 | 1 | ~~Merge strategy for `ux-plan-and-core-fixes`~~ Merged to `main` (PR #38). | — |
 | 2 | ~~Is a fake agent plugin acceptable?~~ Yes; added as `agent-fake`, test-only. | — |
-| 3 | Quick wins before Phase 1, or Phase 1 first (only the FR8 fix from #12)? | Step B/C |
+| 3 | ~~Quick wins or Phase 1 first?~~ A slice of quick wins (#15, #4, #9 + #13, #1), then Phase 1. See Step B. | — |
 | 4 | First-cut providers for three-input setup | Step C |
 | 5 | Setup vs first-admin registration: one flow or two? | Step C |
 | 6 | Demo workspace seed: in or out of Phase 1 | Step C |
