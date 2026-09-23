@@ -1,3 +1,4 @@
+import { CancelRunButton } from '@/components/cancel-run-button'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { LogViewer } from '@/components/log-viewer'
@@ -12,7 +13,7 @@ import {
   sendMessageToSession,
   type SessionDetail,
 } from '@/service/api/session-api'
-import { ChevronDownIcon, ChevronRightIcon, ChatBubbleIcon, CrossCircledIcon, ExternalLinkIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
+import { ChevronDownIcon, ChevronRightIcon, ChatBubbleIcon, ExternalLinkIcon, PaperPlaneIcon } from '@radix-ui/react-icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { PendingRequestCard } from '../sessions/PendingRequestCard'
@@ -258,10 +259,7 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
             Full view
           </Button>
           {!isTerminal && (
-            <Button color="red" onClick={() => void handleCancel()} disabled={isCancelling}>
-              <CrossCircledIcon className="h-3 w-3" />
-              Cancel
-            </Button>
+            <CancelRunButton label="Cancel" isCancelling={isCancelling} onConfirm={() => void handleCancel()} />
           )}
         </div>
       </div>
