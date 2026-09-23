@@ -15,6 +15,9 @@ import {
   updateProject,
   upsertProjectScmConfig,
 } from '@/service/api/project-api'
+jest.mock('@/context/auth-context', () => ({
+  useAuth: () => ({ user: { id: 'user-1', role: 'admin' } }),
+}))
 import { ProjectSettingsPage } from './ProjectSettingsPage'
 import type { Project } from '@/service/api/project-api'
 import type { AvailableIntegrationType, ProjectIntegrationWithDetails } from '@/service/api/integration-api'

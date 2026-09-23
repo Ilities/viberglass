@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/auth-context'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { Button } from '@/components/button'
@@ -101,6 +102,8 @@ export function ProjectSettingsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletionSummary, setDeletionSummary] = useState<ProjectDeletionSummary | null>(null)
   const [isArchiving, setIsArchiving] = useState(false)
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
 
   const ticketingIntegrations = useMemo(
     () => linkedIntegrations.filter((integration) => integration.category === 'ticketing'),
@@ -817,6 +820,7 @@ export function ProjectSettingsPage() {
                 {isArchiving ? 'Archiving…' : 'Archive project'}
               </Button>
             </div>
+            {isAdmin && (
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
               <h3 className="text-base font-semibold text-red-700 dark:text-red-400">Danger Zone</h3>
               <p className="mt-1 text-sm text-red-600/80 dark:text-red-400/80">
@@ -838,6 +842,7 @@ export function ProjectSettingsPage() {
                 </Button>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>

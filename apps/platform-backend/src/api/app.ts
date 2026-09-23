@@ -34,6 +34,8 @@ import {
 } from "./middleware/notFoundHandling";
 import mcpRouter from "./routes/mcp";
 import { tracingMiddleware } from "./middleware/tracing";
+import { requireRole } from "./middleware/authentication";
+import { adminOnlyChanges } from "./middleware/adminOnlyChanges";
 
 function resolvePublicDirectory(): string {
   const cwd = process.cwd();
@@ -169,18 +171,23 @@ app.get("/", (req, res) => {
 
 // API routes
 app.use("/api/projects", projectsRouter);
-app.use("/api/integrations", integrationsRouter);
+// Project links stay open: linking an integration is project configuration.
+app.use(
+  "/api/integrations",
+  adminOnlyChanges({ exemptPathPrefixes: ["/project/"] }),
+  integrationsRouter,
+);
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
-app.use("/api/clankers", clankersRouter);
-app.use("/api/deployment-strategies", deploymentStrategiesRouter);
+app.use("/api/clankers", adminOnlyChanges(), clankersRouter);
+app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);
 app.use("/api/jobs", jobsRouter);
-app.use("/api/secrets", secretsRouter);
+app.use("/api/secrets", requireRole("admin"), secretsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/claw", clawRouter);
 app.use("/api/agent-sessions", agentSessionsRouter);
-app.use("/api/prompt-templates", promptTemplatesRouter);
+app.use("/api/prompt-templates", adminOnlyChanges(), promptTemplatesRouter);
 app.use("/api/api-tokens", apiTokensRouter);
 app.use("/api/mcp", mcpRouter);
 

@@ -248,14 +248,19 @@ function ApplicationLayoutContent() {
 
   const platformNavItems: NavLinkItem[] = [
     { href: '/', label: 'Dashboard', current: !isProjectRoute && pathname === '/', icon: <HomeIcon /> },
-    { href: '/clankers', label: 'Agent runners', current: pathname.startsWith('/clankers'), icon: <RocketIcon /> },
-    { href: '/secrets', label: 'Secrets', current: pathname.startsWith('/secrets'), icon: <LockClosedIcon /> },
-    {
-      href: '/settings/integrations',
-      label: 'Integrations',
-      current: pathname.startsWith('/settings/integrations'),
-      icon: <LayersIcon />,
-    },
+    // Workspace plumbing: only admins can change it, so only admins see it.
+    ...(isAdmin
+      ? [
+          { href: '/clankers', label: 'Agent runners', current: pathname.startsWith('/clankers'), icon: <RocketIcon /> },
+          { href: '/secrets', label: 'Secrets', current: pathname.startsWith('/secrets'), icon: <LockClosedIcon /> },
+          {
+            href: '/settings/integrations',
+            label: 'Integrations',
+            current: pathname.startsWith('/settings/integrations'),
+            icon: <LayersIcon />,
+          },
+        ]
+      : []),
     {
       href: '/sessions',
       label: 'Pulse',

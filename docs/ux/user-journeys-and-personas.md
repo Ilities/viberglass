@@ -630,7 +630,7 @@ These break the core loop or data safety. Fix them before any UX work, and add e
 5. **Don't overwrite the runner Start error** (FR16, `api/routes/clankers.ts:48`).
 6. **Secrets default to Database storage with a value field** (FR10); keep env references as an advanced option with a check that the variable exists.
 7. **Visiting an integration page must not create an integration** (FR12, PG8); add UI delete (PG9).
-8. **Gate approvals and destructive actions by role** (LC3, F27, F39, PG14).
+8. **Gate approvals and destructive actions by role** (LC3, F27, F39, PG14). *Done for destructive actions and workspace plumbing (admin-only secrets, runners, integrations, global prompt templates and project delete). Approvals are deferred to the J7 approval policy in Phase 2: without reviewers or owners, admin-only approval would lock out product leaders who aren't admins (ADR 0003).*
 9. **Install must just work** (F1). This walkthrough started with the backend crash-looping because `postgres` had exited and never came back. There are two causes in `docker-compose.yml`:
    - `postgres` has no `restart:` policy, while `backend` has `restart: unless-stopped`. After a Docker or host restart the backend returns without its database.
    - The dev backend runs under `nodemon`, which catches the crash ("app crashed - waiting for file changes") and keeps the container alive. So neither the restart policy nor `depends_on: service_healthy` can recover it.
