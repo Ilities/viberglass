@@ -6,7 +6,7 @@ import { ProjectConfig } from "../../models/PMIntegration";
 
 type ProjectsRow = Selectable<Database["projects"]>;
 
-const slugify = (text: string) =>
+export const slugify = (text: string) =>
   text
     .toString()
     .toLowerCase()
