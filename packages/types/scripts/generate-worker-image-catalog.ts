@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 /**
- * Generates packages/types/src/workerImageCatalog.json from agent plugin metadata.
+ * Generates packages/types/src/workerImageCatalog.json and
+ * packages/types/src/agentProviderCatalog.json from agent plugin metadata.
  *
  * Run after building all agent packages:
  *   npm run generate:catalog
  *
- * CI check: run this, then verify workerImageCatalog.json is unchanged (git diff --exit-code).
+ * CI check: run this, then verify both JSON files are unchanged (git diff --exit-code).
  */
 
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { MODEL_PROVIDERS } from "../src/modelProviders";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -28,6 +30,20 @@ interface PluginDockerMeta {
   testOnly?: boolean;
 }
 
+interface PluginProviderBinding {
+  provider: string;
+  envVar: string;
+  default?: boolean;
+  model?: string;
+  endpoint?: string;
+}
+
+interface LoadedPlugin {
+  id: string;
+  docker: PluginDockerMeta;
+  providers: PluginProviderBinding[];
+}
+
 interface CatalogEntry {
   variant: string;
   repositoryName: string;
@@ -42,8 +58,8 @@ interface CatalogEntry {
   defaultForAgents: string[];
 }
 
-/** Load a plugin's docker metadata from its built CJS dist. */
-function loadPluginDocker(packageDirName: string): PluginDockerMeta {
+/** Load a plugin's catalog metadata from its built CJS dist. */
+function loadPlugin(packageDirName: string): LoadedPlugin {
   const distPath = path.join(
     WORKSPACE_ROOT,
     "packages/agents",
@@ -62,7 +78,11 @@ function loadPluginDocker(packageDirName: string): PluginDockerMeta {
   if (!plugin?.docker) {
     throw new Error(`Plugin at ${distPath} has no docker descriptor`);
   }
-  return plugin.docker as PluginDockerMeta;
+  return {
+    id: plugin.id as string,
+    docker: plugin.docker as PluginDockerMeta,
+    providers: (plugin.providers ?? []) as PluginProviderBinding[],
+  };
 }
 
 // All agent plugin packages (order only affects multi-agent supportedAgents sort)
@@ -99,7 +119,8 @@ function buildAgentEntry(docker: PluginDockerMeta): CatalogEntry {
 }
 
 // Load all plugins
-const plugins = PLUGIN_PACKAGES.map(loadPluginDocker);
+const loadedPlugins = PLUGIN_PACKAGES.map(loadPlugin);
+const plugins = loadedPlugins.map((p) => p.docker);
 
 // All agent IDs for the multi-agent image (sorted for determinism)
 const allAgentIds = plugins
@@ -182,4 +203,44 @@ const outputPath = path.join(
 fs.writeFileSync(outputPath, JSON.stringify(catalog, null, 2) + "\n");
 console.log(
   `Generated workerImageCatalog.json with ${catalog.length} entries`,
+);
+
+// Provider bindings: which harness runs which provider's keys.
+const knownProviders = new Set<string>(MODEL_PROVIDERS.map((p) => p.id));
+const providerBindings = loadedPlugins
+  .filter((p) => !p.docker.testOnly)
+  .flatMap((p) =>
+    p.providers.map((binding) => {
+      if (!knownProviders.has(binding.provider)) {
+        throw new Error(
+          `Plugin '${p.id}' binds unknown provider '${binding.provider}'. Add it to MODEL_PROVIDERS in packages/types/src/modelProviders.ts.`,
+        );
+      }
+      return {
+        agent: p.id,
+        provider: binding.provider,
+        envVar: binding.envVar,
+        default: binding.default === true,
+        ...(binding.model ? { model: binding.model } : {}),
+        ...(binding.endpoint ? { endpoint: binding.endpoint } : {}),
+      };
+    }),
+  )
+  .sort((a, b) => a.provider.localeCompare(b.provider) || a.agent.localeCompare(b.agent));
+
+for (const providerId of knownProviders) {
+  const defaults = providerBindings.filter((b) => b.provider === providerId && b.default);
+  if (defaults.length !== 1) {
+    throw new Error(
+      `Provider '${providerId}' needs exactly one default harness, found ${defaults.length}: ${defaults.map((d) => d.agent).join(", ") || "none"}.`,
+    );
+  }
+}
+
+fs.writeFileSync(
+  path.join(__dirname, "..", "src", "agentProviderCatalog.json"),
+  JSON.stringify(providerBindings, null, 2) + "\n",
+);
+console.log(
+  `Generated agentProviderCatalog.json with ${providerBindings.length} bindings`,
 );

@@ -33,7 +33,7 @@ for (const entry of WORKER_IMAGE_CATALOG) {
   }
 }
 
-function isSupportedAgentType(value: string): value is AgentType {
+export function isSupportedAgentType(value: string): value is AgentType {
   return supportedAgentTypeSet.has(value)
 }
 

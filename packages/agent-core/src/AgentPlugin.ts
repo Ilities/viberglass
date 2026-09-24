@@ -24,6 +24,19 @@ export interface AgentRuntimeContext {
   ) => Promise<void>;
 }
 
+export interface AgentProviderBinding {
+  /** A `ModelProviderId` from @viberglass/types (e.g. "anthropic", "opencode-go"). */
+  provider: string;
+  /** Env var the harness reads this provider's key from; the key is stored as a secret with this name. */
+  envVar: string;
+  /** This harness is the one setup picks for the provider's keys. One default per provider. */
+  default?: boolean;
+  /** Model to configure on the runner, when the harness can't infer one from the provider. */
+  model?: string;
+  /** Endpoint to configure on the runner, when it differs from the harness default. */
+  endpoint?: string;
+}
+
 export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
   /** Unique identifier, matches BaseAgentConfig.name (e.g. "pi") */
   readonly id: string;
@@ -70,6 +83,14 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
 
   /** Optional per-agent endpoint environment (e.g. OpenCode, Qwen) */
   readonly endpointEnvironment?: (ctx: AgentRuntimeContext) => AgentEndpointEnvironment;
+
+  /**
+   * Model providers this harness can run — feeds the generated
+   * agentProviderCatalog.json, which platform setup uses to pick a harness
+   * for a pasted key. Provider ids come from `MODEL_PROVIDERS` in
+   * @viberglass/types; the catalog generator rejects unknown ones.
+   */
+  readonly providers?: readonly AgentProviderBinding[];
 
   /** Docker image metadata — feeds the generated workerImageCatalog.json */
   readonly docker: {

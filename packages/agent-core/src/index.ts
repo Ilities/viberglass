@@ -55,7 +55,7 @@ export type { AgentAuthContext, AgentAuthLifecycle } from "./agentAuthLifecycle"
 export type { AgentEndpointEnvironment } from "./agentEndpointEnvironment";
 
 // Plugin & registry
-export type { AgentPlugin, AgentRuntimeContext } from "./AgentPlugin";
+export type { AgentPlugin, AgentProviderBinding, AgentRuntimeContext } from "./AgentPlugin";
 export { AgentRegistry } from "./AgentRegistry";
 
 // Noop implementations

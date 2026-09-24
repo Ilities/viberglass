@@ -87,6 +87,21 @@ const qwenCodePlugin: AgentPlugin<QwenCodeConfig> = {
     return new QwenAgentEndpointEnvironment(endpoint);
   },
 
+  providers: [
+    {
+      provider: "alibaba",
+      envVar: "QWEN_CLI_API_KEY",
+      default: true,
+      endpoint: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    },
+    {
+      provider: "alibaba-coding-plan",
+      envVar: "QWEN_CLI_API_KEY",
+      default: true,
+      endpoint: "https://coding-intl.dashscope.aliyuncs.com/v1",
+    },
+  ],
+
   docker: {
     variant: "qwen",
     repositoryName: "viberator-worker-qwen",

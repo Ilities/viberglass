@@ -1,0 +1,95 @@
+[
+  {
+    "agent": "qwen-cli",
+    "provider": "alibaba",
+    "envVar": "QWEN_CLI_API_KEY",
+    "default": true,
+    "endpoint": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+  },
+  {
+    "agent": "qwen-cli",
+    "provider": "alibaba-coding-plan",
+    "envVar": "QWEN_CLI_API_KEY",
+    "default": true,
+    "endpoint": "https://coding-intl.dashscope.aliyuncs.com/v1"
+  },
+  {
+    "agent": "claude-code",
+    "provider": "anthropic",
+    "envVar": "ANTHROPIC_API_KEY",
+    "default": true
+  },
+  {
+    "agent": "pi",
+    "provider": "anthropic",
+    "envVar": "ANTHROPIC_API_KEY",
+    "default": false
+  },
+  {
+    "agent": "opencode",
+    "provider": "deepseek",
+    "envVar": "DEEPSEEK_API_KEY",
+    "default": true,
+    "model": "deepseek/deepseek-v4-pro"
+  },
+  {
+    "agent": "gemini-cli",
+    "provider": "google",
+    "envVar": "GEMINI_API_KEY",
+    "default": true
+  },
+  {
+    "agent": "opencode",
+    "provider": "groq",
+    "envVar": "GROQ_API_KEY",
+    "default": true,
+    "model": "groq/qwen/qwen3.8-27b"
+  },
+  {
+    "agent": "kimi-code",
+    "provider": "kimi-code",
+    "envVar": "KIMI_API_KEY",
+    "default": true
+  },
+  {
+    "agent": "mistral-vibe",
+    "provider": "mistral",
+    "envVar": "MISTRAL_API_KEY",
+    "default": true
+  },
+  {
+    "agent": "kimi-code",
+    "provider": "moonshotai",
+    "envVar": "MOONSHOT_API_KEY",
+    "default": true,
+    "model": "kimi-k3",
+    "endpoint": "https://api.moonshot.ai/v1"
+  },
+  {
+    "agent": "codex",
+    "provider": "openai",
+    "envVar": "OPENAI_API_KEY",
+    "default": true
+  },
+  {
+    "agent": "opencode",
+    "provider": "opencode-go",
+    "envVar": "OPENCODE_API_KEY",
+    "default": true,
+    "model": "opencode-go/kimi-k3"
+  },
+  {
+    "agent": "opencode",
+    "provider": "openrouter",
+    "envVar": "OPENROUTER_API_KEY",
+    "default": true,
+    "model": "openrouter/anthropic/claude-sonnet-5"
+  },
+  {
+    "agent": "opencode",
+    "provider": "xai",
+    "envVar": "XAI_API_KEY",
+    "default": true,
+    "model": "xai/grok-4.7"
+  }
+]

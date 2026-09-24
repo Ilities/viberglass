@@ -108,6 +108,21 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
     return new OpenCodeAgentEndpointEnvironment(settings);
   },
 
+  // OpenCode reads each provider's key from the env var models.dev names, and
+  // needs a `<provider>/<model>` because it serves many providers.
+  providers: [
+    { provider: "opencode-go", envVar: "OPENCODE_API_KEY", default: true, model: "opencode-go/kimi-k3" },
+    {
+      provider: "openrouter",
+      envVar: "OPENROUTER_API_KEY",
+      default: true,
+      model: "openrouter/anthropic/claude-sonnet-5",
+    },
+    { provider: "deepseek", envVar: "DEEPSEEK_API_KEY", default: true, model: "deepseek/deepseek-v4-pro" },
+    { provider: "xai", envVar: "XAI_API_KEY", default: true, model: "xai/grok-4.7" },
+    { provider: "groq", envVar: "GROQ_API_KEY", default: true, model: "groq/qwen/qwen3.8-27b" },
+  ],
+
   docker: {
     variant: "opencode",
     repositoryName: "viberator-worker-opencode",

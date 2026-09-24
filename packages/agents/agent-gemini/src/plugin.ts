@@ -38,6 +38,8 @@ const geminiCLIPlugin: AgentPlugin<GeminiConfig> = {
 
   stateDir: ".gemini",
 
+  providers: [{ provider: "google", envVar: "GEMINI_API_KEY", default: true }],
+
   docker: {
     variant: "gemini",
     repositoryName: "viberator-worker-gemini",
