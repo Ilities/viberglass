@@ -5,12 +5,20 @@ import {
   getDefaultAgentBindingForProvider,
   MODEL_PROVIDERS,
 } from "@viberglass/types";
-import { validateSetupModelKey } from "../middleware/validation";
+import {
+  validateSetupModelKey,
+  validateSetupRepository,
+  validateSetupSpace,
+} from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
 import { SetupModelKeyService } from "../../services/setup/SetupModelKeyService";
+import { SetupRepositoryService } from "../../services/setup/SetupRepositoryService";
+import { SetupSpaceService } from "../../services/setup/SetupSpaceService";
 
 const router = express.Router();
 const modelKeyService = new SetupModelKeyService();
+const repositoryService = new SetupRepositoryService();
+const spaceService = new SetupSpaceService();
 
 router.use(requireAuth);
 
@@ -48,6 +56,26 @@ router.post(
   asyncHandler(async (req, res) => {
     const saved = await modelKeyService.saveModelKey(req.body.provider, req.body.key);
     res.json({ success: true, data: saved });
+  }),
+);
+
+// POST /api/setup/repository - Check a GitHub token against a repository and save it as the connection's token
+router.post(
+  "/repository",
+  validateSetupRepository,
+  asyncHandler(async (req, res) => {
+    const saved = await repositoryService.saveRepository(req.body.repository, req.body.token);
+    res.json({ success: true, data: saved });
+  }),
+);
+
+// POST /api/setup/space - Create the first space on the connected repository
+router.post(
+  "/space",
+  validateSetupSpace,
+  asyncHandler(async (req, res) => {
+    const space = await spaceService.createSpace(req.body);
+    res.status(201).json({ success: true, data: space });
   }),
 );
 

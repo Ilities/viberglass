@@ -6,13 +6,12 @@ import {
   type AgentType,
   type ModelProviderId,
 } from "@viberglass/types";
-import { SecretDAO, type SecretLocation } from "../../persistence/secret/SecretDAO";
-import { SecretService, type SecretInput, type SecretUpdate } from "../SecretService";
 import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
 } from "../errors/SetupServiceError";
 import { ModelKeyChecker } from "./ModelKeyChecker";
+import { SetupSecretStore } from "./SetupSecretStore";
 
 export interface SavedModelKey {
   provider: ModelProviderId;
@@ -28,25 +27,15 @@ interface KeyChecker {
   check(provider: ModelProviderId, key: string): Promise<void>;
 }
 
-interface SecretLookup {
-  getSecretByName(name: string): Promise<{ id: string; secretLocation: SecretLocation } | null>;
-}
-
-interface SecretWriter {
-  createSecret(input: SecretInput): Promise<{ id: string }>;
-  updateSecret(id: string, updates: SecretUpdate): Promise<{ id: string }>;
-}
 
 /**
  * Setup step "Connect an AI model": checks the key with the provider, then
- * stores it encrypted in the database under the env var its default harness
- * reads. Saving again for the same provider replaces the stored key.
+ * saves it under the env var its default harness reads (see SetupSecretStore).
  */
 export class SetupModelKeyService {
   constructor(
     private readonly checker: KeyChecker = new ModelKeyChecker(),
-    private readonly secretLookup: SecretLookup = new SecretDAO(),
-    private readonly secretWriter: SecretWriter = new SecretService(),
+    private readonly secrets: Pick<SetupSecretStore, "saveByName"> = new SetupSecretStore(),
   ) {}
 
   async saveModelKey(providerId: ModelProviderId, rawKey: string): Promise<SavedModelKey> {
@@ -66,7 +55,7 @@ export class SetupModelKeyService {
     }
 
     await this.checker.check(providerId, key);
-    const secretId = await this.storeKey(binding.envVar, key);
+    const secretId = await this.secrets.saveByName(binding.envVar, key);
 
     return {
       provider: providerId,
@@ -76,27 +65,5 @@ export class SetupModelKeyService {
       secretId,
       secretName: binding.envVar,
     };
-  }
-
-  private async storeKey(secretName: string, key: string): Promise<string> {
-    const existing = await this.secretLookup.getSecretByName(secretName);
-    if (existing?.secretLocation === "env") {
-      throw new SetupServiceError(
-        SETUP_SERVICE_ERROR_CODE.SECRET_MANAGED_ELSEWHERE,
-        `${secretName} is read from the server's environment, so setup can't change it. Update it where the server is configured, or remove that secret under Settings → Secrets.`,
-      );
-    }
-    if (existing) {
-      // Keep the key where it's stored (database or SSM); moving it would delete the SSM copy.
-      const updated = await this.secretWriter.updateSecret(existing.id, { secretValue: key });
-      return updated.id;
-    }
-
-    const created = await this.secretWriter.createSecret({
-      name: secretName,
-      secretLocation: "database",
-      secretValue: key,
-    });
-    return created.id;
   }
 }

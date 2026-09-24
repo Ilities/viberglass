@@ -362,6 +362,17 @@ export const setupModelKeySchema = Joi.object({
   key: Joi.string().trim().min(1).max(1000).required(),
 });
 
+export const setupRepositorySchema = Joi.object({
+  repository: Joi.string().trim().min(1).max(500).required(),
+  token: Joi.string().trim().min(1).max(1000).required(),
+});
+
+export const setupSpaceSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(255).required(),
+  repository: Joi.string().trim().min(1).max(500).required(),
+  baseBranch: Joi.string().trim().min(1).max(255).optional(),
+});
+
 export const secretSchema = Joi.object({
   name: Joi.string().pattern(secretNamePattern).min(1).max(255).required(),
   secretLocation: Joi.string().valid("env", "database", "ssm").required(),
