@@ -4,6 +4,7 @@ import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
 } from "../errors/SetupServiceError";
+import { resolveKeyCheckUrl } from "./modelProviderAvailability";
 
 const logger = createChildLogger({ service: "ModelKeyChecker" });
 const CHECK_TIMEOUT_MS = 10_000;
@@ -38,10 +39,17 @@ export class ModelKeyChecker {
   async check(providerId: ModelProviderId, key: string): Promise<void> {
     const provider = getModelProvider(providerId);
     const name = provider.displayName;
+    const url = resolveKeyCheckUrl(provider);
+    if (!url) {
+      throw new SetupServiceError(
+        SETUP_SERVICE_ERROR_CODE.PROVIDER_UNAVAILABLE,
+        `${name} isn't available on this server.`,
+      );
+    }
 
     let status: number;
     try {
-      const response = await this.fetchFn(provider.keyCheck.url, buildRequest(provider, key));
+      const response = await this.fetchFn(url, buildRequest(provider, key));
       status = response.status;
     } catch (error) {
       logger.warn("Model key check could not reach the provider", {

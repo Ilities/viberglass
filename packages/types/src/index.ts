@@ -32,6 +32,9 @@ export * from './workerImages'
 export * from './modelProviders'
 export * from './agentProviders'
 
+// First-run setup API
+export * from './setup'
+
 // Secret types
 export * from './secret'
 

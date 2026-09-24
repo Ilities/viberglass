@@ -1,6 +1,33 @@
-import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
+import {
+  NoopAgentEndpointEnvironment,
+  type AgentEndpointEnvironment,
+  type AgentPlugin,
+  type IAgentGitService,
+} from "@viberglass/agent-core";
 import type { KimiCodeConfig } from "./config";
+import { KimiAgentEndpointEnvironment } from "./KimiAgentEndpointEnvironment";
 import { KimiCodeAgent } from "./KimiCodeAgent";
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/** The runner's `agent.endpoint` / `agent.model` (v1 config), e.g. Moonshot's platform API instead of Kimi Code. */
+function resolveKimiSettings(clankerConfig?: Record<string, unknown>): { endpoint?: string; model?: string } {
+  if (!clankerConfig) return {};
+  const deploymentConfig = isObjectRecord(clankerConfig.deploymentConfig)
+    ? clankerConfig.deploymentConfig
+    : clankerConfig;
+  const agent = isObjectRecord(deploymentConfig.agent) ? deploymentConfig.agent : undefined;
+  if (deploymentConfig.version !== 1 || agent?.type !== "kimi-code") return {};
+  return { endpoint: toNonEmptyString(agent.endpoint), model: toNonEmptyString(agent.model) };
+}
 
 const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
   id: "kimi-code",
@@ -30,7 +57,7 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
       maxDiskSpaceMB: 1024,
       maxNetworkRequests: 120,
     },
-    model: "kimi-k2",
+    // No model here: KimiCodeAgent defaults to Kimi Code's model, and a runner can set one.
     temperature: 0.0,
   },
 
@@ -40,6 +67,14 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
   },
 
   stateDir: ".kimi",
+
+  endpointEnvironment(ctx): AgentEndpointEnvironment {
+    const settings = resolveKimiSettings(ctx.clankerConfig);
+    if (!settings.endpoint && !settings.model) {
+      return new NoopAgentEndpointEnvironment();
+    }
+    return new KimiAgentEndpointEnvironment(settings);
+  },
 
   providers: [
     { provider: "kimi-code", envVar: "KIMI_API_KEY", default: true },

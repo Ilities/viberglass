@@ -111,7 +111,7 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
   // OpenCode reads each provider's key from the env var models.dev names, and
   // needs a `<provider>/<model>` because it serves many providers.
   providers: [
-    { provider: "opencode-go", envVar: "OPENCODE_API_KEY", default: true, model: "opencode-go/kimi-k3" },
+    { provider: "opencode-go", envVar: "OPENCODE_API_KEY", default: true, model: "opencode-go/deepseek-v4.1-flash" },
     {
       provider: "openrouter",
       envVar: "OPENROUTER_API_KEY",

@@ -10,6 +10,10 @@ export const E2E = {
   /** Used only by the late-database journey, which runs its own backend. */
   lateBackendPort: 8990,
   latePostgresPort: 5434,
+  /** Used only by the first-run setup journey: its own empty workspace, plus a stub for GitHub and the test model provider. */
+  firstRunBackendPort: 8991,
+  firstRunPostgresPort: 5435,
+  setupStubPort: 8992,
   get frontendUrl() {
     return `http://localhost:${this.frontendPort}`;
   },

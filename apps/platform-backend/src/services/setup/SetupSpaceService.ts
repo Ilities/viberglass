@@ -1,4 +1,5 @@
 import type {
+  CreatedSpace,
   Integration,
   IntegrationCredential,
   ProjectScmConfig,
@@ -17,21 +18,13 @@ import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
 } from "../errors/SetupServiceError";
-import { parseGitHubRepository, type GitHubRepositoryRef } from "./gitHubRepository";
+import { parseGitHubRepository } from "./gitHubRepository";
 
 export interface CreateSpaceInput {
   name: string;
   /** From the repository step. */
   repository: string;
   baseBranch?: string;
-}
-
-export interface CreatedSpace {
-  projectId: string;
-  name: string;
-  slug: string;
-  repositoryUrl: string;
-  baseBranch: string;
 }
 
 type NewProject = Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">;
@@ -59,12 +52,20 @@ interface Credentials {
   getDefaultForIntegration(integrationId: string): Promise<IntegrationCredential | null>;
 }
 
-function sameRepository(a: GitHubRepositoryRef, b: GitHubRepositoryRef | null): boolean {
-  return (
-    b !== null &&
-    a.owner.toLowerCase() === b.owner.toLowerCase() &&
-    a.repo.toLowerCase() === b.repo.toLowerCase()
-  );
+/**
+ * The repository's address: the URL the repository step returned (GitHub's
+ * `html_url`, so Enterprise hosts work), or `owner/repo` on github.com.
+ */
+function toRepositoryUrl(input: string): string | null {
+  const trimmed = input.trim().replace(/\/+$/, "");
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const ref = parseGitHubRepository(trimmed);
+  return ref ? `https://github.com/${ref.owner}/${ref.repo}` : null;
+}
+
+function sameRepository(a: string, b: string): boolean {
+  const normalize = (url: string) => url.trim().toLowerCase().replace(/\/+$/, "").replace(/\.git$/, "");
+  return normalize(a) === normalize(b);
 }
 
 /**
@@ -91,8 +92,8 @@ export class SetupSpaceService {
         "Give the space a name with at least one letter or number.",
       );
     }
-    const ref = parseGitHubRepository(input.repository);
-    if (!ref) {
+    const repositoryUrl = toRepositoryUrl(input.repository);
+    if (!repositoryUrl) {
       throw new SetupServiceError(
         SETUP_SERVICE_ERROR_CODE.REPOSITORY_INVALID,
         "Enter the repository as owner/name or its GitHub address, for example acme/web.",
@@ -100,11 +101,10 @@ export class SetupSpaceService {
     }
     const { integration, credential } = await this.getGitHubConnection();
 
-    const project = await this.findOrCreateProject(name, slug, ref);
+    const project = await this.findOrCreateProject(name, slug, repositoryUrl);
     if (!(await this.links.isLinked(project.id, integration.id))) {
       await this.links.linkIntegration({ projectId: project.id, integrationId: integration.id, isPrimary: true });
     }
-    const repositoryUrl = `https://github.com/${ref.owner}/${ref.repo}`;
     const baseBranch = input.baseBranch?.trim() || "main";
     await this.scmConfigs.upsertByProjectId(project.id, {
       integrationId: integration.id,
@@ -131,7 +131,7 @@ export class SetupSpaceService {
   private async findOrCreateProject(
     name: string,
     slug: string,
-    ref: GitHubRepositoryRef,
+    repositoryUrl: string,
   ): Promise<ProjectConfig> {
     const existing = await this.projects.findByName(slug);
     if (!existing) {
@@ -146,8 +146,7 @@ export class SetupSpaceService {
     }
 
     const scmConfig = await this.scmConfigs.getByProjectId(existing.id);
-    const repositoryInUse = scmConfig ? parseGitHubRepository(scmConfig.sourceRepository) : null;
-    if (existing.archivedAt || (scmConfig && !sameRepository(ref, repositoryInUse))) {
+    if (existing.archivedAt || (scmConfig && !sameRepository(repositoryUrl, scmConfig.sourceRepository))) {
       throw new SetupServiceError(
         SETUP_SERVICE_ERROR_CODE.SPACE_EXISTS,
         `There's already a space called "${existing.name}"${existing.archivedAt ? " (archived)" : ""}. Choose another name.`,

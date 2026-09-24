@@ -84,6 +84,10 @@ services:
       WEBHOOK_SECRET_ENCRYPTION_KEY: 'very-berry-webhook-key'
       SESSION_STATE_ROOT: /tmp/viberglass-session-state
       PLATFORM_FRONTEND_URL: http://localhost:3000
+      # Where pre-built worker images come from (publish-worker-images.yml). Runners
+      # without an explicit image pull `<registry>/viberator-worker-<agent>:latest`.
+      # Set it empty to use images built locally under their bare names instead.
+      VIBERATOR_WORKER_REGISTRY: ${VIBERATOR_WORKER_REGISTRY-ghcr.io/ilities}
       # OpenTelemetry. Empty means unset; tracing is off unless one is set.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}

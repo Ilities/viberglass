@@ -3,8 +3,8 @@ import {
   describeModelKeyFormatProblem,
   getDefaultAgentBindingForProvider,
   getModelProvider,
-  type AgentType,
   type ModelProviderId,
+  type SavedModelKey,
 } from "@viberglass/types";
 import {
   SETUP_SERVICE_ERROR_CODE,
@@ -12,16 +12,6 @@ import {
 } from "../errors/SetupServiceError";
 import { ModelKeyChecker } from "./ModelKeyChecker";
 import { SetupSecretStore } from "./SetupSecretStore";
-
-export interface SavedModelKey {
-  provider: ModelProviderId;
-  providerName: string;
-  /** The harness setup will run this key with. */
-  agent: AgentType;
-  agentName: string;
-  secretId: string;
-  secretName: string;
-}
 
 interface KeyChecker {
   check(provider: ModelProviderId, key: string): Promise<void>;

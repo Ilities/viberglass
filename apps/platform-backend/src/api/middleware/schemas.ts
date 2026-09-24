@@ -367,6 +367,12 @@ export const setupRepositorySchema = Joi.object({
   token: Joi.string().trim().min(1).max(1000).required(),
 });
 
+export const setupAgentSchema = Joi.object({
+  provider: Joi.string()
+    .valid(...MODEL_PROVIDERS.map((provider) => provider.id))
+    .required(),
+});
+
 export const setupSpaceSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).required(),
   repository: Joi.string().trim().min(1).max(500).required(),

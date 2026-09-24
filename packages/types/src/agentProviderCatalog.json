@@ -33,6 +33,12 @@
     "model": "deepseek/deepseek-v4-pro"
   },
   {
+    "agent": "fake",
+    "provider": "fake",
+    "envVar": "FAKE_API_KEY",
+    "default": true
+  },
+  {
     "agent": "gemini-cli",
     "provider": "google",
     "envVar": "GEMINI_API_KEY",
@@ -76,7 +82,7 @@
     "provider": "opencode-go",
     "envVar": "OPENCODE_API_KEY",
     "default": true,
-    "model": "opencode-go/kimi-k3"
+    "model": "opencode-go/deepseek-v4.1-flash"
   },
   {
     "agent": "opencode",

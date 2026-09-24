@@ -24,6 +24,7 @@ export type ModelProviderId =
   | 'deepseek'
   | 'xai'
   | 'groq'
+  | 'fake'
 
 /** How the key is sent on the check request. */
 export type ModelKeyAuth = { scheme: 'bearer' } | { scheme: 'header'; header: string }
@@ -31,6 +32,11 @@ export type ModelKeyAuth = { scheme: 'bearer' } | { scheme: 'header'; header: st
 export interface ModelKeyCheck {
   /** A request that needs a valid key: usually GET on the model list. */
   url: string
+  /**
+   * Env var holding the base URL that `url` is relative to. A provider with
+   * one is offered only when the variable is set (used by the test provider).
+   */
+  baseUrlEnv?: string
   auth: ModelKeyAuth
   headers?: Record<string, string>
   /**
@@ -136,7 +142,7 @@ export const MODEL_PROVIDERS: readonly ModelProvider[] = [
     keyCheck: {
       url: 'https://opencode.ai/zen/go/v1/chat/completions',
       auth: bearer,
-      post: { body: { model: 'kimi-k3', messages: [] }, acceptedStatuses: [400] },
+      post: { body: { model: 'deepseek-v4.1-flash', messages: [] }, acceptedStatuses: [400] },
     },
   },
   {
@@ -160,6 +166,14 @@ export const MODEL_PROVIDERS: readonly ModelProvider[] = [
     keyUrl: 'https://console.x.ai',
     keyPrefixes: ['xai-'],
     keyCheck: { url: 'https://api.x.ai/v1/models', auth: bearer },
+  },
+  {
+    // Test only (e2e): runs on the fake agent; offered when its check URL is configured.
+    id: 'fake',
+    displayName: 'Fake provider (tests)',
+    keyUrl: 'https://example.invalid/keys',
+    keyPrefixes: [],
+    keyCheck: { url: '/v1/models', auth: bearer, baseUrlEnv: 'VIBERGLASS_FAKE_PROVIDER_URL' },
   },
   {
     id: 'groq',

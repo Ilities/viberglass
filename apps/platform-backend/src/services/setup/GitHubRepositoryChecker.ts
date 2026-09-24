@@ -1,4 +1,4 @@
-import { isObjectRecord } from "@viberglass/types";
+import { isObjectRecord, type RepositoryAccess } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import {
   SETUP_SERVICE_ERROR_CODE,
@@ -12,13 +12,6 @@ const WRITE_ACCESS_HINT =
   "Give it write access: for a fine-grained token, set Contents and Pull requests to Read and write; for a classic token, add the repo scope.";
 
 type Fetch = (url: string, init: RequestInit) => Promise<Pick<Response, "status" | "headers" | "json">>;
-
-export interface RepositoryAccess {
-  fullName: string;
-  url: string;
-  defaultBranch: string;
-  isPrivate: boolean;
-}
 
 function readString(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
@@ -35,13 +28,21 @@ function readString(record: Record<string, unknown>, key: string): string | unde
  * when the first pull request is opened.
  */
 export class GitHubRepositoryChecker {
-  constructor(private readonly fetchFn: Fetch = fetch) {}
+  private readonly apiBaseUrl: string;
+
+  constructor(
+    private readonly fetchFn: Fetch = fetch,
+    // GitHub Enterprise, or a stub in the e2e suite.
+    apiBaseUrl: string = process.env.GITHUB_API_URL || "https://api.github.com",
+  ) {
+    this.apiBaseUrl = apiBaseUrl.replace(/\/+$/, "");
+  }
 
   async check(ref: GitHubRepositoryRef, token: string): Promise<RepositoryAccess> {
     const name = `${ref.owner}/${ref.repo}`;
     let response: Awaited<ReturnType<Fetch>>;
     try {
-      response = await this.fetchFn(`https://api.github.com/repos/${name}`, {
+      response = await this.fetchFn(`${this.apiBaseUrl}/repos/${name}`, {
         method: "GET",
         headers: {
           Accept: "application/vnd.github+json",
@@ -94,11 +95,11 @@ export class GitHubRepositoryChecker {
       );
     }
 
-    // GitHub's canonical owner/name (case, renames) rather than what was typed.
+    // GitHub's canonical owner/name and address (case, renames, Enterprise hosts) rather than what was typed.
     const fullName = readString(repository, "full_name") ?? name;
     return {
       fullName,
-      url: `https://github.com/${fullName}`,
+      url: readString(repository, "html_url") ?? `https://github.com/${fullName}`,
       defaultBranch: readString(repository, "default_branch") ?? "main",
       isPrivate,
     };

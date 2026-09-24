@@ -26,6 +26,8 @@ const fakePlugin: AgentPlugin<FakeConfig> = {
 
   stateDir: ".fake",
 
+  providers: [{ provider: "fake", envVar: "FAKE_API_KEY", default: true }],
+
   docker: {
     variant: "fake",
     repositoryName: "viberator-worker-fake",

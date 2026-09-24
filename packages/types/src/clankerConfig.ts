@@ -106,19 +106,26 @@ export interface OpenCodeAgentConfig {
   model?: string;
 }
 
+export interface KimiAgentConfig {
+  type: "kimi-code";
+  endpoint?: string;
+  model?: string;
+}
+
 export interface GeminiAgentConfig {
   type: "gemini-cli";
   model?: string;
 }
 
 export interface GenericAgentConfig {
-  type: Exclude<AgentType, "codex" | "qwen-cli" | "opencode" | "gemini-cli">;
+  type: Exclude<AgentType, "codex" | "qwen-cli" | "opencode" | "kimi-code" | "gemini-cli">;
 }
 
 export type ClankerAgentConfig =
   | CodexAgentConfig
   | QwenAgentConfig
   | OpenCodeAgentConfig
+  | KimiAgentConfig
   | GeminiAgentConfig
   | GenericAgentConfig;
 
