@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
+import { MODEL_PROVIDERS, SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -354,6 +354,13 @@ export const logBatchSchema = Joi.object({
 });
 
 const secretNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+export const setupModelKeySchema = Joi.object({
+  provider: Joi.string()
+    .valid(...MODEL_PROVIDERS.map((provider) => provider.id))
+    .required(),
+  key: Joi.string().trim().min(1).max(1000).required(),
+});
 
 export const secretSchema = Joi.object({
   name: Joi.string().pattern(secretNamePattern).min(1).max(255).required(),

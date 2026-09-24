@@ -159,6 +159,7 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `acpEventMapper` | — | Custom ACP event mapper. Falls back to the generic mapper if absent. |
 | `authLifecycle(ctx)` | — | Returns an `AgentAuthLifecycle` for agents that require device auth (e.g. Codex). |
 | `endpointEnvironment(ctx)` | — | Returns an `AgentEndpointEnvironment` for agents whose API endpoint is resolved at runtime. |
+| `providers` | — | Model providers this harness can run: `{ provider, envVar, default?, model?, endpoint? }`. `provider` is an id from `MODEL_PROVIDERS` (`packages/types/src/modelProviders.ts`); `envVar` is where the harness reads the key, and setup stores the key as a secret with that name. Exactly one harness is `default` per provider; setup uses it for pasted keys. `model`/`endpoint` go into the runner config when the harness can't infer them. Feeds `agentProviderCatalog.json`. |
 | `docker.variant` | ✅ | Docker image variant name (e.g. `"aider"`). Used as filename: `generated/aider.Dockerfile`. |
 | `docker.repositoryName` | ✅ | ECR repository name (e.g. `"viberator-worker-aider"`). |
 | `docker.scriptImageName` | ✅ | Short name used in build/push scripts (e.g. `"worker-aider"`). |
@@ -170,6 +171,10 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 ---
 
 ## Generated Artifacts
+
+### `agentProviderCatalog.json`
+
+`packages/types/src/agentProviderCatalog.json` lists which harness runs which provider's keys, from each plugin's `providers`. The same `npm run generate:catalog` writes it, and fails when a plugin names a provider missing from `MODEL_PROVIDERS` or a provider doesn't have exactly one default harness. A new provider is a `MODEL_PROVIDERS` entry (display name, key page, distinctive key prefixes, key check request) plus a binding in the harness that runs it.
 
 ### `workerImageCatalog.json`
 

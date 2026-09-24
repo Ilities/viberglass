@@ -28,6 +28,10 @@ export * from './claw'
 // Worker image catalog and agent/image resolution helpers
 export * from './workerImages'
 
+// Model providers and which harness runs each provider's keys
+export * from './modelProviders'
+export * from './agentProviders'
+
 // Secret types
 export * from './secret'
 

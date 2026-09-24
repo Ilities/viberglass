@@ -41,6 +41,8 @@ const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
 
   stateDir: ".claude",
 
+  providers: [{ provider: "anthropic", envVar: "ANTHROPIC_API_KEY", default: true }],
+
   docker: {
     variant: "claude",
     repositoryName: "viberator-worker",

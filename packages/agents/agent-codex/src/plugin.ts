@@ -71,6 +71,8 @@ const codexPlugin: AgentPlugin<CodexConfig> = {
     });
   },
 
+  providers: [{ provider: "openai", envVar: "OPENAI_API_KEY", default: true }],
+
   docker: {
     variant: "codex",
     repositoryName: "viberator-worker-codex",

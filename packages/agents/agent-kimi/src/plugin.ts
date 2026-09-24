@@ -41,6 +41,17 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
 
   stateDir: ".kimi",
 
+  providers: [
+    { provider: "kimi-code", envVar: "KIMI_API_KEY", default: true },
+    {
+      provider: "moonshotai",
+      envVar: "MOONSHOT_API_KEY",
+      default: true,
+      endpoint: "https://api.moonshot.ai/v1",
+      model: "kimi-k3",
+    },
+  ],
+
   docker: {
     variant: "kimi",
     repositoryName: "viberator-worker-kimi",

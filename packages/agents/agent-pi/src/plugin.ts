@@ -40,6 +40,8 @@ const piPlugin: AgentPlugin<PiConfig> = {
 
   harnessConfigPatterns: ["pi/models.json"],
 
+  providers: [{ provider: "anthropic", envVar: "ANTHROPIC_API_KEY" }],
+
   docker: {
     variant: "pi",
     repositoryName: "viberator-worker-pi",

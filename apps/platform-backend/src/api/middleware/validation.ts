@@ -21,6 +21,7 @@ import {
   logBatchSchema,
   secretSchema,
   updateSecretSchema,
+  setupModelKeySchema,
   integrationConfigSchema,
   registerSchema,
   createUserSchema,
@@ -142,6 +143,9 @@ export const validateLogEntry = createValidator(logEntrySchema);
 export const validateLogBatch = createValidator(logBatchSchema);
 export const validateCreateSecret = createValidator(secretSchema);
 export const validateUpdateSecret = createValidator(updateSecretSchema);
+export const validateSetupModelKey = createValidator(setupModelKeySchema, {
+  name: "setupModelKey",
+});
 export const validateIntegrationConfig = createValidator(
   integrationConfigSchema,
 );
