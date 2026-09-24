@@ -177,4 +177,16 @@ describe("SetupSpaceService", () => {
       code: SETUP_SERVICE_ERROR_CODE.SPACE_NAME_INVALID,
     });
   });
+
+  it("keeps the address the repository step returned, such as a GitHub Enterprise host", async () => {
+    const { service, upsertByProjectId } = build();
+
+    const space = await service.createSpace({ name: "Web", repository: "https://github.acme.internal/web/app/" });
+
+    expect(upsertByProjectId).toHaveBeenCalledWith(
+      "project-1",
+      expect.objectContaining({ sourceRepository: "https://github.acme.internal/web/app" }),
+    );
+    expect(space.repositoryUrl).toBe("https://github.acme.internal/web/app");
+  });
 });

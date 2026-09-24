@@ -52,6 +52,7 @@ describe("setup routes", () => {
         agentName: "OpenCode",
       }),
     );
+    expect(response.body.data.map((provider: { id: string }) => provider.id)).not.toContain("fake");
   });
 
   it("saves a model key", async () => {

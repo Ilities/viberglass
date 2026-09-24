@@ -197,6 +197,7 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Failures read by cause: agent failures offer a retry, a missing document is named, a setup failure sends admins to the fix and tells members an admin is needed | `failure-copy.e2e.test.ts` |
 | Members can't reach secrets, runner changes or project deletion, and don't see plumbing | `member-permissions.e2e.test.ts` |
 | A backend that starts before Postgres recovers once it is up | `late-database.e2e.test.ts` |
+| On an empty workspace, the first admin goes through setup (a wrong key is explained; key → repository → space → agent) and the first task's research document appears | `first-run-setup.e2e.test.ts` |
 
 ### One-time setup
 
@@ -221,11 +222,20 @@ npm run test:legacy -w @viberator/e2e-tests   # quarantined older specs
 
 The suite runs beside the dev stack. It uses its own ports: frontend 3100,
 backend 8988, Postgres 5433, git fixture 8989, and 8990/5434 for the
-late-database journey. `npx playwright test` on its own refuses to run
+late-database journey, and 8991/5435 plus a stub on 8992 for the first-run
+setup journey. `npx playwright test` on its own refuses to run
 against a database that isn't empty; use `npm run test:e2e`, which resets it.
 
 ### How it works
 
+- **First run.** The seeded workspace is already set up, so the setup journey
+  starts its own backend on an empty database (`FirstRunScenario`) and reroutes
+  the page's API calls to it. Setup's outside checks go to `SetupStubServer`
+  through real configuration: `GITHUB_API_URL` for the GitHub API, and
+  `VIBERGLASS_FAKE_PROVIDER_URL` for the test-only "Fake provider (tests)",
+  which runs on the fake agent and is offered only when that variable is set.
+  The stub's repository points at the git fixture, so research really runs.
+  That backend's output goes to `test-results/first-run-backend.log`.
 - **Stack.** `docker-compose.e2e.yaml` runs Postgres on a tmpfs, so each run
   starts empty. Playwright starts the backend (`tsx`) and frontend (Vite) on the
   host. Workers reach the backend through `host.docker.internal`.

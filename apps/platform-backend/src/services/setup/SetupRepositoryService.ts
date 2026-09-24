@@ -1,6 +1,8 @@
 import type {
   Integration,
   IntegrationCredential,
+  RepositoryAccess,
+  SavedRepository,
   UpdateIntegrationCredentialRequest,
 } from "@viberglass/types";
 import {
@@ -15,16 +17,11 @@ import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
 } from "../errors/SetupServiceError";
-import { GitHubRepositoryChecker, type RepositoryAccess } from "./GitHubRepositoryChecker";
+import { GitHubRepositoryChecker } from "./GitHubRepositoryChecker";
 import { parseGitHubRepository, type GitHubRepositoryRef } from "./gitHubRepository";
 import { SetupSecretStore } from "./SetupSecretStore";
 
 const TOKEN_SECRET_NAME = "GITHUB_TOKEN";
-
-export interface SavedRepository extends RepositoryAccess {
-  integrationId: string;
-  credentialId: string;
-}
 
 interface RepositoryChecker {
   check(ref: GitHubRepositoryRef, token: string): Promise<RepositoryAccess>;

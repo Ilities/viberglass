@@ -207,8 +207,8 @@ console.log(
 
 // Provider bindings: which harness runs which provider's keys.
 const knownProviders = new Set<string>(MODEL_PROVIDERS.map((p) => p.id));
+// Test-only plugins bind the test-only provider, so they're included here.
 const providerBindings = loadedPlugins
-  .filter((p) => !p.docker.testOnly)
   .flatMap((p) =>
     p.providers.map((binding) => {
       if (!knownProviders.has(binding.provider)) {

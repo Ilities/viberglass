@@ -38,7 +38,7 @@ describe("ModelKeyChecker", () => {
       expect.objectContaining({
         method: "POST",
         headers: { Authorization: "Bearer key-123", "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "kimi-k3", messages: [] }),
+        body: JSON.stringify({ model: "deepseek-v4.1-flash", messages: [] }),
       }),
     );
   });
@@ -71,6 +71,27 @@ describe("ModelKeyChecker", () => {
       code: SETUP_SERVICE_ERROR_CODE.PROVIDER_UNREACHABLE,
       statusCode: 502,
       message: expect.stringContaining("Couldn't reach OpenAI"),
+    });
+  });
+
+  describe("the test provider", () => {
+    afterEach(() => {
+      delete process.env.VIBERGLASS_FAKE_PROVIDER_URL;
+    });
+
+    it("isn't available unless its check URL is configured", async () => {
+      await expect(new ModelKeyChecker(respondWith(200)).check("fake", "k")).rejects.toMatchObject({
+        code: SETUP_SERVICE_ERROR_CODE.PROVIDER_UNAVAILABLE,
+      });
+    });
+
+    it("checks against the configured URL", async () => {
+      process.env.VIBERGLASS_FAKE_PROVIDER_URL = "http://localhost:8992/";
+      const fetchFn = respondWith(200);
+
+      await new ModelKeyChecker(fetchFn).check("fake", "k");
+
+      expect(fetchFn).toHaveBeenCalledWith("http://localhost:8992/v1/models", expect.anything());
     });
   });
 });

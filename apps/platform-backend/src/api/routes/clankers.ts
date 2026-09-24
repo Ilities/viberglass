@@ -10,17 +10,18 @@ import {
   validateUuidParam,
 } from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
-import logger from "../../config/logger";
 import {
   ClankerServiceError,
   CLANKER_SERVICE_ERROR_CODE,
 } from "../../services/errors/ClankerServiceError";
 import { nextClankerStatus } from "../../services/clankerStatusTransition";
+import { ClankerStartService } from "../../services/ClankerStartService";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
 const healthService = new ClankerHealthService();
 const provisioningService = getClankerProvisioner();
+const startService = new ClankerStartService(clankerService, provisioningService);
 
 router.use(requireAuth);
 
@@ -169,82 +170,9 @@ router.post(
   validateUuidParam("id"),
   asyncHandler(async (req, res) => {
     const clanker = await requireClanker(req.params.id);
-
-    if (clanker.status === "active") {
-      throw new ClankerServiceError(
-        CLANKER_SERVICE_ERROR_CODE.ALREADY_ACTIVE,
-        "Clanker is already active",
-      );
-    }
-    if (clanker.status === "deploying") {
-      throw new ClankerServiceError(
-        CLANKER_SERVICE_ERROR_CODE.ALREADY_DEPLOYING,
-        "Clanker is already deploying",
-      );
-    }
-
-    const preflightError =
-      provisioningService.getProvisioningPreflightError(clanker);
-    if (preflightError) {
-      throw new ClankerServiceError(
-        CLANKER_SERVICE_ERROR_CODE.PROVISIONING_CONFIG_ERROR,
-        preflightError,
-      );
-    }
-
-    const updatedClanker = await clankerService.updateStatus(
-      req.params.id,
-      "deploying",
-      "Starting clanker...",
-    );
-
-    // Run provisioning asynchronously so UI can observe progress updates.
-    void (async () => {
-      try {
-        const provisioned = await provisioningService.provision(
-          updatedClanker,
-          async (statusMessage) => {
-            try {
-              await clankerService.updateStatus(
-                updatedClanker.id,
-                "deploying",
-                statusMessage,
-              );
-            } catch (statusError) {
-              logger.warn("Failed to persist clanker provisioning progress", {
-                clankerId: updatedClanker.id,
-                statusMessage,
-                error:
-                  statusError instanceof Error
-                    ? statusError.message
-                    : String(statusError),
-              });
-            }
-          },
-        );
-
-        await clankerService.updateClanker(updatedClanker.id, {
-          deploymentConfig:
-            provisioned.deploymentConfig ??
-            updatedClanker.deploymentConfig ??
-            null,
-          status: provisioned.status,
-          statusMessage: provisioned.statusMessage ?? null,
-        });
-      } catch (provisioningError) {
-        const message =
-          provisioningError instanceof Error
-            ? provisioningError.message
-            : "Provisioning failed";
-        await clankerService.updateStatus(updatedClanker.id, "failed", message);
-        logger.error("Failed to provision clanker resources", {
-          clankerId: updatedClanker.id,
-          error: message,
-        });
-      }
-    })();
-
-    res.status(202).json({ success: true, data: updatedClanker });
+    // Provisioning continues in the background so the UI can observe progress updates.
+    const { clanker: deploying } = await startService.start(clanker);
+    res.status(202).json({ success: true, data: deploying });
   }),
 );
 

@@ -23,6 +23,7 @@ import {
 import { EmptyBay } from '@/pages/dashboard/EmptyBay'
 import { ProjectConstellationCard } from '@/pages/dashboard/ProjectConstellationCard'
 import { clankerStatusColor, getBroadcastLine } from '@/pages/dashboard/projectSignals'
+import { useSetupRedirect } from '@/pages/setup/useSetupRedirect'
 import type { FeedItem, ProjectActivity } from '@/pages/dashboard/types'
 import { PlusIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useState } from 'react'
@@ -37,6 +38,7 @@ function MetricCard({ label, value }: { label: string; value: string | number })
 }
 
 export function DashboardPage() {
+  useSetupRedirect()
   const [projects, setProjects] = useState<Project[]>([])
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [ticketStats, setTicketStats] = useState<TicketStats | null>(null)

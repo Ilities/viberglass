@@ -92,4 +92,13 @@ describe("GitHubRepositoryChecker", () => {
       code: SETUP_SERVICE_ERROR_CODE.GITHUB_UNREACHABLE,
     });
   });
+
+  it("uses GitHub's address for the repository and a configured API base", async () => {
+    const fetchFn = respondWith(200, { ...writableRepository, html_url: "https://github.acme.internal/Acme/web" });
+
+    const access = await new GitHubRepositoryChecker(fetchFn, "https://github.acme.internal/api/v3/").check(REF, "t");
+
+    expect(fetchFn).toHaveBeenCalledWith("https://github.acme.internal/api/v3/repos/acme/web", expect.anything());
+    expect(access.url).toBe("https://github.acme.internal/Acme/web");
+  });
 });
