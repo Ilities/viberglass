@@ -4,7 +4,14 @@ import type {
   BuildDockerImageParams,
   DockerClientPort,
   DockerImageInspection,
+  DockerPullEvent,
+  PullDockerImageParams,
 } from "../ports/DockerClientPort";
+
+interface DockerProgressEvent extends DockerPullEvent {
+  error?: string;
+  errorDetail?: { message?: string };
+}
 
 interface DockerBuildEvent {
   stream?: string;
@@ -16,8 +23,6 @@ export class DockerodeClientAdapter implements DockerClientPort {
   constructor(private readonly docker: Docker = new Docker({ socketPath: "/var/run/docker.sock" })) {}
 
   async buildImage(params: BuildDockerImageParams): Promise<void> {
-
-
     const tarStream = tar.pack(params.repoRoot, {
       ignore: (name: string) =>
         name.includes("/node_modules/") ||
@@ -62,6 +67,36 @@ export class DockerodeClientAdapter implements DockerClientPort {
           if (line && params.onEvent) {
             params.onEvent(line);
           }
+        },
+      );
+    });
+  }
+
+  async pullImage(params: PullDockerImageParams): Promise<void> {
+    const stream = await this.docker.pull(params.image);
+
+    await new Promise<void>((resolve, reject) => {
+      let pullError: string | undefined;
+
+      this.docker.modem.followProgress(
+        stream,
+        (error: Error | null) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          if (pullError) {
+            reject(new Error(pullError));
+            return;
+          }
+          resolve();
+        },
+        (event: DockerProgressEvent) => {
+          if (event.error) {
+            pullError = event.errorDetail?.message?.trim() || event.error.trim();
+            return;
+          }
+          params.onEvent?.({ status: event.status, id: event.id });
         },
       );
     });

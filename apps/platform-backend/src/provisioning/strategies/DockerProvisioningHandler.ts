@@ -1,48 +1,44 @@
-import path from "path";
-import type { Clanker } from "@viberglass/types";
-import { createChildLogger } from "../../config/logger";
+import type { Clanker, DockerStrategyConfig } from "@viberglass/types";
 import { mergeProvisionedStrategyIntoConfig } from "../../clanker-config/mergeProvisionedConfig";
 import type { ProvisioningStrategyHandler } from "../ProvisioningStrategyHandler";
 import type { DockerClientPort } from "../ports/DockerClientPort";
-import {
-  WORKER_DOCKERFILE_PATH,
-  resolveRepoRoot,
-} from "../shared/repoRoot";
+import { resolveRepoRoot } from "../shared/repoRoot";
 import {
   getDockerStrategyConfig,
 } from "../shared/configHelpers";
 import { getWorkerImageForClanker } from "../shared/workerImage";
-import { getErrorMessage, getNumericErrorCode } from "../shared/errorUtils";
+import { getErrorMessage, isMissingDockerImageError } from "../shared/errorUtils";
 import type {
   AvailabilityResult,
   ProvisioningProgressReporter,
   ProvisioningResult,
 } from "../types";
-import type {
-  DockerBuildResult,
-  DockerImageMetadata,
-} from "./dockerTypes";
+import type { DockerImageMetadata } from "./dockerTypes";
+import { DockerImageBuilder } from "./DockerImageBuilder";
+import { DockerImagePuller } from "./DockerImagePuller";
 
-const logger = createChildLogger({ service: "DockerProvisioningHandler" });
 const DEFAULT_LOCAL_DOCKER_IMAGE = "viberator-worker:local";
 
-function shouldReportDockerMilestone(line: string): boolean {
-  return (
-    line.startsWith("Step ") ||
-    line.startsWith("Successfully") ||
-    line.startsWith("exporting") ||
-    line.startsWith("naming to")
-  );
-}
-
+/**
+ * Managed mode builds the worker image under the runner's tag. Pre-built mode
+ * never builds: it uses the image as is and pulls it when it isn't local.
+ */
 export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
-  private readonly repoRoot: string;
+  private readonly imageBuilder: DockerImageBuilder;
+  private readonly imagePuller: DockerImagePuller;
 
   constructor(
     private readonly dockerClient: DockerClientPort,
-    options?: { repoRoot?: string },
+    options?: {
+      repoRoot?: string;
+      imageBuilder?: DockerImageBuilder;
+      imagePuller?: DockerImagePuller;
+    },
   ) {
-    this.repoRoot = options?.repoRoot || resolveRepoRoot();
+    this.imageBuilder =
+      options?.imageBuilder ||
+      new DockerImageBuilder(dockerClient, options?.repoRoot || resolveRepoRoot());
+    this.imagePuller = options?.imagePuller || new DockerImagePuller(dockerClient);
   }
 
   getPreflightError(_clanker: Clanker): string | null {
@@ -59,15 +55,10 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
       getWorkerImageForClanker(clanker, "docker") ||
       DEFAULT_LOCAL_DOCKER_IMAGE;
 
-    await progress?.(`Docker build started for image ${containerImage}`);
-    const dockerBuild = await this.buildDockerImage(containerImage, progress);
-    const imageMetadata = await this.getDockerImageMetadata(containerImage);
-
+    const strategy = await this.prepareImage(config, containerImage, progress);
     const deploymentConfig = mergeProvisionedStrategyIntoConfig(clanker, {
-      ...config,
-      containerImage,
-      imageMetadata,
-      dockerBuild,
+      ...strategy,
+      imageMetadata: await this.getDockerImageMetadata(containerImage),
     });
 
     const availability = await this.checkAvailability({
@@ -99,8 +90,7 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
       };
     } catch (error) {
       const message = getErrorMessage(error, "Docker image not available");
-      const statusCode = getNumericErrorCode(error, "statusCode");
-      if (statusCode === 404 || message.includes("No such image")) {
+      if (isMissingDockerImageError(error)) {
         return {
           status: "inactive",
           statusMessage: "Docker image not found",
@@ -121,45 +111,19 @@ export class DockerProvisioningHandler implements ProvisioningStrategyHandler {
     };
   }
 
-  private async buildDockerImage(
-    tag: string,
+  private async prepareImage(
+    config: DockerStrategyConfig,
+    containerImage: string,
     progress?: ProvisioningProgressReporter,
-  ): Promise<DockerBuildResult> {
-    const startedAt = new Date();
-    const dockerfile = path.resolve(this.repoRoot, WORKER_DOCKERFILE_PATH);
-    const dockerfileRelative = path.relative(this.repoRoot, dockerfile);
+  ): Promise<Record<string, unknown>> {
+    if (config.provisioningMode === "prebuilt") {
+      await this.imagePuller.ensurePresent(containerImage, progress);
+      return { ...config, containerImage, dockerBuild: undefined };
+    }
 
-    logger.info("Building Docker image for clanker", {
-      tag,
-      dockerfile: dockerfileRelative,
-    });
-
-    await progress?.(`Docker build using ${dockerfileRelative}`);
-
-    const logs: string[] = [];
-    await this.dockerClient.buildImage({
-      tag,
-      repoRoot: this.repoRoot,
-      dockerfileRelative,
-      onEvent: (line) => {
-        logs.push(line);
-        if (logs.length > 200) {
-          logs.shift();
-        }
-
-        if (shouldReportDockerMilestone(line)) {
-          void progress?.(`Docker build: ${line}`);
-        }
-      },
-    });
-
-    const completedAt = new Date();
-    return {
-      startedAt: startedAt.toISOString(),
-      completedAt: completedAt.toISOString(),
-      durationMs: completedAt.getTime() - startedAt.getTime(),
-      logs,
-    };
+    await progress?.(`Docker build started for image ${containerImage}`);
+    const dockerBuild = await this.imageBuilder.build(containerImage, progress);
+    return { ...config, containerImage, dockerBuild };
   }
 
   private async getDockerImageMetadata(

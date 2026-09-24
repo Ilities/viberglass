@@ -37,3 +37,10 @@ export function getNumericErrorCode(
   const value = error[fieldName];
   return typeof value === "number" ? value : undefined;
 }
+
+export function isMissingDockerImageError(error: unknown): boolean {
+  return (
+    getNumericErrorCode(error, "statusCode") === 404 ||
+    getErrorMessage(error, "").includes("No such image")
+  );
+}

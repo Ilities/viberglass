@@ -182,6 +182,12 @@ To push images manually from the command line:
 
 The script creates ECR repositories if they don't exist, builds each image, and pushes it. Agent images depend on the base image, so the script builds that first automatically.
 
+### Public worker images (GHCR)
+
+For self-hosted Docker runners, the `publish-worker-images` workflow publishes the base image and each agent's default image to `ghcr.io/ilities/<repository>` for `linux/amd64` and `linux/arm64`. It runs on pushes to `main` that touch worker code, on releases (adds the release tag) and manually. Tags: `latest`, the commit SHA, and the release tag.
+
+The published set comes from the catalog (`node infra/workers/scripts/worker-image-catalog.js list public`). A new agent whose image is some agent's default is published without changing the workflow. To make the platform's default images point there, set `VIBERATOR_WORKER_REGISTRY=ghcr.io/ilities`.
+
 ### Creating AWS Clankers
 
 Once images are in ECR, go to `/clankers` in the UI, create a Clanker with ECS or Lambda compute, and click **Start**. The platform creates the task definition or Lambda function and wires it up. Network config (subnets, security groups) comes from the Pulumi stack outputs.

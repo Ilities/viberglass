@@ -1,0 +1,145 @@
+# Publishes the worker images self-hosters pull to GHCR (ADR 0002): the base
+# image plus each agent's default image, for linux/amd64 and linux/arm64.
+# ECS and Lambda keep using ECR (deploy-viberators.yml).
+#
+# Each architecture builds natively and pushes `<sha>-<arch>`; agent images
+# build on the base image of the same commit and architecture. The last job
+# joins both architectures under `latest`, `<sha>` and, on a release, its tag.
+name: Publish Worker Images (GHCR)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/workers/docker/**'
+      - 'apps/viberator/**'
+      - 'packages/agent-core/**'
+      - 'packages/agents/**'
+      - 'packages/types/src/workerImageCatalog.json'
+      - 'infra/workers/scripts/worker-image-catalog.js'
+      - '.github/workflows/publish-worker-images.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-worker-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: List images
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      images: ${{ steps.plan.outputs.images }}
+      agent-images: ${{ steps.plan.outputs.agent-images }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: plan
+        run: |
+          images=$(node infra/workers/scripts/worker-image-catalog.js list public --json)
+          {
+            echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+            echo "images=$images"
+            echo "agent-images=$(echo "$images" | jq -c '[.[] | select(.variant != "base")]')"
+          } >> "$GITHUB_OUTPUT"
+
+  base:
+    name: Build base (${{ matrix.arch }})
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/workers/docker/base/base-worker.Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          tags: ${{ needs.plan.outputs.registry }}/viberator-base-worker:${{ github.sha }}-${{ matrix.arch }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=viberator-base-worker-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=viberator-base-worker-${{ matrix.arch }}
+
+  agents:
+    name: Build ${{ matrix.image.variant }} (${{ matrix.arch }})
+    needs: [plan, base]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.agent-images) }}
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          build-args: |
+            BASE_IMAGE=${{ needs.plan.outputs.registry }}/viberator-base-worker:${{ github.sha }}-${{ matrix.arch }}
+          tags: ${{ needs.plan.outputs.registry }}/${{ matrix.image.repository }}:${{ github.sha }}-${{ matrix.arch }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.image.repository }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.repository }}-${{ matrix.arch }}
+
+  manifests:
+    name: Tag ${{ matrix.image.variant }}
+    needs: [plan, base, agents]
+    # Publish the images that built even if another agent's build failed.
+    if: ${{ !cancelled() && needs.base.result == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Join architectures and tag
+        env:
+          IMAGE: ${{ needs.plan.outputs.registry }}/${{ matrix.image.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          tags=(-t "$IMAGE:$GITHUB_SHA" -t "$IMAGE:latest")
+          if [ -n "$RELEASE_TAG" ]; then
+            tags+=(-t "$IMAGE:$RELEASE_TAG")
+          fi
+          docker buildx imagetools create "${tags[@]}" \
+            "$IMAGE:$GITHUB_SHA-amd64" \
+            "$IMAGE:$GITHUB_SHA-arm64"

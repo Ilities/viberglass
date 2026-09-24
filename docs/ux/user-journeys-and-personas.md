@@ -37,7 +37,7 @@ Consequences of this positioning:
 | **Objective-first, not infrastructure-first** | Landing page = "what needs me / what's happening", not runner counts and queue pressure. |
 | **Humans are participants, agents are participants** | Tasks have people (requester, owner, reviewers, watchers) *and* agents. Agents can ask people questions. |
 | **Workflows are templates; git is the substrate** | Research → Plan → Execute → PR is the flagship template. Git-backed variants (research or docs that end in a document PR, release notes, triage) use the same engine. Output always lands in a repo (ADR 0001). |
-| **The first run is the demo** | Self-hosted portfolio piece (ADR 0002): `docker compose up` to a first useful result without insider knowledge. |
+| **The first run is the demo** | Self-hosted portfolio piece (ADR 0002): from a fresh instance (AWS or `docker compose up`) to a first useful result without insider knowledge. |
 | **Designed for the product leader, setup included** | A product leader sets it up alone: paste a model API key, point at a repo with its token, name things (ADR 0003). Everything else is defaulted. Engineering admins get optional advanced settings. |
 | **Plumbing is an admin concern** | Runners, secrets, deployment strategies, prompt templates and API tokens live under Settings, and only for admins. |
 | **Nothing is lost** | Cancel = stop, not delete. Every run, draft, comment and decision is kept in history. |
@@ -234,7 +234,7 @@ Personas are grouped by their **relationship to the objective**, not by job titl
 - **Self-hosted note (ADR 0002):** the portfolio evaluator goes through the same setup, so it has to be the easiest part of the product.
 
 ### P2. Olli, Engineering admin (secondary, optional)
-- **Who:** Engineering manager or staff engineer who hosts the instance (`docker compose up`) and wants control beyond the defaults.
+- **Who:** Engineering manager or staff engineer who hosts the instance (deploys it to AWS, or runs `docker compose up` to try it) and wants control beyond the defaults.
 - **Goal:** Tune and govern: other agents or models, where agents run (Docker, ECS, Lambda), GitHub App instead of a token, webhooks, prompt templates, roles, audit.
 - **JTBD:** everything under Settings → Advanced. **Never a prerequisite** for Maria's setup or daily use.
 - **Today:** is forced to be the setup desk, the manual user-creation desk (F38) and the only person who can decode failures (F22).
@@ -401,13 +401,13 @@ Format per journey: **Persona · Trigger · Target flow · Today's friction (evi
 ---
 
 ### J1. Set up and reach first value (product leader)
-- **Persona:** P1 Maria (the portfolio evaluator takes the same path) · **Precondition:** someone ran `docker compose up`. The install story itself is accepted as is (Jussi, 2026-09-23), **on the condition that it works reliably**: no configuration, and every service comes back healthy after restarts (see §11.0 item 9) · **Trigger:** opens the URL for the first time.
+- **Persona:** P1 Maria (the portfolio evaluator takes the same path) · **Precondition:** someone deployed the instance: to AWS with the `infra/` stacks, or locally with `docker compose up` (ADR 0002, amended 2026-09-24). The install story itself is accepted as is (Jussi, 2026-09-23), **on the condition that it works reliably**: no configuration beyond the documented deploy, and every service comes back healthy after restarts (see §11.0 item 9) · **Trigger:** opens the URL for the first time.
 - **Target flow:** one screen per input, three inputs in total (ADR 0003):
-  1. **Create your account & name your workspace.** Name, email, password, workspace name. The first user is the owner.
+  1. **Create your account.** The existing first-admin registration (name, email, password); the first user is the owner. Setup continues after sign-in (Jussi, 2026-09-24: keep registration as is, no workspace name).
      - *Portfolio shortcut (ADR 0002):* "Explore a demo workspace first" loads seeded members, a sample space and tasks at every stage (question pending, plan in review, PR open, a failed run with a readable reason). The setup below stays available.
-  2. **Connect an AI model.** Paste an API key. The provider is detected from the key format (Anthropic, OpenAI, Google, …), with a manual picker as fallback. A live test shows "✓ Works: Claude Sonnet 5 available" or a plain-language error ("This key was rejected by Anthropic", "No credit left on this account"). It's stored encrypted in the database automatically, with no storage-mode choice. A "Where do I get this?" link goes to the provider's key page.
+  2. **Connect an AI model.** Pick the provider, then paste an API key. Every selectable agent harness is offered (Jussi, 2026-09-24). Key prefixes can't tell all providers apart (`sk-` is shared by several), so a prefix match only pre-selects the provider and checks the format. A live test shows "✓ Works: Claude Sonnet 5 available" or a plain-language error ("This key was rejected by Anthropic", "No credit left on this account"). It's stored encrypted in the database automatically, with no storage-mode choice. A "Where do I get this?" link goes to the provider's key page.
   3. **Point at your repository.** Paste the repo URL (or `owner/repo`) and an access token. The page links to "Create a token with the right permissions" (a prefilled fine-grained-token URL for GitHub). A live check says, in plain language, "✓ Can read and push to acme/web · default branch main", or exactly what's missing ("This token can read but can't push, so the agent couldn't open a pull request"). This implicitly creates the SCM connection and credential; neither is shown as a concept.
-  4. **Name your first space.** Prefilled from the repo name ("web"). Everything else is defaulted: base branch = repo default, workflow = Research → Plan → Build → PR, agent = the default for the key's provider, running locally in Docker.
+  4. **Name your first space.** Prefilled from the repo name ("web"). Everything else is defaulted: base branch = repo default, workflow = Research → Plan → Build → PR, agent = the default for the key's provider, running on the compute the instance has (ECS on AWS, local Docker on compose).
   5. **Getting ready…** The agent is provisioned in the background with a plain progress line ("Preparing your agent · about 2 minutes the first time"). There's no "Start" button; failures show the real cause and a retry.
   6. **First task.** The composer is prefilled with a safe starter ("Explain how this codebase is organised"), or Maria writes their own. It runs, and a readable result appears in the task.
   7. Home shows a short, dismissible checklist: *Invite your team · Connect Slack · Connect your tracker.* Advanced settings are mentioned once: "Engineers can fine-tune agents and connections in Settings → Advanced."
@@ -431,7 +431,7 @@ Format per journey: **Persona · Trigger · Target flow · Today's friction (evi
 ### J3. Invite the team (Owner → Members)
 - **Target flow:** Members → **Invite** → role (Admin / Member / Guest) → optional spaces and teams → **shareable single-use invite link** (works without SMTP, ADR 0002; also emailed if SMTP is configured) → invitee sets their own password. SSO (GitHub/OIDC) is deferred and optional.
 - **Today:** F38: the admin types passwords and shares them manually.
-- **Acceptance:** admins never know user passwords; pending invites visible, expiring and revocable; the whole flow works on a stock `docker compose up` with no mail server.
+- **Acceptance:** admins never know user passwords; pending invites visible, expiring and revocable; the whole flow works on either deployment path with no mail server.
 
 ### J4. First login as a collaborator (Member / Requester)
 - **Persona:** Any invited teammate (P3–P5, or another product person invited by Maria) · **Trigger:** accepts an invite link.
@@ -610,7 +610,7 @@ Self-hosted portfolio software has no product analytics (ADR 0002). These are **
 
 | Bar | Why | Target |
 |---|---|---|
-| Time from `docker compose up` to first completed run, following only the UI | the first run is the demo | < 15 min, zero backend-log lookups |
+| Time from a fresh instance (AWS or `docker compose up`) to first completed run, following only the UI | the first run is the demo | < 15 min, zero backend-log lookups |
 | Required inputs / screens from account creation to first task | ADR 0003 | 3 inputs, ≤ 6 screens (today: ~25 hops) |
 | A product leader completes setup unaided in a scripted walkthrough | ADR 0003 | passes |
 | Hero journey J9 runs end to end with ≥ 3 users | the core promise | passes |
@@ -671,7 +671,7 @@ Correctness blockers §11.0 (first), then quick wins §11.1. Remove the shared `
 **Exit:** a new member can follow what happened on a task without asking the admin.
 
 ### Phase 1: Three-input setup (2–3 weeks)
-J1, J2. Account + workspace → model key (detect provider, live test, encrypted storage by default) → repo URL + token (live permission check; implicitly creates the SCM connection and credential) → space name → auto-provisioned default Docker agent (no Start; real errors surfaced) → first task. Demo workspace seed. Everything removed from the flow moves to Settings → Advanced. Connection health and expiry warnings.
+J1, J2. Existing registration → model key (provider picker for every selectable harness, live test, encrypted storage by default) → repo URL + token (live permission check; implicitly creates the SCM connection and credential) → space name → auto-provisioned default agent on the instance's compute, ECS or local Docker (no Start; real errors surfaced) → first task. Demo workspace seed. Everything removed from the flow moves to Settings → Advanced. Connection health and expiry warnings.
 **Exit:** a product leader who has never seen Viberglass goes from first page load to a first agent result, alone, in a scripted walkthrough.
 
 ### Phase 2: People primitives (3–5 weeks)

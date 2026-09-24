@@ -37,6 +37,18 @@ function shouldInclude(entry, scope) {
     return entry.includeInPushScript === true;
   }
 
+  // Published to the public registry for self-hosters: the base image plus
+  // every image that is some agent's default. Test-only images aren't pushed.
+  if (scope === "public") {
+    if (entry.includeInPushScript !== true) {
+      return false;
+    }
+    return (
+      entry.variant === "base" ||
+      (Array.isArray(entry.defaultForAgents) && entry.defaultForAgents.length > 0)
+    );
+  }
+
   throw new Error(`Unsupported scope: ${scope}`);
 }
 
@@ -66,7 +78,7 @@ function formatRow(entry, scope) {
 
 function printUsage() {
   process.stderr.write(
-    "Usage: worker-image-catalog.js list <harness|infra|build|push>\n",
+    "Usage: worker-image-catalog.js list <harness|infra|build|push|public> [--json]\n",
   );
 }
 
@@ -80,6 +92,19 @@ function main() {
   }
 
   const catalog = readCatalog();
+
+  if (process.argv[4] === "--json") {
+    const rows = catalog
+      .filter((entry) => shouldInclude(entry, scope))
+      .map((entry) => ({
+        variant: entry.variant,
+        repository: entry.repositoryName,
+        dockerfile: getSharedFields(entry).dockerfilePath,
+        agentImage: entry.isAgentImage === true,
+      }));
+    process.stdout.write(`${JSON.stringify(rows)}\n`);
+    return;
+  }
 
   for (const entry of catalog) {
     if (!shouldInclude(entry, scope)) {
