@@ -40,6 +40,23 @@ async function findDockerStrategyId(api: APIRequestContext): Promise<string> {
   return docker.id;
 }
 
+async function waitForClankerActive(
+  api: APIRequestContext,
+  clankerId: string,
+): Promise<void> {
+  const deadline = Date.now() + 30_000;
+  let clanker: Record<string, unknown> = {};
+  while (Date.now() < deadline) {
+    clanker = await readEntity(await api.get(`/api/clankers/${clankerId}`), "Reading the fake runner");
+    if (clanker.status === "active") return;
+    if (clanker.status === "failed") break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(
+    `The fake runner didn't become active: ${String(clanker.status)} (${String(clanker.statusMessage)})`,
+  );
+}
+
 export interface SignedInSession {
   /** Carries the session cookie. */
   api: APIRequestContext;
@@ -100,19 +117,22 @@ export async function seedWorkspace(): Promise<SeededWorkspace> {
         deploymentConfig: {
           version: 1,
           agent: { type: "fake" },
-          strategy: { type: "docker", containerImage: E2E.fakeWorkerImage },
+          strategy: {
+            type: "docker",
+            provisioningMode: "prebuilt",
+            containerImage: E2E.fakeWorkerImage,
+          },
         },
       },
     }),
     "Creating the fake runner",
   );
-  // Docker "start" always rebuilds the worker image under the runner's tag,
-  // which would replace the pre-built fake image. Mark it active instead; every
-  // run re-checks that the image exists before it starts.
+  // Pre-built mode uses the fake image as is; starting must not rebuild it.
   await readEntity(
-    await api.put(`/api/clankers/${clankerId}`, { data: { status: "active" } }),
-    "Activating the fake runner",
+    await api.post(`/api/clankers/${clankerId}/start`),
+    "Starting the fake runner",
   );
+  await waitForClankerActive(api, clankerId);
 
   const integrationId = await readId(
     await api.post("/api/integrations", {

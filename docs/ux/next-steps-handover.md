@@ -1,6 +1,6 @@
 # Handover: next steps after the correctness pass
 
-Status as of 2026-09-23 · The correctness pass merged to `main` (PR #38); Step A is on `e2e-smoke-test` · Owner of decisions: Jussi
+Status as of 2026-09-24 · The correctness pass (PR #38), Step A (PR #39) and the quick-win slice (PR #40) merged to `main`; next is Step C · Owner of decisions: Jussi
 
 This hands the work over to whoever picks it up next, whether a person or an agent session. Read it together with:
 
@@ -59,7 +59,7 @@ All green at merge time. Step A (below) since added the smoke suite, 11 fake-age
 | Project-level prompt templates are editable by any member | project settings → prompt templates | PG17. Global templates are admin-only now; project ones aren't. |
 | 90 stale `viberator/*` branches on the demo repo | GitHub `ilities/token.observer` | LC12, quick win #17. |
 | Dead component | `apps/platform-frontend/src/pages/project/tickets/planning-document-panel.tsx` | Not rendered anywhere. Delete it when touching that area. |
-| Docker "start" always rebuilds the worker image under the runner's tag | `DockerProvisioningHandler.provision` | There is no pre-built mode for Docker (ECS and Lambda have one). Starting a runner that points at a pre-built image overwrites it with the multi-agent build. Phase 1's "prefer pre-built images" needs this first. The e2e seed marks its runner active instead of starting it. |
+| ~~Docker "start" always rebuilds the worker image under the runner's tag~~ Fixed (Phase 1 step 0) | `DockerProvisioningHandler`, `DockerImagePuller`, `DockerImageBuilder` | Docker now honours `provisioningMode: "prebuilt"` (the UI already offered it): start uses the image as is, pulls it with per-layer progress when missing, and falls back to the agent's catalog image. Managed mode still builds. The e2e seed now starts its runner in pre-built mode. |
 | Runner config stores up to 200 lines of Docker build log | `deployment_config.strategy.dockerBuild.logs` | Every clanker read carries it. Belongs in job/provisioning logs. |
 | Startup errors are logged as `{}` | winston metadata for `Error` objects | "Failed to run migrations on startup, exiting {"error":{}}" hid the cause of the late-database bug. |
 | The Pi agent can't be selected in the platform | `AgentType` in `packages/types/src/clanker.ts` | The worker has the plugin; the platform lists, normalisers and DB constraint don't. See `packages/agents/README.md` for every list. |
@@ -166,7 +166,7 @@ On branch `e2e-smoke-test`. `npm run test:e2e` resets the e2e database and runs 
 3. **#9 + #13**: readable failure reasons from structured worker error codes, with copy per audience.
 4. **#1**: session opens with the human's intent; the system prompt goes behind "View full prompt".
 
-About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, not yet merged: all four items landed with a smoke journey each (14 journeys total), plus two bugs found on the way (tickets in review read back as open; a live session's opening message never reached the agent). Test totals: backend 708, frontend 98, viberator 91, agent-core 14. Next: decisions 4–6, then Phase 1. Cover each item with a smoke journey using the fake agent (for example `[fake:fail]` for failure copy). Decisions 4–6 get answered in the meantime; Phase 1 starts with a Docker pre-built image mode. The remaining quick wins fit alongside or after Phase 1.
+About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merged in PR #40: all four items landed with a smoke journey each (14 journeys total), plus two bugs found on the way (tickets in review read back as open; a live session's opening message never reached the agent). Test totals: backend 708, frontend 98, viberator 91, agent-core 14. Decisions 4–6 answered (2026-09-24); next is Phase 1. Cover each item with a smoke journey using the fake agent (for example `[fake:fail]` for failure copy). Decisions 4–6 get answered in the meantime; Phase 1 starts with a Docker pre-built image mode. The remaining quick wins fit alongside or after Phase 1.
 
 **Status after the correctness pass:**
 - **Done:** #5 (plumbing hidden from members, routes enforced), #10 (server-unreachable message), #12's "cancel keeps history" part.
@@ -193,16 +193,29 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, not 
 
 ### Step C: Phase 1, three-input setup (the product-leader win), about 2–3 weeks
 
-**Goal (ADR 0003, J1):** a product leader who has never seen Viberglass goes from first page load to a first agent result alone. Required inputs: model API key, repo URL + token, names. Everything else is defaulted.
+**Goal (ADR 0003, J1):** a product leader who has never seen Viberglass goes from first page load to a first agent result alone. Required inputs: model API key, repo URL + token, space name. Everything else is defaulted.
+
+**Decided (2026-09-24):**
+- **Every selectable agent harness is supported from the first cut** (decision 4): Claude Code, Codex, Gemini CLI, Qwen CLI, Kimi Code, Mistral Vibe and OpenCode, plus Pi once the platform can select it (§1.3). `fake` stays test-only. Building for all of them now forces the right abstraction instead of an Anthropic/OpenAI special case that gets reworked later. Consequences:
+  - Setup knowledge lives in each agent plugin as data plus a small capability: the provider's display name, the env variable(s) for the key, a key-format hint, the "where do I get this" URL, and `testCredentials` (live call, errors mapped to invalid key / no credit / rate limited). `SetupService` iterates the registry; no per-provider `if/else`.
+  - Key prefixes can't tell every provider apart (`sk-` is shared by OpenAI, DashScope/Qwen, Moonshot/Kimi and others). The key screen therefore picks the provider first, with a prefix match only as a pre-selection hint and a format check. This updates J1 step 2, which assumed detection.
+  - OpenCode is the harness for keys whose provider has no harness of its own, so the plugin API needs "provider" and "harness" as separate concepts.
+  - Every harness needs its pre-built image available locally for Docker. `workerImageCatalog.json` already lists `defaultForAgents` per image.
+- **First user: keep the existing first-admin registration** (decision 5). `/setup` starts after sign-in. There is no workspace name concept in the code, so it's dropped from the flow rather than added.
+- **Demo seed is in the first cut** (decision 6).
+- **AWS is a first-class self-hosted path, not only `docker compose`** (ADR 0002, amended). Compose is for development and local experimentation; AWS (ECS/Lambda, images in ECR) is the production path. Setup must work on both:
+  - The default agent's compute comes from what the instance has: ECS Fargate when the `VIBERATOR_ECS_*` stack outputs are configured, otherwise local Docker. Lambda stays an advanced option, since its 15-minute limit doesn't suit live sessions. (Confirmed 2026-09-24.)
+  - On AWS, the pre-built images are already in ECR (the `deploy-viberators` workflow). On compose, setup pulls the image on first run; that's acceptable (Jussi, 2026-09-24).
+  - The Phase 1 walkthrough and e2e cover compose. The AWS path needs at least one manual walkthrough on the dev stack before Phase 1 counts as done (agreed 2026-09-24).
 
 **Backend work:**
 
 1. **`SetupService` plus `/api/setup` routes** (new, small classes per AGENTS.md):
-   - `POST /api/setup/model-key` `{ key }`:
-     - Detect the provider from the key prefix (`sk-ant-` → Anthropic, `sk-` → OpenAI, Google, and so on; a manual override is allowed).
+   - `POST /api/setup/model-key` `{ provider, key }`:
+     - The provider is picked in the UI; a key prefix only pre-selects it and checks the format (see "Decided" above).
      - Make a live test call and map errors to plain language (invalid key / no credit / rate limited).
      - Store it as an encrypted database secret named after the provider's variable (`ANTHROPIC_API_KEY`, …).
-     - Provider detection and testing belong in the agent plugin registry (a `testCredentials` capability per agent plugin), not in `if/else`.
+     - Provider metadata and testing belong in the agent plugin registry (a `testCredentials` capability per agent plugin), not in `if/else`.
    - `POST /api/setup/repository` `{ url, token }`:
      - Normalise `owner/repo` or a URL.
      - Check access with the GitHub API: repo readable, push permission, default branch. Return plain messages such as "can read but can't push".
@@ -212,14 +225,14 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, not 
      - Check `ClankerProvisioningOrchestrator` / `DockerProvisioningHandler` for pre-built vs managed images.
      - Prefer pre-built images so the first run doesn't wait for a build. Pull if missing, and report progress.
 2. **Readiness becomes workflow-aware** and drives the wizard's "what's left" (fixes FR8's inactive-runner credential check).
-3. **Demo seed (optional, ADR 0002):**
+3. **Demo seed (in the first cut, ADR 0002):**
    - `npm run seed:demo` or a "Explore a demo workspace" button loads members, a sample space and tasks in every state.
    - It must be clearly separate from real data and removable.
 
 **Frontend work:**
 
-1. **`/setup` flow** (one screen per input): account + workspace name → model key → repository → space name → "Getting ready…" → first task composer prefilled with a safe starter.
-   - It shows when the workspace has no active agent or no space, and it's resumable.
+1. **`/setup` flow** (one screen per input), after the existing first-admin registration: model key (provider picker, then key) → repository → space name → "Getting ready…" → first task composer prefilled with a safe starter.
+   - It shows when the workspace has no active agent or no space, and it's resumable. It works on both deployment paths; the only difference is where the default agent runs.
 2. **Everything removed from the flow moves under Settings → Advanced** (runners, deployment strategies, webhooks, prompt templates, secret storage modes), as in plan §6.1.
 3. **Empty dashboard:** replace the competing CTAs (FR3) with "Finish setup" until done.
 
@@ -230,11 +243,13 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, not 
 - Every input is validated live in plain language.
 - A scripted walkthrough, run the way the audit was (fresh database, agent-browser), passes. Add it to the Step A e2e suite with the fake agent.
 
-**Open questions for Jussi before starting:**
-1. Which providers to support in the first cut? Suggested: Anthropic and OpenAI (Claude Code and Codex harnesses), with OpenCode as the fallback for other keys.
-2. Should the first user be created inside `/setup`, or keep the existing first-admin registration and add setup after it?
-3. Is it acceptable for setup to pull a worker image of several hundred MB on first run, and should it show a size estimate?
-4. Demo seed: yes or no for the first cut?
+**Done first (2026-09-24): Docker pre-built image mode** (§1.3). Unit-tested, live-checked against the Docker daemon (pull, reuse, readable pull failure), and exercised by every smoke run through the seed.
+
+**Done (2026-09-24): public worker images on GHCR.** `publish-worker-images.yml` publishes the base image and every agent's default image (from the catalog's new `public` scope) to `ghcr.io/ilities/<repository>` for amd64 and arm64, tagged `latest`, the commit SHA and the release tag. ECR stays for ECS/Lambda. Decided with Jussi: the default path pulls from GHCR; building locally on first run (managed mode) stays available but only as an explicit expert choice, never a default.
+- **Before the first run:** GHCR creates new packages as private. After the workflow first publishes, set each `viberator-*` package to public (org → Packages → package settings), or pulls will be refused.
+- **Setup still needs:** the compose stack to default `VIBERATOR_WORKER_REGISTRY` to `ghcr.io/ilities` so a catalog image resolves to a pullable name. Do it with the default-agent work in `SetupService`; runners with an explicit image are unaffected.
+
+**Answered (2026-09-24):** pulling a worker image of several hundred MB on first run is fine. "Getting ready…" shows progress.
 
 ### Step D: Phase 2, people primitives, about 3–5 weeks (outline)
 
@@ -270,9 +285,9 @@ Phase 3's agent questions (J6) are the next big collaboration win after the Phas
 | 1 | ~~Merge strategy for `ux-plan-and-core-fixes`~~ Merged to `main` (PR #38). | — |
 | 2 | ~~Is a fake agent plugin acceptable?~~ Yes; added as `agent-fake`, test-only. | — |
 | 3 | ~~Quick wins or Phase 1 first?~~ A slice of quick wins (#15, #4, #9 + #13, #1), then Phase 1. See Step B. | — |
-| 4 | First-cut providers for three-input setup | Step C |
-| 5 | Setup vs first-admin registration: one flow or two? | Step C |
-| 6 | Demo workspace seed: in or out of Phase 1 | Step C |
+| 4 | ~~First-cut providers for three-input setup~~ All selectable harnesses, behind one plugin abstraction. See Step C. | — |
+| 5 | ~~Setup vs first-admin registration~~ Two: keep the existing registration, `/setup` after it. | — |
+| 6 | ~~Demo workspace seed~~ In Phase 1. | — |
 | 7 | Space role model and notification defaults | Step D |
 
 ---
