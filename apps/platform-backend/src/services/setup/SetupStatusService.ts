@@ -6,6 +6,7 @@ import {
   type IntegrationCredential,
   type Integration,
   type ModelProviderId,
+  type DemoWorkspace,
   type ProjectScmConfig,
   type SetupStatus,
 } from "@viberglass/types";
@@ -17,6 +18,7 @@ import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { SecretDAO } from "../../persistence/secret/SecretDAO";
 import { DEFAULT_AGENT_SLUG } from "./SetupAgentService";
+import { DemoWorkspaceService } from "../demo/DemoWorkspaceService";
 
 interface Dependencies {
   secrets: { getSecretByName(name: string): Promise<{ id: string } | null> };
@@ -28,6 +30,7 @@ interface Dependencies {
     getClankerBySlug(slug: string): Promise<Clanker | null>;
     listClankers(limit?: number): Promise<Clanker[]>;
   };
+  demo: { getDemo(): Promise<DemoWorkspace | null> };
 }
 
 const defaults = (): Dependencies => ({
@@ -37,6 +40,7 @@ const defaults = (): Dependencies => ({
   projects: new ProjectDAO(),
   scmConfigs: new ProjectScmConfigDAO(),
   clankers: new ClankerDAO(),
+  demo: new DemoWorkspaceService(),
 });
 
 /** What setup has already done, so the flow resumes at the first step that's left. */
@@ -48,12 +52,13 @@ export class SetupStatusService {
   }
 
   async getStatus(): Promise<SetupStatus> {
-    const [connectedProviders, repositoryConnected, space, defaultAgent, runners] = await Promise.all([
+    const [connectedProviders, repositoryConnected, space, defaultAgent, runners, demo] = await Promise.all([
       this.getConnectedProviders(),
       this.isRepositoryConnected(),
       this.findSpace(),
       this.deps.clankers.getClankerBySlug(DEFAULT_AGENT_SLUG),
       this.deps.clankers.listClankers(200),
+      this.deps.demo.getDemo(),
     ]);
 
     const agent = defaultAgent
@@ -72,6 +77,7 @@ export class SetupStatusService {
       space,
       agent,
       complete: space !== null && hasActiveRunner,
+      demo,
     };
   }
 

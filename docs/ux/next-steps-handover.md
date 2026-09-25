@@ -1,6 +1,6 @@
 # Handover: next steps after the correctness pass
 
-Status as of 2026-09-24 · The correctness pass (PR #38), Step A (PR #39) and the quick-win slice (PR #40) merged to `main`; next is Step C · Owner of decisions: Jussi
+Status as of 2026-09-25 · Phases 0 and 1 are done in code; Phase 1 exits after the AWS walkthrough; Phase 2 and 3 plan: [`phase-2-3-handover.md`](./phase-2-3-handover.md) · Owner of decisions: Jussi
 
 This hands the work over to whoever picks it up next, whether a person or an agent session. Read it together with:
 
@@ -277,34 +277,32 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merg
 **Done (2026-09-24): the setup journey in the e2e suite** (`first-run-setup.e2e.test.ts`, 15 journeys total, all passing). Decided with Jussi: a test-only provider. `fake` in `MODEL_PROVIDERS` runs on the fake agent; its key check URL is relative to `VIBERGLASS_FAKE_PROVIDER_URL` and it's offered only when that's set (a general `keyCheck.baseUrlEnv`). The GitHub check's base comes from `GITHUB_API_URL` (also what GitHub Enterprise needs), and the repository address now comes from GitHub's `html_url`; the space keeps that address instead of rebuilding a github.com one. The journey runs its own backend on an empty database and a stub for both services; see TESTING.md.
 - **Seen, not fixed:** on a fresh database the backend resumes ticket and session bridges before its startup migrations have created their tables ("relation … does not exist"). Harmless there (nothing to resume), but startup should resume after migrating.
 
-**Next in Step C:** moving the plumbing under Settings → Advanced, readiness driving "what's left", and the demo seed (binding's harness, the instance's compute, the key's secret attached, `model`/`endpoint` from the binding; check the platform's agent config normalisers keep `model`/`endpoint` for Kimi and Qwen), and `VIBERATOR_WORKER_REGISTRY=ghcr.io/ilities` for compose.
+**Done (2026-09-24): plumbing under Settings → Advanced.** The main navigation is Dashboard · Pulse · Settings. `/settings/*`, `/clankers` and `/secrets` share a settings layout: General (Members, API tokens) and, for admins only, Advanced (Agents & runners, Connections, Secrets, Prompt templates) with a one-line "setup picked defaults" intro. Members see API tokens only. URLs are unchanged until Phase 2. The project settings side menu now uses the same `SettingsNav` component.
+
+**Done (2026-09-24): readiness says what's left, in setup's order** (model key → repository → token → a running agent), fixing FR8: a stopped runner with a key is told to start (and links to that runner), not to add a key; a key whose secret is gone doesn't count; a failed start shows its reason; no agent or no key links to `/setup`. The demo space gets one "Sample data only" check instead of a setup list. Not done: FR7's "Ready: try your first run" state (the banner still disappears when everything is ready).
+
+**Done (2026-09-24): the demo workspace** (decided with Jussi: a demo space tracked for removal, started from setup only). "Explore a demo workspace" on setup's first screen loads "Demo: Acme storefront" beside real data: two members who can't sign in, a "Demo agent (sample data)" runner that never runs, and five tasks (plan awaiting review, research awaiting review, PR open, research failed with "Model quota used up", not started), statuses derived by `TicketLifecycleStatusService` like real tasks. Every row is recorded in `demo_seed_records` (migration 068) as it's written; "Remove demo" (a banner shown to admins while it's loaded) deletes exactly those, jobs first, and a failed load removes what it wrote. While it's loaded the dashboard doesn't redirect to setup. Verified on the dev stack (load, browse, failure copy, remove: nothing left, real spaces untouched) and by an e2e journey. Question-pending tasks wait for Phase 3.
+- **Found and fixed on the way:** opening a new task sent two requests for its planning document at once, and both tried to create it; the second failed on the unique index (500), so the task page said "Ticket not found". Creation is now `ON CONFLICT DO NOTHING` then read; ten concurrent opens on the dev stack all succeed with one document.
+- **Dev stack note:** the dev frontend container bakes `packages/types` into its image (documented in docker-compose.yml), so after types changes run `docker compose build frontend && docker compose up -d frontend`. It was rebuilt on 2026-09-24; before that, the frontend on :3000 failed on the new setup exports.
+- **Seen, not fixed:** demo task cards say "3m ago" (tasks are stamped at load time; only their runs are backdated).
+
+**Done (2026-09-25): FR7's ready state.** Readiness reports `hasRuns`; on the space home a ready space that hasn't run anything yet shows "Ready: try your first task" with "Create a task", and it disappears after the first run. Checked on the dev stack with a throwaway space.
+
+**Found (2026-09-25) and fixed in infra: the AWS backend had no `SECRETS_ENCRYPTION_KEY`.** Setup stores model keys and repository tokens as database secrets encrypted with it, so setup would have failed at step 1 on AWS. `infra/platform` now generates it (SSM SecureString `/viberglass/<env>/backend/secrets-encryption-key`, like the webhook key) and passes it to the backend task. Needs a `pulumi up`.
+
+**Step C is complete in code.** Phase 1's exit is the AWS walkthrough on the dev stack: follow [`docs/operations/aws-first-run-walkthrough.md`](../operations/aws-first-run-walkthrough.md) and record the result here.
 
 **Answered (2026-09-24):** pulling a worker image of several hundred MB on first run is fine. "Getting ready…" shows progress.
 
-### Step D: Phase 2, people primitives, about 3–5 weeks (outline)
+### Step D onwards: Phase 2 and Phase 3
 
-**Order matters:** each step unlocks the next.
-
-1. **Naming migration** (ADR 0004): Space/Task in UI copy, routes and public API, with redirects from `/project/*`. Internal names can move later.
-2. **Invites:** single-use links that work without SMTP (ADR 0002); pending and revocable; the admin never sees passwords (J3).
-3. **Space membership:** mount the existing `requireProjectAccess` middleware, filter lists by membership, and add a members UI.
-4. **Task participants:** requester (auto), owner, reviewers, watchers. Human-readable task keys (`WEB-42`).
-5. **Discussion thread on tasks with @mentions,** plus an append-only **Activity** log (who did what, when).
-6. **Inbox + notifications** (in-app first, then Slack DM, email if SMTP is configured): questions, review requests, mentions, failures you own (J10, plan §8).
-7. **Approval policy per space/workflow** (J7): who may approve research, plan and execution; "Request review from…"; approvals attributed. This closes the approvals part of blocker 8.
-8. **Rendered-document inline comments** (not markdown source only).
-9. **Audit log.**
-
-**Design decisions needed:** role model per space (owner/maintainer/member/guest?), notification defaults, and whether guests (P8) arrive in this phase or later.
+See [`phase-2-3-handover.md`](./phase-2-3-handover.md). It covers the decisions to make first (roles, visibility, approval defaults, notifications, and how agents ask, wait and hand over), then each item with what exists in the code, what's broken on the way, a design, the order and how to test it.
 
 ### Later phases
 
 See plan §12:
-- **Phase 3:** agent ↔ human questions, readable transcripts, steer/pause/take over.
 - **Phase 4:** workspace-owned tasks, archive-not-cascade, workflow templates as data.
 - **Phase 5:** git-backed non-code workflows for product, design and QA.
-
-Phase 3's agent questions (J6) are the next big collaboration win after the Phase 2 primitives exist.
 
 ---
 
@@ -318,7 +316,7 @@ Phase 3's agent questions (J6) are the next big collaboration win after the Phas
 | 4 | ~~First-cut providers for three-input setup~~ All selectable harnesses, behind one plugin abstraction. See Step C. | — |
 | 5 | ~~Setup vs first-admin registration~~ Two: keep the existing registration, `/setup` after it. | — |
 | 6 | ~~Demo workspace seed~~ In Phase 1. | — |
-| 7 | Space role model and notification defaults | Step D |
+| 7 | Space role model and notification defaults | Phase 2: now D1–D6 in [`phase-2-3-handover.md`](./phase-2-3-handover.md) §1, with recommendations (and D7–D9 for Phase 3) |
 
 ---
 

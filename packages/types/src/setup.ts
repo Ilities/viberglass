@@ -53,6 +53,13 @@ export interface DefaultAgent {
   statusMessage: string | null
 }
 
+/** The sample space loaded by "Explore a demo workspace"; removable. */
+export interface DemoWorkspace {
+  projectId: string
+  name: string
+  slug: string
+}
+
 export interface SetupStatus {
   /** Providers whose key is already stored (under their default harness's env var). */
   connectedProviders: ModelProviderId[]
@@ -61,4 +68,6 @@ export interface SetupStatus {
   agent: { clankerId: string; agentName: string; status: ClankerStatus; statusMessage: string | null } | null
   /** A space exists and a runner can work on it; setup has nothing left to ask. */
   complete: boolean
+  /** Set while the demo workspace is loaded. */
+  demo: DemoWorkspace | null
 }

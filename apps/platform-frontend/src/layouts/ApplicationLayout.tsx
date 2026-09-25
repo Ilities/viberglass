@@ -21,6 +21,7 @@ import {
   SidebarLabel,
   SidebarSection,
 } from '@/components/sidebar'
+import { DemoWorkspaceBanner } from '@/components/demo-workspace-banner'
 import { StackedLayout } from '@/components/stacked-layout'
 import { useAuth } from '@/context/auth-context'
 import { ProjectProvider } from '@/context/project-context'
@@ -36,15 +37,10 @@ import {
   ClipboardCopyIcon,
   ClockIcon,
   ExitIcon,
-  FileTextIcon,
   GearIcon,
   HomeIcon,
-  LayersIcon,
-  LockClosedIcon,
   MoonIcon,
-  PersonIcon,
   PlusIcon,
-  RocketIcon,
   SunIcon,
 } from '@radix-ui/react-icons'
 import { TICKET_STATUS_LABEL } from '@/pages/project/tickets/ticket-display'
@@ -247,52 +243,21 @@ function ApplicationLayoutContent() {
   const isAdmin = user.role === 'admin'
   const isProjectRoute = pathname.startsWith('/project/')
 
+  // Runners, connections, secrets and prompt templates live under Settings → Advanced (ADR 0003).
+  const isSettingsRoute = ['/settings', '/clankers', '/secrets'].some((prefix) => pathname.startsWith(prefix))
   const platformNavItems: NavLinkItem[] = [
     { href: '/', label: 'Dashboard', current: !isProjectRoute && pathname === '/', icon: <HomeIcon /> },
-    // Workspace plumbing: only admins can change it, so only admins see it.
-    ...(isAdmin
-      ? [
-          { href: '/clankers', label: 'Agent runners', current: pathname.startsWith('/clankers'), icon: <RocketIcon /> },
-          { href: '/secrets', label: 'Secrets', current: pathname.startsWith('/secrets'), icon: <LockClosedIcon /> },
-          {
-            href: '/settings/integrations',
-            label: 'Integrations',
-            current: pathname.startsWith('/settings/integrations'),
-            icon: <LayersIcon />,
-          },
-        ]
-      : []),
     {
       href: '/sessions',
       label: 'Pulse',
       current: pathname.startsWith('/sessions'),
       icon: <ActivityLogIcon />,
     },
-    ...(isAdmin
-      ? [
-          {
-            href: '/settings/users',
-            label: 'Users',
-            current: pathname.startsWith('/settings/users'),
-            icon: <PersonIcon />,
-          },
-        ]
-      : []),
-    ...(isAdmin
-      ? [
-          {
-            href: '/settings/prompt-templates',
-            label: 'Prompt Templates',
-            current: pathname.startsWith('/settings/prompt-templates'),
-            icon: <FileTextIcon />,
-          },
-        ]
-      : []),
     {
-      href: '/settings/api-tokens',
-      label: 'API Tokens',
-      current: pathname.startsWith('/settings/api-tokens'),
-      icon: <LockClosedIcon />,
+      href: isAdmin ? '/settings/users' : '/settings/api-tokens',
+      label: 'Settings',
+      current: isSettingsRoute,
+      icon: <GearIcon />,
     },
   ]
 
@@ -485,6 +450,7 @@ function ApplicationLayoutContent() {
             </Sidebar>
           }
         >
+          <DemoWorkspaceBanner />
           <Outlet />
         </StackedLayout>
         <Toaster

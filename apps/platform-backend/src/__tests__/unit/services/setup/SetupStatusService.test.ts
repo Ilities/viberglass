@@ -81,6 +81,7 @@ function service(state: { secrets?: string[]; github?: boolean; space?: boolean;
       getClankerBySlug: async () => defaultAgent,
       listClankers: async () => (defaultAgent ? [defaultAgent] : []),
     },
+    demo: { getDemo: async () => null },
   });
 }
 
@@ -92,6 +93,7 @@ describe("SetupStatusService", () => {
       space: null,
       agent: null,
       complete: false,
+      demo: null,
     });
   });
 
@@ -104,6 +106,7 @@ describe("SetupStatusService", () => {
       space: { projectId: "project-1", name: "Web", slug: "web", repositoryUrl: "https://github.com/acme/web" },
       agent: { clankerId: "clanker-1", agentName: "OpenCode", status: "deploying", statusMessage: "Docker image ready" },
       complete: false,
+      demo: null,
     });
   });
 

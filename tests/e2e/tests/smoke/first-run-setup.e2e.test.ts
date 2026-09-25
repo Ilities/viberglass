@@ -71,3 +71,40 @@ test("a product leader sets up an empty workspace alone and gets a first researc
     await stub.stop();
   }
 });
+
+test("a new admin can explore the demo workspace first, then remove it and set up their own", async ({ page }) => {
+  test.setTimeout(180_000);
+  const stub = new SetupStubServer();
+  await stub.start();
+  const scenario = new FirstRunScenario(stub.url);
+  try {
+    await scenario.start();
+    await page.route(`${E2E.backendUrl}/**`, (route) =>
+      route.continue({ url: route.request().url().replace(E2E.backendUrl, scenario.backendUrl) }),
+    );
+
+    await page.goto("/register");
+    await page.getByLabel("Email").fill("maria@example.com");
+    await page.getByLabel("Full name").fill("Maria Product");
+    await page.getByLabel("Password").fill("maria-password");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page).toHaveURL(/\/setup$/);
+
+    // The demo loads beside real data, with tasks at every stage.
+    await page.getByRole("button", { name: "Explore a demo workspace" }).click();
+    await expect(page).toHaveURL(/\/project\/demo-acme-storefront$/);
+    await expect(page.getByRole("status")).toContainText("a demo space with sample data");
+    await page.goto("/project/demo-acme-storefront/tickets");
+    await page.getByText("Fix rounding in cart totals").click();
+    await expect(page.getByText("Failed: Model quota used up")).toBeVisible();
+    await expect(page.getByText("Sample data only: tasks here don't run.")).toBeVisible();
+
+    // Removing it leaves an empty workspace, so setup picks up again.
+    await page.getByRole("button", { name: "Remove demo" }).click();
+    await expect(page).toHaveURL(/\/setup$/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Connect an AI model" })).toBeVisible();
+  } finally {
+    scenario.stop();
+    await stub.stop();
+  }
+});

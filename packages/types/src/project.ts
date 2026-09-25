@@ -112,7 +112,8 @@ export type ProjectReadinessCode =
   | 'configure_agent_credentials'
 
 export interface ProjectReadinessCheck {
-  key: 'repository' | 'scmCredential' | 'agentRunner' | 'agentCredentials'
+  /** `demo`: the demo workspace's space, which is sample data and never runs. */
+  key: 'repository' | 'scmCredential' | 'agentRunner' | 'agentCredentials' | 'demo'
   label: string
   state: ProjectReadinessState
   code?: ProjectReadinessCode
@@ -123,6 +124,8 @@ export interface ProjectReadinessCheck {
 export interface ProjectReadiness {
   projectId: string
   automationAvailable: boolean
+  /** Whether any task in the project has run yet; the space home offers a first task until one has. */
+  hasRuns: boolean
   checks: ProjectReadinessCheck[]
 }
 

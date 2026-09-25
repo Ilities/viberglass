@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   CreatedSpace,
   DefaultAgent,
+  DemoWorkspace,
   ModelProviderId,
   SavedModelKey,
   SavedRepository,
@@ -51,4 +52,16 @@ export async function createSpace(name: string, repository: string, baseBranch: 
 
 export async function prepareDefaultAgent(provider: ModelProviderId): Promise<DefaultAgent> {
   return readData(await post('agent', { provider }), "Couldn't prepare the agent")
+}
+
+export async function loadDemoWorkspace(): Promise<DemoWorkspace> {
+  return readData(await post('demo', {}), "Couldn't load the demo workspace")
+}
+
+export async function removeDemoWorkspace(): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/setup/demo`, { method: 'DELETE' })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || "Couldn't remove the demo workspace")
+  }
 }
