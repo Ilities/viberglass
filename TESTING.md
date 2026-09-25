@@ -198,6 +198,8 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Members can't reach secrets, runner changes or project deletion, and don't see plumbing | `member-permissions.e2e.test.ts` |
 | A backend that starts before Postgres recovers once it is up | `late-database.e2e.test.ts` |
 | On an empty workspace, the first admin goes through setup (a wrong key is explained; key → repository → space → agent) and the first task's research document appears | `first-run-setup.e2e.test.ts` |
+| A new admin explores the demo workspace (sample tasks, a readable failure), removes it, and lands back in setup | `first-run-setup.e2e.test.ts` |
+| Workspace plumbing sits under Settings → Advanced, for admins only | `member-permissions.e2e.test.ts` |
 
 ### One-time setup
 

@@ -4,7 +4,10 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isSetupSkipped } from './setupResume'
 
-/** Sends an admin to /setup until the workspace has a space and a working agent (unless they skipped it). */
+/**
+ * Sends an admin to /setup until the workspace has a space and a working
+ * agent, unless they skipped it or are exploring the demo workspace.
+ */
 export function useSetupRedirect(): void {
   const { user, status } = useAuth()
   const navigate = useNavigate()
@@ -14,7 +17,8 @@ export function useSetupRedirect(): void {
     let cancelled = false
     getSetupStatus()
       .then((setup) => {
-        if (!cancelled && !setup.complete) navigate('/setup', { replace: true })
+        // While the demo is loaded they're exploring it; its banner leads back to setup.
+        if (!cancelled && !setup.complete && !setup.demo) navigate('/setup', { replace: true })
       })
       // The dashboard still works without the status; setup stays reachable at /setup.
       .catch(() => undefined)

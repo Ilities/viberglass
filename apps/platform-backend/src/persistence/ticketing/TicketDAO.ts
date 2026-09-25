@@ -370,6 +370,19 @@ export class TicketDAO {
   }
 
   /** Whether any run of the ticket is queued or active right now. */
+  /** Whether any task in the project has ever had a run. */
+  async projectHasRuns(projectId: string): Promise<boolean> {
+    const row = await db
+      .selectFrom("jobs")
+      .innerJoin("tickets", "tickets.id", "jobs.ticket_id")
+      .select("jobs.id")
+      .where("tickets.project_id", "=", projectId)
+      .limit(1)
+      .executeTakeFirst();
+
+    return Boolean(row);
+  }
+
   async hasRunningJob(ticketId: string): Promise<boolean> {
     const row = await db
       .selectFrom("jobs")

@@ -7,6 +7,7 @@ const FRESH: SetupStatus = {
   space: null,
   agent: null,
   complete: false,
+  demo: null,
 }
 
 const REPOSITORY = { fullName: 'Acme/web', url: 'https://github.com/Acme/web', defaultBranch: 'main', isPrivate: true }

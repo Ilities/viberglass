@@ -1,5 +1,9 @@
-import type { ProjectReadiness, ProjectReadinessCheck } from "@viberglass/types";
+import type { Clanker, ProjectReadiness, ProjectReadinessCheck } from "@viberglass/types";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
+import { SecretDAO } from "../persistence/secret/SecretDAO";
+import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { agentCredentialsCheck, agentRunnerCheck } from "./readiness/agentReadinessChecks";
+import { DemoWorkspaceService } from "./demo/DemoWorkspaceService";
 import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
@@ -10,21 +14,41 @@ export class ProjectReadinessService {
     private readonly scmConfigDAO = new ProjectScmConfigDAO(),
     private readonly credentialDAO = new IntegrationCredentialDAO(),
     private readonly clankerDAO = new ClankerDAO(),
+    private readonly secretDAO: Pick<SecretDAO, "getSecret"> = new SecretDAO(),
+    private readonly demo: Pick<DemoWorkspaceService, "getDemo"> = new DemoWorkspaceService(),
+    private readonly tickets: Pick<TicketDAO, "projectHasRuns"> = new TicketDAO(),
   ) {}
 
   async getReadiness(projectId: string): Promise<ProjectReadiness | null> {
     const project = await this.projectDAO.getProject(projectId);
     if (!project) return null;
 
+    // The demo space is sample data: nothing to set up, and nothing runs there.
+    if ((await this.demo.getDemo())?.projectId === projectId) {
+      return {
+        projectId,
+        automationAvailable: false,
+        hasRuns: true,
+        checks: [
+          {
+            key: "demo",
+            label: "Demo space",
+            state: "unavailable",
+            summary: "Sample data only: tasks here don't run. Set up your own space to try an agent.",
+            remediationUrl: "/setup",
+          },
+        ],
+      };
+    }
+
     const [scmConfig, runners] = await Promise.all([
       this.scmConfigDAO.getByProjectId(projectId),
       this.clankerDAO.listClankers(),
     ]);
-    const activeRunners = runners.filter(
-      (runner) => runner.status === "active" && Boolean(runner.deploymentStrategyId),
-    );
 
+    // In the order setup asks for them: model key, repository, its token, a running agent.
     const checks: ProjectReadinessCheck[] = [
+      agentCredentialsCheck(runners, await this.findExistingSecretIds(runners)),
       scmConfig?.sourceRepository.trim()
         ? {
             key: "repository",
@@ -41,46 +65,21 @@ export class ProjectReadinessService {
             remediationUrl: `/project/${project.slug}/settings`,
           },
       await this.getScmCredentialCheck(project.slug, scmConfig),
-      activeRunners.length > 0
-        ? {
-            key: "agentRunner",
-            label: "Agent runner",
-            state: "ready",
-            summary: `${activeRunners.length} agent runner${activeRunners.length === 1 ? " is" : "s are"} available.`,
-          }
-        : {
-            key: "agentRunner",
-            label: "Agent runner",
-            state: runners.length > 0 ? "unavailable" : "missing",
-            code: "start_agent_runner",
-            summary:
-              runners.length > 0
-                ? "Configured agent runners are currently unavailable."
-                : "Configure an agent runner to perform automation.",
-            remediationUrl: "/clankers",
-          },
-      activeRunners.some((runner) => runner.secretIds.length > 0)
-        ? {
-            key: "agentCredentials",
-            label: "Agent credentials",
-            state: "ready",
-            summary: "An available agent runner has credentials configured.",
-          }
-        : {
-            key: "agentCredentials",
-            label: "Agent credentials",
-            state: "missing",
-            code: "configure_agent_credentials",
-            summary: "Add model credentials to an agent runner before starting work.",
-            remediationUrl: "/clankers",
-          },
+      agentRunnerCheck(runners),
     ];
 
     return {
       projectId,
       automationAvailable: checks.every((check) => check.state === "ready"),
+      hasRuns: await this.tickets.projectHasRuns(projectId),
       checks,
     };
+  }
+
+  private async findExistingSecretIds(runners: Clanker[]): Promise<Set<string>> {
+    const ids = [...new Set(runners.flatMap((runner) => runner.secretIds))];
+    const found = await Promise.all(ids.map((id) => this.secretDAO.getSecret(id)));
+    return new Set(found.flatMap((secret) => (secret ? [secret.id] : [])));
   }
 
   private async getScmCredentialCheck(

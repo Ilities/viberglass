@@ -32,20 +32,29 @@ export class TicketPhaseDocumentDAO {
     return this.mapRow(row);
   }
 
+  /**
+   * Creates the ticket's document for a phase, or returns the one that exists.
+   * Safe when two requests open the same new ticket at once: both used to
+   * insert, and the second failed on the (ticket_id, phase) unique index.
+   */
   async create(
     ticketId: string,
     phase: TicketWorkflowPhase,
   ): Promise<PhaseDocument> {
-    const row = await db
+    const inserted = await db
       .insertInto("ticket_phase_documents")
       .values({
         ticket_id: ticketId,
         phase,
       })
+      .onConflict((oc) => oc.columns(["ticket_id", "phase"]).doNothing())
       .returningAll()
-      .executeTakeFirstOrThrow();
+      .executeTakeFirst();
+    if (inserted) return this.mapRow(inserted);
 
-    return this.mapRow(row);
+    const existing = await this.getByTicketAndPhase(ticketId, phase);
+    if (!existing) throw new Error(`Phase document for ticket ${ticketId} (${phase}) vanished after a conflict`);
+    return existing;
   }
 
   async updateContent(

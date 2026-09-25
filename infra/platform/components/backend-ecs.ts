@@ -29,6 +29,8 @@ export interface BackendEcsOptions {
   };
   /** Webhook encryption key SSM parameter ARN */
   webhookSecretEncryptionKeySsmArn: pulumi.Input<string>;
+  /** Encrypts secrets stored in the database (model keys and tokens saved by setup). */
+  secretsEncryptionKeySsmArn: pulumi.Input<string>;
   /** Slack integration SSM parameter ARNs (optional) */
   slackSsm?: {
     signingSecretArn: pulumi.Input<string>;
@@ -166,6 +168,7 @@ export function createBackendEcs(
               options.databaseSsm.urlPathArn,
               options.databaseSsm.hostPathArn,
               options.webhookSecretEncryptionKeySsmArn,
+              options.secretsEncryptionKeySsmArn,
               ...(options.slackSsm
                 ? [
                     options.slackSsm.signingSecretArn,
@@ -365,6 +368,7 @@ export function createBackendEcs(
           databaseUrlPath: options.databaseSsm.urlPathArn,
           webhookSecretEncryptionKeyPath:
             options.webhookSecretEncryptionKeySsmArn,
+          secretsEncryptionKeyPath: options.secretsEncryptionKeySsmArn,
           allowedOrigins: options.allowedOrigins ?? "http://localhost:3000",
           platformApiUrl: options.platformApiUrl ?? "",
           platformFrontendUrl: options.platformFrontendUrl ?? "",
@@ -388,6 +392,7 @@ export function createBackendEcs(
             logGroupName,
             databaseUrlPath,
             webhookSecretEncryptionKeyPath,
+            secretsEncryptionKeyPath,
             allowedOrigins,
             platformApiUrl,
             platformFrontendUrl,
@@ -552,6 +557,10 @@ export function createBackendEcs(
                   {
                     name: "WEBHOOK_SECRET_ENCRYPTION_KEY",
                     valueFrom: webhookSecretEncryptionKeyPath,
+                  },
+                  {
+                    name: "SECRETS_ENCRYPTION_KEY",
+                    valueFrom: secretsEncryptionKeyPath,
                   },
                   ...(slackSigningSecretPath
                     ? [{ name: "SLACK_SIGNING_SECRET", valueFrom: slackSigningSecretPath }]

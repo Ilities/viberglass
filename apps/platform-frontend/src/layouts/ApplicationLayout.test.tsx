@@ -119,20 +119,16 @@ describe('ApplicationLayout mobile navigation', () => {
     // Projects load asynchronously — wait for the list before asserting
     expect(await within(mobileDrawer).findByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
 
-    for (const label of [
-      'Dashboard',
-      'Agent runners',
-      'Secrets',
-      'Integrations',
-      'Pulse',
-      'Users',
-      'Prompt Templates',
-      'API Tokens',
-    ]) {
+    for (const label of ['Dashboard', 'Pulse', 'Settings']) {
       expect(
         within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') }),
       ).toBeInTheDocument()
     }
+    // The plumbing lives under Settings → Advanced, not in the main navigation.
+    for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens']) {
+      expect(within(mobileDrawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
+    }
+    expect(within(mobileDrawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/users')
 
     // The logo link and the Viberglass project link share the accessible
     // name — assert the project one by its href
@@ -159,9 +155,13 @@ describe('ApplicationLayout mobile navigation', () => {
     for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates']) {
       expect(within(mobileDrawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
-    for (const label of ['Dashboard', 'Pulse', 'API Tokens']) {
+    for (const label of ['Dashboard', 'Pulse', 'Settings']) {
       expect(within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
+    expect(within(mobileDrawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute(
+      'href',
+      '/settings/api-tokens',
+    )
   })
 
   it('shows project nav items in the drawer on project routes', async () => {

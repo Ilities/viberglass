@@ -433,6 +433,13 @@ export interface TicketPhaseApprovalsTable {
   created_at: Generated<Timestamp>;
 }
 
+export interface DemoSeedRecordsTable {
+  id: Generated<string>;
+  entity_type: "user" | "project" | "clanker" | "job";
+  entity_id: string;
+  created_at: Generated<Timestamp>;
+}
+
 export interface TicketPhaseRunsTable {
   id: Generated<string>;
   ticket_id: string;
@@ -650,6 +657,7 @@ export interface Database {
   user_projects: UserProjectsTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;
+  demo_seed_records: DemoSeedRecordsTable;
   ticket_phase_approvals: TicketPhaseApprovalsTable;
   ticket_phase_document_revisions: TicketPhaseDocumentRevisionsTable;
   ticket_phase_document_comments: TicketPhaseDocumentCommentsTable;

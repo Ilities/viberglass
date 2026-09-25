@@ -1,7 +1,7 @@
 import { PageMeta } from '@/components/page-meta'
 import { Text } from '@/components/text'
 import { useAuth } from '@/context/auth-context'
-import { getSetupProviders, getSetupStatus } from '@/service/api/setup-api'
+import { getSetupProviders, getSetupStatus, loadDemoWorkspace } from '@/service/api/setup-api'
 import type { ModelProviderId, RepositoryAccess, SetupProvider, SetupStatus } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -54,6 +54,21 @@ export function SetupPage() {
       .catch((error: unknown) => setLoadError(error instanceof Error ? error.message : "Couldn't load setup."))
   }, [authStatus, user])
 
+  const [demoError, setDemoError] = useState<string | null>(null)
+  const [isLoadingDemo, setIsLoadingDemo] = useState(false)
+
+  async function handleExploreDemo() {
+    setDemoError(null)
+    setIsLoadingDemo(true)
+    try {
+      const demo = await loadDemoWorkspace()
+      navigate(`/project/${demo.slug}`)
+    } catch (error) {
+      setDemoError(error instanceof Error ? error.message : "Couldn't load the demo workspace.")
+      setIsLoadingDemo(false)
+    }
+  }
+
   const handleAgentReady = useCallback((id: string) => {
     setClankerId(id)
     setStep('task')
@@ -76,6 +91,23 @@ export function SetupPage() {
               setStep(space ? 'agent' : repository && loaded.status.repositoryConnected ? 'space' : 'repository')
             }}
           />
+        )}
+        {step === 'model' && (
+          <div className="grid gap-3 border-t border-zinc-950/10 pt-6 dark:border-white/10">
+            <SetupError message={demoError} />
+            <Text>
+              Want to look around first?{' '}
+              <button
+                type="button"
+                className="font-medium underline"
+                onClick={() => void handleExploreDemo()}
+                disabled={isLoadingDemo}
+              >
+                {isLoadingDemo ? 'Loading the demo…' : 'Explore a demo workspace'}
+              </button>{' '}
+              with sample tasks at every stage. You can remove it later.
+            </Text>
+          </div>
         )}
         {step === 'repository' && (
           <RepositoryStep

@@ -1,6 +1,7 @@
 import { AuthLayout } from '@/components/auth-layout'
 import { ApplicationLayout } from '@/layouts/ApplicationLayout'
 import { SettingsLayout } from '@/layouts/SettingsLayout'
+import { SettingsHome, WorkspaceSettingsLayout } from '@/layouts/WorkspaceSettingsLayout'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 // Auth pages
@@ -72,22 +73,21 @@ export function AppRoutes() {
         <Route path="/new" element={<NewProjectPage />} />
         <Route path="/sessions" element={<SessionsPulsePage />} />
 
-        {/* Clankers */}
-        <Route path="/clankers" element={<ClankersPage />} />
-        <Route path="/clankers/new" element={<NewClankerPage />} />
-        <Route path="/clankers/:slug" element={<ClankerDetailPage />} />
-        <Route path="/clankers/:slug/edit" element={<EditClankerPage />} />
-
-        {/* Secrets */}
-        <Route path="/secrets" element={<SecretsPage />} />
-
-        {/* Settings */}
-        <Route path="/settings/integrations" element={<IntegrationsPage />} />
-        <Route path="/settings/integrations/new/:integrationSystem" element={<IntegrationDetailPage />} />
-        <Route path="/settings/integrations/:integrationEntityId" element={<IntegrationDetailPage />} />
-        <Route path="/settings/users" element={<UsersPage />} />
-        <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
-        <Route path="/settings/api-tokens" element={<ApiTokensPage />} />
+        {/* Workspace settings: General, and the plumbing under Advanced. URLs stay put until Phase 2. */}
+        <Route element={<WorkspaceSettingsLayout />}>
+          <Route path="/settings" element={<SettingsHome />} />
+          <Route path="/clankers" element={<ClankersPage />} />
+          <Route path="/clankers/new" element={<NewClankerPage />} />
+          <Route path="/clankers/:slug" element={<ClankerDetailPage />} />
+          <Route path="/clankers/:slug/edit" element={<EditClankerPage />} />
+          <Route path="/secrets" element={<SecretsPage />} />
+          <Route path="/settings/integrations" element={<IntegrationsPage />} />
+          <Route path="/settings/integrations/new/:integrationSystem" element={<IntegrationDetailPage />} />
+          <Route path="/settings/integrations/:integrationEntityId" element={<IntegrationDetailPage />} />
+          <Route path="/settings/users" element={<UsersPage />} />
+          <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
+          <Route path="/settings/api-tokens" element={<ApiTokensPage />} />
+        </Route>
 
         {/* Project routes */}
         <Route path="/project/:project" element={<ProjectHomePage />} />

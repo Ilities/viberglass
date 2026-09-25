@@ -19,19 +19,25 @@ test("a member cannot change workspace plumbing or delete a space", async ({
   expect((await adminApi.get("/api/secrets")).status()).toBe(200);
 });
 
-test("only an admin sees workspace plumbing in the navigation", async ({
+test("workspace plumbing sits under Settings → Advanced, for admins only", async ({
   adminPage,
   memberPage,
 }) => {
-  const plumbing = ["Agent runners", "Secrets", "Integrations", "Users", "Prompt Templates"];
+  const plumbing = ["Agents & runners", "Connections", "Secrets", "Prompt templates"];
 
+  // The main navigation has no plumbing for anyone; Settings leads to it.
   await memberPage.goto("/");
   await expect(memberPage.getByRole("link", { name: "Pulse" })).toBeVisible();
+  await memberPage.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(memberPage).toHaveURL(/\/settings\/api-tokens$/);
   for (const label of plumbing) {
     await expect(memberPage.getByRole("link", { name: label, exact: true })).toHaveCount(0);
   }
 
   await adminPage.goto("/");
+  await expect(adminPage.getByRole("link", { name: "Secrets", exact: true })).toHaveCount(0);
+  await adminPage.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(adminPage.getByRole("heading", { name: "Advanced" })).toBeVisible();
   for (const label of plumbing) {
     await expect(adminPage.getByRole("link", { name: label, exact: true })).toBeVisible();
   }

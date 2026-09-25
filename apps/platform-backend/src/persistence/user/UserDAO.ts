@@ -138,6 +138,10 @@ export class UserDAO {
     };
   }
 
+  async deleteUser(id: string): Promise<void> {
+    await db.deleteFrom("users").where("id", "=", id).execute();
+  }
+
   async hasAnyUsers(): Promise<boolean> {
     const row = await db
       .selectFrom("users")

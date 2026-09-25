@@ -439,7 +439,12 @@ export function ProjectHomePage() {
           </div>
         </div>
 
-        {projectDetails && <ProjectReadinessBanner projectId={projectDetails.id} />}
+        {projectDetails && (
+          <ProjectReadinessBanner
+            projectId={projectDetails.id}
+            firstTaskHref={`/project/${projectDetails.slug}/tickets/create`}
+          />
+        )}
 
         <TimelineBar tickets={tickets} jobs={jobs} />
 
