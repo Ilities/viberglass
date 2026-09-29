@@ -291,7 +291,7 @@ describe("SessionTurnContinuationService", () => {
       makeSession({ status: "waiting_on_user" }),
     );
 
-    await service.drainQueuedMessages("sess-1");
+    await expect(service.drainQueuedMessages("sess-1")).resolves.toBe(false);
 
     expect(mockAgentTurnDAO.listUnconsumedUserTurns).not.toHaveBeenCalled();
     expect(mockJobService.submitJob).not.toHaveBeenCalled();
@@ -306,7 +306,7 @@ describe("SessionTurnContinuationService", () => {
     mockAgentTurnDAO.create.mockResolvedValue({ id: "a1" });
     mockAgentTurnDAO.markConsumed.mockResolvedValue(undefined);
 
-    await service.drainQueuedMessages("sess-1");
+    await expect(service.drainQueuedMessages("sess-1")).resolves.toBe(true);
 
     expect(mockJobService.submitJob).toHaveBeenCalledTimes(1);
   });

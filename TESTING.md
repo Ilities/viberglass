@@ -191,6 +191,7 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Automatic research writes a document, which is approved | `research-and-approve.e2e.test.ts` |
 | A message queued during a live turn reaches the agent, then the session completes | `live-session-message.e2e.test.ts` |
 | A session is titled with its task and opens with what the person wrote (which reaches the agent); the full prompt is behind "View full prompt" | `session-opening.e2e.test.ts` |
+| A live turn that writes no document leaves the session waiting on the person; their reply starts the next turn | `session-waits-on-person.e2e.test.ts` |
 | Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
 | A phase can't start a second run or session while one is in progress; the page re-enables when it ends | `no-duplicate-runs.e2e.test.ts` |
 | Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |
