@@ -7,16 +7,15 @@ import { AgentTurnDAO } from "../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../persistence/agentSession/AgentPendingRequestDAO";
 import type { AgentSessionEvent } from "../persistence/agentSession/AgentSessionEventDAO";
-import { TicketPhaseDocumentService } from "../services/TicketPhaseDocumentService";
-import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import {
   AGENT_SESSION_EVENT_TYPE,
   AGENT_SESSION_ACTIVE_STATUSES,
-  AGENT_SESSION_MODE,
   type AgentSessionMode,
   type AgentSessionEventType,
 } from "../types/agentSession";
-import { ticketUrl } from "./platformLinks";
+import { SessionCompletionNotice } from "./SessionCompletionNotice";
+import { AssistantMessageCoalescer } from "./AssistantMessageCoalescer";
+import { isObjectRecord } from "../clanker-config/parsers";
 import { getThreadForSession, unlinkSession } from "./sessionThreadMap";
 
 const POLL_INTERVAL_MS = 2000;
@@ -52,7 +51,7 @@ interface BridgeCallbacks {
 export class ChatSessionBridgeService {
   private readonly queryService: AgentSessionQueryService;
   private readonly sessionDAO: AgentSessionDAO;
-  private readonly documentService: TicketPhaseDocumentService;
+  private readonly completionNotice: SessionCompletionNotice;
   private timers = new Map<string, ReturnType<typeof setInterval>>();
   private chainMap = new Map<string, ChainEntry>();
   private callbacks?: BridgeCallbacks;
@@ -68,7 +67,7 @@ export class ChatSessionBridgeService {
       eventDAO,
       pendingRequestDAO,
     );
-    this.documentService = new TicketPhaseDocumentService();
+    this.completionNotice = new SessionCompletionNotice(this.sessionDAO);
   }
 
   configure(callbacks: BridgeCallbacks): void {
@@ -83,6 +82,7 @@ export class ChatSessionBridgeService {
     }
 
     let lastSequence = 0;
+    const assistantMessage = new AssistantMessageCoalescer();
 
     const poll = async () => {
       try {
@@ -94,6 +94,17 @@ export class ChatSessionBridgeService {
         for (const event of events) {
           const seq = Number(event.sequence);
           if (seq > lastSequence) lastSequence = seq;
+
+          if (event.eventType === AGENT_SESSION_EVENT_TYPE.ASSISTANT_MESSAGE) {
+            const payload = event.payloadJson;
+            if (isObjectRecord(payload) && typeof payload.text === "string") {
+              assistantMessage.append(payload.text);
+            }
+            continue;
+          }
+
+          const message = assistantMessage.flush();
+          if (message) await thread.post({ markdown: message });
 
           const { keepLinked } = await this.postEvent(event, thread, sessionId);
 
@@ -206,14 +217,6 @@ export class ChatSessionBridgeService {
     const payload = event.payloadJson as Record<string, unknown> | null;
 
     switch (event.eventType) {
-      case AGENT_SESSION_EVENT_TYPE.ASSISTANT_MESSAGE: {
-        const content = (payload?.content as string) ?? "";
-        if (content) {
-          await thread.post({ markdown: content });
-        }
-        break;
-      }
-
       case AGENT_SESSION_EVENT_TYPE.TURN_STARTED:
         await thread.post({ markdown: "_Agent is working..._" });
         break;
@@ -265,62 +268,12 @@ export class ChatSessionBridgeService {
       }
 
       case AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED: {
-        const session = await this.sessionDAO.getById(sessionId);
-        if (session && session.mode !== AGENT_SESSION_MODE.EXECUTION) {
-          const phase =
-            session.mode === AGENT_SESSION_MODE.RESEARCH
-              ? TICKET_WORKFLOW_PHASE.RESEARCH
-              : TICKET_WORKFLOW_PHASE.PLANNING;
-          const doc = await this.documentService.getOrCreateDocument(
-            session.ticketId,
-            phase,
-          );
-          if (doc.content?.trim()) {
-            const filename =
-              phase === TICKET_WORKFLOW_PHASE.RESEARCH
-                ? "research.md"
-                : "planning.md";
-            await thread.post({
-              markdown: `_${phase === TICKET_WORKFLOW_PHASE.RESEARCH ? "Research" : "Planning"} document:_`,
-              files: [
-                {
-                  data: Buffer.from(doc.content),
-                  filename,
-                  mimeType: "text/markdown",
-                },
-              ],
-            });
-          }
-          keepLinked = true;
-        }
-
-        // Skip the "what's next" guidance when a chain will auto-advance.
-        const hasChain = this.chainMap.has(sessionId);
-        if (!hasChain) {
-          const parts: string[] = ["*Session completed.*"];
-          if (session) {
-            if (
-              session.mode === AGENT_SESSION_MODE.EXECUTION &&
-              session.draftPullRequestUrl
-            ) {
-              parts.push(`[View pull request](${session.draftPullRequestUrl})`);
-            }
-            const url = ticketUrl(session.projectSlug ?? session.projectId, session.ticketId);
-            if (url) {
-              parts.push(`[View ticket](${url})`);
-            }
-            if (session.mode === AGENT_SESSION_MODE.RESEARCH) {
-              parts.push(
-                '_Mention @viberator with feedback to revise, or "plan it" to move to planning._',
-              );
-            } else if (session.mode === AGENT_SESSION_MODE.PLANNING) {
-              parts.push(
-                '_Mention @viberator with feedback to revise, or "execute" to start execution._',
-              );
-            }
-          }
-          await thread.post({ markdown: parts.join("\n") });
-        }
+        const completion = await this.completionNotice.post(
+          sessionId,
+          thread,
+          this.chainMap.has(sessionId),
+        );
+        keepLinked = completion.keepLinked;
         break;
       }
 

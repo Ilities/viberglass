@@ -1,6 +1,6 @@
 # Handover: Phase 2 (people) and Phase 3 (agent ↔ human)
 
-Status as of 2026-09-25 · Phase 1 is complete in code (Step C in [`next-steps-handover.md`](./next-steps-handover.md)); its exit waits on the AWS walkthrough ([`docs/operations/aws-first-run-walkthrough.md`](../operations/aws-first-run-walkthrough.md)) · Owner of decisions: Jussi
+Status as of 2026-09-29 · Phase 1 is complete in code and rechecked (Step C in [`next-steps-handover.md`](./next-steps-handover.md)); its exit waits on the AWS walkthrough, run from another machine ([`docs/operations/aws-first-run-walkthrough.md`](../operations/aws-first-run-walkthrough.md)) · Owner of decisions: Jussi
 
 This is the plan for the next two phases, written for whoever picks them up. For each phase it lists:
 - what the plan asks for;
@@ -44,11 +44,11 @@ Two things for anyone continuing:
 
 ## 1. Decisions needed before starting
 
-Only these block work. Each has a recommendation; decide, then record the answer as an ADR or in §13 of the plan.
+**All answered 2026-09-29** and recorded in [ADR 0005](../adr/0005-roles-and-space-visibility.md) (D1–D3, D6), [ADR 0006](../adr/0006-agent-questions-and-session-continuity.md) (D7–D9) and plan §13 (D4, D5). Every recommendation was accepted except D1, which adds a **Viewer** role: read-only across the workspace (sees every open space and task, can't create, comment, approve or run). Also decided: a follow-up session turn that writes no document leaves the session waiting on the person (§3.1). The table keeps the original options for reference.
 
 | # | Decision | Needed before | Recommendation |
 |---|---|---|---|
-| D1 | **Workspace roles** | Phase 2, step 2 | Keep **Admin** and **Member**, add **Guest**. Guests get a limited account: invited to specific spaces, can comment, answer questions and approve when they're a reviewer, but see no plumbing and can't create spaces. Matches the §4 matrix. |
+| D1 | **Workspace roles** · *Decided: Admin, Member, Guest and Viewer* | Phase 2, step 2 | Keep **Admin** and **Member**, add **Guest**. Guests get a limited account: invited to specific spaces, can comment, answer questions and approve when they're a reviewer, but see no plumbing and can't create spaces. Matches the §4 matrix. |
 | D2 | **Space roles** | Phase 2, step 3 | Two per space: **Maintainer** (defaults, policies, space members) and **Member**. Workspace admins are maintainers everywhere. "Reviewer" is not a role: it's per task, set by the approval policy (D4). |
 | D3 | **Space visibility** | Phase 2, step 3 | **Open by default** (every member sees every space; membership sets defaults and notifications), with an optional **Private** flag that limits a space to its members. This keeps a small company's first days frictionless. The alternative, members-only everywhere, makes every new space an admin chore. |
 | D4 | **Default approval policy** | Phase 2, step 7 | Research: any participant. Plan: one reviewer from the space's reviewers, falling back to the owner. Build: the PR review in GitHub is the gate. Editable per space. |
@@ -110,10 +110,11 @@ Rough size: 4–6 weeks. The naming migration and notifications are the biggest 
   - `POST /api/invites` returns a **link** (works without SMTP, ADR 0002). It's emailed too when SMTP is configured.
   - `/invite/:token` lets the invitee choose a name and password, and signs them in.
   - Members → Invite, with a pending list (copy link, revoke).
-  - Add **Guest** to `UserRole` and to every `requireRole`/`requirePolicy` decision; guests see no plumbing and no admin pages.
+  - Add **Guest** and **Viewer** to `UserRole` and to every `requireRole`/`requirePolicy` decision (ADR 0005); guests see no plumbing and no admin pages, and viewers are refused on every mutating route.
   - **Deactivate** instead of delete: `deactivated_at`, sessions revoked. It keeps attribution and prepares J21.
   - Reset links use the same token mechanism, so an admin can hand out a reset link without SMTP.
   - Replace the "create user with password" form with Invite. Keep the API for the demo seed and tests.
+- **Home checklist** (J1 step 7, moved from Phase 1 on 2026-09-29): a short, dismissible checklist on the admin's home after setup: *Invite your team · Connect Slack · Connect your tracker*, each ticked from real state (a pending or accepted invite, a Slack connection, a tracker integration). Advanced settings are mentioned once: "Engineers can fine-tune agents and connections in Settings → Advanced."
 - **Tests:** a journey where the admin invites and the invitee accepts in a second browser context and lands on the member home, then a revoked link fails. A unit test that tokens are single-use and expire.
 
 ### 2.3 Space membership and visibility (J17; D2, D3)
@@ -268,7 +269,7 @@ Reported, with key points verified:
 ### 3.1 Session correctness first
 
 Small fixes. Do them before building on sessions:
-- **A follow-up turn that ends without writing the document leaves the session `active` forever.** In the session-turn branch of the result callback (`api/routes/jobs.ts`), only `TURN_COMPLETED` is emitted. Make it a clear state: either waiting on the person ("the agent answered; reply or approve") or a turn failure with a readable reason. Pick one with the J8 design.
+- **A follow-up turn that ends without writing the document leaves the session `active` forever.** In the session-turn branch of the result callback (`api/routes/jobs.ts`), only `TURN_COMPLETED` is emitted. Decided (2026-09-29, ADR 0006): the session waits on the person ("the agent answered; reply or approve").
 - **Slack threads never show the agent's replies** (verified). `ChatSessionBridgeService` reads `payload.content` for assistant messages, but the worker sends `payload.text`, and ingest doesn't rename it.
 - **The ACP permission reply shape:** confirm it against the ACP spec and the harnesses in use.
 - **Session routes check no roles:** any member can cancel any session (reported). Add the Phase 2 membership and participant checks: cancel for driver, owner and admins.
@@ -335,7 +336,7 @@ Small fixes. Do them before building on sessions:
   - **Setup failures pause instead of fail:** credential, credit or runner problems. The run is kept "Paused · GitHub connection expired (Maria notified)", and "Retry all paused runs" appears after the fix.
   - The owner or admin gets an Inbox item with Fix, linking to the exact connection.
   - Agent and work failures give the task owner Retry, Retry with instructions, or Take over.
-  - **Proactive warnings:** tokens with an expiry warn before they expire. Credit-low warnings where the provider reports it: the key checker's model list can't, so this may wait on a usage endpoint per provider.
+  - **Proactive warnings** (the "connection health and expiry warnings" moved from Phase 1 on 2026-09-29; today readiness only flags a credential after it has expired, `ProjectReadinessService`): tokens with an expiry warn before they expire. Credit-low warnings where the provider reports it: the key checker's model list can't, so this may wait on a usage endpoint per provider.
 - **Tests:** the existing failure-copy journeys extended to pause and resume after a fix.
 
 ### 3.7 Cancel-safe runs (J12)
@@ -394,6 +395,7 @@ From `next-steps-handover.md` §1.3, still relevant here:
   - Demo task cards say "3m ago" (tasks are stamped at load time).
   - Slugs drop dots, and the breadcrumb shows the slug instead of the space name (fold into §2.1).
 - **Remaining quick wins:**
+  - #2 also covers the empty dashboard ("Command Deck", FR3's competing CTAs), still shown to members and to admins who skipped setup.
   - #14: execution confirmation naming the branch and repository.
   - #6/16: names instead of emails. Largely solved by attributed users in §2.4, §2.5 and §2.7.
   - #8: a "● Live" badge on tasks (§3.4).
