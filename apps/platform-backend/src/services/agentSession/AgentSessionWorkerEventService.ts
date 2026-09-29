@@ -67,8 +67,24 @@ export class AgentSessionWorkerEventService {
           evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_FAILED,
       );
       if (turnEnded) {
-        await this.turnContinuationService.drainQueuedMessages(sessionId);
+        const launched = await this.turnContinuationService.drainQueuedMessages(sessionId);
+        const turnCompleted = applied.some(
+          (evt) => evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED,
+        );
+        if (!launched && turnCompleted) await this.waitOnPerson(sessionId);
       }
+    });
+  }
+
+  /**
+   * The agent finished a turn without ending the session and nothing is
+   * queued: it has answered, so the person replies or approves next.
+   */
+  private async waitOnPerson(sessionId: string): Promise<void> {
+    const session = await this.agentSessionDAO.getById(sessionId);
+    if (session?.status !== AGENT_SESSION_STATUS.ACTIVE) return;
+    await this.agentSessionDAO.update(sessionId, {
+      status: AGENT_SESSION_STATUS.WAITING_ON_USER,
     });
   }
 

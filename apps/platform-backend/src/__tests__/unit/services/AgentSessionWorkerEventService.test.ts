@@ -121,4 +121,51 @@ describe("AgentSessionWorkerEventService", () => {
     expect(mockAgentTurnDAO.listUnconsumedUserTurns).not.toHaveBeenCalled();
     expect(mockTurnContinuationService.drainQueuedMessages).toHaveBeenCalledWith("sess-1");
   });
+
+  describe("a turn that ends without ending the session", () => {
+    const TURN_ONLY = [{ eventType: "turn_completed" as const, payload: {} }];
+
+    it("waits on the person when nothing was queued", async () => {
+      mockTurnContinuationService.drainQueuedMessages.mockResolvedValue(false);
+      mockAgentSessionDAO.getById.mockResolvedValue({ id: "sess-1", status: "active" });
+
+      await createService().batchIngest("job-1", TURN_ONLY);
+
+      expect(mockAgentSessionDAO.update).toHaveBeenLastCalledWith("sess-1", {
+        status: "waiting_on_user",
+      });
+    });
+
+    it("stays active when a queued message started the next turn", async () => {
+      mockTurnContinuationService.drainQueuedMessages.mockResolvedValue(true);
+
+      await createService().batchIngest("job-1", TURN_ONLY);
+
+      expect(mockAgentSessionDAO.update).not.toHaveBeenCalledWith("sess-1", {
+        status: "waiting_on_user",
+      });
+    });
+
+    it("leaves a session that has already moved on alone", async () => {
+      mockTurnContinuationService.drainQueuedMessages.mockResolvedValue(false);
+      mockAgentSessionDAO.getById.mockResolvedValue({ id: "sess-1", status: "cancelled" });
+
+      await createService().batchIngest("job-1", TURN_ONLY);
+
+      expect(mockAgentSessionDAO.update).not.toHaveBeenCalledWith("sess-1", {
+        status: "waiting_on_user",
+      });
+    });
+
+    it("stays active after a failed turn, so the person can retry", async () => {
+      mockTurnContinuationService.drainQueuedMessages.mockResolvedValue(false);
+      mockAgentSessionDAO.getById.mockResolvedValue({ id: "sess-1", status: "active" });
+
+      await createService().batchIngest("job-1", [{ eventType: "turn_failed", payload: {} }]);
+
+      expect(mockAgentSessionDAO.update).not.toHaveBeenCalledWith("sess-1", {
+        status: "waiting_on_user",
+      });
+    });
+  });
 });

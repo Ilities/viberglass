@@ -162,12 +162,12 @@ export class SessionTurnContinuationService {
    * Launch a continuation for messages queued while a turn was running.
    * No-op unless the session is ACTIVE with unconsumed user turns —
    * e.g. skipped when the agent is waiting on input/approval or the
-   * session reached a terminal state.
+   * session reached a terminal state. Returns whether a turn was launched.
    */
-  async drainQueuedMessages(sessionId: string): Promise<void> {
+  async drainQueuedMessages(sessionId: string): Promise<boolean> {
     const session = await this.agentSessionDAO.getById(sessionId);
-    if (!session || session.status !== AGENT_SESSION_STATUS.ACTIVE) return;
-    await this.launchForPendingMessages(session);
+    if (!session || session.status !== AGENT_SESSION_STATUS.ACTIVE) return false;
+    return (await this.launchForPendingMessages(session)) !== null;
   }
 
   private async launchContinuationJob(

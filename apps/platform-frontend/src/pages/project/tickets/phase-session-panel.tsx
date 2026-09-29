@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import { PendingRequestCard } from '../sessions/PendingRequestCard'
 import { PresenceBar } from '../sessions/PresenceBar'
 import { TranscriptPanel } from '../sessions/TranscriptPanel'
+import { liveSessionStatus } from '../sessions/liveSessionStatus'
 
 interface PhaseSessionPanelProps {
   session: AgentSession
@@ -93,19 +94,7 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
   const { events, presenceEvents, connected } = useSessionEventStream(session.id, initialEvents)
   const presentUsers = useSessionPresence(presenceEvents)
 
-  const lastEvent = events.length > 0 ? events[events.length - 1] : null
-  const liveStatus: AgentSessionStatus | undefined =
-    lastEvent?.eventType === 'session_completed'
-      ? 'completed'
-      : lastEvent?.eventType === 'session_failed'
-        ? 'failed'
-        : lastEvent?.eventType === 'session_cancelled'
-          ? 'cancelled'
-          : lastEvent?.eventType === 'needs_input'
-            ? 'waiting_on_user'
-            : lastEvent?.eventType === 'needs_approval'
-              ? 'waiting_on_approval'
-              : undefined
+  const liveStatus = liveSessionStatus(events)
 
   const currentStatus = liveStatus ?? detail?.session.status ?? 'active'
   const isTerminal = TERMINAL_STATUSES.has(currentStatus)
