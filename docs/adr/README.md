@@ -10,3 +10,5 @@ The living user-journey spec is [`docs/ux/user-journeys-and-personas.md`](../ux/
 | [0002](./0002-self-hosted-portfolio-first.md) | Self-hosted, portfolio-first distribution | Accepted | 2026-09-23 |
 | [0003](./0003-product-leader-as-primary-persona.md) | Product leader as primary persona, including setup | Accepted | 2026-09-23 |
 | [0004](./0004-naming-space-and-task.md) | Name the core entities "Space" and "Task" | Accepted | 2026-09-23 |
+| [0005](./0005-roles-and-space-visibility.md) | Workspace roles, space roles and space visibility | Accepted | 2026-09-29 |
+| [0006](./0006-agent-questions-and-session-continuity.md) | Agent questions and session continuity | Accepted | 2026-09-29 |

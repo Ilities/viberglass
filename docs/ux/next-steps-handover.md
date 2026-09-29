@@ -1,6 +1,6 @@
 # Handover: next steps after the correctness pass
 
-Status as of 2026-09-25 · Phases 0 and 1 are done in code; Phase 1 exits after the AWS walkthrough; Phase 2 and 3 plan: [`phase-2-3-handover.md`](./phase-2-3-handover.md) · Owner of decisions: Jussi
+Status as of 2026-09-29 · Phases 0 and 1 are done in code (rechecked 2026-09-29, see the end of Step C); Phase 1 exits after the AWS walkthrough, which has to be run from another machine; Phase 2 and 3 plan: [`phase-2-3-handover.md`](./phase-2-3-handover.md) · Owner of decisions: Jussi
 
 This hands the work over to whoever picks it up next, whether a person or an agent session. Read it together with:
 
@@ -248,7 +248,7 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merg
 **Done first (2026-09-24): Docker pre-built image mode** (§1.3). Unit-tested, live-checked against the Docker daemon (pull, reuse, readable pull failure), and exercised by every smoke run through the seed.
 
 **Done (2026-09-24): public worker images on GHCR.** `publish-worker-images.yml` publishes the base image and every agent's default image (from the catalog's new `public` scope) to `ghcr.io/ilities/<repository>` for amd64 and arm64, tagged `latest`, the commit SHA and the release tag. ECR stays for ECS/Lambda. Decided with Jussi: the default path pulls from GHCR; building locally on first run (managed mode) stays available but only as an explicit expert choice, never a default.
-- **Before the first run:** GHCR creates new packages as private. After the workflow first publishes, set each `viberator-*` package to public (org → Packages → package settings), or pulls will be refused.
+- ~~**Before the first run:** GHCR creates new packages as private.~~ Done: every `viberator-*` package in the catalog's `public` scope pulls anonymously (checked 2026-09-29). A package added later starts private again and needs the same switch.
 - **Setup still needs:** the compose stack to default `VIBERATOR_WORKER_REGISTRY` to `ghcr.io/ilities` so a catalog image resolves to a pullable name. Do it with the default-agent work in `SetupService`; runners with an explicit image are unaffected.
 
 **Done (2026-09-24): providers and the model-key step.**
@@ -268,7 +268,7 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merg
 - **Kimi fix, found on the way:** the platform normaliser dropped a Kimi runner's `endpoint`/`model`, and the worker had no way to apply them, so Moonshot keys could never have worked. Added `KimiAgentConfig`, a Kimi endpoint environment (`KIMI_BASE_URL`/`KIMI_MODEL_NAME`), and removed the plugin's pinned `model: "kimi-k2"`, which overrode Kimi Code's own default (`kimi-for-coding`) and may not be served there (not verified).
 - **Compose** now defaults `VIBERATOR_WORKER_REGISTRY` to `ghcr.io/ilities`; set it empty to use locally built images under their bare names.
 - **Verified:** unit tests; on the dev stack, the stored OpenCode Go key produced an active Default agent (OpenCode, `opencode-go/kimi-k3`, key attached, local pre-built image used as is) in under 2 seconds, and a second call changed nothing; e2e smoke 14/14. That runner is still in the dev database.
-- **Blocking fresh compose installs:** the GHCR packages exist (the workflow ran twice) but are private, so anonymous pulls get 401. Set each `viberator-*` package to public in the org's package settings (no API for this).
+- ~~**Blocking fresh compose installs:** the GHCR packages were private.~~ Resolved: all public images pull anonymously (checked 2026-09-29).
 
 **Done (2026-09-24): the `/setup` flow.** `pages/setup/`: five screens: model key (provider picker; a distinctive prefix pre-selects it; "Get a key from …" link; says which agent runs it) → repository (token link prefilled with `contents=write&pull_requests=write` and the owner) → space (confirms "Can read and push to … · default branch …", name prefilled) → getting ready (follows the default agent's status message; failure shows the real reason and "Try again") → first task (safe read-only starter; creates the task, runs research, opens the task). Admin only. The dashboard sends an admin there until `GET /api/setup/status` says complete (a space and an active runner), unless they chose "Skip setup". It resumes at the first step not done; the checked repository (never the token) is kept in localStorage between the repository and space steps. Response shapes live in `packages/types/src/setup.ts`, shared by backend and frontend.
 - **Verified** in the browser on a fresh instance (e2e Postgres, fresh database): registration lands on `/setup`; an `sk-ant-` key pre-selects Anthropic and is rejected in plain language; resume jumps to the right step; an invalid GitHub token is rejected; the space step creates the space and starts the agent (local image, active in seconds); the first task opens its page with research running on "Default agent". Stand-in key and token were seeded for the later steps, so the research run itself failed as expected. Fixed on the way: the picker showed "Anthropicruns on Claude Code", "Get a Anthropic key", an oversized skip link, and two skip links on the last screen.
@@ -290,7 +290,13 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merg
 
 **Found (2026-09-25) and fixed in infra: the AWS backend had no `SECRETS_ENCRYPTION_KEY`.** Setup stores model keys and repository tokens as database secrets encrypted with it, so setup would have failed at step 1 on AWS. `infra/platform` now generates it (SSM SecureString `/viberglass/<env>/backend/secrets-encryption-key`, like the webhook key) and passes it to the backend task. Needs a `pulumi up`.
 
-**Step C is complete in code.** Phase 1's exit is the AWS walkthrough on the dev stack: follow [`docs/operations/aws-first-run-walkthrough.md`](../operations/aws-first-run-walkthrough.md) and record the result here.
+**Step C is complete in code.** Phase 1's exit is the AWS walkthrough on the dev stack: follow [`docs/operations/aws-first-run-walkthrough.md`](../operations/aws-first-run-walkthrough.md) and record the result here. It needs `pulumi up` first (for `SECRETS_ENCRYPTION_KEY`) and is run from another machine.
+
+**Rechecked (2026-09-29)** against plan §12 Phase 1:
+- `first-run-setup.e2e.test.ts` passes on its own (both journeys, 53 s), after rebuilding `base-worker` and `viberator-worker-fake`: the fake image predated the 2026-09-24 worker changes.
+- Every public GHCR image pulls anonymously.
+- Two items in the §12 text weren't built and were moved rather than left open: **connection expiry warnings** (readiness only flags a credential once it has expired) go to Phase 3 §3.6, and the **J1 step 7 home checklist** goes to Phase 2 (it needs invites).
+- **Seen, not fixed:** the empty dashboard ("Command Deck", FR3's competing CTAs and whimsical copy) is still what members and admins who skipped setup see. Admins with unfinished setup are redirected to `/setup`, so the first-run path avoids it. It's quick win #2.
 
 **Answered (2026-09-24):** pulling a worker image of several hundred MB on first run is fine. "Getting ready…" shows progress.
 
@@ -316,7 +322,8 @@ See plan §12:
 | 4 | ~~First-cut providers for three-input setup~~ All selectable harnesses, behind one plugin abstraction. See Step C. | — |
 | 5 | ~~Setup vs first-admin registration~~ Two: keep the existing registration, `/setup` after it. | — |
 | 6 | ~~Demo workspace seed~~ In Phase 1. | — |
-| 7 | Space role model and notification defaults | Phase 2: now D1–D6 in [`phase-2-3-handover.md`](./phase-2-3-handover.md) §1, with recommendations (and D7–D9 for Phase 3) |
+| 7 | ~~Space role model and notification defaults~~ D1–D9 answered 2026-09-29: ADR 0005, ADR 0006 and plan §13. | — |
+| 8 | ~~What next, while AWS waits for another machine?~~ (2026-09-29) 1) Phase 3.1 session correctness fixes; 2) first-impression copy (quick wins #2, #3, #11, including the empty dashboard); 3) the Space/Task rename (Phase 2.1); 4) invites and roles (Phase 2.2), then the rest of Phase 2. | — |
 
 ---
 

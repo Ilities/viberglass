@@ -671,15 +671,16 @@ Correctness blockers §11.0 (first), then quick wins §11.1. Remove the shared `
 **Exit:** a new member can follow what happened on a task without asking the admin.
 
 ### Phase 1: Three-input setup (2–3 weeks)
-J1, J2. Existing registration → model key (provider picker for every selectable harness, live test, encrypted storage by default) → repo URL + token (live permission check; implicitly creates the SCM connection and credential) → space name → auto-provisioned default agent on the instance's compute, ECS or local Docker (no Start; real errors surfaced) → first task. Demo workspace seed. Everything removed from the flow moves to Settings → Advanced. Connection health and expiry warnings.
+J1, J2. Existing registration → model key (provider picker for every selectable harness, live test, encrypted storage by default) → repo URL + token (live permission check; implicitly creates the SCM connection and credential) → space name → auto-provisioned default agent on the instance's compute, ECS or local Docker (no Start; real errors surfaced) → first task. Demo workspace seed. Everything removed from the flow moves to Settings → Advanced. *(Moved out, 2026-09-29: connection expiry warnings go to Phase 3 with failure recovery; the J1 step 7 home checklist goes to Phase 2 with invites.)*
 **Exit:** a product leader who has never seen Viberglass goes from first page load to a first agent result, alone, in a scripted walkthrough.
+**Status (2026-09-29):** done in code; the scripted walkthrough is the `first-run-setup` e2e journey (passing). Waiting only on the manual AWS walkthrough.
 
 ### Phase 2: People primitives (3–5 weeks)
-J3, J4, J5, J7, J10, J17. Invite links (SMTP optional); roles enforced server-side; space membership; task participants (requester/owner/reviewers/watchers); general Discussion thread with @mentions; Inbox + notifications (in-app, Slack, email); approval policies; rendered-document inline comments; Activity log; audit log.
+J3, J4, J5, J7, J10, J17. Invite links (SMTP optional); roles enforced server-side; space membership; task participants (requester/owner/reviewers/watchers); general Discussion thread with @mentions; Inbox + notifications (in-app, Slack, email); approval policies; rendered-document inline comments; Activity log; audit log; the J1 step 7 home checklist (*Invite your team · Connect Slack · Connect your tracker*).
 **Exit:** J9 steps 1, 3, 4, 7 work with ≥ 3 humans.
 
 ### Phase 3: Agent ↔ human collaboration (3–4 weeks)
-J6, J8, J11, J12. Agent Questions (routing, blocking policy, escalation); readable narrative transcripts; steer/pause/take-over/hand-back in live sessions; failure classification + pause/resume; cancel-safe runs; preview environments (if feasible).
+J6, J8, J11, J12. Agent Questions (routing, blocking policy, escalation); readable narrative transcripts; steer/pause/take-over/hand-back in live sessions; failure classification + pause/resume; connection health and expiry warnings; cancel-safe runs; preview environments (if feasible).
 **Exit:** the full J9 hero journey runs end to end.
 
 ### Phase 4: Decouple the model (4–6 weeks, migration-heavy)
@@ -702,6 +703,12 @@ J19, J20, J13. Git-backed non-code workflow templates (Research & Recommend → 
 5. Decision ownership: Jussi owns product and UX decisions. They're recorded as ADRs, and this doc is the living journey spec.
 
 Dropped: default approval settings (a detail for the policy design in J7, not a strategic question) and budget models (no such feature exists; if usage/cost is built, it gets drill-downs across every dimension).
+
+**Decided 2026-09-29** (Phase 2 and 3 decisions D1–D9 in [`phase-2-3-handover.md`](./phase-2-3-handover.md) §1):
+6. Roles and visibility: workspace roles Admin, Member, Guest and Viewer (workspace read-only); space roles Maintainer and Member; spaces open by default with an optional Private flag; guests and viewers invitable in Phase 2 ([ADR 0005](../adr/0005-roles-and-space-visibility.md)).
+7. Default approval policy, editable per space: research by any participant; plan by one reviewer from the space's reviewers, falling back to the owner; build gated by the PR review in GitHub.
+8. Notification defaults: the §8 table as written. In-app always; email only when SMTP is configured; digests off until asked for; Slack DM once a person links Slack.
+9. Agent questions and sessions: an `ask_human` MCP tool; a blocking question ends the job and resumes on the answer; one session branch per live session; a turn that writes no document leaves the session waiting on the person ([ADR 0006](../adr/0006-agent-questions-and-session-continuity.md)).
 
 **Still open:** none at the strategic level. Validate ADR 0003 with the first real users.
 
