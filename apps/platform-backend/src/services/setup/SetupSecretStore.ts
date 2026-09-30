@@ -1,5 +1,6 @@
 import { SecretDAO, type SecretLocation } from "../../persistence/secret/SecretDAO";
 import { SecretService, type SecretInput, type SecretUpdate } from "../SecretService";
+import { setupSecretLocation } from "../secretStorageDefaults";
 import {
   SETUP_SERVICE_ERROR_CODE,
   SetupServiceError,
@@ -19,11 +20,6 @@ export interface SecretLookup {
 export interface SecretWriter {
   createSecret(input: SecretInput): Promise<{ id: string }>;
   updateSecret(id: string, updates: SecretUpdate): Promise<{ id: string }>;
-}
-
-/** ECS workers read secrets only from SSM, so use SSM when agents run on ECS. */
-export function setupSecretLocation(env: NodeJS.ProcessEnv = process.env): "database" | "ssm" {
-  return env.VIBERATOR_ECS_CLUSTER_ARN?.trim() ? "ssm" : "database";
 }
 
 /**

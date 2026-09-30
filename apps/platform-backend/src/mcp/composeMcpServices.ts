@@ -1,5 +1,5 @@
 import type { McpToolServices } from "@viberglass/mcp-server";
-import type { TicketWorkflowPhase } from "@viberglass/types";
+import { isTicketOrigin, NATIVE_TICKET_ORIGIN, type TicketWorkflowPhase } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
@@ -104,21 +104,9 @@ export const mcpToolServices: McpToolServices = {
           (params.severity as "low" | "medium" | "high" | "critical") ??
           "medium",
         category: params.category ?? "general",
-        ticketSystem:
-          (params.ticketSystem as
-            | "jira"
-            | "linear"
-            | "github"
-            | "gitlab"
-            | "bitbucket"
-            | "azure"
-            | "asana"
-            | "trello"
-            | "monday"
-            | "clickup"
-            | "shortcut"
-            | "slack"
-            | "custom") ?? "github",
+        ticketSystem: isTicketOrigin(params.ticketSystem)
+          ? params.ticketSystem
+          : NATIVE_TICKET_ORIGIN,
         metadata: {
           timestamp: new Date().toISOString(),
           timezone: "UTC",

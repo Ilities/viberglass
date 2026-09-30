@@ -2,7 +2,6 @@ import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { HelmetProvider } from 'react-helmet-async'
 import { useProject } from '@/context/project-context'
 import {
   getAvailableIntegrationTypes,
@@ -103,15 +102,13 @@ const INITIAL_SCM_CONFIG = {
 
 function renderPage() {
   return render(
-    <HelmetProvider>
-      <Theme>
-        <MemoryRouter initialEntries={['/spaces/viberglass/settings']}>
-          <Routes>
-            <Route path="/spaces/:project/settings" element={<ProjectSettingsPage />} />
-          </Routes>
-        </MemoryRouter>
-      </Theme>
-    </HelmetProvider>
+    <Theme>
+      <MemoryRouter initialEntries={['/spaces/viberglass/settings']}>
+        <Routes>
+          <Route path="/spaces/:project/settings" element={<ProjectSettingsPage />} />
+        </Routes>
+      </MemoryRouter>
+    </Theme>
   )
 }
 

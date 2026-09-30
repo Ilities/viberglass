@@ -39,6 +39,30 @@ describe("secrets routes", () => {
     app.use("/api/secrets", secretsRouter);
   });
 
+  it("reports SSM as the default store when agents run on ECS", async () => {
+    const previous = { ...process.env };
+    process.env.VIBERATOR_ECS_CLUSTER_ARN = "arn:aws:ecs:eu-west-1:1:cluster/agents";
+    process.env.SECRETS_SSM_PREFIX = "/acme/secrets/";
+    try {
+      const response = await request(app).get("/api/secrets/storage-defaults").expect(200);
+      expect(response.body.data).toEqual({ location: "ssm", ssmPrefix: "/acme/secrets" });
+    } finally {
+      process.env = previous;
+    }
+  });
+
+  it("reports the database as the default store otherwise", async () => {
+    const previous = { ...process.env };
+    delete process.env.VIBERATOR_ECS_CLUSTER_ARN;
+    delete process.env.SECRETS_SSM_PREFIX;
+    try {
+      const response = await request(app).get("/api/secrets/storage-defaults").expect(200);
+      expect(response.body.data).toEqual({ location: "database", ssmPrefix: "/viberator/secrets" });
+    } finally {
+      process.env = previous;
+    }
+  });
+
   it("returns 400 when SecretService throws a typed client error", async () => {
     mockSecretService.createSecret.mockRejectedValue(
       new SecretServiceError(

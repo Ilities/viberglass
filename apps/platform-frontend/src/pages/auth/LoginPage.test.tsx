@@ -3,7 +3,6 @@ import { getSetupStatus } from '@/service/api/auth-api'
 import { Theme } from '@radix-ui/themes'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { HelmetProvider } from 'react-helmet-async'
 import { MemoryRouter } from 'react-router-dom'
 import { LoginPage } from './LoginPage'
 
@@ -22,13 +21,11 @@ const register = jest.fn()
 
 function renderLogin() {
   return render(
-    <HelmetProvider>
-      <Theme>
-        <MemoryRouter>
-          <LoginPage />
-        </MemoryRouter>
-      </Theme>
-    </HelmetProvider>
+    <Theme>
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    </Theme>
   )
 }
 

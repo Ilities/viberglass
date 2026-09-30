@@ -2,7 +2,7 @@
  * Project-related types
  */
 
-import { TicketSystem } from './common'
+import { TicketOrigin, TicketSystem } from './common'
 
 // Worker settings that can be configured at project level
 export interface ProjectWorkerSettings {
@@ -70,7 +70,7 @@ export interface Project {
    * @deprecated Use linked integrations instead. This field will be removed.
    * The project's primary ticketing integration determines the ticket system.
    */
-  ticketSystem: TicketSystem
+  ticketSystem: TicketOrigin
   /**
    * @deprecated Use linked integrations instead. This field will be removed.
    * Credentials are now stored in the top-level integrations table.
@@ -135,7 +135,7 @@ export interface CreateProjectRequest {
   /**
    * @deprecated Use linked integrations instead.
    */
-  ticketSystem?: TicketSystem | null
+  ticketSystem?: TicketOrigin | null
   /**
    * @deprecated Use linked integrations instead.
    */
@@ -157,7 +157,7 @@ export interface UpdateProjectRequest {
   /**
    * @deprecated Use linked integrations instead.
    */
-  ticketSystem?: TicketSystem | null
+  ticketSystem?: TicketOrigin | null
   /**
    * @deprecated Use linked integrations instead.
    */
@@ -185,7 +185,7 @@ export interface ProjectSummary {
   /**
    * @deprecated Use primaryTicketingIntegrationId instead.
    */
-  ticketSystem: TicketSystem
+  ticketSystem: TicketOrigin
   autoFixEnabled: boolean
   agentInstructions?: string | null
   /**

@@ -4,7 +4,7 @@ import type { JobStatus } from '@/service/api/job-api'
 import clsx from 'clsx'
 import { useMemo, type ReactNode } from 'react'
 import { describeAgentWork, summariseAgentWork } from './agent-work-summary'
-import { buildRunSteps, type RunStep, type RunStepState } from './run-steps'
+import { buildRunSteps, isStartingSandbox, type RunStep, type RunStepState } from './run-steps'
 
 interface RunActivityProps {
   job: JobStatus
@@ -61,17 +61,24 @@ function PrepareDetail({ job }: { job: JobStatus }) {
   const baseBranch = job.data.baseBranch || 'main'
   const agent = job.clanker ? `${job.clanker.name}${job.clanker.agent ? ` (${job.clanker.agent})` : ''}` : null
   return (
-    <p>
-      {job.data.repository ? (
-        <>
-          <span className="font-mono text-[13px]">{job.data.repository.replace(/^https?:\/\/(www\.)?github\.com\//, '')}</span> at{' '}
-          <span className="font-mono text-[13px]">{baseBranch}</span>
-        </>
-      ) : (
-        'No repository'
+    <>
+      {isStartingSandbox(job) && (
+        <p className="mb-1 text-[var(--gray-11)]" data-testid="sandbox-starting">
+          Starting the agent sandbox… A fresh sandbox can take a minute or two to start, longer on AWS.
+        </p>
       )}
-      {agent && <span className="text-[var(--gray-9)]"> · {agent}</span>}
-    </p>
+      <p>
+        {job.data.repository ? (
+          <>
+            <span className="font-mono text-[13px]">{job.data.repository.replace(/^https?:\/\/(www\.)?github\.com\//, '')}</span> at{' '}
+            <span className="font-mono text-[13px]">{baseBranch}</span>
+          </>
+        ) : (
+          'No repository'
+        )}
+        {agent && <span className="text-[var(--gray-9)]"> · {agent}</span>}
+      </p>
+    </>
   )
 }
 

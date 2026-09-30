@@ -5,7 +5,8 @@ import {
   type Severity,
   type TicketArchiveFilter,
   type TicketLifecycleStatus,
-  type TicketSystem,
+  NATIVE_TICKET_ORIGIN,
+  type TicketOrigin,
   type TicketWorkflowPhase,
 } from "@viberglass/types";
 import type { Router } from "express";
@@ -13,6 +14,7 @@ import logger from "../../../config/logger";
 import type { ProjectDAO } from "../../../persistence/project/ProjectDAO";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
 import type { IntegrationDAO } from "../../../persistence/integrations";
+import type { AgentSessionDAO } from "../../../persistence/agentSession/AgentSessionDAO";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
 import {
   upload,
@@ -33,6 +35,7 @@ interface TicketCrudMediaRouteDependencies {
   projectService: ProjectDAO;
   fileUploadService: FileUploadService;
   integrationDAO: IntegrationDAO;
+  agentSessionDAO: Pick<AgentSessionDAO, "listOpenSessionIdsByTicket">;
 }
 
 const uuidRegex =
@@ -159,6 +162,7 @@ export function registerTicketCrudMediaRoutes(
     projectService,
     fileUploadService,
     integrationDAO,
+    agentSessionDAO,
   }: TicketCrudMediaRouteDependencies,
 ): void {
   // POST /api/tasks - Create a new ticket
@@ -198,7 +202,7 @@ export function registerTicketCrudMediaRoutes(
           return res.status(404).json({ error: "Project not found" });
         }
 
-        let ticketSystem: TicketSystem = "custom";
+        let ticketSystem: TicketOrigin = NATIVE_TICKET_ORIGIN;
         if (project.primaryTicketingIntegrationId) {
           const integration = await integrationDAO.getIntegration(
             project.primaryTicketingIntegrationId,
@@ -548,9 +552,16 @@ export function registerTicketCrudMediaRoutes(
         search,
       });
 
+      const liveSessions = await agentSessionDAO.listOpenSessionIdsByTicket(
+        tickets.map((ticket) => ticket.id),
+      );
+
       res.json({
         success: true,
-        data: tickets,
+        data: tickets.map((ticket) => {
+          const liveSessionId = liveSessions.get(ticket.id);
+          return liveSessionId ? { ...ticket, liveSessionId } : ticket;
+        }),
         pagination: {
           limit,
           offset,

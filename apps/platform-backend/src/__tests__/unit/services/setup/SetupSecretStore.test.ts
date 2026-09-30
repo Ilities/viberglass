@@ -1,4 +1,5 @@
-import { SetupSecretStore, setupSecretLocation } from "../../../../services/setup/SetupSecretStore";
+import { SetupSecretStore } from "../../../../services/setup/SetupSecretStore";
+import { setupSecretLocation } from "../../../../services/secretStorageDefaults";
 import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServiceError";
 import type { SecretLocation } from "../../../../persistence/secret/SecretDAO";
 import type { SecretInput, SecretUpdate } from "../../../../services/SecretService";

@@ -1,6 +1,6 @@
 # Handover: next steps after the correctness pass
 
-Status as of 2026-09-30 · Phases 0 and 1 are done in code (rechecked 2026-09-29, see the end of Step C); the AWS walkthrough was run on 2026-09-30 (result at the end of Step C); Phase 2 and 3 plan: [`phase-2-3-handover.md`](./phase-2-3-handover.md) · Owner of decisions: Jussi
+Status as of 2026-09-30 · Phases 0 and 1 are done; Phase 1 is confirmed working on AWS (Jussi, 2026-09-30); the remaining Phase 0 quick wins landed on 2026-09-30 ([`phase-2-3-handover.md`](./phase-2-3-handover.md) §5); Phase 2 and 3 plan: [`phase-2-3-handover.md`](./phase-2-3-handover.md) · Owner of decisions: Jussi
 
 This hands the work over to whoever picks it up next, whether a person or an agent session. Read it together with:
 
@@ -54,11 +54,11 @@ All green at merge time. Step A (below) since added the smoke suite, 11 fake-age
 | ~~The session's first bubble is the full system prompt~~ Fixed (quick win #1) | `AgentSessionLaunchService.createInitialTurns` | The opening message is shown, and now also reaches the agent for fresh sessions; the full prompt is on the event and turn. |
 | A follow-up turn that ends without writing the document leaves the session `active` forever | `api/routes/jobs.ts` result callback, session-turn branch | Only `TURN_COMPLETED` is emitted when `documentContent` is missing. Probably should be a turn failure with a readable reason. |
 | Deleting a project still hard-deletes tickets and sessions | migrations 001/046/043 cascades | F31. Archive is the escape hatch now; the real fix is the Phase 4 model change (workspace-owned tasks). |
-| `ticketSystem = "custom"` means both "Viberglass-native" and "Custom Webhook" | `CreateTicketPage`, project `ticketSystem` | PG3. F15-class bugs can return. Introduce an explicit native value. |
+| ~~`ticketSystem = "custom"` means both "Viberglass-native" and "Custom Webhook"~~ Fixed (2026-09-30) | `TicketOrigin`, migration 070 | PG3. See phase-2-3-handover §5. |
 | The failure classifier matches error text with regexes and mislabels platform bugs | `services/job/classifyJobFailure.ts` | FL12. Part of quick win #13 and J11. |
 | Project-level prompt templates are editable by any member | project settings → prompt templates | PG17. Global templates are admin-only now; project ones aren't. |
 | 90 stale `viberator/*` branches on the demo repo | GitHub `ilities/token.observer` | LC12, quick win #17. |
-| Dead component | `apps/platform-frontend/src/pages/project/tickets/planning-document-panel.tsx` | Not rendered anywhere. Delete it when touching that area. |
+| ~~Dead component~~ Removed (2026-09-30) | `planning-document-panel.tsx` | Removed with the task page redesign. |
 | ~~Docker "start" always rebuilds the worker image under the runner's tag~~ Fixed (Phase 1 step 0) | `DockerProvisioningHandler`, `DockerImagePuller`, `DockerImageBuilder` | Docker now honours `provisioningMode: "prebuilt"` (the UI already offered it): start uses the image as is, pulls it with per-layer progress when missing, and falls back to the agent's catalog image. Managed mode still builds. The e2e seed now starts its runner in pre-built mode. |
 | Runner config stores up to 200 lines of Docker build log | `deployment_config.strategy.dockerBuild.logs` | Every clanker read carries it. Belongs in job/provisioning logs. |
 | Startup errors are logged as `{}` | winston metadata for `Error` objects | "Failed to run migrations on startup, exiting {"error":{}}" hid the cause of the late-database bug. |
@@ -191,7 +191,7 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merg
 | 7 | Bold inside list items renders | markdown renderer config | — |
 | 12 | Readiness banner shows the real next step, in order, with a "Ready, try your first run" state (FR7/FR8) | `components/project-readiness.tsx`, `ProjectReadinessService.ts` (credentials check counts inactive runners wrongly) | Largely superseded by Phase 1; do only the FR8 correctness fix if Phase 1 comes next |
 | 11 | Remove the duplicate GitHub API token field under Feedback | GitHub integration frontend plugin | One token per connection |
-| 17 | Branch hygiene: delete agent branches of failed or cancelled runs | worker `GitService` / result handling | Opt-in setting |
+| 17 | ~~Branch hygiene: delete agent branches of failed or cancelled runs~~ **Dropped** (Jussi, 2026-09-30): branches stay in GitHub | — | — |
 
 ### Step C: Phase 1, three-input setup (the product-leader win), about 2–3 weeks
 
@@ -301,7 +301,7 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merg
 **Done (2026-09-30): the AWS walkthrough**, on production. Steps 0–4 passed: setup ran end to end and the default agent came up on ECS. Step 5 failed: OpenCode got `401 Invalid API key` from `opencode.ai/zen/go`.
 - **Cause:** setup saved the model key (and the repository token) as database secrets. Only the Docker invoker decrypts those and hands them to the container. An ECS worker only gets secret names (`requiredCredentials`) and looks each one up in SSM at `/viberator/secrets/<NAME>`, found nothing, and ran without a key. Lambda has the same gap.
 - **Fixed in code:** when `VIBERATOR_ECS_CLUSTER_ARN` is set, `SetupSecretStore` saves new secrets to SSM, and saving an existing database secret again moves it to SSM. To repair an instance that already ran setup, deploy the backend, then enter the model key and the repository token again in setup, or recreate the secrets as SSM under Settings → Secrets.
-- **Still to do:** recheck step 5 on AWS after the fix. A database secret attached by hand to an ECS runner still doesn't reach the worker (deliberately not changed: that needs the worker to fetch secrets from the platform).
+- ~~**Still to do:** recheck step 5 on AWS after the fix.~~ **Done (2026-09-30):** Jussi confirmed Phase 1 works on AWS. A database secret attached by hand to an ECS runner still doesn't reach the worker (deliberately not changed: that needs the worker to fetch secrets from the platform).
 
 **Answered (2026-09-24):** pulling a worker image of several hundred MB on first run is fine. "Getting ready…" shows progress.
 

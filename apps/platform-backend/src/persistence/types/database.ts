@@ -47,7 +47,8 @@ export interface ProjectsTable {
     | "clickup"
     | "shortcut"
     | "slack"
-    | "custom";
+    | "custom"
+    | "native";
   credentials: Json | null;
   webhook_url: string | null;
   auto_fix_enabled: Generated<boolean>;
@@ -100,7 +101,8 @@ export interface TicketsTable {
     | "clickup"
     | "shortcut"
     | "slack"
-    | "custom";
+    | "custom"
+    | "native";
   auto_fix_requested: Generated<boolean>;
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   ticket_status: Generated<"open" | "in_progress" | "in_review" | "resolved">;

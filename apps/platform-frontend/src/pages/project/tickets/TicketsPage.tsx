@@ -277,7 +277,7 @@ export function TicketsPage() {
 
   return (
     <>
-      <PageMeta title={`${project} | Tickets`} />
+      <PageMeta title={`${project} | Tasks`} />
       <div className="flex items-end justify-between gap-4">
         <Heading>Tasks</Heading>
         <Button href={`/spaces/${project}/tasks/new`} color="brand">

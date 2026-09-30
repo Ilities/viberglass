@@ -132,6 +132,19 @@ export class AgentSessionDAO {
     return row ? this.mapRow(row) : null;
   }
 
+  /** The newest open session per task, for task lists. */
+  async listOpenSessionIdsByTicket(ticketIds: string[]): Promise<Map<string, string>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows = await db
+      .selectFrom("agent_sessions")
+      .select(["id", "ticket_id"])
+      .where("ticket_id", "in", ticketIds)
+      .where("status", "in", [...AGENT_SESSION_ACTIVE_STATUSES])
+      .orderBy("created_at", "asc")
+      .execute();
+    return new Map(rows.map((row) => [row.ticket_id, row.id]));
+  }
+
   async listByTicket(
     ticketId: string,
     options: AgentSessionListOptions = {},

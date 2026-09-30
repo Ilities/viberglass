@@ -2,7 +2,7 @@
  * Ticket-related types (formerly bug-report)
  */
 
-import { AutoFixStatus, Severity, TicketSystem } from './common'
+import { AutoFixStatus, Severity, TicketOrigin } from './common'
 
 export const TICKET_STATUS = {
   OPEN: 'open',
@@ -136,13 +136,15 @@ export interface Ticket {
   annotations: Annotation[]
   externalTicketId?: string
   externalTicketUrl?: string
-  ticketSystem: TicketSystem
+  ticketSystem: TicketOrigin
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
   pullRequestUrl?: string
   workflowOverrideReason?: string
   workflowOverriddenAt?: string
   workflowOverriddenBy?: string
+  /** An open live session on the task. Set by task lists only. */
+  liveSessionId?: string
   createdAt: string
   updatedAt: string
 }
@@ -157,7 +159,7 @@ export interface CreateTicketRequest {
   metadata: TicketMetadata
   annotations: Annotation[]
   autoFixRequested: boolean
-  ticketSystem: TicketSystem
+  ticketSystem: TicketOrigin
   workflowPhase?: TicketWorkflowPhase
   workflowOverrideReason?: string
 }

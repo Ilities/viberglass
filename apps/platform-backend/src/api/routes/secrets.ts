@@ -6,6 +6,7 @@ import {
 } from "../middleware/validation";
 import { requireAuth } from "../middleware/authentication";
 import { SecretService } from "../../services/SecretService";
+import { secretStorageDefaults } from "../../services/secretStorageDefaults";
 import logger from "../../config/logger";
 import { isSecretServiceError } from "../../services/errors/SecretServiceError";
 
@@ -32,6 +33,10 @@ router.get("/", async (req, res) => {
     });
     res.status(500).json({ error: "Internal server error" });
   }
+});
+
+router.get("/storage-defaults", (_req, res) => {
+  res.json({ success: true, data: secretStorageDefaults() });
 });
 
 router.get("/:id", validateUuidParam("id"), async (req, res) => {

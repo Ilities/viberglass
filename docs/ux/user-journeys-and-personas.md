@@ -87,7 +87,7 @@ Severity: **S1** blocks or misleads the journey · **S2** major friction · **S3
 | F12 | S2 | The integration name is auto-generated: "GitHub 2026-09-22 13:48:32 (github)". |
 | F13 | S2 | Creation exposes plumbing up front: PR repository override, PR base branch, branch name template with `{{ clanker }}`. There's nothing about *who* is on the project or *what* it's for. |
 | F14 | S2 | "Enable Auto-fix" is vague: what triggers it, which runner, who reviews? |
-| F15 | S2 | Beta report: when a webhook integration is active, you can't pick Viberglass as the ticketing system, and Shortcut can't be made active (it forces Viberglass). **Second pass: not reproducible on current main; fixed in `83ba6e1`.** The root cause is still present: "Viberglass-native" is stored as `ticketSystem="custom"`, the same string as the Custom Webhook system id (PG3). |
+| F15 | S2 | Beta report: when a webhook integration is active, you can't pick Viberglass as the ticketing system, and Shortcut can't be made active (it forces Viberglass). **Second pass: not reproducible on current main; fixed in `83ba6e1`.** The root cause, "Viberglass-native" stored as `ticketSystem="custom"` (the Custom Webhook's id), was removed on 2026-09-30: native tasks are `native` (PG3, migration 070). |
 
 ### 2.5 Integrations
 | # | Sev | Finding |
@@ -667,13 +667,14 @@ Ordered by impact/effort. Each maps to findings above.
 ## 12. Phased roadmap
 
 ### Phase 0: Truth & trust (1–2 weeks)
-Correctness blockers §11.0 (first), then quick wins §11.1. Remove the shared `ticketSystem="custom"` meaning (PG3) so F15-class bugs can't return. Add an end-to-end smoke test covering research → revise → plan → execute → PR, and cancel, on every release.
+Correctness blockers §11.0 (first), then quick wins §11.1. Remove the shared `ticketSystem="custom"` meaning (PG3) so F15-class bugs can't return *(done 2026-09-30)*. Add an end-to-end smoke test covering research → revise → plan → execute → PR, and cancel, on every release.
 **Exit:** a new member can follow what happened on a task without asking the admin.
+**Status (2026-09-30):** done. Quick win #17 (branch cleanup) was dropped: branches stay in GitHub (phase-2-3-handover §5).
 
 ### Phase 1: Three-input setup (2–3 weeks)
 J1, J2. Existing registration → model key (provider picker for every selectable harness, live test, encrypted storage by default) → repo URL + token (live permission check; implicitly creates the SCM connection and credential) → space name → auto-provisioned default agent on the instance's compute, ECS or local Docker (no Start; real errors surfaced) → first task. Demo workspace seed. Everything removed from the flow moves to Settings → Advanced. *(Moved out, 2026-09-29: connection expiry warnings go to Phase 3 with failure recovery; the J1 step 7 home checklist goes to Phase 2 with invites.)*
 **Exit:** a product leader who has never seen Viberglass goes from first page load to a first agent result, alone, in a scripted walkthrough.
-**Status (2026-09-29):** done in code; the scripted walkthrough is the `first-run-setup` e2e journey (passing). Waiting only on the manual AWS walkthrough.
+**Status (2026-09-30):** done. The scripted walkthrough is the `first-run-setup` e2e journey (passing), and Jussi confirmed the AWS walkthrough works.
 
 ### Phase 2: People primitives (3–5 weeks)
 J3, J4, J5, J7, J10, J17. Invite links (SMTP optional); roles enforced server-side; space membership; task participants (requester/owner/reviewers/watchers); general Discussion thread with @mentions; Inbox + notifications (in-app, Slack, email); approval policies; rendered-document inline comments; Activity log; audit log; the J1 step 7 home checklist (*Invite your team · Connect Slack · Connect your tracker*).

@@ -92,7 +92,7 @@ describe("SetupSpaceService", () => {
     });
 
     expect(findByName).toHaveBeenCalledWith("web");
-    expect(createProject).toHaveBeenCalledWith(expect.objectContaining({ name: "Web", ticketSystem: "custom" }));
+    expect(createProject).toHaveBeenCalledWith(expect.objectContaining({ name: "Web", ticketSystem: "native" }));
     expect(linkIntegration).toHaveBeenCalledWith({
       projectId: "project-1",
       integrationId: "integration-1",

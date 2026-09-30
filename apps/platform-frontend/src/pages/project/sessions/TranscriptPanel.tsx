@@ -1,4 +1,5 @@
 import { Dialog, DialogBody, DialogTitle } from '@/components/dialog'
+import { usePersonName } from '@/hooks/usePeople'
 import type { AgentSessionEvent, AgentSessionEventType } from '@/service/api/session-api'
 import { ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon, ReaderIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -379,8 +380,15 @@ function SystemEventRow({ event }: { event: AgentSessionEvent }) {
   )
 }
 
+function stringField(payload: AgentSessionEvent['payloadJson'], key: string): string | null {
+  const value = payload?.[key]
+  return typeof value === 'string' ? value : null
+}
+
 function MarkerRow({ event }: { event: AgentSessionEvent }) {
-  const label = getMarkerLabel(event.eventType)
+  const personName = usePersonName()
+  const cancelledBy = event.eventType === 'session_cancelled' ? personName(stringField(event.payloadJson, 'cancelledBy')) : null
+  const label = cancelledBy ? `Cancelled by ${cancelledBy}` : getMarkerLabel(event.eventType)
   const isFinal =
     event.eventType === 'session_completed' ||
     event.eventType === 'session_failed' ||

@@ -1,6 +1,7 @@
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
+import { RunTargetSummary } from '@/components/run-target-summary'
 import { runTicket } from '@/service/api/job-api'
 import { launchSession } from '@/service/api/session-api'
 import { runPlanning, runResearch } from '@/service/api/ticket-api'
@@ -179,6 +180,8 @@ export function RunTicketModal({
               </div>
             )}
           </div>
+
+          {mode === 'execution' && <RunTargetSummary ticket={ticket} clankerId={selectedClanker?.id} />}
 
           <div>
             <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Extra instructions (optional)</h4>

@@ -39,6 +39,15 @@ function oldestFirst(updates: ProgressUpdate[]): ProgressUpdate[] {
   return [...updates].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 }
 
+/**
+ * True until the worker's first report: the platform is still starting the
+ * agent's sandbox (a container, ECS task or Lambda), which can take minutes.
+ */
+export function isStartingSandbox(job: RunStepsInput): boolean {
+  if (job.status !== 'queued' && job.status !== 'active') return false
+  return !job.progressUpdates.some((update) => update.step && STEP_OF_STAGE[update.step])
+}
+
 /** The run's three steps and where it got to, from its progress updates. */
 export function buildRunSteps(job: RunStepsInput): RunStep[] {
   const startedAt = new Map<RunStepKey, string>()
@@ -61,7 +70,6 @@ function stepState(status: JobStatus['status'], index: number, furthest: number)
     case 'completed':
       return 'done'
     case 'queued':
-      return 'upcoming'
     case 'active':
       if (index < furthest) return 'done'
       return index === Math.max(furthest, 0) ? 'current' : 'upcoming'

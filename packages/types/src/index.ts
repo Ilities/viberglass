@@ -46,3 +46,6 @@ export * from './secret'
 
 // Agent session types
 export * from './agentSession'
+
+// Feature branch naming, shared by the worker and the run confirmation
+export * from './branchNaming'

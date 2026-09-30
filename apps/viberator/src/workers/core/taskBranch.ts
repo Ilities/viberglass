@@ -1,5 +1,4 @@
-import { isObjectRecord, JOB_FAILURE_CODE } from "@viberglass/types";
-import { buildFeatureBranchName } from "../runtime/branchNaming";
+import { buildFeatureBranchName, isObjectRecord, JOB_FAILURE_CODE } from "@viberglass/types";
 import { failingWith } from "./JobFailureError";
 import type { JobRunnerParams } from "./jobPipeline";
 

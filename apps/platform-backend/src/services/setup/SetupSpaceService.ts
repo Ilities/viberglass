@@ -1,3 +1,4 @@
+import { NATIVE_TICKET_ORIGIN } from "@viberglass/types";
 import type {
   CreatedSpace,
   Integration,
@@ -137,7 +138,7 @@ export class SetupSpaceService {
     if (!existing) {
       return this.projects.createProject({
         name,
-        ticketSystem: "custom",
+        ticketSystem: NATIVE_TICKET_ORIGIN,
         credentials: { type: "token" },
         autoFixEnabled: false,
         autoFixTags: [],

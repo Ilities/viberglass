@@ -9,6 +9,14 @@ jest.mock('@/service/api/ticket-api', () => ({ runPlanning: jest.fn(), runResear
 jest.mock('@/service/api/session-api', () => ({ launchSession: jest.fn() }))
 jest.mock('@/service/api/project-api', () => ({
   getProjectReadiness: jest.fn().mockResolvedValue({ projectId: 'project-1', automationAvailable: true, checks: [] }),
+  getProjectScmConfig: jest.fn().mockResolvedValue({
+    projectId: 'project-1',
+    integrationId: 'integration-1',
+    sourceRepository: 'acme/shop',
+    baseBranch: 'main',
+    createdAt: '2026-07-22T10:00:00.000Z',
+    updatedAt: '2026-07-22T10:00:00.000Z',
+  }),
 }))
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 
@@ -56,5 +64,19 @@ describe('RunTicketModal', () => {
     expect(screen.getByRole('button', { name: 'Run automatically' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Collaborate live' })).toBeInTheDocument()
     expect(screen.queryByText(/job/i)).not.toBeInTheDocument()
+  })
+
+  it('names the branch, repository and base before a build starts', async () => {
+    render(
+      <Theme>
+        <MemoryRouter>
+          <RunTicketModal ticket={ticket} clankers={[runner]} project="shop" open onClose={jest.fn()} mode="execution" />
+        </MemoryRouter>
+      </Theme>,
+    )
+
+    expect(await screen.findByTestId('run-target-summary')).toHaveTextContent(
+      'Pushes branch viberator/ticket-1 to acme/shop, then opens a pull request against main.',
+    )
   })
 })

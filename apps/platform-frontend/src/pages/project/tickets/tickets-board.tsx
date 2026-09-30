@@ -7,6 +7,7 @@ import { formatAutoFixStatus, formatSeverity } from '@/data'
 import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket, TicketLifecycleStatus, TicketWorkflowPhase } from '@viberglass/types'
 import { useMemo, useState } from 'react'
+import { LiveSessionBadge } from './live-session-badge'
 import { formatTicketStatus, formatTicketWorkflowPhase, ticketWorkflowPhaseOrder } from './ticket-display'
 
 interface TicketsBoardProps {
@@ -159,6 +160,9 @@ export function TicketsBoard({
                                     <Badge className={`${statusInfo.className} text-[10px]`}>{statusInfo.label}</Badge>
                                     {autoFixInfo ? (
                                       <Badge className={`${autoFixInfo.color} text-[10px]`}>{autoFixInfo.label}</Badge>
+                                    ) : null}
+                                    {ticket.liveSessionId ? (
+                                      <LiveSessionBadge project={project} sessionId={ticket.liveSessionId} />
                                     ) : null}
                                   </div>
 

@@ -1,5 +1,5 @@
 import type { ProgressUpdate } from '@/service/api/job-api'
-import { buildRunSteps } from './run-steps'
+import { buildRunSteps, isStartingSandbox } from './run-steps'
 
 function update(step: string, minute: number): ProgressUpdate {
   return { step, message: step, details: null, createdAt: `2026-09-30T10:${String(minute).padStart(2, '0')}:00Z` }
@@ -34,7 +34,14 @@ describe('buildRunSteps', () => {
     expect(states(steps)).toEqual(['stopped', 'not_reached', 'not_reached'])
   })
 
-  it('leaves every step upcoming while queued', () => {
-    expect(states(buildRunSteps({ status: 'queued', progressUpdates: [] }))).toEqual(['upcoming', 'upcoming', 'upcoming'])
+  it('is preparing while queued, since the sandbox is starting', () => {
+    expect(states(buildRunSteps({ status: 'queued', progressUpdates: [] }))).toEqual(['current', 'upcoming', 'upcoming'])
+  })
+
+  it('says the sandbox is starting until the worker first reports', () => {
+    expect(isStartingSandbox({ status: 'queued', progressUpdates: [] })).toBe(true)
+    expect(isStartingSandbox({ status: 'active', progressUpdates: [] })).toBe(true)
+    expect(isStartingSandbox({ status: 'active', progressUpdates: [update('initialize', 1)] })).toBe(false)
+    expect(isStartingSandbox({ status: 'failed', progressUpdates: [] })).toBe(false)
   })
 })

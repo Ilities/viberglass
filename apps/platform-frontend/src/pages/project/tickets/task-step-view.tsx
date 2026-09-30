@@ -1,5 +1,6 @@
 import { Button } from '@/components/button'
 import { TabButton } from '@/components/tab-button'
+import { usePersonName } from '@/hooks/usePeople'
 import { reopenTaskStep } from '@/service/api/build-api'
 import {
   getPhaseDocumentComments,
@@ -57,6 +58,7 @@ function DocumentStep({
   // can't quietly un-approve a plan the build depends on.
   const canEdit = isCurrent
   const [isReopening, setIsReopening] = useState(false)
+  const personName = usePersonName()
 
   const save = async (content: string) => {
     setIsSaving(true)
@@ -138,7 +140,7 @@ function DocumentStep({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--gray-10)]">
         <span>
           {document.approvalState === 'approved' && document.approvedAt
-            ? `Approved ${document.approvedBy ? `by ${document.approvedBy} ` : ''}on ${new Date(document.approvedAt).toLocaleString()}`
+            ? `Approved ${document.approvedBy ? `by ${personName(document.approvedBy)} ` : ''}on ${new Date(document.approvedAt).toLocaleString()}`
             : `Last changed ${new Date(document.updatedAt).toLocaleString()}`}
         </span>
         <span className="flex items-center gap-3">
