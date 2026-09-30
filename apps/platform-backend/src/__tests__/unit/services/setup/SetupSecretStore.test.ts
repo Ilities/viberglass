@@ -1,4 +1,4 @@
-import { SetupSecretStore } from "../../../../services/setup/SetupSecretStore";
+import { SetupSecretStore, setupSecretLocation } from "../../../../services/setup/SetupSecretStore";
 import { SETUP_SERVICE_ERROR_CODE } from "../../../../services/errors/SetupServiceError";
 import type { SecretLocation } from "../../../../persistence/secret/SecretDAO";
 import type { SecretInput, SecretUpdate } from "../../../../services/SecretService";
@@ -8,12 +8,12 @@ jest.mock("../../../../services/SecretService", () => ({ SecretService: jest.fn(
 
 type Stored = { id: string; name: string; secretLocation: SecretLocation } | null;
 
-function build(existing: Stored = null) {
+function build(existing: Stored = null, location: "database" | "ssm" = "database") {
   const getSecret = jest.fn(async (_id: string) => existing);
   const getSecretByName = jest.fn(async (_name: string) => existing);
   const createSecret = jest.fn(async (_input: SecretInput) => ({ id: "new-secret" }));
   const updateSecret = jest.fn(async (id: string, _updates: SecretUpdate) => ({ id }));
-  const store = new SetupSecretStore({ getSecret, getSecretByName }, { createSecret, updateSecret });
+  const store = new SetupSecretStore({ getSecret, getSecretByName }, { createSecret, updateSecret }, location);
   return { store, createSecret, updateSecret };
 }
 
@@ -37,6 +37,31 @@ describe("SetupSecretStore", () => {
     expect(updateSecret).toHaveBeenCalledWith("s1", { secretValue: "new" });
   });
 
+  it("creates a new secret in SSM when workers run on ECS", async () => {
+    const { store, createSecret } = build(null, "ssm");
+
+    await store.saveByName("OPENCODE_API_KEY", "key");
+    expect(createSecret).toHaveBeenCalledWith({
+      name: "OPENCODE_API_KEY",
+      secretLocation: "ssm",
+      secretValue: "key",
+    });
+  });
+
+  it("moves a database secret to SSM when workers run on ECS", async () => {
+    const { store, updateSecret } = build({ id: "s1", name: "K", secretLocation: "database" }, "ssm");
+
+    await store.saveByName("K", "new");
+    expect(updateSecret).toHaveBeenCalledWith("s1", { secretValue: "new", secretLocation: "ssm" });
+  });
+
+  it("keeps a database secret in the database without ECS", async () => {
+    const { store, updateSecret } = build({ id: "s1", name: "K", secretLocation: "database" });
+
+    await store.saveByName("K", "new");
+    expect(updateSecret).toHaveBeenCalledWith("s1", { secretValue: "new" });
+  });
+
   it("refuses to replace a secret read from the server environment", async () => {
     const { store, updateSecret } = build({ id: "s1", name: "GITHUB_TOKEN", secretLocation: "env" });
 
@@ -45,5 +70,11 @@ describe("SetupSecretStore", () => {
       message: expect.stringContaining("GITHUB_TOKEN is read from the server's environment"),
     });
     expect(updateSecret).not.toHaveBeenCalled();
+  });
+
+  it("saves to SSM only when the ECS cluster is configured", () => {
+    expect(setupSecretLocation({ VIBERATOR_ECS_CLUSTER_ARN: "arn:aws:ecs:eu-west-1:1:cluster/w" })).toBe("ssm");
+    expect(setupSecretLocation({ VIBERATOR_ECS_CLUSTER_ARN: " " })).toBe("database");
+    expect(setupSecretLocation({})).toBe("database");
   });
 });

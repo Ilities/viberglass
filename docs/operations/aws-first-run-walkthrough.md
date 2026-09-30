@@ -8,7 +8,7 @@ Record the outcome in `docs/ux/next-steps-handover.md` (Step C).
 
 1. **Deploy this code.** The backend image comes from the `deploy-backend-dev` workflow; the stacks from `pulumi up` in `infra/base`, `infra/platform` and `infra/workers`.
 2. **Check the new encryption key exists.** `pulumi up` on `infra/platform` now creates `/viberglass/<env>/backend/secrets-encryption-key` (SecureString) and passes it to the backend as `SECRETS_ENCRYPTION_KEY`.
-   - Setup stores the model key and repository token encrypted in the database with it.
+   - On AWS setup stores the model key and repository token in SSM (`/viberator/secrets/<NAME>`), because ECS workers only read secrets from there. Database secrets, encrypted with this key, are still used for webhooks and for secrets added by hand.
    - Without it, step 1 fails with "SECRETS_ENCRYPTION_KEY environment variable must be set".
    - The backend never had it on AWS before, so no existing database secrets depend on another key.
 3. **Point the platform stack at the workers stack:** `pulumi config set viberglass:workerStack <org>/<project>/<stack>` in `infra/platform`.
@@ -35,7 +35,7 @@ Record the outcome in `docs/ux/next-steps-handover.md` (Step C).
 
 - **The runner is on ECS.** Settings → Advanced → Agents & runners → "Default agent" shows the ECS strategy (managed), not Docker. `POST /api/setup/agent` returns `compute: "ecs"`.
 - **The per-agent image runs as an ECS task.** This hasn't been exercised yet: ECS so far used the shared `ecs` image. If the task starts but exits at once, compare the entrypoint and environment with `viberator-ecs-worker.Dockerfile`.
-- **The worker gets the key.** The key is a database secret attached to the runner. Check that the ECS task's environment overrides include the provider's variable (e.g. `OPENCODE_API_KEY`), without printing its value.
+- **The worker gets the key.** Settings → Secrets lists the key (e.g. `OPENCODE_API_KEY`) as SSM at `/viberator/secrets/OPENCODE_API_KEY`. The worker looks it up there itself, so it isn't in the ECS task's environment overrides. If the worker log says `Credential not found in SSM`, the secret is somewhere else. A database secret never reaches an ECS worker: the run fails with the provider's "Invalid API key".
 - **Model and endpoint.** For OpenCode providers the runner's agent config carries `model` (e.g. `opencode-go/deepseek-v4.1-flash`). For Moonshot it also carries `endpoint`.
 - **Known gap, not a failure:** cancelling an ECS run marks it cancelled but doesn't stop the task (handover §1.2).
 

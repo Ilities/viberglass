@@ -21,16 +21,22 @@ export interface SecretWriter {
   updateSecret(id: string, updates: SecretUpdate): Promise<{ id: string }>;
 }
 
+/** ECS workers read secrets only from SSM, so use SSM when agents run on ECS. */
+export function setupSecretLocation(env: NodeJS.ProcessEnv = process.env): "database" | "ssm" {
+  return env.VIBERATOR_ECS_CLUSTER_ARN?.trim() ? "ssm" : "database";
+}
+
 /**
- * Saves what setup collects (model keys, repository tokens) as secrets. New
- * ones are encrypted in the database. Saving again replaces the value where
- * it's stored: an SSM secret stays in SSM (moving it would delete that copy),
- * and one read from the server's environment is refused.
+ * Saves what setup collects (model keys, repository tokens) as secrets.
+ * Saving again replaces the value where it's stored, except that a database
+ * secret moves to SSM when setup saves to SSM. One read from the server's
+ * environment is refused.
  */
 export class SetupSecretStore {
   constructor(
     private readonly lookup: SecretLookup = new SecretDAO(),
     private readonly writer: SecretWriter = new SecretService(),
+    private readonly location: "database" | "ssm" = setupSecretLocation(),
   ) {}
 
   /** Creates the secret, or replaces the value of the one with this name. */
@@ -40,7 +46,7 @@ export class SetupSecretStore {
 
     const created = await this.writer.createSecret({
       name,
-      secretLocation: "database",
+      secretLocation: this.location,
       secretValue: value,
     });
     return created.id;
@@ -60,7 +66,11 @@ export class SetupSecretStore {
         `${secret.name} is read from the server's environment, so setup can't change it. Update it where the server is configured, or remove that secret under Settings → Secrets.`,
       );
     }
-    const updated = await this.writer.updateSecret(secret.id, { secretValue: value });
+    const moveToSsm = secret.secretLocation === "database" && this.location === "ssm";
+    const updated = await this.writer.updateSecret(secret.id, {
+      secretValue: value,
+      ...(moveToSsm ? { secretLocation: "ssm" as const } : {}),
+    });
     return updated.id;
   }
 }

@@ -1,6 +1,6 @@
 # Handover: next steps after the correctness pass
 
-Status as of 2026-09-29 · Phases 0 and 1 are done in code (rechecked 2026-09-29, see the end of Step C); Phase 1 exits after the AWS walkthrough, which has to be run from another machine; Phase 2 and 3 plan: [`phase-2-3-handover.md`](./phase-2-3-handover.md) · Owner of decisions: Jussi
+Status as of 2026-09-30 · Phases 0 and 1 are done in code (rechecked 2026-09-29, see the end of Step C); the AWS walkthrough was run on 2026-09-30 (result at the end of Step C); Phase 2 and 3 plan: [`phase-2-3-handover.md`](./phase-2-3-handover.md) · Owner of decisions: Jussi
 
 This hands the work over to whoever picks it up next, whether a person or an agent session. Read it together with:
 
@@ -297,6 +297,11 @@ About 4–5 days, on branch `quick-win-slice`. **Slice done (2026-09-23)**, merg
 - Every public GHCR image pulls anonymously.
 - Two items in the §12 text weren't built and were moved rather than left open: **connection expiry warnings** (readiness only flags a credential once it has expired) go to Phase 3 §3.6, and the **J1 step 7 home checklist** goes to Phase 2 (it needs invites).
 - **Seen, not fixed:** the empty dashboard ("Command Deck", FR3's competing CTAs and whimsical copy) is still what members and admins who skipped setup see. Admins with unfinished setup are redirected to `/setup`, so the first-run path avoids it. It's quick win #2.
+
+**Done (2026-09-30): the AWS walkthrough**, on production. Steps 0–4 passed: setup ran end to end and the default agent came up on ECS. Step 5 failed: OpenCode got `401 Invalid API key` from `opencode.ai/zen/go`.
+- **Cause:** setup saved the model key (and the repository token) as database secrets. Only the Docker invoker decrypts those and hands them to the container. An ECS worker only gets secret names (`requiredCredentials`) and looks each one up in SSM at `/viberator/secrets/<NAME>`, found nothing, and ran without a key. Lambda has the same gap.
+- **Fixed in code:** when `VIBERATOR_ECS_CLUSTER_ARN` is set, `SetupSecretStore` saves new secrets to SSM, and saving an existing database secret again moves it to SSM. To repair an instance that already ran setup, deploy the backend, then enter the model key and the repository token again in setup, or recreate the secrets as SSM under Settings → Secrets.
+- **Still to do:** recheck step 5 on AWS after the fix. A database secret attached by hand to an ECS runner still doesn't reach the worker (deliberately not changed: that needs the worker to fetch secrets from the platform).
 
 **Answered (2026-09-24):** pulling a worker image of several hundred MB on first run is fine. "Getting ready…" shows progress.
 
