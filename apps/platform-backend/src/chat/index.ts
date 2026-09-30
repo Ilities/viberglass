@@ -318,19 +318,16 @@ chatSessionBridge.configure({
 
 registerSlackHandlers(bot, slackServices);
 
-// Resume bridges for active sessions and ticket jobs that were running before restart.
-// Deferred so it doesn't block module loading.
-setTimeout(() => {
-  chatSessionBridge.resumeActiveBridges().catch((err) => {
-    logger.error("Failed to resume active chat bridges", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
-  ticketJobBridge.resumeActiveBridges().catch((err) => {
-    logger.error("Failed to resume ticket job bridges", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
-}, 0);
+/**
+ * Resume bridges for active sessions and ticket jobs that were running before
+ * a restart. Call it once the database is migrated: the bridges read tables
+ * that don't exist on a fresh database until then.
+ */
+export async function resumeChatBridges(): Promise<void> {
+  await Promise.all([
+    chatSessionBridge.resumeActiveBridges(),
+    ticketJobBridge.resumeActiveBridges(),
+  ]);
+}
 
 export default bot;
