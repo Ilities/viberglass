@@ -16,7 +16,7 @@ import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
-import bot from "../chat";
+import bot, { resumeChatBridges } from "../chat";
 
 // Load environment variables
 dotenv.config();
@@ -166,6 +166,9 @@ async function startServer(): Promise<void> {
       "RUN_MIGRATIONS_ON_STARTUP is not enabled, skipping migrations",
     );
   }
+
+  // Not awaited, so listening isn't held up; each bridge logs its own failure.
+  void resumeChatBridges();
 
   // Kick off chat SDK initialization in the background so Slack webhooks
   // don't time out waiting for PG state connect + Slack auth.test on the
