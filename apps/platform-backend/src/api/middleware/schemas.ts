@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
+import { JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SUPPORTED_AGENT_TYPES, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -402,7 +402,7 @@ export const integrationConfigSchema = Joi.object({
   values: Joi.object().required(),
 });
 
-const userRoleSchema = Joi.string().valid("admin", "member");
+const userRoleSchema = Joi.string().valid(...WORKSPACE_ROLES);
 
 export const registerSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -420,6 +420,20 @@ export const updateUserRoleSchema = Joi.object({
 
 export const loginSchema = Joi.object({
   email: Joi.string().email().required(),
+  password: Joi.string().min(8).max(255).required(),
+});
+
+export const createInviteSchema = Joi.object({
+  email: Joi.string().email().required(),
+  role: userRoleSchema.required(),
+});
+
+export const acceptInviteSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(255).required(),
+  password: Joi.string().min(8).max(255).required(),
+});
+
+export const resetPasswordSchema = Joi.object({
   password: Joi.string().min(8).max(255).required(),
 });
 

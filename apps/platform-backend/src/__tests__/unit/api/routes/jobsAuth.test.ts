@@ -1,5 +1,6 @@
 import jobsRouter from "../../../../api/routes/jobs";
 import { requireAuth } from "../../../../api/middleware/authentication";
+import { requireRunnerRole } from "../../../../api/middleware/workspaceRoleGuards";
 
 function getRouteHandlers(path: string, method: string): Array<(...args: unknown[]) => unknown> {
   const layer = (jobsRouter as any).stack.find(
@@ -18,11 +19,15 @@ function getRouteHandlers(path: string, method: string): Array<(...args: unknown
 
 describe("jobs route auth boundaries", () => {
   it("requires user auth on job management endpoints", () => {
-    expect(getRouteHandlers("/", "post")).toContain(requireAuth);
     expect(getRouteHandlers("/", "get")).toContain(requireAuth);
     expect(getRouteHandlers("/:jobId", "get")).toContain(requireAuth);
-    expect(getRouteHandlers("/:jobId", "delete")).toContain(requireAuth);
     expect(getRouteHandlers("/stats/queue", "get")).toContain(requireAuth);
+  });
+
+  it("lets only admins and members start, delete or cancel runs", () => {
+    expect(getRouteHandlers("/", "post")).toContain(requireRunnerRole);
+    expect(getRouteHandlers("/:jobId", "delete")).toContain(requireRunnerRole);
+    expect(getRouteHandlers("/:jobId/cancel", "post")).toContain(requireRunnerRole);
   });
 
   it("does not require user auth on worker callback endpoints", () => {

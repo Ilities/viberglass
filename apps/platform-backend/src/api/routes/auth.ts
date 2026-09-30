@@ -9,7 +9,7 @@ import {
 } from "../middleware/validation";
 import logger from "../../config/logger";
 import { requireAuth } from "../middleware/authentication";
-import type { UserRole } from "../../persistence/types/user";
+import { buildAuthResponse } from "../auth/authResponse";
 import { isAuthEnabled } from "../auth/config";
 import {
   clearAuthCookie,
@@ -24,26 +24,6 @@ import {
 const router = express.Router();
 const userDao = new UserDAO();
 const sessionDao = new UserSessionDAO();
-
-type AuthUserPayload = {
-  id: string;
-  email: string;
-  name: string;
-  avatarUrl: string | null;
-  role: UserRole;
-};
-
-function buildAuthResponse(user: AuthUserPayload) {
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatarUrl: user.avatarUrl,
-      role: user.role,
-    },
-  };
-}
 
 router.post("/register", validateRegister, async (req, res) => {
   try {

@@ -68,6 +68,7 @@ beforeEach(() => {
     login: jest.fn(),
     register: jest.fn(),
     logout: jest.fn().mockResolvedValue(undefined),
+    adoptSession: jest.fn(),
   })
   mockedUseTheme.mockReturnValue({
     theme: 'light',
@@ -144,6 +145,7 @@ describe('ApplicationLayout mobile navigation', () => {
       login: jest.fn(),
       register: jest.fn(),
       logout: jest.fn().mockResolvedValue(undefined),
+      adoptSession: jest.fn(),
     })
     const user = userEvent.setup()
     renderLayout('/')

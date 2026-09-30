@@ -8,6 +8,7 @@ import {
   AGENT_SESSION_SERVICE_ERROR_CODE,
 } from "../../../services/errors/AgentSessionServiceError";
 import { AGENT_SESSION_MODE } from "../../../types/agentSession";
+import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 
 interface AgentSessionRouteDependencies {
   launchService: AgentSessionLaunchService;
@@ -20,7 +21,7 @@ export function registerTicketAgentSessionRoutes(
   router: Router,
   { launchService, queryService }: AgentSessionRouteDependencies,
 ): void {
-  router.post("/:id/agent-sessions", async (req, res) => {
+  router.post("/:id/agent-sessions", requireRunnerRole, async (req, res) => {
     try {
       const ticketId = req.params.id;
       const { clankerId, mode, initialMessage } = req.body;

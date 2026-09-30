@@ -31,6 +31,9 @@ import {
   updateUserRoleSchema,
   loginSchema,
   forgotPasswordSchema,
+  createInviteSchema,
+  acceptInviteSchema,
+  resetPasswordSchema,
   clawTaskTemplateSchema,
   updateClawTaskTemplateSchema,
   clawScheduleSchema,
@@ -162,6 +165,9 @@ export const validateCreateUser = createValidator(createUserSchema);
 export const validateUpdateUserRole = createValidator(updateUserRoleSchema);
 export const validateLogin = createValidator(loginSchema);
 export const validateForgotPassword = createValidator(forgotPasswordSchema);
+export const validateCreateInvite = createValidator(createInviteSchema);
+export const validateAcceptInvite = createValidator(acceptInviteSchema);
+export const validateResetPassword = createValidator(resetPasswordSchema);
 export const validateCreateClawTaskTemplate = createValidator(clawTaskTemplateSchema);
 export const validateUpdateClawTaskTemplate = createValidator(updateClawTaskTemplateSchema);
 export const validateCreateClawSchedule = createValidator(clawScheduleSchema);

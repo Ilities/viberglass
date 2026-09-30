@@ -15,6 +15,7 @@ function renderAs(role: 'admin' | 'member', path: string) {
     login: jest.fn(),
     register: jest.fn(),
     logout: jest.fn(),
+    adoptSession: jest.fn(),
   })
   render(
     <Theme>

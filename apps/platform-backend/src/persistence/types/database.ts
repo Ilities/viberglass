@@ -404,6 +404,30 @@ export interface UsersTable {
   role: UserRole;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
+  deactivated_at: Timestamp | null;
+}
+
+export interface InvitesTable {
+  id: Generated<string>;
+  email: string;
+  role: UserRole;
+  token_hash: string;
+  created_by: string | null;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+  accepted_at: Timestamp | null;
+  accepted_user_id: string | null;
+  revoked_at: Timestamp | null;
+}
+
+export interface PasswordResetLinksTable {
+  id: Generated<string>;
+  user_id: string;
+  token_hash: string;
+  created_by: string | null;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+  used_at: Timestamp | null;
 }
 
 export interface UserSessionsTable {
@@ -671,6 +695,8 @@ export interface Database {
   secrets: SecretsTable;
   users: UsersTable;
   user_sessions: UserSessionsTable;
+  invites: InvitesTable;
+  password_reset_links: PasswordResetLinksTable;
   user_projects: UserProjectsTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;

@@ -45,6 +45,7 @@ function authenticateRequest(options: AuthOptions) {
         role: "admin" as const,
         createdAt: new Date(),
         updatedAt: new Date(),
+        deactivatedAt: null,
       };
 
       const mockSession = {
@@ -135,6 +136,7 @@ function authenticateWithApiToken() {
         role: "admin" as const,
         createdAt: new Date(),
         updatedAt: new Date(),
+        deactivatedAt: null,
       };
 
       const mockSession = {

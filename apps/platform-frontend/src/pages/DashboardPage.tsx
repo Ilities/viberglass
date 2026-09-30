@@ -21,6 +21,7 @@ import {
   getRecentTickets,
   getTicketStats,
 } from '@/data'
+import { NextStepsChecklist } from '@/pages/dashboard/next-steps-checklist'
 import { SpaceCard } from '@/pages/dashboard/SpaceCard'
 import { clankerStatusColor, getWorkspaceSummary } from '@/pages/dashboard/spaceSignals'
 import { useSetupRedirect } from '@/pages/setup/useSetupRedirect'
@@ -148,6 +149,8 @@ export function DashboardPage() {
       <p className="mt-2 max-w-3xl text-sm text-zinc-500 dark:text-zinc-400">
         {getWorkspaceSummary(projects.length, openTaskCount, runsInProgress)}
       </p>
+
+      {isAdmin && <NextStepsChecklist />}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <MetricCard label="Spaces" value={projects.length} />

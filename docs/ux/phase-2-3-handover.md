@@ -112,6 +112,20 @@ The original plan follows.
 
 ### 2.2 Workspace roles and invites (J3, J4; D1, D6)
 
+**Done (2026-09-30).** What landed:
+- **Roles:** `WORKSPACE_ROLES` (admin, member, guest, viewer) in `@viberglass/types`, with `RUNNER_ROLES` (admin, member) and `PLUMBING_READER_ROLES` (admin, member, viewer).
+  - **Viewers** are refused on every mutating request by one middleware mounted after the auth context (`refuseViewerChanges`); only sign-out is allowed. Requests with no signed-in user (worker callbacks, webhooks) pass through.
+  - **Guests** can't read plumbing (`adminOnlyChanges` reads need a plumbing reader), start or cancel runs, launch sessions, run schedules, change spaces (`runnerOnlyChanges` on `/api/spaces`) or use MCP. They can still comment and reply in sessions. Guests aren't invitable or assignable yet: without §2.3 they would see every space.
+  - MCP is admins and members only for now (`refuseNonRunnerRoles`), since it authenticates with API tokens.
+- **Invites** (migration 071): an admin makes a link under Settings → Members (`POST /api/invites`), shown once; only its hash is stored. Seven days, single use (a conditional update in the same transaction that creates the user), and inviting the same email again retires the old link. Pending invites can be revoked. The invitee opens `/invite/:token`, picks a name and password, and is signed in. The "create user with password" form is gone; `POST /api/users` stays for seeds and tests. Email delivery waits for SMTP (§2.6); the page says the link isn't emailed.
+- **Deactivate** (migration 072): `users.deactivated_at`; deactivating ends every session, and login, sessions and API tokens all refuse a deactivated user. Admins can't deactivate themselves or the last active admin. Reactivate restores access.
+- **Reset links** (migration 073): an admin makes a 24-hour single-use link (`POST /api/users/:id/reset-link`); `/reset-password/:token` sets the password, signs the person in and ends their other sessions. Self-service "forgot password" still only logs until SMTP.
+- **Home checklist:** admins' dashboard shows *Invite your team · Connect Slack · Connect your tracker*, ticked from real state (`GET /api/setup/next-steps`), dismissible, hidden once done.
+- Verified: backend 948 and frontend 187 unit tests; the smoke suite (22/22) including `invites-and-roles.e2e.test.ts` (invite in a second browser, link works once, revoked link fails, viewer refused, deactivation ends the session, reset link works once); the Members page in the dev stack.
+- **Left for later:** the UI still shows actions a viewer can't take (the server refuses them); role-aware screens belong to Phase 2½. Pages that load plumbing will need to cope with guests' 403s when §2.3 makes guests invitable.
+
+The original plan follows.
+
 - **Exists** (reported, file paths checked):
   - `users` (migrations 014 and 015) with `password_hash NOT NULL` and `role` admin|member.
   - Admins create users with a password: `POST /api/users` and `UsersPage.tsx`.
@@ -243,6 +257,12 @@ The original plan follows.
 - the Inbox shows each person the right item at each point, and Activity attributes every step.
 
 The fake agent writes the documents.
+
+---
+
+## 2½. Returning-visit UX (between Phase 2 and Phase 3)
+
+Added by Jussi on 2026-09-30; see plan §12, Phase 2½. Research first (a walkthrough of every returning-visit screen as each persona and role, with screenshots), then a redesign plan in `docs/ux` for Jussi's review, then the build. It waits for Phase 2 so the landings can be designed around roles, participants, Activity and the Inbox (§2.6 already plans the Inbox as the member landing page; the research may change that).
 
 ---
 

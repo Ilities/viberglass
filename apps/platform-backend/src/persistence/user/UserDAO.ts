@@ -14,6 +14,7 @@ export interface UserRecord {
   role: UserRole;
   createdAt: Date;
   updatedAt: Date;
+  deactivatedAt: Date | null;
 }
 
 export interface PublicUser {
@@ -24,6 +25,7 @@ export interface PublicUser {
   role: UserRole;
   createdAt: Date;
   updatedAt: Date;
+  deactivatedAt: Date | null;
 }
 
 export class UserDAO {
@@ -123,6 +125,7 @@ export class UserDAO {
       role: row.role,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      deactivatedAt: row.deactivated_at ?? null,
     };
   }
 
@@ -135,7 +138,42 @@ export class UserDAO {
       role: row.role,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      deactivatedAt: row.deactivated_at ?? null,
     };
+  }
+
+  /** Deactivating also ends every session; API tokens stop working because their user is checked on each use. */
+  async setDeactivated(id: string, deactivated: boolean): Promise<PublicUser | null> {
+    return db.transaction().execute(async (trx) => {
+      const now = new Date();
+      const row = await trx
+        .updateTable("users")
+        .set({ deactivated_at: deactivated ? now : null, updated_at: now })
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirst();
+      if (!row) return null;
+      if (deactivated) {
+        await trx
+          .updateTable("user_sessions")
+          .set({ revoked_at: now })
+          .where("user_id", "=", id)
+          .where("revoked_at", "is", null)
+          .execute();
+      }
+      return this.mapPublicUser(row);
+    });
+  }
+
+  async countActiveAdmins(): Promise<number> {
+    const row = await db
+      .selectFrom("users")
+      .select((eb) => eb.fn.count<string>("id").as("count"))
+      .where("role", "=", "admin")
+      .where("deactivated_at", "is", null)
+      .executeTakeFirstOrThrow();
+
+    return Number(row.count);
   }
 
   async deleteUser(id: string): Promise<void> {

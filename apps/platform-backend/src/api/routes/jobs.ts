@@ -4,6 +4,7 @@ import { JobData, JobStatus } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
 import { validateCallbackToken } from "../middleware/callbackTokenValidation";
 import { requireAuth } from "../middleware/authentication";
+import { requireRunnerRole } from "../middleware/workspaceRoleGuards";
 import {
   validateResultCallback,
   validateProgressUpdate,
@@ -130,7 +131,7 @@ function getDocumentPhaseForJobKind(jobKind: string): "research" | "planning" | 
   return null;
 }
 
-router.post("/", requireAuth, async (req: Request, res: Response) => {
+router.post("/", requireRunnerRole, async (req: Request, res: Response) => {
   try {
     const {
       repository,
@@ -263,7 +264,7 @@ router.get(
   },
 );
 
-router.delete("/:jobId", requireAuth, async (req: Request, res: Response) => {
+router.delete("/:jobId", requireRunnerRole, async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
     const result = await jobService.deleteJob(jobId);
@@ -288,7 +289,7 @@ router.delete("/:jobId", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/:jobId/cancel", requireAuth, async (req: Request, res: Response) => {
+router.post("/:jobId/cancel", requireRunnerRole, async (req: Request, res: Response) => {
   const { jobId } = req.params;
   try {
     const result = await jobCancellationService.cancel(jobId, req.authContext?.user.id);

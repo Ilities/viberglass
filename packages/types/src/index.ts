@@ -49,3 +49,6 @@ export * from './agentSession'
 
 // Feature branch naming, shared by the worker and the run confirmation
 export * from './branchNaming'
+
+// Workspace roles
+export * from './workspaceRole'

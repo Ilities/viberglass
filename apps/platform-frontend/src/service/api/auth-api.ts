@@ -1,3 +1,4 @@
+import type { WorkspaceRole } from '@viberglass/types'
 import { API_BASE_URL } from '@/lib'
 import { fetchOrExplain } from './client'
 
@@ -6,7 +7,7 @@ export type AuthUser = {
   email: string
   name: string
   avatarUrl?: string | null
-  role?: 'admin' | 'member'
+  role?: WorkspaceRole
 }
 
 export type SetupStatus = { requiresInitialUser: boolean }

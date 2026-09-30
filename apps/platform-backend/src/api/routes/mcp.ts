@@ -3,6 +3,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createMcpServer } from "@viberglass/mcp-server";
 import { mcpToolServices } from "../../mcp/composeMcpServices";
 import { requireApiToken } from "../middleware/authentication";
+import { refuseNonRunnerRoles } from "../middleware/workspaceRoleGuards";
 import logger from "../../config/logger";
 
 const router = express.Router();
@@ -23,7 +24,7 @@ async function handleMcpRequest(
   await transport.handleRequest(req, res, parsedBody);
 }
 
-router.post("/", requireApiToken, async (req, res) => {
+router.post("/", requireApiToken, refuseNonRunnerRoles, async (req, res) => {
   try {
     await handleMcpRequest(req, res, req.body);
   } catch (error) {
@@ -36,7 +37,7 @@ router.post("/", requireApiToken, async (req, res) => {
   }
 });
 
-router.get("/", requireApiToken, async (req, res) => {
+router.get("/", requireApiToken, refuseNonRunnerRoles, async (req, res) => {
   try {
     await handleMcpRequest(req, res);
   } catch (error) {
@@ -49,7 +50,7 @@ router.get("/", requireApiToken, async (req, res) => {
   }
 });
 
-router.delete("/", requireApiToken, async (req, res) => {
+router.delete("/", requireApiToken, refuseNonRunnerRoles, async (req, res) => {
   try {
     await handleMcpRequest(req, res);
   } catch (error) {

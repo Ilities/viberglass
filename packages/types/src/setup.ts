@@ -71,3 +71,12 @@ export interface SetupStatus {
   /** Set while the demo workspace is loaded. */
   demo: DemoWorkspace | null
 }
+
+/** The admin's home checklist after setup: each item is ticked from real state. */
+export interface SetupNextSteps {
+  /** Someone besides the first admin has an account or an open invite. */
+  teamInvited: boolean
+  slackConnected: boolean
+  /** A ticketing connection (Jira, Linear, GitHub Issues…) exists. */
+  trackerConnected: boolean
+}

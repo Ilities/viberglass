@@ -680,6 +680,13 @@ J1, J2. Existing registration → model key (provider picker for every selectabl
 J3, J4, J5, J7, J10, J17. Invite links (SMTP optional); roles enforced server-side; space membership; task participants (requester/owner/reviewers/watchers); general Discussion thread with @mentions; Inbox + notifications (in-app, Slack, email); approval policies; rendered-document inline comments; Activity log; audit log; the J1 step 7 home checklist (*Invite your team · Connect Slack · Connect your tracker*).
 **Exit:** J9 steps 1, 3, 4, 7 work with ≥ 3 humans.
 
+### Phase 2½: Returning-visit UX (added 2026-09-30)
+Phase 1 reworked the first visit. Every later visit (the dashboard, space home, task lists, Pulse, the new Inbox and My tasks, and how status reads across them) was built piece by piece and has never been designed as one flow. After Phase 2, when roles, participants, Activity and the Inbox exist:
+1. **Research:** walk every returning-visit screen in the dev stack as each persona and role (admin PM, member engineer, guest reviewer, viewer), on a workspace with real history, with screenshots and findings in the style of the first audit. Questions: where does each person land, what do they need to see first, and can they tell whose move it is on every task?
+2. **Plan:** a redesign doc in `docs/ux` (landings per role, the dashboard's job, one status vocabulary everywhere, navigation), reviewed by Jussi before any code.
+3. **Build** the approved plan, with a smoke journey per landing.
+**Exit:** each persona lands on a page that answers "what needs me now?" without clicking further, and a task's status reads the same on every screen.
+
 ### Phase 3: Agent ↔ human collaboration (3–4 weeks)
 J6, J8, J11, J12. Agent Questions (routing, blocking policy, escalation); readable narrative transcripts; steer/pause/take-over/hand-back in live sessions; failure classification + pause/resume; connection health and expiry warnings; cancel-safe runs; preview environments (if feasible).
 **Exit:** the full J9 hero journey runs end to end.

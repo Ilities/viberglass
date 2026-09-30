@@ -17,6 +17,7 @@ import {
 import type { AuthContext } from "./context";
 
 const userDao = new UserDAO();
+const DEACTIVATED_MESSAGE = "This account has been deactivated. Ask an admin to reactivate it.";
 const sessionDao = new UserSessionDAO();
 const apiTokenDao = new ApiTokenDAO();
 
@@ -35,6 +36,9 @@ export function configurePassport(): void {
           const user = await userDao.findByEmail(normalizedEmail);
           if (!user) {
             return done(null, false, { message: "Invalid email or password" });
+          }
+          if (user.deactivatedAt) {
+            return done(null, false, { message: DEACTIVATED_MESSAGE });
           }
 
           const isValid = await verifyPassword(password, user.passwordHash);
@@ -72,6 +76,9 @@ export function configurePassport(): void {
         if (!user) {
           return done(null, false, { message: "User not found" });
         }
+        if (user.deactivatedAt) {
+          return done(null, false, { message: DEACTIVATED_MESSAGE });
+        }
 
         const context: AuthContext = {
           user,
@@ -105,6 +112,9 @@ export function configurePassport(): void {
         const user = await userDao.findById(tokenRecord.userId);
         if (!user) {
           return done(null, false, { message: "User not found" });
+        }
+        if (user.deactivatedAt) {
+          return done(null, false, { message: DEACTIVATED_MESSAGE });
         }
 
         apiTokenDao.touchLastUsed(tokenRecord.id).catch(() => {});
