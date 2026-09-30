@@ -327,13 +327,19 @@ export function createDatabase(options: DatabaseOptions): DatabaseOutputs {
   // 5. Create SSM parameters with actual RDS endpoint
   const basePath = `/viberglass/${config.environment}/database`;
 
-  // Create new URL and host parameters with the actual endpoint
+  // Create new URL and host parameters with the actual endpoint.
+  // The password may contain characters that are special in URLs (e.g. ":"),
+  // so it must be percent-encoded. `endpoint` is already "host:port", so no
+  // port suffix is added here.
+  const encodedPassword = credentials.randomPassword.result.apply((password) =>
+    encodeURIComponent(password),
+  );
   const urlParam = new aws.ssm.Parameter(
     `${config.environment}-viberglass-db-url-actual`,
     {
       name: `${basePath}/url`,
       type: "SecureString",
-      value: pulumi.interpolate`postgresql://${masterUsername}:${credentials.randomPassword.result}@${rdsInstance.endpoint}:5432/${dbName}`,
+      value: pulumi.interpolate`postgresql://${masterUsername}:${encodedPassword}@${rdsInstance.endpoint}/${dbName}`,
       keyId: kmsKeyArn,
       tags: config.tags,
       overwrite: true,
