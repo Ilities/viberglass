@@ -83,6 +83,22 @@ class GitService {
   }
 
   /**
+   * Auth for talking to origin. The remote URL stays credential-free; auth is
+   * attached per invocation, and the origin says which provider's to use.
+   */
+  private async originEnvironment(git: SimpleGit, scmToken?: string): Promise<NodeJS.ProcessEnv> {
+    const remotes = await git.getRemotes(true);
+    const origin = remotes.find((r) => r.name === "origin");
+    const originUrl = origin?.refs.push || origin?.refs.fetch;
+
+    if (!originUrl) {
+      throw new Error("No 'origin' remote found in repository");
+    }
+
+    return this.buildGitEnvironment(originUrl, scmToken);
+  }
+
+  /**
    * Clone repository with automatic SCM authentication using simple-git
    */
   public async cloneRepository(
@@ -169,6 +185,32 @@ class GitService {
   }
 
   /**
+   * Checks out `branchName` from origin when it exists there, so a run
+   * continues the work an earlier run pushed. The clone is single-branch, so
+   * the branch is fetched by an explicit refspec. Returns false, leaving the
+   * working tree alone, when origin has no such branch.
+   */
+  public async checkoutRemoteBranch(
+    repoDir: string,
+    branchName: string,
+    scmToken?: string,
+  ): Promise<boolean> {
+    const git = simpleGit({ baseDir: repoDir, ...AUTHENTICATED_GIT_OPTIONS });
+    const env = await this.originEnvironment(git, scmToken);
+
+    const heads = await git.env(env).listRemote(["--heads", "origin", branchName]);
+    const exists = heads
+      .split("\n")
+      .some((line) => line.trim().endsWith(`refs/heads/${branchName}`));
+    if (!exists) return false;
+
+    await git.env(env).fetch("origin", `+refs/heads/${branchName}:refs/remotes/origin/${branchName}`);
+    await git.checkout(["-b", branchName, `origin/${branchName}`]);
+    this.logger.info("Continuing existing branch", { branchName });
+    return true;
+  }
+
+  /**
    * Commit changes using simple-git
    */
   public async commitChanges(
@@ -213,18 +255,7 @@ class GitService {
   public async pushBranch(repoDir: string, branchName: string, scmToken?: string): Promise<void> {
     try {
       const git = simpleGit({ baseDir: repoDir, ...AUTHENTICATED_GIT_OPTIONS });
-
-      // The remote URL stays credential-free; auth is attached to this invocation
-      // only. Resolving the origin tells us which provider's credentials to use.
-      const remotes = await git.getRemotes(true);
-      const origin = remotes.find((r) => r.name === "origin");
-      const originUrl = origin?.refs.push || origin?.refs.fetch;
-
-      if (!originUrl) {
-        throw new Error("No 'origin' remote found in repository");
-      }
-
-      const env = this.buildGitEnvironment(originUrl, scmToken);
+      const env = await this.originEnvironment(git, scmToken);
 
       await git.env(env).push("origin", branchName, ["--set-upstream"]);
       this.logger.info("Branch pushed", { branchName });

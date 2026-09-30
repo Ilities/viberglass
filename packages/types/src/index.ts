@@ -22,6 +22,12 @@ export * from './clanker'
 export * from './clankerConfig'
 export * from './job'
 
+// Run records: manifests and PR outcomes, for eval inspection
+export * from './runRecord'
+
+// Asking for changes on a build
+export * from './buildRevision'
+
 // Claw types (scheduled task execution)
 export * from './claw'
 

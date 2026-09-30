@@ -88,6 +88,9 @@ export interface BaseWorkerPayload {
   context?: {
     ticketId?: string;
     originalTicketId?: string;
+    /** The ticket as written, for a fallback PR title and description. */
+    ticketTitle?: string;
+    ticketDescription?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;
@@ -224,6 +227,9 @@ export interface CodingJobData {
   context?: {
     ticketId?: string;
     originalTicketId?: string;
+    /** The ticket as written, for a fallback PR title and description. */
+    ticketTitle?: string;
+    ticketDescription?: string;
     stepsToReproduce?: string;
     expectedBehavior?: string;
     actualBehavior?: string;

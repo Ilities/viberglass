@@ -14,6 +14,7 @@ describe('HandoffCard', () => {
   })
 
   it('drops the moves column when every move is conditional and none applies', () => {
+    const fixApplies = false
     const { container } = render(
       <HandoffCard
         owner="problem"
@@ -21,7 +22,7 @@ describe('HandoffCard', () => {
         title="Agent failed"
         actions={
           <>
-            {false && <button>Fix</button>}
+            {fixApplies && <button>Fix</button>}
             {null}
           </>
         }

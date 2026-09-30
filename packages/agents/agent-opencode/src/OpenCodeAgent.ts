@@ -1,9 +1,10 @@
-import { BaseAgent } from "@viberglass/agent-core";
+import { BaseAgent, parseOpenCodeRunJsonUsage } from "@viberglass/agent-core";
 import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
 import type { OpenCodeConfig } from "./config";
+import { readOpenCodeSessionDetails } from "./readOpenCodeSessionDetails";
 
 export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
   constructor(config: OpenCodeConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -130,6 +131,15 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
       }
 
       const cliOutput = this.parseCliOutput(result.stdout);
+      const runUsage = parseOpenCodeRunJsonUsage(result.stdout);
+      const usage = runUsage && {
+        ...runUsage,
+        ...(await readOpenCodeSessionDetails(
+          result.stdout,
+          (exportArgs) => this.executeCommand("opencode", exportArgs, { cwd: repoDir, env, timeout: 60_000, quiet: true }),
+          (reason) => this.logger.warn(`Could not read the OpenCode session's model: ${reason}`),
+        )),
+      };
 
       await this.cleanup(workDir);
 
@@ -141,6 +151,7 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
           "pullRequestUrl",
           "pr_url",
         ),
+        usage,
       };
     } catch (error) {
       await this.cleanup(workDir);

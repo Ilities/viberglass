@@ -103,11 +103,33 @@ Domain attributes the spec has no name for are prefixed `vg.` (see
   `costPerExecution` constant) or `unavailable`.
 - `vg.semconv.revision` — the convention revision the span was produced under.
 
-Today only the Claude Code agent reports real usage, parsed from its
-`--output-format=stream-json` result event. The other seven record
+Two agents report real usage: Claude Code, from its
+`--output-format=stream-json` result event, and OpenCode, summed over the
+`step_finish` events of `run --format json`. OpenCode prices steps from its
+own model table and reports 0 for a model it has no price for, so a zero cost
+is recorded as unavailable rather than as free. OpenCode's output names no
+model, so its manifests carry no `model_snapshot`. The other agents record
 `usageAvailable: false` and `costProvenance: "estimated"`. That is the
 intended state, not an oversight: inventing numbers for CLIs that do not
 expose them would poison the corpus.
+
+## Outcome labels and export
+
+A background sweeper in the backend (`PullRequestOutcomeSweeper`) labels
+every PR in `job_run_manifests` with its state (`open`, `closed`, `merged`),
+merge and close times, and comment counts. The labels go in
+`pull_request_outcomes`, keyed by PR URL. It polls the SCM with the project's
+own connection token, so it needs no webhook, and its first sweeps backfill
+older PRs. Open PRs are checked again hourly; merged and closed are final.
+GitHub is the only source so far. `PR_OUTCOME_SWEEP_INTERVAL_MS` sets the
+sweep interval (default 15 minutes), and `DISABLE_BACKGROUND_SWEEPERS=true`
+turns it off along with the other sweepers.
+
+`GET /api/run-manifests/export?since=&until=&includeLogs=true` (admin only)
+streams the corpus as NDJSON, one `{ manifest, pullRequestOutcome, logs? }`
+per job in dispatch order. Rows keep their database column names. `logs` are
+the job's normalized log lines, which carry the agent's trajectory. Lines are
+kept up to 200,000 characters (`JOB_LOG_MESSAGE_MAX_LENGTH`).
 
 ## Verifying the export pipeline
 
@@ -167,6 +189,6 @@ All are bounded — a wedged collector must not stop a finished worker exiting.
 - **ACP session turns are not covered by the GenAI span.** Interactive turns
   run through `AcpExecutor`, not `BaseAgent.execute`, so they get the job and
   orchestration spans but no `invoke_agent` span with model and usage.
-- **Usage parsing exists for Claude Code only** (see above).
+- **Usage parsing exists for Claude Code and OpenCode only** (see above).
 - **Replayed payloads join old traces.** A job re-dispatched from a stored
   bootstrap payload reuses its original `traceparent`.

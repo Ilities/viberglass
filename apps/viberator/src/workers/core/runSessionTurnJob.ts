@@ -5,7 +5,7 @@ import { ExecutionContext } from "../../types";
 import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
 import { failingWith, JobFailureError } from "./JobFailureError";
-import { buildFeatureBranchName } from "../runtime/branchNaming";
+import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
 import {
   resolvePullRequestDescription,
   resolvePullRequestTitle,
@@ -99,6 +99,7 @@ async function completeExecutionWithPR(
   repoDir: string,
   checkoutBaseBranch: string,
   executionContext: ExecutionContext,
+  taskBranch: TaskBranch | undefined,
 ): Promise<
   Pick<JobResult, "branch" | "pullRequestUrl" | "commitHash" | "changedFiles">
 > {
@@ -112,16 +113,12 @@ async function completeExecutionWithPR(
     scm?.sourceRepository?.trim() ||
     repository;
 
-  await sendProgress("branch", "Creating feature branch");
-  const featureBranch = buildFeatureBranchName(
-    id,
-    context?.ticketId,
-    context?.originalTicketId,
-    (params.clankerConfig as Record<string, unknown> | undefined)
-      ?.clankerId as string,
-    scm?.branchNameTemplate,
-  );
-  await gitService.createBranch(repoDir, featureBranch);
+  const branch = taskBranch ?? (await prepareTaskBranch(params, repoDir));
+  const featureBranch = branch.name;
+  if (!branch.continued) {
+    await sendProgress("branch", "Creating feature branch");
+    await gitService.createBranch(repoDir, featureBranch);
+  }
 
   const changedFiles = await gitService.getChangedFiles(repoDir);
   if (changedFiles.length === 0) {
@@ -131,10 +128,15 @@ async function completeExecutionWithPR(
     );
   }
 
-  const pullRequestTitle = resolvePullRequestTitle(repoDir, task);
+  const pullRequestTicket = {
+    title: context?.ticketTitle,
+    description: context?.ticketDescription,
+  };
+  const pullRequestTitle = resolvePullRequestTitle(repoDir, task, pullRequestTicket);
   const pullRequestDescription = resolvePullRequestDescription({
     repoDir,
     task,
+    ticket: pullRequestTicket,
     changedFiles,
     testsWereRequested: executionContext.runTests,
   });
@@ -371,6 +373,7 @@ export async function runSessionTurnJob(
         repoDir,
         checkoutBaseBranch,
         executionContext,
+        setup.taskBranch,
       );
 
       return {

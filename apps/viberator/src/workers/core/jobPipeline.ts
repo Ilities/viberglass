@@ -48,6 +48,7 @@ import type {
   AgentAuthLifecycle,
 } from "./agentAuthLifecycle";
 import type { SessionEventForwarder } from "../../acp/SessionEventForwarder";
+import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
 
 export interface JobRunnerParams {
   data: CodingJobData;
@@ -131,6 +132,8 @@ export interface JobSetupResult {
   repoDir: string;
   checkoutBaseBranch: string;
   mergedSettings: MergedSettings;
+  /** Execution runs only: the branch the run commits to, checked out if it already existed. */
+  taskBranch?: TaskBranch;
 }
 
 /**
@@ -191,6 +194,11 @@ export async function setupJob(
       ),
   );
 
+  // A build on a task that already has a branch continues it, so the agent
+  // works on top of the earlier builds and the pull request gains commits.
+  const taskBranch =
+    data.jobKind === "execution" ? await prepareTaskBranch(params, repoDir) : undefined;
+
   // The exact commit the run starts from, captured before instruction files
   // are written and before the agent touches anything. "base branch was main"
   // is not reproducible; a SHA is.
@@ -218,7 +226,7 @@ export async function setupJob(
     overrides,
   });
 
-  return { jobWorkDir, repoDir, checkoutBaseBranch, mergedSettings };
+  return { jobWorkDir, repoDir, checkoutBaseBranch, mergedSettings, taskBranch };
 }
 
 export interface AgentExecutionResult {

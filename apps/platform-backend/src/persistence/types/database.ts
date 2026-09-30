@@ -315,6 +315,20 @@ export interface JobRunManifestsTable {
   updated_at: Generated<Timestamp>;
 }
 
+/** What happened to a PR an agent opened. See migration 069_pull_request_outcomes. */
+export interface PullRequestOutcomesTable {
+  pull_request_url: string;
+  state: "open" | "closed" | "merged" | null;
+  merged_at: Timestamp | null;
+  closed_at: Timestamp | null;
+  comment_count: number | null;
+  review_comment_count: number | null;
+  checked_at: Timestamp;
+  last_error: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface JobProgressUpdatesTable {
   id: Generated<string>;
   job_id: string;
@@ -647,6 +661,7 @@ export interface Database {
   clankers: ClankersTable;
   jobs: JobsTable;
   job_run_manifests: JobRunManifestsTable;
+  pull_request_outcomes: PullRequestOutcomesTable;
   job_progress_updates: JobProgressUpdatesTable;
   job_log_lines: JobLogLinesTable;
   webhook_provider_configs: WebhookProviderConfigsTable;

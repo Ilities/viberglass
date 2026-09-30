@@ -53,6 +53,7 @@ import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { UsersPage } from '@/pages/settings/UsersPage'
+import { RunRecordsPage } from '@/pages/settings/run-records/RunRecordsPage'
 
 export function AppRoutes() {
   return (
@@ -87,6 +88,7 @@ export function AppRoutes() {
           <Route path="/settings/members" element={<UsersPage />} />
           <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
           <Route path="/settings/api-tokens" element={<ApiTokensPage />} />
+          <Route path="/settings/run-records" element={<RunRecordsPage />} />
         </Route>
 
         {/* Project routes */}

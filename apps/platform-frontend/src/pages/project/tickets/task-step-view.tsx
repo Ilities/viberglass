@@ -1,15 +1,15 @@
 import { Button } from '@/components/button'
 import { TabButton } from '@/components/tab-button'
+import { reopenTaskStep } from '@/service/api/build-api'
 import {
   getPhaseDocumentComments,
-  revokePlanningApproval,
   savePlanningDocument,
   saveResearchDocument,
   type PhaseDocumentResponse,
 } from '@/service/api/ticket-api'
-import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { BuildPullRequestPanel } from './build-pull-request-panel'
 import { DocumentReader, PhaseDocumentComments } from './phase-document-comments'
 import { PhaseSessionPanel } from './phase-session-panel'
 import { STEP_NAME, TASK_STEPS, type TaskNextMove, type TaskStep } from './task-next-move'
@@ -29,6 +29,8 @@ interface TaskStepViewProps {
   openRunId: string | null
   /** The run opened by link or from the banner, scrolled to once. */
   focusedRunId: string | null
+  /** The view the linked run opens on (`?runTab=`). */
+  focusedRunTab: string | null
   onToggleRun: (runId: string) => void
   onDocumentSaved: (step: 'research' | 'planning', document: PhaseDocumentResponse) => void
   onChanged: () => void
@@ -49,8 +51,12 @@ function DocumentStep({
   const noun = DOCUMENT_NOUN[step]
   const isCurrent = data.ticket.workflowPhase === step
   const isUpcoming = TASK_STEPS.indexOf(step) > TASK_STEPS.indexOf(data.ticket.workflowPhase)
+  const isBehind = TASK_STEPS.indexOf(step) < TASK_STEPS.indexOf(data.ticket.workflowPhase)
   const hasContent = document.content.trim().length > 0
-  const canEdit = isCurrent || step === 'planning'
+  // A step the task has moved past is reopened before it's edited, so an edit
+  // can't quietly un-approve a plan the build depends on.
+  const canEdit = isCurrent
+  const [isReopening, setIsReopening] = useState(false)
 
   const save = async (content: string) => {
     setIsSaving(true)
@@ -67,14 +73,21 @@ function DocumentStep({
     }
   }
 
-  const revoke = async () => {
+  const reopen = async () => {
+    setIsReopening(true)
     try {
-      const result = await revokePlanningApproval(data.ticket.id)
-      onDocumentSaved('planning', result.document)
-      toast.success('Plan approval withdrawn')
+      await reopenTaskStep(data.ticket.id, step)
+      toast.success(`The ${noun} is open again`, {
+        description:
+          step === 'research'
+            ? 'Revise it, then approve it and the plan again. The pull request stays open for the next build.'
+            : 'Revise it, then approve it again. The pull request stays open for the next build.',
+      })
       onChanged()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to withdraw approval')
+      toast.error(error instanceof Error ? error.message : `Failed to reopen the ${noun}`)
+    } finally {
+      setIsReopening(false)
     }
   }
 
@@ -129,9 +142,9 @@ function DocumentStep({
             : `Last changed ${new Date(document.updatedAt).toLocaleString()}`}
         </span>
         <span className="flex items-center gap-3">
-          {step === 'planning' && document.approvalState === 'approved' && (
-            <button type="button" onClick={() => void revoke()} className="hover:text-[var(--gray-12)]">
-              Withdraw approval
+          {isBehind && (
+            <button type="button" disabled={isReopening} onClick={() => void reopen()} className="hover:text-[var(--gray-12)] disabled:opacity-50">
+              {isReopening ? 'Reopening…' : `Reopen the ${noun}`}
             </button>
           )}
           {canEdit && (
@@ -166,20 +179,7 @@ function useApplySuggestion(step: 'research' | 'planning', data: TaskPageData, o
 function BuildStep({ data }: { data: TaskPageData }) {
   const isUpcoming = data.ticket.workflowPhase !== 'execution'
   if (data.ticket.pullRequestUrl) {
-    return (
-      <div className="py-4 text-sm">
-        <p className="text-[var(--gray-11)]">The agent opened a pull request with the change.</p>
-        <a
-          href={data.ticket.pullRequestUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1.5 font-mono text-[13px] text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current"
-        >
-          {data.ticket.pullRequestUrl.replace(/^https?:\/\//, '')}
-          <ExternalLinkIcon className="size-3.5" />
-        </a>
-      </div>
-    )
+    return <BuildPullRequestPanel ticketId={data.ticket.id} pullRequestUrl={data.ticket.pullRequestUrl} runs={data.runs} />
   }
   return (
     <p className="py-6 text-sm text-[var(--gray-10)]">
@@ -200,6 +200,7 @@ export function TaskStepView({
   move,
   openRunId,
   focusedRunId,
+  focusedRunTab,
   onToggleRun,
   onDocumentSaved,
   onChanged,
@@ -276,6 +277,7 @@ export function TaskStepView({
                 isOpen={openRunId === run.jobId}
                 onToggle={() => onToggleRun(run.jobId)}
                 scrollIntoView={focusedRunId === run.jobId}
+                linkedTab={focusedRunId === run.jobId ? focusedRunTab : null}
               />
             ))}
           </div>

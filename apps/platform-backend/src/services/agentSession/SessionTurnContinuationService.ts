@@ -406,6 +406,8 @@ function buildContinuationJobData(
     jobKind: "execution",
     context: {
       ticketId: session.ticketId,
+      ticketTitle: ticket?.title,
+      ticketDescription: ticket?.description,
       instructionFiles: prepared.mergedInstructionFiles,
     },
   };

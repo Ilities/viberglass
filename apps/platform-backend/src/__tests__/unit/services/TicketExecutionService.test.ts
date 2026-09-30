@@ -643,4 +643,66 @@ describe("TicketExecutionService", () => {
     expect(mockJobService.submitJob).toHaveBeenCalled();
     expect(mockWorkerExecutionService.executeJob).toHaveBeenCalled();
   });
+
+  describe("asking for changes on an earlier build", () => {
+    function arrangeRunnableTicket(ticket: Record<string, unknown>) {
+      mockTicketDAO.getTicket.mockResolvedValue({ projectId: "project-789", title: "Fix prices", description: "Prices never refresh", ...ticket } as never);
+      mockProjectDAO.getProject.mockResolvedValue({ id: "project-789", name: "P", repositoryUrl: "https://github.com/test/repo" } as never);
+      mockProjectScmConfigDAO.getByProjectId.mockResolvedValue({
+        projectId: "project-789",
+        integrationId: "integration-1",
+        integrationSystem: "github",
+        sourceRepository: "https://github.com/test/repo",
+        baseBranch: "main",
+        integrationCredentialId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      mockIntegrationCredentialDAO.getById.mockResolvedValue(null);
+      mockClankerDAO.getClanker.mockResolvedValue({ id: "clanker-456", status: "active", deploymentStrategyId: "s", secretIds: [] } as never);
+      mockProvisioningService.resolveAvailabilityStatus.mockResolvedValue({ status: "active" } as never);
+      mockJobService.submitJob.mockResolvedValue({ jobId: "job-1", status: "active", timestamp: new Date().toISOString(), callbackToken: "t" });
+      mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue([]);
+      mockWorkerExecutionService.executeJob.mockResolvedValue({ success: true, executionId: "e", attempts: 1 });
+    }
+
+    const submittedTask = () => mockJobService.submitJob.mock.calls[0][0].task;
+
+    it("sends the note and the pull request's open comments with a follow-up build", async () => {
+      const forTask = jest.fn().mockResolvedValue({
+        pullRequestUrl: "https://github.com/test/repo/pull/3",
+        comments: [{ kind: "thread", author: "r", body: "Guard the null slug", path: "a.js", line: 4, url: null, createdAt: null }],
+        unavailableReason: null,
+      });
+      arrangeRunnableTicket({ id: "ticket-1", pullRequestUrl: "https://github.com/test/repo/pull/3" });
+
+      await new TicketExecutionService({ forTask }).runTicket("ticket-1", {
+        clankerId: "clanker-456",
+        changeRequest: { message: "Add a test", includePullRequestComments: true },
+      });
+
+      expect(forTask).toHaveBeenCalledWith(expect.objectContaining({ id: "ticket-1" }));
+      expect(submittedTask()).toContain("<change-request>");
+      expect(submittedTask()).toContain("Add a test");
+      expect(submittedTask()).toContain("Guard the null slug");
+    });
+
+    it("tells a plain re-run to build on the earlier work without reading comments", async () => {
+      const forTask = jest.fn();
+      arrangeRunnableTicket({ id: "ticket-1", pullRequestUrl: "https://github.com/test/repo/pull/3" });
+
+      await new TicketExecutionService({ forTask }).runTicket("ticket-1", { clankerId: "clanker-456" });
+
+      expect(forTask).not.toHaveBeenCalled();
+      expect(submittedTask()).toContain("already has a pull request");
+    });
+
+    it("adds nothing to a task's first build", async () => {
+      arrangeRunnableTicket({ id: "ticket-1" });
+
+      await new TicketExecutionService({ forTask: jest.fn() }).runTicket("ticket-1", { clankerId: "clanker-456" });
+
+      expect(submittedTask()).not.toContain("<change-request>");
+    });
+  });
 });

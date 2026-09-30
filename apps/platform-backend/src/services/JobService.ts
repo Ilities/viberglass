@@ -30,6 +30,7 @@ import { describeJobFailure } from "./job/describeJobFailure";
 import { readJobFailure } from "./job/readJobFailure";
 import { RunManifestDAO } from "../persistence/job/RunManifestDAO";
 import { hashConfig, RUN_MANIFEST_VERSION } from "@viberglass/telemetry";
+import { resolveComputeImage } from "../clanker-config/resolveComputeImage";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -44,31 +45,6 @@ function generateCallbackToken(): string {
 export interface SubmitJobOptions {
   ticketId?: string;
   clankerId?: string;
-}
-
-/**
- * Container image the worker will run in, if the payload names one.
- *
- * Docker payloads carry the full clanker config; Lambda and ECS carry only
- * `deploymentConfig`. Both are checked, and undefined is recorded when
- * neither names an image rather than substituting a plausible default — a
- * wrong image in a manifest makes a run look reproducible when it is not.
- */
-function extractComputeImage(
-  payload: Record<string, unknown>,
-): string | undefined {
-  const candidates = [payload.clankerConfig, payload.deploymentConfig];
-
-  for (const candidate of candidates) {
-    if (!candidate || typeof candidate !== "object") continue;
-    const config = candidate as Record<string, unknown>;
-    for (const key of ["image", "imageUri", "workerImage", "containerImage"]) {
-      const value = config[key];
-      if (typeof value === "string" && value.trim()) return value.trim();
-    }
-  }
-
-  return undefined;
 }
 
 export class JobService {
@@ -800,7 +776,7 @@ export class JobService {
         repository: readString("repository") ?? "unknown",
         baseBranch: scm?.baseBranch ?? readString("baseBranch"),
         workerType: readString("workerType"),
-        computeImage: extractComputeImage(payload),
+        computeImage: await this.resolveDispatchedImage(readString("clankerId")),
         // Hashes rather than copies: the settings are already on the job row,
         // and what the manifest needs to answer is "was the configuration the
         // same as the previous run", which a hash answers exactly.
@@ -824,6 +800,16 @@ export class JobService {
     } catch (error) {
       logger.warn("Failed to record dispatch manifest", { jobId, error });
     }
+  }
+
+  /**
+   * The image the run's clanker starts workers from, read the way its
+   * invoker reads it. Undefined when there is no clanker or it names none.
+   */
+  private async resolveDispatchedImage(clankerId: string | undefined): Promise<string | undefined> {
+    if (!clankerId) return undefined;
+    const clanker = await this.clankerDAO.getClanker(clankerId);
+    return (clanker && resolveComputeImage(clanker)) ?? undefined;
   }
 
   /**

@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
-import type { JobFailure, TicketWorkflowPhase } from '@viberglass/types'
+import type { BuildChangeRequest, JobFailure, TicketWorkflowPhase } from '@viberglass/types'
 
 export interface JobOverrides {
   additionalContext?: string
@@ -156,13 +156,14 @@ export async function runTicket(
   clankerId: string,
   overrides?: JobOverrides,
   instructionFiles?: Array<{ fileType: string; content: string }>,
+  changeRequest?: BuildChangeRequest,
 ): Promise<RunTicketResponse> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ clankerId, overrides, instructionFiles }),
+    body: JSON.stringify({ clankerId, overrides, instructionFiles, changeRequest }),
   })
 
   if (!response.ok) {

@@ -1,6 +1,7 @@
 import { Writable } from "stream";
 import { Logger, transports } from "winston";
 import type TransportStream from "winston-transport";
+import { JOB_LOG_MESSAGE_MAX_LENGTH } from "@viberglass/types";
 import { CallbackClient } from "../infrastructure/CallbackClient";
 
 export type WorkerLogLevel = "info" | "warn" | "error" | "debug";
@@ -12,7 +13,6 @@ interface BufferedLog {
 }
 
 const INTERNAL_LOG_TAG = "[internal]";
-const MAX_LOG_MESSAGE_LENGTH = 5000;
 
 function getField(entry: unknown, fieldName: string): unknown {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
@@ -55,18 +55,17 @@ function resolveLogMessage(message: unknown, fallback: string): string {
 }
 
 function normalizeMessage(message: string): string {
-  if (message.length <= MAX_LOG_MESSAGE_LENGTH) {
+  if (message.length <= JOB_LOG_MESSAGE_MAX_LENGTH) {
     return message;
   }
 
   const suffix = "... [truncated]";
-  return `${message.slice(0, MAX_LOG_MESSAGE_LENGTH - suffix.length)}${suffix}`;
+  return `${message.slice(0, JOB_LOG_MESSAGE_MAX_LENGTH - suffix.length)}${suffix}`;
 }
 
 export class LogForwarder {
   private currentJobId?: string;
   private currentTenantId?: string;
-  private logBuffer: string[] = [];
   private logBatch: BufferedLog[] = [];
   private logBatchTimer?: NodeJS.Timeout;
   private callbackTransport?: TransportStream;
@@ -83,7 +82,6 @@ export class LogForwarder {
     this.cleanupTransport();
     this.currentJobId = jobId;
     this.currentTenantId = tenantId;
-    this.logBuffer = [];
     this.logBatch = [];
     this.pendingChunk = "";
 
@@ -99,10 +97,6 @@ export class LogForwarder {
     });
 
     this.logger.add(this.callbackTransport);
-  }
-
-  getLogs(): string[] {
-    return [...this.logBuffer];
   }
 
   flush(): void {
@@ -180,11 +174,9 @@ export class LogForwarder {
       return;
     }
 
-    const normalizedMessage = normalizeMessage(message);
-    this.logBuffer.push(`[${level}] ${normalizedMessage}`);
     this.logBatch.push({
       level,
-      message: normalizedMessage,
+      message: normalizeMessage(message),
       source: "viberator",
     });
 

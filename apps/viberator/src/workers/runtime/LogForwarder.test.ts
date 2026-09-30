@@ -1,5 +1,6 @@
 import { createLogger, format, transports, type Logger } from "winston";
 import { CallbackClient } from "../infrastructure/CallbackClient";
+import { JOB_LOG_MESSAGE_MAX_LENGTH } from "@viberglass/types";
 import { LogForwarder } from "./LogForwarder";
 
 type ForwardedLog = {
@@ -44,6 +45,25 @@ function createSilentLogger(
 }
 
 describe("LogForwarder", () => {
+  test("keeps long tool output whole and truncates only past the cap", async () => {
+    const logger = createSilentLogger();
+    const callbackClient = new TestCallbackClient(logger);
+    const forwarder = new LogForwarder(logger, callbackClient, 10, 10000);
+    const toolOutput = "x".repeat(50_000);
+
+    forwarder.setupForJob("job-1", "tenant-1");
+    logger.info(toolOutput);
+    logger.info("y".repeat(JOB_LOG_MESSAGE_MAX_LENGTH + 1));
+    forwarder.flush();
+
+    const [kept, truncated] = callbackClient.batches[0]?.logs ?? [];
+    expect(kept?.message).toBe(toolOutput);
+    expect(truncated?.message).toHaveLength(JOB_LOG_MESSAGE_MAX_LENGTH);
+    expect(truncated?.message.endsWith("... [truncated]")).toBe(true);
+
+    forwarder.cleanup();
+  });
+
   test("forwards structured winston logs as batch entries", async () => {
     const logger = createSilentLogger();
     const callbackClient = new TestCallbackClient(logger);
