@@ -246,7 +246,7 @@ export function NewClankerPage() {
         agent: selectedAgent || null,
         secretIds: selectedSecretIds,
       })
-      navigate(`/clankers/${clanker.slug}`)
+      navigate(`/settings/agents/${clanker.slug}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create agent runner')
       setIsSubmitting(false)
@@ -257,7 +257,7 @@ export function NewClankerPage() {
     <>
       <PageMeta title="New agent runner" />
       <Heading>Create agent runner</Heading>
-      <Subheading className="mt-2">Configure a new agent worker for your Viberator tasks.</Subheading>
+      <Subheading className="mt-2">Configure a new agent worker for your Viberglass tasks.</Subheading>
       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
         Creating an agent runner stores its settings only. Use the Start action on the runner page when you are ready to
         provision it.

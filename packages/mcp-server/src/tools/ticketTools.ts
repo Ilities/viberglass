@@ -10,8 +10,8 @@ import {
 export class TicketToolGroup implements ToolGroup {
   register(server: McpServer, services: McpToolServices): void {
     server.tool(
-      "ticket_list",
-      "List tickets with optional filters. Returns tickets with their status, phase, and metadata.",
+      "task_list",
+      "List tasks with optional filters. Returns tasks with their status, phase, and metadata.",
       ticketListSchema,
       async (params) => {
         const statuses = params.statuses
@@ -21,8 +21,10 @@ export class TicketToolGroup implements ToolGroup {
           ? params.workflowPhases.split(",").map((p) => p.trim())
           : undefined;
 
+        const { spaceId, ...filters } = params;
         const result = await services.tickets.list({
-          ...params,
+          ...filters,
+          projectId: spaceId,
           statuses,
           workflowPhases,
         });
@@ -33,7 +35,7 @@ export class TicketToolGroup implements ToolGroup {
               type: "text" as const,
               text: JSON.stringify(
                 {
-                  tickets: result.tickets,
+                  tasks: result.tickets,
                   total: result.total,
                 },
                 null,
@@ -46,12 +48,12 @@ export class TicketToolGroup implements ToolGroup {
     );
 
     server.tool(
-      "ticket_create",
-      "Create a new ticket in a project. Returns the created ticket with its ID and workflow state.",
+      "task_create",
+      "Create a new task in a space. Returns the created task with its ID and workflow state.",
       ticketCreateSchema,
       async (params) => {
         const ticket = await services.tickets.create({
-          projectId: params.projectId,
+          projectId: params.spaceId,
           title: params.title,
           description: params.description,
           severity: params.severity,
@@ -71,17 +73,17 @@ export class TicketToolGroup implements ToolGroup {
     );
 
     server.tool(
-      "ticket_get",
-      "Get detailed information about a specific ticket including its current workflow phase and status.",
+      "task_get",
+      "Get detailed information about a specific task including its current workflow phase and status.",
       ticketGetSchema,
       async (params) => {
-        const ticket = await services.tickets.get(params.ticketId);
+        const ticket = await services.tickets.get(params.taskId);
         if (!ticket) {
           return {
             content: [
               {
                 type: "text" as const,
-                text: JSON.stringify({ error: "Ticket not found" }),
+                text: JSON.stringify({ error: "Task not found" }),
               },
             ],
             isError: true,
@@ -100,12 +102,12 @@ export class TicketToolGroup implements ToolGroup {
     );
 
     server.tool(
-      "ticket_trigger",
-      "Trigger a workflow phase run for a ticket (research, planning, or execution). Returns the job ID for tracking.",
+      "task_trigger",
+      "Start a workflow phase run for a task (research, planning, or execution). Returns the run ID for tracking.",
       ticketTriggerSchema,
       async (params) => {
-        const result = await services.tickets.trigger(params.ticketId, {
-          clankerId: params.clankerId,
+        const result = await services.tickets.trigger(params.taskId, {
+          clankerId: params.agentId,
           targetPhase: params.targetPhase,
         });
 

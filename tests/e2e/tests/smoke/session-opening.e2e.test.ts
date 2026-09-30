@@ -26,7 +26,7 @@ test("a session opens with what the person wrote, which reaches the agent", asyn
 
   // The page is titled with the task and opens with the person's message;
   // the full prompt is there on request, not as the first thing to read.
-  await page.goto(`/project/${workspace.projectSlug}/sessions/${sessionId}`);
+  await page.goto(`/spaces/${workspace.projectSlug}/sessions/${sessionId}`);
   await expect(page.getByRole("heading", { name: task.title })).toBeVisible();
   await expect(page.getByText(opening, { exact: true })).toBeVisible();
   const fullPrompt = page.getByText(/Create a research document for this ticket/);

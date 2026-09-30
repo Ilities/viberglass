@@ -54,7 +54,7 @@ export function agentRunnerCheck(runners: Clanker[]): ProjectReadinessCheck {
   const rank = (runner: Clanker) =>
     (runner.slug === "default-agent" ? 0 : 3) + (runner.status === "deploying" ? 0 : runner.status === "failed" ? 1 : 2);
   const runner = [...runners].sort((a, b) => rank(a) - rank(b))[0];
-  const remediationUrl = `/clankers/${runner.slug}`;
+  const remediationUrl = `/settings/agents/${runner.slug}`;
   if (runner.status === "deploying") {
     return {
       key: "agentRunner",

@@ -33,7 +33,7 @@ function MobileSidebar({ open, close, children }: React.PropsWithChildren<{ open
         <Dialog.Overlay className="fixed inset-0 bg-zinc-950/45 backdrop-blur-[1px] transition data-[state=closed]:opacity-0 data-[state=closed]:duration-200 data-[state=closed]:ease-in data-[state=open]:duration-300 data-[state=open]:ease-out lg:hidden" />
         <Dialog.Content className="fixed inset-y-0 left-0 w-full max-w-80 overflow-hidden bg-white transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:-translate-x-full lg:hidden dark:bg-zinc-950">
           <Dialog.Title className="sr-only">Main navigation</Dialog.Title>
-          <Dialog.Description className="sr-only">Browse projects, pages, and account actions.</Dialog.Description>
+          <Dialog.Description className="sr-only">Browse spaces, pages, and account actions.</Dialog.Description>
           <div className="mobile-drawer-frame flex h-full flex-col">
             <div className="flex items-center justify-between border-b border-zinc-950/10 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 dark:border-white/10">
               <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Navigation</p>

@@ -5,8 +5,8 @@ import { projectListSchema } from "./schemas";
 export class ProjectToolGroup implements ToolGroup {
   register(server: McpServer, services: McpToolServices): void {
     server.tool(
-      "project_list",
-      "List available projects. Returns projects with their id, name, slug, and ticketing info. Use this to discover project UUIDs needed for ticket_create and ticket_list.",
+      "space_list",
+      "List available spaces. Returns spaces with their id, name, slug, and tracker info. Use this to discover space UUIDs needed for task_create and task_list.",
       projectListSchema,
       async (params) => {
         const result = await services.projects.list({
@@ -26,7 +26,7 @@ export class ProjectToolGroup implements ToolGroup {
             {
               type: "text" as const,
               text: JSON.stringify(
-                { projects: summaries, total: result.total },
+                { spaces: summaries, total: result.total },
                 null,
                 2,
               ),

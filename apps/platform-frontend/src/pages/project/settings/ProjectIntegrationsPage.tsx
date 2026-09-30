@@ -174,7 +174,7 @@ export function ProjectIntegrationsPage() {
         <div>
           <Heading>Integrations</Heading>
           <Text className="mt-2">
-            Link integrations to this project to enable ticket creation and sync with your external tools.
+            Link integrations to this space to enable task creation and sync with your external tools.
           </Text>
         </div>
 
@@ -210,10 +210,10 @@ export function ProjectIntegrationsPage() {
             <div>
               <Subheading className="text-base">Need a new integration?</Subheading>
               <Text className="mt-1 text-sm">
-                Create a new integration in global settings, then link it to this project.
+                Create a new integration in global settings, then link it to this space.
               </Text>
             </div>
-            <Button href="/settings/integrations" color="brand">
+            <Button href="/settings/connections" color="brand">
               <PlusIcon className="mr-2 size-4" />
               Create Integration
             </Button>
@@ -224,7 +224,7 @@ export function ProjectIntegrationsPage() {
         <section>
           <Subheading>Available Integrations</Subheading>
           <Text className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            These integrations have been configured globally and can be linked to this project.
+            These integrations have been configured globally and can be linked to this space.
           </Text>
 
           {integrations.length === 0 ? (
@@ -234,7 +234,7 @@ export function ProjectIntegrationsPage() {
                 No integrations have been configured yet. Create one in global settings first.
               </p>
               <div className="mt-6">
-                <Button href="/settings/integrations" color="brand">
+                <Button href="/settings/connections" color="brand">
                   <PlusIcon className="mr-2 size-4" />
                   Create Integration
                 </Button>
@@ -332,7 +332,7 @@ function IntegrationLinkCard({ integration, onLink, onUnlink, isLoading }: Integ
         ) : (
           <Button color="brand" size="small" onClick={onLink} disabled={isLoading} className="w-full">
             <LinkIcon className="mr-2 h-4 w-4" />
-            {isLoading ? 'Linking...' : 'Link to Project'}
+            {isLoading ? 'Linking...' : 'Link to Space'}
           </Button>
         )}
       </div>
@@ -360,7 +360,7 @@ function getDescriptionFromSystem(system: string): string {
     monday: 'Work operating system for issue and project management.',
     shortcut: 'Project management for software teams (formerly Clubhouse).',
     slack: 'Send notifications and create issues directly from Slack channels.',
-    custom: 'Receive tickets from any external system via a simple JSON webhook.',
+    custom: 'Receive tasks from any external system via a simple JSON webhook.',
   }
   return descriptions[system] || `${system} integration`
 }

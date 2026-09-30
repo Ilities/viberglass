@@ -85,7 +85,7 @@ export function TicketsTable({
           <TableRow>
             <TableHeader className="w-12">
               <input
-                aria-label="Select all visible tickets"
+                aria-label="Select all visible tasks"
                 type="checkbox"
                 checked={allVisibleSelected}
                 onChange={(event) => handleToggleAll(event.target.checked, event)}
@@ -111,10 +111,10 @@ export function TicketsTable({
             const isSelected = selectedTicketIds.has(ticket.id)
 
             return (
-              <TableRow key={ticket.id} href={`/project/${project}/tickets/${ticket.id}`}>
+              <TableRow key={ticket.id} href={`/spaces/${project}/tasks/${ticket.id}`}>
                 <TableCell excludeRowLink>
                   <input
-                    aria-label={`Select ticket ${ticket.title}`}
+                    aria-label={`Select task ${ticket.title}`}
                     type="checkbox"
                     checked={isSelected}
                     onChange={(event) => handleToggleSelection(ticket.id, event)}

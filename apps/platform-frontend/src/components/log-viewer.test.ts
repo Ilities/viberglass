@@ -61,7 +61,7 @@ describe('buildLogTimeline', () => {
 
   test('keeps non-agent lines as raw events', () => {
     const rawLog = buildLogEntry({
-      message: 'Sending batch job logs to platform',
+      message: 'Sending batch run logs to platform',
       source: 'viberator',
     })
 
@@ -71,7 +71,7 @@ describe('buildLogTimeline', () => {
     expect(timeline[0]).toMatchObject({
       kind: 'raw',
       sourceLabel: 'viberator',
-      text: 'Sending batch job logs to platform',
+      text: 'Sending batch run logs to platform',
     })
   })
 

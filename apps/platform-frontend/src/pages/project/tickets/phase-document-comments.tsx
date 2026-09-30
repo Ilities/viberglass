@@ -21,6 +21,8 @@ interface PhaseDocumentCommentsProps {
   onApplySuggestion?: (lineNumber: number, suggestedText: string) => Promise<void>
   activeSessionId?: string
   onSendToSession?: (msg: string) => void
+  /** Told how many comments are still open, whenever they load. */
+  onOpenCountChange?: (count: number) => void
 }
 
 export function PhaseDocumentComments({
@@ -30,6 +32,7 @@ export function PhaseDocumentComments({
   onApplySuggestion,
   activeSessionId,
   onSendToSession,
+  onOpenCountChange,
 }: PhaseDocumentCommentsProps) {
   const [comments, setComments] = useState<PhaseDocumentCommentResponse[]>([])
   const [isSaving, setIsSaving] = useState(false)
@@ -49,6 +52,10 @@ export function PhaseDocumentComments({
   useEffect(() => {
     void loadComments()
   }, [loadComments])
+
+  useEffect(() => {
+    onOpenCountChange?.(comments.filter((comment) => comment.status === 'open').length)
+  }, [comments, onOpenCountChange])
 
   const onCreateComment = useCallback(
     async (lineNumber: number, commentContent: string): Promise<boolean> => {
@@ -94,13 +101,9 @@ export function PhaseDocumentComments({
   }, [])
 
   return (
-    <div className="space-y-4">
-      <RenderedMarkdown content={content} />
-      <details className="overflow-hidden rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] text-sm">
-        <summary className="cursor-pointer px-4 py-3 font-medium text-[var(--gray-11)]">
-          Review source and line comments
-        </summary>
-        <div className="border-t border-[var(--gray-5)] font-mono">
+    <div className="space-y-3">
+      <p className="text-sm text-[var(--gray-10)]">Pick a line to comment on it or suggest new wording. Asking for changes sends open comments to the agent.</p>
+      <div className="overflow-hidden rounded-lg border border-[var(--gray-5)] bg-[var(--gray-1)] font-mono text-sm">
           {lines.map((line, index) => {
             const lineNumber = index + 1
             return (
@@ -119,15 +122,15 @@ export function PhaseDocumentComments({
               />
             )
           })}
-        </div>
-      </details>
+      </div>
     </div>
   )
 }
 
-function RenderedMarkdown({ content }: { content: string }) {
+/** A phase document as a person reads it. */
+export function DocumentReader({ content }: { content: string }) {
   return (
-    <article className="space-y-3 rounded-lg border border-[var(--gray-5)] bg-[var(--gray-1)] p-6 text-sm leading-6 text-[var(--gray-11)]">
+    <article className="space-y-3 text-[15px] leading-7 text-[var(--gray-12)]">
       {content.split('\n').map((line, index) => {
         const heading = /^(#{1,3})\s+(.+)$/.exec(line)
         if (heading) {
@@ -326,9 +329,9 @@ function DocumentLine({
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
+          <div className="mt-2 flex items-center justify-end gap-2">
             <Button
-              plain
+              outline
               onClick={() => {
                 onToggleLine(lineNumber)
                 setDraft('')
@@ -343,7 +346,7 @@ function DocumentLine({
               onClick={() => void handleSubmit()}
               disabled={isSaving || (commentMode === 'comment' ? !draft.trim() : !suggestionDraft.trim())}
             >
-              {isSaving ? 'Saving...' : 'Add Comment'}
+              {isSaving ? 'Saving…' : 'Add comment'}
             </Button>
           </div>
         </div>

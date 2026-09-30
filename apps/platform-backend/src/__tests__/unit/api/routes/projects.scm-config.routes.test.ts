@@ -66,14 +66,14 @@ describe("project SCM config routes", () => {
     mockProjectDAO.updateProject.mockResolvedValue({ id: PROJECT_ID });
     app = express();
     app.use(express.json());
-    app.use("/api/projects", projectsRouter);
+    app.use("/api/spaces", projectsRouter);
   });
 
   it("returns 404 for GET when project does not exist", async () => {
     mockProjectDAO.getProject.mockResolvedValue(null);
 
     const response = await request(app)
-      .get(`/api/projects/${PROJECT_ID}/scm-config`)
+      .get(`/api/spaces/${PROJECT_ID}/scm-config`)
       .expect(404);
 
     expect(response.body).toEqual({ error: "Project not found" });
@@ -85,7 +85,7 @@ describe("project SCM config routes", () => {
     mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(null);
 
     const response = await request(app)
-      .get(`/api/projects/${PROJECT_ID}/scm-config`)
+      .get(`/api/spaces/${PROJECT_ID}/scm-config`)
       .expect(404);
 
     expect(response.body).toEqual({ error: "SCM configuration not found" });
@@ -109,7 +109,7 @@ describe("project SCM config routes", () => {
     mockProjectScmConfigDAO.getByProjectId.mockResolvedValue(scmConfig);
 
     const response = await request(app)
-      .get(`/api/projects/${PROJECT_ID}/scm-config`)
+      .get(`/api/spaces/${PROJECT_ID}/scm-config`)
       .expect(200);
 
     expect(response.body).toEqual({
@@ -120,7 +120,7 @@ describe("project SCM config routes", () => {
 
   it("returns 400 for PUT when payload fails validation", async () => {
     const response = await request(app)
-      .put(`/api/projects/${PROJECT_ID}/scm-config`)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
       .send({
         integrationId: INTEGRATION_ID,
       })
@@ -134,7 +134,7 @@ describe("project SCM config routes", () => {
     mockProjectDAO.getProject.mockResolvedValue(null);
 
     const response = await request(app)
-      .put(`/api/projects/${PROJECT_ID}/scm-config`)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
       .send({
         integrationId: INTEGRATION_ID,
         sourceRepository: "https://github.com/acme/repo",
@@ -149,7 +149,7 @@ describe("project SCM config routes", () => {
     mockIntegrationDAO.getIntegration.mockResolvedValue(null);
 
     const response = await request(app)
-      .put(`/api/projects/${PROJECT_ID}/scm-config`)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
       .send({
         integrationId: INTEGRATION_ID,
         sourceRepository: "https://github.com/acme/repo",
@@ -167,7 +167,7 @@ describe("project SCM config routes", () => {
     });
 
     const response = await request(app)
-      .put(`/api/projects/${PROJECT_ID}/scm-config`)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
       .send({
         integrationId: INTEGRATION_ID,
         sourceRepository: "https://github.com/acme/repo",
@@ -188,7 +188,7 @@ describe("project SCM config routes", () => {
     mockProjectIntegrationLinkDAO.isLinked.mockResolvedValue(false);
 
     const response = await request(app)
-      .put(`/api/projects/${PROJECT_ID}/scm-config`)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
       .send({
         integrationId: INTEGRATION_ID,
         sourceRepository: "https://github.com/acme/repo",
@@ -223,7 +223,7 @@ describe("project SCM config routes", () => {
     mockProjectScmConfigDAO.upsertByProjectId.mockResolvedValue(savedConfig);
 
     const response = await request(app)
-      .put(`/api/projects/${PROJECT_ID}/scm-config`)
+      .put(`/api/spaces/${PROJECT_ID}/scm-config`)
       .send({
         integrationId: INTEGRATION_ID,
         sourceRepository: "  https://github.com/acme/repo  ",
@@ -258,7 +258,7 @@ describe("project SCM config routes", () => {
     mockProjectDAO.getProject.mockResolvedValue(null);
 
     const response = await request(app)
-      .delete(`/api/projects/${PROJECT_ID}/scm-config`)
+      .delete(`/api/spaces/${PROJECT_ID}/scm-config`)
       .expect(404);
 
     expect(response.body).toEqual({ error: "Project not found" });
@@ -270,7 +270,7 @@ describe("project SCM config routes", () => {
     mockProjectScmConfigDAO.deleteByProjectId.mockResolvedValue(false);
 
     const response = await request(app)
-      .delete(`/api/projects/${PROJECT_ID}/scm-config`)
+      .delete(`/api/spaces/${PROJECT_ID}/scm-config`)
       .expect(404);
 
     expect(response.body).toEqual({ error: "SCM configuration not found" });
@@ -280,7 +280,7 @@ describe("project SCM config routes", () => {
     mockProjectDAO.getProject.mockResolvedValue({ id: PROJECT_ID });
     mockProjectScmConfigDAO.deleteByProjectId.mockResolvedValue(true);
 
-    await request(app).delete(`/api/projects/${PROJECT_ID}/scm-config`).expect(204);
+    await request(app).delete(`/api/spaces/${PROJECT_ID}/scm-config`).expect(204);
 
     expect(mockProjectScmConfigDAO.deleteByProjectId).toHaveBeenCalledWith(
       PROJECT_ID,

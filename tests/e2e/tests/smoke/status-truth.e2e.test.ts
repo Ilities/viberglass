@@ -5,9 +5,9 @@ import type { Page } from "@playwright/test";
 
 /** Opens the task page, retrying loads aborted by a container start (ERR_NETWORK_CHANGED). */
 async function openTask(page: Page, projectSlug: string, taskId: string) {
-  const researchHeader = page.getByRole("button", { name: /^1\s*Research/ });
+  const researchHeader = page.getByRole("tab", { name: /^Research/ });
   await expect(async () => {
-    await page.goto(`/project/${projectSlug}/tickets/${taskId}`);
+    await page.goto(`/spaces/${projectSlug}/tasks/${taskId}`);
     await expect(researchHeader).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   return researchHeader;
@@ -48,6 +48,7 @@ test("a failed run shows as failed, and the task is no longer in progress", asyn
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
 
   const researchHeader = await openTask(page, workspace.projectSlug, task.id);
-  await expect(researchHeader).toContainText("Failed: Agent failed");
+  await expect(researchHeader).toContainText("Failed");
+  await expect(page.getByRole("heading", { name: "Agent failed" })).toBeVisible();
   expect(await taskStatus(adminApi, task.id)).toBe("open");
 });

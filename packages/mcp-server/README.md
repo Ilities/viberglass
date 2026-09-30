@@ -1,6 +1,6 @@
 # @viberglass/mcp-server
 
-MCP (Model Context Protocol) server for the Viberglass platform. Exposes clankers, projects, tickets, and review workflows as MCP tools that AI agents can call directly.
+MCP (Model Context Protocol) server for the Viberglass platform. Exposes agents, spaces, tasks, and review workflows as MCP tools that AI agents can call directly.
 
 ## Transport
 
@@ -10,9 +10,9 @@ Authentication is handled by the `requireApiToken` middleware on the Express rou
 
 ## Tools
 
-### `clanker_list`
+### `agent_list`
 
-List available clankers (AI agents). Use this to discover clanker UUIDs needed for `ticket_trigger`.
+List available agents. Use this to discover agent UUIDs needed for `task_trigger`.
 
 | Parameter | Type                                        | Description              |
 |-----------|---------------------------------------------|--------------------------|
@@ -20,26 +20,26 @@ List available clankers (AI agents). Use this to discover clanker UUIDs needed f
 | `limit`   | `number (1–200)`                            | Max results (default 50) |
 | `offset`  | `number`                                    | Pagination offset        |
 
-Returns `{ clankers: [...], total }` where each clanker has `id`, `name`, `slug`, `description`, `agent`, `status`.
+Returns `{ agents: [...], total }` where each agent has `id`, `name`, `slug`, `description`, `agent`, `status`.
 
-### `project_list`
+### `space_list`
 
-List available projects. Use this to discover project UUIDs needed for `ticket_create` and `ticket_list`.
+List available spaces. Use this to discover space UUIDs needed for `task_create` and `task_list`.
 
 | Parameter | Type             | Description              |
 |-----------|------------------|--------------------------|
 | `limit`   | `number (1–200)` | Max results (default 50) |
 | `offset`  | `number`         | Pagination offset        |
 
-Returns `{ projects: [...], total }` where each project has `id`, `name`, `slug`, `primaryTicketingIntegrationId`.
+Returns `{ spaces: [...], total }` where each space has `id`, `name`, `slug`, `primaryTicketingIntegrationId`.
 
-### `ticket_list`
+### `task_list`
 
-List tickets with optional filters.
+List tasks with optional filters.
 
 | Parameter        | Type             | Description                                               |
 |------------------|------------------|-----------------------------------------------------------|
-| `projectId`      | `string (UUID)`  | Filter by project                                         |
+| `spaceId`        | `string (UUID)`  | Filter by space                                           |
 | `statuses`       | `string`         | Comma-separated: `open, in_progress, in_review, resolved` |
 | `workflowPhases` | `string`         | Comma-separated: `research, planning, execution`          |
 | `severity`       | `string`         | `low, medium, high, critical`                             |
@@ -47,82 +47,82 @@ List tickets with optional filters.
 | `limit`          | `number (1–200)` | Max results (default 50)                                  |
 | `offset`         | `number`         | Pagination offset                                         |
 
-Returns `{ tickets: [...], total }`.
+Returns `{ tasks: [...], total }`.
 
-### `ticket_get`
+### `task_get`
 
-Get detailed information about a specific ticket.
+Get detailed information about a specific task.
 
 | Parameter  | Type            | Description |
 |------------|-----------------|-------------|
-| `ticketId` | `string (UUID)` | Ticket UUID |
+| `taskId`   | `string (UUID)` | Task UUID |
 
-Returns the full ticket object including workflow phase and status. Returns `{ error: "Ticket not found" }` if the ID doesn't exist.
+Returns the full task object including workflow phase and status. Returns `{ error: "Task not found" }` if the ID doesn't exist.
 
-### `ticket_create`
+### `task_create`
 
-Create a new ticket in a project.
+Create a new task in a space.
 
 | Parameter      | Type                                | Description                       |
 |----------------|-------------------------------------|-----------------------------------|
-| `projectId`    | `string (UUID)`                     | **Required.** Project UUID        |
-| `title`        | `string (1–500)`                    | **Required.** Ticket title        |
-| `description`  | `string`                            | **Required.** Ticket description  |
+| `spaceId`      | `string (UUID)`                     | **Required.** Space UUID          |
+| `title`        | `string (1–500)`                    | **Required.** Task title          |
+| `description`  | `string`                            | **Required.** Task description    |
 | `severity`     | `enum(low, medium, high, critical)` | Default: `medium`                 |
-| `category`     | `string`                            | Ticket category                   |
-| `ticketSystem` | `string`                            | External ticket system identifier |
+| `category`     | `string`                            | Task category                     |
+| `ticketSystem` | `string`                            | External tracker the task comes from |
 
-Returns the created ticket with its ID and initial workflow state.
+Returns the created task with its ID and initial workflow state.
 
-### `ticket_trigger`
+### `task_trigger`
 
-Trigger a workflow phase run for a ticket. Returns a job ID for tracking.
+Trigger a workflow phase run for a task. Returns a run ID for tracking.
 
 | Parameter     | Type                                  | Description                                  |
 |---------------|---------------------------------------|----------------------------------------------|
-| `ticketId`    | `string (UUID)`                       | **Required.** Ticket UUID                    |
-| `clankerId`   | `string (UUID)`                       | **Required.** Clanker (AI agent) UUID to run |
+| `taskId`      | `string (UUID)`                       | **Required.** Task UUID                    |
+| `agentId`     | `string (UUID)`                       | **Required.** Agent UUID to run, from `agent_list` |
 | `targetPhase` | `enum(research, planning, execution)` | **Required.** Workflow phase to run          |
 
 Returns `{ jobId, status }`.
 
-### `ticket_review`
+### `task_review`
 
-Get the full review state for a ticket across all workflow phases. Includes phase documents, approval status, and inline comments.
+Get the full review state for a task across all workflow phases. Includes phase documents, approval status, and inline comments.
 
 | Parameter  | Type            | Description               |
 |------------|-----------------|---------------------------|
-| `ticketId` | `string (UUID)` | **Required.** Ticket UUID |
+| `taskId`   | `string (UUID)` | **Required.** Task UUID |
 
 Returns a `ReviewState` object with the current workflow phase, per-phase documents (`content`, `approvalState`, `approvedAt`, `approvedBy`), and any inline comments.
 
-### `ticket_review_approve`
+### `task_review_approve`
 
-Approve the planning document for a ticket. Advances the workflow to the execution phase.
-
-| Parameter  | Type            | Description               |
-|------------|-----------------|---------------------------|
-| `ticketId` | `string (UUID)` | **Required.** Ticket UUID |
-
-Returns `{ approvalState }`.
-
-### `ticket_review_revoke`
-
-Revoke planning approval for a ticket. Returns the approval state to draft.
+Approve the planning document for a task. Advances the workflow to the execution phase.
 
 | Parameter  | Type            | Description               |
 |------------|-----------------|---------------------------|
-| `ticketId` | `string (UUID)` | **Required.** Ticket UUID |
+| `taskId`   | `string (UUID)` | **Required.** Task UUID |
 
 Returns `{ approvalState }`.
 
-### `ticket_review_comment`
+### `task_review_revoke`
+
+Revoke planning approval for a task. Returns the approval state to draft.
+
+| Parameter  | Type            | Description               |
+|------------|-----------------|---------------------------|
+| `taskId`   | `string (UUID)` | **Required.** Task UUID |
+
+Returns `{ approvalState }`.
+
+### `task_review_comment`
 
 Add an inline comment to a research or planning phase document. Use to request revisions.
 
 | Parameter    | Type                       | Description                               |
 |--------------|----------------------------|-------------------------------------------|
-| `ticketId`   | `string (UUID)`            | **Required.** Ticket UUID                 |
+| `taskId`     | `string (UUID)`            | **Required.** Task UUID                 |
 | `phase`      | `enum(research, planning)` | **Required.** Phase to comment on         |
 | `lineNumber` | `number (≥1)`              | **Required.** Line number in the document |
 | `content`    | `string`                   | **Required.** Comment text                |

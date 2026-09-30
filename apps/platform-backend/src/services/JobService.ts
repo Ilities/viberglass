@@ -344,14 +344,24 @@ export class JobService {
         "jobs.ticket_id",
         "jobs.clanker_id",
         "jobs.job_kind",
+        "jobs.agent_session_id",
         "tickets.id as ticket_uuid",
         "tickets.title as ticket_title",
         "tickets.external_ticket_id as ticket_external_id",
+        "tickets.workflow_phase as ticket_workflow_phase",
         "clankers.id as clanker_uuid",
         "clankers.name as clanker_name",
         "clankers.slug as clanker_slug",
         "clankers.description as clanker_description",
         "clankers.agent as clanker_agent",
+        // A session turn's job is linked from its turn; jobs.agent_session_id is not written.
+        (eb) =>
+          eb
+            .selectFrom("agent_turns")
+            .select("agent_turns.session_id")
+            .whereRef("agent_turns.job_id", "=", "jobs.id")
+            .limit(1)
+            .as("turn_session_id"),
       ])
       .where("jobs.id", "=", jobId)
       .executeTakeFirst();
@@ -421,8 +431,10 @@ export class JobService {
             id: job.ticket_uuid,
             title: job.ticket_title,
             externalTicketId: job.ticket_external_id,
+            workflowPhase: job.ticket_workflow_phase,
           }
         : null,
+      agentSessionId: job.agent_session_id ?? job.turn_session_id ?? null,
       clankerId: job.clanker_id,
       clanker: job.clanker_id
         ? {
@@ -501,6 +513,7 @@ export class JobService {
         "jobs.finished_at",
         "jobs.ticket_id",
         "jobs.job_kind",
+        "jobs.clanker_id",
         sql<unknown>`jobs.result -> 'failure'`.as("failure"),
         "tickets.id as ticket_id",
         "tickets.title as ticket_title",
@@ -523,6 +536,7 @@ export class JobService {
         processedAt: job.started_at,
         finishedAt: job.finished_at,
         ticketId: job.ticket_id,
+        clankerId: job.clanker_id,
         projectSlug: job.project_slug,
         failure: readJobFailure(job.failure),
         ticket: job.ticket_id

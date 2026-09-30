@@ -33,7 +33,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
         window.location.reload()
       }
     } catch (error) {
-      console.error('Failed to start clanker:', error)
+      console.error('Failed to start agent:', error)
       setActionError(error instanceof Error ? error.message : 'Failed to start agent runner')
     } finally {
       setIsStarting(false)
@@ -51,7 +51,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
         window.location.reload()
       }
     } catch (error) {
-      console.error('Failed to deactivate clanker:', error)
+      console.error('Failed to deactivate agent:', error)
       setActionError(error instanceof Error ? error.message : 'Failed to deactivate agent runner')
     } finally {
       setIsDeactivating(false)
@@ -62,9 +62,9 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
     setIsDeleting(true)
     try {
       await deleteClanker(clanker.id)
-      navigate('/clankers')
+      navigate('/settings/agents')
     } catch (error) {
-      console.error('Failed to delete clanker:', error)
+      console.error('Failed to delete agent:', error)
       setIsDeleting(false)
       setShowDeleteDialog(false)
     }

@@ -7,7 +7,7 @@ interface PageMetaProps {
 }
 
 const DEFAULT_TITLE = 'Viberglass'
-const DEFAULT_DESCRIPTION = 'Tickets that fix themselves'
+const DEFAULT_DESCRIPTION = 'Tasks that fix themselves'
 
 export function PageMeta({ title, description, noIndex }: PageMetaProps) {
   const pageTitle = title ? `${title} | ${DEFAULT_TITLE}` : DEFAULT_TITLE

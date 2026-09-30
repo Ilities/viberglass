@@ -59,8 +59,8 @@ describe("maliciousRequestBlocker middleware", () => {
 
   describe("maliciousRequestBlocker", () => {
     it("calls next for normal requests", () => {
-      req.path = "/api/projects";
-      req.originalUrl = "/api/projects";
+      req.path = "/api/spaces";
+      req.originalUrl = "/api/spaces";
 
       maliciousRequestBlocker(req as Request, res as Response, next);
 
@@ -121,8 +121,8 @@ describe("maliciousRequestBlocker middleware", () => {
 
   describe("suspiciousIpTracker", () => {
     it("calls next for normal requests", () => {
-      req.path = "/api/projects";
-      req.originalUrl = "/api/projects";
+      req.path = "/api/spaces";
+      req.originalUrl = "/api/spaces";
 
       suspiciousIpTracker(req as Request, res as Response, next);
 

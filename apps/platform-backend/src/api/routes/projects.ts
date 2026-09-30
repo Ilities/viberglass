@@ -179,7 +179,7 @@ async function enrichProjectsWithDerivedTicketSystems(
   return Promise.all(projects.map(enrichProjectWithDerivedTicketSystem));
 }
 
-// GET /api/projects - List all projects
+// GET /api/spaces - List all projects
 router.get("/", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
@@ -204,7 +204,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/projects/by-name/:name - Get a project by name
+// GET /api/spaces/by-name/:name - Get a project by name
 router.get("/by-name/:name", async (req, res) => {
   try {
     const project = await projectService.findByName(req.params.name);
@@ -224,7 +224,7 @@ router.get("/by-name/:name", async (req, res) => {
   }
 });
 
-// POST /api/projects - Create a new project
+// POST /api/spaces - Create a new project
 router.post("/", validateCreateProject, async (req, res) => {
   try {
     const project = await projectService.createProject(req.body);
@@ -237,7 +237,7 @@ router.post("/", validateCreateProject, async (req, res) => {
   }
 });
 
-// GET /api/projects/:id - Get a specific project
+// GET /api/spaces/:id - Get a specific project
 router.get("/:id", validateUuidParam("id"), async (req, res) => {
   try {
     const project = await projectService.getProject(req.params.id);
@@ -257,7 +257,7 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
   }
 });
 
-// PUT /api/projects/:id - Update a project
+// PUT /api/spaces/:id - Update a project
 router.put(
   "/:id",
   validateUuidParam("id"),
@@ -288,7 +288,7 @@ router.put(
   },
 );
 
-// POST /api/projects/:id/archive - Hide a project without deleting its data
+// POST /api/spaces/:id/archive - Hide a project without deleting its data
 router.post("/:id/archive", validateUuidParam("id"), async (req, res) => {
   try {
     const project = await projectService.getProject(req.params.id);
@@ -306,7 +306,7 @@ router.post("/:id/archive", validateUuidParam("id"), async (req, res) => {
   }
 });
 
-// GET /api/projects/:id/deletion-summary - What deleting the project also deletes
+// GET /api/spaces/:id/deletion-summary - What deleting the project also deletes
 router.get("/:id/deletion-summary", validateUuidParam("id"), async (req, res) => {
   try {
     const project = await projectService.getProject(req.params.id);
@@ -324,7 +324,7 @@ router.get("/:id/deletion-summary", validateUuidParam("id"), async (req, res) =>
   }
 });
 
-// DELETE /api/projects/:id - Delete a project
+// DELETE /api/spaces/:id - Delete a project
 router.delete("/:id", requireRole("admin"), validateUuidParam("id"), async (req, res) => {
   try {
     const project = await projectService.getProject(req.params.id);
@@ -701,7 +701,7 @@ router.delete("/:projectId/integrations/:integrationId", async (req, res) => {
   }
 });
 
-// GET /api/projects/:id/prompt-templates
+// GET /api/spaces/:id/prompt-templates
 router.get(
   "/:id/prompt-templates",
   validateUuidParam("id"),
@@ -720,7 +720,7 @@ router.get(
   },
 );
 
-// PUT /api/projects/:id/prompt-templates/:type
+// PUT /api/spaces/:id/prompt-templates/:type
 router.put(
   "/:id/prompt-templates/:type",
   validateUuidParam("id"),
@@ -755,7 +755,7 @@ router.put(
   },
 );
 
-// DELETE /api/projects/:id/prompt-templates/:type
+// DELETE /api/spaces/:id/prompt-templates/:type
 router.delete(
   "/:id/prompt-templates/:type",
   validateUuidParam("id"),
@@ -777,7 +777,7 @@ router.delete(
   },
 );
 
-// GET /api/projects/:projectId/agent-sessions
+// GET /api/spaces/:projectId/agent-sessions
 router.get(
   "/:projectId/agent-sessions",
   validateUuidParam("projectId"),

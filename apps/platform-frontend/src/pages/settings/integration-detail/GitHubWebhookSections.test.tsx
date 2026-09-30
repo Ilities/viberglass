@@ -2,7 +2,7 @@ import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ComponentProps, ReactElement } from 'react'
 import { GitHubInboundWebhookSection } from './GitHubInboundWebhookSection'
-import { GitHubOutboundWebhookSection } from './GitHubOutboundWebhookSection'
+import { GitHubOutboundWebhookSection } from '@viberglass/integration-github/frontend'
 
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>)
@@ -57,17 +57,8 @@ function createOutboundProps(
   return {
     isSavingWebhook: false,
     outboundApiToken: '',
-    outboundWebhook: {
-      id: 'outbound-1',
-      provider: 'github',
-      events: ['job_started', 'job_ended'],
-      active: true,
-      hasApiToken: true,
-      providerProjectId: 'acme/repo',
-      createdAt: '2026-02-10T00:00:00.000Z',
-      updatedAt: '2026-02-10T00:00:00.000Z',
-    },
-    repositoryMapping: 'acme/repo',
+    outboundWebhook: { hasApiToken: false, providerProjectId: 'acme/repo' },
+    providerProjectMapping: 'acme/repo',
     onOutboundApiTokenChange: jest.fn(),
     onSaveOutboundWebhook: jest.fn(),
     ...overrides,
@@ -134,7 +125,7 @@ describe('GitHub webhook sections', () => {
 
     expect(screen.getByRole('heading', { name: 'GitHub Inbound Webhook' })).toBeInTheDocument()
     expect(screen.getByText('Inbound routing scope')).toBeInTheDocument()
-    expect(screen.getByLabelText('Viberglass project')).toBeInTheDocument()
+    expect(screen.getByLabelText('Viberglass space')).toBeInTheDocument()
     expect(screen.getByLabelText('GitHub repository (`owner/repo`)')).toBeInTheDocument()
     expect(screen.getByLabelText('Auto-execute policy')).toBeInTheDocument()
     expect(screen.getByLabelText('Required issue labels')).toBeInTheDocument()
@@ -204,16 +195,11 @@ describe('GitHub webhook sections', () => {
     expect(screen.queryByRole('button', { name: /remove outbound webhook/i })).toBeNull()
   })
 
-  it('requires a token to enable outbound feedback when config does not exist', () => {
-    renderWithTheme(
-      <GitHubOutboundWebhookSection
-        {...createOutboundProps({
-          outboundWebhook: null,
-          outboundApiToken: '',
-        })}
-      />
-    )
+  it("enables feedback without a second token: it posts with the connection's own", () => {
+    renderWithTheme(<GitHubOutboundWebhookSection {...createOutboundProps({ outboundWebhook: null })} />)
 
-    expect(screen.getByRole('button', { name: 'Enable feedback' })).toBeDisabled()
+    expect(screen.queryByLabelText(/api token/i)).toBeNull()
+    expect(screen.getByText(/default GitHub token/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enable feedback' })).toBeEnabled()
   })
 })

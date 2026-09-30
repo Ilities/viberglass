@@ -87,9 +87,9 @@ export function TicketMediaPage() {
     <>
       <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Media` : 'Media'} />
       <div className="flex items-center gap-4">
-        <Button href={`/project/${project}/tickets/${id}`} plain>
+        <Button href={`/spaces/${project}/tasks/${id}`} plain>
           <ArrowLeftIcon className="h-5 w-5" />
-          Back to Ticket
+          Back to Task
         </Button>
       </div>
 
@@ -114,7 +114,7 @@ export function TicketMediaPage() {
           {!isScreenshotLoading && !screenshotError && screenshotUrl && (
             <img
               src={screenshotUrl}
-              alt="Ticket screenshot"
+              alt="Task screenshot"
               className="max-w-full rounded-lg"
             />
           )}

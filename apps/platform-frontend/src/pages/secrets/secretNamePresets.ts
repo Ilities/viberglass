@@ -21,13 +21,13 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
   {
     id: 'opencode',
     label: 'OpenCode',
-    helper: 'Recommended: OPENCODE_API_KEY or OPENAI_API_KEY. Base URL can be set in clanker settings.',
+    helper: 'Recommended: OPENCODE_API_KEY or OPENAI_API_KEY. Base URL can be set in agent settings.',
     names: ['OPENCODE_API_KEY', 'OPENAI_API_KEY', 'OPENCODE_BASE_URL', 'OPENAI_BASE_URL'],
   },
   {
     id: 'qwen-cli',
     label: 'Qwen CLI',
-    helper: 'Recommended: QWEN_CLI_API_KEY. Configure endpoint in clanker settings (not as a secret).',
+    helper: 'Recommended: QWEN_CLI_API_KEY. Configure endpoint in agent settings (not as a secret).',
     names: ['QWEN_CLI_API_KEY', 'DASHSCOPE_API_KEY', 'QWEN_API_KEY'],
   },
   {

@@ -64,7 +64,7 @@ export function LaunchSessionDialog({
       if (onSuccess) {
         onSuccess(result.session)
       } else {
-        navigate(`/project/${project}/sessions/${result.session.id}`)
+        navigate(`/spaces/${project}/sessions/${result.session.id}`)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to launch session')
@@ -77,7 +77,7 @@ export function LaunchSessionDialog({
     <Dialog open={open} onClose={() => onClose()} size="lg">
       <DialogTitle>Start interactive session</DialogTitle>
       <DialogDescription>
-        Launch an interactive ACP session for this ticket. You can chat, approve actions, and guide the agent in real time.
+        Launch an interactive ACP session for this task. You can chat, approve actions, and guide the agent in real time.
       </DialogDescription>
       <DialogBody>
         <div className="flex flex-col gap-4">

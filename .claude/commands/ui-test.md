@@ -67,13 +67,13 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 2.1.1 | Create project | POST `/api/projects` with name, slug | Project created, returns ID |
+| 2.1.1 | Create project | POST `/api/spaces` with name, slug | Project created, returns ID |
 | 2.1.2 | Create project with duplicate slug | POST with existing slug | 400 error, "slug already exists" |
-| 2.1.3 | List projects | GET `/api/projects` | Returns paginated project list |
-| 2.1.4 | Get project by ID | GET `/api/projects/:id` | Returns project details |
-| 2.1.5 | Get project by slug | GET `/api/projects/by-name/:slug` | Returns project details |
-| 2.1.6 | Update project | PUT `/api/projects/:id` | Project updated successfully |
-| 2.1.7 | Delete project | DELETE `/api/projects/:id` | Project deleted, cascades to tickets/jobs |
+| 2.1.3 | List projects | GET `/api/spaces` | Returns paginated project list |
+| 2.1.4 | Get project by ID | GET `/api/spaces/:id` | Returns project details |
+| 2.1.5 | Get project by slug | GET `/api/spaces/by-name/:slug` | Returns project details |
+| 2.1.6 | Update project | PUT `/api/spaces/:id` | Project updated successfully |
+| 2.1.7 | Delete project | DELETE `/api/spaces/:id` | Project deleted, cascades to tickets/jobs |
 
 ### 2.2 Project Configuration
 
@@ -89,7 +89,7 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 2.3.1 | List integrations | GET `/api/projects/:id/integrations` | Returns available integrations |
+| 2.3.1 | List integrations | GET `/api/spaces/:id/integrations` | Returns available integrations |
 | 2.3.2 | Configure Jira | PUT integration with Jira credentials | Integration saved |
 | 2.3.3 | Configure Linear | PUT integration with Linear API key | Integration saved |
 | 2.3.4 | Configure GitHub | PUT integration with GitHub token | Integration saved |
@@ -105,15 +105,15 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 3.1.1 | Create ticket | POST `/api/tickets` with title, projectId | Ticket created |
+| 3.1.1 | Create ticket | POST `/api/tasks` with title, projectId | Ticket created |
 | 3.1.2 | Create ticket with screenshot | POST with multipart file upload | Ticket created, media asset stored |
 | 3.1.3 | Create ticket with recording | POST with video file | Ticket created, recording stored |
 | 3.1.4 | Create ticket with both media | POST with screenshot + recording | Both media assets stored |
-| 3.1.5 | List tickets by project ID | GET `/api/tickets?projectId=X` | Filtered ticket list |
-| 3.1.6 | List tickets by project slug | GET `/api/tickets?projectSlug=X` | Filtered ticket list |
-| 3.1.7 | Get single ticket | GET `/api/tickets/:id` | Full ticket details with media |
-| 3.1.8 | Update ticket | PUT `/api/tickets/:id` | Ticket updated |
-| 3.1.9 | Delete ticket | DELETE `/api/tickets/:id` | Ticket and media deleted |
+| 3.1.5 | List tickets by project ID | GET `/api/tasks?projectId=X` | Filtered ticket list |
+| 3.1.6 | List tickets by project slug | GET `/api/tasks?projectSlug=X` | Filtered ticket list |
+| 3.1.7 | Get single ticket | GET `/api/tasks/:id` | Full ticket details with media |
+| 3.1.8 | Update ticket | PUT `/api/tasks/:id` | Ticket updated |
+| 3.1.9 | Delete ticket | DELETE `/api/tasks/:id` | Ticket and media deleted |
 
 ### 3.2 Media Asset Handling
 
@@ -133,9 +133,9 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
 | 3.3.1 | Request auto-fix | Update `autoFixRequested: true` | Flag set, ready for job |
-| 3.3.2 | Run ticket | POST `/api/tickets/:id/run` with clankerId | Job created and queued |
+| 3.3.2 | Run ticket | POST `/api/tasks/:id/run` with clankerId | Job created and queued |
 | 3.3.3 | Ticket with completed job | View ticket after job completion | Shows PR URL |
-| 3.3.4 | Get ticket stats | GET `/api/tickets/stats` | Returns statistics |
+| 3.3.4 | Get ticket stats | GET `/api/tasks/stats` | Returns statistics |
 
 ---
 
@@ -375,8 +375,8 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 9.2.1 | Project detail | Navigate to `/project/[slug]` | Project info displayed |
-| 9.2.2 | Jobs list | Navigate to `/project/[slug]/jobs` | Jobs table with status |
+| 9.2.1 | Project detail | Navigate to `/spaces/[slug]` | Project info displayed |
+| 9.2.2 | Jobs list | Navigate to `/spaces/[slug]/runs` | Jobs table with status |
 | 9.2.3 | Job detail | Click job row | Job logs and progress shown |
 | 9.2.4 | Real-time updates | Job running | Status updates live |
 | 9.2.5 | Job filtering | Filter by status | Table filters correctly |
@@ -385,7 +385,7 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 9.3.1 | Enhance form loads | Navigate to `/project/[slug]/enhance` | Form displayed |
+| 9.3.1 | Enhance form loads | Navigate to `/spaces/[slug]/enhance` | Form displayed |
 | 9.3.2 | Title input | Enter title | Value saved |
 | 9.3.3 | Description input | Enter description | Value saved |
 | 9.3.4 | Screenshot upload | Click and select file | Preview shown |
@@ -409,9 +409,9 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 9.5.1 | Clanker list | Navigate to `/clankers` | All clankers listed |
-| 9.5.2 | Create clanker | Navigate to `/clankers/new` | Creation form |
-| 9.5.3 | Edit clanker | Navigate to `/clankers/[slug]/edit` | Edit form with data |
+| 9.5.1 | Clanker list | Navigate to `/settings/agents` | All clankers listed |
+| 9.5.2 | Create clanker | Navigate to `/settings/agents/new` | Creation form |
+| 9.5.3 | Edit clanker | Navigate to `/settings/agents/[slug]/edit` | Edit form with data |
 | 9.5.4 | Start/stop buttons | Click start/stop | Status changes |
 | 9.5.5 | Health indicator | View clanker | Health status shown |
 
@@ -419,7 +419,7 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 9.6.1 | New project page | Navigate to `/new` | Creation wizard |
+| 9.6.1 | New project page | Navigate to `/spaces/new` | Creation wizard |
 | 9.6.2 | Step through wizard | Complete each step | Progress tracked |
 | 9.6.3 | Repository input | Enter repo URL | URL validated |
 | 9.6.4 | Submit project | Complete wizard | Project created, redirect |
@@ -659,8 +659,8 @@ Execute tests from the TESTING_PLAN.md for the Viberator platform.
 
 | # | Test Case | Steps | Expected Result |
 |---|-----------|-------|-----------------|
-| 14.4.1 | Create project | POST `/api/projects` | Project created |
-| 14.4.2 | Create ticket | POST `/api/tickets` | Ticket created |
+| 14.4.1 | Create project | POST `/api/spaces` | Project created |
+| 14.4.2 | Create ticket | POST `/api/tasks` | Ticket created |
 | 14.4.3 | Submit job | POST `/api/jobs` | Job queued |
 | 14.4.4 | Receive webhook | Send test webhook | Webhook processed |
 | 14.4.5 | View dashboard | Navigate to frontend | Dashboard loads |

@@ -122,7 +122,7 @@ describe("ticket workflow routes", () => {
     jest.clearAllMocks();
     app = express();
     app.use(express.json());
-    app.use("/api/tickets", ticketsRouter);
+    app.use("/api/tasks", ticketsRouter);
   });
 
   it("returns workflow state for GET /:id/phases", async () => {
@@ -137,7 +137,7 @@ describe("ticket workflow routes", () => {
     });
 
     const response = await request(app)
-      .get(`/api/tickets/${TICKET_ID}/phases`)
+      .get(`/api/tasks/${TICKET_ID}/phases`)
       .expect(200);
 
     expect(response.body).toEqual({
@@ -160,7 +160,7 @@ describe("ticket workflow routes", () => {
     );
 
     const response = await request(app)
-      .get(`/api/tickets/${TICKET_ID}/phases`)
+      .get(`/api/tasks/${TICKET_ID}/phases`)
       .expect(404);
 
     expect(response.body).toEqual({ error: "Ticket not found" });
@@ -181,7 +181,7 @@ describe("ticket workflow routes", () => {
     ]);
 
     const response = await request(app)
-      .get(`/api/tickets/${TICKET_ID}/phases/research/revisions`)
+      .get(`/api/tasks/${TICKET_ID}/phases/research/revisions`)
       .expect(200);
 
     expect(mockTicketPhaseDocumentRevisionService.listRevisions).toHaveBeenCalledWith(
@@ -207,7 +207,7 @@ describe("ticket workflow routes", () => {
 
   it("returns 400 for invalid revision phase params", async () => {
     const response = await request(app)
-      .get(`/api/tickets/${TICKET_ID}/phases/not-a-phase/revisions`)
+      .get(`/api/tasks/${TICKET_ID}/phases/not-a-phase/revisions`)
       .expect(400);
 
     expect(response.body).toEqual({ error: "Invalid workflow phase" });
@@ -220,7 +220,7 @@ describe("ticket workflow routes", () => {
     });
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/phases/planning/advance`)
+      .post(`/api/tasks/${TICKET_ID}/phases/planning/advance`)
       .expect(200);
 
     expect(mockTicketWorkflowService.advancePhase).toHaveBeenCalledWith(
@@ -243,7 +243,7 @@ describe("ticket workflow routes", () => {
     });
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/phases/execution/advance`)
+      .post(`/api/tasks/${TICKET_ID}/phases/execution/advance`)
       .expect(200);
 
     expect(response.body.data.workflowPhase).toBe("execution");
@@ -251,7 +251,7 @@ describe("ticket workflow routes", () => {
 
   it("returns 400 for invalid phase params", async () => {
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/phases/not-a-phase/advance`)
+      .post(`/api/tasks/${TICKET_ID}/phases/not-a-phase/advance`)
       .expect(400);
 
     expect(response.body).toEqual({ error: "Invalid workflow phase" });
@@ -265,7 +265,7 @@ describe("ticket workflow routes", () => {
     });
 
     const response = await request(app)
-      .put(`/api/tickets/${TICKET_ID}/workflow/phase`)
+      .put(`/api/tasks/${TICKET_ID}/workflow/phase`)
       .send({ workflowPhase: "execution" })
       .expect(200);
 
@@ -278,7 +278,7 @@ describe("ticket workflow routes", () => {
 
   it("rejects invalid workflow phases for manual phase updates", async () => {
     const response = await request(app)
-      .put(`/api/tickets/${TICKET_ID}/workflow/phase`)
+      .put(`/api/tasks/${TICKET_ID}/workflow/phase`)
       .send({ workflowPhase: "invalid" })
       .expect(400);
 
@@ -291,7 +291,7 @@ describe("ticket workflow routes", () => {
     );
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/phases/execution/advance`)
+      .post(`/api/tasks/${TICKET_ID}/phases/execution/advance`)
       .expect(409);
 
     expect(response.body).toEqual({
@@ -305,7 +305,7 @@ describe("ticket workflow routes", () => {
     );
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/phases/planning/advance`)
+      .post(`/api/tasks/${TICKET_ID}/phases/planning/advance`)
       .expect(404);
 
     expect(response.body).toEqual({ error: "Ticket not found" });
@@ -328,7 +328,7 @@ describe("ticket workflow routes", () => {
     });
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/phases/planning/approve`)
+      .post(`/api/tasks/${TICKET_ID}/phases/planning/approve`)
       .expect(200);
 
     expect(mockTicketPlanningApprovalService.approve).toHaveBeenCalledWith(
@@ -347,7 +347,7 @@ describe("ticket workflow routes", () => {
     );
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/run`)
+      .post(`/api/tasks/${TICKET_ID}/run`)
       .send({ clankerId: "22222222-2222-4222-8222-222222222222" })
       .expect(409);
 
@@ -366,7 +366,7 @@ describe("ticket workflow routes", () => {
     });
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/workflow/override-to-execution`)
+      .post(`/api/tasks/${TICKET_ID}/workflow/override-to-execution`)
       .send({ reason: "Urgent production fix" })
       .expect(200);
 
@@ -387,21 +387,21 @@ describe("ticket workflow routes", () => {
     );
 
     const response = await request(app)
-      .post(`/api/tickets/${TICKET_ID}/workflow/override-to-execution`)
+      .post(`/api/tasks/${TICKET_ID}/workflow/override-to-execution`)
       .send({ reason: "   " })
       .expect(400);
 
     expect(response.body.message).toBe("workflow override reason is required");
   });
 
-  it("passes workflow phase filters through GET /api/tickets", async () => {
+  it("passes workflow phase filters through GET /api/tasks", async () => {
     mockTicketDAO.getTicketsWithFilters.mockResolvedValue({
       tickets: [],
       total: 0,
     });
 
     await request(app)
-      .get("/api/tickets")
+      .get("/api/tasks")
       .query({
         statuses: "open,in_progress",
         workflowPhases: "research,planning",
@@ -416,9 +416,9 @@ describe("ticket workflow routes", () => {
     );
   });
 
-  it("returns 400 for invalid workflow phase filters on GET /api/tickets", async () => {
+  it("returns 400 for invalid workflow phase filters on GET /api/tasks", async () => {
     const response = await request(app)
-      .get("/api/tickets")
+      .get("/api/tasks")
       .query({ workflowPhases: "research,invalid-phase" })
       .expect(400);
 

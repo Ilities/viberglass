@@ -7,9 +7,9 @@ export function SettingsLayout() {
   const project = params.project as string
 
   const items = [
-    { name: 'Project', href: `/project/${project}/settings/project` },
-    { name: 'Integrations', href: `/project/${project}/settings/integrations` },
-    { name: 'Prompt Templates', href: `/project/${project}/settings/prompt-templates` },
+    { name: 'Space', href: `/spaces/${project}/settings/general` },
+    { name: 'Integrations', href: `/spaces/${project}/settings/connections` },
+    { name: 'Prompt Templates', href: `/spaces/${project}/settings/prompt-templates` },
   ].map((item) => ({ ...item, current: pathname === item.href }))
 
   return (

@@ -100,7 +100,7 @@ export function TicketsBoard({
                     {phaseInfo.label}
                   </h2>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {phaseTickets.length} ticket{phaseTickets.length === 1 ? '' : 's'}
+                    {phaseTickets.length} task{phaseTickets.length === 1 ? '' : 's'}
                   </p>
                 </div>
                 <Badge className={phaseInfo.className}>{phaseTickets.length}</Badge>
@@ -109,7 +109,7 @@ export function TicketsBoard({
               <div className="mt-4 space-y-2">
                 {phaseTickets.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-zinc-300/60 bg-white/30 px-3 py-8 text-center text-xs text-zinc-500 dark:border-zinc-700/60 dark:bg-zinc-950/20">
-                    No tickets in this phase
+                    No tasks in this phase
                   </div>
                 ) : (
                   phaseTickets.map((ticket) => {
@@ -126,7 +126,7 @@ export function TicketsBoard({
                                   <div className="flex items-start justify-between gap-2">
                                     <label className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                                       <input
-                                        aria-label={`Select ticket ${ticket.title}`}
+                                        aria-label={`Select task ${ticket.title}`}
                                         type="checkbox"
                                         checked={isSelected}
                                         onChange={(event) => handleToggleSelection(ticket.id, event)}
@@ -144,7 +144,7 @@ export function TicketsBoard({
 
                                   <div className="mt-1.5">
                                     <Link
-                                      href={`/project/${project}/tickets/${ticket.id}`}
+                                      href={`/spaces/${project}/tasks/${ticket.id}`}
                                       className="text-[13px] font-semibold leading-5 text-zinc-900 hover:text-amber-700 dark:text-zinc-100 dark:hover:text-amber-300"
                                     >
                                       {ticket.title}

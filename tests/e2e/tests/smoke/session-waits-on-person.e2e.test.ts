@@ -24,7 +24,7 @@ test("a live turn that writes no document leaves the session waiting on the pers
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 60_000 }).toBe("completed");
   await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 10_000 }).toBe("waiting_on_user");
 
-  await page.goto(`/project/${workspace.projectSlug}/sessions/${sessionId}`);
+  await page.goto(`/spaces/${workspace.projectSlug}/sessions/${sessionId}`);
   await expect(page.getByText("Waiting on you").first()).toBeVisible();
 
   // Replying starts the next turn, which writes the document and completes the session.

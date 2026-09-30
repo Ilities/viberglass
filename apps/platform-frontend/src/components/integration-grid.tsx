@@ -10,7 +10,7 @@ interface IntegrationGridProps {
 
 export function IntegrationGrid({
   integrations,
-  hrefBase = '/settings/integrations',
+  hrefBase = '/settings/connections',
   isLoading,
   configured,
 }: IntegrationGridProps) {

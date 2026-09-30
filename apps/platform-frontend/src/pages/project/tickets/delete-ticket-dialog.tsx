@@ -24,8 +24,8 @@ export function DeleteTicketDialog({ ticket, open, onClose, onConfirm }: DeleteT
 
   return (
     <Dialog open={open} onClose={onClose} size="md">
-      <DialogTitle>Delete Ticket</DialogTitle>
-      <DialogDescription>Are you sure you want to delete this ticket? This action cannot be undone.</DialogDescription>
+      <DialogTitle>Delete Task</DialogTitle>
+      <DialogDescription>Are you sure you want to delete this task? This action cannot be undone.</DialogDescription>
 
       <DialogBody>
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-900">
@@ -39,7 +39,7 @@ export function DeleteTicketDialog({ ticket, open, onClose, onConfirm }: DeleteT
           Cancel
         </Button>
         <Button color="red" onClick={handleConfirm} disabled={isDeleting}>
-          {isDeleting ? 'Deleting...' : 'Delete Ticket'}
+          {isDeleting ? 'Deleting...' : 'Delete Task'}
         </Button>
       </DialogActions>
     </Dialog>

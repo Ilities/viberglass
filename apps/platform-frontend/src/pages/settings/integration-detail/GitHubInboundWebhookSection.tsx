@@ -52,7 +52,7 @@ const GITHUB_INBOUND_EVENT_OPTIONS: Array<{
   {
     value: 'issues.opened',
     label: 'Issue opened',
-    description: 'Create tickets when a new issue is opened.',
+    description: 'Create tasks when a new issue is opened.',
   },
   {
     value: 'issue_comment.created',
@@ -120,7 +120,7 @@ export function GitHubInboundWebhookSection({
       </div>
       <Subheading>GitHub Inbound Webhook</Subheading>
       <Text className="text-sm text-[var(--gray-9)]">
-        Configure GitHub repository webhooks to ingest issues and comments into Viberator.
+        Configure GitHub repository webhooks to ingest issues and comments into Viberglass.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
@@ -172,7 +172,7 @@ export function GitHubInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label htmlFor="githubInboundProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                        Viberglass project
+                        Viberglass space
                       </label>
                       <select
                         id="githubInboundProjectId"
@@ -180,7 +180,7 @@ export function GitHubInboundWebhookSection({
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
                         className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Use integration-linked default project</option>
+                        <option value="">Use integration-linked default space</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}

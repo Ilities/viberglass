@@ -70,7 +70,7 @@ export function TicketForm({
     listProjects()
       .then(setProjects)
       .catch((err) =>
-        setProjectsError(err instanceof Error ? err.message : "Failed to load projects"),
+        setProjectsError(err instanceof Error ? err.message : "Failed to load spaces"),
       );
   }, []);
 
@@ -192,7 +192,8 @@ export function TicketForm({
         const appUrl = (
           await chrome.storage.local.get("viberglass_app_url")
         ).viberglass_app_url || "http://localhost:3000";
-        const ticketUrl = `${appUrl}/tickets/${ticketId}`;
+        const spaceSlug = projects.find((p) => p.id === projectId)?.slug;
+        const ticketUrl = spaceSlug ? `${appUrl}/spaces/${spaceSlug}/tasks/${ticketId}` : appUrl;
 
         if (autoRun && clankerId) {
           await runPhase(ticketId, phase, clankerId);
@@ -226,7 +227,7 @@ export function TicketForm({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-sm font-semibold text-gray-900">Ticket created</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Task created</h2>
           {autoRun && clankerId && (
             <p className="text-xs text-gray-500 mt-1">
               {phase.charAt(0).toUpperCase() + phase.slice(1)} phase started
@@ -240,7 +241,7 @@ export function TicketForm({
           rel="noopener noreferrer"
           className="block w-full py-2 px-4 text-sm font-medium text-center text-brand-burnt-orange bg-brand-cream rounded-md hover:bg-brand-cream/80 transition-colors mb-3"
         >
-          Open ticket
+          Open task
         </a>
 
         <button
@@ -263,7 +264,7 @@ export function TicketForm({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Logo className="w-6 h-6 rounded" />
-          <span className="text-sm font-semibold text-gray-900">New Ticket</span>
+          <span className="text-sm font-semibold text-gray-900">New task</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">{auth.user.email}</span>
@@ -303,7 +304,7 @@ export function TicketForm({
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Project
+            Space
           </label>
           <select
             value={projectId}
@@ -311,7 +312,7 @@ export function TicketForm({
             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange bg-white"
             required
           >
-            <option value="">Select project</option>
+            <option value="">Select space</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -326,14 +327,14 @@ export function TicketForm({
         {clankers.length > 0 && (
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Worker
+              Agent
             </label>
             <select
               value={clankerId}
               onChange={(e) => setClankerId(e.target.value)}
               className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burnt-orange bg-white"
             >
-              <option value="">Select worker</option>
+              <option value="">Select agent</option>
               {clankers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

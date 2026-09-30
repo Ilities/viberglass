@@ -161,8 +161,8 @@ src/
 | File | Prefix | Key endpoints |
 |------|--------|---------------|
 | `auth.ts` | `/api/auth` | POST /login, /register, /logout, GET /me |
-| `projects.ts` | `/api/projects` | CRUD projects; GET/PUT/DELETE project integrations & SCM config; GET/PUT/DELETE project prompt-templates |
-| `tickets.ts` | `/api/tickets` | CRUD tickets; phase docs; phase approvals; agent sessions per ticket |
+| `projects.ts` | `/api/spaces` | CRUD projects; GET/PUT/DELETE project integrations & SCM config; GET/PUT/DELETE project prompt-templates |
+| `tickets.ts` | `/api/tasks` | CRUD tickets; phase docs; phase approvals; agent sessions per ticket |
 | `jobs.ts` | `/api/jobs` | GET/POST/DELETE jobs; POST /:id/result, /progress, /logs, /logs/batch, /session-events/batch, /acp-session-id |
 | `integrations.ts` | `/api/integrations` | CRUD global integrations; link/unlink projects; inbound/outbound webhook config; credentials |
 | `clankers.ts` | `/api/clankers` | CRUD clankers |
@@ -258,29 +258,29 @@ src/
 | `/register` | `RegisterPage` |
 | `/forgot-password` | `ForgotPasswordPage` |
 | `/` | `DashboardPage` |
-| `/new` | `NewProjectPage` |
-| `/clankers` | `ClankersPage` |
-| `/clankers/new` | `NewClankerPage` |
-| `/clankers/:slug` | `ClankerDetailPage` |
-| `/clankers/:slug/edit` | `EditClankerPage` |
-| `/secrets` | `SecretsPage` |
-| `/settings/integrations` | `IntegrationsPage` |
-| `/settings/integrations/new/:integrationSystem` | `IntegrationDetailPage` |
-| `/settings/integrations/:integrationEntityId` | `IntegrationDetailPage` |
-| `/settings/users` | `UsersPage` |
+| `/spaces/new` | `NewProjectPage` |
+| `/settings/agents` | `ClankersPage` |
+| `/settings/agents/new` | `NewClankerPage` |
+| `/settings/agents/:slug` | `ClankerDetailPage` |
+| `/settings/agents/:slug/edit` | `EditClankerPage` |
+| `/settings/secrets` | `SecretsPage` |
+| `/settings/connections` | `IntegrationsPage` |
+| `/settings/connections/new/:integrationSystem` | `IntegrationDetailPage` |
+| `/settings/connections/:integrationEntityId` | `IntegrationDetailPage` |
+| `/settings/members` | `UsersPage` |
 | `/settings/prompt-templates` | `PromptTemplatesPage` (system) |
-| `/project/:project` | `ProjectHomePage` |
-| `/project/:project/tickets` | `TicketsPage` |
-| `/project/:project/tickets/create` | `CreateTicketPage` |
-| `/project/:project/tickets/:id` | `TicketDetailPage` |
-| `/project/:project/tickets/:id/media` | `TicketMediaPage` |
-| `/project/:project/jobs` | `JobsPage` |
-| `/project/:project/jobs/:jobId` | `JobDetailPage` |
-| `/project/:project/claws` | `ClawsPage` |
-| `/project/:project/sessions/:sessionId` | `SessionPage` |
-| `/project/:project/settings/project` | `ProjectSettingsPage` |
-| `/project/:project/settings/integrations` | `ProjectIntegrationsPage` |
-| `/project/:project/settings/prompt-templates` | `PromptTemplatesPage` (project) |
+| `/spaces/:project` | `ProjectHomePage` |
+| `/spaces/:project/tasks` | `TicketsPage` |
+| `/spaces/:project/tasks/new` | `CreateTicketPage` |
+| `/spaces/:project/tasks/:id` | `TicketDetailPage` |
+| `/spaces/:project/tasks/:id/media` | `TicketMediaPage` |
+| `/spaces/:project/runs` | `JobsPage` |
+| `/spaces/:project/runs/:jobId` | `JobDetailPage` (runs of a task redirect to `/spaces/:project/tasks/:id?run=:jobId`) |
+| `/spaces/:project/schedules` | `ClawsPage` |
+| `/spaces/:project/sessions/:sessionId` | `SessionPage` |
+| `/spaces/:project/settings/general` | `ProjectSettingsPage` |
+| `/spaces/:project/settings/connections` | `ProjectIntegrationsPage` |
+| `/spaces/:project/settings/prompt-templates` | `PromptTemplatesPage` (project) |
 
 ---
 

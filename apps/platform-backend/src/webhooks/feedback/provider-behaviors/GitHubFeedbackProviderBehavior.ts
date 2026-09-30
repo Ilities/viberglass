@@ -9,6 +9,10 @@ export class GitHubFeedbackProviderBehavior extends DefaultFeedbackProviderBehav
     return true;
   }
 
+  override usesIntegrationCredential(): boolean {
+    return true;
+  }
+
   override maxRetryAttempts(): number {
     return GITHUB_MAX_ATTEMPTS;
   }

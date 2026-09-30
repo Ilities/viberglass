@@ -17,11 +17,11 @@ function setupFixFor(code: string, project: string): { label: string; href: stri
   switch (code) {
     case JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID:
     case JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED:
-      return { label: 'Check the model key', href: '/secrets' }
+      return { label: 'Check the model key', href: '/settings/secrets' }
     case JOB_FAILURE_CODE.RUNNER_UNAVAILABLE:
-      return { label: 'Check agent runners', href: '/clankers' }
+      return { label: 'Check agent runners', href: '/settings/agents' }
     default:
-      return { label: 'Fix repository settings', href: `/project/${project}/settings` }
+      return { label: 'Fix repository settings', href: `/spaces/${project}/settings` }
   }
 }
 

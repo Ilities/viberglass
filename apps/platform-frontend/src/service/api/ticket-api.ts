@@ -72,9 +72,9 @@ export async function getTickets(params: TicketListParams = {}): Promise<TicketL
     queryParams.set('search', search.trim())
   }
 
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets?${queryParams.toString()}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks?${queryParams.toString()}`)
   if (!response.ok) {
-    throw new Error('Failed to fetch tickets')
+    throw new Error('Failed to fetch tasks')
   }
   const data: PaginatedResponse<Ticket> = await response.json()
   return {
@@ -91,34 +91,34 @@ export async function getTickets(params: TicketListParams = {}): Promise<TicketL
 export async function getTicketStats(params: { projectId?: string; projectSlug?: string } = {}): Promise<TicketStats> {
   const { projectId, projectSlug } = params
   const query = projectSlug ? `projectSlug=${projectSlug}` : projectId ? `projectId=${projectId}` : ''
-  const url = query ? `${API_BASE_URL}/api/tickets/stats?${query}` : `${API_BASE_URL}/api/tickets/stats`
+  const url = query ? `${API_BASE_URL}/api/tasks/stats?${query}` : `${API_BASE_URL}/api/tasks/stats`
   const response = await apiFetch(url)
   if (!response.ok) {
-    throw new Error('Failed to fetch ticket stats')
+    throw new Error('Failed to fetch task stats')
   }
   const data: ApiResponse<TicketStats> = await response.json()
   return data.data
 }
 
 export async function getTicket(id: string): Promise<Ticket> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Ticket not found')
+      throw new Error('Task not found')
     }
-    throw new Error('Failed to fetch ticket')
+    throw new Error('Failed to fetch task')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data
 }
 
 export async function getTicketWorkflow(id: string): Promise<TicketWorkflowResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/phases`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/phases`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Ticket not found')
+      throw new Error('Task not found')
     }
-    throw new Error('Failed to fetch ticket workflow')
+    throw new Error('Failed to fetch task workflow')
   }
   const data: ApiResponse<TicketWorkflowResponse> = await response.json()
   return data.data
@@ -128,19 +128,19 @@ export async function advanceTicketWorkflowPhase(
   id: string,
   phase: TicketWorkflowPhase
 ): Promise<{ ticketId: string; workflowPhase: TicketWorkflowPhase }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/phases/${phase}/advance`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/phases/${phase}/advance`, {
     method: 'POST',
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to advance ticket workflow')
+    throw new Error(error.error || error.message || 'Failed to advance task workflow')
   }
   const data: ApiResponse<{ ticketId: string; workflowPhase: TicketWorkflowPhase }> = await response.json()
   return data.data
 }
 
 export async function setTicketWorkflowPhase(id: string, workflowPhase: TicketWorkflowPhase): Promise<Ticket> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/workflow/phase`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/workflow/phase`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -149,7 +149,7 @@ export async function setTicketWorkflowPhase(id: string, workflowPhase: TicketWo
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to update ticket workflow phase')
+    throw new Error(error.error || error.message || 'Failed to update task workflow phase')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data
@@ -197,21 +197,21 @@ export async function createTicket(
   if (ticket.metadata) formData.append('metadata', JSON.stringify(ticket.metadata))
   if (ticket.annotations) formData.append('annotations', JSON.stringify(ticket.annotations))
   
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks`, {
     method: 'POST',
     // Don't set Content-Type header - browser will set it with boundary for FormData
     body: formData,
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || error.error || 'Failed to create ticket')
+    throw new Error(error.message || error.error || 'Failed to create task')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data
 }
 
 export async function updateTicket(id: string, updates: UpdateTicketRequest): Promise<Ticket> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -220,45 +220,45 @@ export async function updateTicket(id: string, updates: UpdateTicketRequest): Pr
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to update ticket')
+    throw new Error(error.message || 'Failed to update task')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data
 }
 
 export async function deleteTicket(id: string): Promise<void> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to delete ticket')
+    throw new Error(error.message || 'Failed to delete task')
   }
 }
 
 export async function archiveTickets(ticketIds: string[]): Promise<number> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/archive`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/archive`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ticketIds }),
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to archive tickets')
+    throw new Error(error.message || 'Failed to archive tasks')
   }
   const data: ApiResponse<{ updatedCount: number }> = await response.json()
   return data.data.updatedCount
 }
 
 export async function unarchiveTickets(ticketIds: string[]): Promise<number> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/unarchive`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/unarchive`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ticketIds }),
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to unarchive tickets')
+    throw new Error(error.message || 'Failed to unarchive tasks')
   }
   const data: ApiResponse<{ updatedCount: number }> = await response.json()
   return data.data.updatedCount
@@ -268,7 +268,7 @@ export async function getMediaSignedUrl(
   ticketId: string,
   mediaId: string
 ): Promise<{ signedUrl: string; expiresIn: number }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/media/${mediaId}/signed-url`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/media/${mediaId}/signed-url`)
   if (!response.ok) {
     throw new Error('Failed to get signed URL')
   }
@@ -340,9 +340,9 @@ export interface ResearchPhaseResponse {
 }
 
 export async function getResearchDocument(ticketId: string): Promise<ResearchPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research`)
   if (!response.ok) {
-    if (response.status === 404) throw new Error('Ticket not found')
+    if (response.status === 404) throw new Error('Task not found')
     throw new Error('Failed to fetch research document')
   }
   const data: ApiResponse<ResearchPhaseResponse> = await response.json()
@@ -353,7 +353,7 @@ export async function saveResearchDocument(
   ticketId: string,
   content: string,
 ): Promise<PhaseDocumentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/document`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research/document`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
@@ -370,9 +370,9 @@ export async function getPhaseDocumentRevisions(
   ticketId: string,
   phase: TicketWorkflowPhase,
 ): Promise<PhaseDocumentRevisionResponse[]> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/revisions`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/revisions`)
   if (!response.ok) {
-    if (response.status === 404) throw new Error('Ticket not found')
+    if (response.status === 404) throw new Error('Task not found')
     throw new Error('Failed to fetch document revisions')
   }
   const data: ApiResponse<PhaseDocumentRevisionResponse[]> = await response.json()
@@ -383,9 +383,9 @@ export async function getPhaseDocumentComments(
   ticketId: string,
   phase: 'research' | 'planning',
 ): Promise<PhaseDocumentCommentResponse[]> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/comments`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments`)
   if (!response.ok) {
-    if (response.status === 404) throw new Error('Ticket not found')
+    if (response.status === 404) throw new Error('Task not found')
     throw new Error('Failed to fetch document comments')
   }
   const data: ApiResponse<PhaseDocumentCommentResponse[]> = await response.json()
@@ -397,7 +397,7 @@ export async function createPhaseDocumentComment(
   phase: 'research' | 'planning',
   payload: { lineNumber: number; content: string },
 ): Promise<PhaseDocumentCommentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/comments`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -416,7 +416,7 @@ export async function updatePhaseDocumentComment(
   commentId: string,
   payload: { content?: string; status?: PhaseDocumentCommentStatus },
 ): Promise<PhaseDocumentCommentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/${phase}/comments/${commentId}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments/${commentId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -434,7 +434,7 @@ export async function runResearch(
   clankerId: string,
   instructionFiles?: Array<{ fileType: string; content: string }>,
 ): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/run`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -455,7 +455,7 @@ export async function runResearchRevision(
   clankerId: string,
   revisionMessage: string,
 ): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/research/revision`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research/revision`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -474,9 +474,9 @@ export async function runResearchRevision(
 // Planning Document API
 
 export async function getPlanningDocument(ticketId: string): Promise<PhaseDocumentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning`)
   if (!response.ok) {
-    if (response.status === 404) throw new Error('Ticket not found')
+    if (response.status === 404) throw new Error('Task not found')
     throw new Error('Failed to fetch planning document')
   }
   const data: ApiResponse<PhaseDocumentResponse> = await response.json()
@@ -487,7 +487,7 @@ export async function savePlanningDocument(
   ticketId: string,
   content: string,
 ): Promise<PhaseDocumentResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/document`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/document`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
@@ -518,9 +518,9 @@ export interface PlanningPhaseResponse {
 }
 
 export async function getPlanningPhase(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning`)
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning`)
   if (!response.ok) {
-    if (response.status === 404) throw new Error('Ticket not found')
+    if (response.status === 404) throw new Error('Task not found')
     throw new Error('Failed to fetch planning phase')
   }
   const data: ApiResponse<PlanningPhaseResponse> = await response.json()
@@ -532,7 +532,7 @@ export async function runPlanning(
   clankerId: string,
   instructionFiles?: Array<{ fileType: string; content: string }>,
 ): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/run`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -553,7 +553,7 @@ export async function runPlanningRevision(
   clankerId: string,
   revisionMessage: string,
 ): Promise<{ success: boolean; data: { jobId: string; status: string } }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/revision`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/revision`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -570,7 +570,7 @@ export async function runPlanningRevision(
 }
 
 export async function requestPlanningApproval(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/request-approval`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/request-approval`, {
     method: 'POST',
   })
   if (!response.ok) {
@@ -582,7 +582,7 @@ export async function requestPlanningApproval(ticketId: string): Promise<Plannin
 }
 
 export async function approvePlanning(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/approve`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/approve`, {
     method: 'POST',
   })
   if (!response.ok) {
@@ -594,7 +594,7 @@ export async function approvePlanning(ticketId: string): Promise<PlanningPhaseRe
 }
 
 export async function revokePlanningApproval(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/phases/planning/revoke-approval`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/revoke-approval`, {
     method: 'POST',
   })
   if (!response.ok) {
@@ -606,28 +606,28 @@ export async function revokePlanningApproval(ticketId: string): Promise<Planning
 }
 
 export async function setTicketStatus(id: string, status: TicketLifecycleStatus): Promise<Ticket> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${id}/set-status`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/set-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to set ticket status')
+    throw new Error(error.error || error.message || 'Failed to set task status')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data
 }
 
 export async function overrideTicketWorkflowToExecution(ticketId: string, reason: string): Promise<Ticket> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/workflow/override-to-execution`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/workflow/override-to-execution`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to override ticket workflow')
+    throw new Error(error.error || error.message || 'Failed to override task workflow')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data

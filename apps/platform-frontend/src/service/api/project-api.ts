@@ -12,40 +12,40 @@ import type {
 } from '@viberglass/types'
 
 export async function getProjects(limit: number = 50, offset: number = 0): Promise<Project[]> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects?limit=${limit}&offset=${offset}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces?limit=${limit}&offset=${offset}`)
   if (!response.ok) {
-    throw new Error('Failed to fetch projects')
+    throw new Error('Failed to fetch spaces')
   }
   const data: PaginatedResponse<Project> = await response.json()
   return data.data
 }
 
 export async function getProjectBySlug(slug: string): Promise<Project> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/by-name/${slug}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/by-name/${slug}`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Project not found')
+      throw new Error('Space not found')
     }
-    throw new Error('Failed to fetch project')
+    throw new Error('Failed to fetch space')
   }
   const data: ApiResponse<Project> = await response.json()
   return data.data
 }
 
 export async function getProject(id: string): Promise<Project> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}`)
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${id}`)
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Project not found')
+      throw new Error('Space not found')
     }
-    throw new Error('Failed to fetch project')
+    throw new Error('Failed to fetch space')
   }
   const data: ApiResponse<Project> = await response.json()
   return data.data
 }
 
 export async function createProject(project: CreateProjectRequest): Promise<Project> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -54,14 +54,14 @@ export async function createProject(project: CreateProjectRequest): Promise<Proj
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to create project')
+    throw new Error(error.message || 'Failed to create space')
   }
   const data: ApiResponse<Project> = await response.json()
   return data.data
 }
 
 export async function updateProject(id: string, updates: UpdateProjectRequest): Promise<Project> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -70,31 +70,31 @@ export async function updateProject(id: string, updates: UpdateProjectRequest): 
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to update project')
+    throw new Error(error.message || 'Failed to update space')
   }
   const data: ApiResponse<Project> = await response.json()
   return data.data
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {
-    throw new Error('Failed to delete project')
+    throw new Error('Failed to delete space')
   }
 }
 
 export async function archiveProject(id: string): Promise<Project> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}/archive`, { method: 'POST' })
-  if (!response.ok) throw new Error('Failed to archive project')
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${id}/archive`, { method: 'POST' })
+  if (!response.ok) throw new Error('Failed to archive space')
   const data: ApiResponse<Project> = await response.json()
   return data.data
 }
 
 export async function getProjectReadiness(id: string): Promise<ProjectReadiness> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}/readiness`)
-  if (!response.ok) throw new Error('Failed to check project readiness')
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${id}/readiness`)
+  if (!response.ok) throw new Error('Failed to check space readiness')
   const data: ApiResponse<ProjectReadiness> = await response.json()
   return data.data
 }
@@ -107,19 +107,19 @@ export interface ProjectDeletionSummary {
 }
 
 export async function getProjectDeletionSummary(id: string): Promise<ProjectDeletionSummary> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${id}/deletion-summary`)
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${id}/deletion-summary`)
   if (!response.ok) throw new Error('Failed to load affected record counts')
   const data: ApiResponse<ProjectDeletionSummary> = await response.json()
   return data.data
 }
 
 export async function getProjectScmConfig(projectId: string): Promise<ProjectScmConfig | null> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/scm-config`)
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${projectId}/scm-config`)
   if (response.status === 404) {
     return null
   }
   if (!response.ok) {
-    throw new Error('Failed to fetch project SCM configuration')
+    throw new Error('Failed to fetch space SCM configuration')
   }
   const data: ApiResponse<ProjectScmConfig> = await response.json()
   return data.data
@@ -129,7 +129,7 @@ export async function upsertProjectScmConfig(
   projectId: string,
   request: UpsertProjectScmConfigRequest
 ): Promise<ProjectScmConfig> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/scm-config`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${projectId}/scm-config`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ export async function upsertProjectScmConfig(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to save project SCM configuration')
+    throw new Error(error.error || error.message || 'Failed to save space SCM configuration')
   }
 
   const data: ApiResponse<ProjectScmConfig> = await response.json()
@@ -147,7 +147,7 @@ export async function upsertProjectScmConfig(
 }
 
 export async function deleteProjectScmConfig(projectId: string): Promise<void> {
-  const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/scm-config`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/spaces/${projectId}/scm-config`, {
     method: 'DELETE',
   })
 
@@ -157,7 +157,7 @@ export async function deleteProjectScmConfig(projectId: string): Promise<void> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to delete project SCM configuration')
+    throw new Error(error.error || error.message || 'Failed to delete space SCM configuration')
   }
 }
 

@@ -20,7 +20,7 @@ export function registerTicketExecutionRoutes(
     ticketWorkflowOverrideService,
   }: TicketExecutionRouteDependencies,
 ): void {
-  // POST /api/tickets/:id/run - Run a ticket as a job with worker invocation
+  // POST /api/tasks/:id/run - Run a ticket as a job with worker invocation
   router.post(
     "/:id/run",
     validateUuidParam("id"),
@@ -56,7 +56,7 @@ export function registerTicketExecutionRoutes(
     },
   );
 
-  // POST /api/tickets/:id/workflow/override-to-execution - Explicitly bypass research/planning gate
+  // POST /api/tasks/:id/workflow/override-to-execution - Explicitly bypass research/planning gate
   router.post(
     "/:id/workflow/override-to-execution",
     validateUuidParam("id"),

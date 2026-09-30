@@ -58,7 +58,7 @@ export function JobsPage() {
       <div className="flex items-end justify-between">
         <Heading>Runs</Heading>
         <div className="flex gap-4">
-          <Button href={`/project/${project}`}>Back to Project</Button>
+          <Button href={`/spaces/${project}`}>Back to Space</Button>
         </div>
       </div>
 
@@ -84,7 +84,7 @@ export function JobsPage() {
       ) : (
         <div className="mt-8 text-center">
           <p className="text-zinc-500 dark:text-zinc-400">
-            {jobs.length === 0 ? 'No runs found for this project.' : 'No runs found matching your criteria.'}
+            {jobs.length === 0 ? 'No runs found for this space.' : 'No runs found matching your criteria.'}
           </p>
         </div>
       )}

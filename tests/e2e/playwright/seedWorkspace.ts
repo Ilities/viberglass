@@ -142,19 +142,19 @@ export async function seedWorkspace(): Promise<SeededWorkspace> {
   );
 
   const project = await readEntity(
-    await api.post("/api/projects", { data: { name: "E2E Space" } }),
+    await api.post("/api/spaces", { data: { name: "E2E Space" } }),
     "Creating the project",
   );
   const projectId = String(project.id);
 
   await readEntity(
-    await api.post(`/api/integrations/project/${projectId}/link`, {
+    await api.post(`/api/integrations/space/${projectId}/link`, {
       data: { integrationId, isPrimary: true },
     }),
     "Linking the integration",
   );
   await readEntity(
-    await api.put(`/api/projects/${projectId}/scm-config`, {
+    await api.put(`/api/spaces/${projectId}/scm-config`, {
       data: {
         integrationId,
         sourceRepository: E2E.workerReachableRepositoryUrl,

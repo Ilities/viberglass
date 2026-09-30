@@ -163,7 +163,7 @@ export function ClankerDetailPage() {
           setClanker(latest)
         })
         .catch((error) => {
-          console.error('Failed to poll clanker status:', error)
+          console.error('Failed to poll agent status:', error)
         })
     }, 3000)
 
@@ -378,7 +378,7 @@ export function ClankerDetailPage() {
       <div className="flex h-full flex-col">
         <Breadcrumbs
           items={[
-            { label: 'Agent runners', href: '/clankers' },
+            { label: 'Agent runners', href: '/settings/agents' },
             { label: clanker.name },
           ]}
         />
@@ -406,7 +406,7 @@ export function ClankerDetailPage() {
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               <ClankerActions clanker={clanker} onClankerUpdated={setClanker} />
-              <Button href={`/clankers/${clanker.slug}/edit`} outline>
+              <Button href={`/settings/agents/${clanker.slug}/edit`} outline>
                 <Pencil1Icon className="h-4 w-4" />
                 Edit
               </Button>
@@ -532,7 +532,7 @@ export function ClankerDetailPage() {
                 ) : (
                   <div className="rounded border border-dashed border-[var(--gray-6)] bg-[var(--gray-2)] p-6 text-center">
                     <p className="text-sm text-[var(--gray-9)]">No configuration files set up yet.</p>
-                    <Button href={`/clankers/${clanker.slug}/edit`} className="mt-4" outline>
+                    <Button href={`/settings/agents/${clanker.slug}/edit`} className="mt-4" outline>
                       <Pencil1Icon className="h-4 w-4" />
                       Add Configuration
                     </Button>

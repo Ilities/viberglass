@@ -77,21 +77,21 @@ describe("API Endpoints", () => {
 
   describe("Tickets API", () => {
     it("should return validation error for missing ticket data", async () => {
-      const response = await request(app).post("/api/tickets").expect(400);
+      const response = await request(app).post("/api/tasks").expect(400);
 
       expect(response.body.error).toBeDefined();
     });
 
     it("should return validation error for invalid UUID", async () => {
       const response = await request(app)
-        .get("/api/tickets/invalid-uuid")
+        .get("/api/tasks/invalid-uuid")
         .expect(400);
 
       expect(response.body.error).toBe("Invalid UUID format");
     });
 
     it("should allow listing tickets without projectId", async () => {
-      const response = await request(app).get("/api/tickets").expect(200);
+      const response = await request(app).get("/api/tasks").expect(200);
 
       expect(response.body.success).toBe(true);
       expect(Array.isArray(response.body.data)).toBe(true);
@@ -129,21 +129,21 @@ describe("API Endpoints", () => {
 
     it("should return 404 for removed project-scoped webhook routes", async () => {
       await request(app)
-        .get("/api/projects/proj-1/integrations/github/webhook")
+        .get("/api/spaces/proj-1/integrations/github/webhook")
         .expect(404);
       await request(app)
-        .put("/api/projects/proj-1/integrations/github/webhook")
+        .put("/api/spaces/proj-1/integrations/github/webhook")
         .send({})
         .expect(404);
       await request(app)
-        .delete("/api/projects/proj-1/integrations/github/webhook")
+        .delete("/api/spaces/proj-1/integrations/github/webhook")
         .expect(404);
       await request(app)
-        .get("/api/projects/proj-1/integrations/github/deliveries")
+        .get("/api/spaces/proj-1/integrations/github/deliveries")
         .expect(404);
       await request(app)
         .post(
-          "/api/projects/proj-1/integrations/github/deliveries/delivery-1/retry",
+          "/api/spaces/proj-1/integrations/github/deliveries/delivery-1/retry",
         )
         .send({})
         .expect(404);
@@ -167,7 +167,7 @@ describe("Bug Report Integration", () => {
   it("should demonstrate the complete flow", () => {
     logger.debug("Bug Report Creation Flow:");
     logger.debug("1. Widget captures screenshot and metadata");
-    logger.debug("2. POST /api/tickets with multipart form data");
+    logger.debug("2. POST /api/tasks with multipart form data");
     logger.debug("3. File uploaded to S3, metadata stored in PostgreSQL");
     logger.debug("4. Webhook creates ticket in PM system");
     logger.debug("5. Auto-fix agent processes if tags detected");

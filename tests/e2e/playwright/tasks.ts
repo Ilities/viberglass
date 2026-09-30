@@ -9,7 +9,7 @@ export async function createTask(
   description: string,
 ): Promise<{ id: string; title: string }> {
   const title = `Smoke task ${Date.now()}-${++taskCounter}`;
-  const response = await api.post("/api/tickets", {
+  const response = await api.post("/api/tasks", {
     multipart: { projectId, title, description },
   });
   if (!response.ok()) {
@@ -23,13 +23,13 @@ export async function createTask(
 
 /** The task's current workflow phase: research, planning or execution. */
 export async function taskPhase(api: APIRequestContext, taskId: string): Promise<string> {
-  const body = await (await api.get(`/api/tickets/${taskId}`)).json();
+  const body = await (await api.get(`/api/tasks/${taskId}`)).json();
   return String(body?.data?.workflowPhase);
 }
 
 /** The task's lifecycle status: open, in_progress, in_review or resolved. */
 export async function taskStatus(api: APIRequestContext, taskId: string): Promise<string> {
-  const body = await (await api.get(`/api/tickets/${taskId}`)).json();
+  const body = await (await api.get(`/api/tasks/${taskId}`)).json();
   return String(body?.data?.status);
 }
 
@@ -39,7 +39,7 @@ export async function startResearch(
   taskId: string,
   clankerId: string,
 ): Promise<string> {
-  const response = await api.post(`/api/tickets/${taskId}/phases/research/run`, {
+  const response = await api.post(`/api/tasks/${taskId}/phases/research/run`, {
     data: { clankerId },
   });
   if (!response.ok()) {
@@ -53,7 +53,7 @@ export async function startResearch(
 
 /** The research document's current content; empty until an agent writes it. */
 export async function researchDocument(api: APIRequestContext, taskId: string): Promise<string> {
-  const body = await (await api.get(`/api/tickets/${taskId}/phases/research`)).json();
+  const body = await (await api.get(`/api/tasks/${taskId}/phases/research`)).json();
   return String(body?.data?.document?.content ?? "");
 }
 
@@ -70,7 +70,7 @@ export async function startLiveResearchSession(
   clankerId: string,
   initialMessage = "Start research",
 ): Promise<{ sessionId: string; jobId: string }> {
-  const response = await api.post(`/api/tickets/${taskId}/agent-sessions`, {
+  const response = await api.post(`/api/tasks/${taskId}/agent-sessions`, {
     data: { clankerId, mode: "research", initialMessage },
   });
   if (!response.ok()) {
@@ -88,4 +88,14 @@ export async function startLiveResearchSession(
 export async function sessionStatus(api: APIRequestContext, sessionId: string): Promise<string> {
   const body = await (await api.get(`/api/agent-sessions/${sessionId}`)).json();
   return String(body?.data?.session?.status);
+}
+
+/** The run a page shows: task pages open a run with ?run=, the standalone run page has it in the path. */
+export function shownRunId(url: string): string {
+  const parsed = new URL(url);
+  const fromQuery = parsed.searchParams.get("run");
+  if (fromQuery) return fromQuery;
+  const fromPath = parsed.pathname.split("/runs/")[1];
+  if (!fromPath) throw new Error(`No run in ${url}`);
+  return fromPath;
 }

@@ -70,49 +70,49 @@ export function AppRoutes() {
       <Route element={<ApplicationLayout />}>
         {/* Main routes */}
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/new" element={<NewProjectPage />} />
-        <Route path="/sessions" element={<SessionsPulsePage />} />
+        <Route path="/spaces/new" element={<NewProjectPage />} />
+        <Route path="/pulse" element={<SessionsPulsePage />} />
 
         {/* Workspace settings: General, and the plumbing under Advanced. URLs stay put until Phase 2. */}
         <Route element={<WorkspaceSettingsLayout />}>
           <Route path="/settings" element={<SettingsHome />} />
-          <Route path="/clankers" element={<ClankersPage />} />
-          <Route path="/clankers/new" element={<NewClankerPage />} />
-          <Route path="/clankers/:slug" element={<ClankerDetailPage />} />
-          <Route path="/clankers/:slug/edit" element={<EditClankerPage />} />
-          <Route path="/secrets" element={<SecretsPage />} />
-          <Route path="/settings/integrations" element={<IntegrationsPage />} />
-          <Route path="/settings/integrations/new/:integrationSystem" element={<IntegrationDetailPage />} />
-          <Route path="/settings/integrations/:integrationEntityId" element={<IntegrationDetailPage />} />
-          <Route path="/settings/users" element={<UsersPage />} />
+          <Route path="/settings/agents" element={<ClankersPage />} />
+          <Route path="/settings/agents/new" element={<NewClankerPage />} />
+          <Route path="/settings/agents/:slug" element={<ClankerDetailPage />} />
+          <Route path="/settings/agents/:slug/edit" element={<EditClankerPage />} />
+          <Route path="/settings/secrets" element={<SecretsPage />} />
+          <Route path="/settings/connections" element={<IntegrationsPage />} />
+          <Route path="/settings/connections/new/:integrationSystem" element={<IntegrationDetailPage />} />
+          <Route path="/settings/connections/:integrationEntityId" element={<IntegrationDetailPage />} />
+          <Route path="/settings/members" element={<UsersPage />} />
           <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
           <Route path="/settings/api-tokens" element={<ApiTokensPage />} />
         </Route>
 
         {/* Project routes */}
-        <Route path="/project/:project" element={<ProjectHomePage />} />
+        <Route path="/spaces/:project" element={<ProjectHomePage />} />
 
         {/* Project tickets */}
-        <Route path="/project/:project/tickets" element={<TicketsPage />} />
-        <Route path="/project/:project/tickets/create" element={<CreateTicketPage />} />
-        <Route path="/project/:project/tickets/:id" element={<TicketDetailPage />} />
-        <Route path="/project/:project/tickets/:id/media" element={<TicketMediaPage />} />
+        <Route path="/spaces/:project/tasks" element={<TicketsPage />} />
+        <Route path="/spaces/:project/tasks/new" element={<CreateTicketPage />} />
+        <Route path="/spaces/:project/tasks/:id" element={<TicketDetailPage />} />
+        <Route path="/spaces/:project/tasks/:id/media" element={<TicketMediaPage />} />
 
         {/* Project jobs */}
-        <Route path="/project/:project/jobs" element={<JobsPage />} />
-        <Route path="/project/:project/jobs/:jobId" element={<JobDetailPage />} />
+        <Route path="/spaces/:project/runs" element={<JobsPage />} />
+        <Route path="/spaces/:project/runs/:jobId" element={<JobDetailPage />} />
 
         {/* Project claws */}
-        <Route path="/project/:project/claws" element={<ClawsPage />} />
+        <Route path="/spaces/:project/schedules" element={<ClawsPage />} />
 
         {/* Project sessions */}
-        <Route path="/project/:project/sessions/:sessionId" element={<SessionPage />} />
+        <Route path="/spaces/:project/sessions/:sessionId" element={<SessionPage />} />
 
         {/* Project settings with nested routes */}
-        <Route path="/project/:project/settings" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="project" replace />} />
-          <Route path="project" element={<ProjectSettingsPage />} />
-          <Route path="integrations" element={<ProjectIntegrationsPage />} />
+        <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
+          <Route index element={<Navigate to="general" replace />} />
+          <Route path="general" element={<ProjectSettingsPage />} />
+          <Route path="connections" element={<ProjectIntegrationsPage />} />
           <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />
         </Route>
       </Route>

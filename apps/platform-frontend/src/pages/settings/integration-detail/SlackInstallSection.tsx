@@ -11,10 +11,10 @@ const BASE_MANIFEST = {
   _metadata: { major_version: 2, minor_version: 0 },
   display_information: {
     name: 'Viberator',
-    description: 'Launch and interact with Viberator agent sessions from Slack',
+    description: 'Launch and interact with Viberglass agent sessions from Slack',
     background_color: '#1a1a2e',
     long_description:
-      'Viberator Slack integration allows you to launch AI agent sessions directly from Slack using the /viberator slash command. Sessions stream their progress into a Slack thread where you can reply to continue the conversation, provide input when the agent asks, and approve or reject actions.',
+      'Viberglass Slack integration allows you to launch AI agent sessions directly from Slack using the /viberator slash command. Sessions stream their progress into a Slack thread where you can reply to continue the conversation, provide input when the agent asks, and approve or reject actions.',
   },
   features: {
     bot_user: { display_name: 'Viberator', always_online: true },
@@ -106,7 +106,7 @@ export function SlackInstallSection() {
     <section className="app-frame rounded-lg p-6 space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Subheading>Install the Viberator Slack app</Subheading>
+          <Subheading>Install the Viberglass Slack app</Subheading>
           <Text className="mt-1.5 text-[var(--gray-9)]">
             Slack is integrated as a workspace-level bot. Use <code>/viberator</code> to create
             tickets and run AI agent jobs directly from Slack — research, planning, and execution
@@ -210,7 +210,7 @@ export function SlackInstallSection() {
         <Subheading level={3}>4. Use it from Slack</Subheading>
         <Text className="text-[var(--gray-9)]">
           Invite the bot to a channel with <code>/invite @Viberator</code>, then run{' '}
-          <code>/viberator</code> to open the launch modal. Pick a project, clanker, starting phase
+          <code>/viberator</code> to open the launch modal. Pick a space, agent, starting phase
           (research / planning / execution), and describe the task. Clicking <strong>Launch</strong>{' '}
           creates a ticket and starts the first job — the bot posts a thread with a link to the
           ticket and streams progress there.

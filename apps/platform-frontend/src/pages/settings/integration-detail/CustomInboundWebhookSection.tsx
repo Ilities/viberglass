@@ -62,7 +62,7 @@ if (!url || !secret) {
 }
 
 const raw = Buffer.from(JSON.stringify({
-  title: "Example ticket",
+  title: "Example task",
   description: "Hello from a signed custom inbound webhook"
 }), "utf8");
 
@@ -144,7 +144,7 @@ export function CustomInboundWebhookSection({
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
         <p className="text-sm font-medium text-[var(--gray-12)]">Custom setup steps</p>
         <ol className="mt-2 list-inside list-decimal space-y-1 text-xs text-[var(--gray-9)]">
-          <li>Create one endpoint per upstream source that should send tickets independently.</li>
+          <li>Create one endpoint per upstream source that should send tasks independently.</li>
           <li>
             Send <code>POST</code> requests using the selected endpoint URL and payload shape shown below.
           </li>
@@ -204,14 +204,14 @@ export function CustomInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label className="block text-xs font-medium tracking-wider text-[var(--gray-9)] uppercase">
-                        Link to Project
+                        Link to Space
                       </label>
                       <select
                         value={selectedProjectId ?? ''}
                         onChange={(event) => onProjectChange(event.target.value || null)}
                         className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Global (all projects)</option>
+                        <option value="">Global (all spaces)</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}
@@ -219,7 +219,7 @@ export function CustomInboundWebhookSection({
                         ))}
                       </select>
                       <p className="mt-1.5 text-xs text-[var(--gray-9)]">
-                        Tickets from this webhook will be assigned to the selected project.
+                        Tasks from this webhook will be assigned to the selected space.
                       </p>
                     </div>
                   )}

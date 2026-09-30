@@ -36,7 +36,7 @@ export function DemoWorkspaceBanner() {
       await removeDemoWorkspace()
       setDemo(null)
       toast.success('The demo workspace was removed.')
-      if (pathname.startsWith(`/project/${demo?.slug}`)) navigate('/')
+      if (pathname.startsWith(`/spaces/${demo?.slug}`)) navigate('/')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't remove the demo workspace.")
     } finally {

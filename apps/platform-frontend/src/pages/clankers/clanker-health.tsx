@@ -29,7 +29,7 @@ export function ClankerHealth({ clankerId }: ClankerHealthProps) {
       getClankerHealth(clankerId)
         .then(setHealth)
         .catch((err) => {
-          console.error('Failed to fetch clanker health:', err)
+          console.error('Failed to fetch agent health:', err)
           setError(err instanceof Error ? err.message : 'Failed to fetch health')
         })
     }

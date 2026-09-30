@@ -152,7 +152,7 @@ async function throwApiError(res: Response, fallback: string): Promise<never> {
 // API Functions
 
 export async function launchSession(ticketId: string, params: LaunchSessionParams): Promise<LaunchSessionResult> {
-  const res = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/agent-sessions`, {
+  const res = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/agent-sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -163,7 +163,7 @@ export async function launchSession(ticketId: string, params: LaunchSessionParam
 }
 
 export async function listSessionsForTicket(ticketId: string): Promise<AgentSession[]> {
-  const res = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/agent-sessions`)
+  const res = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/agent-sessions`)
   if (!res.ok) return throwApiError(res, 'Failed to list sessions')
   const data = await res.json()
   return data.data
@@ -232,9 +232,9 @@ const ACTIVE_STATUSES = 'active,waiting_on_user,waiting_on_approval'
 
 export async function listProjectActiveSessions(projectId: string): Promise<AgentSession[]> {
   const res = await apiFetch(
-    `${API_BASE_URL}/api/projects/${projectId}/agent-sessions?statuses=${ACTIVE_STATUSES}&limit=20`,
+    `${API_BASE_URL}/api/spaces/${projectId}/agent-sessions?statuses=${ACTIVE_STATUSES}&limit=20`,
   )
-  if (!res.ok) return throwApiError(res, 'Failed to list project sessions')
+  if (!res.ok) return throwApiError(res, 'Failed to list space sessions')
   const data = await res.json()
   return data.data
 }

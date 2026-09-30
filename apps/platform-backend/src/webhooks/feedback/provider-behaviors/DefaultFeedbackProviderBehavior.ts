@@ -27,6 +27,10 @@ export class DefaultFeedbackProviderBehavior implements FeedbackProviderBehavior
     return true;
   }
 
+  usesIntegrationCredential(): boolean {
+    return false;
+  }
+
   requiresProviderProjectId(): boolean {
     return false;
   }

@@ -25,7 +25,7 @@ test("a message queued during a live turn reaches the agent before the session c
   // Retry: the container start can abort the first load (ERR_NETWORK_CHANGED).
   const composer = page.getByPlaceholder("Agent is working — your message will be queued");
   await expect(async () => {
-    await page.goto(`/project/${workspace.projectSlug}/sessions/${sessionId}`);
+    await page.goto(`/spaces/${workspace.projectSlug}/sessions/${sessionId}`);
     await expect(composer).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   await composer.fill(note);

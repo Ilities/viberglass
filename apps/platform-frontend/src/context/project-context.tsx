@@ -31,7 +31,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const project = await getProjectBySlug(projectSlug)
         setProject(project)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch project')
+        setError(err instanceof Error ? err.message : 'Failed to fetch space')
       } finally {
         setIsLoading(false)
       }

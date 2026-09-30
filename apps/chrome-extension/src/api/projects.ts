@@ -6,13 +6,13 @@ export async function listProjects(): Promise<Project[]> {
     success: boolean;
     data: Project[];
     pagination: { limit: number; offset: number; count: number };
-  }>("/api/projects");
+  }>("/api/spaces");
   return result.data;
 }
 
 export async function getProject(projectId: string): Promise<Project> {
   const result = await apiJson<{ success: boolean; data: Project }>(
-    `/api/projects/${projectId}`,
+    `/api/spaces/${projectId}`,
   );
   return result.data;
 }

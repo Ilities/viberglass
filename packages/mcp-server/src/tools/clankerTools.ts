@@ -5,8 +5,8 @@ import { clankerListSchema } from "./schemas";
 export class ClankerToolGroup implements ToolGroup {
   register(server: McpServer, services: McpToolServices): void {
     server.tool(
-      "clanker_list",
-      "List available clankers (AI agents). Returns clankers with their id, name, slug, agent type, and status. Use this to discover clanker UUIDs needed for ticket_trigger.",
+      "agent_list",
+      "List available agents. Returns agents with their id, name, slug, harness, and status. Use this to discover agent UUIDs needed for task_trigger.",
       clankerListSchema,
       async (params) => {
         const result = await services.clankers.list({
@@ -29,7 +29,7 @@ export class ClankerToolGroup implements ToolGroup {
             {
               type: "text" as const,
               text: JSON.stringify(
-                { clankers: summaries, total: result.total },
+                { agents: summaries, total: result.total },
                 null,
                 2,
               ),

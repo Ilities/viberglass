@@ -10,11 +10,11 @@ import {
 export class ReviewToolGroup implements ToolGroup {
   register(server: McpServer, services: McpToolServices): void {
     server.tool(
-      "ticket_review",
-      "Get the full review state for a ticket across all workflow phases (research, planning, execution). Includes phase documents, approval status, and inline comments.",
+      "task_review",
+      "Get the full review state for a task across all workflow phases (research, planning, execution). Includes phase documents, approval status, and inline comments.",
       ticketReviewSchema,
       async (params) => {
-        const state = await services.review.getState(params.ticketId);
+        const state = await services.review.getState(params.taskId);
 
         return {
           content: [
@@ -28,11 +28,11 @@ export class ReviewToolGroup implements ToolGroup {
     );
 
     server.tool(
-      "ticket_review_approve",
-      "Approve the planning document for a ticket. This advances the workflow to the execution phase.",
+      "task_review_approve",
+      "Approve the planning document for a task. This advances the workflow to the execution phase.",
       ticketReviewApproveSchema,
       async (params) => {
-        const result = await services.review.approve(params.ticketId);
+        const result = await services.review.approve(params.taskId);
 
         return {
           content: [
@@ -46,11 +46,11 @@ export class ReviewToolGroup implements ToolGroup {
     );
 
     server.tool(
-      "ticket_review_revoke",
-      "Revoke the planning approval for a ticket. This returns the approval state to draft.",
+      "task_review_revoke",
+      "Revoke the planning approval for a task. This returns the approval state to draft.",
       ticketReviewRevokeSchema,
       async (params) => {
-        const result = await services.review.revokeApproval(params.ticketId);
+        const result = await services.review.revokeApproval(params.taskId);
 
         return {
           content: [
@@ -64,12 +64,12 @@ export class ReviewToolGroup implements ToolGroup {
     );
 
     server.tool(
-      "ticket_review_comment",
+      "task_review_comment",
       "Add an inline comment to a research or planning phase document. Comments can be used to request revisions.",
       ticketReviewCommentSchema,
       async (params) => {
         const comment = await services.review.addComment(
-          params.ticketId,
+          params.taskId,
           params.phase,
           {
             lineNumber: params.lineNumber,

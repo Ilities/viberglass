@@ -99,7 +99,7 @@ function renderLayout(initialPath: string) {
         <Routes>
           <Route element={<ApplicationLayout />}>
             <Route path="/" element={<div>Dashboard content</div>} />
-            <Route path="/project/:project" element={<div>Project content</div>} />
+            <Route path="/spaces/:project" element={<div>Space content</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -128,13 +128,13 @@ describe('ApplicationLayout mobile navigation', () => {
     for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens']) {
       expect(within(mobileDrawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
-    expect(within(mobileDrawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/users')
+    expect(within(mobileDrawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/members')
 
     // The logo link and the Viberglass project link share the accessible
     // name — assert the project one by its href
     const viberglassLinks = within(mobileDrawer).getAllByRole('link', { name: /Viberglass/i })
-    expect(viberglassLinks.some((link) => link.getAttribute('href') === '/project/viberglass')).toBe(true)
-    expect(within(mobileDrawer).getByRole('link', { name: /New Project/i })).toBeInTheDocument()
+    expect(viberglassLinks.some((link) => link.getAttribute('href') === '/spaces/viberglass')).toBe(true)
+    expect(within(mobileDrawer).getByRole('link', { name: /New space/i })).toBeInTheDocument()
   })
 
   it('hides workspace plumbing from members', async () => {
@@ -166,14 +166,14 @@ describe('ApplicationLayout mobile navigation', () => {
 
   it('shows project nav items in the drawer on project routes', async () => {
     const user = userEvent.setup()
-    renderLayout('/project/viberglass')
+    renderLayout('/spaces/viberglass')
 
     await user.click(screen.getByRole('button', { name: 'Open navigation' }))
 
     const mobileDrawer = screen.getByRole('dialog')
 
     // Project section, then the Operations section beneath it
-    for (const label of ['Dashboard', 'Tickets', 'Settings', 'Runs', 'Schedules']) {
+    for (const label of ['Dashboard', 'Tasks', 'Settings', 'Runs', 'Schedules']) {
       expect(
         within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') }),
       ).toBeInTheDocument()

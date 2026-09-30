@@ -99,7 +99,7 @@ export function CreateTicketPage() {
       }
 
       const ticket = await createTicket(ticketData, screenshotFile || undefined, recordingFile || undefined)
-      navigate(`/project/${project}/tickets/${ticket.id}`)
+      navigate(`/spaces/${project}/tasks/${ticket.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred')
       setIsSubmitting(false)
@@ -108,14 +108,14 @@ export function CreateTicketPage() {
 
   return (
     <>
-      <PageMeta title={project ? `${project} | New Ticket` : 'New Ticket'} />
+      <PageMeta title={project ? `${project} | New Task` : 'New Task'} />
       <form className="mx-auto max-w-4xl" onSubmit={handleSubmit}>
-      <Heading>Create New Ticket</Heading>
+      <Heading>Create New Task</Heading>
 
       {projectData ? <div className="mt-6"><ProjectReadinessBanner projectId={projectData.id} /></div> : null}
 
       <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-        Every new ticket starts in Research so the agent can understand the codebase before planning changes.
+        Every new task starts in Research so the agent can understand the codebase before planning changes.
       </p>
 
       {error && (
@@ -241,11 +241,11 @@ export function CreateTicketPage() {
           </Field>
 
           <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
-            <Button outline href={`/project/${project}/tickets`}>
+            <Button outline href={`/spaces/${project}/tasks`}>
               Cancel
             </Button>
             <Button type="submit" color="brand" disabled={isSubmitting || !projectData}>
-              {isSubmitting ? 'Creating...' : 'Create Ticket'}
+              {isSubmitting ? 'Creating...' : 'Create Task'}
             </Button>
           </div>
         </FieldGroup>

@@ -20,7 +20,7 @@ export function ShortcutOutboundWebhookSection({
   onOutboundApiTokenChange,
   onSaveOutboundWebhook,
 }: ShortcutOutboundWebhookSectionProps) {
-  const storyPreview = projectMapping ? `${projectMapping}/story/101` : 'Any story resolved from ticket metadata'
+  const storyPreview = projectMapping ? `${projectMapping}/story/101` : 'Any story resolved from task metadata'
   const saveDisabled = isSavingWebhook || (!outboundWebhook && outboundApiToken.trim().length === 0)
 
   return (
@@ -34,7 +34,7 @@ export function ShortcutOutboundWebhookSection({
       </div>
       <Subheading>Shortcut Feedback</Subheading>
       <Text className="text-sm text-[var(--gray-9)]">
-        Publish job lifecycle feedback back to the originating Shortcut story.
+        Publish run lifecycle feedback back to the originating Shortcut story.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
@@ -50,7 +50,7 @@ export function ShortcutOutboundWebhookSection({
         </div>
         {!projectMapping && (
           <p className="mt-2 text-xs text-warning-700 dark:text-warning-400">
-            Save an inbound Shortcut project ID to strengthen project-scoped outbound config matching.
+            Save an inbound Shortcut project ID to strengthen space-scoped outbound config matching.
           </p>
         )}
       </div>

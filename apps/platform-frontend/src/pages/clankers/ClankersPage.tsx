@@ -4,7 +4,7 @@ import { Button } from '@/components/button'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
-import { AsciiRobot, RetroSeparator } from '@/components/retro-decorations'
+import { EmptyState } from '@/components/empty-state'
 import { getClankersList, formatClankerStatus, formatDeploymentStrategy } from '@/data'
 import type { Clanker } from '@/data'
 import { PlusIcon } from '@radix-ui/react-icons'
@@ -25,7 +25,7 @@ export function ClankersPage() {
   }, [])
 
   if (isLoading) {
-    return <FunLoading message="Loading your clankers" retro />
+    return <FunLoading message="Loading agent runners" retro />
   }
 
   return (
@@ -34,37 +34,32 @@ export function ClankersPage() {
       <div className="flex items-end justify-between">
         <div>
           <Heading>Agent runners</Heading>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">AI agents that perform runs across your projects.</p>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Which agent runs a task, with which model key, on which compute.</p>
         </div>
-        <Button href="/clankers/new" color="brand">
+        <Button href="/settings/agents/new" color="brand">
           <PlusIcon data-slot="icon" />
           New agent runner
         </Button>
       </div>
 
       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 font-mono">
-        <span className="text-zinc-400">&gt;</span> Agent runners connect configured coding agents to ticket research, planning, and execution.
+        <span className="text-zinc-400">&gt;</span> Agent runners connect coding agents to task research, planning and builds.
       </div>
 
-      <Subheading className="mt-8">Registered Units</Subheading>
+      <Subheading className="mt-8">Runners</Subheading>
 
       {clankers.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900 hover-lift">
-          <RetroSeparator className="mb-6" />
-          <div className="flex justify-center mb-4 float">
-            <AsciiRobot />
-          </div>
-          <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">
-            No clankers registered
-          </h3>
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-            Create a clanker to start automating tasks. Each clanker is an AI agent you can deploy to handle research, planning, and execution.
-          </p>
-          <Button href="/clankers/new" color="brand" className="mt-6 hover-grow">
-            <PlusIcon />
-            Create agent runner
-          </Button>
-          <RetroSeparator className="mt-6" />
+        <div className="mt-8">
+          <EmptyState
+            title="No agent runners yet"
+            description="Setup creates a default one. Add more to use another agent, model or compute."
+            action={
+              <Button href="/settings/agents/new" color="brand">
+                <PlusIcon data-slot="icon" />
+                Create agent runner
+              </Button>
+            }
+          />
         </div>
       ) : (
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -73,7 +68,7 @@ export function ClankersPage() {
             return (
               <Link
                 key={clanker.id}
-                href={`/clankers/${clanker.slug}`}
+                href={`/settings/agents/${clanker.slug}`}
                 className="group relative overflow-hidden rounded-xl border border-zinc-950/10 bg-white p-5 shadow-sm hover-lift dark:border-white/10 dark:bg-zinc-900 slide-up"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >

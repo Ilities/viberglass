@@ -230,7 +230,7 @@ export function IntegrationDetailPage() {
               setProjects(loadedProjects)
             }
           } catch (projectError) {
-            console.error('Failed to load projects:', projectError)
+            console.error('Failed to load spaces:', projectError)
           }
         } else if (isActive) {
           setProjects(null)
@@ -459,12 +459,8 @@ export function IntegrationDetailPage() {
 
   // ---- Per-system outbound handlers ------------------------------------------
 
+  // GitHub feedback posts with the connection's default token credential, so it asks for no token of its own.
   const handleGitHubSaveOutboundWebhook = () => {
-    if (!webhook.outboundWebhook?.hasApiToken && webhook.outboundApiToken.trim().length === 0) {
-      toast.error('GitHub API token is required to enable outbound feedback')
-      return
-    }
-
     const repositoryMapping = githubRepositoryMapping
     if (!repositoryMapping || !GITHUB_REPOSITORY_PATTERN.test(repositoryMapping)) {
       toast.error('Save a valid GitHub inbound repository mapping before enabling feedback')
@@ -546,7 +542,7 @@ export function IntegrationDetailPage() {
           })
 
       setExistingIntegration(savedIntegration)
-      navigate(`/settings/integrations/${savedIntegration.id}`, {
+      navigate(`/settings/connections/${savedIntegration.id}`, {
         replace: !existingIntegration,
       })
     } catch (error) {
@@ -582,7 +578,7 @@ export function IntegrationDetailPage() {
   }
 
   const handleCancel = () => {
-    navigate('/settings/integrations')
+    navigate('/settings/connections')
   }
 
   if (integrationType.status === 'stub') {
@@ -590,7 +586,7 @@ export function IntegrationDetailPage() {
       <div className="space-y-8 p-6 lg:p-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-4">
-          <Button href="/settings/integrations" plain>
+          <Button href="/settings/connections" plain>
             <ArrowLeftIcon className="h-4 w-4" />
             Back to Integrations
           </Button>
@@ -620,7 +616,7 @@ export function IntegrationDetailPage() {
           <p className="mt-2 text-[var(--gray-9)]">
             The {integrationType.label} integration is currently under development. Check back soon!
           </p>
-          <Button href="/settings/integrations" color="brand" className="mt-6">
+          <Button href="/settings/connections" color="brand" className="mt-6">
             Back to Integrations
           </Button>
         </div>
@@ -634,7 +630,7 @@ export function IntegrationDetailPage() {
       <div className="space-y-8 p-6 lg:p-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-4">
-        <Button href="/settings/integrations" plain>
+        <Button href="/settings/connections" plain>
           <ArrowLeftIcon className="h-4 w-4" />
           Back to Integrations
         </Button>
@@ -666,7 +662,7 @@ export function IntegrationDetailPage() {
         <CreateIntegrationPrompt
           label={integrationType.label}
           system={integrationType.id}
-          onCreated={(integrationId) => navigate(`/settings/integrations/${integrationId}`, { replace: true })}
+          onCreated={(integrationId) => navigate(`/settings/connections/${integrationId}`, { replace: true })}
         />
       ) : (
       <>
@@ -838,7 +834,7 @@ export function IntegrationDetailPage() {
         <RemoveIntegrationSection
           integrationId={existingIntegration.id}
           name={existingIntegration.name}
-          onRemoved={() => navigate('/settings/integrations')}
+          onRemoved={() => navigate('/settings/connections')}
         />
       )}
       </>

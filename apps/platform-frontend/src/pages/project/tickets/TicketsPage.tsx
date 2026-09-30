@@ -210,7 +210,7 @@ export function TicketsPage() {
         setTickets(response.tickets)
         setTotal(response.pagination.total)
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load tickets')
+        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load tasks')
         setTickets([])
         setTotal(0)
       } finally {
@@ -279,8 +279,8 @@ export function TicketsPage() {
     <>
       <PageMeta title={`${project} | Tickets`} />
       <div className="flex items-end justify-between gap-4">
-        <Heading>Tickets</Heading>
-        <Button href={`/project/${project}/tickets/create`} color="brand">
+        <Heading>Tasks</Heading>
+        <Button href={`/spaces/${project}/tasks/new`} color="brand">
           Create
         </Button>
       </div>
@@ -317,7 +317,7 @@ export function TicketsPage() {
         <div className="min-w-0">
           <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Search</label>
           <SearchInput
-            placeholder="Search tickets..."
+            placeholder="Search tasks..."
             name="search"
             value={search}
             onChange={(event) => updateFilters({ search: event.target.value, page: 1 })}
@@ -373,7 +373,7 @@ export function TicketsPage() {
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-zinc-500 dark:text-zinc-400">
-          {total} ticket{total === 1 ? '' : 's'} total
+          {total} task{total === 1 ? '' : 's'} total
           {selectedCount > 0 ? ` • ${selectedCount} selected` : ''}
         </div>
 
@@ -453,7 +453,7 @@ export function TicketsPage() {
         </>
       ) : (
         <div className="mt-8 text-center">
-          <p className="text-zinc-500 dark:text-zinc-400">No tickets found matching your criteria.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">No tasks found matching your criteria.</p>
         </div>
       )}
     </>

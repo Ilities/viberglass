@@ -19,7 +19,7 @@ export function DockerStrategyFields({ provisioningMode, defaults }: StrategyFie
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-      Image will be built from the project Dockerfile on start.
+      Image will be built from the agent's worker Dockerfile on start.
     </div>
   )
 }

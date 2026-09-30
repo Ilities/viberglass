@@ -7,6 +7,10 @@ const customJestConfig = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/lib$': '<rootDir>/src/lib/index.test-stub.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Workspace UI packages publish ESM-only builds; tests use their source.
+    '^@viberglass/platform-ui$': '<rootDir>/../../packages/platform-ui/src/index.ts',
+    '^@viberglass/integration-core/frontend$': '<rootDir>/../../packages/integration-core/src/frontend/index.ts',
+    '^@viberglass/integration-([a-z-]+)/frontend$': '<rootDir>/../../packages/integrations/integration-$1/src/frontend/index.ts',
   },
   transform: {
     '^.+\\.tsx?$': [

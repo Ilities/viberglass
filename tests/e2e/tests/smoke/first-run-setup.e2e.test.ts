@@ -49,7 +49,7 @@ test("a product leader sets up an empty workspace alone and gets a first researc
     // 4–5. The default agent starts on its own, then the first task is offered.
     await expect(page.getByRole("heading", { name: "Try your first task" })).toBeVisible({ timeout: 90_000 });
     await page.getByRole("button", { name: "Start the task" }).click();
-    await expect(page).toHaveURL(/\/tickets\/[0-9a-f-]+$/);
+    await expect(page).toHaveURL(/\/tasks\/[0-9a-f-]+$/);
 
     // The research runs on the fake agent against the fixture repository, and its document appears on the task.
     const researchDocument = page.getByText("Written by the fake agent used in end-to-end tests.").first();
@@ -92,12 +92,12 @@ test("a new admin can explore the demo workspace first, then remove it and set u
 
     // The demo loads beside real data, with tasks at every stage.
     await page.getByRole("button", { name: "Explore a demo workspace" }).click();
-    await expect(page).toHaveURL(/\/project\/demo-acme-storefront$/);
+    await expect(page).toHaveURL(/\/spaces\/demo-acme-storefront$/);
     await expect(page.getByRole("status")).toContainText("a demo space with sample data");
-    await page.goto("/project/demo-acme-storefront/tickets");
+    await page.goto("/spaces/demo-acme-storefront/tasks");
     await page.getByText("Fix rounding in cart totals").click();
-    await expect(page.getByText("Failed: Model quota used up")).toBeVisible();
-    await expect(page.getByText("Sample data only: tasks here don't run.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Model quota used up" })).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("a demo space with sample data");
 
     // Removing it leaves an empty workspace, so setup picks up again.
     await page.getByRole("button", { name: "Remove demo" }).click();

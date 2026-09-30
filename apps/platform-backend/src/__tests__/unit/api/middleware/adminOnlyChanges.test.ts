@@ -35,9 +35,9 @@ describe("adminOnlyChanges", () => {
   });
 
   it("leaves exempt paths open for changes", async () => {
-    const app = appWith(adminOnlyChanges({ exemptPathPrefixes: ["/project/"] }));
+    const app = appWith(adminOnlyChanges({ exemptPathPrefixes: ["/space/"] }));
 
-    await request(app).post("/api/things/project/p-1/link").expect(200);
+    await request(app).post("/api/things/space/p-1/link").expect(200);
     await request(app).post("/api/things/int-1/credentials").expect(403);
   });
 });

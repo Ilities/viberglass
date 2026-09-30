@@ -9,7 +9,16 @@ import { useEffect, useState } from 'react'
  * space home), a ready space that hasn't run anything yet invites a first task
  * instead of the banner just disappearing (FR7).
  */
-export function ProjectReadinessBanner({ projectId, firstTaskHref }: { projectId: string; firstTaskHref?: string }) {
+export function ProjectReadinessBanner({
+  projectId,
+  firstTaskHref,
+  showDemoNotice = true,
+}: {
+  projectId: string
+  firstTaskHref?: string
+  /** Pages under the demo banner already say it's a demo space. */
+  showDemoNotice?: boolean
+}) {
   const [readiness, setReadiness] = useState<ProjectReadiness | null>(null)
 
   useEffect(() => {
@@ -45,6 +54,7 @@ export function ProjectReadinessBanner({ projectId, firstTaskHref }: { projectId
 
   const demo = readiness.checks.find((check) => check.key === 'demo')
   if (demo) {
+    if (!showDemoNotice) return null
     return (
       <section className="rounded-xl border border-zinc-950/10 bg-zinc-50 p-4 text-sm dark:border-white/10 dark:bg-zinc-900">
         <h2 className="font-semibold text-zinc-950 dark:text-white">{demo.label}</h2>
@@ -66,7 +76,7 @@ export function ProjectReadinessBanner({ projectId, firstTaskHref }: { projectId
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-warning-950 dark:text-warning-100">Automation needs setup</h2>
           <p className="mt-1 text-sm text-warning-900/80 dark:text-warning-200/80">
-            You can submit tickets now. Complete these items before starting research or execution.
+            You can submit tasks now. Complete these items before starting research or execution.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
     {incomplete.map((check: ProjectReadiness['checks'][number]) => (

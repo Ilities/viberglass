@@ -41,7 +41,7 @@ export function OutboundWebhookSection({
       </div>
       <Subheading>Outbound Webhooks</Subheading>
       <Text className="text-sm text-[var(--gray-9)]">
-        Outbound webhooks send job lifecycle events when execution starts and ends.
+        Outbound webhooks send run lifecycle events when execution starts and ends.
       </Text>
 
       <div className="mt-6 space-y-6">

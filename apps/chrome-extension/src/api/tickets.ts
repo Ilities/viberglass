@@ -40,7 +40,7 @@ export async function createTicket(
     formData.append("recording", recordingBlob, "recording.webm");
   }
 
-  const response = await fetch(`${baseUrl}/api/tickets`, {
+  const response = await fetch(`${baseUrl}/api/tasks`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${auth?.token}`,
@@ -72,9 +72,9 @@ export async function runPhase(
   clankerId: string,
 ): Promise<void> {
   const endpoints: Record<TicketWorkflowPhase, string> = {
-    research: `/api/tickets/${ticketId}/phases/research/run`,
-    planning: `/api/tickets/${ticketId}/phases/planning/run`,
-    execution: `/api/tickets/${ticketId}/run`,
+    research: `/api/tasks/${ticketId}/phases/research/run`,
+    planning: `/api/tasks/${ticketId}/phases/planning/run`,
+    execution: `/api/tasks/${ticketId}/run`,
   };
 
   await apiRequest(endpoints[phase], {

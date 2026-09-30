@@ -2,13 +2,11 @@ import type { JobListItem, TicketSummary } from '@/data'
 
 export type SignalColor = 'red' | 'orange' | 'amber' | 'yellow' | 'blue' | 'green' | 'zinc'
 
-export interface ProjectSignal {
-  label: string
+/** What a space needs next, in one plain sentence, with at most one action. */
+export interface SpaceSignal {
+  summary: string
   color: SignalColor
-  blurb: string
-  glyph: string
-  nextHref: string
-  nextLabel: string
+  action?: { href: string; label: string }
 }
 
 export interface FeedItem {

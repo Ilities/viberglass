@@ -48,7 +48,7 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
   const noClankersMessage =
     configuredClankers.length > 0
       ? `You have ${configuredClankers.length} configured agent runner${configuredClankers.length === 1 ? '' : 's'}, but none are started.`
-      : 'No agent runners are configured yet. Configure and start one before running this ticket.'
+      : 'No agent runners are configured yet. Configure and start one before running this task.'
 
   async function handleRun() {
     if (!ticket || !selectedClanker || !revisionMessage.trim()) return
@@ -65,7 +65,7 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
         description: `Revising "${ticket.title}" with ${selectedClanker.name}`,
         action: {
           label: 'View run',
-          onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
+          onClick: () => navigate(`/spaces/${project}/tasks/${ticket.id}?run=${jobId}`),
         },
       })
 
@@ -92,7 +92,7 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
       <DialogBody>
         <div className="space-y-6">
           <div>
-            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Ticket</h4>
+            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Task</h4>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{ticket.title}</p>
           </div>
 
@@ -110,11 +110,11 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
                 <p className="text-sm text-zinc-700 dark:text-zinc-300">{noClankersMessage}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button href="/clankers" color="brand">
+                  <Button href="/settings/agents" color="brand">
                     Configure agent runners
                   </Button>
                   {firstConfiguredClanker && (
-                    <Button href={`/clankers/${firstConfiguredClanker.slug}/edit`} outline>
+                    <Button href={`/settings/agents/${firstConfiguredClanker.slug}/edit`} outline>
                       Open runner configuration
                     </Button>
                   )}

@@ -4,7 +4,7 @@ export const clankerListSchema = {
   status: z
     .enum(["active", "inactive", "deploying", "failed"])
     .optional()
-    .describe("Filter by clanker status"),
+    .describe("Filter by agent status"),
   limit: z
     .number()
     .min(1)
@@ -25,7 +25,7 @@ export const projectListSchema = {
 };
 
 export const ticketListSchema = {
-  projectId: z.string().uuid().optional().describe("Filter by project UUID"),
+  spaceId: z.string().uuid().optional().describe("Filter by space UUID"),
   statuses: z
     .string()
     .optional()
@@ -49,43 +49,43 @@ export const ticketListSchema = {
 };
 
 export const ticketCreateSchema = {
-  projectId: z.string().uuid().describe("Project UUID"),
-  title: z.string().min(1).max(500).describe("Ticket title"),
-  description: z.string().min(1).describe("Ticket description"),
+  spaceId: z.string().uuid().describe("Space UUID"),
+  title: z.string().min(1).max(500).describe("Task title"),
+  description: z.string().min(1).describe("Task description"),
   severity: z
     .enum(["low", "medium", "high", "critical"])
     .optional()
     .describe("Severity level (default: medium)"),
-  category: z.string().optional().describe("Ticket category"),
-  ticketSystem: z.string().optional().describe("External ticket system"),
+  category: z.string().optional().describe("Task category"),
+  ticketSystem: z.string().optional().describe("External tracker the task comes from"),
 };
 
 export const ticketGetSchema = {
-  ticketId: z.string().uuid().describe("Ticket UUID"),
+  taskId: z.string().uuid().describe("Task UUID"),
 };
 
 export const ticketTriggerSchema = {
-  ticketId: z.string().uuid().describe("Ticket UUID"),
-  clankerId: z.string().uuid().describe("Clanker (AI agent) UUID to run"),
+  taskId: z.string().uuid().describe("Task UUID"),
+  agentId: z.string().uuid().describe("UUID of the agent to run, from agent_list"),
   targetPhase: z
     .enum(["research", "planning", "execution"])
     .describe("Workflow phase to run"),
 };
 
 export const ticketReviewSchema = {
-  ticketId: z.string().uuid().describe("Ticket UUID"),
+  taskId: z.string().uuid().describe("Task UUID"),
 };
 
 export const ticketReviewApproveSchema = {
-  ticketId: z.string().uuid().describe("Ticket UUID"),
+  taskId: z.string().uuid().describe("Task UUID"),
 };
 
 export const ticketReviewRevokeSchema = {
-  ticketId: z.string().uuid().describe("Ticket UUID"),
+  taskId: z.string().uuid().describe("Task UUID"),
 };
 
 export const ticketReviewCommentSchema = {
-  ticketId: z.string().uuid().describe("Ticket UUID"),
+  taskId: z.string().uuid().describe("Task UUID"),
   phase: z
     .enum(["research", "planning"])
     .describe("Phase to comment on"),

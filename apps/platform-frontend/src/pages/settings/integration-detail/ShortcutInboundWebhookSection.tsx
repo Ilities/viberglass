@@ -45,7 +45,7 @@ const SHORTCUT_INBOUND_EVENT_OPTIONS: Array<{
   {
     value: 'story_created',
     label: 'Story created',
-    description: 'Create a Viberator ticket when a new Shortcut story is created.',
+    description: 'Create a Viberglass task when a new Shortcut story is created.',
   },
   {
     value: 'comment_created',
@@ -96,7 +96,7 @@ export function ShortcutInboundWebhookSection({
       </div>
       <Subheading>Shortcut Inbound Webhook</Subheading>
       <Text className="text-sm text-[var(--gray-9)]">
-        Configure inbound Shortcut events that create Viberglass tickets and optionally auto-run jobs.
+        Configure inbound Shortcut events that create Viberglass tasks and optionally start their runs automatically.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
@@ -112,9 +112,9 @@ export function ShortcutInboundWebhookSection({
       </div>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
-        <p className="text-sm font-medium text-[var(--gray-12)]">Project scope</p>
+        <p className="text-sm font-medium text-[var(--gray-12)]">Space scope</p>
         <p className="mt-1 text-xs text-[var(--gray-9)]">
-          Each inbound config can map events to a Viberglass project and optionally pin routing to a Shortcut project ID.
+          Each inbound config can map events to a Viberglass space and optionally pin routing to a Shortcut project ID.
         </p>
       </div>
 
@@ -151,7 +151,7 @@ export function ShortcutInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label htmlFor="shortcutInboundProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                        Viberglass project
+                        Viberglass space
                       </label>
                       <select
                         id="shortcutInboundProjectId"
@@ -159,7 +159,7 @@ export function ShortcutInboundWebhookSection({
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
                         className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Use integration-linked default project</option>
+                        <option value="">Use integration-linked default space</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}
@@ -185,7 +185,7 @@ export function ShortcutInboundWebhookSection({
                       className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                     />
                     <p className="mt-1.5 text-xs text-[var(--gray-9)]">
-                      Used to match inbound events to the correct integration config when multiple projects are linked.
+                      Used to match inbound events to the correct integration config when multiple spaces are linked.
                     </p>
                   </div>
 
@@ -264,7 +264,7 @@ export function ShortcutInboundWebhookSection({
                       className="text-[var(--accent-9)] focus:ring-[var(--accent-9)] h-4 w-4 rounded border-[var(--gray-7)] bg-[var(--gray-3)]"
                     />
                     <label htmlFor="shortcutAutoExecute" className="text-sm text-[var(--gray-12)]">
-                      Auto-execute jobs after matching Shortcut inbound events
+                      Auto-execute runs after matching Shortcut inbound events
                     </label>
                     {hasInboundChanges && (
                       <Button color="brand" size="small" onClick={onSaveWebhook} disabled={isSavingWebhook}>

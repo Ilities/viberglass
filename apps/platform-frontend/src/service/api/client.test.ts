@@ -22,13 +22,13 @@ describe('apiFetch', () => {
     const aborted = new DOMException('The operation was aborted.', 'AbortError')
     global.fetch = jest.fn().mockRejectedValue(aborted)
 
-    await expect(apiFetch('http://localhost:8888/api/projects')).rejects.toBe(aborted)
+    await expect(apiFetch('http://localhost:8888/api/spaces')).rejects.toBe(aborted)
   })
 
   it('returns responses, including error statuses, as they are', async () => {
     const response = { ok: false, status: 500 }
     global.fetch = jest.fn().mockResolvedValue(response)
 
-    await expect(apiFetch('http://localhost:8888/api/projects')).resolves.toBe(response)
+    await expect(apiFetch('http://localhost:8888/api/spaces')).resolves.toBe(response)
   })
 })

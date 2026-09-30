@@ -73,8 +73,8 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
 
   return (
     <Dialog open={open} onClose={onClose} size="2xl">
-      <DialogTitle>Edit Ticket</DialogTitle>
-      <DialogDescription>Update the ticket details below.</DialogDescription>
+      <DialogTitle>Edit Task</DialogTitle>
+      <DialogDescription>Update the task details below.</DialogDescription>
 
       <DialogBody>
         <div className="space-y-6">

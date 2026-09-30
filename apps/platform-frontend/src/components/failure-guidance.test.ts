@@ -12,7 +12,7 @@ const quota: JobFailure = {
 describe('failureGuidance', () => {
   it('sends admins to the fix for setup failures', () => {
     const guidance = failureGuidance(quota, true, 'shop')
-    expect(guidance.fix).toEqual({ label: 'Check the model key', href: '/secrets' })
+    expect(guidance.fix).toEqual({ label: 'Check the model key', href: '/settings/secrets' })
     expect(guidance.title).toBe('Model quota used up')
   })
 
@@ -28,7 +28,7 @@ describe('failureGuidance', () => {
       true,
       'shop'
     )
-    expect(guidance.fix?.href).toBe('/project/shop/settings')
+    expect(guidance.fix?.href).toBe('/spaces/shop/settings')
   })
 
   it('offers a retry, not a setup fix, when the agent failed', () => {
