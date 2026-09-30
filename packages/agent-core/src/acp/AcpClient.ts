@@ -12,6 +12,7 @@ import type { PlatformSessionEvent } from "./types";
 import { defaultAcpEventMapper } from "./acpEventMapper";
 import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
+import { approvePermissionRequest } from "./permissionReply";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -185,7 +186,7 @@ export class AcpClient {
     if (method !== "session/request_permission") return;
     this.onEvent(this.mapper.mapPermissionRequest(params));
     this.child?.stdin?.write(
-      JSON.stringify({ jsonrpc: "2.0", id, result: { action: "allow_once" } }) + "\n",
+      JSON.stringify({ jsonrpc: "2.0", id, result: approvePermissionRequest(params) }) + "\n",
     );
   }
 
