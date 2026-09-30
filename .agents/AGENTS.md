@@ -28,6 +28,12 @@ These are the single source of truth instructions for agent behavior and backend
 - In touched areas, remove dead code with zero callers in the same change.
 - Do not perform repo-wide dead code cleanup unless requested.
 
+### 3b) Code Comments
+
+- A comment says what the code can't: a non-obvious constraint or the reason for a choice, in a line or two.
+- Don't narrate the change, describe the bug it fixes, or explain how other components work. That belongs in the commit message or docs.
+- Don't restate what the code or the names already say.
+
 ### 3a) Type Safety - No Casting to Bypass Linting
 
 **NEVER use type assertions (`as`) to bypass TypeScript errors or linting violations.** This includes:
