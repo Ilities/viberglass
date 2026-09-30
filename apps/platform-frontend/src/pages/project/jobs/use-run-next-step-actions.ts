@@ -29,7 +29,8 @@ export function useRunNextStepActions({ project, ticketId, clankerId, onChanged 
     return response.data.jobId
   }
 
-  async function approveResearchAndPlan() {
+  /** A task reopened at research keeps its plan; approving puts that plan up for review instead of writing a new one. */
+  async function approveResearchAndPlan({ planExists = false }: { planExists?: boolean } = {}) {
     if (!ticketId) return
     setBusy('approve')
     try {
@@ -37,6 +38,12 @@ export function useRunNextStepActions({ project, ticketId, clankerId, onChanged 
     } catch (error) {
       toast.error(errorMessage(error, 'Failed to approve research'))
       setBusy(null)
+      return
+    }
+    if (planExists) {
+      toast.success('Research approved. The plan is up for review again.')
+      setBusy(null)
+      onChanged()
       return
     }
     try {

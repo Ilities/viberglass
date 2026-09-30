@@ -12,6 +12,13 @@ import * as http from "http";
 import * as dotenv from "dotenv";
 import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
+import { PullRequestOutcomeSweeper } from "../workers/PullRequestOutcomeSweeper";
+import { PullRequestOutcomeDAO } from "../persistence/job/PullRequestOutcomeDAO";
+import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
+import { IntegrationCredentialDAO } from "../persistence/integrations/IntegrationCredentialDAO";
+import { SecretResolutionService } from "../services/SecretResolutionService";
+import { ProjectScmTokenResolver } from "../services/pull-request-outcomes/ProjectScmTokenResolver";
+import { GitHubPullRequestOutcomeSource } from "../services/pull-request-outcomes/GitHubPullRequestOutcomeSource";
 import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
@@ -49,6 +56,24 @@ const heartbeatSweeper = shouldRunBackgroundSweepers
         10,
       ),
     })
+  : null;
+
+const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
+  ? new PullRequestOutcomeSweeper(
+      new PullRequestOutcomeDAO(),
+      new ProjectScmTokenResolver(
+        new ProjectScmConfigDAO(),
+        new IntegrationCredentialDAO(),
+        new SecretResolutionService(),
+      ),
+      [new GitHubPullRequestOutcomeSource()],
+      {
+        sweepIntervalMs: parseInt(
+          process.env.PR_OUTCOME_SWEEP_INTERVAL_MS || "900000",
+          10,
+        ),
+      },
+    )
   : null;
 
 const clawSchedulingEngine = ClawSchedulingEngine.getInstance();
@@ -129,8 +154,10 @@ function onListening(): void {
   if (shouldRunBackgroundSweepers) {
     logger.info("Starting orphan sweeper for stuck job detection");
     logger.info("Starting heartbeat sweeper for stale job detection");
+    logger.info("Starting pull request outcome sweeper for eval labels");
     orphanSweeper?.start();
     heartbeatSweeper?.start();
+    pullRequestOutcomeSweeper?.start();
   } else {
     logger.info("Background sweepers are disabled");
   }
@@ -199,6 +226,7 @@ async function startServer(): Promise<void> {
     logger.info(`${signal} received, shutting down gracefully`);
     orphanSweeper?.stop();
     heartbeatSweeper?.stop();
+    pullRequestOutcomeSweeper?.stop();
     await clawSchedulingEngine.stop();
     server.close(async () => {
       // Spans are batched, so anything recorded since the last export would be

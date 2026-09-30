@@ -12,6 +12,10 @@ import { CredentialRequirementsService } from "./CredentialRequirementsService";
 import { WorkerExecutionService } from "../workers";
 import { JobData, TicketJobData } from "../types/Job";
 import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
+import type { BuildChangeRequest, Ticket } from "@viberglass/types";
+import type { BuildPullRequestService } from "./pull-request-reviews/BuildPullRequestService";
+import { createBuildPullRequestService } from "./pull-request-reviews/createBuildPullRequestService";
+import { buildChangeRequestPrompt } from "./pull-request-reviews/buildChangeRequestPrompt";
 import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
 import { TicketPhaseDocumentService } from "./TicketPhaseDocumentService";
@@ -36,6 +40,8 @@ export interface RunTicketOptions {
   clankerId: string;
   overrides?: JobData["overrides"];
   instructionFiles?: InlineInstructionFile[];
+  /** Asking for changes on an earlier build. */
+  changeRequest?: BuildChangeRequest;
 }
 
 export interface RunTicketResult {
@@ -44,6 +50,10 @@ export interface RunTicketResult {
 }
 
 export class TicketExecutionService {
+  constructor(
+    private readonly buildPullRequest: Pick<BuildPullRequestService, "forTask"> = createBuildPullRequestService(),
+  ) {}
+
   private ticketDAO = new TicketDAO();
   private projectDAO = new ProjectDAO();
   private projectScmConfigDAO = new ProjectScmConfigDAO();
@@ -64,7 +74,7 @@ export class TicketExecutionService {
     ticketId: string,
     options: RunTicketOptions,
   ): Promise<RunTicketResult> {
-    const { clankerId, overrides, instructionFiles } = options;
+    const { clankerId, overrides, instructionFiles, changeRequest } = options;
     let submittedJobId: string | undefined;
 
     try {
@@ -153,7 +163,7 @@ export class TicketExecutionService {
           executionClanker,
         );
 
-      const task = await this.promptTemplateService.render(
+      const renderedTask = await this.promptTemplateService.render(
         PROMPT_TYPE.ticket_developing,
         ticket.projectId,
         {
@@ -164,6 +174,7 @@ export class TicketExecutionService {
           planDocument: planningDocument.content || undefined,
         },
       );
+      const task = await this.withChangeRequest(renderedTask, ticket, changeRequest);
 
       // Create job via JobService.submitJob with ticket and clanker references
       const jobData: TicketJobData = {
@@ -177,6 +188,8 @@ export class TicketExecutionService {
         context: {
           ticketId: ticket.id,
           originalTicketId: ticket.externalTicketId || ticket.id,
+          ticketTitle: ticket.title,
+          ticketDescription: ticket.description,
           stepsToReproduce: ticket.description,
           researchDocument: researchDocument.content,
           planDocument: planningDocument.content,
@@ -282,5 +295,25 @@ export class TicketExecutionService {
       }
       throw error;
     }
+  }
+
+  /**
+   * A build after the first one continues the task's branch; say so, and
+   * add what the reviewer asked for and the pull request's open comments.
+   */
+  private async withChangeRequest(
+    renderedTask: string,
+    ticket: Pick<Ticket, "id" | "projectId" | "pullRequestUrl">,
+    changeRequest: BuildChangeRequest | undefined,
+  ): Promise<string> {
+    const comments = changeRequest?.includePullRequestComments
+      ? (await this.buildPullRequest.forTask(ticket)).comments
+      : [];
+    const section = buildChangeRequestPrompt({
+      continuesPullRequest: Boolean(ticket.pullRequestUrl),
+      message: changeRequest?.message,
+      comments,
+    });
+    return section ? `${renderedTask}\n\n${section}` : renderedTask;
   }
 }

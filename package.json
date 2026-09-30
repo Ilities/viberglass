@@ -24,6 +24,7 @@
   "workspaces": [
     "packages/types",
     "packages/telemetry",
+    "packages/evals",
     "packages/agent-core",
     "packages/agents/*",
     "packages/chat-slack",

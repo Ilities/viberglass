@@ -4,6 +4,7 @@ import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { FileUploadService } from "../../services/FileUploadService";
 import { TicketExecutionService } from "../../services/TicketExecutionService";
+import { createBuildPullRequestService } from "../../services/pull-request-reviews/createBuildPullRequestService";
 import { TicketPhaseDocumentCommentService } from "../../services/TicketPhaseDocumentCommentService";
 import { TicketPhaseDocumentRevisionService } from "../../services/TicketPhaseDocumentRevisionService";
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
@@ -19,6 +20,10 @@ import { validateUuidParam } from "../middleware/validation";
 import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
 import { registerTicketCrudMediaRoutes } from "./tickets/crudMediaRoutes";
 import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
+import { registerTicketReopenRoutes } from "./tickets/reopenRoutes";
+import { TicketStepReopenService } from "../../services/TicketStepReopenService";
+import { TicketPhaseApprovalDAO } from "../../persistence/ticketing/TicketPhaseApprovalDAO";
+import { TicketPhaseRunGuard } from "../../services/TicketPhaseRunGuard";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
 import { registerTicketAgentSessionRoutes } from "./tickets/agentSessionRoutes";
 import { AgentSessionLaunchService } from "../../services/agentSession/AgentSessionLaunchService";
@@ -36,7 +41,8 @@ const router = express.Router();
 const ticketService = new TicketDAO();
 const projectService = new ProjectDAO();
 const fileUploadService = new FileUploadService();
-const ticketExecutionService = new TicketExecutionService();
+const buildPullRequestService = createBuildPullRequestService();
+const ticketExecutionService = new TicketExecutionService(buildPullRequestService);
 const ticketWorkflowService = new TicketWorkflowService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 const ticketPhaseDocumentRevisionService =
@@ -128,6 +134,18 @@ registerTicketWorkflowPhaseRoutes(router, {
 registerTicketExecutionRoutes(router, {
   ticketExecutionService,
   ticketWorkflowOverrideService,
+  ticketDAO: ticketService,
+  buildPullRequestService,
+});
+
+registerTicketReopenRoutes(router, {
+  ticketStepReopenService: new TicketStepReopenService(
+    ticketService,
+    ticketWorkflowService,
+    ticketPhaseDocumentService,
+    new TicketPhaseApprovalDAO(),
+    new TicketPhaseRunGuard(),
+  ),
 });
 
 const agentSessionDAO = new AgentSessionDAO();

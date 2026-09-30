@@ -1,6 +1,7 @@
 import { Button } from '@/components/button'
 import { CancelRunButton } from '@/components/cancel-run-button'
 import { failureGuidance } from '@/components/failure-guidance'
+import { BuildChangesModal } from '@/components/build-changes-modal'
 import { RevisionModal } from '@/components/revision-modal'
 import { RunTicketModal } from '@/components/run-ticket-modal'
 import { useAuth } from '@/context/auth-context'
@@ -58,6 +59,8 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
   const { ticket, clankers, runs } = data
   const [starting, setStarting] = useState<TaskStep | null>(null)
   const [revising, setRevising] = useState<'research' | 'planning' | null>(null)
+  const [changingBuild, setChangingBuild] = useState(false)
+  const hasPlan = data.documents.planning.content.trim().length > 0
   const [isCancelling, setIsCancelling] = useState(false)
   const [isResolving, setIsResolving] = useState(false)
 
@@ -167,7 +170,7 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
                   label={actions.busy === 'approve' ? 'Approving…' : 'Approve & plan'}
                   runInProgress={false}
                   isApproving={actions.busy !== null}
-                  onApprove={() => void actions.approveResearchAndPlan()}
+                  onApprove={() => void actions.approveResearchAndPlan({ planExists: hasPlan })}
                 />
                 <Button outline disabled={actions.busy !== null} onClick={() => setRevising('research')}>
                   Ask for changes
@@ -175,7 +178,9 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
               </>
             }
           >
-            Read it below. Approving starts the plan.
+            {hasPlan
+              ? 'Read it below. Approving takes you to the existing plan, to review it again.'
+              : 'Read it below. Approving starts the plan.'}
           </HandoffCard>
         ) : (
           <HandoffCard
@@ -203,8 +208,19 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
         )
       case 'failed': {
         const guidance = failureGuidance(move.failure ?? undefined, user?.role === 'admin', project)
-        const retry =
-          !guidance.canRetry ? null : move.step === 'execution' ? (
+        // A task with a pull request has shown its repository accepts pushes,
+        // so a failed build on it can always be run again or asked to change.
+        const buildOnPullRequest = move.step === 'execution' && Boolean(ticket.pullRequestUrl)
+        const retry = buildOnPullRequest ? (
+          <>
+            <Button color="brand" onClick={() => setStarting('execution')}>
+              Run the build again
+            </Button>
+            <Button outline onClick={() => setChangingBuild(true)}>
+              Ask for changes
+            </Button>
+          </>
+        ) : !guidance.canRetry ? null : move.step === 'execution' ? (
             <Button color="brand" onClick={() => setStarting('execution')}>
               Try again
             </Button>
@@ -220,7 +236,7 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
             title={guidance.title}
             actions={
               <>
-                {guidance.fix && (
+                {guidance.fix && !buildOnPullRequest && (
                   <Button href={guidance.fix.href} color="brand">
                     {guidance.fix.label}
                   </Button>
@@ -231,7 +247,7 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
             }
           >
             <p>{guidance.summary}</p>
-            {!guidance.canRetry && <p className="mt-1 text-[var(--gray-10)]">{guidance.nextStep.replace(/ from the task/, '')}</p>}
+            {!guidance.canRetry && !buildOnPullRequest && <p className="mt-1 text-[var(--gray-10)]">{guidance.nextStep.replace(/ from the task/, '')}</p>}
           </HandoffCard>
         )
       }
@@ -262,11 +278,18 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
                   <ExternalLinkIcon data-slot="icon" />
                   View pull request
                 </Button>
+                <Button outline onClick={() => setChangingBuild(true)}>
+                  Ask for changes
+                </Button>
+                <Button outline onClick={() => setStarting('execution')}>
+                  Run the build again
+                </Button>
                 {markDone}
               </>
             }
           >
-            Review and merge it, then mark the task as done.
+            Review and merge it, then mark the task as done. Ask for changes, or run the build again, and the agent adds
+            commits to the same pull request.
           </HandoffCard>
         )
       case 'build_finished':
@@ -277,6 +300,9 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
             title="The build finished without a pull request"
             actions={
               <>
+                <Button outline onClick={() => setStarting('execution')}>
+                  Run the build again
+                </Button>
                 {markDone}
                 <LinkButton onClick={() => onShowRun(move.runId)}>See what happened</LinkButton>
               </>
@@ -304,6 +330,18 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
         }}
         mode={starting ?? 'research'}
       />
+      {changingBuild && (
+        <BuildChangesModal
+          ticket={ticket}
+          clankers={clankers}
+          project={project}
+          defaultClankerId={defaultAgentId}
+          onClose={() => {
+            setChangingBuild(false)
+            onChanged()
+          }}
+        />
+      )}
       {revising && (
         <RevisionModal
           ticket={ticket}

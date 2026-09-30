@@ -367,6 +367,8 @@ export class AgentSessionLaunchService {
       jobKind: "execution",
       context: {
         ticketId: input.ticketId,
+        ticketTitle: ticket.title,
+        ticketDescription: ticket.description,
         instructionFiles: prepared.mergedInstructionFiles,
       },
     };

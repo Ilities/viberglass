@@ -70,10 +70,20 @@ export async function recordProgress(
 }
 
 /**
- * Record a log line for a job.
+ * A worker that is sending log lines is alive. The agent step streams logs
+ * for minutes while sending no progress, so without this a long agent run
+ * outlasts the heartbeat grace period and is given up while still working.
+ */
+async function touchHeartbeat(jobId: string, at: Date): Promise<void> {
+  await db.updateTable("jobs").set({ last_heartbeat: at }).where("id", "=", jobId).execute();
+}
+
+/**
+ * Record a log line for a job (also updates heartbeat).
  * Log lines are stored in job_log_lines table for frontend display.
  */
 export async function recordLog(jobId: string, log: JobLogEntry): Promise<void> {
+  await touchHeartbeat(jobId, new Date());
   await db
     .insertInto("job_log_lines")
     .values({
@@ -94,8 +104,8 @@ export async function recordLog(jobId: string, log: JobLogEntry): Promise<void> 
 }
 
 /**
- * Record multiple log lines for a job in a single bulk insert.
- * This is much more efficient than individual recordLog calls.
+ * Record multiple log lines for a job in a single bulk insert (also updates
+ * heartbeat). This is much more efficient than individual recordLog calls.
  */
 export async function recordLogBatch(
   jobId: string,
@@ -113,6 +123,7 @@ export async function recordLogBatch(
     created_at: now,
   }));
 
+  await touchHeartbeat(jobId, now);
   await db.insertInto("job_log_lines").values(values).execute();
 
   logger.debug("Job log batch recorded", { jobId, count: logs.length });

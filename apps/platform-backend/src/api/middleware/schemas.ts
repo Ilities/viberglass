@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { MODEL_PROVIDERS, SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
+import { JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -317,6 +317,10 @@ export const resultCallbackSchema = Joi.object({
 
 export const runTicketSchema = Joi.object({
   clankerId: Joi.string().uuid().required(),
+  changeRequest: Joi.object({
+    message: Joi.string().max(20000).allow("").optional(),
+    includePullRequestComments: Joi.boolean().optional(),
+  }).optional(),
   overrides: runTicketOverridesSchema,
   instructionFiles: Joi.array()
     .items(runInstructionFileSchema)
@@ -340,7 +344,7 @@ export const codexAuthCacheSchema = Joi.object({
 // Log entry schema for worker logging
 export const logEntrySchema = Joi.object({
   level: Joi.string().valid("info", "warn", "error", "debug").required(),
-  message: Joi.string().min(1).max(5000).required(),
+  message: Joi.string().min(1).max(JOB_LOG_MESSAGE_MAX_LENGTH).required(),
   source: Joi.string().max(100).optional().allow(null, ""),
 });
 

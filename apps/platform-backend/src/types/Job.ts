@@ -71,6 +71,9 @@ export interface BaseJobContext {
 export interface TicketJobContext extends BaseJobContext {
   ticketId: string;
   originalTicketId?: string;
+  /** The ticket as written: the worker's PR title and description when the agent writes none. */
+  ticketTitle?: string;
+  ticketDescription?: string;
   stepsToReproduce?: string;
   expectedBehavior?: string;
   actualBehavior?: string;

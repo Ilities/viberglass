@@ -34,8 +34,9 @@ export function WorkspaceSettingsLayout() {
             { name: 'Connections', href: '/settings/connections' },
             { name: 'Secrets', href: '/settings/secrets' },
             { name: 'Prompt templates', href: '/settings/prompt-templates' },
+            { name: 'Run records', href: '/settings/run-records' },
           ],
-          'How agents run and where credentials live. Setup picked defaults; change them here.',
+          'How agents run, where credentials live, and what each run recorded. Setup picked defaults; change them here.',
         ),
       ]
     : [section(pathname, 'General', [{ name: 'API tokens', href: '/settings/api-tokens' }])]

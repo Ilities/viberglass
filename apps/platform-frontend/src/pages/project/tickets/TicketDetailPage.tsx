@@ -225,6 +225,7 @@ export function TicketDetailPage() {
                 move={move}
                 openRunId={openRunId}
                 focusedRunId={linkedRunId}
+                focusedRunTab={searchParams.get('runTab')}
                 onToggleRun={toggleRun}
                 onDocumentSaved={setDocument}
                 onChanged={changed}

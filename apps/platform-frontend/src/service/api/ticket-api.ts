@@ -593,18 +593,6 @@ export async function approvePlanning(ticketId: string): Promise<PlanningPhaseRe
   return data.data
 }
 
-export async function revokePlanningApproval(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/revoke-approval`, {
-    method: 'POST',
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to revoke planning approval')
-  }
-  const data: ApiResponse<PlanningPhaseResponse> = await response.json()
-  return data.data
-}
-
 export async function setTicketStatus(id: string, status: TicketLifecycleStatus): Promise<Ticket> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/set-status`, {
     method: 'POST',

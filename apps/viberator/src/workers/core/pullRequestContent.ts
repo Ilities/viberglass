@@ -1,15 +1,36 @@
 import * as fs from "fs";
 import * as path from "path";
 
+/** The ticket a run worked on, when it has one. */
+export interface PullRequestTicket {
+  title?: string;
+  description?: string;
+}
+
 interface ResolvePullRequestDescriptionParams {
   repoDir: string;
   task: string;
+  ticket?: PullRequestTicket;
   changedFiles: string[];
   testsWereRequested: boolean;
 }
 
-export function resolvePullRequestTitle(repoDir: string, task: string): string {
-  return readAgentGeneratedPullRequestTitle(repoDir) || buildPullRequestTitle(task);
+/**
+ * Longest problem statement a fallback description quotes. The task is the
+ * rendered prompt, and for a ticket run it carries the research and plan
+ * documents; a fallback must never paste that into the PR.
+ */
+const MAX_PROBLEM_LENGTH = 2000;
+
+export function resolvePullRequestTitle(
+  repoDir: string,
+  task: string,
+  ticket?: PullRequestTicket,
+): string {
+  return (
+    readAgentGeneratedPullRequestTitle(repoDir) ||
+    buildPullRequestTitle(ticket?.title?.trim() || task)
+  );
 }
 
 export function resolvePullRequestDescription(
@@ -18,7 +39,7 @@ export function resolvePullRequestDescription(
   return (
     readAgentGeneratedPullRequestDescription(params.repoDir) ||
     buildPullRequestDescription(
-      params.task,
+      describeProblem(params.task, params.ticket),
       params.changedFiles,
       params.testsWereRequested,
     )
@@ -92,14 +113,34 @@ function sanitizePullRequestTitle(input: string): string {
     .trim();
 }
 
-function buildPullRequestDescription(
-  task: string,
-  changedFiles: string[],
-  testsWereRequested: boolean,
-): string {
+interface ProblemStatement {
+  summary: string;
+  problem: string;
+}
+
+/** A ticket run describes its ticket; only a run without one falls back to the task. */
+function describeProblem(task: string, ticket?: PullRequestTicket): ProblemStatement {
+  const title = ticket?.title?.trim();
+  if (title) {
+    return { summary: title, problem: truncate(ticket?.description?.trim() ?? "") };
+  }
   const summary =
     task.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ||
     "Automated bug fix";
+  return { summary, problem: truncate(task.trim()) };
+}
+
+function truncate(text: string): string {
+  return text.length > MAX_PROBLEM_LENGTH
+    ? `${text.slice(0, MAX_PROBLEM_LENGTH).trimEnd()}\n\n…`
+    : text;
+}
+
+function buildPullRequestDescription(
+  { summary, problem }: ProblemStatement,
+  changedFiles: string[],
+  testsWereRequested: boolean,
+): string {
 
   const filesSection =
     changedFiles.length > 0
@@ -110,11 +151,10 @@ function buildPullRequestDescription(
     ? "- The agent was instructed to run relevant tests as part of the fix."
     : "- Fix was verified manually by the agent as requested for this job.";
 
-  return `## Summary
-${summary}
+  const problemSection = problem ? `\n\n## Problem\n${problem}` : "";
 
-## Problem
-${task.trim()}
+  return `## Summary
+${summary}${problemSection}
 
 ## Solution
 - Implemented a focused fix based on the reported bug context.

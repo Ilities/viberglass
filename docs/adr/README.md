@@ -12,3 +12,4 @@ The living user-journey spec is [`docs/ux/user-journeys-and-personas.md`](../ux/
 | [0004](./0004-naming-space-and-task.md) | Name the core entities "Space" and "Task" | Accepted | 2026-09-23 |
 | [0005](./0005-roles-and-space-visibility.md) | Workspace roles, space roles and space visibility | Accepted | 2026-09-29 |
 | [0006](./0006-agent-questions-and-session-continuity.md) | Agent questions and session continuity | Accepted | 2026-09-29 |
+| [0007](./0007-iterating-on-a-task.md) | Iterating on a task: follow-up builds, change requests, reopening | Accepted | 2026-09-30 |

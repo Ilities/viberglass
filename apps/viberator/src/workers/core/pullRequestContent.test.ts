@@ -64,4 +64,59 @@ describe("pullRequestContent", () => {
     expect(description).toContain("- `src/webhook/retry.ts`");
     expect(description).toContain("run relevant tests");
   });
+
+  const renderedPrompt = [
+    "You are an expert software engineer tasked with fixing a bug or implementing a feature.",
+    "<research-document>",
+    "x".repeat(20_000),
+    "</research-document>",
+  ].join("\n");
+
+  test("titles a ticket run's fallback PR after the ticket, not the prompt", () => {
+    const title = resolvePullRequestTitle(repoDir, renderedPrompt, {
+      title: "Price refresh reports success but displayed pricing never changes",
+    });
+
+    expect(title).toBe("fix: Price refresh reports success but displayed pricing never changes");
+  });
+
+  test("describes a ticket run's fallback PR from the ticket, never the prompt", () => {
+    const description = resolvePullRequestDescription({
+      repoDir,
+      task: renderedPrompt,
+      ticket: { title: "Price refresh never reaches the UI", description: "Running the script changes nothing on screen." },
+      changedFiles: ["scripts/update-prices.js"],
+      testsWereRequested: false,
+    });
+
+    expect(description).toContain("## Summary\nPrice refresh never reaches the UI");
+    expect(description).toContain("## Problem\nRunning the script changes nothing on screen.");
+    expect(description).not.toContain("You are an expert");
+    expect(description).not.toContain("research-document");
+  });
+
+  test("leaves out the problem section for a ticket with no description", () => {
+    const description = resolvePullRequestDescription({
+      repoDir,
+      task: renderedPrompt,
+      ticket: { title: "Price refresh never reaches the UI", description: "" },
+      changedFiles: [],
+      testsWereRequested: false,
+    });
+
+    expect(description).not.toContain("## Problem");
+    expect(description.length).toBeLessThan(1000);
+  });
+
+  test("caps the problem a run without a ticket quotes from its task", () => {
+    const description = resolvePullRequestDescription({
+      repoDir,
+      task: renderedPrompt,
+      changedFiles: [],
+      testsWereRequested: false,
+    });
+
+    expect(description.length).toBeLessThan(3000);
+    expect(description).toContain("…");
+  });
 });

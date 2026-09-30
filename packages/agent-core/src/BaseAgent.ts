@@ -293,7 +293,13 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
   protected async executeCommand(
     command: string,
     args: string[],
-    options: { cwd?: string; timeout?: number; env?: NodeJS.ProcessEnv } = {},
+    options: {
+      cwd?: string;
+      timeout?: number;
+      env?: NodeJS.ProcessEnv;
+      /** Capture output without logging it, for bookkeeping commands whose output is not the agent's work. */
+      quiet?: boolean;
+    } = {},
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
       const timeout = options.timeout || this.config.executionTimeLimit * 1000;
@@ -332,6 +338,7 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
       };
 
       const emitLine = (line: string): void => {
+        if (options.quiet) return;
         for (const normalized of normalizer.processLine(line)) {
           this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
         }
@@ -349,7 +356,7 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
         stderr += chunk;
         stderrBuffer += chunk;
         stderrBuffer = flushBufferedLines(stderrBuffer, (line) => {
-          this.logger.warn(`[agent:${this.config.name}:stderr] ${line}`);
+          if (!options.quiet) this.logger.warn(`[agent:${this.config.name}:stderr] ${line}`);
         });
       });
 
@@ -364,11 +371,11 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
         if (remainingStdout.length > 0) {
           emitLine(remainingStdout);
         }
-        for (const normalized of normalizer.flush()) {
+        for (const normalized of options.quiet ? [] : normalizer.flush()) {
           this.logger.info(`[agent:${this.config.name}:stdout] ${normalized}`);
         }
         const remainingStderr = stderrBuffer.trim();
-        if (remainingStderr.length > 0) {
+        if (remainingStderr.length > 0 && !options.quiet) {
           this.logger.warn(
             `[agent:${this.config.name}:stderr] ${remainingStderr}`,
           );

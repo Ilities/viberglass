@@ -3,11 +3,12 @@ import { Heading } from '@/components/heading'
 import { LogViewer } from '@/components/log-viewer'
 import { PageMeta } from '@/components/page-meta'
 import { TabButton } from '@/components/tab-button'
+import { useAuth } from '@/context/auth-context'
 import { formatJobKind } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
 import { cancelJob } from '@/service/api/job-api'
 import { useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { CodexDeviceAuthCard, resolveCodexDeviceAuthPrompt } from './codex-device-auth-card'
 import { JobRefreshButton } from './job-refresh-button'
@@ -16,15 +17,17 @@ import { formatRunDuration, RunFacts } from './run-facts'
 import { decideRunNextStep } from './run-next-step'
 import { RunNextStepCard } from './run-next-step-card'
 import { RunPrompt } from './run-prompt'
+import { RunRecordPanel } from './run-record-panel'
+import { resolveRunTab, type RunTab } from './run-tab'
 import { findNewerRun, useRunContext } from './use-run-context'
-
-type TabType = 'activity' | 'prompt' | 'log'
 
 export function JobDetailPage() {
   const { project, jobId } = useParams<{ project: string; jobId: string }>()
   const { job, isLoading, error, isPolling, refetch } = useJobStatus(jobId)
   const context = useRunContext(job)
-  const [activeTab, setActiveTab] = useState<TabType>('activity')
+  const [searchParams] = useSearchParams()
+  const isAdmin = useAuth().user?.role === 'admin'
+  const [activeTab, setActiveTab] = useState<RunTab>(() => resolveRunTab(searchParams.get('runTab'), isAdmin))
   const [isCancelling, setIsCancelling] = useState(false)
 
   if (isLoading) {
@@ -45,7 +48,8 @@ export function JobDetailPage() {
 
   // A task's runs live on the task, opened at this run; this page is for runs without one (schedules).
   if (job.ticketId) {
-    return <Navigate to={`/spaces/${project}/tasks/${job.ticketId}?run=${job.jobId}`} replace />
+    const runTab = searchParams.get('runTab')
+    return <Navigate to={`/spaces/${project}/tasks/${job.ticketId}?run=${job.jobId}${runTab ? `&runTab=${encodeURIComponent(runTab)}` : ''}`} replace />
   }
 
   const kind = formatJobKind(job.jobKind)
@@ -111,6 +115,11 @@ export function JobDetailPage() {
             <TabButton active={activeTab === 'log'} onClick={() => setActiveTab('log')}>
               Raw log
             </TabButton>
+            {isAdmin && (
+              <TabButton active={activeTab === 'record'} onClick={() => setActiveTab('record')}>
+                Record
+              </TabButton>
+            )}
             <div className="mb-1 ml-2">
               <JobRefreshButton onRefresh={refresh} />
             </div>
@@ -142,6 +151,7 @@ export function JobDetailPage() {
             )}
             {activeTab === 'prompt' && <RunPrompt job={job} />}
             {activeTab === 'log' && <LogViewer logs={job.logs || []} isConnected={isPolling && job.status === 'active'} />}
+            {activeTab === 'record' && isAdmin && <RunRecordPanel jobId={job.jobId} />}
           </main>
 
           <aside className="space-y-8 lg:border-l lg:border-[var(--gray-6)] lg:pl-8">

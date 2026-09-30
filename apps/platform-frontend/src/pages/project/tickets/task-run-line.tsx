@@ -1,5 +1,6 @@
 import { LogViewer } from '@/components/log-viewer'
 import { TabButton } from '@/components/tab-button'
+import { useAuth } from '@/context/auth-context'
 import { Timestamp } from '@/components/timestamp'
 import { formatJobStatus } from '@/data'
 import { useJobStatus } from '@/hooks/useJobStatus'
@@ -11,6 +12,8 @@ import { CodexDeviceAuthCard, resolveCodexDeviceAuthPrompt } from '../jobs/codex
 import { RunActivity } from '../jobs/run-activity'
 import { formatRunDuration } from '../jobs/run-facts'
 import { RunPrompt } from '../jobs/run-prompt'
+import { RunRecordPanel } from '../jobs/run-record-panel'
+import { resolveRunTab, type RunTab } from '../jobs/run-tab'
 import { STEP_NAME, type TaskStep } from './task-next-move'
 
 const STATUS_DOT: Record<JobListItem['status'], string> = {
@@ -31,14 +34,15 @@ interface TaskRunLineProps {
   onToggle: () => void
   /** Scroll to the run when it's opened by link or from the banner. */
   scrollIntoView: boolean
+  /** The view a link asked this run to open on (`?runTab=`). */
+  linkedTab?: string | null
 }
 
-type RunTab = 'activity' | 'prompt' | 'log'
-
 /** A run of a step as one line; open it for the agent's steps, the prompt and the raw log. */
-export function TaskRunLine({ run, number, agentName, project, isOpen, onToggle, scrollIntoView }: TaskRunLineProps) {
+export function TaskRunLine({ run, number, agentName, project, isOpen, onToggle, scrollIntoView, linkedTab }: TaskRunLineProps) {
   const { job, isPolling } = useJobStatus(isOpen ? run.jobId : undefined)
-  const [tab, setTab] = useState<RunTab>('activity')
+  const isAdmin = useAuth().user?.role === 'admin'
+  const [tab, setTab] = useState<RunTab>(() => resolveRunTab(linkedTab, isAdmin))
   const ref = useRef<HTMLDivElement>(null)
   const duration = formatRunDuration(run.processedAt, run.finishedAt)
 
@@ -87,6 +91,11 @@ export function TaskRunLine({ run, number, agentName, project, isOpen, onToggle,
             <TabButton active={tab === 'log'} onClick={() => setTab('log')}>
               Raw log
             </TabButton>
+            {isAdmin && (
+              <TabButton active={tab === 'record'} onClick={() => setTab('record')}>
+                Record
+              </TabButton>
+            )}
           </div>
           {!job ? (
             <p className="text-sm text-[var(--gray-9)]">Loading run…</p>
@@ -99,6 +108,8 @@ export function TaskRunLine({ run, number, agentName, project, isOpen, onToggle,
             />
           ) : tab === 'prompt' ? (
             <RunPrompt job={job} />
+          ) : tab === 'record' && isAdmin ? (
+            <RunRecordPanel jobId={job.jobId} />
           ) : (
             <LogViewer logs={job.logs || []} isConnected={isPolling && job.status === 'active'} />
           )}

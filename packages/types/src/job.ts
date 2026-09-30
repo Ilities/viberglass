@@ -7,6 +7,13 @@ export const JOB_KIND = {
 
 export type JobKind = (typeof JOB_KIND)[keyof typeof JOB_KIND]
 
+/**
+ * Longest job log line kept. Tool output and agent messages are the trajectory
+ * the eval corpus is read from, so the cap only guards the log batch request:
+ * a worker sends up to 10 lines per batch, well under the 10 MB body limit.
+ */
+export const JOB_LOG_MESSAGE_MAX_LENGTH = 200_000
+
 export type JobStatus = 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
 
 /**
