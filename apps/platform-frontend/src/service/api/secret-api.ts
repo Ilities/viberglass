@@ -1,6 +1,13 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
-import type { ApiResponse, CreateSecretRequest, PaginatedResponse, Secret, UpdateSecretRequest } from '@viberglass/types'
+import type {
+  ApiResponse,
+  CreateSecretRequest,
+  PaginatedResponse,
+  Secret,
+  SecretStorageDefaults,
+  UpdateSecretRequest,
+} from '@viberglass/types'
 
 export async function getSecrets(limit: number = 50, offset: number = 0): Promise<Secret[]> {
   const response = await apiFetch(`${API_BASE_URL}/api/secrets?limit=${limit}&offset=${offset}`)
@@ -63,4 +70,19 @@ export async function deleteSecret(id: string): Promise<void> {
   }
 }
 
-export type { CreateSecretRequest, Secret, SecretLocation, UpdateSecretRequest } from '@viberglass/types'
+export type {
+  CreateSecretRequest,
+  Secret,
+  SecretLocation,
+  SecretStorageDefaults,
+  UpdateSecretRequest,
+} from '@viberglass/types'
+
+export async function getSecretStorageDefaults(): Promise<SecretStorageDefaults> {
+  const response = await apiFetch(`${API_BASE_URL}/api/secrets/storage-defaults`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch secret storage defaults')
+  }
+  const data: ApiResponse<SecretStorageDefaults> = await response.json()
+  return data.data
+}

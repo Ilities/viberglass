@@ -119,6 +119,7 @@ registerTicketCrudMediaRoutes(router, {
   projectService,
   fileUploadService,
   integrationDAO: new IntegrationDAO(),
+  agentSessionDAO: new AgentSessionDAO(),
 });
 
 registerTicketWorkflowPhaseRoutes(router, {

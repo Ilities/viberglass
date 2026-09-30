@@ -3,6 +3,7 @@ import { Fact, FactList } from '@/components/fact-list'
 import { Link } from '@/components/link'
 import { Timestamp } from '@/components/timestamp'
 import { formatJobStatus } from '@/data'
+import { formatTicketSystem } from '@/lib/formatters'
 import type { JobListItem } from '@/service/api/job-api'
 import type { AgentSession } from '@/service/api/session-api'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
@@ -69,7 +70,7 @@ export function TaskSidebar({ data, project, openRunId, onOpenRun }: TaskSidebar
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current"
             >
-              {ticket.ticketSystem}
+              {formatTicketSystem(ticket.ticketSystem)}
               {ticket.externalTicketId ? ` #${ticket.externalTicketId}` : ''}
               <ExternalLinkIcon className="size-3" />
             </a>

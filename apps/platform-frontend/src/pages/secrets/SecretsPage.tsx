@@ -15,11 +15,14 @@ import {
   createSecret,
   deleteSecret,
   getSecrets,
+  getSecretStorageDefaults,
   updateSecret,
   type Secret,
   type SecretLocation,
+  type SecretStorageDefaults,
 } from '@/service/api/secret-api'
 import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { SsmPathField } from './ssm-path-field'
 import { DEFAULT_SECRET_NAME_PRESET_GROUP_ID, SECRET_NAME_PRESET_GROUPS } from './secretNamePresets'
 
 type SecretFormState = {
@@ -75,6 +78,7 @@ export function SecretsPage() {
   const [secretToDelete, setSecretToDelete] = useState<Secret | null>(null)
   const [selectedPresetGroupId, setSelectedPresetGroupId] = useState(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
 
+  const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
   const locationHelper = useMemo(() => {
     return locationOptions.find((option) => option.value === formState.secretLocation)?.helper || ''
   }, [formState.secretLocation])
@@ -86,6 +90,9 @@ export function SecretsPage() {
 
   useEffect(() => {
     void loadSecrets()
+    getSecretStorageDefaults()
+      .then(setStorageDefaults)
+      .catch(() => undefined)
   }, [])
 
   async function loadSecrets() {
@@ -105,7 +112,7 @@ export function SecretsPage() {
   function openCreateDialog() {
     setDialogMode('create')
     setActiveSecret(null)
-    setFormState(emptyForm)
+    setFormState({ ...emptyForm, secretLocation: storageDefaults?.location ?? emptyForm.secretLocation })
     setSelectedPresetGroupId(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
     setDialogOpen(true)
   }
@@ -369,15 +376,12 @@ export function SecretsPage() {
                 </Field>
 
                 {formState.secretLocation === 'ssm' && (
-                  <Field>
-                    <Label>SSM parameter path</Label>
-                    <Description>Optional. Defaults to the configured prefix plus the secret name.</Description>
-                    <Input
-                      value={formState.secretPath}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, secretPath: event.target.value }))}
-                      placeholder="/viberator/secrets/GITHUB_TOKEN"
-                    />
-                  </Field>
+                  <SsmPathField
+                    name={formState.name}
+                    path={formState.secretPath}
+                    ssmPrefix={storageDefaults?.ssmPrefix ?? '/viberator/secrets'}
+                    onChange={(secretPath) => setFormState((prev) => ({ ...prev, secretPath }))}
+                  />
                 )}
 
                 {formState.secretLocation !== 'env' && (

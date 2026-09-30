@@ -88,3 +88,16 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<Ma
   const data = (await response.json()) as UserResponse
   return data.user
 }
+
+export type Person = Pick<ManagedUser, 'id' | 'email' | 'name' | 'avatarUrl'>
+
+export async function getPeopleDirectory(): Promise<Person[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/users/directory`)
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(toErrorMessage(error, 'Failed to fetch people'))
+  }
+
+  const data = (await response.json()) as { people: Person[] }
+  return data.people
+}

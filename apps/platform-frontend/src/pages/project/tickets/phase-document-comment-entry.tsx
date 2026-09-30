@@ -1,4 +1,5 @@
 import { Button } from '@/components/button'
+import { usePersonName } from '@/hooks/usePeople'
 import type { PhaseDocumentCommentResponse } from '@/service/api/ticket-api'
 
 export const SUGGESTION_PREFIX = '@@SUGGESTION@@\n'
@@ -27,12 +28,13 @@ export function CommentEntry({
   onSendToSession,
 }: CommentEntryProps) {
   const { isSuggestion, text } = decodeSuggestion(comment.content)
+  const personName = usePersonName()
 
   return (
     <div>
       <div className="flex items-center justify-between gap-2 text-xs text-[var(--gray-9)]">
         <span>
-          {comment.actor || 'Unknown reviewer'} · {new Date(comment.createdAt).toLocaleString()}
+          {personName(comment.actor) || 'Unknown reviewer'} · {new Date(comment.createdAt).toLocaleString()}
         </span>
         <div className="flex items-center gap-2">
           {isSuggestion && onApplySuggestion && comment.status === 'open' && (

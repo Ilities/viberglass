@@ -68,4 +68,28 @@ describe('TicketsBoard', () => {
     expect(screen.getByRole('link', { name: 'Planning task' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Execution task' })).toBeInTheDocument()
   })
+
+  it('links a task with an open live session straight into it', () => {
+    render(
+      <Theme>
+        <MemoryRouter>
+          <TicketsBoard
+            tickets={[{ ...makeTicket('research-1', 'Research task', 'research'), liveSessionId: 'session-9' }]}
+            clankers={[]}
+            project="shop"
+            selectedTicketIds={new Set()}
+            showArchived={false}
+            isArchiveMutationPending={false}
+            visiblePhases={['research', 'planning', 'execution']}
+            visibleStatuses={['open']}
+            onToggleTicketSelection={jest.fn()}
+            onArchiveTicket={jest.fn()}
+            onUnarchiveTicket={jest.fn()}
+          />
+        </MemoryRouter>
+      </Theme>,
+    )
+
+    expect(screen.getByRole('link', { name: /Live · Join/ })).toHaveAttribute('href', '/spaces/shop/sessions/session-9')
+  })
 })

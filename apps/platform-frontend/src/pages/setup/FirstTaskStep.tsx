@@ -4,7 +4,7 @@ import { Input } from '@/components/input'
 import { Textarea } from '@/components/textarea'
 import { Text, TextLink } from '@/components/text'
 import { createTicket, runResearch } from '@/service/api/ticket-api'
-import type { CreatedSpace } from '@viberglass/types'
+import { NATIVE_TICKET_ORIGIN, type CreatedSpace } from '@viberglass/types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SetupError, SetupFrame } from './SetupFrame'
@@ -37,7 +37,7 @@ export function FirstTaskStep({
         description: description.trim(),
         severity: 'low',
         category: 'General',
-        ticketSystem: 'custom',
+        ticketSystem: NATIVE_TICKET_ORIGIN,
         metadata: {
           timestamp: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

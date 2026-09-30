@@ -16,6 +16,7 @@ import {
   SECRET_SERVICE_ERROR_CODE,
   SecretServiceError,
 } from "./errors/SecretServiceError";
+import { secretsSsmPrefix } from "./secretStorageDefaults";
 
 const logger = createChildLogger({ service: "SecretService" });
 
@@ -82,10 +83,7 @@ export class SecretService {
   private ssmPrefix: string;
 
   constructor() {
-    this.ssmPrefix = process.env.SECRETS_SSM_PREFIX || "/viberator/secrets";
-    if (this.ssmPrefix.endsWith("/")) {
-      this.ssmPrefix = this.ssmPrefix.slice(0, -1);
-    }
+    this.ssmPrefix = secretsSsmPrefix();
   }
 
   async listSecrets(limit = 50, offset = 0): Promise<SecretMetadata[]> {

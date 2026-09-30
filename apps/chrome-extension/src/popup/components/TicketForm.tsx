@@ -181,7 +181,7 @@ export function TicketForm({
             metadata,
             annotations: capture.annotations,
             autoFixRequested: false,
-            ticketSystem: "custom",
+            ticketSystem: "native",
             workflowPhase: phase,
           },
           capture.screenshotDataUrl || undefined,

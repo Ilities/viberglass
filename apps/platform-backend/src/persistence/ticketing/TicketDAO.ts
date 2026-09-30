@@ -4,6 +4,8 @@ import { sql } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
 import {
+  isTicketOrigin,
+  NATIVE_TICKET_ORIGIN,
   TICKET_ARCHIVE_FILTER,
   TICKET_STATUS,
   TICKET_WORKFLOW_PHASE,
@@ -14,7 +16,7 @@ import type {
   UpdateTicketRequest,
   MediaAsset,
   TicketStats,
-  TicketSystem,
+  TicketOrigin,
   TicketArchiveFilter,
   TicketLifecycleStatus,
   TicketWorkflowPhase,
@@ -41,19 +43,10 @@ interface TicketListResult {
 }
 
 // Normalize legacy ticket_system values (2 was the old GitHub enum value)
-function normalizeTicketSystem(value: unknown): TicketSystem {
+function normalizeTicketSystem(value: unknown): TicketOrigin {
   if (value === 2) return "github";
-  if (typeof value === "string" && isValidTicketSystem(value)) return value;
-  return "custom";
-}
-
-function isValidTicketSystem(value: string): value is TicketSystem {
-  const validSystems: TicketSystem[] = [
-    "jira", "linear", "github", "gitlab", "bitbucket",
-    "azure", "asana", "trello", "monday", "clickup",
-    "shortcut", "slack", "custom"
-  ];
-  return validSystems.includes(value as TicketSystem);
+  if (isTicketOrigin(value)) return value;
+  return NATIVE_TICKET_ORIGIN;
 }
 
 function normalizeTicketStatus(value: unknown): TicketLifecycleStatus {
@@ -135,7 +128,7 @@ export class TicketDAO {
           screenshot_id: screenshotAsset?.id ?? null,
           recording_id: recordingAsset?.id || null,
           annotations: JSON.stringify(request.annotations),
-          ticket_system: request.ticketSystem ?? "custom",
+          ticket_system: request.ticketSystem ?? NATIVE_TICKET_ORIGIN,
           auto_fix_requested: request.autoFixRequested ?? false,
           ticket_status: TICKET_STATUS.OPEN,
           workflow_phase: request.workflowPhase ?? TICKET_WORKFLOW_PHASE.RESEARCH,

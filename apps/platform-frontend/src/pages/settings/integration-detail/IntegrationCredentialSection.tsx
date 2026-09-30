@@ -11,7 +11,8 @@ import {
   getIntegrationCredentials,
   updateIntegrationCredential,
 } from '@/service/api/integration-api'
-import { getSecrets, type Secret } from '@/service/api/secret-api'
+import { SsmPathField } from '@/pages/secrets/ssm-path-field'
+import { getSecrets, getSecretStorageDefaults, type Secret, type SecretStorageDefaults } from '@/service/api/secret-api'
 import type { CreateIntegrationCredentialRequest, UpdateIntegrationCredentialRequest, IntegrationCredential, SecretLocation } from '@viberglass/types'
 import { PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useState } from 'react'
@@ -63,6 +64,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const [secretSource, setSecretSource] = useState<SecretSource>('existing')
   const [selectedSecretId, setSelectedSecretId] = useState('')
   const [newCredentialName, setNewCredentialName] = useState('')
+  const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
   const [newCredentialLocation, setNewCredentialLocation] = useState<SecretLocation>('database')
   const [newCredentialPath, setNewCredentialPath] = useState('')
   const [newCredentialValue, setNewCredentialValue] = useState('')
@@ -85,6 +87,15 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     const linkedSecretIds = new Set(credentials.map(c => c.secretId))
     return secrets.filter(s => !linkedSecretIds.has(s.id))
   }, [secrets, credentials])
+
+  useEffect(() => {
+    getSecretStorageDefaults()
+      .then((defaults) => {
+        setStorageDefaults(defaults)
+        setNewCredentialLocation(defaults.location)
+      })
+      .catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     let isActive = true
@@ -138,7 +149,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     setSecretSource('existing')
     setSelectedSecretId('')
     setNewCredentialName('')
-    setNewCredentialLocation('database')
+    setNewCredentialLocation(storageDefaults?.location ?? 'database')
     setNewCredentialPath('')
     setNewCredentialValue('')
     setNewCredentialIsDefault(false)
@@ -506,15 +517,12 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                         </Select>
                       </Field>
                       {newCredentialLocation === 'ssm' && (
-                        <Field>
-                          <Label>SSM Parameter Path (Optional)</Label>
-                          <Description>Defaults to /viberator/secrets/{'{credential-name}'}</Description>
-                          <Input
-                            value={newCredentialPath}
-                            onChange={(e) => setNewCredentialPath(e.target.value)}
-                            placeholder="/viberator/secrets/GITHUB_PROD_TOKEN"
-                          />
-                        </Field>
+                        <SsmPathField
+                          name={newCredentialName}
+                          path={newCredentialPath}
+                          ssmPrefix={storageDefaults?.ssmPrefix ?? '/viberator/secrets'}
+                          onChange={setNewCredentialPath}
+                        />
                       )}
                       {newCredentialLocation !== 'env' && (
                         <Field>

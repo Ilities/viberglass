@@ -7,6 +7,7 @@ import { Timestamp } from '@/components/timestamp'
 import { PlayIcon } from '@radix-ui/react-icons'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useMemo, useState } from 'react'
+import { LiveSessionBadge } from './live-session-badge'
 import { formatTicketStatus, formatTicketWorkflowPhase } from './ticket-display'
 
 interface TicketsTableProps {
@@ -121,7 +122,14 @@ export function TicketsTable({
                     onClick={stopRowNavigation}
                   />
                 </TableCell>
-                <TableCell className="font-medium">{ticket.title}</TableCell>
+                <TableCell className="font-medium">
+                  <span className="flex flex-wrap items-center gap-2">
+                    {ticket.title}
+                    {ticket.liveSessionId ? (
+                      <LiveSessionBadge project={project} sessionId={ticket.liveSessionId} />
+                    ) : null}
+                  </span>
+                </TableCell>
                 <TableCell>
                   <Badge color={formatSeverity(ticket.severity).badgeColor}>{formatSeverity(ticket.severity).label}</Badge>
                 </TableCell>

@@ -1,7 +1,9 @@
 const adminRoleMiddleware = jest.fn();
 const requireRoleMock = jest.fn(() => adminRoleMiddleware);
+const requireAuthMock = jest.fn();
 
 jest.mock("../../../../api/middleware/authentication", () => ({
+  requireAuth: requireAuthMock,
   requireRole: requireRoleMock,
 }));
 
@@ -32,5 +34,11 @@ describe("users route auth boundaries", () => {
     expect(getRouteHandlers("/", "get")).toContain(adminRoleMiddleware);
     expect(getRouteHandlers("/:id/role", "patch")).toContain(adminRoleMiddleware);
     expect(getRouteHandlers("/", "post")).toContain(adminRoleMiddleware);
+  });
+
+  it("lets any signed-in user read the people directory", () => {
+    const handlers = getRouteHandlers("/directory", "get");
+    expect(handlers).toContain(requireAuthMock);
+    expect(handlers).not.toContain(adminRoleMiddleware);
   });
 });

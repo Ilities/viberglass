@@ -1,4 +1,4 @@
-import { buildFeatureBranchName } from "./branchNaming";
+import { buildFeatureBranchName } from "@viberglass/types";
 
 describe("buildFeatureBranchName", () => {
   test("supports ticket, original_ticket, and clanker placeholders", () => {

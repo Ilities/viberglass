@@ -20,7 +20,7 @@ export type {
 import type {
   TicketMetadata,
   Severity,
-  TicketSystem,
+  TicketOrigin,
   Annotation,
 } from "@viberglass/types";
 
@@ -33,5 +33,5 @@ export interface CreateTicketRequest {
   metadata: TicketMetadata;
   annotations: Annotation[];
   autoFixRequested: boolean;
-  ticketSystem: TicketSystem;
+  ticketSystem: TicketOrigin;
 }

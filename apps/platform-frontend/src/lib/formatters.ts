@@ -43,6 +43,7 @@ export function formatTicketSystem(system: string): string {
     shortcut: 'Shortcut',
     slack: 'Slack',
     custom: 'Custom Webhook',
+    native: 'Viberglass',
   }
   return systems[system] || system
 }

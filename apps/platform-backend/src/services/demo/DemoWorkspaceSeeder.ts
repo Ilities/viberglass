@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { NATIVE_TICKET_ORIGIN } from "@viberglass/types";
 import type {
   Clanker,
   CreateClankerRequest,
@@ -93,7 +94,7 @@ export class DemoWorkspaceSeeder {
     const runner = await this.createRunner();
     const project = await this.deps.projects.createProject({
       name: DEMO_SPACE_NAME,
-      ticketSystem: "custom",
+      ticketSystem: NATIVE_TICKET_ORIGIN,
       credentials: { type: "token" },
       autoFixEnabled: false,
       autoFixTags: [],
@@ -140,7 +141,7 @@ export class DemoWorkspaceSeeder {
       description: task.description,
       severity: "medium",
       category: "General",
-      ticketSystem: "custom",
+      ticketSystem: NATIVE_TICKET_ORIGIN,
       metadata: { timestamp: new Date().toISOString(), timezone: "UTC" },
       annotations: [],
       autoFixRequested: false,

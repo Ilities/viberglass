@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CommentEntry, SUGGESTION_PREFIX, decodeSuggestion } from './phase-document-comment-entry'
+import { renderInline } from './document-inline'
 
 function encodeSuggestion(text: string) {
   return SUGGESTION_PREFIX + text
@@ -135,18 +136,18 @@ export function DocumentReader({ content }: { content: string }) {
         const heading = /^(#{1,3})\s+(.+)$/.exec(line)
         if (heading) {
           const className = heading[1].length === 1 ? 'text-xl' : heading[1].length === 2 ? 'text-lg' : 'text-base'
-          return <h4 key={index} className={`${className} mt-5 font-semibold text-[var(--gray-12)] first:mt-0`}>{heading[2]}</h4>
+          return <h4 key={index} className={`${className} mt-5 font-semibold text-[var(--gray-12)] first:mt-0`}>{renderInline(heading[2])}</h4>
         }
         if (/^[-*]\s+/.test(line)) {
-          return <div key={index} className="flex gap-2 pl-2"><span aria-hidden>•</span><span>{line.replace(/^[-*]\s+/, '')}</span></div>
+          return <div key={index} className="flex gap-2 pl-2"><span aria-hidden>•</span><span>{renderInline(line.replace(/^[-*]\s+/, ''))}</span></div>
         }
         if (/^\d+\.\s+/.test(line)) {
           const marker = line.match(/^\d+\./)?.[0]
-          return <div key={index} className="flex gap-2 pl-2"><span>{marker}</span><span>{line.replace(/^\d+\.\s+/, '')}</span></div>
+          return <div key={index} className="flex gap-2 pl-2"><span>{marker}</span><span>{renderInline(line.replace(/^\d+\.\s+/, ''))}</span></div>
         }
         if (line.startsWith('```')) return <div key={index} className="h-1" />
         if (line.trim().length === 0) return <div key={index} className="h-2" />
-        return <p key={index}>{line}</p>
+        return <p key={index}>{renderInline(line)}</p>
       })}
     </article>
   )

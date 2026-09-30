@@ -5,7 +5,7 @@ import {
   validateUpdateUserRole,
   validateUuidParam,
 } from "../middleware/validation";
-import { requireRole } from "../middleware/authentication";
+import { requireAuth, requireRole } from "../middleware/authentication";
 import type { UserRole } from "../../persistence/types/user";
 import { hashPassword, normalizeEmail } from "../auth/utils";
 import logger from "../../config/logger";
@@ -40,6 +40,22 @@ function buildUsersResponse(users: PublicUser[]) {
     })),
   };
 }
+
+// Names for the people who appear on tasks, comments and sessions. Any
+// signed-in user may read it; roles and dates stay admin-only.
+router.get("/directory", requireAuth, async (_req, res) => {
+  try {
+    const users = await userDao.listUsers();
+    res.json({
+      people: users.map(({ id, email, name, avatarUrl }) => ({ id, email, name, avatarUrl })),
+    });
+  } catch (error) {
+    logger.error("Error listing the people directory", {
+      error: error instanceof Error ? error.message : error,
+    });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 router.get("/", requireRole("admin"), async (_req, res) => {
   try {

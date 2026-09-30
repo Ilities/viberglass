@@ -1,8 +1,7 @@
 import { ExecutionContext } from "../../types";
-import { JOB_FAILURE_CODE } from "@viberglass/types";
+import { buildFeatureBranchName, JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
 import { failingWith, JobFailureError } from "./JobFailureError";
-import { buildFeatureBranchName } from "../runtime/branchNaming";
 import {
   resolvePullRequestDescription,
   resolvePullRequestTitle,

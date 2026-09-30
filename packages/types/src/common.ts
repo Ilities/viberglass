@@ -24,6 +24,16 @@ export const TICKET_SYSTEMS = [
 
 export type TicketSystem = (typeof TICKET_SYSTEMS)[number]
 
+/** Tasks made in Viberglass itself, rather than taken from a connected system. */
+export const NATIVE_TICKET_ORIGIN = 'native'
+
+/** Where a task, or a space's tasks, come from. */
+export type TicketOrigin = TicketSystem | typeof NATIVE_TICKET_ORIGIN
+
+export function isTicketOrigin(value: unknown): value is TicketOrigin {
+  return value === NATIVE_TICKET_ORIGIN || TICKET_SYSTEMS.some((system) => system === value)
+}
+
 // Auto-fix processing status
 export type AutoFixStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
 

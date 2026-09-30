@@ -3,6 +3,7 @@ import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
+import { usePersonName } from '@/hooks/usePeople'
 import { useSessionEventStream } from '@/hooks/useSessionEventStream'
 import { useSessionPresence } from '@/hooks/useSessionPresence'
 import {
@@ -68,6 +69,7 @@ export function SessionPage() {
   const [replyText, setReplyText] = useState('')
   const [isSending, setIsSending] = useState(false)
   const replyRef = useRef<HTMLTextAreaElement>(null)
+  const personName = usePersonName()
 
   const loadDetail = useCallback(async () => {
     if (!sessionId) return
@@ -198,6 +200,9 @@ export function SessionPage() {
               <Badge color={mb.color}>{mb.label}</Badge>
               <Badge color={sb.color}>{sb.label}</Badge>
               {connected && <span className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500" title="Live" />}
+              {session.createdBy && (
+                <span className="ml-1 text-xs text-[var(--gray-9)]">Started by {personName(session.createdBy)}</span>
+              )}
             </div>
           </div>
 

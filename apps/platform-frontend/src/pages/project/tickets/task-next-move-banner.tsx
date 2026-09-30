@@ -138,7 +138,8 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
               ) : null
             }
           >
-            You can leave this page; it updates when the agent is done.
+            Each run starts in a fresh agent sandbox, which can take a minute or two to start, longer on AWS. You can
+            leave this page; it updates when the agent is done.
           </HandoffCard>
         )
       case 'reply_in_session':

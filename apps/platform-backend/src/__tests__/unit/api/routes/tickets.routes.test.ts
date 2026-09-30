@@ -19,6 +19,9 @@ const mockTicketDAO = {
 const mockProjectDAO = {
   findByName: jest.fn(),
 };
+const mockAgentSessionDAO = {
+  listOpenSessionIdsByTicket: jest.fn(),
+};
 const mockFileUploadService = {
   uploadScreenshot: jest.fn(),
   uploadRecording: jest.fn(),
@@ -64,6 +67,10 @@ jest.mock("../../../../persistence/ticketing/TicketDAO", () => ({
 
 jest.mock("../../../../persistence/project/ProjectDAO", () => ({
   ProjectDAO: jest.fn(() => mockProjectDAO),
+}));
+
+jest.mock("../../../../persistence/agentSession/AgentSessionDAO", () => ({
+  AgentSessionDAO: jest.fn(() => mockAgentSessionDAO),
 }));
 
 jest.mock("../../../../services/FileUploadService", () => ({
@@ -120,6 +127,7 @@ describe("ticket workflow routes", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAgentSessionDAO.listOpenSessionIdsByTicket.mockResolvedValue(new Map());
     app = express();
     app.use(express.json());
     app.use("/api/tasks", ticketsRouter);
@@ -414,6 +422,27 @@ describe("ticket workflow routes", () => {
         workflowPhases: ["research", "planning"],
       }),
     );
+  });
+
+  it("marks tasks that have an open live session in GET /api/tasks", async () => {
+    mockTicketDAO.getTicketsWithFilters.mockResolvedValue({
+      tickets: [{ id: "ticket-live" }, { id: "ticket-quiet" }],
+      total: 2,
+    });
+    mockAgentSessionDAO.listOpenSessionIdsByTicket.mockResolvedValue(
+      new Map([["ticket-live", "session-1"]]),
+    );
+
+    const response = await request(app).get("/api/tasks").expect(200);
+
+    expect(mockAgentSessionDAO.listOpenSessionIdsByTicket).toHaveBeenCalledWith([
+      "ticket-live",
+      "ticket-quiet",
+    ]);
+    expect(response.body.data).toEqual([
+      { id: "ticket-live", liveSessionId: "session-1" },
+      { id: "ticket-quiet" },
+    ]);
   });
 
   it("returns 400 for invalid workflow phase filters on GET /api/tasks", async () => {

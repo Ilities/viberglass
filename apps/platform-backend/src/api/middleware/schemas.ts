@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
+import { JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SUPPORTED_AGENT_TYPES, TICKET_STATUS } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -84,8 +84,8 @@ export const ticketSchema = Joi.object({
     .default([]),
   autoFixRequested: Joi.boolean().default(false),
   ticketSystem: Joi.string()
-    .valid(...ticketSystemIds)
-    .default("custom"),
+    .valid(...ticketSystemIds, NATIVE_TICKET_ORIGIN)
+    .default(NATIVE_TICKET_ORIGIN),
   workflowPhase: Joi.string()
     .valid("research", "planning", "execution")
     .optional(),
@@ -119,8 +119,8 @@ export const archiveTicketsSchema = Joi.object({
 export const projectSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   ticketSystem: Joi.string()
-    .valid(...ticketSystemIds)
-    .default("custom"),
+    .valid(...ticketSystemIds, NATIVE_TICKET_ORIGIN)
+    .default(NATIVE_TICKET_ORIGIN),
   credentials: Joi.object().optional(),
   webhookUrl: Joi.string().uri().allow(null).optional(),
   autoFixEnabled: Joi.boolean().optional(),
