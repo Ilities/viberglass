@@ -97,9 +97,11 @@ function mapSessionUpdate(params: unknown): PlatformSessionEvent[] {
 }
 
 function mapPermissionRequest(params: unknown): PlatformSessionEvent {
+  // ACP names the tool call being asked about in toolCall.title.
+  const toolCall = isRecord(params) && isRecord(params.toolCall) ? params.toolCall : undefined;
   const prompt =
-    isRecord(params) && typeof params.prompt === "string"
-      ? params.prompt
+    typeof toolCall?.title === "string"
+      ? toolCall.title
       : "Agent requested permission (auto-approved).";
 
   return {
