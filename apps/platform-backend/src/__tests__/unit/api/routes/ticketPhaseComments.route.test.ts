@@ -6,6 +6,7 @@ const mockTicketPhaseDocumentCommentService = {
 
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: jest.fn(),
+  requireRole: jest.fn(() => jest.fn()),
 }));
 
 jest.mock("../../../../persistence/ticketing/TicketDAO", () => ({

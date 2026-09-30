@@ -9,6 +9,7 @@ import type {
   SavedModelKey,
   SavedRepository,
   SetupProvider,
+  SetupNextSteps,
   SetupStatus,
 } from '@viberglass/types'
 
@@ -32,6 +33,10 @@ function post(path: string, body: unknown): Promise<Response> {
 
 export async function getSetupStatus(): Promise<SetupStatus> {
   return readData(await apiFetch(`${API_BASE_URL}/api/setup/status`), "Couldn't load the setup status")
+}
+
+export async function getSetupNextSteps(): Promise<SetupNextSteps> {
+  return readData(await apiFetch(`${API_BASE_URL}/api/setup/next-steps`), "Couldn't load the next steps")
 }
 
 export async function getSetupProviders(): Promise<SetupProvider[]> {

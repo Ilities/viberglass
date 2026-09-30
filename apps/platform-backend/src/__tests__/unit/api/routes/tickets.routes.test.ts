@@ -59,6 +59,11 @@ jest.mock("../../../../api/middleware/authentication", () => ({
     _res: express.Response,
     next: express.NextFunction,
   ) => next(),
+  requireRole: () => (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction,
+  ) => next(),
 }));
 
 jest.mock("../../../../persistence/ticketing/TicketDAO", () => ({

@@ -1,1 +1,3 @@
-export type UserRole = "admin" | "member";
+import type { WorkspaceRole } from "@viberglass/types";
+
+export type UserRole = WorkspaceRole;

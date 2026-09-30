@@ -22,6 +22,8 @@ interface AuthContextValue {
   login: (email: string, password: string, remember: boolean) => Promise<AuthUser>
   register: (name: string, email: string, password: string) => Promise<AuthUser>
   logout: () => Promise<void>
+  /** Signs in with a session the server already started, as accepting an invite or a reset link does. */
+  adoptSession: (session: { token: string; user: AuthUser }) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -99,6 +101,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.user)
         setStatus('authenticated')
         return response.user
+      },
+      adoptSession: ({ token, user: signedIn }) => {
+        setStoredAuthToken(token, true)
+        setUser(signedIn)
+        setStatus('authenticated')
       },
       logout: async () => {
         if (!AUTH_ENABLED) {

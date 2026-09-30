@@ -1,7 +1,9 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 
-export type UserRole = 'admin' | 'member'
+import type { WorkspaceRole } from '@viberglass/types'
+
+export type UserRole = WorkspaceRole
 
 export type ManagedUser = {
   id: string
@@ -11,6 +13,7 @@ export type ManagedUser = {
   role: UserRole
   createdAt: string
   updatedAt: string
+  deactivatedAt: string | null
 }
 
 type UserResponse = {
@@ -48,29 +51,6 @@ export async function getUsers(): Promise<ManagedUser[]> {
   return data.users
 }
 
-export async function createUser(input: {
-  email: string
-  name: string
-  password: string
-  role: UserRole
-}): Promise<ManagedUser> {
-  const response = await apiFetch(`${API_BASE_URL}/api/users`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(input),
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(toErrorMessage(error, 'Failed to create user'))
-  }
-
-  const data = (await response.json()) as UserResponse
-  return data.user
-}
-
 export async function updateUserRole(userId: string, role: UserRole): Promise<ManagedUser> {
   const response = await apiFetch(`${API_BASE_URL}/api/users/${userId}/role`, {
     method: 'PATCH',
@@ -87,6 +67,37 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<Ma
 
   const data = (await response.json()) as UserResponse
   return data.user
+}
+
+export function toErrorFromResponse(error: unknown, fallback: string): Error {
+  return new Error(toErrorMessage(error, fallback))
+}
+
+async function postUserAction(userId: string, action: 'deactivate' | 'reactivate', fallback: string): Promise<ManagedUser> {
+  const response = await apiFetch(`${API_BASE_URL}/api/users/${userId}/${action}`, { method: 'POST' })
+  if (!response.ok) {
+    throw toErrorFromResponse(await response.json().catch(() => ({})), fallback)
+  }
+  const data = (await response.json()) as UserResponse
+  return data.user
+}
+
+export function deactivateUser(userId: string): Promise<ManagedUser> {
+  return postUserAction(userId, 'deactivate', 'Failed to deactivate')
+}
+
+export function reactivateUser(userId: string): Promise<ManagedUser> {
+  return postUserAction(userId, 'reactivate', 'Failed to reactivate')
+}
+
+/** A one-time reset link path; shown once, since only its hash is kept. */
+export async function createResetLink(userId: string): Promise<string> {
+  const response = await apiFetch(`${API_BASE_URL}/api/users/${userId}/reset-link`, { method: 'POST' })
+  if (!response.ok) {
+    throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to make a reset link')
+  }
+  const data = (await response.json()) as { path: string }
+  return data.path
 }
 
 export type Person = Pick<ManagedUser, 'id' | 'email' | 'name' | 'avatarUrl'>

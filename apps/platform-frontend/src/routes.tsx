@@ -6,6 +6,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 
 // Auth pages
 import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
+import { AcceptInvitePage } from '@/pages/auth/AcceptInvitePage'
+import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { SetupPage } from '@/pages/setup/SetupPage'
@@ -63,6 +65,8 @@ export function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/invite/:token" element={<AcceptInvitePage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         {/* First-run setup: same focused frame as sign-in, but signed in (admins only) */}
         <Route path="/setup" element={<SetupPage />} />
       </Route>

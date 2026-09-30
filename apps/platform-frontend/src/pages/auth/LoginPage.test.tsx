@@ -37,6 +37,7 @@ beforeEach(() => {
     login,
     register,
     logout: jest.fn(),
+    adoptSession: jest.fn(),
   })
 })
 

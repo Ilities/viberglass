@@ -17,6 +17,7 @@ import {
   validateUuidParam,
 } from "../../middleware/validation";
 import { resolveTicketRouteServiceError } from "./routeErrors";
+import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 
 interface TicketWorkflowPhaseRouteDependencies {
   ticketWorkflowService: TicketWorkflowService;
@@ -459,6 +460,7 @@ export function registerTicketWorkflowPhaseRoutes(
   // POST /api/tasks/:id/phases/research/run - Run research generation
   router.post(
     "/:id/phases/research/run",
+    requireRunnerRole,
     validateUuidParam("id"),
     validateRunTicket,
     async (req, res) => {
@@ -496,6 +498,7 @@ export function registerTicketWorkflowPhaseRoutes(
   // POST /api/tasks/:id/phases/research/revision - Run research revision
   router.post(
     "/:id/phases/research/revision",
+    requireRunnerRole,
     validateUuidParam("id"),
     async (req, res) => {
       try {
@@ -789,6 +792,7 @@ export function registerTicketWorkflowPhaseRoutes(
   // POST /api/tasks/:id/phases/planning/run - Run planning generation
   router.post(
     "/:id/phases/planning/run",
+    requireRunnerRole,
     validateUuidParam("id"),
     validateRunTicket,
     async (req, res) => {
@@ -826,6 +830,7 @@ export function registerTicketWorkflowPhaseRoutes(
   // POST /api/tasks/:id/phases/planning/revision - Run planning revision
   router.post(
     "/:id/phases/planning/revision",
+    requireRunnerRole,
     validateUuidParam("id"),
     async (req, res) => {
       try {

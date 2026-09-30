@@ -1,11 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 
-const mockRequireAdmin = jest.fn(
-  (_req: Request, res: Response, _next: NextFunction) => res.status(403).json({ error: "Forbidden" }),
-);
-
+// requireRole stand-in: the caller's role comes from a test header.
 jest.mock("../../../../api/middleware/authentication", () => ({
-  requireRole: jest.fn(() => mockRequireAdmin),
+  requireRole: (required: string | string[]) => {
+    const roles = Array.isArray(required) ? required : [required];
+    return (req: Request, res: Response, next: NextFunction) =>
+      roles.includes(String(req.headers["x-role"])) ? next() : res.status(403).json({ error: "Forbidden" });
+  },
 }));
 
 import express from "express";
@@ -19,25 +20,26 @@ function appWith(middleware: express.RequestHandler): express.Express {
 }
 
 describe("adminOnlyChanges", () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it("lets anyone read", async () => {
-    await request(appWith(adminOnlyChanges())).get("/api/things/1").expect(200);
-
-    expect(mockRequireAdmin).not.toHaveBeenCalled();
+  it("lets admins, members and viewers read, not guests", async () => {
+    const app = appWith(adminOnlyChanges());
+    await request(app).get("/api/things/1").set("x-role", "admin").expect(200);
+    await request(app).get("/api/things/1").set("x-role", "member").expect(200);
+    await request(app).get("/api/things/1").set("x-role", "guest").expect(403);
+    await request(app).get("/api/things/1").set("x-role", "viewer").expect(200);
   });
 
   it("requires an admin for changes", async () => {
-    await request(appWith(adminOnlyChanges())).delete("/api/things/1").expect(403);
-    await request(appWith(adminOnlyChanges())).post("/api/things").expect(403);
-
-    expect(mockRequireAdmin).toHaveBeenCalledTimes(2);
+    const app = appWith(adminOnlyChanges());
+    await request(app).delete("/api/things/1").set("x-role", "member").expect(403);
+    await request(app).post("/api/things").set("x-role", "member").expect(403);
+    await request(app).post("/api/things").set("x-role", "admin").expect(200);
   });
 
-  it("leaves exempt paths open for changes", async () => {
+  it("lets members change exempt paths, but not guests", async () => {
     const app = appWith(adminOnlyChanges({ exemptPathPrefixes: ["/space/"] }));
 
-    await request(app).post("/api/things/space/p-1/link").expect(200);
-    await request(app).post("/api/things/int-1/credentials").expect(403);
+    await request(app).post("/api/things/space/p-1/link").set("x-role", "member").expect(200);
+    await request(app).post("/api/things/space/p-1/link").set("x-role", "guest").expect(403);
+    await request(app).post("/api/things/int-1/credentials").set("x-role", "member").expect(403);
   });
 });

@@ -26,14 +26,15 @@ function getRouteHandlers(path: string, method: string): Array<(...args: unknown
 
 describe("users route auth boundaries", () => {
   it("requires admin role on all user management endpoints", () => {
-    expect(requireRoleMock).toHaveBeenCalledTimes(3);
-    expect(requireRoleMock).toHaveBeenNthCalledWith(1, "admin");
-    expect(requireRoleMock).toHaveBeenNthCalledWith(2, "admin");
-    expect(requireRoleMock).toHaveBeenNthCalledWith(3, "admin");
+    expect(requireRoleMock).toHaveBeenCalledTimes(6);
+    for (const call of requireRoleMock.mock.calls) expect(call).toEqual(["admin"]);
 
     expect(getRouteHandlers("/", "get")).toContain(adminRoleMiddleware);
     expect(getRouteHandlers("/:id/role", "patch")).toContain(adminRoleMiddleware);
     expect(getRouteHandlers("/", "post")).toContain(adminRoleMiddleware);
+    expect(getRouteHandlers("/:id/deactivate", "post")).toContain(adminRoleMiddleware);
+    expect(getRouteHandlers("/:id/reactivate", "post")).toContain(adminRoleMiddleware);
+    expect(getRouteHandlers("/:id/reset-link", "post")).toContain(adminRoleMiddleware);
   });
 
   it("lets any signed-in user read the people directory", () => {

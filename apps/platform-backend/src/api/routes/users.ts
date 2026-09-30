@@ -9,9 +9,13 @@ import { requireAuth, requireRole } from "../middleware/authentication";
 import type { UserRole } from "../../persistence/types/user";
 import { hashPassword, normalizeEmail } from "../auth/utils";
 import logger from "../../config/logger";
+import { UserActivationService } from "../../services/people/UserActivationService";
+import { PasswordResetService } from "../../services/people/PasswordResetService";
 
 const router = express.Router();
 const userDao = new UserDAO();
+const userActivation = new UserActivationService(userDao);
+const passwordResets = new PasswordResetService();
 
 function buildUserResponse(user: PublicUser) {
   return {
@@ -23,6 +27,7 @@ function buildUserResponse(user: PublicUser) {
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      deactivatedAt: user.deactivatedAt,
     },
   };
 }
@@ -37,6 +42,7 @@ function buildUsersResponse(users: PublicUser[]) {
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      deactivatedAt: user.deactivatedAt,
     })),
   };
 }
@@ -86,8 +92,8 @@ router.patch(
         return res.json(buildUserResponse(targetUser));
       }
 
-      if (targetUser.role === "admin" && role === "member") {
-        const adminCount = await userDao.countByRole("admin");
+      if (targetUser.role === "admin" && role !== "admin" && !targetUser.deactivatedAt) {
+        const adminCount = await userDao.countActiveAdmins();
         if (adminCount <= 1) {
           return res.status(400).json({
             error: "At least one admin is required",
@@ -109,6 +115,33 @@ router.patch(
     }
   },
 );
+
+router.post("/:id/deactivate", requireRole("admin"), validateUuidParam("id"), async (req, res, next) => {
+  try {
+    const user = await userActivation.deactivate(req.params.id, req.authContext!.user.id);
+    res.json(buildUserResponse(user));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/:id/reactivate", requireRole("admin"), validateUuidParam("id"), async (req, res, next) => {
+  try {
+    res.json(buildUserResponse(await userActivation.reactivate(req.params.id)));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// The link is returned only here; only its hash is stored.
+router.post("/:id/reset-link", requireRole("admin"), validateUuidParam("id"), async (req, res, next) => {
+  try {
+    const token = await passwordResets.createLink(req.params.id, req.authContext!.user.id);
+    res.status(201).json({ path: `/reset-password/${token}` });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.post("/", requireRole("admin"), validateCreateUser, async (req, res) => {
   try {

@@ -9,6 +9,7 @@ import {
   validateUuidParam,
 } from "../../middleware/validation";
 import { resolveTicketRouteServiceError } from "./routeErrors";
+import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 
 interface TicketExecutionRouteDependencies {
   ticketExecutionService: TicketExecutionService;
@@ -45,6 +46,7 @@ export function registerTicketExecutionRoutes(
   // POST /api/tasks/:id/run - Run a ticket as a job with worker invocation
   router.post(
     "/:id/run",
+    requireRunnerRole,
     validateUuidParam("id"),
     validateRunTicket,
     async (req, res) => {
@@ -81,6 +83,7 @@ export function registerTicketExecutionRoutes(
   // POST /api/tasks/:id/workflow/override-to-execution - Explicitly bypass research/planning gate
   router.post(
     "/:id/workflow/override-to-execution",
+    requireRunnerRole,
     validateUuidParam("id"),
     async (req, res) => {
       try {

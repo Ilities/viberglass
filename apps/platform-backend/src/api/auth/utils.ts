@@ -52,6 +52,20 @@ export function createSessionToken(): {
   };
 }
 
+/** A token for a link that works once (invites, password resets); store only its hash. */
+export function createSingleUseToken(ttlMs: number): {
+  token: string;
+  tokenHash: string;
+  expiresAt: Date;
+} {
+  const token = randomBytes(32).toString("base64url");
+  return {
+    token,
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + ttlMs),
+  };
+}
+
 export function getAuthToken(req: Request): string | null {
   const header = req.get("Authorization");
   if (header?.startsWith("Bearer ")) {

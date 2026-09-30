@@ -20,6 +20,8 @@ import secretsRouter from "./routes/secrets";
 import setupRouter from "./routes/setup";
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
+import invitesRouter from "./routes/invites";
+import accountLinksRouter from "./routes/accountLinks";
 import clawRouter from "./routes/claw";
 import agentSessionsRouter from "./routes/agentSessions";
 import promptTemplatesRouter from "./routes/promptTemplates";
@@ -38,6 +40,7 @@ import mcpRouter from "./routes/mcp";
 import { tracingMiddleware } from "./middleware/tracing";
 import { requireRole } from "./middleware/authentication";
 import { adminOnlyChanges } from "./middleware/adminOnlyChanges";
+import { refuseViewerChanges, requireRunnerRole, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
 
 function resolvePublicDirectory(): string {
   const cwd = process.cwd();
@@ -152,6 +155,7 @@ app.use(
 
 app.use(passport.initialize());
 app.use(attachAuthContext);
+app.use(refuseViewerChanges);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -172,7 +176,7 @@ app.get("/", (req, res) => {
 });
 
 // API routes
-app.use("/api/spaces", projectsRouter);
+app.use("/api/spaces", runnerOnlyChanges(), projectsRouter);
 // Space links stay open: linking an integration is space configuration.
 app.use(
   "/api/integrations",
@@ -189,7 +193,9 @@ app.use("/api/secrets", requireRole("admin"), secretsRouter);
 app.use("/api/setup", requireRole("admin"), setupRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
-app.use("/api/claw", clawRouter);
+app.use("/api/invites", requireRole("admin"), invitesRouter);
+app.use("/api/account-links", accountLinksRouter);
+app.use("/api/claw", requireRunnerRole, clawRouter);
 app.use("/api/agent-sessions", agentSessionsRouter);
 app.use("/api/prompt-templates", adminOnlyChanges(), promptTemplatesRouter);
 app.use("/api/api-tokens", apiTokensRouter);

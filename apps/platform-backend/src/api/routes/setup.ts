@@ -17,6 +17,7 @@ import { SetupRepositoryService } from "../../services/setup/SetupRepositoryServ
 import { SetupSpaceService } from "../../services/setup/SetupSpaceService";
 import { SetupAgentService } from "../../services/setup/SetupAgentService";
 import { SetupStatusService } from "../../services/setup/SetupStatusService";
+import { SetupNextStepsService } from "../../services/setup/SetupNextStepsService";
 import { DemoWorkspaceService } from "../../services/demo/DemoWorkspaceService";
 import { isModelProviderAvailable } from "../../services/setup/modelProviderAvailability";
 
@@ -26,6 +27,7 @@ const repositoryService = new SetupRepositoryService();
 const spaceService = new SetupSpaceService();
 const agentService = new SetupAgentService();
 const statusService = new SetupStatusService();
+const nextStepsService = new SetupNextStepsService();
 const demoService = new DemoWorkspaceService();
 
 router.use(requireAuth);
@@ -43,6 +45,14 @@ router.get(
   "/status",
   asyncHandler(async (_req, res) => {
     res.json({ success: true, data: await statusService.getStatus() });
+  }),
+);
+
+// GET /api/setup/next-steps - The admin home checklist after setup
+router.get(
+  "/next-steps",
+  asyncHandler(async (_req, res) => {
+    res.json({ success: true, data: await nextStepsService.getNextSteps() });
   }),
 );
 
