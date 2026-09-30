@@ -6,8 +6,9 @@ import { Database } from "../types/database";
 dotenv.config();
 
 /**
- * Parse DATABASE_URL connection string into connection config
- * Format: postgresql://username:password@hostname:port/database
+ * Parse DATABASE_URL connection string into connection config.
+ * Uses the URL API so percent-encoded credentials (e.g. a ":" inside a
+ * generated password) are decoded correctly.
  */
 function parseDatabaseUrl(url: string): {
   host: string;
@@ -17,29 +18,17 @@ function parseDatabaseUrl(url: string): {
   password: string;
 } {
   try {
-    // Remove protocol prefix
-    const withoutProtocol = url.replace(/^postgresql:\/\//, "");
-    
-    // Split auth part from host part
-    const [authPart, hostPart] = withoutProtocol.split("@");
-    
-    if (!authPart || !hostPart) {
-      throw new Error("Invalid DATABASE_URL format: missing @ separator");
+    const parsed = new URL(url);
+    if (!parsed.hostname) {
+      throw new Error("missing host");
     }
-    
-    // Parse credentials
-    const [user, password] = authPart.split(":");
-    
-    // Parse host, port, and database
-    const [hostAndPort, database] = hostPart.split("/");
-    const [host, portStr] = hostAndPort.split(":");
-    
+
     return {
-      host: host || "localhost",
-      port: parseInt(portStr || "5432"),
-      database: database || "viberglass",
-      user: user || "postgres",
-      password: password || "",
+      host: parsed.hostname,
+      port: parseInt(parsed.port || "5432"),
+      database: decodeURIComponent(parsed.pathname.slice(1)) || "viberglass",
+      user: decodeURIComponent(parsed.username) || "postgres",
+      password: decodeURIComponent(parsed.password),
     };
   } catch (error) {
     console.error("Failed to parse DATABASE_URL:", error);
