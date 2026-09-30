@@ -49,8 +49,8 @@ export function RunTicketModal({
 
   const selectedClanker = activeClankers.find((clanker) => clanker.id === selectedClankerId) ?? null
   const noClankersMessage = configuredClankers.length > 0
-    ? `You have ${configuredClankers.length} configured clanker${configuredClankers.length === 1 ? '' : 's'}, but none are "started". The ECS task definition, container, or Lambda isn't deployed depending on the type.`
-    : 'No clankers are configured yet. Configure and start one before running this ticket.'
+    ? `You have ${configuredClankers.length} configured agent${configuredClankers.length === 1 ? '' : 's'}, but none are "started". The ECS task definition, container, or Lambda isn't deployed depending on the type.`
+    : 'No agents are configured yet. Configure and start one before running this task.'
 
   // Reset selection when modal opens with new ticket
   // (handled by parent re-mounting or passing key)
@@ -70,7 +70,7 @@ export function RunTicketModal({
           mode,
           initialMessage: extraInstructions.trim() || `Start ${mode}`,
         })
-        navigate(`/project/${project}/sessions/${session.session.id}`)
+        navigate(`/spaces/${project}/sessions/${session.session.id}`)
         onClose()
         return
       }
@@ -98,16 +98,16 @@ export function RunTicketModal({
                 : `Running "${ticket.title}" with ${selectedClanker.name}`,
           action: {
             label: 'View run',
-            onClick: () => navigate(`/project/${project}/jobs/${jobId}`),
+            onClick: () => navigate(`/spaces/${project}/tasks/${ticket.id}?run=${jobId}`),
           },
         }
       )
 
-      navigate(`/project/${project}/jobs/${jobId}`)
+      navigate(`/spaces/${project}/tasks/${ticket.id}?run=${jobId}`)
       onClose()
     } catch (error) {
-      console.error('Failed to run ticket:', error)
-      toast.error('Failed to start job', {
+      console.error('Failed to run task:', error)
+      toast.error('Failed to start run', {
         description: error instanceof Error ? error.message : 'Unknown error',
       })
       setIsRunning(false)
@@ -127,7 +127,7 @@ export function RunTicketModal({
       </DialogTitle>
       <DialogDescription>
         {mode === 'research'
-          ? 'Choose how you want to work through this ticket.'
+          ? 'Choose how you want to work through this task.'
           : mode === 'planning'
             ? 'Choose whether the agent should plan automatically or collaborate with you.'
             : 'Start an automated execution or collaborate with the agent.'}
@@ -136,7 +136,7 @@ export function RunTicketModal({
         <div className="space-y-6">
           {/* Ticket Info (read-only display) */}
           <div>
-            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Ticket</h4>
+            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">Task</h4>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{ticket.title}</p>
             {ticket.description && (
               <p className="mt-2 line-clamp-3 text-sm text-zinc-500 dark:text-zinc-500">{ticket.description}</p>
@@ -162,17 +162,17 @@ export function RunTicketModal({
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
                 <p className="text-sm text-zinc-700 dark:text-zinc-300">{noClankersMessage}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button href="/clankers" color="brand">
-                    Configure Clankers
+                  <Button href="/settings/agents" color="brand">
+                    Configure Agents
                   </Button>
                   {firstConfiguredClanker && (
-                    <Button href={`/clankers/${firstConfiguredClanker.slug}/edit`} outline>
-                      Open Clanker Configuration
+                    <Button href={`/settings/agents/${firstConfiguredClanker.slug}/edit`} outline>
+                      Open Agent Configuration
                     </Button>
                   )}
                   {firstConfiguredClanker && (
-                    <Button href={`/clankers/${firstConfiguredClanker.slug}`} outline>
-                      View Clanker Status
+                    <Button href={`/settings/agents/${firstConfiguredClanker.slug}`} outline>
+                      View Agent Status
                     </Button>
                   )}
                 </div>
@@ -190,7 +190,7 @@ export function RunTicketModal({
               onChange={(event) => setExtraInstructions(event.target.value)}
               rows={5}
               className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="Add temporary instructions for this job..."
+              placeholder="Add temporary instructions for this run..."
             />
           </div>
         </div>

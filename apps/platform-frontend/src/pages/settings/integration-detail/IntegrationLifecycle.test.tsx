@@ -47,7 +47,7 @@ describe('RemoveIntegrationSection', () => {
 
   it('shows which projects block removal', async () => {
     mockDelete.mockRejectedValue(
-      new Error('This integration is used by UX Walkthrough. Remove it from that project first.'),
+      new Error('This integration is used by UX Walkthrough. Remove it from that space first.'),
     )
     const onRemoved = jest.fn()
     render(

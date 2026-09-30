@@ -20,7 +20,7 @@ export function IntegrationDetailErrorState({ message }: IntegrationDetailErrorS
         <ExclamationTriangleIcon className="mx-auto size-12 text-red-500" />
         <h2 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-400">Failed to Load Integration</h2>
         <p className="mt-2 text-red-700 dark:text-red-300">{message}</p>
-        <Button href="/settings/integrations" color="brand" className="mt-6">
+        <Button href="/settings/connections" color="brand" className="mt-6">
           Back to Integrations
         </Button>
       </div>
@@ -35,7 +35,7 @@ export function IntegrationDetailNotFoundState() {
         <ExclamationTriangleIcon className="mx-auto size-12 text-red-500" />
         <h2 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-400">Integration Not Found</h2>
         <p className="mt-2 text-red-700 dark:text-red-300">The integration you are looking for does not exist.</p>
-        <Button href="/settings/integrations" color="brand" className="mt-6">
+        <Button href="/settings/connections" color="brand" className="mt-6">
           Back to Integrations
         </Button>
       </div>

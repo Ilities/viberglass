@@ -105,9 +105,9 @@ function renderPage() {
   return render(
     <HelmetProvider>
       <Theme>
-        <MemoryRouter initialEntries={['/project/viberglass/settings']}>
+        <MemoryRouter initialEntries={['/spaces/viberglass/settings']}>
           <Routes>
-            <Route path="/project/:project/settings" element={<ProjectSettingsPage />} />
+            <Route path="/spaces/:project/settings" element={<ProjectSettingsPage />} />
           </Routes>
         </MemoryRouter>
       </Theme>
@@ -324,7 +324,7 @@ describe('ProjectSettingsPage', () => {
       })
     })
 
-    expect(screen.getByText('Project settings saved.')).toBeInTheDocument()
+    expect(screen.getByText('Space settings saved.')).toBeInTheDocument()
   })
 
   it('deletes SCM config when SCM integration is cleared and form is submitted', async () => {

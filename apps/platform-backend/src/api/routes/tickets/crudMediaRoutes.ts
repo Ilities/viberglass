@@ -161,7 +161,7 @@ export function registerTicketCrudMediaRoutes(
     integrationDAO,
   }: TicketCrudMediaRouteDependencies,
 ): void {
-  // POST /api/tickets - Create a new ticket
+  // POST /api/tasks - Create a new ticket
   router.post(
     "/",
     upload.fields([
@@ -235,7 +235,7 @@ export function registerTicketCrudMediaRoutes(
   // Apply multer error handler to the route
   router.use("/", handleMulterError);
 
-  // GET /api/tickets/stats - Get ticket stats (optionally by project)
+  // GET /api/tasks/stats - Get ticket stats (optionally by project)
   router.get("/stats", async (req, res) => {
     try {
       const projectId = req.query.projectId as string | undefined;
@@ -274,7 +274,7 @@ export function registerTicketCrudMediaRoutes(
     }
   });
 
-  // GET /api/tickets/media/:mediaId/content - Stream media content
+  // GET /api/tasks/media/:mediaId/content - Stream media content
   router.get(
     "/media/:mediaId/content",
     validateUuidParam("mediaId"),
@@ -339,7 +339,7 @@ export function registerTicketCrudMediaRoutes(
     },
   );
 
-  // POST /api/tickets/archive - Archive multiple tickets
+  // POST /api/tasks/archive - Archive multiple tickets
   router.post("/archive", validateArchiveTickets, async (req, res) => {
     try {
       const updatedCount = await ticketService.archiveTickets(
@@ -360,7 +360,7 @@ export function registerTicketCrudMediaRoutes(
     }
   });
 
-  // POST /api/tickets/unarchive - Unarchive multiple tickets
+  // POST /api/tasks/unarchive - Unarchive multiple tickets
   router.post("/unarchive", validateArchiveTickets, async (req, res) => {
     try {
       const updatedCount = await ticketService.unarchiveTickets(
@@ -381,7 +381,7 @@ export function registerTicketCrudMediaRoutes(
     }
   });
 
-  // GET /api/tickets/:id - Get a specific ticket
+  // GET /api/tasks/:id - Get a specific ticket
   router.get("/:id", validateUuidParam("id"), async (req, res) => {
     try {
       const ticket = await ticketService.getTicket(req.params.id);
@@ -407,7 +407,7 @@ export function registerTicketCrudMediaRoutes(
     }
   });
 
-  // PUT /api/tickets/:id - Update a ticket
+  // PUT /api/tasks/:id - Update a ticket
   router.put(
     "/:id",
     validateUuidParam("id"),
@@ -441,7 +441,7 @@ export function registerTicketCrudMediaRoutes(
     },
   );
 
-  // DELETE /api/tickets/:id - Delete a ticket
+  // DELETE /api/tasks/:id - Delete a ticket
   router.delete("/:id", validateUuidParam("id"), async (req, res) => {
     try {
       const deleted = await ticketService.deleteTicket(req.params.id);
@@ -467,7 +467,7 @@ export function registerTicketCrudMediaRoutes(
     }
   });
 
-  // GET /api/tickets - Get tickets, optionally filtered by project
+  // GET /api/tasks - Get tickets, optionally filtered by project
   router.get("/", async (req, res) => {
     try {
       const projectId = req.query.projectId as string;
@@ -569,7 +569,7 @@ export function registerTicketCrudMediaRoutes(
     }
   });
 
-  // GET /api/tickets/:id/media/:mediaId/signed-url - Get signed URL for media access
+  // GET /api/tasks/:id/media/:mediaId/signed-url - Get signed URL for media access
   router.get(
     "/:id/media/:mediaId/signed-url",
     validateUuidParam("id"),

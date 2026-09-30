@@ -84,6 +84,18 @@ Rough size: 4–6 weeks. The naming migration and notifications are the biggest 
 
 ### 2.1 Naming: Space and Task in routes, API and copy (ADR 0004)
 
+**Done (2026-09-30), without redirects or aliases** (Jussi: nobody uses the app yet, so old links and API paths simply go):
+- **UI routes:** `/spaces/:space/{tasks,tasks/new,tasks/:id,runs,runs/:id,sessions/:id,schedules,settings/{general,connections,prompt-templates}}`, `/spaces/new`, `/pulse`, and workspace settings at `/settings/{agents,secrets,connections,members,…}`. The route param is still `:project` internally.
+- **API:** `/api/spaces`, `/api/tasks`, `/api/integrations/space/:id/…`. `/api/jobs` and `/api/clankers` keep their names: published worker images call the jobs callbacks.
+- **MCP tools:** `space_list`, `agent_list`, `task_{list,create,get,trigger,review,review_approve,review_revoke,review_comment}`, with `spaceId` / `taskId` / `agentId` parameters.
+- **Also:** the Chrome extension (its "open task" link pointed at a `/tickets/:id` route that never existed), Slack task links, readiness fix links, and visible copy (Project → Space, Ticket → Task, Job → Run, Clanker → Agent; other tools' "Jira project" or "Shortcut project" keep their names). The Slack command and bot are still `/viberator` and `@Viberator`: renaming them is a change in Slack's app settings.
+- Not changed: database and internal code names, and JSON field names such as `projectId` and `ticketId` (ADR 0004 allows moving them gradually).
+- Verified: backend 837 and frontend 146 unit tests, the full smoke suite (18/18), and the renamed pages in the dev stack.
+- Known: `packages/mcp-server` already failed `tsc` with TS2589 (deep zod types in the MCP SDK) before this change; it builds with tsup.
+
+The original plan follows.
+
+
 - **Exists:**
   - UI copy says "Space" in most places, about 148 hits.
   - "Project" (about 53) and "Ticket" (about 81) remain.
@@ -395,12 +407,23 @@ From `next-steps-handover.md` §1.3, still relevant here:
   - Research and plan documents should render as markdown (with §2.8).
   - Demo task cards say "3m ago" (tasks are stamped at load time).
   - Slugs drop dots, and the breadcrumb shows the slug instead of the space name (fold into §2.1).
+- **Done (2026-09-30), UI pass:**
+  - Quick win #2: the dashboard, space home, agents page and sidebar use plain copy and the Space/Task names (URLs unchanged until §2.1). The dashboard gives each space one next step ("View tasks", "Connect repository"…); ASCII art and Hitchhiker's copy are gone from working screens (loading messages kept). FR3's competing CTAs are gone.
+  - Quick win #3: the SCM dropdown says "Select a connection…" when connections exist.
+  - **Run page redesigned** (`pages/project/jobs/`): the task's title, an Activity view in three steps (preparing, agent working with its work folded into chips such as "read 14 files", finishing), and a "your move" card at the end that makes the next move from the run page: cancel while running; approve research and start planning; approve the plan; try again or run again; the build stays on the task, where its target is confirmed. Prompt and raw log are tabs; a right column has the run's facts and the task's other runs. Job detail now returns `agentSessionId` (from the turn; `jobs.agent_session_id` is never written) and the task's current `workflowPhase`. Journey: `run-page-next-steps.e2e.test.ts`.
+- **Done (2026-09-30): task and run screens merged.** The task page is where runs live: each phase shows its document, then its runs (`tickets/phase-run.tsx`: a run switcher, the three-step Activity, Prompt and Raw log, and the "your move" card), with the task's facts, "Runs on this task" and past sessions in a sticky right column. A run link (`/runs/:id`) for a task's run opens the task at `?run=:id`, scrolled to it; the standalone run page is left for runs without a task (schedules). Approval moved onto the run's card (`ApprovePhaseButton`, so open comments still warn); a phase without runs (a hand-written document) keeps the old approve button. Removed as dead: `phase-logs.tsx`, `research-document-panel.tsx`, `planning-document-panel.tsx` and unused `phase-document-ui` helpers. Verified by the smoke suite (18/18) and in the dev stack.
+- **Done (2026-09-30): task page redesigned after a UX walkthrough** (screenshots of every state: not started, failed, plan in review, PR open). The walkthrough found the next move at the bottom of the page, one status worded five ways, up to five nested boxes, and the same actions in several places under different names. Now:
+  - **The next move is a banner under the title**, with one primary action (`task-next-move.ts` decides it from the task, its runs, documents and live session; `task-next-move-banner.tsx` shows it). It replaces the run card, the PR banner and the document-header run buttons.
+  - **A stepper, Research · Plan · Build**, shows one step at a time (`?step=`); its labels come from the same next move, so they can't disagree with the banner.
+  - **Each step has three views, Document · Runs · Comments** (`?view=`), so a long document never buries the runs (Jussi, 2026-09-30). Runs are one-line entries that open to what the agent did, the prompt and the raw log; a run's link (and the banner's "See what happened") opens Runs with that run open. Comments is the line-by-line view for comments and suggested wording, with the open count on its tab. The work summary under "Agent working" is plain text with one link to the raw log, since its chips looked like links to things they didn't open.
+  - **"Actions ▾"**, a visible outline button, replaces the "⋯" icon.
+  - **The right column** has Details and one History of runs and sessions. The "⋯" menu holds housekeeping only (edit details, copy ID, skip to the build, mark as done or reopen, delete). The task page no longer repeats the demo notice.
+  - Manual "Submit for review" and "Mark as open" are gone: task status is derived (Phase 0), so setting it by hand only fought that. Mark as done and Reopen stay.
+  - Removed: `TicketPhaseView`, `phase-section`, `phase-header`, `phase-run`, `phase-activity`, `jobs/task-runs`. Still unused and kept for a decision: `phase-document-revision-history.tsx` (earlier versions of a document).
 - **Remaining quick wins:**
-  - #2 also covers the empty dashboard ("Command Deck", FR3's competing CTAs), still shown to members and to admins who skipped setup.
+  - ~~#11: the duplicate GitHub token under outbound feedback.~~ **Done (2026-09-30).** GitHub feedback posts with the connection's default token credential (`IntegrationCredentialTokenSource`, chosen per provider by `FeedbackProviderBehavior.usesIntegrationCredential()`); a token stored on older feedback settings is still used when the connection has no default token credential. The field is gone from the GitHub feedback section, and its dead copy in the app was removed (its tests now render the package's section; the frontend Jest config maps workspace UI packages to their source). Unit-tested; not checked against a real GitHub issue. The dev database's `GITHUB_TOKEN` credential isn't marked default, so it would still fall back.
   - #14: execution confirmation naming the branch and repository.
   - #6/16: names instead of emails. Largely solved by attributed users in §2.4, §2.5 and §2.7.
   - #8: a "● Live" badge on tasks (§3.4).
-  - #2: glossary copy (§2.1).
-  - #3: the SCM dropdown placeholder.
-  - #11: the duplicate GitHub token field.
+  - #2: glossary copy beyond the dashboard, space home and nav (§2.1).
   - #17: deleting branches of failed or cancelled runs.

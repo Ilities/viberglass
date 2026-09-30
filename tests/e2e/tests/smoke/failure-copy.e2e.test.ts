@@ -1,12 +1,12 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { E2E } from "../../playwright/e2eEnvironment";
-import { createTask, runStatus, startResearch } from "../../playwright/tasks";
+import { createTask, runStatus, shownRunId, startResearch } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
 /** Opens a run page, retrying loads aborted by a container start (ERR_NETWORK_CHANGED). */
 async function openRun(page: Page, projectSlug: string, jobId: string, heading: string) {
   await expect(async () => {
-    await page.goto(`/project/${projectSlug}/jobs/${jobId}`);
+    await page.goto(`/spaces/${projectSlug}/runs/${jobId}`);
     await expect(page.getByRole("heading", { name: heading })).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
 }
@@ -19,13 +19,13 @@ async function createSpaceWithMissingRepository(api: APIRequestContext) {
   if (!github) throw new Error("The seeded GitHub integration is missing");
 
   const created = await (
-    await api.post("/api/projects", { data: { name: `Broken Space ${Date.now()}` } })
+    await api.post("/api/spaces", { data: { name: `Broken Space ${Date.now()}` } })
   ).json();
   const project = created?.data ?? created;
-  await api.post(`/api/integrations/project/${project.id}/link`, {
+  await api.post(`/api/integrations/space/${project.id}/link`, {
     data: { integrationId: github.id, isPrimary: true },
   });
-  const configured = await api.put(`/api/projects/${project.id}/scm-config`, {
+  const configured = await api.put(`/api/spaces/${project.id}/scm-config`, {
     data: {
       integrationId: github.id,
       sourceRepository: E2E.workerReachableRepositoryUrl.replace("fixture.git", "missing.git"),
@@ -47,14 +47,21 @@ test("an agent failure invites a retry instead of a setup fix", async ({
 
   await openRun(page, workspace.projectSlug, jobId, "Agent failed");
   await expect(page.getByText("The agent stopped with an error before finishing.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Try again from the task" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /^(Fix|Check)/ })).toHaveCount(0);
+  // The run's card offers a retry, not a setup fix (the task page's readiness banner is separate).
+  await expect(page.getByRole("region", { name: "The research failed" }).getByRole("link", { name: /^(Fix|Check)/ })).toHaveCount(0);
+
+  // Trying again starts a new run straight from the run page, and opens it.
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page).not.toHaveURL(new RegExp(jobId));
+  await expect(page).toHaveURL(/run=job_/);
+  const retryJobId = shownRunId(page.url());
+  await expect.poll(() => runStatus(adminApi, retryJobId), { timeout: 90_000 }).toBe("failed");
 
   // The Runs list says why, and so does the phase.
-  await page.goto(`/project/${workspace.projectSlug}/jobs`);
-  await expect(page.getByRole("row", { name: /Agent failed/ })).toBeVisible();
-  await page.goto(`/project/${workspace.projectSlug}/tickets/${task.id}`);
-  await expect(page.getByRole("button", { name: /^1\s*Research/ })).toContainText("Failed: Agent failed");
+  await page.goto(`/spaces/${workspace.projectSlug}/runs`);
+  await expect(page.getByRole("row", { name: /Agent failed/ }).first()).toBeVisible();
+  await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
+  await expect(page.getByRole("tab", { name: /^Research/ })).toContainText("Failed");
 });
 
 test("an agent that writes no document is told apart from other failures", async ({
@@ -83,7 +90,7 @@ test("a setup failure sends admins to the fix and tells members an admin is need
   await openRun(adminPage, space.projectSlug, jobId, "Repository not reachable");
   await expect(adminPage.getByRole("link", { name: "Fix repository settings" })).toHaveAttribute(
     "href",
-    `/project/${space.projectSlug}/settings`,
+    `/spaces/${space.projectSlug}/settings`,
   );
 
   await openRun(memberPage, space.projectSlug, jobId, "Repository not reachable");

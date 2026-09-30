@@ -20,7 +20,7 @@ export function JiraOutboundWebhookSection({
   onOutboundApiTokenChange,
   onSaveOutboundWebhook,
 }: JiraOutboundWebhookSectionProps) {
-  const issuePreview = projectMapping ? `${projectMapping}-123` : 'Resolved from inbound ticket metadata'
+  const issuePreview = projectMapping ? `${projectMapping}-123` : 'Resolved from inbound task metadata'
   const saveDisabled = isSavingWebhook || (!outboundWebhook && outboundApiToken.trim().length === 0)
 
   return (
@@ -34,7 +34,7 @@ export function JiraOutboundWebhookSection({
       </div>
       <Subheading>Jira Feedback</Subheading>
       <Text className="text-sm text-[var(--gray-9)]">
-        Publish job lifecycle feedback back to the originating Jira issue.
+        Publish run lifecycle feedback back to the originating Jira issue.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
@@ -48,7 +48,7 @@ export function JiraOutboundWebhookSection({
         </div>
         {!projectMapping && (
           <p className="mt-2 text-xs text-warning-700 dark:text-warning-400">
-            Save an inbound Jira project key to strengthen project-scoped outbound config matching.
+            Save an inbound Jira project key to strengthen space-scoped outbound config matching.
           </p>
         )}
       </div>

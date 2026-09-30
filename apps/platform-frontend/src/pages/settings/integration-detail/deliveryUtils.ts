@@ -19,7 +19,7 @@ export function useProjectSlugMap(projects: ProjectWithSlug[] | null | undefined
 
 /**
  * Returns a function to generate ticket URLs from delivery data
- * URLs are in format: /project/{slug}/tickets/{ticketId}
+ * URLs are in format: /spaces/{slug}/tasks/{ticketId}
  */
 export function useTicketUrlBuilder(
   projects: ProjectWithSlug[] | null | undefined
@@ -31,7 +31,7 @@ export function useTicketUrlBuilder(
       if (!delivery.ticketId || !delivery.projectId) return null
       const slug = projectSlugMap.get(delivery.projectId)
       if (!slug) return null
-      return `/project/${slug}/tickets/${delivery.ticketId}`
+      return `/spaces/${slug}/tasks/${delivery.ticketId}`
     },
     [projectSlugMap]
   )

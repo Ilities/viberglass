@@ -155,7 +155,7 @@ router.post(
 // ============================================================================
 
 router.get(
-  "/project/:projectId",
+  "/space/:projectId",
   withRouteErrorHandling(
     "Error fetching project integrations",
     async (req, res) => {
@@ -172,7 +172,7 @@ router.get(
 );
 
 router.post(
-  "/project/:projectId/link",
+  "/space/:projectId/link",
   withRouteErrorHandling(
     "Error linking integration to project",
     async (req, res) => {
@@ -190,7 +190,7 @@ router.post(
 );
 
 router.delete(
-  "/project/:projectId/link/:integrationId",
+  "/space/:projectId/link/:integrationId",
   withRouteErrorHandling(
     "Error unlinking integration from project",
     async (req, res) => {
@@ -204,7 +204,7 @@ router.delete(
 );
 
 router.put(
-  "/project/:projectId/primary/:integrationId",
+  "/space/:projectId/primary/:integrationId",
   withRouteErrorHandling(
     "Error setting primary integration",
     async (req, res) => {

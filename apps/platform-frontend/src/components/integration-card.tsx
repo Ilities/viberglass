@@ -29,7 +29,7 @@ interface IntegrationCardProps {
 
 export function IntegrationCard({
   integration,
-  hrefBase = '/settings/integrations',
+  hrefBase = '/settings/connections',
   isConfigured,
 }: IntegrationCardProps) {
   const IconComponent = getIntegrationIcon(integration.system)

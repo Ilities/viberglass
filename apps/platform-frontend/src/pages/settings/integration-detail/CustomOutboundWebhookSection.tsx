@@ -639,14 +639,14 @@ export function CustomOutboundWebhookSection({
             {projects && projects.length > 0 && (
               <div>
                 <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                  Link to Project
+                  Link to Space
                 </label>
                 <select
                   value={form.projectId ?? ''}
                   onChange={(event) => updateForm('projectId', event.target.value || null)}
                   className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                 >
-                  <option value="">Global (all projects)</option>
+                  <option value="">Global (all spaces)</option>
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>
                       {project.name}
@@ -654,7 +654,7 @@ export function CustomOutboundWebhookSection({
                   ))}
                 </select>
                 <p className="mt-1.5 text-xs text-[var(--gray-9)]">
-                  Events from this destination will be linked to the selected project.
+                  Events from this destination will be linked to the selected space.
                 </p>
               </div>
             )}

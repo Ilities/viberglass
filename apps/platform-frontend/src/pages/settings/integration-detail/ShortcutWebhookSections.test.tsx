@@ -72,7 +72,7 @@ function createOutboundProps(
 }
 
 describe('Shortcut webhook sections', () => {
-  it('renders inbound Shortcut setup and project scope controls', () => {
+  it('renders inbound Shortcut setup and space scope controls', () => {
     renderWithTheme(
       <ShortcutInboundWebhookSection
         {...createInboundProps({
@@ -120,8 +120,8 @@ describe('Shortcut webhook sections', () => {
 
     expect(screen.getByRole('heading', { name: 'Shortcut Inbound Webhook' })).toBeInTheDocument()
     expect(screen.getByText('Shortcut setup steps')).toBeInTheDocument()
-    expect(screen.getByText('Project scope')).toBeInTheDocument()
-    expect(screen.getByLabelText('Viberglass project')).toBeInTheDocument()
+    expect(screen.getByText('Space scope')).toBeInTheDocument()
+    expect(screen.getByLabelText('Viberglass space')).toBeInTheDocument()
     expect(screen.getByLabelText('Shortcut project ID (optional)')).toBeInTheDocument()
   })
 

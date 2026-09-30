@@ -105,7 +105,7 @@ describe("ProjectReadinessService", () => {
     expect(check(readiness, "agentRunner")).toMatchObject({
       state: "unavailable",
       summary: "Default agent isn't started. Start it to run tasks.",
-      remediationUrl: "/clankers/default-agent",
+      remediationUrl: "/settings/agents/default-agent",
     });
   });
 

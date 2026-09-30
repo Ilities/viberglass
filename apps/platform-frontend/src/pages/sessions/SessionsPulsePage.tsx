@@ -53,7 +53,7 @@ function TicketRow({
 
   return (
     <Link
-      href={`/project/${projectSlug}/tickets/${ticket.id}`}
+      href={`/spaces/${projectSlug}/tasks/${ticket.id}`}
       className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
     >
       <span
@@ -190,7 +190,7 @@ export function SessionsPulsePage() {
         <div className="mt-16 flex flex-col items-center gap-1 text-center">
           <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">All clear</p>
           <p className="text-xs text-zinc-400 dark:text-zinc-500">
-            Tickets needing review or in progress will appear here.
+            Tasks needing review or in progress will appear here.
           </p>
         </div>
       )}

@@ -88,7 +88,7 @@ describe('PhaseDocumentComments', () => {
     fireEvent.change(screen.getByPlaceholderText('Comment on line 1...'), {
       target: { value: 'Add context here.' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Add Comment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add comment' }))
 
     await waitFor(() => {
       expect(mockCreatePhaseDocumentComment).toHaveBeenCalledWith('ticket-1', 'research', {

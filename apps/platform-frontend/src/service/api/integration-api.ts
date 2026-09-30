@@ -152,7 +152,7 @@ export async function getProjectIntegrations(
   )
 
   if (!response.ok) {
-    throw new Error('Failed to fetch project integrations')
+    throw new Error('Failed to fetch space integrations')
   }
 
   const data: ApiResponse<ProjectIntegrationWithDetails[]> = await response.json()

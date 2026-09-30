@@ -158,7 +158,7 @@ Important table groups:
 ## Primary Request/Execution Flows
 
 ### Ticket execution flow
-1. Client calls `POST /api/tickets/:id/run`.
+1. Client calls `POST /api/tasks/:id/run`.
 2. `TicketExecutionService` validates phase gates and clanker availability.
 3. Job is persisted via `JobService.submitJob`.
 4. Bootstrap payload is saved for worker bootstrap retrieval.
@@ -167,7 +167,7 @@ Important table groups:
 7. Job and ticket state are updated from callback handlers.
 
 ### Phase generation flow (research/planning)
-1. Client calls `POST /api/tickets/:id/phases/{research|planning}/run`.
+1. Client calls `POST /api/tasks/:id/phases/{research|planning}/run`.
 2. Service builds AI task prompt + context.
 3. Job submitted and linked to phase run history.
 4. Worker callback with `documentContent` persists phase document.

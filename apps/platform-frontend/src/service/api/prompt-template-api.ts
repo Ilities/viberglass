@@ -26,7 +26,7 @@ async function throwApiError(res: Response, fallback: string): Promise<never> {
 }
 
 export async function listProjectPromptTemplates(projectId: string): Promise<PromptTemplateEntry[]> {
-  const res = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/prompt-templates`)
+  const res = await apiFetch(`${API_BASE_URL}/api/spaces/${projectId}/prompt-templates`)
   if (!res.ok) return throwApiError(res, 'Failed to fetch prompt templates')
   const data = await res.json()
   return data.data
@@ -38,7 +38,7 @@ export async function updateProjectPromptTemplate(
   template: string,
 ): Promise<PromptTemplateEntry> {
   const res = await apiFetch(
-    `${API_BASE_URL}/api/projects/${projectId}/prompt-templates/${type}`,
+    `${API_BASE_URL}/api/spaces/${projectId}/prompt-templates/${type}`,
     {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -55,7 +55,7 @@ export async function deleteProjectPromptTemplate(
   type: PromptType,
 ): Promise<void> {
   const res = await apiFetch(
-    `${API_BASE_URL}/api/projects/${projectId}/prompt-templates/${type}`,
+    `${API_BASE_URL}/api/spaces/${projectId}/prompt-templates/${type}`,
     { method: 'DELETE' },
   )
   if (!res.ok) await throwApiError(res, 'Failed to reset prompt template')

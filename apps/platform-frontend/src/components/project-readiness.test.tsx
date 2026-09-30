@@ -22,8 +22,8 @@ describe('ProjectReadinessBanner', () => {
           label: 'Repository',
           state: 'missing',
           code: 'configure_repository',
-          summary: 'Choose the codebase this project should automate.',
-          remediationUrl: '/project/shop/settings',
+          summary: 'Choose the codebase this space should automate.',
+          remediationUrl: '/spaces/shop/settings',
         },
       ],
     })
@@ -37,8 +37,8 @@ describe('ProjectReadinessBanner', () => {
     )
 
     expect(await screen.findByText('Automation needs setup')).toBeInTheDocument()
-    expect(screen.getByText('You can submit tickets now. Complete these items before starting research or execution.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Fix setup' })).toHaveAttribute('href', '/project/shop/settings')
+    expect(screen.getByText('You can submit tasks now. Complete these items before starting research or execution.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Fix setup' })).toHaveAttribute('href', '/spaces/shop/settings')
   })
 
   it('stays out of the way when automation is ready', async () => {
@@ -66,13 +66,13 @@ describe('ProjectReadinessBanner', () => {
     render(
       <Theme>
         <MemoryRouter>
-          <ProjectReadinessBanner projectId="project-1" firstTaskHref="/project/shop/tickets/create" />
+          <ProjectReadinessBanner projectId="project-1" firstTaskHref="/spaces/shop/tasks/new" />
         </MemoryRouter>
       </Theme>,
     )
 
     expect(await screen.findByText('Ready: try your first task')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Create a task' })).toHaveAttribute('href', '/project/shop/tickets/create')
+    expect(screen.getByRole('link', { name: 'Create a task' })).toHaveAttribute('href', '/spaces/shop/tasks/new')
   })
 
   it('drops the invitation once the space has run something', async () => {
@@ -85,7 +85,7 @@ describe('ProjectReadinessBanner', () => {
 
     const { container } = render(
       <MemoryRouter>
-        <ProjectReadinessBanner projectId="project-1" firstTaskHref="/project/shop/tickets/create" />
+        <ProjectReadinessBanner projectId="project-1" firstTaskHref="/spaces/shop/tasks/new" />
       </MemoryRouter>,
     )
 

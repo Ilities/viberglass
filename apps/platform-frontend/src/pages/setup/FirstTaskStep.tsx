@@ -46,7 +46,7 @@ export function FirstTaskStep({
         autoFixRequested: false,
       })
       await runResearch(ticket.id, clankerId)
-      navigate(`/project/${space.slug}/tickets/${ticket.id}`)
+      navigate(`/spaces/${space.slug}/tasks/${ticket.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start the task.")
       setIsStarting(false)
@@ -79,7 +79,7 @@ export function FirstTaskStep({
           {isStarting ? 'Starting…' : 'Start the task'}
         </Button>
         <Text>
-          Or <TextLink href={`/project/${space.slug}`}>go to the space</TextLink> and start with your own task.
+          Or <TextLink href={`/spaces/${space.slug}`}>go to the space</TextLink> and start with your own task.
         </Text>
       </form>
     </SetupFrame>

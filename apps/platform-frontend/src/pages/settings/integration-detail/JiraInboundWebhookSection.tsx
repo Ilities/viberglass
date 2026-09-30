@@ -48,7 +48,7 @@ const JIRA_INBOUND_EVENT_OPTIONS: Array<{
   {
     value: 'issue_created',
     label: 'Issue created',
-    description: 'Create new Viberator tickets when new Jira issues are created.',
+    description: 'Create new Viberglass tasks when new Jira issues are created.',
   },
   {
     value: 'issue_updated',
@@ -98,7 +98,7 @@ export function JiraInboundWebhookSection({
     <section className="rounded-xl border border-zinc-950/10 bg-white p-6 dark:border-white/10 dark:bg-zinc-900">
       <Subheading>Jira Inbound Webhook</Subheading>
       <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Configure Jira webhooks to ingest issue and comment activity into Viberator.
+        Configure Jira webhooks to ingest issue and comment activity into Viberglass.
       </Text>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
@@ -112,9 +112,9 @@ export function JiraInboundWebhookSection({
       </div>
 
       <div className="mt-4 rounded-md border border-[var(--gray-6)] bg-[var(--gray-3)] p-4">
-        <p className="text-sm font-medium text-[var(--gray-12)]">Inbound project scope</p>
+        <p className="text-sm font-medium text-[var(--gray-12)]">Inbound space scope</p>
         <p className="mt-1 text-xs text-[var(--gray-9)]">
-          Each inbound config can map events to a Viberglass project and optionally pin routing to a Jira project key.
+          Each inbound config can map events to a Viberglass space and optionally pin routing to a Jira project key.
         </p>
       </div>
 
@@ -151,7 +151,7 @@ export function JiraInboundWebhookSection({
                   {projects && projects.length > 0 && (
                     <div className="pt-2">
                       <label htmlFor="jiraInboundProjectId" className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">
-                        Viberglass project
+                        Viberglass space
                       </label>
                       <select
                         id="jiraInboundProjectId"
@@ -159,7 +159,7 @@ export function JiraInboundWebhookSection({
                         onChange={(event) => onInboundProjectChange(event.target.value || null)}
                         className="mt-2 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
                       >
-                        <option value="">Use integration-linked default project</option>
+                        <option value="">Use integration-linked default space</option>
                         {projects.map((project) => (
                           <option key={project.id} value={project.id}>
                             {project.name}

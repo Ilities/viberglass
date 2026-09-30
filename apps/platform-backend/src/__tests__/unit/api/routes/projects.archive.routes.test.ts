@@ -37,7 +37,7 @@ describe("project archive and deletion summary routes", () => {
     jest.clearAllMocks();
     app = express();
     app.use(express.json());
-    app.use("/api/projects", projectsRouter);
+    app.use("/api/spaces", projectsRouter);
   });
 
   describe("POST /:id/archive", () => {
@@ -49,7 +49,7 @@ describe("project archive and deletion summary routes", () => {
       });
 
       const response = await request(app)
-        .post(`/api/projects/${PROJECT_ID}/archive`)
+        .post(`/api/spaces/${PROJECT_ID}/archive`)
         .expect(200);
 
       expect(mockProjectDAO.archiveProject).toHaveBeenCalledWith(PROJECT_ID);
@@ -62,7 +62,7 @@ describe("project archive and deletion summary routes", () => {
     it("returns 404 for an unknown project", async () => {
       mockProjectDAO.getProject.mockResolvedValue(null);
 
-      await request(app).post(`/api/projects/${PROJECT_ID}/archive`).expect(404);
+      await request(app).post(`/api/spaces/${PROJECT_ID}/archive`).expect(404);
 
       expect(mockProjectDAO.archiveProject).not.toHaveBeenCalled();
     });
@@ -79,7 +79,7 @@ describe("project archive and deletion summary routes", () => {
       });
 
       const response = await request(app)
-        .get(`/api/projects/${PROJECT_ID}/deletion-summary`)
+        .get(`/api/spaces/${PROJECT_ID}/deletion-summary`)
         .expect(200);
 
       expect(response.body).toEqual({
@@ -92,7 +92,7 @@ describe("project archive and deletion summary routes", () => {
       mockProjectDAO.getProject.mockResolvedValue(null);
 
       await request(app)
-        .get(`/api/projects/${PROJECT_ID}/deletion-summary`)
+        .get(`/api/spaces/${PROJECT_ID}/deletion-summary`)
         .expect(404);
 
       expect(mockProjectDeletionSummaryDAO.summarize).not.toHaveBeenCalled();

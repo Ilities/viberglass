@@ -19,6 +19,8 @@ export interface FeedbackProviderBehavior {
   unsupportedOutboundPostingMessage(provider: ProviderType): string;
   requiresExternalTicketId(): boolean;
   requiresApiToken(): boolean;
+  /** Post with the token the provider's connection already holds, instead of one stored for feedback. */
+  usesIntegrationCredential(): boolean;
   requiresProviderProjectId(): boolean;
   maxRetryAttempts(): number;
   resolveExternalTicketId(context: ExternalTicketResolutionContext): string | undefined;

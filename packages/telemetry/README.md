@@ -68,7 +68,7 @@ exfiltrating it.
 ## Trace shape
 
 ```
-HTTP POST /api/tickets/:id/run          SERVER    (backend)
+HTTP POST /api/tasks/:id/run          SERVER    (backend)
 └── job.dispatch                        INTERNAL  ← traceparent injected here
     └── worker.invoke                   PRODUCER
         ╎ (process boundary — W3C carrier in the bootstrap payload)

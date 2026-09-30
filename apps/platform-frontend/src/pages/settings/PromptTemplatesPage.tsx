@@ -114,7 +114,7 @@ export function PromptTemplatesPage() {
         <div>
           <Heading>Prompt Templates</Heading>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Edit the system default prompts used across all projects. Individual projects can override these in their own settings.
+            Edit the system default prompts used across all spaces. Individual spaces can override these in their own settings.
           </p>
         </div>
 

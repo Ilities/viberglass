@@ -48,7 +48,7 @@ export function JobsTable({ jobs, project }: JobsTableProps) {
           const jobProject = job.projectSlug || project
           if (!jobProject) return null
           return (
-            <TableRow key={job.jobId} href={`/project/${jobProject}/jobs/${job.jobId}`}>
+            <TableRow key={job.jobId} href={`/spaces/${jobProject}/runs/${job.jobId}`}>
               <TableCell>
                 <JobStatusIndicator status={job.status} />
               </TableCell>

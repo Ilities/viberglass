@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
-import type { JobFailure } from '@viberglass/types'
+import type { JobFailure, TicketWorkflowPhase } from '@viberglass/types'
 
 export interface JobOverrides {
   additionalContext?: string
@@ -93,6 +93,8 @@ export interface JobStatusTicket {
   id: string
   title: string
   externalTicketId: string | null
+  /** The task's current phase, which may have moved on since this run. */
+  workflowPhase: TicketWorkflowPhase | null
 }
 
 export interface JobStatusClanker {
@@ -140,6 +142,8 @@ export interface JobStatus {
   finishedAt: string | null
   ticketId: string | null
   ticket: JobStatusTicket | null
+  /** The live session this run is a turn of, if any. */
+  agentSessionId: string | null
   clankerId: string | null
   clanker: JobStatusClanker | null
 }
@@ -153,7 +157,7 @@ export async function runTicket(
   overrides?: JobOverrides,
   instructionFiles?: Array<{ fileType: string; content: string }>,
 ): Promise<RunTicketResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets/${ticketId}/run`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -163,7 +167,7 @@ export async function runTicket(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to run ticket')
+    throw new Error(error.error || error.message || 'Failed to run task')
   }
 
   return response.json()
@@ -177,7 +181,7 @@ export async function getJob(jobId: string): Promise<JobStatus> {
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Job not found')
+      throw new Error('Run not found')
     }
     throw new Error('Failed to fetch run')
   }
@@ -210,6 +214,8 @@ export interface JobListItem {
   processedAt: string | null
   finishedAt: string | null
   ticketId: string | null
+  /** The agent the run used; follow-up runs default to it. */
+  clankerId: string | null
   ticket: JobListItemTicket | null
   projectSlug?: string
   failure?: JobFailure | null

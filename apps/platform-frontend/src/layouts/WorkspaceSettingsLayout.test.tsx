@@ -31,7 +31,7 @@ function renderAs(role: 'admin' | 'member', path: string) {
 
 describe('WorkspaceSettingsLayout', () => {
   it('shows admins the plumbing under Advanced', () => {
-    renderAs('admin', '/clankers/default-agent')
+    renderAs('admin', '/settings/agents/default-agent')
 
     expect(screen.getByRole('heading', { name: 'Advanced' })).toBeInTheDocument()
     for (const name of ['Members', 'API tokens', 'Agents & runners', 'Connections', 'Secrets', 'Prompt templates']) {

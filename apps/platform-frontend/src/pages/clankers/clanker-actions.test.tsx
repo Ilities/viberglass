@@ -78,7 +78,7 @@ describe('ClankerActions', () => {
     const updatedClanker: Clanker = {
       ...clanker,
       status: 'deploying',
-      statusMessage: 'Starting clanker...',
+      statusMessage: 'Starting agent...',
     }
     const onClankerUpdated = jest.fn()
     mockedStartClanker.mockResolvedValue(updatedClanker)

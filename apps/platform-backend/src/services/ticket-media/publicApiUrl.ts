@@ -11,5 +11,5 @@ export function getPublicApiBaseUrl(): string {
 }
 
 export function buildMediaContentUrl(mediaId: string): string {
-  return `${getPublicApiBaseUrl()}/api/tickets/media/${encodeURIComponent(mediaId)}/content`;
+  return `${getPublicApiBaseUrl()}/api/tasks/media/${encodeURIComponent(mediaId)}/content`;
 }

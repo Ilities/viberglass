@@ -322,7 +322,7 @@ export function EditClankerPage() {
         agent: selectedAgent || null,
         secretIds: selectedSecretIds,
       })
-      navigate(`/clankers/${updated.slug}`)
+      navigate(`/settings/agents/${updated.slug}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update agent runner')
       setIsSubmitting(false)

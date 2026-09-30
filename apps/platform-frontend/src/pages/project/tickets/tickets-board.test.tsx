@@ -41,9 +41,9 @@ describe('TicketsBoard', () => {
         <MemoryRouter>
           <TicketsBoard
             tickets={[
-              makeTicket('research-1', 'Research ticket', 'research'),
-              makeTicket('planning-1', 'Planning ticket', 'planning'),
-              makeTicket('execution-1', 'Execution ticket', 'execution'),
+              makeTicket('research-1', 'Research task', 'research'),
+              makeTicket('planning-1', 'Planning task', 'planning'),
+              makeTicket('execution-1', 'Execution task', 'execution'),
             ]}
             clankers={[]}
             project="shop"
@@ -64,8 +64,8 @@ describe('TicketsBoard', () => {
     expect(screen.getByRole('heading', { name: 'Research' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Planning' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Execution' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Research ticket' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Planning ticket' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Execution ticket' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Research task' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Planning task' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Execution task' })).toBeInTheDocument()
   })
 })

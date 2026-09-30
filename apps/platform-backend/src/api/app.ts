@@ -171,14 +171,14 @@ app.get("/", (req, res) => {
 });
 
 // API routes
-app.use("/api/projects", projectsRouter);
-// Project links stay open: linking an integration is project configuration.
+app.use("/api/spaces", projectsRouter);
+// Space links stay open: linking an integration is space configuration.
 app.use(
   "/api/integrations",
-  adminOnlyChanges({ exemptPathPrefixes: ["/project/"] }),
+  adminOnlyChanges({ exemptPathPrefixes: ["/space/"] }),
   integrationsRouter,
 );
-app.use("/api/tickets", ticketsRouter);
+app.use("/api/tasks", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/clankers", adminOnlyChanges(), clankersRouter);
 app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);

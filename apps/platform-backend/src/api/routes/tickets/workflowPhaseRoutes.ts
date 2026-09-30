@@ -65,7 +65,7 @@ export function registerTicketWorkflowPhaseRoutes(
     ticketPlanningApprovalService,
   }: TicketWorkflowPhaseRouteDependencies,
 ): void {
-  // GET /api/tickets/:id/phases - Get workflow phase state for a ticket
+  // GET /api/tasks/:id/phases - Get workflow phase state for a ticket
   router.get("/:id/phases", validateUuidParam("id"), async (req, res) => {
     try {
       const workflow = await ticketWorkflowService.getTicketWorkflow(
@@ -95,7 +95,7 @@ export function registerTicketWorkflowPhaseRoutes(
     }
   });
 
-  // POST /api/tickets/:id/phases/:phase/advance - Advance workflow phase
+  // POST /api/tasks/:id/phases/:phase/advance - Advance workflow phase
   router.post(
     "/:id/phases/:phase/advance",
     validateUuidParam("id"),
@@ -146,7 +146,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // PUT /api/tickets/:id/workflow/phase - Manually set workflow phase
+  // PUT /api/tasks/:id/workflow/phase - Manually set workflow phase
   router.put(
     "/:id/workflow/phase",
     validateUuidParam("id"),
@@ -190,7 +190,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // GET /api/tickets/:id/phases/research - Get research phase document
+  // GET /api/tasks/:id/phases/research - Get research phase document
   router.get(
     "/:id/phases/research",
     validateUuidParam("id"),
@@ -225,7 +225,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // GET /api/tickets/:id/phases/:phase/revisions - Get revision history for a phase document
+  // GET /api/tasks/:id/phases/:phase/revisions - Get revision history for a phase document
   router.get(
     "/:id/phases/:phase/revisions",
     validateUuidParam("id"),
@@ -270,7 +270,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // GET /api/tickets/:id/phases/:phase/comments - Get inline comments for a phase document
+  // GET /api/tasks/:id/phases/:phase/comments - Get inline comments for a phase document
   router.get(
     "/:id/phases/:phase/comments",
     validateUuidParam("id"),
@@ -314,7 +314,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/:phase/comments - Create an inline comment for a phase document
+  // POST /api/tasks/:id/phases/:phase/comments - Create an inline comment for a phase document
   router.post(
     "/:id/phases/:phase/comments",
     validateUuidParam("id"),
@@ -381,7 +381,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // PUT /api/tickets/:id/phases/:phase/comments/:commentId - Update an inline comment
+  // PUT /api/tasks/:id/phases/:phase/comments/:commentId - Update an inline comment
   router.put(
     "/:id/phases/:phase/comments/:commentId",
     validateUuidParam("id"),
@@ -456,7 +456,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/research/run - Run research generation
+  // POST /api/tasks/:id/phases/research/run - Run research generation
   router.post(
     "/:id/phases/research/run",
     validateUuidParam("id"),
@@ -493,7 +493,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/research/revision - Run research revision
+  // POST /api/tasks/:id/phases/research/revision - Run research revision
   router.post(
     "/:id/phases/research/revision",
     validateUuidParam("id"),
@@ -540,7 +540,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // PUT /api/tickets/:id/phases/research/document - Save research phase document
+  // PUT /api/tasks/:id/phases/research/document - Save research phase document
   router.put(
     "/:id/phases/research/document",
     validateUuidParam("id"),
@@ -586,7 +586,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // GET /api/tickets/:id/phases/planning - Get planning phase document
+  // GET /api/tasks/:id/phases/planning - Get planning phase document
   router.get(
     "/:id/phases/planning",
     validateUuidParam("id"),
@@ -621,7 +621,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/planning/request-approval - Request approval for planning
+  // POST /api/tasks/:id/phases/planning/request-approval - Request approval for planning
   router.post(
     "/:id/phases/planning/request-approval",
     validateUuidParam("id"),
@@ -662,7 +662,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/planning/approve - Approve planning document
+  // POST /api/tasks/:id/phases/planning/approve - Approve planning document
   router.post(
     "/:id/phases/planning/approve",
     validateUuidParam("id"),
@@ -703,7 +703,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/planning/revoke-approval - Revoke planning approval
+  // POST /api/tasks/:id/phases/planning/revoke-approval - Revoke planning approval
   router.post(
     "/:id/phases/planning/revoke-approval",
     validateUuidParam("id"),
@@ -740,7 +740,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // PUT /api/tickets/:id/phases/planning/document - Save planning phase document
+  // PUT /api/tasks/:id/phases/planning/document - Save planning phase document
   router.put(
     "/:id/phases/planning/document",
     validateUuidParam("id"),
@@ -786,7 +786,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/planning/run - Run planning generation
+  // POST /api/tasks/:id/phases/planning/run - Run planning generation
   router.post(
     "/:id/phases/planning/run",
     validateUuidParam("id"),
@@ -823,7 +823,7 @@ export function registerTicketWorkflowPhaseRoutes(
     },
   );
 
-  // POST /api/tickets/:id/phases/planning/revision - Run planning revision
+  // POST /api/tasks/:id/phases/planning/revision - Run planning revision
   router.post(
     "/:id/phases/planning/revision",
     validateUuidParam("id"),

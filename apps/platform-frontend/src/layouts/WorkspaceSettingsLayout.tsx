@@ -23,16 +23,16 @@ export function WorkspaceSettingsLayout() {
   const sections: SettingsNavSection[] = isAdmin
     ? [
         section(pathname, 'General', [
-          { name: 'Members', href: '/settings/users' },
+          { name: 'Members', href: '/settings/members' },
           { name: 'API tokens', href: '/settings/api-tokens' },
         ]),
         section(
           pathname,
           'Advanced',
           [
-            { name: 'Agents & runners', href: '/clankers' },
-            { name: 'Connections', href: '/settings/integrations' },
-            { name: 'Secrets', href: '/secrets' },
+            { name: 'Agents & runners', href: '/settings/agents' },
+            { name: 'Connections', href: '/settings/connections' },
+            { name: 'Secrets', href: '/settings/secrets' },
             { name: 'Prompt templates', href: '/settings/prompt-templates' },
           ],
           'How agents run and where credentials live. Setup picked defaults; change them here.',
@@ -55,5 +55,5 @@ export function WorkspaceSettingsLayout() {
 /** `/settings`: the first page this person can use. */
 export function SettingsHome() {
   const { user } = useAuth()
-  return <Navigate to={user?.role === 'admin' ? '/settings/users' : '/settings/api-tokens'} replace />
+  return <Navigate to={user?.role === 'admin' ? '/settings/members' : '/settings/api-tokens'} replace />
 }

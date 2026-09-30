@@ -33,6 +33,8 @@ import { InboundWebhookDeliveryLifecycle } from "./InboundWebhookDeliveryLifecyc
 import { WebhookRetryService } from "./WebhookRetryService";
 import { getCredentialFactory } from "../config/credentials";
 import { WebhookService } from "./WebhookService";
+import { FeedbackApiTokenResolver } from "./feedback/FeedbackApiTokenResolver";
+import { IntegrationCredentialTokenSource } from "./feedback/IntegrationCredentialTokenSource";
 
 let webhookService: WebhookService | null = null;
 let feedbackService: FeedbackService | null = null;
@@ -100,7 +102,7 @@ function createFeedbackService(): FeedbackService {
   const deliveryTracker = new FeedbackDeliveryTracker(deliveryDAO);
   const targetRunner = new FeedbackTargetDispatchRunner(
     registry,
-    secretService,
+    new FeedbackApiTokenResolver(secretService, new IntegrationCredentialTokenSource()),
     retryExecutor,
     providerBehaviorResolver,
     customDispatcher,

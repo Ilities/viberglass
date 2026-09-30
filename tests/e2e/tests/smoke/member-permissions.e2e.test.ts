@@ -9,7 +9,7 @@ test("a member cannot change workspace plumbing or delete a space", async ({
   expect(
     (await memberApi.post("/api/clankers", { data: { name: "Not allowed" } })).status(),
   ).toBe(403);
-  expect((await memberApi.delete(`/api/projects/${workspace.projectId}`)).status()).toBe(403);
+  expect((await memberApi.delete(`/api/spaces/${workspace.projectId}`)).status()).toBe(403);
 
   // Members still see what they need to run work.
   expect((await memberApi.get("/api/clankers")).status()).toBe(200);

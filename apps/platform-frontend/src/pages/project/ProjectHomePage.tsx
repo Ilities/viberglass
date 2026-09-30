@@ -24,75 +24,13 @@ import { TICKET_STATUS } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-// ASCII art decorations for agent runners
-const clankerAvatars: Record<string, string> = {
-  active: `[^_^]`,
-  inactive: `[._.]`,
-  deploying: `[o_o]`,
-  failed: `[x_x]`,
-}
-
-function getGreeting(): string {
-  const hour = new Date().getHours()
-  const greetings = {
-    morning: [
-      "Don't Panic",
-      "The Guide says you're doing fine",
-      'Another day in this wholly remarkable universe',
-      'Tea first, then bugs',
-      'According to the Guide, mornings are best faced with a towel',
-      'Ford Prefect never had a dashboard this hoopy',
-      'The early bird catches the vogon, or so they say',
-    ],
-    afternoon: [
-      'Time is an illusion',
-      'Halfway through another improbable day',
-      "The universe is big. Really big. You just won't believe how vastly hugely mind-bogglingly big it is",
-      'Mostly harmless progress',
-      'Lunchtime doubly so — but the bugs wait for no one',
-      'Bit busy trying not to be thrown out of an airlock',
-    ],
-    evening: [
-      "The ships hung in the sky much as bricks don't",
-      'Evening approaches with alarming regularity',
-      'Almost time for a Pan Galactic Gargle Blaster',
-      'The Answer is still 42',
-      'So long, and thanks for all the commits',
-      'Arthur Dent would have fixed that bug by now. Probably.',
-      'The Restaurant at the End of the Universe is fully booked tonight',
-    ],
-    night: [
-      'Share and Enjoy',
-      "Life. Don't talk to me about life",
-      'Here you are, brain the size of a planet',
-      'So it goes, in the late hours',
-      'Marvin says: "I think you ought to know I\'m feeling very depressed." Same.',
-      'The Infinite Improbability Drive works better at night. Fact.',
-      'Even the dolphins have logged off for the evening',
-    ],
-  }
-
-  let timeOfDay: keyof typeof greetings
-  if (hour >= 5 && hour < 12) timeOfDay = 'morning'
-  else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon'
-  else if (hour >= 17 && hour < 21) timeOfDay = 'evening'
-  else timeOfDay = 'night'
-
-  const options = greetings[timeOfDay]
-  return options[Math.floor(Math.random() * options.length)]
-}
-
 function MetricCard({ label, value, subtext }: { label: string; value: string | number; subtext?: string }) {
-  const isTheAnswer = value === '42' || value === 42
-
   return (
     <div className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-gray-300 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-gray-700">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</p>
-          <p
-            className={`mt-2 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white ${isTheAnswer ? 'pulse-glow text-brand-burnt-orange' : ''}`}
-          >
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
             {value}
           </p>
           {subtext && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtext}</p>}
@@ -189,7 +127,7 @@ function TimelineBar({ tickets, jobs }: { tickets: TicketSummary[]; jobs: JobLis
                         height: `${(data.ticketCount / maxActivity) * 100}%`,
                         minHeight: data.ticketCount > 0 ? '4px' : '0',
                       }}
-                      title={`${data.ticketCount} tickets at ${data.label}`}
+                      title={`${data.ticketCount} tasks at ${data.label}`}
                     />
                   )}
                   {/* Job portion */}
@@ -223,7 +161,7 @@ function TimelineBar({ tickets, jobs }: { tickets: TicketSummary[]; jobs: JobLis
       <div className="mt-3 flex items-center gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-sm bg-orange-500 dark:bg-orange-600" />
-          <span className="text-xs text-gray-500 dark:text-gray-400">Tickets</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Tasks</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-sm bg-sky-500 dark:bg-sky-600" />
@@ -244,7 +182,7 @@ function TicketCard({ ticket, project }: { ticket: TicketSummary; project: strin
 
   return (
     <Link
-      href={`/project/${project}/tickets/${ticket.id}`}
+      href={`/spaces/${project}/tasks/${ticket.id}`}
       className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-burnt-orange/30 hover:shadow-md dark:border-white/10 dark:bg-zinc-900"
     >
       <div className="flex items-start justify-between gap-4">
@@ -315,19 +253,9 @@ function JobCard({ job }: { job: JobListItem }) {
 }
 
 function ClankerCard({ clanker }: { clanker: Clanker }) {
-  const statusColors: Record<string, string> = {
-    active: 'text-green-600 dark:text-green-400',
-    inactive: 'text-gray-500 dark:text-gray-400',
-    deploying: 'text-blue-600 dark:text-blue-400',
-    failed: 'text-red-600 dark:text-red-400',
-  }
-
   return (
     <div className="group rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-gray-300 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-gray-700">
       <div className="flex items-center gap-3">
-        <div className={`font-mono text-lg ${statusColors[clanker.status]}`}>
-          {clankerAvatars[clanker.status] || '[? ?]'}
-        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h4 className="truncate font-medium text-gray-900 dark:text-white">{clanker.name}</h4>
@@ -384,8 +312,6 @@ export function ProjectHomePage() {
     loadData()
   }, [project])
 
-  const [greeting] = useState(getGreeting)
-
   const metrics = useMemo(() => {
     if (!stats) return null
 
@@ -422,19 +348,19 @@ export function ProjectHomePage() {
 
   return (
     <>
-      <PageMeta title={project ? `${project} | Mission Control` : 'Loading...'} />
+      <PageMeta title={projectDetails?.name ?? project ?? 'Space'} />
       <div className="space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-sm text-gray-500 dark:text-gray-400">{greeting}</p>
-            <Heading className="mt-1">Mission Control</Heading>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Space</p>
+            <Heading className="mt-1">{projectDetails?.name ?? project}</Heading>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button href={`/project/${project}/tickets/create`} outline className="w-full justify-center sm:w-auto">
-              Create Ticket
+            <Button href={`/spaces/${project}/tasks/new`} outline className="w-full justify-center sm:w-auto">
+              Create task
             </Button>
-            <Button href={`/project/${project}/tickets`} className="w-full justify-center sm:w-auto">
-              View tickets
+            <Button href={`/spaces/${project}/tasks`} className="w-full justify-center sm:w-auto">
+              View tasks
             </Button>
           </div>
         </div>
@@ -442,14 +368,14 @@ export function ProjectHomePage() {
         {projectDetails && (
           <ProjectReadinessBanner
             projectId={projectDetails.id}
-            firstTaskHref={`/project/${projectDetails.slug}/tickets/create`}
+            firstTaskHref={`/spaces/${projectDetails.slug}/tasks/new`}
           />
         )}
 
         <TimelineBar tickets={tickets} jobs={jobs} />
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <MetricCard label="Total Tickets" value={metrics.total} subtext={`${metrics.todayTickets} created today`} />
+          <MetricCard label="Tasks" value={metrics.total} subtext={`${metrics.todayTickets} created today`} />
           <MetricCard label="Open Issues" value={metrics.open} subtext={`${metrics.inProgress} in progress · ${metrics.inReview} in review`} />
           <MetricCard
             label="Auto-Fix Queue"
@@ -466,7 +392,7 @@ export function ProjectHomePage() {
                 <SectionHeader
                   title={TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}
                   count={inProgressTickets.length}
-                  action={<span className="text-xs text-gray-500 dark:text-gray-400">Agent runners working</span>}
+                  action={<span className="text-xs text-gray-500 dark:text-gray-400">Agents working</span>}
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
                   {inProgressTickets.map((ticket) => (
@@ -489,7 +415,7 @@ export function ProjectHomePage() {
 
             {openTickets.length > 0 && (
               <section>
-                <SectionHeader title="Awaiting Assignment" count={openTickets.length} />
+                <SectionHeader title="Not started" count={openTickets.length} />
                 <div className="grid gap-3 sm:grid-cols-2">
                   {openTickets.map((ticket) => (
                     <TicketCard key={ticket.id} ticket={ticket} project={project!} />
@@ -515,7 +441,7 @@ export function ProjectHomePage() {
                   title="Active runs"
                   count={jobs.length}
                   action={
-                    <Link href={`/project/${project}/jobs`} className="text-xs text-brand-burnt-orange hover:underline">
+                    <Link href={`/spaces/${project}/runs`} className="text-xs text-brand-burnt-orange hover:underline">
                       View all
                     </Link>
                   }
@@ -535,10 +461,10 @@ export function ProjectHomePage() {
           <div className="space-y-6">
             <section>
               <SectionHeader
-                title="Agent runners"
+                title="Agents"
                 count={clankers.length}
                 action={
-                  <Link href="/clankers" className="text-xs text-brand-burnt-orange hover:underline">
+                  <Link href="/settings/agents" className="text-xs text-brand-burnt-orange hover:underline">
                     Manage
                   </Link>
                 }
@@ -550,10 +476,7 @@ export function ProjectHomePage() {
               </div>
               {clankers.length === 0 && (
                 <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
-                  <p className="text-gray-500 dark:text-gray-400">No active agent runners</p>
-                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    The fleet is dormant. Marvin says: "Brain the size of a planet, and they ask me to wait."
-                  </p>
+                  <p className="text-gray-500 dark:text-gray-400">No active agents</p>
                 </div>
               )}
             </section>

@@ -5,15 +5,12 @@ import type { OutboundWebhookSectionProps } from '@viberglass/integration-core/f
 
 export function GitHubOutboundWebhookSection({
   isSavingWebhook,
-  outboundApiToken,
   outboundWebhook,
   providerProjectMapping,
-  onOutboundApiTokenChange,
   onSaveOutboundWebhook,
 }: OutboundWebhookSectionProps) {
   const repositoryMapping = providerProjectMapping ?? null
   const issuePreview = repositoryMapping ? `${repositoryMapping}#123` : 'Resolved from inbound ticket metadata'
-  const saveDisabled = isSavingWebhook || (!outboundWebhook && outboundApiToken.trim().length === 0)
 
   return (
     <section className="app-frame rounded-lg p-6">
@@ -48,23 +45,13 @@ export function GitHubOutboundWebhookSection({
       </div>
 
       <div className="mt-6 space-y-6">
-        <div>
-          <label className="block text-xs font-medium uppercase tracking-wider text-[var(--gray-9)]">GitHub API token</label>
-          <input
-            type="password"
-            value={outboundApiToken}
-            onChange={(event) => onOutboundApiTokenChange(event.target.value)}
-            placeholder={outboundWebhook?.hasApiToken ? 'Stored token (leave empty to keep)' : 'Enter API token'}
-            className="mt-1 w-full rounded-md border border-[var(--gray-7)] bg-[var(--gray-2)] px-3 py-2 text-sm text-[var(--gray-12)]"
-          />
-          <p className="mt-1.5 text-xs text-[var(--gray-9)]">
-            Use a token that can comment on issues and update labels. Rotate regularly and leave this field empty
-            after rotation to keep the stored token.
-          </p>
-        </div>
+        <p className="text-sm text-[var(--gray-11)]">
+          Comments are posted with this connection's default GitHub token, the one under Credentials. It needs
+          permission to comment on issues.
+        </p>
 
         <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-          <Button color="brand" onClick={onSaveOutboundWebhook} disabled={saveDisabled}>
+          <Button color="brand" onClick={onSaveOutboundWebhook} disabled={isSavingWebhook}>
             {isSavingWebhook ? 'Saving...' : outboundWebhook ? 'Save feedback settings' : 'Enable feedback'}
           </Button>
         </div>

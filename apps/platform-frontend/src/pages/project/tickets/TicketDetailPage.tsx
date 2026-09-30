@@ -1,321 +1,239 @@
-import { Badge } from '@/components/badge'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { ProjectReadinessBanner } from '@/components/project-readiness'
-import { formatTicketSystem, getClankersList, getTicketDetails } from '@/data'
-import { getJobs, type JobListItem } from '@/service/api/job-api'
-import {
-  type ApprovalState,
-  deleteTicket,
-  getPlanningPhase,
-  setTicketStatus,
-  updateTicket,
-} from '@/service/api/ticket-api'
+import { deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
 import {
   CheckCircledIcon,
+  ChevronDownIcon,
   ClipboardIcon,
-  DotsHorizontalIcon,
-  ExternalLinkIcon,
   EyeOpenIcon,
-  FileTextIcon,
   Pencil1Icon,
   ResetIcon,
   TrashIcon,
 } from '@radix-ui/react-icons'
-import { type Clanker, type Ticket, TICKET_STATUS, TICKET_WORKFLOW_PHASE } from '@viberglass/types'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { TICKET_STATUS } from '@viberglass/types'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
-import { formatTicketStatus, getAutoFixBadge, getSeverityBadge } from './ticket-display'
-import { TicketPhaseView } from './TicketPhaseView'
+import { decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
+import { TaskNextMoveBanner } from './task-next-move-banner'
+import { TaskSidebar } from './task-sidebar'
+import { TaskStepView, type StepView } from './task-step-view'
+import { TaskStepper } from './task-stepper'
+import { openSessionFor, useTaskPage } from './use-task-page'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
+
+const LONG_DESCRIPTION = 280
+
+function isTaskStep(value: string | null | undefined): value is TaskStep {
+  return TASK_STEPS.some((step) => step === value)
+}
+
+const STEP_VIEWS: StepView[] = ['document', 'runs', 'comments']
+function isStepView(value: string | null): value is StepView {
+  return STEP_VIEWS.some((view) => view === value)
+}
+
+function Description({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const body = text.replace(/\\n/g, '\n')
+  const isLong = body.length > LONG_DESCRIPTION
+  return (
+    <div className="max-w-3xl text-[15px] leading-7 text-[var(--gray-11)]">
+      <p className={isLong && !expanded ? 'line-clamp-3 whitespace-pre-wrap' : 'whitespace-pre-wrap'}>{body}</p>
+      {isLong && (
+        <button type="button" onClick={() => setExpanded(!expanded)} className="mt-1 text-sm text-[var(--gray-10)] hover:text-[var(--gray-12)]">
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
   const navigate = useNavigate()
-  const [ticket, setTicket] = useState<Ticket | null>(null)
-  const [clankers, setClankers] = useState<Clanker[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [openRunId, setOpenRunId] = useState<string | null>(searchParams.get('run'))
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [planningApprovalState, setPlanningApprovalState] = useState<ApprovalState | null>(null)
-  const stableSetPlanningApprovalState = useCallback((state: ApprovalState) => {
-    setPlanningApprovalState(state)
-  }, [])
-  const [isWorkflowOverrideDialogOpen, setIsWorkflowOverrideDialogOpen] = useState(false)
-  const [jobs, setJobs] = useState<JobListItem[]>([])
+  const [isOverrideDialogOpen, setIsOverrideDialogOpen] = useState(false)
 
+  const linkedRunId = searchParams.get('run')
+  const changed = useCallback(() => void reload().catch(() => undefined), [reload])
+
+  // A link to a run (including one a banner action just started) opens it; if it's new, load it.
+  const linkedRunMissing = Boolean(linkedRunId && data && !data.runs.some((run) => run.jobId === linkedRunId))
   useEffect(() => {
-    let cancelled = false
-    async function loadData() {
-      if (!id) {
-        setIsLoading(false)
-        return
-      }
-      try {
-        const [t, c, planningPhase, jobsData] = await Promise.all([
-          getTicketDetails(id),
-          getClankersList(),
-          getPlanningPhase(id),
-          getJobs({ ticketId: id, limit: 50 }),
-        ])
-        if (cancelled) return
-        if (!t) {
-          setIsLoading(false)
-          return
-        }
-        setTicket(t)
-        setClankers(c)
-        setPlanningApprovalState(planningPhase.document.approvalState)
-        setJobs(jobsData.jobs)
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
-    void loadData()
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  // While execution is in progress and no pull request has landed yet, poll
-  // the ticket so the PR URL (persisted by TicketJobBridge on job completion)
-  // shows up without requiring a manual page refresh.
+    if (linkedRunId) setOpenRunId(linkedRunId)
+  }, [linkedRunId])
   useEffect(() => {
-    if (!id || !ticket) return
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.EXECUTION) return
-    if (ticket.pullRequestUrl) return
-    let cancelled = false
-    const timer = setInterval(async () => {
+    if (linkedRunMissing) changed()
+  }, [linkedRunMissing, changed])
+
+  const setStatus = useCallback(
+    async (status: (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS], message: string) => {
+      if (!data) return
       try {
-        const latest = await getTicketDetails(id)
-        if (cancelled || !latest) return
-        setTicket(latest)
-        if (latest.pullRequestUrl) clearInterval(timer)
-      } catch {
-        // swallow — next tick will retry
+        const updated =
+          status === TICKET_STATUS.RESOLVED ? await updateTicket(data.ticket.id, { status }) : await setTicketStatus(data.ticket.id, status)
+        setTicket(updated)
+        toast.success(message)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to update the task')
       }
-    }, 5000)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [id, ticket?.workflowPhase, ticket?.pullRequestUrl, ticket])
-
-  // While any run of this ticket is queued or active, poll its jobs and the
-  // ticket so the phases and the status see the run finish without a reload.
-  const hasRunningJob = jobs.some((job) => job.status === 'queued' || job.status === 'active')
-  useEffect(() => {
-    if (!id || !hasRunningJob) return
-    let cancelled = false
-    const timer = setInterval(async () => {
-      try {
-        const [latestJobs, latestTicket] = await Promise.all([
-          getJobs({ ticketId: id, limit: 50 }),
-          getTicketDetails(id),
-        ])
-        if (cancelled) return
-        setJobs(latestJobs.jobs)
-        if (latestTicket) setTicket(latestTicket)
-      } catch {
-        // swallow — next tick will retry
-      }
-    }, 5000)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [id, hasRunningJob])
-
-  const executionBlockingReason = useMemo(() => {
-    if (!ticket) return null
-    if (ticket.workflowOverriddenAt) return null
-    if (planningApprovalState === 'approved') return null
-    if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH)
-      return 'Execution is blocked until research is completed and the planning document is approved.'
-    return 'Execution is blocked until the planning document is approved.'
-  }, [planningApprovalState, ticket])
-
-  const handleResolve = useCallback(async () => {
-    if (!ticket) return
-    try {
-      const updated = await updateTicket(ticket.id, { status: TICKET_STATUS.RESOLVED })
-      setTicket(updated)
-      toast.success('Ticket resolved')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to resolve ticket')
-    }
-  }, [ticket])
-
-  const handleSubmitForReview = useCallback(async () => {
-    if (!ticket) return
-    try {
-      const updated = await setTicketStatus(ticket.id, TICKET_STATUS.IN_REVIEW)
-      setTicket(updated)
-      toast.success('Submitted for review')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to submit for review')
-    }
-  }, [ticket])
-
-  const handleMarkOpen = useCallback(async () => {
-    if (!ticket) return
-    try {
-      const updated = await setTicketStatus(ticket.id, TICKET_STATUS.OPEN)
-      setTicket(updated)
-      toast.success('Marked as open')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to mark as open')
-    }
-  }, [ticket])
+    },
+    [data, setTicket]
+  )
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[var(--gray-9)]">Loading ticket details...</div>
+        <div className="text-[var(--gray-9)]">Loading task…</div>
       </div>
     )
   }
-  if (!ticket || !project) {
+  if (!data || !project) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-red-600 dark:text-red-400">Ticket not found</div>
+        <div className="text-red-600 dark:text-red-400">Task not found</div>
       </div>
     )
   }
 
-  const severityBadge = getSeverityBadge(ticket.severity)
-  const autoFixBadge = getAutoFixBadge(ticket.autoFixStatus)
-  const statusBadge = formatTicketStatus(ticket.status)
+  const { ticket } = data
+  const currentStep = ticket.workflowPhase
+  const move = decideTaskNextMove({
+    ticket,
+    runs: data.runs,
+    documents: data.documents,
+    activeSession: openSessionFor(data.sessions, currentStep),
+  })
+
+  // A linked run shows its step; otherwise the step picked, or the current one.
+  const linkedRun = data.runs.find((run) => run.jobId === linkedRunId)
+  const requestedStep = searchParams.get('step')
+  const shownStep: TaskStep = isTaskStep(linkedRun?.jobKind) ? linkedRun.jobKind : isTaskStep(requestedStep) ? requestedStep : currentStep
+
+  // A linked run opens on the Runs view; otherwise the view picked, or the document.
+  const requestedView = searchParams.get('view')
+  const shownView: StepView = isStepView(requestedView) ? requestedView : linkedRun ? 'runs' : 'document'
+
+  const showStep = (step: TaskStep) => setSearchParams(step === currentStep ? {} : { step })
+  const showView = (view: StepView) =>
+    setSearchParams({ ...(shownStep === currentStep ? {} : { step: shownStep }), ...(view === 'document' ? {} : { view }) })
+  const openRun = (runId: string) => {
+    setOpenRunId(runId)
+    setSearchParams({ run: runId, view: 'runs' })
+  }
+  const toggleRun = (runId: string) => setOpenRunId((open) => (open === runId ? null : runId))
+  const canSkipToBuild = !ticket.workflowOverriddenAt && currentStep !== 'execution' && data.documents.planning.approvalState !== 'approved'
+
   return (
     <>
-      <PageMeta title={ticket ? `#${ticket.id.slice(-4)} | Ticket` : 'Ticket'} />
-      <div className="flex h-full flex-col gap-5">
+      <PageMeta title={`${ticket.title} | Task`} />
+      <div className="flex h-full flex-col gap-6">
         <Breadcrumbs
           items={[
-            { label: project, href: `/project/${project}` },
-            { label: 'Tickets', href: `/project/${project}/tickets` },
+            { label: project, href: `/spaces/${project}` },
+            { label: 'Tasks', href: `/spaces/${project}/tasks` },
             { label: ticket.title },
           ]}
         />
+        <ProjectReadinessBanner projectId={ticket.projectId} showDemoNotice={false} />
 
-        <ProjectReadinessBanner projectId={ticket.projectId} />
-
-        <div className="flex items-start justify-between gap-6">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent-4)] to-[var(--accent-3)] text-[var(--accent-11)] shadow-sm">
-              <FileTextIcon className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <Heading className="text-xl leading-tight">{ticket.title}</Heading>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Badge color={severityBadge.color}>{severityBadge.label}</Badge>
-                <Badge color="blue">{ticket.category}</Badge>
-                <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
-                {ticket.autoFixStatus && <Badge color={autoFixBadge.color}>Auto-fix: {autoFixBadge.label}</Badge>}
-                {ticket.externalTicketId && (
-                  <Badge color="violet">
-                    {formatTicketSystem(ticket.ticketSystem)} #{ticket.externalTicketId}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <Dropdown>
-              <DropdownButton outline aria-label="More actions">
-                <DotsHorizontalIcon className="h-4 w-4" />
-              </DropdownButton>
-              <DropdownMenu>
-                <DropdownItem onClick={() => setIsEditDialogOpen(true)}>
-                  <Pencil1Icon className="h-4 w-4" />
-                  Edit ticket
-                </DropdownItem>
-                {ticket.externalTicketUrl && (
-                  <DropdownItem href={ticket.externalTicketUrl} target="_blank">
-                    <ExternalLinkIcon className="h-4 w-4" />
-                    View external ticket
-                  </DropdownItem>
-                )}
-                {ticket.screenshot && (
-                  <DropdownItem href={`/project/${project}/tickets/${ticket.id}/media`}>
-                    <EyeOpenIcon className="h-4 w-4" />
-                    View screenshots
-                  </DropdownItem>
-                )}
-                <DropdownItem
-                  onClick={() => {
-                    void navigator.clipboard.writeText(ticket.id)
-                    toast.success('Ticket ID copied')
-                  }}
-                >
-                  <ClipboardIcon className="h-4 w-4" />
-                  Copy ticket ID
-                </DropdownItem>
-                {executionBlockingReason && (
-                  <>
-                    <DropdownDivider />
-                    <DropdownItem onClick={() => setIsWorkflowOverrideDialogOpen(true)}>
-                      <CheckCircledIcon className="h-4 w-4" />
-                      Skip to execution…
+        <div className="grid min-h-0 flex-1 gap-10 lg:grid-cols-[minmax(0,1fr)_17rem]">
+          <main className="min-w-0 space-y-7">
+            <header className="space-y-3">
+              <div className="flex items-start justify-between gap-6">
+                <Heading className="text-2xl leading-tight">{ticket.title}</Heading>
+                <Dropdown>
+                  <DropdownButton outline className="shrink-0">
+                    Actions
+                    <ChevronDownIcon data-slot="icon" />
+                  </DropdownButton>
+                  <DropdownMenu>
+                    <DropdownItem onClick={() => setIsEditDialogOpen(true)}>
+                      <Pencil1Icon className="size-4" />
+                      Edit details
                     </DropdownItem>
-                  </>
-                )}
-                <DropdownDivider />
-                {ticket.status !== 'in_review' && ticket.status !== 'resolved' && (
-                  <DropdownItem
-                    onClick={() => {
-                      void handleSubmitForReview()
-                    }}
-                  >
-                    <EyeOpenIcon className="h-4 w-4" />
-                    Submit for Review
-                  </DropdownItem>
-                )}
-                {ticket.status === 'in_review' && (
-                  <DropdownItem
-                    onClick={() => {
-                      void handleMarkOpen()
-                    }}
-                  >
-                    <ResetIcon className="h-4 w-4" />
-                    Mark as Open
-                  </DropdownItem>
-                )}
-                {ticket.status !== 'resolved' && (
-                  <DropdownItem
-                    onClick={() => {
-                      void handleResolve()
-                    }}
-                  >
-                    <CheckCircledIcon className="h-4 w-4" />
-                    Resolve
-                  </DropdownItem>
-                )}
-                <DropdownDivider />
-                <DropdownItem onClick={() => setIsDeleteDialogOpen(true)} className="text-red-600">
-                  <TrashIcon className="h-4 w-4" />
-                  Delete ticket
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-          </div>
-        </div>
+                    {ticket.screenshot && (
+                      <DropdownItem href={`/spaces/${project}/tasks/${ticket.id}/media`}>
+                        <EyeOpenIcon className="size-4" />
+                        View screenshots
+                      </DropdownItem>
+                    )}
+                    <DropdownItem
+                      onClick={() => {
+                        void navigator.clipboard.writeText(ticket.id)
+                        toast.success('Task ID copied')
+                      }}
+                    >
+                      <ClipboardIcon className="size-4" />
+                      Copy task ID
+                    </DropdownItem>
+                    {canSkipToBuild && (
+                      <DropdownItem onClick={() => setIsOverrideDialogOpen(true)}>
+                        <CheckCircledIcon className="size-4" />
+                        Skip to the build…
+                      </DropdownItem>
+                    )}
+                    <DropdownDivider />
+                    {ticket.status === TICKET_STATUS.RESOLVED ? (
+                      <DropdownItem onClick={() => void setStatus(TICKET_STATUS.OPEN, 'Task reopened')}>
+                        <ResetIcon className="size-4" />
+                        Reopen
+                      </DropdownItem>
+                    ) : (
+                      <DropdownItem onClick={() => void setStatus(TICKET_STATUS.RESOLVED, 'Task marked as done')}>
+                        <CheckCircledIcon className="size-4" />
+                        Mark as done
+                      </DropdownItem>
+                    )}
+                    <DropdownItem onClick={() => setIsDeleteDialogOpen(true)} className="text-red-600">
+                      <TrashIcon className="size-4" />
+                      Delete task
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+              </div>
+              {ticket.description && <Description text={ticket.description} />}
+            </header>
 
-        <TicketPhaseView
-          ticket={ticket}
-          clankers={clankers}
-          project={project}
-          onWorkflowPhaseChange={(workflowPhase) => setTicket((t) => (t ? { ...t, workflowPhase } : t))}
-          onApprovalStateChange={stableSetPlanningApprovalState}
-          onResolve={handleResolve}
-          jobs={jobs}
-        />
+            <TaskNextMoveBanner
+              move={move}
+              data={data}
+              project={project}
+              onChanged={changed}
+              onResolve={() => setStatus(TICKET_STATUS.RESOLVED, 'Task marked as done')}
+              onShowRun={openRun}
+            />
+
+            <section className="space-y-6">
+              <TaskStepper currentStep={currentStep} move={move} shownStep={shownStep} onShowStep={showStep} />
+              <TaskStepView
+                step={shownStep}
+                view={shownView}
+                onView={showView}
+                data={data}
+                project={project}
+                move={move}
+                openRunId={openRunId}
+                focusedRunId={linkedRunId}
+                onToggleRun={toggleRun}
+                onDocumentSaved={setDocument}
+                onChanged={changed}
+              />
+            </section>
+          </main>
+
+          <TaskSidebar data={data} project={project} openRunId={openRunId} onOpenRun={openRun} />
+        </div>
       </div>
 
       <EditTicketDialog
@@ -324,12 +242,11 @@ export function TicketDetailPage() {
         onClose={() => setIsEditDialogOpen(false)}
         onSave={async (updates: EditTicketValues) => {
           try {
-            const updatedTicket = await updateTicket(ticket.id, updates)
-            setTicket(updatedTicket)
+            setTicket(await updateTicket(ticket.id, updates))
             setIsEditDialogOpen(false)
-            toast.success('Ticket updated successfully')
+            toast.success('Task updated')
           } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to update ticket')
+            toast.error(error instanceof Error ? error.message : 'Failed to update task')
           }
         }}
       />
@@ -340,21 +257,21 @@ export function TicketDetailPage() {
         onConfirm={async () => {
           try {
             await deleteTicket(ticket.id)
-            toast.success('Ticket deleted successfully')
-            navigate(`/project/${project}/tickets`)
+            toast.success('Task deleted')
+            navigate(`/spaces/${project}/tasks`)
           } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to delete ticket')
+            toast.error(error instanceof Error ? error.message : 'Failed to delete task')
           }
         }}
       />
       <WorkflowOverrideDialog
         ticket={ticket}
-        open={isWorkflowOverrideDialogOpen}
-        onClose={() => setIsWorkflowOverrideDialogOpen(false)}
+        open={isOverrideDialogOpen}
+        onClose={() => setIsOverrideDialogOpen(false)}
         onSuccess={(updatedTicket) => {
           setTicket(updatedTicket)
-          setIsWorkflowOverrideDialogOpen(false)
-          toast.success('Execution override recorded - ticket moved to execution')
+          setIsOverrideDialogOpen(false)
+          toast.success('Skipped to the build')
         }}
       />
     </>

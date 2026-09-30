@@ -79,7 +79,7 @@ export function InboundWebhookSection({
         <Subheading>Inbound Webhooks</Subheading>
       </div>
       <Text className="text-sm text-[var(--gray-9)]">
-        Inbound webhooks create tickets from external payloads.
+        Inbound webhooks create tasks from external payloads.
       </Text>
 
       {isLoadingWebhook ? (

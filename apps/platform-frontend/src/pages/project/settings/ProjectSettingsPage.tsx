@@ -334,7 +334,7 @@ export function ProjectSettingsPage() {
       await deleteProject(projectData.id)
       navigate('/')
     } catch (err) {
-      setDeleteError(getErrorMessage(err, 'Failed to delete project'))
+      setDeleteError(getErrorMessage(err, 'Failed to delete space'))
       setIsDeleting(false)
     }
   }
@@ -346,7 +346,7 @@ export function ProjectSettingsPage() {
       await archiveProject(projectData.id)
       navigate('/')
     } catch (archiveError) {
-      const message = getErrorMessage(archiveError, 'Failed to archive project')
+      const message = getErrorMessage(archiveError, 'Failed to archive space')
       // Shown in the delete dialog when archiving from there, otherwise at the top.
       setError(message)
       setDeleteError(message)
@@ -418,7 +418,7 @@ export function ProjectSettingsPage() {
 
     try {
       if (!name.trim()) {
-        throw new Error('Project name is required')
+        throw new Error('Space name is required')
       }
 
       const selectedTicketingIntegration = ticketingIntegrations.find(
@@ -443,7 +443,7 @@ export function ProjectSettingsPage() {
           (integration) => integration.integrationEntityId === scmIntegrationId
         )
         if (!selectedScmIntegration) {
-          throw new Error('Select a valid SCM integration linked to this project')
+          throw new Error('Select a valid SCM integration linked to this space')
         }
 
         const normalizedSourceRepository = sourceRepository.trim()
@@ -466,12 +466,12 @@ export function ProjectSettingsPage() {
         setInitialScmConfig(null)
       }
 
-      setSuccess('Project settings saved.')
+      setSuccess('Space settings saved.')
       setName(updatedProject.name ?? '')
       setAutoFixEnabled(Boolean(updatedProject.autoFixEnabled))
       setAutoFixTags(updatedProject.autoFixTags?.join(', ') ?? '')
     } catch (submitError) {
-      setError(getErrorMessage(submitError, 'Failed to update project'))
+      setError(getErrorMessage(submitError, 'Failed to update space'))
     } finally {
       setIsSubmitting(false)
     }
@@ -480,20 +480,20 @@ export function ProjectSettingsPage() {
   if (isProjectLoading && !projectData) {
     return (
       <div className="mx-auto max-w-4xl p-6 lg:p-8">
-        <Heading>Project Settings</Heading>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Loading project settings...</p>
+        <Heading>Space Settings</Heading>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Loading space settings...</p>
       </div>
     )
   }
 
   return (
     <>
-      <PageMeta title={projectData?.name ? `${projectData.name} | Settings` : 'Project Settings'} />
+      <PageMeta title={projectData?.name ? `${projectData.name} | Settings` : 'Space Settings'} />
       <div className="max-w-4xl">
-        <Heading>Project Settings</Heading>
+        <Heading>Space Settings</Heading>
 
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Configure core project settings, ticketing integration, and SCM execution.
+          Configure core space settings, tracker integration, and SCM execution.
         </p>
 
         {projectError && (
@@ -523,8 +523,8 @@ export function ProjectSettingsPage() {
             <Fieldset disabled={isSubmitting}>
               <FieldGroup className="space-y-8">
                 <Field>
-                  <Label>Project Name</Label>
-                  <Description>Update the project name shown across the platform.</Description>
+                  <Label>Space Name</Label>
+                  <Description>Update the space name shown across the platform.</Description>
                   <Input name="name" value={name} onChange={(event) => setName(event.target.value)} required />
                 </Field>
 
@@ -535,7 +535,7 @@ export function ProjectSettingsPage() {
                       <Description>Select which linked integration to use for bug tracking.</Description>
                     </div>
                     <Link
-                      href={`/project/${project}/settings/integrations`}
+                      href={`/spaces/${project}/settings/connections`}
                       className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-burnt-orange hover:underline"
                     >
                       <GearIcon className="size-4" />
@@ -579,7 +579,7 @@ export function ProjectSettingsPage() {
                         <Description className="mt-2">
                           You can use Viberglass as your sole ticketing system, or{' '}
                           <Link
-                            href={`/project/${project}/settings/integrations`}
+                            href={`/spaces/${project}/settings/connections`}
                             className="text-brand-burnt-orange hover:underline"
                           >
                             link an external integration
@@ -596,11 +596,11 @@ export function ProjectSettingsPage() {
                     <div>
                       <Label className="text-base">SCM Execution</Label>
                       <Description>
-                        Configure repository, branch strategy, and credential secret used by clankers.
+                        Configure repository, branch strategy, and credential secret used by agents.
                       </Description>
                     </div>
                     <Link
-                      href={`/project/${project}/settings/integrations`}
+                      href={`/spaces/${project}/settings/connections`}
                       className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-burnt-orange hover:underline"
                     >
                       <GearIcon className="size-4" />
@@ -629,7 +629,7 @@ export function ProjectSettingsPage() {
                         }}
                         disabled={isLoadingIntegrations || isLoadingScmConfig || scmIntegrations.length === 0}
                       >
-                        <option value={NONE_OPTION}>No SCM integration configured</option>
+                        <option value={NONE_OPTION}>{scmIntegrations.length === 0 ? 'No code connection yet' : 'Select a connection…'}</option>
                         {scmIntegrations.map((integration) => (
                           <option key={integration.integrationEntityId} value={integration.integrationEntityId}>
                             {integration.label} ({integration.system})
@@ -640,7 +640,7 @@ export function ProjectSettingsPage() {
                         <Description className="mt-2">
                           Link a GitHub/GitLab/Bitbucket integration in{' '}
                           <Link
-                            href={`/project/${project}/settings/integrations`}
+                            href={`/spaces/${project}/settings/connections`}
                             className="text-brand-burnt-orange hover:underline"
                           >
                             project integrations
@@ -721,7 +721,7 @@ export function ProjectSettingsPage() {
                       <Description>
                         Select an integration credential for SCM authentication. These are managed in the{' '}
                         <Link
-                          href={`/settings/integrations/${scmIntegrationId}`}
+                          href={`/settings/connections/${scmIntegrationId}`}
                           className="text-brand-burnt-orange hover:underline"
                         >
                           integration settings
@@ -761,7 +761,7 @@ export function ProjectSettingsPage() {
                         <Description className="mt-2">
                           No integration credentials configured. Create one in{' '}
                           <Link
-                            href={`/settings/integrations/${scmIntegrationId}`}
+                            href={`/settings/connections/${scmIntegrationId}`}
                             className="text-brand-burnt-orange hover:underline"
                           >
                             integration settings
@@ -812,19 +812,19 @@ export function ProjectSettingsPage() {
         {projectData && (
           <div className="mt-16 space-y-6 border-t border-zinc-200 pt-8 dark:border-zinc-800">
             <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-6 dark:border-zinc-800 dark:bg-zinc-900/50">
-              <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Archive project</h3>
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Archive space</h3>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Hide this project from active lists while retaining all tickets, runs, and configuration.
+                Hide this space from active lists while retaining all tasks, runs, and configuration.
               </p>
               <Button className="mt-4" outline disabled={isArchiving} onClick={() => void handleArchiveProject()}>
-                {isArchiving ? 'Archiving…' : 'Archive project'}
+                {isArchiving ? 'Archiving…' : 'Archive space'}
               </Button>
             </div>
             {isAdmin && (
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
               <h3 className="text-base font-semibold text-red-700 dark:text-red-400">Danger Zone</h3>
               <p className="mt-1 text-sm text-red-600/80 dark:text-red-400/80">
-                Permanently delete this project and all associated data. This cannot be undone.
+                Permanently delete this space and all associated data. This cannot be undone.
               </p>
               <div className="mt-4">
                 <Button
@@ -838,7 +838,7 @@ export function ProjectSettingsPage() {
                       .catch(() => setDeletionSummary(null))
                   }}
                 >
-                  Delete Project
+                  Delete Space
                 </Button>
               </div>
             </div>
@@ -854,7 +854,7 @@ export function ProjectSettingsPage() {
         }}
         size="md"
       >
-        <DialogTitle>Delete Project</DialogTitle>
+        <DialogTitle>Delete Space</DialogTitle>
         <DialogDescription>
           This will permanently delete <strong>{projectData?.name}</strong> and all its tickets, runs, and
           configuration. This action cannot be undone.
@@ -863,7 +863,7 @@ export function ProjectSettingsPage() {
           <div className="space-y-3">
             {deletionSummary ? (
               <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
-                Also deleted: {deletionSummary.tickets} tickets, {deletionSummary.runs} runs,{' '}
+                Also deleted: {deletionSummary.tickets} tasks, {deletionSummary.runs} runs,{' '}
                 {deletionSummary.sessions} agent sessions, and {deletionSummary.schedules} schedules.
               </p>
             ) : null}
@@ -891,7 +891,7 @@ export function ProjectSettingsPage() {
             onClick={handleDeleteProject}
             disabled={isDeleting || deleteConfirmName !== projectData?.name}
           >
-            {isDeleting ? 'Deleting...' : 'Delete Project'}
+            {isDeleting ? 'Deleting...' : 'Delete Space'}
           </Button>
         </DialogActions>
       </Dialog>

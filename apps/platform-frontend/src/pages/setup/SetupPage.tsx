@@ -62,7 +62,7 @@ export function SetupPage() {
     setIsLoadingDemo(true)
     try {
       const demo = await loadDemoWorkspace()
-      navigate(`/project/${demo.slug}`)
+      navigate(`/spaces/${demo.slug}`)
     } catch (error) {
       setDemoError(error instanceof Error ? error.message : "Couldn't load the demo workspace.")
       setIsLoadingDemo(false)

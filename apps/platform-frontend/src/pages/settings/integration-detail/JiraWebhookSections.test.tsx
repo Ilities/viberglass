@@ -72,7 +72,7 @@ function createOutboundProps(
 }
 
 describe('Jira webhook sections', () => {
-  it('renders inbound Jira setup and project scope controls', () => {
+  it('renders inbound Jira setup and space scope controls', () => {
     renderWithTheme(
       <JiraInboundWebhookSection
         {...createInboundProps({
@@ -119,8 +119,8 @@ describe('Jira webhook sections', () => {
 
     expect(screen.getByRole('heading', { name: 'Jira Inbound Webhook' })).toBeInTheDocument()
     expect(screen.getByText('Jira setup steps')).toBeInTheDocument()
-    expect(screen.getByText('Inbound project scope')).toBeInTheDocument()
-    expect(screen.getByLabelText('Viberglass project')).toBeInTheDocument()
+    expect(screen.getByText('Inbound space scope')).toBeInTheDocument()
+    expect(screen.getByLabelText('Viberglass space')).toBeInTheDocument()
     expect(screen.getByLabelText('Jira project key (optional)')).toBeInTheDocument()
   })
 

@@ -1,4 +1,4 @@
-import type { JobFailure, JobKind, TicketSystem } from "@viberglass/types";
+import type { JobFailure, JobKind, TicketSystem, TicketWorkflowPhase } from "@viberglass/types";
 
 interface InstructionFile {
   fileType: string;
@@ -219,7 +219,10 @@ export interface JobStatusResponse {
     id: string | null;
     title: string | null;
     externalTicketId: string | null;
+    workflowPhase: TicketWorkflowPhase | null;
   } | null;
+  /** The live session this run is a turn of, if any. */
+  agentSessionId: string | null;
   clankerId: string | null;
   clanker: JobClankerInfo | null;
 }

@@ -2,8 +2,8 @@ import { createChildLogger } from '../../config/logger';
 import type { JobResult } from '../../types/Job';
 import { formatJobStartedComment, formatResultDetails, type OutboundTarget } from '../feedbackHelpers';
 import type { ProviderRegistry } from '../ProviderRegistry';
-import type { WebhookSecretService } from '../WebhookSecretService';
 import type { WebhookResult } from '../WebhookProvider';
+import type { FeedbackApiTokenResolver } from './FeedbackApiTokenResolver';
 import { createProviderInstance, toProviderConfig } from './FeedbackDispatchUtils';
 import { CustomOutboundTargetDispatcher } from './CustomOutboundTargetDispatcher';
 import { FeedbackDeliveryTracker } from './FeedbackDeliveryTracker';
@@ -17,7 +17,7 @@ const logger = createChildLogger({ service: 'FeedbackTargetDispatchRunner' });
 export class FeedbackTargetDispatchRunner {
   constructor(
     private registry: ProviderRegistry,
-    private secretService: WebhookSecretService,
+    private apiTokens: FeedbackApiTokenResolver,
     private retryExecutor: FeedbackRetryExecutor,
     private providerBehaviors: FeedbackProviderBehaviorResolver,
     private customDispatcher: CustomOutboundTargetDispatcher,
@@ -127,7 +127,7 @@ export class FeedbackTargetDispatchRunner {
     };
 
     if (behavior.requiresApiToken()) {
-      const apiToken = await this.secretService.getApiToken(providerConfig);
+      const apiToken = await this.apiTokens.resolve(behavior, target.config, providerConfig);
       if (!apiToken?.trim()) {
         throw new Error(`Provider '${target.config.provider}' API token is missing`);
       }

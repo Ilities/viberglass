@@ -177,7 +177,7 @@ export function NewProjectPage() {
         })
       }
 
-      navigate(`/project/${projectSlug}`)
+      navigate(`/spaces/${projectSlug}`)
     } catch (err) {
       setError(getErrorMessage(err, 'An unexpected error occurred'))
     } finally {
@@ -187,9 +187,9 @@ export function NewProjectPage() {
 
   return (
     <>
-      <PageMeta title="New Project" />
+      <PageMeta title="New Space" />
       <div className="mx-auto max-w-4xl">
-        <Heading>Create New Project</Heading>
+        <Heading>Create New Space</Heading>
 
         {error && (
           <div className="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
@@ -197,7 +197,7 @@ export function NewProjectPage() {
             {createdProjectId && (
               <p className="mt-1">
                 The project was created. You can also{' '}
-                <Link href={`/project/${createdProjectSlug}/settings/project`} className="font-medium underline">
+                <Link href={`/spaces/${createdProjectSlug}/settings/general`} className="font-medium underline">
                   configure integrations in project settings
                 </Link>
                 .
@@ -210,8 +210,8 @@ export function NewProjectPage() {
           <Fieldset>
             <FieldGroup className="space-y-8">
               <Field>
-                <Label>Project Name</Label>
-                <Description>What should we call this project?</Description>
+                <Label>Space Name</Label>
+                <Description>What should we call this space?</Description>
                 <Input name="name" placeholder="e.g. My Awesome App" required disabled={!!createdProjectId} />
               </Field>
 
@@ -252,7 +252,7 @@ export function NewProjectPage() {
                     {ticketingIntegrations.length === 0 && (
                       <Description className="mt-2">
                         You can use Viberglass as your sole ticketing system, or{' '}
-                        <Link href="/settings/integrations" className="text-brand-burnt-orange hover:underline">
+                        <Link href="/settings/connections" className="text-brand-burnt-orange hover:underline">
                           create an integration
                         </Link>{' '}
                         first to sync tickets externally.
@@ -278,7 +278,7 @@ export function NewProjectPage() {
                       }}
                       disabled={isLoadingIntegrations || scmIntegrations.length === 0}
                     >
-                      <option value={NONE_OPTION}>No SCM integration configured</option>
+                      <option value={NONE_OPTION}>{scmIntegrations.length === 0 ? 'No code connection yet' : 'Select a connection…'}</option>
                       {scmIntegrations.map((i) => (
                         <option key={i.id} value={i.id}>
                           {i.name} ({i.system})
@@ -287,7 +287,7 @@ export function NewProjectPage() {
                     </Select>
                     {!isLoadingIntegrations && scmIntegrations.length === 0 && (
                       <Description className="mt-2">
-                        <Link href="/settings/integrations" className="text-brand-burnt-orange hover:underline">
+                        <Link href="/settings/connections" className="text-brand-burnt-orange hover:underline">
                           Create a GitHub, GitLab, or Bitbucket integration
                         </Link>{' '}
                         to enable SCM configuration.
@@ -360,8 +360,8 @@ export function NewProjectPage() {
                       <Link
                         href={
                           scmIntegrationId !== NONE_OPTION
-                            ? `/settings/integrations/${scmIntegrationId}`
-                            : '/settings/integrations'
+                            ? `/settings/connections/${scmIntegrationId}`
+                            : '/settings/connections'
                         }
                         className="text-brand-burnt-orange hover:underline"
                       >
@@ -396,7 +396,7 @@ export function NewProjectPage() {
                         <Description className="mt-2">
                           No credentials configured. Create one in{' '}
                           <Link
-                            href={`/settings/integrations/${scmIntegrationId}`}
+                            href={`/settings/connections/${scmIntegrationId}`}
                             className="text-brand-burnt-orange hover:underline"
                           >
                             integration settings
@@ -430,7 +430,7 @@ export function NewProjectPage() {
                   Cancel
                 </Button>
                 <Button type="submit" color="brand" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : createdProjectId ? 'Finish Setup' : 'Create Project'}
+                  {isSubmitting ? 'Creating...' : createdProjectId ? 'Finish Setup' : 'Create Space'}
                 </Button>
               </div>
             </FieldGroup>

@@ -16,7 +16,7 @@ test("cancelling a run stops the agent and keeps the run cancelled", async ({
   // aborts in-flight loads with ERR_NETWORK_CHANGED, so retry the navigation.
   const cancelButton = page.getByRole("button", { name: "Cancel run" });
   await expect(async () => {
-    await page.goto(`/project/${workspace.projectSlug}/jobs/${jobId}`);
+    await page.goto(`/spaces/${workspace.projectSlug}/runs/${jobId}`);
     await expect(cancelButton).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   await cancelButton.click();

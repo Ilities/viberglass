@@ -101,7 +101,7 @@ export function TemplatesTab({ projectId }: Props) {
       return
     }
     if (!form.clankerId) {
-      toast.error('Clanker is required')
+      toast.error('Agent is required')
       return
     }
     if (dialogMode === 'create' && !form.taskInstructions.trim()) {

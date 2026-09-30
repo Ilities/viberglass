@@ -243,7 +243,7 @@ export function PhaseSessionPanel({ session, project, onSessionEnded, onTurnComp
         </div>
         <div className="flex items-center gap-2">
           {presentUsers.length > 0 && <PresenceBar presentUsers={presentUsers} />}
-          <Button plain href={`/project/${project}/sessions/${session.id}`} target="_blank" className="text-xs">
+          <Button plain href={`/spaces/${project}/sessions/${session.id}`} target="_blank" className="text-xs">
             <ExternalLinkIcon className="h-3 w-3" />
             Full view
           </Button>

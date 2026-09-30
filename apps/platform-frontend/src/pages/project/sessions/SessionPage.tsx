@@ -184,9 +184,9 @@ export function SessionPage() {
       <div className="flex h-full flex-col gap-5">
         {/* Back link */}
         <div>
-          <Button href={`/project/${project}/tickets/${session.ticketId}`} plain className="-ml-1">
+          <Button href={`/spaces/${project}/tasks/${session.ticketId}`} plain className="-ml-1">
             <ArrowLeftIcon className="h-4 w-4" />
-            Back to Ticket
+            Back to Task
           </Button>
         </div>
 

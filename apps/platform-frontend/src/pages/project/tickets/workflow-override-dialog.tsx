@@ -57,7 +57,7 @@ export function WorkflowOverrideDialog({
     >
       <DialogTitle>Execute without Research/Planning</DialogTitle>
       <DialogDescription>
-        This explicitly bypasses the planning approval gate and moves the ticket into execution.
+        This explicitly bypasses the planning approval gate and moves the task into execution.
       </DialogDescription>
 
       <DialogBody>
@@ -65,7 +65,7 @@ export function WorkflowOverrideDialog({
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-900">
             <p className="font-medium text-zinc-900 dark:text-white">{ticket.title}</p>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Record why this ticket should skip the normal research and planning path.
+              Record why this task should skip the normal research and planning path.
             </p>
           </div>
 
@@ -85,7 +85,7 @@ export function WorkflowOverrideDialog({
               placeholder="Explain why execution should proceed without approved research/planning..."
             />
             <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              This reason is stored on the ticket as part of the workflow override audit trail.
+              This reason is stored on the task as part of the workflow override audit trail.
             </p>
           </div>
         </div>

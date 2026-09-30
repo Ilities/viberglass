@@ -81,17 +81,17 @@ function ProjectDropdownMenu({ projectSlug, projects }: { projectSlug?: string; 
         <DropdownLabel>Home</DropdownLabel>
       </DropdownItem>
 
-      {pathname.startsWith('/project/') && projectSlug ? (
-        <DropdownItem href={`/project/${projectSlug}/settings`}>
+      {pathname.startsWith('/spaces/') && projectSlug ? (
+        <DropdownItem href={`/spaces/${projectSlug}/settings`}>
           <Icon>
             <GearIcon />
           </Icon>
-          <DropdownLabel>Project Settings</DropdownLabel>
+          <DropdownLabel>Space Settings</DropdownLabel>
         </DropdownItem>
       ) : null}
       <DropdownDivider />
       {projects.map((p) => (
-        <DropdownItem key={p.id} href={`/project/${p.slug}`}>
+        <DropdownItem key={p.id} href={`/spaces/${p.slug}`}>
           {p.slug === 'viberglass' ? (
             <Avatar slot="icon" src="/teams/viberglass.svg" />
           ) : (
@@ -105,11 +105,11 @@ function ProjectDropdownMenu({ projectSlug, projects }: { projectSlug?: string; 
         </DropdownItem>
       ))}
       <DropdownDivider />
-      <DropdownItem href="/new">
+      <DropdownItem href="/spaces/new">
         <Icon>
           <PlusIcon />
         </Icon>
-        <DropdownLabel>New Project&hellip;</DropdownLabel>
+        <DropdownLabel>New space&hellip;</DropdownLabel>
       </DropdownItem>
     </DropdownMenu>
   )
@@ -183,7 +183,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
         <SidebarSection>
           <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]}</SidebarHeading>
           {inReviewTickets.map((ticket) => (
-            <SidebarItem key={ticket.id} href={`/project/${projectSlug}/tickets/${ticket.id}`}>
+            <SidebarItem key={ticket.id} href={`/spaces/${projectSlug}/tasks/${ticket.id}`}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-warning-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>
@@ -194,7 +194,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
         <SidebarSection>
           <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}</SidebarHeading>
           {inProgressTickets.map((ticket) => (
-            <SidebarItem key={ticket.id} href={`/project/${projectSlug}/tickets/${ticket.id}`}>
+            <SidebarItem key={ticket.id} href={`/spaces/${projectSlug}/tasks/${ticket.id}`}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-blue-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>
@@ -239,22 +239,23 @@ function ApplicationLayoutContent() {
     return null
   }
 
-  const basePath = `/project/${projectSlug}`
+  const basePath = `/spaces/${projectSlug}`
   const isAdmin = user.role === 'admin'
-  const isProjectRoute = pathname.startsWith('/project/')
+  // /spaces/new is the create page, not a space: only routes with a space slug count.
+  const isProjectRoute = pathname.startsWith('/spaces/') && Boolean(projectSlug)
 
   // Runners, connections, secrets and prompt templates live under Settings → Advanced (ADR 0003).
-  const isSettingsRoute = ['/settings', '/clankers', '/secrets'].some((prefix) => pathname.startsWith(prefix))
+  const isSettingsRoute = ['/settings', '/settings/agents', '/settings/secrets'].some((prefix) => pathname.startsWith(prefix))
   const platformNavItems: NavLinkItem[] = [
     { href: '/', label: 'Dashboard', current: !isProjectRoute && pathname === '/', icon: <HomeIcon /> },
     {
-      href: '/sessions',
+      href: '/pulse',
       label: 'Pulse',
-      current: pathname.startsWith('/sessions'),
+      current: pathname.startsWith('/pulse'),
       icon: <ActivityLogIcon />,
     },
     {
-      href: isAdmin ? '/settings/users' : '/settings/api-tokens',
+      href: isAdmin ? '/settings/members' : '/settings/api-tokens',
       label: 'Settings',
       current: isSettingsRoute,
       icon: <GearIcon />,
@@ -264,9 +265,9 @@ function ApplicationLayoutContent() {
   const projectNavItems: NavLinkItem[] = [
     { href: basePath, label: 'Dashboard', current: pathname === basePath, icon: <HomeIcon /> },
     {
-      href: `${basePath}/tickets`,
-      label: 'Tickets',
-      current: pathname.startsWith(`${basePath}/tickets`),
+      href: `${basePath}/tasks`,
+      label: 'Tasks',
+      current: pathname.startsWith(`${basePath}/tasks`),
       icon: <ClipboardCopyIcon />,
     },
     {
@@ -279,15 +280,15 @@ function ApplicationLayoutContent() {
 
   const projectOperationsNavItems: NavLinkItem[] = [
     {
-      href: `${basePath}/jobs`,
+      href: `${basePath}/runs`,
       label: 'Runs',
-      current: pathname.startsWith(`${basePath}/jobs`),
+      current: pathname.startsWith(`${basePath}/runs`),
       icon: <ActivityLogIcon />,
     },
     {
-      href: `${basePath}/claws`,
+      href: `${basePath}/schedules`,
       label: 'Schedules',
-      current: pathname.startsWith(`${basePath}/claws`),
+      current: pathname.startsWith(`${basePath}/schedules`),
       icon: <ClockIcon />,
     },
   ]
@@ -308,7 +309,7 @@ function ApplicationLayoutContent() {
               <Dropdown>
                 <DropdownButton as={NavbarItem} className="max-lg:hidden">
                   <Avatar src="/teams/viberglass.svg" />
-                  <NavbarLabel>{projectSlug ?? 'Projects'}</NavbarLabel>
+                  <NavbarLabel>{projectSlug ?? 'Spaces'}</NavbarLabel>
                   <Icon>
                     <ChevronDownIcon />
                   </Icon>
@@ -355,7 +356,7 @@ function ApplicationLayoutContent() {
                   </SidebarSection>
                 )}
                 <SidebarSection>
-                  <SidebarHeading>{isProjectRoute ? 'Project' : 'Platform'}</SidebarHeading>
+                  <SidebarHeading>{isProjectRoute ? 'Space' : 'Platform'}</SidebarHeading>
                   {navItems.map((item) => (
                     <SidebarItem key={item.href} href={item.href} current={item.current}>
                       <Icon>{item.icon}</Icon>
@@ -378,13 +379,13 @@ function ApplicationLayoutContent() {
                   <ProjectActivitySidebar projectSlug={projectSlug} />
                 ) : (
                   <SidebarSection>
-                    <SidebarHeading>Projects</SidebarHeading>
+                    <SidebarHeading>Spaces</SidebarHeading>
                     {projects.map((project) => (
                       <SidebarItem
                         key={project.id}
-                        href={`/project/${project.slug}`}
+                        href={`/spaces/${project.slug}`}
                         current={
-                          pathname === `/project/${project.slug}` || pathname.startsWith(`/project/${project.slug}/`)
+                          pathname === `/spaces/${project.slug}` || pathname.startsWith(`/spaces/${project.slug}/`)
                         }
                       >
                         {project.slug === 'viberglass' ? (
@@ -399,18 +400,18 @@ function ApplicationLayoutContent() {
                         <SidebarLabel>{project.name}</SidebarLabel>
                       </SidebarItem>
                     ))}
-                    <SidebarItem href="/new">
+                    <SidebarItem href="/spaces/new">
                       <Icon>
                         <PlusIcon />
                       </Icon>
-                      <SidebarLabel>New Project</SidebarLabel>
+                      <SidebarLabel>New space</SidebarLabel>
                     </SidebarItem>
                   </SidebarSection>
                 )}
               </SidebarBody>
               <SidebarFooter>
                 <SidebarSection>
-                  <SidebarItem href="/settings/users">
+                  <SidebarItem href="/settings/members">
                     <Avatar
                       square
                       slot="avatar"

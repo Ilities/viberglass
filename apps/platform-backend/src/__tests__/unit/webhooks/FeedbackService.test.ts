@@ -14,6 +14,7 @@ import { FeedbackTargetDispatchRunner } from "../../../webhooks/feedback/Feedbac
 import { FeedbackOutboundTargetResolver } from "../../../webhooks/feedback/FeedbackOutboundTargetResolver";
 import { FeedbackRetryExecutor } from "../../../webhooks/feedback/FeedbackRetryExecutor";
 import { createDefaultFeedbackProviderBehaviorResolver } from "../../../webhooks/feedback/provider-behaviors";
+import { FeedbackApiTokenResolver } from "../../../webhooks/feedback/FeedbackApiTokenResolver";
 import type { ProviderRegistry } from "../../../webhooks/ProviderRegistry";
 import {
   WebhookProvider,
@@ -27,6 +28,7 @@ class MockGitHubProvider extends WebhookProvider {
   readonly name = "github";
 
   static readonly postCommentMock = jest.fn<Promise<void>, [string, string]>();
+  static readonly postedWithTokens: Array<string | undefined> = [];
   static readonly updateLabelsMock = jest.fn<Promise<void>, [string, string[], string[]]>();
   static readonly postResultMock = jest.fn<Promise<void>, [string, WebhookResult]>();
 
@@ -50,6 +52,7 @@ class MockGitHubProvider extends WebhookProvider {
   }
 
   async postComment(issueNumber: string, body: string): Promise<void> {
+    MockGitHubProvider.postedWithTokens.push(this.config.apiToken);
     await MockGitHubProvider.postCommentMock(issueNumber, body);
   }
 
@@ -213,6 +216,7 @@ describe("FeedbackService", () => {
     listActiveConfigs: jest.Mock;
   };
   let mockSecretService: { getApiToken: jest.Mock };
+  let mockIntegrationTokens: { resolveDefaultToken: jest.Mock };
   let mockDeliveryDAO: {
     recordDeliveryAttempt: jest.Mock;
     updateDeliveryStatus: jest.Mock;
@@ -268,6 +272,10 @@ describe("FeedbackService", () => {
     mockSecretService = {
       getApiToken: jest.fn().mockResolvedValue("gh-api-token"),
     };
+    // Connections without a token credential: feedback falls back to its own stored token.
+    mockIntegrationTokens = {
+      resolveDefaultToken: jest.fn().mockResolvedValue(null),
+    };
     mockDeliveryDAO = {
       recordDeliveryAttempt: jest.fn().mockImplementation(async (dto: { deliveryId: string }) => ({
         id: `delivery-${dto.deliveryId}`,
@@ -301,7 +309,10 @@ describe("FeedbackService", () => {
     const deliveryTracker = new FeedbackDeliveryTracker(mockDeliveryDAO as any);
     const targetRunner = new FeedbackTargetDispatchRunner(
       mockRegistry as unknown as ProviderRegistry,
-      mockSecretService as unknown as WebhookSecretService,
+      new FeedbackApiTokenResolver(
+        mockSecretService as unknown as WebhookSecretService,
+        mockIntegrationTokens,
+      ),
       retryExecutor,
       providerBehaviorResolver,
       customDispatcher,
@@ -354,6 +365,30 @@ describe("FeedbackService", () => {
         activeOnly: true,
       }),
     );
+  });
+
+  it("posts GitHub feedback with the connection's own token, not a second one", async () => {
+    mockIntegrationTokens.resolveDefaultToken.mockResolvedValue("connection-token");
+    MockGitHubProvider.postedWithTokens.length = 0;
+    mockTicketDAO.getTicket.mockResolvedValue({
+      id: "ticket-1",
+      projectId: "project-1",
+      ticketSystem: "github",
+      externalTicketId: "77",
+      metadata: { webhookConfigId: "inbound-1", repository: "acme/repo" },
+    } as any);
+
+    const result = await service.postJobStarted({
+      id: "job-3",
+      ticketId: "ticket-1",
+      status: "active",
+      repository: "acme/repo",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockIntegrationTokens.resolveDefaultToken).toHaveBeenCalledWith("integration-1");
+    expect(mockSecretService.getApiToken).not.toHaveBeenCalled();
+    expect(MockGitHubProvider.postedWithTokens).toEqual(["connection-token"]);
   });
 
   it("resolves providerProjectId explicitly when outbound config omits it", async () => {

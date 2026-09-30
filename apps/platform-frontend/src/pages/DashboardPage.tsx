@@ -2,12 +2,13 @@ import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { Divider } from '@/components/divider'
+import { EmptyState } from '@/components/empty-state'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
-import { AsciiGalaxy, AsciiRobot, AsciiSpaceship, AsciiWhale } from '@/components/retro-decorations'
 import { Timestamp } from '@/components/timestamp'
+import { useAuth } from '@/context/auth-context'
 import type { Clanker, JobListItem, JobQueueStats, Project, TicketStats, TicketSummary } from '@/data'
 import {
   formatJobKind,
@@ -20,9 +21,8 @@ import {
   getRecentTickets,
   getTicketStats,
 } from '@/data'
-import { EmptyBay } from '@/pages/dashboard/EmptyBay'
-import { ProjectConstellationCard } from '@/pages/dashboard/ProjectConstellationCard'
-import { clankerStatusColor, getBroadcastLine } from '@/pages/dashboard/projectSignals'
+import { SpaceCard } from '@/pages/dashboard/SpaceCard'
+import { clankerStatusColor, getWorkspaceSummary } from '@/pages/dashboard/spaceSignals'
 import { useSetupRedirect } from '@/pages/setup/useSetupRedirect'
 import type { FeedItem, ProjectActivity } from '@/pages/dashboard/types'
 import { PlusIcon } from '@radix-ui/react-icons'
@@ -39,6 +39,8 @@ function MetricCard({ label, value }: { label: string; value: string | number })
 
 export function DashboardPage() {
   useSetupRedirect()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [projects, setProjects] = useState<Project[]>([])
   const [clankers, setClankers] = useState<Clanker[]>([])
   const [ticketStats, setTicketStats] = useState<TicketStats | null>(null)
@@ -106,7 +108,7 @@ export function DashboardPage() {
           title: ticket.title,
           detail: `${project.name} • ${severity.label}`,
           timestamp: ticket.timestamp,
-          href: `/project/${project.slug}/tickets/${ticket.id}`,
+          href: `/spaces/${project.slug}/tasks/${ticket.id}`,
           kind: 'ticket',
           color: severity.badgeColor,
         }
@@ -122,7 +124,7 @@ export function DashboardPage() {
           title: job.ticket?.title ?? job.task,
           detail: `${job.projectSlug} • ${formatJobKind(job.jobKind)} • ${status.label}`,
           timestamp: job.createdAt,
-          href: `/project/${job.projectSlug}/jobs/${job.jobId}`,
+          href: `/spaces/${job.projectSlug}/runs/${job.jobId}`,
           kind: 'job',
           color: status.color,
         }
@@ -136,56 +138,54 @@ export function DashboardPage() {
 
   if (isLoading) return <FunLoading retro />
 
-  const activeClankers = clankers.filter((clanker) => clanker.status === 'active').length
-  const queuePressure = (queueStats?.waiting ?? 0) + (queueStats?.active ?? 0)
-  const broadcast = getBroadcastLine(projects.length, clankers.length)
-  const hasSparseConstellation = projects.length <= 3
+  const runsInProgress = (queueStats?.waiting ?? 0) + (queueStats?.active ?? 0)
+  const openTaskCount = (ticketStats?.open ?? 0) + (ticketStats?.inProgress ?? 0) + (ticketStats?.inReview ?? 0)
 
   return (
     <>
-      <PageMeta title="Command Deck" />
-      <Heading>Command Deck</Heading>
-      <p className="mt-2 max-w-3xl text-sm text-zinc-500 dark:text-zinc-400">{broadcast}</p>
+      <PageMeta title="Dashboard" />
+      <Heading>Dashboard</Heading>
+      <p className="mt-2 max-w-3xl text-sm text-zinc-500 dark:text-zinc-400">
+        {getWorkspaceSummary(projects.length, openTaskCount, runsInProgress)}
+      </p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Project Constellation" value={projects.length} />
-        <MetricCard label="Unresolved Bugs" value={(ticketStats?.open ?? 0) + (ticketStats?.inProgress ?? 0) + (ticketStats?.inReview ?? 0)} />
-        <MetricCard label="Queue Pressure" value={queuePressure} />
+        <MetricCard label="Spaces" value={projects.length} />
+        <MetricCard label="Open tasks" value={openTaskCount} />
+        <MetricCard label="Runs in progress" value={runsInProgress} />
       </div>
 
       <div className="mt-10 flex items-center justify-between">
-        <Subheading>Project Constellation</Subheading>
+        <Subheading>Spaces</Subheading>
         <div className="flex items-center gap-2">
-          <Button href="/new" color="brand">
+          <Button href="/spaces/new" color="brand">
             <PlusIcon data-slot="icon" />
-            New Project
+            New space
           </Button>
-          <Link href="/clankers" className="ui-text-action">
-            Manage agent runners
-          </Link>
         </div>
       </div>
       <Divider className="mt-2" />
 
       {projects.length === 0 ? (
         <div className="mt-4">
-          <EmptyBay
-            title="[ MOSTLY HARMLESS ]"
-            description="No projects in orbit yet. Launch one and this deck turns into a proper space opera. Bring a towel."
-            asciiArt={<AsciiSpaceship />}
-            href="/new"
-            actionLabel="Launch Project"
+          <EmptyState
+            title="No spaces yet"
+            description="A space connects a repository to the tasks and agents that work on it."
+action={
+              <Button href="/spaces/new" color="brand">
+                <PlusIcon data-slot="icon" />
+                Create a space
+              </Button>
+            }
           />
         </div>
       ) : (
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project, index) => (
-            <ProjectConstellationCard
+          {projects.map((project) => (
+            <SpaceCard
               key={project.id}
               project={project}
               activity={projectActivity.get(project.id) ?? { tickets: [], jobs: [] }}
-              delayIndex={index}
-              showWhisper={hasSparseConstellation}
             />
           ))}
         </div>
@@ -193,14 +193,10 @@ export function DashboardPage() {
 
       <div className="mt-10 grid gap-8 xl:grid-cols-[1.8fr_1fr]">
         <div>
-          <Subheading>Galactic Logbook</Subheading>
+          <Subheading>Recent activity</Subheading>
           {feed.length === 0 ? (
             <div className="mt-4">
-              <EmptyBay
-                title="[ STARS ARE QUIET ]"
-                description="No ticket pings or run thruster trails yet. That calm will not last. The dolphins tried to warn us."
-                asciiArt={<AsciiWhale />}
-              />
+              <EmptyState title="No activity yet" description="Tasks and runs show up here as they happen." />
             </div>
           ) : (
             <div className="mt-4 space-y-3">
@@ -212,7 +208,7 @@ export function DashboardPage() {
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <Badge color={item.color}>{item.kind === 'ticket' ? 'Ticket' : 'Job'}</Badge>
+                      <Badge color={item.color}>{item.kind === 'ticket' ? 'Task' : 'Run'}</Badge>
                       <span className="truncate text-sm font-medium text-zinc-950 dark:text-white">{item.title}</span>
                     </div>
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{item.detail}</p>
@@ -229,23 +225,30 @@ export function DashboardPage() {
 
         <div className="space-y-8">
           <div>
-            <Subheading>Mechanical Menagerie</Subheading>
+            <Subheading>Agents</Subheading>
             {clankers.length === 0 ? (
               <div className="mt-4">
-                <EmptyBay
-                  title="[ NO TIN COMPANIONS ]"
-                  description="Your agent runners have not yet been configured. Even Marvin started somewhere."
-                  asciiArt={<AsciiRobot />}
-                  href="/clankers/new"
-                  actionLabel="Configure agent runner"
-                />
+                {isAdmin ? (
+                  <EmptyState
+                    title="No agents yet"
+                    description="An agent works on tasks for you. Setup creates one; engineers can add more under Settings → Advanced."
+action={
+              <Button href="/setup" color="brand">
+                <PlusIcon data-slot="icon" />
+                Set up an agent
+              </Button>
+            }
+                  />
+                ) : (
+                  <EmptyState title="No agents yet" description="An agent works on tasks for you. Ask an admin to set one up." />
+                )}
               </div>
             ) : (
               <div className="mt-4 space-y-3">
                 {clankers.slice(0, 5).map((clanker) => (
                   <Link
                     key={clanker.id}
-                    href={`/clankers/${clanker.slug}`}
+                    href={`/settings/agents/${clanker.slug}`}
                     className="hover-lift flex items-center gap-3 rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900"
                   >
                     <Avatar
@@ -255,36 +258,19 @@ export function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{clanker.name}</div>
                       <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                        {clanker.description || 'Awaiting dramatic backstory'}
+                        {clanker.description || clanker.agent || 'No description'}
                       </div>
                     </div>
                     <Badge color={clankerStatusColor[clanker.status]}>{clanker.status}</Badge>
                   </Link>
                 ))}
-                <Link href="/clankers" className="ui-text-action">
-                  View all agent runners
+                <Link href="/settings/agents" className="ui-text-action">
+                  View all agents
                 </Link>
               </div>
             )}
           </div>
-
-          <div className="rounded-xl border border-zinc-950/10 bg-white p-4 dark:border-white/10 dark:bg-zinc-900">
-            <Subheading>Deck Mood</Subheading>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              {activeClankers > 0
-                ? `Crew alert: ${activeClankers} agent runner${activeClankers === 1 ? '' : 's'} standing by for chaos. Share and Enjoy.`
-                : 'Crew alert: nobody is on duty yet. Marvin would call this "a waste of consciousness."'}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Ticket radar: {(ticketStats?.open ?? 0) + (ticketStats?.inProgress ?? 0) + (ticketStats?.inReview ?? 0)} unresolved across the constellation
-              {(ticketStats?.open ?? 0) + (ticketStats?.inProgress ?? 0) + (ticketStats?.inReview ?? 0) > 10 ? '. That is, in fact, a lot. Even by galactic standards.' : '.'}
-            </p>
-          </div>
         </div>
-      </div>
-
-      <div className="mt-8 text-zinc-400 dark:text-zinc-500">
-        <AsciiGalaxy />
       </div>
     </>
   )
