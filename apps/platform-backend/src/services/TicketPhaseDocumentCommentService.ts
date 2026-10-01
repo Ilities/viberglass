@@ -7,6 +7,7 @@ import {
   PHASE_DOCUMENT_COMMENT_STATUS,
   TicketPhaseDocumentCommentDAO,
 } from "../persistence/ticketing/TicketPhaseDocumentCommentDAO";
+import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 
 export interface PhaseDocumentCommentView {
   id: string;
@@ -39,6 +40,7 @@ export class TicketPhaseDocumentCommentService {
   private readonly ticketDAO = new TicketDAO();
   private readonly documentDAO = new TicketPhaseDocumentDAO();
   private readonly commentDAO = new TicketPhaseDocumentCommentDAO();
+  private readonly activity = new TaskActivityRecorder();
 
   async listComments(
     ticketId: string,
@@ -70,6 +72,7 @@ export class TicketPhaseDocumentCommentService {
       content,
       actor: input.actor,
     });
+    await this.activity.recordByCurrentActor(ticketId, "comment_added", { step: phase, line: input.lineNumber });
 
     return this.toView(comment);
   }

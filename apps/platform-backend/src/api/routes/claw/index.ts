@@ -5,6 +5,7 @@ import { ClawScheduleService } from "../../../services/claw/ClawScheduleService"
 import { ClawExecutionService } from "../../../services/claw/ClawExecutionService";
 import { ClawSchedulingEngine } from "../../../services/claw/ClawSchedulingEngine";
 import { requireAuth } from "../../middleware/authentication";
+import { clawSpaceGuard } from "../../middleware/clawSpaceGuard";
 import { registerClawTaskTemplateRoutes } from "./task-templates";
 import { registerClawScheduleRoutes } from "./schedules";
 import { registerClawExecutionRoutes } from "./executions";
@@ -18,6 +19,7 @@ const clawExecutionService = new ClawExecutionService();
 const clawSchedulingEngine = ClawSchedulingEngine.getInstance();
 
 router.use(requireAuth);
+router.use(clawSpaceGuard());
 
 /**
  * Wraps an async route handler so thrown errors propagate to Express error middleware.

@@ -9,6 +9,7 @@ import type { Clanker, Ticket } from '@viberglass/types'
 import { useMemo, useState } from 'react'
 import { LiveSessionBadge } from './live-session-badge'
 import { formatTicketStatus, formatTicketWorkflowPhase } from './ticket-display'
+import { taskPath } from '@/lib/taskPath'
 
 interface TicketsTableProps {
   tickets: Ticket[]
@@ -92,7 +93,9 @@ export function TicketsTable({
                 onChange={(event) => handleToggleAll(event.target.checked, event)}
               />
             </TableHeader>
+            <TableHeader>Key</TableHeader>
             <TableHeader>Title</TableHeader>
+            <TableHeader>Owner</TableHeader>
             <TableHeader>Severity</TableHeader>
             <TableHeader>Category</TableHeader>
             <TableHeader>Status</TableHeader>
@@ -112,7 +115,7 @@ export function TicketsTable({
             const isSelected = selectedTicketIds.has(ticket.id)
 
             return (
-              <TableRow key={ticket.id} href={`/spaces/${project}/tasks/${ticket.id}`}>
+              <TableRow key={ticket.id} href={taskPath(project, ticket)}>
                 <TableCell excludeRowLink>
                   <input
                     aria-label={`Select task ${ticket.title}`}
@@ -122,6 +125,7 @@ export function TicketsTable({
                     onClick={stopRowNavigation}
                   />
                 </TableCell>
+                <TableCell className="font-mono text-xs text-zinc-500">{ticket.key}</TableCell>
                 <TableCell className="font-medium">
                   <span className="flex flex-wrap items-center gap-2">
                     {ticket.title}
@@ -130,6 +134,7 @@ export function TicketsTable({
                     ) : null}
                   </span>
                 </TableCell>
+                <TableCell>{ticket.owner?.name ?? '—'}</TableCell>
                 <TableCell>
                   <Badge color={formatSeverity(ticket.severity).badgeColor}>{formatSeverity(ticket.severity).label}</Badge>
                 </TableCell>

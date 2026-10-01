@@ -4,6 +4,7 @@ import { sql } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
 import {
+  formatTaskKey,
   isTicketOrigin,
   NATIVE_TICKET_ORIGIN,
   TICKET_ARCHIVE_FILTER,
@@ -30,6 +31,8 @@ interface TicketListQuery {
   limit?: number;
   offset?: number;
   projectId?: string;
+  /** Limits the list to these spaces; null or omitted means all. */
+  projectIds?: string[] | null;
   statuses?: TicketLifecycleStatus[];
   workflowPhases?: TicketWorkflowPhase[];
   archived?: TicketArchiveFilter;
@@ -40,6 +43,19 @@ interface TicketListQuery {
 interface TicketListResult {
   tickets: Ticket[];
   total: number;
+}
+
+/** Requester, owner (picked, else the space's default, else the requester) and watchers of a new task. */
+function initialParticipants(
+  request: CreateTicketRequest,
+  spaceDefaultOwnerId: string | null,
+): Array<{ userId: string; role: "requester" | "owner" | "watcher" }> {
+  const owner = request.ownerId ?? spaceDefaultOwnerId ?? request.requesterId;
+  return [
+    ...(request.requesterId ? [{ userId: request.requesterId, role: "requester" as const }] : []),
+    ...(owner ? [{ userId: owner, role: "owner" as const }] : []),
+    ...(request.watcherIds ?? []).map((userId) => ({ userId, role: "watcher" as const })),
+  ];
 }
 
 // Normalize legacy ticket_system values (2 was the old GitHub enum value)
@@ -113,12 +129,23 @@ export class TicketDAO {
           .execute();
       }
 
+      // The space's counter row is locked by the update, so concurrent tasks get distinct numbers.
+      const counter = await trx
+        .updateTable("projects")
+        .set((eb) => ({ next_task_number: eb("next_task_number", "+", 1) }))
+        .where("id", "=", request.projectId)
+        .returning(["key_prefix", "next_task_number", "default_owner_id"])
+        .executeTakeFirstOrThrow();
+      const taskNumber = counter.next_task_number - 1;
+
       // Insert ticket
       const result = await trx
         .insertInto("tickets")
         .values({
           id: ticketId,
           project_id: request.projectId,
+          task_number: taskNumber,
+          task_key: formatTaskKey(counter.key_prefix, taskNumber),
           timestamp: timestamp,
           title: request.title,
           description: request.description,
@@ -146,6 +173,26 @@ export class TicketDAO {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
+
+      await trx
+        .insertInto("task_activity")
+        .values({
+          ticket_id: ticketId,
+          actor_type: request.requesterId ? "human" : "system",
+          actor_id: request.requesterId ?? null,
+          kind: "task_created",
+          payload_json: JSON.stringify({ key: formatTaskKey(counter.key_prefix, taskNumber) }),
+        })
+        .execute();
+
+      const participants = initialParticipants(request, counter.default_owner_id);
+      if (participants.length > 0) {
+        await trx
+          .insertInto("task_participants")
+          .values(participants.map((p) => ({ ticket_id: ticketId, user_id: p.userId, role: p.role, added_by: request.requesterId ?? null })))
+          .onConflict((oc) => oc.doNothing())
+          .execute();
+      }
 
       return this.mapRowToTicket({
         ...result,
@@ -177,6 +224,8 @@ export class TicketDAO {
       .select([
         "t.id",
         "t.project_id",
+        "t.task_number",
+        "t.task_key",
         "t.timestamp",
         "t.title",
         "t.description",
@@ -230,6 +279,8 @@ export class TicketDAO {
       .select([
         "t.id",
         "t.project_id",
+        "t.task_number",
+        "t.task_key",
         "t.timestamp",
         "t.title",
         "t.description",
@@ -433,6 +484,11 @@ export class TicketDAO {
     return (result.numDeletedRows ?? 0) > 0;
   }
 
+  async findIdByKey(key: string): Promise<string | null> {
+    const row = await db.selectFrom("tickets").select("id").where("task_key", "=", key).executeTakeFirst();
+    return row?.id ?? null;
+  }
+
   async getTicketsByProject(
     projectId: string,
     limit = 50,
@@ -464,6 +520,8 @@ export class TicketDAO {
       .select([
         "t.id",
         "t.project_id",
+        "t.task_number",
+        "t.task_key",
         "t.timestamp",
         "t.title",
         "t.description",
@@ -501,6 +559,9 @@ export class TicketDAO {
 
     if (params.projectId) {
       query = query.where("t.project_id", "=", params.projectId);
+    }
+    if (params.projectIds) {
+      query = params.projectIds.length > 0 ? query.where("t.project_id", "in", params.projectIds) : query.where(sql<boolean>`false`);
     }
 
     if (params.statuses && params.statuses.length > 0) {
@@ -540,6 +601,10 @@ export class TicketDAO {
     if (params.projectId) {
       totalQuery = totalQuery.where("t.project_id", "=", params.projectId);
     }
+    if (params.projectIds) {
+      totalQuery =
+        params.projectIds.length > 0 ? totalQuery.where("t.project_id", "in", params.projectIds) : totalQuery.where(sql<boolean>`false`);
+    }
 
     if (params.statuses && params.statuses.length > 0) {
       totalQuery = totalQuery.where("t.ticket_status", "in", params.statuses);
@@ -573,13 +638,13 @@ export class TicketDAO {
     };
   }
 
-  async getTicketStats(projectId?: string): Promise<TicketStats> {
-    const baseQuery = projectId
-      ? db
-          .selectFrom("tickets as t")
-          .where("t.project_id", "=", projectId)
-          .where("t.archived_at", "is", null)
-      : db.selectFrom("tickets as t").where("t.archived_at", "is", null);
+  /** `projectIds` limits the stats to these spaces; null or omitted means all. */
+  async getTicketStats(projectId?: string, projectIds: string[] | null = null): Promise<TicketStats> {
+    let baseQuery = db.selectFrom("tickets as t").where("t.archived_at", "is", null);
+    if (projectId) baseQuery = baseQuery.where("t.project_id", "=", projectId);
+    if (projectIds) {
+      baseQuery = projectIds.length > 0 ? baseQuery.where("t.project_id", "in", projectIds) : baseQuery.where(sql<boolean>`false`);
+    }
 
     const statsRow = await baseQuery
       .select([
@@ -770,6 +835,7 @@ export class TicketDAO {
 
     return {
       id: row.id,
+      key: row.task_key,
       projectId: row.project_id,
       timestamp: this.toISOString(row.timestamp),
       title: row.title,

@@ -37,6 +37,8 @@ function project(overrides: Partial<ProjectConfig> = {}): ProjectConfig {
     autoFixEnabled: false,
     autoFixTags: [],
     customFieldMappings: {},
+    isPrivate: false,
+    keyPrefix: "WEB",
     createdAt: "",
     updatedAt: "",
     ...overrides,
@@ -85,14 +87,13 @@ describe("SetupSpaceService", () => {
   it("creates the space on the connected repository with its token", async () => {
     const { service, findByName, createProject, linkIntegration, upsertByProjectId } = build();
 
-    const space = await service.createSpace({
-      name: " Web ",
-      repository: "https://github.com/Acme/web",
-      baseBranch: "develop",
-    });
+    const space = await service.createSpace(
+      { name: " Web ", repository: "https://github.com/Acme/web", baseBranch: "develop" },
+      "user-1",
+    );
 
     expect(findByName).toHaveBeenCalledWith("web");
-    expect(createProject).toHaveBeenCalledWith(expect.objectContaining({ name: "Web", ticketSystem: "native" }));
+    expect(createProject).toHaveBeenCalledWith(expect.objectContaining({ name: "Web", ticketSystem: "native" }), "user-1");
     expect(linkIntegration).toHaveBeenCalledWith({
       projectId: "project-1",
       integrationId: "integration-1",

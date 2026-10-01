@@ -6,6 +6,7 @@ import type { Clanker, Ticket } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { taskPath } from '@/lib/taskPath'
 
 type RevisionMode = 'research' | 'planning'
 
@@ -65,7 +66,7 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
         description: `Revising "${ticket.title}" with ${selectedClanker.name}`,
         action: {
           label: 'View run',
-          onClick: () => navigate(`/spaces/${project}/tasks/${ticket.id}?run=${jobId}`),
+          onClick: () => navigate(`${taskPath(project, ticket)}?run=${jobId}`),
         },
       })
 

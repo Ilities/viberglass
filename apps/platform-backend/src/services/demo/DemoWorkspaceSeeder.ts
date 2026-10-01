@@ -1,3 +1,5 @@
+import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
+import type { NewProject } from "../../persistence/project/ProjectDAO";
 import { randomBytes } from "crypto";
 import { NATIVE_TICKET_ORIGIN } from "@viberglass/types";
 import type {
@@ -32,7 +34,6 @@ import {
   type DemoTask,
 } from "./demoWorkspaceContent";
 
-type NewProject = Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">;
 
 export interface DemoSeederDependencies {
   records: { record(type: DemoEntityType, id: string): Promise<void> };
@@ -40,6 +41,7 @@ export interface DemoSeederDependencies {
     createUser(input: { email: string; name: string; passwordHash: string; role?: UserRole }): Promise<PublicUser>;
   };
   projects: { createProject(request: NewProject): Promise<ProjectConfig> };
+  spaceMembers: Pick<SpaceMemberDAO, "upsert">;
   strategies: { getDeploymentStrategyByName(name: string): Promise<DeploymentStrategy | null> };
   clankers: {
     createClanker(request: CreateClankerRequest): Promise<Clanker>;
@@ -69,6 +71,7 @@ const defaults = (): DemoSeederDependencies => ({
   records: new DemoSeedRecordDAO(),
   users: new UserDAO(),
   projects: new ProjectDAO(),
+  spaceMembers: new SpaceMemberDAO(),
   strategies: new DeploymentStrategyDAO(),
   clankers: new ClankerDAO(),
   tickets: new TicketDAO(),
@@ -90,7 +93,8 @@ export class DemoWorkspaceSeeder {
   }
 
   async seed(): Promise<ProjectConfig> {
-    const reviewer = await this.createMembers();
+    const members = await this.createMembers();
+    const reviewer = members[0];
     const runner = await this.createRunner();
     const project = await this.deps.projects.createProject({
       name: DEMO_SPACE_NAME,
@@ -101,6 +105,9 @@ export class DemoWorkspaceSeeder {
       customFieldMappings: {},
     });
     await this.deps.records.record("project", project.id);
+    for (const member of members) {
+      await this.deps.spaceMembers.upsert({ projectId: project.id, userId: member.id, role: "member", addedBy: null });
+    }
 
     for (const task of DEMO_TASKS) {
       await this.createTask(project.id, runner.id, reviewer.id, task);
@@ -108,7 +115,7 @@ export class DemoWorkspaceSeeder {
     return project;
   }
 
-  private async createMembers(): Promise<PublicUser> {
+  private async createMembers(): Promise<PublicUser[]> {
     const created: PublicUser[] = [];
     for (const member of DEMO_MEMBERS) {
       // Nobody knows this password: demo members can't sign in.
@@ -117,7 +124,7 @@ export class DemoWorkspaceSeeder {
       await this.deps.records.record("user", user.id);
       created.push(user);
     }
-    return created[0];
+    return created;
   }
 
   private async createRunner(): Promise<Clanker> {

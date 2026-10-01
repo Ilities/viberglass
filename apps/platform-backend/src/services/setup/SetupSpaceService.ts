@@ -1,3 +1,4 @@
+import type { NewProject } from "../../persistence/project/ProjectDAO";
 import { NATIVE_TICKET_ORIGIN } from "@viberglass/types";
 import type {
   CreatedSpace,
@@ -28,11 +29,10 @@ export interface CreateSpaceInput {
   baseBranch?: string;
 }
 
-type NewProject = Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">;
 
 interface Projects {
   findByName(slug: string): Promise<ProjectConfig | null>;
-  createProject(request: NewProject): Promise<ProjectConfig>;
+  createProject(request: NewProject, maintainerId?: string): Promise<ProjectConfig>;
 }
 
 interface ScmConfigs {
@@ -84,7 +84,8 @@ export class SetupSpaceService {
     private readonly credentials: Credentials = new IntegrationCredentialDAO(),
   ) {}
 
-  async createSpace(input: CreateSpaceInput): Promise<CreatedSpace> {
+  /** `createdBy` becomes the new space's first maintainer. */
+  async createSpace(input: CreateSpaceInput, createdBy?: string): Promise<CreatedSpace> {
     const name = input.name.trim();
     const slug = slugify(name);
     if (!slug) {
@@ -102,7 +103,7 @@ export class SetupSpaceService {
     }
     const { integration, credential } = await this.getGitHubConnection();
 
-    const project = await this.findOrCreateProject(name, slug, repositoryUrl);
+    const project = await this.findOrCreateProject(name, slug, repositoryUrl, createdBy);
     if (!(await this.links.isLinked(project.id, integration.id))) {
       await this.links.linkIntegration({ projectId: project.id, integrationId: integration.id, isPrimary: true });
     }
@@ -133,6 +134,7 @@ export class SetupSpaceService {
     name: string,
     slug: string,
     repositoryUrl: string,
+    createdBy: string | undefined,
   ): Promise<ProjectConfig> {
     const existing = await this.projects.findByName(slug);
     if (!existing) {
@@ -143,7 +145,7 @@ export class SetupSpaceService {
         autoFixEnabled: false,
         autoFixTags: [],
         customFieldMappings: {},
-      });
+      }, createdBy);
     }
 
     const scmConfig = await this.scmConfigs.getByProjectId(existing.id);

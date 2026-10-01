@@ -13,6 +13,7 @@ import {
   TicketPhaseDocumentRevisionDAO,
 } from "../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
+import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 
 const logger = createChildLogger({ service: "TicketPhaseDocumentService" });
 
@@ -37,6 +38,7 @@ export class TicketPhaseDocumentService {
   private readonly ticketDAO = new TicketDAO();
   private readonly documentDAO = new TicketPhaseDocumentDAO();
   private readonly revisionDAO = new TicketPhaseDocumentRevisionDAO();
+  private readonly activity = new TaskActivityRecorder();
   private readonly lifecycleStatusService = new TicketLifecycleStatusService();
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
@@ -98,6 +100,10 @@ export class TicketPhaseDocumentService {
       source: options.source ?? PHASE_DOCUMENT_REVISION_SOURCE.MANUAL,
       actor: options.actor,
     });
+    // The agent's documents show up as its run finishing; a person's edit is its own entry.
+    if (options.source !== PHASE_DOCUMENT_REVISION_SOURCE.AGENT) {
+      await this.activity.recordByCurrentActor(ticketId, "document_edited", { step: phase });
+    }
 
     if (
       options.source !== PHASE_DOCUMENT_REVISION_SOURCE.AGENT &&

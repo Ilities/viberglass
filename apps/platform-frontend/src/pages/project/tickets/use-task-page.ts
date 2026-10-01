@@ -1,8 +1,8 @@
 import { getClankersList, getTicketDetails } from '@/data'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
 import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
-import { getPlanningPhase, getResearchDocument, type PhaseDocumentResponse } from '@/service/api/ticket-api'
-import type { Clanker, Ticket } from '@viberglass/types'
+import { getPlanningPhase, getResearchDocument, getTaskByKey, type PhaseDocumentResponse } from '@/service/api/ticket-api'
+import { isTaskKey, type Clanker, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 
 export interface TaskPageData {
@@ -34,8 +34,27 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
   }
 }
 
+/** The task's id for a route that shows either its key (WEB-42) or its id. Null when the key matches no task. */
+function useTaskId(routeId: string | undefined): string | undefined | null {
+  const [resolved, setResolved] = useState<{ routeId: string; id: string | null } | null>(null)
+  useEffect(() => {
+    if (!routeId || !isTaskKey(routeId)) return
+    let cancelled = false
+    getTaskByKey(routeId)
+      .then((ticket) => !cancelled && setResolved({ routeId, id: ticket.id }))
+      .catch(() => !cancelled && setResolved({ routeId, id: null }))
+    return () => {
+      cancelled = true
+    }
+  }, [routeId])
+  if (!routeId || !isTaskKey(routeId)) return routeId
+  return resolved?.routeId === routeId ? resolved.id : undefined
+}
+
 /** Everything the task page shows, kept current while an agent works on it. */
-export function useTaskPage(id: string | undefined) {
+export function useTaskPage(routeId: string | undefined) {
+  const taskId = useTaskId(routeId)
+  const id = taskId ?? undefined
   const [data, setData] = useState<TaskPageData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -46,6 +65,8 @@ export function useTaskPage(id: string | undefined) {
   }, [id])
 
   useEffect(() => {
+    // A key still being looked up: keep showing the page as loading.
+    if (routeId && taskId === undefined) return
     let cancelled = false
     setIsLoading(true)
     async function load() {
@@ -57,7 +78,7 @@ export function useTaskPage(id: string | undefined) {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, routeId, taskId])
 
   // While an agent works (a run or a live session), keep the page current without a reload.
   const isBusy =

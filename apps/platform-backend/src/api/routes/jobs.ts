@@ -1,4 +1,4 @@
-import { Request, Response, Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import { JobService } from "../../services/JobService";
 import { JobData, JobStatus } from "../../types/Job";
 import { tenantMiddleware } from "../middleware/tenantValidation";
@@ -39,8 +39,14 @@ import {
   RUN_MANIFEST_VERSION,
   type ExecutionManifest,
 } from "@viberglass/telemetry";
+import { jobParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards";
+import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
+import { isDomainError } from "../../services/errors/DomainError";
 
 const router = Router();
+// Worker callbacks carry no user and pass through; people only reach runs in spaces they see.
+const spaceAccess = new SpaceAccessService();
+router.param("jobId", jobParamGuard(spaceAccess));
 const jobService = new JobService();
 const jobCancellationService = new JobCancellationService();
 const runManifestDAO = new RunManifestDAO();
@@ -198,22 +204,25 @@ router.get("/:jobId", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/", requireAuth, async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const status = req.query.status as JobStatus;
     const limit = parseInt(req.query.limit as string) || 10;
     const projectSlug = req.query.projectSlug as string | undefined;
     const ticketId = req.query.ticketId as string | undefined;
+    const scope = await spaceAccess.scopeFor(spaceViewerOf(req)!, projectSlug);
 
     const result = await jobService.listJobs({
       status,
       limit,
       projectSlug,
       ticketId,
+      projectIds: scope.projectIds,
     });
 
     res.json(result);
   } catch (error) {
+    if (isDomainError(error)) return next(error);
     logger.error("Failed to list jobs", {
       error: error instanceof Error ? error.message : String(error),
     });

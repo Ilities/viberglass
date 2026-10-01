@@ -23,6 +23,7 @@ import { formatTicketWorkflowPhase, TICKET_STATUS_LABEL } from './tickets/ticket
 import { TICKET_STATUS } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { taskPath } from '@/lib/taskPath'
 
 function MetricCard({ label, value, subtext }: { label: string; value: string | number; subtext?: string }) {
   return (
@@ -182,7 +183,7 @@ function TicketCard({ ticket, project }: { ticket: TicketSummary; project: strin
 
   return (
     <Link
-      href={`/spaces/${project}/tasks/${ticket.id}`}
+      href={taskPath(project, ticket)}
       className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-burnt-orange/30 hover:shadow-md dark:border-white/10 dark:bg-zinc-900"
     >
       <div className="flex items-start justify-between gap-4">

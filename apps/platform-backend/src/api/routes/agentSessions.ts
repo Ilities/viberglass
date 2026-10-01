@@ -20,8 +20,12 @@ import {
 import logger from "../../config/logger";
 import { SessionPresenceService } from "../../services/agentSession/SessionPresenceService";
 import { JobCancellationService } from "../../services/job/JobCancellationService";
+import { sessionParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards";
+import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 
 const router = Router();
+const spaceAccess = new SpaceAccessService();
+router.param("sessionId", sessionParamGuard(spaceAccess));
 const sessionDAO = new AgentSessionDAO();
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionEventDAO = new AgentSessionEventDAO();
@@ -70,8 +74,12 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         ? (req.query.statuses.split(",").filter(Boolean) as AgentSessionStatus[])
         : [...AGENT_SESSION_ACTIVE_STATUSES];
 
-    const sessions = await sessionDAO.listByStatuses(rawStatuses);
-    return res.json({ success: true, data: sessions });
+    const [sessions, visible] = await Promise.all([
+      sessionDAO.listByStatuses(rawStatuses),
+      spaceAccess.visibleProjectIds(spaceViewerOf(req)!),
+    ]);
+    const shown = visible ? sessions.filter((session) => visible.includes(session.projectId)) : sessions;
+    return res.json({ success: true, data: shown });
   } catch (err) {
     logger.error("Failed to list agent sessions", {
       error: err instanceof Error ? err.message : String(err),

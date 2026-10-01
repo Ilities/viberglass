@@ -26,6 +26,7 @@ import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
 import { openSessionFor, useTaskPage } from './use-task-page'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
+import { TaskConversation } from './task-conversation'
 
 const LONG_DESCRIPTION = 280
 
@@ -231,6 +232,8 @@ export function TicketDetailPage() {
                 onChanged={changed}
               />
             </section>
+
+            <TaskConversation taskId={ticket.id} />
           </main>
 
           <TaskSidebar data={data} project={project} openRunId={openRunId} onOpenRun={openRun} />

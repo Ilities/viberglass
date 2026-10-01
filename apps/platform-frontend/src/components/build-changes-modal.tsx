@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ReviewCommentList } from './review-comment-list'
+import { taskPath } from '@/lib/taskPath'
 
 interface BuildChangesModalProps {
   ticket: Ticket
@@ -57,7 +58,7 @@ export function BuildChangesModal({ ticket, clankers, project, defaultClankerId,
       })
       toast.success('The agent is making the changes', { description: 'Its commits go on the same pull request.' })
       onClose()
-      navigate(`/spaces/${project}/tasks/${ticket.id}?run=${response.data.jobId}`)
+      navigate(`${taskPath(project, ticket)}?run=${response.data.jobId}`)
     } catch (error) {
       toast.error('Failed to start the build', { description: error instanceof Error ? error.message : 'Unknown error' })
       setIsRunning(false)

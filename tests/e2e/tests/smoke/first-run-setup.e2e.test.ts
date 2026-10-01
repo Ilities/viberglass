@@ -49,7 +49,7 @@ test("a product leader sets up an empty workspace alone and gets a first researc
     // 4–5. The default agent starts on its own, then the first task is offered.
     await expect(page.getByRole("heading", { name: "Try your first task" })).toBeVisible({ timeout: 90_000 });
     await page.getByRole("button", { name: "Start the task" }).click();
-    await expect(page).toHaveURL(/\/tasks\/[0-9a-f-]+$/);
+    await expect(page).toHaveURL(/\/tasks\/[A-Z][A-Z0-9]*-[0-9]+$/);
 
     // The research runs on the fake agent against the fixture repository, and its document appears on the task.
     const researchDocument = page.getByText("Written by the fake agent used in end-to-end tests.").first();

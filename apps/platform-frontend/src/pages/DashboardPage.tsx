@@ -28,6 +28,7 @@ import { useSetupRedirect } from '@/pages/setup/useSetupRedirect'
 import type { FeedItem, ProjectActivity } from '@/pages/dashboard/types'
 import { PlusIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useState } from 'react'
+import { taskPath } from '@/lib/taskPath'
 
 function MetricCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -109,7 +110,7 @@ export function DashboardPage() {
           title: ticket.title,
           detail: `${project.name} • ${severity.label}`,
           timestamp: ticket.timestamp,
-          href: `/spaces/${project.slug}/tasks/${ticket.id}`,
+          href: taskPath(project.slug, ticket),
           kind: 'ticket',
           color: severity.badgeColor,
         }

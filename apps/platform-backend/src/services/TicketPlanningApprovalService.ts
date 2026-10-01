@@ -17,6 +17,7 @@ import {
   TicketServiceError,
   TICKET_SERVICE_ERROR_CODE,
 } from "./errors/TicketServiceError";
+import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 
 function toPlanningRunView(
   latestRun: Awaited<ReturnType<TicketPhaseRunDAO["getLatestRun"]>>,
@@ -44,6 +45,7 @@ export class TicketPlanningApprovalService {
   private readonly approvalDAO = new TicketPhaseApprovalDAO();
   private readonly workflowService = new TicketWorkflowService();
   private readonly phaseRunDAO = new TicketPhaseRunDAO();
+  private readonly activity = new TaskActivityRecorder();
 
   constructor(private readonly feedbackService?: FeedbackService) {}
 
@@ -107,6 +109,7 @@ export class TicketPlanningApprovalService {
       actor,
       "Planning document approved",
     );
+    await this.activity.recordByCurrentActor(ticketId, "document_approved", { step: "planning" });
 
     await this.workflowService.advancePhase(
       ticketId,

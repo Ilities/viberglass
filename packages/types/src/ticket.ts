@@ -121,6 +121,8 @@ export interface TicketMetadata {
 
 export interface Ticket {
   id: string
+  /** The space's prefix and the task's number in it, e.g. WEB-42. */
+  key: string
   projectId: string
   timestamp: string
   title: string
@@ -145,6 +147,8 @@ export interface Ticket {
   workflowOverriddenBy?: string
   /** An open live session on the task. Set by task lists only. */
   liveSessionId?: string
+  /** The task's owner. Set by task lists only. */
+  owner?: { id: string; name: string }
   createdAt: string
   updatedAt: string
 }
@@ -162,6 +166,11 @@ export interface CreateTicketRequest {
   ticketSystem: TicketOrigin
   workflowPhase?: TicketWorkflowPhase
   workflowOverrideReason?: string
+  /** Owner of the new task; defaults to the space's default owner, then the requester. */
+  ownerId?: string
+  watcherIds?: string[]
+  /** Who asked for it. Set by the server from the signed-in person, never from the request body. */
+  requesterId?: string
 }
 
 // Request body for updating a ticket

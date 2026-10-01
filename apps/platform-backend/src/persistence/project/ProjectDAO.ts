@@ -1,8 +1,17 @@
 import { randomUUID } from "crypto";
+import { deriveKeyPrefix } from "@viberglass/types";
 import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
 import { ProjectConfig } from "../../models/PMIntegration";
+
+/** A new space; private defaults to open. */
+export type NewProject = Omit<
+  ProjectConfig,
+  "id" | "createdAt" | "updatedAt" | "slug" | "isPrivate" | "keyPrefix"
+> & {
+  isPrivate?: boolean;
+};
 
 type ProjectsRow = Selectable<Database["projects"]>;
 
@@ -23,8 +32,10 @@ const normalizeAgentInstructions = (instructions?: string | null) => {
 };
 
 export class ProjectDAO {
+  /** Creates the space; `maintainerId` becomes its first maintainer, in the same transaction. */
   async createProject(
-    request: Omit<ProjectConfig, "id" | "createdAt" | "updatedAt" | "slug">,
+    request: NewProject,
+    maintainerId?: string,
   ): Promise<ProjectConfig> {
     const projectId = randomUUID();
     const timestamp = new Date();
@@ -34,25 +45,45 @@ export class ProjectDAO {
       request.agentInstructions,
     );
 
-    const result = await db
-      .insertInto("projects")
-      .values({
-        id: projectId,
-        name: request.name,
-        slug: slug,
-        ticket_system: request.ticketSystem,
-        webhook_url: request.webhookUrl || null,
-        auto_fix_enabled: request.autoFixEnabled,
-        auto_fix_tags: request.autoFixTags,
-        custom_field_mappings: JSON.stringify(request.customFieldMappings),
-        agent_instructions: agentInstructions,
-        primary_ticketing_integration_id: request.primaryTicketingIntegrationId ?? null,
-        primary_scm_integration_id: request.primaryScmIntegrationId ?? null,
-        created_at: timestamp,
-        updated_at: timestamp,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    const result = await db.transaction().execute(async (trx) => {
+      const prefixes = await trx.selectFrom("projects").select("key_prefix").execute();
+      const keyPrefix = deriveKeyPrefix(request.name, new Set(prefixes.map((p) => p.key_prefix)));
+      const row = await trx
+        .insertInto("projects")
+        .values({
+          id: projectId,
+          name: request.name,
+          slug: slug,
+          ticket_system: request.ticketSystem,
+          webhook_url: request.webhookUrl || null,
+          auto_fix_enabled: request.autoFixEnabled,
+          auto_fix_tags: request.autoFixTags,
+          custom_field_mappings: JSON.stringify(request.customFieldMappings),
+          agent_instructions: agentInstructions,
+          primary_ticketing_integration_id:
+            request.primaryTicketingIntegrationId ?? null,
+          primary_scm_integration_id: request.primaryScmIntegrationId ?? null,
+          is_private: request.isPrivate ?? false,
+          key_prefix: keyPrefix,
+          default_owner_id: request.defaultOwnerId ?? null,
+          created_at: timestamp,
+          updated_at: timestamp,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+      if (maintainerId) {
+        await trx
+          .insertInto("space_members")
+          .values({
+            project_id: projectId,
+            user_id: maintainerId,
+            role: "maintainer",
+            added_by: maintainerId,
+          })
+          .execute();
+      }
+      return row;
+    });
 
     return this.mapRowToProject(result);
   }
@@ -106,6 +137,12 @@ export class ProjectDAO {
     if (updates.primaryScmIntegrationId !== undefined) {
       updateData.primary_scm_integration_id = updates.primaryScmIntegrationId;
     }
+    if (updates.isPrivate !== undefined) {
+      updateData.is_private = updates.isPrivate;
+    }
+    if (updates.defaultOwnerId !== undefined) {
+      updateData.default_owner_id = updates.defaultOwnerId;
+    }
 
     const result = await db
       .updateTable("projects")
@@ -118,11 +155,15 @@ export class ProjectDAO {
   }
 
   /** Active projects only; archived projects stay reachable by id. */
-  async listProjects(limit = 50, offset = 0): Promise<ProjectConfig[]> {
-    const rows = await db
+  /** `projectIds` limits the list to spaces the caller may see; null or omitted means all. */
+  async listProjects(limit = 50, offset = 0, projectIds: string[] | null = null): Promise<ProjectConfig[]> {
+    if (projectIds && projectIds.length === 0) return [];
+    let query = db
       .selectFrom("projects")
       .selectAll()
-      .where("archived_at", "is", null)
+      .where("archived_at", "is", null);
+    if (projectIds) query = query.where("id", "in", projectIds);
+    const rows = await query
       .orderBy("created_at", "desc")
       .limit(limit)
       .offset(offset)
@@ -156,6 +197,9 @@ export class ProjectDAO {
       primaryTicketingIntegrationId: row.primary_ticketing_integration_id ?? undefined,
       primaryScmIntegrationId: row.primary_scm_integration_id ?? undefined,
       archivedAt: row.archived_at ? this.toISOString(row.archived_at) : undefined,
+      isPrivate: row.is_private,
+      keyPrefix: row.key_prefix,
+      defaultOwnerId: row.default_owner_id,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
       updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
     };

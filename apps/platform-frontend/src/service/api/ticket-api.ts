@@ -112,6 +112,16 @@ export async function getTicket(id: string): Promise<Ticket> {
   return data.data
 }
 
+/** A task by its key (WEB-42): links show keys, the API works with ids. */
+export async function getTaskByKey(key: string): Promise<Ticket> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/by-key/${encodeURIComponent(key)}`)
+  if (!response.ok) {
+    throw new Error(response.status === 404 ? 'Task not found' : 'Failed to fetch task')
+  }
+  const data: ApiResponse<Ticket> = await response.json()
+  return data.data
+}
+
 export async function getTicketWorkflow(id: string): Promise<TicketWorkflowResponse> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/phases`)
   if (!response.ok) {
@@ -187,6 +197,10 @@ export async function createTicket(
   
   if (ticket.workflowPhase) {
     formData.append('workflowPhase', ticket.workflowPhase)
+  }
+
+  if (ticket.ownerId) {
+    formData.append('ownerId', ticket.ownerId)
   }
 
   if (ticket.workflowOverrideReason) {

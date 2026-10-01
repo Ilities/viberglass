@@ -19,6 +19,7 @@ import {
 } from "../services/integrations";
 import { IntegrationCredentialDAO } from "../../persistence/integrations";
 import { SecretService } from "../../services/SecretService";
+import { spaceParamGuard } from "../middleware/spaceAccessGuards";
 
 const router = express.Router();
 const integrationManagementService = new IntegrationManagementService();
@@ -28,6 +29,8 @@ const integrationCredentialDAO = new IntegrationCredentialDAO();
 const secretService = new SecretService();
 
 router.use(requireAuth);
+// Space links: visible to read, maintainer to change.
+router.param("projectId", spaceParamGuard());
 
 type AsyncRouteHandler = (req: Request, res: Response) => Promise<void>;
 

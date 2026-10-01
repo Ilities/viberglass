@@ -8,6 +8,7 @@ import { getProjects, type Project } from '@/service/api/project-api'
 import { getTickets } from '@/service/api/ticket-api'
 import type { Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
+import { taskPath } from '@/lib/taskPath'
 
 type GroupBy = 'status' | 'phase'
 
@@ -53,7 +54,7 @@ function TicketRow({
 
   return (
     <Link
-      href={`/spaces/${projectSlug}/tasks/${ticket.id}`}
+      href={taskPath(projectSlug, ticket)}
       className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
     >
       <span

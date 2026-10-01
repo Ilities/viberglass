@@ -98,6 +98,14 @@ export interface Project {
    */
   primaryScmIntegrationId?: string | null
   archivedAt?: string | null
+  /** Only its members (and admins) see a private space. */
+  isPrivate: boolean
+  /** Starts every task key in the space (WEB-42); fixed once the space exists. */
+  keyPrefix: string
+  /** Owner of new tasks unless someone else is picked; falls back to whoever creates the task. */
+  defaultOwnerId?: string | null
+  /** The caller's place in the space; set when one space is fetched. */
+  viewerAccess?: { membership: 'maintainer' | 'member' | null; canMaintain: boolean }
   createdAt: string
   updatedAt: string
 }
@@ -175,6 +183,8 @@ export interface UpdateProjectRequest {
   primaryTicketingIntegrationId?: string | null
   /** ID of the primary SCM integration; null clears it. */
   primaryScmIntegrationId?: string | null
+  isPrivate?: boolean
+  defaultOwnerId?: string | null
 }
 
 // Project summary for list views

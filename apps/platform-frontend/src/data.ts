@@ -34,6 +34,7 @@ import type {
 // Extended ticket with computed status for UI
 export interface TicketSummary {
   id: string
+  key: string
   projectId: string
   title: string
   severity: Severity
@@ -65,6 +66,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
   })
   return tickets.map((ticket) => ({
     id: ticket.id,
+    key: ticket.key,
     projectId: ticket.projectId,
     title: ticket.title,
     severity: ticket.severity,

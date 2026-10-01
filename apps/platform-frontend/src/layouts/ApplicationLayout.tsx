@@ -48,6 +48,7 @@ import { TICKET_STATUS, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { taskPath } from '@/lib/taskPath'
 
 // Wrap Radix icons with data-slot attribute for proper styling
 function Icon({ children }: { children: React.ReactNode }) {
@@ -183,7 +184,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
         <SidebarSection>
           <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]}</SidebarHeading>
           {inReviewTickets.map((ticket) => (
-            <SidebarItem key={ticket.id} href={`/spaces/${projectSlug}/tasks/${ticket.id}`}>
+            <SidebarItem key={ticket.id} href={taskPath(projectSlug, ticket)}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-warning-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>
@@ -194,7 +195,7 @@ function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
         <SidebarSection>
           <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}</SidebarHeading>
           {inProgressTickets.map((ticket) => (
-            <SidebarItem key={ticket.id} href={`/spaces/${projectSlug}/tasks/${ticket.id}`}>
+            <SidebarItem key={ticket.id} href={taskPath(projectSlug, ticket)}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-blue-500" />
               <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
             </SidebarItem>

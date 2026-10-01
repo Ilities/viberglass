@@ -36,6 +36,14 @@ import { JobService } from "../../services/JobService";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
 import { IntegrationDAO } from "../../persistence/integrations";
+import { taskKeyParamGuard, taskParamGuard } from "../middleware/spaceAccessGuards";
+import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
+import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
+import { registerTaskParticipantRoutes } from "./tickets/participantRoutes";
+import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
+import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
+import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
+import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -67,6 +75,24 @@ const ticketPlanningApprovalService = new TicketPlanningApprovalService(
 const ticketWorkflowOverrideService = new TicketWorkflowOverrideService();
 
 router.use(requireAuth);
+router.param("id", taskParamGuard());
+router.param("key", taskKeyParamGuard());
+
+const taskParticipants = new TaskParticipantService();
+registerTaskParticipantRoutes(router, taskParticipants);
+registerTaskDiscussionRoutes(router, { discussion: new TaskDiscussionService(), activity: new TaskActivityDAO() });
+
+// GET /api/tasks/by-key/:key - A task by its key (WEB-42), for links that show the key.
+router.get("/by-key/:key", async (req, res, next) => {
+  try {
+    const id = await ticketService.findIdByKey(req.params.key);
+    const ticket = id ? await ticketService.getTicket(id) : null;
+    if (!ticket) return res.status(404).json({ error: "Task not found" });
+    res.json({ success: true, data: ticket });
+  } catch (error) {
+    next(error);
+  }
+});
 
 const validSetStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.OPEN,
@@ -120,6 +146,9 @@ registerTicketCrudMediaRoutes(router, {
   fileUploadService,
   integrationDAO: new IntegrationDAO(),
   agentSessionDAO: new AgentSessionDAO(),
+  spaceAccess: new SpaceAccessService(),
+  participants: taskParticipants,
+  participantDAO: new TaskParticipantDAO(),
 });
 
 registerTicketWorkflowPhaseRoutes(router, {
