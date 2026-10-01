@@ -69,7 +69,7 @@ export * from './taskDiscussion'
 export * from './notification'
 
 // Who approves each step
-export * from './approvalPolicy'
+export * from './taskAskPolicy'
 export * from './taskChangePolicy'
 export * from './taskTimeline'
 export * from './taskTurn'

@@ -52,7 +52,6 @@ export interface SlackHandlerServices {
     projectId: string;
     title: string;
     description: string;
-    phase: TicketWorkflowPhase;
     slackUserId: string;
   }): Promise<{ id: string; projectId: string }>;
   // Everything that starts or continues a run names the Slack user who did
@@ -97,8 +96,8 @@ export interface SlackHandlerServices {
     instruction: string,
     currentPhase: TicketWorkflowPhase,
   ): TicketAdvanceResult;
-  // Moving a task on approves the steps it leaves, as the Slack user acting
-  // (their linked Viberglass account), under the space's approval policy.
+  // Moving a task on asks the agent for the next step, as the Slack user acting
+  // (their linked Viberglass account), under the task's ask policy.
   advanceAndRunTicketJob(params: {
     ticketId: string;
     clankerId: string;
@@ -112,8 +111,6 @@ export interface SlackHandlerServices {
     thenPhase: TicketWorkflowPhase;
     slackUserId: string;
   }): Promise<{ jobId: string; status: string }>;
-  /** The same approvals, before a live session moves on to a later step. */
-  approveUpTo(params: { ticketId: string; targetPhase: TicketWorkflowPhase; slackUserId: string }): Promise<void>;
   runRevisionJob(params: {
     ticketId: string;
     clankerId: string;

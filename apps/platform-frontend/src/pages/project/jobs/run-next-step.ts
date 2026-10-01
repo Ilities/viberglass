@@ -1,5 +1,4 @@
 import type { JobStatus } from '@/service/api/job-api'
-import type { ApprovalState } from '@/service/api/ticket-api'
 import type { TicketWorkflowPhase } from '@viberglass/types'
 
 /** Whose move it is once a run has done what it can, and what that move is. */
@@ -10,8 +9,10 @@ export type RunNextStep =
   | { kind: 'cancelled'; canRunAgain: boolean }
   | { kind: 'superseded'; newerRunId: string }
   | { kind: 'session'; sessionId: string }
-  | { kind: 'review_research'; preview: string }
-  | { kind: 'review_plan'; preview: string }
+  /** The document is the task's latest, waiting on people to read it and say what's next. */
+  | { kind: 'research_ready'; preview: string }
+  | { kind: 'plan_ready'; preview: string }
+  /** The task has a later artifact since this run's document. */
   | { kind: 'moved_on'; phase: 'research' | 'planning' }
   | { kind: 'pull_request'; url: string }
   | { kind: 'build_done' }
@@ -24,7 +25,7 @@ export interface RunNextStepInput {
   /** Where the task is now; it may have moved on since this run. */
   taskPhase: TicketWorkflowPhase | null
   /** The task's document for this run's phase, for research and planning runs. */
-  document: { content: string; approvalState: ApprovalState } | null
+  document: { content: string } | null
 }
 
 const PREVIEW_LINES = 8
@@ -46,12 +47,12 @@ export function decideRunNextStep({ job, newerRunId, taskPhase, document }: RunN
   const content = document?.content.trim() ?? ''
   if (job.jobKind === 'research' && content) {
     return taskPhase === 'research'
-      ? { kind: 'review_research', preview: documentPreview(content) }
+      ? { kind: 'research_ready', preview: documentPreview(content) }
       : { kind: 'moved_on', phase: 'research' }
   }
   if (job.jobKind === 'planning' && content) {
-    return taskPhase === 'planning' && document?.approvalState !== 'approved'
-      ? { kind: 'review_plan', preview: documentPreview(content) }
+    return taskPhase === 'planning'
+      ? { kind: 'plan_ready', preview: documentPreview(content) }
       : { kind: 'moved_on', phase: 'planning' }
   }
   if (job.jobKind === 'execution') {

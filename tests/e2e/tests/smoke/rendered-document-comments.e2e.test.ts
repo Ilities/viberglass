@@ -20,7 +20,6 @@ test("a reviewer comments on the rendered plan; the comment follows its text, an
 }) => {
   test.setTimeout(180_000);
   const task = await createTask(adminApi, workspace.projectId, "Tidy the checkout copy");
-  expect((await adminApi.post(`/api/tasks/${task.id}/phases/research/approve`)).status()).toBe(200);
   await savePlan(adminApi, task.id, PLAN);
 
   // The plan reads as rendered markdown, not source.

@@ -76,14 +76,6 @@ export const ticketReviewSchema = {
   taskId: z.string().uuid().describe("Task UUID"),
 };
 
-export const ticketReviewApproveSchema = {
-  taskId: z.string().uuid().describe("Task UUID"),
-};
-
-export const ticketReviewRevokeSchema = {
-  taskId: z.string().uuid().describe("Task UUID"),
-};
-
 export const ticketReviewCommentSchema = {
   taskId: z.string().uuid().describe("Task UUID"),
   phase: z

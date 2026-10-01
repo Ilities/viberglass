@@ -226,6 +226,53 @@ Each slice ships on its own and leaves the product working. Sizes are rough.
   - unit tests for the delta prompt (only what's new) and for detecting what a turn produced.
 
 ### S3. Agreement instead of approval (about 1 week)
+**Done (2026-10-01).** Decided with Jussi along the way:
+- anyone on the task, in any role, may ask for code;
+- the override and reopen go too;
+- Slack and MCP ask for the next step instead of approving;
+- the phase is stored, but synced from artifacts.
+
+What landed:
+- **Who may ask** (`canAskAgent`, `canAskForCode` and `TaskCapabilities` in `@viberglass/types`; `TaskAskPolicyService`):
+  - Research, plans and replies: admins and members on any task they can see, and guests only on tasks they're on.
+  - Code: workspace admins, the space's maintainers, and anyone on the task, guests included.
+  - Viewers never ask.
+  - A turn with no person behind it (the system, or Slack with no linked account) may ask for anything but code.
+
+  `TaskTurnService.ask` checks this in place of `assertPlanCleared`, so every path follows it: the thread, `/agent-sessions`, Slack and MCP. The routes' `RUNNER_ROLES` and `requireRunnerRole` checks went. `GET /api/tasks/:id/capabilities` tells the page what to offer.
+- **No gates.** Removed:
+  - the approve, revoke, request-approval, reopen and override-to-execution routes, and `GET /:id/approvals`;
+  - `TicketResearchApprovalService`, `TicketPlanningApprovalService`, `StepApprovalRequestService`, `TicketWorkflowOverrideService`, `TicketStepReopenService`, `TicketPhaseRunGuard` and `TicketPhaseApprovalDAO`;
+  - `approveUpTo`, and the feedback webhook's "research/planning approved" posts;
+  - a starting phase on task creation (the Chrome extension and the Slack modal stop sending one).
+- **The phase is derived.** `TicketLifecycleStatusService.synchronize`, already called after every document save and run change, sets the phase and the status:
+  - the phase is the build once there's a pull request, the plan once one is written, else research;
+  - the status is in review whenever an artifact exists and no run is going.
+- **Migration 084:**
+  - every approval on record without a `document_approved` Activity line gets one;
+  - drops `ticket_phase_approvals`, the documents' `approval_state`, `approved_at` and `approved_by`, and the tickets' `workflow_override_*` columns;
+  - re-derives every task's phase.
+- **Mentions replace review requests.** A turn that produces an artifact mentions the task's reviewers, or else its owner (`artifactReviewers`):
+  - the mention is stored as `outcome.mentioned`, and the thread shows "Asked Tomi to take a look";
+  - the run's `run_finished` Activity carries `mentioned`, and its `step` is the artifact produced, so those people get a `mentioned` notification ("The agent mentioned you on …: the plan is ready") and the rest get `step_completed`;
+  - adding a reviewer by hand still sends a review request.
+- **Slack and MCP.**
+  - Slack's Approve and Reject buttons became one button: *Write the plan* or *Build it*. Keywords ask for the next step.
+  - MCP drops `task_review_approve` and `task_review_revoke`, and `task_review` no longer reports approval state.
+- **Task page and run page.**
+  - Gone: Approve, Request approval, Skip to the build, Reopen, and "Approved by".
+  - The banner's "ready" card points at the thread's suggestions.
+  - *Build it* is offered to whoever may ask for code, plan or not. No suggestions show for someone who can't ask.
+  - The stepper says "Written" for earlier steps.
+  - The run page offers *Write the plan* under finished research.
+  - Old approvals still read as quiet lines ("Maria approved the plan").
+- **Found on the way:** the Chrome extension's auto-run still called the research, plan and build run routes S2 removed. It now asks in the thread.
+- **Verified:** see §5.
+- **Left for later:**
+  - "Build it from someone allowed opens a PR" is covered only up to the build run. The worker's `GitService` hardcodes `api.github.com` and parses only github.com addresses, and the git fixture is read-only over dumb HTTP, so a pull request stub needs a writable fixture plus a configurable GitHub API base passed to worker containers. The test checks that the guest's build turn runs as theirs.
+  - People can add themselves as watchers, so any member, or any guest in the space, can make themselves able to ask for code. That follows "anyone on the task", but tightening it would mean excluding watchers or self-added participants.
+
+Planned:
 - The approval policy narrows to `canAskForCode` (the task's people, the space's maintainers, guests on the task).
 - `assertPlanCleared`, the approve, revoke and request-approval routes, `approveUpTo` and the Approve buttons go.
 - The workflow phase stops gating; it's derived from what exists.
@@ -277,6 +324,26 @@ Each slice ships on its own and leaves the product working. Sizes are rough.
 | Slack keeps the old keyword flow until S8 | Fine for the interim: it calls the same services, and keywords map onto actions |
 | Oversized files | Split as touched (AGENTS.md §6). Start with `workflowPhaseRoutes.ts` and the session services, which S2 rewrites anyway |
 
-## 5. First step
+## 5. Next step: S4
 
-S1 is safe to start now: it's read-only and changes no behaviour. S2's first task is the harness resume check in §4, because the answer changes how much S6 matters.
+S1, S2 and S3 are done, so S4 comes next (S5 can go alongside).
+
+**S3 verified (2026-10-01):**
+- Unit tests: backend 1042, frontend 221. Lint and type checks are clean for backend, frontend, the types package, chat-slack, mcp-server and the Chrome extension.
+- Smoke 40/40, twice. New or rewritten journeys:
+  - `ask-policy`: a guest who isn't on the task is offered nothing and refused; a member who isn't on it is refused the build; a guest added to the task asks for the build and it runs as theirs; default reviewers get the agent's mention;
+  - `research-then-plan`;
+  - `task-next-moves`;
+  - `phase-2-exit`, rewritten as a conversation;
+  - `inbox`: the owner gets a mention.
+- Not checked on the dev stack: that needs the backend rebuilt and migration 084, which drops the approval columns from the dev database.
+
+**Where S3 left S4's hooks:**
+- **Mentions by the agent** live in the turn's `outcome.mentioned` and the run's `run_finished` payload, not in `task_message_mentions`. `answered_at` and "whose move" have to read both.
+- **Capabilities** come from `GET /api/tasks/:id/capabilities` (`TaskAskPolicyService.describe`). S4's `capabilities` on every task response can fold this in.
+- **Status** is in review whenever an artifact exists and no run is going (`TicketLifecycleStatusService`). `taskSituation` should replace that as the signal for whose move it is.
+
+**Before running agents in the dev stack:**
+- Rebuild the worker images, so the opencode image runs the new worker. Today's dev image sends `documentContent`, which the result callback now rejects. See next-steps-handover §2.1.
+- Rebuild the frontend image (`docker compose build frontend && docker compose up -d frontend`) whenever `packages/types` changes. The image bakes in its build of the types (`dist/`).
+- Migration 083 is already applied to the dev database; 084 (S3) is not.

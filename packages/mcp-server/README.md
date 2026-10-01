@@ -88,33 +88,13 @@ Returns `{ jobId, status }`.
 
 ### `task_review`
 
-Get the full review state for a task across all workflow phases. Includes phase documents, approval status, and inline comments.
+Get the full review state for a task across all workflow phases. Includes phase documents and inline comments. Nothing is approved: to go on, trigger the next step with `task_trigger`.
 
 | Parameter  | Type            | Description               |
 |------------|-----------------|---------------------------|
 | `taskId`   | `string (UUID)` | **Required.** Task UUID |
 
-Returns a `ReviewState` object with the current workflow phase, per-phase documents (`content`, `approvalState`, `approvedAt`, `approvedBy`), and any inline comments.
-
-### `task_review_approve`
-
-Approve the planning document for a task. Advances the workflow to the execution phase.
-
-| Parameter  | Type            | Description               |
-|------------|-----------------|---------------------------|
-| `taskId`   | `string (UUID)` | **Required.** Task UUID |
-
-Returns `{ approvalState }`.
-
-### `task_review_revoke`
-
-Revoke planning approval for a task. Returns the approval state to draft.
-
-| Parameter  | Type            | Description               |
-|------------|-----------------|---------------------------|
-| `taskId`   | `string (UUID)` | **Required.** Task UUID |
-
-Returns `{ approvalState }`.
+Returns a `ReviewState` object with the current workflow phase, per-phase documents (`content`), and any inline comments.
 
 ### `task_review_comment`
 

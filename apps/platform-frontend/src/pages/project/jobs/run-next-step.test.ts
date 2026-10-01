@@ -5,26 +5,24 @@ function input(overrides: Partial<RunNextStepInput['job']> = {}, rest: Partial<O
     job: { status: 'completed', jobKind: 'research', agentSessionId: null, result: { success: true }, ...overrides },
     newerRunId: null,
     taskPhase: 'research',
-    document: { content: '# Research\n\nFindings', approvalState: 'draft' },
+    document: { content: '# Research\n\nFindings' },
     ...rest,
   }
 }
 
 describe('decideRunNextStep', () => {
-  it('asks for a review of fresh research while the task is still researching', () => {
-    expect(decideRunNextStep(input())).toEqual({ kind: 'review_research', preview: '# Research\n\nFindings' })
+  it("says fresh research is ready while it is still the task's latest artifact", () => {
+    expect(decideRunNextStep(input())).toEqual({ kind: 'research_ready', preview: '# Research\n\nFindings' })
   })
 
-  it('says the task moved on once research was approved', () => {
+  it('says the task moved on once a plan was written', () => {
     expect(decideRunNextStep(input({}, { taskPhase: 'planning' }))).toEqual({ kind: 'moved_on', phase: 'research' })
   })
 
-  it('asks for a plan review until the plan is approved', () => {
+  it('says the plan is ready until the task has a pull request', () => {
     const plan = input({ jobKind: 'planning' }, { taskPhase: 'planning' })
-    expect(decideRunNextStep(plan).kind).toBe('review_plan')
-
-    const approved = { ...plan, document: { content: '# Plan', approvalState: 'approved' as const } }
-    expect(decideRunNextStep(approved)).toEqual({ kind: 'moved_on', phase: 'planning' })
+    expect(decideRunNextStep(plan).kind).toBe('plan_ready')
+    expect(decideRunNextStep({ ...plan, taskPhase: 'execution' })).toEqual({ kind: 'moved_on', phase: 'planning' })
   })
 
   it('points at the pull request a build opened', () => {
@@ -51,9 +49,9 @@ describe('decideRunNextStep', () => {
   })
 
   it('asks for a review when a turn wrote the document, and says other turns answered', () => {
-    expect(decideRunNextStep(input({ agentSessionId: 'sess-1' })).kind).toBe('review_research')
+    expect(decideRunNextStep(input({ agentSessionId: 'sess-1' })).kind).toBe('research_ready')
 
-    const noDocument = input({ agentSessionId: 'sess-1' }, { document: { content: '', approvalState: 'draft' } })
+    const noDocument = input({ agentSessionId: 'sess-1' }, { document: { content: '' } })
     expect(decideRunNextStep(noDocument)).toEqual({ kind: 'session', sessionId: 'sess-1' })
     const reply = input({ agentSessionId: 'sess-1', jobKind: 'reply' }, { document: null })
     expect(decideRunNextStep(reply)).toEqual({ kind: 'session', sessionId: 'sess-1' })

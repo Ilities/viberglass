@@ -36,5 +36,5 @@ test("asking the agent again while it works waits for its turn instead of starti
   await expect.poll(() => researchDocument(adminApi, task.id), { timeout: 120_000 }).toContain("One more thing");
   expect(await researchDocument(adminApi, task.id)).toContain("Also note the farewell");
   await expect.poll(() => sessionStatus(adminApi, second.sessionId), { timeout: 30_000 }).toBe("waiting_on_user");
-  await expect(page.getByRole("heading", { name: "The research is ready for your review" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "The research is ready" })).toBeVisible({ timeout: 15_000 });
 });

@@ -9,7 +9,7 @@ import { AgentSessionWorkerEventService } from "../../../services/agentSession/A
 import { SessionTurnContinuationService } from "../../../services/agentSession/SessionTurnContinuationService";
 import { isTerminalJobStatus } from "../../../services/job/jobStatus";
 import { JobService } from "../../../services/JobService";
-import { TaskTurnOutcomeService } from "../../../services/taskTurns/TaskTurnOutcomeService";
+import { TaskTurnOutcomeService, type RecordedTurn } from "../../../services/taskTurns/TaskTurnOutcomeService";
 import { RUN_MANIFEST_VERSION, type ExecutionManifest } from "@viberglass/telemetry";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
@@ -142,8 +142,9 @@ export function registerJobResultRoute(router: Router): void {
           agentTurn = session?.lastTurnId ? await agentTurnDAO.getById(session.lastTurnId) : null;
         }
         const session = agentTurn ? await agentSessionDAO.getById(agentTurn.sessionId) : null;
+        let recordedTurn: RecordedTurn | null = null;
         if (agentTurn && session) {
-          await turnOutcomeService.record(jobId, session, agentTurn, {
+          recordedTurn = await turnOutcomeService.record(jobId, session, agentTurn, {
             success: Boolean(result.success),
             documents: result.documents,
             codeDiscarded: result.codeDiscarded === true,
@@ -166,6 +167,7 @@ export function registerJobResultRoute(router: Router): void {
           errorMessage: result.errorMessage,
           failureCode:
             typeof result.failureCode === "string" ? result.failureCode : undefined,
+          turn: recordedTurn ?? undefined,
         });
 
         return res.json({

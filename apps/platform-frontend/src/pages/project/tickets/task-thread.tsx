@@ -27,7 +27,7 @@ interface TaskThreadProps {
   agents: Mentionable[]
   /** What the suggested actions are worked out from; the latest turn comes from the thread. */
   suggestionInput: Omit<TaskSuggestionInput, 'latestTurn'>
-  /** Whether the person may ask the agent (admins and members). */
+  /** Whether the person may ask the agent, from the task's capabilities. */
   canAsk: boolean
   /** The page reloads after an ask, to show the agent working. */
   onAsked: () => void

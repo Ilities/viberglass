@@ -188,16 +188,16 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Journey | Spec |
 |---|---|
 | Sign in as the seeded admin | `sign-in.e2e.test.ts` |
-| Asking the agent for the research (a suggested action) writes a document, which is approved | `research-and-approve.e2e.test.ts` |
+| Asking the agent for the research (a suggested action) writes a document that's ready with nothing to approve; asking for the plan moves the task on | `research-then-plan.e2e.test.ts` |
 | @agent writes research v1; a comment; "Revise the research with 1 comment" gives v2 from the resumed session with only what's new; "Write the plan" gives plan v1 | `task-conversation.e2e.test.ts` |
 | A message queued during a live turn reaches the agent in its next turn, then the session waits on people | `live-session-message.e2e.test.ts` |
 | A session is titled with its task and opens with what the person wrote (which reaches the agent); the full prompt is behind "View full prompt" | `session-opening.e2e.test.ts` |
 | A live turn that writes no document leaves the session waiting on the person; their reply starts the next turn | `session-waits-on-person.e2e.test.ts` |
-| A task says whose move it is at the top: the agent working (cancel), research ready (approve & plan), plan ready (approve), then *Build it* offered in the thread | `task-next-moves.e2e.test.ts` |
-| Only the plan's reviewers (or maintainers and admins) see Approve and Skip to the build, and the API refuses anyone else; others ask for approval, and the approval is credited; a space's default reviewers join each new task | `approval-policy.e2e.test.ts` |
+| A task says whose move it is at the top: the agent working (cancel), research ready, *Write the plan* in the thread, plan ready, then *Build it* offered with no Approve anywhere | `task-next-moves.e2e.test.ts` |
+| Only people on the task (and maintainers and admins) are offered *Build it*, and the API refuses anyone else; a guest off the task can't ask at all, and once on it their build runs as theirs; a space's default reviewers join each new task and the agent mentions them when the plan is ready | `ask-policy.e2e.test.ts` |
 | A reviewer comments on text in the rendered plan; the comment follows its text through an edit, reaches the agent with its quote, and is outdated once the text is gone | `rendered-document-comments.e2e.test.ts` |
-| The audit log records secrets, role changes and approvals (never a secret's value), is admin-only, and filters by area | `audit-log.e2e.test.ts` |
-| Phase 2's exit: three people invited by link; the PM asks, the designer is @mentioned and replies, the reviewer comments on the rendered plan, has it revised with the comment and approves; Inbox and the thread name each person | `phase-2-exit.e2e.test.ts` |
+| The audit log records secrets and role changes (never a secret's value), is admin-only, and filters by area | `audit-log.e2e.test.ts` |
+| Phase 2's exit, as a conversation: three people invited by link; the PM asks, the designer is @mentioned and replies, the agent mentions the reviewer when the plan is ready, the reviewer comments on the rendered plan, has it revised with the comment and asks for the build; Inbox and the thread name each person | `phase-2-exit.e2e.test.ts` |
 | Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
 | Asking again while the agent works joins its turn instead of starting another run; the next turn answers both asks | `no-duplicate-runs.e2e.test.ts` |
 | Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |

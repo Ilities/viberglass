@@ -1,7 +1,6 @@
 import type { APIRequestContext } from "@playwright/test";
 import { E2E } from "../../playwright/e2eEnvironment";
 import { expect, test } from "../../playwright/smokeFixtures";
-import { createTask } from "../../playwright/tasks";
 
 async function memberId(adminApi: APIRequestContext): Promise<string> {
   const { users } = await (await adminApi.get("/api/users")).json();
@@ -12,7 +11,6 @@ test("admins see who changed what across the workspace; secret values never reac
   adminApi,
   memberApi,
   adminPage: page,
-  workspace,
 }) => {
   const secret = await adminApi.post("/api/secrets", {
     data: { name: "AUDIT_E2E_TOKEN", secretLocation: "database", secretValue: "super-secret-value" },
@@ -22,12 +20,10 @@ test("admins see who changed what across the workspace; secret values never reac
   const member = await memberId(adminApi);
   expect((await adminApi.patch(`/api/users/${member}/role`, { data: { role: "viewer" } })).status()).toBe(200);
   expect((await adminApi.patch(`/api/users/${member}/role`, { data: { role: "member" } })).status()).toBe(200);
-  const task = await createTask(adminApi, workspace.projectId, "Audit me");
-  expect((await adminApi.post(`/api/tasks/${task.id}/phases/research/approve`)).status()).toBe(200);
 
   const log = await (await adminApi.get("/api/audit-log")).json();
   const actions = log.data.entries.map((entry: { action: string }) => entry.action);
-  expect(actions).toEqual(expect.arrayContaining(["secret.created", "member.role_changed", "approval.granted"]));
+  expect(actions).toEqual(expect.arrayContaining(["secret.created", "member.role_changed"]));
   expect(log.data.entries).toContainEqual(
     expect.objectContaining({ action: "secret.created", targetId: secretId, details: { name: "AUDIT_E2E_TOKEN" }, actor: expect.objectContaining({ name: "E2E Admin" }) }),
   );

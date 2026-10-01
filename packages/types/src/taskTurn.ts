@@ -24,4 +24,6 @@ export interface TaskTurnOutcome {
   codeDiscarded: boolean
   /** Whether the turn continued the agent's earlier session; null when the worker didn't say. */
   resumed: boolean | null
+  /** Whom the agent asked to look at what it produced; absent on turns from before S3. */
+  mentioned?: Array<{ id: string; name: string }>
 }

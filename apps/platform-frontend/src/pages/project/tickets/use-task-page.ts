@@ -1,6 +1,6 @@
 import { getClankersList, getTicketDetails } from '@/data'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
-import { getTaskApprovals } from '@/service/api/approval-api'
+import { getTaskCapabilities } from '@/service/api/task-capabilities-api'
 import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
 import {
   getPhaseDocumentComments,
@@ -9,7 +9,7 @@ import {
   getTaskByKey,
   type PhaseDocumentResponse,
 } from '@/service/api/ticket-api'
-import { isTaskKey, type Clanker, type TaskApprovals, type Ticket } from '@viberglass/types'
+import { isTaskKey, type Clanker, type TaskCapabilities, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { countNewComments } from './task-suggestions'
 
@@ -22,8 +22,8 @@ export interface TaskPageData {
   /** Open comments on each document made since its latest version. */
   newComments: { research: number; planning: number }
   sessions: AgentSession[]
-  /** Who may approve each step; null if it couldn't be loaded, so nobody is offered Approve. */
-  approvals: TaskApprovals | null
+  /** What the person may ask the agent for; null if it couldn't be loaded, so nothing is offered. */
+  capabilities: TaskCapabilities | null
 }
 
 const POLL_MS = 5000
@@ -31,7 +31,7 @@ const POLL_MS = 5000
 const WORKING_SESSION = ['active']
 
 async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | null> {
-  const [ticket, runs, research, planning, researchComments, planComments, sessions, approvals] = await Promise.all([
+  const [ticket, runs, research, planning, researchComments, planComments, sessions, capabilities] = await Promise.all([
     getTicketDetails(id),
     getJobs({ ticketId: id, limit: 50 }),
     getResearchDocument(id),
@@ -39,7 +39,7 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
     getPhaseDocumentComments(id, 'research').catch(() => []),
     getPhaseDocumentComments(id, 'planning').catch(() => []),
     listSessionsForTicket(id),
-    getTaskApprovals(id).catch(() => null),
+    getTaskCapabilities(id).catch(() => null),
   ])
   if (!ticket) return null
   return {
@@ -51,7 +51,7 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
       planning: countNewComments(planComments, planning.document.updatedAt),
     },
     sessions,
-    approvals,
+    capabilities,
   }
 }
 

@@ -26,7 +26,12 @@ function outcomeOf(json: JsonValue | null): TaskTurnOutcome | null {
     produced: PRODUCTS.filter((product) => produced.includes(product)),
     codeDiscarded: json.codeDiscarded === true,
     resumed: typeof json.resumed === "boolean" ? json.resumed : null,
+    mentioned: Array.isArray(json.mentioned) ? json.mentioned.filter(isPerson) : [],
   };
+}
+
+function isPerson(value: JsonValue): value is { id: string; name: string } {
+  return isObjectRecord(value) && typeof value.id === "string" && typeof value.name === "string";
 }
 
 /** The agents' turns on a task, for its thread. */

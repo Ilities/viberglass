@@ -13,3 +13,13 @@ describe("notificationText for failed runs", () => {
     );
   });
 });
+
+describe("notificationText for mentions", () => {
+  it("says what the agent has ready when it mentions someone", () => {
+    expect(notificationText("mentioned", null, "Gift notes", { step: "planning" })).toBe("The agent mentioned you on “Gift notes”: the plan is ready");
+  });
+
+  it("names the person who mentioned someone in the thread", () => {
+    expect(notificationText("mentioned", "Tomi", "Gift notes", {})).toBe("Tomi mentioned you on “Gift notes”");
+  });
+});

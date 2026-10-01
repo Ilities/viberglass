@@ -27,7 +27,7 @@ interface ActiveBridge {
   timer: ReturnType<typeof setInterval>;
   chainTo?: TicketWorkflowPhase;
   clankerId?: string;
-  /** The Slack user who started the chain; it continues as them, under the approval policy. */
+  /** The Slack user who started the chain; it continues as them, under the task's ask policy. */
   chainedBy?: string;
 }
 
@@ -228,8 +228,8 @@ export class TicketJobBridge {
         const phaseLabel = mode === "research" ? "Research" : "Planning";
         const hint =
           mode === "research"
-            ? 'Click Approve to advance to planning, or @mention with feedback to revise. You can also say "plan it" / "next" / "lgtm".'
-            : 'Click Approve to start execution, or @mention with feedback to revise. You can also say "execute" / "ship it" / "go".';
+            ? 'Ask the agent to write the plan, or @mention it with feedback to revise. You can also say "plan it" / "next" / "lgtm".'
+            : 'Ask the agent to build it, or @mention it with feedback to revise. You can also say "execute" / "ship it" / "go".';
         await thread.post(
           Card({
             title: `${phaseLabel} complete`,
@@ -237,15 +237,9 @@ export class TicketJobBridge {
               CardText(hint),
               Actions([
                 Button({
-                  id: "ticket_approve_phase",
-                  label: "Approve",
+                  id: "ticket_next_step",
+                  label: mode === "research" ? "Write the plan" : "Build it",
                   style: "primary",
-                  value: ticketId,
-                }),
-                Button({
-                  id: "ticket_reject_phase",
-                  label: "Reject",
-                  style: "danger",
                   value: ticketId,
                 }),
               ]),

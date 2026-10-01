@@ -37,19 +37,18 @@ describe("resolveNotifications (plan §8)", () => {
     expect(notify(kind, payload)).toEqual(expected);
   });
 
-  it("asks the plan's reviewers to review a finished plan, and tells everyone else it's ready", () => {
-    expect(notify("run_finished", { step: "planning" })).toEqual([
-      { userId: "reviewer", kind: "review_requested" },
+  it("tells the people the agent mentioned with what it produced, and everyone else it's ready", () => {
+    expect(notify("run_finished", { step: "planning", mentioned: ["reviewer"] }, null)).toEqual([
+      { userId: "reviewer", kind: "mentioned" },
       { userId: "requester", kind: "step_completed" },
       { userId: "owner", kind: "step_completed" },
       { userId: "watcher", kind: "step_completed" },
     ]);
   });
 
-  it("asks the owner to review a finished plan when the task has no reviewers", () => {
-    const noReviewers = { ...context, participants: context.participants.filter((p) => p.role !== "reviewer") };
-    expect(resolveNotifications({ kind: "run_finished", actorId: null, payload: { step: "planning" } }, noReviewers)).toEqual([
-      { userId: "owner", kind: "review_requested" },
+  it("sends the owner one mention, not also a step update, when the agent mentioned them", () => {
+    expect(notify("run_finished", { step: "planning", mentioned: ["owner"] }, null)).toEqual([
+      { userId: "owner", kind: "mentioned" },
       { userId: "requester", kind: "step_completed" },
       { userId: "watcher", kind: "step_completed" },
     ]);

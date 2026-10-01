@@ -11,6 +11,7 @@ export function isAuditTargetType(value: unknown): value is AuditTargetType {
 export const AUDIT_ACTION_TEXT = {
   'run.started': 'started a run',
   'run.cancelled': 'cancelled a run',
+  // No longer recorded since approvals went (ADR 0008); kept so older entries still read.
   'approval.granted': 'approved a step',
   'connection.created': 'added a connection',
   'connection.updated': 'changed a connection',

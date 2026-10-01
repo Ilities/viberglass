@@ -3,8 +3,8 @@ import type { SlackHandlerServices } from "../types";
 import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from "@viberglass/types";
 
 const PHASE_LABEL: Record<string, string> = {
-  [TICKET_WORKFLOW_PHASE.PLANNING]: "planning",
-  [TICKET_WORKFLOW_PHASE.EXECUTION]: "execution",
+  [TICKET_WORKFLOW_PHASE.PLANNING]: "the plan",
+  [TICKET_WORKFLOW_PHASE.EXECUTION]: "the build",
 };
 
 function nextPhase(mode: string): TicketWorkflowPhase | null {
@@ -13,28 +13,17 @@ function nextPhase(mode: string): TicketWorkflowPhase | null {
   return null;
 }
 
-export function registerTicketApprovalActionHandler(
+/** "Write the plan" / "Build it" under a finished step: asks the agent for the next one, as the Slack user. */
+export function registerTicketNextStepActionHandler(
   bot: Chat,
   services: SlackHandlerServices,
 ): void {
-  bot.onAction(["ticket_approve_phase", "ticket_reject_phase"], async (event) => {
-    const ticketId = event.value;
-    if (!ticketId) return;
+  bot.onAction(["ticket_next_step"], async (event) => {
+    if (!event.value) return;
 
     const thread = event.thread;
-    const approved = event.actionId === "ticket_approve_phase";
     const userName = event.user.fullName ?? event.user.userName;
 
-    if (!approved) {
-      if (thread) {
-        await thread.post(
-          `_Rejected by ${userName}. Mention @viberator with feedback to revise._`,
-        );
-      }
-      return;
-    }
-
-    // Resolve current mode from the thread mapping
     const ticketMapping = thread ? await services.getTicketForThread(thread.id) : undefined;
     if (!ticketMapping) {
       if (thread) {
@@ -46,16 +35,14 @@ export function registerTicketApprovalActionHandler(
     const targetPhase = nextPhase(ticketMapping.mode);
     if (!targetPhase) {
       if (thread) {
-        await thread.post(`_Cannot advance from phase "${ticketMapping.mode}" via approve button._`);
+        await thread.post(`_There's no next step after "${ticketMapping.mode}"._`);
       }
       return;
     }
 
-    const label = PHASE_LABEL[targetPhase] ?? targetPhase;
-
     try {
       if (thread) {
-        await thread.post(`_Advancing to ${label} (approved by ${userName})…_`);
+        await thread.post(`_${userName} asked the agent for ${PHASE_LABEL[targetPhase] ?? targetPhase}…_`);
       }
       await services.advanceAndRunTicketJob({
         ticketId: ticketMapping.ticketId,
@@ -66,7 +53,7 @@ export function registerTicketApprovalActionHandler(
     } catch (err) {
       if (thread) {
         await thread.post(
-          `Error: ${err instanceof Error ? err.message : "Failed to advance phase"}`,
+          `Error: ${err instanceof Error ? err.message : "Failed to ask for the next step"}`,
         );
       }
     }

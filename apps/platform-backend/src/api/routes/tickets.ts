@@ -7,22 +7,14 @@ import { createBuildPullRequestService } from "../../services/pull-request-revie
 import { TicketPhaseDocumentCommentService } from "../../services/TicketPhaseDocumentCommentService";
 import { TicketPhaseDocumentRevisionService } from "../../services/TicketPhaseDocumentRevisionService";
 import { TicketPhaseDocumentService } from "../../services/TicketPhaseDocumentService";
-import { TicketPlanningApprovalService } from "../../services/TicketPlanningApprovalService";
 import { TicketPlanningService } from "../../services/TicketPlanningService";
 import { TicketResearchService } from "../../services/TicketResearchService";
-import { TicketWorkflowOverrideService } from "../../services/TicketWorkflowOverrideService";
 import { TicketWorkflowService } from "../../services/TicketWorkflowService";
-import { getFeedbackService } from "../../webhooks/webhookServiceFactory";
-import type { FeedbackService } from "../../webhooks/FeedbackService";
 import { requireAuth } from "../middleware/authentication";
 import { validateUuidParam } from "../middleware/validation";
 import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
 import { registerTicketCrudMediaRoutes } from "./tickets/crudMediaRoutes";
 import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
-import { registerTicketReopenRoutes } from "./tickets/reopenRoutes";
-import { TicketStepReopenService } from "../../services/TicketStepReopenService";
-import { TicketPhaseApprovalDAO } from "../../persistence/ticketing/TicketPhaseApprovalDAO";
-import { TicketPhaseRunGuard } from "../../services/TicketPhaseRunGuard";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
 import { registerDocumentCommentRoutes } from "./tickets/documentCommentRoutes";
 import { registerTicketAgentSessionRoutes } from "./tickets/agentSessionRoutes";
@@ -36,10 +28,8 @@ import { taskKeyParamGuard, taskParamGuard } from "../middleware/spaceAccessGuar
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { registerTaskParticipantRoutes } from "./tickets/participantRoutes";
-import { registerTaskApprovalRoutes } from "./tickets/approvalRoutes";
-import { ApprovalPolicyService } from "../../services/approvals/ApprovalPolicyService";
-import { StepApprovalRequestService } from "../../services/approvals/StepApprovalRequestService";
-import { TicketResearchApprovalService } from "../../services/approvals/TicketResearchApprovalService";
+import { registerTaskCapabilityRoutes } from "./tickets/capabilityRoutes";
+import { TaskAskPolicyService } from "../../services/taskTurns/TaskAskPolicyService";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
 import { TaskTimelineService } from "../../services/tasks/TaskTimelineService";
@@ -60,21 +50,8 @@ const ticketPhaseDocumentRevisionService =
 const ticketPhaseDocumentCommentService =
   new TicketPhaseDocumentCommentService();
 
-let feedbackService: FeedbackService | undefined;
-try {
-  feedbackService = getFeedbackService();
-} catch (error) {
-  logger.warn("Feedback service unavailable for ticket phase approvals", {
-    error: error instanceof Error ? error.message : String(error),
-  });
-}
-
 const ticketResearchService = new TicketResearchService();
 const ticketPlanningService = new TicketPlanningService();
-const ticketPlanningApprovalService = new TicketPlanningApprovalService(
-  feedbackService,
-);
-const ticketWorkflowOverrideService = new TicketWorkflowOverrideService();
 
 router.use(requireAuth);
 router.param("id", taskParamGuard());
@@ -119,20 +96,12 @@ router.post("/:id/set-status", validateUuidParam("id"), taskChangeGuard("edit"),
   }
 
   try {
-    if (status === TICKET_STATUS.IN_REVIEW) {
-      const ticket = await ticketService.getTicket(id);
-      if (!ticket) {
-        return res.status(404).json({ error: "Ticket not found" });
-      }
-      await ticketPhaseDocumentService.requestApproval(id, ticket.workflowPhase);
-    } else {
-      const before = await ticketService.getTicket(id);
-      await ticketService.updateTicket(id, {
-        status: status as TicketLifecycleStatus,
-      });
-      if (before && before.status !== TICKET_STATUS.RESOLVED && status === TICKET_STATUS.RESOLVED) {
-        await taskActivity.recordByCurrentActor(id, "task_done");
-      }
+    const before = await ticketService.getTicket(id);
+    await ticketService.updateTicket(id, {
+      status: status as TicketLifecycleStatus,
+    });
+    if (before && before.status !== TICKET_STATUS.RESOLVED && status === TICKET_STATUS.RESOLVED) {
+      await taskActivity.recordByCurrentActor(id, "task_done");
     }
 
     const updated = await ticketService.getTicket(id);
@@ -170,27 +139,11 @@ registerTicketWorkflowPhaseRoutes(router, {
 });
 registerDocumentCommentRoutes(router, { ticketPhaseDocumentCommentService });
 
-registerTaskApprovalRoutes(router, {
-  policy: new ApprovalPolicyService(),
-  requests: new StepApprovalRequestService({ participants: taskParticipants }),
-  research: new TicketResearchApprovalService({ workflow: ticketWorkflowService, documents: ticketPhaseDocumentService }),
-  planning: ticketPlanningApprovalService,
-});
+registerTaskCapabilityRoutes(router, { policy: new TaskAskPolicyService() });
 
 registerTicketExecutionRoutes(router, {
-  ticketWorkflowOverrideService,
   ticketDAO: ticketService,
   buildPullRequestService,
-});
-
-registerTicketReopenRoutes(router, {
-  ticketStepReopenService: new TicketStepReopenService(
-    ticketService,
-    ticketWorkflowService,
-    ticketPhaseDocumentService,
-    new TicketPhaseApprovalDAO(),
-    new TicketPhaseRunGuard(),
-  ),
 });
 
 const agentSessionDAO = new AgentSessionDAO();

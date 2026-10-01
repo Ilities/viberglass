@@ -9,6 +9,12 @@ function setup(streamed: string[] = ["Writing the research: checking the theme s
     events: { listAssistantTextByTurn: jest.fn().mockResolvedValue(streamed) },
     documents: { saveDocument: jest.fn() },
     workerEvents: { batchIngest: jest.fn() },
+    participants: {
+      list: jest.fn().mockResolvedValue([
+        { userId: "owner", name: "Olli Owner", email: "o@x", role: "owner", addedAt: "" },
+        { userId: "tomi", name: "Tomi Laine", email: "t@x", role: "reviewer", addedAt: "" },
+      ]),
+    },
   };
   return { deps, service: new TaskTurnOutcomeService(deps) };
 }
@@ -17,7 +23,7 @@ describe("TaskTurnOutcomeService", () => {
   it("saves each document the turn wrote as a version of its own, and records the reply", async () => {
     const { deps, service } = setup();
 
-    await service.record("job-1", SESSION, TURN, {
+    const recorded = await service.record("job-1", SESSION, TURN, {
       success: true,
       documents: { research: "# Research", plan: "# Plan" },
       resumed: true,
@@ -34,8 +40,11 @@ describe("TaskTurnOutcomeService", () => {
         produced: ["research", "plan", "code"],
         codeDiscarded: false,
         resumed: true,
+        mentioned: [{ id: "tomi", name: "Tomi Laine" }],
       },
     });
+    // The run's Activity names what it produced last, and whom the agent mentioned.
+    expect(recorded).toEqual({ step: "execution", mentioned: ["tomi"] });
     // Ended after the documents are saved, so a queued turn reads them.
     expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [
       { eventType: "turn_completed", payload: { produced: ["research", "plan", "code"] } },
@@ -46,12 +55,24 @@ describe("TaskTurnOutcomeService", () => {
   it("records a turn that only answered, and one whose code was thrown away", async () => {
     const { deps, service } = setup(["Answering: it's per device."]);
 
-    await service.record("job-1", SESSION, TURN, { success: true, documents: { research: "  " }, codeDiscarded: true });
+    const recorded = await service.record("job-1", SESSION, TURN, { success: true, documents: { research: "  " }, codeDiscarded: true });
 
     expect(deps.documents.saveDocument).not.toHaveBeenCalled();
     expect(deps.turns.update).toHaveBeenCalledWith("turn-1", {
       contentMarkdown: "Answering: it's per device.",
-      contentJson: expect.objectContaining({ produced: [], codeDiscarded: true, resumed: null }),
+      contentJson: expect.objectContaining({ produced: [], codeDiscarded: true, resumed: null, mentioned: [] }),
+    });
+    expect(recorded).toBeNull();
+    expect(deps.participants.list).not.toHaveBeenCalled();
+  });
+
+  it("mentions the owner when the task has no reviewers", async () => {
+    const { deps, service } = setup();
+    deps.participants.list.mockResolvedValue([{ userId: "owner", name: "Olli Owner", email: "o@x", role: "owner", addedAt: "" }]);
+
+    await expect(service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "# Plan" } })).resolves.toEqual({
+      step: "planning",
+      mentioned: ["owner"],
     });
   });
 

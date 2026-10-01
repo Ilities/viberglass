@@ -72,7 +72,7 @@ export class SessionTurnContinuationService {
     }
 
     const action = actionForPending(pending.map((turn) => turn.action));
-    // Code is written only when someone asked for it (S3 widens this to who may ask).
+    // Code is written only when someone asked for it; TaskTurnService.ask lets only those who may ask for code.
     const allowCode = action === "code";
     const turn = await this.agentTurnDAO.create({
       sessionId: session.id,

@@ -66,7 +66,6 @@ export function registerModalSubmitHandler(
         projectId,
         title,
         description: message,
-        phase: ticketPhase,
         slackUserId: event.user.userId,
       });
 

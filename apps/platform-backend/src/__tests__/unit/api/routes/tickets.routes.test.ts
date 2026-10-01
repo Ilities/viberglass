@@ -1,9 +1,5 @@
 import express from "express";
 import request from "supertest";
-import {
-  TicketServiceError,
-  TICKET_SERVICE_ERROR_CODE,
-} from "../../../../services/errors/TicketServiceError";
 
 const mockTicketDAO = {
   getTicket: jest.fn(),
@@ -31,12 +27,8 @@ const mockFileUploadService = {
 const mockTaskTurnService = {
   ask: jest.fn(),
 };
-const mockTicketPlanningApprovalService = {
-  approve: jest.fn(),
-  revokeApproval: jest.fn(),
-};
-const mockTicketWorkflowOverrideService = {
-  overrideToExecution: jest.fn(),
+const mockTaskAskPolicyService = {
+  describe: jest.fn(),
 };
 const mockTicketWorkflowService = {
   getTicketWorkflow: jest.fn(),
@@ -78,6 +70,10 @@ jest.mock("../../../../services/spaces/SpaceAccessService", () => ({
   })),
 }));
 
+jest.mock("../../../../persistence/project/SpaceOwnershipDAO", () => ({
+  SpaceOwnershipDAO: jest.fn(() => ({ projectIdForTask: jest.fn().mockResolvedValue("p-1") })),
+}));
+
 jest.mock("../../../../persistence/ticketing/TaskParticipantDAO", () => ({
   TaskParticipantDAO: jest.fn(() => ({ listOwners: jest.fn().mockResolvedValue(new Map()) })),
 }));
@@ -99,16 +95,8 @@ jest.mock("../../../../services/taskTurns/TaskTurnService", () => ({
   TaskTurnService: jest.fn(() => mockTaskTurnService),
 }));
 
-jest.mock("../../../../services/TicketPlanningApprovalService", () => ({
-  TicketPlanningApprovalService: jest.fn(
-    () => mockTicketPlanningApprovalService,
-  ),
-}));
-
-jest.mock("../../../../services/TicketWorkflowOverrideService", () => ({
-  TicketWorkflowOverrideService: jest.fn(
-    () => mockTicketWorkflowOverrideService,
-  ),
+jest.mock("../../../../services/taskTurns/TaskAskPolicyService", () => ({
+  TaskAskPolicyService: jest.fn(() => mockTaskAskPolicyService),
 }));
 
 jest.mock("../../../../services/TicketWorkflowService", () => ({
@@ -127,10 +115,6 @@ jest.mock("../../../../services/TicketPhaseDocumentCommentService", () => ({
   ),
 }));
 
-jest.mock("../../../../webhooks/webhookServiceFactory", () => ({
-  getFeedbackService: jest.fn(() => undefined),
-}));
-
 import ticketsRouter from "../../../../api/routes/tickets";
 
 const TICKET_ID = "11111111-1111-4111-8111-111111111111";
@@ -143,6 +127,16 @@ describe("ticket workflow routes", () => {
     mockAgentSessionDAO.listOpenSessionIdsByTicket.mockResolvedValue(new Map());
     app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      const at = new Date();
+      req.authContext = {
+        user: { id: "user-1", email: "maria@example.com", name: "Maria", avatarUrl: null, role: "member", createdAt: at, updatedAt: at, deactivatedAt: null },
+        session: { id: "s", userId: "user-1", tokenHash: "h", createdAt: at, expiresAt: at, revokedAt: null },
+        roles: ["member"],
+        permissions: [],
+      };
+      next();
+    });
     app.use("/api/tasks", ticketsRouter);
   });
 
@@ -234,42 +228,24 @@ describe("ticket workflow routes", () => {
     expect(response.body).toEqual({ error: "Invalid workflow phase" });
   });
 
-  it("overrides the workflow to execution and returns the updated ticket", async () => {
-    mockTicketWorkflowOverrideService.overrideToExecution.mockResolvedValue({
-      id: TICKET_ID,
-      workflowPhase: "execution",
-      workflowOverrideReason: "Urgent production fix",
-      workflowOverriddenAt: "2026-03-01T12:00:00.000Z",
-      workflowOverriddenBy: "approver@example.com",
-    });
+  it("says what the caller may ask the agent for", async () => {
+    mockTaskAskPolicyService.describe.mockResolvedValue({ canAsk: true, canAskForCode: false });
 
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/workflow/override-to-execution`)
-      .send({ reason: "Urgent production fix" })
-      .expect(200);
+    const response = await request(app).get(`/api/tasks/${TICKET_ID}/capabilities`);
 
-    expect(mockTicketWorkflowOverrideService.overrideToExecution).toHaveBeenCalledWith(
-      TICKET_ID,
-      "Urgent production fix",
-      null,
-    );
-    expect(response.body.data.workflowPhase).toBe("execution");
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ canAsk: true, canAskForCode: false });
+    expect(mockTaskAskPolicyService.describe).toHaveBeenCalledWith("user-1", TICKET_ID);
   });
 
-  it("returns 400 when override validation fails", async () => {
-    mockTicketWorkflowOverrideService.overrideToExecution.mockRejectedValue(
-      new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.WORKFLOW_OVERRIDE_REASON_REQUIRED,
-        "workflow override reason is required",
-      ),
-    );
-
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/workflow/override-to-execution`)
-      .send({ reason: "   " })
-      .expect(400);
-
-    expect(response.body.message).toBe("workflow override reason is required");
+  it.each([
+    ["post", "workflow/override-to-execution"],
+    ["post", "phases/planning/approve"],
+    ["post", "phases/research/reopen"],
+    ["get", "approvals"],
+  ] as const)("no longer has %s /:id/%s", async (method, path) => {
+    const response = await request(app)[method](`/api/tasks/${TICKET_ID}/${path}`);
+    expect(response.status).toBe(404);
   });
 
   it("passes workflow phase filters through GET /api/tasks", async () => {

@@ -1,8 +1,9 @@
 import type { AgentSession } from "../../../../persistence/agentSession/AgentSessionDAO";
 import type { AgentTurn } from "../../../../persistence/agentSession/AgentTurnDAO";
+import { TASK_ASK_POLICY_ERROR_CODE, TaskAskPolicyError } from "../../../../services/errors/TaskAskPolicyError";
 import { TaskTurnService } from "../../../../services/taskTurns/TaskTurnService";
 
-const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "research" as const, workflowOverriddenAt: undefined };
+const TICKET = { id: "t-1", projectId: "p-1", title: "Dark mode", workflowPhase: "research" as const };
 
 function session(overrides: Partial<AgentSession> = {}): AgentSession {
   return {
@@ -58,7 +59,7 @@ function turn(overrides: Partial<AgentTurn> = {}): AgentTurn {
 function setup() {
   const deps = {
     tickets: { getTicket: jest.fn().mockResolvedValue(TICKET) },
-    documents: { getOrCreateDocument: jest.fn().mockResolvedValue({ approvalState: "approved" }) },
+    policy: { assertCanAsk: jest.fn().mockResolvedValue(undefined) },
     discussion: { create: jest.fn().mockResolvedValue("message-1") },
     agents: { resolve: jest.fn().mockResolvedValue("claude") },
     sessions: {
@@ -129,13 +130,21 @@ describe("TaskTurnService", () => {
     expect(result.currentTurn.id).toBe("a-running");
   });
 
-  it("refuses a build before the plan is cleared, before posting anything", async () => {
+  it("builds with no plan approved: asking is the agreement", async () => {
     const { deps, service } = setup();
-    deps.documents.getOrCreateDocument.mockResolvedValue({ approvalState: "approval_requested" });
 
-    await expect(service.ask("t-1", "maria", { message: "", action: "code" })).rejects.toMatchObject({
-      code: "EXECUTION_BLOCKED_UNAPPROVED_PLAN",
-    });
+    await service.ask("t-1", "maria", { message: "", action: "code" });
+
+    expect(deps.policy.assertCanAsk).toHaveBeenCalledWith("maria", "t-1", "code");
+    expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "Build it");
+    expect(deps.continuation.launchForPendingMessages).toHaveBeenCalled();
+  });
+
+  it("refuses an ask the policy refuses, before posting anything", async () => {
+    const { deps, service } = setup();
+    deps.policy.assertCanAsk.mockRejectedValue(new TaskAskPolicyError(TASK_ASK_POLICY_ERROR_CODE.NOT_ALLOWED, "Only the task's people…"));
+
+    await expect(service.ask("t-1", "visitor", { message: "", action: "code" })).rejects.toMatchObject({ code: "ASK_NOT_ALLOWED" });
     expect(deps.discussion.create).not.toHaveBeenCalled();
     expect(deps.turns.create).not.toHaveBeenCalled();
   });
