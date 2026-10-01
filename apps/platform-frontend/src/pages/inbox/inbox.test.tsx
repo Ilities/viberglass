@@ -49,7 +49,7 @@ describe('InboxList', () => {
   it('clears an item marked done', async () => {
     const onChanged = renderList([item({})])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark done' }))
 
     await waitFor(() => expect(onChanged).toHaveBeenCalledWith('n-1'))
     expect(mockUpdate).toHaveBeenCalledWith('n-1', { done: true })

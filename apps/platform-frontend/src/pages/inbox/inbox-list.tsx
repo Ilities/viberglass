@@ -70,12 +70,12 @@ export function InboxList({ items, showingDone, onChanged }: InboxListProps) {
                     </span>
                   </button>
                   {!showingDone && (
-                    <span className="flex shrink-0 gap-1">
-                      <Button plain onClick={() => void change(item, { snoozeHours: SNOOZE_HOURS }, 'Snoozed until tomorrow')}>
-                        Snooze
+                    <span className="flex shrink-0 gap-2">
+                      <Button outline onClick={() => void change(item, { snoozeHours: SNOOZE_HOURS }, 'Snoozed until tomorrow')}>
+                        Snooze 1 day
                       </Button>
                       <Button outline onClick={() => void change(item, { done: true })}>
-                        Done
+                        Mark done
                       </Button>
                     </span>
                   )}

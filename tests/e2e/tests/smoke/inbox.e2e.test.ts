@@ -31,7 +31,7 @@ test("a review request lands in the reviewer's Inbox, and marking it done clears
   await expect(memberPage.getByLabel(/unread/).first()).toBeVisible();
 
   const row = reviews.getByRole("listitem").filter({ hasText: text });
-  await row.getByRole("button", { name: "Done" }).click();
+  await row.getByRole("button", { name: "Mark done" }).click();
   await expect(memberPage.getByText(text)).toHaveCount(0);
 
   await memberPage.goto("/inbox?view=done");
