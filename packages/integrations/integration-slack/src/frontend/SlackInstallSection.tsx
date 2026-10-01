@@ -31,6 +31,7 @@ const BASE_MANIFEST = {
     scopes: {
       bot: [
         'commands',
+        'app_mentions:read',
         'chat:write',
         'chat:write.public',
         'channels:read',
