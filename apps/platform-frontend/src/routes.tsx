@@ -14,6 +14,7 @@ import { SetupPage } from '@/pages/setup/SetupPage'
 
 // Main pages
 import { DashboardPage } from '@/pages/DashboardPage'
+import { InboxPage } from '@/pages/inbox/InboxPage'
 import { NewProjectPage } from '@/pages/NewProjectPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { SessionsPulsePage } from '@/pages/sessions/SessionsPulsePage'
@@ -56,6 +57,7 @@ import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { UsersPage } from '@/pages/settings/UsersPage'
+import { NotificationSettingsPage } from '@/pages/settings/NotificationSettingsPage'
 import { RunRecordsPage } from '@/pages/settings/run-records/RunRecordsPage'
 
 export function AppRoutes() {
@@ -78,6 +80,7 @@ export function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/spaces/new" element={<NewProjectPage />} />
         <Route path="/pulse" element={<SessionsPulsePage />} />
+        <Route path="/inbox" element={<InboxPage />} />
 
         {/* Workspace settings: General, and the plumbing under Advanced. URLs stay put until Phase 2. */}
         <Route element={<WorkspaceSettingsLayout />}>
@@ -91,6 +94,7 @@ export function AppRoutes() {
           <Route path="/settings/connections/new/:integrationSystem" element={<IntegrationDetailPage />} />
           <Route path="/settings/connections/:integrationEntityId" element={<IntegrationDetailPage />} />
           <Route path="/settings/members" element={<UsersPage />} />
+          <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
           <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
           <Route path="/settings/api-tokens" element={<ApiTokensPage />} />
           <Route path="/settings/run-records" element={<RunRecordsPage />} />

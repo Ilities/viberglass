@@ -4,8 +4,8 @@ import { requireRole } from "./authentication";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-// Changes a viewer may still make: only ending their own session.
-const VIEWER_WRITABLE_PATHS = new Set(["/api/auth/logout"]);
+// Changes a viewer may still make: to their own session, Inbox and notification settings.
+const VIEWER_WRITABLE_PREFIXES = ["/api/auth/logout", "/api/inbox/", "/api/me/"];
 
 /**
  * Viewers are read-only on the server (ADR 0005). Mounted once after the auth
@@ -14,7 +14,7 @@ const VIEWER_WRITABLE_PATHS = new Set(["/api/auth/logout"]);
  */
 export function refuseViewerChanges(req: Request, res: Response, next: NextFunction): void {
   const role = req.authContext?.user.role;
-  if (role !== "viewer" || READ_METHODS.has(req.method) || VIEWER_WRITABLE_PATHS.has(req.path)) {
+  if (role !== "viewer" || READ_METHODS.has(req.method) || VIEWER_WRITABLE_PREFIXES.some((prefix) => req.path.startsWith(prefix))) {
     next();
     return;
   }

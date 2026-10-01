@@ -24,6 +24,7 @@ export function WorkspaceSettingsLayout() {
     ? [
         section(pathname, 'General', [
           { name: 'Members', href: '/settings/members' },
+          { name: 'Notifications', href: '/settings/notifications' },
           { name: 'API tokens', href: '/settings/api-tokens' },
         ]),
         section(
@@ -39,7 +40,12 @@ export function WorkspaceSettingsLayout() {
           'How agents run, where credentials live, and what each run recorded. Setup picked defaults; change them here.',
         ),
       ]
-    : [section(pathname, 'General', [{ name: 'API tokens', href: '/settings/api-tokens' }])]
+    : [
+        section(pathname, 'General', [
+          { name: 'Notifications', href: '/settings/notifications' },
+          { name: 'API tokens', href: '/settings/api-tokens' },
+        ]),
+      ]
 
   return (
     <div className="lg:flex lg:gap-8">

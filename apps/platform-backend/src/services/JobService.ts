@@ -193,7 +193,7 @@ export class JobService {
         await this.activity.record(job.ticket_id, { type: "agent" }, status === "completed" ? "run_finished" : "run_failed", {
           jobId,
           step: job.job_kind,
-          ...(failure ? { reason: failure.title } : {}),
+          ...(failure ? { reason: failure.title, category: failure.category } : {}),
         });
       }
 

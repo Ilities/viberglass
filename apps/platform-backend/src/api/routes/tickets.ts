@@ -43,6 +43,7 @@ import { registerTaskParticipantRoutes } from "./tickets/participantRoutes";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
 import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
+import { TaskActivityRecorder } from "../../services/tasks/TaskActivityRecorder";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 
 const router = express.Router();
@@ -79,6 +80,7 @@ router.param("id", taskParamGuard());
 router.param("key", taskKeyParamGuard());
 
 const taskParticipants = new TaskParticipantService();
+const taskActivity = new TaskActivityRecorder();
 registerTaskParticipantRoutes(router, taskParticipants);
 registerTaskDiscussionRoutes(router, { discussion: new TaskDiscussionService(), activity: new TaskActivityDAO() });
 
@@ -121,9 +123,13 @@ router.post("/:id/set-status", validateUuidParam("id"), async (req, res) => {
         req.authContext?.user.email,
       );
     } else {
+      const before = await ticketService.getTicket(id);
       await ticketService.updateTicket(id, {
         status: status as TicketLifecycleStatus,
       });
+      if (before && before.status !== TICKET_STATUS.RESOLVED && status === TICKET_STATUS.RESOLVED) {
+        await taskActivity.recordByCurrentActor(id, "task_done");
+      }
     }
 
     const updated = await ticketService.getTicket(id);
@@ -149,6 +155,7 @@ registerTicketCrudMediaRoutes(router, {
   spaceAccess: new SpaceAccessService(),
   participants: taskParticipants,
   participantDAO: new TaskParticipantDAO(),
+  activity: taskActivity,
 });
 
 registerTicketWorkflowPhaseRoutes(router, {

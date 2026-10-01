@@ -84,6 +84,13 @@ services:
       WEBHOOK_SECRET_ENCRYPTION_KEY: 'very-berry-webhook-key'
       SESSION_STATE_ROOT: /tmp/viberglass-session-state
       PLATFORM_FRONTEND_URL: http://localhost:3000
+      # Email (invite links, notifications). Empty means unset: nothing is emailed.
+      # With the `mail` profile: EMAIL_FROM="Viberglass <viberglass@localhost>", SMTP_URL=smtp://mailpit:1025
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SMTP_URL: ${SMTP_URL:-}
+      # Slack (optional): DMs and the /viberator command; see docs/operations/slack-integration.md
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
       # Where pre-built worker images come from (publish-worker-images.yml). Runners
       # without an explicit image pull `<registry>/viberator-worker-<agent>:latest`.
       # Set it empty to use images built locally under their bare names instead.
@@ -325,6 +332,18 @@ services:
       interval: 3s
       timeout: 5s
       retries: 10
+    networks:
+      - viberglass-dev-network
+    restart: unless-stopped
+
+  # Catches everything the backend emails; read it at http://localhost:8025.
+  # Started only with `docker compose --profile mail up -d`.
+  mailpit:
+    image: axllent/mailpit:v1
+    container_name: viberglass-dev-mailpit
+    profiles: ["mail"]
+    ports:
+      - "8025:8025"
     networks:
       - viberglass-dev-network
     restart: unless-stopped

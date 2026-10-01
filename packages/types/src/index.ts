@@ -64,3 +64,6 @@ export * from './taskParticipant'
 
 // Task discussion, mentions and activity
 export * from './taskDiscussion'
+
+// Notifications and the Inbox
+export * from './notification'

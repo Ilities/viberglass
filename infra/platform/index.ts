@@ -2,6 +2,7 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import { getConfig } from "./config";
+import { createEmail } from "./components/email";
 import { createRegistry, RegistryOutputs } from "./components/registry";
 import { createStorage, StorageOutputs } from "./components/storage";
 import { createDatabase, DatabaseOutputs } from "./components/database";
@@ -316,8 +317,12 @@ const slackBotTokenParam = new aws.ssm.Parameter(
 
 
 // Create backend ECS task definition with CORS allowed origins from Amplify
+// Invite links and notifications by email, when emailDomain is configured
+const email = createEmail(config);
+
 const backendEcs: BackendEcsOutputs = createBackendEcs({
   config,
+  email: email && { identityArn: email.identityArn, from: email.from },
   repositoryUrl: registry.repositoryUrl,
   logGroupName: backendLogGroupName,
   targetGroupArn: loadBalancer.targetGroupArn,
@@ -497,6 +502,12 @@ export const backendTaskDefinitionFamily = backendEcs.taskDefinitionFamily;
 export const backendExecutionRoleArn = backendEcs.executionRoleArn;
 export const backendTaskRoleArn = backendEcs.taskRoleArn;
 export const backendImageUri = backendEcs.imageUri;
+
+// Email (SES): add these CNAMEs by hand when route53ZoneId isn't the domain's zone
+export const emailFrom = email?.from;
+export const emailDkimRecords = email?.dkimRecords;
+// Manual steps still open for email; `pulumi stack output emailSetupSteps` lists them
+export const emailSetupSteps = email?.setupSteps;
 export const backendWebhookSecretEncryptionKeyPath =
   webhookSecretEncryptionKeyParam.name;
 

@@ -59,6 +59,26 @@ config:
   #   - Route53 CNAME record: app.viberglass.io -> CloudFront
   #   - Route53 validation record for Amplify SSL certificate
 
+  # =============================================================================
+  # EMAIL (Amazon SES, optional)
+  # =============================================================================
+  #
+  # Invite links, setup failures and finished tasks are emailed through SES.
+  # Setting emailDomain creates the SES domain identity (Easy DKIM), lets the
+  # backend task role send from it, and sets EMAIL_PROVIDER/EMAIL_FROM.
+  # With route53ZoneId set, the three DKIM CNAMEs are created in that zone;
+  # otherwise add the `emailDkimRecords` stack output to your DNS by hand.
+  #
+  # viberglass:emailDomain: viberglass.io
+  # viberglass:emailFrom: "Viberglass <notifications@viberglass.io>"
+  #
+  # A new SES account is in the sandbox: it only delivers to verified
+  # addresses until you request production access (SES console -> Account
+  # dashboard -> Request production access).
+  # `pulumi up` warns about whichever of these steps are still open (DNS
+  # records not verified yet, account still in the sandbox) and lists them in
+  # the `emailSetupSteps` output, until email can reach anyone.
+
   # Database configuration (optional - defaults shown)
   # Valid instance classes: db.m6g.xlarge, db.m6g.2xlarge, etc.
   # viberglass:dbInstanceClass: db.m6g.xlarge

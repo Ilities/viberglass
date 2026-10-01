@@ -134,6 +134,11 @@ Key variables:
 | `WEBHOOK_SECRET_ENCRYPTION_KEY`                           | Encrypts webhook secrets                    |
 | `AUTH_ENABLED`                                            | Set to `false` to disable auth in local dev |
 | `PORT`                                                    | Backend port (default: `8888`)              |
+| `PLATFORM_FRONTEND_URL`                                   | The app's address, for links in Slack and email |
+| `EMAIL_FROM` + `SMTP_URL` (or `EMAIL_PROVIDER=ses`)       | Email for invites and notifications; off when unset |
+| `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`                 | Slack app (commands, threads, DMs)          |
+
+With `docker compose`, optional settings go in a `.env` file in the repository root. See [docs/local-development.md](docs/local-development.md) for local email (Mailpit) and Slack.
 
 
 Agent API keys go in the worker's environment, not the platform backend. In production, store them in AWS SSM under `/viberglass-viberator/`.
