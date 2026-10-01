@@ -29,6 +29,10 @@ export interface InfrastructureConfig {
   appDomain?: string;
   /** Route 53 hosted zone ID for DNS validation and alias records (required if apiDomain is set) */
   route53ZoneId?: string;
+  /** Domain to send email from through SES (e.g., "viberglass.io"); its DKIM records go in route53ZoneId when set */
+  emailDomain?: string;
+  /** Sender address (default "Viberglass <notifications@<emailDomain>>") */
+  emailFrom?: string;
   /** Backend container image tag used for ECS task definitions (defaults to latest channel tag) */
   backendImageTag: string;
   /** Common tags applied to all resources */
@@ -58,6 +62,8 @@ export function getConfig(): InfrastructureConfig {
   const apiDomain = config.get("apiDomain");
   const appDomain = config.get("appDomain");
   const route53ZoneId = config.get("route53ZoneId");
+  const emailDomain = config.get("emailDomain");
+  const emailFrom = config.get("emailFrom");
   const defaultBackendImageTag = environment === "prod" ? "prod-latest" : "latest";
   const backendImageTag =
     config.get("backendImageTag") ??
@@ -107,6 +113,8 @@ export function getConfig(): InfrastructureConfig {
     apiDomain,
     appDomain,
     route53ZoneId,
+    emailDomain,
+    emailFrom,
     backendImageTag,
     tags: {
       Environment: environment,

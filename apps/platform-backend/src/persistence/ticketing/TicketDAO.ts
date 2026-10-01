@@ -484,6 +484,17 @@ export class TicketDAO {
     return (result.numDeletedRows ?? 0) > 0;
   }
 
+  /** Just enough of a task to name and link it, e.g. in a notification. */
+  async getSummary(id: string): Promise<{ title: string; key: string; spaceSlug: string } | null> {
+    const row = await db
+      .selectFrom("tickets")
+      .innerJoin("projects", "projects.id", "tickets.project_id")
+      .select(["tickets.title", "tickets.task_key", "projects.slug"])
+      .where("tickets.id", "=", id)
+      .executeTakeFirst();
+    return row ? { title: row.title, key: row.task_key, spaceSlug: row.slug } : null;
+  }
+
   async findIdByKey(key: string): Promise<string | null> {
     const row = await db.selectFrom("tickets").select("id").where("task_key", "=", key).executeTakeFirst();
     return row?.id ?? null;

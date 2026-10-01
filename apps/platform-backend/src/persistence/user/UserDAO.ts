@@ -165,6 +165,31 @@ export class UserDAO {
     });
   }
 
+  /** Active admins' ids, for notifications that go to whoever runs the workspace. */
+  async listActiveAdminIds(): Promise<string[]> {
+    const rows = await db
+      .selectFrom("users")
+      .select("id")
+      .where("role", "=", "admin")
+      .where("deactivated_at", "is", null)
+      .execute();
+    return rows.map((row) => row.id);
+  }
+
+  /** The person's Slack account, once they've linked it, for DMs. */
+  async getContact(userId: string): Promise<{ email: string; name: string; slackUserId: string | null; deactivated: boolean } | null> {
+    const row = await db
+      .selectFrom("users")
+      .select(["email", "name", "slack_user_id", "deactivated_at"])
+      .where("id", "=", userId)
+      .executeTakeFirst();
+    return row ? { email: row.email, name: row.name, slackUserId: row.slack_user_id, deactivated: row.deactivated_at !== null } : null;
+  }
+
+  async setSlackUserId(userId: string, slackUserId: string | null): Promise<void> {
+    await db.updateTable("users").set({ slack_user_id: slackUserId, updated_at: new Date() }).where("id", "=", userId).execute();
+  }
+
   async countActiveAdmins(): Promise<number> {
     const row = await db
       .selectFrom("users")

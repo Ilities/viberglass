@@ -411,6 +411,7 @@ export interface UsersTable {
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
   deactivated_at: Timestamp | null;
+  slack_user_id: string | null;
 }
 
 export interface InvitesTable {
@@ -444,6 +445,19 @@ export interface UserSessionsTable {
   created_at: Generated<Timestamp>;
   expires_at: Timestamp;
   revoked_at: Timestamp | null;
+}
+
+export interface NotificationsTable {
+  id: Generated<string>;
+  recipient_id: string;
+  kind: string;
+  ticket_id: string | null;
+  actor_id: string | null;
+  payload_json: Generated<Json>;
+  created_at: Generated<Timestamp>;
+  read_at: Timestamp | null;
+  done_at: Timestamp | null;
+  snoozed_until: Timestamp | null;
 }
 
 export interface TaskMessagesTable {
@@ -740,6 +754,7 @@ export interface Database {
   task_messages: TaskMessagesTable;
   task_message_mentions: TaskMessageMentionsTable;
   task_activity: TaskActivityTable;
+  notifications: NotificationsTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;
   demo_seed_records: DemoSeedRecordsTable;

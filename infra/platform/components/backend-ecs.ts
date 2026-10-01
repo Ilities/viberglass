@@ -56,6 +56,11 @@ export interface BackendEcsOptions {
   platformApiUrl?: pulumi.Input<string>;
   /** Frontend app URL for Slack thread links (e.g., "https://app.viberglass.io") */
   platformFrontendUrl?: pulumi.Input<string>;
+  /** SES identity and sender address; without it the backend sends no email */
+  email?: {
+    identityArn: pulumi.Input<string>;
+    from: string;
+  };
   /** S3 bucket used for uploaded assets and ticket media */
   uploadsBucketName?: pulumi.Input<string>;
   /** S3 key prefix for ticket media objects */
@@ -311,6 +316,19 @@ export function createBackendEcs(
     },
   );
 
+  // Email through SES, only from the platform's verified identity
+  if (options.email) {
+    new aws.iam.RolePolicy(`${options.config.environment}-viberglass-backend-ses-send`, {
+      role: backendTaskRole.name,
+      policy: pulumi.output(options.email.identityArn).apply((identityArn) =>
+        JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [{ Effect: "Allow", Action: ["ses:SendEmail"], Resource: [identityArn] }],
+        }),
+      ),
+    });
+  }
+
   // Lambda Worker Management policy (for Clanker Lambda provisioning)
   new aws.iam.RolePolicy(
     `${options.config.environment}-viberglass-backend-lambda-worker`,
@@ -445,6 +463,11 @@ export function createBackendEcs(
                 name: "PLATFORM_FRONTEND_URL",
                 value: platformFrontendUrl,
               });
+            }
+
+            if (options.email) {
+              envVars.push({ name: "EMAIL_PROVIDER", value: "ses" });
+              envVars.push({ name: "EMAIL_FROM", value: options.email.from });
             }
 
             if (uploadsBucketName) {

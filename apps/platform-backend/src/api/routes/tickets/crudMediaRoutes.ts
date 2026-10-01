@@ -18,6 +18,7 @@ import type { AgentSessionDAO } from "../../../persistence/agentSession/AgentSes
 import type { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
 import type { TaskParticipantService } from "../../../services/tasks/TaskParticipantService";
 import type { TaskParticipantDAO } from "../../../persistence/ticketing/TaskParticipantDAO";
+import type { TaskActivityRecorder } from "../../../services/tasks/TaskActivityRecorder";
 import { spaceViewerOf, tasksInBodyGuard } from "../../middleware/spaceAccessGuards";
 import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
@@ -45,6 +46,7 @@ interface TicketCrudMediaRouteDependencies {
   spaceAccess: Pick<SpaceAccessService, "scopeFor" | "assertCanSee">;
   participants: Pick<TaskParticipantService, "assertCanSeeSpace">;
   participantDAO: Pick<TaskParticipantDAO, "listOwners">;
+  activity: Pick<TaskActivityRecorder, "recordByCurrentActor">;
 }
 
 const uuidRegex =
@@ -175,6 +177,7 @@ export function registerTicketCrudMediaRoutes(
     spaceAccess,
     participants,
     participantDAO,
+    activity,
   }: TicketCrudMediaRouteDependencies,
 ): void {
   // POST /api/tasks - Create a new ticket
@@ -441,6 +444,9 @@ export function registerTicketCrudMediaRoutes(
 
         await ticketService.updateTicket(req.params.id, req.body);
         const updatedTicket = await ticketService.getTicket(req.params.id);
+        if (existingTicket.status !== TICKET_STATUS.RESOLVED && updatedTicket?.status === TICKET_STATUS.RESOLVED) {
+          await activity.recordByCurrentActor(req.params.id, "task_done");
+        }
 
         res.json({
           success: true,

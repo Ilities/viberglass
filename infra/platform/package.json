@@ -15,6 +15,7 @@
     "prettier": "^3.8.1"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1144.0",
     "@pulumi/aws": "^6.0.0",
     "@pulumi/awsx": "^2.0.0",
     "@pulumi/pulumi": "^3.0.0",
