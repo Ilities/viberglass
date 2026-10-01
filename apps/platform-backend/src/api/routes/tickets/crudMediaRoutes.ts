@@ -21,6 +21,7 @@ import type { TaskParticipantDAO } from "../../../persistence/ticketing/TaskPart
 import type { TaskActivityRecorder } from "../../../services/tasks/TaskActivityRecorder";
 import { spaceViewerOf, tasksInBodyGuard } from "../../middleware/spaceAccessGuards";
 import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
+import { taskChangeGuard, tasksInBodyChangeGuard } from "../../middleware/taskChangeGuards";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
 import { isDomainError } from "../../../services/errors/DomainError";
 import {
@@ -360,7 +361,7 @@ export function registerTicketCrudMediaRoutes(
   );
 
   // POST /api/tasks/archive - Archive multiple tickets
-  router.post("/archive", validateArchiveTickets, tasksInBodyGuard(), async (req, res) => {
+  router.post("/archive", validateArchiveTickets, tasksInBodyGuard(), tasksInBodyChangeGuard("edit"), async (req, res) => {
     try {
       const updatedCount = await ticketService.archiveTickets(
         req.body.ticketIds,
@@ -381,7 +382,7 @@ export function registerTicketCrudMediaRoutes(
   });
 
   // POST /api/tasks/unarchive - Unarchive multiple tickets
-  router.post("/unarchive", validateArchiveTickets, tasksInBodyGuard(), async (req, res) => {
+  router.post("/unarchive", validateArchiveTickets, tasksInBodyGuard(), tasksInBodyChangeGuard("edit"), async (req, res) => {
     try {
       const updatedCount = await ticketService.unarchiveTickets(
         req.body.ticketIds,
@@ -431,6 +432,7 @@ export function registerTicketCrudMediaRoutes(
   router.put(
     "/:id",
     validateUuidParam("id"),
+    taskChangeGuard("edit"),
     validateUpdateTicket,
     async (req, res) => {
       try {
@@ -465,7 +467,7 @@ export function registerTicketCrudMediaRoutes(
   );
 
   // DELETE /api/tasks/:id - Delete a ticket
-  router.delete("/:id", validateUuidParam("id"), async (req, res) => {
+  router.delete("/:id", validateUuidParam("id"), taskChangeGuard("delete"), async (req, res) => {
     try {
       const deleted = await ticketService.deleteTicket(req.params.id);
 

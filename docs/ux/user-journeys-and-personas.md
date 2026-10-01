@@ -687,6 +687,7 @@ Phase 1 reworked the first visit. Every later visit (the dashboard, space home, 
 2. **Plan:** a redesign doc in `docs/ux` (landings per role, the dashboard's job, one status vocabulary everywhere, navigation), reviewed by Jussi before any code.
 3. **Build** the approved plan, with a smoke journey per landing.
 **Exit:** each persona lands on a page that answers "what needs me now?" without clicking further, and a task's status reads the same on every screen.
+**Status (2026-10-01):** research done ([`appendix-returning-visit.md`](./appendix-returning-visit.md): five people on a seeded workspace, plus two verified bugs, RB1 and RB2); the redesign plan [`returning-visit-redesign.md`](./returning-visit-redesign.md) and the page-by-page [`information-architecture.md`](./information-architecture.md) are waiting on Jussi's review. The bugs found (RB1–RB6) are fixed.
 
 ### Phase 3: Agent ↔ human collaboration (3–4 weeks)
 J6, J8, J11, J12. Agent Questions (routing, blocking policy, escalation); readable narrative transcripts; steer/pause/take-over/hand-back in live sessions; failure classification + pause/resume; connection health and expiry warnings; cancel-safe runs; preview environments (if feasible).

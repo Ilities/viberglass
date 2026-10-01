@@ -60,7 +60,7 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
     case 'step_completed':
       return `The ${step} for “${taskTitle}” is ready`
     case 'run_failed_setup':
-      return `A ${step} run on “${taskTitle}” failed because of setup${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`
+      return `A ${step} run on “${taskTitle}” failed and needs an admin${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`
     case 'run_failed_agent':
       return `The ${step} run on “${taskTitle}” failed${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`
     case 'task_done':

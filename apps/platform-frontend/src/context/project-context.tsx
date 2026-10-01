@@ -27,6 +27,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
     async function fetchProject() {
       setIsLoading(true)
+      setError(null)
+      setProject(null)
       try {
         const project = await getProjectBySlug(projectSlug)
         setProject(project)

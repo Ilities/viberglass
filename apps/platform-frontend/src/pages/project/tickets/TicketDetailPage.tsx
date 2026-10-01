@@ -1,3 +1,5 @@
+import { Button } from '@/components/button'
+import { EmptyState } from '@/components/empty-state'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { Heading } from '@/components/heading'
@@ -102,7 +104,10 @@ export function TicketDetailPage() {
   if (!data || !project) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-red-600 dark:text-red-400">Task not found</div>
+        <EmptyState
+          title="This task doesn't exist, or you don't have access to it"
+          action={<Button href="/">Go home</Button>}
+        />
       </div>
     )
   }

@@ -81,9 +81,9 @@ describe("EmailChannel", () => {
     const channel = new EmailChannel(email, users);
 
     await channel.deliver(notification({ kind: "mentioned" }));
-    await channel.deliver(notification({ kind: "run_failed_setup", text: "A research run failed because of setup" }));
+    await channel.deliver(notification({ kind: "run_failed_setup", text: "A research run failed and needs an admin" }));
 
     expect(email.send).toHaveBeenCalledTimes(1);
-    expect(email.send).toHaveBeenCalledWith(expect.objectContaining({ to: "admin@example.com", subject: "A research run failed because of setup" }));
+    expect(email.send).toHaveBeenCalledWith(expect.objectContaining({ to: "admin@example.com", subject: "A research run failed and needs an admin" }));
   });
 });
