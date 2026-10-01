@@ -27,16 +27,13 @@ import { AgentSessionDAO } from "../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../persistence/agentSession/AgentPendingRequestDAO";
-import { AgentSessionLaunchService } from "../services/agentSession/AgentSessionLaunchService";
 import { resolveSessionAdvance, resolveTicketAdvance } from "../services/agentSession/sessionAdvance";
 import { AgentSessionInteractionService } from "../services/agentSession/AgentSessionInteractionService";
 import { SessionTurnContinuationService } from "../services/agentSession/SessionTurnContinuationService";
 import { AgentSessionQueryService } from "../services/agentSession/AgentSessionQueryService";
-import { JobService } from "../services/JobService";
-import { CredentialRequirementsService } from "../services/CredentialRequirementsService";
-import { TicketResearchService } from "../services/TicketResearchService";
-import { TicketPlanningService } from "../services/TicketPlanningService";
-import { TicketExecutionService } from "../services/TicketExecutionService";
+import { TaskTurnService } from "../services/taskTurns/TaskTurnService";
+import { ACTION_FOR_PHASE } from "../services/taskTurns/turnActions";
+import type { AgentSessionMode } from "../types/agentSession";
 import { TicketWorkflowService } from "../services/TicketWorkflowService";
 import { TicketPlanningApprovalService } from "../services/TicketPlanningApprovalService";
 import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
@@ -47,8 +44,6 @@ import { TaskParticipantService } from "../services/tasks/TaskParticipantService
 import { SpaceAccessService } from "../services/spaces/SpaceAccessService";
 import { runAsActor } from "../api/auth/requestActor";
 import { getFeedbackService } from "../webhooks/webhookServiceFactory";
-import { WorkerExecutionService } from "../workers";
-import { JobCancellationService } from "../services/job/JobCancellationService";
 
 // Register as the global singleton so ThreadImpl lazy resolution works.
 bot.registerSingleton();
@@ -57,27 +52,32 @@ const agentSessionDAO = new AgentSessionDAO();
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionEventDAO = new AgentSessionEventDAO();
 const agentPendingRequestDAO = new AgentPendingRequestDAO();
-const jobService = new JobService();
-const credentialService = new CredentialRequirementsService();
-const workerService = new WorkerExecutionService();
-
-const launchService = new AgentSessionLaunchService(
-  agentSessionDAO,
-  agentTurnDAO,
-  agentSessionEventDAO,
-  jobService,
-  credentialService,
-  workerService,
-);
 
 const turnContinuationService = new SessionTurnContinuationService(
   agentSessionDAO,
   agentTurnDAO,
   agentSessionEventDAO,
-  jobService,
-  credentialService,
-  workerService,
 );
+const taskTurns = new TaskTurnService({ continuation: turnContinuationService });
+
+/** A live session started from Slack is the task's session with that agent, taking the message as its next turn. */
+function launchSession(
+  params: { ticketId: string; clankerId: string; mode: AgentSessionMode; initialMessage: string },
+  actorId: string | null,
+) {
+  return taskTurns.ask(params.ticketId, actorId, {
+    message: params.initialMessage,
+    action: ACTION_FOR_PHASE[params.mode],
+    agentId: params.clankerId,
+  });
+}
+
+/** A run of a step, from Slack: the agent's next turn on the task. */
+async function runStep(ticketId: string, clankerId: string, mode: AgentSessionMode, message: string, actorId: string | null) {
+  const asked = await taskTurns.ask(ticketId, actorId, { message, action: ACTION_FOR_PHASE[mode], agentId: clankerId });
+  if (!asked.job.id) throw new Error("The agent's turn has no run yet");
+  return { jobId: asked.job.id, status: asked.job.status };
+}
 
 const interactionService = new AgentSessionInteractionService(
   agentSessionDAO,
@@ -85,7 +85,6 @@ const interactionService = new AgentSessionInteractionService(
   agentSessionEventDAO,
   agentPendingRequestDAO,
   turnContinuationService,
-  new JobCancellationService(),
 );
 
 const queryService = new AgentSessionQueryService(
@@ -98,9 +97,6 @@ const queryService = new AgentSessionQueryService(
 const ticketDAO = new TicketDAO();
 const projectDAO = new ProjectDAO();
 const clankerDAO = new ClankerDAO();
-const ticketResearchService = new TicketResearchService();
-const ticketPlanningService = new TicketPlanningService();
-const ticketExecutionService = new TicketExecutionService();
 const ticketWorkflowService = new TicketWorkflowService();
 
 let chatFeedbackService;
@@ -121,9 +117,7 @@ const ticketPhaseOrchestrationService = new TicketPhaseOrchestrationService(
   ticketWorkflowService,
   ticketPlanningApprovalService,
   new TicketResearchApprovalService(),
-  ticketResearchService,
-  ticketPlanningService,
-  ticketExecutionService,
+  taskTurns,
 );
 
 const userDAO = new UserDAO();
@@ -186,13 +180,7 @@ const slackServices: SlackHandlerServices = {
     }),
 
   runJob: async ({ ticketId, clankerId, mode, slackUserId }) => {
-    const result = await asSlackUser(slackUserId, () =>
-      mode === "research"
-        ? ticketResearchService.runResearch(ticketId, { clankerId })
-        : mode === "planning"
-          ? ticketPlanningService.runPlanning(ticketId, { clankerId })
-          : ticketExecutionService.runTicket(ticketId, { clankerId }),
-    );
+    const result = await asSlackUser(slackUserId, (actorId) => runStep(ticketId, clankerId, mode, "", actorId));
 
     // Start the ticket job bridge to post the document on completion
     const thread = await getThreadForTicket(ticketId);
@@ -211,7 +199,7 @@ const slackServices: SlackHandlerServices = {
   },
 
   launchSession: ({ slackUserId, ...params }) =>
-    asSlackUser(slackUserId, (actorId) => launchService.launch(params, actorId ?? undefined)),
+    asSlackUser(slackUserId, (actorId) => launchSession(params, actorId)),
 
   getSessionDetail: async (sessionId) => {
     const detail = await queryService.getDetail(sessionId);
@@ -299,11 +287,7 @@ const slackServices: SlackHandlerServices = {
     return result;
   },
   runRevisionJob: async ({ ticketId, clankerId, mode, revisionMessage, slackUserId }) => {
-    const result = await asSlackUser(slackUserId, () =>
-      mode === "research"
-        ? ticketResearchService.runResearchRevision(ticketId, { clankerId, revisionMessage })
-        : ticketPlanningService.runPlanningRevision(ticketId, { clankerId, revisionMessage }),
-    );
+    const result = await asSlackUser(slackUserId, (actorId) => runStep(ticketId, clankerId, mode, revisionMessage, actorId));
 
     // Start the ticket job bridge to post the revised document on completion
     const thread = await getThreadForTicket(ticketId);
@@ -341,7 +325,7 @@ chatSessionBridge.configure({
   launchAndLink: async ({ ticketId, clankerId, mode, thread, slackUserId }) => {
     const result = await asSlackUser(slackUserId, async (actorId) => {
       await ticketPhaseOrchestrationService.approveUpTo(ticketId, mode, actorId);
-      return launchService.launch({ ticketId, clankerId, mode, initialMessage: "" }, actorId ?? undefined);
+      return launchSession({ ticketId, clankerId, mode, initialMessage: "" }, actorId);
     });
     await linkSessionThread(result.session.id, thread, "slack");
     return result.session.id;

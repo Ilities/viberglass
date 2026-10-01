@@ -14,10 +14,10 @@ import { toast } from 'sonner'
 import { BuildPullRequestPanel } from './build-pull-request-panel'
 import { CommentableDocument } from './commentable-document'
 import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentComments } from './document-comments'
-import { PhaseSessionPanel } from './phase-session-panel'
 import { STEP_NAME, TASK_STEPS, type TaskNextMove, type TaskStep } from './task-next-move'
 import { TaskRunLine } from './task-run-line'
-import { openSessionFor, type TaskPageData } from './use-task-page'
+import { countNewComments } from './task-suggestions'
+import type { TaskPageData } from './use-task-page'
 
 /** What a step shows: its document (or the build's pull request), its runs, or every comment on its document. */
 export type StepView = 'document' | 'runs' | 'comments'
@@ -36,6 +36,8 @@ interface TaskStepViewProps {
   focusedRunTab: string | null
   onToggleRun: (runId: string) => void
   onDocumentSaved: (step: 'research' | 'planning', document: PhaseDocumentResponse) => void
+  /** The shown document's open comments made since its latest version, as they change here. */
+  onNewComments: (step: 'research' | 'planning', count: number) => void
   onChanged: () => void
 }
 
@@ -225,10 +227,10 @@ export function TaskStepView({
   focusedRunTab,
   onToggleRun,
   onDocumentSaved,
+  onNewComments,
   onChanged,
 }: TaskStepViewProps) {
   const stepRuns = data.runs.filter((run) => run.jobKind === step)
-  const session = openSessionFor(data.sessions, step)
   const agentNames = new Map(data.clankers.map((clanker) => [clanker.id, clanker.name]))
   const isDocumentStep = step !== 'execution'
   const hasDocument = isDocumentStep && data.documents[step].content.trim().length > 0
@@ -237,11 +239,16 @@ export function TaskStepView({
   const applySuggestion = useApplySuggestion(documentStep ?? 'research', data, comments, onDocumentSaved)
   const documentContent = documentStep ? data.documents[documentStep].content : ''
   const reloadComments = comments.reload
+  const newCount = documentStep ? countNewComments(comments.comments, data.documents[documentStep].updatedAt) : 0
 
   // A revision or an edit moves text around: find each comment's text again.
   useEffect(() => {
     void reloadComments()
   }, [documentContent, reloadComments])
+
+  useEffect(() => {
+    if (documentStep && hasDocument) onNewComments(documentStep, newCount)
+  }, [documentStep, hasDocument, newCount, onNewComments])
 
   const shown: StepView = view === 'comments' && !hasDocument ? 'document' : view
 
@@ -263,7 +270,6 @@ export function TaskStepView({
 
       {shown === 'document' && (
         <div className="space-y-8">
-          {session && <PhaseSessionPanel session={session} project={project} onSessionEnded={onChanged} onTurnCompleted={onChanged} />}
           {documentStep ? (
             <DocumentStep
               step={documentStep}

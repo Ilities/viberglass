@@ -1,58 +1,30 @@
 import db from "../config/database";
 
 export type PromptType =
-  | "ticket_research"
-  | "ticket_research_revision_task"
-  | "ticket_planning_with_research"
-  | "ticket_planning_without_research"
-  | "ticket_planning_revision_task"
-  | "ticket_developing"
+  | "task_turn"
+  | "task_turn_cold_start"
   | "claw_scheduled_task";
 
 export const PROMPT_TYPE: Record<PromptType, PromptType> = {
-  ticket_research: "ticket_research",
-  ticket_research_revision_task: "ticket_research_revision_task",
-  ticket_planning_with_research: "ticket_planning_with_research",
-  ticket_planning_without_research: "ticket_planning_without_research",
-  ticket_planning_revision_task: "ticket_planning_revision_task",
-  ticket_developing: "ticket_developing",
+  task_turn: "task_turn",
+  task_turn_cold_start: "task_turn_cold_start",
   claw_scheduled_task: "claw_scheduled_task",
 };
 
 export const ALL_PROMPT_TYPES: PromptType[] = [
-  "ticket_research",
-  "ticket_research_revision_task",
-  "ticket_planning_with_research",
-  "ticket_planning_without_research",
-  "ticket_planning_revision_task",
-  "ticket_developing",
+  "task_turn",
+  "task_turn_cold_start",
   "claw_scheduled_task",
 ];
 
 const PROMPT_TYPE_META: Record<PromptType, { label: string; description: string }> = {
-  ticket_research: {
-    label: "Research Task",
-    description: "Prompt used when running ticket research",
+  task_turn: {
+    label: "Task Turn",
+    description: "What each agent turn on a task is told: what's new in the thread, and what was asked for",
   },
-  ticket_research_revision_task: {
-    label: "Research Revision Task",
-    description: "Task directive for research revision agent sessions",
-  },
-  ticket_planning_with_research: {
-    label: "Planning (with Research)",
-    description: "Planning prompt when a research document is available",
-  },
-  ticket_planning_without_research: {
-    label: "Planning (without Research)",
-    description: "Planning prompt when no research document exists",
-  },
-  ticket_planning_revision_task: {
-    label: "Planning Revision Task",
-    description: "Task directive for planning revision agent sessions",
-  },
-  ticket_developing: {
-    label: "Development Task",
-    description: "Prompt used for ticket execution / development",
+  task_turn_cold_start: {
+    label: "Task Turn (first turn)",
+    description: "Put before a turn when the agent starts without its earlier session: the task, its documents and the thread so far",
   },
   claw_scheduled_task: {
     label: "Claw Scheduled Task",

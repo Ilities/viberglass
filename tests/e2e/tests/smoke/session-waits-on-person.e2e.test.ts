@@ -27,14 +27,12 @@ test("a live turn that writes no document leaves the session waiting on the pers
   await page.goto(`/spaces/${workspace.projectSlug}/sessions/${sessionId}`);
   await expect(page.getByText("Waiting on you").first()).toBeVisible();
 
-  // Replying starts the next turn, which writes the document and completes the session.
-  // A resumed turn's prompt is only the reply (a real agent keeps the conversation), and
-  // the fake agent has no memory, so the reply names the document it should write.
+  // Replying starts the next turn, which writes the document; then it's the person's move again.
+  // A resumed turn's prompt is only what's new, so the reply names the document it should write.
   const composer = page.getByPlaceholder(/Send a message/);
   await composer.fill("Thanks, now write it up in RESEARCH.md.");
   await page.getByRole("button", { name: "Send" }).click();
 
-  await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 90_000 }).toBe("completed");
-  expect(await researchDocument(adminApi, task.id)).toContain("now write it up");
-  await expect(page.getByText("Completed").first()).toBeVisible();
+  await expect.poll(() => researchDocument(adminApi, task.id), { timeout: 90_000 }).toContain("now write it up");
+  await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 10_000 }).toBe("waiting_on_user");
 });

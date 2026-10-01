@@ -3,7 +3,8 @@ import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Textarea } from '@/components/textarea'
 import { Text, TextLink } from '@/components/text'
-import { createTicket, runResearch } from '@/service/api/ticket-api'
+import { askAgent } from '@/service/api/discussion-api'
+import { createTicket } from '@/service/api/ticket-api'
 import { NATIVE_TICKET_ORIGIN, type CreatedSpace } from '@viberglass/types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -46,7 +47,7 @@ export function FirstTaskStep({
         annotations: [],
         autoFixRequested: false,
       })
-      await runResearch(ticket.id, clankerId)
+      await askAgent(ticket.id, { action: 'research', body: 'Write the research', agentId: clankerId })
       navigate(taskPath(space.slug, ticket))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start the task.")

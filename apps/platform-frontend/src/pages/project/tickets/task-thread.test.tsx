@@ -1,19 +1,33 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { mentionToken, parseMentionedUserIds, splitMentions, type TaskActivityEntry, type TaskTimelineEntry } from '@viberglass/types'
+import {
+  agentMentionToken,
+  mentionToken,
+  mentionsAnAgent,
+  parseMentionedAgentIds,
+  parseMentionedUserIds,
+  splitMentions,
+  withPlainMentions,
+  type TaskActivityEntry,
+  type TaskTimelineEntry,
+} from '@viberglass/types'
 import { describeActivity } from './activity-sentence'
 import { TaskThread } from './task-thread'
 
 const DANA = '22222222-2222-4222-8222-222222222222'
+const CLAUDE = '33333333-3333-4333-8333-333333333333'
 const mockPost = jest.fn()
+const mockAsk = jest.fn()
 
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', name: 'Me', role: 'member' } }) }))
 const mockTimeline = jest.fn()
 jest.mock('@/service/api/discussion-api', () => ({
   getTaskTimeline: (...args: unknown[]) => mockTimeline(...args),
   postTaskMessage: (...args: unknown[]) => mockPost(...args),
+  askAgent: (...args: unknown[]) => mockAsk(...args),
 }))
+jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 jest.mock('@/hooks/usePeople', () => ({ usePersonName: () => () => null }))
 jest.mock('@/service/api/user-api', () => ({
   getPeopleDirectory: jest.fn().mockResolvedValue([
@@ -26,7 +40,17 @@ describe('mentions', () => {
   it('round-trips a mention through the message body', () => {
     const body = `Hi ${mentionToken('Dana', DANA)}, and again ${mentionToken('Dana', DANA)}`
     expect(parseMentionedUserIds(body)).toEqual([DANA])
-    expect(splitMentions(body)[1]).toEqual({ mention: { name: 'Dana', userId: DANA } })
+    expect(splitMentions(body)[1]).toEqual({ mention: { name: 'Dana', kind: 'user', id: DANA } })
+  })
+
+  it('tells people and agents apart, and reads "@agent" as asking the agent', () => {
+    const body = `${agentMentionToken('Claude', CLAUDE)} and ${mentionToken('Dana', DANA)}, have a look`
+    expect(parseMentionedAgentIds(body)).toEqual([CLAUDE])
+    expect(parseMentionedUserIds(body)).toEqual([DANA])
+    expect(withPlainMentions(body)).toBe('@Claude and @Dana, have a look')
+    expect(mentionsAnAgent(body)).toBe(true)
+    expect(mentionsAnAgent('@agent revise the plan')).toBe(true)
+    expect(mentionsAnAgent(`Thanks ${mentionToken('Dana', DANA)}, mail me at x@agentur.fi`)).toBe(false)
   })
 })
 
@@ -69,15 +93,55 @@ const THREAD: TaskTimelineEntry[] = [
   { kind: 'message', id: 'm-2', at: '2026-10-01T10:07:00Z', author: MARIA, body: 'Check the checkout too', channel: 'session', sessionId: 's-1' },
 ]
 
-function renderThread(onOpenArtifact = jest.fn()) {
+const SUGGESTION_INPUT = {
+  ticket: { status: 'open' as const, workflowOverriddenAt: undefined },
+  documents: {
+    research: { content: '# Research', approvalState: 'approval_requested' as const },
+    planning: { content: '', approvalState: 'draft' as const },
+  },
+  newComments: { research: 1, planning: 0 },
+  agentWorking: false,
+}
+
+function renderThread(onOpenArtifact = jest.fn(), onAsked = jest.fn()) {
   render(
     <Theme>
       <MemoryRouter>
-        <TaskThread taskId="t-1" project="web" refreshKey="1" onOpenArtifact={onOpenArtifact} />
+        <TaskThread
+          taskId="t-1"
+          project="web"
+          refreshKey="1"
+          onOpenArtifact={onOpenArtifact}
+          agents={[{ kind: 'agent', id: CLAUDE, name: 'Claude' }]}
+          suggestionInput={SUGGESTION_INPUT}
+          canAsk
+          onAsked={onAsked}
+        />
       </MemoryRouter>
     </Theme>
   )
-  return onOpenArtifact
+  return { onOpenArtifact, onAsked }
+}
+
+function agentTurn(overrides: Partial<Extract<TaskTimelineEntry, { kind: 'agent_turn' }>> = {}): TaskTimelineEntry {
+  return {
+    kind: 'agent_turn',
+    id: 'turn-1',
+    at: '2026-10-01T10:08:00Z',
+    agent: { id: CLAUDE, name: 'Claude' },
+    action: 'research',
+    status: 'completed',
+    outcome: {
+      intent: 'Revising the research: covering the checkout',
+      reply: 'Revising the research: covering the checkout\n\nI added a section on the checkout flow.',
+      produced: ['research'],
+      codeDiscarded: false,
+      resumed: true,
+    },
+    sessionId: 's-1',
+    jobId: 'job-1',
+    ...overrides,
+  }
 }
 
 describe('TaskThread', () => {
@@ -102,14 +166,66 @@ describe('TaskThread', () => {
   })
 
   it("opens a version's document", async () => {
-    const onOpen = renderThread()
+    const { onOpenArtifact } = renderThread()
     fireEvent.click(await screen.findByRole('button', { name: 'Open Research v1' }))
-    expect(onOpen).toHaveBeenCalledWith('research')
+    expect(onOpenArtifact).toHaveBeenCalledWith('research')
+  })
+
+  it("shows the agent's turn: what it set out to do, what it said, and whether it continued its session", async () => {
+    mockTimeline.mockResolvedValue([agentTurn()])
+    renderThread()
+
+    const turn = await screen.findByRole('listitem', { name: "Claude's turn" })
+    expect(turn).toHaveTextContent('asked for the research')
+    expect(turn).toHaveTextContent('continued its session')
+    expect(turn).toHaveTextContent('Revising the research: covering the checkout')
+    expect(turn).toHaveTextContent('I added a section on the checkout flow.')
+  })
+
+  it('says a turn is working, or failed, with the way to its run', async () => {
+    mockTimeline.mockResolvedValue([agentTurn({ id: 'a', status: 'failed', outcome: null }), agentTurn({ id: 'b', status: 'running', outcome: null })])
+    renderThread()
+
+    expect(await screen.findByText('Working on it…')).toBeInTheDocument()
+    expect(screen.getByText('This turn failed.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'See what happened' })).toHaveAttribute('href', '/spaces/web/runs/job-1')
+    // While it works, nothing new is suggested.
+    expect(screen.queryByRole('group', { name: 'Suggested actions' })).not.toBeInTheDocument()
+  })
+
+  it('offers the next moves, and asks the agent as you', async () => {
+    mockTimeline.mockResolvedValue([])
+    mockAsk.mockResolvedValue({ sessionId: 's-1', turnId: 't-1', jobId: 'job-1', status: 'pending' })
+    const { onAsked } = renderThread()
+
+    const actions = await screen.findByRole('group', { name: 'Suggested actions' })
+    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.textContent)).toEqual([
+      'Revise the research with 1 comment',
+      'Write the plan',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Revise the research with 1 comment' }))
+
+    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('t-1', { action: 'research', body: 'Revise the research with 1 comment' }))
+    await waitFor(() => expect(onAsked).toHaveBeenCalled())
+  })
+
+  it('suggests the agent after @, and sends a mention that asks it', async () => {
+    mockTimeline.mockResolvedValue([])
+    mockPost.mockResolvedValue({ messages: [], turn: { sessionId: 's-1', turnId: 't-1', jobId: 'job-1', status: 'pending' } })
+    renderThread()
+
+    const box = await screen.findByRole('textbox', { name: 'Write a message' })
+    fireEvent.change(box, { target: { value: '@ag' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Claude/ }))
+    fireEvent.change(box, { target: { value: '@Claude cover Safari too' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `${agentMentionToken('Claude', CLAUDE)} cover Safari too`))
   })
 
   it('suggests people after @, sends a mention the server can read, and reloads the thread', async () => {
     mockTimeline.mockResolvedValue([])
-    mockPost.mockResolvedValue([])
+    mockPost.mockResolvedValue({ messages: [], turn: null })
     renderThread()
 
     const box = await screen.findByRole('textbox', { name: 'Write a message' })

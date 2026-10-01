@@ -11,24 +11,13 @@ describe("TicketPhaseOrchestrationService (Slack, MCP and chains)", () => {
   const workflow = { setPhase: jest.fn() };
   const planningApproval = { approve: jest.fn() };
   const researchApproval = { approve: jest.fn() };
-  const research = { runResearch: jest.fn() };
-  const planning = { runPlanning: jest.fn() };
-  const execution = { runTicket: jest.fn() };
-  const service = new TicketPhaseOrchestrationService(
-    tickets,
-    workflow,
-    planningApproval,
-    researchApproval,
-    research,
-    planning,
-    execution,
-  );
+  const turns = { ask: jest.fn() };
+  const service = new TicketPhaseOrchestrationService(tickets, workflow, planningApproval, researchApproval, turns);
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockDocuments.getOrCreateDocument.mockResolvedValue({ approvalState: "approval_requested" });
-    planning.runPlanning.mockResolvedValue({ jobId: "job-plan", status: "queued" });
-    execution.runTicket.mockResolvedValue({ jobId: "job-build", status: "queued" });
+    turns.ask.mockResolvedValue({ job: { id: "job-1", status: "pending" } });
   });
 
   it("approves the research as the person moving the task on to the plan", async () => {
@@ -38,7 +27,8 @@ describe("TicketPhaseOrchestrationService (Slack, MCP and chains)", () => {
 
     expect(researchApproval.approve).toHaveBeenCalledWith("t-1", "maria");
     expect(planningApproval.approve).not.toHaveBeenCalled();
-    expect(planning.runPlanning).toHaveBeenCalledWith("t-1", { clankerId: "c-1" });
+    expect(workflow.setPhase).toHaveBeenCalledWith("t-1", "planning");
+    expect(turns.ask).toHaveBeenCalledWith("t-1", "maria", { message: "", action: "plan", agentId: "c-1" });
   });
 
   it("approves the plan as the person starting the build", async () => {
@@ -48,7 +38,7 @@ describe("TicketPhaseOrchestrationService (Slack, MCP and chains)", () => {
 
     expect(researchApproval.approve).not.toHaveBeenCalled();
     expect(planningApproval.approve).toHaveBeenCalledWith("t-1", "tomi");
-    expect(execution.runTicket).toHaveBeenCalled();
+    expect(turns.ask).toHaveBeenCalledWith("t-1", "tomi", { message: "", action: "code", agentId: "c-1" });
   });
 
   it("starts no build when the person may not approve the plan", async () => {
@@ -58,7 +48,7 @@ describe("TicketPhaseOrchestrationService (Slack, MCP and chains)", () => {
     await expect(service.advanceAndRun({ ticketId: "t-1", clankerId: "c-1", targetPhase: "execution", actorId: "maria" })).rejects.toThrow(
       "Only Tomi can approve the plan.",
     );
-    expect(execution.runTicket).not.toHaveBeenCalled();
+    expect(turns.ask).not.toHaveBeenCalled();
   });
 
   it("takes no approval again for a plan already approved, or a task skipped to the build", async () => {

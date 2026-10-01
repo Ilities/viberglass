@@ -1,4 +1,5 @@
 import type { TaskActivityEntry, TaskActivityKind } from './taskDiscussion'
+import type { TaskTurnAction, TaskTurnOutcome } from './taskTurn'
 
 /** The artifacts a task's conversation produces so far (ADR 0008). Code arrives with the pull request. */
 export type TaskArtifactKind = 'research' | 'plan'
@@ -29,6 +30,18 @@ export type TaskTimelineEntry =
       /** Null for the agent. */
       author: TaskTimelinePerson | null
       byAgent: boolean
+    }
+  | {
+      kind: 'agent_turn'
+      id: string
+      at: string
+      agent: { id: string; name: string }
+      action: TaskTurnAction
+      status: 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled'
+      /** Null until the turn finishes. */
+      outcome: TaskTurnOutcome | null
+      sessionId: string
+      jobId: string | null
     }
   | { kind: 'event'; id: string; at: string; activity: TaskActivityEntry }
 

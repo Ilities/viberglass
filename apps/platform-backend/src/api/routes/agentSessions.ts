@@ -5,11 +5,9 @@ import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
+import { AgentSessionCancellationService } from "../../services/agentSession/AgentSessionCancellationService";
 import { AgentSessionInteractionService } from "../../services/agentSession/AgentSessionInteractionService";
 import { SessionTurnContinuationService } from "../../services/agentSession/SessionTurnContinuationService";
-import { JobService } from "../../services/JobService";
-import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
-import { WorkerExecutionService } from "../../workers";
 import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
 import {
   AGENT_SESSION_ACTIVE_STATUSES,
@@ -43,9 +41,6 @@ const turnContinuationService = new SessionTurnContinuationService(
   sessionDAO,
   agentTurnDAO,
   agentSessionEventDAO,
-  new JobService(),
-  new CredentialRequirementsService(),
-  new WorkerExecutionService(),
 );
 const interactionService = new AgentSessionInteractionService(
   sessionDAO,
@@ -53,6 +48,11 @@ const interactionService = new AgentSessionInteractionService(
   agentSessionEventDAO,
   agentPendingRequestDAO,
   turnContinuationService,
+);
+const cancellationService = new AgentSessionCancellationService(
+  sessionDAO,
+  agentTurnDAO,
+  agentSessionEventDAO,
   new JobCancellationService(),
 );
 
@@ -350,7 +350,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const userId = req.authContext?.user.id;
-      await interactionService.cancel(req.params.sessionId, userId);
+      await cancellationService.cancel(req.params.sessionId, userId);
       return res.status(204).send();
     } catch (err) {
       logger.error("Failed to cancel agent session", {

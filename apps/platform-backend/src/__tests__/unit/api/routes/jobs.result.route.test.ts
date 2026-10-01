@@ -4,8 +4,8 @@ const mockJobService = {
   deleteJob: jest.fn(),
 };
 
-const mockTicketPhaseDocumentService = {
-  saveDocument: jest.fn(),
+const mockTurnOutcomes = {
+  record: jest.fn(),
 };
 
 const mockSecretService = {
@@ -14,6 +14,7 @@ const mockSecretService = {
 
 const mockAgentTurnDAO = {
   getByJobId: jest.fn(),
+  getById: jest.fn(),
 };
 
 const mockAgentSessionDAO = {
@@ -61,8 +62,8 @@ jest.mock("../../../../services/SecretService", () => ({
   SecretService: jest.fn(() => mockSecretService),
 }));
 
-jest.mock("../../../../services/TicketPhaseDocumentService", () => ({
-  TicketPhaseDocumentService: jest.fn(() => mockTicketPhaseDocumentService),
+jest.mock("../../../../services/taskTurns/TaskTurnOutcomeService", () => ({
+  TaskTurnOutcomeService: jest.fn(() => mockTurnOutcomes),
 }));
 
 jest.mock("../../../../persistence/agentSession/AgentTurnDAO", () => ({
@@ -118,59 +119,63 @@ describe("job result callbacks", () => {
     mockAgentSessionDAO.listByLastJobId.mockResolvedValue([]);
   });
 
-  it("persists generated planning documents when a planning job completes", async () => {
-    mockJobService.getJobStatus.mockResolvedValue({
-      status: "active",
-      jobKind: "planning",
-      ticketId: "ticket-1",
-      data: {
+  function resultHandler(): (req: unknown, res: unknown) => Promise<void> {
+    const handler = getRouteHandler("/:jobId/result", "post");
+    if (typeof handler !== "function") throw new Error("Route handler was not a function");
+    return async (req, res) => {
+      await handler(req, res);
+    };
+  }
+
+  function response() {
+    return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+  }
+
+  beforeEach(() => {
+    mockJobService.getJobStatus.mockResolvedValue({ status: "active", jobKind: "reply", ticketId: "ticket-1", data: { tenantId: "tenant-1" } });
+    mockJobService.updateJobStatus.mockResolvedValue(undefined);
+  });
+
+  it("records what a task turn produced, then the run's status", async () => {
+    const turn = { id: "turn-1", sessionId: "session-1" };
+    const session = { id: "session-1", ticketId: "ticket-1" };
+    mockAgentTurnDAO.getByJobId.mockResolvedValue(turn);
+    mockAgentSessionDAO.getById.mockResolvedValue(session);
+    const res = response();
+
+    await resultHandler()(
+      {
+        params: { jobId: "job-1" },
+        body: {
+          success: true,
+          documents: { plan: "# Plan" },
+          sessionStart: { resumed: true, via: "load" },
+          commitHash: "abc123",
+          codeDiscarded: false,
+        },
         tenantId: "tenant-1",
       },
-    });
-    mockJobService.updateJobStatus.mockResolvedValue(undefined);
-    mockTicketPhaseDocumentService.saveDocument.mockResolvedValue(undefined);
-
-    const handler = getRouteHandler("/:jobId/result", "post");
-    if (typeof handler !== "function") {
-      throw new Error("Route handler was not a function");
-    }
-
-    const req = {
-      params: { jobId: "job-1" },
-      body: {
-        success: true,
-        documentContent: "Plan snapshot",
-      },
-      tenantId: "tenant-1",
-    };
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-    };
-
-    await handler(req, res);
-
-    expect(mockTicketPhaseDocumentService.saveDocument).toHaveBeenCalledWith(
-      "ticket-1",
-      "planning",
-      "Plan snapshot",
-      { source: "agent" },
+      res,
     );
-    expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(
-      "job-1",
-      "completed",
-      expect.objectContaining({
-        result: expect.objectContaining({
-          success: true,
-          documentContent: "Plan snapshot",
-        }),
-      }),
-    );
-    expect(res.json).toHaveBeenCalledWith({
+
+    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, {
       success: true,
-      jobId: "job-1",
-      status: "completed",
+      documents: { plan: "# Plan" },
+      codeDiscarded: false,
+      resumed: true,
+      commitHash: "abc123",
     });
+    expect(mockJobService.updateJobStatus).toHaveBeenCalledWith("job-1", "completed", expect.objectContaining({ result: expect.objectContaining({ success: true }) }));
+    expect(res.json).toHaveBeenCalledWith({ success: true, jobId: "job-1", status: "completed" });
+  });
+
+  it("only records the status of a run that isn't a task turn", async () => {
+    const res = response();
+
+    await resultHandler()({ params: { jobId: "job-1" }, body: { success: false, errorMessage: "boom" }, tenantId: "tenant-1" }, res);
+
+    expect(mockTurnOutcomes.record).not.toHaveBeenCalled();
+    expect(mockJobService.updateJobStatus).toHaveBeenCalledWith("job-1", "failed", expect.objectContaining({ errorMessage: "boom" }));
   });
 
   it("maps typed job delete not-found errors to 404", async () => {

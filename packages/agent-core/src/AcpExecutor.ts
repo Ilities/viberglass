@@ -62,6 +62,7 @@ export class AcpExecutor {
       const result = await client.run({
         userMessage: prompt,
         acpSessionId: context.acpSessionId,
+        coldStartMessage: context.coldStartPrompt,
       });
 
       this.logger.info("AcpExecutor completed", {

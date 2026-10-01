@@ -1,21 +1,46 @@
 import type { Router } from "express";
+import { isTaskTurnAction, mentionsAnAgent, RUNNER_ROLES } from "@viberglass/types";
 import type { TaskDiscussionService } from "../../../services/tasks/TaskDiscussionService";
 import type { TaskTimelineService } from "../../../services/tasks/TaskTimelineService";
+import type { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
 import { validateUuidParam } from "../../middleware/validation";
 
 /**
- * A task's thread, and posting to it. Registered on the tasks router, so its
- * `:id` guard applies; viewers are refused posting by the global guard.
+ * A task's thread, and posting to it. A message that mentions an agent, or
+ * asks for an action, starts the agent's turn. Registered on the tasks
+ * router, so its `:id` guard applies; viewers are refused posting by the
+ * global guard.
  */
 export function registerTaskDiscussionRoutes(
   router: Router,
-  deps: { discussion: TaskDiscussionService; timeline: Pick<TaskTimelineService, "list"> },
+  deps: {
+    discussion: Pick<TaskDiscussionService, "post" | "list">;
+    timeline: Pick<TaskTimelineService, "list">;
+    turns: Pick<TaskTurnService, "ask">;
+  },
 ): void {
   router.post("/:id/messages", validateUuidParam("id"), async (req, res, next) => {
-    const body: unknown = req.body?.body;
-    if (typeof body !== "string") return res.status(400).json({ error: "body is required" });
+    const body: unknown = req.body?.body ?? "";
+    const action: unknown = req.body?.action;
+    const agentId: unknown = req.body?.agentId;
+    if (typeof body !== "string") return res.status(400).json({ error: "body must be a string" });
+    if (action !== undefined && !isTaskTurnAction(action)) return res.status(400).json({ error: "Unknown action" });
+    if (agentId !== undefined && typeof agentId !== "string") return res.status(400).json({ error: "agentId must be a string" });
     try {
-      res.status(201).json({ success: true, data: await deps.discussion.post(req.params.id, req.authContext!.user.id, body) });
+      const userId = req.authContext!.user.id;
+      if (!action && !agentId && !mentionsAnAgent(body)) {
+        return res.status(201).json({ success: true, data: await deps.discussion.post(req.params.id, userId, body) });
+      }
+      // Who may run agents is unchanged until the approval policy narrows to who may ask for code (S3).
+      if (!RUNNER_ROLES.includes(req.authContext!.user.role)) {
+        return res.status(403).json({ error: "Only admins and members can ask the agent." });
+      }
+      const asked = await deps.turns.ask(req.params.id, userId, { message: body, action, agentId });
+      res.status(201).json({
+        success: true,
+        data: await deps.discussion.list(req.params.id),
+        turn: { sessionId: asked.session.id, turnId: asked.currentTurn.id, jobId: asked.job.id, status: asked.job.status },
+      });
     } catch (error) {
       next(error);
     }

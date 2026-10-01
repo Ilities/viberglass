@@ -2,9 +2,16 @@ import { getClankersList, getTicketDetails } from '@/data'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
 import { getTaskApprovals } from '@/service/api/approval-api'
 import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
-import { getPlanningPhase, getResearchDocument, getTaskByKey, type PhaseDocumentResponse } from '@/service/api/ticket-api'
+import {
+  getPhaseDocumentComments,
+  getPlanningPhase,
+  getResearchDocument,
+  getTaskByKey,
+  type PhaseDocumentResponse,
+} from '@/service/api/ticket-api'
 import { isTaskKey, type Clanker, type TaskApprovals, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
+import { countNewComments } from './task-suggestions'
 
 export interface TaskPageData {
   ticket: Ticket
@@ -12,20 +19,25 @@ export interface TaskPageData {
   /** Newest first. */
   runs: JobListItem[]
   documents: { research: PhaseDocumentResponse; planning: PhaseDocumentResponse }
+  /** Open comments on each document made since its latest version. */
+  newComments: { research: number; planning: number }
   sessions: AgentSession[]
   /** Who may approve each step; null if it couldn't be loaded, so nobody is offered Approve. */
   approvals: TaskApprovals | null
 }
 
 const POLL_MS = 5000
-const OPEN_SESSION = ['active', 'waiting_on_user', 'waiting_on_approval']
+// A session stays open between turns (ADR 0008); only an active one has the agent working.
+const WORKING_SESSION = ['active']
 
 async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | null> {
-  const [ticket, runs, research, planning, sessions, approvals] = await Promise.all([
+  const [ticket, runs, research, planning, researchComments, planComments, sessions, approvals] = await Promise.all([
     getTicketDetails(id),
     getJobs({ ticketId: id, limit: 50 }),
     getResearchDocument(id),
     getPlanningPhase(id),
+    getPhaseDocumentComments(id, 'research').catch(() => []),
+    getPhaseDocumentComments(id, 'planning').catch(() => []),
     listSessionsForTicket(id),
     getTaskApprovals(id).catch(() => null),
   ])
@@ -34,6 +46,10 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
     ticket,
     runs: runs.jobs,
     documents: { research: research.document, planning: planning.document },
+    newComments: {
+      research: countNewComments(researchComments, research.document.updatedAt),
+      planning: countNewComments(planComments, planning.document.updatedAt),
+    },
     sessions,
     approvals,
   }
@@ -88,7 +104,7 @@ export function useTaskPage(routeId: string | undefined) {
   // While an agent works (a run or a live session), keep the page current without a reload.
   const isBusy =
     data?.runs.some((run) => run.status === 'queued' || run.status === 'active') ||
-    data?.sessions.some((session) => OPEN_SESSION.includes(session.status)) ||
+    data?.sessions.some((session) => WORKING_SESSION.includes(session.status)) ||
     false
   useEffect(() => {
     if (!isBusy) return
@@ -106,6 +122,7 @@ export function useTaskPage(routeId: string | undefined) {
   return { data, isLoading, reload, setTicket, setDocument }
 }
 
-export function openSessionFor(sessions: AgentSession[], step: string): AgentSession | undefined {
-  return sessions.find((session) => session.mode === step && OPEN_SESSION.includes(session.status))
+/** The agent's session that has a turn running, if any. */
+export function workingSession(sessions: AgentSession[]): AgentSession | undefined {
+  return sessions.find((session) => WORKING_SESSION.includes(session.status))
 }

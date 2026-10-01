@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { ConfigManager } from "../../config/ConfigManager";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import type { BaseAgentConfig } from "@viberglass/agent-core";
+import type { TaskTurnAction } from "@viberglass/types";
 import { AcpExecutor } from "@viberglass/agent-core";
 import { Configuration } from "../../types";
 import GitService from "../../services/GitService";
@@ -32,6 +33,7 @@ import {
   resolveClankerConfig,
 } from "./workerConfig";
 import { cleanupJobWorkspace, sendWorkerProgress } from "./workerHelpers";
+import { jobWorkspaceDir } from "./taskWorkspace";
 
 export class ViberatorWorker {
   private logger: Logger;
@@ -63,7 +65,9 @@ export class ViberatorWorker {
   // ACP session fields — populated from payload on interactive (multi-turn) jobs.
   private agentSessionId?: string;
   private agentTurnId?: string;
-  private sessionMode?: "research" | "planning" | "execution";
+  private turnAction?: TaskTurnAction;
+  private allowCode = false;
+  private coldStartTask?: string;
   private acpSessionId?: string;
   private conversationStateUrl?: string;
 
@@ -171,7 +175,9 @@ export class ViberatorWorker {
         agentTurnId: this.agentTurnId,
         acpSessionId: this.acpSessionId,
         conversationStateUrl: this.conversationStateUrl,
-        sessionMode: this.sessionMode,
+        turnAction: this.turnAction,
+        allowCode: this.allowCode,
+        coldStartTask: this.coldStartTask,
         sessionEventForwarder: this.sessionEventForwarder,
         selectAgentForExecution: (availableAgents) =>
           this.selectAgentForExecution(availableAgents),
@@ -199,7 +205,7 @@ export class ViberatorWorker {
         this.fetchedCredentials || {},
         this.clankerEnvironment,
       );
-      cleanupJobWorkspace(this.logger, path.join(this.workDir, data.id));
+      cleanupJobWorkspace(this.logger, jobWorkspaceDir(this.workDir, data));
       this.currentJobId = undefined;
       this.currentTenantId = undefined;
     }
@@ -234,7 +240,9 @@ export class ViberatorWorker {
     this.overrides = payload.overrides;
     this.agentSessionId = payload.agentSessionId;
     this.agentTurnId = payload.agentTurnId;
-    this.sessionMode = payload.sessionMode;
+    this.turnAction = payload.turnAction;
+    this.allowCode = payload.allowCode ?? payload.jobKind === "execution";
+    this.coldStartTask = payload.coldStartTask;
     this.acpSessionId = payload.acpSessionId;
     this.conversationStateUrl = payload.conversationStateUrl;
   }

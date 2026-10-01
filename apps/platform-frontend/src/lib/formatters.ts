@@ -112,6 +112,8 @@ export function formatJobKind(kind: string): string {
       return 'Execution'
     case 'planning':
       return 'Planning'
+    case 'reply':
+      return 'Reply'
     case 'claw':
       return 'Scheduled'
     default:

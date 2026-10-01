@@ -9,7 +9,6 @@ export type TaskStep = TicketWorkflowPhase
 export type TaskNextMove =
   | { kind: 'start'; step: TaskStep }
   | { kind: 'working'; step: TaskStep; runId: string | null; sessionId: string | null }
-  | { kind: 'reply_in_session'; step: TaskStep; sessionId: string }
   | { kind: 'review'; step: 'research' | 'planning' }
   | { kind: 'failed'; step: TaskStep; runId: string; failure: JobFailure | null }
   | { kind: 'cancelled'; step: TaskStep; runId: string }
@@ -27,24 +26,24 @@ export interface TaskNextMoveInput {
   /** The task's runs, newest first. */
   runs: Pick<JobListItem, 'jobId' | 'jobKind' | 'status' | 'failure'>[]
   documents: Partial<Record<'research' | 'planning', StepDocument>>
-  /** An open live session for the current step, if any. */
-  activeSession: Pick<AgentSession, 'id' | 'status'> | undefined
+  /** The agent's session with a turn running, if any. */
+  workingSession: Pick<AgentSession, 'id'> | undefined
 }
 
 const RUNNING = ['queued', 'active']
 
-export function decideTaskNextMove({ ticket, runs, documents, activeSession }: TaskNextMoveInput): TaskNextMove {
+const isTaskStep = (kind: string): kind is TaskStep => kind === 'research' || kind === 'planning' || kind === 'execution'
+
+export function decideTaskNextMove({ ticket, runs, documents, workingSession }: TaskNextMoveInput): TaskNextMove {
   if (ticket.status === 'resolved') return { kind: 'done' }
 
   const step = ticket.workflowPhase
-  if (activeSession) {
-    return activeSession.status === 'waiting_on_user'
-      ? { kind: 'reply_in_session', step, sessionId: activeSession.id }
-      : { kind: 'working', step, runId: null, sessionId: activeSession.id }
-  }
+  // Any turn running is the agent's move, whatever it was asked for.
+  const running = runs.find((run) => RUNNING.includes(run.status))
+  if (running) return { kind: 'working', step: isTaskStep(running.jobKind) ? running.jobKind : step, runId: running.jobId, sessionId: null }
+  if (workingSession) return { kind: 'working', step, runId: null, sessionId: workingSession.id }
 
   const latest = runs.find((run) => run.jobKind === step)
-  if (latest && RUNNING.includes(latest.status)) return { kind: 'working', step, runId: latest.jobId, sessionId: null }
   // A failed run is news even when an earlier run left a document behind.
   if (latest?.status === 'failed') return { kind: 'failed', step, runId: latest.jobId, failure: latest.failure ?? null }
 
@@ -79,7 +78,6 @@ export function describeStep(step: TaskStep, currentStep: TaskStep, move: TaskNe
 const CURRENT_LABEL: Record<TaskNextMove['kind'], string> = {
   start: 'Not started',
   working: 'Agent working',
-  reply_in_session: 'Waiting on you',
   review: 'Awaiting review',
   failed: 'Failed',
   cancelled: 'Cancelled',

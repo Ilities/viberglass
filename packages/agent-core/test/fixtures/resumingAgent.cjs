@@ -2,6 +2,7 @@
 //   AGENT_SUPPORTS=load,resume   what initialize advertises
 //   AGENT_KNOWS=sess_old         the session it can continue (others fail)
 //   AGENT_FAIL_FIRST_PROMPT=1    the first prompt on a continued session fails
+//   AGENT_ECHO_PROMPT=1          the reply ends with the prompt it got
 // It replays one old message on load, and its reply names the methods it was called with.
 const readline = require("readline");
 
@@ -39,7 +40,8 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       failedOnce = true;
       return send({ id: msg.id, error: { code: -32603, message: "service failure" } });
     }
-    say(msg.params.sessionId, `calls: ${calls.join(" ")}`);
+    const echo = process.env.AGENT_ECHO_PROMPT ? ` | ${msg.params.prompt.map((block) => block.text).join("")}` : "";
+    say(msg.params.sessionId, `calls: ${calls.join(" ")}${echo}`);
     return send({ id: msg.id, result: { stopReason: "end_turn" } });
   }
 });

@@ -103,6 +103,18 @@ export class TicketPhaseRunDAO {
     return row?.id ?? null;
   }
 
+  /** The most recent queued or active job of any kind for a ticket. */
+  async findActiveJobIdForTicket(ticketId: string): Promise<string | null> {
+    const row = await db
+      .selectFrom("jobs")
+      .select(["id"])
+      .where("ticket_id", "=", ticketId)
+      .where("status", "in", ["queued", "active"])
+      .orderBy("created_at", "desc")
+      .executeTakeFirst();
+    return row?.id ?? null;
+  }
+
   private toPhaseRunRow(row: LatestPhaseRunRow): LatestPhaseRun {
     return {
       id: row.id,

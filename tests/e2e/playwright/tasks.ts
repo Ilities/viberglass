@@ -33,27 +33,49 @@ export async function taskStatus(api: APIRequestContext, taskId: string): Promis
   return String(body?.data?.status);
 }
 
-/** Starts an automatic research run and returns its job id. */
-export async function startResearch(
+/** The agent's turn an ask started (or joined, while one was running). */
+export interface AskedTurn {
+  sessionId: string;
+  turnId: string;
+  jobId: string;
+  status: string;
+}
+
+/** Asks the agent in the task's thread, as a suggested action does, and returns its turn. */
+export async function askAgent(
   api: APIRequestContext,
   taskId: string,
-  clankerId: string,
-): Promise<string> {
-  const response = await api.post(`/api/tasks/${taskId}/phases/research/run`, {
-    data: { clankerId },
-  });
+  ask: { action?: "research" | "plan" | "code" | "reply"; body?: string; agentId?: string },
+): Promise<AskedTurn> {
+  const response = await api.post(`/api/tasks/${taskId}/messages`, { data: { body: ask.body ?? "", ...ask } });
   if (!response.ok()) {
-    throw new Error(`Starting research failed: ${response.status()} ${await response.text()}`);
+    throw new Error(`Asking the agent failed: ${response.status()} ${await response.text()}`);
   }
-  const body = await response.json();
-  const jobId = body?.data?.jobId;
-  if (typeof jobId !== "string") throw new Error("Research run returned no job id");
-  return jobId;
+  const turn = (await response.json())?.turn;
+  if (typeof turn?.jobId !== "string") throw new Error("Asking the agent started no run");
+  return turn;
+}
+
+/** Asks the agent for the research and returns its run's job id. */
+export async function startResearch(api: APIRequestContext, taskId: string, clankerId: string): Promise<string> {
+  return (await askAgent(api, taskId, { action: "research", body: "Write the research", agentId: clankerId })).jobId;
+}
+
+/** The task's thread, oldest first. */
+export async function timeline(api: APIRequestContext, taskId: string): Promise<Array<Record<string, unknown>>> {
+  const body = await (await api.get(`/api/tasks/${taskId}/timeline`)).json();
+  return Array.isArray(body?.data) ? body.data : [];
 }
 
 /** The research document's current content; empty until an agent writes it. */
 export async function researchDocument(api: APIRequestContext, taskId: string): Promise<string> {
   const body = await (await api.get(`/api/tasks/${taskId}/phases/research`)).json();
+  return String(body?.data?.document?.content ?? "");
+}
+
+/** The plan's current content; empty until it's written. */
+export async function planDocument(api: APIRequestContext, taskId: string): Promise<string> {
+  const body = await (await api.get(`/api/tasks/${taskId}/phases/planning`)).json();
   return String(body?.data?.document?.content ?? "");
 }
 

@@ -1,258 +1,31 @@
-import * as fs from "fs";
 import * as os from "os";
-import * as path from "path";
 import { ExecutionContext } from "../../types";
-import { JOB_FAILURE_CODE } from "@viberglass/types";
 import { JobResult } from "./types";
-import { failingWith, JobFailureError } from "./JobFailureError";
-import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
-import {
-  resolvePullRequestDescription,
-  resolvePullRequestTitle,
-} from "./pullRequestContent";
-import {
-  JobRunnerParams,
-  setupJob,
-  executeAgentWithRetry,
-  withJobLifecycle,
-} from "./jobPipeline";
-import {
-  captureAndStore,
-  retrieveAndRestore,
-} from "../runtime/SessionStateManager";
-import {
-  ATTR_VG_BASE_BRANCH,
-  ATTR_VG_BRANCH,
-  ATTR_VG_CHANGED_FILE_COUNT,
-  ATTR_VG_COMMIT_SHA,
-  ATTR_VG_PULL_REQUEST_URL,
-  ATTR_VG_REPOSITORY,
-  definedAttributes,
-  SpanKind,
-  withSpan,
-} from "@viberglass/telemetry";
-
-const DOCUMENT_FILES: Record<string, string> = {
-  research: "RESEARCH.md",
-  planning: "PLAN.md",
-};
+import { JobRunnerParams, setupJob, executeAgentWithRetry, withJobLifecycle } from "./jobPipeline";
+import { captureAndStore, retrieveAndRestore } from "../runtime/SessionStateManager";
+import { deliverPullRequest } from "./deliverPullRequest";
+import { collectArtifacts, materializeArtifacts } from "./turnArtifacts";
+import { discardCodeChanges, listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
 
 /**
- * Determine the effective session mode.
- * Uses explicit sessionMode when set (session-backed jobs), otherwise falls back
- * to jobKind for one-shot jobs routed here from ViberatorWorker.
+ * One turn of a task's conversation with its agent (ADR 0008). The agent gets
+ * the task's documents as files to revise, and its earlier session when the
+ * harness can continue one. Afterwards the turn reports what it produced: the
+ * documents it wrote, and its code changes as a commit on the task's pull
+ * request when it was allowed to write code, else thrown away.
  */
-function effectiveSessionMode(
-  params: JobRunnerParams,
-): "research" | "planning" | "execution" | undefined {
-  if (params.sessionMode) return params.sessionMode;
-  const kind = params.data.jobKind;
-  if (kind === "research" || kind === "planning" || kind === "execution") {
-    return kind;
-  }
-  return undefined;
-}
-
-function buildSessionPromptOverride(params: JobRunnerParams): string {
-  const { data } = params;
-  const mode = effectiveSessionMode(params);
-
-  // For continuation turns with ACP session, data.task already contains the
-  // enriched revision template output (rendered by platform-backend).
-  // This already includes Ticket Information, Research/Planning documents,
-  // User Revision Message, and Inline Comments.
-  // We only append current documents if they're NOT already in data.task
-  // to avoid duplication while ensuring the agent has the very latest version.
-  let prompt = data.task;
-
-  if (mode === "research" && data.context?.researchDocument?.trim()) {
-    if (!prompt.includes("<current-research-document>")) {
-      prompt += `\n\n<current-research-document>\n${data.context.researchDocument}\n</current-research-document>`;
-    }
-  }
-
-  if (mode === "planning") {
-    if (
-      data.context?.researchDocument?.trim() &&
-      !prompt.includes("<approved-research-document>")
-    ) {
-      prompt += `\n\n<approved-research-document>\n${data.context.researchDocument}\n</approved-research-document>`;
-    }
-    if (
-      data.context?.planDocument?.trim() &&
-      !prompt.includes("<current-planning-document>")
-    ) {
-      prompt += `\n\n<current-planning-document>\n${data.context.planDocument}\n</current-planning-document>`;
-    }
-  }
-
-  return prompt;
-}
-
-/**
- * Run the branch/commit/PR flow for completed execution turns.
- * Extracted from the old runCodingJob — reused here for execution sessions
- * and one-shot execution jobs.
- */
-async function completeExecutionWithPR(
-  params: JobRunnerParams,
-  repoDir: string,
-  checkoutBaseBranch: string,
-  executionContext: ExecutionContext,
-  taskBranch: TaskBranch | undefined,
-): Promise<
-  Pick<JobResult, "branch" | "pullRequestUrl" | "commitHash" | "changedFiles">
-> {
-  const { data, gitService, sendProgress } = params;
-  const { id, repository, task, context, scm } = data;
-
-  const pullRequestBaseBranch =
-    scm?.pullRequestBaseBranch?.trim() || checkoutBaseBranch;
-  const pullRequestRepository =
-    scm?.pullRequestRepository?.trim() ||
-    scm?.sourceRepository?.trim() ||
-    repository;
-
-  const branch = taskBranch ?? (await prepareTaskBranch(params, repoDir));
-  const featureBranch = branch.name;
-  if (!branch.continued) {
-    await sendProgress("branch", "Creating feature branch");
-    await gitService.createBranch(repoDir, featureBranch);
-  }
-
-  const changedFiles = await gitService.getChangedFiles(repoDir);
-  if (changedFiles.length === 0) {
-    throw new JobFailureError(
-      JOB_FAILURE_CODE.AGENT_NO_CHANGES,
-      "No code changes detected after agent execution; pull request was not created",
-    );
-  }
-
-  const pullRequestTicket = {
-    title: context?.ticketTitle,
-    description: context?.ticketDescription,
-  };
-  const pullRequestTitle = resolvePullRequestTitle(repoDir, task, pullRequestTicket);
-  const pullRequestDescription = resolvePullRequestDescription({
-    repoDir,
-    task,
-    ticket: pullRequestTicket,
-    changedFiles,
-    testsWereRequested: executionContext.runTests,
-  });
-
-  await sendProgress("commit", "Committing changes");
-  const commitHash = await withSpan(
-    "git.commit",
-    {
-      attributes: definedAttributes({
-        [ATTR_VG_BRANCH]: featureBranch,
-        [ATTR_VG_CHANGED_FILE_COUNT]: changedFiles.length,
-      }),
-    },
-    async () => gitService.commitChanges(repoDir, task),
-  );
-
-  await sendProgress("push", "Pushing branch to remote");
-  await withSpan(
-    "git.push",
-    {
-      attributes: definedAttributes({
-        [ATTR_VG_BRANCH]: featureBranch,
-        [ATTR_VG_COMMIT_SHA]: commitHash,
-      }),
-    },
-    async () =>
-      failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
-        gitService.pushBranch(repoDir, featureBranch, params.scmToken),
-      ),
-  );
-
-  await sendProgress("pr", "Creating pull request");
-  const pullRequestUrl = await withSpan(
-    "scm.create_pull_request",
-    {
-      kind: SpanKind.CLIENT,
-      attributes: definedAttributes({
-        [ATTR_VG_BRANCH]: featureBranch,
-        [ATTR_VG_BASE_BRANCH]: pullRequestBaseBranch,
-        [ATTR_VG_REPOSITORY]: pullRequestRepository,
-      }),
-    },
-    async (span) => {
-      const url = await failingWith(JOB_FAILURE_CODE.REPOSITORY_WRITE_FAILED, () =>
-        gitService.createPullRequest(
-        repoDir,
-        featureBranch,
-        pullRequestBaseBranch,
-        pullRequestTitle,
-        pullRequestDescription,
-        {
-          sourceRepositoryUrl: scm?.sourceRepository || repository,
-          destinationRepositoryUrl: pullRequestRepository,
-        },
-        params.scmToken,
-        ),
-      );
-      if (url) span.setAttribute(ATTR_VG_PULL_REQUEST_URL, url);
-      return url;
-    },
-  );
-
-  return {
-    branch: featureBranch,
-    pullRequestUrl,
-    commitHash,
-    changedFiles,
-  };
-}
-
-export async function runSessionTurnJob(
-  params: JobRunnerParams,
-): Promise<JobResult> {
+export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobResult> {
   return withJobLifecycle(params, "Session turn", async () => {
-    const { data, callbackClient, sendProgress, logger } = params;
-    const mode = effectiveSessionMode(params);
-    const isOneShot = !params.agentSessionId;
-
+    const { data, logger, sendProgress } = params;
     params.sessionEventForwarder?.setupForJob(data.id, data.tenantId);
 
     const setup = await setupJob(params, "session-turn");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
-
-    // Restore conversation state before agent execution (continuation turns)
-    if (params.conversationStateUrl) {
-      await sendProgress("restore-state", "Restoring conversation state");
-      try {
-        await retrieveAndRestore(
-          params.conversationStateUrl,
-          os.homedir(),
-          logger,
-        );
-        logger.info("Conversation state restored from previous turn", {
-          conversationStateUrl: params.conversationStateUrl,
-        });
-      } catch (err) {
-        logger.warn(
-          "Failed to restore conversation state, continuing with fresh session",
-          {
-            conversationStateUrl: params.conversationStateUrl,
-            error: err instanceof Error ? err.message : String(err),
-          },
-        );
-      }
-    }
-
-    const promptOverride = buildSessionPromptOverride(params);
-
-    // Build execution context — for execution mode, enrich with full ticket context
-    // and apply overrides, matching the old runCodingJob behavior.
-    const isExecution = mode === "execution";
-
-    let fullTask = data.task;
-    if (isExecution && params.overrides?.additionalContext) {
-      fullTask += `\n\nAdditional Context:\n${params.overrides.additionalContext}`;
-    }
+    await restoreConversationState(params);
+    const snapshot = materializeArtifacts(repoDir, {
+      research: data.context?.researchDocument,
+      plan: data.context?.planDocument,
+    });
 
     const executionContext: ExecutionContext = {
       repoUrl: data.repository,
@@ -261,33 +34,21 @@ export async function runSessionTurnJob(
       repoDir,
       commitHash: "",
       jobKind: data.jobKind,
-      bugDescription: isExecution ? fullTask : data.task,
-      stepsToReproduce: isExecution
-        ? params.overrides?.reproductionSteps ||
-          data.context?.stepsToReproduce ||
-          ""
-        : "",
-      expectedBehavior: isExecution
-        ? params.overrides?.expectedBehavior ||
-          data.context?.expectedBehavior ||
-          ""
-        : "",
-      actualBehavior: isExecution ? data.context?.actualBehavior || "" : "",
-      stackTrace: isExecution ? data.context?.stackTrace : undefined,
-      consoleErrors: isExecution ? data.context?.consoleErrors || [] : [],
-      affectedFiles: isExecution ? data.context?.affectedFiles || [] : [],
-      ticketMedia: isExecution ? data.context?.ticketMedia || [] : [],
-      researchDocument: isExecution
-        ? data.context?.researchDocument
-        : undefined,
-      planDocument: isExecution ? data.context?.planDocument : undefined,
+      bugDescription: data.task,
+      stepsToReproduce: "",
+      expectedBehavior: "",
+      actualBehavior: "",
+      consoleErrors: [],
+      affectedFiles: [],
+      ticketMedia: data.context?.ticketMedia || [],
       maxChanges: mergedSettings.maxChanges,
-      testRequired: isExecution ? mergedSettings.testRequired : false,
-      codingStandards: isExecution ? mergedSettings.codingStandards : undefined,
-      runTests: isExecution ? mergedSettings.runTests : false,
-      testCommand: isExecution ? mergedSettings.testCommand : undefined,
+      testRequired: params.allowCode ? mergedSettings.testRequired : false,
+      codingStandards: params.allowCode ? mergedSettings.codingStandards : undefined,
+      runTests: params.allowCode ? mergedSettings.runTests : false,
+      testCommand: params.allowCode ? mergedSettings.testCommand : undefined,
       maxExecutionTime: mergedSettings.maxExecutionTime,
-      promptOverride: isExecution ? fullTask : promptOverride,
+      promptOverride: data.task,
+      coldStartPrompt: params.coldStartTask,
       agentSessionId: params.agentSessionId,
       acpSessionId: params.acpSessionId,
       onAcpEvent: (event) => params.sessionEventForwarder?.enqueue(event),
@@ -295,143 +56,74 @@ export async function runSessionTurnJob(
 
     await sendProgress("execute", "Running ACP agent turn");
     const result = await executeAgentWithRetry(params, executionContext);
-
     await params.sessionEventForwarder?.flush();
+    const conversationStateUrl = await saveConversationState(params, result.newAcpSessionId, executionContext.agent);
 
-    if (result.newAcpSessionId) {
-      await callbackClient.sendAcpSessionId(
-        data.id,
-        data.tenantId,
-        result.newAcpSessionId,
-      );
-    }
-
-    // Capture conversation state after successful execution for future turns
-    let conversationStateUrl: string | undefined;
-    if (result.newAcpSessionId) {
-      logger.info("New ACP session established, capturing conversation state", {
-        jobId: data.id,
-        agentSessionId: params.agentSessionId,
-        newAcpSessionId: result.newAcpSessionId,
-        agent: executionContext.agent,
-        homeDir: os.homedir(),
-      });
-      try {
-        const url = await captureAndStore(
-          executionContext.agent || "",
-          params.agentSessionId || data.id,
-          os.homedir(),
-          logger,
-        );
-        if (url) {
-          conversationStateUrl = url;
-          logger.info("Conversation state captured and stored", {
-            jobId: data.id,
-            conversationStateUrl: url,
-          });
-          await callbackClient.sendConversationStateUrl(
-            data.id,
-            data.tenantId,
-            url,
-          );
-        } else {
-          logger.warn(
-            "captureAndStore returned undefined - no state to archive or storage failed",
-            {
-              jobId: data.id,
-              agent: executionContext.agent,
-            },
-          );
-        }
-      } catch (err) {
-        logger.warn("Failed to capture conversation state", {
-          jobId: data.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    } else {
-      logger.debug("No new ACP session - skipping conversation state capture", {
-        jobId: data.id,
-        agentSessionId: params.agentSessionId,
-        acpTurnOutcome: result.acpTurnOutcome,
-      });
-    }
-
-    // ── Execution completion: create branch / commit / PR ──
-    //
-    // For execution sessions the PR flow runs only when the agent turn is
-    // "completed" (not needs_input / needs_approval).  For one-shot execution
-    // jobs (no agentSessionId) the agent always completes in one turn, so the
-    // PR flow always runs.
-    if (
-      isExecution &&
-      result.acpTurnOutcome !== "needs_input" &&
-      result.acpTurnOutcome !== "needs_approval"
-    ) {
-      const prResult = await completeExecutionWithPR(
-        params,
-        repoDir,
-        checkoutBaseBranch,
-        executionContext,
-        setup.taskBranch,
-      );
-
-      return {
-        success: true,
-        executionTime: 0,
-        conversationStateUrl,
-        ...prResult,
-      };
-    }
-
-    // ── Non-execution or in-progress execution turns ──
-    const changedFiles = await params.gitService.getChangedFiles(repoDir);
-
-    // For document modes (research/planning), read the generated document if present.
-    // If the file exists the backend will save it and mark the session completed.
-    // If not, the turn completes normally and the session stays active for follow-up.
-    let documentContent: string | undefined;
-    const documentFileName = mode ? DOCUMENT_FILES[mode] : undefined;
-    if (documentFileName) {
-      const documentPath = path.join(repoDir, documentFileName);
-      if (fs.existsSync(documentPath)) {
-        documentContent = fs.readFileSync(documentPath, "utf-8");
-        logger.info("Document file read successfully", {
-          mode,
-          documentFileName,
-          documentPath,
-          contentLength: documentContent.length,
-        });
-      } else {
-        logger.warn("Document file not found at expected path", {
-          mode,
-          documentFileName,
-          documentPath,
-          repoDir,
-          changedFiles,
-        });
-      }
-    }
-
-    // For one-shot (non-session) research/planning jobs, the document must exist.
-    // Session-backed jobs may produce the document across multiple turns.
-    if (
-      isOneShot &&
-      (mode === "research" || mode === "planning") &&
-      !documentContent
-    ) {
-      throw new JobFailureError(
-        JOB_FAILURE_CODE.AGENT_NO_DOCUMENT,
-        `${documentFileName} was not generated`,
-      );
-    }
-
-    return {
+    const documents = collectArtifacts(repoDir, snapshot);
+    await restoreArtifactFiles(repoDir);
+    const changedFiles = await listCodeChanges(repoDir);
+    const turn: JobResult = {
       success: true,
       changedFiles,
       executionTime: 0,
-      documentContent,
+      documents,
       conversationStateUrl,
+      sessionStart: result.acpSessionStart,
     };
+    if (changedFiles.length === 0) return turn;
+
+    if (!params.allowCode) {
+      logger.info("Discarding code changes from a turn that wasn't asked for code", { jobId: data.id, changedFiles });
+      await discardCodeChanges(repoDir);
+      return { ...turn, changedFiles: [], codeDiscarded: true };
+    }
+    const delivered = await deliverPullRequest(params, {
+      repoDir,
+      checkoutBaseBranch,
+      changedFiles,
+      testsWereRequested: executionContext.runTests,
+      taskBranch: setup.taskBranch,
+    });
+    return { ...turn, ...delivered };
   });
+}
+
+/** Puts back the harness's saved home state, so it can continue its earlier session. */
+async function restoreConversationState(params: JobRunnerParams): Promise<void> {
+  if (!params.conversationStateUrl) return;
+  await params.sendProgress("restore-state", "Restoring conversation state");
+  try {
+    await retrieveAndRestore(params.conversationStateUrl, os.homedir(), params.logger);
+  } catch (err) {
+    params.logger.warn("Failed to restore conversation state, continuing with fresh session", {
+      conversationStateUrl: params.conversationStateUrl,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/** Saves the harness's home state for the next turn, and tells the platform its session id. */
+async function saveConversationState(
+  params: JobRunnerParams,
+  acpSessionId: string | undefined,
+  agent: string | undefined,
+): Promise<string | undefined> {
+  const { data, callbackClient, logger } = params;
+  if (!acpSessionId) return undefined;
+  await callbackClient.sendAcpSessionId(data.id, data.tenantId, acpSessionId);
+  try {
+    const url = await captureAndStore(agent || "", params.agentSessionId || data.id, os.homedir(), logger);
+    if (!url) {
+      logger.warn("No conversation state to archive, or storing it failed", { jobId: data.id, agent });
+      return undefined;
+    }
+    await callbackClient.sendConversationStateUrl(data.id, data.tenantId, url);
+    return url;
+  } catch (err) {
+    logger.warn("Failed to capture conversation state", {
+      jobId: data.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return undefined;
+  }
 }

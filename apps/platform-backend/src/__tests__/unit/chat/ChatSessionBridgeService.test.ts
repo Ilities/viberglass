@@ -75,6 +75,8 @@ describe("ChatSessionBridgeService", () => {
   it("posts the agent's streamed reply as one message, even across polls", async () => {
     const { post, thread } = fakeThread();
     mockListBySession
+      // What the session did before the bridge started: nothing yet.
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         event("turn_started"),
         event("assistant_message", { text: "The repo" }),
@@ -100,6 +102,7 @@ describe("ChatSessionBridgeService", () => {
   it("posts text before and after a tool call as separate messages", async () => {
     const { post, thread } = fakeThread();
     mockListBySession
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         event("assistant_message", { text: "Reading the README." }),
         event("tool_call_started", { toolName: "read" }),
@@ -116,5 +119,24 @@ describe("ChatSessionBridgeService", () => {
       { markdown: "Reading the README." },
       { markdown: "It's a Vite app." },
     ]);
+  });
+
+  it("relays a continuing session from after its last turn, and stops once a turn has written something", async () => {
+    const { post, thread } = fakeThread();
+    const earlier = [event("turn_started"), event("assistant_message", { text: "Old reply" }), event("turn_completed")];
+    mockListBySession
+      .mockResolvedValueOnce(earlier)
+      .mockResolvedValueOnce([event("turn_started"), event("assistant_message", { text: "Revising the plan" }), event("turn_completed", { produced: ["plan"] })])
+      .mockResolvedValue([event("assistant_message", { text: "after the end" })]);
+
+    bridge.startBridge("session-1", thread as Thread);
+    await jest.advanceTimersByTimeAsync(0);
+    await jest.advanceTimersByTimeAsync(4000);
+
+    expect(mockListBySession).toHaveBeenNthCalledWith(2, "session-1", expect.objectContaining({ afterSequence: 3 }));
+    const posted = post.mock.calls.map(([message]) => message);
+    expect(posted).toContainEqual({ markdown: "Revising the plan" });
+    expect(posted).not.toContainEqual({ markdown: "Old reply" });
+    expect(posted).not.toContainEqual({ markdown: "after the end" });
   });
 });

@@ -28,6 +28,7 @@ type HistoryEntry =
   | { kind: 'session'; at: string; session: AgentSession }
 
 function stepName(kind: string): string {
+  if (kind === 'reply') return 'Reply'
   return kind in STEP_NAME ? STEP_NAME[kind as TaskStep] : 'Scheduled'
 }
 

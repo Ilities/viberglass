@@ -185,37 +185,6 @@ const configFileSchema = Joi.object({
   content: Joi.string().required(),
 });
 
-const runInstructionFileSchema = Joi.object({
-  fileType: Joi.string()
-    .min(1)
-    .max(300)
-    .custom((value, helpers) => {
-      if (!isAllowedInstructionPath(value)) {
-        return helpers.message({ custom: instructionPathErrorMessage(value) });
-      }
-      return normalizeInstructionPath(value);
-    })
-    .required(),
-  content: Joi.string().max(200000).required(),
-});
-
-const runTicketOverridesSchema = Joi.object({
-  additionalContext: Joi.string().max(10000).optional(),
-  reproductionSteps: Joi.string().max(10000).optional(),
-  expectedBehavior: Joi.string().max(10000).optional(),
-  priorityOverride: Joi.string()
-    .valid("critical", "high", "medium", "low")
-    .optional(),
-  settings: Joi.object({
-    maxChanges: Joi.number().integer().min(1).max(200).optional(),
-    testRequired: Joi.boolean().optional(),
-    codingStandards: Joi.string().max(5000).optional(),
-    runTests: Joi.boolean().optional(),
-    testCommand: Joi.string().max(1000).optional(),
-    maxExecutionTime: Joi.number().integer().min(1).max(86400).optional(),
-  }).optional(),
-}).optional();
-
 export const clankerSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   description: Joi.string().allow(null, "").optional(),
@@ -307,7 +276,14 @@ export const resultCallbackSchema = Joi.object({
   success: Joi.boolean().required(),
   commitHash: Joi.string().allow(null, "").optional(),
   pullRequestUrl: Joi.string().uri().allow(null, "").optional(),
-  documentContent: Joi.string().allow(null, "").optional(),
+  // The documents a task turn wrote: each becomes the document's next version.
+  documents: Joi.object({
+    research: Joi.string().allow("").optional(),
+    plan: Joi.string().allow("").optional(),
+  }).optional(),
+  codeDiscarded: Joi.boolean().optional(),
+  // Whether the turn continued the harness's session (AcpSessionStart).
+  sessionStart: Joi.object({ resumed: Joi.boolean().required() }).unknown(true).optional(),
   errorMessage: Joi.string().allow(null, "").optional(),
   // Any string: a code this backend doesn't know yet is shown as an
   // unrecognised failure rather than rejecting the whole result.
@@ -318,19 +294,6 @@ export const resultCallbackSchema = Joi.object({
   branch: Joi.string().optional(),
   conversationStateUrl: Joi.string().uri().allow(null, "").optional(),
   runManifest: runManifestSchema.optional(),
-});
-
-export const runTicketSchema = Joi.object({
-  clankerId: Joi.string().uuid().required(),
-  changeRequest: Joi.object({
-    message: Joi.string().max(20000).allow("").optional(),
-    includePullRequestComments: Joi.boolean().optional(),
-  }).optional(),
-  overrides: runTicketOverridesSchema,
-  instructionFiles: Joi.array()
-    .items(runInstructionFileSchema)
-    .max(20)
-    .optional(),
 });
 
 // Progress update schema for worker progress reporting

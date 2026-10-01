@@ -87,21 +87,20 @@ function WorkDetail({ job, project, onShowRawLog }: { job: JobStatus; project: s
   const chips = describeAgentWork(summary)
   const lastMessage = summary.messages.at(-1)
 
-  if (job.agentSessionId) {
-    return (
-      <p>
-        This run is a turn of a live session; the conversation is{' '}
-        <Link href={`/spaces/${project}/sessions/${job.agentSessionId}`} className="text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
-          in the session
-        </Link>
-        .
-      </p>
-    )
-  }
-  if (chips.length === 0 && !lastMessage) return null
+  const session = job.agentSessionId ? (
+    <p>
+      This run is one of the agent&apos;s turns on the task. What it said is in the task&apos;s thread and{' '}
+      <Link href={`/spaces/${project}/sessions/${job.agentSessionId}`} className="text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
+        its session
+      </Link>
+      .
+    </p>
+  ) : null
+  if (!session && chips.length === 0 && !lastMessage) return null
 
   return (
     <div className="space-y-2.5">
+      {session}
       {chips.length > 0 && (
         // A summary, not controls: the one way into the detail is the raw log link.
         <p className="text-[var(--gray-11)]">

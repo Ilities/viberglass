@@ -1,121 +1,7 @@
-const mockAgentTurnDAO = {
-  listUnconsumedUserTurns: jest.fn(),
-  markConsumed: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-};
-
-const mockAgentSessionEventDAO = {
-  getMaxSequence: jest.fn(),
-  create: jest.fn(),
-};
-
-const mockAgentSessionDAO = {
-  getById: jest.fn(),
-  update: jest.fn(),
-};
-
-const mockJobService = {
-  submitJob: jest.fn(),
-  saveBootstrapPayload: jest.fn(),
-};
-
-const mockCredentialRequirementsService = {
-  getRequiredCredentialsForClanker: jest.fn(),
-};
-
-const mockWorkerExecutionService = {
-  executeJob: jest.fn(),
-};
-
-const mockRender = jest.fn();
-const mockPrepareTicketRunContext = jest.fn();
-
-jest.mock("../../../persistence/agentSession/AgentSessionDAO", () => ({
-  AgentSessionDAO: jest.fn(() => mockAgentSessionDAO),
-}));
-jest.mock("../../../persistence/agentSession/AgentTurnDAO", () => ({
-  AgentTurnDAO: jest.fn(() => mockAgentTurnDAO),
-}));
-jest.mock("../../../persistence/agentSession/AgentSessionEventDAO", () => ({
-  AgentSessionEventDAO: jest.fn(() => mockAgentSessionEventDAO),
-}));
-jest.mock("../../../services/JobService", () => ({
-  JobService: jest.fn(() => mockJobService),
-}));
-jest.mock("../../../services/CredentialRequirementsService", () => ({
-  CredentialRequirementsService: jest.fn(
-    () => mockCredentialRequirementsService,
-  ),
-}));
-jest.mock("../../../workers", () => ({
-  WorkerExecutionService: jest.fn(() => mockWorkerExecutionService),
-}));
-jest.mock("../../../persistence/ticketing/TicketDAO", () => ({
-  TicketDAO: jest.fn(() => ({
-    getTicket: jest.fn().mockResolvedValue({
-      id: "ticket-1",
-      title: "Add a dark mode toggle",
-      description: "Users want to switch themes",
-      externalTicketId: null,
-    }),
-  })),
-}));
-jest.mock("../../../persistence/project/ProjectDAO", () => ({
-  ProjectDAO: jest.fn(() => ({})),
-}));
-jest.mock("../../../persistence/project/ProjectScmConfigDAO", () => ({
-  ProjectScmConfigDAO: jest.fn(() => ({})),
-}));
-jest.mock("../../../persistence/integrations", () => ({
-  IntegrationCredentialDAO: jest.fn(() => ({})),
-}));
-jest.mock("../../../services/SecretService", () => ({
-  SecretService: jest.fn(() => ({})),
-}));
-jest.mock("../../../persistence/clanker/ClankerDAO", () => ({
-  ClankerDAO: jest.fn(() => ({})),
-}));
-jest.mock("../../../provisioning/provisioningFactory", () => ({
-  getClankerProvisioner: () => ({}),
-}));
-jest.mock("../../../services/instructions/InstructionStorageService", () => ({
-  InstructionStorageService: jest.fn(() => ({})),
-}));
-jest.mock("../../../services/TicketPhaseDocumentService", () => ({
-  TicketPhaseDocumentService: jest.fn(() => ({})),
-}));
-jest.mock(
-  "../../../persistence/ticketing/TicketPhaseDocumentCommentDAO",
-  () => ({
-    TicketPhaseDocumentCommentDAO: jest.fn(() => ({})),
-    PHASE_DOCUMENT_COMMENT_STATUS: { OPEN: "open" },
-  }),
-);
-jest.mock("../../../services/PromptTemplateService", () => ({
-  PromptTemplateService: jest.fn(() => ({ render: mockRender })),
-}));
-jest.mock("../../../persistence/promptTemplate/PromptTemplateDAO", () => {
-  const actual = jest.requireActual(
-    "../../../persistence/promptTemplate/PromptTemplateDAO",
-  );
-  return { ...actual, PromptTemplateDAO: jest.fn(() => ({})) };
-});
-jest.mock("../../../services/ticketRunOrchestration", () => ({
-  prepareTicketRunContext: (...args: unknown[]) =>
-    mockPrepareTicketRunContext(...args),
-  buildBootstrapPayload: () => ({ base: true }),
-}));
-
 import { SessionTurnContinuationService } from "../../../services/agentSession/SessionTurnContinuationService";
-import { AgentSessionDAO } from "../../../persistence/agentSession/AgentSessionDAO";
-import { AgentTurnDAO } from "../../../persistence/agentSession/AgentTurnDAO";
-import { AgentSessionEventDAO } from "../../../persistence/agentSession/AgentSessionEventDAO";
-import { JobService } from "../../../services/JobService";
-import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
-import { WorkerExecutionService } from "../../../workers";
 import type { AgentSession } from "../../../persistence/agentSession/AgentSessionDAO";
 import type { AgentTurn } from "../../../persistence/agentSession/AgentTurnDAO";
+import type { TaskTurnContext } from "../../../services/taskTurns/taskTurnContext";
 
 function makeSession(overrides: Partial<AgentSession> = {}): AgentSession {
   return {
@@ -126,7 +12,7 @@ function makeSession(overrides: Partial<AgentSession> = {}): AgentSession {
     ticketId: "ticket-1",
     ticketTitle: null,
     clankerId: "clanker-1",
-    mode: "execution",
+    mode: "research",
     status: "active",
     title: null,
     repository: "org/repo",
@@ -153,11 +39,13 @@ function makeUserTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
     role: "user",
     status: "completed",
     sequence: 5,
-    contentMarkdown: "[Jussi]: do X",
+    contentMarkdown: "do X",
     contentJson: null,
     jobId: null,
     userId: "user-1",
     consumedByTurnId: null,
+    action: null,
+    taskMessageId: "message-1",
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
@@ -166,148 +54,138 @@ function makeUserTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
   };
 }
 
-const preparedStub = {
-  executionClanker: { agent: "pi" },
-  workerType: "docker",
-  sourceRepository: "org/repo",
-  baseBranch: "main",
-  workerInstructionFiles: [],
-  mergedInstructionFiles: [],
-  project: { id: "proj-1" },
+const context: TaskTurnContext = {
+  ticket: { title: "Dark mode", description: "Users want it", externalTicketId: null, pullRequestUrl: null },
+  documents: { research: "", plan: "" },
+  since: null,
+  earlier: { messages: [], openComments: [] },
+  fresh: { messages: [], comments: [], edits: [], pullRequestComments: [] },
 };
 
 describe("SessionTurnContinuationService", () => {
-  let service: SessionTurnContinuationService;
+  const sessions = { getById: jest.fn(), update: jest.fn() };
+  const turns = {
+    listUnconsumedUserTurns: jest.fn(),
+    nextSequence: jest.fn(),
+    create: jest.fn(),
+    markConsumed: jest.fn(),
+    update: jest.fn(),
+  };
+  const events = { getMaxSequence: jest.fn(), create: jest.fn() };
+  const tickets = { getTicket: jest.fn() };
+  const loader = { load: jest.fn() };
+  const prompts = { build: jest.fn() };
+  const dispatcher = { dispatch: jest.fn() };
+  const service = new SessionTurnContinuationService(sessions, turns, events, {
+    tickets,
+    context: loader,
+    prompts,
+    dispatcher,
+  });
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    service = new SessionTurnContinuationService(
-      new AgentSessionDAO(),
-      new AgentTurnDAO(),
-      new AgentSessionEventDAO(),
-      new JobService(),
-      new CredentialRequirementsService(),
-      new WorkerExecutionService(),
-    );
-
-    mockPrepareTicketRunContext.mockResolvedValue(preparedStub);
-    mockRender.mockResolvedValue("enriched-task");
-    mockJobService.submitJob.mockResolvedValue({ callbackToken: "token-1" });
-    mockJobService.saveBootstrapPayload.mockResolvedValue(undefined);
-    mockCredentialRequirementsService.getRequiredCredentialsForClanker.mockResolvedValue(
-      [],
-    );
-    mockWorkerExecutionService.executeJob.mockResolvedValue({
-      executionId: "exec-1",
+    jest.resetAllMocks();
+    tickets.getTicket.mockResolvedValue({ id: "ticket-1", projectId: "proj-1", title: "Dark mode" });
+    turns.nextSequence.mockResolvedValue(7);
+    turns.create.mockResolvedValue({ id: "a1" });
+    events.getMaxSequence.mockResolvedValue(10);
+    loader.load.mockResolvedValue(context);
+    prompts.build.mockResolvedValue({ prompt: "delta", coldStartPrompt: "preamble\n\ndelta" });
+    dispatcher.dispatch.mockImplementation(async (_input, onSubmitted) => {
+      await onSubmitted({ id: "job-1", prompt: "delta" });
+      return { id: "job-1", status: "pending" };
     });
-    mockAgentTurnDAO.update.mockResolvedValue(undefined);
-    mockAgentSessionEventDAO.create.mockResolvedValue({});
   });
 
   it("returns null and launches nothing when no messages are pending", async () => {
-    mockAgentTurnDAO.listUnconsumedUserTurns.mockResolvedValue([]);
+    turns.listUnconsumedUserTurns.mockResolvedValue([]);
 
-    const result = await service.launchForPendingMessages(makeSession());
-
-    expect(result).toBeNull();
-    expect(mockAgentTurnDAO.create).not.toHaveBeenCalled();
-    expect(mockJobService.submitJob).not.toHaveBeenCalled();
+    await expect(service.launchForPendingMessages(makeSession())).resolves.toBeNull();
+    expect(turns.create).not.toHaveBeenCalled();
+    expect(dispatcher.dispatch).not.toHaveBeenCalled();
   });
 
-  it("batches all pending user turns into a single continuation turn", async () => {
-    const pending = [
-      makeUserTurn({ id: "u1", sequence: 5, contentMarkdown: "[Jussi]: do X" }),
-      makeUserTurn({ id: "u2", sequence: 6, contentMarkdown: "[Anna]: do Y" }),
-    ];
-    mockAgentTurnDAO.listUnconsumedUserTurns.mockResolvedValue(pending);
-    mockAgentSessionEventDAO.getMaxSequence.mockResolvedValue(10);
-    const assistantTurn = { id: "a1" };
-    mockAgentTurnDAO.create.mockResolvedValue(assistantTurn);
-    mockAgentTurnDAO.markConsumed.mockResolvedValue(undefined);
+  it("answers every pending message in one turn, doing what the latest specific ask wanted", async () => {
+    turns.listUnconsumedUserTurns.mockResolvedValue([
+      makeUserTurn({ id: "u1", action: "research" }),
+      makeUserTurn({ id: "u2", action: "plan" }),
+      makeUserTurn({ id: "u3", action: "reply", taskMessageId: null }),
+    ]);
 
     const result = await service.launchForPendingMessages(makeSession());
 
-    expect(mockAgentTurnDAO.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: "sess-1",
-        role: "assistant",
-        sequence: 7,
-        status: "queued",
-      }),
+    expect(turns.create).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "sess-1", role: "assistant", sequence: 7, status: "queued", action: "plan" }),
     );
-    expect(mockAgentSessionEventDAO.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: "sess-1",
-        sequence: 11,
-        eventType: "turn_started",
-      }),
+    expect(turns.markConsumed).toHaveBeenCalledWith(["u1", "u2", "u3"], "a1");
+    // Only what was said in the live session is passed on; thread messages are read from the thread.
+    expect(loader.load).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "sess-1", turnId: "a1", action: "plan", sessionMessages: [expect.objectContaining({ id: "u3" })] }),
     );
-    expect(mockAgentTurnDAO.markConsumed).toHaveBeenCalledWith(
-      ["u1", "u2"],
-      "a1",
+    expect(prompts.build).toHaveBeenCalledWith("proj-1", context, "plan", false);
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ turnId: "a1", action: "plan", allowCode: false, prompts: { prompt: "delta", coldStartPrompt: "preamble\n\ndelta" } }),
+      expect.any(Function),
     );
-    expect(mockRender).toHaveBeenCalledWith(
-      expect.anything(),
-      "proj-1",
-      expect.objectContaining({
-        revisionMessage: "[Jussi]: do X\n\n[Anna]: do Y",
-        ticketTitle: "Add a dark mode toggle",
-        ticketDescription: "Users want to switch themes",
-      }),
+    expect(result).toEqual({ currentTurn: { id: "a1" }, job: { id: "job-1", status: "pending" } });
+  });
+
+  it("knows its job and shows the prompt before the worker starts", async () => {
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn()]);
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(turns.update).toHaveBeenCalledWith("a1", { jobId: "job-1" });
+    expect(events.create).toHaveBeenCalledWith(
+      expect.objectContaining({ sequence: 11, eventType: "turn_started", payloadJson: { turnId: "a1", action: "reply", fullPrompt: "delta" } }),
     );
-    expect(mockJobService.submitJob).toHaveBeenCalledTimes(1);
-    expect(mockWorkerExecutionService.executeJob).toHaveBeenCalledTimes(1);
-    expect(mockAgentSessionDAO.update).toHaveBeenCalledWith(
-      "sess-1",
-      expect.objectContaining({
-        status: "active",
-        lastTurnId: "a1",
-      }),
-    );
-    expect(result?.currentTurn).toEqual(assistantTurn);
-    expect(result?.job.status).toBe("pending");
+    expect(sessions.update).toHaveBeenCalledWith("sess-1", { status: "active", lastJobId: "job-1", lastTurnId: "a1" });
+  });
+
+  it("lets a turn write code only when someone asked to build it", async () => {
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn({ action: "code" })]);
+
+    await service.launchForPendingMessages(makeSession());
+
+    expect(dispatcher.dispatch).toHaveBeenCalledWith(expect.objectContaining({ action: "code", allowCode: true }), expect.any(Function));
   });
 
   it("clears the pending request pointer when requested", async () => {
-    mockAgentTurnDAO.listUnconsumedUserTurns.mockResolvedValue([
-      makeUserTurn(),
-    ]);
-    mockAgentSessionEventDAO.getMaxSequence.mockResolvedValue(10);
-    mockAgentTurnDAO.create.mockResolvedValue({ id: "a1" });
-    mockAgentTurnDAO.markConsumed.mockResolvedValue(undefined);
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn()]);
 
-    await service.launchForPendingMessages(makeSession(), {
-      clearPendingRequest: true,
-    });
+    await service.launchForPendingMessages(makeSession(), { clearPendingRequest: true });
 
-    expect(mockAgentSessionDAO.update).toHaveBeenCalledWith(
-      "sess-1",
-      expect.objectContaining({ latestPendingRequestId: null }),
-    );
+    expect(sessions.update).toHaveBeenCalledWith("sess-1", expect.objectContaining({ latestPendingRequestId: null }));
+  });
+
+  it("marks the turn failed when its job can't start", async () => {
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn()]);
+    dispatcher.dispatch.mockRejectedValue(new Error("Selected clanker is inactive."));
+
+    await expect(service.launchForPendingMessages(makeSession())).rejects.toThrow("Selected clanker is inactive.");
+    expect(turns.update).toHaveBeenCalledWith("a1", expect.objectContaining({ status: "failed" }));
   });
 
   it("drain is a no-op when the session is not active", async () => {
-    mockAgentSessionDAO.getById.mockResolvedValue(
-      makeSession({ status: "waiting_on_user" }),
-    );
+    sessions.getById.mockResolvedValue(makeSession({ status: "waiting_on_user" }));
 
     await expect(service.drainQueuedMessages("sess-1")).resolves.toBe(false);
-
-    expect(mockAgentTurnDAO.listUnconsumedUserTurns).not.toHaveBeenCalled();
-    expect(mockJobService.submitJob).not.toHaveBeenCalled();
+    expect(turns.listUnconsumedUserTurns).not.toHaveBeenCalled();
   });
 
-  it("drain launches a batched continuation for queued messages on active sessions", async () => {
-    mockAgentSessionDAO.getById.mockResolvedValue(makeSession());
-    mockAgentTurnDAO.listUnconsumedUserTurns.mockResolvedValue([
-      makeUserTurn(),
-    ]);
-    mockAgentSessionEventDAO.getMaxSequence.mockResolvedValue(10);
-    mockAgentTurnDAO.create.mockResolvedValue({ id: "a1" });
-    mockAgentTurnDAO.markConsumed.mockResolvedValue(undefined);
+  it("drain launches one turn for queued messages on active sessions", async () => {
+    sessions.getById.mockResolvedValue(makeSession());
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn()]);
 
     await expect(service.drainQueuedMessages("sess-1")).resolves.toBe(true);
+    expect(dispatcher.dispatch).toHaveBeenCalledTimes(1);
+  });
 
-    expect(mockJobService.submitJob).toHaveBeenCalledTimes(1);
+  it("drain reports no turn, rather than failing the turn that ended, when the next can't start", async () => {
+    sessions.getById.mockResolvedValue(makeSession());
+    turns.listUnconsumedUserTurns.mockResolvedValue([makeUserTurn()]);
+    dispatcher.dispatch.mockRejectedValue(new Error("No runner"));
+
+    await expect(service.drainQueuedMessages("sess-1")).resolves.toBe(false);
   });
 });

@@ -68,17 +68,14 @@ export class AgentSessionWorkerEventService {
       );
       if (turnEnded) {
         const launched = await this.turnContinuationService.drainQueuedMessages(sessionId);
-        const turnCompleted = applied.some(
-          (evt) => evt.eventType === AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED,
-        );
-        if (!launched && turnCompleted) await this.waitOnPerson(sessionId);
+        if (!launched) await this.waitOnPerson(sessionId);
       }
     });
   }
 
   /**
-   * The agent finished a turn without ending the session and nothing is
-   * queued: it has answered, so the person replies or approves next.
+   * A turn ended without ending the session and nothing is queued: the agent
+   * answered, or failed, so the person replies, retries or approves next.
    */
   private async waitOnPerson(sessionId: string): Promise<void> {
     const session = await this.agentSessionDAO.getById(sessionId);
@@ -233,8 +230,9 @@ export class AgentSessionWorkerEventService {
       case AGENT_SESSION_EVENT_TYPE.TURN_FAILED:
         await this.agentTurnDAO.update(turnId, {
           status: AGENT_TURN_STATUS.FAILED,
+          completedAt: new Date(),
         });
-        // Keep session active so user can retry rather than killing the whole session
+        // A failed turn doesn't end the conversation: the person can ask again
         await this.agentSessionDAO.update(sessionId, {
           status: AGENT_SESSION_STATUS.ACTIVE,
         });

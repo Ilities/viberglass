@@ -1,63 +1,90 @@
 /**
  * Decides what a fake agent turn does, from the prompt alone.
  *
- * The prompt is the rendered platform template plus the human's task text, so
- * end-to-end tests steer the fake agent by putting directives in the task:
+ * End-to-end tests steer the fake agent with directives in what people write
+ * (a message, or the task's description on its first turn):
  *
  *   [fake:sleep=30]     wait 30 seconds before finishing (makes cancel testable)
- *   [fake:no-document]  finish without writing the phase document
+ *   [fake:no-document]  finish without writing the document
+ *   [fake:code]         change a file in the repository
  *   [fake:fail]         fail the turn with an error
+ *
+ * A task turn's prompt (the `task_turn` template) says what to do in its last
+ * <what-to-do> section; when that names no document, the agent writes the one
+ * people asked for in the thread, if any.
  */
 
 export type FakeDocumentFile = "RESEARCH.md" | "PLAN.md";
 
 export interface FakeTurnPlan {
   documentFile?: FakeDocumentFile;
+  code: boolean;
   sleepSeconds: number;
   fail: boolean;
 }
 
 const SLEEP_DIRECTIVE = /\[fake:sleep=(\d+)\]/;
 const NO_DOCUMENT_DIRECTIVE = "[fake:no-document]";
+const CODE_DIRECTIVE = "[fake:code]";
 const FAIL_DIRECTIVE = "[fake:fail]";
 
-function resolveDocumentFile(prompt: string): FakeDocumentFile | undefined {
-  // Planning prompts embed the approved research document, which can itself
-  // mention RESEARCH.md, so PLAN.md must win.
-  if (prompt.includes("PLAN.md")) return "PLAN.md";
-  if (prompt.includes("RESEARCH.md")) return "RESEARCH.md";
+/** The last <tag>…</tag> section of the prompt, if it has one. */
+function lastSection(prompt: string, tag: string): string | undefined {
+  const start = prompt.lastIndexOf(`<${tag}>`);
+  if (start === -1) return undefined;
+  const end = prompt.indexOf(`</${tag}>`, start);
+  return prompt.slice(start, end === -1 ? undefined : end);
+}
+
+function documentNamedIn(text: string): FakeDocumentFile | undefined {
+  // A plan can mention the research it builds on, so PLAN.md wins.
+  if (text.includes("PLAN.md")) return "PLAN.md";
+  if (text.includes("RESEARCH.md")) return "RESEARCH.md";
   return undefined;
 }
 
+/** Where people's words are: the new messages and, on a first turn, the task. Elsewhere is the platform's. */
+function peoplesWords(prompt: string): string {
+  if (!prompt.includes("<what-to-do>")) return prompt;
+  return [lastSection(prompt, "thread"), lastSection(prompt, "task")].filter((part) => part !== undefined).join("\n");
+}
+
+function resolveDocumentFile(prompt: string): FakeDocumentFile | undefined {
+  const asked = lastSection(prompt, "what-to-do");
+  if (asked === undefined) return documentNamedIn(prompt);
+  return documentNamedIn(asked) ?? documentNamedIn(lastSection(prompt, "thread") ?? "");
+}
+
 export function planFakeTurn(prompt: string): FakeTurnPlan {
-  const sleepMatch = prompt.match(SLEEP_DIRECTIVE);
+  const words = peoplesWords(prompt);
+  const sleepMatch = words.match(SLEEP_DIRECTIVE);
   return {
-    documentFile: prompt.includes(NO_DOCUMENT_DIRECTIVE)
-      ? undefined
-      : resolveDocumentFile(prompt),
+    documentFile: words.includes(NO_DOCUMENT_DIRECTIVE) ? undefined : resolveDocumentFile(prompt),
+    code: words.includes(CODE_DIRECTIVE),
     sleepSeconds: sleepMatch ? Number(sleepMatch[1]) : 0,
-    fail: prompt.includes(FAIL_DIRECTIVE),
+    fail: words.includes(FAIL_DIRECTIVE),
   };
 }
 
 /**
  * The document echoes the prompt it was written from, so a test can assert
- * that a human message actually reached the agent.
+ * that a person's message reached the agent. The echo is defanged: a later
+ * prompt that quotes this document must not read as directives or sections.
  */
-export function renderFakeDocument(
-  documentFile: FakeDocumentFile,
-  prompt: string,
-): string {
+export function renderFakeDocument(documentFile: FakeDocumentFile, prompt: string, turn: number): string {
   const title = documentFile === "PLAN.md" ? "Plan" : "Research";
+  const echo = prompt.replace(/\[fake:/g, "[fake-echo:").replace(/</g, "&lt;");
   return [
     `# Fake ${title}`,
     "",
     "Written by the fake agent used in end-to-end tests.",
     "",
+    `This is turn ${turn} of its session.`,
+    "",
     "## Prompt received",
     "",
     "````text",
-    prompt,
+    echo,
     "````",
     "",
   ].join("\n");

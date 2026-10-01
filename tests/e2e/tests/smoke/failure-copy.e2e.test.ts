@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { E2E } from "../../playwright/e2eEnvironment";
-import { createTask, runStatus, shownRunId, startResearch } from "../../playwright/tasks";
+import { createTask, runStatus, startResearch } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
 /** Opens a run page, retrying loads aborted by a container start (ERR_NETWORK_CHANGED). */
@@ -9,6 +9,12 @@ async function openRun(page: Page, projectSlug: string, jobId: string, heading: 
     await page.goto(`/spaces/${projectSlug}/runs/${jobId}`);
     await expect(page.getByRole("heading", { name: heading })).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
+}
+
+/** The task's newest run. */
+async function latestRunId(api: APIRequestContext, taskId: string): Promise<string> {
+  const body = await (await api.get(`/api/jobs?ticketId=${taskId}&limit=1`)).json();
+  return String(body?.jobs?.[0]?.jobId ?? body?.data?.jobs?.[0]?.jobId);
 }
 
 /** A space whose repository doesn't exist, so every run fails to clone it. */
@@ -47,14 +53,13 @@ test("an agent failure invites a retry instead of a setup fix", async ({
 
   await openRun(page, workspace.projectSlug, jobId, "Agent failed");
   await expect(page.getByText("The agent stopped with an error before finishing.")).toBeVisible();
-  // The run's card offers a retry, not a setup fix (the task page's readiness banner is separate).
+  // The task offers a retry, not a setup fix (the task page's readiness banner is separate).
   await expect(page.getByRole("region", { name: "The research failed" }).getByRole("link", { name: /^(Fix|Check)/ })).toHaveCount(0);
 
-  // Trying again starts a new run straight from the run page, and opens it.
-  await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page).not.toHaveURL(new RegExp(jobId));
-  await expect(page).toHaveURL(/run=job_/);
-  const retryJobId = shownRunId(page.url());
+  // Trying again is offered in the task's thread: it asks the agent again, in a new run.
+  await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => latestRunId(adminApi, task.id)).not.toBe(jobId);
+  const retryJobId = await latestRunId(adminApi, task.id);
   await expect.poll(() => runStatus(adminApi, retryJobId), { timeout: 90_000 }).toBe("failed");
 
   // The Runs list says why, and so does the phase.
@@ -64,16 +69,20 @@ test("an agent failure invites a retry instead of a setup fix", async ({
   await expect(page.getByRole("tab", { name: /^Research/ })).toContainText("Failed");
 });
 
-test("an agent that writes no document is told apart from other failures", async ({
+test("an agent asked for the research that writes none has answered instead, which isn't a failure", async ({
   adminApi,
   adminPage: page,
   workspace,
 }) => {
   const task = await createTask(adminApi, workspace.projectId, "Forget the notes. [fake:no-document]");
   const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
-  await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
+  await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
 
-  await openRun(page, workspace.projectSlug, jobId, "No document written");
+  await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
+  const thread = page.getByRole("region", { name: "Thread" });
+  await expect(thread.getByRole("listitem", { name: "Fake Agent's turn" })).toContainText("Answering");
+  await expect(thread.getByText("Research v1")).toHaveCount(0);
+  await expect(thread.getByRole("button", { name: "Write the research" })).toBeVisible();
 });
 
 test("a setup failure sends admins to the fix and tells members an admin is needed", async ({

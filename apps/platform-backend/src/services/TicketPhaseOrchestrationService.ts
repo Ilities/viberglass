@@ -4,9 +4,8 @@ import type { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentService } from "./TicketPhaseDocumentService";
 import type { TicketWorkflowService } from "./TicketWorkflowService";
 import type { TicketPlanningApprovalService } from "./TicketPlanningApprovalService";
-import type { TicketResearchService } from "./TicketResearchService";
-import type { TicketPlanningService } from "./TicketPlanningService";
-import type { TicketExecutionService } from "./TicketExecutionService";
+import type { TaskTurnService } from "./taskTurns/TaskTurnService";
+import { ACTION_FOR_PHASE } from "./taskTurns/turnActions";
 import type { TicketResearchApprovalService } from "./approvals/TicketResearchApprovalService";
 import {
   TicketServiceError,
@@ -43,9 +42,7 @@ export class TicketPhaseOrchestrationService {
     private readonly workflowService: Pick<TicketWorkflowService, "setPhase">,
     private readonly planningApprovalService: Pick<TicketPlanningApprovalService, "approve">,
     private readonly researchApprovalService: Pick<TicketResearchApprovalService, "approve">,
-    private readonly researchService: Pick<TicketResearchService, "runResearch">,
-    private readonly planningService: Pick<TicketPlanningService, "runPlanning">,
-    private readonly executionService: Pick<TicketExecutionService, "runTicket">,
+    private readonly turns: Pick<TaskTurnService, "ask">,
   ) {}
 
   async advanceAndRun(
@@ -53,18 +50,12 @@ export class TicketPhaseOrchestrationService {
   ): Promise<AdvanceAndRunResult> {
     const { ticketId, clankerId, targetPhase, actorId } = params;
     await this.approveUpTo(ticketId, targetPhase, actorId);
-
-    if (targetPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
-      await this.workflowService.setPhase(ticketId, TICKET_WORKFLOW_PHASE.RESEARCH);
-      return this.researchService.runResearch(ticketId, { clankerId });
+    if (targetPhase !== TICKET_WORKFLOW_PHASE.EXECUTION) {
+      await this.workflowService.setPhase(ticketId, targetPhase);
     }
-
-    if (targetPhase === TICKET_WORKFLOW_PHASE.PLANNING) {
-      await this.workflowService.setPhase(ticketId, TICKET_WORKFLOW_PHASE.PLANNING);
-      return this.planningService.runPlanning(ticketId, { clankerId });
-    }
-
-    return this.executionService.runTicket(ticketId, { clankerId });
+    const asked = await this.turns.ask(ticketId, actorId, { message: "", action: ACTION_FOR_PHASE[targetPhase], agentId: clankerId });
+    if (!asked.job.id) throw new Error("The agent's turn has no run yet");
+    return { jobId: asked.job.id, status: asked.job.status };
   }
 
   /**

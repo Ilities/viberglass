@@ -2,7 +2,7 @@ import { API_BASE_URL } from '@/lib'
 import type { ApiResponse, BuildPullRequest, Ticket } from '@viberglass/types'
 import { apiFetch } from './client'
 
-export type { BuildChangeRequest, BuildPullRequest, PullRequestReviewComment } from '@viberglass/types'
+export type { BuildPullRequest, PullRequestReviewComment } from '@viberglass/types'
 
 async function failure(response: Response, fallback: string): Promise<Error> {
   const body = await response.json().catch(() => ({}))

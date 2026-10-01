@@ -8,9 +8,7 @@ import { TicketWorkflowService } from "../services/TicketWorkflowService";
 import { TicketPhaseDocumentCommentService } from "../services/TicketPhaseDocumentCommentService";
 import { TicketPlanningApprovalService } from "../services/TicketPlanningApprovalService";
 import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
-import { TicketResearchService } from "../services/TicketResearchService";
-import { TicketPlanningService } from "../services/TicketPlanningService";
-import { TicketExecutionService } from "../services/TicketExecutionService";
+import { TaskTurnService } from "../services/taskTurns/TaskTurnService";
 import { getFeedbackService } from "../webhooks/webhookServiceFactory";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import logger from "../config/logger";
@@ -34,9 +32,6 @@ const commentService = new TicketPhaseDocumentCommentService();
 const planningApprovalService = new TicketPlanningApprovalService(
   feedbackService,
 );
-const researchService = new TicketResearchService();
-const planningService = new TicketPlanningService();
-const executionService = new TicketExecutionService();
 
 const researchApprovalService = new TicketResearchApprovalService();
 const approvalRequestService = new StepApprovalRequestService();
@@ -46,9 +41,7 @@ const orchestrationService = new TicketPhaseOrchestrationService(
   workflowService,
   planningApprovalService,
   researchApprovalService,
-  researchService,
-  planningService,
-  executionService,
+  new TaskTurnService(),
 );
 
 /** MCP runs as the API token's user, set as the request's actor. */

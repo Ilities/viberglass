@@ -28,8 +28,8 @@ const mockFileUploadService = {
   generateSignedUrlFromStorageUrl: jest.fn(),
   getMediaContentUrl: jest.fn(),
 };
-const mockTicketExecutionService = {
-  runTicket: jest.fn(),
+const mockTaskTurnService = {
+  ask: jest.fn(),
 };
 const mockTicketPlanningApprovalService = {
   approve: jest.fn(),
@@ -95,8 +95,8 @@ jest.mock("../../../../services/FileUploadService", () => ({
   },
 }));
 
-jest.mock("../../../../services/TicketExecutionService", () => ({
-  TicketExecutionService: jest.fn(() => mockTicketExecutionService),
+jest.mock("../../../../services/taskTurns/TaskTurnService", () => ({
+  TaskTurnService: jest.fn(() => mockTaskTurnService),
 }));
 
 jest.mock("../../../../services/TicketPlanningApprovalService", () => ({
@@ -232,24 +232,6 @@ describe("ticket workflow routes", () => {
       .expect(400);
 
     expect(response.body).toEqual({ error: "Invalid workflow phase" });
-  });
-
-  it("returns 409 when execution is blocked by planning approval", async () => {
-    mockTicketExecutionService.runTicket.mockRejectedValue(
-      new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.EXECUTION_BLOCKED_UNAPPROVED_PLAN,
-        "Execution is blocked until the planning document is approved",
-      ),
-    );
-
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/run`)
-      .send({ clankerId: "22222222-2222-4222-8222-222222222222" })
-      .expect(409);
-
-    expect(response.body.message).toBe(
-      "Execution is blocked until the planning document is approved",
-    );
   });
 
   it("overrides the workflow to execution and returns the updated ticket", async () => {

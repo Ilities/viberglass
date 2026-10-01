@@ -7,12 +7,12 @@ import {
 import { isWorkerContainerRunning } from "../../playwright/workerContainers";
 import { expect, test } from "../../playwright/smokeFixtures";
 
-test("a message queued during a live turn reaches the agent before the session completes", async ({
+test("a message queued during a live turn reaches the agent in its next turn", async ({
   adminApi,
   adminPage: page,
   workspace,
 }) => {
-  const note = "PM NOTE: cover the greeting function";
+  const note = "PM NOTE: cover the greeting function in RESEARCH.md";
   // Each turn sleeps, leaving time to queue a message while the agent works.
   const task = await createTask(adminApi, workspace.projectId, "Research carefully. [fake:sleep=8]");
   const { sessionId, jobId } = await startLiveResearchSession(
@@ -32,10 +32,10 @@ test("a message queued during a live turn reaches the agent before the session c
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByText("Queued").first()).toBeVisible();
 
-  // The first turn ends, a follow-up turn delivers the note, then the session completes.
-  await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 90_000 }).toBe("completed");
-  expect(await researchDocument(adminApi, task.id)).toContain(note);
+  // The first turn ends, a follow-up turn delivers the note, then the session waits on people.
+  await expect.poll(() => researchDocument(adminApi, task.id), { timeout: 90_000 }).toContain(note);
+  await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 30_000 }).toBe("waiting_on_user");
 
   await page.reload();
-  await expect(page.getByText("Completed").first()).toBeVisible();
+  await expect(page.getByText("Waiting on you").first()).toBeVisible();
 });

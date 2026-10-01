@@ -54,10 +54,10 @@ export function decideRunNextStep({ job, newerRunId, taskPhase, document }: RunN
       ? { kind: 'review_plan', preview: documentPreview(content) }
       : { kind: 'moved_on', phase: 'planning' }
   }
-  // A turn that didn't settle the phase: the conversation carries on in its session.
-  if (job.agentSessionId) return { kind: 'session', sessionId: job.agentSessionId }
   if (job.jobKind === 'execution') {
     return job.result?.pullRequestUrl ? { kind: 'pull_request', url: job.result.pullRequestUrl } : { kind: 'build_done' }
   }
+  // A turn that only answered: the conversation carries on in the task's thread.
+  if (job.agentSessionId) return { kind: 'session', sessionId: job.agentSessionId }
   return { kind: 'done' }
 }

@@ -107,6 +107,7 @@ export type JobContext =
   | { jobKind: "execution"; context: TicketJobContext }
   | { jobKind: "research"; context: ResearchJobContext }
   | { jobKind: "planning"; context: PlanningJobContext }
+  | { jobKind: "reply"; context: TicketJobContext }
   | { jobKind: "claw"; context: ClawJobContext };
 
 // Discriminated union for JobData based on jobKind
@@ -145,6 +146,12 @@ export interface PlanningJobData extends BaseJobData {
   context: PlanningJobContext;
 }
 
+/** A task turn that answers in the thread, or rewrites the document the agent chooses. */
+export interface ReplyJobData extends BaseJobData {
+  jobKind: "reply";
+  context: TicketJobContext;
+}
+
 export interface ClawJobData extends BaseJobData {
   jobKind: "claw";
   context: ClawJobContext;
@@ -154,13 +161,13 @@ export type JobData =
   | TicketJobData
   | ResearchJobData
   | PlanningJobData
+  | ReplyJobData
   | ClawJobData;
 
 export interface JobResult {
   success: boolean;
   branch?: string;
   pullRequestUrl?: string;
-  documentContent?: string;
   changedFiles: string[];
   executionTime: number;
   errorMessage?: string;

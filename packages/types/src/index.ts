@@ -72,6 +72,7 @@ export * from './notification'
 export * from './approvalPolicy'
 export * from './taskChangePolicy'
 export * from './taskTimeline'
+export * from './taskTurn'
 
 // Where a comment sits in a document
 export * from './documentAnchor'

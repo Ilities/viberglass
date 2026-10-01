@@ -1,3 +1,4 @@
+import { isObjectRecord } from "@viberglass/types";
 import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database, JsonValue } from "../types/database";
@@ -102,6 +103,21 @@ export class AgentSessionEventDAO {
 
     const rows = await query.orderBy("sequence", "asc").execute();
     return rows.map((row) => this.mapRow(row));
+  }
+
+  /** What the agent said in a turn, in the order it streamed. */
+  async listAssistantTextByTurn(turnId: string): Promise<string[]> {
+    const rows = await db
+      .selectFrom("agent_session_events")
+      .select("payload_json")
+      .where("turn_id", "=", turnId)
+      .where("event_type", "=", "assistant_message")
+      .orderBy("sequence", "asc")
+      .execute();
+    return rows.flatMap((row) => {
+      const payload = row.payload_json;
+      return isObjectRecord(payload) && typeof payload.text === "string" ? [payload.text] : [];
+    });
   }
 
   async getMaxSequence(sessionId: string): Promise<number> {

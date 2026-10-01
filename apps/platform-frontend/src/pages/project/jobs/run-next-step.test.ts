@@ -50,11 +50,21 @@ describe('decideRunNextStep', () => {
     })
   })
 
-  it('asks for a review when a session turn wrote the document, and sends other turns to their session', () => {
+  it('asks for a review when a turn wrote the document, and says other turns answered', () => {
     expect(decideRunNextStep(input({ agentSessionId: 'sess-1' })).kind).toBe('review_research')
 
     const noDocument = input({ agentSessionId: 'sess-1' }, { document: { content: '', approvalState: 'draft' } })
     expect(decideRunNextStep(noDocument)).toEqual({ kind: 'session', sessionId: 'sess-1' })
+    const reply = input({ agentSessionId: 'sess-1', jobKind: 'reply' }, { document: null })
+    expect(decideRunNextStep(reply)).toEqual({ kind: 'session', sessionId: 'sess-1' })
+  })
+
+  it('points a build turn at its pull request', () => {
+    const build = input(
+      { agentSessionId: 'sess-1', jobKind: 'execution', result: { success: true, pullRequestUrl: 'https://github.com/a/b/pull/1' } },
+      { document: null, taskPhase: 'execution' },
+    )
+    expect(decideRunNextStep(build)).toEqual({ kind: 'pull_request', url: 'https://github.com/a/b/pull/1' })
   })
 
   it('reports failure before anything else about a finished run', () => {

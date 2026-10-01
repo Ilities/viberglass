@@ -47,8 +47,8 @@ test("a task says whose move it is at the top and makes the move: research, then
   await expect(page.getByRole("heading", { name: "The plan is ready for your review" })).toBeVisible();
   await page.getByRole("button", { name: "Approve plan" }).click();
 
-  // The build pushes code, so it starts only when asked, through the dialog that says where it goes.
-  await expect(page.getByRole("heading", { name: "Start the build" })).toBeVisible();
+  // The build pushes code, so it starts only when someone asks the agent for it.
+  await expect(page.getByRole("heading", { name: "Ask the agent to build it" })).toBeVisible();
   await expect.poll(() => taskPhase(adminApi, task.id)).toBe("execution");
-  await expect(page.getByRole("button", { name: "Start the build" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Build it" })).toBeVisible();
 });

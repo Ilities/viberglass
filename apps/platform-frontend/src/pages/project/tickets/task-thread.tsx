@@ -7,8 +7,11 @@ import { getTaskTimeline } from '@/service/api/discussion-api'
 import type { TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { describeActivity } from './activity-sentence'
+import { AgentTurnEntry } from './agent-turn-entry'
 import { MessageBody } from './message-body'
-import { TaskComposer } from './task-composer'
+import { TaskComposer, type Mentionable } from './task-composer'
+import { TaskSuggestedActions } from './task-suggested-actions'
+import { suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
 
 const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { research: 'Research', plan: 'Plan' }
 const ARTIFACT_STEP: Record<TaskArtifactKind, 'research' | 'planning'> = { research: 'research', plan: 'planning' }
@@ -20,6 +23,14 @@ interface TaskThreadProps {
   /** Changes whenever the task's runs, sessions or documents do, so the thread follows them. */
   refreshKey: string
   onOpenArtifact: (step: 'research' | 'planning') => void
+  /** The agents a message can ask, the one already on the task first. */
+  agents: Mentionable[]
+  /** What the suggested actions are worked out from; the latest turn comes from the thread. */
+  suggestionInput: Omit<TaskSuggestionInput, 'latestTurn'>
+  /** Whether the person may ask the agent (admins and members). */
+  canAsk: boolean
+  /** The page reloads after an ask, to show the agent working. */
+  onAsked: () => void
 }
 
 function MessageEntry({ entry, project }: { entry: Extract<TaskTimelineEntry, { kind: 'message' }>; project: string }) {
@@ -71,8 +82,8 @@ function EventEntry({ entry, nameOf }: { entry: Extract<TaskTimelineEntry, { kin
   )
 }
 
-/** The task's one thread (ADR 0008): what people said, each document version, and what happened, in order. */
-export function TaskThread({ taskId, project, refreshKey, onOpenArtifact }: TaskThreadProps) {
+/** The task's one thread (ADR 0008): what people and the agent said, each document version, and what happened, in order. */
+export function TaskThread({ taskId, project, refreshKey, onOpenArtifact, agents, suggestionInput, canAsk, onAsked }: TaskThreadProps) {
   const { user } = useAuth()
   const personName = usePersonName()
   const [entries, setEntries] = useState<TaskTimelineEntry[] | null>(null)
@@ -90,6 +101,13 @@ export function TaskThread({ taskId, project, refreshKey, onOpenArtifact }: Task
   if (!entries) return null
   const shown = messagesOnly ? entries.filter((entry) => entry.kind !== 'event') : entries
   const nameOf = (id: string) => personName(id) ?? 'someone'
+  const latestTurn = entries.findLast((entry): entry is Extract<TaskTimelineEntry, { kind: 'agent_turn' }> => entry.kind === 'agent_turn') ?? null
+  const agentWorking = suggestionInput.agentWorking || latestTurn?.status === 'queued' || latestTurn?.status === 'running'
+  const suggestions = suggestTaskActions({ ...suggestionInput, agentWorking, latestTurn })
+  const posted = () => {
+    load()
+    onAsked()
+  }
 
   return (
     <section aria-label="Thread" className="space-y-5">
@@ -102,12 +120,14 @@ export function TaskThread({ taskId, project, refreshKey, onOpenArtifact }: Task
       </div>
 
       {shown.length === 0 ? (
-        <p className="text-sm text-[var(--gray-10)]">Nothing here yet. Ask a question or bring someone in with @.</p>
+        <p className="text-sm text-[var(--gray-10)]">Nothing here yet. Ask the agent, or bring someone in with @.</p>
       ) : (
         <ol className="space-y-4">
           {shown.map((entry) =>
             entry.kind === 'message' ? (
               <MessageEntry key={entry.id} entry={entry} project={project} />
+            ) : entry.kind === 'agent_turn' ? (
+              <AgentTurnEntry key={entry.id} entry={entry} project={project} />
             ) : entry.kind === 'artifact_version' ? (
               <VersionEntry key={entry.id} entry={entry} onOpen={() => onOpenArtifact(ARTIFACT_STEP[entry.artifact])} />
             ) : (
@@ -117,7 +137,8 @@ export function TaskThread({ taskId, project, refreshKey, onOpenArtifact }: Task
         </ol>
       )}
 
-      {canWrite && <TaskComposer taskId={taskId} onPosted={load} />}
+      {canAsk && <TaskSuggestedActions taskId={taskId} suggestions={suggestions} agentWorking={agentWorking} onAsked={posted} />}
+      {canWrite && <TaskComposer taskId={taskId} agents={canAsk ? agents : []} onPosted={posted} />}
     </section>
   )
 }

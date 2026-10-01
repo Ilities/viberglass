@@ -5,7 +5,7 @@ import type { PlatformSessionEvent } from "../src/acp/types";
 
 const AGENT_SCRIPT = path.join(process.cwd(), "test", "fixtures", "resumingAgent.cjs");
 
-async function runTurn(env: Record<string, string>, acpSessionId?: string) {
+async function runTurn(env: Record<string, string>, acpSessionId?: string, coldStartMessage?: string) {
   const events: PlatformSessionEvent[] = [];
   const client = new AcpClient(
     [process.execPath, AGENT_SCRIPT],
@@ -15,7 +15,7 @@ async function runTurn(env: Record<string, string>, acpSessionId?: string) {
     createLogger({ transports: [new transports.Console({ silent: true })] }),
     10_000,
   );
-  const result = await client.run({ userMessage: "Carry on", acpSessionId });
+  const result = await client.run({ userMessage: "Carry on", acpSessionId, coldStartMessage });
   const replies = events.filter((event) => event.eventType === "assistant_message").map((event) => String(event.payload.text));
   const progress = events.filter((event) => event.eventType === "progress").map((event) => String(event.payload.text));
   return { result, replies, progress };
@@ -64,5 +64,28 @@ describe("AcpClient sessions", () => {
     expect(result.sessionStart).toEqual({ resumed: false, reason: "failed", detail: "service failure" });
     expect(result.acpSessionId).toBe("sess_new");
     expect(replies).toEqual(["calls: initialize session/load session/prompt session/new session/prompt"]);
+  });
+
+  describe("with a prompt for a cold start", () => {
+    const COLD = "The task so far, then: Carry on";
+
+    it("sends a continued session only the turn", async () => {
+      const { replies } = await runTurn({ AGENT_SUPPORTS: "resume", AGENT_KNOWS: "sess_old", AGENT_ECHO_PROMPT: "1" }, "sess_old", COLD);
+      expect(replies).toEqual(["calls: initialize session/resume session/prompt | Carry on"]);
+    });
+
+    it("sends a session that couldn't continue the task so far", async () => {
+      const { replies } = await runTurn({ AGENT_SUPPORTS: "", AGENT_ECHO_PROMPT: "1" }, "sess_old", COLD);
+      expect(replies).toEqual([`calls: initialize session/new session/prompt | ${COLD}`]);
+    });
+
+    it("sends it again when a continued session fails its first prompt and starts over", async () => {
+      const { replies } = await runTurn(
+        { AGENT_SUPPORTS: "load", AGENT_KNOWS: "sess_old", AGENT_FAIL_FIRST_PROMPT: "1", AGENT_ECHO_PROMPT: "1" },
+        "sess_old",
+        COLD,
+      );
+      expect(replies).toEqual([`calls: initialize session/load session/prompt session/new session/prompt | ${COLD}`]);
+    });
   });
 });

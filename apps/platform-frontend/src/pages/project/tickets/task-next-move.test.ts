@@ -9,7 +9,7 @@ function input(overrides: Partial<TaskNextMoveInput> = {}): TaskNextMoveInput {
     ticket: { workflowPhase: 'research', status: 'open', pullRequestUrl: undefined },
     runs: [],
     documents: {},
-    activeSession: undefined,
+    workingSession: undefined,
     ...overrides,
   }
 }
@@ -19,18 +19,21 @@ describe('decideTaskNextMove', () => {
     expect(decideTaskNextMove(input())).toEqual({ kind: 'start', step: 'research' })
   })
 
-  it('leaves the move with the agent while a run or live session is working', () => {
+  it('leaves the move with the agent while a run or a session turn is working', () => {
     expect(decideTaskNextMove(input({ runs: [run('research', 'active', 'job-1')] }))).toEqual({
       kind: 'working', step: 'research', runId: 'job-1', sessionId: null,
     })
-    expect(decideTaskNextMove(input({ activeSession: { id: 'sess-1', status: 'active' } }))).toEqual({
+    expect(decideTaskNextMove(input({ workingSession: { id: 'sess-1' } }))).toEqual({
       kind: 'working', step: 'research', runId: null, sessionId: 'sess-1',
     })
   })
 
-  it('sends the person to a live session that is waiting on them', () => {
-    expect(decideTaskNextMove(input({ activeSession: { id: 'sess-1', status: 'waiting_on_user' } }))).toEqual({
-      kind: 'reply_in_session', step: 'research', sessionId: 'sess-1',
+  it("counts any running turn as the agent's move: a plan written early, or a reply", () => {
+    expect(decideTaskNextMove(input({ runs: [run('planning', 'queued', 'job-p')] }))).toEqual({
+      kind: 'working', step: 'planning', runId: 'job-p', sessionId: null,
+    })
+    expect(decideTaskNextMove(input({ runs: [run('reply', 'active', 'job-r')] }))).toEqual({
+      kind: 'working', step: 'research', runId: 'job-r', sessionId: null,
     })
   })
 

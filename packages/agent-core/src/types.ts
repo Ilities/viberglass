@@ -87,6 +87,8 @@ export interface ExecutionContext {
   // ACP interactive session fields
   agentSessionId?: string;
   acpSessionId?: string;
+  /** The prompt for a turn that can't continue its session and starts cold. */
+  coldStartPrompt?: string;
   onAcpEvent?: (event: PlatformSessionEvent) => void;
 }
 

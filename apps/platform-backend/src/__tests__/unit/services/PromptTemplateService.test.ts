@@ -28,7 +28,7 @@ function makeService(template: string): {
 async function render(
   template: string,
   vars: Record<string, string | undefined> = {},
-  type: PromptType = "ticket_research",
+  type: PromptType = "task_turn",
   projectId = "proj-1",
 ): Promise<string> {
   const { service } = makeService(template);
@@ -180,16 +180,16 @@ describe("PromptTemplateService — rendering engine", () => {
 describe("PromptTemplateService — DAO delegation", () => {
   it("calls getEffectiveTemplate with the correct type and projectId", async () => {
     const { service, dao } = makeService("hello");
-    await service.render("ticket_developing", "proj-abc", {});
+    await service.render("task_turn_cold_start", "proj-abc", {});
     expect(dao.getEffectiveTemplate).toHaveBeenCalledWith(
-      "ticket_developing",
+      "task_turn_cold_start",
       "proj-abc",
     );
   });
 
   it("returns the rendered result of the template returned by DAO", async () => {
     const { service } = makeService("Title: {{ticketTitle}}");
-    const result = await service.render("ticket_research", "proj-1", {
+    const result = await service.render("task_turn", "proj-1", {
       ticketTitle: "Fix the bug",
     });
     expect(result).toBe("Title: Fix the bug");
@@ -212,9 +212,9 @@ describe("PromptTemplateService — DAO delegation", () => {
   it("delegates setSystemDefault to DAO", async () => {
     const { service, dao } = makeService("");
     (dao.setSystemDefault as jest.Mock).mockResolvedValue(undefined);
-    await service.setSystemDefault("ticket_research", "new template");
+    await service.setSystemDefault("task_turn", "new template");
     expect(dao.setSystemDefault).toHaveBeenCalledWith(
-      "ticket_research",
+      "task_turn",
       "new template",
     );
   });
@@ -222,10 +222,10 @@ describe("PromptTemplateService — DAO delegation", () => {
   it("delegates setProjectTemplate to DAO", async () => {
     const { service, dao } = makeService("");
     (dao.setProjectTemplate as jest.Mock).mockResolvedValue(undefined);
-    await service.setProjectTemplate("proj-1", "ticket_developing", "tmpl");
+    await service.setProjectTemplate("proj-1", "task_turn_cold_start", "tmpl");
     expect(dao.setProjectTemplate).toHaveBeenCalledWith(
       "proj-1",
-      "ticket_developing",
+      "task_turn_cold_start",
       "tmpl",
     );
   });
@@ -233,10 +233,10 @@ describe("PromptTemplateService — DAO delegation", () => {
   it("delegates deleteProjectTemplate to DAO", async () => {
     const { service, dao } = makeService("");
     (dao.deleteProjectTemplate as jest.Mock).mockResolvedValue(undefined);
-    await service.deleteProjectTemplate("proj-1", "ticket_developing");
+    await service.deleteProjectTemplate("proj-1", "task_turn_cold_start");
     expect(dao.deleteProjectTemplate).toHaveBeenCalledWith(
       "proj-1",
-      "ticket_developing",
+      "task_turn_cold_start",
     );
   });
 });

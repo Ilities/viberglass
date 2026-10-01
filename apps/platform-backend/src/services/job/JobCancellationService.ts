@@ -32,45 +32,37 @@ export class JobCancellationService {
     private readonly activity: Pick<TaskActivityRecorder, "record"> = new TaskActivityRecorder(),
   ) {}
 
-  /** Cancels a run, stops its worker, and cancels the live session it belongs to. */
+  /**
+   * Cancels a run and stops its worker. A run that was a turn of the task's
+   * conversation ends that turn; the session stays, waiting on people.
+   */
   async cancel(jobId: string, cancelledBy?: string): Promise<CancelJobResult> {
-    const job = await db
-      .selectFrom("jobs")
-      .select(["status", "agent_session_id", "agent_turn_id"])
-      .where("id", "=", jobId)
-      .executeTakeFirst();
+    const job = await this.getJob(jobId);
     if (!job) return "not_found";
 
     const result = await this.stopJob(jobId);
     if (result !== "cancelled") return result;
 
-    const ticketId = (await this.getJob(jobId))?.ticket_id;
-    if (ticketId) {
-      await this.activity.record(ticketId, cancelledBy ? { type: "human", userId: cancelledBy } : { type: "system" }, "run_cancelled", {
+    if (job.ticket_id) {
+      await this.activity.record(job.ticket_id, cancelledBy ? { type: "human", userId: cancelledBy } : { type: "system" }, "run_cancelled", {
         jobId,
       });
     }
 
-    if (job.agent_turn_id) {
-      await this.turnDAO.update(job.agent_turn_id, {
-        status: AGENT_TURN_STATUS.CANCELLED,
+    const turn = await this.turnDAO.getByJobId(jobId);
+    if (!turn) return "cancelled";
+    await this.turnDAO.update(turn.id, { status: AGENT_TURN_STATUS.CANCELLED, completedAt: new Date() });
+    const session = await this.sessionDAO.getById(turn.sessionId);
+    if (session?.status === AGENT_SESSION_STATUS.ACTIVE) {
+      const sequence = await this.eventDAO.getMaxSequence(session.id);
+      await this.eventDAO.create({
+        sessionId: session.id,
+        turnId: turn.id,
+        sequence: sequence + 1,
+        eventType: AGENT_SESSION_EVENT_TYPE.TURN_FAILED,
+        payloadJson: { reason: "Cancelled", cancelledBy: cancelledBy ?? null, jobId },
       });
-    }
-    if (job.agent_session_id) {
-      const session = await this.sessionDAO.getById(job.agent_session_id);
-      if (session && session.status !== AGENT_SESSION_STATUS.CANCELLED) {
-        const sequence = await this.eventDAO.getMaxSequence(session.id);
-        await this.eventDAO.create({
-          sessionId: session.id,
-          sequence: sequence + 1,
-          eventType: AGENT_SESSION_EVENT_TYPE.SESSION_CANCELLED,
-          payloadJson: { cancelledBy: cancelledBy ?? null, jobId },
-        });
-        await this.sessionDAO.update(session.id, {
-          status: AGENT_SESSION_STATUS.CANCELLED,
-          completedAt: new Date(),
-        });
-      }
+      await this.sessionDAO.update(session.id, { status: AGENT_SESSION_STATUS.WAITING_ON_USER });
     }
     return "cancelled";
   }

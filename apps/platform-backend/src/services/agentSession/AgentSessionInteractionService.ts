@@ -22,7 +22,6 @@ import {
   type ReplyResult,
 } from "./SessionTurnContinuationService";
 import { agentSessionMutex } from "./AgentSessionMutex";
-import type { SessionJobStopper } from "./SessionJobStopper";
 
 export type { ReplyResult };
 export type ApproveResult = ReplyResult | { cancelled: true };
@@ -34,7 +33,6 @@ export class AgentSessionInteractionService {
     private readonly agentSessionEventDAO: AgentSessionEventDAO,
     private readonly agentPendingRequestDAO: AgentPendingRequestDAO,
     private readonly turnContinuationService: SessionTurnContinuationService,
-    private readonly jobStopper: SessionJobStopper,
   ) {}
 
   async reply(
@@ -91,14 +89,11 @@ export class AgentSessionInteractionService {
       );
     }
 
-    const [lastTurn, maxSeq] = await Promise.all([
-      session.lastTurnId
-        ? this.agentTurnDAO.getById(session.lastTurnId)
-        : Promise.resolve(null),
+    const [nextUserSeq, maxSeq] = await Promise.all([
+      this.agentTurnDAO.nextSequence(sessionId),
       this.agentSessionEventDAO.getMaxSequence(sessionId),
     ]);
 
-    const nextUserSeq = (lastTurn?.sequence ?? 0) + 1;
     const userTurn = await this.agentTurnDAO.create({
       sessionId,
       role: AGENT_TURN_ROLE.USER,
@@ -164,14 +159,11 @@ export class AgentSessionInteractionService {
     // Multiplayer attribution: the agent (and transcript) see who said what
     const content = userName ? `[${userName}]: ${messageText}` : messageText;
 
-    const [lastTurn, maxSeq] = await Promise.all([
-      session.lastTurnId
-        ? this.agentTurnDAO.getById(session.lastTurnId)
-        : Promise.resolve(null),
+    const [nextUserSeq, maxSeq] = await Promise.all([
+      this.agentTurnDAO.nextSequence(sessionId),
       this.agentSessionEventDAO.getMaxSequence(sessionId),
     ]);
 
-    const nextUserSeq = (lastTurn?.sequence ?? 0) + 1;
     const userTurn = await this.agentTurnDAO.create({
       sessionId,
       role: AGENT_TURN_ROLE.USER,
@@ -256,10 +248,8 @@ export class AgentSessionInteractionService {
       );
     }
 
-    const [lastTurn, maxSeq] = await Promise.all([
-      session.lastTurnId
-        ? this.agentTurnDAO.getById(session.lastTurnId)
-        : Promise.resolve(null),
+    const [nextUserSeq, maxSeq] = await Promise.all([
+      this.agentTurnDAO.nextSequence(sessionId),
       this.agentSessionEventDAO.getMaxSequence(sessionId),
     ]);
 
@@ -297,7 +287,6 @@ export class AgentSessionInteractionService {
       return { cancelled: true };
     }
 
-    const nextUserSeq = (lastTurn?.sequence ?? 0) + 1;
     const userTurn = await this.agentTurnDAO.create({
       sessionId,
       role: AGENT_TURN_ROLE.USER,
@@ -316,62 +305,6 @@ export class AgentSessionInteractionService {
     });
 
     return this.launchPending(session, { clearPendingRequest: true });
-  }
-
-  async cancel(sessionId: string, userId?: string): Promise<void> {
-    return agentSessionMutex.runExclusive(sessionId, () =>
-      this.cancelExclusive(sessionId, userId),
-    );
-  }
-
-  private async cancelExclusive(
-    sessionId: string,
-    userId?: string,
-  ): Promise<void> {
-    const session = await this.agentSessionDAO.getById(sessionId);
-    if (!session) {
-      throw new AgentSessionServiceError(
-        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_FOUND,
-        "Session not found",
-      );
-    }
-
-    const TERMINAL_STATUSES = new Set<AgentSessionStatus>([
-      AGENT_SESSION_STATUS.COMPLETED,
-      AGENT_SESSION_STATUS.FAILED,
-      AGENT_SESSION_STATUS.CANCELLED,
-    ]);
-    if (TERMINAL_STATUSES.has(session.status)) {
-      throw new AgentSessionServiceError(
-        AGENT_SESSION_SERVICE_ERROR_CODE.SESSION_NOT_IN_EXPECTED_STATE,
-        "Session is already in a terminal state",
-      );
-    }
-
-    // Stop the worker first; otherwise it keeps running and can report a
-    // result for a session the user already cancelled.
-    if (session.lastJobId) {
-      await this.jobStopper.stopJob(session.lastJobId);
-    }
-
-    if (session.lastTurnId) {
-      await this.agentTurnDAO.update(session.lastTurnId, {
-        status: AGENT_TURN_STATUS.CANCELLED,
-      });
-    }
-
-    const maxSeq = await this.agentSessionEventDAO.getMaxSequence(sessionId);
-    await this.agentSessionEventDAO.create({
-      sessionId,
-      sequence: maxSeq + 1,
-      eventType: AGENT_SESSION_EVENT_TYPE.SESSION_CANCELLED,
-      payloadJson: { cancelledBy: userId ?? null },
-    });
-
-    await this.agentSessionDAO.update(sessionId, {
-      status: AGENT_SESSION_STATUS.CANCELLED,
-      completedAt: new Date(),
-    });
   }
 
   private async launchPending(
