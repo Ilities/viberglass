@@ -56,10 +56,10 @@ curl -X POST https://slack.com/api/apps.manifest.create \
 
 1. Create a new app at [api.slack.com/apps](https://api.slack.com/apps) > **From scratch**
 2. **Bot User**: Set display name to "Viberator", enable "Always Online"
-3. **OAuth Scopes** (Bot Token): `commands`, `chat:write`, `chat:write.public`, `channels:read`, `channels:history`, `groups:read`, `groups:history`, `im:read`, `im:history`, `im:write`, `users:read`, `users:read.email`, `files:write` (`im:write` and `users:read.email` let Viberglass DM people who linked their Slack account under Settings → Notifications)
+3. **OAuth Scopes** (Bot Token): `commands`, `app_mentions:read`, `chat:write`, `chat:write.public`, `channels:read`, `channels:history`, `groups:read`, `groups:history`, `im:read`, `im:history`, `im:write`, `users:read`, `users:read.email`, `files:write` (`im:write` and `users:read.email` let Viberglass DM people who linked their Slack account under Settings → Notifications)
 4. **Slash Commands**: Create `/viberator` pointing to `https://{host}/api/webhooks/slack`
 5. **Interactivity**: Enable, set Request URL to `https://{host}/api/webhooks/slack`
-6. **Event Subscriptions**: Enable, set Request URL to `https://{host}/api/webhooks/slack`, subscribe to `message.channels` and `message.groups`
+6. **Event Subscriptions**: Enable, set Request URL to `https://{host}/api/webhooks/slack`, subscribe to `app_mention`, `message.channels` and `message.groups`
 7. Install to workspace
 
 ### Collect Credentials
