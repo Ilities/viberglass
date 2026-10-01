@@ -13,6 +13,8 @@ const customJestConfig = {
     '^@viberglass/integration-([a-z-]+)/frontend$': '<rootDir>/../../packages/integrations/integration-$1/src/frontend/index.ts',
   },
   transform: {
+    // The ES-module-only packages the markdown parser is made of.
+    '^.+/node_modules/.+\\.js$': '<rootDir>/jest.esm-transform.cjs',
     '^.+\\.tsx?$': [
       'ts-jest',
       {
@@ -21,6 +23,9 @@ const customJestConfig = {
       },
     ],
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(mdast-util-|micromark|unist-util-|decode-named-character-reference|character-entities|devlop|ccount|escape-string-regexp|markdown-table|zwitch|longest-streak)).+',
+  ],
   testMatch: ['<rootDir>/src/**/*.test.ts', '<rootDir>/src/**/*.test.tsx'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

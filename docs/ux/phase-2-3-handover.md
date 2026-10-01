@@ -1,6 +1,6 @@
 # Handover: Phase 2 (people) and Phase 3 (agent ↔ human)
 
-Status as of 2026-10-01 · Phase 1 is done and confirmed on AWS (Jussi, 2026-09-30); Phase 0's quick wins are done (§5; #17 dropped) · Owner of decisions: Jussi
+Status as of 2026-10-01 · Phase 2 is done and its exit journey passes (§2); Phase 1 is done and confirmed on AWS (Jussi, 2026-09-30); Phase 0's quick wins are done (§5; #17 dropped) · Owner of decisions: Jussi
 
 This is the plan for the next two phases, written for whoever picks them up. For each phase it lists:
 - what the plan asks for;
@@ -312,6 +312,16 @@ The original plan follows.
 
 ### 2.8 Comments on the rendered document (J7)
 
+**Done (2026-10-01).** What landed:
+- **Rendering:** research and plan documents are parsed with `mdast-util-from-markdown` and GFM (tables, task lists, strikethrough, autolinks) and rendered by our own small renderer (`tickets/markdown/markdown-document.tsx`). Raw HTML shows as text and only `http(s)`, `mailto`, relative and `#` links are links, so a document can't inject markup. Every piece of rendered text carries its offsets in the markdown source (`data-src-start`/`data-src-end`). The old line-by-line `DocumentReader` and the line-comment view are gone; `renderInline` stays for the Discussion. Jest runs CommonJS, so the parser's ES modules go through a small esbuild transform (`jest.esm-transform.cjs`).
+- **Anchors** (`documentAnchor.ts` in `@viberglass/types`): a comment stores a W3C text quote (`quote_exact`, `quote_prefix`, `quote_suffix`, migration 081), cut from the markdown source a selection covers (`selectionToSource`). Each read finds the quote again in the document as it reads now (`locateQuote`: context decides between repeats, then nearness to the original line), so a revision or an edit can't strand a comment. A comment whose text is gone is **outdated**: shown on the Comments tab, not lost. The source line stays as a fallback: existing line comments got a quote from their line's text (blank lines keep only the line), and MCP's `task_review_comment` still places comments by line.
+- **Document view:** select text → **Comment** opens a composer under the selection (comment, or *Suggest a change*, which replaces the quoted text when applied). Open comments are highlighted; clicking one shows what was said, with Resolve and Apply suggestion. Viewers read but don't comment. The **Comments** tab lists every comment with the text it's on, outdated ones marked, resolved ones folded.
+- **The agent** gets each open comment with the text it's on ("On “button label** on mobile” (line 5) (by …): …"), from one formatter (`formatCommentsForAgent`) that replaced four copies. "Ask for changes" sends them, as before. Activity says "Tomi commented on the plan: “…”".
+- Verified: backend and frontend unit tests (anchoring and re-anchoring, the renderer, selection mapping); `rendered-document-comments.e2e.test.ts` (comment on bold text in the rendered plan, the highlight survives text added above it, the revision prompt quotes it, and it's outdated once its text is removed); also driven by the Phase 2 exit journey below.
+- **Left for later:** replies to a comment and editing one; a comment spanning text whose source differs from what's shown (escapes, entities) snaps to that text's edges; a quote shown in the composer drops markdown marks (`readableQuote`), but a suggestion's before/after shows the source it replaces.
+
+The original plan follows.
+
 - **Exists:** comments are anchored to markdown **source line numbers** (the service checks the line count), and the documents are shown as source. Rendering them is also recorded as future work.
 - **Design:**
   - Render research and plan documents with the app's markdown renderer (check quick win #7, bold inside list items, while doing it).
@@ -323,6 +333,21 @@ The original plan follows.
 
 ### 2.9 Audit log (J17)
 
+**Done (2026-10-01).** What landed:
+- **Data** (migration 082): append-only `audit_log(actor_id, actor_kind human|system, action, target_type, target_id, details_json, ip, created_at)`, indexed by time, person and area. The actions and their sentences are one list in `@viberglass/types` (`AUDIT_ACTION_TEXT`).
+- **Written three ways, none by hand in a handler:**
+  - **Runs started and cancelled, and approvals,** by an Activity listener (`AuditActivityListener`), so they come from the same call that writes the task's Activity and can't disagree with it. Slack approvals are credited to the linked person (§2.7).
+  - **Connections, secrets, runners, members and roles, invites, and space settings, membership and deletion,** by `auditRequests`: middleware in front of each router with a table of its routes (`auditRules.ts`). After a successful response it records the action, the target (route parameter, or a created thing's `id` from the response), who and from where. Details are listed facts only (a name, a role, which fields changed); request bodies carry passwords and secret values and are never logged.
+  - **Accepting an invite** by `InviteService`, with the new person as the actor, since nobody is signed in yet.
+  - Recording never fails the change: a failed write is logged.
+- **Who and where:** the request-scoped actor (`requestActor`) now carries the IP too (`trust proxy` is already set for the load balancer).
+- **Settings → Advanced → Audit log** (admins; `GET /api/audit-log`, refused for everyone else): newest first, filtered by person and area, "Show older" pages back. Each row reads "Jussi changed someone's workspace role · as viewer".
+- Verified: unit tests (the middleware records successes by route and never a secret value; the listener; the route's filters); `audit-log.e2e.test.ts` (a secret, a role change and an approval appear; the secret's value isn't in the log; a member gets 403; the page filters by area).
+- **Slack** (added the same day, Jussi): every Slack action that starts or continues a run (the launch form, revisions, approvals and "ship it" chains, live sessions, and replies, messages and tool approvals in them) runs as the person who linked that Slack account (`runAsActor` in `requestActor`, from `asSlackUser` in `chat/index.ts`). Runs, Activity, session events and the audit log credit them, and audit entries add `via: slack` with the Slack user id, so an action from an unlinked account reads "Slack user U123 started a run" instead of "The system". A task created from the Slack launch form has that person as its requester (and so its owner when the space has no default owner), with the Inbox items that brings; the form lists only the spaces that person can see (`SpaceAccessService.visibleProjectIds`; every space for an unlinked account, as before), and creating a task in a space they can't see is still refused, for a form opened before a permission change. Unit-tested; not tried against a real Slack workspace.
+- **Left for later:** API tokens, prompt templates, deployment strategies, sign-ins and space creation aren't recorded; no retention or export; paging is by time, so two entries in the same millisecond could straddle a page.
+
+The original plan follows.
+
 - **Exists:** nothing.
 - **Design:**
   - An append-only `audit_log(actor_id, actor_kind, action, target_type, target_id, details_json, ip, created_at)`, written by a small `AuditRecorder`.
@@ -330,7 +355,9 @@ The original plan follows.
   - An admin page under Settings → Advanced with filters.
   - Task Activity (§2.5) is for everyone working on a task. The audit log is for admins and covers the whole workspace. Where both record the same action, write both from the same call.
 
-**Phase 2 exit test:** a single e2e journey with three people (admin PM, member designer, member reviewer) invited through links:
+**Phase 2 exit test: passing (2026-10-01),** as `phase-2-exit.e2e.test.ts`. A designer and a reviewer are invited by link and accept; the PM (the admin) asks and the agent researches; the PM @mentions the designer, who sees it in their Inbox and replies; the PM approves the research, the agent plans, and the PM asks the reviewer, who gets a review request (and the designer is refused if they try to approve); the reviewer comments on the rendered plan, asks for changes, the agent's revision gets the comment, and the reviewer approves; Activity names each person for each step. The plan as written:
+
+**Phase 2 exit test (plan):** a single e2e journey with three people (admin PM, member designer, member reviewer) invited through links:
 - the PM creates a task;
 - @mentions the designer, who replies;
 - the plan is requested from the reviewer, who comments on the rendered plan, requests a change and then approves;
@@ -504,7 +531,7 @@ From `next-steps-handover.md` §1.3, still relevant here:
   - Replace Gemini CLI with Antigravity CLI.
   - Pinned default models (OpenCode providers, Moonshot) will age.
 - **UI:**
-  - Research and plan documents should render as markdown (with §2.8).
+  - ~~Research and plan documents should render as markdown (with §2.8).~~ Done with §2.8 (2026-10-01).
   - Demo task cards say "3m ago" (tasks are stamped at load time).
   - Slugs drop dots, and the breadcrumb shows the slug instead of the space name (fold into §2.1).
 - **Done (2026-09-30), UI pass:**

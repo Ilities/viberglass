@@ -67,6 +67,7 @@ export function registerModalSubmitHandler(
         title,
         description: message,
         phase: ticketPhase,
+        slackUserId: event.user.userId,
       });
 
       const clanker = (await services.listClankers()).find((c) => c.id === clankerId);
@@ -105,6 +106,7 @@ export function registerModalSubmitHandler(
           ticketId: ticket.id,
           clankerId,
           mode: ticketPhase,
+          slackUserId: event.user.userId,
         });
       } catch (err) {
         const errorMessage = `Failed to launch job: ${err instanceof Error ? err.message : "Unknown error"}`;

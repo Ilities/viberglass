@@ -21,6 +21,7 @@ import setupRouter from "./routes/setup";
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
 import invitesRouter from "./routes/invites";
+import auditLogRouter from "./routes/auditLog";
 import accountLinksRouter from "./routes/accountLinks";
 import inboxRouter from "./routes/inbox";
 import meRouter from "./routes/me";
@@ -43,6 +44,8 @@ import { tracingMiddleware } from "./middleware/tracing";
 import { requireRole } from "./middleware/authentication";
 import { adminOnlyChanges } from "./middleware/adminOnlyChanges";
 import { withRequestActor } from "./auth/requestActor";
+import { auditRequests } from "./middleware/auditRequests";
+import { CONNECTION_AUDIT, INVITE_AUDIT, MEMBER_AUDIT, RUNNER_AUDIT, SECRET_AUDIT, SPACE_AUDIT } from "./middleware/auditRules";
 import { refuseViewerChanges, requireRunnerRole, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
 
 function resolvePublicDirectory(): string {
@@ -180,24 +183,26 @@ app.get("/", (req, res) => {
 });
 
 // API routes
-app.use("/api/spaces", runnerOnlyChanges(), projectsRouter);
+app.use("/api/spaces", runnerOnlyChanges(), auditRequests(SPACE_AUDIT), projectsRouter);
 // Space links stay open: linking an integration is space configuration.
 app.use(
   "/api/integrations",
   adminOnlyChanges({ exemptPathPrefixes: ["/space/"] }),
+  auditRequests(CONNECTION_AUDIT),
   integrationsRouter,
 );
 app.use("/api/tasks", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
-app.use("/api/clankers", adminOnlyChanges(), clankersRouter);
+app.use("/api/clankers", adminOnlyChanges(), auditRequests(RUNNER_AUDIT), clankersRouter);
 app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/run-manifests", requireRole("admin"), runManifestsRouter);
-app.use("/api/secrets", requireRole("admin"), secretsRouter);
+app.use("/api/secrets", requireRole("admin"), auditRequests(SECRET_AUDIT), secretsRouter);
 app.use("/api/setup", requireRole("admin"), setupRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/users", usersRouter);
-app.use("/api/invites", requireRole("admin"), invitesRouter);
+app.use("/api/users", auditRequests(MEMBER_AUDIT), usersRouter);
+app.use("/api/invites", requireRole("admin"), auditRequests(INVITE_AUDIT), invitesRouter);
+app.use("/api/audit-log", requireRole("admin"), auditLogRouter);
 app.use("/api/account-links", accountLinksRouter);
 app.use("/api/inbox", inboxRouter);
 app.use("/api/me", meRouter);

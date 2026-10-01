@@ -1,18 +1,11 @@
 import { render } from '@testing-library/react'
-import { DocumentReader } from './phase-document-comments'
+import { renderInline } from './document-inline'
 
-jest.mock('@/service/api/ticket-api', () => ({}))
-
-function html(content: string) {
-  return render(<DocumentReader content={content} />).container.innerHTML
+function html(text: string) {
+  return render(<p>{renderInline(text)}</p>).container.innerHTML
 }
 
-describe('DocumentReader inline formatting', () => {
-  it('renders bold inside list items', () => {
-    expect(html('- **Risk:** the cache is shared')).toContain('<strong>Risk:</strong> the cache is shared')
-    expect(html('1. **First** step')).toContain('<strong>First</strong> step')
-  })
-
+describe('renderInline', () => {
   it('renders code and italic, and leaves snake_case alone', () => {
     const result = html('Call `load_user` with *care*, not user_id_value')
     expect(result).toContain('>load_user</code>')

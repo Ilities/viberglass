@@ -70,3 +70,9 @@ export * from './notification'
 
 // Who approves each step
 export * from './approvalPolicy'
+
+// Where a comment sits in a document
+export * from './documentAnchor'
+
+// The workspace audit log
+export * from './auditLog'

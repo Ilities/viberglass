@@ -42,26 +42,33 @@ export interface LaunchSessionResult {
  */
 export interface SlackHandlerServices {
   // Data queries for the slash-command form
-  listProjects(): Promise<ProjectSummary[]>;
+  /** The spaces the Slack user's linked account can see; every space for an unlinked account. */
+  listProjects(slackUserId: string): Promise<ProjectSummary[]>;
   listClankers(): Promise<ClankerSummary[]>;
 
   // Ticket + job lifecycle
+  /** The Slack user's linked account, if any, is the task's requester. */
   createTicket(params: {
     projectId: string;
     title: string;
     description: string;
     phase: TicketWorkflowPhase;
+    slackUserId: string;
   }): Promise<{ id: string; projectId: string }>;
+  // Everything that starts or continues a run names the Slack user who did
+  // it, so it's credited to their linked account (or marked as from Slack).
   runJob(params: {
     ticketId: string;
     clankerId: string;
     mode: "research" | "planning" | "execution";
+    slackUserId: string;
   }): Promise<{ jobId: string; status: string }>;
   launchSession(params: {
     ticketId: string;
     clankerId: string;
     mode: AgentSessionMode;
     initialMessage: string;
+    slackUserId: string;
   }): Promise<LaunchSessionResult>;
 
   // Session state queries
@@ -72,9 +79,9 @@ export interface SlackHandlerServices {
   ): SessionAdvanceResult;
 
   // Session interaction
-  replyToSession(sessionId: string, text: string): Promise<void>;
-  sendMessageToSession(sessionId: string, text: string): Promise<void>;
-  approveSession(sessionId: string, approved: boolean): Promise<void>;
+  replyToSession(sessionId: string, text: string, slackUserId: string): Promise<void>;
+  sendMessageToSession(sessionId: string, text: string, slackUserId: string): Promise<void>;
+  approveSession(sessionId: string, approved: boolean, slackUserId: string): Promise<void>;
 
   // Thread ↔ session mapping (adapter-agnostic; backend stamps the adapter name)
   getSessionForThread(threadId: string): Promise<string | undefined>;
@@ -112,6 +119,7 @@ export interface SlackHandlerServices {
     clankerId: string;
     mode: "research" | "planning";
     revisionMessage: string;
+    slackUserId: string;
   }): Promise<{ jobId: string; status: string }>;
   linkTicketThread(ticketId: string, thread: Thread, clankerId: string, mode: string): Promise<void>;
   getTicketForThread(threadId: string): Promise<{ ticketId: string; clankerId: string; mode: string } | undefined>;

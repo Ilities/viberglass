@@ -448,6 +448,18 @@ export interface UserSessionsTable {
   revoked_at: Timestamp | null;
 }
 
+export interface AuditLogTable {
+  id: Generated<string>;
+  actor_id: string | null;
+  actor_kind: "human" | "system";
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  details_json: Generated<Json>;
+  ip: string | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface NotificationsTable {
   id: Generated<string>;
   recipient_id: string;
@@ -559,6 +571,9 @@ export interface TicketPhaseDocumentCommentsTable {
   ticket_id: string;
   phase: "research" | "planning";
   line_number: number;
+  quote_exact: string | null;
+  quote_prefix: string | null;
+  quote_suffix: string | null;
   content: string;
   status: Generated<"open" | "resolved">;
   actor: string | null;
@@ -756,6 +771,7 @@ export interface Database {
   task_message_mentions: TaskMessageMentionsTable;
   task_activity: TaskActivityTable;
   notifications: NotificationsTable;
+  audit_log: AuditLogTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;
   demo_seed_records: DemoSeedRecordsTable;

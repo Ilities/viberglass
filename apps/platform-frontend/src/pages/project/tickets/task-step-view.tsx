@@ -1,23 +1,25 @@
 import { Button } from '@/components/button'
 import { TabButton } from '@/components/tab-button'
+import { useAuth } from '@/context/auth-context'
 import { usePersonName } from '@/hooks/usePeople'
 import { reopenTaskStep } from '@/service/api/build-api'
 import {
-  getPhaseDocumentComments,
   savePlanningDocument,
   saveResearchDocument,
+  type PhaseDocumentCommentResponse,
   type PhaseDocumentResponse,
 } from '@/service/api/ticket-api'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { BuildPullRequestPanel } from './build-pull-request-panel'
-import { DocumentReader, PhaseDocumentComments } from './phase-document-comments'
+import { CommentableDocument } from './commentable-document'
+import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentComments } from './document-comments'
 import { PhaseSessionPanel } from './phase-session-panel'
 import { STEP_NAME, TASK_STEPS, type TaskNextMove, type TaskStep } from './task-next-move'
 import { TaskRunLine } from './task-run-line'
 import { openSessionFor, type TaskPageData } from './use-task-page'
 
-/** What a step shows: its document (or the build's pull request), its runs, or line comments on its document. */
+/** What a step shows: its document (or the build's pull request), its runs, or every comment on its document. */
 export type StepView = 'document' | 'runs' | 'comments'
 
 interface TaskStepViewProps {
@@ -43,9 +45,15 @@ function DocumentStep({
   step,
   data,
   move,
+  comments,
+  onApplySuggestion,
   onDocumentSaved,
   onChanged,
-}: Pick<TaskStepViewProps, 'data' | 'move' | 'onDocumentSaved' | 'onChanged'> & { step: 'research' | 'planning' }) {
+}: Pick<TaskStepViewProps, 'data' | 'move' | 'onDocumentSaved' | 'onChanged'> & {
+  step: 'research' | 'planning'
+  comments: DocumentComments
+  onApplySuggestion: ApplySuggestion
+}) {
   const document = data.documents[step]
   const [draft, setDraft] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -59,6 +67,7 @@ function DocumentStep({
   const canEdit = isCurrent
   const [isReopening, setIsReopening] = useState(false)
   const personName = usePersonName()
+  const { user } = useAuth()
 
   const save = async (content: string) => {
     setIsSaving(true)
@@ -156,21 +165,32 @@ function DocumentStep({
           )}
         </span>
       </div>
-      <DocumentReader content={document.content} />
+      <CommentableDocument
+        source={document.content}
+        comments={comments}
+        canComment={Boolean(user && user.role !== 'viewer')}
+        onApplySuggestion={onApplySuggestion}
+      />
     </div>
   )
 }
 
-/** Saves a line suggestion accepted from the comments view into the document. */
-function useApplySuggestion(step: 'research' | 'planning', data: TaskPageData, onDocumentSaved: TaskStepViewProps['onDocumentSaved']) {
-  return async (lineNumber: number, suggestedText: string) => {
-    const lines = data.documents[step].content.split('\n')
-    lines[lineNumber - 1] = suggestedText
+/** Puts a suggestion's wording in place of the text it was on, and resolves it. */
+function useApplySuggestion(
+  step: 'research' | 'planning',
+  data: TaskPageData,
+  comments: DocumentComments,
+  onDocumentSaved: TaskStepViewProps['onDocumentSaved']
+): ApplySuggestion {
+  return async (comment: PhaseDocumentCommentResponse, suggestedText: string) => {
+    if (!comment.location) return
+    const source = data.documents[step].content
+    const content = source.slice(0, comment.location.start) + suggestedText + source.slice(comment.location.end)
     try {
-      const content = lines.join('\n')
       const saved = step === 'research' ? await saveResearchDocument(data.ticket.id, content) : await savePlanningDocument(data.ticket.id, content)
       onDocumentSaved(step, saved)
-      toast.success(`Suggestion applied to line ${lineNumber}`)
+      await comments.toggleStatus(comment)
+      toast.success('Suggestion applied')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to apply the suggestion')
       throw error
@@ -212,22 +232,16 @@ export function TaskStepView({
   const agentNames = new Map(data.clankers.map((clanker) => [clanker.id, clanker.name]))
   const isDocumentStep = step !== 'execution'
   const hasDocument = isDocumentStep && data.documents[step].content.trim().length > 0
-  const [openComments, setOpenComments] = useState(0)
   const documentStep = step === 'execution' ? null : step
-  const applySuggestion = useApplySuggestion(documentStep ?? 'research', data, onDocumentSaved)
+  const comments = useDocumentComments(data.ticket.id, hasDocument ? documentStep : null)
+  const applySuggestion = useApplySuggestion(documentStep ?? 'research', data, comments, onDocumentSaved)
+  const documentContent = documentStep ? data.documents[documentStep].content : ''
+  const reloadComments = comments.reload
 
-  // The count on the Comments tab, before that tab has been opened.
+  // A revision or an edit moves text around: find each comment's text again.
   useEffect(() => {
-    if (!documentStep || !hasDocument) return setOpenComments(0)
-    let active = true
-    getPhaseDocumentComments(data.ticket.id, documentStep)
-      .then((comments) => active && setOpenComments(comments.filter((comment) => comment.status === 'open').length))
-      .catch(() => undefined)
-    return () => {
-      active = false
-    }
-  }, [data.ticket.id, documentStep, hasDocument])
-  const onOpenCountChange = useCallback((count: number) => setOpenComments(count), [])
+    void reloadComments()
+  }, [documentContent, reloadComments])
 
   const shown: StepView = view === 'comments' && !hasDocument ? 'document' : view
 
@@ -242,7 +256,7 @@ export function TaskStepView({
         </TabButton>
         {hasDocument && (
           <TabButton active={shown === 'comments'} onClick={() => onView('comments')}>
-            Comments{openComments > 0 ? ` · ${openComments}` : ''}
+            Comments{comments.openCount > 0 ? ` · ${comments.openCount}` : ''}
           </TabButton>
         )}
       </div>
@@ -255,6 +269,8 @@ export function TaskStepView({
               step={documentStep}
               data={data}
               move={step === data.ticket.workflowPhase ? move : { kind: 'done' }}
+              comments={comments}
+              onApplySuggestion={applySuggestion}
               onDocumentSaved={onDocumentSaved}
               onChanged={onChanged}
             />
@@ -285,15 +301,7 @@ export function TaskStepView({
           </div>
         ))}
 
-      {shown === 'comments' && documentStep && (
-        <PhaseDocumentComments
-          ticketId={data.ticket.id}
-          phase={documentStep}
-          content={data.documents[documentStep].content}
-          onApplySuggestion={applySuggestion}
-          onOpenCountChange={onOpenCountChange}
-        />
-      )}
+      {shown === 'comments' && documentStep && <CommentList comments={comments} onApplySuggestion={applySuggestion} />}
     </div>
   )
 }

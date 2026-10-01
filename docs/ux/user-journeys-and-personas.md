@@ -679,7 +679,7 @@ J1, J2. Existing registration → model key (provider picker for every selectabl
 ### Phase 2: People primitives (3–5 weeks)
 J3, J4, J5, J7, J10, J17. Invite links (SMTP optional); roles enforced server-side; space membership; task participants (requester/owner/reviewers/watchers); general Discussion thread with @mentions; Inbox + notifications (in-app, Slack, email); approval policies; rendered-document inline comments; Activity log; audit log; the J1 step 7 home checklist (*Invite your team · Connect Slack · Connect your tracker*).
 **Exit:** J9 steps 1, 3, 4, 7 work with ≥ 3 humans.
-**Status (2026-10-01):** naming, roles and invites, space membership, participants and keys, Discussion and Activity, the Inbox and notifications, and approval policies are done ([`phase-2-3-handover.md`](./phase-2-3-handover.md) §2.1–2.7). Left: comments on the rendered document (§2.8), the audit log (§2.9) and the exit journey.
+**Status (2026-10-01):** done ([`phase-2-3-handover.md`](./phase-2-3-handover.md) §2.1–2.9). The exit is the `phase-2-exit` e2e journey (passing): three people invited by link, a PM who asks, a designer @mentioned who replies, and a reviewer who comments on the rendered plan, asks for changes and approves, each attributed in Activity and told through the Inbox. Next is Phase 2½.
 
 ### Phase 2½: Returning-visit UX (added 2026-09-30)
 Phase 1 reworked the first visit. Every later visit (the dashboard, space home, task lists, Pulse, the new Inbox and My tasks, and how status reads across them) was built piece by piece and has never been designed as one flow. After Phase 2, when roles, participants, Activity and the Inbox exist:

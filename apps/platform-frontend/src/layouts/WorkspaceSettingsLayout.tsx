@@ -36,6 +36,7 @@ export function WorkspaceSettingsLayout() {
             { name: 'Secrets', href: '/settings/secrets' },
             { name: 'Prompt templates', href: '/settings/prompt-templates' },
             { name: 'Run records', href: '/settings/run-records' },
+            { name: 'Audit log', href: '/settings/audit-log' },
           ],
           'How agents run, where credentials live, and what each run recorded. Setup picked defaults; change them here.',
         ),

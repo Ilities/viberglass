@@ -59,6 +59,7 @@ import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { UsersPage } from '@/pages/settings/UsersPage'
 import { NotificationSettingsPage } from '@/pages/settings/NotificationSettingsPage'
 import { RunRecordsPage } from '@/pages/settings/run-records/RunRecordsPage'
+import { AuditLogPage } from '@/pages/settings/audit-log/AuditLogPage'
 
 export function AppRoutes() {
   return (
@@ -98,6 +99,7 @@ export function AppRoutes() {
           <Route path="/settings/prompt-templates" element={<PromptTemplatesPage />} />
           <Route path="/settings/api-tokens" element={<ApiTokensPage />} />
           <Route path="/settings/run-records" element={<RunRecordsPage />} />
+          <Route path="/settings/audit-log" element={<AuditLogPage />} />
         </Route>
 
         {/* Project routes */}

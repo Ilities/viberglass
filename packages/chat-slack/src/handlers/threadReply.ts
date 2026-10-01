@@ -61,6 +61,7 @@ export function registerThreadReplyHandler(
             clankerId: detail.session.clankerId,
             mode: advance.firstMode,
             initialMessage: "",
+            slackUserId: message.author.userId,
           });
           services.stopBridge(sessionId);
           await services.unlinkSession(sessionId);
@@ -92,6 +93,7 @@ export function registerThreadReplyHandler(
           clankerId: detail.session.clankerId,
           mode: targetMode,
           initialMessage: advance.kind === "advance" ? "" : instruction,
+          slackUserId: message.author.userId,
         });
 
         services.stopBridge(sessionId);
@@ -104,18 +106,18 @@ export function registerThreadReplyHandler(
       if (detail.session.status === AGENT_SESSION_STATUS.WAITING_ON_APPROVAL) {
         const normalized = text.toLowerCase().trim();
         if (APPROVAL_WORDS.has(normalized)) {
-          await services.approveSession(sessionId, true);
+          await services.approveSession(sessionId, true, message.author.userId);
         } else if (REJECTION_WORDS.has(normalized)) {
-          await services.approveSession(sessionId, false);
+          await services.approveSession(sessionId, false, message.author.userId);
         } else {
           await thread.post(
             "_The agent is waiting for approval. Use the Approve/Reject buttons above, or reply `approve` or `reject`._",
           );
         }
       } else if (detail.session.status === AGENT_SESSION_STATUS.WAITING_ON_USER) {
-        await services.replyToSession(sessionId, text);
+        await services.replyToSession(sessionId, text, message.author.userId);
       } else {
-        await services.sendMessageToSession(sessionId, text);
+        await services.sendMessageToSession(sessionId, text, message.author.userId);
       }
     } catch (err) {
       await thread.post(

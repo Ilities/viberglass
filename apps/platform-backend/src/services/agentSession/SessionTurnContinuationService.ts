@@ -50,6 +50,7 @@ import {
   PromptTemplateDAO,
   PROMPT_TYPE,
 } from "../../persistence/promptTemplate/PromptTemplateDAO";
+import { formatCommentsForAgent } from "../comments/formatCommentsForAgent";
 
 interface ContinuationExtras {
   task: string;
@@ -65,8 +66,6 @@ export interface LaunchPendingOptions {
   /** Clear session.latestPendingRequestId (reply/approve flows) */
   clearPendingRequest?: boolean;
 }
-
-const SUGGESTION_PREFIX = "@@SUGGESTION@@\n";
 
 /**
  * Owns continuation-turn launching for agent sessions. Every continuation
@@ -237,19 +236,7 @@ export class SessionTurnContinuationService {
       );
     }
 
-    const openCommentsStr =
-      openComments.length > 0
-        ? openComments
-            .map((c) => {
-              const actor = c.actor ? ` (by ${c.actor})` : "";
-              if (c.content.startsWith(SUGGESTION_PREFIX)) {
-                const suggestion = c.content.slice(SUGGESTION_PREFIX.length);
-                return `- Line ${c.lineNumber}${actor}: **Suggestion:** ${suggestion}`;
-              }
-              return `- Line ${c.lineNumber}${actor}: ${c.content}`;
-            })
-            .join("\n")
-        : undefined;
+    const openCommentsStr = formatCommentsForAgent(openComments);
 
     const revisionType =
       session.mode === "research"
