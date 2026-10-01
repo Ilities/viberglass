@@ -60,8 +60,7 @@ test("only the plan's reviewers can approve it; anyone else asks, and the approv
 
   const plan = (await (await adminApi.get(`/api/tasks/${task.id}/phases/planning`)).json()).data.document;
   expect(plan.approvedBy).toBe(await memberId(adminApi));
-  await page.getByRole("button", { name: "Activity" }).click();
-  await expect(page.getByText(`${E2E.member.name} approved the plan`)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Thread" }).getByText(`${E2E.member.name} approved the plan`)).toBeVisible();
 });
 
 test("a space's default reviewers review every new task's plan", async ({ adminApi, memberApi, adminPage: page }) => {

@@ -29,19 +29,17 @@ RUN npm install -g \
     @google/gemini-cli \
     @openai/codex \
     opencode-ai@latest \
-    @mariozechner/pi-coding-agent \
+    @earendil-works/pi-coding-agent \
     pi-acp \
-    @zed-industries/claude-agent-acp
-
-# Install Codex ACP adapter for interactive sessions.
-RUN npm install -g codex-acp || echo "Warning: codex-acp not available"
+    @agentclientprotocol/claude-agent-acp \
+    @agentclientprotocol/codex-acp
 
 # Ensure user-level CLI installs are available during subsequent build steps.
-ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
+ENV PATH="/root/.kimi-code/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 
-# Install Kimi Code CLI.
-# Source: https://www.kimi.com/code/docs/en/kimi-cli/guides/getting-started.html
-RUN curl -LsSf https://code.kimi.com/install.sh | bash
+# Install Kimi Code CLI (the older kimi-cli refuses to run; the installer keeps it as kimi-legacy).
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
+    && rm -f /root/.local/bin/kimi-legacy /root/.local/bin/kimi-cli
 
 # Install uv and Mistral Vibe CLI.
 # Source: https://docs.mistral.ai/mistral-vibe/introduction/install

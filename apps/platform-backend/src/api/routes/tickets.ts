@@ -46,7 +46,7 @@ import { StepApprovalRequestService } from "../../services/approvals/StepApprova
 import { TicketResearchApprovalService } from "../../services/approvals/TicketResearchApprovalService";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
-import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
+import { TaskTimelineService } from "../../services/tasks/TaskTimelineService";
 import { TaskActivityRecorder } from "../../services/tasks/TaskActivityRecorder";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { taskChangeGuard } from "../middleware/taskChangeGuards";
@@ -87,7 +87,10 @@ router.param("key", taskKeyParamGuard());
 const taskParticipants = new TaskParticipantService();
 const taskActivity = new TaskActivityRecorder();
 registerTaskParticipantRoutes(router, taskParticipants);
-registerTaskDiscussionRoutes(router, { discussion: new TaskDiscussionService(), activity: new TaskActivityDAO() });
+registerTaskDiscussionRoutes(router, {
+  discussion: new TaskDiscussionService(),
+  timeline: new TaskTimelineService(),
+});
 
 // GET /api/tasks/by-key/:key - A task by its key (WEB-42), for links that show the key.
 router.get("/by-key/:key", async (req, res, next) => {

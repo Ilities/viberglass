@@ -49,6 +49,7 @@ import type {
 } from "./agentAuthLifecycle";
 import type { SessionEventForwarder } from "../../acp/SessionEventForwarder";
 import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
+import { jobWorkspaceDir } from "./taskWorkspace";
 
 export interface JobRunnerParams {
   data: CodingJobData;
@@ -171,7 +172,7 @@ export async function setupJob(
   await sendProgress("initialize", `Starting ${jobLabel} execution`);
   environmentManager.inject(fetchedCredentials, clankerEnvironment);
 
-  const jobWorkDir = path.join(repositoryRoot, id);
+  const jobWorkDir = jobWorkspaceDir(repositoryRoot, data);
   if (!fs.existsSync(jobWorkDir)) {
     fs.mkdirSync(jobWorkDir, { recursive: true });
   }

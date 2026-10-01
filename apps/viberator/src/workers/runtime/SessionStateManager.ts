@@ -38,14 +38,11 @@ const TAR_EXCLUDES = [
 ];
 
 /**
- * Returns the HOME-relative state directories for a given agent.
- * Falls back to `.<agentName>/` for unknown agents.
+ * The HOME-relative state paths for a given agent, and what to leave out of
+ * them. Falls back to `.<agentName>/` for unknown agents.
  */
-function getStateDirs(agentName: string): string[] {
-  const stateDirsMap = agentRegistry().getStateDirs();
-  const known = stateDirsMap[agentName];
-  if (known) return [known];
-  return [`.${agentName}`];
+function getStateDirs(agentName: string): { dirs: string[]; excludes: string[] } {
+  return agentRegistry().getStateDirs()[agentName] ?? { dirs: [`.${agentName}`], excludes: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +58,7 @@ async function captureConversationState(
   homeDir: string,
   logger: Logger,
 ): Promise<Buffer | undefined> {
-  const stateDirs = getStateDirs(agentName);
+  const { dirs: stateDirs, excludes } = getStateDirs(agentName);
   const existingPaths: string[] = [];
 
   for (const dir of stateDirs) {
@@ -87,6 +84,7 @@ async function captureConversationState(
         "czf",
         archivePath,
         ...TAR_EXCLUDES,
+        ...excludes.flatMap((exclude) => ["--exclude", exclude]),
         "-C",
         homeDir,
         ...existingPaths,

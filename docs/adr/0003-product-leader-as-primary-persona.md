@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-23
 - **Decider:** Jussi Hallila
+- **Amended by:** [ADR 0008](./0008-tasks-are-conversations.md) (tasks are conversations), 2026-10-01
 
 ## Context
 The audit asked who the product is primarily designed for: the engineering leader who installs it, or the product leader who brings objectives. Today's UI is built around an operator/admin who understands runners, secrets, integrations and deployment strategies. The first-run walkthrough needed about 25 page hops and backend logs to reach a runnable task.

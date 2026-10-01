@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-29
 - **Decider:** Jussi Hallila
+- **Amended by:** [ADR 0008](./0008-tasks-are-conversations.md) (tasks are conversations), 2026-10-01
 
 ## Context
 Phase 3 lets agents and people work in the same session. Today nothing emits `needs_input`; the platform guesses a question when the agent's last text ends with "?", every turn is its own worker job with a fresh clone, and execution turns push a new branch per turn while research and planning push nothing (`docs/ux/phase-2-3-handover.md` §3.0). These are decisions D7, D8 and D9 in that handover, plus how a turn that writes no document ends.

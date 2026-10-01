@@ -67,6 +67,7 @@ export class AcpExecutor {
       this.logger.info("AcpExecutor completed", {
         turnOutcome: result.turnOutcome,
         acpSessionId: result.acpSessionId,
+        sessionStart: result.sessionStart,
       });
 
       return {
@@ -76,6 +77,7 @@ export class AcpExecutor {
         cost: 0,
         acpTurnOutcome: result.turnOutcome,
         newAcpSessionId: result.acpSessionId,
+        acpSessionStart: result.sessionStart,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

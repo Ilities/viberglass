@@ -45,7 +45,7 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   const task = await createTask(adminApi, workspace.projectId, "Make the checkout copy friendlier on mobile.");
   await runFinishes(adminApi, await startResearch(adminApi, task.id, workspace.clankerId));
 
-  // 3. The PM brings the designer in with an @mention; the designer answers in the Discussion.
+  // 3. The PM brings the designer in with an @mention; the designer answers in the thread.
   const posted = await adminApi.post(`/api/tasks/${task.id}/messages`, {
     data: { body: `@[${designer.name}](user:${designer.id}) which tone fits our brand here?` },
   });
@@ -94,17 +94,16 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   await page.getByRole("button", { name: "Approve anyway" }).click();
   await expect.poll(() => taskPhase(adminApi, task.id)).toBe("execution");
 
-  // Every step is attributed in the task's Activity.
-  await page.getByRole("button", { name: "Activity" }).click();
+  // Every step is attributed in the task's thread.
+  const thread = page.getByRole("region", { name: "Thread" });
+  await expect(thread.getByText("Warm and short. No exclamation marks.")).toBeVisible();
   for (const sentence of [
     "E2E Admin created the task",
-    `E2E Admin wrote in the discussion and mentioned ${designer.name}`,
-    `${designer.name} wrote in the discussion`,
     "E2E Admin approved the research",
     `E2E Admin asked ${reviewer.name} to review`,
     `${reviewer.name} commented on the plan: “Written by the fake agent used in end-to-end tests.”`,
     `${reviewer.name} approved the plan`,
   ]) {
-    await expect(page.getByText(sentence, { exact: true }).first()).toBeVisible();
+    await expect(thread.getByText(sentence, { exact: true }).first()).toBeVisible();
   }
 });

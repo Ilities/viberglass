@@ -89,7 +89,8 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
     endpoint: ["OPENCODE_BASE_URL", "OPENCODE_ENDPOINT", "OPENAI_BASE_URL"],
   },
 
-  stateDir: ".opencode",
+  stateDirs: [".local/share/opencode"],
+  stateExcludes: [".local/share/opencode/auth.json", ".local/share/opencode/log"],
 
   harnessConfigPatterns: ["opencode.json"],
 

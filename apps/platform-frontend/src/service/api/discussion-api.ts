@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import { toErrorFromResponse } from '@/service/api/user-api'
-import type { ApiResponse, TaskActivityEntry, TaskMessage } from '@viberglass/types'
+import type { ApiResponse, TaskMessage, TaskTimelineEntry } from '@viberglass/types'
 
 async function read<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), fallback)
@@ -9,11 +9,12 @@ async function read<T>(response: Response, fallback: string): Promise<T> {
   return data.data
 }
 
-export async function getTaskMessages(taskId: string): Promise<TaskMessage[]> {
-  return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/messages`), 'Failed to load the discussion')
+/** The task's thread: messages, document versions and what happened, oldest first. */
+export async function getTaskTimeline(taskId: string): Promise<TaskTimelineEntry[]> {
+  return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/timeline`), 'Failed to load the thread')
 }
 
-/** Returns the whole thread after posting. */
+
 export async function postTaskMessage(taskId: string, body: string): Promise<TaskMessage[]> {
   return read(
     await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/messages`, {
@@ -23,8 +24,4 @@ export async function postTaskMessage(taskId: string, body: string): Promise<Tas
     }),
     'Failed to post the message'
   )
-}
-
-export async function getTaskActivity(taskId: string): Promise<TaskActivityEntry[]> {
-  return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/activity`), 'Failed to load the activity')
 }

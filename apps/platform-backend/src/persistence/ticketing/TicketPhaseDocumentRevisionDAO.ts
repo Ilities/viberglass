@@ -1,5 +1,5 @@
 import type { TicketWorkflowPhase } from "@viberglass/types";
-import type { Selectable } from "kysely";
+import { sql, type Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
 
@@ -67,6 +67,26 @@ export class TicketPhaseDocumentRevisionDAO {
       .execute();
 
     return rows.map((row) => this.mapRow(row));
+  }
+
+  /**
+   * Every revision of a task's documents, oldest first, with who saved it.
+   * Hand edits name their author by email on older rows and by id on newer ones.
+   */
+  async listByTicketWithAuthors(ticketId: string): Promise<Array<PhaseDocumentRevision & { authorId: string | null; authorName: string | null }>> {
+    const rows = await db
+      .selectFrom("ticket_phase_document_revisions as revision")
+      .leftJoin("users", (join) =>
+        join.on((eb) =>
+          eb.or([eb("users.email", "=", eb.ref("revision.actor")), eb(sql<string>`users.id::text`, "=", eb.ref("revision.actor"))]),
+        ),
+      )
+      .selectAll("revision")
+      .select(["users.id as author_id", "users.name as author_name"])
+      .where("revision.ticket_id", "=", ticketId)
+      .orderBy("revision.created_at", "asc")
+      .execute();
+    return rows.map((row) => ({ ...this.mapRow(row), authorId: row.author_id, authorName: row.author_name }));
   }
 
   private mapRow(row: PhaseDocumentRevisionRow): PhaseDocumentRevision {

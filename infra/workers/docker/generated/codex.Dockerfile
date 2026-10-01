@@ -9,13 +9,15 @@ ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viber
 
 # Fragment: OpenAI Codex agent
 # Source: https://github.com/openai/codex
-RUN npm install -g @openai/codex
+# codex-acp is the ACP server the worker starts (CodexAgent.getAcpServerCommand).
+RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
 
 RUN which codex || echo "Warning: codex not found in PATH"
 
 ENV AGENT_TYPE=codex
-ENV CODEX_HOME=/tmp/codex-config
-ENV CODEX_CONFIG_DIR=/tmp/codex-config
+# Under $HOME, so the plugin's stateDirs (.codex) archive its sessions between turns.
+ENV CODEX_HOME=/home/viberator/.codex
+ENV CODEX_CONFIG_DIR=/home/viberator/.codex
 
 LABEL agent.type="codex" \
       agent.provider="openai" \

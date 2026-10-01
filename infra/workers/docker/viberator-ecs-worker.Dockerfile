@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 
 # Install Claude Code and ACP adapter globally
-RUN npm install -g @anthropic-ai/claude-code @zed-industries/claude-agent-acp
+RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
 
 # Copy package files and install production dependencies
 COPY package*.json ./

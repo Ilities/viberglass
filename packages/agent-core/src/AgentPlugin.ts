@@ -58,8 +58,19 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
     endpoint?: string[];
   };
 
-  /** $HOME sub-dir where agent stores conversation state (e.g. ".pi") */
-  readonly stateDir?: string;
+  /**
+   * $HOME-relative paths holding the harness's sessions, archived after each
+   * turn and restored before the next so the session can resume. They must
+   * cover everything the harness needs to load a session (check with
+   * docs/ux/harness-session-research.md's probe when adding a harness).
+   */
+  readonly stateDirs?: string[];
+
+  /**
+   * $HOME-relative paths inside `stateDirs` left out of the archive: credentials
+   * the worker injects fresh each run, so an old token is never restored.
+   */
+  readonly stateExcludes?: string[];
 
   /** Relative file patterns that belong in .harness-config/ */
   readonly harnessConfigPatterns?: string[];

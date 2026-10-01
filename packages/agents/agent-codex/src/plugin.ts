@@ -44,7 +44,8 @@ const codexPlugin: AgentPlugin<CodexConfig> = {
     endpoint: ["CODEX_ENDPOINT", "OPENAI_BASE_URL"],
   },
 
-  stateDir: ".codex",
+  stateDirs: [".codex"],
+  stateExcludes: [".codex/auth.json"],
 
   authLifecycle(ctx): AgentAuthLifecycle {
     const codexAuthSettings = resolveCodexAuthSettings(ctx.clankerConfig);

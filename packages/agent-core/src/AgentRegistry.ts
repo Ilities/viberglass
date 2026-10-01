@@ -53,11 +53,11 @@ export class AgentRegistry {
     );
   }
 
-  getStateDirs(): Record<string, string> {
+  getStateDirs(): Record<string, { dirs: string[]; excludes: string[] }> {
     return Object.fromEntries(
-      this.list()
-        .filter((p) => p.stateDir)
-        .map((p) => [p.id, p.stateDir!]),
+      this.list().flatMap((p) =>
+        p.stateDirs && p.stateDirs.length > 0 ? [[p.id, { dirs: p.stateDirs, excludes: p.stateExcludes ?? [] }]] : [],
+      ),
     );
   }
 

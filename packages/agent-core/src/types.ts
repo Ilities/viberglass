@@ -1,3 +1,4 @@
+import type { AcpSessionStart } from "./acp/AcpSessionOpener";
 import type { PlatformSessionEvent } from "./acp/types";
 import type { AgentUsageReport } from "./usage";
 
@@ -107,6 +108,8 @@ export interface ExecutionResult {
   cost: number;
   acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
   newAcpSessionId?: string;
+  /** Whether the turn continued the harness's earlier session, or started cold and why. */
+  acpSessionStart?: AcpSessionStart;
   /**
    * Token usage and cost as reported by the CLI itself.
    *

@@ -36,7 +36,8 @@ RUN npm install -g typescript jest
 RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 
 # Install ALL agent CLIs globally
-RUN npm install -g @anthropic-ai/claude-code
+# With its ACP adapter, which the worker starts (it moved from @zed-industries to @agentclientprotocol).
+RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-acp
 
 # Install Qwen Code CLI
 # Source: https://qwenlm.github.io/qwen-code-docs/
@@ -48,22 +49,23 @@ RUN npm install -g @google/gemini-cli
 
 # Install OpenAI Codex CLI
 # Source: https://github.com/openai/codex
-RUN npm install -g @openai/codex
+RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
 
 # Install OpenCode CLI
 # Source: https://opencode.ai/docs
 RUN npm install -g opencode-ai@latest
 
 # Install Pi coding agent CLI and ACP bridge
-# Source: https://github.com/mariozechner/pi-coding-agent
+# Source: https://github.com/earendil-works/pi-coding-agent (pi-acp needs pi >= 0.81)
 # Source: https://github.com/svkozak/pi-acp
-RUN npm install -g @mariozechner/pi-coding-agent pi-acp
+RUN npm install -g @earendil-works/pi-coding-agent pi-acp
 
 # Install Kimi Code CLI for the runtime user to avoid /root permission issues.
 USER viberator
-ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
-# Source: https://www.kimi.com/code/docs/en/kimi-cli/guides/getting-started.html
-RUN curl -LsSf https://code.kimi.com/install.sh | bash
+ENV PATH="/home/viberator/.kimi-code/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
+# The older kimi-cli is no longer maintained and refuses to run; the installer keeps it as kimi-legacy.
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
+    && rm -f /home/viberator/.local/bin/kimi-legacy /home/viberator/.local/bin/kimi-cli
 USER root
 
 # Install uv for Python-based tools
@@ -72,12 +74,13 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
 
 # Install Mistral Vibe using uv
 # Source: https://docs.mistral.ai/mistral-vibe/introduction/install
-RUN uv tool install mistral-vibe || \
+# Installed as root, so outside /root: the runtime user can't reach /root/.local.
+RUN UV_TOOL_DIR=/opt/uv/tools UV_TOOL_BIN_DIR=/usr/local/bin UV_PYTHON_INSTALL_DIR=/opt/uv/python uv tool install mistral-vibe || \
     pip install mistral-vibe || \
     echo "Warning: Failed to install mistral-vibe"
 
 # Keep user-level tool paths first at runtime.
-ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
+ENV PATH="/home/viberator/.kimi-code/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 
 # Copy package files and install production dependencies
 COPY package*.json ./
