@@ -70,6 +70,7 @@ export * from './notification'
 
 // Who approves each step
 export * from './approvalPolicy'
+export * from './taskChangePolicy'
 
 // Where a comment sits in a document
 export * from './documentAnchor'

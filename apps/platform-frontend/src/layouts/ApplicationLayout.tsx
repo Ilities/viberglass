@@ -48,7 +48,8 @@ import {
 import { TICKET_STATUS_LABEL } from '@/pages/project/tickets/ticket-display'
 import { TICKET_STATUS, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { SpaceOutlet } from './SpaceOutlet'
 import { Toaster } from 'sonner'
 import { taskPath } from '@/lib/taskPath'
 
@@ -481,7 +482,7 @@ function ApplicationLayoutContent() {
           }
         >
           <DemoWorkspaceBanner />
-          <Outlet />
+          <SpaceOutlet />
         </StackedLayout>
         <Toaster
           position="bottom-right"

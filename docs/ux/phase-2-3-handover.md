@@ -371,6 +371,8 @@ The fake agent writes the documents.
 
 Added by Jussi on 2026-09-30; see plan §12, Phase 2½. Research first (a walkthrough of every returning-visit screen as each persona and role, with screenshots), then a redesign plan in `docs/ux` for Jussi's review, then the build. It waits for Phase 2 so the landings can be designed around roles, participants, Activity and the Inbox (§2.6 already plans the Inbox as the member landing page; the research may change that).
 
+**Research done (2026-10-01):** [`appendix-returning-visit.md`](./appendix-returning-visit.md). **Plan for review:** [`returning-visit-redesign.md`](./returning-visit-redesign.md), with decisions Q1–Q6. It proposes Home ("Your move", from the task's situation) as the landing instead of the Inbox. The bugs found on the way (RB1–RB6, including guests and non-participants editing and hard-deleting tasks, and space integrations calling the pre-rename API) were fixed the same day; see the redesign's §2. **Page purposes:** [`information-architecture.md`](./information-architecture.md), what each page and item is for (decisions Q7–Q10).
+
 ---
 
 ## 3. Phase 3: agent ↔ human collaboration

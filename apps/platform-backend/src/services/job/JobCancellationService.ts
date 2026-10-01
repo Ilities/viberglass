@@ -10,6 +10,7 @@ import {
 import { createChildLogger } from "../../config/logger";
 import type { WorkerStopper } from "../../workers/WorkerStopper";
 import { DockerWorkerStopper } from "../../workers/stoppers/DockerWorkerStopper";
+import { WorkerStopperChain } from "../../workers/WorkerStopperChain";
 import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 
@@ -96,7 +97,7 @@ export class JobCancellationService {
       .where("status", "in", ["queued", "active"])
       .execute();
 
-    await this.stopWorker(jobId);
+    await new WorkerStopperChain(this.workerStoppers).stop(jobId, "cancelled");
     if (job.ticket_id) await this.synchronizeTicketStatus(job.ticket_id);
     return "cancelled";
   }
@@ -118,24 +119,6 @@ export class JobCancellationService {
         ticketId,
         error: error instanceof Error ? error.message : String(error),
       });
-    }
-  }
-
-  /** Best effort: the run is already cancelled in the database either way. */
-  private async stopWorker(jobId: string): Promise<void> {
-    for (const stopper of this.workerStoppers) {
-      try {
-        if (await stopper.stop(jobId)) {
-          logger.info("Stopped worker for cancelled run", { jobId, stopper: stopper.name });
-          return;
-        }
-      } catch (error) {
-        logger.warn("Failed to stop worker for cancelled run", {
-          jobId,
-          stopper: stopper.name,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
     }
   }
 }

@@ -1,6 +1,7 @@
 import { JOB_FAILURE_CODE } from '@viberglass/types';
 import { JobService } from '../services/JobService';
 import { createChildLogger } from '../config/logger';
+import { WorkerStopperChain } from './WorkerStopperChain';
 
 const logger = createChildLogger({ worker: 'HeartbeatSweeper' });
 
@@ -14,7 +15,10 @@ export class HeartbeatSweeper {
   private jobService = new JobService();
   private config: Required<HeartbeatSweeperConfig>;
 
-  constructor(config: HeartbeatSweeperConfig = {}) {
+  constructor(
+    config: HeartbeatSweeperConfig = {},
+    private readonly workers: Pick<WorkerStopperChain, 'stop'> = new WorkerStopperChain(),
+  ) {
     this.config = {
       sweepIntervalMs: config.sweepIntervalMs ?? 60_000,      // 1 minute
       gracePeriodMs: config.gracePeriodMs ?? 300_000,         // 5 minutes
@@ -79,6 +83,8 @@ export class HeartbeatSweeper {
         errorMessage: 'Job failed: No heartbeat received within grace period',
         failureCode: JOB_FAILURE_CODE.RUN_LOST,
       });
+      // A worker that stopped reporting may still be running; don't leave it behind.
+      await this.workers.stop(job.id, 'no heartbeat');
     }
 
     if (staleJobs.length > 0) {

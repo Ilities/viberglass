@@ -19,6 +19,7 @@ jest.mock('@/context/theme-context', () => ({
 
 jest.mock('@/context/project-context', () => ({
   ProjectProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useProject: () => ({ project: null, isLoading: true, error: null }),
 }))
 
 jest.mock('@/context/project-theme', () => ({

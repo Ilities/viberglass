@@ -148,7 +148,7 @@ export async function getProjectIntegrations(
   projectId: string
 ): Promise<ProjectIntegrationWithDetails[]> {
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/project/${projectId}`
+    `${API_BASE_URL}/api/integrations/space/${projectId}`
   )
 
   if (!response.ok) {
@@ -168,7 +168,7 @@ export async function linkIntegrationToProject(
   isPrimary?: boolean
 ): Promise<ProjectIntegrationLink> {
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/project/${projectId}/link`,
+    `${API_BASE_URL}/api/integrations/space/${projectId}/link`,
     {
       method: 'POST',
       headers: {
@@ -195,7 +195,7 @@ export async function unlinkIntegrationFromProject(
   integrationId: string
 ): Promise<void> {
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/project/${projectId}/link/${integrationId}`,
+    `${API_BASE_URL}/api/integrations/space/${projectId}/link/${integrationId}`,
     {
       method: 'DELETE',
     }
@@ -214,7 +214,7 @@ export async function setPrimaryIntegration(
   integrationId: string
 ): Promise<void> {
   const response = await apiFetch(
-    `${API_BASE_URL}/api/integrations/project/${projectId}/primary/${integrationId}`,
+    `${API_BASE_URL}/api/integrations/space/${projectId}/primary/${integrationId}`,
     {
       method: 'PUT',
     }

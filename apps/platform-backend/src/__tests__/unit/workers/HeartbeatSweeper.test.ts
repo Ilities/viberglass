@@ -20,6 +20,8 @@ describe('HeartbeatSweeper', () => {
   let sweeper: HeartbeatSweeper;
   let mockJobService: jest.Mocked<JobService>;
 
+  const workers = { stop: jest.fn().mockResolvedValue(undefined) };
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
@@ -31,7 +33,7 @@ describe('HeartbeatSweeper', () => {
     } as unknown as jest.Mocked<JobService>;
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
 
-    sweeper = new HeartbeatSweeper();
+    sweeper = new HeartbeatSweeper({}, workers);
   });
 
   afterEach(() => {
@@ -62,6 +64,8 @@ describe('HeartbeatSweeper', () => {
 
       // Verify each stale job was marked as failed
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(2);
+      expect(workers.stop).toHaveBeenCalledWith('job-1', 'no heartbeat');
+      expect(workers.stop).toHaveBeenCalledWith('job-2', 'no heartbeat');
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-1', 'failed', {
         errorMessage: 'Job failed: No heartbeat received within grace period',
         failureCode: 'RUN_LOST',
@@ -119,7 +123,7 @@ describe('HeartbeatSweeper', () => {
 
       const customSweeper = new HeartbeatSweeper({
         gracePeriodMs: 2 * 60_000, // 2 minutes
-      });
+      }, workers);
 
       await customSweeper.sweep();
 
@@ -132,7 +136,7 @@ describe('HeartbeatSweeper', () => {
     it('should handle very short grace period values', async () => {
       const customSweeper = new HeartbeatSweeper({
         gracePeriodMs: 100, // 100ms for testing
-      });
+      }, workers);
 
       const now = Date.now();
       let capturedCutoff: Date | undefined;
@@ -217,7 +221,7 @@ describe('HeartbeatSweeper', () => {
     it('should respect custom sweepIntervalMs', async () => {
       const customSweeper = new HeartbeatSweeper({
         sweepIntervalMs: 2000, // 2 seconds
-      });
+      }, workers);
 
       customSweeper.start();
 

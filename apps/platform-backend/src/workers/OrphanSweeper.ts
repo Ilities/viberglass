@@ -1,6 +1,7 @@
 import { JOB_FAILURE_CODE } from '@viberglass/types';
 import { JobService } from '../services/JobService';
 import { createChildLogger } from '../config/logger';
+import { WorkerStopperChain } from './WorkerStopperChain';
 
 const logger = createChildLogger({ worker: 'OrphanSweeper' });
 
@@ -14,7 +15,10 @@ export class OrphanSweeper {
   private jobService = new JobService();
   private config: Required<OrphanSweeperConfig>;
 
-  constructor(config: OrphanSweeperConfig = {}) {
+  constructor(
+    config: OrphanSweeperConfig = {},
+    private readonly workers: Pick<WorkerStopperChain, 'stop'> = new WorkerStopperChain(),
+  ) {
     this.config = {
       sweepIntervalMs: config.sweepIntervalMs ?? 60_000,      // 1 minute
       jobTimeoutMs: config.jobTimeoutMs ?? 30 * 60_000,       // 30 minutes
@@ -78,6 +82,8 @@ export class OrphanSweeper {
         errorMessage: `Job timed out after ${this.config.jobTimeoutMs / 1000}s without callback`,
         failureCode: JOB_FAILURE_CODE.RUN_LOST,
       });
+      // A worker that stopped reporting may still be running; don't leave it behind.
+      await this.workers.stop(job.id, 'timed out');
     }
 
     if (orphanedJobs.length > 0) {

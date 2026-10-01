@@ -19,6 +19,8 @@ describe('OrphanSweeper', () => {
   let sweeper: OrphanSweeper;
   let mockJobService: jest.Mocked<JobService>;
 
+  const workers = { stop: jest.fn().mockResolvedValue(undefined) };
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
@@ -30,7 +32,7 @@ describe('OrphanSweeper', () => {
     } as unknown as jest.Mocked<JobService>;
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
 
-    sweeper = new OrphanSweeper();
+    sweeper = new OrphanSweeper({}, workers);
   });
 
   afterEach(() => {
@@ -61,6 +63,8 @@ describe('OrphanSweeper', () => {
 
       // Verify each orphan was marked as failed
       expect(mockJobService.updateJobStatus).toHaveBeenCalledTimes(2);
+      expect(workers.stop).toHaveBeenCalledTimes(2);
+      expect(workers.stop).toHaveBeenCalledWith(expect.any(String), 'timed out');
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith('job-1', 'failed', {
         errorMessage: 'Job timed out after 1800s without callback',
         failureCode: 'RUN_LOST',
@@ -118,7 +122,7 @@ describe('OrphanSweeper', () => {
 
       const customSweeper = new OrphanSweeper({
         jobTimeoutMs: 10 * 60_000, // 10 minutes
-      });
+      }, workers);
 
       await customSweeper.sweep();
 
@@ -131,7 +135,7 @@ describe('OrphanSweeper', () => {
     it('should use custom timeout in error message', async () => {
       const customSweeper = new OrphanSweeper({
         jobTimeoutMs: 5 * 60_000, // 5 minutes
-      });
+      }, workers);
 
       const orphanedJobs = [{ id: 'job-timeout', started_at: new Date() }];
       mockJobService.findOrphanedJobs.mockResolvedValue(orphanedJobs);
@@ -147,7 +151,7 @@ describe('OrphanSweeper', () => {
     it('should handle very short timeout values', async () => {
       const customSweeper = new OrphanSweeper({
         jobTimeoutMs: 100, // 100ms for testing
-      });
+      }, workers);
 
       const now = Date.now();
       let capturedCutoff: Date | undefined;
@@ -232,7 +236,7 @@ describe('OrphanSweeper', () => {
     it('should respect custom sweepIntervalMs', async () => {
       const customSweeper = new OrphanSweeper({
         sweepIntervalMs: 2000, // 2 seconds
-      });
+      }, workers);
 
       customSweeper.start();
 

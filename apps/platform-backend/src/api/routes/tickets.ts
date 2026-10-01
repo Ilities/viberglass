@@ -49,6 +49,7 @@ import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionServic
 import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
 import { TaskActivityRecorder } from "../../services/tasks/TaskActivityRecorder";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
+import { taskChangeGuard } from "../middleware/taskChangeGuards";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -107,7 +108,7 @@ const validSetStatuses: TicketLifecycleStatus[] = [
   TICKET_STATUS.RESOLVED,
 ];
 
-router.post("/:id/set-status", validateUuidParam("id"), async (req, res) => {
+router.post("/:id/set-status", validateUuidParam("id"), taskChangeGuard("edit"), async (req, res) => {
   const { id } = req.params;
   const { status } = req.body as { status: unknown };
 
