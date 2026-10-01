@@ -4,6 +4,8 @@ import type {
   ApiResponse,
   CreateTicketRequest,
   PaginatedResponse,
+  QuoteLocation,
+  TextQuote,
   Ticket,
   TicketLifecycleStatus,
   TicketListParams,
@@ -295,7 +297,13 @@ export interface PhaseDocumentCommentResponse {
   documentId: string
   ticketId: string
   phase: 'research' | 'planning'
+  /** Where the comment is in the document now, else the line it was placed on. */
   lineNumber: number
+  quote: TextQuote | null
+  /** Where the quoted text is in the current document; null when it's gone or there's no quote. */
+  location: QuoteLocation | null
+  /** The quoted text is no longer in the document. */
+  outdated: boolean
   content: string
   status: PhaseDocumentCommentStatus
   actor: string | null
@@ -378,7 +386,7 @@ export async function getPhaseDocumentComments(
 export async function createPhaseDocumentComment(
   ticketId: string,
   phase: 'research' | 'planning',
-  payload: { lineNumber: number; content: string },
+  payload: { quote: TextQuote; content: string },
 ): Promise<PhaseDocumentCommentResponse> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/${phase}/comments`, {
     method: 'POST',

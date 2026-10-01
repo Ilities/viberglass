@@ -102,6 +102,7 @@ export function registerThreadMentionHandler(
           clankerId: ticketMapping.clankerId,
           mode: ticketMapping.mode as "research" | "planning",
           revisionMessage: instruction,
+          slackUserId: message.author.userId,
         });
       } catch (err) {
         await thread.post(
@@ -157,6 +158,7 @@ export function registerThreadMentionHandler(
           clankerId: detail.session.clankerId,
           mode: advance.firstMode,
           initialMessage: "",
+          slackUserId: message.author.userId,
         });
         services.stopBridge(sessionId);
         await services.unlinkSession(sessionId);
@@ -188,6 +190,7 @@ export function registerThreadMentionHandler(
         clankerId: detail.session.clankerId,
         mode: targetMode,
         initialMessage: advance.kind === "advance" ? "" : instruction,
+        slackUserId: message.author.userId,
       });
 
       services.stopBridge(sessionId);

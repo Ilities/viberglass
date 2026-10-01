@@ -36,8 +36,9 @@ describe("TicketPhaseDocumentCommentService", () => {
     jest.clearAllMocks();
   });
 
-  it("lists comments for an existing ticket", async () => {
+  it("lists comments where their text is in the document now", async () => {
     mockTicketDAO.getTicket.mockResolvedValue({ id: "ticket-1" });
+    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "Intro\n\nNew line\nWe assume X." });
     mockCommentDAO.listByTicketAndPhase.mockResolvedValue([
       {
         id: "comment-1",
@@ -45,6 +46,7 @@ describe("TicketPhaseDocumentCommentService", () => {
         ticketId: "ticket-1",
         phase: "research",
         lineNumber: 3,
+        quote: { exact: "assume X", prefix: "We ", suffix: "." },
         content: "Please verify this assumption.",
         status: "open",
         actor: "reviewer@example.com",
@@ -64,7 +66,10 @@ describe("TicketPhaseDocumentCommentService", () => {
         documentId: "doc-1",
         ticketId: "ticket-1",
         phase: "research",
-        lineNumber: 3,
+        lineNumber: 4,
+        quote: { exact: "assume X", prefix: "We ", suffix: "." },
+        location: { start: 19, end: 27, line: 4 },
+        outdated: false,
         content: "Please verify this assumption.",
         status: "open",
         actor: "reviewer@example.com",
@@ -74,6 +79,50 @@ describe("TicketPhaseDocumentCommentService", () => {
         updatedAt: "2026-03-01T09:05:00.000Z",
       },
     ]);
+  });
+
+  it("marks a comment outdated once its text is gone from the document", async () => {
+    mockTicketDAO.getTicket.mockResolvedValue({ id: "ticket-1" });
+    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "Rewritten entirely." });
+    mockCommentDAO.listByTicketAndPhase.mockResolvedValue([
+      {
+        id: "comment-1",
+        lineNumber: 3,
+        quote: { exact: "assume X", prefix: "", suffix: "" },
+        content: "Verify",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        resolvedAt: null,
+      },
+    ]);
+
+    const [comment] = await new TicketPhaseDocumentCommentService().listComments("ticket-1", "research");
+
+    expect(comment).toMatchObject({ outdated: true, location: null, lineNumber: 3 });
+  });
+
+  it("creates a comment on quoted text, on the line the text is on", async () => {
+    mockTicketDAO.getTicket.mockResolvedValue({ id: "ticket-1" });
+    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "First line\nSecond **line**" });
+    mockCommentDAO.create.mockImplementation(async (input) => ({ ...input, id: "c-1", createdAt: new Date(), updatedAt: new Date(), resolvedAt: null }));
+    const quote = { exact: "Second **line**", prefix: "First line\n", suffix: "" };
+
+    const comment = await new TicketPhaseDocumentCommentService().createComment("ticket-1", "planning", { quote, content: "Why bold?" });
+
+    expect(mockCommentDAO.create).toHaveBeenCalledWith(expect.objectContaining({ lineNumber: 2, quote, content: "Why bold?" }));
+    expect(comment.location).toEqual({ start: 11, end: 26, line: 2 });
+  });
+
+  it("refuses a quote that isn't in the document", async () => {
+    mockTicketDAO.getTicket.mockResolvedValue({ id: "ticket-1" });
+    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({ id: "doc-1", content: "First line" });
+
+    await expect(
+      new TicketPhaseDocumentCommentService().createComment("ticket-1", "planning", {
+        quote: { exact: "Missing", prefix: "", suffix: "" },
+        content: "Hm",
+      }),
+    ).rejects.toThrow("The quoted text isn't in the document");
   });
 
   it("creates a comment when the line anchor is valid", async () => {
@@ -109,6 +158,7 @@ describe("TicketPhaseDocumentCommentService", () => {
       ticketId: "ticket-1",
       phase: "planning",
       lineNumber: 2,
+      quote: { exact: "Second line", prefix: "First line\n", suffix: "" },
       content: "Needs more detail",
       actor: "reviewer@example.com",
     });

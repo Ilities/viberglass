@@ -3,6 +3,7 @@ import { createChildLogger } from "../../config/logger";
 import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
 import { currentActorId } from "../../api/auth/requestActor";
 import { NotificationService, type RecordedActivity } from "../notifications/NotificationService";
+import { AuditActivityListener } from "../audit/AuditActivityListener";
 
 /** Hears about every recorded change, e.g. to notify people about it. */
 export interface ActivityListener {
@@ -15,13 +16,13 @@ export type ActivityActor = { type: "human"; userId: string | null } | { type: "
 
 /**
  * Writes a task's Activity from the services that make each change, then tells
- * its listeners (notifications). A failure to record or to notify is logged,
+ * its listeners (notifications, the audit log). A failure to record or to notify is logged,
  * never allowed to undo or fail the change itself.
  */
 export class TaskActivityRecorder {
   constructor(
     private readonly activity: Pick<TaskActivityDAO, "record"> = new TaskActivityDAO(),
-    private readonly listeners: ActivityListener[] = [new NotificationService()],
+    private readonly listeners: ActivityListener[] = [new NotificationService(), new AuditActivityListener()],
   ) {}
 
   /** Records the change as made by whoever is behind the current request, else by the system. */

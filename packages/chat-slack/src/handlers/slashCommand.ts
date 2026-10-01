@@ -9,7 +9,7 @@ export function registerSlashCommandHandler(
   bot.onSlashCommand("/viberator", async (event) => {
     try {
       const [projects, clankers] = await Promise.all([
-        services.listProjects(),
+        services.listProjects(event.user.userId),
         services.listClankers(),
       ]);
 

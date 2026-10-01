@@ -4,6 +4,7 @@ import { InviteDAO, type InviteRecord } from "../../persistence/user/InviteDAO";
 import { UserDAO, type PublicUser } from "../../persistence/user/UserDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { PEOPLE_SERVICE_ERROR_CODE, PeopleServiceError } from "../errors/PeopleServiceError";
+import { AuditRecorder } from "../audit/AuditRecorder";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -19,6 +20,7 @@ export class InviteService {
     private readonly invites: InviteStore = new InviteDAO(),
     private readonly users: UserLookup = new UserDAO(),
     private readonly spaces: SpaceLookup = new ProjectDAO(),
+    private readonly audit: Pick<AuditRecorder, "record"> = new AuditRecorder(),
   ) {}
 
   /** `spaceIds` are spaces the invitee joins on accepting; a guest needs at least one (ADR 0005). */
@@ -82,6 +84,13 @@ export class InviteService {
     if (!accepted) throw new PeopleServiceError(PEOPLE_SERVICE_ERROR_CODE.LINK_INVALID, LINK_INVALID_MESSAGE);
     const user = await this.users.findById(accepted.userId);
     if (!user) throw new Error(`User ${accepted.userId} disappeared after accepting an invite`);
+    // Nobody is signed in yet, so the new person is the actor.
+    await this.audit.record({
+      action: "invite.accepted",
+      target: { type: "invite", id: invite.id },
+      actorId: user.id,
+      details: { email: invite.email, role: invite.role },
+    });
     return user;
   }
 }

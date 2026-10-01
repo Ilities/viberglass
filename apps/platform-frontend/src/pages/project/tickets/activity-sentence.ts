@@ -1,4 +1,5 @@
 import type { TaskActivityEntry } from '@viberglass/types'
+import { readableQuote } from './readable-quote'
 
 const STEP: Record<string, string> = { research: 'research', planning: 'plan', execution: 'build', claw: 'scheduled run' }
 
@@ -41,6 +42,8 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
     case 'task_done':
       return `${who} marked the task as done`
     case 'comment_added':
+      // Entries from before quotes name the line instead.
+      if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`
       return typeof entry.payload.line === 'number' ? `${who} commented on the ${step}, line ${entry.payload.line}` : `${who} commented on the ${step}`
   }
 }

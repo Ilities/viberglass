@@ -1,3 +1,4 @@
+import { locateQuote, quoteForLine, type QuoteLocation, type TextQuote } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
 import {
@@ -9,12 +10,21 @@ import {
 } from "../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 
+/** How much of a comment's quote its Activity entry keeps. */
+const QUOTE_IN_ACTIVITY = 80;
+
 export interface PhaseDocumentCommentView {
   id: string;
   documentId: string;
   ticketId: string;
   phase: CommentableTicketWorkflowPhase;
+  /** Where the comment is in the document now, else the line it was placed on. */
   lineNumber: number;
+  quote: TextQuote | null;
+  /** Where the quote is in the current document; null when its text is gone or it has none. */
+  location: QuoteLocation | null;
+  /** The quoted text is no longer in the document. */
+  outdated: boolean;
   content: string;
   status: PhaseDocumentCommentStatus;
   actor: string | null;
@@ -24,8 +34,10 @@ export interface PhaseDocumentCommentView {
   updatedAt: string;
 }
 
+/** A comment is placed on quoted text (from the rendered document) or, failing that, on a whole line. */
 interface CreatePhaseDocumentCommentInput {
-  lineNumber: number;
+  quote?: TextQuote;
+  lineNumber?: number;
   content: string;
   actor?: string;
 }
@@ -47,8 +59,13 @@ export class TicketPhaseDocumentCommentService {
     phase: CommentableTicketWorkflowPhase,
   ): Promise<PhaseDocumentCommentView[]> {
     await this.requireTicket(ticketId);
-    const comments = await this.commentDAO.listByTicketAndPhase(ticketId, phase);
-    return comments.map((comment) => this.toView(comment));
+    const [comments, document] = await Promise.all([
+      this.commentDAO.listByTicketAndPhase(ticketId, phase),
+      this.documentDAO.getByTicketAndPhase(ticketId, phase),
+    ]);
+    return comments
+      .map((comment) => this.toView(comment, document?.content ?? ""))
+      .sort((a, b) => (a.location?.start ?? Infinity) - (b.location?.start ?? Infinity) || a.lineNumber - b.lineNumber);
   }
 
   async createComment(
@@ -62,19 +79,24 @@ export class TicketPhaseDocumentCommentService {
       throw new Error("Comment content is required");
     }
 
-    this.assertLineInRange(document.content, input.lineNumber);
+    const quote = this.quoteFor(document.content, input);
+    const location = locateQuote(document.content, quote, input.lineNumber);
+    if (!location) {
+      throw new Error("The quoted text isn't in the document");
+    }
 
     const comment = await this.commentDAO.create({
       documentId: document.id,
       ticketId,
       phase,
-      lineNumber: input.lineNumber,
+      lineNumber: location.line,
+      quote,
       content,
       actor: input.actor,
     });
-    await this.activity.recordByCurrentActor(ticketId, "comment_added", { step: phase, line: input.lineNumber });
+    await this.activity.recordByCurrentActor(ticketId, "comment_added", { step: phase, quote: quote.exact.slice(0, QUOTE_IN_ACTIVITY) });
 
-    return this.toView(comment);
+    return this.toView(comment, document.content);
   }
 
   async updateComment(
@@ -117,8 +139,9 @@ export class TicketPhaseDocumentCommentService {
       resolvedAt,
       resolvedBy,
     });
+    const document = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
 
-    return this.toView(updated);
+    return this.toView(updated, document?.content ?? "");
   }
 
   private async requireTicket(ticketId: string): Promise<void> {
@@ -142,24 +165,29 @@ export class TicketPhaseDocumentCommentService {
     return document;
   }
 
-  private assertLineInRange(content: string, lineNumber: number): void {
-    if (!Number.isInteger(lineNumber) || lineNumber < 1) {
-      throw new Error("Line anchor is out of range");
+  private quoteFor(content: string, input: CreatePhaseDocumentCommentInput): TextQuote {
+    if (input.quote) {
+      if (!input.quote.exact.trim()) throw new Error("Pick some text to comment on");
+      return input.quote;
     }
-
-    const lineCount = content.split("\n").length;
-    if (lineNumber > lineCount) {
-      throw new Error("Line anchor is out of range");
-    }
+    const lineNumber = input.lineNumber ?? 0;
+    const quote = Number.isInteger(lineNumber) ? quoteForLine(content, lineNumber) : null;
+    if (!quote) throw new Error("Line anchor is out of range");
+    return quote;
   }
 
-  private toView(comment: PhaseDocumentComment): PhaseDocumentCommentView {
+  /** Finds the comment's text again in the document as it reads now. */
+  private toView(comment: PhaseDocumentComment, documentContent: string): PhaseDocumentCommentView {
+    const location = comment.quote ? locateQuote(documentContent, comment.quote, comment.lineNumber) : null;
     return {
       id: comment.id,
       documentId: comment.documentId,
       ticketId: comment.ticketId,
       phase: comment.phase,
-      lineNumber: comment.lineNumber,
+      lineNumber: location?.line ?? comment.lineNumber,
+      quote: comment.quote,
+      location,
+      outdated: comment.quote !== null && location === null,
       content: comment.content,
       status: comment.status,
       actor: comment.actor,

@@ -1,6 +1,7 @@
 import type { Router } from "express";
 import {
   TICKET_WORKFLOW_PHASE,
+  type TextQuote,
   type TicketWorkflowPhase,
 } from "@viberglass/types";
 import logger from "../../../config/logger";
@@ -36,6 +37,15 @@ function parseWorkflowPhaseParam(rawPhase: string): TicketWorkflowPhase | null {
   }
 
   return null;
+}
+
+/** A comment's quote from the request: undefined when absent, null when malformed. */
+function parseTextQuote(raw: unknown): TextQuote | null | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "object" || raw === null || !("exact" in raw) || !("prefix" in raw) || !("suffix" in raw)) return null;
+  const { exact, prefix, suffix } = raw;
+  if (typeof exact !== "string" || typeof prefix !== "string" || typeof suffix !== "string") return null;
+  return { exact, prefix, suffix };
 }
 
 function parseCommentableWorkflowPhaseParam(
@@ -229,10 +239,16 @@ export function registerTicketWorkflowPhaseRoutes(
       }
 
       const { lineNumber, content } = req.body;
-      if (!Number.isInteger(lineNumber) || typeof content !== "string") {
+      const quote = parseTextQuote(req.body.quote);
+      if (
+        typeof content !== "string" ||
+        (quote === undefined && !Number.isInteger(lineNumber)) ||
+        quote === null
+      ) {
         return res.status(400).json({
           error: "Validation error",
-          message: "lineNumber must be an integer and content must be a string",
+          message:
+            "content must be a string, with a quote ({ exact, prefix, suffix }) or an integer lineNumber",
         });
       }
 
@@ -241,7 +257,8 @@ export function registerTicketWorkflowPhaseRoutes(
           req.params.id,
           phase,
           {
-            lineNumber,
+            quote,
+            lineNumber: Number.isInteger(lineNumber) ? lineNumber : undefined,
             content,
             actor: req.authContext?.user.email,
           },
@@ -263,7 +280,9 @@ export function registerTicketWorkflowPhaseRoutes(
         if (
           message === "Comment content is required" ||
           message === "Cannot comment on an empty document" ||
-          message === "Line anchor is out of range"
+          message === "Line anchor is out of range" ||
+          message === "The quoted text isn't in the document" ||
+          message === "Pick some text to comment on"
         ) {
           return res.status(400).json({
             error: message,

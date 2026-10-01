@@ -56,6 +56,7 @@ import {
   PromptTemplateDAO,
   PROMPT_TYPE,
 } from "../../persistence/promptTemplate/PromptTemplateDAO";
+import { formatCommentsForAgent } from "../comments/formatCommentsForAgent";
 
 export interface LaunchAgentSessionInput {
   ticketId: string;
@@ -70,8 +71,6 @@ export interface LaunchAgentSessionResult {
   currentTurn: AgentTurn;
   job: { id: string; status: string };
 }
-
-const SUGGESTION_PREFIX = "@@SUGGESTION@@\n";
 
 export class AgentSessionLaunchService {
   private readonly ticketDAO = new TicketDAO();
@@ -184,19 +183,7 @@ export class AgentSessionLaunchService {
       );
     }
 
-    const openCommentsStr =
-      openComments.length > 0
-        ? openComments
-            .map((c) => {
-              const actor = c.actor ? ` (by ${c.actor})` : "";
-              if (c.content.startsWith(SUGGESTION_PREFIX)) {
-                const suggestion = c.content.slice(SUGGESTION_PREFIX.length);
-                return `- Line ${c.lineNumber}${actor}: **Suggestion:** ${suggestion}`;
-              }
-              return `- Line ${c.lineNumber}${actor}: ${c.content}`;
-            })
-            .join("\n")
-        : undefined;
+    const openCommentsStr = formatCommentsForAgent(openComments);
 
     const jobData = await this.buildJobData(jobId, input, prepared, ticket, {
       researchDocument: researchDocumentContent,

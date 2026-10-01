@@ -43,6 +43,9 @@ import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestr
 import { TicketResearchApprovalService } from "../services/approvals/TicketResearchApprovalService";
 import { isApprovalPolicyError } from "../services/errors/ApprovalPolicyError";
 import { UserDAO } from "../persistence/user/UserDAO";
+import { TaskParticipantService } from "../services/tasks/TaskParticipantService";
+import { SpaceAccessService } from "../services/spaces/SpaceAccessService";
+import { runAsActor } from "../api/auth/requestActor";
 import { getFeedbackService } from "../webhooks/webhookServiceFactory";
 import { WorkerExecutionService } from "../workers";
 import { JobCancellationService } from "../services/job/JobCancellationService";
@@ -124,16 +127,20 @@ const ticketPhaseOrchestrationService = new TicketPhaseOrchestrationService(
 );
 
 const userDAO = new UserDAO();
+const taskParticipants = new TaskParticipantService();
+const spaceAccess = new SpaceAccessService();
 
 /**
- * Acts as the Viberglass person who linked this Slack account, so approvals
- * are theirs under the space's policy. Someone who hasn't linked one is told
+ * Acts as the Viberglass person who linked this Slack account, so the runs it
+ * starts and the approvals it gives are theirs (approvals under the space's
+ * policy). Someone who hasn't linked one is told
  * how to, rather than that they need to sign in.
  */
 async function asSlackUser<T>(slackUserId: string | undefined, act: (actorId: string | null) => Promise<T>): Promise<T> {
   const actorId = slackUserId ? await userDAO.findActiveIdBySlackUserId(slackUserId) : null;
   try {
-    return await act(actorId);
+    // Runs, Activity and the audit log then credit the person, or say it came from Slack.
+    return await runAsActor({ userId: actorId, slackUserId }, () => act(actorId));
   } catch (error) {
     if (!actorId && isApprovalPolicyError(error)) {
       throw new Error("Link your Slack account in Viberglass (Settings → Notifications) to approve from Slack.");
@@ -148,32 +155,44 @@ ticketJobBridge.configure({
 });
 
 const slackServices: SlackHandlerServices = {
-  listProjects: () => projectDAO.listProjects(),
+  listProjects: async (slackUserId) => {
+    const userId = await userDAO.findActiveIdBySlackUserId(slackUserId);
+    const user = userId ? await userDAO.findById(userId) : null;
+    return projectDAO.listProjects(50, 0, user ? await spaceAccess.visibleProjectIds({ id: user.id, role: user.role }) : null);
+  },
   listClankers: () => clankerDAO.listClankers(),
 
-  createTicket: ({ projectId, title, description, phase }) =>
-    ticketDAO.createTicket({
-      projectId,
-      title,
-      description,
-      severity: "medium",
-      category: "slack",
-      metadata: { timestamp: new Date().toISOString(), timezone: "UTC" },
-      annotations: [],
-      autoFixRequested: false,
-      ticketSystem: "slack",
-      workflowPhase: phase,
+  createTicket: ({ projectId, title, description, phase, slackUserId }) =>
+    asSlackUser(slackUserId, async (requesterId) => {
+      // Only people who can see a space are put on its tasks; the Slack form lists every space.
+      if (requesterId) {
+        await taskParticipants.assertCanSeeSpace(projectId, requesterId).catch(() => {
+          throw new Error("You can't see that space in Viberglass, so you can't ask for something in it.");
+        });
+      }
+      return ticketDAO.createTicket({
+        projectId,
+        title,
+        description,
+        severity: "medium",
+        category: "slack",
+        metadata: { timestamp: new Date().toISOString(), timezone: "UTC" },
+        annotations: [],
+        autoFixRequested: false,
+        ticketSystem: "slack",
+        workflowPhase: phase,
+        requesterId: requesterId ?? undefined,
+      });
     }),
 
-  runJob: async ({ ticketId, clankerId, mode }) => {
-    let result;
-    if (mode === "research") {
-      result = await ticketResearchService.runResearch(ticketId, { clankerId });
-    } else if (mode === "planning") {
-      result = await ticketPlanningService.runPlanning(ticketId, { clankerId });
-    } else {
-      result = await ticketExecutionService.runTicket(ticketId, { clankerId });
-    }
+  runJob: async ({ ticketId, clankerId, mode, slackUserId }) => {
+    const result = await asSlackUser(slackUserId, () =>
+      mode === "research"
+        ? ticketResearchService.runResearch(ticketId, { clankerId })
+        : mode === "planning"
+          ? ticketPlanningService.runPlanning(ticketId, { clankerId })
+          : ticketExecutionService.runTicket(ticketId, { clankerId }),
+    );
 
     // Start the ticket job bridge to post the document on completion
     const thread = await getThreadForTicket(ticketId);
@@ -191,7 +210,8 @@ const slackServices: SlackHandlerServices = {
     return result;
   },
 
-  launchSession: (params) => launchService.launch(params),
+  launchSession: ({ slackUserId, ...params }) =>
+    asSlackUser(slackUserId, (actorId) => launchService.launch(params, actorId ?? undefined)),
 
   getSessionDetail: async (sessionId) => {
     const detail = await queryService.getDetail(sessionId);
@@ -207,14 +227,14 @@ const slackServices: SlackHandlerServices = {
       : null;
   },
 
-  replyToSession: async (sessionId, text) => {
-    await interactionService.reply(sessionId, text);
+  replyToSession: async (sessionId, text, slackUserId) => {
+    await asSlackUser(slackUserId, (actorId) => interactionService.reply(sessionId, text, actorId ?? undefined));
   },
-  sendMessageToSession: async (sessionId, text) => {
-    await interactionService.sendMessage(sessionId, text);
+  sendMessageToSession: async (sessionId, text, slackUserId) => {
+    await asSlackUser(slackUserId, (actorId) => interactionService.sendMessage(sessionId, text, actorId ?? undefined));
   },
-  approveSession: async (sessionId, approved) => {
-    await interactionService.approve(sessionId, approved);
+  approveSession: async (sessionId, approved, slackUserId) => {
+    await asSlackUser(slackUserId, (actorId) => interactionService.approve(sessionId, approved, actorId ?? undefined));
   },
 
   getSessionForThread,
@@ -278,19 +298,12 @@ const slackServices: SlackHandlerServices = {
 
     return result;
   },
-  runRevisionJob: async ({ ticketId, clankerId, mode, revisionMessage }) => {
-    let result;
-    if (mode === "research") {
-      result = await ticketResearchService.runResearchRevision(ticketId, {
-        clankerId,
-        revisionMessage,
-      });
-    } else {
-      result = await ticketPlanningService.runPlanningRevision(ticketId, {
-        clankerId,
-        revisionMessage,
-      });
-    }
+  runRevisionJob: async ({ ticketId, clankerId, mode, revisionMessage, slackUserId }) => {
+    const result = await asSlackUser(slackUserId, () =>
+      mode === "research"
+        ? ticketResearchService.runResearchRevision(ticketId, { clankerId, revisionMessage })
+        : ticketPlanningService.runPlanningRevision(ticketId, { clankerId, revisionMessage }),
+    );
 
     // Start the ticket job bridge to post the revised document on completion
     const thread = await getThreadForTicket(ticketId);
@@ -326,12 +339,9 @@ chatSessionBridge.configure({
     await interactionService.approve(sessionId, true);
   },
   launchAndLink: async ({ ticketId, clankerId, mode, thread, slackUserId }) => {
-    await asSlackUser(slackUserId, (actorId) => ticketPhaseOrchestrationService.approveUpTo(ticketId, mode, actorId));
-    const result = await launchService.launch({
-      ticketId,
-      clankerId,
-      mode,
-      initialMessage: "",
+    const result = await asSlackUser(slackUserId, async (actorId) => {
+      await ticketPhaseOrchestrationService.approveUpTo(ticketId, mode, actorId);
+      return launchService.launch({ ticketId, clankerId, mode, initialMessage: "" }, actorId ?? undefined);
     });
     await linkSessionThread(result.session.id, thread, "slack");
     return result.session.id;

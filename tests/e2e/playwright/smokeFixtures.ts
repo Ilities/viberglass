@@ -15,7 +15,7 @@ interface SmokeFixtures {
 }
 
 /** Opens a page that is already signed in, instead of clicking through login. */
-async function signedInPage(browser: Browser, session: SignedInSession) {
+export async function signedInPage(browser: Browser, session: SignedInSession) {
   const context = await browser.newContext({ storageState: await session.api.storageState() });
   await context.addInitScript((token) => {
     // about:blank has no localStorage; only app pages need the token.

@@ -1,4 +1,4 @@
-import type { TicketWorkflowPhase } from "@viberglass/types";
+import type { TextQuote, TicketWorkflowPhase } from "@viberglass/types";
 import type { Selectable } from "kysely";
 import db from "../config/database";
 import type { Database } from "../types/database";
@@ -24,7 +24,10 @@ export interface PhaseDocumentComment {
   documentId: string;
   ticketId: string;
   phase: CommentableTicketWorkflowPhase;
+  /** The line the comment was placed on; a fallback for comments with no quote. */
   lineNumber: number;
+  /** The text it's on; null for a comment on a blank line from before quotes. */
+  quote: TextQuote | null;
   content: string;
   status: PhaseDocumentCommentStatus;
   actor: string | null;
@@ -39,6 +42,7 @@ interface CreatePhaseDocumentCommentInput {
   ticketId: string;
   phase: CommentableTicketWorkflowPhase;
   lineNumber: number;
+  quote: TextQuote;
   content: string;
   actor?: string;
 }
@@ -93,6 +97,9 @@ export class TicketPhaseDocumentCommentDAO {
         ticket_id: input.ticketId,
         phase: input.phase,
         line_number: input.lineNumber,
+        quote_exact: input.quote.exact,
+        quote_prefix: input.quote.prefix,
+        quote_suffix: input.quote.suffix,
         content: input.content,
         actor: input.actor ?? null,
       })
@@ -129,6 +136,10 @@ export class TicketPhaseDocumentCommentDAO {
       ticketId: row.ticket_id,
       phase: row.phase,
       lineNumber: row.line_number,
+      quote:
+        row.quote_exact === null
+          ? null
+          : { exact: row.quote_exact, prefix: row.quote_prefix ?? "", suffix: row.quote_suffix ?? "" },
       content: row.content,
       status: row.status,
       actor: row.actor,

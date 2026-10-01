@@ -13,7 +13,7 @@ export function registerApprovalActionHandler(
     const thread = event.thread;
 
     try {
-      await services.approveSession(sessionId, approved);
+      await services.approveSession(sessionId, approved, event.user.userId);
       if (thread) {
         await thread.post(
           approved

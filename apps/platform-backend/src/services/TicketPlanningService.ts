@@ -33,6 +33,7 @@ import {
   PromptTemplateDAO,
   PROMPT_TYPE,
 } from "../persistence/promptTemplate/PromptTemplateDAO";
+import { formatCommentsForAgent } from "./comments/formatCommentsForAgent";
 
 export interface RunPlanningOptions {
   clankerId: string;
@@ -252,21 +253,7 @@ export class TicketPlanningService {
     const openComments = allComments.filter(
       (c) => c.status === PHASE_DOCUMENT_COMMENT_STATUS.OPEN,
     );
-
-    const SUGGESTION_PREFIX = "@@SUGGESTION@@\n";
-    const openCommentsStr =
-      openComments.length > 0
-        ? openComments
-            .map((c) => {
-              const actor = c.actor ? ` (by ${c.actor})` : "";
-              if (c.content.startsWith(SUGGESTION_PREFIX)) {
-                const suggestion = c.content.slice(SUGGESTION_PREFIX.length);
-                return `- Line ${c.lineNumber}${actor}: **Suggestion:** ${suggestion}`;
-              }
-              return `- Line ${c.lineNumber}${actor}: ${c.content}`;
-            })
-            .join("\n")
-        : undefined;
+    const openCommentsStr = formatCommentsForAgent(openComments);
 
     const jobId = `job_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const preparedContext = await prepareTicketRunContext(

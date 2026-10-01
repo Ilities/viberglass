@@ -194,6 +194,9 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | A live turn that writes no document leaves the session waiting on the person; their reply starts the next turn | `session-waits-on-person.e2e.test.ts` |
 | A task says whose move it is at the top and makes it: the agent working (cancel), research ready (approve & plan), plan ready (approve), then start the build | `task-next-moves.e2e.test.ts` |
 | Only the plan's reviewers (or maintainers and admins) see Approve and Skip to the build, and the API refuses anyone else; others ask for approval, and the approval is credited; a space's default reviewers join each new task | `approval-policy.e2e.test.ts` |
+| A reviewer comments on text in the rendered plan; the comment follows its text through an edit, reaches the agent with its quote, and is outdated once the text is gone | `rendered-document-comments.e2e.test.ts` |
+| The audit log records secrets, role changes and approvals (never a secret's value), is admin-only, and filters by area | `audit-log.e2e.test.ts` |
+| Phase 2's exit: three people invited by link; the PM asks, the designer is @mentioned and replies, the reviewer comments on the rendered plan, asks for changes and approves; Inbox and Activity name each person | `phase-2-exit.e2e.test.ts` |
 | Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
 | A phase can't start a second run or session while one is in progress; the page re-enables when it ends | `no-duplicate-runs.e2e.test.ts` |
 | Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |
