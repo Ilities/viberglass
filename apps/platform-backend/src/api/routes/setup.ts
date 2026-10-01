@@ -100,7 +100,7 @@ router.post(
   "/space",
   validateSetupSpace,
   asyncHandler(async (req, res) => {
-    const space = await spaceService.createSpace(req.body);
+    const space = await spaceService.createSpace(req.body, req.authContext?.user.id);
     res.status(201).json({ success: true, data: space });
   }),
 );

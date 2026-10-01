@@ -11,6 +11,7 @@ import { createChildLogger } from "../../config/logger";
 import type { WorkerStopper } from "../../workers/WorkerStopper";
 import { DockerWorkerStopper } from "../../workers/stoppers/DockerWorkerStopper";
 import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
+import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
 
 interface TicketStatusSynchronizer {
   synchronize(ticketId: string): Promise<unknown>;
@@ -27,6 +28,7 @@ export class JobCancellationService {
     private readonly eventDAO = new AgentSessionEventDAO(),
     private readonly workerStoppers: WorkerStopper[] = [new DockerWorkerStopper()],
     private readonly ticketStatus: TicketStatusSynchronizer = new TicketLifecycleStatusService(),
+    private readonly activity: Pick<TaskActivityRecorder, "record"> = new TaskActivityRecorder(),
   ) {}
 
   /** Cancels a run, stops its worker, and cancels the live session it belongs to. */
@@ -40,6 +42,13 @@ export class JobCancellationService {
 
     const result = await this.stopJob(jobId);
     if (result !== "cancelled") return result;
+
+    const ticketId = (await this.getJob(jobId))?.ticket_id;
+    if (ticketId) {
+      await this.activity.record(ticketId, cancelledBy ? { type: "human", userId: cancelledBy } : { type: "system" }, "run_cancelled", {
+        jobId,
+      });
+    }
 
     if (job.agent_turn_id) {
       await this.turnDAO.update(job.agent_turn_id, {

@@ -52,3 +52,15 @@ export * from './branchNaming'
 
 // Workspace roles
 export * from './workspaceRole'
+
+// Space membership and visibility
+export * from './spaceAccess'
+
+// Task keys (WEB-42)
+export * from './taskKey'
+
+// Task participants
+export * from './taskParticipant'
+
+// Task discussion, mentions and activity
+export * from './taskDiscussion'

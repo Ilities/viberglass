@@ -22,6 +22,7 @@ jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 
 const ticket: Ticket = {
   id: 'ticket-1',
+  key: 'WEB-1',
   projectId: 'project-1',
   timestamp: '2026-07-22T10:00:00.000Z',
   title: 'Checkout button is unresponsive',

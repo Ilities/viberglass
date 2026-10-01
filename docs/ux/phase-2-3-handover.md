@@ -145,6 +145,18 @@ The original plan follows.
 
 ### 2.3 Space membership and visibility (J17; D2, D3)
 
+**Done (2026-09-30).** What landed:
+- **Data** (migration 074): `space_members(project_id, user_id, role maintainer|member, added_by)` replaces the stale `user_projects`; `projects.is_private`; `invites.space_ids`. The dead `projectAuthorization.ts` (and its test) is gone.
+- **One rule** (`canSeeSpace` / `canMaintainSpace` in `@viberglass/types`): admins see everything and maintain every space; guests see only spaces they belong to; everyone else sees open spaces plus private ones they belong to. `SpaceAccessService` applies it on the server; a space someone can't see answers **404**, so a private space's name doesn't leak.
+- **Enforced by `router.param`**, so every route with the parameter is covered without touching handlers: `:id`/`:projectId`/`:name` on `/api/spaces` (reads need visibility, any change needs a maintainer, which also makes space prompt templates maintainer-only, PG17), `:projectId` on `/api/integrations/space/…`, `:id` on `/api/tasks`, `:sessionId` on `/api/agent-sessions`, `:jobId` on `/api/jobs` (worker callbacks carry no user and pass through). Bulk archive checks every task. Scheduled runs (`/api/claw`) check the schedule's, template's or execution's space, and non-admin lists must name a visible space.
+- **Lists are filtered**: spaces, tasks, task stats, runs, live sessions (Pulse) and MCP (`createMcpToolServices(scope)`, built per request from the token's user).
+- **Membership**: creating a space (and setup's space step) makes the creator its first maintainer; the demo seed adds its people. Settings → Members in a space lists members, lets maintainers add people, change roles and remove them, and holds the **Private space** switch. People who can see settings but not change them get a note saying so (`viewerAccess` on the space response).
+- **Guests are invitable**: an invite can name spaces to join (required for a guest), and accepting adds them as members in the same transaction. Guests' pages treat the forbidden agent list as empty.
+- Verified: backend and frontend unit tests (188 frontend), the smoke suite (25/25) including `space-visibility.e2e.test.ts` (a private space and its tasks are hidden until the member is added; only maintainers change settings; a guest sees only their space, can't read plumbing or run, and can open their task in the browser); Settings → Members in the dev stack.
+- **Left for later:** plumbing reads outside the agent list may still 403 for guests on pages they can reach (found by the Phase 2½ walkthrough); MCP stays admins and members only.
+
+The original plan follows.
+
 - **Exists** (verified):
   - `api/middleware/projectAuthorization.ts` exports `requireProjectAccess`, `requireProjectAdmin` and `requireTicketProjectAccess`, **mounted nowhere**.
   - It reads `req.user.id`, but authentication sets `req.user` to the `AuthContext` (`api/auth/context.ts`), so the id is at `req.user.user.id`. As written, it would deny everyone. Fix and unit-test it before mounting.
@@ -165,6 +177,17 @@ The original plan follows.
 
 ### 2.4 Task participants and task keys (J5; plan §9)
 
+**Done (2026-09-30).** What landed:
+- **Keys** (migration 075): each space has a fixed `key_prefix`, unique across spaces and derived from its name (`deriveKeyPrefix`: initials of several words, else the first three letters; "UX Walkthrough" → UW, "Web" → WEB, with a number added on a clash), and a `next_task_number` counter. A task's number and key (`UW-7`) are assigned in the creating transaction by an `UPDATE … RETURNING` on the space row, which serialises concurrent creation. Existing tasks were numbered in creation order.
+  - URLs show the key where the link has the task (board, table, dashboard, sidebar, Pulse, space home, setup's first task, run and revision dialogs). The task page resolves a key through `GET /api/tasks/by-key/:key` (guarded like `:id`); links built from a bare task id (runs, sessions, run records, webhook deliveries) still use the id, which keeps working. The API stays on ids.
+- **Participants** (migration 076): `task_participants(ticket_id, user_id, role requester|owner|reviewer|watcher)`, one owner and one requester per task. Every creation path goes through `TicketDAO.createTicket`, which records the requester (the signed-in person), the owner (the one picked, else the space's `default_owner_id`, else the requester) and any watchers in the same transaction. Webhook tasks get the default owner. Tasks made before this have none.
+  - Routes on the task: list; change the owner (admins and members); add or remove reviewers (admins and members); watch and unwatch (anyone but viewers, for themselves). Only people who can see the task's space can be put on it.
+  - The task sidebar shows the key and a People section (requester, owner picker, reviewers, Watch). Board cards and the table show the key and owner. The create form has an owner picker. Space settings → Members has the default owner.
+- Verified: backend 960 and frontend 188 unit tests; the smoke suite (28/28) including `task-keys-and-people.e2e.test.ts` (8 tasks created at once get keys 1–8; requester and owner on create; the default owner wins; the page opens by key and Watch works); the task page in the dev stack.
+- **Left for later:** the create form doesn't pick watchers (add them on the task); the §9 "waiting on" status line needs reviewers from the approval policy (§2.7).
+
+The original plan follows.
+
 - **Exists:** tickets have none of requester, owner, created_by, reviewers or watchers. The only person on a ticket is a string, `workflow_overridden_by`. There's no per-space key; tickets are addressed by UUID, and `external_ticket_id` holds a tracker's key. *(Reported.)*
 - **Design:**
   - `task_participants(task_id, user_id, role requester|owner|reviewer|watcher)`, with requester set automatically.
@@ -179,6 +202,19 @@ The original plan follows.
 - **Tests:** keys are unique and sequential under concurrent creation (a real-database test, like the phase-document race fixed in Phase 1); a created task has a requester and an owner.
 
 ### 2.5 Discussion thread, @mentions and Activity (J9; §5.1)
+
+**Done (2026-09-30).** What landed:
+- **Discussion** (migration 077): `task_messages` and `task_message_mentions`. A mention is stored in the body as `@[Name](user:<id>)` (`mentionToken` / `parseMentionedUserIds` / `splitMentions` in `@viberglass/types`), so the server reads ids, not names. Posting refuses a mention of someone who can't see the task, and makes each mentioned person a watcher. Guests can post; viewers can't (global guard).
+- **Activity** (migration 078): append-only `task_activity(ticket_id, actor_type human|agent|system, actor_id, kind, payload_json)`. Written by `TaskActivityRecorder` from the services that make each change; a failed write is logged and never fails the change:
+  - task created (in `createTicket`'s transaction), owner changed, reviewer and watcher added or removed (`TaskParticipantService`), message posted;
+  - run started (`JobService.submitJob`), finished or failed (`JobService.updateJobStatus`, which also covers sweepers and failed invokes), cancelled (`JobCancellationService`, with who cancelled);
+  - research approved (moving on from research in `TicketWorkflowService.advancePhase`), plan approved (`TicketPlanningApprovalService`), a document edited by hand (`TicketPhaseDocumentService.saveDocument`, not the agent's own writes), a line comment added.
+  - **Who did it** comes from a request-scoped actor (`api/auth/requestActor.ts`, `AsyncLocalStorage` set after authentication, and for MCP after the API token), so none of the run, approval or comment paths needed a new parameter. Changes with no signed-in person (worker callbacks, sweepers, webhooks) are recorded as the system or the agent.
+- **Task page:** Discussion and Activity tabs below the steps. The composer suggests people after `@` and sends mention tokens; Activity is one plain sentence per entry ("Maria approved the plan", "The research run failed: Credential expired").
+- Verified: backend 964 and frontend 191 unit tests; the smoke suite (29/29) including `discussion-and-activity.e2e.test.ts` (a mention makes the member a watcher, they reply in the browser, Activity names both); the task page in the dev stack.
+- **Left for later:** notifications for mentions are §2.6; Activity entries written before this don't exist (history starts now); messages can't be edited yet (`edited_at` is in place); on a task with a long document the Discussion sits far down the page (Phase 2½).
+
+The original plan follows.
 
 - **Exists:**
   - Line comments on the markdown **source** of research and plan documents: `ticket_phase_document_comments` (migration 042), `TicketPhaseDocumentCommentService` and `phase-document-comments.tsx`, with resolve and apply-suggestion.
@@ -419,7 +455,7 @@ From `next-steps-handover.md` §1.3, still relevant here:
 - **Tickets and sessions:**
   - Project deletion still hard-deletes tasks and sessions (F31; Phase 4).
   - `ticketSystem = "custom"` still means both Viberglass-native and Custom Webhook (PG3).
-  - Anyone can edit a space's prompt templates (PG17). Fix it with §2.3, since maintainers are the natural owners.
+  - ~~Anyone can edit a space's prompt templates (PG17).~~ Maintainer-only since §2.3 (2026-09-30).
 - **Agents:**
   - Replace Gemini CLI with Antigravity CLI.
   - Pinned default models (OpenCode providers, Moonshot) will age.

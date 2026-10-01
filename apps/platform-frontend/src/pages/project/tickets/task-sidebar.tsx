@@ -10,6 +10,7 @@ import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import clsx from 'clsx'
 import { STEP_NAME, type TaskStep } from './task-next-move'
 import { formatDate, getSeverityBadge } from './ticket-display'
+import { TaskPeople } from './task-people'
 import type { TaskPageData } from './use-task-page'
 
 const STATUS_DOT: Record<string, string> = {
@@ -58,6 +59,9 @@ export function TaskSidebar({ data, project, openRunId, onOpenRun }: TaskSidebar
   return (
     <aside className="space-y-8 lg:sticky lg:top-6 lg:self-start lg:border-l lg:border-[var(--gray-6)] lg:pl-8">
       <FactList title="Details">
+        <Fact label="Key">
+          <span className="font-mono text-[13px]">{ticket.key}</span>
+        </Fact>
         <Fact label="Severity">
           <Badge color={severity.color}>{severity.label}</Badge>
         </Fact>
@@ -78,6 +82,8 @@ export function TaskSidebar({ data, project, openRunId, onOpenRun }: TaskSidebar
         )}
         <Fact label="Created">{formatDate(ticket.createdAt)}</Fact>
       </FactList>
+
+      <TaskPeople taskId={ticket.id} />
 
       {history.length > 0 && (
         <section>

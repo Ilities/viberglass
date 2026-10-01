@@ -11,6 +11,7 @@ import { createTicket } from '@/service/api/ticket-api'
 import type { CreateTicketRequest, Severity } from '@viberglass/types'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useRef } from 'react'
+import { OwnerField } from './owner-field'
 
 const severities = [
   { id: 'low', name: 'Low' },
@@ -86,6 +87,7 @@ export function CreateTicketPage() {
         category: (formData.get('category') as string)?.trim() || 'General',
         autoFixRequested: false,
         ticketSystem: projectData.ticketSystem,
+        ownerId: (formData.get('ownerId') as string | null) || undefined,
         metadata: {
           browser: { name: 'Manual Entry', version: '1.0' },
           os: { name: 'Manual Entry', version: '1.0' },
@@ -157,6 +159,7 @@ export function CreateTicketPage() {
                 <Description>Which area is affected?</Description>
                 <Input name="category" placeholder="General" />
               </Field>
+              <OwnerField defaultOwnerId={projectData?.defaultOwnerId ?? null} />
             </div>
           </details>
 

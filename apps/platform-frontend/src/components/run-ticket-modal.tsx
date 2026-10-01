@@ -9,6 +9,7 @@ import type { Clanker, Ticket } from '@viberglass/types'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { taskPath } from '@/lib/taskPath'
 
 type RunMode = 'execution' | 'research' | 'planning'
 
@@ -99,12 +100,12 @@ export function RunTicketModal({
                 : `Running "${ticket.title}" with ${selectedClanker.name}`,
           action: {
             label: 'View run',
-            onClick: () => navigate(`/spaces/${project}/tasks/${ticket.id}?run=${jobId}`),
+            onClick: () => navigate(`${taskPath(project, ticket)}?run=${jobId}`),
           },
         }
       )
 
-      navigate(`/spaces/${project}/tasks/${ticket.id}?run=${jobId}`)
+      navigate(`${taskPath(project, ticket)}?run=${jobId}`)
       onClose()
     } catch (error) {
       console.error('Failed to run task:', error)

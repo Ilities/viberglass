@@ -44,6 +44,10 @@ import type {
 import { INTEGRATION_DESCRIPTIONS } from "@viberglass/types";
 import { AGENT_SESSION_ACTIVE_STATUSES } from "../../types/agentSession";
 import { ProjectReadinessService } from "../../services/ProjectReadinessService";
+import { spaceParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards";
+import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
+import { SpaceMembershipService } from "../../services/spaces/SpaceMembershipService";
+import { registerSpaceMemberRoutes } from "./spaceMemberRoutes";
 
 const router = express.Router();
 const projectService = new ProjectDAO();
@@ -65,6 +69,15 @@ const agentSessionQueryService = new AgentSessionQueryService(
 const projectReadinessService = new ProjectReadinessService();
 
 router.use(requireAuth);
+
+// Every route on one space checks it: visible to read, maintainer to change.
+const spaceAccess = new SpaceAccessService();
+const spaceGuard = spaceParamGuard(spaceAccess);
+router.param("id", spaceGuard);
+router.param("projectId", spaceGuard);
+router.param("name", spaceGuard);
+
+registerSpaceMemberRoutes(router, new SpaceMembershipService());
 
 const buildIntegrationSummary = (
   plugin: ReturnType<typeof integrationRegistry.get>,
@@ -185,7 +198,8 @@ router.get("/", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
-    const projects = await projectService.listProjects(limit, offset);
+    const visible = await spaceAccess.visibleProjectIds(spaceViewerOf(req)!);
+    const projects = await projectService.listProjects(limit, offset, visible);
 
     // Phase 2: Enrich projects with derived ticket systems from primary integrations
     const enrichedProjects =
@@ -214,8 +228,9 @@ router.get("/by-name/:name", async (req, res) => {
 
     // Phase 2: Enrich project with derived ticket system from primary integration
     const enrichedProject = await enrichProjectWithDerivedTicketSystem(project);
+    const viewerAccess = await spaceAccess.describe(spaceViewerOf(req)!, project.id);
 
-    res.json({ success: true, data: enrichedProject });
+    res.json({ success: true, data: { ...enrichedProject, viewerAccess } });
   } catch (error) {
     logger.error("Error fetching project", {
       error: error instanceof Error ? error.message : error,
@@ -227,7 +242,7 @@ router.get("/by-name/:name", async (req, res) => {
 // POST /api/spaces - Create a new project
 router.post("/", validateCreateProject, async (req, res) => {
   try {
-    const project = await projectService.createProject(req.body);
+    const project = await projectService.createProject(req.body, req.authContext!.user.id);
     res.status(201).json({ success: true, data: project });
   } catch (error) {
     logger.error("Error creating project", {
@@ -247,8 +262,9 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
 
     // Phase 2: Enrich project with derived ticket system from primary integration
     const enrichedProject = await enrichProjectWithDerivedTicketSystem(project);
+    const viewerAccess = await spaceAccess.describe(spaceViewerOf(req)!, project.id);
 
-    res.json({ success: true, data: enrichedProject });
+    res.json({ success: true, data: { ...enrichedProject, viewerAccess } });
   } catch (error) {
     logger.error("Error fetching project", {
       error: error instanceof Error ? error.message : error,

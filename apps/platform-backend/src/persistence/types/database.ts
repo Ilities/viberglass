@@ -60,6 +60,10 @@ export interface ProjectsTable {
   primary_ticketing_integration_id: string | null;
   primary_scm_integration_id: string | null;
   archived_at: Timestamp | null;
+  is_private: Generated<boolean>;
+  key_prefix: string;
+  next_task_number: Generated<number>;
+  default_owner_id: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -76,6 +80,8 @@ export interface MediaAssetsTable {
 export interface TicketsTable {
   id: Generated<string>;
   project_id: string;
+  task_number: number;
+  task_key: string;
   timestamp: Timestamp;
   title: string;
   description: string;
@@ -418,6 +424,7 @@ export interface InvitesTable {
   accepted_at: Timestamp | null;
   accepted_user_id: string | null;
   revoked_at: Timestamp | null;
+  space_ids: Generated<string[]>;
 }
 
 export interface PasswordResetLinksTable {
@@ -439,13 +446,44 @@ export interface UserSessionsTable {
   revoked_at: Timestamp | null;
 }
 
-export interface UserProjectsTable {
+export interface TaskMessagesTable {
   id: Generated<string>;
-  user_id: string;
-  project_id: string;
-  role: string;
+  ticket_id: string;
+  author_id: string | null;
+  body_markdown: string;
   created_at: Generated<Timestamp>;
-  updated_at: Timestamp | null;
+  edited_at: Timestamp | null;
+}
+
+export interface TaskMessageMentionsTable {
+  message_id: string;
+  user_id: string;
+}
+
+export interface TaskActivityTable {
+  id: Generated<string>;
+  ticket_id: string;
+  actor_type: "human" | "agent" | "system";
+  actor_id: string | null;
+  kind: string;
+  payload_json: Generated<Json>;
+  created_at: Generated<Timestamp>;
+}
+
+export interface TaskParticipantsTable {
+  ticket_id: string;
+  user_id: string;
+  role: "requester" | "owner" | "reviewer" | "watcher";
+  added_by: string | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface SpaceMembersTable {
+  project_id: string;
+  user_id: string;
+  role: "maintainer" | "member";
+  added_by: string | null;
+  created_at: Generated<Timestamp>;
 }
 
 export interface TicketPhaseDocumentsTable {
@@ -697,7 +735,11 @@ export interface Database {
   user_sessions: UserSessionsTable;
   invites: InvitesTable;
   password_reset_links: PasswordResetLinksTable;
-  user_projects: UserProjectsTable;
+  space_members: SpaceMembersTable;
+  task_participants: TaskParticipantsTable;
+  task_messages: TaskMessagesTable;
+  task_message_mentions: TaskMessageMentionsTable;
+  task_activity: TaskActivityTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;
   demo_seed_records: DemoSeedRecordsTable;

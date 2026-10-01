@@ -8,6 +8,7 @@ import { NATIVE_TICKET_ORIGIN, type CreatedSpace } from '@viberglass/types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SetupError, SetupFrame } from './SetupFrame'
+import { taskPath } from '@/lib/taskPath'
 
 const STARTER_TITLE = 'Explain how this codebase is organised'
 const STARTER_DESCRIPTION =
@@ -46,7 +47,7 @@ export function FirstTaskStep({
         autoFixRequested: false,
       })
       await runResearch(ticket.id, clankerId)
-      navigate(`/spaces/${space.slug}/tasks/${ticket.id}`)
+      navigate(taskPath(space.slug, ticket))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start the task.")
       setIsStarting(false)

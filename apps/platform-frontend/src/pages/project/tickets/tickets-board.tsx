@@ -9,6 +9,7 @@ import type { Clanker, Ticket, TicketLifecycleStatus, TicketWorkflowPhase } from
 import { useMemo, useState } from 'react'
 import { LiveSessionBadge } from './live-session-badge'
 import { formatTicketStatus, formatTicketWorkflowPhase, ticketWorkflowPhaseOrder } from './ticket-display'
+import { taskPath } from '@/lib/taskPath'
 
 interface TicketsBoardProps {
   tickets: Ticket[]
@@ -135,6 +136,8 @@ export function TicketsBoard({
                                       <span className="sr-only">Select</span>
                                     </label>
                                     <div className="flex items-center gap-1.5">
+                                      <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{ticket.key}</span>
+                                      <span className="text-[11px] text-zinc-300 dark:text-zinc-600">·</span>
                                       <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
                                         {ticket.category}
                                       </span>
@@ -145,12 +148,15 @@ export function TicketsBoard({
 
                                   <div className="mt-1.5">
                                     <Link
-                                      href={`/spaces/${project}/tasks/${ticket.id}`}
+                                      href={taskPath(project, ticket)}
                                       className="text-[13px] font-semibold leading-5 text-zinc-900 hover:text-amber-700 dark:text-zinc-100 dark:hover:text-amber-300"
                                     >
                                       {ticket.title}
                                     </Link>
                                   </div>
+                                  {ticket.owner ? (
+                                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Owner: {ticket.owner.name}</p>
+                                  ) : null}
 
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     <Badge color={severityInfo.badgeColor} className="text-[10px]">

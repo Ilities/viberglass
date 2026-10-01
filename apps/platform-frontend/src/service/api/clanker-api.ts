@@ -15,6 +15,8 @@ import type {
 
 export async function getClankers(limit: number = 50, offset: number = 0): Promise<Clanker[]> {
   const response = await apiFetch(`${API_BASE_URL}/api/clankers?limit=${limit}&offset=${offset}`)
+  // Guests can't see workspace plumbing; they can't run agents either, so for them there are none.
+  if (response.status === 403) return []
   if (!response.ok) {
     throw new Error('Failed to fetch agent runners')
   }

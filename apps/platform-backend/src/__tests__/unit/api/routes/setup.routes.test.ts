@@ -120,11 +120,10 @@ describe("setup routes", () => {
       .post("/api/setup/space")
       .send({ name: "Web", repository: "https://github.com/acme/web", baseBranch: "main" })
       .expect(201, { success: true, data: { slug: "web" } });
-    expect(mockSpaceService.createSpace).toHaveBeenCalledWith({
-      name: "Web",
-      repository: "https://github.com/acme/web",
-      baseBranch: "main",
-    });
+    expect(mockSpaceService.createSpace).toHaveBeenCalledWith(
+      { name: "Web", repository: "https://github.com/acme/web", baseBranch: "main" },
+      undefined,
+    );
   });
 
   it("says when the space name is taken", async () => {

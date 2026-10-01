@@ -94,6 +94,8 @@ export const ticketSchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional(),
   }),
+  ownerId: Joi.string().uuid().optional(),
+  watcherIds: Joi.array().items(Joi.string().uuid()).unique().optional(),
 });
 
 export const updateTicketSchema = Joi.object({
@@ -145,6 +147,8 @@ export const updateProjectSchema = Joi.object({
   // settings form to be able to set or clear the primary integrations.
   primaryTicketingIntegrationId: Joi.string().uuid().allow(null).optional(),
   primaryScmIntegrationId: Joi.string().uuid().allow(null).optional(),
+  isPrivate: Joi.boolean().optional(),
+  defaultOwnerId: Joi.string().uuid().allow(null).optional(),
 });
 
 export const projectScmConfigSchema = Joi.object({
@@ -426,6 +430,7 @@ export const loginSchema = Joi.object({
 export const createInviteSchema = Joi.object({
   email: Joi.string().email().required(),
   role: userRoleSchema.required(),
+  spaceIds: Joi.array().items(Joi.string().uuid()).unique().default([]),
 });
 
 export const acceptInviteSchema = Joi.object({

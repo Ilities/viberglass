@@ -70,7 +70,7 @@ export async function updateProject(id: string, updates: UpdateProjectRequest): 
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to update space')
+    throw new Error(error.error || error.message || 'Failed to update space')
   }
   const data: ApiResponse<Project> = await response.json()
   return data.data

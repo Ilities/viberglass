@@ -35,6 +35,8 @@ const PROJECT: ProjectConfig = {
   autoFixEnabled: false,
   autoFixTags: [],
   customFieldMappings: {},
+  isPrivate: false,
+  keyPrefix: "WEB",
   createdAt: "",
   updatedAt: "",
 };

@@ -31,6 +31,8 @@ import { readJobFailure } from "./job/readJobFailure";
 import { RunManifestDAO } from "../persistence/job/RunManifestDAO";
 import { hashConfig, RUN_MANIFEST_VERSION } from "@viberglass/telemetry";
 import { resolveComputeImage } from "../clanker-config/resolveComputeImage";
+import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
+import { currentActorId } from "../api/auth/requestActor";
 
 const logger = createChildLogger({ service: "JobService" });
 
@@ -53,6 +55,7 @@ export class JobService {
   private clankerDAO: ClankerDAO;
   private lifecycleStatusService: TicketLifecycleStatusService;
   private runManifestDAO: RunManifestDAO;
+  private readonly activity = new TaskActivityRecorder();
 
   constructor(feedbackService?: FeedbackService) {
     this.feedbackService = feedbackService;
@@ -99,6 +102,13 @@ export class JobService {
 
     if (options?.ticketId) {
       await this.synchronizeTicketStatus(options.ticketId);
+      const startedBy = currentActorId();
+      await this.activity.record(
+        options.ticketId,
+        startedBy ? { type: "human", userId: startedBy } : { type: "system" },
+        "run_started",
+        { jobId, step: data.jobKind },
+      );
     }
 
     logger.info("Job enqueued", {
@@ -178,6 +188,14 @@ export class JobService {
         .select(["id", "ticket_id", "repository", "status", "job_kind"])
         .where("id", "=", jobId)
         .executeTakeFirst();
+
+      if (job?.ticket_id && status !== "active") {
+        await this.activity.record(job.ticket_id, { type: "agent" }, status === "completed" ? "run_finished" : "run_failed", {
+          jobId,
+          step: job.job_kind,
+          ...(failure ? { reason: failure.title } : {}),
+        });
+      }
 
       if (job?.ticket_id && job.job_kind === JOB_KIND.EXECUTION) {
         const ticketUpdate =
@@ -429,8 +447,11 @@ export class JobService {
     limit?: number;
     projectSlug?: string;
     ticketId?: string;
+    /** Limits the list to runs in these spaces; null or omitted means all. */
+    projectIds?: string[] | null;
   }): Promise<{ jobs: Record<string, unknown>[]; count: number }> {
-    const { status, limit = 10, projectSlug, ticketId } = options || {};
+    const { status, limit = 10, projectSlug, ticketId, projectIds = null } = options || {};
+    if (projectIds && projectIds.length === 0) return { jobs: [], count: 0 };
 
     let projectId: string | undefined;
 
@@ -473,6 +494,15 @@ export class JobService {
             eb("jobs.ticket_id", "is", null),
             eb("jobs.tenant_id", "=", projectId),
           ]),
+        ]),
+      );
+    }
+
+    if (projectIds) {
+      query = query.where((eb) =>
+        eb.or([
+          eb("tickets.project_id", "in", projectIds),
+          eb.and([eb("jobs.ticket_id", "is", null), eb("jobs.tenant_id", "in", projectIds)]),
         ]),
       );
     }

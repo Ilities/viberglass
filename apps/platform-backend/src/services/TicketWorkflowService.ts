@@ -5,6 +5,7 @@ import {
 } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
+import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 
 export interface TicketWorkflowPhaseState {
   phase: TicketWorkflowPhase;
@@ -20,6 +21,7 @@ export interface TicketWorkflowView {
 export class TicketWorkflowService {
   private readonly ticketDAO = new TicketDAO();
   private readonly lifecycleStatusService = new TicketLifecycleStatusService();
+  private readonly activity = new TaskActivityRecorder();
 
   async getTicketWorkflow(ticketId: string): Promise<TicketWorkflowView> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
@@ -61,6 +63,10 @@ export class TicketWorkflowService {
 
     await this.ticketDAO.updateWorkflowPhase(ticketId, targetPhase);
     await this.lifecycleStatusService.synchronize(ticketId);
+    // Moving on from research is how research is approved; the plan has its own approval.
+    if (ticket.workflowPhase === "research") {
+      await this.activity.recordByCurrentActor(ticketId, "document_approved", { step: "research" });
+    }
 
     return {
       ticketId,

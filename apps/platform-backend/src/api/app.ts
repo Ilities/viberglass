@@ -40,6 +40,7 @@ import mcpRouter from "./routes/mcp";
 import { tracingMiddleware } from "./middleware/tracing";
 import { requireRole } from "./middleware/authentication";
 import { adminOnlyChanges } from "./middleware/adminOnlyChanges";
+import { withRequestActor } from "./auth/requestActor";
 import { refuseViewerChanges, requireRunnerRole, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
 
 function resolvePublicDirectory(): string {
@@ -155,6 +156,7 @@ app.use(
 
 app.use(passport.initialize());
 app.use(attachAuthContext);
+app.use(withRequestActor);
 app.use(refuseViewerChanges);
 
 // Health check endpoint

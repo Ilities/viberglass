@@ -50,6 +50,7 @@ import { PromptTemplatesPage } from '@/pages/settings/PromptTemplatesPage'
 // Settings pages
 import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegrationsPage'
 import { ProjectSettingsPage } from '@/pages/project/settings/ProjectSettingsPage'
+import { SpaceMembersPage } from '@/pages/project/settings/SpaceMembersPage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
 import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
@@ -118,6 +119,7 @@ export function AppRoutes() {
         <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="general" replace />} />
           <Route path="general" element={<ProjectSettingsPage />} />
+          <Route path="members" element={<SpaceMembersPage />} />
           <Route path="connections" element={<ProjectIntegrationsPage />} />
           <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />
         </Route>

@@ -74,6 +74,17 @@ jest.mock("../../../../persistence/project/ProjectDAO", () => ({
   ProjectDAO: jest.fn(() => mockProjectDAO),
 }));
 
+jest.mock("../../../../services/spaces/SpaceAccessService", () => ({
+  SpaceAccessService: jest.fn(() => ({
+    scopeFor: jest.fn().mockResolvedValue({ projectId: undefined, projectIds: null }),
+    assertCanSee: jest.fn().mockResolvedValue({ projectId: "p-1", membership: null }),
+  })),
+}));
+
+jest.mock("../../../../persistence/ticketing/TaskParticipantDAO", () => ({
+  TaskParticipantDAO: jest.fn(() => ({ listOwners: jest.fn().mockResolvedValue(new Map()) })),
+}));
+
 jest.mock("../../../../persistence/agentSession/AgentSessionDAO", () => ({
   AgentSessionDAO: jest.fn(() => mockAgentSessionDAO),
 }));

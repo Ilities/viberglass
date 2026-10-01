@@ -15,7 +15,13 @@ import type { ProjectDAO } from "../../../persistence/project/ProjectDAO";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
 import type { IntegrationDAO } from "../../../persistence/integrations";
 import type { AgentSessionDAO } from "../../../persistence/agentSession/AgentSessionDAO";
+import type { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
+import type { TaskParticipantService } from "../../../services/tasks/TaskParticipantService";
+import type { TaskParticipantDAO } from "../../../persistence/ticketing/TaskParticipantDAO";
+import { spaceViewerOf, tasksInBodyGuard } from "../../middleware/spaceAccessGuards";
+import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
+import { isDomainError } from "../../../services/errors/DomainError";
 import {
   upload,
   type FileUploadService,
@@ -36,6 +42,9 @@ interface TicketCrudMediaRouteDependencies {
   fileUploadService: FileUploadService;
   integrationDAO: IntegrationDAO;
   agentSessionDAO: Pick<AgentSessionDAO, "listOpenSessionIdsByTicket">;
+  spaceAccess: Pick<SpaceAccessService, "scopeFor" | "assertCanSee">;
+  participants: Pick<TaskParticipantService, "assertCanSeeSpace">;
+  participantDAO: Pick<TaskParticipantDAO, "listOwners">;
 }
 
 const uuidRegex =
@@ -163,11 +172,15 @@ export function registerTicketCrudMediaRoutes(
     fileUploadService,
     integrationDAO,
     agentSessionDAO,
+    spaceAccess,
+    participants,
+    participantDAO,
   }: TicketCrudMediaRouteDependencies,
 ): void {
   // POST /api/tasks - Create a new ticket
   router.post(
     "/",
+    requireRunnerRole,
     upload.fields([
       { name: "screenshot", maxCount: 1 },
       { name: "recording", maxCount: 1 },
@@ -175,7 +188,7 @@ export function registerTicketCrudMediaRoutes(
     validateFileUploads,
     parseMultipartJsonFields,
     validateCreateTicket,
-    async (req, res) => {
+    async (req, res, next) => {
       try {
         let recordingAsset;
         let screenshotAsset;
@@ -197,6 +210,7 @@ export function registerTicketCrudMediaRoutes(
           }
         }
 
+        await spaceAccess.assertCanSee(spaceViewerOf(req)!, String(req.body.projectId));
         const project = await projectService.getProject(req.body.projectId);
         if (!project) {
           return res.status(404).json({ error: "Project not found" });
@@ -214,8 +228,14 @@ export function registerTicketCrudMediaRoutes(
           }
         }
 
+        const ownerId: string | undefined = req.body.ownerId;
+        const watcherIds: string[] = req.body.watcherIds ?? [];
+        for (const userId of [...(ownerId ? [ownerId] : []), ...watcherIds]) {
+          await participants.assertCanSeeSpace(project.id, userId);
+        }
+
         const ticket = await ticketService.createTicket(
-          { ...req.body, ticketSystem },
+          { ...req.body, ticketSystem, requesterId: req.authContext?.user.id },
           screenshotAsset,
           recordingAsset,
         );
@@ -225,6 +245,7 @@ export function registerTicketCrudMediaRoutes(
           data: ticket,
         });
       } catch (error) {
+        if (isDomainError(error)) return next(error);
         logger.error("Error creating ticket", {
           error: error instanceof Error ? error.message : error,
         });
@@ -240,34 +261,26 @@ export function registerTicketCrudMediaRoutes(
   router.use("/", handleMulterError);
 
   // GET /api/tasks/stats - Get ticket stats (optionally by project)
-  router.get("/stats", async (req, res) => {
+  router.get("/stats", async (req, res, next) => {
     try {
       const projectId = req.query.projectId as string | undefined;
       const projectSlug = req.query.projectSlug as string | undefined;
 
-      let targetProjectId = projectId;
-
-      if (projectSlug) {
-        const project = await projectService.findByName(projectSlug);
-        if (!project) {
-          return res.status(404).json({
-            error: "Project not found",
-          });
-        }
-        targetProjectId = project.id;
-      } else if (projectId && !uuidRegex.test(projectId)) {
+      if (!projectSlug && projectId && !uuidRegex.test(projectId)) {
         return res.status(400).json({
           error: "Invalid projectId format",
         });
       }
 
-      const stats = await ticketService.getTicketStats(targetProjectId);
+      const scope = await spaceAccess.scopeFor(spaceViewerOf(req)!, projectSlug || projectId);
+      const stats = await ticketService.getTicketStats(scope.projectId, scope.projectIds);
 
       res.json({
         success: true,
         data: stats,
       });
     } catch (error) {
+      if (isDomainError(error)) return next(error);
       logger.error("Error fetching ticket stats", {
         error: error instanceof Error ? error.message : error,
       });
@@ -344,7 +357,7 @@ export function registerTicketCrudMediaRoutes(
   );
 
   // POST /api/tasks/archive - Archive multiple tickets
-  router.post("/archive", validateArchiveTickets, async (req, res) => {
+  router.post("/archive", validateArchiveTickets, tasksInBodyGuard(), async (req, res) => {
     try {
       const updatedCount = await ticketService.archiveTickets(
         req.body.ticketIds,
@@ -365,7 +378,7 @@ export function registerTicketCrudMediaRoutes(
   });
 
   // POST /api/tasks/unarchive - Unarchive multiple tickets
-  router.post("/unarchive", validateArchiveTickets, async (req, res) => {
+  router.post("/unarchive", validateArchiveTickets, tasksInBodyGuard(), async (req, res) => {
     try {
       const updatedCount = await ticketService.unarchiveTickets(
         req.body.ticketIds,
@@ -472,7 +485,7 @@ export function registerTicketCrudMediaRoutes(
   });
 
   // GET /api/tasks - Get tickets, optionally filtered by project
-  router.get("/", async (req, res) => {
+  router.get("/", async (req, res, next) => {
     try {
       const projectId = req.query.projectId as string;
       const projectSlug = req.query.projectSlug as string;
@@ -496,8 +509,6 @@ export function registerTicketCrudMediaRoutes(
       const searchRaw = req.query.search as string | undefined;
       const search =
         typeof searchRaw === "string" ? searchRaw.trim() : undefined;
-
-      let targetProjectId: string | undefined = projectId;
 
       if (statuses === null) {
         return res.status(400).json({
@@ -523,28 +534,18 @@ export function registerTicketCrudMediaRoutes(
         });
       }
 
-      if (projectSlug) {
-        const project = await projectService.findByName(projectSlug);
-        if (!project) {
-          return res.status(404).json({
-            error: "Project not found",
-          });
-        }
-        targetProjectId = project.id;
-      } else if (projectId) {
-        if (!uuidRegex.test(projectId)) {
-          return res.status(400).json({
-            error: "Invalid projectId format",
-          });
-        }
-      } else {
-        targetProjectId = undefined;
+      if (!projectSlug && projectId && !uuidRegex.test(projectId)) {
+        return res.status(400).json({
+          error: "Invalid projectId format",
+        });
       }
+      const scope = await spaceAccess.scopeFor(spaceViewerOf(req)!, projectSlug || projectId);
 
       const { tickets, total } = await ticketService.getTicketsWithFilters({
         limit,
         offset,
-        projectId: targetProjectId,
+        projectId: scope.projectId,
+        projectIds: scope.projectIds,
         statuses,
         workflowPhases,
         archived,
@@ -552,15 +553,18 @@ export function registerTicketCrudMediaRoutes(
         search,
       });
 
-      const liveSessions = await agentSessionDAO.listOpenSessionIdsByTicket(
-        tickets.map((ticket) => ticket.id),
-      );
+      const ticketIds = tickets.map((ticket) => ticket.id);
+      const [liveSessions, owners] = await Promise.all([
+        agentSessionDAO.listOpenSessionIdsByTicket(ticketIds),
+        participantDAO.listOwners(ticketIds),
+      ]);
 
       res.json({
         success: true,
         data: tickets.map((ticket) => {
           const liveSessionId = liveSessions.get(ticket.id);
-          return liveSessionId ? { ...ticket, liveSessionId } : ticket;
+          const owner = owners.get(ticket.id);
+          return { ...ticket, ...(liveSessionId && { liveSessionId }), ...(owner && { owner }) };
         }),
         pagination: {
           limit,
@@ -570,6 +574,7 @@ export function registerTicketCrudMediaRoutes(
         },
       });
     } catch (error) {
+      if (isDomainError(error)) return next(error);
       logger.error("Error fetching tickets", {
         error: error instanceof Error ? error.message : error,
       });

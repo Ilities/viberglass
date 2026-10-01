@@ -247,7 +247,7 @@ export const parseMultipartJsonFields = (
   res: Response,
   next: NextFunction,
 ) => {
-  const jsonFields = ["metadata", "annotations"];
+  const jsonFields = ["metadata", "annotations", "watcherIds"];
 
   for (const field of jsonFields) {
     if (req.body[field] && typeof req.body[field] === "string") {

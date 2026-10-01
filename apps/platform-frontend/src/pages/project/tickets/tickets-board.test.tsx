@@ -17,6 +17,7 @@ function makeTicket(id: string, title: string, workflowPhase: TicketWorkflowPhas
   const timestamp = '2026-07-22T10:00:00.000Z'
   return {
     id,
+    key: `WEB-${id.length}`,
     projectId: 'project-1',
     timestamp,
     title,
