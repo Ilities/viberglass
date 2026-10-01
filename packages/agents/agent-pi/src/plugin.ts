@@ -36,7 +36,8 @@ const piPlugin: AgentPlugin<PiConfig> = {
     apiKey: ["ANTHROPIC_API_KEY"],
   },
 
-  stateDir: ".pi",
+  stateDirs: [".pi"],
+  stateExcludes: [".pi/agent/auth.json"],
 
   harnessConfigPatterns: ["pi/models.json"],
 

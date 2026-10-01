@@ -28,7 +28,7 @@ import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
 import { openSessionFor, useTaskPage } from './use-task-page'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
-import { TaskConversation } from './task-conversation'
+import { TaskThread } from './task-thread'
 
 const LONG_DESCRIPTION = 280
 
@@ -138,6 +138,14 @@ export function TicketDetailPage() {
     setSearchParams({ run: runId, view: 'runs' })
   }
   const toggleRun = (runId: string) => setOpenRunId((open) => (open === runId ? null : runId))
+  // The thread reloads when anything it shows may have changed.
+  const threadRefreshKey = [
+    ...data.runs.map((run) => `${run.jobId}:${run.status}`),
+    ...data.sessions.map((session) => `${session.id}:${session.status}`),
+    data.documents.research.updatedAt,
+    data.documents.planning.updatedAt,
+    ticket.updatedAt,
+  ].join('|')
   // Skipping to the build skips the plan's approval, so it's offered to those who may give it.
   const canSkipToBuild =
     !ticket.workflowOverriddenAt &&
@@ -243,7 +251,15 @@ export function TicketDetailPage() {
               />
             </section>
 
-            <TaskConversation taskId={ticket.id} />
+            <TaskThread
+              taskId={ticket.id}
+              project={project}
+              refreshKey={threadRefreshKey}
+              onOpenArtifact={(step) => {
+                showStep(step)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            />
           </main>
 
           <TaskSidebar data={data} project={project} openRunId={openRunId} onOpenRun={openRun} />

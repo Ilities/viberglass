@@ -34,7 +34,7 @@ const __name__Plugin: AgentPlugin<__PascalName__Config> = {
     // endpoint: ["__NAME_UPPER___BASE_URL"],
   },
 
-  stateDir: ".__NAME__",
+  stateDirs: [".__NAME__"],
 
   // harnessConfigPatterns: ["__NAME__/config.json"],
 

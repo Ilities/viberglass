@@ -33,24 +33,23 @@ RUN npm install -g \
     @google/gemini-cli \
     @openai/codex \
     opencode-ai@latest \
-    @mariozechner/pi-coding-agent \
+    @earendil-works/pi-coding-agent \
     pi-acp \
     typescript jest \
-    @zed-industries/claude-agent-acp
-
-# Install Codex ACP adapter for interactive sessions.
-RUN npm install -g codex-acp || echo "Warning: codex-acp not available"
+    @agentclientprotocol/claude-agent-acp \
+    @agentclientprotocol/codex-acp
 
 # Switch to viberator for user-local agent installs (uv/kimi install to ~/.local/bin)
 USER viberator
-ENV PATH="/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
+ENV PATH="/home/viberator/.kimi-code/bin:/home/viberator/.local/bin:/home/viberator/.cargo/bin:${PATH}"
 
 # Install uv and mistral-vibe
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 RUN uv tool install mistral-vibe || echo "Warning: Failed to install mistral-vibe"
 
-# Install Kimi Code CLI
-RUN curl -LsSf https://code.kimi.com/install.sh | bash || echo "Warning: Failed to install kimi"
+# Install Kimi Code CLI (the older kimi-cli refuses to run; the installer keeps it as kimi-legacy)
+RUN (curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \
+    && rm -f /home/viberator/.local/bin/kimi-legacy /home/viberator/.local/bin/kimi-cli) || echo "Warning: Failed to install kimi"
 
 # Back to root for app setup
 USER root

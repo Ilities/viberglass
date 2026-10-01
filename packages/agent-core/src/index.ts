@@ -47,6 +47,7 @@ export {
 } from "./acp/acpEventMapper";
 export { AcpClient } from "./acp/AcpClient";
 export type { AcpRunOptions, AcpRunResult, AcpEventCallback } from "./acp/AcpClient";
+export type { AcpSessionStart } from "./acp/AcpSessionOpener";
 export { AcpExecutor } from "./AcpExecutor";
 
 // Git interface

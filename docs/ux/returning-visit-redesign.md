@@ -1,14 +1,26 @@
-# Returning-visit redesign (Phase 2½ plan)
+# The task as a conversation: redesign (Phase 2½ and 3)
 
-Status: **proposal for Jussi's review, 2026-10-01. No code until it's approved** (plan §12, Phase 2½ step 2) · Evidence: [`appendix-returning-visit.md`](./appendix-returning-visit.md) (findings RA/RM/RD/RT/RV, bugs RB1–RB6) · Spec: [`user-journeys-and-personas.md`](./user-journeys-and-personas.md) §6 (IA), §7 J4/J10/J13, §9 (status model).
+Status: **proposal for Jussi's review, 2026-10-01, revised the same day for [ADR 0008](../adr/0008-tasks-are-conversations.md). No code until it's approved**, except the bug fixes in §2 · Evidence: [`appendix-returning-visit.md`](./appendix-returning-visit.md) (findings RA/RM/RD/RT/RV, bugs RB1–RB6) · Page by page: [`information-architecture.md`](./information-architecture.md) · Spec: [`user-journeys-and-personas.md`](./user-journeys-and-personas.md).
 
-**Exit (plan §12):** each persona lands on a page that answers "what needs me now?" without clicking further, and a task's status reads the same on every screen.
+**Exit:** each person lands on a page that answers "what needs me now?" without clicking further; a task's status reads the same on every screen; and a team can take a task from question to merged pull request in one conversation, bringing the agent in with an @mention or an action, without anyone pressing an Approve button.
 
 ---
 
-## 1. What the research says, in one paragraph
+## 1. Why
 
-The task page already knows the truth about a task: `decideTaskNextMove` reads its runs, documents, PR and live session, and the stepper built on it was right on every task for every person. Nothing else uses it. Lists read a four-value stored status that can't say "failed", "PR open" or "waiting on Tomi". The Inbox records events and never clears them. My tasks guesses whose move it is from ownership. The banner on the task page doesn't know who's looking, so it tells a viewer "Your move". And every screen is drawn the same for every role, with the server refusing afterwards. So the redesign starts with one thing: **a task's situation, worked out once on the server, including whose move it is, and used by every screen.** Landings, vocabulary, role-aware actions and navigation all follow from that.
+**Who uses Viberglass** (ADR 0008): software teams (product owners, engineers, QA) who iterate on one task together to plan and implement it, and individual non-engineers who want a one-off change to a landing page or marketing site and can't make it themselves.
+
+**What the product is for:** a long-running conversation per task, between those people and one or more agents, that ends in a merged pull request. Viberglass's job is coordination: making sure the right person, or the agent, moves the task on at the right moment.
+
+**Why the UI is wrong now.** It grew in three layers. The oldest is an operator console for one engineer running a bug-fix pipeline: the Dashboard's counters and agents panel, the space home's Open Issues and Auto-Fix Queue, Pulse. Phases 0–1 fixed the first visit and the task page's next move. Phase 2 added people (roles, owners, reviewers, mentions, the Inbox, approvals), correctly on the server, but attached to the old screens. So:
+- nobody lands on their work (RA1, RM1, RD1, RT1, RV1);
+- status is worked out in two places that disagree, so a failed task reads "Open" on the board and vanishes from the space home (RA16, RA21);
+- screens don't know who's looking: a viewer is told "Your move", a guest is offered Delete (RV16, RT24);
+- the Inbox records events that go stale, not what people need to do (RA6, RD7).
+
+And the deeper mismatch: **a task is built as a pipeline with gates**, with the conversation split across three places the people can't tell apart. Discussion is never read by the agent; document comments reach it only on "Ask for changes"; live-session messages do, on a separate page. A long-running chat needs those to be one thread.
+
+The root of the list above is that the app has no single answer to **"whose move is it?"** The root of the deeper mismatch is that the conversation isn't the task. This plan fixes both.
 
 ## 2. Ship first: bugs (independent of the redesign)
 
@@ -20,9 +32,9 @@ These are fixes, not design. **All fixed 2026-10-01** (below); the rules in RB1 
 | RB2 | Point `integration-api.ts` at `/api/integrations/space/:id/…` (4 calls). | Space settings → Integrations loads and links in the smoke suite (none covers it today). |
 | RB4 | A space the person can't see (or that doesn't exist) shows "This space doesn't exist or you don't have access", with a link home, instead of the loader. Same for tasks (RT34 lacks the link). | e2e: a member opens a private space's URL. |
 | RB5 | Decide how a heartbeat-swept run is classified; make the Inbox item and the task page say the same thing. | The failure-copy journey. |
-| RB6 | The heartbeat sweeper stops the worker it gives up on (`DockerWorkerStopper`; ECS with §3.7). | Unit test with a fake stopper. |
+| RB6 | The heartbeat sweeper stops the worker it gives up on (`DockerWorkerStopper`; ECS with handover §3.7). | Unit test with a fake stopper. |
 
-RB3 (the "Your move" banner) is fixed by §3 below.
+RB3 (the "Your move" banner) is fixed by §4 below.
 
 **What landed (2026-10-01):**
 - **RB1:** `canChangeTask` in `@viberglass/types` (edit: admins, the space's maintainers, the task's requester and owner; delete: admins; never guests or viewers), checked by `TaskChangePolicyService` through `taskChangeGuard` / `tasksInBodyChangeGuard` on `PUT` and `DELETE /api/tasks/:id`, `POST /api/tasks/archive` and `/unarchive`, and `POST /api/tasks/:id/set-status`. A refusal is a 403 that says who can ("Only a workspace admin can delete a task. Archive it instead to hide it."). The UI still offers these actions to everyone until §7. Journey: `task-changes.e2e.test.ts`.
@@ -33,137 +45,128 @@ RB3 (the "Your move" banner) is fixed by §3 below.
 - Also: `@testcontainers/postgresql` was imported by the integration test helper but never declared, so `database.integration.test.ts` couldn't compile; it's now a dev dependency.
 - Verified: backend 1116 tests (1112 unit, 4 integration) and frontend 209; the smoke suite 39/39.
 
-## 3. One task situation, worked out on the server
+## 3. The task is one thread
 
-Implements plan §9 ("state + waiting on").
+(ADR 0008.) Everything about a task happens in one thread, in time order:
+- **people's messages**, with @mentions of people and of the agent;
+- **the agent's turns**: a one-line intent ("Revising the plan: adding Tomi's point about the packing slip"), then its reply or a new **artifact version**;
+- **artifact cards**: Research v1, Plan v2, Code (the pull request), each opening the artifact with its versions and the comments anchored to its text;
+- **questions** the agent asks a person (`ask_human`, ADR 0006), shown as a message that mentions them, answered by replying;
+- **quiet lines for events**: owner changed, someone joined, a run failed and why, the PR merged.
 
-**What it is.** A pure function in `@viberglass/types`, `taskSituation(task, latestRunPerStep, documents, approvals, liveSession, participants)`, grown out of today's `decideTaskNextMove`. It returns:
-- `state`: one of the vocabulary in §4;
-- `step`: research · plan · build;
-- `waitingOn`: `{ kind: "people", userIds } | { kind: "agent" } | { kind: "github" } | { kind: "nobody" }`;
-- `since`: when it entered this state (for "waiting 2 days").
+What it replaces: the Discussion tab, the Activity tab (its entries become the quiet lines, with a "Messages only" filter), the Comments view's separate life (comments stay anchored on the artifact and also appear in the thread), and the live session page (an agent turn streams into the thread).
 
-The server attaches `situation` to every task it returns (lists, task detail, Inbox, My tasks), plus **`yourMove: boolean`** for the person asking (`waitingOn` includes them). The stored `ticket_status` stays for filters and history until Phase 4, but no screen displays it.
+**Bringing the agent in.** An @mention of the agent starts a turn with the person's words. Above the composer, **suggested actions** offer the common next moves for where the task is: *Revise with 3 comments*, *Write the plan*, *Build it*, *Try again*. A suggested action posts an ordinary attributed message ("Jussi asked the agent to build it") and starts the same turn. The turn reads everything since the agent's last turn.
 
-**Who it waits on**, state by state:
+**Agreement instead of approval.** There's no Approve step. Asking the agent to go on *is* the decision, recorded under the person's name. The one rule that stays is who may ask the agent to **write code** (§7), because that writes to the repository and costs the most.
 
-| State | Waiting on |
-|---|---|
-| Not started | the owner |
-| Queued / Agent working | the agent |
-| Research in review | **the requester** (they asked; they judge if it answers them), the owner when there's no requester. Anyone the policy allows can still approve. *(Decision Q2.)* |
-| Plan in review | `namedApprovers`: the task's reviewers, else the owner (§2.7's rule) |
-| Failed (agent or work) | the owner |
-| Failed (setup) | the workspace admins, as the notification already does |
-| Waiting on you (live session turn ended) | the session's driver |
-| Pull request open | the owner, shown as "PR open · in review on GitHub" |
-| Done / Cancelled | nobody |
+**Artifacts, not gates.** Research, Plan and Code are kinds of artifact. A task makes whichever it needs; a landing-page change can go straight to code. The task header shows what exists so far ("Research ✓ · Plan v2 · Code"), not steps to pass.
 
-Phase 3 adds **Needs input** (an agent question, waiting on its addressee) and **Paused** to the same function, so they arrive everywhere at once.
+**Long tasks.** Past a context threshold, and when someone asks ("Summarise so far"), Viberglass asks the harness to compact with our prompt: decisions, who agreed to them, open questions. The summary is posted in the thread, so people can correct it.
 
-**Tests:** the function as a table of unit tests (one row per state × role); an e2e that walks one task through every state and checks that the board, the space home, Home and the task page show the same words.
+**More than one agent.** Each harness keeps its own resumable session on the task. "Bring in another agent…" adds one, and says it starts cold: it reads the summary and the artifacts, without the first one's cache. Each turn shows which agent ran and whether it resumed or started fresh.
 
-## 4. One vocabulary
+**What's built that this reuses:** turns as jobs resumed with `session/load` (ADR 0006), the session branch for code (ADR 0006 D9, ADR 0007's continued branch), `task_messages` and mentions (§2.5), `task_activity` (§2.5), anchored comments (§2.8), the notification channels (§2.6), and `ask_human` (Phase 3.2, still to build).
 
-Every screen uses these and nothing else. A status is always **state · whose move**, e.g. "Plan in review · Tomi", "Failed · Dev", "Agent working".
+## 4. One task situation, worked out on the server
+
+A pure function in `@viberglass/types`, `taskSituation(…)`, grown out of today's `decideTaskNextMove`, from the task's latest artifact versions, its last agent turn, open questions, open mentions, the PR and its people. It returns `state`, `waitingOn` (people, the agent, GitHub or nobody), `since`, and for the person asking, **`yourMove`**. The server attaches it to every task it returns. The stored `ticket_status` stays for filters until Phase 4 but isn't shown.
+
+**A mention is open until the person replies** in the thread (or marks it done), as in a chat app. That's what makes "whose move" work without gates.
+
+| State | Example | Waiting on |
+|---|---|---|
+| Not started | "Not started" | the owner |
+| Agent working | "Agent revising the plan" | the agent |
+| Question | "Question for Maria" | the person asked |
+| Artifact ready | "Plan v2 ready" | people the agent's post mentions, else the **owner**, who drives the task by default *(Q11)* |
+| Discussing | "Discussing · 4 new" | people mentioned and not yet replied, else the owner |
+| Failed | "Failed · credential expired" | the owner; admins too for setup and platform failures |
+| PR open | "PR open · review on GitHub" | the owner |
+| Done | "Done · merged by Dev" | nobody |
+
+A status is always **state · whose move** when it's someone's: "Plan v2 ready · Dev". "Your move" appears only when `yourMove` is true.
+
+**Tests:** the function as a table of unit tests (state × who's asking); an e2e that takes a task through every state and checks Home, the space page and the task page show the same words.
+
+## 5. Vocabulary
 
 | Concept | The only words | Retired |
 |---|---|---|
-| Steps | Research · Plan · Build | Planning, Execution, Phase |
-| Not started | Not started | Open, Open Issues, Next step, Actionable |
-| Agent working | Agent working (Queued while queued) | In progress |
-| In review | Research in review / Plan in review | Awaiting review, ready for your review |
-| Failed | Failed | (shown as Open today) |
-| PR open | PR open | Not started (space home), Execution |
-| Done | Done | Resolved, Recently resolved |
-| Whose move | "Your move" only when `yourMove`; otherwise the name: "Waiting on Tomi" | "Your move" for everyone |
-| Workspace landing | Home | Dashboard (workspace) |
-| A space's landing | the space name | Dashboard (space), Mission Control |
+| Artifacts | Research · Plan · Code, with versions ("Plan v2") | Planning, Execution, Phase, Step |
+| States | Not started · Agent working · Question for X · Plan v2 ready · Discussing · Failed · PR open · Done | Open, Open Issues, Awaiting review, In review, Approved, Resolved, Recently resolved, Actionable |
+| Bringing the agent in | @mention, or a suggested action | Run research, Approve & plan, Ask for changes, Start a run |
+| Whose move | "Your move" only when it's yours; otherwise the name | "Your move" for everyone |
+| Landing | Home | Dashboard |
+| A space's page | the space name | Dashboard (space), Mission Control |
 
-Also retired from working screens: "Open Issues", "Auto-Fix Queue", severity and category breakdowns, "Active Queue", the "Viberglass" source chip when a space has one source, and UUID fragments (keys everywhere: RA17, RM16).
+Also retired: "Auto-Fix Queue", severity and category breakdowns, "Active Queue", the "Viberglass" source chip with one source, UUID fragments (keys everywhere).
 
-## 5. Landings
+## 6. Home: the tasks you're in
 
-### 5.1 Home (`/`) for admins, members and guests: "Your move"
+(Replaces the workspace Dashboard **and** the Inbox, *Q1*.) For everyone except viewers. A list of the task threads you're part of, like a chat app's conversation list:
+- **Needs you** at the top: threads where it's your move (you're mentioned or asked and haven't replied, or you own a task waiting on its owner), each with the status phrase and, where there's one, the suggested action.
+- **Then every thread you're in, by latest activity**: key, title, status phrase, unread count, and the last message ("Tomi: does the warehouse template have room…").
+- **Finish setting up** for admins until it's done, and one **workspace health** line when something's broken.
+- Empty state: "Ask for something", with the composer.
 
-Replaces the workspace Dashboard. Sections, in order, each hidden when empty:
-1. **Your move**: tasks where `yourMove` is true, oldest first. Each row: key, title, "Plan in review · waiting 2 h", and **the one primary action from the task's next move** (Approve plan, Try again, Start the research, Review the PR). Clicking the row opens the task at the right step.
-2. **New for you**: unread mentions and comments not already covered by a Your move row ("Maria mentioned you on WS-2: *is the nightly job…*"), with a reply link.
-3. **Waiting on others**: tasks you asked for, own, review or watch, each naming who: "WS-1 Plan in review · Tomi".
-4. **Agent working** (one line each) and **Done this week** (collapsed).
-5. Admins only, and only when something's wrong: a **workspace health** line (setup failure, runner down, the home checklist until done). The Agents panel and run counters leave Home (they're in Settings).
+Notifications still go out by Slack and email (§2.6). In the app, they *are* the unread counts and the Needs you list, so there's nothing to go stale: a thread stops needing you when you reply. A separate Inbox page goes *(Q1)*.
 
-Empty state: "Nothing needs you. Ask for something", with the task composer (J4).
-
-This makes **My tasks a section of Home, not a tab of the Inbox**, and makes "what needs me now?" state-derived, so it can't go stale. *(Decision Q1: the plan said "Inbox as landing"; the research says the Inbox's events go stale and the answer is state, so Home should be state and the Inbox should be the event history.)*
-
-### 5.2 Overview for viewers (and anyone, from the nav): J13
-
-Viewers have no moves, so Home and the Inbox stay empty for them for good (RV5). They land on **Overview**, read-only across the spaces they can see:
-- **Stuck**: failed, or waiting longer than a day, each with the person it waits on;
-- **In progress**: by step, with who it waits on;
-- **Done this week**: with outcome (PR link) and who closed it.
-
-Same `situation` data; no new backend beyond a time filter. *(Q3 decides whether Overview replaces Pulse.)*
-
-### 5.3 The Inbox becomes the notification history
-
-It keeps Done, Snooze and grouping, but:
-- **Items clear themselves** when what they announce is over: a review request when the step is approved or the person is removed, "the plan is ready" when it's approved, a failure when the step is retried or succeeds. A listener on Activity marks them done (`NotificationService` already listens there).
-- **Research sends a review request** to whoever it waits on (§3), like the plan does, instead of an "update".
-- **One item per task per person** for updates: a newer update replaces the older one.
-- Mentions show an excerpt; replying in that thread marks the mention read.
-- Each item's primary action is the task's next move when it's yours.
-
-## 6. The task page knows who's looking
-
-- The banner's eyebrow and primary action come from `yourMove`. When it's someone else's move: "**Waiting on Tomi** to approve the plan", with secondary actions the person may take (Request approval from…, Comment). That fixes RB3, RA24, RM23, RD27, RT23 and RV16.
-- The stepper adds who and when: "Plan · Approved by Tomi, 10:42"; "Plan · In review · Tomi" (RA25).
-- "Done" says who and when (RM33, RT28).
+**Overview** stays for viewers (J13), read-only and lower priority: stuck, in progress and done this week, with whose move.
 
 ## 7. Role-aware screens
 
-**One source:** the server returns `capabilities` with each task (`canRun`, `canEdit`, `canDelete`, `canArchive`, `canComment`, `canManagePeople`, `canApprove` per step) and each space (`canCreateTask`, `canMaintain`), computed by the same policies the routes enforce (§2 RB1, §2.7). The UI **hides** what the person can't do *(Decision Q4)*. Concretely:
+The server returns `capabilities` with each task and space, from the same policies the routes enforce, and the UI **hides** what a person can't do *(Q4)*.
+- **Who may ask the agent to write code** (the one gate left from §2.7): the task's people and the space's maintainers, and guests when they're on the task. Everyone on the task who can post may ask for research or a plan. `canApproveStep`, `ApprovalPolicyService` and `approveUpTo` become this rule.
+- **Viewers** read; no composer, no actions.
+- **Guests** post, reply, comment on artifacts, and ask the agent when they're on the task; no create task (*Q5*), no Runs, Schedules or raw logs.
+- **Members** don't meet plumbing: no Agents panel, no runner pages, and space settings read as a summary unless they maintain the space.
+- **Task changes** (edit, archive, done, delete) follow RB1's rule (§2).
 
-- **Viewers:** no Create, Start a run, Archive, Edit, Delete, Mark as done, Request approval, Resolve or "Write it yourself". A quiet "View only" label in the header.
-- **Guests:** comment, reply, watch, and approve or ask for changes when they're the one waited on. No New space, Create task (Q5), run buttons, Prompt or Raw log tabs, Schedules or Runs pages. Pages a guest can't read say so instead of showing an empty list with Create (RT2, RT30, RT32).
-- **Members** keep running, creating and the People controls, but plumbing leaves their path: no Agents panel on Home or space pages; runner pages admin-only in the UI; space settings for non-maintainers become a read-only summary (repository name, members, default owner and reviewers), never the SCM or credential form (RM35, RV24, RT31).
-- **Settings** opens on **Notifications** for everyone who isn't an admin; the avatar opens a small profile menu (Notifications, API tokens for admins and members, Sign out) instead of Members (RM13, RD5, RV26, RT5).
+## 8. Pages and navigation
 
-## 8. Navigation and page purposes
-
-Moved to [`information-architecture.md`](./information-architecture.md): the question each page answers, every item on it with its purpose and who sees it, and the sidebar. In short: Home · Inbox · Overview, then Spaces expanding in place (the space page is its task board grouped by situation; Runs, Schedules and Settings under it), then Settings. Pulse, both Dashboards and the separate Tasks page go; Live folds into Overview (Q7).
+[`information-architecture.md`](./information-architecture.md) has each page's question, every item on it with its purpose, and the sidebar: **Home · Overview**, then **Spaces** expanding in place (the space page is its task list grouped by situation, with Runs, Schedules and Settings under it), then **Settings**. Pulse, both Dashboards, the separate Tasks page, the Inbox page and the session page go.
 
 ## 9. Build order
 
-Each step lands with unit tests and a smoke journey, run one suite at a time.
+Superseded by the slices in [`task-conversation-handover.md`](./task-conversation-handover.md) §3, which map this order onto the code. Kept here as the product view.
 
-1. ~~**Bugs** (§2): RB1, RB2, RB4, RB5, RB6.~~ Done 2026-10-01.
-2. **Situation** (§3) in `@viberglass/types` and on every task response, with `yourMove` and `capabilities`. No visible change except the banner (§6). Journey: one task through every state, same words on every screen.
-3. **Vocabulary** (§4) on the board, table, space home and task page, all reading `situation`.
-4. **Home** (§5.1) and **Overview** (§5.2); landing by role. Journey per landing: as admin, member, guest and viewer, sign in and see your moves (or Overview) with no further click. That's the exit test.
-5. **Inbox hygiene** (§5.3). Journey: approving a plan clears the reviewer's review request; research sends one.
-6. **Role-aware actions** (§7). Journey: a viewer and a guest see no action they can't take on the board and the task page.
-7. **Navigation and page contents** ([`information-architecture.md`](./information-architecture.md)): sidebar, space page as the grouped board, Pulse removed, items cut or moved per page, Settings landing. Journey: the sidebar is the same inside and outside a space.
+Phase 2½ and Phase 3 are one phase now. Each step lands with unit tests and a smoke journey, run one suite at a time.
 
-Rough size: 2–3 weeks. Steps 2 and 4 are the big ones.
+1. ~~**Bugs** (§2).~~ Done 2026-10-01.
+2. **The thread, read side.** A `TaskTimelineService` that merges messages, activity, artifact versions, anchored comments and agent turns into one ordered timeline, from the tables that exist. The task page shows it in place of the Discussion and Activity tabs. No change to how runs start yet.
+3. **Situation and capabilities** (§4, §7), with mentions open until answered. The status phrase everywhere.
+4. **@agent turns and suggested actions.** A mention of the agent, or a suggested action, starts a turn with the thread since the last one; the agent posts its intent and the new artifact version. These replace the Run, Approve and Ask-for-changes buttons. Artifacts get versions.
+5. **Agreement.** Approval gates go; the policy becomes "who may ask for code". Migrate existing approvals into the thread as quiet lines.
+6. **Home as the thread list**, and Overview for viewers. The Inbox page goes. Exit journey: each role signs in and sees what needs them.
+7. **Questions** (`ask_human`, Phase 3.2), as messages that mention the person.
+8. **Compaction** and the posted summary; **bring in another agent** (cold start).
+9. **Pages and navigation** per the IA doc.
+10. Then the rest of Phase 3, now on the thread: steer and interrupt (3.4), take over and hand back (3.5), failure recovery (3.6), cancel-safe runs (3.7).
 
-## 10. Decisions needed
+Rough size: 6–8 weeks for steps 2–9. Steps 2, 4 and 6 are the big ones.
 
-Q7–Q10 (Live, the History column, severity and category, Discussion and the agent) are in [`information-architecture.md`](./information-architecture.md) §5.
+## 10. Decisions
+
+**Decided (Jussi, 2026-10-01), recorded in ADR 0008:** the agent is brought in by @mention, with buttons for the common next moves; agreement replaces approval; more than one harness per task, with the cold-start cost visible; done is a merged PR and deployment is out of scope; compaction by the harness, with our prompt; storage stays git for now, with "artifacts" in the model. **Q6** (RB1's rules) is implemented as recommended. **Q2** (who research waits on) is gone with the gates.
+
+**Open:**
 
 | # | Decision | Recommendation |
 |---|---|---|
-| Q1 | **Landing:** Home "Your move" (state-derived) for everyone but viewers, with the Inbox as notification history; or the Inbox as landing, as plan §6.1 says. | **Home.** The Inbox's items are events and went stale in every walkthrough; "what needs me" is a question about state. |
-| Q2 | **Who research waits on.** The policy lets any participant approve, but "waiting on everyone" names nobody (RV: "Waiting on Dev, Tomi, Maria or Kaisa"). | **The requester**, else the owner. Others may still approve. |
-| Q3 | **Pulse:** remove it (Overview + Live + Home cover it), or keep it as the workspace board. | **Remove.** |
-| Q4 | **Actions a person can't take:** hide them, or show them disabled with the reason. | **Hide**, except Approve, which shows "Waiting on Tomi" with Request approval (it's useful to know approval exists). |
-| Q5 | **Can guests create tasks** in their spaces? The §4 matrix says "via intake" (Phase 4); the server refuses today. | **Not yet**, keep it for intake in Phase 4. |
-| Q6 | **RB1's rules:** delete admin-only, edit/archive/done for admins, maintainers, requester and owner. | As proposed. |
+| Q1 | **Home and the Inbox:** merge into one thread list (notifications are the unread counts and Needs you), or keep the Inbox as a separate history. | **Merge.** In a chat model a separate history goes stale again. |
+| Q3 | **Pulse:** remove it. | **Remove.** |
+| Q4 | **Actions a person can't take:** hide, or show disabled with the reason. | **Hide.** |
+| Q5 | **Can guests create tasks?** | **Not yet.** (Revisit if solo non-engineers come in as guests.) |
+| Q11 | **The owner drives by default:** when nobody's mentioned, a ready artifact or a discussion waits on the owner. | **Yes.** Someone has to have the move, and the owner is the person the task is for. |
+| Q12 | **How the agent is named in the thread:** one "@agent", or by harness ("@claude", "@codex"), with "@agent" meaning the one already on the task. | **By harness, with "@agent" as the alias.** Needed once there's more than one. |
+| Q13 | **The live session page:** fold into the thread. | **Fold.** A live turn is the agent posting into the thread as it works. |
 
-## 11. Out of scope here
+Q7–Q10 from the IA doc still apply; Q8 (cut the History column) and Q10 (the agent doesn't read Discussion) are answered by the thread.
 
-- Agent questions, steering and failure pause/resume (Phase 3) plug into `situation` when they land; nothing in this plan blocks them.
-- Workspace-owned tasks, archive-not-cascade (Phase 4).
-- Digests and outcome metrics for J13 beyond "Done this week" (Phase 5).
-- Visual design. This is structure, wording and behaviour; the look follows the existing system.
+## 11. Out of scope
+
+- Other storage (Notion, Confluence, Google Docs): later, as other kinds of artifact.
+- Deployment and preview environments (only links a pull request already has).
+- Workspace-owned tasks and archive-not-cascade (Phase 4).
+- Visual design. This is structure, wording and behaviour.

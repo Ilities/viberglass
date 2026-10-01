@@ -77,7 +77,8 @@ const qwenCodePlugin: AgentPlugin<QwenCodeConfig> = {
     endpoint: ["QWEN_API_ENDPOINT", "OPENAI_BASE_URL"],
   },
 
-  stateDir: ".qwen",
+  stateDirs: [".qwen"],
+  stateExcludes: [".qwen/oauth_creds.json"],
 
   endpointEnvironment(ctx): AgentEndpointEnvironment {
     const endpoint = resolveQwenEndpoint(ctx.clankerConfig);

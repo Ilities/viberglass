@@ -2,7 +2,7 @@
  * Harness-agnostic ACP JSON-RPC 2.0 client over stdio.
  *
  * Manages the CLI subprocess, request/response correlation, session lifecycle
- * (initialize → session/new|load → session/prompt), and notification routing.
+ * (initialize → session/new|resume|load → session/prompt), and notification routing.
  * One instance per job execution; stateless across jobs.
  */
 
@@ -13,6 +13,7 @@ import { defaultAcpEventMapper } from "./acpEventMapper";
 import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
 import { approvePermissionRequest } from "./permissionReply";
+import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -25,6 +26,8 @@ export interface AcpRunOptions {
 export interface AcpRunResult {
   acpSessionId: string;
   turnOutcome: "completed" | "needs_input";
+  /** Whether the turn continued the harness's earlier session, or started cold and why. */
+  sessionStart: AcpSessionStart;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -78,6 +81,8 @@ export class AcpClient {
   private readonly pending = new Map<number, PendingRequest>();
   private lastAssistantText = "";
   private currentSessionId = "";
+  /** While `session/load` replays history the platform already has, its updates are dropped. */
+  private replaying = false;
   private readonly mapper: AcpEventMapper;
 
   constructor(
@@ -117,42 +122,47 @@ export class AcpClient {
     });
 
     try {
-      this.logger.info("AcpClient sending initialize request");
-      await this.sendRequest("initialize", { protocolVersion: 1, capabilities: {} });
-      this.logger.info("AcpClient initialize succeeded");
-
-      if (options.acpSessionId) {
-        this.logger.info("AcpClient loading existing session", { acpSessionId: options.acpSessionId });
-        try {
-          await this.sendRequest("session/load", { sessionId: options.acpSessionId, cwd: this.workDir, mcpServers: [] });
-          this.currentSessionId = options.acpSessionId;
-        } catch (loadErr) {
-          this.logger.warn("AcpClient session/load failed, starting new session", {
-            error: loadErr instanceof Error ? loadErr.message : String(loadErr),
-          });
-          const r = await this.sendRequest("session/new", { cwd: this.workDir, mcpServers: [] });
-          this.currentSessionId =
-            isRecord(r) && typeof r.sessionId === "string" ? r.sessionId : "";
-        }
-      } else {
-        this.logger.info("AcpClient creating new session");
-        const r = await this.sendRequest("session/new", { cwd: this.workDir, mcpServers: [] });
-        this.currentSessionId =
-          isRecord(r) && typeof r.sessionId === "string" ? r.sessionId : "";
-        this.logger.info("AcpClient session created", { sessionId: this.currentSessionId });
-      }
-      this.logger.info("AcpClient sending prompt", { sessionId: this.currentSessionId });
-      await this.sendRequest("session/prompt", {
-        sessionId: this.currentSessionId,
-        prompt: [{ type: "text", text: options.userMessage }],
+      const initialized = await this.sendRequest("initialize", {
+        protocolVersion: 1,
+        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
       });
+      const opener = new AcpSessionOpener(
+        (method, params) => this.sendRequest(method, params),
+        this.workDir,
+        (replaying) => (this.replaying = replaying),
+      );
+      const opened = await opener.open(sessionSupportOf(initialized), options.acpSessionId);
+      this.currentSessionId = opened.sessionId;
+      let sessionStart = opened.start;
+      this.reportSessionStart(sessionStart);
+
+      try {
+        await this.prompt(options.userMessage);
+      } catch (error) {
+        // A harness can accept a load and then fail every prompt (opencode from another directory).
+        if (!sessionStart.resumed) throw error;
+        sessionStart = { resumed: false, reason: "failed", detail: error instanceof Error ? error.message : String(error) };
+        this.currentSessionId = await opener.create();
+        this.reportSessionStart(sessionStart);
+        await this.prompt(options.userMessage);
+      }
       const turnOutcome = this.mapper.detectsNeedsInput(this.lastAssistantText)
         ? "needs_input"
         : "completed";
-      return { acpSessionId: this.currentSessionId, turnOutcome };
+      return { acpSessionId: this.currentSessionId, turnOutcome, sessionStart };
     } finally {
       this.cleanup();
     }
+  }
+
+  private async prompt(text: string): Promise<void> {
+    this.logger.info("AcpClient sending prompt", { sessionId: this.currentSessionId });
+    await this.sendRequest("session/prompt", { sessionId: this.currentSessionId, prompt: [{ type: "text", text }] });
+  }
+
+  private reportSessionStart(start: AcpSessionStart): void {
+    this.logger.info("AcpClient session opened", { sessionId: this.currentSessionId, ...start });
+    this.onEvent({ eventType: "progress", payload: { text: describeSessionStart(start), sessionStart: start } });
   }
 
   private processLine(line: string): void {
@@ -191,7 +201,7 @@ export class AcpClient {
   }
 
   private handleNotification(method: string, params: unknown): void {
-    if (method !== "session/update") return;
+    if (method !== "session/update" || this.replaying) return;
     for (const event of this.mapper.mapSessionUpdate(params)) {
       this.onEvent(event);
       if (event.eventType === "assistant_message" && typeof event.payload.text === "string") {

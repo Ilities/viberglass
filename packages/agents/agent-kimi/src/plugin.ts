@@ -66,7 +66,10 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
     endpoint: ["KIMI_BASE_URL", "KIMI_CODE_ENDPOINT", "MOONSHOT_BASE_URL"],
   },
 
-  stateDir: ".kimi",
+  // Kimi Code CLI keeps everything, its own binary included, in ~/.kimi-code. Resume across
+  // containers isn't verified yet (needs a Kimi key; docs/ux/harness-session-research.md).
+  stateDirs: [".kimi-code"],
+  stateExcludes: [".kimi-code/bin", ".kimi-code/credentials", ".kimi-code/logs"],
 
   endpointEnvironment(ctx): AgentEndpointEnvironment {
     const settings = resolveKimiSettings(ctx.clankerConfig);

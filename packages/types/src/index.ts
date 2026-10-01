@@ -71,6 +71,7 @@ export * from './notification'
 // Who approves each step
 export * from './approvalPolicy'
 export * from './taskChangePolicy'
+export * from './taskTimeline'
 
 // Where a comment sits in a document
 export * from './documentAnchor'

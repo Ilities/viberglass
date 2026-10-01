@@ -89,7 +89,7 @@ This copies `packages/agents/_template/` to `packages/agents/agent-<name>/` and 
      create: (config, logger, gitService) => new AiderAgent(config, logger, gitService),
      defaultConfig: { … },
      envAliases: { apiKey: ["AIDER_API_KEY"] },
-     stateDir: ".aider",
+     stateDirs: [".aider"],
      docker: {
        variant: "aider",
        repositoryName: "viberator-worker-aider",
@@ -153,7 +153,8 @@ Set `docker.testOnly: true` for agents that must never be provisioned in infrast
 | `defaultConfig` | ✅ | Default config values (`Omit<C, "name">`). |
 | `envAliases.apiKey` | — | Env var names the harness reads the API key from. |
 | `envAliases.endpoint` | — | Env var names the harness reads the endpoint from. |
-| `stateDir` | — | `$HOME` subdirectory where the agent stores conversation state (e.g. `".aider"`). |
+| `stateDirs` | — | `$HOME`-relative paths holding the agent's sessions (e.g. `[".aider"]`), archived after each turn and restored before the next so the session resumes. Check where the harness really writes: opencode, for one, uses `~/.local/share/opencode`, not `~/.opencode` (`docs/ux/harness-session-research.md`). |
+| `stateExcludes` | — | Paths inside `stateDirs` left out of the archive, such as credential files the worker injects fresh each run. |
 | `harnessConfigPatterns` | — | Relative file patterns in `.harness-config/` the harness should materialise for this agent. |
 | `materializeHarnessConfig` | — | Called after each matching harness-config file is written; use for side-effects like writing `$HOME/.aider/config`. |
 | `acpEventMapper` | — | Custom ACP event mapper. Falls back to the generic mapper if absent. |

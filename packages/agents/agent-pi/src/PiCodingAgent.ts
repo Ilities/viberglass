@@ -11,7 +11,7 @@ import type { PiConfig } from "./config";
  * One-shot execution: runs `pi --print` via executeAgentCLI.
  * Interactive sessions: ACP bridge via `pi-acp` (spawns `pi --mode rpc`).
  *
- * Install: npm install -g @mariozechner/pi-coding-agent pi-acp
+ * Install: npm install -g @earendil-works/pi-coding-agent pi-acp
  */
 export class PiCodingAgent extends BaseAgent<PiConfig> {
   constructor(config: PiConfig, logger: Logger, gitService?: IAgentGitService) {
@@ -101,7 +101,7 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
       } catch (cmdError) {
         if (this.isCommandNotFoundError(cmdError)) {
           throw new Error(
-            "The 'pi' CLI was not found. Install it with: npm install -g @mariozechner/pi-coding-agent",
+            "The 'pi' CLI was not found. Install it with: npm install -g @earendil-works/pi-coding-agent",
           );
         }
         throw cmdError;

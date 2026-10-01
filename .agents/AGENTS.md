@@ -67,7 +67,7 @@ These are the single source of truth instructions for agent behavior and backend
 
 **Adding a new agent:** The agent system uses a plugin registry. Use `npm run new:agent <name>` to scaffold from the template, then:
 1. Implement the agent class in `packages/agents/agent-<name>/src/<Name>Agent.ts` (extend `BaseAgent`).
-2. Fill in `plugin.ts` — `defaultConfig`, `envAliases`, `stateDir`, `docker` metadata.
+2. Fill in `plugin.ts` — `defaultConfig`, `envAliases`, `stateDirs` (and `stateExcludes` for credential files), `docker` metadata.
 3. Write `Dockerfile.fragment` — install command, ENV, LABEL.
 4. Add `"@viberglass/agent-<name>": "*"` to `apps/viberator/package.json`.
 5. Add one line in `apps/viberator/src/agents/registerPlugins.ts`: `.register(myPlugin)`.

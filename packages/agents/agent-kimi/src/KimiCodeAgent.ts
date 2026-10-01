@@ -113,7 +113,7 @@ export class KimiCodeAgent extends BaseAgent<KimiCodeConfig> {
       } catch (cmdError) {
         if (this.isCommandNotFoundError(cmdError)) {
           throw new Error(
-            "The 'kimi' CLI was not found. Install it with: curl -LsSf https://code.kimi.com/install.sh | bash",
+            "The 'kimi' CLI was not found. Install it with: curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash",
           );
         }
         throw cmdError;

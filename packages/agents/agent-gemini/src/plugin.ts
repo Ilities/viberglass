@@ -36,7 +36,8 @@ const geminiCLIPlugin: AgentPlugin<GeminiConfig> = {
     apiKey: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
   },
 
-  stateDir: ".gemini",
+  stateDirs: [".gemini"],
+  stateExcludes: [".gemini/oauth_creds.json"],
 
   providers: [{ provider: "google", envVar: "GEMINI_API_KEY", default: true }],
 
