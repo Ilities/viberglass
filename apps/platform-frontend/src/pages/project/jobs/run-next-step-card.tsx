@@ -9,7 +9,6 @@ import type { JobStatus } from '@/service/api/job-api'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
-import { ApprovePhaseButton } from '../tickets/approve-phase-button'
 import { HandoffCard } from './handoff-card'
 import type { RunNextStep } from './run-next-step'
 import { useRunNextStepActions } from './use-run-next-step-actions'
@@ -52,7 +51,7 @@ export function RunNextStepCard({
 }: RunNextStepCardProps) {
   const { user } = useAuth()
   const [revising, setRevising] = useState<'research' | 'planning' | null>(null)
-  const actions = useRunNextStepActions({ project, ticketId: job.ticketId, clankerId: job.clankerId, onChanged })
+  const actions = useRunNextStepActions({ project, ticketId: job.ticketId, clankerId: job.clankerId })
   const taskHref = job.ticketId ? `/spaces/${project}/tasks/${job.ticketId}` : null
   const agentName = job.clanker?.name ?? 'The agent'
   const kind = formatJobKind(job.jobKind).toLowerCase()
@@ -184,24 +183,18 @@ export function RunNextStepCard({
             It wrote no document and changed no code. Reply in the thread to carry on.
           </HandoffCard>
         )
-      case 'review_research':
+      case 'research_ready':
         return (
           <HandoffCard
             owner="you"
             eyebrow="Your move · research ready"
-            title="Review the research"
+            title="Read the research"
             actions={
               <>
                 {job.ticketId && (
-                  // Warns about open comments before approving, like the task page always has.
-                  <ApprovePhaseButton
-                    ticketId={job.ticketId}
-                    phase="research"
-                    label={actions.busy === 'approve' ? 'Approving…' : 'Approve & plan'}
-                    runInProgress={false}
-                    isApproving={actions.busy !== null}
-                    onApprove={() => void actions.approveResearchAndPlan()}
-                  />
+                  <Button color="brand" disabled={actions.busy !== null} onClick={() => void actions.writePlan()}>
+                    {actions.busy === 'plan' ? 'Asking…' : 'Write the plan'}
+                  </Button>
                 )}
                 <Button outline disabled={actions.busy !== null} onClick={() => setRevising('research')}>
                   Ask for changes
@@ -210,30 +203,21 @@ export function RunNextStepCard({
             }
           >
             {documentShownAbove ? (
-              'The research is above. Approving starts planning; asking for changes starts a revision.'
+              'The research is above. Ask the agent for the plan, or for changes.'
             ) : (
               <DocumentPreview preview={step.preview} href={`${taskHref}?tab=research`} />
             )}
           </HandoffCard>
         )
-      case 'review_plan':
+      case 'plan_ready':
         return (
           <HandoffCard
             owner="you"
             eyebrow="Your move · plan ready"
-            title="Review the plan"
+            title="Read the plan"
             actions={
               <>
-                {job.ticketId && (
-                  <ApprovePhaseButton
-                    ticketId={job.ticketId}
-                    phase="planning"
-                    label={actions.busy === 'approve' ? 'Approving…' : 'Approve plan'}
-                    runInProgress={false}
-                    isApproving={actions.busy !== null}
-                    onApprove={() => void actions.approvePlan()}
-                  />
-                )}
+                {openTask}
                 <Button outline disabled={actions.busy !== null} onClick={() => setRevising('planning')}>
                   Ask for changes
                 </Button>
@@ -241,7 +225,7 @@ export function RunNextStepCard({
             }
           >
             {documentShownAbove ? (
-              'The plan is above. Once approved, the build is next.'
+              'The plan is above. Ask the agent for changes, or to build it from the task.'
             ) : (
               <DocumentPreview preview={step.preview} href={`${taskHref}?tab=planning`} />
             )}
@@ -249,22 +233,9 @@ export function RunNextStepCard({
         )
       case 'moved_on':
         return step.phase === 'research' ? (
-          <HandoffCard owner="settled" eyebrow="Research approved" title="The task has moved on to planning" actions={openTask} />
+          <HandoffCard owner="settled" eyebrow="Research written" title="The task has a plan now" actions={openTask} />
         ) : (
-          <HandoffCard
-            owner="you"
-            eyebrow="Your move · plan approved"
-            title="The build is next"
-            actions={
-              taskHref && (
-                <Button href={`${taskHref}?tab=execution`} color="brand">
-                  Go to the build
-                </Button>
-              )
-            }
-          >
-            The build pushes a branch and opens a pull request. Start it from the task, where you can check where it goes first.
-          </HandoffCard>
+          <HandoffCard owner="settled" eyebrow="Plan written" title="The task has a pull request now" actions={openTask} />
         )
       case 'pull_request':
         return (

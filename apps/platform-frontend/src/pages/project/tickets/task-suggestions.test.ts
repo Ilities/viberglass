@@ -1,11 +1,12 @@
 import { countNewComments, suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
 
-const doc = (content: string, approvalState: 'draft' | 'approval_requested' | 'approved' = 'approval_requested') => ({ content, approvalState })
+const doc = (content: string) => ({ content })
 
 function input(overrides: Partial<TaskSuggestionInput> = {}): TaskSuggestionInput {
   return {
-    ticket: { status: 'open', workflowOverriddenAt: undefined },
+    ticket: { status: 'open' },
     documents: { research: doc(''), planning: doc('') },
+    capabilities: { canAsk: true, canAskForCode: false },
     newComments: { research: 0, planning: 0 },
     latestTurn: null,
     agentWorking: false,
@@ -33,11 +34,17 @@ describe('suggestTaskActions', () => {
     ])
   })
 
-  it('offers the build once the plan is approved, or the task skipped to it', () => {
-    expect(labels({ documents: { research: doc(''), planning: doc('# P', 'approved') } })).toEqual(['Build it'])
-    expect(labels({ ticket: { status: 'open', workflowOverriddenAt: '2026-10-01T00:00:00Z' }, documents: { research: doc(''), planning: doc('# P') } })).toEqual([
-      'Build it',
-    ])
+  it('offers the build last to whoever may ask for code, with or without a plan', () => {
+    const coder = { canAsk: true, canAskForCode: true }
+    expect(labels({ capabilities: coder, documents: { research: doc(''), planning: doc('# P') } })).toEqual(['Build it'])
+    expect(labels({ capabilities: coder })).toEqual(['Write the research', 'Write the plan', 'Build it'])
+    expect(labels({ documents: { research: doc(''), planning: doc('# P') } })).toEqual([])
+  })
+
+  it('offers nothing to someone who may not ask, and no build retry to someone who may not ask for code', () => {
+    expect(labels({ capabilities: { canAsk: false, canAskForCode: false } })).toEqual([])
+    expect(labels({ capabilities: null })).toEqual([])
+    expect(labels({ latestTurn: { action: 'code', status: 'failed' } })).not.toContain('Try again')
   })
 
   it('offers to try a failed turn again first, asking for the same thing', () => {
@@ -46,7 +53,7 @@ describe('suggestTaskActions', () => {
 
   it('offers nothing while the agent works, or once the task is done', () => {
     expect(labels({ agentWorking: true })).toEqual([])
-    expect(labels({ ticket: { status: 'resolved', workflowOverriddenAt: undefined } })).toEqual([])
+    expect(labels({ ticket: { status: 'resolved' } })).toEqual([])
   })
 })
 

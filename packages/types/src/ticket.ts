@@ -142,9 +142,6 @@ export interface Ticket {
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
   pullRequestUrl?: string
-  workflowOverrideReason?: string
-  workflowOverriddenAt?: string
-  workflowOverriddenBy?: string
   /** An open live session on the task. Set by task lists only. */
   liveSessionId?: string
   /** The task's owner. Set by task lists only. */
@@ -164,8 +161,6 @@ export interface CreateTicketRequest {
   annotations: Annotation[]
   autoFixRequested: boolean
   ticketSystem: TicketOrigin
-  workflowPhase?: TicketWorkflowPhase
-  workflowOverrideReason?: string
   /** Owner of the new task; defaults to the space's default owner, then the requester. */
   ownerId?: string
   watcherIds?: string[]
@@ -201,9 +196,6 @@ export interface TicketListItem {
   externalTicketUrl?: string
   autoFixRequested: boolean
   autoFixStatus?: AutoFixStatus
-  workflowOverrideReason?: string
-  workflowOverriddenAt?: string
-  workflowOverriddenBy?: string
   createdAt: string
   updatedAt: string
 }

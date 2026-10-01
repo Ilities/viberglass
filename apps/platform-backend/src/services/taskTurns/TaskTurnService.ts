@@ -1,4 +1,4 @@
-import { TICKET_WORKFLOW_PHASE, type TaskTurnAction, type Ticket } from "@viberglass/types";
+import { type TaskTurnAction, type Ticket } from "@viberglass/types";
 import { AgentSessionDAO, type AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentTurnDAO, type AgentTurn } from "../../persistence/agentSession/AgentTurnDAO";
@@ -6,10 +6,9 @@ import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { AGENT_SESSION_EVENT_TYPE, AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
 import { agentSessionMutex } from "../agentSession/AgentSessionMutex";
 import { SessionTurnContinuationService } from "../agentSession/SessionTurnContinuationService";
-import { assertPlanCleared } from "../approvals/assertPlanCleared";
 import { TASK_TURN_ERROR_CODE, TaskTurnError } from "../errors/TaskTurnError";
 import { TaskDiscussionService } from "../tasks/TaskDiscussionService";
-import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import { TaskAskPolicyService } from "./TaskAskPolicyService";
 import { TaskTurnAgentResolver } from "./TaskTurnAgentResolver";
 import { ACTION_MESSAGE, sessionModeFor } from "./turnActions";
 
@@ -29,11 +28,11 @@ export interface AskResult {
   messageId: string | null;
 }
 
-type AskedTicket = Pick<Ticket, "id" | "projectId" | "title" | "workflowPhase" | "workflowOverriddenAt">;
+type AskedTicket = Pick<Ticket, "id" | "projectId" | "title" | "workflowPhase">;
 
 interface Dependencies {
   tickets: { getTicket(id: string): Promise<AskedTicket | null> };
-  documents: { getOrCreateDocument(ticketId: string, phase: "planning"): Promise<{ approvalState: string }> };
+  policy: Pick<TaskAskPolicyService, "assertCanAsk">;
   discussion: Pick<TaskDiscussionService, "create">;
   agents: Pick<TaskTurnAgentResolver, "resolve">;
   sessions: Pick<AgentSessionDAO, "getOpenByTicketAndClanker" | "create" | "getById">;
@@ -56,7 +55,7 @@ export class TaskTurnService {
     const events = new AgentSessionEventDAO();
     this.deps = {
       tickets: new TicketDAO(),
-      documents: new TicketPhaseDocumentService(),
+      policy: new TaskAskPolicyService(),
       discussion: new TaskDiscussionService(),
       agents: new TaskTurnAgentResolver(),
       sessions,
@@ -74,9 +73,8 @@ export class TaskTurnService {
     const text = input.message.trim() || ACTION_MESSAGE[action];
     if (!text) throw new TaskTurnError(TASK_TURN_ERROR_CODE.NOTHING_ASKED, "Write what you'd like the agent to do.");
 
-    if (action === "code") {
-      assertPlanCleared(await this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.PLANNING), ticket);
-    }
+    // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
+    await this.deps.policy.assertCanAsk(actorId, ticket.id, action);
     const clankerId = await this.deps.agents.resolve(ticket.id, { agentId: input.agentId, message: text });
     const messageId = actorId ? await this.deps.discussion.create(ticket.id, actorId, text) : null;
 

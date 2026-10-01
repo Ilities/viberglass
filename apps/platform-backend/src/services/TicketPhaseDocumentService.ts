@@ -2,11 +2,7 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { TicketWorkflowPhase } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
-import {
-  type ApprovalState,
-  type PhaseDocument,
-  TicketPhaseDocumentDAO,
-} from "../persistence/ticketing/TicketPhaseDocumentDAO";
+import { type PhaseDocument, TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
 import {
   PHASE_DOCUMENT_REVISION_SOURCE,
   type PhaseDocumentRevisionSource,
@@ -22,9 +18,6 @@ export interface PhaseDocumentView {
   ticketId: string;
   phase: TicketWorkflowPhase;
   content: string;
-  approvalState: ApprovalState;
-  approvedAt: string | null;
-  approvedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -108,57 +101,6 @@ export class TicketPhaseDocumentService {
       await this.activity.recordByCurrentActor(ticketId, "document_edited", { step: phase });
     }
 
-    if (
-      options.source !== PHASE_DOCUMENT_REVISION_SOURCE.AGENT &&
-      content.trim().length > 0 &&
-      doc.approvalState !== "approval_requested"
-    ) {
-      await this.documentDAO.updateApprovalState(ticketId, phase, "approval_requested");
-    }
-
-    await this.lifecycleStatusService.synchronize(ticketId);
-
-    const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    return this.toView(updated!);
-  }
-
-  async requestApproval(
-    ticketId: string,
-    phase: TicketWorkflowPhase,
-  ): Promise<PhaseDocumentView> {
-    await this.requireTicket(ticketId);
-    await this.getOrCreatePersistedDocument(ticketId, phase);
-
-    await this.documentDAO.updateApprovalState(ticketId, phase, "approval_requested");
-    await this.lifecycleStatusService.synchronize(ticketId);
-
-    const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    return this.toView(updated!);
-  }
-
-  async approveDocument(
-    ticketId: string,
-    phase: TicketWorkflowPhase,
-    approverId: string | null,
-  ): Promise<PhaseDocumentView> {
-    await this.requireTicket(ticketId);
-    await this.getOrCreatePersistedDocument(ticketId, phase);
-
-    await this.documentDAO.updateApprovalState(ticketId, phase, "approved", approverId);
-    await this.lifecycleStatusService.synchronize(ticketId);
-
-    const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
-    return this.toView(updated!);
-  }
-
-  async revokeApproval(
-    ticketId: string,
-    phase: TicketWorkflowPhase,
-  ): Promise<PhaseDocumentView> {
-    await this.requireTicket(ticketId);
-    await this.getOrCreatePersistedDocument(ticketId, phase);
-
-    await this.documentDAO.updateApprovalState(ticketId, phase, "draft");
     await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
@@ -190,9 +132,6 @@ export class TicketPhaseDocumentService {
       ticketId: doc.ticketId,
       phase: doc.phase,
       content: doc.content,
-      approvalState: doc.approvalState,
-      approvedAt: doc.approvedAt?.toISOString() || null,
-      approvedBy: doc.approvedBy,
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
     };

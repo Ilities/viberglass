@@ -17,7 +17,6 @@ import {
   updateTicketThreadMode,
 } from "./ticketThreadMap";
 import { ticketUrl } from "./platformLinks";
-import logger from "../config/logger";
 import { registerSlackHandlers } from "@viberglass/chat-slack";
 import type { SlackHandlerServices } from "@viberglass/chat-slack";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
@@ -34,16 +33,12 @@ import { AgentSessionQueryService } from "../services/agentSession/AgentSessionQ
 import { TaskTurnService } from "../services/taskTurns/TaskTurnService";
 import { ACTION_FOR_PHASE } from "../services/taskTurns/turnActions";
 import type { AgentSessionMode } from "../types/agentSession";
-import { TicketWorkflowService } from "../services/TicketWorkflowService";
-import { TicketPlanningApprovalService } from "../services/TicketPlanningApprovalService";
 import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
-import { TicketResearchApprovalService } from "../services/approvals/TicketResearchApprovalService";
-import { isApprovalPolicyError } from "../services/errors/ApprovalPolicyError";
+import { isTaskAskPolicyError } from "../services/errors/TaskAskPolicyError";
 import { UserDAO } from "../persistence/user/UserDAO";
 import { TaskParticipantService } from "../services/tasks/TaskParticipantService";
 import { SpaceAccessService } from "../services/spaces/SpaceAccessService";
 import { runAsActor } from "../api/auth/requestActor";
-import { getFeedbackService } from "../webhooks/webhookServiceFactory";
 
 // Register as the global singleton so ThreadImpl lazy resolution works.
 bot.registerSingleton();
@@ -97,38 +92,17 @@ const queryService = new AgentSessionQueryService(
 const ticketDAO = new TicketDAO();
 const projectDAO = new ProjectDAO();
 const clankerDAO = new ClankerDAO();
-const ticketWorkflowService = new TicketWorkflowService();
 
-let chatFeedbackService;
-try {
-  chatFeedbackService = getFeedbackService();
-} catch (error) {
-  logger.warn("Feedback service unavailable for chat phase orchestration", {
-    error: error instanceof Error ? error.message : String(error),
-  });
-}
-
-const ticketPlanningApprovalService = new TicketPlanningApprovalService(
-  chatFeedbackService,
-);
-
-const ticketPhaseOrchestrationService = new TicketPhaseOrchestrationService(
-  ticketDAO,
-  ticketWorkflowService,
-  ticketPlanningApprovalService,
-  new TicketResearchApprovalService(),
-  taskTurns,
-);
+const ticketPhaseOrchestrationService = new TicketPhaseOrchestrationService(taskTurns);
 
 const userDAO = new UserDAO();
 const taskParticipants = new TaskParticipantService();
 const spaceAccess = new SpaceAccessService();
 
 /**
- * Acts as the Viberglass person who linked this Slack account, so the runs it
- * starts and the approvals it gives are theirs (approvals under the space's
- * policy). Someone who hasn't linked one is told
- * how to, rather than that they need to sign in.
+ * Acts as the Viberglass person who linked this Slack account, so what they
+ * ask the agent for is theirs, under the task's ask policy. Someone who hasn't
+ * linked one is told how to, rather than that they need to sign in.
  */
 async function asSlackUser<T>(slackUserId: string | undefined, act: (actorId: string | null) => Promise<T>): Promise<T> {
   const actorId = slackUserId ? await userDAO.findActiveIdBySlackUserId(slackUserId) : null;
@@ -136,8 +110,8 @@ async function asSlackUser<T>(slackUserId: string | undefined, act: (actorId: st
     // Runs, Activity and the audit log then credit the person, or say it came from Slack.
     return await runAsActor({ userId: actorId, slackUserId }, () => act(actorId));
   } catch (error) {
-    if (!actorId && isApprovalPolicyError(error)) {
-      throw new Error("Link your Slack account in Viberglass (Settings → Notifications) to approve from Slack.");
+    if (!actorId && isTaskAskPolicyError(error)) {
+      throw new Error("Link your Slack account in Viberglass (Settings → Notifications) to ask for a build from Slack.");
     }
     throw error;
   }
@@ -156,7 +130,7 @@ const slackServices: SlackHandlerServices = {
   },
   listClankers: () => clankerDAO.listClankers(),
 
-  createTicket: ({ projectId, title, description, phase, slackUserId }) =>
+  createTicket: ({ projectId, title, description, slackUserId }) =>
     asSlackUser(slackUserId, async (requesterId) => {
       // Only people who can see a space are put on its tasks; the Slack form lists every space.
       if (requesterId) {
@@ -174,7 +148,6 @@ const slackServices: SlackHandlerServices = {
         annotations: [],
         autoFixRequested: false,
         ticketSystem: "slack",
-        workflowPhase: phase,
         requesterId: requesterId ?? undefined,
       });
     }),
@@ -231,8 +204,6 @@ const slackServices: SlackHandlerServices = {
   unlinkSession,
   startBridge: (sessionId, thread, chainTo, chainedBy) =>
     chatSessionBridge.startBridge(sessionId, thread, chainTo, chainedBy),
-  approveUpTo: ({ ticketId, targetPhase, slackUserId }) =>
-    asSlackUser(slackUserId, (actorId) => ticketPhaseOrchestrationService.approveUpTo(ticketId, targetPhase, actorId)),
   stopBridge: (sessionId: string) => chatSessionBridge.stopBridge(sessionId),
 
   // Ticket job flow
@@ -323,10 +294,9 @@ chatSessionBridge.configure({
     await interactionService.approve(sessionId, true);
   },
   launchAndLink: async ({ ticketId, clankerId, mode, thread, slackUserId }) => {
-    const result = await asSlackUser(slackUserId, async (actorId) => {
-      await ticketPhaseOrchestrationService.approveUpTo(ticketId, mode, actorId);
-      return launchSession({ ticketId, clankerId, mode, initialMessage: "" }, actorId);
-    });
+    const result = await asSlackUser(slackUserId, (actorId) =>
+      launchSession({ ticketId, clankerId, mode, initialMessage: "" }, actorId),
+    );
     await linkSessionThread(result.session.id, thread, "slack");
     return result.session.id;
   },

@@ -8,7 +8,6 @@ export type {
   CreateTicketParams,
   TriggerParams,
   CommentParams,
-  ApprovalResult,
   ReviewPhaseDocument,
   ReviewState,
 } from "./types";

@@ -144,6 +144,8 @@ export class JobService {
       errorMessage?: string;
       /** Why the run failed, from JOB_FAILURE_CODE; set by whoever saw it fail. */
       failureCode?: string;
+      /** What a task turn produced, and whom it mentioned, for the run's Activity and notifications. */
+      turn?: { step: string; mentioned: string[] };
     } = {},
   ): Promise<void> {
     const failure =
@@ -193,6 +195,7 @@ export class JobService {
         await this.activity.record(job.ticket_id, { type: "agent" }, status === "completed" ? "run_finished" : "run_failed", {
           jobId,
           step: job.job_kind,
+          ...(updates.turn ?? {}),
           ...(failure ? { reason: failure.title, category: failure.category } : {}),
         });
       }

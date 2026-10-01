@@ -18,7 +18,7 @@ import { DemoJobDAO, type FinishedDemoJob } from "../../persistence/demo/DemoJob
 import { DemoSeedRecordDAO, type DemoEntityType } from "../../persistence/demo/DemoSeedRecordDAO";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
-import { TicketPhaseDocumentDAO, type ApprovalState } from "../../persistence/ticketing/TicketPhaseDocumentDAO";
+import { TicketPhaseDocumentDAO } from "../../persistence/ticketing/TicketPhaseDocumentDAO";
 import { TicketPhaseRunDAO } from "../../persistence/ticketing/TicketPhaseRunDAO";
 import type { UserRole } from "../../persistence/types/user";
 import { UserDAO, type PublicUser } from "../../persistence/user/UserDAO";
@@ -49,18 +49,11 @@ export interface DemoSeederDependencies {
   };
   tickets: {
     createTicket(request: CreateTicketRequest): Promise<Ticket>;
-    updateWorkflowPhase(id: string, phase: TicketWorkflowPhase): Promise<void>;
     updatePullRequestUrl(id: string, url: string): Promise<void>;
   };
   documents: {
     create(ticketId: string, phase: TicketWorkflowPhase): Promise<{ id: string }>;
     updateContent(id: string, content: string, storageUrl: string | null): Promise<void>;
-    updateApprovalState(
-      ticketId: string,
-      phase: TicketWorkflowPhase,
-      state: ApprovalState,
-      approvedBy?: string,
-    ): Promise<unknown>;
   };
   runs: { createRun(ticketId: string, jobId: string, clankerId: string, phase: TicketWorkflowPhase): Promise<void> };
   jobs: { insertFinished(job: FinishedDemoJob): Promise<string> };
@@ -94,7 +87,6 @@ export class DemoWorkspaceSeeder {
 
   async seed(): Promise<ProjectConfig> {
     const members = await this.createMembers();
-    const reviewer = members[0];
     const runner = await this.createRunner();
     const project = await this.deps.projects.createProject({
       name: DEMO_SPACE_NAME,
@@ -110,7 +102,7 @@ export class DemoWorkspaceSeeder {
     }
 
     for (const task of DEMO_TASKS) {
-      await this.createTask(project.id, runner.id, reviewer.id, task);
+      await this.createTask(project.id, runner.id, task);
     }
     return project;
   }
@@ -141,7 +133,7 @@ export class DemoWorkspaceSeeder {
     return runner;
   }
 
-  private async createTask(projectId: string, runnerId: string, reviewerId: string, task: DemoTask): Promise<void> {
+  private async createTask(projectId: string, runnerId: string, task: DemoTask): Promise<void> {
     const ticket = await this.deps.tickets.createTicket({
       projectId,
       title: task.title,
@@ -160,9 +152,7 @@ export class DemoWorkspaceSeeder {
     for (const document of task.documents) {
       const created = await this.deps.documents.create(ticket.id, document.phase);
       await this.deps.documents.updateContent(created.id, document.content, null);
-      await this.deps.documents.updateApprovalState(ticket.id, document.phase, document.approval, reviewerId);
     }
-    if (task.phase !== "research") await this.deps.tickets.updateWorkflowPhase(ticket.id, task.phase);
     if (task.pullRequestUrl) await this.deps.tickets.updatePullRequestUrl(ticket.id, task.pullRequestUrl);
     await this.deps.lifecycle.synchronize(ticket.id);
   }

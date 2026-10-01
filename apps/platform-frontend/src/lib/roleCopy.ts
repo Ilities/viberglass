@@ -7,10 +7,10 @@ export const ROLE_LABEL: Record<WorkspaceRole, string> = {
   viewer: 'Viewer',
 }
 
-/** What each role can do, in the words of ADR 0005. */
+/** What each role can do, in the words of ADR 0005 and 0008. */
 export const ROLE_DESCRIPTION: Record<WorkspaceRole, string> = {
   admin: 'Everything, including agents, connections, secrets and members.',
-  member: 'Sees open spaces, creates spaces and tasks, runs agents, comments and approves.',
-  guest: 'Only the spaces they are invited to: comments, answers agent questions and approves as a reviewer.',
-  viewer: 'Read-only: sees every open space and task, but can’t create, comment, approve or run anything.',
+  member: 'Sees open spaces, creates spaces and tasks, comments and asks agents; asks for code on tasks they’re on.',
+  guest: 'Only the spaces they are invited to: comments, and asks the agent, including to build, on tasks they’re on.',
+  viewer: 'Read-only: sees every open space and task, but can’t create, comment or ask the agent anything.',
 }

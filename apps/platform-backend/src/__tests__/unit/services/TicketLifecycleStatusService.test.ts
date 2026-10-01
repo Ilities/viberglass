@@ -6,6 +6,7 @@ import {
 const mockTicketDAO = {
   getTicket: jest.fn(),
   updateTicket: jest.fn(),
+  updateWorkflowPhase: jest.fn(),
   hasRunningJob: jest.fn(),
 };
 
@@ -46,15 +47,22 @@ describe("TicketLifecycleStatusService", () => {
     });
   }
 
+  function givenDocuments(documents: Partial<Record<"research" | "planning", string>>) {
+    mockDocumentDAO.getByTicketAndPhase.mockImplementation(async (_ticketId: string, phase: "research" | "planning") =>
+      documents[phase] === undefined ? null : { id: `doc-${phase}`, content: documents[phase] },
+    );
+  }
+
   it("keeps a new ticket open while nothing runs", async () => {
     givenTicket(TICKET_WORKFLOW_PHASE.RESEARCH);
 
     await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.OPEN);
     expect(mockTicketDAO.updateTicket).not.toHaveBeenCalled();
+    expect(mockTicketDAO.updateWorkflowPhase).not.toHaveBeenCalled();
   });
 
   it("marks the ticket in progress while a run is queued or active", async () => {
-    givenTicket(TICKET_WORKFLOW_PHASE.PLANNING);
+    givenTicket(TICKET_WORKFLOW_PHASE.RESEARCH);
     mockTicketDAO.hasRunningJob.mockResolvedValue(true);
 
     await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.IN_PROGRESS);
@@ -63,13 +71,9 @@ describe("TicketLifecycleStatusService", () => {
     });
   });
 
-  it("marks the ticket in review when the phase document waits on a human", async () => {
+  it("marks the ticket in review while an artifact waits on people", async () => {
     givenTicket(TICKET_WORKFLOW_PHASE.RESEARCH, TICKET_STATUS.IN_PROGRESS);
-    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({
-      id: "doc-1",
-      content: "Research notes",
-      approvalState: "draft",
-    });
+    givenDocuments({ research: "Research notes" });
 
     await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.IN_REVIEW);
     expect(mockTicketDAO.updateTicket).toHaveBeenCalledWith("ticket-1", {
@@ -80,40 +84,43 @@ describe("TicketLifecycleStatusService", () => {
   it("stays in progress while a revision runs on an existing document", async () => {
     givenTicket(TICKET_WORKFLOW_PHASE.RESEARCH, TICKET_STATUS.IN_REVIEW);
     mockTicketDAO.hasRunningJob.mockResolvedValue(true);
-    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({
-      id: "doc-1",
-      content: "Research notes",
-      approvalState: "draft",
-    });
+    givenDocuments({ research: "Research notes" });
 
     await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.IN_PROGRESS);
   });
 
-  it("returns a later phase to open when its run ends without a document", async () => {
-    givenTicket(TICKET_WORKFLOW_PHASE.PLANNING, TICKET_STATUS.IN_PROGRESS);
-    mockDocumentDAO.getByTicketAndPhase.mockResolvedValue({
-      id: "doc-1",
-      content: "   ",
-      approvalState: "draft",
-    });
+  it("returns to open when a run ends with nothing written", async () => {
+    givenTicket(TICKET_WORKFLOW_PHASE.RESEARCH, TICKET_STATUS.IN_PROGRESS);
+    givenDocuments({ research: "   ", planning: "" });
 
     await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.OPEN);
   });
 
-  it("marks execution in review once it has a pull request, and open before", async () => {
-    givenTicket(TICKET_WORKFLOW_PHASE.EXECUTION, TICKET_STATUS.IN_PROGRESS);
-    await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.OPEN);
+  it("moves the phase to the plan once one is written, with nothing approved", async () => {
+    givenTicket(TICKET_WORKFLOW_PHASE.RESEARCH, TICKET_STATUS.IN_PROGRESS);
+    givenDocuments({ research: "Research notes", planning: "1. Do it" });
 
-    givenTicket(
-      TICKET_WORKFLOW_PHASE.EXECUTION,
-      TICKET_STATUS.IN_PROGRESS,
-      "https://github.com/example/shop/pull/1",
-    );
     await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.IN_REVIEW);
+    expect(mockTicketDAO.updateWorkflowPhase).toHaveBeenCalledWith("ticket-1", TICKET_WORKFLOW_PHASE.PLANNING);
+  });
+
+  it("moves the phase to the build once there's a pull request, plan or not", async () => {
+    givenTicket(TICKET_WORKFLOW_PHASE.RESEARCH, TICKET_STATUS.IN_PROGRESS, "https://github.com/example/shop/pull/1");
+
+    await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.IN_REVIEW);
+    expect(mockTicketDAO.updateWorkflowPhase).toHaveBeenCalledWith("ticket-1", TICKET_WORKFLOW_PHASE.EXECUTION);
+  });
+
+  it("moves the phase back when a plan is emptied", async () => {
+    givenTicket(TICKET_WORKFLOW_PHASE.PLANNING);
+    givenDocuments({ research: "Research notes", planning: "" });
+
+    await service.synchronize("ticket-1");
+    expect(mockTicketDAO.updateWorkflowPhase).toHaveBeenCalledWith("ticket-1", TICKET_WORKFLOW_PHASE.RESEARCH);
   });
 
   it("preserves resolved tickets", async () => {
-    givenTicket(TICKET_WORKFLOW_PHASE.EXECUTION, TICKET_STATUS.RESOLVED);
+    givenTicket(TICKET_WORKFLOW_PHASE.EXECUTION, TICKET_STATUS.RESOLVED, "https://github.com/example/shop/pull/1");
     mockTicketDAO.hasRunningJob.mockResolvedValue(true);
 
     await expect(service.synchronize("ticket-1")).resolves.toBe(TICKET_STATUS.RESOLVED);

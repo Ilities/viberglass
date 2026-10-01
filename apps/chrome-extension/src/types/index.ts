@@ -134,7 +134,6 @@ export interface CreateTicketPayload {
   annotations: Annotation[];
   autoFixRequested: boolean;
   ticketSystem?: string;
-  workflowPhase?: TicketWorkflowPhase;
 }
 
 export type CaptureMode = "area" | "element" | "tab" | null;

@@ -94,11 +94,9 @@ const THREAD: TaskTimelineEntry[] = [
 ]
 
 const SUGGESTION_INPUT = {
-  ticket: { status: 'open' as const, workflowOverriddenAt: undefined },
-  documents: {
-    research: { content: '# Research', approvalState: 'approval_requested' as const },
-    planning: { content: '', approvalState: 'draft' as const },
-  },
+  ticket: { status: 'open' as const },
+  documents: { research: { content: '# Research' }, planning: { content: '' } },
+  capabilities: { canAsk: true, canAskForCode: false },
   newComments: { research: 1, planning: 0 },
   agentWorking: false,
 }
@@ -180,6 +178,15 @@ describe('TaskThread', () => {
     expect(turn).toHaveTextContent('continued its session')
     expect(turn).toHaveTextContent('Revising the research: covering the checkout')
     expect(turn).toHaveTextContent('I added a section on the checkout flow.')
+  })
+
+  it('names the people the agent asked to look at what it produced', async () => {
+    const turn = agentTurn()
+    if (turn.kind !== 'agent_turn' || !turn.outcome) throw new Error('expected a finished agent turn')
+    mockTimeline.mockResolvedValue([{ ...turn, outcome: { ...turn.outcome, mentioned: [{ id: 'u-t', name: 'Tomi' }, { id: 'u-a', name: 'Aino' }] } }])
+    renderThread()
+
+    expect(await screen.findByRole('listitem', { name: "Claude's turn" })).toHaveTextContent('Asked Tomi and Aino to take a look')
   })
 
   it('says a turn is working, or failed, with the way to its run', async () => {

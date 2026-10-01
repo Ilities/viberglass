@@ -39,18 +39,10 @@ declare module "@viberglass/mcp-server" {
     actor?: string;
   }
 
-  export interface ApprovalResult {
-    approvalState: string;
-    approvedAt?: string | null;
-    approvedBy?: string | null;
-  }
 
   export interface ReviewPhaseDocument {
     phase: TicketWorkflowPhase;
     content: string | null;
-    approvalState: string | null;
-    approvedAt: string | null;
-    approvedBy: string | null;
     comments: Array<{
       id: string;
       lineNumber: number;
@@ -98,9 +90,6 @@ declare module "@viberglass/mcp-server" {
     };
     review: {
       getState(ticketId: string): Promise<ReviewState>;
-      requestApproval(ticketId: string): Promise<ApprovalResult>;
-      approve(ticketId: string): Promise<ApprovalResult>;
-      revokeApproval(ticketId: string): Promise<ApprovalResult>;
       addComment(
         ticketId: string,
         phase: "research" | "planning",

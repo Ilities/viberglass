@@ -3,7 +3,7 @@ import { selectText } from "../../playwright/documentSelection";
 import { E2E } from "../../playwright/e2eEnvironment";
 import { signIn } from "../../playwright/seedWorkspace";
 import { expect, signedInPage, test } from "../../playwright/smokeFixtures";
-import { askAgent, createTask, runStatus, startResearch, taskPhase } from "../../playwright/tasks";
+import { askAgent, createTask, runStatus, startResearch, timeline } from "../../playwright/tasks";
 
 /** Invites someone by link, has them accept it, and signs them in (J3, J4). */
 async function invitePerson(adminApi: APIRequestContext, browser: Browser, name: string) {
@@ -30,9 +30,10 @@ async function runFinishes(api: APIRequestContext, jobId: string) {
   await expect.poll(() => runStatus(api, jobId), { timeout: 90_000 }).toBe("completed");
 }
 
-// Phase 2's exit (plan §12): J9 steps 1, 3, 4 and 7 with three people, each
-// step attributed and each person told what needs them.
-test("a PM asks, a designer is mentioned and contributes, a reviewer comments on the rendered plan, has it revised and approves", async ({
+// Phase 2's exit (plan §12), as a conversation (ADR 0008): J9 steps 1, 3, 4
+// and 7 with three people, each step attributed and each person told what
+// needs them. Nothing is approved; asking the agent to go on is the agreement.
+test("a PM asks, a designer is mentioned and contributes, a reviewer comments on the rendered plan, has it revised and asks for the build", async ({
   adminApi,
   browser,
   workspace,
@@ -56,13 +57,11 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   await designer.page.getByRole("button", { name: "Post" }).click();
   await expect(designer.page.getByText("Warm and short. No exclamation marks.")).toBeVisible();
 
-  // The PM approves the research; the agent writes the plan; the PM asks the reviewer to review it.
-  expect((await adminApi.post(`/api/tasks/${task.id}/phases/research/approve`)).status()).toBe(200);
-  await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan" })).jobId);
-  expect((await adminApi.post(`/api/tasks/${task.id}/phases/planning/request-approval`, { data: { reviewerIds: [reviewer.id] } })).status()).toBe(200);
+  // The PM adds the reviewer and asks for the plan; the agent mentions the reviewer when it's written.
+  expect((await adminApi.post(`/api/tasks/${task.id}/participants`, { data: { userId: reviewer.id, role: "reviewer" } })).status()).toBe(201);
   await expect.poll(() => inbox(reviewer.api)).toContain(`E2E Admin asked you to review “${task.title}”`);
-  // The designer isn't on the plan's review, so they can't approve it.
-  expect((await designer.api.post(`/api/tasks/${task.id}/phases/planning/approve`)).status()).toBe(403);
+  await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan" })).jobId);
+  await expect.poll(() => inbox(reviewer.api)).toContain(`The agent mentioned you on “${task.title}”: the plan is ready`);
 
   // 4. The reviewer comments on the rendered plan and asks the agent to revise it with the comment.
   const page = reviewer.page;
@@ -82,24 +81,29 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
     return plan.includes("Say who writes the copy.");
   }, { timeout: 90_000 }).toBe(true);
 
-  // 7. The reviewer approves (warned that their comment is still open); the task moves on to the build.
+  // 7. The reviewer is happy with it and asks the agent to build it: that ask is the agreement, under their name.
   await expect(async () => {
     await page.reload();
-    await page.getByRole("region", { name: "Your move" }).getByRole("button", { name: "Approve plan" }).click({ timeout: 5_000 });
+    await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Build it" }).click({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Approve anyway" }).click();
-  await expect.poll(() => taskPhase(adminApi, task.id)).toBe("execution");
+  let buildJobId = "";
+  await expect.poll(async () => {
+    const build = (await timeline(adminApi, task.id)).find((entry) => entry.kind === "agent_turn" && entry.action === "code");
+    buildJobId = typeof build?.jobId === "string" ? build.jobId : "";
+    return buildJobId;
+  }).not.toBe("");
+  await runFinishes(adminApi, buildJobId);
 
   // Every step is attributed in the task's thread.
   const thread = page.getByRole("region", { name: "Thread" });
   await expect(thread.getByText("Warm and short. No exclamation marks.")).toBeVisible();
   for (const sentence of [
     "E2E Admin created the task",
-    "E2E Admin approved the research",
     `E2E Admin asked ${reviewer.name} to review`,
+    `Asked ${reviewer.name} to take a look`,
     `${reviewer.name} commented on the plan: “Written by the fake agent used in end-to-end tests.”`,
     "Revise the plan with 1 comment",
-    `${reviewer.name} approved the plan`,
+    "Build it",
   ]) {
     await expect(thread.getByText(sentence, { exact: true }).first()).toBeVisible();
   }

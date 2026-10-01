@@ -1,8 +1,6 @@
 import { Button } from '@/components/button'
 import { TabButton } from '@/components/tab-button'
 import { useAuth } from '@/context/auth-context'
-import { usePersonName } from '@/hooks/usePeople'
-import { reopenTaskStep } from '@/service/api/build-api'
 import {
   savePlanningDocument,
   saveResearchDocument,
@@ -14,7 +12,7 @@ import { toast } from 'sonner'
 import { BuildPullRequestPanel } from './build-pull-request-panel'
 import { CommentableDocument } from './commentable-document'
 import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentComments } from './document-comments'
-import { STEP_NAME, TASK_STEPS, type TaskNextMove, type TaskStep } from './task-next-move'
+import { STEP_NAME, type TaskNextMove, type TaskStep } from './task-next-move'
 import { TaskRunLine } from './task-run-line'
 import { countNewComments } from './task-suggestions'
 import type { TaskPageData } from './use-task-page'
@@ -38,7 +36,6 @@ interface TaskStepViewProps {
   onDocumentSaved: (step: 'research' | 'planning', document: PhaseDocumentResponse) => void
   /** The shown document's open comments made since its latest version, as they change here. */
   onNewComments: (step: 'research' | 'planning', count: number) => void
-  onChanged: () => void
 }
 
 const DOCUMENT_NOUN = { research: 'research', planning: 'plan' } as const
@@ -50,8 +47,7 @@ function DocumentStep({
   comments,
   onApplySuggestion,
   onDocumentSaved,
-  onChanged,
-}: Pick<TaskStepViewProps, 'data' | 'move' | 'onDocumentSaved' | 'onChanged'> & {
+}: Pick<TaskStepViewProps, 'data' | 'move' | 'onDocumentSaved'> & {
   step: 'research' | 'planning'
   comments: DocumentComments
   onApplySuggestion: ApplySuggestion
@@ -60,16 +56,10 @@ function DocumentStep({
   const [draft, setDraft] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const noun = DOCUMENT_NOUN[step]
-  const isCurrent = data.ticket.workflowPhase === step
-  const isUpcoming = TASK_STEPS.indexOf(step) > TASK_STEPS.indexOf(data.ticket.workflowPhase)
-  const isBehind = TASK_STEPS.indexOf(step) < TASK_STEPS.indexOf(data.ticket.workflowPhase)
   const hasContent = document.content.trim().length > 0
-  // A step the task has moved past is reopened before it's edited, so an edit
-  // can't quietly un-approve a plan the build depends on.
-  const canEdit = isCurrent
-  const [isReopening, setIsReopening] = useState(false)
-  const personName = usePersonName()
   const { user } = useAuth()
+  // Nothing is approved, so any document can be edited; an edit is its next version (ADR 0008).
+  const canEdit = Boolean(user && user.role !== 'viewer')
 
   const save = async (content: string) => {
     setIsSaving(true)
@@ -83,24 +73,6 @@ function DocumentStep({
       throw error
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  const reopen = async () => {
-    setIsReopening(true)
-    try {
-      await reopenTaskStep(data.ticket.id, step)
-      toast.success(`The ${noun} is open again`, {
-        description:
-          step === 'research'
-            ? 'Revise it, then approve it and the plan again. The pull request stays open for the next build.'
-            : 'Revise it, then approve it again. The pull request stays open for the next build.',
-      })
-      onChanged()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Failed to reopen the ${noun}`)
-    } finally {
-      setIsReopening(false)
     }
   }
 
@@ -127,17 +99,16 @@ function DocumentStep({
   }
 
   if (!hasContent) {
-    const empty = isUpcoming
-      ? `The ${noun} comes after the ${step === 'planning' ? 'research' : 'plan'} is approved.`
-      : move.kind === 'working'
+    const empty =
+      move.kind === 'working'
         ? `The agent is writing the ${noun}. It appears here when it's done.`
         : move.kind === 'failed'
           ? `No ${noun} yet: the last run failed before writing it.`
-          : `No ${noun} yet. Start it above, or write it yourself.`
+          : `No ${noun} yet. Ask the agent for it in the thread, or write it yourself.`
     return (
       <div className="py-6 text-sm text-[var(--gray-10)]">
         <p>{empty}</p>
-        {canEdit && !isUpcoming && move.kind !== 'working' && (
+        {canEdit && move.kind !== 'working' && (
           <button type="button" onClick={() => setDraft('')} className="mt-2 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
             Write it yourself
           </button>
@@ -149,17 +120,8 @@ function DocumentStep({
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--gray-10)]">
-        <span>
-          {document.approvalState === 'approved' && document.approvedAt
-            ? `Approved ${document.approvedBy ? `by ${personName(document.approvedBy)} ` : ''}on ${new Date(document.approvedAt).toLocaleString()}`
-            : `Last changed ${new Date(document.updatedAt).toLocaleString()}`}
-        </span>
+        <span>Last changed {new Date(document.updatedAt).toLocaleString()}</span>
         <span className="flex items-center gap-3">
-          {isBehind && (
-            <button type="button" disabled={isReopening} onClick={() => void reopen()} className="hover:text-[var(--gray-12)] disabled:opacity-50">
-              {isReopening ? 'Reopening…' : `Reopen the ${noun}`}
-            </button>
-          )}
           {canEdit && (
             <button type="button" onClick={() => setDraft(document.content)} className="hover:text-[var(--gray-12)]">
               Edit
@@ -208,7 +170,7 @@ function BuildStep({ data }: { data: TaskPageData }) {
   return (
     <p className="py-6 text-sm text-[var(--gray-10)]">
       {isUpcoming
-        ? 'The build comes after the plan is approved. It makes the change on a branch and opens a pull request.'
+        ? 'No build yet. Ask the agent to build it in the thread: it makes the change on a branch and opens a pull request.'
         : 'No pull request yet. The build opens one when it finishes.'}
     </p>
   )
@@ -228,7 +190,6 @@ export function TaskStepView({
   onToggleRun,
   onDocumentSaved,
   onNewComments,
-  onChanged,
 }: TaskStepViewProps) {
   const stepRuns = data.runs.filter((run) => run.jobKind === step)
   const agentNames = new Map(data.clankers.map((clanker) => [clanker.id, clanker.name]))
@@ -278,7 +239,6 @@ export function TaskStepView({
               comments={comments}
               onApplySuggestion={applySuggestion}
               onDocumentSaved={onDocumentSaved}
-              onChanged={onChanged}
             />
           ) : (
             <BuildStep data={data} />

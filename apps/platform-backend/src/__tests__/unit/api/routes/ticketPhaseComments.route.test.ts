@@ -48,21 +48,6 @@ jest.mock("../../../../services/taskTurns/TaskTurnService", () => ({
 jest.mock("../../../../services/TicketWorkflowService", () => ({
   TicketWorkflowService: jest.fn(() => ({
     getTicketWorkflow: jest.fn(),
-    advancePhase: jest.fn(),
-  })),
-}));
-
-jest.mock("../../../../services/TicketPlanningApprovalService", () => ({
-  TicketPlanningApprovalService: jest.fn(() => ({
-    requestApproval: jest.fn(),
-    approve: jest.fn(),
-    revokeApproval: jest.fn(),
-  })),
-}));
-
-jest.mock("../../../../services/TicketWorkflowOverrideService", () => ({
-  TicketWorkflowOverrideService: jest.fn(() => ({
-    overrideToExecution: jest.fn(),
   })),
 }));
 
@@ -76,10 +61,6 @@ jest.mock("../../../../services/TicketPhaseDocumentCommentService", () => ({
   TicketPhaseDocumentCommentService: jest.fn(
     () => mockTicketPhaseDocumentCommentService,
   ),
-}));
-
-jest.mock("../../../../webhooks/webhookServiceFactory", () => ({
-  getFeedbackService: jest.fn(() => undefined),
 }));
 
 import ticketsRouter from "../../../../api/routes/tickets";

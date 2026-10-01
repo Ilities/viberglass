@@ -33,7 +33,7 @@ test("status says an agent is working only while one runs, then asks for review"
 
   // Without a reload, both the phase and the task show that a human is needed.
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
-  await expect(researchHeader).toContainText("Awaiting review", { timeout: 15_000 });
+  await expect(researchHeader).toContainText("Ready", { timeout: 15_000 });
   await expect.poll(() => taskStatus(adminApi, task.id)).toBe("in_review");
   await expect(page.getByText("Awaiting review").first()).toBeVisible();
 });

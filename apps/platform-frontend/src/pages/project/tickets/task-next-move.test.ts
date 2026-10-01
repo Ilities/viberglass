@@ -2,7 +2,7 @@ import { decideTaskNextMove, describeStep, type TaskNextMoveInput } from './task
 
 type Run = TaskNextMoveInput['runs'][number]
 const run = (jobKind: Run['jobKind'], status: Run['status'], jobId = `${jobKind}-${status}`): Run => ({ jobId, jobKind, status, failure: null })
-const doc = (content: string, approvalState: 'draft' | 'approved' = 'draft') => ({ content, approvalState })
+const doc = (content: string) => ({ content })
 
 function input(overrides: Partial<TaskNextMoveInput> = {}): TaskNextMoveInput {
   return {
@@ -37,10 +37,10 @@ describe('decideTaskNextMove', () => {
     })
   })
 
-  it('asks for a review of a document, whether an agent or a person wrote it', () => {
-    expect(decideTaskNextMove(input({ documents: { research: doc('# Findings') } }))).toEqual({ kind: 'review', step: 'research' })
+  it('says a written document is ready for people, whether an agent or a person wrote it', () => {
+    expect(decideTaskNextMove(input({ documents: { research: doc('# Findings') } }))).toEqual({ kind: 'ready', step: 'research' })
     const plan = input({ ticket: { workflowPhase: 'planning', status: 'in_review', pullRequestUrl: undefined }, documents: { planning: doc('# Plan') } })
-    expect(decideTaskNextMove(plan)).toEqual({ kind: 'review', step: 'planning' })
+    expect(decideTaskNextMove(plan)).toEqual({ kind: 'ready', step: 'planning' })
   })
 
   it('reports a failed run first, even with an older document in place', () => {
@@ -72,11 +72,11 @@ describe('decideTaskNextMove', () => {
 })
 
 describe('describeStep', () => {
-  const move = { kind: 'review', step: 'planning' } as const
+  const move = { kind: 'ready', step: 'planning' } as const
 
-  it('marks earlier steps approved, later ones not yet, and the current one by the next move', () => {
-    expect(describeStep('research', 'planning', move)).toEqual({ position: 'done', label: 'Approved' })
-    expect(describeStep('planning', 'planning', move)).toEqual({ position: 'current', label: 'Awaiting review' })
+  it('marks earlier steps written, later ones not yet, and the current one by the next move', () => {
+    expect(describeStep('research', 'planning', move)).toEqual({ position: 'done', label: 'Written' })
+    expect(describeStep('planning', 'planning', move)).toEqual({ position: 'current', label: 'Ready' })
     expect(describeStep('execution', 'planning', move)).toEqual({ position: 'upcoming', label: 'Not yet' })
   })
 

@@ -38,7 +38,7 @@ test("a review request lands in the reviewer's Inbox, and marking it done clears
   await expect(memberPage.getByText(text)).toBeVisible();
 });
 
-test("a finished run tells the people on the task, but not the person who started it", async ({
+test("a finished run mentions the task's owner, but not the person who started it", async ({
   adminApi,
   memberApi,
   workspace,
@@ -47,8 +47,10 @@ test("a finished run tells the people on the task, but not the person who starte
   const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 60_000 }).toBe("completed");
 
-  await expect.poll(() => inboxTexts(memberApi)).toContain(`The research for “${task.title}” is ready`);
-  expect(await inboxTexts(adminApi)).not.toContain(`The research for “${task.title}” is ready`);
+  // With no reviewers on the task, the agent mentions its owner with what it produced.
+  const mention = `The agent mentioned you on “${task.title}”: the research is ready`;
+  await expect.poll(() => inboxTexts(memberApi)).toContain(mention);
+  expect((await inboxTexts(adminApi)).filter((text) => text.includes(task.title))).toEqual([]);
 });
 
 test("My tasks groups the tasks someone owns by whose move it is", async ({ memberApi, memberPage, workspace }) => {

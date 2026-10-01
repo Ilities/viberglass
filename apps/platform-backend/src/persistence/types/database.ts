@@ -114,9 +114,6 @@ export interface TicketsTable {
   auto_fix_status: "pending" | "in_progress" | "completed" | "failed" | null;
   ticket_status: Generated<"open" | "in_progress" | "in_review" | "resolved">;
   workflow_phase: Generated<"research" | "planning" | "execution">;
-  workflow_override_reason: string | null;
-  workflow_overridden_at: Timestamp | null;
-  workflow_overridden_by: string | null;
   archived_at: Timestamp | null;
   pull_request_url: string | null;
   created_at: Generated<Timestamp>;
@@ -519,23 +516,8 @@ export interface TicketPhaseDocumentsTable {
   phase: "research" | "planning" | "execution";
   content: Generated<string>;
   storage_url: string | null;
-  approval_state: Generated<
-    "draft" | "approval_requested" | "approved" | "rejected"
-  >;
-  approved_at: Timestamp | null;
-  approved_by: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
-}
-
-export interface TicketPhaseApprovalsTable {
-  id: Generated<string>;
-  ticket_id: string;
-  phase: "research" | "planning" | "execution";
-  action: "approval_requested" | "approved" | "rejected" | "revoked";
-  actor_id: string | null;
-  comment: string | null;
-  created_at: Generated<Timestamp>;
 }
 
 export interface DemoSeedRecordsTable {
@@ -779,7 +761,6 @@ export interface Database {
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;
   demo_seed_records: DemoSeedRecordsTable;
-  ticket_phase_approvals: TicketPhaseApprovalsTable;
   ticket_phase_document_revisions: TicketPhaseDocumentRevisionsTable;
   ticket_phase_document_comments: TicketPhaseDocumentCommentsTable;
   claw_task_templates: ClawTaskTemplatesTable;

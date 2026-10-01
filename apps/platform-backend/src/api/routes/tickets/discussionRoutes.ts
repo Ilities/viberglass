@@ -1,5 +1,5 @@
 import type { Router } from "express";
-import { isTaskTurnAction, mentionsAnAgent, RUNNER_ROLES } from "@viberglass/types";
+import { isTaskTurnAction, mentionsAnAgent } from "@viberglass/types";
 import type { TaskDiscussionService } from "../../../services/tasks/TaskDiscussionService";
 import type { TaskTimelineService } from "../../../services/tasks/TaskTimelineService";
 import type { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
@@ -7,9 +7,9 @@ import { validateUuidParam } from "../../middleware/validation";
 
 /**
  * A task's thread, and posting to it. A message that mentions an agent, or
- * asks for an action, starts the agent's turn. Registered on the tasks
- * router, so its `:id` guard applies; viewers are refused posting by the
- * global guard.
+ * asks for an action, starts the agent's turn; who may ask for what is
+ * TaskTurnService's to check. Registered on the tasks router, so its `:id`
+ * guard applies; viewers are refused posting by the global guard.
  */
 export function registerTaskDiscussionRoutes(
   router: Router,
@@ -30,10 +30,6 @@ export function registerTaskDiscussionRoutes(
       const userId = req.authContext!.user.id;
       if (!action && !agentId && !mentionsAnAgent(body)) {
         return res.status(201).json({ success: true, data: await deps.discussion.post(req.params.id, userId, body) });
-      }
-      // Who may run agents is unchanged until the approval policy narrows to who may ask for code (S3).
-      if (!RUNNER_ROLES.includes(req.authContext!.user.role)) {
-        return res.status(403).json({ error: "Only admins and members can ask the agent." });
       }
       const asked = await deps.turns.ask(req.params.id, userId, { message: body, action, agentId });
       res.status(201).json({

@@ -54,7 +54,8 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
     case 'review_requested':
       return actorName ? `${who} asked you to review “${taskTitle}”` : `The ${step} for “${taskTitle}” is ready for your review`
     case 'mentioned':
-      return `${who} mentioned you on “${taskTitle}”`
+      // With no person acting, it's the agent asking people to look at what it produced.
+      return actorName ? `${who} mentioned you on “${taskTitle}”` : `The agent mentioned you on “${taskTitle}”: the ${step} is ready`
     case 'task_assigned':
       return `${who} made you the owner of “${taskTitle}”`
     case 'step_completed':

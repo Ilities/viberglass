@@ -147,11 +147,6 @@ export function registerThreadMentionHandler(
 
       if (advance.kind === "chain") {
         await thread.subscribe();
-        await services.approveUpTo({
-          ticketId: detail.session.ticketId,
-          targetPhase: advance.firstMode,
-          slackUserId: message.author.userId,
-        });
         await thread.post(`_Starting planning session (will advance to execution automatically)…_`);
         const result = await services.launchSession({
           ticketId: detail.session.ticketId,
@@ -175,11 +170,6 @@ export function registerThreadMentionHandler(
       await thread.subscribe();
 
       if (advance.kind === "advance") {
-        await services.approveUpTo({
-          ticketId: detail.session.ticketId,
-          targetPhase: targetMode,
-          slackUserId: message.author.userId,
-        });
         const label =
           targetMode === AGENT_SESSION_MODE.PLANNING ? "planning" : "execution";
         await thread.post(`_Starting ${label} session..._`);

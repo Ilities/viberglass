@@ -18,7 +18,6 @@ export const DEMO_MEMBERS = [
 export interface DemoDocument {
   phase: TicketWorkflowPhase;
   content: string;
-  approval: "approval_requested" | "approved";
 }
 
 export interface DemoRun {
@@ -33,7 +32,6 @@ export interface DemoRun {
 export interface DemoTask {
   title: string;
   description: string;
-  phase: TicketWorkflowPhase;
   documents: DemoDocument[];
   runs: DemoRun[];
   pullRequestUrl?: string;
@@ -89,10 +87,9 @@ export const DEMO_TASKS: DemoTask[] = [
   {
     title: "Add a gift note to checkout",
     description: "Customers keep asking to include a personal message when an order is a gift.",
-    phase: "planning",
     documents: [
-      { phase: "research", content: RESEARCH_GIFT_NOTE, approval: "approved" },
-      { phase: "planning", content: PLAN_GIFT_NOTE, approval: "approval_requested" },
+      { phase: "research", content: RESEARCH_GIFT_NOTE },
+      { phase: "planning", content: PLAN_GIFT_NOTE },
     ],
     runs: [
       { phase: "research", outcome: "completed", hoursAgo: 26 },
@@ -102,10 +99,9 @@ export const DEMO_TASKS: DemoTask[] = [
   {
     title: "Show delivery estimates on product pages",
     description: "Show when an item would arrive, so fewer people leave the page to check.",
-    phase: "execution",
     documents: [
-      { phase: "research", content: RESEARCH_DELIVERY, approval: "approved" },
-      { phase: "planning", content: PLAN_DELIVERY, approval: "approved" },
+      { phase: "research", content: RESEARCH_DELIVERY },
+      { phase: "planning", content: PLAN_DELIVERY },
     ],
     runs: [
       { phase: "research", outcome: "completed", hoursAgo: 72 },
@@ -117,14 +113,12 @@ export const DEMO_TASKS: DemoTask[] = [
   {
     title: "Explain how search indexing works",
     description: "Sold-out products stay in search results for a day. Why, and what would fix it?",
-    phase: "research",
-    documents: [{ phase: "research", content: RESEARCH_SEARCH, approval: "approval_requested" }],
+    documents: [{ phase: "research", content: RESEARCH_SEARCH }],
     runs: [{ phase: "research", outcome: "completed", hoursAgo: 6 }],
   },
   {
     title: "Fix rounding in cart totals",
     description: "Totals are sometimes one cent off when several discounts apply.",
-    phase: "research",
     documents: [],
     runs: [
       {
@@ -139,7 +133,6 @@ export const DEMO_TASKS: DemoTask[] = [
   {
     title: "Speed up image loading on the home page",
     description: "The hero and category images load slowly on mobile.",
-    phase: "research",
     documents: [],
     runs: [],
   },

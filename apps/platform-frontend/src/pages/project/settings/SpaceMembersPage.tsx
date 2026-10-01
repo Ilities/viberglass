@@ -120,8 +120,8 @@ export function SpaceMembersPage() {
         <div className="max-w-sm">
           <Label>Default reviewers</Label>
           <Description>
-            Added as reviewers to every new task, and asked to review its plan. With none, the task&apos;s owner
-            approves the plan. Maintainers and workspace admins can always approve.
+            Added as reviewers to every new task. The agent mentions them when it has something ready to look at; with
+            none, it mentions the task&apos;s owner.
           </Description>
           <ul className="mt-2 space-y-1">
             {project.defaultReviewerIds.map((reviewerId) => (

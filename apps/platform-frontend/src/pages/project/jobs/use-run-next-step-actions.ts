@@ -1,5 +1,4 @@
 import { askAgent } from '@/service/api/discussion-api'
-import { approvePlanning, approveResearch } from '@/service/api/ticket-api'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -9,7 +8,6 @@ interface RunNextStepActionsInput {
   ticketId: string | null
   /** The agent this run used; follow-up runs ask it too, else the agent on the task. */
   clankerId: string | null
-  onChanged: () => void
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -17,9 +15,9 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 /** The moves a run's "your move" card can make, with one busy flag between them. */
-export function useRunNextStepActions({ project, ticketId, clankerId, onChanged }: RunNextStepActionsInput) {
+export function useRunNextStepActions({ project, ticketId, clankerId }: RunNextStepActionsInput) {
   const navigate = useNavigate()
-  const [busy, setBusy] = useState<'approve' | 'retry' | null>(null)
+  const [busy, setBusy] = useState<'plan' | 'retry' | null>(null)
 
   const openRun = (jobId: string) =>
     navigate(ticketId ? `/spaces/${project}/tasks/${ticketId}?run=${jobId}` : `/spaces/${project}/runs/${jobId}`)
@@ -36,44 +34,13 @@ export function useRunNextStepActions({ project, ticketId, clankerId, onChanged 
     return turn.jobId
   }
 
-  /** A task reopened at research keeps its plan; approving puts that plan up for review instead of writing a new one. */
-  async function approveResearchAndPlan({ planExists = false }: { planExists?: boolean } = {}) {
-    if (!ticketId) return
-    setBusy('approve')
+  /** Asks the agent for the plan, from research someone has read. */
+  async function writePlan() {
+    setBusy('plan')
     try {
-      await approveResearch(ticketId)
+      openRun(await startPhase('planning'))
     } catch (error) {
-      toast.error(errorMessage(error, 'Failed to approve research'))
-      setBusy(null)
-      return
-    }
-    if (planExists) {
-      toast.success('Research approved. The plan is up for review again.')
-      setBusy(null)
-      onChanged()
-      return
-    }
-    try {
-      const jobId = await startPhase('planning')
-      toast.success('Research approved. Planning started.')
-      openRun(jobId)
-    } catch (error) {
-      toast.error('Research approved, but planning did not start', { description: errorMessage(error, 'Unknown error') })
-      onChanged()
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  async function approvePlan() {
-    if (!ticketId) return
-    setBusy('approve')
-    try {
-      await approvePlanning(ticketId)
-      toast.success('Plan approved. The build is next.')
-      onChanged()
-    } catch (error) {
-      toast.error(errorMessage(error, 'Failed to approve the plan'))
+      toast.error(errorMessage(error, 'Failed to ask for the plan'))
     } finally {
       setBusy(null)
     }
@@ -90,5 +57,5 @@ export function useRunNextStepActions({ project, ticketId, clankerId, onChanged 
     }
   }
 
-  return { busy, approveResearchAndPlan, approvePlan, runAgain }
+  return { busy, writePlan, runAgain }
 }

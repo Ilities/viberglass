@@ -4,7 +4,7 @@ import { registerModalSubmitHandler } from "./handlers/modalSubmit";
 import { registerThreadReplyHandler } from "./handlers/threadReply";
 import { registerThreadMentionHandler } from "./handlers/threadMention";
 import { registerApprovalActionHandler } from "./handlers/approvalAction";
-import { registerTicketApprovalActionHandler } from "./handlers/ticketApprovalAction";
+import { registerTicketNextStepActionHandler } from "./handlers/ticketNextStepAction";
 
 export type { SlackHandlerServices, SessionDetail, ProjectSummary, ClankerSummary } from "./types";
 
@@ -23,5 +23,5 @@ export function registerSlackHandlers(
   registerThreadReplyHandler(bot, services);
   registerThreadMentionHandler(bot, services);
   registerApprovalActionHandler(bot, services);
-  registerTicketApprovalActionHandler(bot, services);
+  registerTicketNextStepActionHandler(bot, services);
 }

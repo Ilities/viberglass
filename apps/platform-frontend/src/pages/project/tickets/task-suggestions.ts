@@ -1,5 +1,4 @@
-import type { TaskTurnAction, Ticket } from '@viberglass/types'
-import type { ApprovalState } from '@/service/api/ticket-api'
+import type { TaskCapabilities, TaskTurnAction, Ticket } from '@viberglass/types'
 
 /** A common next move, offered above the composer; pressing it posts the label and asks the agent (ADR 0008). */
 export interface TaskSuggestion {
@@ -8,8 +7,10 @@ export interface TaskSuggestion {
 }
 
 export interface TaskSuggestionInput {
-  ticket: Pick<Ticket, 'status' | 'workflowOverriddenAt'>
-  documents: Record<'research' | 'planning', { content: string; approvalState: ApprovalState }>
+  ticket: Pick<Ticket, 'status'>
+  documents: Record<'research' | 'planning', { content: string }>
+  /** What the person may ask for; null when it couldn't be loaded, so nothing is offered. */
+  capabilities: TaskCapabilities | null
   /** Open comments on each document made since its latest version, which the agent hasn't revised it with. */
   newComments: Record<'research' | 'planning', number>
   /** The agent's latest turn on the task, if any. */
@@ -24,11 +25,17 @@ export function countNewComments(comments: Array<{ status: string; createdAt: st
   return comments.filter((comment) => comment.status === 'open' && comment.createdAt > documentUpdatedAt).length
 }
 
-/** What to offer next: try a failed turn again, revise with open comments, write what's missing, build once the plan allows it. */
-export function suggestTaskActions({ ticket, documents, newComments, latestTurn, agentWorking }: TaskSuggestionInput): TaskSuggestion[] {
-  if (agentWorking || ticket.status === 'resolved') return []
+/**
+ * What to offer next: try a failed turn again, revise with open comments, write
+ * what's missing, and build, for whoever may ask for code. Nothing has to be
+ * approved first: a task can go straight to code (ADR 0008).
+ */
+export function suggestTaskActions({ ticket, documents, capabilities, newComments, latestTurn, agentWorking }: TaskSuggestionInput): TaskSuggestion[] {
+  if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk) return []
   const suggestions: TaskSuggestion[] = []
-  if (latestTurn?.status === 'failed') suggestions.push({ action: latestTurn.action, label: 'Try again' })
+  if (latestTurn?.status === 'failed' && (latestTurn.action !== 'code' || capabilities.canAskForCode)) {
+    suggestions.push({ action: latestTurn.action, label: 'Try again' })
+  }
 
   const hasResearch = documents.research.content.trim().length > 0
   const hasPlan = documents.planning.content.trim().length > 0
@@ -40,9 +47,6 @@ export function suggestTaskActions({ ticket, documents, newComments, latestTurn,
   if (hasPlan && newComments.planning > 0) {
     suggestions.push({ action: 'plan', label: `Revise the plan with ${plural(newComments.planning, 'comment')}` })
   }
-  // Until the gates go (S3), a build waits for the plan's approval, or a skip to the build.
-  if (hasPlan && (documents.planning.approvalState === 'approved' || ticket.workflowOverriddenAt)) {
-    suggestions.push({ action: 'code', label: 'Build it' })
-  }
+  if (capabilities.canAskForCode) suggestions.push({ action: 'code', label: 'Build it' })
   return suggestions
 }

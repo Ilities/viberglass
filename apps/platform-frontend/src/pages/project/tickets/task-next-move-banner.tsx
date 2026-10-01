@@ -7,9 +7,6 @@ import { ExternalLinkIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { HandoffCard } from '../jobs/handoff-card'
-import { useRunNextStepActions } from '../jobs/use-run-next-step-actions'
-import { ApprovePhaseButton } from './approve-phase-button'
-import { RequestApproval, waitingOnText } from './request-approval'
 import type { TaskNextMove, TaskStep } from './task-next-move'
 import type { TaskPageData } from './use-task-page'
 
@@ -52,15 +49,8 @@ function LinkButton({ onClick, children }: { onClick: () => void; children: stri
 /** The one thing to do next on the task, at the top of its page. */
 export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, onShowRun }: TaskNextMoveBannerProps) {
   const { user } = useAuth()
-  const { ticket, runs } = data
-  const hasPlan = data.documents.planning.content.trim().length > 0
   const [isCancelling, setIsCancelling] = useState(false)
   const [isResolving, setIsResolving] = useState(false)
-
-  // Approving the research asks the agent that wrote it for the plan.
-  const step = 'step' in move ? move.step : ticket.workflowPhase
-  const agentId = runs.find((run) => run.jobKind === step && run.clankerId)?.clankerId ?? null
-  const actions = useRunNextStepActions({ project, ticketId: ticket.id, clankerId: agentId, onChanged })
 
   const cancelRun = async (runId: string) => {
     setIsCancelling(true)
@@ -120,56 +110,14 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
           this page; it updates when the agent is done, and what you write in the thread meanwhile reaches it next.
         </HandoffCard>
       )
-    case 'review':
-      return move.step === 'research' ? (
-        <HandoffCard
-          owner="you"
-          eyebrow="Your move"
-          title="The research is ready for your review"
-          actions={
-            data.approvals?.research.canApprove ? (
-              <ApprovePhaseButton
-                ticketId={ticket.id}
-                phase="research"
-                label={actions.busy === 'approve' ? 'Approving…' : 'Approve & plan'}
-                runInProgress={false}
-                isApproving={actions.busy !== null}
-                onApprove={() => void actions.approveResearchAndPlan({ planExists: hasPlan })}
-              />
-            ) : (
-              <RequestApproval taskId={ticket.id} step="research" onRequested={onChanged} />
-            )
-          }
-        >
-          {!data.approvals?.research.canApprove
-            ? `Read it below. ${waitingOnText(data.approvals?.research ?? null) ?? 'Ask someone on the task to approve it.'}`
-            : hasPlan
-              ? 'Read it below. Approving takes you to the existing plan, to review it again.'
-              : 'Read it below, and comment on it or ask the agent to change it in the thread. Approving asks it for the plan.'}
-        </HandoffCard>
-      ) : (
-        <HandoffCard
-          owner="you"
-          eyebrow="Your move"
-          title="The plan is ready for your review"
-          actions={
-            data.approvals?.planning.canApprove ? (
-              <ApprovePhaseButton
-                ticketId={ticket.id}
-                phase="planning"
-                label={actions.busy === 'approve' ? 'Approving…' : 'Approve plan'}
-                runInProgress={false}
-                isApproving={actions.busy !== null}
-                onApprove={() => void actions.approvePlan()}
-              />
-            ) : (
-              <RequestApproval taskId={ticket.id} step="planning" onRequested={onChanged} />
-            )
-          }
-        >
-          Read it below, and comment on it or ask the agent to change it in the thread. Once it&apos;s approved, the agent can build it.
-          {!data.approvals?.planning.canApprove &&
-            ` ${waitingOnText(data.approvals?.planning ?? null) ?? 'A space maintainer or an admin can approve it, or a reviewer you ask.'}`}
+    case 'ready':
+      return (
+        <HandoffCard owner="you" eyebrow="Your move" title={`The ${STEP_NOUN[move.step]} is ready`}>
+          {move.step === 'research'
+            ? 'Read it below. Comment on it, or use the thread to ask the agent to change it or to write the plan.'
+            : data.capabilities?.canAskForCode
+              ? 'Read it below. Comment on it, or use the thread to ask the agent to change it or to build it.'
+              : 'Read it below. Comment on it, or ask the agent to change it in the thread. Someone on the task can ask it to build it.'}
         </HandoffCard>
       )
     case 'failed': {

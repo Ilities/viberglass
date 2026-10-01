@@ -86,14 +86,6 @@ export const ticketSchema = Joi.object({
   ticketSystem: Joi.string()
     .valid(...ticketSystemIds, NATIVE_TICKET_ORIGIN)
     .default(NATIVE_TICKET_ORIGIN),
-  workflowPhase: Joi.string()
-    .valid("research", "planning", "execution")
-    .optional(),
-  workflowOverrideReason: Joi.string().trim().min(1).max(2000).when("workflowPhase", {
-    is: Joi.valid("planning", "execution").required(),
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
   ownerId: Joi.string().uuid().optional(),
   watcherIds: Joi.array().items(Joi.string().uuid()).unique().optional(),
 });

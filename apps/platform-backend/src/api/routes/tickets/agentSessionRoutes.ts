@@ -4,7 +4,6 @@ import type { AgentSessionQueryService } from "../../../services/agentSession/Ag
 import type { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
 import { ACTION_FOR_PHASE } from "../../../services/taskTurns/turnActions";
 import { AGENT_SESSION_MODE, type AgentSessionMode } from "../../../types/agentSession";
-import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 
 interface AgentSessionRouteDependencies {
   turns: Pick<TaskTurnService, "ask">;
@@ -16,8 +15,8 @@ function isSessionMode(value: unknown): value is AgentSessionMode {
 }
 
 export function registerTicketAgentSessionRoutes(router: Router, { turns, queryService }: AgentSessionRouteDependencies): void {
-  // Opens (or continues) the task's session with an agent: the message is its next turn.
-  router.post("/:id/agent-sessions", requireRunnerRole, async (req, res, next) => {
+  // Opens (or continues) the task's session with an agent: the message is its next turn, if the caller may ask for it.
+  router.post("/:id/agent-sessions", async (req, res, next) => {
     const { clankerId, mode, initialMessage } = req.body ?? {};
     if (!clankerId || typeof clankerId !== "string") {
       return res.status(400).json({ error: "Bad request", message: "clankerId is required" });

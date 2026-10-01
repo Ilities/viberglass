@@ -22,6 +22,11 @@ function sessionLine(resumed: boolean | null): string | null {
   return null
 }
 
+/** "Tomi", "Tomi and Aino", "Tomi, Aino and Maria". */
+function joinNames(names: string[]): string {
+  return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
 export function AgentTurnEntry({ entry, project }: { entry: AgentTurn; project: string }) {
   const [expanded, setExpanded] = useState(false)
@@ -68,6 +73,12 @@ export function AgentTurnEntry({ entry, project }: { entry: AgentTurn; project: 
         <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]">
           {expanded ? 'Show less' : 'Show the whole reply'}
         </button>
+      )}
+      {outcome?.mentioned && outcome.mentioned.length > 0 && (
+        <p className="text-xs text-[var(--gray-10)]">
+          Asked <span className="font-medium text-[var(--gray-11)]">{joinNames(outcome.mentioned.map((person) => person.name))}</span> to
+          take a look
+        </p>
       )}
       {outcome?.codeDiscarded && (
         <p className="text-xs text-[var(--gray-10)]">

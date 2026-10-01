@@ -37,8 +37,8 @@ Route modules:
 
 Primary responsibilities:
 - Ticket CRUD and filtering
-- Workflow phase state (`research -> planning -> execution`)
-- Phase document storage and approval
+- Workflow phase state (`research -> planning -> execution`), derived from what the task has produced
+- Phase document storage and versions
 - Phase run triggers (research/planning generation)
 - Execution run trigger
 - Media access and signed URL generation
@@ -49,10 +49,9 @@ Core services:
 - `TicketResearchService`
 - `TicketPlanningService`
 - `TicketExecutionService`
-- `TicketPlanningApprovalService`
 - `TicketPhaseDocumentService`
 - `TicketWorkflowService`
-- `TicketWorkflowOverrideService`
+- `TaskAskPolicyService` (who may ask the agent for what)
 - Shared run setup orchestrator:
   - `src/services/ticketRunOrchestration.ts` (`prepareTicketRunContext`)
 
@@ -126,7 +125,7 @@ Inbound webhook pipeline:
 6. Delivery attempt lifecycle is persisted.
 
 Outbound feedback pipeline:
-- `FeedbackService` + `feedback/*` orchestrates posting job/approval updates to external systems.
+- `FeedbackService` + `feedback/*` orchestrates posting job updates to external systems.
 
 Key components:
 - `ProviderRegistry`
@@ -152,7 +151,7 @@ Important table groups:
 - Core entities: `projects`, `tickets`, `clankers`, `deployment_strategies`, `integrations`
 - Execution: `jobs`, `job_progress_updates`, `job_log_lines`
 - Webhooks: `webhook_provider_configs`, `webhook_delivery_attempts`
-- Workflow docs: `ticket_phase_documents`, `ticket_phase_runs`, `ticket_phase_approvals`, `ticket_phase_document_revisions`, `ticket_phase_document_comments`
+- Workflow docs: `ticket_phase_documents`, `ticket_phase_runs`, `ticket_phase_document_revisions`, `ticket_phase_document_comments`
 - Security/auth: `secrets`, `users`, `user_sessions`, `user_projects`
 
 ## Primary Request/Execution Flows

@@ -6,22 +6,9 @@ import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { TicketWorkflowService } from "../services/TicketWorkflowService";
 import { TicketPhaseDocumentCommentService } from "../services/TicketPhaseDocumentCommentService";
-import { TicketPlanningApprovalService } from "../services/TicketPlanningApprovalService";
 import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
 import { TaskTurnService } from "../services/taskTurns/TaskTurnService";
-import { getFeedbackService } from "../webhooks/webhookServiceFactory";
-import type { FeedbackService } from "../webhooks/FeedbackService";
-import logger from "../config/logger";
 import { currentActorId } from "../api/auth/requestActor";
-import { StepApprovalRequestService } from "../services/approvals/StepApprovalRequestService";
-import { TicketResearchApprovalService } from "../services/approvals/TicketResearchApprovalService";
-
-let feedbackService: FeedbackService | undefined;
-try {
-  feedbackService = getFeedbackService();
-} catch {
-  logger.warn("Feedback service unavailable for MCP composition root");
-}
 
 const ticketDAO = new TicketDAO();
 const ticketPhaseDocumentDAO = new TicketPhaseDocumentDAO();
@@ -29,27 +16,7 @@ const clankerDAO = new ClankerDAO();
 const projectDAO = new ProjectDAO();
 const workflowService = new TicketWorkflowService();
 const commentService = new TicketPhaseDocumentCommentService();
-const planningApprovalService = new TicketPlanningApprovalService(
-  feedbackService,
-);
-
-const researchApprovalService = new TicketResearchApprovalService();
-const approvalRequestService = new StepApprovalRequestService();
-
-const orchestrationService = new TicketPhaseOrchestrationService(
-  ticketDAO,
-  workflowService,
-  planningApprovalService,
-  researchApprovalService,
-  new TaskTurnService(),
-);
-
-/** MCP runs as the API token's user, set as the request's actor. */
-function requireActorId(): string {
-  const actorId = currentActorId();
-  if (!actorId) throw new Error("This tool needs a signed-in user behind the API token.");
-  return actorId;
-}
+const orchestrationService = new TicketPhaseOrchestrationService(new TaskTurnService());
 
 /**
  * What one MCP caller may reach: `projectIds` null means every space (admins);
@@ -194,9 +161,6 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
             return {
               phase,
               content: doc?.content ?? null,
-              approvalState: doc?.approvalState ?? null,
-              approvedAt: doc?.approvedAt?.toISOString() ?? null,
-              approvedBy: doc?.approvedBy ?? null,
               comments,
             };
           }),
@@ -207,32 +171,6 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
           workflowPhase: workflow.workflowPhase,
           phases: workflow.phases,
           documents,
-        };
-      },
-
-      async requestApproval(ticketId) {
-        await scope.assertTask(ticketId);
-        const document = await approvalRequestService.request(ticketId, "planning", requireActorId(), []);
-        return {
-          approvalState: document.approvalState,
-        };
-      },
-
-      async approve(ticketId) {
-        await scope.assertTask(ticketId);
-        const result = await planningApprovalService.approve(ticketId, currentActorId());
-        return {
-          approvalState: result.document.approvalState,
-          approvedAt: result.document.approvedAt,
-          approvedBy: result.document.approvedBy,
-        };
-      },
-
-      async revokeApproval(ticketId) {
-        await scope.assertTask(ticketId);
-        const result = await planningApprovalService.revokeApproval(ticketId, currentActorId());
-        return {
-          approvalState: result.document.approvalState,
         };
       },
 

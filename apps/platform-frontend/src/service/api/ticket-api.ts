@@ -166,16 +166,8 @@ export async function createTicket(
     formData.append('ticketSystem', ticket.ticketSystem)
   }
   
-  if (ticket.workflowPhase) {
-    formData.append('workflowPhase', ticket.workflowPhase)
-  }
-
   if (ticket.ownerId) {
     formData.append('ownerId', ticket.ownerId)
-  }
-
-  if (ticket.workflowOverrideReason) {
-    formData.append('workflowOverrideReason', ticket.workflowOverrideReason)
   }
 
   // Serialize complex objects as JSON strings
@@ -263,16 +255,11 @@ export async function getMediaSignedUrl(
 
 // Phase Document API
 
-export type ApprovalState = 'draft' | 'approval_requested' | 'approved' | 'rejected'
-
 export interface PhaseDocumentResponse {
   id: string
   ticketId: string
   phase: TicketWorkflowPhase
   content: string
-  approvalState: ApprovalState
-  approvedAt: string | null
-  approvedBy: string | null
   createdAt: string
   updatedAt: string
 }
@@ -474,28 +461,6 @@ export async function getPlanningPhase(ticketId: string): Promise<PlanningPhaseR
   return data.data
 }
 
-export async function approveResearch(ticketId: string): Promise<void> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research/approve`, {
-    method: 'POST',
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to approve the research')
-  }
-}
-
-export async function approvePlanning(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/approve`, {
-    method: 'POST',
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to approve planning')
-  }
-  const data: ApiResponse<PlanningPhaseResponse> = await response.json()
-  return data.data
-}
-
 export async function setTicketStatus(id: string, status: TicketLifecycleStatus): Promise<Ticket> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/set-status`, {
     method: 'POST',
@@ -505,20 +470,6 @@ export async function setTicketStatus(id: string, status: TicketLifecycleStatus)
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.error || error.message || 'Failed to set task status')
-  }
-  const data: ApiResponse<Ticket> = await response.json()
-  return data.data
-}
-
-export async function overrideTicketWorkflowToExecution(ticketId: string, reason: string): Promise<Ticket> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/workflow/override-to-execution`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to override task workflow')
   }
   const data: ApiResponse<Ticket> = await response.json()
   return data.data

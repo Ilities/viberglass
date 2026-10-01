@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { createTask, runStatus, shownRunId, startResearch, taskPhase } from "../../playwright/tasks";
+import { createTask, runStatus, startResearch, taskPhase, timeline } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
 /** Opens a run's link, which lands on its task; retries loads aborted by a container start (ERR_NETWORK_CHANGED). */
@@ -25,30 +25,29 @@ test("a task says whose move it is at the top and makes the move: research, then
   await expect(page.getByRole("button", { name: "Cancel run" })).toBeVisible();
   await expect(page.getByRole("tab", { name: /^Research/ })).toContainText("Agent working");
 
-  // Once the research is written, it's the person's move: review, then approve.
+  // Once the research is written, it's the person's move: read it, then ask for the plan.
   await expect.poll(() => runStatus(adminApi, researchJobId), { timeout: 90_000 }).toBe("completed");
   await openRun(page, workspace.projectSlug, researchJobId, task.title);
-  await expect(page.getByRole("heading", { name: "The research is ready for your review" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The research is ready" })).toBeVisible();
   // A run's link opens its runs; the document it wrote is on the Document tab.
   await page.getByRole("button", { name: "Document" }).click();
   await expect(page.getByText("Written by the fake agent used in end-to-end tests.").first()).toBeVisible();
-  await page.getByRole("button", { name: "Approve & plan" }).click();
+  await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Write the plan" }).click();
 
-  // Approving moves the task to the plan and opens the planning run it started.
-  await expect(page).not.toHaveURL(new RegExp(researchJobId));
-  await expect.poll(() => taskPhase(adminApi, task.id)).toBe("planning");
-  await expect(page).toHaveURL(/run=job_/);
-  const planningJobId = shownRunId(page.url());
-  await expect(page.getByRole("tab", { name: /^Research/ })).toContainText("Approved");
-  await expect(page.getByRole("button", { name: /Research run #1/ })).toBeVisible();
-
+  // Asking for the plan starts its run; the task's phase follows once the plan is written.
+  let planningJobId = "";
+  await expect.poll(async () => {
+    const turn = (await timeline(adminApi, task.id)).find((entry) => entry.kind === "agent_turn" && entry.action === "plan");
+    planningJobId = typeof turn?.jobId === "string" ? turn.jobId : "";
+    return planningJobId;
+  }).not.toBe("");
   await expect.poll(() => runStatus(adminApi, planningJobId), { timeout: 90_000 }).toBe("completed");
+  await expect.poll(() => taskPhase(adminApi, task.id)).toBe("planning");
   await openRun(page, workspace.projectSlug, planningJobId, task.title);
-  await expect(page.getByRole("heading", { name: "The plan is ready for your review" })).toBeVisible();
-  await page.getByRole("button", { name: "Approve plan" }).click();
+  await expect(page.getByRole("heading", { name: "The plan is ready" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /^Research/ })).toContainText("Written");
 
-  // The build pushes code, so it starts only when someone asks the agent for it.
-  await expect(page.getByRole("heading", { name: "Ask the agent to build it" })).toBeVisible();
-  await expect.poll(() => taskPhase(adminApi, task.id)).toBe("execution");
+  // The build pushes code, so it starts only when someone asks the agent for it; nothing has to be approved first.
+  await expect(page.getByRole("button", { name: /Approve/ })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Build it" })).toBeVisible();
 });

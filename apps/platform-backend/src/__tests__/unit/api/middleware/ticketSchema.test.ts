@@ -21,22 +21,9 @@ describe("ticketSchema", () => {
     );
   });
 
-  it("requires an audit reason when a client skips Research", () => {
-    const result = ticketSchema.validate({
-      ...baseTicket,
-      workflowPhase: "execution",
-    });
+  it("takes no starting phase: a task's phase follows what it has produced", () => {
+    const result = ticketSchema.validate({ ...baseTicket, workflowPhase: "execution" });
 
-    expect(result.error?.message).toContain("workflowOverrideReason");
-  });
-
-  it("accepts an explicit phase override reason", () => {
-    const result = ticketSchema.validate({
-      ...baseTicket,
-      workflowPhase: "execution",
-      workflowOverrideReason: "Production incident requires an immediate patch",
-    });
-
-    expect(result.error).toBeUndefined();
+    expect(result.error?.message).toContain("workflowPhase");
   });
 });

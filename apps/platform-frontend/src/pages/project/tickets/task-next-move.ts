@@ -1,6 +1,5 @@
 import type { JobListItem } from '@/service/api/job-api'
 import type { AgentSession } from '@/service/api/session-api'
-import type { ApprovalState } from '@/service/api/ticket-api'
 import type { JobFailure, Ticket, TicketWorkflowPhase } from '@viberglass/types'
 
 export type TaskStep = TicketWorkflowPhase
@@ -9,7 +8,8 @@ export type TaskStep = TicketWorkflowPhase
 export type TaskNextMove =
   | { kind: 'start'; step: TaskStep }
   | { kind: 'working'; step: TaskStep; runId: string | null; sessionId: string | null }
-  | { kind: 'review'; step: 'research' | 'planning' }
+  /** A written document, waiting on people to read it and say what's next. */
+  | { kind: 'ready'; step: 'research' | 'planning' }
   | { kind: 'failed'; step: TaskStep; runId: string; failure: JobFailure | null }
   | { kind: 'cancelled'; step: TaskStep; runId: string }
   | { kind: 'pull_request'; url: string }
@@ -18,7 +18,6 @@ export type TaskNextMove =
 
 export interface StepDocument {
   content: string
-  approvalState: ApprovalState
 }
 
 export interface TaskNextMoveInput {
@@ -56,7 +55,7 @@ export function decideTaskNextMove({ ticket, runs, documents, workingSession }: 
 
   const document = documents[step]
   const hasDocument = (document?.content.trim().length ?? 0) > 0
-  if (hasDocument && document?.approvalState !== 'approved') return { kind: 'review', step }
+  if (hasDocument) return { kind: 'ready', step }
   if (latest?.status === 'cancelled') return { kind: 'cancelled', step, runId: latest.jobId }
   return { kind: 'start', step }
 }
@@ -70,7 +69,7 @@ export type StepPosition = 'done' | 'current' | 'upcoming'
 export function describeStep(step: TaskStep, currentStep: TaskStep, move: TaskNextMove): { position: StepPosition; label: string } {
   const index = TASK_STEPS.indexOf(step)
   const currentIndex = TASK_STEPS.indexOf(currentStep)
-  if (index < currentIndex) return { position: 'done', label: 'Approved' }
+  if (index < currentIndex) return { position: 'done', label: 'Written' }
   if (index > currentIndex) return { position: 'upcoming', label: 'Not yet' }
   return { position: move.kind === 'done' ? 'done' : 'current', label: CURRENT_LABEL[move.kind] }
 }
@@ -78,7 +77,7 @@ export function describeStep(step: TaskStep, currentStep: TaskStep, move: TaskNe
 const CURRENT_LABEL: Record<TaskNextMove['kind'], string> = {
   start: 'Not started',
   working: 'Agent working',
-  review: 'Awaiting review',
+  ready: 'Ready',
   failed: 'Failed',
   cancelled: 'Cancelled',
   pull_request: 'Pull request open',

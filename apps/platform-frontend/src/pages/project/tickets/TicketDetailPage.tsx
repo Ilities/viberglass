@@ -18,7 +18,6 @@ import {
 import { TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useAuth } from '@/context/auth-context'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
@@ -28,7 +27,6 @@ import { TaskSidebar } from './task-sidebar'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
 import { workingSession, useTaskPage } from './use-task-page'
-import { WorkflowOverrideDialog } from './workflow-override-dialog'
 import { TaskThread } from './task-thread'
 import { taskAgents } from './task-agents'
 
@@ -61,14 +59,12 @@ function Description({ text }: { text: string }) {
 
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
-  const { user } = useAuth()
   const navigate = useNavigate()
   const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
   const [searchParams, setSearchParams] = useSearchParams()
   const [openRunId, setOpenRunId] = useState<string | null>(searchParams.get('run'))
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isOverrideDialogOpen, setIsOverrideDialogOpen] = useState(false)
 
   const linkedRunId = searchParams.get('run')
   const changed = useCallback(() => void reload().catch(() => undefined), [reload])
@@ -155,12 +151,6 @@ export function TicketDetailPage() {
     data.documents.planning.updatedAt,
     ticket.updatedAt,
   ].join('|')
-  // Skipping to the build skips the plan's approval, so it's offered to those who may give it.
-  const canSkipToBuild =
-    !ticket.workflowOverriddenAt &&
-    currentStep !== 'execution' &&
-    data.documents.planning.approvalState !== 'approved' &&
-    Boolean(data.approvals?.planning.canApprove)
 
   return (
     <>
@@ -205,12 +195,6 @@ export function TicketDetailPage() {
                       <ClipboardIcon className="size-4" />
                       Copy task ID
                     </DropdownItem>
-                    {canSkipToBuild && (
-                      <DropdownItem onClick={() => setIsOverrideDialogOpen(true)}>
-                        <CheckCircledIcon className="size-4" />
-                        Skip to the build…
-                      </DropdownItem>
-                    )}
                     <DropdownDivider />
                     {ticket.status === TICKET_STATUS.RESOLVED ? (
                       <DropdownItem onClick={() => void setStatus(TICKET_STATUS.OPEN, 'Task reopened')}>
@@ -257,7 +241,6 @@ export function TicketDetailPage() {
                 onToggleRun={toggleRun}
                 onDocumentSaved={setDocument}
                 onNewComments={countNewComments}
-                onChanged={changed}
               />
             </section>
 
@@ -270,11 +253,12 @@ export function TicketDetailPage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               agents={taskAgents(data.clankers, data.sessions)}
-              canAsk={user?.role === 'admin' || user?.role === 'member'}
+              canAsk={Boolean(data.capabilities?.canAsk)}
               onAsked={changed}
               suggestionInput={{
                 ticket,
                 documents: data.documents,
+                capabilities: data.capabilities,
                 newComments: { ...data.newComments, ...liveNewComments },
                 agentWorking: move.kind === 'working',
               }}
@@ -311,16 +295,6 @@ export function TicketDetailPage() {
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to delete task')
           }
-        }}
-      />
-      <WorkflowOverrideDialog
-        ticket={ticket}
-        open={isOverrideDialogOpen}
-        onClose={() => setIsOverrideDialogOpen(false)}
-        onSuccess={(updatedTicket) => {
-          setTicket(updatedTicket)
-          setIsOverrideDialogOpen(false)
-          toast.success('Skipped to the build')
         }}
       />
     </>

@@ -27,9 +27,6 @@ export async function createTicket(
   if (payload.ticketSystem) {
     formData.append("ticketSystem", payload.ticketSystem);
   }
-  if (payload.workflowPhase) {
-    formData.append("workflowPhase", payload.workflowPhase);
-  }
 
   if (screenshotDataUrl) {
     const blob = await dataUrlToBlob(screenshotDataUrl);
@@ -66,20 +63,21 @@ export async function createTicket(
   return response.json();
 }
 
+const PHASE_ACTION: Record<TicketWorkflowPhase, "research" | "plan" | "code"> = {
+  research: "research",
+  planning: "plan",
+  execution: "code",
+};
+
+/** Asks the agent for the step's work in the task's thread, as the person signed in. */
 export async function runPhase(
   ticketId: string,
   phase: TicketWorkflowPhase,
   clankerId: string,
 ): Promise<void> {
-  const endpoints: Record<TicketWorkflowPhase, string> = {
-    research: `/api/tasks/${ticketId}/phases/research/run`,
-    planning: `/api/tasks/${ticketId}/phases/planning/run`,
-    execution: `/api/tasks/${ticketId}/run`,
-  };
-
-  await apiRequest(endpoints[phase], {
+  await apiRequest(`/api/tasks/${ticketId}/messages`, {
     method: "POST",
-    body: JSON.stringify({ clankerId }),
+    body: JSON.stringify({ body: "", action: PHASE_ACTION[phase], agentId: clankerId }),
   });
 }
 
