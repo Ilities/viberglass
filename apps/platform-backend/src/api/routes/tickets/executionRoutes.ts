@@ -9,6 +9,7 @@ import {
   validateUuidParam,
 } from "../../middleware/validation";
 import { resolveTicketRouteServiceError } from "./routeErrors";
+import { isApprovalPolicyError } from "../../../services/errors/ApprovalPolicyError";
 import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 
 interface TicketExecutionRouteDependencies {
@@ -85,15 +86,14 @@ export function registerTicketExecutionRoutes(
     "/:id/workflow/override-to-execution",
     requireRunnerRole,
     validateUuidParam("id"),
-    async (req, res) => {
+    async (req, res, next) => {
       try {
         const reason =
           typeof req.body?.reason === "string" ? req.body.reason : "";
-        const actor = req.authContext?.user.email;
         const ticket = await ticketWorkflowOverrideService.overrideToExecution(
           req.params.id,
           reason,
-          actor,
+          req.authContext?.user.id ?? null,
         );
 
         return res.json({
@@ -101,6 +101,7 @@ export function registerTicketExecutionRoutes(
           data: ticket,
         });
       } catch (err) {
+        if (isApprovalPolicyError(err)) return next(err);
         const error = err instanceof Error ? err : new Error(String(err));
         const message = error.message || "Failed to override workflow";
 

@@ -1,4 +1,4 @@
-import type { NotificationKind, TaskActivityKind, TaskParticipantRole } from "@viberglass/types";
+import { namedApprovers, type NotificationKind, type TaskActivityKind, type TaskParticipantRole } from "@viberglass/types";
 
 export interface ActivityForNotification {
   kind: TaskActivityKind;
@@ -37,8 +37,12 @@ export function resolveNotifications(activity: ActivityForNotification, context:
         return to(userId, "task_assigned");
       case "message_posted":
         return to(ids(activity.payload.mentioned), "mentioned");
-      case "run_finished":
-        return to(withRoles(context, ["requester", "owner", "watcher"]), "step_completed");
+      case "run_finished": {
+        // A finished plan is a review request for whoever it waits on; the rest hear it's ready.
+        const approvers = activity.payload.step === "planning" ? namedApprovers("planning", context.participants) : [];
+        const others = withRoles(context, ["requester", "owner", "watcher"]).filter((id) => !approvers.includes(id));
+        return [...to(approvers, "review_requested"), ...to(others, "step_completed")];
+      }
       case "run_failed": {
         // Setup and platform failures need someone who can fix the workspace; the rest need the task's owner.
         const category = activity.payload.category;

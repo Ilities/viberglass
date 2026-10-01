@@ -110,12 +110,7 @@ export class TicketPhaseDocumentService {
       content.trim().length > 0 &&
       doc.approvalState !== "approval_requested"
     ) {
-      await this.documentDAO.updateApprovalState(
-        ticketId,
-        phase,
-        "approval_requested",
-        options.actor,
-      );
+      await this.documentDAO.updateApprovalState(ticketId, phase, "approval_requested");
     }
 
     await this.lifecycleStatusService.synchronize(ticketId);
@@ -127,17 +122,11 @@ export class TicketPhaseDocumentService {
   async requestApproval(
     ticketId: string,
     phase: TicketWorkflowPhase,
-    actor?: string,
   ): Promise<PhaseDocumentView> {
     await this.requireTicket(ticketId);
     await this.getOrCreatePersistedDocument(ticketId, phase);
 
-    await this.documentDAO.updateApprovalState(
-      ticketId,
-      phase,
-      "approval_requested",
-      actor,
-    );
+    await this.documentDAO.updateApprovalState(ticketId, phase, "approval_requested");
     await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
@@ -147,12 +136,12 @@ export class TicketPhaseDocumentService {
   async approveDocument(
     ticketId: string,
     phase: TicketWorkflowPhase,
-    actor?: string,
+    approverId: string | null,
   ): Promise<PhaseDocumentView> {
     await this.requireTicket(ticketId);
     await this.getOrCreatePersistedDocument(ticketId, phase);
 
-    await this.documentDAO.updateApprovalState(ticketId, phase, "approved", actor);
+    await this.documentDAO.updateApprovalState(ticketId, phase, "approved", approverId);
     await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
@@ -162,17 +151,11 @@ export class TicketPhaseDocumentService {
   async revokeApproval(
     ticketId: string,
     phase: TicketWorkflowPhase,
-    actor?: string,
   ): Promise<PhaseDocumentView> {
     await this.requireTicket(ticketId);
     await this.getOrCreatePersistedDocument(ticketId, phase);
 
-    await this.documentDAO.updateApprovalState(
-      ticketId,
-      phase,
-      "draft",
-      actor,
-    );
+    await this.documentDAO.updateApprovalState(ticketId, phase, "draft");
     await this.lifecycleStatusService.synchronize(ticketId);
 
     const updated = await this.documentDAO.getByTicketAndPhase(ticketId, phase);

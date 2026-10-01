@@ -1,6 +1,7 @@
 import { TICKET_WORKFLOW_PHASE } from "@viberglass/types";
 import { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
 import { TicketWorkflowOverrideService } from "../../../services/TicketWorkflowOverrideService";
+import { APPROVAL_POLICY_ERROR_CODE, ApprovalPolicyError } from "../../../services/errors/ApprovalPolicyError";
 
 jest.mock("../../../persistence/ticketing/TicketDAO");
 
@@ -15,12 +16,14 @@ jest.mock("../../../services/TicketLifecycleStatusService", () => ({
 describe("TicketWorkflowOverrideService", () => {
   let service: TicketWorkflowOverrideService;
   let mockTicketDAO: jest.Mocked<TicketDAO>;
+  const policy = { assertCanApprove: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    policy.assertCanApprove.mockResolvedValue(undefined);
     mockTicketDAO = new TicketDAO() as jest.Mocked<TicketDAO>;
     (TicketDAO as jest.Mock).mockImplementation(() => mockTicketDAO);
-    service = new TicketWorkflowOverrideService();
+    service = new TicketWorkflowOverrideService(policy);
   });
 
   it("records an execution override and returns the updated ticket", async () => {
@@ -40,20 +43,21 @@ describe("TicketWorkflowOverrideService", () => {
     const result = await service.overrideToExecution(
       "ticket-1",
       "Urgent production fix",
-      "approver@example.com",
+      "user-1",
     );
 
+    expect(policy.assertCanApprove).toHaveBeenCalledWith("user-1", "ticket-1", "planning");
     expect(mockTicketDAO.overrideWorkflowToExecution).toHaveBeenCalledWith(
       "ticket-1",
       "Urgent production fix",
-      "approver@example.com",
+      "user-1",
     );
     expect(result.workflowPhase).toBe(TICKET_WORKFLOW_PHASE.EXECUTION);
     expect(result.workflowOverrideReason).toBe("Urgent production fix");
   });
 
   it("requires a non-empty reason", async () => {
-    await expect(service.overrideToExecution("ticket-1", "   ")).rejects.toThrow(
+    await expect(service.overrideToExecution("ticket-1", "   ", "user-1")).rejects.toThrow(
       "workflow override reason is required",
     );
 
@@ -68,7 +72,15 @@ describe("TicketWorkflowOverrideService", () => {
     } as any);
 
     await expect(
-      service.overrideToExecution("ticket-1", "Urgent production fix"),
+      service.overrideToExecution("ticket-1", "Urgent production fix", "user-1"),
     ).rejects.toThrow("Ticket workflow has already been overridden");
+  });
+
+  it("refuses someone who may not approve the plan, since skipping to the build skips its approval", async () => {
+    mockTicketDAO.getTicket.mockResolvedValue({ id: "ticket-1", workflowPhase: TICKET_WORKFLOW_PHASE.PLANNING } as any);
+    policy.assertCanApprove.mockRejectedValue(new ApprovalPolicyError(APPROVAL_POLICY_ERROR_CODE.NOT_ELIGIBLE, "Only Tomi can approve the plan."));
+
+    await expect(service.overrideToExecution("ticket-1", "Urgent", "user-2")).rejects.toThrow("Only Tomi can approve the plan.");
+    expect(mockTicketDAO.overrideWorkflowToExecution).not.toHaveBeenCalled();
   });
 });

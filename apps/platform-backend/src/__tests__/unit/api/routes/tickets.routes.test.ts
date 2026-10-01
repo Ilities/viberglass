@@ -32,7 +32,6 @@ const mockTicketExecutionService = {
   runTicket: jest.fn(),
 };
 const mockTicketPlanningApprovalService = {
-  requestApproval: jest.fn(),
   approve: jest.fn(),
   revokeApproval: jest.fn(),
 };
@@ -41,8 +40,6 @@ const mockTicketWorkflowOverrideService = {
 };
 const mockTicketWorkflowService = {
   getTicketWorkflow: jest.fn(),
-  advancePhase: jest.fn(),
-  setPhase: jest.fn(),
 };
 const mockTicketPhaseDocumentRevisionService = {
   listRevisions: jest.fn(),
@@ -237,131 +234,6 @@ describe("ticket workflow routes", () => {
     expect(response.body).toEqual({ error: "Invalid workflow phase" });
   });
 
-  it("advances from research to planning", async () => {
-    mockTicketWorkflowService.advancePhase.mockResolvedValue({
-      ticketId: TICKET_ID,
-      workflowPhase: "planning",
-    });
-
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/phases/planning/advance`)
-      .expect(200);
-
-    expect(mockTicketWorkflowService.advancePhase).toHaveBeenCalledWith(
-      TICKET_ID,
-      "planning",
-    );
-    expect(response.body).toEqual({
-      success: true,
-      data: {
-        ticketId: TICKET_ID,
-        workflowPhase: "planning",
-      },
-    });
-  });
-
-  it("advances from planning to execution", async () => {
-    mockTicketWorkflowService.advancePhase.mockResolvedValue({
-      ticketId: TICKET_ID,
-      workflowPhase: "execution",
-    });
-
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/phases/execution/advance`)
-      .expect(200);
-
-    expect(response.body.data.workflowPhase).toBe("execution");
-  });
-
-  it("returns 400 for invalid phase params", async () => {
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/phases/not-a-phase/advance`)
-      .expect(400);
-
-    expect(response.body).toEqual({ error: "Invalid workflow phase" });
-  });
-
-  it("manually sets the workflow phase", async () => {
-    mockTicketWorkflowService.setPhase.mockResolvedValue({
-      id: TICKET_ID,
-      workflowPhase: "execution",
-      status: "open",
-    });
-
-    const response = await request(app)
-      .put(`/api/tasks/${TICKET_ID}/workflow/phase`)
-      .send({ workflowPhase: "execution" })
-      .expect(200);
-
-    expect(mockTicketWorkflowService.setPhase).toHaveBeenCalledWith(
-      TICKET_ID,
-      "execution",
-    );
-    expect(response.body.data.workflowPhase).toBe("execution");
-  });
-
-  it("rejects invalid workflow phases for manual phase updates", async () => {
-    const response = await request(app)
-      .put(`/api/tasks/${TICKET_ID}/workflow/phase`)
-      .send({ workflowPhase: "invalid" })
-      .expect(400);
-
-    expect(response.body).toEqual({ error: "Invalid workflow phase" });
-  });
-
-  it("returns 409 for disallowed transitions", async () => {
-    mockTicketWorkflowService.advancePhase.mockRejectedValue(
-      new Error("Cannot advance ticket workflow from research to execution"),
-    );
-
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/phases/execution/advance`)
-      .expect(409);
-
-    expect(response.body).toEqual({
-      error: "Cannot advance ticket workflow from research to execution",
-    });
-  });
-
-  it("returns 404 when advancing a missing ticket", async () => {
-    mockTicketWorkflowService.advancePhase.mockRejectedValue(
-      new Error("Ticket not found"),
-    );
-
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/phases/planning/advance`)
-      .expect(404);
-
-    expect(response.body).toEqual({ error: "Ticket not found" });
-  });
-
-  it("approves planning and returns the updated phase view", async () => {
-    mockTicketPlanningApprovalService.approve.mockResolvedValue({
-      document: {
-        id: "doc-1",
-        ticketId: TICKET_ID,
-        phase: "planning",
-        content: "Approved plan",
-        approvalState: "approved",
-        approvedAt: "2026-03-01T10:00:00.000Z",
-        approvedBy: "approver@example.com",
-        createdAt: "2026-03-01T09:00:00.000Z",
-        updatedAt: "2026-03-01T10:00:00.000Z",
-      },
-      latestRun: null,
-    });
-
-    const response = await request(app)
-      .post(`/api/tasks/${TICKET_ID}/phases/planning/approve`)
-      .expect(200);
-
-    expect(mockTicketPlanningApprovalService.approve).toHaveBeenCalledWith(
-      TICKET_ID,
-      undefined,
-    );
-    expect(response.body.data.document.approvalState).toBe("approved");
-  });
-
   it("returns 409 when execution is blocked by planning approval", async () => {
     mockTicketExecutionService.runTicket.mockRejectedValue(
       new TicketServiceError(
@@ -397,7 +269,7 @@ describe("ticket workflow routes", () => {
     expect(mockTicketWorkflowOverrideService.overrideToExecution).toHaveBeenCalledWith(
       TICKET_ID,
       "Urgent production fix",
-      undefined,
+      null,
     );
     expect(response.body.data.workflowPhase).toBe("execution");
   });

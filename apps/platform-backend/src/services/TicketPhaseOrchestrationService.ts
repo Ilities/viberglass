@@ -1,12 +1,13 @@
 import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from "@viberglass/types";
 import logger from "../config/logger";
-import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import type { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketPhaseDocumentService } from "./TicketPhaseDocumentService";
-import { TicketWorkflowService } from "./TicketWorkflowService";
-import { TicketPlanningApprovalService } from "./TicketPlanningApprovalService";
-import { TicketResearchService } from "./TicketResearchService";
-import { TicketPlanningService } from "./TicketPlanningService";
-import { TicketExecutionService } from "./TicketExecutionService";
+import type { TicketWorkflowService } from "./TicketWorkflowService";
+import type { TicketPlanningApprovalService } from "./TicketPlanningApprovalService";
+import type { TicketResearchService } from "./TicketResearchService";
+import type { TicketPlanningService } from "./TicketPlanningService";
+import type { TicketExecutionService } from "./TicketExecutionService";
+import type { TicketResearchApprovalService } from "./approvals/TicketResearchApprovalService";
 import {
   TicketServiceError,
   TICKET_SERVICE_ERROR_CODE,
@@ -16,7 +17,8 @@ export interface AdvanceAndRunParams {
   ticketId: string;
   clankerId: string;
   targetPhase: TicketWorkflowPhase;
-  actor?: string;
+  /** Who is moving the task on; any approval it takes is theirs, under the space's policy. */
+  actorId: string | null;
 }
 
 export interface AdvanceAndRunChainParams {
@@ -24,7 +26,7 @@ export interface AdvanceAndRunChainParams {
   clankerId: string;
   firstPhase: TicketWorkflowPhase;
   thenPhase: TicketWorkflowPhase;
-  actor?: string;
+  actorId: string | null;
 }
 
 export type AdvanceAndRunResult = { jobId: string; status: string };
@@ -37,26 +39,20 @@ export class TicketPhaseOrchestrationService {
   private readonly documentService = new TicketPhaseDocumentService();
 
   constructor(
-    private readonly ticketDAO: TicketDAO,
-    private readonly workflowService: TicketWorkflowService,
-    private readonly planningApprovalService: TicketPlanningApprovalService,
-    private readonly researchService: TicketResearchService,
-    private readonly planningService: TicketPlanningService,
-    private readonly executionService: TicketExecutionService,
+    private readonly ticketDAO: Pick<TicketDAO, "getTicket">,
+    private readonly workflowService: Pick<TicketWorkflowService, "setPhase">,
+    private readonly planningApprovalService: Pick<TicketPlanningApprovalService, "approve">,
+    private readonly researchApprovalService: Pick<TicketResearchApprovalService, "approve">,
+    private readonly researchService: Pick<TicketResearchService, "runResearch">,
+    private readonly planningService: Pick<TicketPlanningService, "runPlanning">,
+    private readonly executionService: Pick<TicketExecutionService, "runTicket">,
   ) {}
 
   async advanceAndRun(
     params: AdvanceAndRunParams,
   ): Promise<AdvanceAndRunResult> {
-    const { ticketId, clankerId, targetPhase, actor } = params;
-
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
-        "Ticket not found",
-      );
-    }
+    const { ticketId, clankerId, targetPhase, actorId } = params;
+    await this.approveUpTo(ticketId, targetPhase, actorId);
 
     if (targetPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
       await this.workflowService.setPhase(ticketId, TICKET_WORKFLOW_PHASE.RESEARCH);
@@ -68,23 +64,39 @@ export class TicketPhaseOrchestrationService {
       return this.planningService.runPlanning(ticketId, { clankerId });
     }
 
-    // EXECUTION: must go through the canonical approval path so the planning
-    // document's approvalState is set, approval actions are recorded, and the
-    // feedback webhook fires.
+    return this.executionService.runTicket(ticketId, { clankerId });
+  }
+
+  /**
+   * Takes every approval between the task's step and `targetPhase`, as the
+   * person moving it on: the research when leaving it, and the plan before the
+   * build. Each goes through the canonical approval path, so the policy is
+   * checked, the approval recorded and the feedback webhook fired. Going back
+   * to an earlier step needs no approval.
+   */
+  async approveUpTo(ticketId: string, targetPhase: TicketWorkflowPhase, actorId: string | null): Promise<void> {
+    const ticket = await this.ticketDAO.getTicket(ticketId);
+    if (!ticket) {
+      throw new TicketServiceError(
+        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
+        "Ticket not found",
+      );
+    }
+    if (targetPhase === TICKET_WORKFLOW_PHASE.RESEARCH) return;
+
+    if (ticket.workflowPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
+      await this.researchApprovalService.approve(ticketId, actorId);
+    }
+    if (targetPhase !== TICKET_WORKFLOW_PHASE.EXECUTION || ticket.workflowOverriddenAt) return;
+
     const planningDoc = await this.documentService.getOrCreateDocument(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
     );
-
-    const alreadyApproved = planningDoc.approvalState === "approved";
-    const alreadyInExecution =
-      ticket.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION;
-
-    if (!alreadyApproved || !alreadyInExecution) {
-      await this.planningApprovalService.approve(ticketId, actor);
+    const alreadyInExecution = ticket.workflowPhase === TICKET_WORKFLOW_PHASE.EXECUTION;
+    if (planningDoc.approvalState !== "approved" || !alreadyInExecution) {
+      await this.planningApprovalService.approve(ticketId, actorId);
     }
-
-    return this.executionService.runTicket(ticketId, { clankerId });
   }
 
   /**
@@ -95,7 +107,7 @@ export class TicketPhaseOrchestrationService {
   async advanceAndRunChain(
     params: AdvanceAndRunChainParams,
   ): Promise<AdvanceAndRunResult> {
-    const { ticketId, clankerId, firstPhase, actor } = params;
+    const { ticketId, clankerId, firstPhase, actorId } = params;
 
     logger.info("Starting chained phase run", {
       ticketId,
@@ -107,7 +119,7 @@ export class TicketPhaseOrchestrationService {
       ticketId,
       clankerId,
       targetPhase: firstPhase,
-      actor,
+      actorId,
     });
   }
 }

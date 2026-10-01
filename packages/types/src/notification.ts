@@ -52,7 +52,7 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
   const step = typeof payload.step === 'string' ? (STEP_NOUN[payload.step] ?? payload.step) : 'step'
   switch (kind) {
     case 'review_requested':
-      return `${who} asked you to review “${taskTitle}”`
+      return actorName ? `${who} asked you to review “${taskTitle}”` : `The ${step} for “${taskTitle}” is ready for your review`
     case 'mentioned':
       return `${who} mentioned you on “${taskTitle}”`
     case 'task_assigned':

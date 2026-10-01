@@ -53,6 +53,13 @@ export function SpaceMembersPage() {
     }
   }
 
+  function saveDefaultReviewers(defaultReviewerIds: string[]) {
+    if (!project) return
+    return act(async () =>
+      setProject({ ...(await updateProject(project.id, { defaultReviewerIds })), viewerAccess: project.viewerAccess })
+    )
+  }
+
   if (!project) return error ? <Text>{error}</Text> : <Text>Loading…</Text>
 
   const candidates = people.filter((person) => !members.some((member) => member.userId === person.id))
@@ -108,6 +115,47 @@ export function SpaceMembersPage() {
               </option>
             ))}
           </Select>
+        </div>
+
+        <div className="max-w-sm">
+          <Label>Default reviewers</Label>
+          <Description>
+            Added as reviewers to every new task, and asked to review its plan. With none, the task&apos;s owner
+            approves the plan. Maintainers and workspace admins can always approve.
+          </Description>
+          <ul className="mt-2 space-y-1">
+            {project.defaultReviewerIds.map((reviewerId) => (
+              <li key={reviewerId} className="flex items-center justify-between gap-2 text-sm">
+                {people.find((person) => person.id === reviewerId)?.name ?? 'Someone who left'}
+                {canMaintain && (
+                  <Button
+                    plain
+                    disabled={busy}
+                    onClick={() => void saveDefaultReviewers(project.defaultReviewerIds.filter((id) => id !== reviewerId))}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {canMaintain && (
+            <Select
+              aria-label="Add a default reviewer"
+              value=""
+              placeholder="Add a reviewer…"
+              disabled={busy}
+              onChange={(userId) => userId && void saveDefaultReviewers([...project.defaultReviewerIds, userId])}
+            >
+              {people
+                .filter((person) => !project.defaultReviewerIds.includes(person.id))
+                .map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+            </Select>
+          )}
         </div>
 
         <section>

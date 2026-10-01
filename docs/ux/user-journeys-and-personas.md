@@ -679,6 +679,7 @@ J1, J2. Existing registration → model key (provider picker for every selectabl
 ### Phase 2: People primitives (3–5 weeks)
 J3, J4, J5, J7, J10, J17. Invite links (SMTP optional); roles enforced server-side; space membership; task participants (requester/owner/reviewers/watchers); general Discussion thread with @mentions; Inbox + notifications (in-app, Slack, email); approval policies; rendered-document inline comments; Activity log; audit log; the J1 step 7 home checklist (*Invite your team · Connect Slack · Connect your tracker*).
 **Exit:** J9 steps 1, 3, 4, 7 work with ≥ 3 humans.
+**Status (2026-10-01):** naming, roles and invites, space membership, participants and keys, Discussion and Activity, the Inbox and notifications, and approval policies are done ([`phase-2-3-handover.md`](./phase-2-3-handover.md) §2.1–2.7). Left: comments on the rendered document (§2.8), the audit log (§2.9) and the exit journey.
 
 ### Phase 2½: Returning-visit UX (added 2026-09-30)
 Phase 1 reworked the first visit. Every later visit (the dashboard, space home, task lists, Pulse, the new Inbox and My tasks, and how status reads across them) was built piece by piece and has never been designed as one flow. After Phase 2, when roles, participants, Activity and the Inbox exist:
@@ -714,7 +715,7 @@ Dropped: default approval settings (a detail for the policy design in J7, not a 
 
 **Decided 2026-09-29** (Phase 2 and 3 decisions D1–D9 in [`phase-2-3-handover.md`](./phase-2-3-handover.md) §1):
 6. Roles and visibility: workspace roles Admin, Member, Guest and Viewer (workspace read-only); space roles Maintainer and Member; spaces open by default with an optional Private flag; guests and viewers invitable in Phase 2 ([ADR 0005](../adr/0005-roles-and-space-visibility.md)).
-7. Default approval policy, editable per space: research by any participant; plan by one reviewer from the space's reviewers, falling back to the owner; build gated by the PR review in GitHub.
+7. Default approval policy, editable per space: research by any participant; plan by one reviewer from the space's reviewers, falling back to the owner; build gated by the PR review in GitHub. *Refined 2026-10-01 (handover §2.7):* "the space's reviewers" is a new **default reviewers** setting on the space, added to each new task; workspace admins and the space's maintainers can always approve; one approval per step; every shortcut that approves as a side effect (Slack, MCP, chained runs, live sessions, skip to the build) is checked against the same policy.
 8. Notification defaults: the §8 table as written. In-app always; email only when SMTP is configured; digests off until asked for; Slack DM once a person links Slack.
 9. Agent questions and sessions: an `ask_human` MCP tool; a blocking question ends the job and resumes on the answer; one session branch per live session; a turn that writes no document leaves the session waiting on the person ([ADR 0006](../adr/0006-agent-questions-and-session-continuity.md)).
 

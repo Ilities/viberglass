@@ -27,6 +27,8 @@ interface ActiveBridge {
   timer: ReturnType<typeof setInterval>;
   chainTo?: TicketWorkflowPhase;
   clankerId?: string;
+  /** The Slack user who started the chain; it continues as them, under the approval policy. */
+  chainedBy?: string;
 }
 
 export interface TicketBridgeCallbacks {
@@ -34,6 +36,7 @@ export interface TicketBridgeCallbacks {
     ticketId: string;
     clankerId: string;
     targetPhase: TicketWorkflowPhase;
+    slackUserId?: string;
   }) => Promise<{ jobId: string; status: string }>;
 }
 
@@ -63,6 +66,7 @@ export class TicketJobBridge {
     mode: Mode,
     chainTo?: TicketWorkflowPhase,
     clankerId?: string,
+    chainedBy?: string,
   ): void {
     const key = `${ticketId}:${jobId}`;
     if (this.bridges.has(key)) return;
@@ -82,10 +86,11 @@ export class TicketJobBridge {
           const current = this.bridges.get(key);
           const chainTo = current?.chainTo;
           const chainClankerId = current?.clankerId;
+          const chainedBy = current?.chainedBy;
           await this.handleCompleted(ticketId, thread, mode, status);
           this.stopBridge(key);
           if (chainTo && chainClankerId) {
-            await this.handleChain(ticketId, thread, chainTo, chainClankerId);
+            await this.handleChain(ticketId, thread, chainTo, chainClankerId, chainedBy);
           }
         } else if (status.status === "failed") {
           await thread.post({
@@ -111,6 +116,7 @@ export class TicketJobBridge {
       timer,
       chainTo,
       clankerId,
+      chainedBy,
     });
     poll();
   }
@@ -274,6 +280,7 @@ export class TicketJobBridge {
     thread: Thread,
     chainTo: TicketWorkflowPhase,
     clankerId: string,
+    chainedBy: string | undefined,
   ): Promise<void> {
     if (!this.callbacks) {
       logger.error(
@@ -289,6 +296,7 @@ export class TicketJobBridge {
         ticketId,
         clankerId,
         targetPhase: chainTo,
+        slackUserId: chainedBy,
       });
       const mode = chainTo as Mode;
       this.startBridge(result.jobId, ticketId, thread, mode);

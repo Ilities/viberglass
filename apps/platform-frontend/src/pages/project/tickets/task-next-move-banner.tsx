@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { HandoffCard } from '../jobs/handoff-card'
 import { useRunNextStepActions } from '../jobs/use-run-next-step-actions'
 import { ApprovePhaseButton } from './approve-phase-button'
+import { RequestApproval, waitingOnText } from './request-approval'
 import type { TaskNextMove, TaskStep } from './task-next-move'
 import type { TaskPageData } from './use-task-page'
 
@@ -165,23 +166,29 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
             title="The research is ready for your review"
             actions={
               <>
-                <ApprovePhaseButton
-                  ticketId={ticket.id}
-                  phase="research"
-                  label={actions.busy === 'approve' ? 'Approving…' : 'Approve & plan'}
-                  runInProgress={false}
-                  isApproving={actions.busy !== null}
-                  onApprove={() => void actions.approveResearchAndPlan({ planExists: hasPlan })}
-                />
+                {data.approvals?.research.canApprove ? (
+                  <ApprovePhaseButton
+                    ticketId={ticket.id}
+                    phase="research"
+                    label={actions.busy === 'approve' ? 'Approving…' : 'Approve & plan'}
+                    runInProgress={false}
+                    isApproving={actions.busy !== null}
+                    onApprove={() => void actions.approveResearchAndPlan({ planExists: hasPlan })}
+                  />
+                ) : (
+                  <RequestApproval taskId={ticket.id} step="research" onRequested={onChanged} />
+                )}
                 <Button outline disabled={actions.busy !== null} onClick={() => setRevising('research')}>
                   Ask for changes
                 </Button>
               </>
             }
           >
-            {hasPlan
-              ? 'Read it below. Approving takes you to the existing plan, to review it again.'
-              : 'Read it below. Approving starts the plan.'}
+            {!data.approvals?.research.canApprove
+              ? `Read it below. ${waitingOnText(data.approvals?.research ?? null) ?? 'Ask someone on the task to approve it.'}`
+              : hasPlan
+                ? 'Read it below. Approving takes you to the existing plan, to review it again.'
+                : 'Read it below. Approving starts the plan.'}
           </HandoffCard>
         ) : (
           <HandoffCard
@@ -190,14 +197,18 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
             title="The plan is ready for your review"
             actions={
               <>
-                <ApprovePhaseButton
-                  ticketId={ticket.id}
-                  phase="planning"
-                  label={actions.busy === 'approve' ? 'Approving…' : 'Approve plan'}
-                  runInProgress={false}
-                  isApproving={actions.busy !== null}
-                  onApprove={() => void actions.approvePlan()}
-                />
+                {data.approvals?.planning.canApprove ? (
+                  <ApprovePhaseButton
+                    ticketId={ticket.id}
+                    phase="planning"
+                    label={actions.busy === 'approve' ? 'Approving…' : 'Approve plan'}
+                    runInProgress={false}
+                    isApproving={actions.busy !== null}
+                    onApprove={() => void actions.approvePlan()}
+                  />
+                ) : (
+                  <RequestApproval taskId={ticket.id} step="planning" onRequested={onChanged} />
+                )}
                 <Button outline disabled={actions.busy !== null} onClick={() => setRevising('planning')}>
                   Ask for changes
                 </Button>
@@ -205,6 +216,8 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
             }
           >
             Read it below. Once it&apos;s approved, the build can start.
+            {!data.approvals?.planning.canApprove &&
+              ` ${waitingOnText(data.approvals?.planning ?? null) ?? "A space maintainer or an admin can approve it, or a reviewer you ask."}`}
           </HandoffCard>
         )
       case 'failed': {

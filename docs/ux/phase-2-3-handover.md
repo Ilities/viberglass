@@ -1,6 +1,6 @@
 # Handover: Phase 2 (people) and Phase 3 (agent ↔ human)
 
-Status as of 2026-09-30 · Phase 1 is done and confirmed on AWS (Jussi, 2026-09-30); Phase 0's quick wins are done (§5; #17 dropped) · Owner of decisions: Jussi
+Status as of 2026-10-01 · Phase 1 is done and confirmed on AWS (Jussi, 2026-09-30); Phase 0's quick wins are done (§5; #17 dropped) · Owner of decisions: Jussi
 
 This is the plan for the next two phases, written for whoever picks them up. For each phase it lists:
 - what the plan asks for;
@@ -264,20 +264,51 @@ The original plan follows.
 
 ### 2.7 Approval policy (J7; D4)
 
-- **Exists** (reported):
-  - Approval exists for **planning only**: `POST /api/tickets/:id/phases/planning/{request-approval,approve,revoke-approval}` (`tickets/workflowPhaseRoutes.ts`), `TicketPlanningApprovalService` and `ticket_phase_approvals` (migration 038).
-  - Research moves on through `/:id/phases/:phase/advance` with no approval record.
-  - **Any signed-in user can approve.** The actor is stored as an email string.
-  - Slack approve and reject buttons are credited to a Slack display name.
-  - Phase 0 left this open deliberately (handover §1.2): locking approval to admins would lock out product leaders.
+**Done (2026-10-01).** Decided by Jussi the same day, refining D4: "the space's reviewers" is a new **default reviewers** setting on the space; workspace admins and the space's maintainers can always approve; one approval per step; every shortcut is checked against the policy for the person acting. What landed:
+- **The rule** (`canApproveStep` / `namedApprovers` in `@viberglass/types`, one rule per step in a table): research by any participant; the plan by the task's reviewers, else its owner; admins and the space's maintainers always; viewers never. Guests approve when they're the reviewer. The build has no in-app gate: the PR review in GitHub is the gate.
+- **One check** (`ApprovalPolicyService.assertCanApprove`) inside the services that approve, so every caller goes through it. It also refuses someone who can no longer see the space or was deactivated, since Slack approvals don't pass the routes' space guard. A refusal is a 403 that names who can approve ("Only Tomi, this space's maintainers or a workspace admin can approve the plan. Ask one of them, or add yourself as a reviewer.").
+  - **Research** has its own approval (`TicketResearchApprovalService`, `POST /api/tasks/:id/phases/research/approve`): approval record, Activity entry, then on to the plan. `PUT /workflow/phase` (which the task page used to approve research, recording nothing) and `POST /phases/:phase/advance` are gone.
+  - **The plan:** approve and revoke check the policy (`TicketPlanningApprovalService`).
+  - **Shortcuts:** `TicketPhaseOrchestrationService.approveUpTo` takes every approval between the task's step and the target as the person moving it on. Slack, MCP `task_trigger` and chains use it. **Skip to the build** needs the right to approve the plan, and is only offered to those who have it.
+  - **Live sessions:** a session in execution mode now needs an approved plan, the same rule as a batch build (`assertPlanCleared`). Before this it needed nothing.
+- **Who acted:** approvals store user ids. Migration 080 converts `ticket_phase_documents.approved_by` and `ticket_phase_approvals.actor` (now `actor_id`) from emails; an unknown email becomes null. Routes pass the signed-in user; MCP the token's user.
+  - **Slack** acts as the person who linked that Slack account (`users.slack_user_id`, §2.6): the Approve button, "lgtm"/"ship it" mentions and live-session advances. An unlinked user is told to link their account under Settings → Notifications. A chain remembers who started it (`chainedBy` in both bridges) and continues as them, so it stops at the plan unless they may approve it.
+- **Default reviewers** (`projects.default_reviewer_ids`): set in a space's Settings → Members by its maintainers, and only to people who can see the space. They join each new task as reviewers when it's created, silently, like the default owner. Tasks made before keep their reviewers as they are.
+  - **When a plan run finishes**, the people it waits on get a **review request** ("The plan for “X” is ready for your review"); the rest hear it's ready as before.
+- **Task page:** the banner shows Approve only to people who may approve (`GET /api/tasks/:id/approvals`, loaded with the task). Everyone else sees "Waiting on Tomi to approve." and **Request approval from…** (`POST /phases/:step/request-approval`), which adds the person as a reviewer and sends them a review request. Guests may only ask for themselves.
+  - Asking for yourself makes you a reviewer, who may then approve. That's J7's "Reassign reviewer", and Activity records it.
+- **Also fixed:** the `Select` component dropped `aria-label` (JSX doesn't type-check hyphenated props), so no labelled select in the app had an accessible name. MCP's unused `actor` parameters are gone.
+- Verified: backend 1015 and frontend 199 unit tests; the smoke suite (34/34) including `approval-policy.e2e.test.ts`. That journey checks that a member not on the task gets no Approve or Skip to the build, that the API refuses them with the reason, that they ask for themselves and then approve, and that the approval is credited in the plan and in Activity. A second journey sets a default reviewer in settings and checks they review the next task's plan. Migration 080 ran on the dev database; both existing approvals now name a user.
+- **Not checked:** the Slack paths have unit coverage only up to `approveUpTo`; they weren't tried against a real workspace.
+- **Left for later:**
+  - per-space rule settings: the defaults are fixed;
+  - the J7 journey's comment-and-request-changes half, which needs §2.8;
+  - a default reviewer who later loses access to a private space, or is deactivated, is still added to new tasks (the policy refuses their approval);
+  - a planning-mode live session doesn't need the research approved;
+  - Slack's Reject button still only posts in the thread.
+
+The original plan follows.
+
+- **Exists** (verified 2026-10-01):
+  - Approval exists for **planning only**: `POST /api/tasks/:id/phases/planning/{request-approval,approve,revoke-approval}` (`tickets/workflowPhaseRoutes.ts`), `TicketPlanningApprovalService` and `ticket_phase_approvals` (migration 038). `ticket_phase_documents.approved_by` and `ticket_phase_approvals.actor` hold the approver's **email** (`req.authContext.user.email`).
+  - Research moves on through `POST /:id/phases/:phase/advance`, which writes a `document_approved` Activity entry (`TicketWorkflowService.advancePhase`) but no approval record.
+  - **Anyone who isn't a viewer can approve.** Phase 0 left this open deliberately: locking approval to admins would lock out product leaders.
+  - **Other paths that approve the plan or skip its gate.** Most go through `TicketPhaseOrchestrationService.advanceAndRun`, which calls `approve()` when the target is the build:
+    - the Slack **Approve** button (`chat-slack/src/handlers/ticketApprovalAction.ts`), which passes **no actor**; the Slack display name only appears in the thread post;
+    - Slack mentions such as "lgtm", "ship it" and "go" (`sessionAdvance.ts` → `threadMention.ts`), also with no actor;
+    - **chained runs**: "ship it" during research runs the plan, then `TicketJobBridge.chainAdvance` continues to the build, approving a plan nobody has read;
+    - MCP `task_trigger` with `targetPhase: execution`;
+    - `POST /:id/workflow/override-to-execution` ("skip to the build"), which the build's check accepts in place of an approval (`workflowOverriddenAt` in `TicketExecutionService`), and `PUT /:id/workflow/phase`, which sets the step directly.
+  - Session approvals (`AgentSessionInteractionService.approve`, `NEEDS_APPROVAL`) are the agent asking permission for a tool. They aren't step approvals and are out of scope.
 - **Design:**
-  - A per-space policy per step: who may approve (any participant, the reviewers, maintainers, or named people) and how many approvals.
-  - Enforce it in one `ApprovalPolicyService.canApprove(user, task, step)` used by the routes and the Slack buttons.
-  - Record approvals with a user id. The Activity entry and the step header say "Approved by Tomi, 10:42".
-  - "Request review from…" assigns reviewers, who then get a notification.
-  - Only eligible people see Approve; others see "Request approval from…".
-  - Research gets the same request-and-approve path, so every gate is recorded.
-- **Tests:** policy unit tests per rule; the API refuses an ineligible approver (403); the J7 e2e journey (request → comment → request changes → approve).
+  - **Policy:** one `ApprovalPolicyService.canApprove(user, task, step)` with a rule per step, chosen by strategy rather than if/else. Research: any participant. Plan: the task's reviewers, else the owner. Build: no in-app gate; the PR review in GitHub is the gate, so the status line says "Waiting on PR review". Admins and the space's maintainers pass every rule. Rules are per space with these defaults; ship the defaults first and add the setting UI once they're in use.
+  - **Every path calls it:** the approve and advance routes, `advanceAndRun` (for Slack, MCP and chains), the chain's continuation (checked for whoever started the chain), override-to-execution, and `PUT /workflow/phase`. Refuse with 403 and a reason the UI and Slack can show.
+  - **Who acted:** routes take the user from the request-scoped actor (`requestActor`); Slack resolves `event.user` through `users.slack_user_id`.
+  - **Data:** a migration converts `actor` and `approved_by` from emails to user ids (unknown emails become null), and adds `projects.default_reviewer_ids` (or a small `space_default_reviewers` table).
+  - **Research** gets the same request-and-approve path and approval records as the plan, so every gate is recorded. "Approved by Tomi, 10:42" in Activity and the step header.
+  - **Request review from…** adds reviewers (`TaskParticipantService`), which already sends a review request (§2.6). Requesting the plan's approval adds the space's default reviewers.
+  - **UI:** only people who may approve see Approve; others see "Request approval from…". The task response carries `canApprove` per step so the UI doesn't repeat the rule.
+- **Tests:** a unit test per rule, covering admins, maintainers and guests who are reviewers; the API refuses an ineligible approver (403); a Slack Approve from an ineligible or unlinked user is refused; a chain started by someone who can't approve the plan stops at the plan; the J7 e2e journey (request → comment → request changes → approve).
 
 ### 2.8 Comments on the rendered document (J7)
 

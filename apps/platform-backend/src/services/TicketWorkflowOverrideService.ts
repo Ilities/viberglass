@@ -5,15 +5,21 @@ import {
   TICKET_SERVICE_ERROR_CODE,
   TicketServiceError,
 } from "./errors/TicketServiceError";
+import { ApprovalPolicyService } from "./approvals/ApprovalPolicyService";
 
 export class TicketWorkflowOverrideService {
   private readonly ticketDAO = new TicketDAO();
   private readonly lifecycleStatusService = new TicketLifecycleStatusService();
 
+  constructor(
+    private readonly policy: Pick<ApprovalPolicyService, "assertCanApprove"> = new ApprovalPolicyService(),
+  ) {}
+
+  /** Skipping to the build skips the plan's approval, so it needs the right to give it. */
   async overrideToExecution(
     ticketId: string,
     reason: string,
-    actor?: string,
+    actorId: string | null,
   ): Promise<Ticket> {
     const normalizedReason = reason.trim();
     if (!normalizedReason) {
@@ -37,11 +43,12 @@ export class TicketWorkflowOverrideService {
         "Ticket workflow has already been overridden",
       );
     }
+    await this.policy.assertCanApprove(actorId, ticketId, "planning");
 
     await this.ticketDAO.overrideWorkflowToExecution(
       ticketId,
       normalizedReason,
-      actor,
+      actorId ?? undefined,
     );
     await this.lifecycleStatusService.synchronize(ticketId);
 

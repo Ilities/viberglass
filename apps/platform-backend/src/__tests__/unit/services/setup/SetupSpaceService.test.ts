@@ -39,6 +39,7 @@ function project(overrides: Partial<ProjectConfig> = {}): ProjectConfig {
     customFieldMappings: {},
     isPrivate: false,
     keyPrefix: "WEB",
+    defaultReviewerIds: [],
     createdAt: "",
     updatedAt: "",
     ...overrides,

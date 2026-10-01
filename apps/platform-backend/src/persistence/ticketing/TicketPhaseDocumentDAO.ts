@@ -77,7 +77,7 @@ export class TicketPhaseDocumentDAO {
     ticketId: string,
     phase: TicketWorkflowPhase,
     approvalState: ApprovalState,
-    approvedBy?: string,
+    approverId: string | null = null,
   ): Promise<PhaseDocument> {
     const updateData: Record<string, unknown> = {
       approval_state: approvalState,
@@ -86,7 +86,7 @@ export class TicketPhaseDocumentDAO {
 
     if (approvalState === "approved") {
       updateData.approved_at = new Date();
-      updateData.approved_by = approvedBy || null;
+      updateData.approved_by = approverId;
     } else if (approvalState === "draft") {
       // When reverting to draft, clear approval info
       updateData.approved_at = null;

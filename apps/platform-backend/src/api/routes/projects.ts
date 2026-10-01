@@ -48,9 +48,20 @@ import { spaceParamGuard, spaceViewerOf } from "../middleware/spaceAccessGuards"
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { SpaceMembershipService } from "../../services/spaces/SpaceMembershipService";
 import { registerSpaceMemberRoutes } from "./spaceMemberRoutes";
+import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 
 const router = express.Router();
 const projectService = new ProjectDAO();
+const taskParticipants = new TaskParticipantService();
+
+async function everyoneCanSeeSpace(projectId: string, userIds: string[]): Promise<boolean> {
+  try {
+    await Promise.all(userIds.map((userId) => taskParticipants.assertCanSeeSpace(projectId, userId)));
+    return true;
+  } catch {
+    return false;
+  }
+}
 const projectDeletionSummaryDAO = new ProjectDeletionSummaryDAO();
 const projectScmConfigDAO = new ProjectScmConfigDAO();
 const integrationConfigDAO = new IntegrationConfigDAO();
@@ -283,6 +294,9 @@ router.put(
       const project = await projectService.getProject(req.params.id);
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
+      }
+      if (!(await everyoneCanSeeSpace(project.id, req.body.defaultReviewerIds ?? []))) {
+        return res.status(400).json({ error: "Default reviewers must be people who can see this space." });
       }
 
       const updatedProject = await projectService.updateProject(

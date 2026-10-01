@@ -19,6 +19,7 @@ import { buildChangeRequestPrompt } from "./pull-request-reviews/buildChangeRequ
 import { TicketMediaExecutionService } from "./TicketMediaExecutionService";
 import { InstructionStorageService } from "./instructions/InstructionStorageService";
 import { TicketPhaseDocumentService } from "./TicketPhaseDocumentService";
+import { assertPlanCleared } from "./approvals/assertPlanCleared";
 import {
   TICKET_SERVICE_ERROR_CODE,
   TicketServiceError,
@@ -96,15 +97,7 @@ export class TicketExecutionService {
           ticketId,
           TICKET_WORKFLOW_PHASE.PLANNING,
         );
-      if (
-        planningDocument.approvalState !== "approved" &&
-        !ticket.workflowOverriddenAt
-      ) {
-        throw new TicketServiceError(
-          TICKET_SERVICE_ERROR_CODE.EXECUTION_BLOCKED_UNAPPROVED_PLAN,
-          "Execution is blocked until the planning document is approved",
-        );
-      }
+      assertPlanCleared(planningDocument, ticket);
 
       const researchDocument =
         await this.ticketPhaseDocumentService.getOrCreateDocument(

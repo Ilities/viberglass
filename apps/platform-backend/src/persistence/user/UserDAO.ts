@@ -186,6 +186,17 @@ export class UserDAO {
     return row ? { email: row.email, name: row.name, slackUserId: row.slack_user_id, deactivated: row.deactivated_at !== null } : null;
   }
 
+  /** Who acts for a Slack user: the active person who linked that account, if anyone. */
+  async findActiveIdBySlackUserId(slackUserId: string): Promise<string | null> {
+    const row = await db
+      .selectFrom("users")
+      .select("id")
+      .where("slack_user_id", "=", slackUserId)
+      .where("deactivated_at", "is", null)
+      .executeTakeFirst();
+    return row?.id ?? null;
+  }
+
   async setSlackUserId(userId: string, slackUserId: string | null): Promise<void> {
     await db.updateTable("users").set({ slack_user_id: slackUserId, updated_at: new Date() }).where("id", "=", userId).execute();
   }

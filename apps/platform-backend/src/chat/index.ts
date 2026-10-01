@@ -40,6 +40,9 @@ import { TicketExecutionService } from "../services/TicketExecutionService";
 import { TicketWorkflowService } from "../services/TicketWorkflowService";
 import { TicketPlanningApprovalService } from "../services/TicketPlanningApprovalService";
 import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
+import { TicketResearchApprovalService } from "../services/approvals/TicketResearchApprovalService";
+import { isApprovalPolicyError } from "../services/errors/ApprovalPolicyError";
+import { UserDAO } from "../persistence/user/UserDAO";
 import { getFeedbackService } from "../webhooks/webhookServiceFactory";
 import { WorkerExecutionService } from "../workers";
 import { JobCancellationService } from "../services/job/JobCancellationService";
@@ -114,13 +117,34 @@ const ticketPhaseOrchestrationService = new TicketPhaseOrchestrationService(
   ticketDAO,
   ticketWorkflowService,
   ticketPlanningApprovalService,
+  new TicketResearchApprovalService(),
   ticketResearchService,
   ticketPlanningService,
   ticketExecutionService,
 );
 
+const userDAO = new UserDAO();
+
+/**
+ * Acts as the Viberglass person who linked this Slack account, so approvals
+ * are theirs under the space's policy. Someone who hasn't linked one is told
+ * how to, rather than that they need to sign in.
+ */
+async function asSlackUser<T>(slackUserId: string | undefined, act: (actorId: string | null) => Promise<T>): Promise<T> {
+  const actorId = slackUserId ? await userDAO.findActiveIdBySlackUserId(slackUserId) : null;
+  try {
+    return await act(actorId);
+  } catch (error) {
+    if (!actorId && isApprovalPolicyError(error)) {
+      throw new Error("Link your Slack account in Viberglass (Settings → Notifications) to approve from Slack.");
+    }
+    throw error;
+  }
+}
+
 ticketJobBridge.configure({
-  advanceAndRun: (params) => ticketPhaseOrchestrationService.advanceAndRun(params),
+  advanceAndRun: ({ slackUserId, ...params }) =>
+    asSlackUser(slackUserId, (actorId) => ticketPhaseOrchestrationService.advanceAndRun({ ...params, actorId })),
 });
 
 const slackServices: SlackHandlerServices = {
@@ -197,20 +221,19 @@ const slackServices: SlackHandlerServices = {
   linkSessionThread: (sessionId, thread) =>
     linkSessionThread(sessionId, thread, "slack"),
   unlinkSession,
-  startBridge: (sessionId, thread, chainTo) =>
-    chatSessionBridge.startBridge(sessionId, thread, chainTo),
+  startBridge: (sessionId, thread, chainTo, chainedBy) =>
+    chatSessionBridge.startBridge(sessionId, thread, chainTo, chainedBy),
+  approveUpTo: ({ ticketId, targetPhase, slackUserId }) =>
+    asSlackUser(slackUserId, (actorId) => ticketPhaseOrchestrationService.approveUpTo(ticketId, targetPhase, actorId)),
   stopBridge: (sessionId: string) => chatSessionBridge.stopBridge(sessionId),
 
   // Ticket job flow
   resolveTicketAdvance,
-  advanceAndRunTicketJob: async ({ ticketId, clankerId, targetPhase }) => {
+  advanceAndRunTicketJob: async ({ ticketId, clankerId, targetPhase, slackUserId }) => {
+    const result = await asSlackUser(slackUserId, (actorId) =>
+      ticketPhaseOrchestrationService.advanceAndRun({ ticketId, clankerId, targetPhase, actorId }),
+    );
     await updateTicketThreadMode(ticketId, targetPhase);
-
-    const result = await ticketPhaseOrchestrationService.advanceAndRun({
-      ticketId,
-      clankerId,
-      targetPhase,
-    });
 
     const mode = targetPhase as "research" | "planning" | "execution";
     const thread = await getThreadForTicket(ticketId);
@@ -232,15 +255,12 @@ const slackServices: SlackHandlerServices = {
     clankerId,
     firstPhase,
     thenPhase,
+    slackUserId,
   }) => {
+    const result = await asSlackUser(slackUserId, (actorId) =>
+      ticketPhaseOrchestrationService.advanceAndRunChain({ ticketId, clankerId, firstPhase, thenPhase, actorId }),
+    );
     await updateTicketThreadMode(ticketId, firstPhase);
-
-    const result = await ticketPhaseOrchestrationService.advanceAndRunChain({
-      ticketId,
-      clankerId,
-      firstPhase,
-      thenPhase,
-    });
 
     const mode = firstPhase as "research" | "planning" | "execution";
     const thread = await getThreadForTicket(ticketId);
@@ -252,6 +272,7 @@ const slackServices: SlackHandlerServices = {
         mode,
         thenPhase,
         clankerId,
+        slackUserId,
       );
     }
 
@@ -304,7 +325,8 @@ chatSessionBridge.configure({
   approveSession: async (sessionId) => {
     await interactionService.approve(sessionId, true);
   },
-  launchAndLink: async ({ ticketId, clankerId, mode, thread }) => {
+  launchAndLink: async ({ ticketId, clankerId, mode, thread, slackUserId }) => {
+    await asSlackUser(slackUserId, (actorId) => ticketPhaseOrchestrationService.approveUpTo(ticketId, mode, actorId));
     const result = await launchService.launch({
       ticketId,
       clankerId,

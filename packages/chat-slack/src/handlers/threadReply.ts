@@ -50,6 +50,11 @@ export function registerThreadReplyHandler(
         }
 
         if (advance.kind === "chain") {
+          await services.approveUpTo({
+            ticketId: detail.session.ticketId,
+            targetPhase: advance.firstMode,
+            slackUserId: message.author.userId,
+          });
           await thread.post(`_Starting planning session (will advance to execution automatically)…_`);
           const result = await services.launchSession({
             ticketId: detail.session.ticketId,
@@ -60,7 +65,7 @@ export function registerThreadReplyHandler(
           services.stopBridge(sessionId);
           await services.unlinkSession(sessionId);
           await services.linkSessionThread(result.session.id, thread);
-          services.startBridge(result.session.id, thread, advance.thenMode);
+          services.startBridge(result.session.id, thread, advance.thenMode, message.author.userId);
           return;
         }
 
@@ -70,6 +75,11 @@ export function registerThreadReplyHandler(
             : detail.session.mode;
 
         if (advance.kind === "advance") {
+          await services.approveUpTo({
+            ticketId: detail.session.ticketId,
+            targetPhase: targetMode,
+            slackUserId: message.author.userId,
+          });
           const label =
             targetMode === AGENT_SESSION_MODE.PLANNING
               ? "planning"

@@ -193,6 +193,7 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | A session is titled with its task and opens with what the person wrote (which reaches the agent); the full prompt is behind "View full prompt" | `session-opening.e2e.test.ts` |
 | A live turn that writes no document leaves the session waiting on the person; their reply starts the next turn | `session-waits-on-person.e2e.test.ts` |
 | A task says whose move it is at the top and makes it: the agent working (cancel), research ready (approve & plan), plan ready (approve), then start the build | `task-next-moves.e2e.test.ts` |
+| Only the plan's reviewers (or maintainers and admins) see Approve and Skip to the build, and the API refuses anyone else; others ask for approval, and the approval is credited; a space's default reviewers join each new task | `approval-policy.e2e.test.ts` |
 | Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
 | A phase can't start a second run or session while one is in progress; the page re-enables when it ends | `no-duplicate-runs.e2e.test.ts` |
 | Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |

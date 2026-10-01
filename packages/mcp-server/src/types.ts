@@ -29,7 +29,6 @@ export interface CreateTicketParams {
 export interface TriggerParams {
   clankerId: string;
   targetPhase: TicketWorkflowPhase;
-  actor?: string;
 }
 
 export interface CommentParams {
@@ -101,15 +100,9 @@ export interface McpToolServices {
   };
   review: {
     getState(ticketId: string): Promise<ReviewState>;
-    requestApproval(
-      ticketId: string,
-      actor?: string,
-    ): Promise<ApprovalResult>;
-    approve(ticketId: string, actor?: string): Promise<ApprovalResult>;
-    revokeApproval(
-      ticketId: string,
-      actor?: string,
-    ): Promise<ApprovalResult>;
+    requestApproval(ticketId: string): Promise<ApprovalResult>;
+    approve(ticketId: string): Promise<ApprovalResult>;
+    revokeApproval(ticketId: string): Promise<ApprovalResult>;
     addComment(
       ticketId: string,
       phase: "research" | "planning",

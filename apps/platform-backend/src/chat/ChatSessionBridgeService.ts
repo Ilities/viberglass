@@ -28,6 +28,8 @@ const TERMINAL_EVENT_TYPES = new Set<AgentSessionEventType>([
 
 interface ChainEntry {
   thenMode: AgentSessionMode;
+  /** The Slack user who started the chain; the next session is launched as them. */
+  chainedBy?: string;
 }
 
 interface BridgeCallbacks {
@@ -45,6 +47,7 @@ interface BridgeCallbacks {
     clankerId: string;
     mode: AgentSessionMode;
     thread: Thread;
+    slackUserId?: string;
   }) => Promise<string>;
 }
 
@@ -74,11 +77,11 @@ export class ChatSessionBridgeService {
     this.callbacks = callbacks;
   }
 
-  startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode): void {
+  startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode, chainedBy?: string): void {
     if (this.timers.has(sessionId)) return;
 
     if (chainTo) {
-      this.chainMap.set(sessionId, { thenMode: chainTo });
+      this.chainMap.set(sessionId, { thenMode: chainTo, chainedBy });
     }
 
     let lastSequence = 0;
@@ -193,6 +196,7 @@ export class ChatSessionBridgeService {
         clankerId: session.clankerId,
         mode: chain.thenMode,
         thread,
+        slackUserId: chain.chainedBy,
       });
 
       this.startBridge(newSessionId, thread);

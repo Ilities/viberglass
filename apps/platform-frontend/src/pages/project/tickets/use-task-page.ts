@@ -1,8 +1,9 @@
 import { getClankersList, getTicketDetails } from '@/data'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
+import { getTaskApprovals } from '@/service/api/approval-api'
 import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
 import { getPlanningPhase, getResearchDocument, getTaskByKey, type PhaseDocumentResponse } from '@/service/api/ticket-api'
-import { isTaskKey, type Clanker, type Ticket } from '@viberglass/types'
+import { isTaskKey, type Clanker, type TaskApprovals, type Ticket } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 
 export interface TaskPageData {
@@ -12,18 +13,21 @@ export interface TaskPageData {
   runs: JobListItem[]
   documents: { research: PhaseDocumentResponse; planning: PhaseDocumentResponse }
   sessions: AgentSession[]
+  /** Who may approve each step; null if it couldn't be loaded, so nobody is offered Approve. */
+  approvals: TaskApprovals | null
 }
 
 const POLL_MS = 5000
 const OPEN_SESSION = ['active', 'waiting_on_user', 'waiting_on_approval']
 
 async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | null> {
-  const [ticket, runs, research, planning, sessions] = await Promise.all([
+  const [ticket, runs, research, planning, sessions, approvals] = await Promise.all([
     getTicketDetails(id),
     getJobs({ ticketId: id, limit: 50 }),
     getResearchDocument(id),
     getPlanningPhase(id),
     listSessionsForTicket(id),
+    getTaskApprovals(id).catch(() => null),
   ])
   if (!ticket) return null
   return {
@@ -31,6 +35,7 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
     runs: runs.jobs,
     documents: { research: research.document, planning: planning.document },
     sessions,
+    approvals,
   }
 }
 

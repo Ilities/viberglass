@@ -133,7 +133,12 @@ export function TicketDetailPage() {
     setSearchParams({ run: runId, view: 'runs' })
   }
   const toggleRun = (runId: string) => setOpenRunId((open) => (open === runId ? null : runId))
-  const canSkipToBuild = !ticket.workflowOverriddenAt && currentStep !== 'execution' && data.documents.planning.approvalState !== 'approved'
+  // Skipping to the build skips the plan's approval, so it's offered to those who may give it.
+  const canSkipToBuild =
+    !ticket.workflowOverriddenAt &&
+    currentStep !== 'execution' &&
+    data.documents.planning.approvalState !== 'approved' &&
+    Boolean(data.approvals?.planning.canApprove)
 
   return (
     <>
