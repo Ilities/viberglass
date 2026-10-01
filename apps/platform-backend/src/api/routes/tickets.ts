@@ -40,6 +40,10 @@ import { taskKeyParamGuard, taskParamGuard } from "../middleware/spaceAccessGuar
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { registerTaskParticipantRoutes } from "./tickets/participantRoutes";
+import { registerTaskApprovalRoutes } from "./tickets/approvalRoutes";
+import { ApprovalPolicyService } from "../../services/approvals/ApprovalPolicyService";
+import { StepApprovalRequestService } from "../../services/approvals/StepApprovalRequestService";
+import { TicketResearchApprovalService } from "../../services/approvals/TicketResearchApprovalService";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
 import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
@@ -117,11 +121,7 @@ router.post("/:id/set-status", validateUuidParam("id"), async (req, res) => {
       if (!ticket) {
         return res.status(404).json({ error: "Ticket not found" });
       }
-      await ticketPhaseDocumentService.requestApproval(
-        id,
-        ticket.workflowPhase,
-        req.authContext?.user.email,
-      );
+      await ticketPhaseDocumentService.requestApproval(id, ticket.workflowPhase);
     } else {
       const before = await ticketService.getTicket(id);
       await ticketService.updateTicket(id, {
@@ -165,7 +165,13 @@ registerTicketWorkflowPhaseRoutes(router, {
   ticketPhaseDocumentCommentService,
   ticketResearchService,
   ticketPlanningService,
-  ticketPlanningApprovalService,
+});
+
+registerTaskApprovalRoutes(router, {
+  policy: new ApprovalPolicyService(),
+  requests: new StepApprovalRequestService({ participants: taskParticipants }),
+  research: new TicketResearchApprovalService({ workflow: ticketWorkflowService, documents: ticketPhaseDocumentService }),
+  planning: ticketPlanningApprovalService,
 });
 
 registerTicketExecutionRoutes(router, {

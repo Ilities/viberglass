@@ -61,6 +61,7 @@ export function registerTicketApprovalActionHandler(
         ticketId: ticketMapping.ticketId,
         clankerId: ticketMapping.clankerId,
         targetPhase,
+        slackUserId: event.user.userId,
       });
     } catch (err) {
       if (thread) {

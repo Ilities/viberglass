@@ -20,7 +20,7 @@ export function registerTicketReopenRoutes(
     }
 
     try {
-      const ticket = await ticketStepReopenService.reopen(req.params.id, step, req.authContext?.user.email);
+      const ticket = await ticketStepReopenService.reopen(req.params.id, step, req.authContext?.user.id ?? null);
       return res.json({ success: true, data: ticket });
     } catch (err) {
       const serviceError = resolveTicketRouteServiceError(err);

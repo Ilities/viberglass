@@ -67,6 +67,7 @@ export function Select({
   name,
   id,
   required,
+  'aria-label': ariaLabel,
 }: {
   value?: string
   defaultValue?: string
@@ -79,6 +80,7 @@ export function Select({
   name?: string
   id?: string
   required?: boolean
+  'aria-label'?: string
 }) {
   const fieldContext = useFieldContext()
   const isDisabled = disabled ?? fieldContext?.disabled
@@ -108,6 +110,7 @@ export function Select({
           placeholder={placeholder ?? 'Select...'}
           color={isInvalid ? 'red' : undefined}
           aria-describedby={describedBy}
+          aria-label={ariaLabel}
           style={{ width: '100%' }}
         />
         <RadixSelect.Content>{convertedChildren}</RadixSelect.Content>

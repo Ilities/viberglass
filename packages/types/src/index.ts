@@ -67,3 +67,6 @@ export * from './taskDiscussion'
 
 // Notifications and the Inbox
 export * from './notification'
+
+// Who approves each step
+export * from './approvalPolicy'

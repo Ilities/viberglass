@@ -14,6 +14,9 @@ import { TicketExecutionService } from "../services/TicketExecutionService";
 import { getFeedbackService } from "../webhooks/webhookServiceFactory";
 import type { FeedbackService } from "../webhooks/FeedbackService";
 import logger from "../config/logger";
+import { currentActorId } from "../api/auth/requestActor";
+import { StepApprovalRequestService } from "../services/approvals/StepApprovalRequestService";
+import { TicketResearchApprovalService } from "../services/approvals/TicketResearchApprovalService";
 
 let feedbackService: FeedbackService | undefined;
 try {
@@ -35,14 +38,25 @@ const researchService = new TicketResearchService();
 const planningService = new TicketPlanningService();
 const executionService = new TicketExecutionService();
 
+const researchApprovalService = new TicketResearchApprovalService();
+const approvalRequestService = new StepApprovalRequestService();
+
 const orchestrationService = new TicketPhaseOrchestrationService(
   ticketDAO,
   workflowService,
   planningApprovalService,
+  researchApprovalService,
   researchService,
   planningService,
   executionService,
 );
+
+/** MCP runs as the API token's user, set as the request's actor. */
+function requireActorId(): string {
+  const actorId = currentActorId();
+  if (!actorId) throw new Error("This tool needs a signed-in user behind the API token.");
+  return actorId;
+}
 
 /**
  * What one MCP caller may reach: `projectIds` null means every space (admins);
@@ -139,7 +153,7 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
           ticketId,
           clankerId: params.clankerId,
           targetPhase: params.targetPhase,
-          actor: params.actor,
+          actorId: currentActorId(),
         });
       },
     },
@@ -203,20 +217,17 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
         };
       },
 
-      async requestApproval(ticketId, actor) {
+      async requestApproval(ticketId) {
         await scope.assertTask(ticketId);
-        const result = await planningApprovalService.requestApproval(
-          ticketId,
-          actor,
-        );
+        const document = await approvalRequestService.request(ticketId, "planning", requireActorId(), []);
         return {
-          approvalState: result.document.approvalState,
+          approvalState: document.approvalState,
         };
       },
 
-      async approve(ticketId, actor) {
+      async approve(ticketId) {
         await scope.assertTask(ticketId);
-        const result = await planningApprovalService.approve(ticketId, actor);
+        const result = await planningApprovalService.approve(ticketId, currentActorId());
         return {
           approvalState: result.document.approvalState,
           approvedAt: result.document.approvedAt,
@@ -224,12 +235,9 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
         };
       },
 
-      async revokeApproval(ticketId, actor) {
+      async revokeApproval(ticketId) {
         await scope.assertTask(ticketId);
-        const result = await planningApprovalService.revokeApproval(
-          ticketId,
-          actor,
-        );
+        const result = await planningApprovalService.revokeApproval(ticketId, currentActorId());
         return {
           approvalState: result.document.approvalState,
         };

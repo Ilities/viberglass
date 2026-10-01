@@ -64,6 +64,7 @@ export interface ProjectsTable {
   key_prefix: string;
   next_task_number: Generated<number>;
   default_owner_id: string | null;
+  default_reviewer_ids: Generated<string[]>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -520,7 +521,7 @@ export interface TicketPhaseApprovalsTable {
   ticket_id: string;
   phase: "research" | "planning" | "execution";
   action: "approval_requested" | "approved" | "rejected" | "revoked";
-  actor: string | null;
+  actor_id: string | null;
   comment: string | null;
   created_at: Generated<Timestamp>;
 }

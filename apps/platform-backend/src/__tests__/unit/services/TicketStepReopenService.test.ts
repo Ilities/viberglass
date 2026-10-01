@@ -17,18 +17,18 @@ describe("TicketStepReopenService", () => {
   });
 
   it("takes the task back to research and puts research and the plan up for approval again", async () => {
-    await expect(service.reopen("ticket-1", "research", "jussi@example.com")).resolves.toMatchObject({ workflowPhase: "research" });
+    await expect(service.reopen("ticket-1", "research", "user-1")).resolves.toMatchObject({ workflowPhase: "research" });
 
     expect(documents.requestApproval.mock.calls).toEqual([
-      ["ticket-1", "research", "jussi@example.com"],
-      ["ticket-1", "planning", "jussi@example.com"],
+      ["ticket-1", "research"],
+      ["ticket-1", "planning"],
     ]);
-    expect(approvals.recordApprovalAction).toHaveBeenCalledWith("ticket-1", "planning", "revoked", "jussi@example.com", "Reopened the research step");
+    expect(approvals.recordApprovalAction).toHaveBeenCalledWith("ticket-1", "planning", "revoked", "user-1", "Reopened the research step");
     expect(workflow.setPhase).toHaveBeenCalledWith("ticket-1", "research");
   });
 
   it("reopening the plan leaves the research approved", async () => {
-    await service.reopen("ticket-1", "planning");
+    await service.reopen("ticket-1", "planning", null);
 
     expect(documents.requestApproval.mock.calls.map(([, phase]) => phase)).toEqual(["planning"]);
     expect(workflow.setPhase).toHaveBeenCalledWith("ticket-1", "planning");
@@ -38,7 +38,7 @@ describe("TicketStepReopenService", () => {
     tickets.getTicket.mockResolvedValue({ id: "ticket-1", workflowPhase: "planning" });
     documents.getOrCreateDocument.mockImplementation(async (_id: string, phase: string) => ({ content: phase === "planning" ? "" : "# Research" }));
 
-    await service.reopen("ticket-1", "research");
+    await service.reopen("ticket-1", "research", null);
 
     expect(documents.requestApproval.mock.calls.map(([, phase]) => phase)).toEqual(["research"]);
   });
@@ -46,14 +46,14 @@ describe("TicketStepReopenService", () => {
   it("refuses a step the task has not moved past", async () => {
     tickets.getTicket.mockResolvedValue({ id: "ticket-1", workflowPhase: "planning" });
 
-    await expect(service.reopen("ticket-1", "planning")).rejects.toMatchObject({ code: "STEP_REOPEN_INVALID" });
+    await expect(service.reopen("ticket-1", "planning", null)).rejects.toMatchObject({ code: "STEP_REOPEN_INVALID" });
     expect(workflow.setPhase).not.toHaveBeenCalled();
   });
 
   it("refuses while the current step has a run in progress", async () => {
     runGuard.assertIdle.mockRejectedValue(new TicketServiceError("PHASE_RUN_IN_PROGRESS", "A build is running"));
 
-    await expect(service.reopen("ticket-1", "planning")).rejects.toThrow("A build is running");
+    await expect(service.reopen("ticket-1", "planning", null)).rejects.toThrow("A build is running");
     expect(runGuard.assertIdle).toHaveBeenCalledWith("ticket-1", "execution");
     expect(workflow.setPhase).not.toHaveBeenCalled();
   });
@@ -61,6 +61,6 @@ describe("TicketStepReopenService", () => {
   it("reports a missing task", async () => {
     tickets.getTicket.mockResolvedValue(null);
 
-    await expect(service.reopen("ticket-9", "research")).rejects.toMatchObject({ code: "TICKET_NOT_FOUND" });
+    await expect(service.reopen("ticket-9", "research", null)).rejects.toMatchObject({ code: "TICKET_NOT_FOUND" });
   });
 });

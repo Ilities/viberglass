@@ -64,6 +64,7 @@ export function registerThreadMentionHandler(
             ticketId: ticketMapping.ticketId,
             clankerId: ticketMapping.clankerId,
             targetPhase: advance.targetPhase,
+            slackUserId: message.author.userId,
           });
         } catch (err) {
           await thread.post(
@@ -83,6 +84,7 @@ export function registerThreadMentionHandler(
             clankerId: ticketMapping.clankerId,
             firstPhase: advance.firstPhase,
             thenPhase: advance.thenPhase,
+            slackUserId: message.author.userId,
           });
         } catch (err) {
           await thread.post(
@@ -144,6 +146,11 @@ export function registerThreadMentionHandler(
 
       if (advance.kind === "chain") {
         await thread.subscribe();
+        await services.approveUpTo({
+          ticketId: detail.session.ticketId,
+          targetPhase: advance.firstMode,
+          slackUserId: message.author.userId,
+        });
         await thread.post(`_Starting planning session (will advance to execution automatically)…_`);
         const result = await services.launchSession({
           ticketId: detail.session.ticketId,
@@ -154,7 +161,7 @@ export function registerThreadMentionHandler(
         services.stopBridge(sessionId);
         await services.unlinkSession(sessionId);
         await services.linkSessionThread(result.session.id, thread);
-        services.startBridge(result.session.id, thread, advance.thenMode);
+        services.startBridge(result.session.id, thread, advance.thenMode, message.author.userId);
         return;
       }
 
@@ -166,6 +173,11 @@ export function registerThreadMentionHandler(
       await thread.subscribe();
 
       if (advance.kind === "advance") {
+        await services.approveUpTo({
+          ticketId: detail.session.ticketId,
+          targetPhase: targetMode,
+          slackUserId: message.author.userId,
+        });
         const label =
           targetMode === AGENT_SESSION_MODE.PLANNING ? "planning" : "execution";
         await thread.post(`_Starting ${label} session..._`);

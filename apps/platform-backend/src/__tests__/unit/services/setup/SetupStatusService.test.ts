@@ -37,6 +37,7 @@ const PROJECT: ProjectConfig = {
   customFieldMappings: {},
   isPrivate: false,
   keyPrefix: "WEB",
+  defaultReviewerIds: [],
   createdAt: "",
   updatedAt: "",
 };

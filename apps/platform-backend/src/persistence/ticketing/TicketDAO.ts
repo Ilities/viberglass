@@ -48,12 +48,13 @@ interface TicketListResult {
 /** Requester, owner (picked, else the space's default, else the requester) and watchers of a new task. */
 function initialParticipants(
   request: CreateTicketRequest,
-  spaceDefaultOwnerId: string | null,
-): Array<{ userId: string; role: "requester" | "owner" | "watcher" }> {
-  const owner = request.ownerId ?? spaceDefaultOwnerId ?? request.requesterId;
+  space: { default_owner_id: string | null; default_reviewer_ids: string[] },
+): Array<{ userId: string; role: "requester" | "owner" | "reviewer" | "watcher" }> {
+  const owner = request.ownerId ?? space.default_owner_id ?? request.requesterId;
   return [
     ...(request.requesterId ? [{ userId: request.requesterId, role: "requester" as const }] : []),
     ...(owner ? [{ userId: owner, role: "owner" as const }] : []),
+    ...space.default_reviewer_ids.map((userId) => ({ userId, role: "reviewer" as const })),
     ...(request.watcherIds ?? []).map((userId) => ({ userId, role: "watcher" as const })),
   ];
 }
@@ -134,7 +135,7 @@ export class TicketDAO {
         .updateTable("projects")
         .set((eb) => ({ next_task_number: eb("next_task_number", "+", 1) }))
         .where("id", "=", request.projectId)
-        .returning(["key_prefix", "next_task_number", "default_owner_id"])
+        .returning(["key_prefix", "next_task_number", "default_owner_id", "default_reviewer_ids"])
         .executeTakeFirstOrThrow();
       const taskNumber = counter.next_task_number - 1;
 
@@ -185,7 +186,7 @@ export class TicketDAO {
         })
         .execute();
 
-      const participants = initialParticipants(request, counter.default_owner_id);
+      const participants = initialParticipants(request, counter);
       if (participants.length > 0) {
         await trx
           .insertInto("task_participants")

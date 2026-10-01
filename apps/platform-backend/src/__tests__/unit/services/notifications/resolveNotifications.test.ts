@@ -37,6 +37,24 @@ describe("resolveNotifications (plan §8)", () => {
     expect(notify(kind, payload)).toEqual(expected);
   });
 
+  it("asks the plan's reviewers to review a finished plan, and tells everyone else it's ready", () => {
+    expect(notify("run_finished", { step: "planning" })).toEqual([
+      { userId: "reviewer", kind: "review_requested" },
+      { userId: "requester", kind: "step_completed" },
+      { userId: "owner", kind: "step_completed" },
+      { userId: "watcher", kind: "step_completed" },
+    ]);
+  });
+
+  it("asks the owner to review a finished plan when the task has no reviewers", () => {
+    const noReviewers = { ...context, participants: context.participants.filter((p) => p.role !== "reviewer") };
+    expect(resolveNotifications({ kind: "run_finished", actorId: null, payload: { step: "planning" } }, noReviewers)).toEqual([
+      { userId: "owner", kind: "review_requested" },
+      { userId: "requester", kind: "step_completed" },
+      { userId: "watcher", kind: "step_completed" },
+    ]);
+  });
+
   it("never tells people about their own actions", () => {
     expect(notify("run_finished", {}, "owner").map((r) => r.userId)).toEqual(["requester", "watcher"]);
     expect(notify("reviewer_added", { userId: "me" }, "me")).toEqual([]);

@@ -5,6 +5,7 @@ import { TicketPhaseRunDAO } from "../../../persistence/ticketing/TicketPhaseRun
 import { TicketPlanningApprovalService } from "../../../services/TicketPlanningApprovalService";
 import { TicketPhaseDocumentService } from "../../../services/TicketPhaseDocumentService";
 import { TicketWorkflowService } from "../../../services/TicketWorkflowService";
+import { APPROVAL_POLICY_ERROR_CODE, ApprovalPolicyError } from "../../../services/errors/ApprovalPolicyError";
 
 jest.mock("../../../persistence/ticketing/TicketDAO");
 jest.mock("../../../persistence/ticketing/TicketPhaseApprovalDAO");
@@ -20,6 +21,7 @@ describe("TicketPlanningApprovalService", () => {
   let mockDocumentService: jest.Mocked<TicketPhaseDocumentService>;
   let mockWorkflowService: jest.Mocked<TicketWorkflowService>;
   let mockFeedbackService: { postPlanningApproved: jest.Mock };
+  const policy = { assertCanApprove: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -60,7 +62,8 @@ describe("TicketPlanningApprovalService", () => {
       finishedAt: new Date("2026-03-01T10:02:00.000Z"),
     } as any);
 
-    service = new TicketPlanningApprovalService(mockFeedbackService as any);
+    policy.assertCanApprove.mockResolvedValue(undefined);
+    service = new TicketPlanningApprovalService(mockFeedbackService as any, policy);
   });
 
   it("approves planning, advances the workflow, and posts external feedback", async () => {
@@ -75,7 +78,7 @@ describe("TicketPlanningApprovalService", () => {
       content: "Approved plan",
       approvalState: "approved",
       approvedAt: "2026-03-01T10:00:00.000Z",
-      approvedBy: "approver@example.com",
+      approvedBy: "user-1",
       createdAt: "2026-03-01T09:00:00.000Z",
       updatedAt: "2026-03-01T10:00:00.000Z",
     });
@@ -84,18 +87,19 @@ describe("TicketPlanningApprovalService", () => {
       workflowPhase: TICKET_WORKFLOW_PHASE.EXECUTION,
     });
 
-    const result = await service.approve("ticket-1", "approver@example.com");
+    const result = await service.approve("ticket-1", "user-1");
 
+    expect(policy.assertCanApprove).toHaveBeenCalledWith("user-1", "ticket-1", "planning");
     expect(mockDocumentService.approveDocument).toHaveBeenCalledWith(
       "ticket-1",
       TICKET_WORKFLOW_PHASE.PLANNING,
-      "approver@example.com",
+      "user-1",
     );
     expect(mockApprovalDAO.recordApprovalAction).toHaveBeenCalledWith(
       "ticket-1",
       TICKET_WORKFLOW_PHASE.PLANNING,
       "approved",
-      "approver@example.com",
+      "user-1",
       "Planning document approved",
     );
     expect(mockWorkflowService.advancePhase).toHaveBeenCalledWith(
@@ -117,7 +121,7 @@ describe("TicketPlanningApprovalService", () => {
       workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
     } as any);
 
-    await expect(service.approve("ticket-2")).rejects.toThrow(
+    await expect(service.approve("ticket-2", "user-1")).rejects.toThrow(
       "Approval can only be granted during the planning phase",
     );
 
@@ -125,17 +129,19 @@ describe("TicketPlanningApprovalService", () => {
     expect(mockWorkflowService.advancePhase).not.toHaveBeenCalled();
   });
 
-  it("rejects approval request when the ticket is not in planning", async () => {
+  it("refuses someone the policy doesn't name, and changes nothing", async () => {
     mockTicketDAO.getTicket.mockResolvedValue({
       id: "ticket-3",
-      workflowPhase: TICKET_WORKFLOW_PHASE.RESEARCH,
+      workflowPhase: TICKET_WORKFLOW_PHASE.PLANNING,
     } as any);
-
-    await expect(service.requestApproval("ticket-3")).rejects.toThrow(
-      "Approval can only be requested during the planning phase",
+    policy.assertCanApprove.mockRejectedValue(
+      new ApprovalPolicyError(APPROVAL_POLICY_ERROR_CODE.NOT_ELIGIBLE, "Only Tomi can approve the plan."),
     );
 
-    expect(mockDocumentService.requestApproval).not.toHaveBeenCalled();
+    await expect(service.approve("ticket-3", "user-2")).rejects.toThrow("Only Tomi can approve the plan.");
+
+    expect(mockDocumentService.approveDocument).not.toHaveBeenCalled();
     expect(mockApprovalDAO.recordApprovalAction).not.toHaveBeenCalled();
+    expect(mockWorkflowService.advancePhase).not.toHaveBeenCalled();
   });
 });

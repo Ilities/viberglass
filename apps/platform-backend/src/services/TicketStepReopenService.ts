@@ -25,7 +25,7 @@ export class TicketStepReopenService {
     private readonly runGuard: Pick<TicketPhaseRunGuard, "assertIdle">,
   ) {}
 
-  async reopen(ticketId: string, step: ReopenableStep, actor?: string): Promise<Ticket> {
+  async reopen(ticketId: string, step: ReopenableStep, actorId: string | null): Promise<Ticket> {
     const ticket = await this.tickets.getTicket(ticketId);
     if (!ticket) {
       throw new TicketServiceError(TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND, "Ticket not found");
@@ -42,8 +42,8 @@ export class TicketStepReopenService {
       if (STEP_ORDER.indexOf(phase) < STEP_ORDER.indexOf(step)) continue;
       const document = await this.documents.getOrCreateDocument(ticketId, phase);
       if (!document.content.trim()) continue;
-      await this.documents.requestApproval(ticketId, phase, actor);
-      await this.approvals.recordApprovalAction(ticketId, phase, "revoked", actor, `Reopened the ${step} step`);
+      await this.documents.requestApproval(ticketId, phase);
+      await this.approvals.recordApprovalAction(ticketId, phase, "revoked", actorId, `Reopened the ${step} step`);
     }
 
     return this.workflow.setPhase(ticketId, step);

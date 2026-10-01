@@ -9,6 +9,7 @@ import {
 } from "../../../services/errors/AgentSessionServiceError";
 import { AGENT_SESSION_MODE } from "../../../types/agentSession";
 import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
+import { resolveTicketRouteServiceError } from "./routeErrors";
 
 interface AgentSessionRouteDependencies {
   launchService: AgentSessionLaunchService;
@@ -73,6 +74,8 @@ export function registerTicketAgentSessionRoutes(
             : "Not found";
         return res.status(status).json({ error: label, message: err.message });
       }
+      const serviceError = resolveTicketRouteServiceError(err);
+      if (serviceError) return res.status(serviceError.statusCode).json(serviceError.body);
 
       return res.status(500).json({
         error: "Internal server error",

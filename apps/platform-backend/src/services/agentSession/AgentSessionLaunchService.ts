@@ -21,6 +21,7 @@ import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import { assertPlanCleared } from "../approvals/assertPlanCleared";
 import {
   TicketPhaseDocumentCommentDAO,
   type PhaseDocumentComment,
@@ -107,6 +108,11 @@ export class AgentSessionLaunchService {
         AGENT_SESSION_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
         "Ticket not found",
       );
+    }
+
+    if (input.mode === TICKET_WORKFLOW_PHASE.EXECUTION) {
+      const plan = await this.documentService.getOrCreateDocument(input.ticketId, TICKET_WORKFLOW_PHASE.PLANNING);
+      assertPlanCleared(plan, ticket);
     }
 
     const conflict = await this.phaseRunGuard.findConflict(

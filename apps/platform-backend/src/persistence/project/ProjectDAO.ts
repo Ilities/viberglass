@@ -5,10 +5,10 @@ import db from "../config/database";
 import type { Database } from "../types/database";
 import { ProjectConfig } from "../../models/PMIntegration";
 
-/** A new space; private defaults to open. */
+/** A new space; private defaults to open, and it starts with no default reviewers. */
 export type NewProject = Omit<
   ProjectConfig,
-  "id" | "createdAt" | "updatedAt" | "slug" | "isPrivate" | "keyPrefix"
+  "id" | "createdAt" | "updatedAt" | "slug" | "isPrivate" | "keyPrefix" | "defaultReviewerIds"
 > & {
   isPrivate?: boolean;
 };
@@ -143,6 +143,9 @@ export class ProjectDAO {
     if (updates.defaultOwnerId !== undefined) {
       updateData.default_owner_id = updates.defaultOwnerId;
     }
+    if (updates.defaultReviewerIds !== undefined) {
+      updateData.default_reviewer_ids = [...new Set(updates.defaultReviewerIds)];
+    }
 
     const result = await db
       .updateTable("projects")
@@ -200,6 +203,7 @@ export class ProjectDAO {
       isPrivate: row.is_private,
       keyPrefix: row.key_prefix,
       defaultOwnerId: row.default_owner_id,
+      defaultReviewerIds: row.default_reviewer_ids,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
       updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
     };

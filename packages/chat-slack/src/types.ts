@@ -81,8 +81,8 @@ export interface SlackHandlerServices {
   linkSessionThread(sessionId: string, thread: Thread): Promise<void>;
   unlinkSession(sessionId: string): Promise<void>;
 
-  // Bridge control
-  startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode): void;
+  // Bridge control. A chain continues as `chainedBy`, the Slack user who started it.
+  startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode, chainedBy?: string): void;
   stopBridge(sessionId: string): void;
 
   // Ticket job flow (non-session)
@@ -90,17 +90,23 @@ export interface SlackHandlerServices {
     instruction: string,
     currentPhase: TicketWorkflowPhase,
   ): TicketAdvanceResult;
+  // Moving a task on approves the steps it leaves, as the Slack user acting
+  // (their linked Viberglass account), under the space's approval policy.
   advanceAndRunTicketJob(params: {
     ticketId: string;
     clankerId: string;
     targetPhase: TicketWorkflowPhase;
+    slackUserId: string;
   }): Promise<{ jobId: string; status: string }>;
   chainAndRunTicketJob(params: {
     ticketId: string;
     clankerId: string;
     firstPhase: TicketWorkflowPhase;
     thenPhase: TicketWorkflowPhase;
+    slackUserId: string;
   }): Promise<{ jobId: string; status: string }>;
+  /** The same approvals, before a live session moves on to a later step. */
+  approveUpTo(params: { ticketId: string; targetPhase: TicketWorkflowPhase; slackUserId: string }): Promise<void>;
   runRevisionJob(params: {
     ticketId: string;
     clankerId: string;

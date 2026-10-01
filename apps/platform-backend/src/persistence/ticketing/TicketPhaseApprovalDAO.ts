@@ -1,4 +1,6 @@
+import type { Selectable } from "kysely";
 import db from "../config/database";
+import type { TicketPhaseApprovalsTable } from "../types/database";
 import type { TicketWorkflowPhase } from "@viberglass/types";
 
 export interface PhaseApprovalRecord {
@@ -6,7 +8,8 @@ export interface PhaseApprovalRecord {
   ticketId: string;
   phase: TicketWorkflowPhase;
   action: "approval_requested" | "approved" | "rejected" | "revoked";
-  actor: string | null;
+  /** The person who acted; null for the system or a deleted user. */
+  actorId: string | null;
   comment: string | null;
   createdAt: Date;
 }
@@ -16,7 +19,7 @@ export class TicketPhaseApprovalDAO {
     ticketId: string,
     phase: TicketWorkflowPhase,
     action: "approval_requested" | "approved" | "rejected" | "revoked",
-    actor?: string,
+    actorId: string | null,
     comment?: string,
   ): Promise<PhaseApprovalRecord> {
     const row = await db
@@ -25,7 +28,7 @@ export class TicketPhaseApprovalDAO {
         ticket_id: ticketId,
         phase,
         action,
-        actor: actor || null,
+        actor_id: actorId,
         comment: comment || null,
       })
       .returningAll()
@@ -66,21 +69,13 @@ export class TicketPhaseApprovalDAO {
     return rows.map((row) => this.mapRow(row));
   }
 
-  private mapRow(row: {
-    id: string;
-    ticket_id: string;
-    phase: string;
-    action: string;
-    actor: string | null;
-    comment: string | null;
-    created_at: Date;
-  }): PhaseApprovalRecord {
+  private mapRow(row: Selectable<TicketPhaseApprovalsTable>): PhaseApprovalRecord {
     return {
       id: row.id,
       ticketId: row.ticket_id,
-      phase: row.phase as TicketWorkflowPhase,
-      action: row.action as PhaseApprovalRecord["action"],
-      actor: row.actor,
+      phase: row.phase,
+      action: row.action,
+      actorId: row.actor_id,
       comment: row.comment,
       createdAt: row.created_at,
     };

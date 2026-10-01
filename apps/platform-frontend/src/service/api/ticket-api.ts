@@ -134,37 +134,6 @@ export async function getTicketWorkflow(id: string): Promise<TicketWorkflowRespo
   return data.data
 }
 
-export async function advanceTicketWorkflowPhase(
-  id: string,
-  phase: TicketWorkflowPhase
-): Promise<{ ticketId: string; workflowPhase: TicketWorkflowPhase }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/phases/${phase}/advance`, {
-    method: 'POST',
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to advance task workflow')
-  }
-  const data: ApiResponse<{ ticketId: string; workflowPhase: TicketWorkflowPhase }> = await response.json()
-  return data.data
-}
-
-export async function setTicketWorkflowPhase(id: string, workflowPhase: TicketWorkflowPhase): Promise<Ticket> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${id}/workflow/phase`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ workflowPhase }),
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to update task workflow phase')
-  }
-  const data: ApiResponse<Ticket> = await response.json()
-  return data.data
-}
-
 export async function createTicket(
   ticket: CreateTicketRequest,
   screenshot?: File,
@@ -583,16 +552,14 @@ export async function runPlanningRevision(
   return response.json()
 }
 
-export async function requestPlanningApproval(ticketId: string): Promise<PlanningPhaseResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/planning/request-approval`, {
+export async function approveResearch(ticketId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/phases/research/approve`, {
     method: 'POST',
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to request planning approval')
+    throw new Error(error.error || error.message || 'Failed to approve the research')
   }
-  const data: ApiResponse<PlanningPhaseResponse> = await response.json()
-  return data.data
 }
 
 export async function approvePlanning(ticketId: string): Promise<PlanningPhaseResponse> {

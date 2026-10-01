@@ -1,4 +1,4 @@
-import { approvePlanning, runPlanning, runResearch, setTicketWorkflowPhase } from '@/service/api/ticket-api'
+import { approvePlanning, approveResearch, runPlanning, runResearch } from '@/service/api/ticket-api'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -34,7 +34,7 @@ export function useRunNextStepActions({ project, ticketId, clankerId, onChanged 
     if (!ticketId) return
     setBusy('approve')
     try {
-      await setTicketWorkflowPhase(ticketId, 'planning')
+      await approveResearch(ticketId)
     } catch (error) {
       toast.error(errorMessage(error, 'Failed to approve research'))
       setBusy(null)

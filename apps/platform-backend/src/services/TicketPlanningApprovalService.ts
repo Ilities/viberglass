@@ -18,6 +18,7 @@ import {
   TICKET_SERVICE_ERROR_CODE,
 } from "./errors/TicketServiceError";
 import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
+import { ApprovalPolicyService } from "./approvals/ApprovalPolicyService";
 
 function toPlanningRunView(
   latestRun: Awaited<ReturnType<TicketPhaseRunDAO["getLatestRun"]>>,
@@ -47,42 +48,13 @@ export class TicketPlanningApprovalService {
   private readonly phaseRunDAO = new TicketPhaseRunDAO();
   private readonly activity = new TaskActivityRecorder();
 
-  constructor(private readonly feedbackService?: FeedbackService) {}
+  constructor(
+    private readonly feedbackService?: FeedbackService,
+    private readonly policy: Pick<ApprovalPolicyService, "assertCanApprove"> = new ApprovalPolicyService(),
+  ) {}
 
-  async requestApproval(
-    ticketId: string,
-    actor?: string,
-  ): Promise<PlanningPhaseView> {
-    const ticket = await this.ticketDAO.getTicket(ticketId);
-    if (!ticket) {
-      throw new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND,
-        "Ticket not found",
-      );
-    }
-    if (ticket.workflowPhase !== TICKET_WORKFLOW_PHASE.PLANNING) {
-      throw new TicketServiceError(
-        TICKET_SERVICE_ERROR_CODE.PLANNING_RUN_INVALID_PHASE,
-        "Approval can only be requested during the planning phase",
-      );
-    }
-    const document = await this.documentService.requestApproval(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.PLANNING,
-      actor,
-    );
-
-    await this.approvalDAO.recordApprovalAction(
-      ticketId,
-      TICKET_WORKFLOW_PHASE.PLANNING,
-      "approval_requested",
-      actor,
-    );
-
-    return this.buildPhaseView(ticketId, document);
-  }
-
-  async approve(ticketId: string, actor?: string): Promise<PlanningPhaseView> {
+  /** Approves the plan as this person, if the space's policy lets them, and moves the task on to the build. */
+  async approve(ticketId: string, actorId: string | null): Promise<PlanningPhaseView> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
       throw new TicketServiceError(
@@ -96,20 +68,21 @@ export class TicketPlanningApprovalService {
         "Approval can only be granted during the planning phase",
       );
     }
+    await this.policy.assertCanApprove(actorId, ticketId, "planning");
     const document = await this.documentService.approveDocument(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
-      actor,
+      actorId,
     );
 
     await this.approvalDAO.recordApprovalAction(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
       "approved",
-      actor,
+      actorId,
       "Planning document approved",
     );
-    await this.activity.recordByCurrentActor(ticketId, "document_approved", { step: "planning" });
+    await this.activity.record(ticketId, { type: "human", userId: actorId }, "document_approved", { step: "planning" });
 
     await this.workflowService.advancePhase(
       ticketId,
@@ -137,9 +110,10 @@ export class TicketPlanningApprovalService {
     return this.buildPhaseView(ticketId, document);
   }
 
+  /** Taking an approval back is the same decision as giving it, so the same people may. */
   async revokeApproval(
     ticketId: string,
-    actor?: string,
+    actorId: string | null,
   ): Promise<PlanningPhaseView> {
     const ticket = await this.ticketDAO.getTicket(ticketId);
     if (!ticket) {
@@ -148,18 +122,18 @@ export class TicketPlanningApprovalService {
         "Ticket not found",
       );
     }
+    await this.policy.assertCanApprove(actorId, ticketId, "planning");
 
     const document = await this.documentService.revokeApproval(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
-      actor,
     );
 
     await this.approvalDAO.recordApprovalAction(
       ticketId,
       TICKET_WORKFLOW_PHASE.PLANNING,
       "revoked",
-      actor,
+      actorId,
       "Planning approval revoked",
     );
 
