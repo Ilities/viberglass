@@ -20,7 +20,7 @@ test("a task's thread shows what was said, each document version and what happen
   const people = (await (await memberApi.get(`/api/tasks/${task.id}/participants`)).json()).data;
   expect(people).toContainEqual(expect.objectContaining({ userId: member.id, role: "watcher" }));
 
-  // The agent writes the research, then the owner changes.
+  // The admin asks the agent for the research, which it writes; then the owner changes.
   const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
   expect((await adminApi.put(`/api/tasks/${task.id}/participants/owner`, { data: { userId: member.id } })).status()).toBe(200);
@@ -40,7 +40,8 @@ test("a task's thread shows what was said, each document version and what happen
   const order = [
     "E2E Admin created the task",
     "Which colour works here,",
-    "E2E Admin started a research run",
+    "Write the research",
+    "asked for the research",
     "Research v1",
     `E2E Admin made ${member.name} the owner`,
     "The darker amber, it passes contrast.",

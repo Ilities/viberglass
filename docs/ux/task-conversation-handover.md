@@ -140,7 +140,68 @@ Each slice ships on its own and leaves the product working. Sizes are rough.
 - **Tests.**
   - Unit: the folder rule; a real-tar round trip of opencode's state that leaves out credentials; and `AcpClient` over stdio against a scripted agent (resume preferred, load with replay dropped, cold when unsupported, gone, or failing its first prompt).
   - Verified: agent-core 36, worker 105 and every plugin's tests; the smoke suite 39/39 on a rebuilt fake worker.
-- **Next in S2:** the turn engine itself: agent mentions, `TaskTurnService` with delta prompts, sessions per (task, agent), suggested actions on the task page, and artifact versions.
+**Turn engine landed (2026-10-01).** S2 is done. What landed:
+- **Data** (migration 083):
+  - `agent_turns.action` and `agent_turns.task_message_id`, the thread message a turn answers;
+  - one open session per (task, agent), with older duplicates closed;
+  - revisions get a stored `version` (backfilled) and `agent_turn_id`;
+  - a `reply` job kind;
+  - the `task_turn` and `task_turn_cold_start` templates.
+- **One engine.** `TaskTurnService.ask(taskId, actorId, { message, action?, agentId? })` posts the message, then finds or opens the agent's session. The message becomes the session's next user turn, and waits if a turn is running.
+  - `SessionTurnContinuationService` launches every turn, first or later, through `TaskTurnContextLoader` and `TaskTurnPromptBuilder`.
+  - The delta is what's new since the agent's last *finished* turn: thread and live-session messages, new open comments, hand edits, and the PR's review comments on builds. A failed turn's prompt counts as unsent.
+  - A first turn gets the cold-start preamble plus the delta. Later turns get the delta, with the cold version in the bootstrap (`coldStartTask`). `AcpClient` sends it instead when the harness can't continue (`coldStartMessage`).
+- **Agents.**
+  - Which agent: the one asked for, else the one mentioned, else the agent on the task, else `default-agent`, else the first that can run.
+  - Mention tokens are `@[Name](agent:<id>)`, and a typed-out "@agent" asks too.
+  - `POST /api/tasks/:id/messages` with `{ body, action?, agentId? }` starts a turn when it carries an action or mentions an agent. Starting turns stays limited to admins and members until S3.
+- **Removed:**
+  - the research/plan run and revision routes, `POST /:id/run`, `TicketExecutionService`, `AgentSessionLaunchService`, `openingMessage` and the old prompt types;
+  - on the task page, `BuildChangesModal` and `PhaseSessionPanel`.
+
+  `/:id/agent-sessions`, Slack and MCP (`TicketPhaseOrchestrationService`) call the engine.
+- **What a turn produced.**
+  - The worker writes the current `RESEARCH.md` and `PLAN.md` into the repository, kept out of commits.
+  - A document the agent changed comes back in `documents`. `TaskTurnOutcomeService` saves it as a version linked to the turn, and stores the reply and intent (its first line) on the turn.
+  - Code changes, new files included, become a commit and the PR only when the turn may write code. That's a *Build it* turn, or a build job that isn't a turn (webhooks). Otherwise they're thrown away (`codeDiscarded`).
+  - A build that changes nothing, or research that writes nothing, now completes as an answer instead of failing with `AGENT_NO_CHANGES` or `AGENT_NO_DOCUMENT`.
+- **Sessions stay open between turns.**
+  - After a completed or a failed turn, the session waits on people.
+  - Cancelling a run ends its turn, not the session; *End session* still ends it.
+  - Task lists mark a task live only while a turn runs.
+- **Thread and task page.**
+  - Agent turns are thread entries: the agent, what it was asked for, its intent and reply, "continued its session" or "started a fresh session", and its run. A turn's run events are left out.
+  - The composer suggests agents after `@`.
+  - Suggested actions above it: *Try again*, *Write the research*, *Revise the research/plan with N comments*, *Write the plan* and *Build it*. N counts comments since the document's latest version. *Build it* waits for the plan's approval, the gate S3 removes.
+  - The banner keeps Approve and drops its start, ask-for-changes and retry buttons. The board's and the run page's dialogs ask the agent.
+- **Slack's session bridge** ends a run at a turn that wrote something, and on restart resumes only sessions with a turn running.
+- **Fake agent.**
+  - It keeps sessions in `~/.fake/sessions`, so loading one fails once its state is gone.
+  - It writes the document named in `<what-to-do>`, or the one asked for in the thread.
+  - `[fake:code]` changes `fake-change.txt`.
+  - It starts with an intent line, and its documents say which turn of the session wrote them.
+  - Directives count only in people's words, so quoted documents don't re-trigger them.
+- **Split as touched:**
+  - `jobs.ts` (719 → 189) into `jobs/jobResultRoute`, `jobs/workerCallbackRoutes` and `jobs/codexAuthCacheRoute`;
+  - the comment routes out of `workflowPhaseRoutes.ts` (501 → 277);
+  - `AgentSessionCancellationService` out of `AgentSessionInteractionService`;
+  - `runSessionTurnJob` (437 → 131) into `turnArtifacts`, `workingTreeChanges` and `deliverPullRequest`.
+- **Found and fixed:**
+  - Two messages queued during one turn took the same turn sequence, which the unique index refuses. Turns now take `nextSequence`.
+  - Cancelling a session turn's run never ended the turn, since `jobs.agent_turn_id` is never written. Every later message would have queued behind it.
+  - A failed turn left its session `active`, so the task looked busy.
+  - The worker cleaned up a per-job folder after each run, but runs clone into the task's folder now, so task folders stayed behind. On a warm Lambda's `/tmp` they would pile up. Cleanup now removes `jobWorkspaceDir`.
+- **Verified:**
+  - Unit tests: backend 1068, frontend 224, worker 110, agent-core 39, fake agent 17. Backend lint is clean, after fixing 4 errors that were already there.
+  - Smoke 40/40, including the new `task-conversation.e2e.test.ts`: @agent writes research v1, a comment, "Revise the research with 1 comment" gives v2 with the comment, from a resumed session and without the task description, then "Write the plan" gives plan v1. `late-database` was re-run on its own: it starts its own backend and had caught one mid-edit.
+  - Checked in the dev stack with agent-browser, after rebuilding the frontend image for the new shared types (see `docker-compose.yml`).
+- **Left for later:**
+  - The GitHub, Jira and Shortcut webhook processors still submit one-shot builds outside any session.
+  - `ticket_phase_runs` isn't written for turns, so phase views' `latestRun` goes stale. Nothing reads it.
+  - The old prompt template rows stay in the database, unused.
+  - A session's `mode` only says what it started with.
+  - A build turn's commit and PR aren't covered end to end: the fixture repository can't open pull requests. Unit tests cover the pieces.
+  - The session page still calls a session between turns "Waiting on you", which reads oddly next to the thread.
 
 - **Data:**
   - agent mention tokens;

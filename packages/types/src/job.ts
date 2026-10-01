@@ -2,6 +2,8 @@ export const JOB_KIND = {
   RESEARCH: 'research',
   PLANNING: 'planning',
   EXECUTION: 'execution',
+  /** A task turn that answers in the thread, or rewrites a document the agent chose. */
+  REPLY: 'reply',
   CLAW: 'claw',
 } as const
 

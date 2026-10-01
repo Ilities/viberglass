@@ -9,7 +9,7 @@ import { AgentPendingRequestDAO } from "../persistence/agentSession/AgentPending
 import type { AgentSessionEvent } from "../persistence/agentSession/AgentSessionEventDAO";
 import {
   AGENT_SESSION_EVENT_TYPE,
-  AGENT_SESSION_ACTIVE_STATUSES,
+  AGENT_SESSION_STATUS,
   type AgentSessionMode,
   type AgentSessionEventType,
 } from "../types/agentSession";
@@ -25,6 +25,20 @@ const TERMINAL_EVENT_TYPES = new Set<AgentSessionEventType>([
   AGENT_SESSION_EVENT_TYPE.SESSION_FAILED,
   AGENT_SESSION_EVENT_TYPE.SESSION_CANCELLED,
 ]);
+
+/**
+ * A session stays open between turns (ADR 0008), so a chat thread's run ends
+ * where a turn wrote a document or code, as it used to end with the session.
+ */
+function finishesRun(event: AgentSessionEvent): boolean {
+  if (event.eventType !== AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED) return false;
+  const produced = isObjectRecord(event.payloadJson) ? event.payloadJson.produced : undefined;
+  return Array.isArray(produced) && produced.length > 0;
+}
+
+function endsTurn(event: AgentSessionEvent): boolean {
+  return event.eventType === AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED || event.eventType === AGENT_SESSION_EVENT_TYPE.TURN_FAILED;
+}
 
 interface ChainEntry {
   thenMode: AgentSessionMode;
@@ -84,11 +98,16 @@ export class ChatSessionBridgeService {
       this.chainMap.set(sessionId, { thenMode: chainTo, chainedBy });
     }
 
-    let lastSequence = 0;
+    // Earlier turns of a continuing session were bridged already, or happened outside the thread.
+    let lastSequence: number | null = null;
     const assistantMessage = new AssistantMessageCoalescer();
 
     const poll = async () => {
       try {
+        if (lastSequence === null) {
+          const earlier = await this.queryService.listEvents(sessionId);
+          lastSequence = Number(earlier.filter(endsTurn).at(-1)?.sequence ?? 0);
+        }
         const events = await this.queryService.listEvents(sessionId, {
           afterSequence: lastSequence,
         });
@@ -111,13 +130,13 @@ export class ChatSessionBridgeService {
 
           const { keepLinked } = await this.postEvent(event, thread, sessionId);
 
-          if (TERMINAL_EVENT_TYPES.has(event.eventType)) {
+          if (TERMINAL_EVENT_TYPES.has(event.eventType) || finishesRun(event)) {
             this.stopBridge(sessionId);
 
             const chain = this.chainMap.get(sessionId);
             if (
               chain &&
-              event.eventType === AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED &&
+              (event.eventType === AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED || finishesRun(event)) &&
               this.callbacks
             ) {
               this.chainMap.delete(sessionId);
@@ -149,9 +168,10 @@ export class ChatSessionBridgeService {
    */
   async resumeActiveBridges(): Promise<void> {
     try {
-      const activeSessions = await this.sessionDAO.listByStatuses(
-        AGENT_SESSION_ACTIVE_STATUSES,
-      );
+      // Only sessions with a turn running: the others are waiting on people, with nothing to relay.
+      const activeSessions = await this.sessionDAO.listByStatuses([
+        AGENT_SESSION_STATUS.ACTIVE,
+      ]);
 
       let resumed = 0;
       for (const session of activeSessions) {
@@ -271,6 +291,9 @@ export class ChatSessionBridgeService {
         break;
       }
 
+      case AGENT_SESSION_EVENT_TYPE.TURN_COMPLETED:
+        if (!finishesRun(event)) break;
+      // falls through: the run ended with what the turn wrote
       case AGENT_SESSION_EVENT_TYPE.SESSION_COMPLETED: {
         const completion = await this.completionNotice.post(
           sessionId,

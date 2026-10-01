@@ -3,7 +3,7 @@ import { selectText } from "../../playwright/documentSelection";
 import { E2E } from "../../playwright/e2eEnvironment";
 import { signIn } from "../../playwright/seedWorkspace";
 import { expect, signedInPage, test } from "../../playwright/smokeFixtures";
-import { createTask, runStatus, startResearch, taskPhase } from "../../playwright/tasks";
+import { askAgent, createTask, runStatus, startResearch, taskPhase } from "../../playwright/tasks";
 
 /** Invites someone by link, has them accept it, and signs them in (J3, J4). */
 async function invitePerson(adminApi: APIRequestContext, browser: Browser, name: string) {
@@ -32,7 +32,7 @@ async function runFinishes(api: APIRequestContext, jobId: string) {
 
 // Phase 2's exit (plan §12): J9 steps 1, 3, 4 and 7 with three people, each
 // step attributed and each person told what needs them.
-test("a PM asks, a designer is mentioned and contributes, a reviewer comments on the rendered plan, asks for changes and approves", async ({
+test("a PM asks, a designer is mentioned and contributes, a reviewer comments on the rendered plan, has it revised and approves", async ({
   adminApi,
   browser,
   workspace,
@@ -58,14 +58,13 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
 
   // The PM approves the research; the agent writes the plan; the PM asks the reviewer to review it.
   expect((await adminApi.post(`/api/tasks/${task.id}/phases/research/approve`)).status()).toBe(200);
-  const planning = await adminApi.post(`/api/tasks/${task.id}/phases/planning/run`, { data: { clankerId: workspace.clankerId } });
-  await runFinishes(adminApi, (await planning.json()).data.jobId);
+  await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan" })).jobId);
   expect((await adminApi.post(`/api/tasks/${task.id}/phases/planning/request-approval`, { data: { reviewerIds: [reviewer.id] } })).status()).toBe(200);
   await expect.poll(() => inbox(reviewer.api)).toContain(`E2E Admin asked you to review “${task.title}”`);
   // The designer isn't on the plan's review, so they can't approve it.
   expect((await designer.api.post(`/api/tasks/${task.id}/phases/planning/approve`)).status()).toBe(403);
 
-  // 4. The reviewer comments on the rendered plan and asks for changes; the agent revises it.
+  // 4. The reviewer comments on the rendered plan and asks the agent to revise it with the comment.
   const page = reviewer.page;
   await expect(async () => {
     await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}?step=planning`);
@@ -77,10 +76,7 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
   await page.getByRole("dialog", { name: "New comment" }).getByRole("button", { name: "Add comment" }).click();
   await expect(page.locator("mark").first()).toBeVisible();
 
-  await page.getByRole("region", { name: "Your move" }).getByRole("button", { name: "Ask for changes" }).click();
-  const revise = page.getByRole("dialog", { name: "Revise planning" });
-  await revise.getByRole("textbox").fill("Cover the comment.");
-  await revise.getByRole("button", { name: /Revise with/ }).click();
+  await page.getByRole("region", { name: "Thread" }).getByRole("button", { name: "Revise the plan with 1 comment" }).click();
   await expect.poll(async () => {
     const plan = (await (await adminApi.get(`/api/tasks/${task.id}/phases/planning`)).json()).data.document.content;
     return plan.includes("Say who writes the copy.");
@@ -102,6 +98,7 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
     "E2E Admin approved the research",
     `E2E Admin asked ${reviewer.name} to review`,
     `${reviewer.name} commented on the plan: “Written by the fake agent used in end-to-end tests.”`,
+    "Revise the plan with 1 comment",
     `${reviewer.name} approved the plan`,
   ]) {
     await expect(thread.getByText(sentence, { exact: true }).first()).toBeVisible();

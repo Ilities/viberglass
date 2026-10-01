@@ -2,16 +2,21 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
 import { RunTargetSummary } from '@/components/run-target-summary'
-import { runTicket } from '@/service/api/job-api'
-import { launchSession } from '@/service/api/session-api'
-import { runPlanning, runResearch } from '@/service/api/ticket-api'
-import type { Clanker, Ticket } from '@viberglass/types'
+import { askAgent } from '@/service/api/discussion-api'
+import type { Clanker, TaskTurnAction, Ticket } from '@viberglass/types'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { taskPath } from '@/lib/taskPath'
 
 type RunMode = 'execution' | 'research' | 'planning'
+
+const ACTION: Record<RunMode, TaskTurnAction> = { research: 'research', planning: 'plan', execution: 'code' }
+const ASK: Record<RunMode, { title: string; message: string; started: string }> = {
+  research: { title: 'Ask for the research', message: 'Write the research', started: 'Asked the agent for the research' },
+  planning: { title: 'Ask for the plan', message: 'Write the plan', started: 'Asked the agent for the plan' },
+  execution: { title: 'Ask the agent to build it', message: 'Build it', started: 'Asked the agent to build it' },
+}
 
 interface RunTicketModalProps {
   ticket: Ticket | null
@@ -36,7 +41,7 @@ export function RunTicketModal({
   const firstConfiguredClanker = configuredClankers[0]
   const [selectedClankerId, setSelectedClankerId] = useState<string>(activeClankers[0]?.id ?? '')
   const [isRunning, setIsRunning] = useState(false)
-  const [extraInstructions, setExtraInstructions] = useState('')
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     if (activeClankers.length === 0) {
@@ -57,59 +62,21 @@ export function RunTicketModal({
   // Reset selection when modal opens with new ticket
   // (handled by parent re-mounting or passing key)
 
-  async function handleRun(runMode: 'automatic' | 'live') {
+  async function handleRun() {
     if (!ticket || !selectedClanker) return
 
     setIsRunning(true)
     try {
-      const instructionFiles = extraInstructions.trim().length > 0
-        ? [{ fileType: 'AGENTS.md', content: extraInstructions.trim() }]
-        : undefined
-
-      if (runMode === 'live') {
-        const session = await launchSession(ticket.id, {
-          clankerId: selectedClanker.id,
-          mode,
-          initialMessage: extraInstructions.trim() || `Start ${mode}`,
-        })
-        navigate(`/spaces/${project}/sessions/${session.session.id}`)
-        onClose()
-        return
-      }
-
-      const response =
-        mode === 'research'
-          ? await runResearch(ticket.id, selectedClanker.id, instructionFiles)
-          : mode === 'planning'
-            ? await runPlanning(ticket.id, selectedClanker.id, instructionFiles)
-            : await runTicket(ticket.id, selectedClanker.id, undefined, instructionFiles)
-      const jobId = response.data.jobId
-
-      toast.success(
-        mode === 'research'
-          ? 'Research started'
-          : mode === 'planning'
-            ? 'Planning started'
-          : 'Run started',
-        {
-          description:
-            mode === 'research'
-              ? `Researching "${ticket.title}" with ${selectedClanker.name}`
-              : mode === 'planning'
-                ? `Planning "${ticket.title}" with ${selectedClanker.name}`
-                : `Running "${ticket.title}" with ${selectedClanker.name}`,
-          action: {
-            label: 'View run',
-            onClick: () => navigate(`${taskPath(project, ticket)}?run=${jobId}`),
-          },
-        }
-      )
-
-      navigate(`${taskPath(project, ticket)}?run=${jobId}`)
+      await askAgent(ticket.id, {
+        action: ACTION[mode],
+        body: message.trim() || ASK[mode].message,
+        agentId: selectedClanker.id,
+      })
+      toast.success(ASK[mode].started, { description: `${selectedClanker.name} is on "${ticket.title}"` })
+      navigate(taskPath(project, ticket))
       onClose()
     } catch (error) {
-      console.error('Failed to run task:', error)
-      toast.error('Failed to start run', {
+      toast.error("Couldn't ask the agent", {
         description: error instanceof Error ? error.message : 'Unknown error',
       })
       setIsRunning(false)
@@ -120,20 +87,8 @@ export function RunTicketModal({
 
   return (
     <Dialog open={open} onClose={onClose} size="lg">
-      <DialogTitle>
-        {mode === 'research'
-          ? 'Start Research'
-          : mode === 'planning'
-            ? 'Start Planning'
-            : 'Start Execution'}
-      </DialogTitle>
-      <DialogDescription>
-        {mode === 'research'
-          ? 'Choose how you want to work through this task.'
-          : mode === 'planning'
-            ? 'Choose whether the agent should plan automatically or collaborate with you.'
-            : 'Start an automated execution or collaborate with the agent.'}
-      </DialogDescription>
+      <DialogTitle>{ASK[mode].title}</DialogTitle>
+      <DialogDescription>Your message goes in the task&apos;s thread, where the agent answers.</DialogDescription>
       <DialogBody>
         <div className="space-y-6">
           {/* Ticket Info (read-only display) */}
@@ -147,7 +102,7 @@ export function RunTicketModal({
 
           {/* Clanker Selection */}
           <div>
-            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Agent runner</h4>
+            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Agent</h4>
             {activeClankers.length > 0 ? (
               <Listbox
                 value={selectedClankerId}
@@ -185,16 +140,14 @@ export function RunTicketModal({
           {mode === 'execution' && <RunTargetSummary ticket={ticket} clankerId={selectedClanker?.id} />}
 
           <div>
-            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Extra instructions (optional)</h4>
-            <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-              Saved as <code>AGENTS.md</code> for this run only.
-            </p>
+            <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">Message (optional)</h4>
             <textarea
-              value={extraInstructions}
-              onChange={(event) => setExtraInstructions(event.target.value)}
-              rows={5}
+              aria-label="Message"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              rows={4}
               className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="Add temporary instructions for this run..."
+              placeholder={`${ASK[mode].message}, and anything the agent should know`}
             />
           </div>
         </div>
@@ -203,11 +156,8 @@ export function RunTicketModal({
         <Button plain onClick={onClose} disabled={isRunning}>
           Cancel
         </Button>
-        <Button color="brand" disabled={isRunning || !selectedClanker} onClick={() => void handleRun('automatic')}>
-          {isRunning ? 'Starting...' : 'Run automatically'}
-        </Button>
-        <Button outline disabled={isRunning || !selectedClanker} onClick={() => void handleRun('live')}>
-          Collaborate live
+        <Button color="brand" disabled={isRunning || !selectedClanker} onClick={() => void handleRun()}>
+          {isRunning ? 'Asking…' : 'Ask the agent'}
         </Button>
       </DialogActions>
     </Dialog>

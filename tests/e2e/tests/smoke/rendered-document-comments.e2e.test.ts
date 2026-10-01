@@ -1,7 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 import { selectText } from "../../playwright/documentSelection";
 import { expect, test } from "../../playwright/smokeFixtures";
-import { createTask, runStatus } from "../../playwright/tasks";
+import { askAgent, createTask, runStatus } from "../../playwright/tasks";
 
 const PLAN = "# Plan\n\n1. Shorten the **button label** on mobile.\n2. Keep the copy friendly.\n";
 
@@ -45,12 +45,8 @@ test("a reviewer comments on the rendered plan; the comment follows its text, an
   await expect(page.getByRole("dialog", { name: "Comments on this text" }).getByText("Which button? Checkout or cart?")).toBeVisible();
   expect((await planComments(adminApi, task.id))[0]).toMatchObject({ outdated: false, lineNumber: 5 });
 
-  // Asking for changes sends the open comment, with the text it's on, to the agent (the fake agent echoes its prompt).
-  const revision = await adminApi.post(`/api/tasks/${task.id}/phases/planning/revision`, {
-    data: { clankerId: workspace.clankerId, revisionMessage: "Address the comment." },
-  });
-  expect(revision.status()).toBe(202);
-  const jobId = (await revision.json()).data.jobId;
+  // Asking for a revision sends the open comment, with the text it's on, to the agent (the fake agent echoes its prompt).
+  const { jobId } = await askAgent(adminApi, task.id, { action: "plan", body: "Address the comment.", agentId: workspace.clankerId });
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
   const plan = (await (await adminApi.get(`/api/tasks/${task.id}/phases/planning`)).json()).data.document.content;
   expect(plan).toContain("On “button label** on mobile”");

@@ -2,12 +2,8 @@ import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 
 export type PromptType =
-  | 'ticket_research'
-  | 'ticket_research_revision_task'
-  | 'ticket_planning_with_research'
-  | 'ticket_planning_without_research'
-  | 'ticket_planning_revision_task'
-  | 'ticket_developing'
+  | 'task_turn'
+  | 'task_turn_cold_start'
   | 'claw_scheduled_task'
 
 export interface PromptTemplateEntry {

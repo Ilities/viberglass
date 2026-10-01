@@ -1,4 +1,5 @@
-import { approvePlanning, approveResearch, runPlanning, runResearch } from '@/service/api/ticket-api'
+import { askAgent } from '@/service/api/discussion-api'
+import { approvePlanning, approveResearch } from '@/service/api/ticket-api'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,7 +7,7 @@ import { toast } from 'sonner'
 interface RunNextStepActionsInput {
   project: string
   ticketId: string | null
-  /** The runner this run used; follow-up runs use it too. */
+  /** The agent this run used; follow-up runs ask it too, else the agent on the task. */
   clankerId: string | null
   onChanged: () => void
 }
@@ -23,10 +24,16 @@ export function useRunNextStepActions({ project, ticketId, clankerId, onChanged 
   const openRun = (jobId: string) =>
     navigate(ticketId ? `/spaces/${project}/tasks/${ticketId}?run=${jobId}` : `/spaces/${project}/runs/${jobId}`)
 
+  /** Asks the agent in the task's thread, as a message from the person pressing the button. */
   async function startPhase(phase: 'research' | 'planning'): Promise<string> {
-    if (!ticketId || !clankerId) throw new Error('This run has no task or agent to continue with')
-    const response = phase === 'research' ? await runResearch(ticketId, clankerId) : await runPlanning(ticketId, clankerId)
-    return response.data.jobId
+    if (!ticketId) throw new Error('This run has no task to continue')
+    const turn = await askAgent(ticketId, {
+      action: phase === 'research' ? 'research' : 'plan',
+      body: phase === 'research' ? 'Try the research again' : 'Write the plan',
+      agentId: clankerId ?? undefined,
+    })
+    if (!turn.jobId) throw new Error('The agent is busy; it reads your message when it finishes')
+    return turn.jobId
   }
 
   /** A task reopened at research keeps its plan; approving puts that plan up for review instead of writing a new one. */

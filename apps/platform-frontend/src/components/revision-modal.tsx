@@ -1,7 +1,7 @@
 import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Listbox, ListboxLabel, ListboxOption } from '@/components/listbox'
-import { runPlanningRevision, runResearchRevision } from '@/service/api/ticket-api'
+import { askAgent } from '@/service/api/discussion-api'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -56,17 +56,17 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
 
     setIsRunning(true)
     try {
-      const response =
-        mode === 'research'
-          ? await runResearchRevision(ticket.id, selectedClanker.id, revisionMessage.trim())
-          : await runPlanningRevision(ticket.id, selectedClanker.id, revisionMessage.trim())
-      const jobId = response.data.jobId
+      const { jobId } = await askAgent(ticket.id, {
+        action: mode === 'research' ? 'research' : 'plan',
+        body: revisionMessage.trim(),
+        agentId: selectedClanker.id,
+      })
 
       toast.success(mode === 'research' ? 'Research revision started' : 'Planning revision started', {
         description: `Revising "${ticket.title}" with ${selectedClanker.name}`,
         action: {
           label: 'View run',
-          onClick: () => navigate(`${taskPath(project, ticket)}?run=${jobId}`),
+          onClick: () => navigate(jobId ? `${taskPath(project, ticket)}?run=${jobId}` : taskPath(project, ticket)),
         },
       })
 
@@ -87,8 +87,8 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
       <DialogTitle>{mode === 'research' ? 'Revise research' : 'Revise planning'}</DialogTitle>
       <DialogDescription>
         {mode === 'research'
-          ? 'Start a run to revise the research document using your feedback.'
-          : 'Start a run to revise the planning document using your feedback.'}
+          ? 'Ask the agent to revise the research. Your message goes in the task’s thread, with the open comments.'
+          : 'Ask the agent to revise the plan. Your message goes in the task’s thread, with the open comments.'}
       </DialogDescription>
       <DialogBody>
         <div className="space-y-6">

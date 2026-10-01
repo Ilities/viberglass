@@ -3,7 +3,6 @@ import logger from "../../config/logger";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { FileUploadService } from "../../services/FileUploadService";
-import { TicketExecutionService } from "../../services/TicketExecutionService";
 import { createBuildPullRequestService } from "../../services/pull-request-reviews/createBuildPullRequestService";
 import { TicketPhaseDocumentCommentService } from "../../services/TicketPhaseDocumentCommentService";
 import { TicketPhaseDocumentRevisionService } from "../../services/TicketPhaseDocumentRevisionService";
@@ -25,16 +24,13 @@ import { TicketStepReopenService } from "../../services/TicketStepReopenService"
 import { TicketPhaseApprovalDAO } from "../../persistence/ticketing/TicketPhaseApprovalDAO";
 import { TicketPhaseRunGuard } from "../../services/TicketPhaseRunGuard";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
+import { registerDocumentCommentRoutes } from "./tickets/documentCommentRoutes";
 import { registerTicketAgentSessionRoutes } from "./tickets/agentSessionRoutes";
-import { AgentSessionLaunchService } from "../../services/agentSession/AgentSessionLaunchService";
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
-import { JobService } from "../../services/JobService";
-import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
-import { WorkerExecutionService } from "../../workers";
 import { IntegrationDAO } from "../../persistence/integrations";
 import { taskKeyParamGuard, taskParamGuard } from "../middleware/spaceAccessGuards";
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
@@ -47,6 +43,7 @@ import { TicketResearchApprovalService } from "../../services/approvals/TicketRe
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
 import { TaskTimelineService } from "../../services/tasks/TaskTimelineService";
+import { TaskTurnService } from "../../services/taskTurns/TaskTurnService";
 import { TaskActivityRecorder } from "../../services/tasks/TaskActivityRecorder";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { taskChangeGuard } from "../middleware/taskChangeGuards";
@@ -56,7 +53,6 @@ const ticketService = new TicketDAO();
 const projectService = new ProjectDAO();
 const fileUploadService = new FileUploadService();
 const buildPullRequestService = createBuildPullRequestService();
-const ticketExecutionService = new TicketExecutionService(buildPullRequestService);
 const ticketWorkflowService = new TicketWorkflowService();
 const ticketPhaseDocumentService = new TicketPhaseDocumentService();
 const ticketPhaseDocumentRevisionService =
@@ -86,10 +82,13 @@ router.param("key", taskKeyParamGuard());
 
 const taskParticipants = new TaskParticipantService();
 const taskActivity = new TaskActivityRecorder();
+const taskDiscussion = new TaskDiscussionService();
+const taskTurns = new TaskTurnService({ discussion: taskDiscussion });
 registerTaskParticipantRoutes(router, taskParticipants);
 registerTaskDiscussionRoutes(router, {
-  discussion: new TaskDiscussionService(),
+  discussion: taskDiscussion,
   timeline: new TaskTimelineService(),
+  turns: taskTurns,
 });
 
 // GET /api/tasks/by-key/:key - A task by its key (WEB-42), for links that show the key.
@@ -166,10 +165,10 @@ registerTicketWorkflowPhaseRoutes(router, {
   ticketWorkflowService,
   ticketPhaseDocumentService,
   ticketPhaseDocumentRevisionService,
-  ticketPhaseDocumentCommentService,
   ticketResearchService,
   ticketPlanningService,
 });
+registerDocumentCommentRoutes(router, { ticketPhaseDocumentCommentService });
 
 registerTaskApprovalRoutes(router, {
   policy: new ApprovalPolicyService(),
@@ -179,7 +178,6 @@ registerTaskApprovalRoutes(router, {
 });
 
 registerTicketExecutionRoutes(router, {
-  ticketExecutionService,
   ticketWorkflowOverrideService,
   ticketDAO: ticketService,
   buildPullRequestService,
@@ -200,15 +198,6 @@ const agentTurnDAO = new AgentTurnDAO();
 const agentSessionEventDAO = new AgentSessionEventDAO();
 const agentPendingRequestDAO = new AgentPendingRequestDAO();
 
-const agentSessionLaunchService = new AgentSessionLaunchService(
-  agentSessionDAO,
-  agentTurnDAO,
-  agentSessionEventDAO,
-  new JobService(),
-  new CredentialRequirementsService(),
-  new WorkerExecutionService(),
-);
-
 const agentSessionQueryService = new AgentSessionQueryService(
   agentSessionDAO,
   agentTurnDAO,
@@ -217,7 +206,7 @@ const agentSessionQueryService = new AgentSessionQueryService(
 );
 
 registerTicketAgentSessionRoutes(router, {
-  launchService: agentSessionLaunchService,
+  turns: taskTurns,
   queryService: agentSessionQueryService,
 });
 

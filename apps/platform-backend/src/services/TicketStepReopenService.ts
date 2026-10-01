@@ -36,7 +36,7 @@ export class TicketStepReopenService {
         `The ${step} step is not behind the task's current step, so there is nothing to reopen`,
       );
     }
-    await this.runGuard.assertIdle(ticket.id, ticket.workflowPhase);
+    await this.runGuard.assertIdle(ticket.id);
 
     for (const phase of [TICKET_WORKFLOW_PHASE.RESEARCH, TICKET_WORKFLOW_PHASE.PLANNING]) {
       if (STEP_ORDER.indexOf(phase) < STEP_ORDER.indexOf(step)) continue;

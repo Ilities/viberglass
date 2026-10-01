@@ -1,5 +1,5 @@
 import type { ColumnType } from "kysely";
-import type { TicketWorkflowPhase } from "@viberglass/types";
+import type { TaskTurnAction, TicketWorkflowPhase } from "@viberglass/types";
 import type {
   AgentPendingRequestStatus,
   AgentPendingRequestType,
@@ -261,7 +261,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"research" | "planning" | "execution" | "claw">;
+  job_kind: Generated<"research" | "planning" | "execution" | "reply" | "claw">;
   agent_session_id: string | null;
   agent_turn_id: string | null;
 }
@@ -562,6 +562,8 @@ export interface TicketPhaseDocumentRevisionsTable {
   content: string;
   source: "manual" | "agent";
   actor: string | null;
+  version: number;
+  agent_turn_id: string | null;
   created_at: Generated<Timestamp>;
 }
 
@@ -665,6 +667,8 @@ export interface AgentTurnsTable {
   job_id: string | null;
   user_id: string | null;
   consumed_by_turn_id: string | null;
+  action: TaskTurnAction | null;
+  task_message_id: string | null;
   started_at: Timestamp | null;
   completed_at: Timestamp | null;
   created_at: Generated<Timestamp>;

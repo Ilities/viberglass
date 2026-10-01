@@ -1,7 +1,7 @@
 import { splitMentions } from '@viberglass/types'
 import { renderInline } from './document-inline'
 
-/** A message's text, with each @mention shown as a chip. */
+/** A message's text, with each @mention of a person or an agent shown as a chip. */
 export function MessageBody({ body }: { body: string }) {
   return (
     <p className="text-sm whitespace-pre-wrap text-[var(--gray-12)]">

@@ -8,6 +8,7 @@ const mockAgentTurnDAO = {
   create: jest.fn(),
   update: jest.fn(),
   getInFlightAssistantTurn: jest.fn(),
+  nextSequence: jest.fn(),
 };
 
 const mockAgentSessionEventDAO = {
@@ -24,9 +25,6 @@ const mockTurnContinuationService = {
   launchForPendingMessages: jest.fn(),
 };
 
-const mockJobStopper = {
-  stopJob: jest.fn(),
-};
 
 jest.mock("../../../persistence/agentSession/AgentSessionDAO", () => ({
   AgentSessionDAO: jest.fn(() => mockAgentSessionDAO),
@@ -39,15 +37,6 @@ jest.mock("../../../persistence/agentSession/AgentSessionEventDAO", () => ({
 }));
 jest.mock("../../../persistence/agentSession/AgentPendingRequestDAO", () => ({
   AgentPendingRequestDAO: jest.fn(() => mockAgentPendingRequestDAO),
-}));
-jest.mock("../../../services/JobService", () => ({
-  JobService: jest.fn(() => ({})),
-}));
-jest.mock("../../../services/CredentialRequirementsService", () => ({
-  CredentialRequirementsService: jest.fn(() => ({})),
-}));
-jest.mock("../../../workers", () => ({
-  WorkerExecutionService: jest.fn(() => ({})),
 }));
 jest.mock(
   "../../../services/agentSession/SessionTurnContinuationService",
@@ -64,9 +53,6 @@ import { AgentTurnDAO } from "../../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionEventDAO } from "../../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentPendingRequestDAO } from "../../../persistence/agentSession/AgentPendingRequestDAO";
 import { SessionTurnContinuationService } from "../../../services/agentSession/SessionTurnContinuationService";
-import { JobService } from "../../../services/JobService";
-import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
-import { WorkerExecutionService } from "../../../workers";
 import type { AgentSession } from "../../../persistence/agentSession/AgentSessionDAO";
 import type { AgentTurn } from "../../../persistence/agentSession/AgentTurnDAO";
 
@@ -111,6 +97,8 @@ function makeTurn(overrides: Partial<AgentTurn> = {}): AgentTurn {
     jobId: "job-1",
     userId: null,
     consumedByTurnId: null,
+    action: null,
+    taskMessageId: null,
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
@@ -133,16 +121,13 @@ describe("AgentSessionInteractionService", () => {
         new AgentSessionDAO(),
         new AgentTurnDAO(),
         new AgentSessionEventDAO(),
-        new JobService(),
-        new CredentialRequirementsService(),
-        new WorkerExecutionService(),
       ),
-      mockJobStopper,
     );
 
     mockAgentSessionEventDAO.getMaxSequence.mockResolvedValue(10);
     mockAgentSessionEventDAO.create.mockResolvedValue({});
     mockAgentTurnDAO.create.mockResolvedValue(makeTurn());
+    mockAgentTurnDAO.nextSequence.mockResolvedValue(5);
   });
 
   describe("sendMessage", () => {
@@ -270,49 +255,6 @@ describe("AgentSessionInteractionService", () => {
         mockTurnContinuationService.launchForPendingMessages,
       ).toHaveBeenCalledWith(session, { clearPendingRequest: true });
       expect(result).toEqual(launched);
-    });
-  });
-
-  describe("cancel", () => {
-    it("stops the running job before marking the session cancelled", async () => {
-      mockAgentSessionDAO.getById.mockResolvedValue(
-        makeSession({ status: "active", lastJobId: "job-9", lastTurnId: "turn-9" }),
-      );
-
-      await service.cancel("sess-1", "user-1");
-
-      expect(mockJobStopper.stopJob).toHaveBeenCalledWith("job-9");
-      expect(mockAgentTurnDAO.update).toHaveBeenCalledWith("turn-9", {
-        status: "cancelled",
-      });
-      expect(mockAgentSessionDAO.update).toHaveBeenCalledWith(
-        "sess-1",
-        expect.objectContaining({ status: "cancelled" }),
-      );
-      expect(mockJobStopper.stopJob.mock.invocationCallOrder[0]).toBeLessThan(
-        mockAgentSessionDAO.update.mock.invocationCallOrder[0],
-      );
-    });
-
-    it("does not try to stop a job when the session has none", async () => {
-      mockAgentSessionDAO.getById.mockResolvedValue(
-        makeSession({ status: "waiting_on_user", lastJobId: null }),
-      );
-
-      await service.cancel("sess-1", "user-1");
-
-      expect(mockJobStopper.stopJob).not.toHaveBeenCalled();
-    });
-
-    it("rejects cancelling a session that already ended", async () => {
-      mockAgentSessionDAO.getById.mockResolvedValue(
-        makeSession({ status: "completed", lastJobId: "job-9" }),
-      );
-
-      await expect(service.cancel("sess-1", "user-1")).rejects.toThrow(
-        "terminal state",
-      );
-      expect(mockJobStopper.stopJob).not.toHaveBeenCalled();
     });
   });
 });

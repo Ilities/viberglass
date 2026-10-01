@@ -116,30 +116,37 @@ export class AgentSessionDAO {
     return row ? this.mapRow(row as AgentSessionRow & { project_slug: string | null }) : null;
   }
 
-  async getActiveByTicketAndMode(
-    ticketId: string,
-    mode: AgentSessionMode,
-  ): Promise<AgentSession | null> {
+  /** The agent's open session on a task: there is at most one. */
+  async getOpenByTicketAndClanker(ticketId: string, clankerId: string): Promise<AgentSession | null> {
     const row = await db
       .selectFrom("agent_sessions")
       .selectAll()
       .where("ticket_id", "=", ticketId)
-      .where("mode", "=", mode)
+      .where("clanker_id", "=", clankerId)
       .where("status", "in", [...AGENT_SESSION_ACTIVE_STATUSES])
-      .orderBy("created_at", "desc")
       .executeTakeFirst();
-
     return row ? this.mapRow(row) : null;
   }
 
-  /** The newest open session per task, for task lists. */
+  /** The agent that last worked on the task, if any did. */
+  async getLatestClankerIdByTicket(ticketId: string): Promise<string | null> {
+    const row = await db
+      .selectFrom("agent_sessions")
+      .select("clanker_id")
+      .where("ticket_id", "=", ticketId)
+      .orderBy("updated_at", "desc")
+      .executeTakeFirst();
+    return row?.clanker_id ?? null;
+  }
+
+  /** The newest session per task with a turn running, for task lists. A session waiting between turns isn't live. */
   async listOpenSessionIdsByTicket(ticketIds: string[]): Promise<Map<string, string>> {
     if (ticketIds.length === 0) return new Map();
     const rows = await db
       .selectFrom("agent_sessions")
       .select(["id", "ticket_id"])
       .where("ticket_id", "in", ticketIds)
-      .where("status", "in", [...AGENT_SESSION_ACTIVE_STATUSES])
+      .where("status", "=", AGENT_SESSION_STATUS.ACTIVE)
       .orderBy("created_at", "asc")
       .execute();
     return new Map(rows.map((row) => [row.ticket_id, row.id]));

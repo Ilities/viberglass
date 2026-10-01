@@ -41,6 +41,8 @@ export class TaskSessionMessageDAO {
       ])
       .where("agent_sessions.ticket_id", "=", ticketId)
       .where("agent_turns.role", "=", "user")
+      // Asks made through the thread are thread messages already (TaskTurnService gives them an action).
+      .where("agent_turns.action", "is", null)
       .orderBy("agent_turns.created_at", "asc")
       .execute();
     return rows.flatMap((row) => {

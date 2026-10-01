@@ -1,6 +1,6 @@
 /**
- * Asking for changes on a build: what the reviewer wrote, and the open review
- * comments on the task's pull request that go to the agent with it.
+ * A task's pull request and its open review comments, which go to the agent
+ * when it's asked to build on it.
  */
 export type PullRequestReviewCommentKind = 'thread' | 'review' | 'conversation'
 
@@ -40,11 +40,4 @@ export interface BuildPullRequest {
   comments: PullRequestReviewComment[]
   /** Why the pull request could not be read, when it could not. */
   unavailableReason: string | null
-}
-
-export interface BuildChangeRequest {
-  /** What the reviewer asked for, in their words. */
-  message?: string
-  /** Send the pull request's open review comments to the agent too. */
-  includePullRequestComments?: boolean
 }

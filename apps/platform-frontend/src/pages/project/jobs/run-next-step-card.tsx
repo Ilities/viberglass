@@ -170,15 +170,18 @@ export function RunNextStepCard({
         return (
           <HandoffCard
             owner="settled"
-            eyebrow="Live session"
-            title="This run was one turn of a live session"
+            eyebrow="Answered"
+            title={`${agentName} answered in the task's thread`}
             actions={
-              <Button href={`/spaces/${project}/sessions/${step.sessionId}`} color="brand">
-                Open the session
-              </Button>
+              <>
+                {openTask}
+                <Button href={`/spaces/${project}/sessions/${step.sessionId}`} outline>
+                  Open the session
+                </Button>
+              </>
             }
           >
-            The conversation, and whatever comes next, is in the session.
+            It wrote no document and changed no code. Reply in the thread to carry on.
           </HandoffCard>
         )
       case 'review_research':

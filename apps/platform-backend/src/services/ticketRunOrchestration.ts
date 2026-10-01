@@ -406,8 +406,7 @@ export async function submitJobWithBootstrapAndInvoke(
   preparedContext: PreparedTicketRunContext,
   deps: JobSubmissionDependencies,
 ): Promise<{ jobId: string; status: string }> {
-  const { project, executionClanker, workerType, workerInstructionFiles } =
-    preparedContext;
+  const { project, workerType } = preparedContext;
 
   return withSpan(
     "job.dispatch",

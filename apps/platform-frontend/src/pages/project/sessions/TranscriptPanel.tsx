@@ -148,8 +148,8 @@ function mergeMessages(events: AgentSessionEvent[]): (AgentSessionEvent | Messag
         result.push(currentGroup)
         currentGroup = null
       }
+      const fullPrompt = event.payloadJson?.fullPrompt
       if (event.eventType === 'user_message') {
-        const fullPrompt = event.payloadJson?.fullPrompt
         result.push({
           type: 'user_message',
           text: getEventText(event),
@@ -158,6 +158,11 @@ function mergeMessages(events: AgentSessionEvent[]): (AgentSessionEvent | Messag
           userId: event.userId ?? null,
           ...(typeof fullPrompt === 'string' ? { fullPrompt } : {}),
         })
+      } else if (event.eventType === 'turn_started' && typeof fullPrompt === 'string') {
+        // A turn is told what's new since the last one; that prompt belongs with the message it answers.
+        const asked = result.findLast((item): item is MessageGroup => isMessageGroup(item) && item.type === 'user_message')
+        if (asked) asked.fullPrompt = fullPrompt
+        result.push(event)
       } else {
         result.push(event)
       }

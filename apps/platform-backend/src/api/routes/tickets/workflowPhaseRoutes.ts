@@ -1,28 +1,17 @@
 import type { Router } from "express";
-import {
-  TICKET_WORKFLOW_PHASE,
-  type TextQuote,
-  type TicketWorkflowPhase,
-} from "@viberglass/types";
+import { TICKET_WORKFLOW_PHASE, type TicketWorkflowPhase } from "@viberglass/types";
 import logger from "../../../config/logger";
-import type { TicketPhaseDocumentCommentService } from "../../../services/TicketPhaseDocumentCommentService";
 import type { TicketPhaseDocumentRevisionService } from "../../../services/TicketPhaseDocumentRevisionService";
 import type { TicketPhaseDocumentService } from "../../../services/TicketPhaseDocumentService";
 import type { TicketPlanningService } from "../../../services/TicketPlanningService";
 import type { TicketResearchService } from "../../../services/TicketResearchService";
 import type { TicketWorkflowService } from "../../../services/TicketWorkflowService";
-import {
-  validateRunTicket,
-  validateUuidParam,
-} from "../../middleware/validation";
-import { resolveTicketRouteServiceError } from "./routeErrors";
-import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
+import { validateUuidParam } from "../../middleware/validation";
 
 interface TicketWorkflowPhaseRouteDependencies {
   ticketWorkflowService: TicketWorkflowService;
   ticketPhaseDocumentService: TicketPhaseDocumentService;
   ticketPhaseDocumentRevisionService: TicketPhaseDocumentRevisionService;
-  ticketPhaseDocumentCommentService: TicketPhaseDocumentCommentService;
   ticketResearchService: TicketResearchService;
   ticketPlanningService: TicketPlanningService;
 }
@@ -39,35 +28,12 @@ function parseWorkflowPhaseParam(rawPhase: string): TicketWorkflowPhase | null {
   return null;
 }
 
-/** A comment's quote from the request: undefined when absent, null when malformed. */
-function parseTextQuote(raw: unknown): TextQuote | null | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "object" || raw === null || !("exact" in raw) || !("prefix" in raw) || !("suffix" in raw)) return null;
-  const { exact, prefix, suffix } = raw;
-  if (typeof exact !== "string" || typeof prefix !== "string" || typeof suffix !== "string") return null;
-  return { exact, prefix, suffix };
-}
-
-function parseCommentableWorkflowPhaseParam(
-  rawPhase: string,
-): "research" | "planning" | null {
-  if (rawPhase === TICKET_WORKFLOW_PHASE.RESEARCH) {
-    return TICKET_WORKFLOW_PHASE.RESEARCH;
-  }
-  if (rawPhase === TICKET_WORKFLOW_PHASE.PLANNING) {
-    return TICKET_WORKFLOW_PHASE.PLANNING;
-  }
-
-  return null;
-}
-
 export function registerTicketWorkflowPhaseRoutes(
   router: Router,
   {
     ticketWorkflowService,
     ticketPhaseDocumentService,
     ticketPhaseDocumentRevisionService,
-    ticketPhaseDocumentCommentService,
     ticketResearchService,
     ticketPlanningService,
   }: TicketWorkflowPhaseRouteDependencies,
@@ -177,287 +143,6 @@ export function registerTicketWorkflowPhaseRoutes(
         return res.status(500).json({
           error: "Internal server error",
           message: "Failed to fetch phase document revisions",
-        });
-      }
-    },
-  );
-
-  // GET /api/tasks/:id/phases/:phase/comments - Get inline comments for a phase document
-  router.get(
-    "/:id/phases/:phase/comments",
-    validateUuidParam("id"),
-    async (req, res) => {
-      const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
-      if (!phase) {
-        return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
-        });
-      }
-
-      try {
-        const comments = await ticketPhaseDocumentCommentService.listComments(
-          req.params.id,
-          phase,
-        );
-
-        return res.json({
-          success: true,
-          data: comments,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (message === "Ticket not found") {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        logger.error("Error fetching phase document comments", {
-          ticketId: req.params.id,
-          phase,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to fetch phase document comments",
-        });
-      }
-    },
-  );
-
-  // POST /api/tasks/:id/phases/:phase/comments - Create an inline comment for a phase document
-  router.post(
-    "/:id/phases/:phase/comments",
-    validateUuidParam("id"),
-    async (req, res) => {
-      const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
-      if (!phase) {
-        return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
-        });
-      }
-
-      const { lineNumber, content } = req.body;
-      const quote = parseTextQuote(req.body.quote);
-      if (
-        typeof content !== "string" ||
-        (quote === undefined && !Number.isInteger(lineNumber)) ||
-        quote === null
-      ) {
-        return res.status(400).json({
-          error: "Validation error",
-          message:
-            "content must be a string, with a quote ({ exact, prefix, suffix }) or an integer lineNumber",
-        });
-      }
-
-      try {
-        const comment = await ticketPhaseDocumentCommentService.createComment(
-          req.params.id,
-          phase,
-          {
-            quote,
-            lineNumber: Number.isInteger(lineNumber) ? lineNumber : undefined,
-            content,
-            actor: req.authContext?.user.email,
-          },
-        );
-
-        return res.status(201).json({
-          success: true,
-          data: comment,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (message === "Ticket not found") {
-          return res.status(404).json({
-            error: "Ticket not found",
-          });
-        }
-
-        if (
-          message === "Comment content is required" ||
-          message === "Cannot comment on an empty document" ||
-          message === "Line anchor is out of range" ||
-          message === "The quoted text isn't in the document" ||
-          message === "Pick some text to comment on"
-        ) {
-          return res.status(400).json({
-            error: message,
-          });
-        }
-
-        logger.error("Error creating phase document comment", {
-          ticketId: req.params.id,
-          phase,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to create phase document comment",
-        });
-      }
-    },
-  );
-
-  // PUT /api/tasks/:id/phases/:phase/comments/:commentId - Update an inline comment
-  router.put(
-    "/:id/phases/:phase/comments/:commentId",
-    validateUuidParam("id"),
-    validateUuidParam("commentId"),
-    async (req, res) => {
-      const phase = parseCommentableWorkflowPhaseParam(req.params.phase);
-      if (!phase) {
-        return res.status(400).json({
-          error: "Comments are only supported for research and planning phases",
-        });
-      }
-
-      const { content, status } = req.body;
-      const statusIsValid =
-        status === undefined || status === "open" || status === "resolved";
-      if (
-        (content !== undefined && typeof content !== "string") ||
-        !statusIsValid
-      ) {
-        return res.status(400).json({
-          error: "Validation error",
-          message:
-            "content must be a string and status must be open or resolved",
-        });
-      }
-
-      try {
-        const comment = await ticketPhaseDocumentCommentService.updateComment(
-          req.params.id,
-          phase,
-          req.params.commentId,
-          {
-            content,
-            status,
-            actor: req.authContext?.user.email,
-          },
-        );
-
-        return res.json({
-          success: true,
-          data: comment,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (message === "Comment not found" || message === "Ticket not found") {
-          return res.status(404).json({
-            error: message,
-          });
-        }
-
-        if (
-          message === "Comment content is required" ||
-          message === "At least one comment field must be provided"
-        ) {
-          return res.status(400).json({
-            error: message,
-          });
-        }
-
-        logger.error("Error updating phase document comment", {
-          ticketId: req.params.id,
-          phase,
-          commentId: req.params.commentId,
-          error: message,
-        });
-        return res.status(500).json({
-          error: "Internal server error",
-          message: "Failed to update phase document comment",
-        });
-      }
-    },
-  );
-
-  // POST /api/tasks/:id/phases/research/run - Run research generation
-  router.post(
-    "/:id/phases/research/run",
-    requireRunnerRole,
-    validateUuidParam("id"),
-    validateRunTicket,
-    async (req, res) => {
-      try {
-        const result = await ticketResearchService.runResearch(
-          req.params.id,
-          req.body,
-        );
-
-        return res.status(202).json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error running research", {
-          ticketId: req.params.id,
-          error: message,
-        });
-
-        const serviceError = resolveTicketRouteServiceError(error);
-        if (serviceError) {
-          return res.status(serviceError.statusCode).json(serviceError.body);
-        }
-
-        return res.status(500).json({
-          error: "Internal server error",
-          message,
-        });
-      }
-    },
-  );
-
-  // POST /api/tasks/:id/phases/research/revision - Run research revision
-  router.post(
-    "/:id/phases/research/revision",
-    requireRunnerRole,
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const { clankerId, revisionMessage } = req.body;
-        if (
-          typeof clankerId !== "string" ||
-          typeof revisionMessage !== "string"
-        ) {
-          return res.status(400).json({
-            error: "Validation error",
-            message: "clankerId and revisionMessage must be strings",
-          });
-        }
-
-        const result = await ticketResearchService.runResearchRevision(
-          req.params.id,
-          { clankerId, revisionMessage },
-        );
-
-        return res.status(202).json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error running research revision", {
-          ticketId: req.params.id,
-          error: message,
-        });
-
-        const serviceError = resolveTicketRouteServiceError(error);
-        if (serviceError) {
-          return res.status(serviceError.statusCode).json(serviceError.body);
-        }
-
-        return res.status(500).json({
-          error: "Internal server error",
-          message,
         });
       }
     },
@@ -585,92 +270,6 @@ export function registerTicketWorkflowPhaseRoutes(
         return res.status(500).json({
           error: "Internal server error",
           message: "Failed to save planning document",
-        });
-      }
-    },
-  );
-
-  // POST /api/tasks/:id/phases/planning/run - Run planning generation
-  router.post(
-    "/:id/phases/planning/run",
-    requireRunnerRole,
-    validateUuidParam("id"),
-    validateRunTicket,
-    async (req, res) => {
-      try {
-        const result = await ticketPlanningService.runPlanning(
-          req.params.id,
-          req.body,
-        );
-
-        return res.status(202).json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error running planning", {
-          ticketId: req.params.id,
-          error: message,
-        });
-
-        const serviceError = resolveTicketRouteServiceError(error);
-        if (serviceError) {
-          return res.status(serviceError.statusCode).json(serviceError.body);
-        }
-
-        return res.status(500).json({
-          error: "Internal server error",
-          message,
-        });
-      }
-    },
-  );
-
-  // POST /api/tasks/:id/phases/planning/revision - Run planning revision
-  router.post(
-    "/:id/phases/planning/revision",
-    requireRunnerRole,
-    validateUuidParam("id"),
-    async (req, res) => {
-      try {
-        const { clankerId, revisionMessage } = req.body;
-        if (
-          typeof clankerId !== "string" ||
-          typeof revisionMessage !== "string"
-        ) {
-          return res.status(400).json({
-            error: "Validation error",
-            message: "clankerId and revisionMessage must be strings",
-          });
-        }
-
-        const result = await ticketPlanningService.runPlanningRevision(
-          req.params.id,
-          { clankerId, revisionMessage },
-        );
-
-        return res.status(202).json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        logger.error("Error running planning revision", {
-          ticketId: req.params.id,
-          error: message,
-        });
-
-        const serviceError = resolveTicketRouteServiceError(error);
-        if (serviceError) {
-          return res.status(serviceError.statusCode).json(serviceError.body);
-        }
-
-        return res.status(500).json({
-          error: "Internal server error",
-          message,
         });
       }
     },

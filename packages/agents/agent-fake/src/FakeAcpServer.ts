@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+import { FakeSessionStore } from "./FakeSessionStore";
 import { FakeTurnRunner } from "./FakeTurnRunner";
 
 type JsonRpcId = number | string;
@@ -38,16 +40,18 @@ function promptText(params: Record<string, unknown>): string {
 /**
  * Minimal ACP agent over JSON-RPC lines: initialize, session/new,
  * session/load and session/prompt. Each prompt runs one fake turn in the
- * session's working directory.
+ * session's working directory. Sessions are kept in its state directory, so a
+ * later process continues one the way a real harness does, and a session
+ * whose state is gone can't be loaded.
  */
 export class FakeAcpServer {
   private readonly sessionDirs = new Map<string, string>();
-  private nextSession = 1;
 
   constructor(
     private readonly send: (message: Record<string, unknown>) => void,
     private readonly turnRunner: FakeTurnRunner = new FakeTurnRunner(),
     private readonly defaultCwd: string = process.cwd(),
+    private readonly sessions: FakeSessionStore = new FakeSessionStore(),
   ) {}
 
   async handleLine(line: string): Promise<void> {
@@ -74,9 +78,12 @@ export class FakeAcpServer {
         return { protocolVersion: 1, agentCapabilities: { loadSession: true } };
       case "session/new":
         return { sessionId: this.openSession(params) };
-      case "session/load":
-        this.sessionDirs.set(String(params.sessionId), this.cwdOf(params));
+      case "session/load": {
+        const sessionId = String(params.sessionId);
+        if (!this.sessions.exists(sessionId)) throw new Error("Resource not found");
+        this.sessionDirs.set(sessionId, this.cwdOf(params));
         return {};
+      }
       case "session/prompt":
         return this.prompt(params);
       default:
@@ -85,7 +92,8 @@ export class FakeAcpServer {
   }
 
   private openSession(params: Record<string, unknown>): string {
-    const sessionId = `fake_sess_${this.nextSession++}`;
+    const sessionId = `fake_sess_${randomUUID()}`;
+    this.sessions.create(sessionId);
     this.sessionDirs.set(sessionId, this.cwdOf(params));
     return sessionId;
   }
@@ -93,7 +101,8 @@ export class FakeAcpServer {
   private async prompt(params: Record<string, unknown>): Promise<unknown> {
     const sessionId = String(params.sessionId);
     const repoDir = this.sessionDirs.get(sessionId) ?? this.defaultCwd;
-    const message = await this.turnRunner.run(promptText(params), repoDir);
+    const turn = this.sessions.recordTurn(sessionId);
+    const message = await this.turnRunner.run(promptText(params), repoDir, turn);
 
     this.send({
       jsonrpc: "2.0",

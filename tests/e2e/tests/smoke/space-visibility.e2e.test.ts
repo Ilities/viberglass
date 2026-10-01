@@ -77,8 +77,9 @@ test("a guest invited to one space sees only that space, can't see plumbing and 
   expect(await spaceNames(guest.api)).toEqual(["Guest Space"]);
   expect((await guest.api.get(`/api/spaces/${workspace.projectId}`)).status()).toBe(404);
   expect((await guest.api.get("/api/clankers")).status()).toBe(403);
+  // Guests may talk on the task, but not ask the agent (until S3's rule on who may ask for code).
   expect(
-    (await guest.api.post(`/api/tasks/${task.id}/phases/research/run`, { data: { clankerId: workspace.clankerId } })).status(),
+    (await guest.api.post(`/api/tasks/${task.id}/messages`, { data: { body: "", action: "research", agentId: workspace.clankerId } })).status(),
   ).toBe(403);
 
   const context = await browser.newContext({ storageState: await guest.api.storageState() });

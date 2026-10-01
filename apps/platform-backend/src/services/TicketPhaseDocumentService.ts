@@ -32,6 +32,8 @@ export interface PhaseDocumentView {
 interface SaveDocumentOptions {
   actor?: string;
   source?: PhaseDocumentRevisionSource;
+  /** The agent turn that wrote it. */
+  agentTurnId?: string;
 }
 
 export class TicketPhaseDocumentService {
@@ -99,6 +101,7 @@ export class TicketPhaseDocumentService {
       content,
       source: options.source ?? PHASE_DOCUMENT_REVISION_SOURCE.MANUAL,
       actor: options.actor,
+      agentTurnId: options.agentTurnId,
     });
     // The agent's documents show up as its run finishing; a person's edit is its own entry.
     if (options.source !== PHASE_DOCUMENT_REVISION_SOURCE.AGENT) {

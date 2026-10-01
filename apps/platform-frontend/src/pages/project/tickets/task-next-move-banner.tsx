@@ -1,9 +1,6 @@
 import { Button } from '@/components/button'
 import { CancelRunButton } from '@/components/cancel-run-button'
 import { failureGuidance } from '@/components/failure-guidance'
-import { BuildChangesModal } from '@/components/build-changes-modal'
-import { RevisionModal } from '@/components/revision-modal'
-import { RunTicketModal } from '@/components/run-ticket-modal'
 import { useAuth } from '@/context/auth-context'
 import { cancelJob } from '@/service/api/job-api'
 import { ExternalLinkIcon } from '@radix-ui/react-icons'
@@ -18,21 +15,19 @@ import type { TaskPageData } from './use-task-page'
 
 const STEP_NOUN: Record<TaskStep, string> = { research: 'research', planning: 'plan', execution: 'build' }
 
-const START: Record<TaskStep, { title: string; body: string; label: string }> = {
+/** Starting, revising and trying again are asks in the thread below (ADR 0008); the banner says whose move it is. */
+const START: Record<TaskStep, { title: string; body: string }> = {
   research: {
-    title: 'Start the research',
-    body: 'The agent reads the code and writes up what it finds, for you to review before anything changes.',
-    label: 'Start research',
+    title: 'Ask the agent for the research',
+    body: 'The agent reads the code and writes up what it finds, for you to review before anything changes. Ask it in the thread below.',
   },
   planning: {
-    title: 'Start the plan',
-    body: 'The agent turns the approved research into a step-by-step plan for you to review.',
-    label: 'Start the plan',
+    title: 'Ask the agent for the plan',
+    body: 'The agent turns the research into a step-by-step plan for you to review. Ask it in the thread below.',
   },
   execution: {
-    title: 'Start the build',
-    body: 'The agent makes the change on a branch and opens a pull request for review.',
-    label: 'Start the build',
+    title: 'Ask the agent to build it',
+    body: 'The agent makes the change on a branch and opens a pull request for review. Ask it in the thread below.',
   },
 }
 
@@ -57,21 +52,15 @@ function LinkButton({ onClick, children }: { onClick: () => void; children: stri
 /** The one thing to do next on the task, at the top of its page. */
 export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, onShowRun }: TaskNextMoveBannerProps) {
   const { user } = useAuth()
-  const { ticket, clankers, runs } = data
-  const [starting, setStarting] = useState<TaskStep | null>(null)
-  const [revising, setRevising] = useState<'research' | 'planning' | null>(null)
-  const [changingBuild, setChangingBuild] = useState(false)
+  const { ticket, runs } = data
   const hasPlan = data.documents.planning.content.trim().length > 0
   const [isCancelling, setIsCancelling] = useState(false)
   const [isResolving, setIsResolving] = useState(false)
 
-  // Follow-up runs use the agent of the step's last run, or the first agent that can run.
+  // Approving the research asks the agent that wrote it for the plan.
   const step = 'step' in move ? move.step : ticket.workflowPhase
-  const defaultAgentId =
-    runs.find((run) => run.jobKind === step && run.clankerId)?.clankerId ??
-    clankers.find((clanker) => clanker.status === 'active' && clanker.deploymentStrategyId)?.id ??
-    null
-  const actions = useRunNextStepActions({ project, ticketId: ticket.id, clankerId: defaultAgentId, onChanged })
+  const agentId = runs.find((run) => run.jobKind === step && run.clankerId)?.clankerId ?? null
+  const actions = useRunNextStepActions({ project, ticketId: ticket.id, clankerId: agentId, onChanged })
 
   const cancelRun = async (runId: string) => {
     setIsCancelling(true)
@@ -101,274 +90,156 @@ export function TaskNextMoveBanner({ move, data, project, onChanged, onResolve, 
     </Button>
   )
 
-  const banner = (() => {
-    switch (move.kind) {
-      case 'start': {
-        const copy = START[move.step]
-        return (
-          <HandoffCard
-            owner="you"
-            eyebrow="Next step"
-            title={copy.title}
-            actions={
-              <Button color="brand" onClick={() => setStarting(move.step)}>
-                {copy.label}
-              </Button>
-            }
-          >
-            {copy.body}
-          </HandoffCard>
-        )
-      }
-      case 'working':
-        return (
-          <HandoffCard
-            owner="agent"
-            eyebrow="Agent working"
-            title={`The agent is working on the ${STEP_NOUN[move.step]}`}
-            actions={
-              move.sessionId ? (
-                <Button href={`/spaces/${project}/sessions/${move.sessionId}`} color="brand">
-                  Open the live session
-                </Button>
-              ) : move.runId ? (
-                <>
-                  <CancelRunButton label="Cancel run" isCancelling={isCancelling} onConfirm={() => void cancelRun(move.runId!)} />
-                  <LinkButton onClick={() => onShowRun(move.runId!)}>Watch progress</LinkButton>
-                </>
-              ) : null
-            }
-          >
-            Each run starts in a fresh agent sandbox, which can take a minute or two to start, longer on AWS. You can
-            leave this page; it updates when the agent is done.
-          </HandoffCard>
-        )
-      case 'reply_in_session':
-        return (
-          <HandoffCard
-            owner="you"
-            eyebrow="Your move"
-            title="The agent replied in the live session"
-            actions={
-              <Button href={`/spaces/${project}/sessions/${move.sessionId}`} color="brand">
+  switch (move.kind) {
+    case 'start':
+      return (
+        <HandoffCard owner="you" eyebrow="Next step" title={START[move.step].title}>
+          {START[move.step].body}
+        </HandoffCard>
+      )
+    case 'working':
+      return (
+        <HandoffCard
+          owner="agent"
+          eyebrow="Agent working"
+          title={`The agent is working on the ${STEP_NOUN[move.step]}`}
+          actions={
+            move.runId ? (
+              <>
+                <CancelRunButton label="Cancel run" isCancelling={isCancelling} onConfirm={() => void cancelRun(move.runId!)} />
+                <LinkButton onClick={() => onShowRun(move.runId!)}>Watch progress</LinkButton>
+              </>
+            ) : move.sessionId ? (
+              <Button href={`/spaces/${project}/sessions/${move.sessionId}`} outline>
                 Open the session
               </Button>
-            }
-          >
-            Reply to carry on, or approve what it wrote.
-          </HandoffCard>
-        )
-      case 'review':
-        return move.step === 'research' ? (
-          <HandoffCard
-            owner="you"
-            eyebrow="Your move"
-            title="The research is ready for your review"
-            actions={
-              <>
-                {data.approvals?.research.canApprove ? (
-                  <ApprovePhaseButton
-                    ticketId={ticket.id}
-                    phase="research"
-                    label={actions.busy === 'approve' ? 'Approving…' : 'Approve & plan'}
-                    runInProgress={false}
-                    isApproving={actions.busy !== null}
-                    onApprove={() => void actions.approveResearchAndPlan({ planExists: hasPlan })}
-                  />
-                ) : (
-                  <RequestApproval taskId={ticket.id} step="research" onRequested={onChanged} />
-                )}
-                <Button outline disabled={actions.busy !== null} onClick={() => setRevising('research')}>
-                  Ask for changes
+            ) : null
+          }
+        >
+          Each turn starts in a fresh agent sandbox, which can take a minute or two to start, longer on AWS. You can leave
+          this page; it updates when the agent is done, and what you write in the thread meanwhile reaches it next.
+        </HandoffCard>
+      )
+    case 'review':
+      return move.step === 'research' ? (
+        <HandoffCard
+          owner="you"
+          eyebrow="Your move"
+          title="The research is ready for your review"
+          actions={
+            data.approvals?.research.canApprove ? (
+              <ApprovePhaseButton
+                ticketId={ticket.id}
+                phase="research"
+                label={actions.busy === 'approve' ? 'Approving…' : 'Approve & plan'}
+                runInProgress={false}
+                isApproving={actions.busy !== null}
+                onApprove={() => void actions.approveResearchAndPlan({ planExists: hasPlan })}
+              />
+            ) : (
+              <RequestApproval taskId={ticket.id} step="research" onRequested={onChanged} />
+            )
+          }
+        >
+          {!data.approvals?.research.canApprove
+            ? `Read it below. ${waitingOnText(data.approvals?.research ?? null) ?? 'Ask someone on the task to approve it.'}`
+            : hasPlan
+              ? 'Read it below. Approving takes you to the existing plan, to review it again.'
+              : 'Read it below, and comment on it or ask the agent to change it in the thread. Approving asks it for the plan.'}
+        </HandoffCard>
+      ) : (
+        <HandoffCard
+          owner="you"
+          eyebrow="Your move"
+          title="The plan is ready for your review"
+          actions={
+            data.approvals?.planning.canApprove ? (
+              <ApprovePhaseButton
+                ticketId={ticket.id}
+                phase="planning"
+                label={actions.busy === 'approve' ? 'Approving…' : 'Approve plan'}
+                runInProgress={false}
+                isApproving={actions.busy !== null}
+                onApprove={() => void actions.approvePlan()}
+              />
+            ) : (
+              <RequestApproval taskId={ticket.id} step="planning" onRequested={onChanged} />
+            )
+          }
+        >
+          Read it below, and comment on it or ask the agent to change it in the thread. Once it&apos;s approved, the agent can build it.
+          {!data.approvals?.planning.canApprove &&
+            ` ${waitingOnText(data.approvals?.planning ?? null) ?? 'A space maintainer or an admin can approve it, or a reviewer you ask.'}`}
+        </HandoffCard>
+      )
+    case 'failed': {
+      const guidance = failureGuidance(move.failure ?? undefined, user?.role === 'admin', project)
+      return (
+        <HandoffCard
+          owner="problem"
+          eyebrow={`The ${STEP_NOUN[move.step]} failed`}
+          title={guidance.title}
+          actions={
+            <>
+              {guidance.fix && (
+                <Button href={guidance.fix.href} color="brand">
+                  {guidance.fix.label}
                 </Button>
-              </>
-            }
-          >
-            {!data.approvals?.research.canApprove
-              ? `Read it below. ${waitingOnText(data.approvals?.research ?? null) ?? 'Ask someone on the task to approve it.'}`
-              : hasPlan
-                ? 'Read it below. Approving takes you to the existing plan, to review it again.'
-                : 'Read it below. Approving starts the plan.'}
-          </HandoffCard>
-        ) : (
-          <HandoffCard
-            owner="you"
-            eyebrow="Your move"
-            title="The plan is ready for your review"
-            actions={
-              <>
-                {data.approvals?.planning.canApprove ? (
-                  <ApprovePhaseButton
-                    ticketId={ticket.id}
-                    phase="planning"
-                    label={actions.busy === 'approve' ? 'Approving…' : 'Approve plan'}
-                    runInProgress={false}
-                    isApproving={actions.busy !== null}
-                    onApprove={() => void actions.approvePlan()}
-                  />
-                ) : (
-                  <RequestApproval taskId={ticket.id} step="planning" onRequested={onChanged} />
-                )}
-                <Button outline disabled={actions.busy !== null} onClick={() => setRevising('planning')}>
-                  Ask for changes
-                </Button>
-              </>
-            }
-          >
-            Read it below. Once it&apos;s approved, the build can start.
-            {!data.approvals?.planning.canApprove &&
-              ` ${waitingOnText(data.approvals?.planning ?? null) ?? "A space maintainer or an admin can approve it, or a reviewer you ask."}`}
-          </HandoffCard>
-        )
-      case 'failed': {
-        const guidance = failureGuidance(move.failure ?? undefined, user?.role === 'admin', project)
-        // A task with a pull request has shown its repository accepts pushes,
-        // so a failed build on it can always be run again or asked to change.
-        const buildOnPullRequest = move.step === 'execution' && Boolean(ticket.pullRequestUrl)
-        const retry = buildOnPullRequest ? (
-          <>
-            <Button color="brand" onClick={() => setStarting('execution')}>
-              Run the build again
-            </Button>
-            <Button outline onClick={() => setChangingBuild(true)}>
-              Ask for changes
-            </Button>
-          </>
-        ) : !guidance.canRetry ? null : move.step === 'execution' ? (
-            <Button color="brand" onClick={() => setStarting('execution')}>
-              Try again
-            </Button>
-          ) : (
-            <Button color="brand" disabled={actions.busy !== null} onClick={() => void actions.runAgain(move.step === 'planning' ? 'planning' : 'research')}>
-              {actions.busy === 'retry' ? 'Starting…' : 'Try again'}
-            </Button>
-          )
-        return (
-          <HandoffCard
-            owner="problem"
-            eyebrow={`The ${STEP_NOUN[move.step]} failed`}
-            title={guidance.title}
-            actions={
-              <>
-                {guidance.fix && !buildOnPullRequest && (
-                  <Button href={guidance.fix.href} color="brand">
-                    {guidance.fix.label}
-                  </Button>
-                )}
-                {retry}
-                <LinkButton onClick={() => onShowRun(move.runId)}>See what happened</LinkButton>
-              </>
-            }
-          >
-            <p>{guidance.summary}</p>
-            {!guidance.canRetry && !buildOnPullRequest && <p className="mt-1 text-[var(--gray-10)]">{guidance.nextStep.replace(/ from the task/, '')}</p>}
-          </HandoffCard>
-        )
-      }
-      case 'cancelled':
-        return (
-          <HandoffCard
-            owner="settled"
-            eyebrow="Cancelled"
-            title={`The last ${STEP_NOUN[move.step]} run was cancelled`}
-            actions={
-              <Button color="brand" onClick={() => setStarting(move.step)}>
-                Start again
-              </Button>
-            }
-          >
-            Nothing from it was saved.
-          </HandoffCard>
-        )
-      case 'pull_request':
-        return (
-          <HandoffCard
-            owner="you"
-            eyebrow="Your move"
-            title="The pull request is ready for review"
-            actions={
-              <>
-                <Button href={move.url} target="_blank" color="brand">
-                  <ExternalLinkIcon data-slot="icon" />
-                  View pull request
-                </Button>
-                <Button outline onClick={() => setChangingBuild(true)}>
-                  Ask for changes
-                </Button>
-                <Button outline onClick={() => setStarting('execution')}>
-                  Run the build again
-                </Button>
-                {markDone}
-              </>
-            }
-          >
-            Review and merge it, then mark the task as done. Ask for changes, or run the build again, and the agent adds
-            commits to the same pull request.
-          </HandoffCard>
-        )
-      case 'build_finished':
-        return (
-          <HandoffCard
-            owner="settled"
-            eyebrow="Build finished"
-            title="The build finished without a pull request"
-            actions={
-              <>
-                <Button outline onClick={() => setStarting('execution')}>
-                  Run the build again
-                </Button>
-                {markDone}
-                <LinkButton onClick={() => onShowRun(move.runId)}>See what happened</LinkButton>
-              </>
-            }
-          >
-            The run below says what it changed.
-          </HandoffCard>
-        )
-      case 'done':
-        return <HandoffCard owner="settled" eyebrow="Done" title="This task is done" />
+              )}
+              <LinkButton onClick={() => onShowRun(move.runId)}>See what happened</LinkButton>
+            </>
+          }
+        >
+          <p>{guidance.summary}</p>
+          <p className="mt-1 text-[var(--gray-10)]">
+            {guidance.canRetry ? 'Ask the agent to try again in the thread below.' : guidance.nextStep.replace(/ from the task/, '')}
+          </p>
+        </HandoffCard>
+      )
     }
-  })()
-
-  return (
-    <>
-      {banner}
-      <RunTicketModal
-        ticket={ticket}
-        clankers={clankers}
-        project={project}
-        open={starting !== null}
-        onClose={() => {
-          setStarting(null)
-          onChanged()
-        }}
-        mode={starting ?? 'research'}
-      />
-      {changingBuild && (
-        <BuildChangesModal
-          ticket={ticket}
-          clankers={clankers}
-          project={project}
-          defaultClankerId={defaultAgentId}
-          onClose={() => {
-            setChangingBuild(false)
-            onChanged()
-          }}
-        />
-      )}
-      {revising && (
-        <RevisionModal
-          ticket={ticket}
-          clankers={clankers}
-          project={project}
-          open
-          mode={revising}
-          onClose={() => {
-            setRevising(null)
-            onChanged()
-          }}
-        />
-      )}
-    </>
-  )
+    case 'cancelled':
+      return (
+        <HandoffCard owner="settled" eyebrow="Cancelled" title={`The last ${STEP_NOUN[move.step]} run was cancelled`}>
+          Nothing from it was saved. Ask the agent again in the thread below.
+        </HandoffCard>
+      )
+    case 'pull_request':
+      return (
+        <HandoffCard
+          owner="you"
+          eyebrow="Your move"
+          title="The pull request is ready for review"
+          actions={
+            <>
+              <Button href={move.url} target="_blank" color="brand">
+                <ExternalLinkIcon data-slot="icon" />
+                View pull request
+              </Button>
+              {markDone}
+            </>
+          }
+        >
+          Review and merge it, then mark the task as done. To change it, ask the agent in the thread below: it adds commits to the same
+          pull request.
+        </HandoffCard>
+      )
+    case 'build_finished':
+      return (
+        <HandoffCard
+          owner="settled"
+          eyebrow="Build finished"
+          title="The build finished without a pull request"
+          actions={
+            <>
+              {markDone}
+              <LinkButton onClick={() => onShowRun(move.runId)}>See what happened</LinkButton>
+            </>
+          }
+        >
+          The agent changed no code. Its reply in the thread says why.
+        </HandoffCard>
+      )
+    case 'done':
+      return <HandoffCard owner="settled" eyebrow="Done" title="This task is done" />
+  }
 }

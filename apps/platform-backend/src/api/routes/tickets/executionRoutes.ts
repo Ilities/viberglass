@@ -1,19 +1,14 @@
 import type { Router } from "express";
 import logger from "../../../config/logger";
-import type { TicketExecutionService } from "../../../services/TicketExecutionService";
 import type { TicketWorkflowOverrideService } from "../../../services/TicketWorkflowOverrideService";
 import type { BuildPullRequestService } from "../../../services/pull-request-reviews/BuildPullRequestService";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
-import {
-  validateRunTicket,
-  validateUuidParam,
-} from "../../middleware/validation";
+import { validateUuidParam } from "../../middleware/validation";
 import { resolveTicketRouteServiceError } from "./routeErrors";
 import { isApprovalPolicyError } from "../../../services/errors/ApprovalPolicyError";
 import { requireRunnerRole } from "../../middleware/workspaceRoleGuards";
 
 interface TicketExecutionRouteDependencies {
-  ticketExecutionService: TicketExecutionService;
   ticketWorkflowOverrideService: TicketWorkflowOverrideService;
   ticketDAO: Pick<TicketDAO, "getTicket">;
   buildPullRequestService: Pick<BuildPullRequestService, "forTask">;
@@ -22,7 +17,6 @@ interface TicketExecutionRouteDependencies {
 export function registerTicketExecutionRoutes(
   router: Router,
   {
-    ticketExecutionService,
     ticketWorkflowOverrideService,
     ticketDAO,
     buildPullRequestService,
@@ -43,43 +37,6 @@ export function registerTicketExecutionRoutes(
       return res.status(500).json({ error: "Failed to read the pull request" });
     }
   });
-
-  // POST /api/tasks/:id/run - Run a ticket as a job with worker invocation
-  router.post(
-    "/:id/run",
-    requireRunnerRole,
-    validateUuidParam("id"),
-    validateRunTicket,
-    async (req, res) => {
-      try {
-        const ticketId = req.params.id;
-        const result = await ticketExecutionService.runTicket(
-          ticketId,
-          req.body,
-        );
-
-        return res.status(202).json({
-          success: true,
-          data: result,
-        });
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        logger.error("Error running ticket", {
-          error: error.message,
-        });
-
-        const serviceError = resolveTicketRouteServiceError(err);
-        if (serviceError) {
-          return res.status(serviceError.statusCode).json(serviceError.body);
-        }
-
-        return res.status(500).json({
-          error: "Internal server error",
-          message: error.message || "Failed to run ticket",
-        });
-      }
-    },
-  );
 
   // POST /api/tasks/:id/workflow/override-to-execution - Explicitly bypass research/planning gate
   router.post(

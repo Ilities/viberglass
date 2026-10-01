@@ -1,5 +1,6 @@
 import type { Selectable } from "kysely";
 import db from "../config/database";
+import type { TaskTurnAction } from "@viberglass/types";
 import type { Database, JsonValue } from "../types/database";
 import {
   AGENT_TURN_STATUS,
@@ -25,6 +26,10 @@ export interface AgentTurn {
   userId: string | null;
   /** Assistant turn that consumed this user message; null while queued */
   consumedByTurnId: string | null;
+  /** What the person asked for (user turns), or what the turn was told to do (assistant turns). */
+  action: TaskTurnAction | null;
+  /** The thread message a user turn came from; null for messages sent in the live session. */
+  taskMessageId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -40,6 +45,8 @@ export interface CreateAgentTurnInput {
   contentJson?: JsonValue | null;
   jobId?: string | null;
   userId?: string | null;
+  action?: TaskTurnAction | null;
+  taskMessageId?: string | null;
   startedAt?: Date | null;
   completedAt?: Date | null;
 }
@@ -66,6 +73,8 @@ export class AgentTurnDAO {
         content_json: serializeJson(input.contentJson),
         job_id: input.jobId ?? null,
         user_id: input.userId ?? null,
+        action: input.action ?? null,
+        task_message_id: input.taskMessageId ?? null,
         started_at: input.startedAt ?? null,
         completed_at: input.completedAt ?? null,
       })
@@ -93,6 +102,16 @@ export class AgentTurnDAO {
       .executeTakeFirst();
 
     return row ? this.mapRow(row) : null;
+  }
+
+  /** The sequence number the session's next turn takes. */
+  async nextSequence(sessionId: string): Promise<number> {
+    const row = await db
+      .selectFrom("agent_turns")
+      .select((eb) => eb.fn.max("sequence").as("max"))
+      .where("session_id", "=", sessionId)
+      .executeTakeFirst();
+    return Number(row?.max ?? 0) + 1;
   }
 
   async listBySession(sessionId: string): Promise<AgentTurn[]> {
@@ -184,6 +203,8 @@ export class AgentTurnDAO {
       jobId: row.job_id,
       userId: row.user_id,
       consumedByTurnId: row.consumed_by_turn_id,
+      action: row.action,
+      taskMessageId: row.task_message_id,
       startedAt: row.started_at,
       completedAt: row.completed_at,
       createdAt: row.created_at,

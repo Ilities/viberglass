@@ -31,15 +31,6 @@ jest.mock("../../../persistence/agentSession/AgentSessionDAO", () => ({
 jest.mock("../../../persistence/agentSession/AgentPendingRequestDAO", () => ({
   AgentPendingRequestDAO: jest.fn(() => mockAgentPendingRequestDAO),
 }));
-jest.mock("../../../services/JobService", () => ({
-  JobService: jest.fn(() => ({})),
-}));
-jest.mock("../../../services/CredentialRequirementsService", () => ({
-  CredentialRequirementsService: jest.fn(() => ({})),
-}));
-jest.mock("../../../workers", () => ({
-  WorkerExecutionService: jest.fn(() => ({})),
-}));
 jest.mock("../../../services/agentSession/SessionTurnContinuationService", () => ({
   SessionTurnContinuationService: jest.fn(() => mockTurnContinuationService),
 }));
@@ -49,9 +40,6 @@ import { AgentTurnDAO } from "../../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionDAO } from "../../../persistence/agentSession/AgentSessionDAO";
 import { AgentPendingRequestDAO } from "../../../persistence/agentSession/AgentPendingRequestDAO";
 import { SessionTurnContinuationService } from "../../../services/agentSession/SessionTurnContinuationService";
-import { JobService } from "../../../services/JobService";
-import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
-import { WorkerExecutionService } from "../../../workers";
 import { AgentSessionWorkerEventService } from "../../../services/agentSession/AgentSessionWorkerEventService";
 
 const DOCUMENT_SAVED_EVENTS = [
@@ -69,9 +57,6 @@ function createService(): AgentSessionWorkerEventService {
       new AgentSessionDAO(),
       new AgentTurnDAO(),
       new AgentSessionEventDAO(),
-      new JobService(),
-      new CredentialRequirementsService(),
-      new WorkerExecutionService(),
     ),
   );
 }
@@ -157,13 +142,13 @@ describe("AgentSessionWorkerEventService", () => {
       });
     });
 
-    it("stays active after a failed turn, so the person can retry", async () => {
+    it("waits on the person after a failed turn too, who can ask again", async () => {
       mockTurnContinuationService.drainQueuedMessages.mockResolvedValue(false);
       mockAgentSessionDAO.getById.mockResolvedValue({ id: "sess-1", status: "active" });
 
       await createService().batchIngest("job-1", [{ eventType: "turn_failed", payload: {} }]);
 
-      expect(mockAgentSessionDAO.update).not.toHaveBeenCalledWith("sess-1", {
+      expect(mockAgentSessionDAO.update).toHaveBeenCalledWith("sess-1", {
         status: "waiting_on_user",
       });
     });

@@ -21,6 +21,11 @@ export interface AcpRunOptions {
   userMessage: string;
   /** CLI's own session ID (sess_abc123) — present on turns after the first. */
   acpSessionId?: string;
+  /**
+   * Sent instead of `userMessage` when the turn starts cold: a continued
+   * session already has the context this carries, a fresh one doesn't.
+   */
+  coldStartMessage?: string;
 }
 
 export interface AcpRunResult {
@@ -136,15 +141,16 @@ export class AcpClient {
       let sessionStart = opened.start;
       this.reportSessionStart(sessionStart);
 
+      const coldMessage = options.coldStartMessage ?? options.userMessage;
       try {
-        await this.prompt(options.userMessage);
+        await this.prompt(sessionStart.resumed ? options.userMessage : coldMessage);
       } catch (error) {
         // A harness can accept a load and then fail every prompt (opencode from another directory).
         if (!sessionStart.resumed) throw error;
         sessionStart = { resumed: false, reason: "failed", detail: error instanceof Error ? error.message : String(error) };
         this.currentSessionId = await opener.create();
         this.reportSessionStart(sessionStart);
-        await this.prompt(options.userMessage);
+        await this.prompt(coldMessage);
       }
       const turnOutcome = this.mapper.detectsNeedsInput(this.lastAssistantText)
         ? "needs_input"

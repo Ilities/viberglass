@@ -41,10 +41,8 @@ jest.mock("../../../../services/FileUploadService", () => ({
   },
 }));
 
-jest.mock("../../../../services/TicketExecutionService", () => ({
-  TicketExecutionService: jest.fn(() => ({
-    runTicket: jest.fn(),
-  })),
+jest.mock("../../../../services/taskTurns/TaskTurnService", () => ({
+  TaskTurnService: jest.fn(() => ({ ask: jest.fn() })),
 }));
 
 jest.mock("../../../../services/TicketWorkflowService", () => ({

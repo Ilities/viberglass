@@ -14,7 +14,6 @@ import {
   deploymentStrategySchema,
   updateDeploymentStrategySchema,
   resultCallbackSchema,
-  runTicketSchema,
   progressUpdateSchema,
   codexAuthCacheSchema,
   logEntrySchema,
@@ -139,7 +138,6 @@ export const validateUpdateDeploymentStrategy = createValidator(
   updateDeploymentStrategySchema,
 );
 export const validateResultCallback = createValidator(resultCallbackSchema);
-export const validateRunTicket = createValidator(runTicketSchema);
 export const validateProgressUpdate = createValidator(progressUpdateSchema);
 export const validateCodexAuthCache = createValidator(codexAuthCacheSchema, {
   name: "codexAuthCache",

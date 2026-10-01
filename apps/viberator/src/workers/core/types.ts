@@ -123,8 +123,15 @@ export interface BaseWorkerPayload {
   agentSessionId?: string;
   /** Platform turn UUID linking this job to an agent_turns row */
   agentTurnId?: string;
-  /** Session mode driving prompt assembly and artifact handling */
-  sessionMode?: "research" | "planning" | "execution";
+  /** What the task turn was asked for (research, plan, code, reply, summarise) */
+  turnAction?: TaskTurnAction;
+  /**
+   * Whether the turn may change code. Absent on jobs that aren't task turns,
+   * where a build (jobKind execution) may and nothing else does.
+   */
+  allowCode?: boolean;
+  /** The prompt for a turn whose harness can't continue its session and starts cold */
+  coldStartTask?: string;
   /** CLI's own ACP session ID (sess_abc123) — used to call session/load on resume */
   acpSessionId?: string;
   /** S3 URL of conversation state archive to restore before CLI launch */
@@ -257,7 +264,12 @@ export interface JobResult {
   success: boolean;
   branch?: string;
   pullRequestUrl?: string;
-  documentContent?: string;
+  /** The documents a task turn wrote, each to become the next version. */
+  documents?: TurnDocuments;
+  /** The turn changed code it wasn't asked for, and the changes were thrown away. */
+  codeDiscarded?: boolean;
+  /** Whether the turn continued the harness's earlier session, or started cold and why. */
+  sessionStart?: AcpSessionStart;
   changedFiles: string[];
   executionTime: number;
   errorMessage?: string;
@@ -273,5 +285,7 @@ export interface JobResult {
    */
   runManifest?: ExecutionManifest;
 }
-import type { JobKind } from "@viberglass/types";
+import type { JobKind, TaskTurnAction } from "@viberglass/types";
+import type { AcpSessionStart } from "@viberglass/agent-core";
+import type { TurnDocuments } from "./turnArtifacts";
 import type { ExecutionManifest } from "@viberglass/telemetry";

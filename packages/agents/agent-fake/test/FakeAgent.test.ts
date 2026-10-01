@@ -7,9 +7,10 @@ import type { ExecutionContext } from "@viberglass/agent-core";
 import type { FakeConfig } from "../src/config";
 import fakePlugin from "../src/plugin";
 import { FakeAgent } from "../src";
-import { planFakeTurn } from "../src/fakeTurnPlan";
+import { planFakeTurn, renderFakeDocument } from "../src/fakeTurnPlan";
 import { FakeTurnRunner, FakeTurnIo } from "../src/FakeTurnRunner";
 import { FakeAcpServer } from "../src/FakeAcpServer";
+import { FakeSessionStore } from "../src/FakeSessionStore";
 
 const logger = createLogger({ silent: true });
 
@@ -50,10 +51,24 @@ function recordingIo(): FakeTurnIo & {
     writeFile: async (filePath, contents) => {
       files.set(filePath, contents);
     },
+    appendFile: async (filePath, contents) => {
+      files.set(filePath, (files.get(filePath) ?? "") + contents);
+    },
+    exists: (filePath) => files.has(filePath),
     sleep: async (ms) => {
       sleeps.push(ms);
     },
   };
+}
+
+/** A task turn's prompt, as the `task_turn` template lays it out. */
+function turnPrompt(parts: { task?: string; thread?: string; whatToDo: string }): string {
+  return [
+    parts.task ? `<task>\n<description>${parts.task}</description>\n</task>` : "",
+    parts.thread ? `<thread>\n${parts.thread}\n</thread>` : "",
+    `<what-to-do>\n${parts.whatToDo}\n</what-to-do>`,
+    "How to work:\n- The research and the plan live in RESEARCH.md and PLAN.md.",
+  ].join("\n\n");
 }
 
 describe("planFakeTurn", () => {
@@ -68,11 +83,29 @@ describe("planFakeTurn", () => {
     expect(planFakeTurn(prompt).documentFile).toBe("PLAN.md");
   });
 
-  it("reads sleep, no-document and fail directives", () => {
+  it("reads sleep, no-document, code and fail directives", () => {
     const plan = planFakeTurn(
-      "RESEARCH.md [fake:sleep=30] [fake:no-document] [fake:fail]",
+      "RESEARCH.md [fake:sleep=30] [fake:no-document] [fake:code] [fake:fail]",
     );
-    expect(plan).toEqual({ documentFile: undefined, sleepSeconds: 30, fail: true });
+    expect(plan).toEqual({ documentFile: undefined, code: true, sleepSeconds: 30, fail: true });
+  });
+
+  it("in a task turn, writes the document the turn was asked for, not the ones its rules mention", () => {
+    expect(planFakeTurn(turnPrompt({ whatToDo: "Write the plan: write PLAN.md" })).documentFile).toBe("PLAN.md");
+    expect(planFakeTurn(turnPrompt({ whatToDo: "Revise the research in RESEARCH.md" })).documentFile).toBe("RESEARCH.md");
+    expect(planFakeTurn(turnPrompt({ whatToDo: "Answer what was asked above." })).documentFile).toBeUndefined();
+  });
+
+  it("when asked to answer, writes what people asked for in the thread", () => {
+    const prompt = turnPrompt({ thread: "<message>Now write it up in RESEARCH.md.</message>", whatToDo: "Answer what was asked above." });
+    expect(planFakeTurn(prompt).documentFile).toBe("RESEARCH.md");
+  });
+
+  it("takes directives only from people's words, not from documents quoted back to it", () => {
+    const quoted = `<current-research>${renderFakeDocument("RESEARCH.md", "[fake:fail] [fake:sleep=9]", 1)}</current-research>`;
+    const prompt = `${quoted}\n\n${turnPrompt({ task: "Fix it [fake:code]", thread: "<message>Build it</message>", whatToDo: "Build it" })}`;
+
+    expect(planFakeTurn(prompt)).toEqual({ documentFile: undefined, code: true, sleepSeconds: 0, fail: false });
   });
 });
 
@@ -86,7 +119,28 @@ describe("FakeTurnRunner", () => {
 
     expect(io.sleeps).toEqual([2000]);
     expect(io.files.get(path.join("/repo", "RESEARCH.md"))).toContain("PM NOTE");
-    expect(message).toBe("Fake agent wrote RESEARCH.md.");
+    expect(message).toBe("Writing the research: fake agent, turn 1.\n\nFake agent wrote RESEARCH.md.");
+  });
+
+  it("says it's revising a document that's already there, and which turn it's on", async () => {
+    const io = recordingIo();
+    io.files.set(path.join("/repo", "PLAN.md"), "# Plan v1");
+
+    const message = await new FakeTurnRunner(io).run(turnPrompt({ whatToDo: "Revise the plan in PLAN.md" }), "/repo", 3);
+
+    expect(message.split("\n")[0]).toBe("Revising the plan: fake agent, turn 3.");
+    expect(io.files.get(path.join("/repo", "PLAN.md"))).toContain("This is turn 3 of its session");
+  });
+
+  it("changes code when told to, and answers when there's nothing to write", async () => {
+    const io = recordingIo();
+    const runner = new FakeTurnRunner(io);
+
+    expect(await runner.run(turnPrompt({ thread: "<message>Go [fake:code]</message>", whatToDo: "Build it" }), "/repo", 2)).toBe(
+      "Making the change: fake agent, turn 2.\n\nFake agent changed fake-change.txt.",
+    );
+    expect(io.files.get(path.join("/repo", "fake-change.txt"))).toBe("Changed by the fake agent on turn 2.\n");
+    expect(await runner.run(turnPrompt({ whatToDo: "Answer what was asked above." }), "/repo")).toMatch(/^Answering: /);
   });
 
   it("fails on request without writing anything", async () => {
@@ -99,17 +153,18 @@ describe("FakeTurnRunner", () => {
 });
 
 describe("FakeAcpServer", () => {
-  function startServer() {
+  function startServer(stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "fake-state-"))) {
     const sent: Array<Record<string, unknown>> = [];
     const io = recordingIo();
     const server = new FakeAcpServer(
       (message) => sent.push(message),
       new FakeTurnRunner(io),
       "/default",
+      new FakeSessionStore(stateDir),
     );
     const request = (id: number, method: string, params: unknown) =>
       server.handleLine(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
-    return { sent, io, request };
+    return { sent, io, request, stateDir };
   }
 
   it("runs a prompt in the session's cwd and ends the turn", async () => {
@@ -138,9 +193,9 @@ describe("FakeAcpServer", () => {
   it("returns a JSON-RPC error when the turn fails", async () => {
     const { sent, request } = startServer();
 
-    await request(1, "session/load", { sessionId: "s1", cwd: "/work/repo" });
+    await request(1, "session/new", { cwd: "/work/repo" });
     await request(2, "session/prompt", {
-      sessionId: "s1",
+      sessionId: sessionIdOf(sent[0]),
       prompt: [{ type: "text", text: "[fake:fail]" }],
     });
 
@@ -148,6 +203,23 @@ describe("FakeAcpServer", () => {
       id: 2,
       error: { message: "Fake agent failed on request" },
     });
+  });
+
+  it("continues a session in a later process from its state, and can't load one whose state is gone", async () => {
+    const first = startServer();
+    await first.request(1, "session/new", { cwd: "/work/repo" });
+    const sessionId = sessionIdOf(first.sent[0]);
+    await first.request(2, "session/prompt", { sessionId, prompt: [{ type: "text", text: "Write RESEARCH.md" }] });
+
+    const later = startServer(first.stateDir);
+    await later.request(1, "session/load", { sessionId, cwd: "/work/repo" });
+    await later.request(2, "session/prompt", { sessionId, prompt: [{ type: "text", text: "Write RESEARCH.md" }] });
+    expect(later.sent[0]).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
+    expect(later.io.files.get(path.join("/work/repo", "RESEARCH.md"))).toContain("This is turn 2 of its session");
+
+    const elsewhere = startServer();
+    await elsewhere.request(1, "session/load", { sessionId, cwd: "/work/repo" });
+    expect(elsewhere.sent[0]).toMatchObject({ id: 1, error: { message: "Resource not found" } });
   });
 
   it("rejects methods it does not support", async () => {

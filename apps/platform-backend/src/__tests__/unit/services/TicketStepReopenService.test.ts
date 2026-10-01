@@ -54,7 +54,7 @@ describe("TicketStepReopenService", () => {
     runGuard.assertIdle.mockRejectedValue(new TicketServiceError("PHASE_RUN_IN_PROGRESS", "A build is running"));
 
     await expect(service.reopen("ticket-1", "planning", null)).rejects.toThrow("A build is running");
-    expect(runGuard.assertIdle).toHaveBeenCalledWith("ticket-1", "execution");
+    expect(runGuard.assertIdle).toHaveBeenCalledWith("ticket-1");
     expect(workflow.setPhase).not.toHaveBeenCalled();
   });
 

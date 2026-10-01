@@ -33,6 +33,12 @@ export class TaskDiscussionService {
   }
 
   async post(ticketId: string, authorId: string, body: string): Promise<TaskMessage[]> {
+    await this.create(ticketId, authorId, body);
+    return this.list(ticketId);
+  }
+
+  /** Posts the message and returns its id. */
+  async create(ticketId: string, authorId: string, body: string): Promise<string> {
     const text = body.trim();
     if (!text || text.length > MAX_BODY) {
       throw new TaskParticipantError(TASK_PARTICIPANT_ERROR_CODE.MESSAGE_INVALID, "Write a message of up to 20,000 characters.");
@@ -47,6 +53,6 @@ export class TaskDiscussionService {
       await this.deps.participants.add(ticketId, userId, "watcher", authorId);
     }
     await this.deps.activity.record(ticketId, { type: "human", userId: authorId }, "message_posted", { messageId, mentioned });
-    return this.list(ticketId);
+    return messageId;
   }
 }

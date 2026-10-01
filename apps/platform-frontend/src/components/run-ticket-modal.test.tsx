@@ -1,12 +1,11 @@
 import { Theme } from '@radix-ui/themes'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { Clanker, Ticket } from '@viberglass/types'
 import { RunTicketModal } from './run-ticket-modal'
 
-jest.mock('@/service/api/job-api', () => ({ runTicket: jest.fn() }))
-jest.mock('@/service/api/ticket-api', () => ({ runPlanning: jest.fn(), runResearch: jest.fn() }))
-jest.mock('@/service/api/session-api', () => ({ launchSession: jest.fn() }))
+const mockAsk = jest.fn()
+jest.mock('@/service/api/discussion-api', () => ({ askAgent: (...args: unknown[]) => mockAsk(...args) }))
 jest.mock('@/service/api/project-api', () => ({
   getProjectReadiness: jest.fn().mockResolvedValue({ projectId: 'project-1', automationAvailable: true, checks: [] }),
   getProjectScmConfig: jest.fn().mockResolvedValue({
@@ -52,18 +51,22 @@ const runner: Clanker = {
 }
 
 describe('RunTicketModal', () => {
-  it('offers automatic and live modes from one Research launcher', async () => {
+  it('asks the chosen agent for the research, in the thread', async () => {
+    mockAsk.mockResolvedValue({ sessionId: 's-1', turnId: 't-1', jobId: 'job-1', status: 'pending' })
+    const onClose = jest.fn()
     render(
       <Theme>
         <MemoryRouter>
-          <RunTicketModal ticket={ticket} clankers={[runner]} project="shop" open onClose={jest.fn()} mode="research" />
+          <RunTicketModal ticket={ticket} clankers={[runner]} project="shop" open onClose={onClose} mode="research" />
         </MemoryRouter>
       </Theme>,
     )
 
-    expect(await screen.findByRole('heading', { name: 'Start Research' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Run automatically' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Collaborate live' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Ask for the research' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ask the agent' }))
+
+    await waitFor(() => expect(mockAsk).toHaveBeenCalledWith('ticket-1', { action: 'research', body: 'Write the research', agentId: 'runner-1' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(screen.queryByText(/job/i)).not.toBeInTheDocument()
   })
 

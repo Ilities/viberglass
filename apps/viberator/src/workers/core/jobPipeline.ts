@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { Logger } from "winston";
-import type { BaseAgentConfig } from "@viberglass/agent-core";
+import type { AcpSessionStart, BaseAgentConfig } from "@viberglass/agent-core";
 import {
   ATTR_GEN_AI_AGENT_NAME,
   ATTR_GEN_AI_PROVIDER_NAME,
@@ -26,7 +26,7 @@ import {
   type ExecutionManifest,
   type TokenUsage,
 } from "@viberglass/telemetry";
-import { JOB_FAILURE_CODE } from "@viberglass/types";
+import { JOB_FAILURE_CODE, type TaskTurnAction } from "@viberglass/types";
 import { ExecutionContext } from "../../types";
 import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
@@ -72,7 +72,12 @@ export interface JobRunnerParams {
   agentSessionId?: string;
   agentTurnId?: string;
   acpSessionId?: string;
-  sessionMode?: "research" | "planning" | "execution";
+  /** What the task turn was asked for; absent for jobs that aren't turns. */
+  turnAction?: TaskTurnAction;
+  /** Whether the turn may change code: its changes become a commit on the task's pull request, else they're thrown away. */
+  allowCode: boolean;
+  /** The prompt to send instead if the harness can't continue its session. */
+  coldStartTask?: string;
   sessionEventForwarder?: SessionEventForwarder;
   /** S3 URL of conversation state archive to restore before CLI launch */
   conversationStateUrl?: string;
@@ -236,6 +241,7 @@ export interface AgentExecutionResult {
   errorMessage?: string;
   acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
   newAcpSessionId?: string;
+  acpSessionStart?: AcpSessionStart;
 }
 
 /**
@@ -291,7 +297,7 @@ export async function executeAgentWithRetry(
         [ATTR_VG_TENANT_ID]: data.tenantId,
         [ATTR_VG_AGENT_SESSION_ID]: params.agentSessionId,
         [ATTR_VG_AGENT_TURN_ID]: params.agentTurnId,
-        [ATTR_VG_SESSION_MODE]: params.sessionMode,
+        [ATTR_VG_SESSION_MODE]: params.turnAction,
       }),
     },
     async (span) => {
@@ -441,7 +447,7 @@ export async function withJobLifecycle(
         [ATTR_VG_REPOSITORY]: params.data.repository,
         [ATTR_VG_AGENT_SESSION_ID]: params.agentSessionId,
         [ATTR_VG_AGENT_TURN_ID]: params.agentTurnId,
-        [ATTR_VG_SESSION_MODE]: params.sessionMode,
+        [ATTR_VG_SESSION_MODE]: params.turnAction,
       }),
     },
     async (span) => {

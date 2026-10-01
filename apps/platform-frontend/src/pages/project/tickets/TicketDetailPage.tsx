@@ -18,6 +18,7 @@ import {
 import { TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useAuth } from '@/context/auth-context'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
@@ -26,9 +27,10 @@ import { TaskNextMoveBanner } from './task-next-move-banner'
 import { TaskSidebar } from './task-sidebar'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
-import { openSessionFor, useTaskPage } from './use-task-page'
+import { workingSession, useTaskPage } from './use-task-page'
 import { WorkflowOverrideDialog } from './workflow-override-dialog'
 import { TaskThread } from './task-thread'
+import { taskAgents } from './task-agents'
 
 const LONG_DESCRIPTION = 280
 
@@ -59,6 +61,7 @@ function Description({ text }: { text: string }) {
 
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -69,6 +72,12 @@ export function TicketDetailPage() {
 
   const linkedRunId = searchParams.get('run')
   const changed = useCallback(() => void reload().catch(() => undefined), [reload])
+  // The step view counts new comments as people add and resolve them; the page's counts are from its last load.
+  const [liveNewComments, setLiveNewComments] = useState<Partial<Record<'research' | 'planning', number>>>({})
+  const countNewComments = useCallback(
+    (step: 'research' | 'planning', count: number) => setLiveNewComments((current) => (current[step] === count ? current : { ...current, [step]: count })),
+    []
+  )
 
   // A link to a run (including one a banner action just started) opens it; if it's new, load it.
   const linkedRunMissing = Boolean(linkedRunId && data && !data.runs.some((run) => run.jobId === linkedRunId))
@@ -118,7 +127,7 @@ export function TicketDetailPage() {
     ticket,
     runs: data.runs,
     documents: data.documents,
-    activeSession: openSessionFor(data.sessions, currentStep),
+    workingSession: workingSession(data.sessions),
   })
 
   // A linked run shows its step; otherwise the step picked, or the current one.
@@ -247,6 +256,7 @@ export function TicketDetailPage() {
                 focusedRunTab={searchParams.get('runTab')}
                 onToggleRun={toggleRun}
                 onDocumentSaved={setDocument}
+                onNewComments={countNewComments}
                 onChanged={changed}
               />
             </section>
@@ -258,6 +268,15 @@ export function TicketDetailPage() {
               onOpenArtifact={(step) => {
                 showStep(step)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              agents={taskAgents(data.clankers, data.sessions)}
+              canAsk={user?.role === 'admin' || user?.role === 'member'}
+              onAsked={changed}
+              suggestionInput={{
+                ticket,
+                documents: data.documents,
+                newComments: { ...data.newComments, ...liveNewComments },
+                agentWorking: move.kind === 'working',
               }}
             />
           </main>

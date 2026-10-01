@@ -22,6 +22,10 @@ export interface PhaseDocumentRevision {
   content: string;
   source: PhaseDocumentRevisionSource;
   actor: string | null;
+  /** Numbered from 1 per document, in the order versions were saved. */
+  version: number;
+  /** The agent turn that wrote it; null for hand edits and older versions. */
+  agentTurnId: string | null;
   createdAt: Date;
 }
 
@@ -32,6 +36,7 @@ interface CreatePhaseDocumentRevisionInput {
   content: string;
   source: PhaseDocumentRevisionSource;
   actor?: string;
+  agentTurnId?: string;
 }
 
 export class TicketPhaseDocumentRevisionDAO {
@@ -47,6 +52,11 @@ export class TicketPhaseDocumentRevisionDAO {
         content: input.content,
         source: input.source,
         actor: input.actor ?? null,
+        agent_turn_id: input.agentTurnId ?? null,
+        version: sql<number>`(
+          SELECT coalesce(max(version), 0) + 1 FROM ticket_phase_document_revisions
+          WHERE ticket_id = ${input.ticketId} AND phase = ${input.phase}
+        )`,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -89,6 +99,12 @@ export class TicketPhaseDocumentRevisionDAO {
     return rows.map((row) => ({ ...this.mapRow(row), authorId: row.author_id, authorName: row.author_name }));
   }
 
+  /** Versions people saved by hand after `since`, oldest first, with who saved them. */
+  async listHandEditsSince(ticketId: string, since: Date): Promise<Array<PhaseDocumentRevision & { authorName: string | null }>> {
+    const revisions = await this.listByTicketWithAuthors(ticketId);
+    return revisions.filter((revision) => revision.source === PHASE_DOCUMENT_REVISION_SOURCE.MANUAL && revision.createdAt > since);
+  }
+
   private mapRow(row: PhaseDocumentRevisionRow): PhaseDocumentRevision {
     return {
       id: row.id,
@@ -98,6 +114,8 @@ export class TicketPhaseDocumentRevisionDAO {
       content: row.content,
       source: row.source,
       actor: row.actor,
+      version: row.version,
+      agentTurnId: row.agent_turn_id,
       createdAt: row.created_at,
     };
   }

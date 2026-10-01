@@ -56,7 +56,7 @@ export class InviteDAO {
   }
 
   async listOpen(): Promise<InviteRecord[]> {
-    return this.selectOpen().orderBy("invites.created_at", "desc").execute().then((rows) => rows.map(toRecord));
+    return this.selectOpen().orderBy("invites.created_at", "desc").execute().then((rows) => rows.map(toInviteRecord));
   }
 
   async findOpenByTokenHash(tokenHash: string): Promise<InviteRecord | null> {
@@ -140,11 +140,11 @@ export class InviteDAO {
     filter: (qb: ReturnType<InviteDAO["selectOpen"]>) => ReturnType<InviteDAO["selectOpen"]>,
   ): Promise<InviteRecord | null> {
     const row = await filter(this.selectOpen()).executeTakeFirst();
-    return row ? toRecord(row) : null;
+    return row ? toInviteRecord(row) : null;
   }
 }
 
-function toRecord(row: {
+function toInviteRecord(row: {
   id: string;
   email: string;
   role: UserRole;

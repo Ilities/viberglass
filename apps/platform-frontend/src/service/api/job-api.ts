@@ -1,38 +1,6 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
-import type { BuildChangeRequest, JobFailure, TicketWorkflowPhase } from '@viberglass/types'
-
-export interface JobOverrides {
-  additionalContext?: string
-  reproductionSteps?: string
-  expectedBehavior?: string
-  priorityOverride?: 'critical' | 'high' | 'medium' | 'low'
-  settings?: {
-    maxChanges?: number
-    testRequired?: boolean
-    codingStandards?: string
-    runTests?: boolean
-    testCommand?: string
-    maxExecutionTime?: number
-  }
-}
-
-export interface RunTicketRequest {
-  clankerId: string
-  overrides?: JobOverrides
-  instructionFiles?: Array<{
-    fileType: string
-    content: string
-  }>
-}
-
-export interface RunTicketResponse {
-  success: boolean
-  data: {
-    jobId: string
-    status: string
-  }
-}
+import type { JobFailure, JobKind, TicketWorkflowPhase } from '@viberglass/types'
 
 export interface ProgressUpdate {
   step: string | null
@@ -107,7 +75,7 @@ export interface JobStatusClanker {
 
 export interface JobStatus {
   jobId: string
-  jobKind: 'research' | 'planning' | 'execution' | 'claw'
+  jobKind: JobKind
   status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
   progress: Record<string, unknown> | null
   lastHeartbeat: string | null
@@ -115,7 +83,7 @@ export interface JobStatus {
   logs: LogEntry[]
   data: {
     id: string
-    jobKind: 'research' | 'execution' | 'claw'
+    jobKind: JobKind
     tenantId: string
     repository: string
     task: string
@@ -129,7 +97,6 @@ export interface JobStatus {
     success: boolean
     branch?: string
     pullRequestUrl?: string
-    documentContent?: string
     changedFiles?: string[]
     executionTime?: number
     errorMessage?: string
@@ -150,32 +117,6 @@ export interface JobStatus {
 
 /**
  * Run a ticket as a job with the specified clanker
- */
-export async function runTicket(
-  ticketId: string,
-  clankerId: string,
-  overrides?: JobOverrides,
-  instructionFiles?: Array<{ fileType: string; content: string }>,
-  changeRequest?: BuildChangeRequest,
-): Promise<RunTicketResponse> {
-  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/run`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ clankerId, overrides, instructionFiles, changeRequest }),
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.error || error.message || 'Failed to run task')
-  }
-
-  return response.json()
-}
-
-/**
- * Get job status and details
  */
 export async function getJob(jobId: string): Promise<JobStatus> {
   const response = await apiFetch(`${API_BASE_URL}/api/jobs/${jobId}`)
@@ -206,7 +147,7 @@ export interface JobListItemTicket {
 
 export interface JobListItem {
   jobId: string
-  jobKind: 'research' | 'planning' | 'execution' | 'claw'
+  jobKind: JobKind
   status: 'queued' | 'active' | 'completed' | 'failed' | 'cancelled'
   repository: string
   task: string

@@ -1,10 +1,6 @@
-import type { JobFailure, JobFailureCategory } from "@viberglass/types";
+import { isObjectRecord, type JobFailure, type JobFailureCategory } from "@viberglass/types";
 
 const CATEGORIES: JobFailureCategory[] = ["setup", "agent", "platform"];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function isCategory(value: unknown): value is JobFailureCategory {
   return CATEGORIES.some((category) => category === value);
@@ -15,7 +11,7 @@ function isCategory(value: unknown): value is JobFailureCategory {
  * categories existed have no title or category and are returned without them.
  */
 export function readJobFailure(value: unknown): JobFailure | null {
-  if (!isRecord(value)) return null;
+  if (!isObjectRecord(value)) return null;
   const { code, summary, title, category, technicalDetail, retryable } = value;
   if (typeof code !== "string" || typeof summary !== "string") return null;
   return {
