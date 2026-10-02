@@ -79,7 +79,7 @@ function parseArgs(args: string[]): CliArgs {
 
 function showHelp(): void {
   console.log(`
-Viberator Ephemeral Worker (Docker/ECS)
+Viberator Ephemeral Worker (Docker/ECS/Kubernetes)
 
 Usage:
   worker [options]
@@ -198,9 +198,9 @@ async function main() {
     if (!payload.task) {
       throw new Error("Missing required field: task");
     }
-    if (payload.workerType !== "docker" && payload.workerType !== "ecs") {
+    if (payload.workerType !== "docker" && payload.workerType !== "ecs" && payload.workerType !== "kubernetes") {
       throw new Error(
-        `Invalid workerType: ${payload.workerType}. Expected 'docker' or 'ecs' for CLI worker.`,
+        `Invalid workerType: ${payload.workerType}. Expected 'docker', 'ecs', or 'kubernetes' for CLI worker.`,
       );
     }
 
