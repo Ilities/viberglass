@@ -206,6 +206,8 @@ export interface EcsPayload extends BaseWorkerPayload {
 
 export interface KubernetesPayload extends BaseWorkerPayload {
   workerType: "kubernetes";
+  credentials: Record<string, string>;
+  optionalCredentials?: string[];
   instructionFiles: S3InstructionFile[];
   requiredCredentials: string[];
   deploymentConfig?: Record<string, unknown>;

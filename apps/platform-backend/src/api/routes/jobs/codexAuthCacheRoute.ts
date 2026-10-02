@@ -57,6 +57,14 @@ export function registerCodexAuthCacheRoute(router: Router): void {
           return res.status(403).json({ error: "Access denied" });
         }
 
+        const bootstrap = await jobService.getBootstrapPayload(jobId);
+        const isKubernetes = bootstrap?.payload?.workerType === "kubernetes";
+        if (isKubernetes && (bootstrap.status !== "active" ||
+          !Array.isArray(bootstrap.payload?.requiredCredentials) ||
+          !bootstrap.payload.requiredCredentials.includes(secretName))) {
+          return res.status(403).json({ error: "Auth cache is not authorized for this run" });
+        }
+
         logger.info("Persisting Codex auth cache", {
           jobId,
           tenantId,
@@ -65,6 +73,7 @@ export function registerCodexAuthCacheRoute(router: Router): void {
         const metadata = await secretService.upsertWorkerAuthCache(
           secretName,
           authJson,
+          isKubernetes ? "database" : "ssm",
         );
 
         logger.info("Persisted Codex auth cache", {

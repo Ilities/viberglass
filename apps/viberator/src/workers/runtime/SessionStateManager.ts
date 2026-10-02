@@ -11,6 +11,7 @@
  *   helpers that deal with tar.gz creation/extraction only.
  */
 
+import { objectStorageBucket, objectStorageClientConfig } from "@viberglass/types";
 import * as fs from "fs";
 import * as path from "path";
 import { execFile } from "child_process";
@@ -161,16 +162,14 @@ async function uploadToS3(
   sessionId: string,
   logger: Logger,
 ): Promise<string | undefined> {
-  const bucketName = process.env.AWS_S3_BUCKET?.trim();
+  const bucketName = objectStorageBucket(process.env);
   if (!bucketName) {
-    logger.warn("AWS_S3_BUCKET not configured, skipping S3 upload");
+    logger.warn("S3_BUCKET / AWS_S3_BUCKET not configured, skipping S3 upload");
     return undefined;
   }
 
   try {
-    const s3Client = new S3Client({
-      region: process.env.AWS_REGION || "eu-west-1",
-    });
+    const s3Client = new S3Client(objectStorageClientConfig(process.env));
 
     const key = `conversation-state/${sessionId}/${Date.now()}.tar.gz`;
     await s3Client.send(
@@ -210,9 +209,7 @@ async function downloadFromS3(
     }
 
     const [, bucket, key] = match;
-    const s3Client = new S3Client({
-      region: process.env.AWS_REGION || "eu-west-1",
-    });
+    const s3Client = new S3Client(objectStorageClientConfig(process.env));
 
     const response = await s3Client.send(
       new GetObjectCommand({ Bucket: bucket, Key: key }),
@@ -301,7 +298,7 @@ export async function captureAndStore(
   }
 
   // Prefer S3 when configured (production)
-  if (process.env.AWS_S3_BUCKET?.trim()) {
+  if (objectStorageBucket(process.env)) {
     const s3Url = await uploadToS3(archiveBuffer, sessionId, logger);
     if (s3Url) return s3Url;
     // Fall through to local if S3 upload fails

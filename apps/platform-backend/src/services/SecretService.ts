@@ -275,9 +275,15 @@ export class SecretService {
     return Object.fromEntries(entries);
   }
 
+  async resolveNamedSecret(name: string): Promise<string | undefined> {
+    const secret = await this.secretDao.getSecretByName(name);
+    return secret ? this.resolveSecretValue(secret) : undefined;
+  }
+
   async upsertWorkerAuthCache(
     name: string,
     authJson: string,
+    location: "ssm" | "database" = "ssm",
   ): Promise<SecretMetadata> {
     const normalizedName = name.trim();
     if (!normalizedName) {
@@ -293,9 +299,9 @@ export class SecretService {
       );
     }
 
-    const preparedAuthJson = encodeCodexAuthForSsm(authJson);
+    const preparedAuthJson = location === "ssm" ? encodeCodexAuthForSsm(authJson) : compactJsonForStorage(authJson);
     const payloadBytes = Buffer.byteLength(preparedAuthJson, "utf-8");
-    if (payloadBytes > MAX_SSM_SECRET_SIZE_BYTES) {
+    if (location === "ssm" && payloadBytes > MAX_SSM_SECRET_SIZE_BYTES) {
       throw new SecretServiceError(
         SECRET_SERVICE_ERROR_CODE.AUTH_CACHE_TOO_LARGE,
         `Codex auth cache exceeds SSM size limit (${payloadBytes} bytes)`,
@@ -305,7 +311,7 @@ export class SecretService {
     const existing = await this.secretDao.getSecretByName(normalizedName);
     if (existing) {
       return this.updateSecret(existing.id, {
-        secretLocation: "ssm",
+        secretLocation: location,
         secretValue: preparedAuthJson,
         secretPath: existing.secretPath,
       });
@@ -313,7 +319,7 @@ export class SecretService {
 
     return this.createSecret({
       name: normalizedName,
-      secretLocation: "ssm",
+      secretLocation: location,
       secretValue: preparedAuthJson,
     });
   }

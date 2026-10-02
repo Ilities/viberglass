@@ -22,7 +22,8 @@ export class KubernetesInvoker implements WorkerInvoker {
   ) {}
 
   async invoke(job: JobData, clanker: Clanker, project?: Project): Promise<InvocationResult> {
-    const strategy = resolveClankerConfig(clanker).config.strategy;
+    const config = resolveClankerConfig(clanker).config;
+    const strategy = config.strategy;
     if (strategy.type !== "kubernetes") {
       throw new WorkerError(`Clanker deployment strategy is ${strategy.type}, expected kubernetes`, ErrorClassification.PERMANENT);
     }
@@ -40,7 +41,7 @@ export class KubernetesInvoker implements WorkerInvoker {
       throw new WorkerError(`Kubernetes namespace ${strategy.namespace} is not allowed`, ErrorClassification.PERMANENT);
     }
 
-    const payload = job.bootstrapPayload
+    const payload: Record<string, unknown> = job.bootstrapPayload
       ? { ...job.bootstrapPayload, workerType: "kubernetes", callbackToken: job.callbackToken, platformApiUrl }
       : {
           workerType: "kubernetes",
@@ -64,6 +65,9 @@ export class KubernetesInvoker implements WorkerInvoker {
           scm: job.scm,
           overrides: job.overrides,
         };
+    const codex = config.agent.type === "codex" ? config.agent.codexAuth : undefined;
+    payload.optionalCredentials = codex && codex.mode !== "api_key" ? [codex.secretName] : [];
+    delete payload.credentials;
     await this.jobs.saveBootstrapPayload(job.id, payload);
 
     const manifest = buildKubernetesJob({

@@ -9,7 +9,7 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 import { randomUUID } from "crypto";
-import type { MediaAsset } from "@viberglass/types";
+import { objectStorageBucket, objectStorageClientConfig, type MediaAsset } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 import { buildMediaContentUrl } from "./ticket-media/publicApiUrl";
 import {
@@ -22,28 +22,10 @@ import { parseMediaLocation } from "./ticket-media/mediaLocation";
 
 const logger = createChildLogger({ service: "FileUploadService" });
 
-const region = process.env.AWS_REGION || "eu-west-1";
-const bucketName = process.env.AWS_S3_BUCKET?.trim() || "";
+const bucketName = objectStorageBucket(process.env);
 const hasS3Bucket = bucketName.length > 0;
 
-function createS3Client(): S3Client {
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || "";
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || "";
-
-  if (accessKeyId && secretAccessKey) {
-    return new S3Client({
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-      region,
-    });
-  }
-
-  return new S3Client({ region });
-}
-
-const s3 = createS3Client();
+const s3 = new S3Client(objectStorageClientConfig(process.env));
 
 // Configure multer for memory storage
 export const upload = multer({
