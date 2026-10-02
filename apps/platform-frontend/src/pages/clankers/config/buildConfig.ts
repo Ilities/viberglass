@@ -69,10 +69,10 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
     }
   }
 
-  if (selectedAgent === 'gemini-cli') {
-    const model = input.form.geminiModel.trim()
+  if (selectedAgent === 'antigravity') {
+    const model = input.form.antigravityModel.trim()
     return {
-      type: 'gemini-cli',
+      type: 'antigravity',
       ...(model ? { model } : {}),
     }
   }
@@ -80,7 +80,8 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
   const fallback =
     selectedAgent === 'claude-code' ||
     selectedAgent === 'kimi-code' ||
-    selectedAgent === 'mistral-vibe'
+    selectedAgent === 'mistral-vibe' ||
+    selectedAgent === 'pi'
       ? selectedAgent
       : 'claude-code'
   return {

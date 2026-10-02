@@ -72,7 +72,7 @@ flowchart TB
 
         subgraph Agent["AI Agent Harness"]
             A1["Claude Code"]
-            A2["Codex/Gemini/Qwen"]
+            A2["Codex/Antigravity/Qwen"]
             A3["Mistral/Kimi/OpenCode"]
         end
 
@@ -182,11 +182,12 @@ AI agent execution engine that processes jobs.
 **Supported Agent Harnesses:**
 - Claude Code (Anthropic)
 - OpenAI Codex
-- Gemini CLI (Google)
+- Google Antigravity
 - Qwen CLI (Alibaba)
 - Mistral Vibe
 - OpenCode
 - Kimi Code
+- Pi
 
 ### Infrastructure (`infra/`)
 

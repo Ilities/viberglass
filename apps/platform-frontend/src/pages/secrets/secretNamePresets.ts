@@ -31,10 +31,10 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
     names: ['QWEN_CLI_API_KEY', 'DASHSCOPE_API_KEY', 'QWEN_API_KEY'],
   },
   {
-    id: 'gemini-cli',
-    label: 'Gemini CLI',
-    helper: 'Recommended: GEMINI_API_KEY. GOOGLE_API_KEY is used for Vertex AI API-key mode.',
-    names: ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_CLI_API_KEY'],
+    id: 'antigravity',
+    label: 'Google Antigravity',
+    helper: 'Required: GEMINI_API_KEY, a Gemini Developer API key.',
+    names: ['GEMINI_API_KEY'],
   },
   {
     id: 'mistral-vibe',
@@ -47,6 +47,12 @@ export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
     label: 'Kimi Code',
     helper: 'Recommended: KIMI_API_KEY.',
     names: ['KIMI_API_KEY', 'KIMI_CODE_API_KEY', 'KIMI_CODE_ENDPOINT'],
+  },
+  {
+    id: 'pi',
+    label: 'Pi',
+    helper: 'Pi reads the key of whichever provider its model uses, e.g. ANTHROPIC_API_KEY or ZAI_API_KEY.',
+    names: ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'ZAI_API_KEY', 'OPENCODE_API_KEY', 'OPENROUTER_API_KEY'],
   },
 ]
 

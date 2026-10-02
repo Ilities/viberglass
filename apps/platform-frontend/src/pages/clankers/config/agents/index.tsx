@@ -2,7 +2,7 @@ import type { AgentType, CodexAuthMode } from '@viberglass/types'
 import { CodexAgentFields } from './codexFields'
 import { OpenCodeAgentFields } from './opencodeFields'
 import { QwenAgentFields } from './qwenFields'
-import { GeminiAgentFields } from './geminiFields'
+import { AntigravityAgentFields } from './antigravityFields'
 
 interface AgentSpecificFieldsProps {
   selectedAgent: AgentType | ''
@@ -11,12 +11,12 @@ interface AgentSpecificFieldsProps {
   qwenEndpoint: string
   opencodeEndpoint: string
   opencodeModel: string
-  geminiModel: string
+  antigravityModel: string
   onCodexAuthModeChange: (mode: CodexAuthMode) => void
   onQwenEndpointChange: (endpoint: string) => void
   onOpenCodeEndpointChange: (endpoint: string) => void
   onOpenCodeModelChange: (model: string) => void
-  onGeminiModelChange: (model: string) => void
+  onAntigravityModelChange: (model: string) => void
 }
 
 export function AgentSpecificFields({
@@ -26,12 +26,12 @@ export function AgentSpecificFields({
   qwenEndpoint,
   opencodeEndpoint,
   opencodeModel,
-  geminiModel,
+  antigravityModel,
   onCodexAuthModeChange,
   onQwenEndpointChange,
   onOpenCodeEndpointChange,
   onOpenCodeModelChange,
-  onGeminiModelChange,
+  onAntigravityModelChange,
 }: AgentSpecificFieldsProps) {
   if (selectedAgent === 'codex') {
     return (
@@ -58,8 +58,8 @@ export function AgentSpecificFields({
     )
   }
 
-  if (selectedAgent === 'gemini-cli') {
-    return <GeminiAgentFields model={geminiModel} onModelChange={onGeminiModelChange} />
+  if (selectedAgent === 'antigravity') {
+    return <AntigravityAgentFields model={antigravityModel} onModelChange={onAntigravityModelChange} />
   }
 
   return null

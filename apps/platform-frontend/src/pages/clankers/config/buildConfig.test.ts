@@ -50,6 +50,31 @@ describe('buildClankerDeploymentConfig', () => {
     expect(result).not.toHaveProperty('agent.model')
   })
 
+  test('includes the antigravity model when provided', () => {
+    const result = buildClankerDeploymentConfig({
+      strategyName: 'docker',
+      selectedAgent: 'antigravity',
+      form: {
+        ...DEFAULT_CLANKER_CONFIG_FORM_STATE,
+        antigravityModel: ' gemini-3.1-pro-high ',
+      },
+    })
+
+    expect(result).toMatchObject({
+      agent: { type: 'antigravity', model: 'gemini-3.1-pro-high' },
+    })
+  })
+
+  test('keeps pi as the agent rather than falling back to claude-code', () => {
+    const result = buildClankerDeploymentConfig({
+      strategyName: 'docker',
+      selectedAgent: 'pi',
+      form: DEFAULT_CLANKER_CONFIG_FORM_STATE,
+    })
+
+    expect(result).toMatchObject({ agent: { type: 'pi' } })
+  })
+
   test('includes lambda memorySize and timeout in managed mode', () => {
     const result = buildClankerDeploymentConfig({
       strategyName: 'lambda',

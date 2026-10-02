@@ -87,10 +87,10 @@ function loadPlugin(packageDirName: string): LoadedPlugin {
 
 // All agent plugin packages (order only affects multi-agent supportedAgents sort)
 const PLUGIN_PACKAGES = [
+  "agent-antigravity",
   "agent-claude-code",
   "agent-codex",
   "agent-fake",
-  "agent-gemini",
   "agent-kimi",
   "agent-mistral-vibe",
   "agent-opencode",

@@ -1,22 +1,22 @@
 import { Description, Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 
-interface GeminiAgentFieldsProps {
+interface AntigravityAgentFieldsProps {
   model: string
   onModelChange: (model: string) => void
 }
 
-export function GeminiAgentFields({ model, onModelChange }: GeminiAgentFieldsProps) {
+export function AntigravityAgentFields({ model, onModelChange }: AntigravityAgentFieldsProps) {
   return (
     <Field>
-      <Label>Gemini Model</Label>
+      <Label>Antigravity Model</Label>
       <Description>
-        Optional model passed as <code>--model</code> to the Gemini CLI for this agent runner.
+        Optional Antigravity model id for this agent runner. Leave empty for Antigravity's default.
       </Description>
       <Input
         value={model}
         onChange={(event) => onModelChange(event.target.value)}
-        placeholder="gemini-2.5-pro"
+        placeholder="gemini-3.1-pro-high"
       />
     </Field>
   )

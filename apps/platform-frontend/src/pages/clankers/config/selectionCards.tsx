@@ -28,13 +28,17 @@ const AGENT_VISUALS: Record<AgentType, AgentVisual> = {
     logoPath: '/logos/agents/kimi-code.ico',
     summary: 'Moonshot/Kimi based coding agent tuned for high-context completion.',
   },
-  'gemini-cli': {
-    logoPath: '/logos/agents/gemini-cli.ico',
-    summary: 'Gemini CLI agent with selectable model profile for runtime behavior.',
+  antigravity: {
+    logoPath: '/logos/agents/antigravity.svg',
+    summary: "Google's agent harness on Gemini models, with a selectable model.",
   },
   'mistral-vibe': {
     logoPath: '/logos/agents/mistral-vibe.ico',
     summary: 'Mistral-native coding option optimized for quick iterative execution.',
+  },
+  pi: {
+    logoPath: '/logos/agents/pi.svg',
+    summary: 'Minimal, extensible coding agent that runs models from many providers.',
   },
   // Not in AGENT_OPTIONS, so never rendered as a card; present to keep the record total.
   fake: {

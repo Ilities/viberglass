@@ -110,7 +110,7 @@ describe("providerNameForAgent", () => {
       GEN_AI_PROVIDER_NAME_VALUE_ANTHROPIC,
     );
     expect(providerNameForAgent("codex")).toBe(GEN_AI_PROVIDER_NAME_VALUE_OPENAI);
-    expect(providerNameForAgent("gemini")).toBe(
+    expect(providerNameForAgent("antigravity")).toBe(
       GEN_AI_PROVIDER_NAME_VALUE_GCP_GEMINI,
     );
   });

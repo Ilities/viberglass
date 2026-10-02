@@ -98,7 +98,7 @@ export function NewClankerPage() {
   const [qwenEndpoint, setQwenEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint)
   const [opencodeEndpoint, setOpencodeEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeEndpoint)
   const [opencodeModel, setOpencodeModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel)
-  const [geminiModel, setGeminiModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel)
+  const [antigravityModel, setAntigravityModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.antigravityModel)
   const [agentInstructions, setAgentInstructions] = useState('')
   const [skills, setSkills] = useState<SkillEntry[]>([])
   const [showAllSecrets, setShowAllSecrets] = useState(false)
@@ -232,7 +232,7 @@ export function NewClankerPage() {
         qwenEndpoint,
         opencodeEndpoint,
         opencodeModel,
-        geminiModel,
+        antigravityModel,
       },
     })
 
@@ -305,12 +305,12 @@ export function NewClankerPage() {
               qwenEndpoint={qwenEndpoint}
               opencodeEndpoint={opencodeEndpoint}
               opencodeModel={opencodeModel}
-              geminiModel={geminiModel}
+              antigravityModel={antigravityModel}
               onCodexAuthModeChange={setCodexAuthMode}
               onQwenEndpointChange={setQwenEndpoint}
               onOpenCodeEndpointChange={setOpencodeEndpoint}
               onOpenCodeModelChange={setOpencodeModel}
-              onGeminiModelChange={setGeminiModel}
+              onAntigravityModelChange={setAntigravityModel}
             />
 
             {getHarnessConfigFile(selectedAgent || '') && !showHarnessConfig && (

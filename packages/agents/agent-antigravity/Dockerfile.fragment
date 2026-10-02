@@ -1,0 +1,16 @@
+# Fragment: Google Antigravity agent
+# Google's ACP server for Antigravity; the worker talks to it directly.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
+COPY packages/agents/agent-antigravity/install-acp-server.sh /tmp/install-agy-acp.sh
+RUN sh /tmp/install-agy-acp.sh /opt/agy-acp && rm /tmp/install-agy-acp.sh
+USER viberator
+ENV PATH="/opt/agy-acp:${PATH}"
+
+RUN which agy_acp_server.par || echo "Warning: agy_acp_server.par not found in PATH"
+
+ENV AGENT_TYPE=antigravity
+
+LABEL agent.type="antigravity" \
+      agent.provider="google" \
+      viberator.worker-type="agent"

@@ -13,8 +13,9 @@ export type AgentType =
   | 'codex'
   | 'opencode'
   | 'kimi-code'
-  | 'gemini-cli'
+  | 'antigravity'
   | 'mistral-vibe'
+  | 'pi'
   | 'fake'
 
 export const DEFAULT_AGENT_TYPE: AgentType = 'claude-code'
@@ -25,8 +26,9 @@ export const SUPPORTED_AGENT_TYPES: AgentType[] = [
   'codex',
   'opencode',
   'kimi-code',
-  'gemini-cli',
+  'antigravity',
   'mistral-vibe',
+  'pi',
   // Deterministic e2e test agent. Accepted by the API, not offered in AGENT_OPTIONS.
   'fake',
 ]
@@ -37,8 +39,9 @@ export const AGENT_LABELS: Record<AgentType, string> = {
   codex: 'OpenAI Codex',
   opencode: 'OpenCode',
   'kimi-code': 'Kimi Code',
-  'gemini-cli': 'Gemini CLI',
+  antigravity: 'Google Antigravity',
   'mistral-vibe': 'Mistral Vibe',
+  pi: 'Pi',
   fake: 'Fake (end-to-end tests)',
 }
 
@@ -52,8 +55,9 @@ export const AGENT_OPTIONS: Array<{
   { value: 'codex', label: AGENT_LABELS.codex },
   { value: 'opencode', label: AGENT_LABELS.opencode },
   { value: 'kimi-code', label: AGENT_LABELS['kimi-code'] },
-  { value: 'gemini-cli', label: AGENT_LABELS['gemini-cli'] },
+  { value: 'antigravity', label: AGENT_LABELS.antigravity },
   { value: 'mistral-vibe', label: AGENT_LABELS['mistral-vibe'] },
+  { value: 'pi', label: AGENT_LABELS.pi },
 ]
 
 export function getAgentLabel(agent?: AgentType | null): string {

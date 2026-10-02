@@ -6,7 +6,7 @@
 #
 # Examples:
 #   ./compose-dockerfile.sh --agent pi
-#   ./compose-dockerfile.sh --agent gemini
+#   ./compose-dockerfile.sh --agent antigravity
 #
 # Output: infra/workers/docker/generated/<variant>.Dockerfile
 #

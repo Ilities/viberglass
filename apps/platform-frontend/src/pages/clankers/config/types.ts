@@ -15,7 +15,7 @@ export interface ClankerConfigFormState {
   qwenEndpoint: string
   opencodeEndpoint: string
   opencodeModel: string
-  geminiModel: string
+  antigravityModel: string
 }
 
 export const DEFAULT_CODEX_AUTH_SECRET_NAME = 'CODEX_AUTH_JSON'
@@ -33,7 +33,7 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   qwenEndpoint: '',
   opencodeEndpoint: '',
   opencodeModel: '',
-  geminiModel: '',
+  antigravityModel: '',
 }
 
 export type StrategyName = 'docker' | 'ecs' | 'aws-lambda-container' | 'lambda'

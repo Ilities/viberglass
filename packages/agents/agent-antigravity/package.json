@@ -1,7 +1,7 @@
 {
-  "name": "@viberglass/agent-gemini",
+  "name": "@viberglass/agent-antigravity",
   "version": "1.0.0",
-  "description": "Gemini CLI agent plugin for Viberglass orchestrator",
+  "description": "Google Antigravity agent plugin for Viberglass orchestrator",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

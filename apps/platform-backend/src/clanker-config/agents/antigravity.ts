@@ -1,11 +1,11 @@
-import type { GeminiAgentConfig } from "@viberglass/types";
+import type { AntigravityAgentConfig } from "@viberglass/types";
 import { toNonEmptyString, toObjectRecord } from "../parsers";
 
-export function normalizeGeminiAgentConfig(value: unknown): GeminiAgentConfig {
+export function normalizeAntigravityAgentConfig(value: unknown): AntigravityAgentConfig {
   const source = toObjectRecord(value) || {};
 
-  const normalized: GeminiAgentConfig = {
-    type: "gemini-cli",
+  const normalized: AntigravityAgentConfig = {
+    type: "antigravity",
   };
 
   const model = toNonEmptyString(source.model);

@@ -124,13 +124,13 @@ export interface KimiAgentConfig {
   model?: string;
 }
 
-export interface GeminiAgentConfig {
-  type: "gemini-cli";
+export interface AntigravityAgentConfig {
+  type: "antigravity";
   model?: string;
 }
 
 export interface GenericAgentConfig {
-  type: Exclude<AgentType, "codex" | "qwen-cli" | "opencode" | "kimi-code" | "gemini-cli">;
+  type: Exclude<AgentType, "codex" | "qwen-cli" | "opencode" | "kimi-code" | "antigravity">;
 }
 
 export type ClankerAgentConfig =
@@ -138,7 +138,7 @@ export type ClankerAgentConfig =
   | QwenAgentConfig
   | OpenCodeAgentConfig
   | KimiAgentConfig
-  | GeminiAgentConfig
+  | AntigravityAgentConfig
   | GenericAgentConfig;
 
 export interface ClankerConfigV1 {

@@ -15,7 +15,7 @@ RUN npm run build:worker
 FROM public.ecr.aws/lambda/nodejs:24
 
 # Install git and file utilities (curl-minimal is already present in the base image)
-RUN dnf install -y git findutils ca-certificates tar && dnf clean all
+RUN dnf install -y git findutils ca-certificates tar unzip && dnf clean all
 
 WORKDIR ${LAMBDA_TASK_ROOT}
 
@@ -26,16 +26,20 @@ RUN npm install -g typescript
 RUN npm install -g \
     @anthropic-ai/claude-code \
     @qwen-code/qwen-code@latest \
-    @google/gemini-cli \
     @openai/codex \
     opencode-ai@latest \
-    @earendil-works/pi-coding-agent \
+    @earendil-works/pi-coding-agent@^1.0.0 \
     pi-acp \
     @agentclientprotocol/claude-agent-acp \
     @agentclientprotocol/codex-acp
 
 # Ensure user-level CLI installs are available during subsequent build steps.
 ENV PATH="/root/.kimi-code/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
+
+# Install Google Antigravity's ACP server.
+COPY packages/agents/agent-antigravity/install-acp-server.sh /tmp/install-agy-acp.sh
+RUN sh /tmp/install-agy-acp.sh /opt/agy-acp && rm /tmp/install-agy-acp.sh
+ENV PATH="/opt/agy-acp:${PATH}"
 
 # Install Kimi Code CLI (the older kimi-cli refuses to run; the installer keeps it as kimi-legacy).
 RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash \

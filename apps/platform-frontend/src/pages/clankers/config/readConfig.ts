@@ -49,7 +49,7 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
       opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
       opencodeModel: input.agent === 'opencode' ? legacyOpenCodeModel : '',
-      geminiModel: input.agent === 'gemini-cli' ? legacyOpenCodeModel : '',
+      antigravityModel: input.agent === 'antigravity' ? legacyOpenCodeModel : '',
     },
   }
 }
@@ -99,13 +99,13 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
           opencodeModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel,
         }
 
-  const geminiForm =
-    agent.type === 'gemini-cli'
+  const antigravityForm =
+    agent.type === 'antigravity'
       ? {
-          geminiModel: typeof agent.model === 'string' ? agent.model : '',
+          antigravityModel: typeof agent.model === 'string' ? agent.model : '',
         }
       : {
-          geminiModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel,
+          antigravityModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.antigravityModel,
         }
 
   return {
@@ -114,7 +114,7 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
       ...codexForm,
       ...qwenForm,
       ...opencodeForm,
-      ...geminiForm,
+      ...antigravityForm,
     },
   }
 }

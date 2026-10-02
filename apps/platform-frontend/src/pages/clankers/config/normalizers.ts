@@ -26,8 +26,9 @@ export function toAgentType(value: string): AgentType | '' {
     case 'codex':
     case 'opencode':
     case 'kimi-code':
-    case 'gemini-cli':
+    case 'antigravity':
     case 'mistral-vibe':
+    case 'pi':
       return value
     default:
       return ''

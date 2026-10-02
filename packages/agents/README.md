@@ -6,9 +6,9 @@ This directory contains the individual agent plugin packages for the Viberator o
 
 ```
 packages/agents/
+├── agent-antigravity/     @viberglass/agent-antigravity
 ├── agent-claude-code/     @viberglass/agent-claude-code
 ├── agent-codex/           @viberglass/agent-codex
-├── agent-gemini/          @viberglass/agent-gemini
 ├── agent-kimi/            @viberglass/agent-kimi
 ├── agent-mistral-vibe/    @viberglass/agent-mistral-vibe
 ├── agent-opencode/        @viberglass/agent-opencode

@@ -87,11 +87,10 @@ const PROVIDER_ALLOWLIST: readonly string[] = [
   "CODEX_CONFIG_DIR",
   "CODEX_ENDPOINT",
   "CODEX_HOME",
-  // Google / Gemini
+  // Google / Antigravity
   "GEMINI_API_KEY",
-  "GEMINI_MODEL",
-  "GOOGLE_API_KEY",
-  "GOOGLE_GENAI_USE_VERTEXAI",
+  "AGY_ACP_DEFAULT_MODEL",
+  "AGY_ACP_DISABLE_WORKSPACE_TRUST",
   // Alibaba / Qwen
   "DASHSCOPE_API_KEY",
   "QWEN_API_ENDPOINT",
@@ -115,6 +114,13 @@ const PROVIDER_ALLOWLIST: readonly string[] = [
   "OPENCODE_MODEL",
   // Pi
   "PI_CODING_AGENT_DIR",
+  "PI_CODING_AGENT_SESSION_DIR",
+  // Further providers that Pi and OpenCode read keys for
+  "DEEPSEEK_API_KEY",
+  "GROQ_API_KEY",
+  "OPENROUTER_API_KEY",
+  "XAI_API_KEY",
+  "ZAI_API_KEY",
 ];
 
 /**
