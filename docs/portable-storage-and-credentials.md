@@ -2,6 +2,8 @@
 
 Kubernetes workers retrieve credentials from the backend through their run's authenticated bootstrap endpoint. The backend's existing Secrets feature supports encrypted PostgreSQL storage and environment references; workers need no SSM permissions. This path is implemented, but Kubernetes product selection, provisioning, and deployment manifests are still pending.
 
+For runnable local verification and the full-installation gaps, see [local Kubernetes](local-kubernetes.md).
+
 ## Backend secrets
 
 Set `SECRETS_ENCRYPTION_KEY` to a persistent, strong secret on the backend, then create credentials using **database** storage in the existing Secrets UI/API. Attach the needed secret IDs to the Clanker. Database values use the existing AES-256-GCM encryption. Keep the encryption key available when restoring the database; changing it without re-encrypting existing values makes those values unreadable.

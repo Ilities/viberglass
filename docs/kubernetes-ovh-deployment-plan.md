@@ -1,4 +1,4 @@
-# Kubernetes deployment, validated on OVHcloud
+# Kubernetes deployment plan, targeting OVHcloud
 
 ## Goal and boundary
 
@@ -86,3 +86,5 @@ For this slice, set `KUBERNETES_WORKER_NAMESPACE` and a worker-reachable `PLATFO
 All application S3 clients now share endpoint, region, path-style and credential settings: instructions, media/presigning, phase documents, and worker session archives. Kubernetes instructions use the hosted storage path. The portable smoke passed against disposable MinIO and PostgreSQL: encrypted credential round trip, allowlist filtering, large Codex auth cache, instruction upload/download/delete, signed media retrieval/delete, and session capture/restore excluding auth files. Run `npm run smoke:portable -w @viberglass/platform-backend` with Docker available; the runner provisions and removes its own containers. This is a real S3-compatible test, not an OVHcloud service certification.
 
 See [portable storage and credentials configuration](portable-storage-and-credentials.md) for deployment settings and remaining limitations.
+
+See [local Kubernetes verification](local-kubernetes.md) for the current runnable tests and the application parity checklist. A full self-hosted installation is not supported until work packages 4–5 and the integrated validation are complete.

@@ -141,7 +141,11 @@ Key variables:
 With `docker compose`, optional settings go in a `.env` file in the repository root. See [docs/local-development.md](docs/local-development.md) for local email (Mailpit) and Slack.
 
 
-Agent API keys go in the worker's environment, not the platform backend. In production, store them in AWS SSM under `/viberglass-viberator/`.
+Store agent credentials through the Secrets feature and attach them to the Clanker. AWS workers can use SSM; experimental Kubernetes workers receive selected database/environment secrets through authenticated backend bootstrap. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
+
+### Experimental Kubernetes support
+
+Worker execution, portable credentials, and S3-compatible storage are implemented. Full Kubernetes application installation and product setup are still pending. See [local Kubernetes verification and remaining gaps](docs/local-kubernetes.md) for runnable smoke tests and the installation checklist.
 
 ---
 
