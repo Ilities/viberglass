@@ -4,6 +4,7 @@ import type { AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/Age
 import type { AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
+import { TaskSummaryDAO } from "../../persistence/ticketing/TaskSummaryDAO";
 import { PHASE_DOCUMENT_REVISION_SOURCE } from "../../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
 import { AGENT_SESSION_EVENT_TYPE } from "../../types/agentSession";
 import type { AgentSessionWorkerEventService } from "../agentSession/AgentSessionWorkerEventService";
@@ -12,10 +13,12 @@ import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 /** What the worker reports a turn produced. */
 export interface TurnResult {
   success: boolean;
-  documents?: { research?: string; plan?: string };
+  documents?: { research?: string; plan?: string; summary?: string };
   codeDiscarded?: boolean;
   resumed?: boolean;
   commitHash?: string;
+  contextUsage?: { used: number; size: number | null };
+  compacted?: boolean;
 }
 
 /** What a recorded turn means for the run's Activity: the step it produced, and whom it mentioned. */
@@ -26,7 +29,8 @@ export interface RecordedTurn {
 
 const INTENT_LIMIT = 200;
 
-const PRODUCT_STEP: Record<TaskTurnProduct, TicketWorkflowPhase> = {
+/** The artifacts that are a step of the task; a summary is about the conversation, so it mentions nobody. */
+const PRODUCT_STEP: Partial<Record<TaskTurnProduct, TicketWorkflowPhase>> = {
   research: TICKET_WORKFLOW_PHASE.RESEARCH,
   plan: TICKET_WORKFLOW_PHASE.PLANNING,
   code: TICKET_WORKFLOW_PHASE.EXECUTION,
@@ -49,6 +53,7 @@ interface Dependencies {
   workerEvents: Pick<AgentSessionWorkerEventService, "batchIngest">;
   participants: Pick<TaskParticipantDAO, "list">;
   mentions: Pick<TaskMentionDAO, "createForTurn">;
+  summaries: Pick<TaskSummaryDAO, "create">;
 }
 
 /**
@@ -67,6 +72,7 @@ export class TaskTurnOutcomeService {
       documents: new TicketPhaseDocumentService(),
       participants: new TaskParticipantDAO(),
       mentions: new TaskMentionDAO(),
+      summaries: new TaskSummaryDAO(),
       ...deps,
     };
   }
@@ -74,7 +80,7 @@ export class TaskTurnOutcomeService {
   async record(
     jobId: string,
     session: Pick<AgentSession, "ticketId">,
-    turn: Pick<AgentTurn, "id">,
+    turn: Pick<AgentTurn, "id" | "action">,
     result: TurnResult,
   ): Promise<RecordedTurn | null> {
     const produced: TaskTurnProduct[] = [];
@@ -89,10 +95,17 @@ export class TaskTurnOutcomeService {
         produced.push("plan");
       }
       if (result.commitHash) produced.push("code");
+      // Only a summarise turn writes the summary; an agent tidying SUMMARY.md on its own doesn't make one.
+      const summary = result.documents?.summary?.trim();
+      if (summary && turn.action === "summarise") {
+        await this.deps.summaries.create(session.ticketId, summary, turn.id);
+        produced.push("summary");
+      }
     }
+    const steps = produced.flatMap((product) => PRODUCT_STEP[product] ?? []);
 
     const reply = (await this.deps.events.listAssistantTextByTurn(turn.id)).join("").trim();
-    const mentioned = produced.length > 0 ? await this.reviewersOf(session.ticketId) : [];
+    const mentioned = steps.length > 0 ? await this.reviewersOf(session.ticketId) : [];
     const outcome: TaskTurnOutcome = {
       intent: intentOf(reply),
       reply,
@@ -100,9 +113,11 @@ export class TaskTurnOutcomeService {
       codeDiscarded: result.codeDiscarded ?? false,
       resumed: result.resumed ?? null,
       mentioned,
+      contextUsage: result.contextUsage ?? null,
+      compacted: result.compacted ?? false,
     };
     await this.deps.turns.update(turn.id, { contentMarkdown: reply, contentJson: { ...outcome } });
-    // Open until each person next posts in the thread, which is what makes it their move (S4).
+    // Open until each person next posts in the thread, which is what makes it their move.
     await this.deps.mentions.createForTurn(session.ticketId, turn.id, mentioned.map((person) => person.id));
 
     await this.deps.workerEvents.batchIngest(jobId, [
@@ -111,8 +126,8 @@ export class TaskTurnOutcomeService {
         payload: { produced },
       },
     ]);
-    const latest = produced.at(-1);
-    return latest ? { step: PRODUCT_STEP[latest], mentioned: mentioned.map((person) => person.id) } : null;
+    const latest = steps.at(-1);
+    return latest ? { step: latest, mentioned: mentioned.map((person) => person.id) } : null;
   }
 
   private async reviewersOf(ticketId: string): Promise<Array<{ id: string; name: string }>> {

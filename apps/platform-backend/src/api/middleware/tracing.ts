@@ -16,9 +16,9 @@ import type { NextFunction, Request, Response } from "express";
  * Hand-rolled rather than `@opentelemetry/instrumentation-http`: the backend
  * is ESM (`"type": "module"`), and the auto-instrumentations patch CommonJS
  * through require-in-the-middle, so they need an `--import` loader hook rather
- * than an in-process call. This covers what Phase 0 actually needs — an
- * ingress span that webhook-triggered job dispatch hangs off — without
- * changing how the process is launched. See packages/telemetry/README.md.
+ * than an in-process call. This covers what's needed — an ingress span that
+ * webhook-triggered job dispatch hangs off — without changing how the process
+ * is launched.
  */
 export function tracingMiddleware(
   req: Request,

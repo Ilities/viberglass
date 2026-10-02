@@ -2,7 +2,7 @@ import { Kysely, sql } from "kysely";
 
 /**
  * Every row the demo workspace created, so removing the demo deletes exactly
- * those and never real data (ADR 0002).
+ * those and never real data.
  */
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema

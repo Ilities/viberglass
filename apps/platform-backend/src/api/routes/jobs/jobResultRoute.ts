@@ -10,6 +10,9 @@ import { SessionTurnContinuationService } from "../../../services/agentSession/S
 import { isTerminalJobStatus } from "../../../services/job/jobStatus";
 import { JobService } from "../../../services/JobService";
 import { TaskTurnOutcomeService, type RecordedTurn } from "../../../services/taskTurns/TaskTurnOutcomeService";
+import { TaskAutoSummariser } from "../../../services/taskTurns/TaskAutoSummariser";
+import { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
+import { isObjectRecord } from "@viberglass/types";
 import { RUN_MANIFEST_VERSION, type ExecutionManifest } from "@viberglass/telemetry";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
@@ -29,6 +32,13 @@ const turnOutcomeService = new TaskTurnOutcomeService({
     new SessionTurnContinuationService(agentSessionDAO, agentTurnDAO, new AgentSessionEventDAO()),
   ),
 });
+
+const autoSummariser = new TaskAutoSummariser(new TaskTurnService());
+
+function contextUsageOf(value: unknown): { used: number; size: number | null } | undefined {
+  if (!isObjectRecord(value) || typeof value.used !== "number") return undefined;
+  return { used: value.used, size: typeof value.size === "number" ? value.size : null };
+}
 
 /**
  * Stores the worker's execution manifest.
@@ -150,6 +160,8 @@ export function registerJobResultRoute(router: Router): void {
             codeDiscarded: result.codeDiscarded === true,
             resumed: typeof result.sessionStart?.resumed === "boolean" ? result.sessionStart.resumed : undefined,
             commitHash: typeof result.commitHash === "string" && result.commitHash ? result.commitHash : undefined,
+            contextUsage: contextUsageOf(result.contextUsage),
+            compacted: result.compacted === true,
           });
         }
 
@@ -169,6 +181,10 @@ export function registerJobResultRoute(router: Router): void {
             typeof result.failureCode === "string" ? result.failureCode : undefined,
           turn: recordedTurn ?? undefined,
         });
+        // After the run is finished, so the summary is the session's next turn rather than waiting behind this one.
+        if (agentTurn && session && result.success) {
+          await autoSummariser.afterTurn(session, agentTurn, contextUsageOf(result.contextUsage));
+        }
 
         return res.json({
           success: true,

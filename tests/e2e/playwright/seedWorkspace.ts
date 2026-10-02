@@ -57,6 +57,33 @@ async function waitForClankerActive(
   );
 }
 
+/** A runner on the fake agent image, started and active. */
+export async function createFakeRunner(api: APIRequestContext, name: string): Promise<string> {
+  const clankerId = await readId(
+    await api.post("/api/clankers", {
+      data: {
+        name,
+        agent: "fake",
+        deploymentStrategyId: await findDockerStrategyId(api),
+        deploymentConfig: {
+          version: 1,
+          agent: { type: "fake" },
+          strategy: {
+            type: "docker",
+            provisioningMode: "prebuilt",
+            containerImage: E2E.fakeWorkerImage,
+          },
+        },
+      },
+    }),
+    "Creating the fake runner",
+  );
+  // Pre-built mode uses the fake image as is; starting must not rebuild it.
+  await readEntity(await api.post(`/api/clankers/${clankerId}/start`), "Starting the fake runner");
+  await waitForClankerActive(api, clankerId);
+  return clankerId;
+}
+
 export interface SignedInSession {
   /** Carries the session cookie. */
   api: APIRequestContext;
@@ -108,31 +135,7 @@ export async function seedWorkspace(): Promise<SeededWorkspace> {
     "Creating the member",
   );
 
-  const clankerId = await readId(
-    await api.post("/api/clankers", {
-      data: {
-        name: "Fake Agent",
-        agent: "fake",
-        deploymentStrategyId: await findDockerStrategyId(api),
-        deploymentConfig: {
-          version: 1,
-          agent: { type: "fake" },
-          strategy: {
-            type: "docker",
-            provisioningMode: "prebuilt",
-            containerImage: E2E.fakeWorkerImage,
-          },
-        },
-      },
-    }),
-    "Creating the fake runner",
-  );
-  // Pre-built mode uses the fake image as is; starting must not rebuild it.
-  await readEntity(
-    await api.post(`/api/clankers/${clankerId}/start`),
-    "Starting the fake runner",
-  );
-  await waitForClankerActive(api, clankerId);
+  const clankerId = await createFakeRunner(api, "Fake Agent");
 
   const integrationId = await readId(
     await api.post("/api/integrations", {

@@ -349,6 +349,33 @@ Planned:
 - **Tests:** the sweeper with a fake outcome source.
 
 ### S6. Compaction and more than one agent (about 1 week)
+**Done (2026-10-02).** What landed:
+- **Context usage is read.**
+  - `AcpClient` keeps the last `usage_update` (`used`/`size`), or the prompt result's `usage.inputTokens` for harnesses that only report that.
+  - The compact command comes from `available_commands_update` (`/compact`, or qwen's `/compress`), so plugins don't hard-code it.
+  - Both travel `AcpExecutor` → worker → result callback (`contextUsage`, `compacted`) and are stored on the turn's outcome.
+- **The summary.**
+  - A summarise turn writes `SUMMARY.md`, the worker's third artifact file.
+  - Migration 087 adds `task_summaries` (numbered versions) and updates the seeded templates by replacing only the changed lines: the summarise instruction names SUMMARY.md, and the cold start gains `<summary-so-far>`.
+  - Only a summarise turn's SUMMARY.md is kept; one an agent writes on its own is ignored. A summary mentions nobody.
+- **Compaction.** On a summarise turn the bootstrap carries `compactInstructions`, and the harness compacts after writing the summary when it has a compact command. Harnesses without one read the summary at their next cold start.
+- **Automatic summary.** `TaskAutoSummariser` asks the same agent for a summary after a turn whose context passed the threshold: 60% of the context window (`TASK_SUMMARY_CONTEXT_RATIO`), or 120k tokens when the size is unknown (`TASK_SUMMARY_CONTEXT_TOKENS`). Never after a summarise turn, and never failing the turn it follows.
+- **Cold starts read the summary instead of what it covers.** The earlier messages of a cold start are the ones after the latest summary, and so are a brand-new agent's first-turn messages.
+- **The thread.**
+  - `summary` entries ("Summary v2"), with the latest pinned above the thread as "Summary so far";
+  - agent turns say "Wrote Summary vN", "Compacted its context with the summary" and "Context 75% full";
+  - *Summarise so far* is offered after 3 agent turns or 10 messages since the last summary;
+  - *Bring in another agent* lists the active agents not on the task yet and posts "Bring in {Name}: it starts fresh and reads the summary and the task".
+- **Fake agent:** `[fake:usage=N]` reports N of 200,000 tokens; it announces `/compact` and answers it without a turn; it writes SUMMARY.md when asked.
+- **Tests:**
+  - Unit: AcpClient usage and compaction against the scripted agent; the fake agent; outcome, auto-summariser, context loader, prompt builder and result route; the frontend summary entries, suggestion and bring-in menu.
+  - Smoke 42/42, with the new `summary-and-second-agent.e2e.test.ts`: a turn reporting a full context is followed by Summary v1, unasked and compacted, pinned in the thread; a second fake agent is offered under *Bring in another agent*; its first, cold turn's prompt holds the summary.
+- **Also:** code comments no longer refer to design documents, ADRs or plan labels; `.agents/AGENTS.md` §3b now says so.
+- **Left for later:**
+  - Codex compacts only through `compact_prompt` in its config, which isn't set.
+  - The threshold is global, not per space.
+
+Planned:
 - A **summarise** turn writes `SUMMARY.md` with our prompt (decisions, who agreed, open questions), posted and pinned in the thread. It runs past a context threshold, measured from the turn's reported usage, and on "Summarise so far".
 - Harnesses with a native compact command also run it. Others rely on the summary at their next cold start.
 - **Bring in another agent** starts a cold session for a second harness, primed with the summary and the current artifacts. Each turn shows whether it resumed or started cold.
@@ -378,9 +405,9 @@ Planned:
 | Slack keeps the old keyword flow until S8 | Fine for the interim: it calls the same services, and keywords map onto actions |
 | Oversized files | Split as touched (AGENTS.md §6). Start with `workflowPhaseRoutes.ts` and the session services, which S2 rewrites anyway |
 
-## 5. Next step: S5, then S6
+## 5. Next step: S7
 
-S1–S4 are done. S5 (done on merge) is small and independent. S6 (compaction, more than one agent) needs only S2. S7 (pages and navigation) can start now that S4 is in.
+S1–S6 are done. S7 (pages and navigation) is next, then S8 (Phase 3 on the thread).
 
 **Where S4 left the hooks:**
 - **S5:** `PullRequestOutcomeSweeper` should set the task `resolved`. `taskSituation` already reads that as done; S5 adds "Done · merged by …", which needs the merger in the situation input.
@@ -390,4 +417,4 @@ S1–S4 are done. S5 (done on merge) is small and independent. S6 (compaction, m
 **Before running agents in the dev stack:**
 - Rebuild the worker images, so the opencode image runs the new worker. Today's dev image sends `documentContent`, which the result callback now rejects. See next-steps-handover §2.1.
 - Rebuild the frontend image (`docker compose build frontend && docker compose up -d frontend`) whenever `packages/types` changes. The image bakes in its build of the types (`dist/`).
-- Migration 083 is already applied to the dev database; 084 (S3) and 085 (S4) are not.
+- Migrations up to 087 run on startup when the dev backend restarts (RUN_MIGRATIONS_ON_STARTUP).

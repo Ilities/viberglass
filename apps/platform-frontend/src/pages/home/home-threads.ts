@@ -20,7 +20,7 @@ export function lastMessageLine(thread: HomeThread): string | null {
   return message.author ? `${message.author.name}: ${message.text}` : message.text
 }
 
-/** Viewers have no threads of their own, so they land on Overview (J13); everyone else on Home. */
+/** Viewers have no threads of their own, so they land on Overview; everyone else on Home. */
 export function landingFor(role: string | undefined): '/' | '/overview' {
   return role === 'viewer' ? '/overview' : '/'
 }

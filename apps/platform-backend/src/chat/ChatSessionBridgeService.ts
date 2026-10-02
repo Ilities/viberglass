@@ -27,7 +27,7 @@ const TERMINAL_EVENT_TYPES = new Set<AgentSessionEventType>([
 ]);
 
 /**
- * A session stays open between turns (ADR 0008), so a chat thread's run ends
+ * A session stays open between turns, so a chat thread's run ends
  * where a turn wrote a document or code, as it used to end with the session.
  */
 function finishesRun(event: AgentSessionEvent): boolean {

@@ -1,5 +1,5 @@
 /**
- * What a person asks the agent for in a turn (ADR 0008). `reply` leaves it to
+ * What a person asks the agent for in a turn. `reply` leaves it to
  * the agent: it answers, and rewrites the research or plan if that's what was asked.
  */
 export const TASK_TURN_ACTIONS = ['research', 'plan', 'code', 'reply', 'summarise'] as const
@@ -11,7 +11,7 @@ export function isTaskTurnAction(value: unknown): value is TaskTurnAction {
 }
 
 /** The artifacts a turn can produce. */
-export type TaskTurnProduct = 'research' | 'plan' | 'code'
+export type TaskTurnProduct = 'research' | 'plan' | 'code' | 'summary'
 
 /** What a finished turn did, as the thread shows it. */
 export interface TaskTurnOutcome {
@@ -24,6 +24,10 @@ export interface TaskTurnOutcome {
   codeDiscarded: boolean
   /** Whether the turn continued the agent's earlier session; null when the worker didn't say. */
   resumed: boolean | null
-  /** Whom the agent asked to look at what it produced; absent on turns from before S3. */
+  /** Whom the agent asked to look at what it produced; absent on older turns. */
   mentioned?: Array<{ id: string; name: string }>
+  /** How full the harness's context was at the end of the turn, when it said. */
+  contextUsage?: { used: number; size: number | null } | null
+  /** Whether the harness compacted its context after the turn, with our instructions. */
+  compacted?: boolean
 }

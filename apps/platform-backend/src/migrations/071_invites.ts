@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// Invite links (ADR 0005, phase-2-3-handover §2.2). Only a hash of the token
+// Invite links. Only a hash of the token
 // is stored; the link is shown once, when the invite is made.
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema

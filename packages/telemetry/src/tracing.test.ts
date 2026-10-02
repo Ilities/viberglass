@@ -70,7 +70,7 @@ describe("startTelemetry", () => {
     // its HTTP transport through a dynamic import, which Jest's CommonJS VM
     // refuses without --experimental-vm-modules. Turning that flag on for the
     // whole package to test one line is a poor trade. The export path is
-    // covered outside Jest instead — see packages/telemetry/README.md.
+    // covered outside Jest instead.
   });
 
   it("returns the same handle on repeated calls", () => {

@@ -13,7 +13,7 @@ const context: RecipientContext = {
 const notify = (kind: Parameters<typeof resolveNotifications>[0]["kind"], payload: Record<string, unknown> = {}, actorId: string | null = "someone") =>
   resolveNotifications({ kind, actorId, payload }, context);
 
-describe("resolveNotifications (plan §8)", () => {
+describe("resolveNotifications", () => {
   it.each([
     ["reviewer_added", { userId: "reviewer" }, [{ userId: "reviewer", kind: "review_requested" }]],
     ["owner_changed", { userId: "owner" }, [{ userId: "owner", kind: "task_assigned" }]],

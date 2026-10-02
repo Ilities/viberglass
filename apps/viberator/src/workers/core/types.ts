@@ -99,6 +99,8 @@ export interface BaseWorkerPayload {
     affectedFiles?: string[];
     researchDocument?: string;
     planDocument?: string;
+    /** The task's latest summary, for the agent to rewrite on a summarise turn. */
+    summaryDocument?: string;
     ticketMedia?: TicketMediaPayload[];
     instructionFiles?: Array<{ fileType: string; content: string }>;
   };
@@ -132,6 +134,8 @@ export interface BaseWorkerPayload {
   allowCode?: boolean;
   /** The prompt for a turn whose harness can't continue its session and starts cold */
   coldStartTask?: string;
+  /** On a summarise turn: compact the harness's context afterwards with these instructions. */
+  compactInstructions?: string;
   /** CLI's own ACP session ID (sess_abc123) — used to call session/load on resume */
   acpSessionId?: string;
   /** S3 URL of conversation state archive to restore before CLI launch */
@@ -245,6 +249,8 @@ export interface CodingJobData {
     affectedFiles?: string[];
     researchDocument?: string;
     planDocument?: string;
+    /** The task's latest summary, for the agent to rewrite on a summarise turn. */
+    summaryDocument?: string;
     ticketMedia?: TicketMediaPayload[];
     instructionFiles?: Array<{ fileType: string; content: string }>;
   };
@@ -270,6 +276,10 @@ export interface JobResult {
   codeDiscarded?: boolean;
   /** Whether the turn continued the harness's earlier session, or started cold and why. */
   sessionStart?: AcpSessionStart;
+  /** How full the harness's context was after the turn, when it said. */
+  contextUsage?: AcpContextUsage;
+  /** Whether the harness compacted its context after the turn. */
+  compacted?: boolean;
   changedFiles: string[];
   executionTime: number;
   errorMessage?: string;
@@ -286,6 +296,6 @@ export interface JobResult {
   runManifest?: ExecutionManifest;
 }
 import type { JobKind, TaskTurnAction } from "@viberglass/types";
-import type { AcpSessionStart } from "@viberglass/agent-core";
+import type { AcpContextUsage, AcpSessionStart } from "@viberglass/agent-core";
 import type { TurnDocuments } from "./turnArtifacts";
 import type { ExecutionManifest } from "@viberglass/telemetry";

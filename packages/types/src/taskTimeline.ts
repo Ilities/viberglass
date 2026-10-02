@@ -1,7 +1,7 @@
 import type { TaskActivityEntry, TaskActivityKind } from './taskDiscussion'
 import type { TaskTurnAction, TaskTurnOutcome } from './taskTurn'
 
-/** The artifacts a task's conversation produces so far (ADR 0008). Code arrives with the pull request. */
+/** The artifacts a task's conversation produces so far. Code arrives with the pull request. */
 export type TaskArtifactKind = 'research' | 'plan'
 
 export interface TaskTimelinePerson {
@@ -9,7 +9,7 @@ export interface TaskTimelinePerson {
   name: string
 }
 
-/** One entry in a task's thread, oldest first (ADR 0008; build plan S1). */
+/** One entry in a task's thread, oldest first. */
 export type TaskTimelineEntry =
   | {
       kind: 'message'
@@ -44,6 +44,8 @@ export type TaskTimelineEntry =
       jobId: string | null
     }
   | { kind: 'event'; id: string; at: string; activity: TaskActivityEntry }
+  /** A summary of the conversation so far: the decisions, who agreed, the open questions. The latest is pinned. */
+  | { kind: 'summary'; id: string; at: string; version: number; content: string }
 
 /**
  * Activity the thread shows another way: a posted message is the message

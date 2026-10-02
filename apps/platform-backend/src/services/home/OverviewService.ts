@@ -13,7 +13,7 @@ interface Dependencies {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Overview (IA §3.2), for viewers and anyone wanting the workspace picture:
+ * Overview, for viewers and anyone wanting the workspace picture:
  * what's stuck (failed, or waiting on people for over a day), what's in
  * progress, what was done this week, and where an agent is working now.
  */

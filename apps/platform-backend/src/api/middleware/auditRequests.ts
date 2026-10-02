@@ -28,7 +28,7 @@ function returnedId(body: unknown): string | null {
 
 /**
  * Writes an audit entry for each successful change a router makes, by a
- * table of its routes (J17), so no route in an audited area is missed and no
+ * table of its routes, so no route in an audited area is missed and no
  * handler has to remember. Mount it in front of the router.
  */
 export function auditRequests(rules: AuditRule[], audit: Pick<AuditRecorder, "record"> = new AuditRecorder()): RequestHandler {

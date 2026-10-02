@@ -13,7 +13,7 @@ const ITEMS: Array<{ key: keyof SetupNextSteps; label: string; href: string }> =
   { key: 'trackerConnected', label: 'Connect your tracker', href: '/settings/connections' },
 ]
 
-/** The admin's checklist after setup (J1 step 7). Hidden once everything is done, or dismissed. */
+/** The admin's checklist after setup. Hidden once everything is done, or dismissed. */
 export function NextStepsChecklist() {
   const [steps, setSteps] = useState<SetupNextSteps | null>(null)
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISSED_KEY) === 'true')

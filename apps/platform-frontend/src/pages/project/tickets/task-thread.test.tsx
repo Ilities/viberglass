@@ -116,6 +116,7 @@ function renderThread(onOpenArtifact = jest.fn(), onAsked = jest.fn()) {
           agents={[{ kind: 'agent', id: CLAUDE, name: 'Claude' }]}
           suggestionInput={SUGGESTION_INPUT}
           canAsk
+          runnableAgents={[{ id: CLAUDE, name: 'Claude' }]}
           onAsked={onAsked}
         />
       </MemoryRouter>

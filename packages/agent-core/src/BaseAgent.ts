@@ -179,9 +179,9 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
    * Writes token usage and cost onto the span.
    *
    * The `vg.usage.available` and `vg.cost.provenance` attributes are the point
-   * of this method: PLAN.md Phase 0 requires that a CLI which reports no usage
-   * is recorded as reporting none, rather than silently backfilled from the
-   * plugin's `costPerExecution` constant and later mistaken for a measurement.
+   * of this method: a CLI which reports no usage must be recorded as reporting
+   * none, rather than silently backfilled from the plugin's `costPerExecution`
+   * constant and later mistaken for a measurement.
    */
   private recordUsageOnSpan(
     span: Span,

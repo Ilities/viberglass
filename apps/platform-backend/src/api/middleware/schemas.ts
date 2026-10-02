@@ -272,8 +272,12 @@ export const resultCallbackSchema = Joi.object({
   documents: Joi.object({
     research: Joi.string().allow("").optional(),
     plan: Joi.string().allow("").optional(),
+    summary: Joi.string().allow("").optional(),
   }).optional(),
   codeDiscarded: Joi.boolean().optional(),
+  // How full the harness's context was after the turn.
+  contextUsage: Joi.object({ used: Joi.number().min(0).required(), size: Joi.number().min(0).allow(null).optional() }).optional(),
+  compacted: Joi.boolean().optional(),
   // Whether the turn continued the harness's session (AcpSessionStart).
   sessionStart: Joi.object({ resumed: Joi.boolean().required() }).unknown(true).optional(),
   errorMessage: Joi.string().allow(null, "").optional(),

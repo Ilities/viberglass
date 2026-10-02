@@ -32,7 +32,7 @@ export class TaskParticipantDAO {
     return new Map(rows.map((row) => [row.ticket_id, { id: row.id, name: row.name }]));
   }
 
-  /** Who drives each task when nobody else is asked: its owner, else its requester (redesign §4). */
+  /** Who drives each task when nobody else is asked: its owner, else its requester. */
   async listDrivers(ticketIds: string[]): Promise<Map<string, { id: string; name: string }>> {
     if (ticketIds.length === 0) return new Map();
     const rows = await db

@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// The audit log (phase-2-3-handover §2.9): who changed what across the
+// The audit log: who changed what across the
 // workspace, for admins. Append-only; read newest first, by person or area.
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema

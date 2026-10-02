@@ -33,6 +33,7 @@ These are the single source of truth instructions for agent behavior and backend
 - A comment says what the code can't: a non-obvious constraint or the reason for a choice, in a line or two.
 - Don't narrate the change, describe the bug it fixes, or explain how other components work. That belongs in the commit message or docs.
 - Don't restate what the code or the names already say.
+- Never refer to design documents, ADRs, plans or their labels (slice names like "S3", "ADR 0008", "§4", journey or decision ids). Documents change and get deleted independently; the code is the source of truth, so a comment says what it means in its own words.
 
 ### 3a) Type Safety - No Casting to Bypass Linting
 

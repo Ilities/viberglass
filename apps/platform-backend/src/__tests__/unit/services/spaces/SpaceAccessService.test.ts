@@ -15,7 +15,7 @@ function service(options: { isPrivate: boolean; membership: "maintainer" | "memb
   return { projects, members, access: new SpaceAccessService({ projects, members }) };
 }
 
-describe("space visibility rules (ADR 0005)", () => {
+describe("space visibility rules", () => {
   it("shows open spaces to members and viewers, and only joined spaces to guests", () => {
     expect(canSeeSpace("member", { isPrivate: false }, null)).toBe(true);
     expect(canSeeSpace("viewer", { isPrivate: false }, null)).toBe(true);

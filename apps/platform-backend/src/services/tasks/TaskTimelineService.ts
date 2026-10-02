@@ -3,6 +3,7 @@ import { TaskAgentTurnDAO } from "../../persistence/agentSession/TaskAgentTurnDA
 import { TaskSessionMessageDAO } from "../../persistence/agentSession/TaskSessionMessageDAO";
 import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
 import { TaskMessageDAO } from "../../persistence/ticketing/TaskMessageDAO";
+import { TaskSummaryDAO } from "../../persistence/ticketing/TaskSummaryDAO";
 import { TicketPhaseDocumentRevisionDAO } from "../../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
 
 interface Dependencies {
@@ -11,17 +12,18 @@ interface Dependencies {
   agentTurns: Pick<TaskAgentTurnDAO, "listForTask">;
   revisions: Pick<TicketPhaseDocumentRevisionDAO, "listByTicketWithAuthors">;
   activity: Pick<TaskActivityDAO, "list">;
+  summaries: Pick<TaskSummaryDAO, "listForTask">;
 }
 
 const ARTIFACT_OF_PHASE: Record<string, TaskArtifactKind | undefined> = { research: "research", planning: "plan" };
 
 /** When two entries share a moment, a message reads before what it caused. */
-const ORDER_AT_SAME_TIME: Record<TaskTimelineEntry["kind"], number> = { message: 0, agent_turn: 1, artifact_version: 2, event: 3 };
+const ORDER_AT_SAME_TIME: Record<TaskTimelineEntry["kind"], number> = { message: 0, agent_turn: 1, artifact_version: 2, summary: 3, event: 4 };
 
 /** A turn's entry says how its run went, so the run's own events would repeat it. Who cancelled it is still news. */
 const RUN_EVENTS_SHOWN_BY_TURN = new Set(["run_started", "run_finished", "run_failed"]);
 
-/** A task's one thread (ADR 0008): what people said, each document version, and what happened, in order. */
+/** A task's one thread: what people said, each document version and summary, and what happened, in order. */
 export class TaskTimelineService {
   private readonly deps: Dependencies;
 
@@ -32,17 +34,19 @@ export class TaskTimelineService {
       agentTurns: new TaskAgentTurnDAO(),
       revisions: new TicketPhaseDocumentRevisionDAO(),
       activity: new TaskActivityDAO(),
+      summaries: new TaskSummaryDAO(),
       ...deps,
     };
   }
 
   async list(ticketId: string): Promise<TaskTimelineEntry[]> {
-    const [messages, sessionMessages, agentTurns, revisions, activity] = await Promise.all([
+    const [messages, sessionMessages, agentTurns, revisions, activity, summaries] = await Promise.all([
       this.deps.messages.list(ticketId),
       this.deps.sessionMessages.listForTask(ticketId),
       this.deps.agentTurns.listForTask(ticketId),
       this.deps.revisions.listByTicketWithAuthors(ticketId),
       this.deps.activity.list(ticketId),
+      this.deps.summaries.listForTask(ticketId),
     ]);
 
     const turnJobs = new Set(agentTurns.flatMap((turn) => (turn.jobId ? [turn.jobId] : [])));
@@ -80,6 +84,13 @@ export class TaskTimelineService {
         jobId: turn.jobId,
       })),
       ...this.versions(revisions),
+      ...summaries.map((summary): TaskTimelineEntry => ({
+        kind: "summary",
+        id: summary.id,
+        at: summary.createdAt.toISOString(),
+        version: summary.version,
+        content: summary.content,
+      })),
       ...activity
         .filter((entry) => !ACTIVITY_SHOWN_ELSEWHERE_IN_THREAD.has(entry.kind) && !shownByTurn(entry))
         .map((entry): TaskTimelineEntry => ({ kind: "event", id: entry.id, at: entry.createdAt, activity: entry })),

@@ -32,6 +32,8 @@ export interface TaskTurnContext {
     pullRequestUrl: string | null;
   };
   documents: { research: string; plan: string };
+  /** The latest summary of the conversation; empty before the first. */
+  summary: string;
   /** When this agent was last prompted on the task; null on its first turn. */
   since: Date | null;
   earlier: { messages: TurnMessage[]; openComments: TurnComment[] };

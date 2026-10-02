@@ -1,4 +1,4 @@
-/** What the audit log covers (J17), one area per kind of thing changed. */
+/** What the audit log covers, one area per kind of thing changed. */
 export const AUDIT_TARGET_TYPES = ['run', 'approval', 'connection', 'secret', 'runner', 'member', 'space', 'invite'] as const
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number]
@@ -11,7 +11,7 @@ export function isAuditTargetType(value: unknown): value is AuditTargetType {
 export const AUDIT_ACTION_TEXT = {
   'run.started': 'started a run',
   'run.cancelled': 'cancelled a run',
-  // No longer recorded since approvals went (ADR 0008); kept so older entries still read.
+  // No longer recorded since approvals went; kept so older entries still read.
   'approval.granted': 'approved a step',
   'connection.created': 'added a connection',
   'connection.updated': 'changed a connection',

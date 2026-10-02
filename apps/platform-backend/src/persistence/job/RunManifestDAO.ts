@@ -10,7 +10,7 @@ import type { Database, Json } from "../types/database";
 type ManifestRow = Database["job_run_manifests"];
 
 /**
- * Persists run manifests — the per-job record Phase 0 exists to capture.
+ * Persists run manifests: the per-job record of what an agent run did and cost.
  *
  * Two writes per job, from two processes at two times:
  *   - {@link recordDispatch} at submit, so a job whose worker never reports

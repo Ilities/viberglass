@@ -11,7 +11,7 @@ import { TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocu
 const hasContent = (document: { content: string } | null) => (document?.content.trim().length ?? 0) > 0;
 
 /**
- * Keeps a ticket's phase and status true to what exists (ADR 0008). The phase
+ * Keeps a ticket's phase and status true to what exists. The phase
  * is the furthest artifact: the build once there's a pull request, the plan
  * once one is written, else research. The status is in progress only while an
  * agent is working, in review while an artifact waits on people, and open

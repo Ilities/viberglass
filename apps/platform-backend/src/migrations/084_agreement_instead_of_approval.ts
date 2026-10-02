@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// Agreement instead of approval (ADR 0008; task-conversation-handover S3).
+// Agreement instead of approval.
 // Approvals stop gating anything: every approval on record becomes a quiet
 // line in its task's thread, the approval state and the "skip to the build"
 // override go, and a task's phase is re-derived from what exists.

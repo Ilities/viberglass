@@ -104,7 +104,7 @@ export interface Project {
   keyPrefix: string
   /** Owner of new tasks unless someone else is picked; falls back to whoever creates the task. */
   defaultOwnerId?: string | null
-  /** Added as reviewers to every new task; the plan waits on them (D4). */
+  /** Added as reviewers to every new task; the plan waits on them. */
   defaultReviewerIds: string[]
   /** The caller's place in the space; set when one space is fetched. */
   viewerAccess?: { membership: 'maintainer' | 'member' | null; canMaintain: boolean }

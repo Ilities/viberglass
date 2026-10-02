@@ -16,7 +16,7 @@ import { AREA_LABEL, auditDetails, auditSentence } from './audit-entry-text'
 const EVERYONE = 'everyone'
 const ALL_AREAS = 'all'
 
-/** Who changed what across the workspace (J17), for admins, newest first. */
+/** Who changed what across the workspace, for admins, newest first. */
 export function AuditLogPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [hasMore, setHasMore] = useState(false)

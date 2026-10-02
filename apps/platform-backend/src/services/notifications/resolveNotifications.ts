@@ -23,7 +23,7 @@ function withRoles(context: RecipientContext, roles: TaskParticipantRole[]): str
 }
 
 /**
- * Who hears about a change on a task, and as what (plan §8). Nobody is told
+ * Who hears about a change on a task, and as what. Nobody is told
  * about their own action, and each person gets one item per change.
  */
 export function resolveNotifications(activity: ActivityForNotification, context: RecipientContext): Recipient[] {

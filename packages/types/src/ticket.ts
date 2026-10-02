@@ -148,7 +148,7 @@ export interface Ticket {
   liveSessionId?: string
   /** The task's owner. Set by task lists only. */
   owner?: { id: string; name: string }
-  /** Where the task stands and whose move it is, for the person asking (redesign §4). Set by task responses. */
+  /** Where the task stands and whose move it is, for the person asking. Set by task responses. */
   situation?: TaskSituation
   /** What the person asking may ask the agent for. Set when one task is fetched. */
   capabilities?: TaskCapabilities

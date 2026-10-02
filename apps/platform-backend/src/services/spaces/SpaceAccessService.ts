@@ -18,7 +18,7 @@ interface Dependencies {
   members: Pick<SpaceMemberDAO, "getRole" | "listVisibleProjectIds">;
 }
 
-/** The one place that decides who sees and maintains a space (ADR 0005). */
+/** The one place that decides who sees and maintains a space. */
 export class SpaceAccessService {
   private readonly deps: Dependencies;
 

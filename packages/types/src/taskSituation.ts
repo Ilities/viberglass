@@ -2,7 +2,7 @@ import type { JobFailureCategory } from './job'
 import type { TicketLifecycleStatus } from './ticket'
 import type { TaskTurnAction } from './taskTurn'
 
-/** Where a task stands, in the only words the product uses for it (redesign §4–5). */
+/** Where a task stands, in the only words the product uses for it. */
 export const TASK_SITUATION_STATES = [
   'not_started',
   'agent_working',
@@ -98,7 +98,7 @@ const ownerOnly = (input: TaskSituationInput): TaskWaitingOn =>
   input.owner ? { kind: 'people', people: [input.owner] } : { kind: 'nobody' }
 
 /**
- * Where a task stands and whose move it is (redesign §4), the same on Home,
+ * Where a task stands and whose move it is, the same on Home,
  * the space page and the task page. In order: done, the agent working, a
  * question, a failure nothing has happened since, people talking since the
  * latest artifact, the pull request, the latest artifact, else not started.

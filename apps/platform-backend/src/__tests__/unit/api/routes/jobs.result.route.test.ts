@@ -7,6 +7,7 @@ const mockJobService = {
 const mockTurnOutcomes = {
   record: jest.fn(),
 };
+const mockAutoSummariser = { afterTurn: jest.fn() };
 
 const mockSecretService = {
   upsertWorkerAuthCache: jest.fn(),
@@ -60,6 +61,14 @@ jest.mock("../../../../services/JobService", () => ({
 
 jest.mock("../../../../services/SecretService", () => ({
   SecretService: jest.fn(() => mockSecretService),
+}));
+
+jest.mock("../../../../services/taskTurns/TaskAutoSummariser", () => ({
+  TaskAutoSummariser: jest.fn(() => mockAutoSummariser),
+}));
+
+jest.mock("../../../../services/taskTurns/TaskTurnService", () => ({
+  TaskTurnService: jest.fn(() => ({})),
 }));
 
 jest.mock("../../../../services/taskTurns/TaskTurnOutcomeService", () => ({
@@ -164,9 +173,27 @@ describe("job result callbacks", () => {
       codeDiscarded: false,
       resumed: true,
       commitHash: "abc123",
+      compacted: false,
     });
     expect(mockJobService.updateJobStatus).toHaveBeenCalledWith("job-1", "completed", expect.objectContaining({ result: expect.objectContaining({ success: true }) }));
     expect(res.json).toHaveBeenCalledWith({ success: true, jobId: "job-1", status: "completed" });
+    expect(mockAutoSummariser.afterTurn).toHaveBeenCalledWith(session, turn, undefined);
+  });
+
+  it("passes the context the harness reported on, so a full one can be summarised once the run has finished", async () => {
+    const turn = { id: "turn-1", sessionId: "session-1", action: "plan" };
+    const session = { id: "session-1", ticketId: "ticket-1", clankerId: "c-1" };
+    mockAgentTurnDAO.getByJobId.mockResolvedValue(turn);
+    mockAgentSessionDAO.getById.mockResolvedValue(session);
+
+    await resultHandler()(
+      { params: { jobId: "job-1" }, body: { success: true, contextUsage: { used: 150000, size: 200000 }, compacted: true }, tenantId: "tenant-1" },
+      response(),
+    );
+
+    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ contextUsage: { used: 150000, size: 200000 }, compacted: true }));
+    expect(mockAutoSummariser.afterTurn).toHaveBeenCalledWith(session, turn, { used: 150000, size: 200000 });
+    expect(mockJobService.updateJobStatus.mock.invocationCallOrder[0]).toBeLessThan(mockAutoSummariser.afterTurn.mock.invocationCallOrder.at(-1) ?? 0);
   });
 
   it("only records the status of a run that isn't a task turn", async () => {

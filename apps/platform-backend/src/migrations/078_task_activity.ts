@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// Append-only history of a task (phase-2-3-handover §2.5): who did what, when.
+// Append-only history of a task: who did what, when.
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable("task_activity")

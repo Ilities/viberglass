@@ -29,7 +29,7 @@ import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
 import { workingSession, useTaskPage } from './use-task-page'
 import { TaskThread } from './task-thread'
-import { taskAgents } from './task-agents'
+import { runnableAgents, taskAgents } from './task-agents'
 
 const LONG_DESCRIPTION = 280
 
@@ -258,6 +258,7 @@ export function TicketDetailPage() {
               }}
               agents={taskAgents(data.clankers, data.sessions)}
               canAsk={Boolean(data.capabilities?.canAsk)}
+              runnableAgents={runnableAgents(data.clankers)}
               onAsked={changed}
               suggestionInput={{
                 ticket,

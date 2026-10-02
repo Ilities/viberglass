@@ -8,25 +8,29 @@
  *   [fake:no-document]  finish without writing the document
  *   [fake:code]         change a file in the repository
  *   [fake:fail]         fail the turn with an error
+ *   [fake:usage=N]      report N tokens in its context, of 200,000 (to cross the summarise threshold)
  *
  * A task turn's prompt (the `task_turn` template) says what to do in its last
  * <what-to-do> section; when that names no document, the agent writes the one
  * people asked for in the thread, if any.
  */
 
-export type FakeDocumentFile = "RESEARCH.md" | "PLAN.md";
+export type FakeDocumentFile = "RESEARCH.md" | "PLAN.md" | "SUMMARY.md";
 
 export interface FakeTurnPlan {
   documentFile?: FakeDocumentFile;
   code: boolean;
   sleepSeconds: number;
   fail: boolean;
+  /** Tokens to report in the context, when asked to. */
+  usageTokens: number | null;
 }
 
 const SLEEP_DIRECTIVE = /\[fake:sleep=(\d+)\]/;
 const NO_DOCUMENT_DIRECTIVE = "[fake:no-document]";
 const CODE_DIRECTIVE = "[fake:code]";
 const FAIL_DIRECTIVE = "[fake:fail]";
+const USAGE_DIRECTIVE = /\[fake:usage=(\d+)\]/;
 
 /** The last <tag>…</tag> section of the prompt, if it has one. */
 function lastSection(prompt: string, tag: string): string | undefined {
@@ -37,7 +41,8 @@ function lastSection(prompt: string, tag: string): string | undefined {
 }
 
 function documentNamedIn(text: string): FakeDocumentFile | undefined {
-  // A plan can mention the research it builds on, so PLAN.md wins.
+  // A summary covers everything, and a plan can mention the research it builds on.
+  if (text.includes("SUMMARY.md")) return "SUMMARY.md";
   if (text.includes("PLAN.md")) return "PLAN.md";
   if (text.includes("RESEARCH.md")) return "RESEARCH.md";
   return undefined;
@@ -58,11 +63,13 @@ function resolveDocumentFile(prompt: string): FakeDocumentFile | undefined {
 export function planFakeTurn(prompt: string): FakeTurnPlan {
   const words = peoplesWords(prompt);
   const sleepMatch = words.match(SLEEP_DIRECTIVE);
+  const usageMatch = words.match(USAGE_DIRECTIVE);
   return {
     documentFile: words.includes(NO_DOCUMENT_DIRECTIVE) ? undefined : resolveDocumentFile(prompt),
     code: words.includes(CODE_DIRECTIVE),
     sleepSeconds: sleepMatch ? Number(sleepMatch[1]) : 0,
     fail: words.includes(FAIL_DIRECTIVE),
+    usageTokens: usageMatch ? Number(usageMatch[1]) : null,
   };
 }
 
@@ -72,7 +79,7 @@ export function planFakeTurn(prompt: string): FakeTurnPlan {
  * prompt that quotes this document must not read as directives or sections.
  */
 export function renderFakeDocument(documentFile: FakeDocumentFile, prompt: string, turn: number): string {
-  const title = documentFile === "PLAN.md" ? "Plan" : "Research";
+  const title = documentFile === "PLAN.md" ? "Plan" : documentFile === "SUMMARY.md" ? "Summary" : "Research";
   const echo = prompt.replace(/\[fake:/g, "[fake-echo:").replace(/</g, "&lt;");
   return [
     `# Fake ${title}`,

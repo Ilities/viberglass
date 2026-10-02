@@ -51,6 +51,7 @@ function service(sources: {
   revisions?: ReturnType<typeof revision>[];
   activity?: TaskActivityEntry[];
   agentTurns?: TaskAgentTurn[];
+  summaries?: Array<{ id: string; ticketId: string; version: number; content: string; agentTurnId: string | null; createdAt: Date }>;
 }) {
   return new TaskTimelineService({
     messages: {
@@ -66,6 +67,7 @@ function service(sources: {
     agentTurns: { listForTask: jest.fn(async () => sources.agentTurns ?? []) },
     revisions: { listByTicketWithAuthors: jest.fn(async () => sources.revisions ?? []) },
     activity: { list: jest.fn(async () => sources.activity ?? []) },
+    summaries: { listForTask: jest.fn(async () => sources.summaries ?? []) },
   });
 }
 

@@ -40,7 +40,7 @@ const assistantTurns = (ticketIds: string[]) =>
     .where("t.role", "=", "assistant")
     .where("t.action", "is not", null);
 
-/** What the agent's turns say about many tasks at once, for their situations (S4). */
+/** What the agent's turns say about many tasks at once, for their situations. */
 export class TaskTurnFactsDAO {
   /** The turn running on each task now, if any. */
   async running(ticketIds: string[]): Promise<Map<string, { action: TaskTurnAction; since: Date }>> {

@@ -1,6 +1,6 @@
 import type { WorkspaceRole } from './workspaceRole'
 
-/** Roles inside one space (ADR 0005). Workspace admins are maintainers of every space. */
+/** Roles inside one space. Workspace admins are maintainers of every space. */
 export const SPACE_ROLES = ['maintainer', 'member'] as const
 
 export type SpaceRole = (typeof SPACE_ROLES)[number]

@@ -1,7 +1,7 @@
 import { intentOf, TaskTurnOutcomeService } from "../../../../services/taskTurns/TaskTurnOutcomeService";
 
 const SESSION = { ticketId: "t-1" };
-const TURN = { id: "turn-1" };
+const TURN = { id: "turn-1", action: "research" as const };
 
 function setup(streamed: string[] = ["Writing the research: checking the theme store.", "\n\nDone."]) {
   const deps = {
@@ -10,6 +10,7 @@ function setup(streamed: string[] = ["Writing the research: checking the theme s
     documents: { saveDocument: jest.fn() },
     workerEvents: { batchIngest: jest.fn() },
     mentions: { createForTurn: jest.fn() },
+    summaries: { create: jest.fn() },
     participants: {
       list: jest.fn().mockResolvedValue([
         { userId: "owner", name: "Olli Owner", email: "o@x", role: "owner", addedAt: "" },
@@ -42,6 +43,8 @@ describe("TaskTurnOutcomeService", () => {
         codeDiscarded: false,
         resumed: true,
         mentioned: [{ id: "tomi", name: "Tomi Laine" }],
+        contextUsage: null,
+        compacted: false,
       },
     });
     // The run's Activity names what it produced last, and whom the agent mentioned.
@@ -66,6 +69,30 @@ describe("TaskTurnOutcomeService", () => {
     });
     expect(recorded).toBeNull();
     expect(deps.participants.list).not.toHaveBeenCalled();
+  });
+
+  it("saves the summary a summarise turn wrote as the next version, and mentions nobody for it", async () => {
+    const { deps, service } = setup(["Summarising: the decisions so far."]);
+
+    const recorded = await service.record("job-1", SESSION, { id: "turn-2", action: "summarise" }, {
+      success: true,
+      documents: { summary: "# Summary\n\n- Ship on Friday (Maria agreed)" },
+      contextUsage: { used: 90_000, size: 200_000 },
+      compacted: true,
+    });
+
+    expect(deps.summaries.create).toHaveBeenCalledWith("t-1", "# Summary\n\n- Ship on Friday (Maria agreed)", "turn-2");
+    expect(deps.turns.update).toHaveBeenCalledWith("turn-2", {
+      contentMarkdown: "Summarising: the decisions so far.",
+      contentJson: expect.objectContaining({ produced: ["summary"], mentioned: [], contextUsage: { used: 90_000, size: 200_000 }, compacted: true }),
+    });
+    expect(recorded).toBeNull();
+  });
+
+  it("ignores SUMMARY.md written by a turn that wasn't asked for a summary", async () => {
+    const { deps, service } = setup();
+    await service.record("job-1", SESSION, TURN, { success: true, documents: { summary: "# Notes" } });
+    expect(deps.summaries.create).not.toHaveBeenCalled();
   });
 
   it("mentions the owner when the task has no reviewers", async () => {

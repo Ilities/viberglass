@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// Space membership (ADR 0005, phase-2-3-handover §2.3). `user_projects` was
+// Space membership. `user_projects` was
 // backfilled once and never written since, so it's replaced rather than kept.
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema.dropTable("user_projects").ifExists().execute();

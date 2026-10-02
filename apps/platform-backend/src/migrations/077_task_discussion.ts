@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// The task's Discussion thread and its @mentions (phase-2-3-handover §2.5).
+// The task's Discussion thread and its @mentions.
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable("task_messages")

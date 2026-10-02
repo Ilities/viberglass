@@ -20,7 +20,7 @@ const nodes = (connection: unknown): Record<string, unknown>[] => {
 };
 
 /**
- * A preview link for the pull request (ADR 0008): a successful deployment's
+ * A preview link for the pull request: a successful deployment's
  * environment URL, else a preview app's successful check run. Null when the
  * repository reports neither.
  */

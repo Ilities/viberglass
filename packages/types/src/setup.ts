@@ -1,7 +1,7 @@
 import type { AgentType, ClankerStatus } from './clanker'
 import type { ModelProviderId } from './modelProviders'
 
-/** API contract of `/api/setup/*`, the first-run flow (ADR 0003). */
+/** API contract of `/api/setup/*`, the first-run flow. */
 
 export interface SetupProvider {
   id: ModelProviderId

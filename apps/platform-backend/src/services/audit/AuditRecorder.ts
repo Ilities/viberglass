@@ -16,7 +16,7 @@ export interface AuditEvent {
 }
 
 /**
- * Appends to the workspace audit log (J17). A failure to record is logged and
+ * Appends to the workspace audit log. A failure to record is logged and
  * never fails the change it describes.
  */
 export class AuditRecorder {

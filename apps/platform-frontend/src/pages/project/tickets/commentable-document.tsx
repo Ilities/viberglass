@@ -49,7 +49,7 @@ interface CommentableDocumentProps {
 }
 
 /**
- * The rendered document with its open comments highlighted (J7). Selecting
+ * The rendered document with its open comments highlighted. Selecting
  * text offers to comment on it or suggest new wording; clicking a highlight
  * opens what was said about it.
  */

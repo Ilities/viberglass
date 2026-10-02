@@ -1,7 +1,7 @@
 import { Kysely } from "kysely";
 import { quoteForLine } from "@viberglass/types";
 
-// Comments on the rendered document (phase-2-3-handover §2.8): each comment
+// Comments on the rendered document: each comment
 // is anchored to the text it's on (a W3C text quote) instead of a source line.
 // Existing line comments get a quote built from the text on their line, as
 // the document reads now; a comment on a blank line keeps only its line.

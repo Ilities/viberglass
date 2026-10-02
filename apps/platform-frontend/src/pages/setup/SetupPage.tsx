@@ -19,7 +19,7 @@ interface Loaded {
 }
 
 /**
- * First-run setup (ADR 0003, J1): model key → repository → space → agent →
+ * First-run setup: model key → repository → space → agent →
  * first task. Admin only; it resumes at the first step that isn't done.
  */
 export function SetupPage() {

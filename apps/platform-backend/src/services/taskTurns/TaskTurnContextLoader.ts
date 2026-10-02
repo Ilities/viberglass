@@ -8,6 +8,7 @@ import {
 } from "@viberglass/types";
 import { type AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import { TaskMessageDAO } from "../../persistence/ticketing/TaskMessageDAO";
+import { TaskSummaryDAO } from "../../persistence/ticketing/TaskSummaryDAO";
 import {
   PHASE_DOCUMENT_COMMENT_STATUS,
   TicketPhaseDocumentCommentDAO,
@@ -21,7 +22,7 @@ import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
 import type { TaskTurnContext, TurnComment, TurnEdit, TurnMessage } from "./taskTurnContext";
 
-/** How much of the thread a cold start reads, newest last. Older messages wait for the summary (S6). */
+/** How much of the thread a cold start reads, newest last; what the latest summary covers is left to it. */
 const MESSAGE_LIMIT = 40;
 
 const PHASE_OF: Record<TaskArtifactKind, "research" | "planning"> = { research: "research", plan: "planning" };
@@ -37,6 +38,7 @@ interface Dependencies {
     ): Promise<Array<Pick<PhaseDocumentRevision, "phase" | "content" | "actor"> & { authorName: string | null }>>;
   };
   documents: { getOrCreateDocument(ticketId: string, phase: TicketWorkflowPhase): Promise<{ content: string }> };
+  summaries: Pick<TaskSummaryDAO, "latest">;
   pullRequest: { forTask(ticket: Pick<Ticket, "id" | "projectId" | "pullRequestUrl">): Promise<Pick<BuildPullRequest, "comments">> };
 }
 
@@ -61,6 +63,7 @@ export class TaskTurnContextLoader {
       comments: new TicketPhaseDocumentCommentDAO(),
       revisions: new TicketPhaseDocumentRevisionDAO(),
       documents: new TicketPhaseDocumentService(),
+      summaries: new TaskSummaryDAO(),
       pullRequest: deps.pullRequest ?? createBuildPullRequestService(),
       ...deps,
     };
@@ -69,11 +72,12 @@ export class TaskTurnContextLoader {
   async load(input: LoadTurnContextInput): Promise<TaskTurnContext> {
     const { ticket } = input;
     const since = await this.lastPromptedAt(input.sessionId, input.turnId);
-    const [threadMessages, comments, research, plan, edits, pullRequest] = await Promise.all([
+    const [threadMessages, comments, research, plan, summary, edits, pullRequest] = await Promise.all([
       this.deps.messages.list(ticket.id),
       this.openComments(ticket.id),
       this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.RESEARCH),
       this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.PLANNING),
+      this.deps.summaries.latest(ticket.id),
       since ? this.handEdits(ticket.id, since) : Promise.resolve([]),
       input.action === "code" && ticket.pullRequestUrl ? this.deps.pullRequest.forTask(ticket) : Promise.resolve(null),
     ]);
@@ -93,6 +97,7 @@ export class TaskTurnContextLoader {
       })),
     ].sort((a, b) => a.at.getTime() - b.at.getTime());
     const isFresh = (at: Date) => !since || at > since;
+    const afterSummary = (at: Date) => !summary || at > summary.createdAt;
 
     return {
       ticket: {
@@ -102,14 +107,18 @@ export class TaskTurnContextLoader {
         pullRequestUrl: ticket.pullRequestUrl ?? null,
       },
       documents: { research: research.content.trim(), plan: plan.content.trim() },
+      summary: summary?.content.trim() ?? "",
       since,
       earlier: {
-        messages: messages.filter((message) => !isFresh(message.at)).slice(-MESSAGE_LIMIT),
+        messages: messages.filter((message) => !isFresh(message.at) && afterSummary(message.at)).slice(-MESSAGE_LIMIT),
         openComments: comments.filter((entry) => !isFresh(entry.comment.createdAt)),
       },
       fresh: {
-        // Session messages are the ones this turn consumes, whenever they were sent.
-        messages: messages.filter((message) => message.via === "session" || isFresh(message.at)).slice(-MESSAGE_LIMIT),
+        // Session messages are the ones this turn consumes, whenever they were sent. An agent new to the
+        // task (a second one brought in) reads the summary instead of what it covers.
+        messages: messages
+          .filter((message) => message.via === "session" || (isFresh(message.at) && (since !== null || afterSummary(message.at))))
+          .slice(-MESSAGE_LIMIT),
         comments: comments.filter((entry) => isFresh(entry.comment.createdAt)),
         edits,
         pullRequestComments: pullRequest?.comments ?? [],

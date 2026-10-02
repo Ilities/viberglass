@@ -26,7 +26,13 @@ export interface DispatchTurnInput {
   prompts: TurnPrompts;
   ticket: Ticket;
   documents: { research: string; plan: string };
+  /** The latest summary of the conversation, written into the repository as SUMMARY.md. */
+  summary: string;
 }
+
+/** What a harness with a compact command keeps when it compacts after a summary. */
+const COMPACT_INSTRUCTIONS =
+  "Keep the decisions made on this task, who agreed to each, and the open questions. SUMMARY.md has the summary you just wrote.";
 
 /** The harness's own session id and saved state, from earlier turns. */
 function resumeState(metadata: unknown): { acpSessionId: string | null; conversationStateUrl: string | null } {
@@ -109,6 +115,7 @@ export class TaskTurnJobDispatcher {
         ticketDescription: ticket.description,
         researchDocument: input.documents.research || undefined,
         planDocument: input.documents.plan || undefined,
+        summaryDocument: input.summary || undefined,
         instructionFiles: prepared.mergedInstructionFiles,
         ...(ticketMedia.media.length > 0 ? { ticketMedia: ticketMedia.media } : {}),
       },
@@ -143,6 +150,7 @@ export class TaskTurnJobDispatcher {
       acpSessionId,
       conversationStateUrl,
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
+      ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
     };
     jobData.bootstrapPayload = bootstrap;
     await this.jobService.saveBootstrapPayload(jobId, bootstrap);

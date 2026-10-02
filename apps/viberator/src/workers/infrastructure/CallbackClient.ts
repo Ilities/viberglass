@@ -12,10 +12,12 @@ export interface CallbackResult {
   commitHash?: string;
   pullRequestUrl?: string;
   /** The documents a task turn wrote. */
-  documents?: Partial<Record<"research" | "plan", string>>;
+  documents?: Partial<Record<"research" | "plan" | "summary", string>>;
   codeDiscarded?: boolean;
   /** Whether the turn continued the harness's session (AcpSessionStart). */
   sessionStart?: { resumed: boolean };
+  contextUsage?: { used: number; size: number | null };
+  compacted?: boolean;
   errorMessage?: string;
   /** Why the run failed (JOB_FAILURE_CODE), decided by the stage that failed. */
   failureCode?: string;

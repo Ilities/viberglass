@@ -26,7 +26,7 @@ interface Dependencies {
 }
 
 /**
- * Turns a task's Activity into notifications (plan §8) and sends each through
+ * Turns a task's Activity into notifications and sends each through
  * every channel. A channel that fails is logged and the others still deliver.
  */
 export class NotificationService {

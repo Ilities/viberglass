@@ -1,4 +1,4 @@
-/** A task's key is its space's prefix and its number in that space: `WEB-42` (plan §9). */
+/** A task's key is its space's prefix and its number in that space: `WEB-42`. */
 export const TASK_KEY_PATTERN = /^[A-Z][A-Z0-9]{0,9}-[1-9][0-9]*$/
 
 export function isTaskKey(value: string): boolean {

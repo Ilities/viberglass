@@ -42,7 +42,7 @@ function idsOf(records: DemoSeedRecord[], type: DemoSeedRecord["entityType"]): s
 }
 
 /**
- * "Explore a demo workspace" (J1, ADR 0002): loads sample data beside real
+ * "Explore a demo workspace": loads sample data beside real
  * data, and removes exactly what it loaded.
  */
 export class DemoWorkspaceService {

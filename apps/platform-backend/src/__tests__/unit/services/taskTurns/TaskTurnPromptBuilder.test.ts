@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/083_task_turns";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/087_task_summaries";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -42,6 +42,7 @@ function context(overrides: Partial<TaskTurnContext> = {}): TaskTurnContext {
   return {
     ticket: { title: "Dark mode", description: "Let people switch themes", externalTicketId: null, pullRequestUrl: null },
     documents: { research: "", plan: "" },
+    summary: "",
     since: null,
     earlier: { messages: [], openComments: [] },
     fresh: { messages: [], comments: [], edits: [], pullRequestComments: [] },
@@ -105,6 +106,13 @@ describe("TaskTurnPromptBuilder", () => {
     expect(coldStartPrompt).toContain("Still open from before");
     expect(coldStartPrompt).not.toContain("<current-plan>");
     expect(prompt).toContain("Write the plan: write PLAN.md");
+  });
+
+  it("starts cold from the summary, and asks a summarise turn for SUMMARY.md", async () => {
+    const { prompt, coldStartPrompt } = await builder.build("p", context({ summary: "- Ship on Friday (Maria agreed)" }), "summarise", false);
+
+    expect(coldStartPrompt).toContain("<summary-so-far>\n- Ship on Friday (Maria agreed)\n</summary-so-far>");
+    expect(prompt).toContain("Summarise the conversation so far in SUMMARY.md");
   });
 
   it("tells a build what it may change and which pull request it continues", async () => {

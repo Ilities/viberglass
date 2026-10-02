@@ -51,7 +51,7 @@ function preview(body: string): string {
 }
 
 /**
- * Works out where many tasks stand and whose move each is (redesign §4), with
+ * Works out where many tasks stand and whose move each is, with
  * one query per fact for the whole list, so Home, task lists and the task page
  * say the same thing.
  */

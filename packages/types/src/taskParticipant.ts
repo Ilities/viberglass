@@ -1,4 +1,4 @@
-/** People on a task (plan §9): who asked, who owns it, who reviews it and who follows it. */
+/** People on a task: who asked, who owns it, who reviews it and who follows it. */
 export const TASK_PARTICIPANT_ROLES = ['requester', 'owner', 'reviewer', 'watcher'] as const
 
 export type TaskParticipantRole = (typeof TASK_PARTICIPANT_ROLES)[number]

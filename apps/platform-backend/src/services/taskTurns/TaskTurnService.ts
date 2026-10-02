@@ -42,7 +42,7 @@ interface Dependencies {
 }
 
 /**
- * The one way an agent is asked to work on a task (ADR 0008): the person's
+ * The one way an agent is asked to work on a task: the person's
  * message goes into the thread, and the task's session with that agent takes
  * it as its next turn, or queues it behind the turn that's running.
  */

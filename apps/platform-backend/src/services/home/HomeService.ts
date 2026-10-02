@@ -12,7 +12,7 @@ interface Dependencies {
 }
 
 /**
- * Home (redesign §6): the task threads someone is in, like a chat app's
+ * Home: the task threads someone is in, like a chat app's
  * conversation list. Those where it's their move come first; the rest follow
  * by latest activity.
  */
