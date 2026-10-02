@@ -97,6 +97,17 @@ describe("KubernetesInvoker", () => {
     });
   });
 
+  it("keeps credential values out of persisted bootstrap data", async () => {
+    const { saveBootstrapPayload, invoker } = setup();
+    await invoker.invoke({ ...job, bootstrapPayload: {
+      agentSessionId: "session-1", requiredCredentials: ["AGENT_KEY"], credentials: { AGENT_KEY: "stale-value" },
+    } }, clanker);
+    const payload = saveBootstrapPayload.mock.calls[0][1];
+    expect(payload.agentSessionId).toBe("session-1");
+    expect(payload.requiredCredentials).toEqual(["AGENT_KEY"]);
+    expect(payload).not.toHaveProperty("credentials");
+  });
+
   it("rejects a namespace outside the configured worker namespace", async () => {
     const { client, invoker } = setup();
     const other = { ...clanker, deploymentConfig: {

@@ -855,11 +855,12 @@ export class JobService {
    */
   async getBootstrapPayload(jobId: string): Promise<{
     tenantId: string;
+    status: JobStatus;
     payload: Record<string, unknown> | null;
   } | null> {
     const job = await db
       .selectFrom("jobs")
-      .select(["tenant_id", "bootstrap_payload"])
+      .select(["tenant_id", "bootstrap_payload", "status"])
       .where("id", "=", jobId)
       .executeTakeFirst();
 
@@ -874,6 +875,7 @@ export class JobService {
 
     return {
       tenantId: job.tenant_id,
+      status: job.status,
       payload: parsedPayload,
     };
   }

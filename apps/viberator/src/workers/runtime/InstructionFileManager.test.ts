@@ -66,6 +66,7 @@ describe("InstructionFileManager.loadFromPayload", () => {
     ]);
     const payload: KubernetesPayload = {
       workerType: "kubernetes",
+      credentials: {},
       jobKind: JOB_KIND.EXECUTION,
       tenantId: "tenant-1",
       jobId: "job-1",

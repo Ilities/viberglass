@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { objectStorageBucket, objectStorageClientConfig } from "@viberglass/types";
 import fs from "fs";
 import path from "path";
 import { createChildLogger } from "../../config/logger";
@@ -11,7 +12,7 @@ import { normalizeInstructionPath } from "./pathPolicy";
 
 const logger = createChildLogger({ service: "InstructionStorageService" });
 
-export type InstructionStrategyType = "docker" | "ecs" | "lambda";
+export type InstructionStrategyType = "docker" | "ecs" | "lambda" | "kubernetes";
 
 interface ParsedS3Url {
   bucket: string;
@@ -25,23 +26,19 @@ export interface InlineInstructionFile {
 
 export class InstructionStorageService {
   private readonly s3Client: S3Client;
-  private readonly region: string;
   private readonly bucketName: string;
   private readonly fsRoot: string;
 
   constructor() {
-    this.region = process.env.AWS_REGION || "eu-west-1";
     this.bucketName =
       process.env.INSTRUCTION_FILES_S3_BUCKET?.trim() ||
-      process.env.AWS_S3_BUCKET?.trim() ||
+      objectStorageBucket(process.env) ||
       "";
     this.fsRoot =
       process.env.CLANKER_INSTRUCTION_FILES_ROOT ||
       path.resolve(process.cwd(), ".clanker-instructions");
 
-    this.s3Client = new S3Client({
-      region: this.region,
-    });
+    this.s3Client = new S3Client(objectStorageClientConfig(process.env));
   }
 
   async storeClankerInstruction(
@@ -177,7 +174,7 @@ export class InstructionStorageService {
   private ensureS3Configured(): string {
     if (!this.bucketName) {
       throw new Error(
-        "Instruction storage requires INSTRUCTION_FILES_S3_BUCKET or AWS_S3_BUCKET",
+        "Instruction storage requires INSTRUCTION_FILES_S3_BUCKET, S3_BUCKET, or AWS_S3_BUCKET",
       );
     }
 

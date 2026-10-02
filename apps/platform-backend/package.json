@@ -9,6 +9,7 @@
     "build": "tsup && node ./scripts/writeDistPackageJson.cjs",
     "smoke:start": "node ./scripts/smokeStart.cjs",
     "smoke:kubernetes": "tsx ./scripts/kubernetesSmoke.ts",
+    "smoke:portable": "tsx ./scripts/portableStorageSmoke.ts",
     "test": "jest",
     "test:unit": "jest --testPathPattern=unit",
     "test:integration": "jest --testPathPattern=integration",

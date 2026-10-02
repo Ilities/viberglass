@@ -94,7 +94,9 @@ export class ViberatorWorker {
     try {
       this.logger.info("Initializing Viberator Coding Worker...");
 
-      this.credentialProvider = new CredentialProvider(this.logger);
+      this.credentialProvider = new CredentialProvider(this.logger, payload?.workerType === "kubernetes"
+        ? { suppliedCredentials: payload.credentials ?? {}, ssmEnabled: false }
+        : undefined);
       this.configLoader = new ConfigLoader(this.logger);
       this.instructionFileManager = new InstructionFileManager(this.logger);
       this.environmentManager = new EnvironmentManager(this.logger);

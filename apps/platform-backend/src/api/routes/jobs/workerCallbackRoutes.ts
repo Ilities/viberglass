@@ -8,6 +8,8 @@ import { AgentSessionWorkerEventService } from "../../../services/agentSession/A
 import { SessionTurnContinuationService } from "../../../services/agentSession/SessionTurnContinuationService";
 import { isAgentSessionServiceError } from "../../../services/errors/AgentSessionServiceError";
 import { JobService } from "../../../services/JobService";
+import { SecretService } from "../../../services/SecretService";
+import { WorkerBootstrapCredentials } from "../../../services/job/WorkerBootstrapCredentials";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
 import {
@@ -17,6 +19,7 @@ import {
 } from "../../middleware/validation";
 
 const jobService = new JobService();
+const bootstrapCredentials = new WorkerBootstrapCredentials(new SecretService());
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionDAO = new AgentSessionDAO();
 const turnContinuationService = new SessionTurnContinuationService(
@@ -63,9 +66,17 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
           });
         }
 
+        let payload = bootstrap.payload;
+        if (payload.workerType === "kubernetes") {
+          if (bootstrap.status !== "active") {
+            return res.status(403).json({ error: "Worker credentials are only available for an active run" });
+          }
+          payload = { ...payload, credentials: await bootstrapCredentials.resolve(payload) };
+        }
+        res.setHeader("Cache-Control", "no-store");
         return res.json({
           success: true,
-          data: bootstrap.payload,
+          data: payload,
         });
       } catch (error) {
         logger.error("Failed to fetch job bootstrap payload", {
