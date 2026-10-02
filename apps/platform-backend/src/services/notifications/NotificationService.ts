@@ -4,7 +4,6 @@ import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantD
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import { UserDAO } from "../../persistence/user/UserDAO";
 import { EmailChannel } from "./EmailChannel";
-import { InboxChannel } from "./InboxChannel";
 import type { NotificationChannel } from "./NotificationChannel";
 import { resolveNotifications } from "./resolveNotifications";
 import { SlackDmChannel } from "./SlackDmChannel";
@@ -38,7 +37,7 @@ export class NotificationService {
       participants: new TaskParticipantDAO(),
       users: new UserDAO(),
       tasks: new TicketDAO(),
-      channels: [new InboxChannel(), new SlackDmChannel(), new EmailChannel()],
+      channels: [new SlackDmChannel(), new EmailChannel()],
       frontendUrl: process.env.PLATFORM_FRONTEND_URL,
       ...deps,
     };

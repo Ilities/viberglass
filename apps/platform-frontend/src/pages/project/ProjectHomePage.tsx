@@ -8,6 +8,7 @@ import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { Timestamp } from '@/components/timestamp'
 import { TruncatedText } from '@/components/truncated-text'
 import type { Clanker, JobListItem, TicketStats, TicketSummary } from '@/data'
+import { SituationLine } from '@/pages/project/tickets/situation-line'
 import {
   formatJobKind,
   formatSeverity,
@@ -213,6 +214,7 @@ function TicketCard({ ticket, project }: { ticket: TicketSummary; project: strin
           <h4 className="line-clamp-2 font-medium text-gray-900 transition-colors group-hover:text-brand-burnt-orange dark:text-white">
             {ticket.title}
           </h4>
+          {ticket.situation && <SituationLine situation={ticket.situation} className="mt-1 text-xs" />}
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{ticket.category}</p>
         </div>
         <div className="text-right">

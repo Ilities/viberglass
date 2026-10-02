@@ -9,6 +9,7 @@ function setup(streamed: string[] = ["Writing the research: checking the theme s
     events: { listAssistantTextByTurn: jest.fn().mockResolvedValue(streamed) },
     documents: { saveDocument: jest.fn() },
     workerEvents: { batchIngest: jest.fn() },
+    mentions: { createForTurn: jest.fn() },
     participants: {
       list: jest.fn().mockResolvedValue([
         { userId: "owner", name: "Olli Owner", email: "o@x", role: "owner", addedAt: "" },
@@ -45,6 +46,7 @@ describe("TaskTurnOutcomeService", () => {
     });
     // The run's Activity names what it produced last, and whom the agent mentioned.
     expect(recorded).toEqual({ step: "execution", mentioned: ["tomi"] });
+    expect(deps.mentions.createForTurn).toHaveBeenCalledWith("t-1", "turn-1", ["tomi"]);
     // Ended after the documents are saved, so a queued turn reads them.
     expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [
       { eventType: "turn_completed", payload: { produced: ["research", "plan", "code"] } },

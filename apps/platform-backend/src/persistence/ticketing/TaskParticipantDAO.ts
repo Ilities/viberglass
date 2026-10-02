@@ -1,16 +1,4 @@
-import { sql } from "kysely";
-import { isTaskParticipantRole, type TaskParticipant, type TaskParticipantRole, type TicketLifecycleStatus, type TicketWorkflowPhase } from "@viberglass/types";
-
-export interface MyTaskRow {
-  id: string;
-  key: string;
-  title: string;
-  status: TicketLifecycleStatus;
-  workflowPhase: TicketWorkflowPhase;
-  updatedAt: string;
-  spaceSlug: string;
-  roles: TaskParticipantRole[];
-}
+import type { TaskParticipant, TaskParticipantRole } from "@viberglass/types";
 import db from "../config/database";
 
 export class TaskParticipantDAO {
@@ -31,44 +19,6 @@ export class TaskParticipantDAO {
     }));
   }
 
-  /** Open and recent tasks someone is the requester, owner or reviewer of, with their roles on each. */
-  async listTasksFor(userId: string, projectIds: string[] | null, limit = 200): Promise<MyTaskRow[]> {
-    if (projectIds && projectIds.length === 0) return [];
-    let query = db
-      .selectFrom("task_participants as tp")
-      .innerJoin("tickets as t", "t.id", "tp.ticket_id")
-      .innerJoin("projects as p", "p.id", "t.project_id")
-      .select([
-        "t.id",
-        "t.task_key",
-        "t.title",
-        "t.ticket_status",
-        "t.workflow_phase",
-        "t.updated_at",
-        "p.slug",
-        sql<string[]>`array_agg(tp.role)`.as("roles"),
-      ])
-      .where("tp.user_id", "=", userId)
-      .where("tp.role", "in", ["requester", "owner", "reviewer"])
-      .where("t.archived_at", "is", null);
-    if (projectIds) query = query.where("t.project_id", "in", projectIds);
-    const rows = await query
-      .groupBy(["t.id", "t.task_key", "t.title", "t.ticket_status", "t.workflow_phase", "t.updated_at", "p.slug"])
-      .orderBy("t.updated_at", "desc")
-      .limit(limit)
-      .execute();
-    return rows.map((row) => ({
-      id: row.id,
-      key: row.task_key,
-      title: row.title,
-      status: row.ticket_status,
-      workflowPhase: row.workflow_phase,
-      updatedAt: row.updated_at.toISOString(),
-      spaceSlug: row.slug,
-      roles: row.roles.filter(isTaskParticipantRole),
-    }));
-  }
-
   /** Each task's owner, for task lists. */
   async listOwners(ticketIds: string[]): Promise<Map<string, { id: string; name: string }>> {
     if (ticketIds.length === 0) return new Map();
@@ -80,6 +30,23 @@ export class TaskParticipantDAO {
       .where("task_participants.role", "=", "owner")
       .execute();
     return new Map(rows.map((row) => [row.ticket_id, { id: row.id, name: row.name }]));
+  }
+
+  /** Who drives each task when nobody else is asked: its owner, else its requester (redesign §4). */
+  async listDrivers(ticketIds: string[]): Promise<Map<string, { id: string; name: string }>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows = await db
+      .selectFrom("task_participants")
+      .innerJoin("users", "users.id", "task_participants.user_id")
+      .select(["task_participants.ticket_id", "task_participants.role", "users.id", "users.name"])
+      .where("task_participants.ticket_id", "in", ticketIds)
+      .where("task_participants.role", "in", ["owner", "requester"])
+      .execute();
+    const drivers = new Map<string, { id: string; name: string }>();
+    for (const row of rows) {
+      if (row.role === "owner" || !drivers.has(row.ticket_id)) drivers.set(row.ticket_id, { id: row.id, name: row.name });
+    }
+    return drivers;
   }
 
   /** A task has one owner: this replaces the current one. */

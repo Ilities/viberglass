@@ -23,13 +23,16 @@ export default defineConfig([
     external: [/^[^.]/],
     noExternal: [/@viberglass\/.*/],
   },
-  // Migration files — transpiled individually (not bundled) so FileMigrationProvider can load them
+  // Migration files — one file each so FileMigrationProvider can load them. Like the server,
+  // they inline @viberglass/*: the production image has no workspace packages in node_modules.
   {
     entry: migrationEntries,
     format: ["esm"],
     outDir: "dist",
-    bundle: false,
+    splitting: false,
     sourcemap: true,
     target: "node20",
+    external: [/^[^.]/],
+    noExternal: [/@viberglass\/.*/],
   },
 ]);

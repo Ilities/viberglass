@@ -5,7 +5,7 @@ import { RunTicketModal } from '@/components/run-ticket-modal'
 import { Timestamp } from '@/components/timestamp'
 import { formatAutoFixStatus, formatSeverity } from '@/data'
 import { PlayIcon } from '@radix-ui/react-icons'
-import type { Clanker, Ticket, TicketLifecycleStatus, TicketWorkflowPhase } from '@viberglass/types'
+import { situationPhrase, type Clanker, type Ticket, type TicketLifecycleStatus, type TicketWorkflowPhase } from '@viberglass/types'
 import { useMemo, useState } from 'react'
 import { LiveSessionBadge } from './live-session-badge'
 import { formatTicketStatus, formatTicketWorkflowPhase, ticketWorkflowPhaseOrder } from './ticket-display'
@@ -163,7 +163,9 @@ export function TicketsBoard({
                                       {severityInfo.label}
                                     </Badge>
                                     <Badge className={`${phaseInfo.className} text-[10px]`}>{phaseInfo.label}</Badge>
-                                    <Badge className={`${statusInfo.className} text-[10px]`}>{statusInfo.label}</Badge>
+                                    <Badge className={`${statusInfo.className} text-[10px]`}>
+                                      {ticket.situation ? situationPhrase(ticket.situation) : statusInfo.label}
+                                    </Badge>
                                     {autoFixInfo ? (
                                       <Badge className={`${autoFixInfo.color} text-[10px]`}>{autoFixInfo.label}</Badge>
                                     ) : null}

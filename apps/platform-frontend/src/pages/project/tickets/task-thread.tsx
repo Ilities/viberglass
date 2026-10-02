@@ -4,6 +4,7 @@ import { Timestamp } from '@/components/timestamp'
 import { useAuth } from '@/context/auth-context'
 import { usePersonName } from '@/hooks/usePeople'
 import { getTaskTimeline } from '@/service/api/discussion-api'
+import { markTaskRead } from '@/service/api/home-api'
 import type { TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { describeActivity } from './activity-sentence'
@@ -97,6 +98,13 @@ export function TaskThread({ taskId, project, refreshKey, onOpenArtifact, agents
   }, [taskId])
 
   useEffect(() => load(), [load, refreshKey])
+
+  // Seeing the thread reads it, again whenever something new shows up while it's open. Viewers are read-only on the server.
+  const seen = entries ? entries.map((entry) => (entry.kind === 'agent_turn' ? `${entry.id}:${entry.status}` : entry.id)).join(',') : null
+  useEffect(() => {
+    if (seen === null || !canWrite) return
+    markTaskRead(taskId).catch(() => undefined)
+  }, [seen, canWrite, taskId])
 
   if (!entries) return null
   const shown = messagesOnly ? entries.filter((entry) => entry.kind !== 'event') : entries

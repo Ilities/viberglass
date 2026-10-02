@@ -284,6 +284,50 @@ Planned:
   - the Phase 2 exit journey, rewritten as a conversation.
 
 ### S4. Whose move, Home and unread (about 1.5 weeks)
+**Done (2026-10-01).** What landed:
+- **Where a task stands:** `taskSituation(input, viewer)` in `@viberglass/types` returns `state`, `label`, `waitingOn`, `since` and `yourMove`; `situationPhrase` gives "Plan v2 ready · Tomi". Precedence, highest first:
+  - done;
+  - the agent working ("Agent revising the plan");
+  - an open question (an open pending request, asked of whoever opened the session);
+  - a failed turn nothing has happened since (admins share setup and platform failures);
+  - discussing, when people wrote after the latest artifact (waits on the open mentions, else the owner);
+  - the PR (code);
+  - the latest artifact ready (waits on the agent's open mentions, else the owner);
+  - not started.
+
+  The owner falls back to the requester. `TaskSituationService` gathers the facts for a whole list in eight batched queries (`TaskTurnFactsDAO`, `TaskThreadFactsDAO`, `TaskMentionDAO`, `TaskParticipantDAO.listDrivers`).
+- **Migration 085:**
+  - `task_mentions` holds mentions by people (with their message) and by the agent (with its turn); `task_message_mentions` is folded in. A mention is open until the person next posts in the thread, which `TaskMessageDAO.create` records.
+  - `task_reads` tracks when each person last read each thread. Unread counts other people's messages and the agent's finished turns since then.
+  - The Inbox's `notifications` table is dropped. Slack and email never read it.
+- **API:**
+  - `GET /api/home`: `needsYou`, then `threads` by latest activity, with roles, unread counts and last messages;
+  - `GET /api/home/count`, for the sidebar badge;
+  - `GET /api/overview?space=`: stuck (failed, or waiting on people over a day), in progress, done this week, live now, and per space;
+  - `POST /api/tasks/:id/read`.
+
+  Task lists and `GET /api/tasks/:id` include `situation`; the single task also has `capabilities`. Removed: `/api/inbox*` (My tasks included), `GET /:id/capabilities`, `InboxChannel`, `NotificationDAO`, and the Inbox and My tasks types.
+- **Frontend:**
+  - Home at `/` (Needs you, Your tasks with All · Unread · Mine, the setup checklist, a workspace-health line for admins, "Ask for something");
+  - Overview at `/overview`, where viewers land;
+  - the sidebar has Home (with the needs-you badge) and Overview in place of Dashboard, Inbox and Pulse;
+  - the task page shows its situation under the title and marks the thread read, for everyone but viewers;
+  - task lists and the board show the situation phrase.
+
+  Deleted: DashboardPage, the Inbox pages and Pulse.
+- **Split as touched:** the task routes (650 lines) into `crudRoutes`, `taskReadRoutes`, `taskMediaRoutes` and `taskListQuery`.
+- **Found on the way: the production backend couldn't start.** Migrations 075 and 081 import `@viberglass/types`, which the prod image deletes because `server.js` bundles it, and `FileMigrationProvider` imports every migration on each start. So every start with `RUN_MIGRATIONS_ON_STARTUP` exited with `ERR_MODULE_NOT_FOUND`. `tsup.config.ts` now bundles each migration, still one file each. Checked on a locally built prod image against an empty Postgres: all migrations ran and `/health` returned 200.
+- **Verified:**
+  - Unit tests: backend 1056 (new: the situation table, `TaskSituationService`, `HomeService` and `OverviewService`); frontend 217.
+  - Lint and type checks are clean.
+  - Smoke 41/41, with the new `home.e2e.test.ts` (one journey per role: member, owner, guest, viewer); phase-2-exit and ask-policy now check Needs you.
+- **Left for later:**
+  - "Mark done" on a mention (the redesign's "or marks it done"); only replying answers one.
+  - The `review_requested` notification on adding a reviewer still goes to Slack, but adding a reviewer opens no mention, so it isn't their move until the agent produces something.
+  - `ApplicationLayout.tsx` (485) and `ProjectHomePage.tsx` (577) are still over the size limit; S7 rewrites both.
+  - The space's own nav still says "Dashboard" (S7).
+
+Planned:
 - `task_reads`, mention `answered_at`, `taskSituation` and `capabilities` on every task response.
 - **Home** becomes the thread list: Needs you, then by latest activity, with unread counts and last messages. It replaces the Dashboard, the Inbox page and Pulse. Overview for viewers.
 - Slack and email keep notifying.
@@ -324,26 +368,16 @@ Planned:
 | Slack keeps the old keyword flow until S8 | Fine for the interim: it calls the same services, and keywords map onto actions |
 | Oversized files | Split as touched (AGENTS.md §6). Start with `workflowPhaseRoutes.ts` and the session services, which S2 rewrites anyway |
 
-## 5. Next step: S4
+## 5. Next step: S5, then S6
 
-S1, S2 and S3 are done, so S4 comes next (S5 can go alongside).
+S1–S4 are done. S5 (done on merge) is small and independent. S6 (compaction, more than one agent) needs only S2. S7 (pages and navigation) can start now that S4 is in.
 
-**S3 verified (2026-10-01):**
-- Unit tests: backend 1042, frontend 221. Lint and type checks are clean for backend, frontend, the types package, chat-slack, mcp-server and the Chrome extension.
-- Smoke 40/40, twice. New or rewritten journeys:
-  - `ask-policy`: a guest who isn't on the task is offered nothing and refused; a member who isn't on it is refused the build; a guest added to the task asks for the build and it runs as theirs; default reviewers get the agent's mention;
-  - `research-then-plan`;
-  - `task-next-moves`;
-  - `phase-2-exit`, rewritten as a conversation;
-  - `inbox`: the owner gets a mention.
-- Not checked on the dev stack: that needs the backend rebuilt and migration 084, which drops the approval columns from the dev database.
-
-**Where S3 left S4's hooks:**
-- **Mentions by the agent** live in the turn's `outcome.mentioned` and the run's `run_finished` payload, not in `task_message_mentions`. `answered_at` and "whose move" have to read both.
-- **Capabilities** come from `GET /api/tasks/:id/capabilities` (`TaskAskPolicyService.describe`). S4's `capabilities` on every task response can fold this in.
-- **Status** is in review whenever an artifact exists and no run is going (`TicketLifecycleStatusService`). `taskSituation` should replace that as the signal for whose move it is.
+**Where S4 left the hooks:**
+- **S5:** `PullRequestOutcomeSweeper` should set the task `resolved`. `taskSituation` already reads that as done; S5 adds "Done · merged by …", which needs the merger in the situation input.
+- **S6:** a summarise turn's `SUMMARY.md` has no artifact kind yet (`TaskSituationArtifact`, `TaskArtifactKind`).
+- **S7:** the space page can list its tasks grouped by `situation.state` straight from `GET /api/tasks`, which already includes it.
 
 **Before running agents in the dev stack:**
 - Rebuild the worker images, so the opencode image runs the new worker. Today's dev image sends `documentContent`, which the result callback now rejects. See next-steps-handover §2.1.
 - Rebuild the frontend image (`docker compose build frontend && docker compose up -d frontend`) whenever `packages/types` changes. The image bakes in its build of the types (`dist/`).
-- Migration 083 is already applied to the dev database; 084 (S3) is not.
+- Migration 083 is already applied to the dev database; 084 (S3) and 085 (S4) are not.

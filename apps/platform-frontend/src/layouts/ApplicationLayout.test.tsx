@@ -7,6 +7,7 @@ import { useAuth } from '@/context/auth-context'
 import { useTheme } from '@/context/theme-context'
 import { getProjects } from '@/service/api/project-api'
 import { getTickets } from '@/service/api/ticket-api'
+import { getNeedsYouCount } from '@/service/api/home-api'
 import type { AuthUser } from '@/service/api/auth-api'
 
 jest.mock('@/context/auth-context', () => ({
@@ -32,6 +33,10 @@ jest.mock('@/service/api/project-api', () => ({
 
 jest.mock('@/service/api/ticket-api', () => ({
   getTickets: jest.fn(),
+}))
+
+jest.mock('@/service/api/home-api', () => ({
+  getNeedsYouCount: jest.fn(),
 }))
 
 jest.mock('sonner', () => ({
@@ -63,6 +68,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.resetAllMocks()
+  jest.mocked(getNeedsYouCount).mockResolvedValue(0)
   mockedUseAuth.mockReturnValue({
     user: USER,
     status: 'authenticated',
@@ -100,7 +106,7 @@ function renderLayout(initialPath: string) {
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
           <Route element={<ApplicationLayout />}>
-            <Route path="/" element={<div>Dashboard content</div>} />
+            <Route path="/" element={<div>Home content</div>} />
             <Route path="/spaces/:project" element={<div>Space content</div>} />
           </Route>
         </Routes>
@@ -121,7 +127,7 @@ describe('ApplicationLayout mobile navigation', () => {
     // Projects load asynchronously — wait for the list before asserting
     expect(await within(mobileDrawer).findByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
 
-    for (const label of ['Dashboard', 'Pulse', 'Settings']) {
+    for (const label of ['Home', 'Overview', 'Settings']) {
       expect(
         within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') }),
       ).toBeInTheDocument()
@@ -158,13 +164,32 @@ describe('ApplicationLayout mobile navigation', () => {
     for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates']) {
       expect(within(mobileDrawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
-    for (const label of ['Dashboard', 'Pulse', 'Settings']) {
+    for (const label of ['Home', 'Overview', 'Settings']) {
       expect(within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
     expect(within(mobileDrawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute(
       'href',
       '/settings/api-tokens',
     )
+  })
+
+  it('gives viewers Overview and no Home, since they have no threads of their own', async () => {
+    mockedUseAuth.mockReturnValue({
+      user: { ...USER, role: 'viewer' },
+      status: 'authenticated',
+      login: jest.fn(),
+      register: jest.fn(),
+      logout: jest.fn().mockResolvedValue(undefined),
+      adoptSession: jest.fn(),
+    })
+    const user = userEvent.setup()
+    renderLayout('/')
+
+    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
+    const mobileDrawer = screen.getByRole('dialog')
+    expect(await within(mobileDrawer).findByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
+    expect(within(mobileDrawer).getByRole('link', { name: /^Overview$/i })).toHaveAttribute('href', '/overview')
+    expect(within(mobileDrawer).queryByRole('link', { name: /^Home$/i })).not.toBeInTheDocument()
   })
 
   it('shows project nav items in the drawer on project routes', async () => {
@@ -176,7 +201,7 @@ describe('ApplicationLayout mobile navigation', () => {
     const mobileDrawer = screen.getByRole('dialog')
 
     // Project section, then the Operations section beneath it
-    for (const label of ['Dashboard', 'Tasks', 'Settings', 'Runs', 'Schedules']) {
+    for (const label of ['Home', 'Overview', 'Dashboard', 'Tasks', 'Settings', 'Runs', 'Schedules']) {
       expect(
         within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') }),
       ).toBeInTheDocument()
