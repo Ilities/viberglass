@@ -1,8 +1,9 @@
 import { isObjectRecord } from "@viberglass/types";
 import type { BuildPullRequestDetails, PullRequestReviewComment } from "@viberglass/types";
 import { parseGitHubPullRequestUrl } from "../pull-request-outcomes/githubPullRequestUrl";
+import { PREVIEW_FIELDS, previewUrlOf } from "./pullRequestPreview";
 
-const REVIEW_QUERY = `
+const REVIEW_QUERY = (previewFields: string) => `
 query ($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $number) {
@@ -25,7 +26,7 @@ query ($owner: String!, $repo: String!, $number: Int!) {
         }
       }
       reviews(last: 50) { nodes { author { login } body url submittedAt } }
-      comments(last: 50) { nodes { author { login } body url createdAt } }
+      comments(last: 50) { nodes { author { login } body url createdAt } }${previewFields}
     }
   }
 }`;
@@ -62,7 +63,7 @@ export class GitHubPullRequestReviewSource {
     const response = await this.fetchFn(this.graphqlUrl, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: REVIEW_QUERY, variables: ref }),
+      body: JSON.stringify({ query: REVIEW_QUERY(PREVIEW_FIELDS), variables: ref }),
     });
     if (!response.ok) throw new Error(`GitHub returned ${response.status} for ${pullRequestUrl}`);
 
@@ -92,6 +93,7 @@ function toDetails(pullRequest: Record<string, unknown>): BuildPullRequestDetail
     deletions: asCount(pullRequest.deletions),
     changedFiles: asCount(pullRequest.changedFiles),
     commitCount: asCount(readPath(pullRequest, ["commits", "totalCount"])),
+    previewUrl: previewUrlOf(pullRequest),
   };
 }
 

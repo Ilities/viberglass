@@ -32,6 +32,11 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
     case 'run_failed_agent':
       return `The ${step} run on “${taskTitle}” failed${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`
     case 'task_done':
+      if (payload.merged === true) {
+        return typeof payload.mergedBy === 'string'
+          ? `“${taskTitle}” is done: ${payload.mergedBy} merged its pull request`
+          : `“${taskTitle}” is done: its pull request was merged`
+      }
       return `${who} marked “${taskTitle}” as done`
   }
 }

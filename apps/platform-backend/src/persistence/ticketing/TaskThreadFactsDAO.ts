@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import type { TaskPerson, TicketWorkflowPhase } from "@viberglass/types";
 import db from "../config/database";
 
@@ -73,5 +74,20 @@ export class TaskThreadFactsDAO {
         { askedOf: row.user_id && row.user_name ? [{ id: row.user_id, name: row.user_name }] : [], since: row.created_at },
       ]),
     );
+  }
+
+  /** Who merged each task's pull request, from the line the merge left in the thread. */
+  async mergedBy(ticketIds: string[]): Promise<Map<string, string>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows = await db
+      .selectFrom("task_activity")
+      .distinctOn("ticket_id")
+      .select(["ticket_id", sql<string | null>`payload_json->>'mergedBy'`.as("merged_by")])
+      .where("ticket_id", "in", ticketIds)
+      .where("kind", "=", "pull_request_merged")
+      .orderBy("ticket_id")
+      .orderBy("created_at", "desc")
+      .execute();
+    return new Map(rows.flatMap((row) => (row.merged_by ? [[row.ticket_id, row.merged_by]] : [])));
   }
 }

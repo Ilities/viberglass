@@ -85,6 +85,7 @@ export const TASK_ACTIVITY_KINDS = [
   'document_approved',
   'comment_added',
   'task_done',
+  'pull_request_merged',
 ] as const
 
 export type TaskActivityKind = (typeof TASK_ACTIVITY_KINDS)[number]

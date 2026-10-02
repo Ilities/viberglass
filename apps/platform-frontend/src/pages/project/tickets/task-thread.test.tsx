@@ -76,6 +76,9 @@ describe('describeActivity', () => {
     expect(describeActivity(entry({ kind: 'message_posted', payload: { mentioned: [DANA] } }), nameOf)).toBe(
       'Maria wrote in the discussion and mentioned Dana'
     )
+    const merged = { kind: 'pull_request_merged' as const, actorType: 'system' as const, actor: null }
+    expect(describeActivity(entry({ ...merged, payload: { mergedBy: 'dev-koskinen' } }), nameOf)).toBe('Merged by dev-koskinen')
+    expect(describeActivity(entry({ ...merged, payload: {} }), nameOf)).toBe('The pull request was merged')
   })
 })
 

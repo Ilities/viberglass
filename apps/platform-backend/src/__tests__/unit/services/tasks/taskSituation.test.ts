@@ -37,6 +37,7 @@ describe("taskSituation (redesign §4)", () => {
     ],
     ["a pull request", { latestArtifact: { kind: "code" as const, version: 1, at: "2026-10-01T12:00:00Z" } }, "pr_open", "PR open · Olli"],
     ["a done task", { status: "resolved" as const, latestArtifact: PLAN_V2 }, "done", "Done"],
+    ["a task its merge closed", { status: "resolved" as const, mergedBy: "dev-koskinen" }, "done", "Done · merged by dev-koskinen"],
   ])("%s", (_name, input, state, phrase) => {
     const result = situation(input);
     expect(result.state).toBe(state);

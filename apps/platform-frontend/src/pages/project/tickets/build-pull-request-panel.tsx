@@ -56,6 +56,14 @@ export function BuildPullRequestPanel({ ticketId, pullRequestUrl, runs }: { tick
               <ExternalLinkIcon className="size-3.5" />
             </a>
           </Fact>
+          {details?.previewUrl && (
+            <Fact label="Preview">
+              <a href={details.previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
+                Open the preview
+                <ExternalLinkIcon className="size-3.5" />
+              </a>
+            </Fact>
+          )}
           {details?.title && <Fact label="Title">{details.title}</Fact>}
           <Fact label="State">
             {state ? <Badge color={state.color}>{state.label}</Badge> : <Missing>{pullRequest ? 'Unknown' : 'Reading…'}</Missing>}

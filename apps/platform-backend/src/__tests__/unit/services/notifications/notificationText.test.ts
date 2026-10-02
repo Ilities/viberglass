@@ -23,3 +23,10 @@ describe("notificationText for mentions", () => {
     expect(notificationText("mentioned", "Tomi", "Gift notes", {})).toBe("Tomi mentioned you on “Gift notes”");
   });
 });
+
+describe("notificationText for a merge", () => {
+  it("says who merged it, when GitHub said", () => {
+    expect(notificationText("task_done", null, "Gift notes", { merged: true, mergedBy: "dev" })).toBe("“Gift notes” is done: dev merged its pull request");
+    expect(notificationText("task_done", null, "Gift notes", { merged: true })).toBe("“Gift notes” is done: its pull request was merged");
+  });
+});

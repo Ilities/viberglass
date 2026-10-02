@@ -34,7 +34,7 @@ export interface DescribedTask {
 
 interface Dependencies {
   turns: Pick<TaskTurnFactsDAO, "running" | "lastFinished" | "aggregates">;
-  thread: Pick<TaskThreadFactsDAO, "latestRevisions" | "lastMessages" | "openQuestions">;
+  thread: Pick<TaskThreadFactsDAO, "latestRevisions" | "lastMessages" | "openQuestions" | "mergedBy">;
   mentions: Pick<TaskMentionDAO, "listOpen">;
   participants: Pick<TaskParticipantDAO, "listDrivers">;
 }
@@ -70,7 +70,7 @@ export class TaskSituationService {
 
   async describe(tasks: SituationTask[], viewer: SituationViewer): Promise<Map<string, DescribedTask>> {
     const ids = tasks.map((task) => task.id);
-    const [running, finished, aggregates, revisions, messages, questions, mentions, drivers] = await Promise.all([
+    const [running, finished, aggregates, revisions, messages, questions, mentions, drivers, merges] = await Promise.all([
       this.deps.turns.running(ids),
       this.deps.turns.lastFinished(ids),
       this.deps.turns.aggregates(ids),
@@ -79,6 +79,7 @@ export class TaskSituationService {
       this.deps.thread.openQuestions(ids),
       this.deps.mentions.listOpen(ids),
       this.deps.participants.listDrivers(ids),
+      this.deps.thread.mergedBy(ids),
     ]);
 
     return new Map(
@@ -109,6 +110,7 @@ export class TaskSituationService {
           openQuestion: question ? { askedOf: question.askedOf, since: iso(question.since) } : null,
           openMentions: mentions.get(task.id) ?? [],
           lastMessageAt: lastMessageAt ? iso(lastMessageAt) : null,
+          mergedBy: merges.get(task.id) ?? null,
         };
 
         // The agent's latest turn reads as the last message when it came after what people wrote.

@@ -334,6 +334,16 @@ Planned:
 - **Tests:** a smoke journey per role: sign in, see what needs you, reply, and it stops needing you.
 
 ### S5. Done on merge (about 3 days)
+**Done (2026-10-02).** What landed:
+- **A merge closes the task.** `PullRequestOutcomeSweeper` tells its listeners about each outcome. `TaskMergeCompleter` resolves every open task with that pull request and records `pull_request_merged` Activity, with `mergedBy` from GitHub's `merged_by.login`.
+  - The thread reads "Merged by dev-koskinen", the situation "Done · merged by dev-koskinen", and the requester and owner are told "“…” is done: dev-koskinen merged its pull request".
+  - A failing listener is logged, not retried, since merged outcomes are final.
+- **Migration 086** closes tasks whose pull request had already merged before this, each with its line.
+- **Preview link.** The PR card's GraphQL query also reads the latest commit's deployments (a successful status's `environmentUrl`) and, failing that, a successful check run from Vercel, Netlify, Cloudflare Pages or Render. The card shows "Open the preview" when there's one (`BuildPullRequestDetails.previewUrl`).
+- **Tests:** the sweeper with a fake outcome source closing a task, leaving open and closed-unmerged PRs alone, and surviving a failing listener; merged-by parsing; preview from a deployment and from a preview check; the merge line; notification text; the situation.
+- **Left for later:** an open PR is rechecked at most hourly (`recheckAfterMs`), so a task can take up to about an hour to close after its merge. A GitHub webhook would make it immediate.
+
+Planned:
 - `PullRequestOutcomeSweeper` also marks the task done when its PR merges, with a quiet line ("Merged by …" when GitHub says who).
 - The PR card shows a preview link when GitHub reports one (deployment status or check run URL).
 - **Tests:** the sweeper with a fake outcome source.

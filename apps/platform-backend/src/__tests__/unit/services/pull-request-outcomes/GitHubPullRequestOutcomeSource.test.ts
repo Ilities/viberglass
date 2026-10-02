@@ -25,7 +25,7 @@ describe("GitHubPullRequestOutcomeSource", () => {
       "https://api.github.com/repos/Ilities/token.observer/pulls/92",
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer tok" }) }),
     );
-    expect(outcome).toEqual({ state: "open", mergedAt: null, closedAt: null, commentCount: 2, reviewCommentCount: 5 });
+    expect(outcome).toEqual({ state: "open", mergedAt: null, closedAt: null, commentCount: 2, reviewCommentCount: 5, mergedBy: null });
   });
 
   it("reports a closed pull request with a merge time as merged", async () => {
@@ -35,11 +35,13 @@ describe("GitHubPullRequestOutcomeSource", () => {
       closed_at: "2026-04-12T10:19:31Z",
       comments: 0,
       review_comments: 0,
+      merged_by: { login: "dev-koskinen" },
     });
 
     const outcome = await new GitHubPullRequestOutcomeSource(fetchFn).fetchOutcome(URL_92, "tok");
 
     expect(outcome.state).toBe("merged");
+    expect(outcome.mergedBy).toBe("dev-koskinen");
     expect(outcome.mergedAt).toEqual(new Date("2026-04-12T10:19:31Z"));
   });
 

@@ -41,6 +41,8 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       return `${who} approved the ${step}`
     case 'task_done':
       return `${who} marked the task as done`
+    case 'pull_request_merged':
+      return typeof entry.payload.mergedBy === 'string' ? `Merged by ${entry.payload.mergedBy}` : 'The pull request was merged'
     case 'comment_added':
       // Entries from before quotes name the line instead.
       if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`

@@ -54,6 +54,8 @@ export interface TaskSituationInput {
   openMentions: Array<{ person: TaskPerson; at: string }>
   /** When someone last wrote in the thread. */
   lastMessageAt: string | null
+  /** Who merged the pull request that finished the task, when GitHub said. */
+  mergedBy?: string | null
 }
 
 export interface SituationViewer {
@@ -111,7 +113,10 @@ export function taskSituation(input: TaskSituationInput, viewer: SituationViewer
 }
 
 function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
-  if (input.status === 'resolved') return { state: 'done', label: 'Done', waitingOn: { kind: 'nobody' }, since: input.lastTurn?.at ?? input.createdAt }
+  if (input.status === 'resolved') {
+    const label = input.mergedBy ? `Done · merged by ${input.mergedBy}` : 'Done'
+    return { state: 'done', label, waitingOn: { kind: 'nobody' }, since: input.lastTurn?.at ?? input.createdAt }
+  }
 
   const artifact = input.latestArtifact
   if (input.runningTurn) {
