@@ -180,7 +180,8 @@ export class JobService {
     let query = db
       .updateTable("jobs")
       .set(updateData)
-      .where("id", "=", jobId);
+      .where("id", "=", jobId)
+      .where("status", "in", ["queued", "active"]);
     if (updates.expectedStatus) {
       query = query.where("status", "=", updates.expectedStatus);
     }

@@ -22,12 +22,12 @@ describe("ProvisioningStrategyResolver", () => {
   });
 
   it("returns unsupported strategy details", () => {
-    const resolution = resolver.resolve("kubernetes");
+    const resolution = resolver.resolve("unsupported-provider");
 
     expect(resolution).toEqual({
       kind: "unsupported",
-      providedName: "kubernetes",
-      message: "Unsupported deployment strategy: kubernetes",
+      providedName: "unsupported-provider",
+      message: "Unsupported deployment strategy: unsupported-provider",
     });
   });
 });

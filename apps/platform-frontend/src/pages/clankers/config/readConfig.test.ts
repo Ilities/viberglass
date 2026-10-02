@@ -107,3 +107,8 @@ describe('readClankerDeploymentConfig', () => {
     expect(result.form.lambdaTimeout).toBe('')
   })
 })
+
+test('reads Kubernetes image and resource bounds for editing', () => {
+  const result = readClankerDeploymentConfig({ deploymentConfig: { version: 1, strategy: { type: 'kubernetes', containerImage: 'worker:1', cpu: '250m', memory: '512Mi', ephemeralStorage: '2Gi', activeDeadlineSeconds: 120 }, agent: { type: 'opencode' } }, agent: 'opencode' })
+  expect(result.form).toMatchObject({ containerImage: 'worker:1', kubernetesCpu: '250m', kubernetesMemory: '512Mi', kubernetesStorage: '2Gi', kubernetesDeadline: '120' })
+})

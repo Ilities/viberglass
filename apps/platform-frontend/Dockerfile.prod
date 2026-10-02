@@ -1,0 +1,16 @@
+FROM node:24-alpine AS builder
+WORKDIR /build
+RUN apk add --no-cache bash
+COPY . .
+RUN npm ci --legacy-peer-deps --ignore-scripts
+RUN npm run frontend:build-deps
+ARG VITE_API_URL=""
+ENV VITE_API_URL=${VITE_API_URL}
+RUN npm run build -w @viberglass/frontend
+
+FROM nginxinc/nginx-unprivileged:stable-alpine
+COPY --from=builder /build/apps/platform-frontend/dist /usr/share/nginx/html
+COPY apps/platform-frontend/nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV BACKEND_UPSTREAM=backend:3000
+ENV NGINX_ENVSUBST_FILTER=BACKEND_UPSTREAM
+EXPOSE 8080

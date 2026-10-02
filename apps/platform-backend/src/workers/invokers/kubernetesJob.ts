@@ -14,6 +14,8 @@ export interface KubernetesJobOptions {
   platformApiUrl: string;
   config: KubernetesStrategyConfig;
   environmentSecret?: string;
+  imagePullSecrets?: string[];
+  storageEnvironment?: Record<string, string>;
 }
 
 export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
@@ -39,6 +41,7 @@ export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
         spec: {
           restartPolicy: "Never",
           automountServiceAccountToken: false,
+          ...(options.imagePullSecrets?.length ? { imagePullSecrets: options.imagePullSecrets.map(name => ({ name })) } : {}),
           containers: [{
             name: "worker",
             image: options.image,
@@ -48,6 +51,7 @@ export function buildKubernetesJob(options: KubernetesJobOptions): V1Job {
               { name: "TENANT_ID", value: options.tenantId },
               { name: "PLATFORM_API_URL", value: options.platformApiUrl },
               { name: "CALLBACK_TOKEN", value: options.callbackToken },
+              ...Object.entries(options.storageEnvironment ?? {}).map(([name, value]) => ({ name, value })),
             ],
             ...(options.environmentSecret ? { envFrom: [{ secretRef: { name: options.environmentSecret } }] } : {}),
             resources: {

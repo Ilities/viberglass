@@ -5,6 +5,10 @@ export type ProvisioningMode = 'managed' | 'prebuilt'
 export interface ClankerConfigFormState {
   provisioningMode: ProvisioningMode
   containerImage: string
+  kubernetesCpu: string
+  kubernetesMemory: string
+  kubernetesStorage: string
+  kubernetesDeadline: string
   clusterArn: string
   taskDefinitionArn: string
   functionArn: string
@@ -23,6 +27,10 @@ export const DEFAULT_CODEX_AUTH_SECRET_NAME = 'CODEX_AUTH_JSON'
 export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   provisioningMode: 'managed',
   containerImage: '',
+  kubernetesCpu: '',
+  kubernetesMemory: '',
+  kubernetesStorage: '',
+  kubernetesDeadline: '',
   clusterArn: '',
   taskDefinitionArn: '',
   functionArn: '',
@@ -36,7 +44,7 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   geminiModel: '',
 }
 
-export type StrategyName = 'docker' | 'ecs' | 'aws-lambda-container' | 'lambda'
+export type StrategyName = 'docker' | 'ecs' | 'aws-lambda-container' | 'lambda' | 'kubernetes'
 
 export interface BuildConfigInput {
   strategyName?: string

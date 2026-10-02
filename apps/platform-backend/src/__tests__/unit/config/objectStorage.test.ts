@@ -1,4 +1,4 @@
-import { objectStorageBucket, objectStorageClientConfig } from "@viberglass/types";
+import { objectStorageBucket, objectStorageClientConfig, objectStoragePublicClientConfig } from "@viberglass/types";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -41,3 +41,10 @@ describe("Object storage configuration", () => {
     }
   });
 });
+
+ it("signs browser downloads separately from internal worker storage", () => {
+   const env = { S3_ENDPOINT: "http://minio:9000", S3_PUBLIC_ENDPOINT: "http://localhost:39000", S3_REGION: "local", S3_FORCE_PATH_STYLE: "true" };
+   expect(objectStorageClientConfig(env).endpoint).toBe("http://minio:9000");
+   expect(objectStoragePublicClientConfig(env)).toMatchObject({ endpoint: "http://localhost:39000", region: "local", forcePathStyle: true });
+   expect(objectStoragePublicClientConfig({ S3_ENDPOINT: "https://storage.example" }).endpoint).toBe("https://storage.example");
+ });

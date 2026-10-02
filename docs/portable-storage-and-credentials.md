@@ -27,13 +27,14 @@ Configure the following on the backend and worker deployments. Read the endpoint
 | `S3_FORCE_PATH_STYLE` | `true` for `/bucket/key`, `false` for virtual host addressing | SDK default |
 | `S3_ACCESS_KEY_ID` | Object storage access key | SDK credential chain if both S3 keys are unset |
 | `S3_SECRET_ACCESS_KEY` | Object storage secret key; set together with access key | SDK credential chain |
+| `S3_PUBLIC_ENDPOINT` | Browser-reachable endpoint for signed downloads; workers use `S3_ENDPOINT` | `S3_ENDPOINT` |
 | `S3_SESSION_TOKEN` | Optional token for temporary S3 credentials | Unset |
 
 The neutral S3 variables let an OVH signing region coexist with an AWS region used by other clients. Existing AWS configuration continues to work without setting any new variables. Standard AWS SDK checksum environment settings also remain available; see [AWS checksum configuration](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html).
 
 Backend and worker storage clients use the same resolver in `packages/types/src/objectStorage.ts`. Stored references remain `s3://bucket/key`. Media download URLs are signed against the configured endpoint. The bucket must already exist and allow the required object operations. Uploads do not provision buckets.
 
-Mount storage environment values using `KUBERNETES_WORKER_ENV_SECRET`; give workers the required storage access. Keep agent credentials and backend database/encryption keys out of this Secret. Current workers have direct bucket access; this change does not add per-run object access policies. Namespace and network isolation remain deployment work.
+Mount storage environment values using `KUBERNETES_WORKER_ENV_SECRET`; give workers the required storage access. Keep agent credentials and backend database/encryption keys out of this Secret. Current workers have direct bucket access; this change does not add per-run object access policies. The Helm chart supplies namespace boundaries and network policies; policy enforcement requires a compatible CNI.
 
 ## Verification and remaining work
 

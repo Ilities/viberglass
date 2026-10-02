@@ -157,3 +157,16 @@ describe("SetupAgentService", () => {
     expect(createClanker).not.toHaveBeenCalled();
   });
 });
+
+ it("selects Kubernetes ahead of AWS when a worker namespace is configured", async () => {
+   const previous = process.env.KUBERNETES_WORKER_NAMESPACE;
+   process.env.KUBERNETES_WORKER_NAMESPACE = "workers";
+   try {
+     const { service, createClanker } = build({ ecsReady: true });
+     expect((await service.prepareDefaultAgent("anthropic")).compute).toBe("kubernetes");
+     expect(createClanker).toHaveBeenCalledWith(expect.objectContaining({ deploymentStrategyId: "kubernetes-id" }));
+   } finally {
+     if (previous === undefined) delete process.env.KUBERNETES_WORKER_NAMESPACE;
+     else process.env.KUBERNETES_WORKER_NAMESPACE = previous;
+   }
+ });

@@ -1,0 +1,52 @@
+{{- if .Values.database.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "viberglass.name" . }}-postgres
+spec:
+  selector: {app: "{{ include "viberglass.name" . }}-postgres"}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "viberglass.name" . }}-postgres
+spec:
+  serviceName: {{ include "viberglass.name" . }}-postgres
+  replicas: 1
+  selector:
+    matchLabels: {app: "{{ include "viberglass.name" . }}-postgres"}
+  template:
+    metadata:
+      labels: {app: "{{ include "viberglass.name" . }}-postgres"}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsUser: 70, runAsGroup: 70, runAsNonRoot: true, fsGroup: 70, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: postgres
+          image: {{ .Values.database.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - {name: POSTGRES_DB, value: {{ .Values.database.name | quote }}}
+            - {name: POSTGRES_USER, value: {{ .Values.database.user | quote }}}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: {{ .Values.appSecret }}, key: DB_PASSWORD}}
+          ports: [{containerPort: 5432}]
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          readinessProbe: {exec: {command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']}}
+          livenessProbe: {exec: {command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']}, initialDelaySeconds: 30}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: "1", memory: 512Mi}}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if .Values.database.storageClass }}
+        storageClassName: {{ .Values.database.storageClass | quote }}
+        {{- end }}
+        resources: {requests: {storage: {{ .Values.database.storage | quote }}}}
+{{- end }}

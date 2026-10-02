@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -66,6 +67,19 @@ async function main(): Promise<void> {
     const auth = JSON.stringify({ tokens: "test-token".repeat(1000) });
     await secrets.upsertWorkerAuthCache("CODEX_AUTH", auth, "database");
     assert.equal(await secrets.resolveNamedSecret("CODEX_AUTH"), auth);
+
+    await sql`CREATE TABLE jobs (id text PRIMARY KEY, status text, progress jsonb, result jsonb,
+      error_message text, started_at timestamptz, finished_at timestamptz, last_heartbeat timestamptz)`.execute(db);
+    await sql`INSERT INTO jobs (id, status) VALUES ('cancelled-run', 'cancelled'), ('completed-run', 'completed')`.execute(db);
+    const { JobService } = await import("../src/services/JobService");
+    const jobs = new JobService();
+    const { JobDispatchStateDAO } = await import("../src/persistence/job/JobDispatchStateDAO");
+    const dispatchState = new JobDispatchStateDAO();
+    await jobs.updateJobStatus("cancelled-run", "active");
+    await jobs.updateJobStatus("cancelled-run", "failed", { errorMessage: "Late dispatch failure" });
+    await jobs.updateJobStatus("completed-run", "active");
+    assert.equal(await dispatchState.getStatus("cancelled-run"), "cancelled");
+    assert.equal(await dispatchState.getStatus("completed-run"), "completed");
 
     client = new S3Client(objectStorageClientConfig(process.env));
     const bucket = process.env.S3_BUCKET;

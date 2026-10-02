@@ -2,6 +2,7 @@ import { WorkerInvoker, WorkerType } from './WorkerInvoker';
 import { LambdaInvoker } from './invokers/LambdaInvoker';
 import { EcsInvoker } from './invokers/EcsInvoker';
 import { DockerInvoker } from './invokers/DockerInvoker';
+import { JobDispatchStateDAO } from '../persistence/job/JobDispatchStateDAO';
 import { KubernetesInvoker } from './invokers/KubernetesInvoker';
 import { createKubernetesJobClient } from './invokers/kubernetesJobClient';
 import { JobService } from '../services/JobService';
@@ -32,6 +33,7 @@ export class WorkerInvokerFactory {
       createKubernetesJobClient,
       new JobService(),
       new CredentialRequirementsService(),
+      new JobDispatchStateDAO(),
     ));
 
     logger.info('Initialized invokers', {
