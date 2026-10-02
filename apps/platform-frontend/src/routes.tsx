@@ -1,5 +1,6 @@
 import { AuthLayout } from '@/components/auth-layout'
 import { ApplicationLayout } from '@/layouts/ApplicationLayout'
+import { RunnersOnly } from '@/layouts/RunnersOnly'
 import { SettingsLayout } from '@/layouts/SettingsLayout'
 import { SettingsHome, WorkspaceSettingsLayout } from '@/layouts/WorkspaceSettingsLayout'
 import { Navigate, Route, Routes } from 'react-router-dom'
@@ -24,14 +25,13 @@ import { ClankersPage } from '@/pages/clankers/ClankersPage'
 import { EditClankerPage } from '@/pages/clankers/EditClankerPage'
 import { NewClankerPage } from '@/pages/clankers/NewClankerPage'
 
-// Project pages
-import { ProjectHomePage } from '@/pages/project/ProjectHomePage'
+// Space pages
+import { SpacePage } from '@/pages/project/space/SpacePage'
 
 // Tickets pages
 import { CreateTicketPage } from '@/pages/project/tickets/CreateTicketPage'
 import { TicketDetailPage } from '@/pages/project/tickets/TicketDetailPage'
 import { TicketMediaPage } from '@/pages/project/tickets/TicketMediaPage'
-import { TicketsPage } from '@/pages/project/tickets/TicketsPage'
 
 // Jobs pages
 import { JobDetailPage } from '@/pages/project/jobs/JobDetailPage'
@@ -40,16 +40,13 @@ import { JobsPage } from '@/pages/project/jobs/JobsPage'
 // Claws pages
 import { ClawsPage } from '@/pages/project/claws/ClawsPage'
 
-// Sessions pages
-import { SessionPage } from '@/pages/project/sessions/SessionPage'
-
 // Prompt templates pages
 import { PromptTemplatesPage as ProjectPromptTemplatesPage } from '@/pages/project/prompt-templates/PromptTemplatesPage'
 import { PromptTemplatesPage } from '@/pages/settings/PromptTemplatesPage'
 
 // Settings pages
 import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegrationsPage'
-import { ProjectSettingsPage } from '@/pages/project/settings/ProjectSettingsPage'
+import { SpaceGeneralSettings } from '@/pages/project/settings/AboutSpacePage'
 import { SpaceMembersPage } from '@/pages/project/settings/SpaceMembersPage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
 import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
@@ -100,29 +97,23 @@ export function AppRoutes() {
           <Route path="/settings/audit-log" element={<AuditLogPage />} />
         </Route>
 
-        {/* Project routes */}
-        <Route path="/spaces/:project" element={<ProjectHomePage />} />
-
-        {/* Project tickets */}
-        <Route path="/spaces/:project/tasks" element={<TicketsPage />} />
-        <Route path="/spaces/:project/tasks/new" element={<CreateTicketPage />} />
+        {/* A space is its tasks */}
+        <Route path="/spaces/:project" element={<SpacePage />} />
         <Route path="/spaces/:project/tasks/:id" element={<TicketDetailPage />} />
         <Route path="/spaces/:project/tasks/:id/media" element={<TicketMediaPage />} />
 
-        {/* Project jobs */}
-        <Route path="/spaces/:project/runs" element={<JobsPage />} />
-        <Route path="/spaces/:project/runs/:jobId" element={<JobDetailPage />} />
-
-        {/* Project claws */}
-        <Route path="/spaces/:project/schedules" element={<ClawsPage />} />
-
-        {/* Project sessions */}
-        <Route path="/spaces/:project/sessions/:sessionId" element={<SessionPage />} />
+        {/* Only for those who run agents */}
+        <Route element={<RunnersOnly />}>
+          <Route path="/spaces/:project/tasks/new" element={<CreateTicketPage />} />
+          <Route path="/spaces/:project/runs" element={<JobsPage />} />
+          <Route path="/spaces/:project/runs/:jobId" element={<JobDetailPage />} />
+          <Route path="/spaces/:project/schedules" element={<ClawsPage />} />
+        </Route>
 
         {/* Project settings with nested routes */}
         <Route path="/spaces/:project/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="general" replace />} />
-          <Route path="general" element={<ProjectSettingsPage />} />
+          <Route path="general" element={<SpaceGeneralSettings />} />
           <Route path="members" element={<SpaceMembersPage />} />
           <Route path="connections" element={<ProjectIntegrationsPage />} />
           <Route path="prompt-templates" element={<ProjectPromptTemplatesPage />} />

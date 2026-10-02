@@ -25,9 +25,9 @@ describe('Home threads', () => {
   })
 
   it('reads the last message with who said it', () => {
-    expect(lastMessageLine(thread({ lastMessage: { author: { id: 'u', name: 'Tomi' }, text: 'Does it fit?', at: 't' } }))).toBe('Tomi: Does it fit?')
-    expect(lastMessageLine(thread({ lastMessage: { author: null, text: 'Hello', at: 't' } }))).toBe('Hello')
-    expect(lastMessageLine(thread())).toBeNull()
+    expect(lastMessageLine({ author: { id: 'u', name: 'Tomi' }, text: 'Does it fit?', at: 't' })).toBe('Tomi: Does it fit?')
+    expect(lastMessageLine({ author: null, text: 'Hello', at: 't' })).toBe('Hello')
+    expect(lastMessageLine(null)).toBeNull()
   })
 
   it('lands viewers on Overview and everyone else on Home', () => {

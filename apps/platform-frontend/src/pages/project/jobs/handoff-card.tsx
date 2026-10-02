@@ -5,7 +5,7 @@ import { Children, Fragment, isValidElement, type ReactNode } from 'react'
 export type HandoffOwner = 'you' | 'agent' | 'settled' | 'problem'
 
 const OWNER_STYLE: Record<HandoffOwner, { rule: string; eyebrow: string }> = {
-  // Orange, like the sidebar's "Awaiting review": amber is remapped to each space's accent colour.
+  // Orange, not amber: amber is the accent colour, used for links and controls.
   you: { rule: 'border-l-orange-500', eyebrow: 'text-orange-700 dark:text-orange-400' },
   agent: { rule: 'border-l-blue-500', eyebrow: 'text-blue-700 dark:text-blue-300' },
   settled: { rule: 'border-l-[var(--gray-8)]', eyebrow: 'text-[var(--gray-10)]' },

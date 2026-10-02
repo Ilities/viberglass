@@ -99,12 +99,12 @@ const THREAD: TaskTimelineEntry[] = [
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
   documents: { research: { content: '# Research' }, planning: { content: '' } },
-  capabilities: { canAsk: true, canAskForCode: false },
+  capabilities: { canPost: true, canAsk: true, canAskForCode: false, canEdit: false, canDelete: false },
   newComments: { research: 1, planning: 0 },
   agentWorking: false,
 }
 
-function renderThread(onOpenArtifact = jest.fn(), onAsked = jest.fn()) {
+function renderThread(onOpenArtifact = jest.fn(), onAsked = jest.fn(), rights = { canPost: true, canAsk: true }) {
   render(
     <Theme>
       <MemoryRouter>
@@ -115,7 +115,8 @@ function renderThread(onOpenArtifact = jest.fn(), onAsked = jest.fn()) {
           onOpenArtifact={onOpenArtifact}
           agents={[{ kind: 'agent', id: CLAUDE, name: 'Claude' }]}
           suggestionInput={SUGGESTION_INPUT}
-          canAsk
+          canPost={rights.canPost}
+          canAsk={rights.canAsk}
           runnableAgents={[{ id: CLAUDE, name: 'Claude' }]}
           onAsked={onAsked}
         />
@@ -157,7 +158,18 @@ describe('TaskThread', () => {
     expect(await screen.findByText('Maria created the task')).toBeInTheDocument()
     expect(screen.getByText('Research v1')).toBeInTheDocument()
     expect(screen.getByText('Looks right to me')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'live session' })).toHaveAttribute('href', '/spaces/web/sessions/s-1')
+    expect(screen.getByText(/to the agent/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /session/ })).not.toBeInTheDocument()
+  })
+
+  it('gives someone who may not post (a viewer) no composer and no actions', async () => {
+    mockTimeline.mockResolvedValue([])
+    renderThread(jest.fn(), jest.fn(), { canPost: false, canAsk: false })
+
+    expect(await screen.findByText(/Nothing here yet/)).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Suggested actions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Bring in/ })).not.toBeInTheDocument()
   })
 
   it('hides events when only messages are wanted', async () => {

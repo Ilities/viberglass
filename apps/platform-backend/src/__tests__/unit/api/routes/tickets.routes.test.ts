@@ -34,7 +34,10 @@ const SITUATION = { state: "not_started", label: "Not started", waitingOn: { kin
 const mockTaskSituationService = {
   describe: jest.fn(async (tasks: Array<{ id: string }>) => new Map(tasks.map((task) => [task.id, { situation: SITUATION }]))),
 };
-const mockTaskReadDAO = { markRead: jest.fn() };
+const mockTaskChangePolicyService = {
+  describe: jest.fn(),
+};
+const mockTaskReadDAO = { markRead: jest.fn(), unreadCounts: jest.fn(async (): Promise<Map<string, number>> => new Map()) };
 const mockTicketWorkflowService = {
   getTicketWorkflow: jest.fn(),
 };
@@ -107,6 +110,10 @@ jest.mock("../../../../services/tasks/TaskSituationService", () => ({
 
 jest.mock("../../../../persistence/ticketing/TaskReadDAO", () => ({
   TaskReadDAO: jest.fn(() => mockTaskReadDAO),
+}));
+
+jest.mock("../../../../services/tasks/TaskChangePolicyService", () => ({
+  TaskChangePolicyService: jest.fn(() => mockTaskChangePolicyService),
 }));
 
 jest.mock("../../../../services/taskTurns/TaskAskPolicyService", () => ({
@@ -242,15 +249,21 @@ describe("ticket workflow routes", () => {
     expect(response.body).toEqual({ error: "Invalid workflow phase" });
   });
 
-  it("returns one task with its situation and what the caller may ask the agent for", async () => {
+  it("returns one task with its situation and what the caller may do on it", async () => {
     mockTicketDAO.getTicket.mockResolvedValue({ id: TICKET_ID, status: "open", createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z" });
-    mockTaskAskPolicyService.describe.mockResolvedValue({ canAsk: true, canAskForCode: false });
+    mockTaskAskPolicyService.describe.mockResolvedValue({ canPost: true, canAsk: true, canAskForCode: false });
+    mockTaskChangePolicyService.describe.mockResolvedValue({ canEdit: false, canDelete: false });
 
     const response = await request(app).get(`/api/tasks/${TICKET_ID}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toMatchObject({ id: TICKET_ID, situation: SITUATION, capabilities: { canAsk: true, canAskForCode: false } });
+    expect(response.body.data).toMatchObject({
+      id: TICKET_ID,
+      situation: SITUATION,
+      capabilities: { canPost: true, canAsk: true, canAskForCode: false, canEdit: false, canDelete: false },
+    });
     expect(mockTaskAskPolicyService.describe).toHaveBeenCalledWith("user-1", TICKET_ID);
+    expect(mockTaskChangePolicyService.describe).toHaveBeenCalledWith({ id: "user-1", role: "member" }, TICKET_ID);
     expect(mockTaskSituationService.describe).toHaveBeenCalledWith([expect.objectContaining({ id: TICKET_ID })], { id: "user-1", isAdmin: false });
   });
 
@@ -293,7 +306,7 @@ describe("ticket workflow routes", () => {
     );
   });
 
-  it("marks tasks that have an open live session in GET /api/tasks, each with its situation", async () => {
+  it("marks tasks that have an open live session in GET /api/tasks, each with its situation, last message and unread count", async () => {
     mockTicketDAO.getTicketsWithFilters.mockResolvedValue({
       tickets: [{ id: "ticket-live" }, { id: "ticket-quiet" }],
       total: 2,
@@ -301,6 +314,7 @@ describe("ticket workflow routes", () => {
     mockAgentSessionDAO.listOpenSessionIdsByTicket.mockResolvedValue(
       new Map([["ticket-live", "session-1"]]),
     );
+    mockTaskReadDAO.unreadCounts.mockResolvedValueOnce(new Map([["ticket-quiet", 2]]));
 
     const response = await request(app).get("/api/tasks").expect(200);
 
@@ -309,8 +323,8 @@ describe("ticket workflow routes", () => {
       "ticket-quiet",
     ]);
     expect(response.body.data).toEqual([
-      { id: "ticket-live", liveSessionId: "session-1", situation: SITUATION },
-      { id: "ticket-quiet", situation: SITUATION },
+      { id: "ticket-live", liveSessionId: "session-1", situation: SITUATION, unread: 0 },
+      { id: "ticket-quiet", situation: SITUATION, unread: 2 },
     ]);
   });
 

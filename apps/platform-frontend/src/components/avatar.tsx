@@ -8,6 +8,8 @@ type AvatarProps = {
   initials?: string
   alt?: string
   className?: string
+  /** Radix's scale: 1 is 24px, 2 is 32px, 3 (the default) is 40px. Tailwind size classes don't override it. */
+  size?: '1' | '2' | '3'
 }
 
 export function Avatar({
@@ -16,11 +18,13 @@ export function Avatar({
   initials,
   alt = '',
   className,
+  size,
   ...props
 }: AvatarProps & Omit<React.ComponentPropsWithoutRef<'span'>, 'color'>) {
   return (
     <RadixAvatar
       data-slot="avatar"
+      size={size}
       src={src ?? undefined}
       fallback={initials ?? ''}
       alt={alt}

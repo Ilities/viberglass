@@ -24,7 +24,7 @@ test("asking the agent for the research writes a document, and asking for the pl
   // The document the fake agent wrote (echoing its prompt) is on the task, and it's ready: nothing to approve.
   await expect(page.getByRole("heading", { name: "Fake Research" })).toBeVisible();
   await expect(page.getByText("Explain how greeting.js works.").first()).toBeVisible();
-  await expect(page.getByRole("region", { name: "Your move" }).getByText("The research is ready")).toBeVisible();
+  await expect(page.getByLabel("Situation")).toContainText("Your move · Research v1 ready");
   await expect(page.getByRole("button", { name: /Approve/ })).toHaveCount(0);
 
   // Asking for the plan is the agreement to go on; the task's phase follows the plan once it's written.

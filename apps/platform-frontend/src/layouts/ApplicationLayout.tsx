@@ -1,237 +1,27 @@
-import { Avatar } from '@/components/avatar'
-import {
-  Dropdown,
-  DropdownButton,
-  DropdownDivider,
-  DropdownHeader,
-  DropdownItem,
-  DropdownLabel,
-  DropdownMenu,
-} from '@/components/dropdown'
-import { Link } from '@/components/link'
-import { Navbar, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/components/navbar'
-import {
-  Sidebar,
-  SidebarBody,
-  SidebarCollapseToggle,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarHeading,
-  SidebarItem,
-  SidebarLabel,
-  SidebarSection,
-} from '@/components/sidebar'
 import { DemoWorkspaceBanner } from '@/components/demo-workspace-banner'
+import { Dropdown, DropdownButton } from '@/components/dropdown'
+import { Navbar, NavbarItem, NavbarSection, NavbarSpacer } from '@/components/navbar'
 import { StackedLayout } from '@/components/stacked-layout'
 import { useAuth } from '@/context/auth-context'
 import { ProjectProvider } from '@/context/project-context'
-import { ProjectTheme } from '@/context/project-theme'
-import { useTheme } from '@/context/theme-context'
-import { usePolling } from '@/hooks/usePolling'
 import { useNeedsYouCount } from '@/hooks/useNeedsYouCount'
-import type { AuthUser } from '@/service/api/auth-api'
-import { getProjects, Project } from '@/service/api/project-api'
-import { getTickets } from '@/service/api/ticket-api'
-import {
-  ActivityLogIcon,
-  ChevronDownIcon,
-  ClipboardCopyIcon,
-  ClockIcon,
-  ExitIcon,
-  GearIcon,
-  HomeIcon,
-  MoonIcon,
-  PlusIcon,
-  SunIcon,
-} from '@radix-ui/react-icons'
-import { TICKET_STATUS_LABEL } from '@/pages/project/tickets/ticket-display'
-import { TICKET_STATUS, type Ticket } from '@viberglass/types'
-import { useCallback, useEffect, useState } from 'react'
+import { getProjects, type Project } from '@/service/api/project-api'
+import { isRunner } from '@/lib/roles'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { SpaceOutlet } from './SpaceOutlet'
 import { Toaster } from 'sonner'
-import { taskPath } from '@/lib/taskPath'
-
-// Wrap Radix icons with data-slot attribute for proper styling
-function Icon({ children }: { children: React.ReactNode }) {
-  return <span data-slot="icon">{children}</span>
-}
-
-function getInitials(name?: string, email?: string) {
-  const source = (name || '').trim() || (email || '').split('@')[0] || ''
-  const parts = source.split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return ''
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-}
-
-type NavLinkItem = {
-  current: boolean
-  href: string
-  label: string
-  icon: React.ReactNode
-  /** A count shown next to the label, e.g. threads that need you. */
-  badge?: number
-}
-
-function NavBadge({ count }: { count?: number }) {
-  if (!count) return null
-  return (
-    <span aria-label={`${count} unread`} className="ml-auto rounded-full bg-[var(--accent-9)] px-1.5 text-[11px] font-semibold text-white">
-      {count > 99 ? '99+' : count}
-    </span>
-  )
-}
-
-function ProjectDropdownMenu({ projectSlug, projects }: { projectSlug?: string; projects: Project[] }) {
-  const pathname = useLocation().pathname
-
-  return (
-    <DropdownMenu className="min-w-80 lg:min-w-64">
-      <DropdownItem href={`/`}>
-        <Icon>
-          <HomeIcon />
-        </Icon>
-        <DropdownLabel>Home</DropdownLabel>
-      </DropdownItem>
-
-      {pathname.startsWith('/spaces/') && projectSlug ? (
-        <DropdownItem href={`/spaces/${projectSlug}/settings`}>
-          <Icon>
-            <GearIcon />
-          </Icon>
-          <DropdownLabel>Space Settings</DropdownLabel>
-        </DropdownItem>
-      ) : null}
-      <DropdownDivider />
-      {projects.map((p) => (
-        <DropdownItem key={p.id} href={`/spaces/${p.slug}`}>
-          {p.slug === 'viberglass' ? (
-            <Avatar slot="icon" src="/teams/viberglass.svg" />
-          ) : (
-            <Avatar
-              slot="icon"
-              initials={p.name.substring(0, 2).toUpperCase()}
-              className="bg-brand-gradient text-brand-charcoal"
-            />
-          )}
-          <DropdownLabel>{p.name}</DropdownLabel>
-        </DropdownItem>
-      ))}
-      <DropdownDivider />
-      <DropdownItem href="/spaces/new">
-        <Icon>
-          <PlusIcon />
-        </Icon>
-        <DropdownLabel>New space&hellip;</DropdownLabel>
-      </DropdownItem>
-    </DropdownMenu>
-  )
-}
-
-function AccountDropdownMenu({ user, onSignOut }: { user: AuthUser; onSignOut: () => void }) {
-  const { theme, toggleTheme } = useTheme()
-
-  return (
-    <DropdownMenu className="min-w-64">
-      <DropdownHeader>
-        <div className="flex items-center gap-3">
-          <Avatar
-            square
-            src={user.avatarUrl ?? undefined}
-            initials={getInitials(user.name, user.email)}
-            className="bg-brand-gradient size-8 text-brand-charcoal"
-          />
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{user.name}</div>
-            <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.email}</div>
-          </div>
-        </div>
-      </DropdownHeader>
-      <DropdownDivider />
-      <DropdownItem
-        onClick={(e) => {
-          e.preventDefault()
-          toggleTheme()
-        }}
-      >
-        <Icon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</Icon>
-        <DropdownLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</DropdownLabel>
-      </DropdownItem>
-      <DropdownDivider />
-      <DropdownItem
-        onClick={(event) => {
-          event.preventDefault()
-          onSignOut()
-        }}
-      >
-        <Icon>
-          <ExitIcon />
-        </Icon>
-        <DropdownLabel>Sign out</DropdownLabel>
-      </DropdownItem>
-    </DropdownMenu>
-  )
-}
-
-function ProjectActivitySidebar({ projectSlug }: { projectSlug: string }) {
-  const fetchTickets = useCallback(
-    () => getTickets({ projectSlug, statuses: ['in_review', 'in_progress'], limit: 15 }),
-    [projectSlug]
-  )
-
-  const { data: ticketList } = usePolling<Awaited<ReturnType<typeof getTickets>>>({
-    fn: fetchTickets,
-    interval: 15000,
-  })
-
-  const tickets: Ticket[] = ticketList?.tickets ?? []
-  const inReviewTickets = tickets.filter((t) => t.status === 'in_review')
-  const inProgressTickets = tickets.filter((t) => t.status === 'in_progress')
-
-  if (!inReviewTickets.length && !inProgressTickets.length) return null
-
-  return (
-    <>
-      {inReviewTickets.length > 0 && (
-        <SidebarSection>
-          <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]}</SidebarHeading>
-          {inReviewTickets.map((ticket) => (
-            <SidebarItem key={ticket.id} href={taskPath(projectSlug, ticket)}>
-              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-warning-500" />
-              <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
-            </SidebarItem>
-          ))}
-        </SidebarSection>
-      )}
-      {inProgressTickets.length > 0 && (
-        <SidebarSection>
-          <SidebarHeading>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}</SidebarHeading>
-          {inProgressTickets.map((ticket) => (
-            <SidebarItem key={ticket.id} href={taskPath(projectSlug, ticket)}>
-              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-blue-500" />
-              <SidebarLabel className="truncate">{ticket.title}</SidebarLabel>
-            </SidebarItem>
-          ))}
-        </SidebarSection>
-      )}
-    </>
-  )
-}
+import { AccountMenu, UserAvatar } from './account-menu'
+import { AppSidebar } from './app-sidebar'
+import { SpaceOutlet } from './SpaceOutlet'
+import { SpaceSwitcher } from './space-switcher'
 
 export function ApplicationLayout() {
-  return <ApplicationLayoutContent />
-}
-
-function ApplicationLayoutContent() {
   const navigate = useNavigate()
   const pathname = useLocation().pathname
-  const { project: projectSlug } = useParams<{ project: string }>()
+  const { project: currentSpace } = useParams<{ project: string }>()
   const { user, status, logout } = useAuth()
-  const { theme, toggleTheme } = useTheme()
-  const [projects, setProjects] = useState<Project[]>([])
-  const isViewer = user?.role === 'viewer'
-  const needsYou = useNeedsYouCount(status === 'authenticated' && !isViewer, pathname)
+  const [spaces, setSpaces] = useState<Project[]>([])
+  const needsYou = useNeedsYouCount(status === 'authenticated' && user?.role !== 'viewer', pathname)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -240,7 +30,7 @@ function ApplicationLayoutContent() {
   }, [navigate, status, pathname])
 
   useEffect(() => {
-    getProjects().then(setProjects).catch(console.error)
+    getProjects().then(setSpaces).catch(console.error)
   }, [])
 
   if (status === 'loading') {
@@ -255,231 +45,43 @@ function ApplicationLayoutContent() {
     return null
   }
 
-  const basePath = `/spaces/${projectSlug}`
-  const isAdmin = user.role === 'admin'
-  // /spaces/new is the create page, not a space: only routes with a space slug count.
-  const isProjectRoute = pathname.startsWith('/spaces/') && Boolean(projectSlug)
-
-  // Runners, connections, secrets and prompt templates live under Settings → Advanced.
-  const isSettingsRoute = ['/settings', '/settings/agents', '/settings/secrets'].some((prefix) => pathname.startsWith(prefix))
-  // Viewers have no threads of their own; their way in is Overview.
-  const wayInItems: NavLinkItem[] = [
-    ...(isViewer ? [] : [{ href: '/', label: 'Home', current: pathname === '/', icon: <HomeIcon />, badge: needsYou }]),
-    { href: '/overview', label: 'Overview', current: pathname.startsWith('/overview'), icon: <ActivityLogIcon /> },
-  ]
-  const platformNavItems: NavLinkItem[] = [
-    ...wayInItems,
-    {
-      href: isAdmin ? '/settings/members' : '/settings/api-tokens',
-      label: 'Settings',
-      current: isSettingsRoute,
-      icon: <GearIcon />,
-    },
-  ]
-
-  const projectNavItems: NavLinkItem[] = [
-    { href: basePath, label: 'Dashboard', current: pathname === basePath, icon: <HomeIcon /> },
-    {
-      href: `${basePath}/tasks`,
-      label: 'Tasks',
-      current: pathname.startsWith(`${basePath}/tasks`),
-      icon: <ClipboardCopyIcon />,
-    },
-    {
-      href: `${basePath}/settings`,
-      label: 'Settings',
-      current: pathname.startsWith(`${basePath}/settings`),
-      icon: <GearIcon />,
-    },
-  ]
-
-  const projectOperationsNavItems: NavLinkItem[] = [
-    {
-      href: `${basePath}/runs`,
-      label: 'Runs',
-      current: pathname.startsWith(`${basePath}/runs`),
-      icon: <ActivityLogIcon />,
-    },
-    {
-      href: `${basePath}/schedules`,
-      label: 'Schedules',
-      current: pathname.startsWith(`${basePath}/schedules`),
-      icon: <ClockIcon />,
-    },
-  ]
-
-  const navItems = isProjectRoute ? projectNavItems : platformNavItems
-
-  const handleSignOut = async () => {
+  const signOut = async () => {
     await logout()
     navigate('/login', { replace: true })
   }
 
   return (
     <ProjectProvider>
-      <ProjectTheme>
-        <StackedLayout
-          navbar={
-            <Navbar>
+      <StackedLayout
+        navbar={
+          <Navbar>
+            <SpaceSwitcher current={currentSpace} spaces={spaces} canCreate={isRunner(user.role)} />
+            <NavbarSpacer />
+            <NavbarSection>
               <Dropdown>
-                <DropdownButton as={NavbarItem} className="max-lg:hidden">
-                  <Avatar src="/teams/viberglass.svg" />
-                  <NavbarLabel>{projectSlug ?? 'Spaces'}</NavbarLabel>
-                  <Icon>
-                    <ChevronDownIcon />
-                  </Icon>
+                <DropdownButton as={NavbarItem} aria-label="Account">
+                  <UserAvatar user={user} />
                 </DropdownButton>
-                <ProjectDropdownMenu projectSlug={projectSlug} projects={projects} />
+                <AccountMenu user={user} onSignOut={() => void signOut()} />
               </Dropdown>
-              <NavbarSpacer />
-              <NavbarSection>
-                <Dropdown>
-                  <DropdownButton as={NavbarItem}>
-                    <Avatar
-                      square
-                      src={user.avatarUrl ?? undefined}
-                      initials={getInitials(user.name, user.email)}
-                      className="bg-brand-gradient text-brand-charcoal"
-                    />
-                  </DropdownButton>
-                  <AccountDropdownMenu user={user} onSignOut={handleSignOut} />
-                </Dropdown>
-              </NavbarSection>
-            </Navbar>
-          }
-          sidebar={
-            <Sidebar>
-              <SidebarHeader>
-                <Link href="/">
-                  <div className="flex items-center gap-2.5">
-                    <img src="/logos/viberglass.svg" alt="Viberglass logo" className="size-7 shrink-0 sm:size-6" />
-                    <SidebarLabel className="text-sm font-semibold text-zinc-950 dark:text-white">
-                      Viberglass
-                    </SidebarLabel>
-                  </div>
-                </Link>
-              </SidebarHeader>
-              <SidebarBody>
-                {isProjectRoute && (
-                  <SidebarSection>
-                    {wayInItems.map((item) => (
-                      <SidebarItem key={item.href} href={item.href} current={item.current}>
-                        <Icon>{item.icon}</Icon>
-                        <SidebarLabel>{item.label}</SidebarLabel>
-                        <NavBadge count={item.badge} />
-                      </SidebarItem>
-                    ))}
-                  </SidebarSection>
-                )}
-                <SidebarSection>
-                  <SidebarHeading>{isProjectRoute ? 'Space' : 'Platform'}</SidebarHeading>
-                  {navItems.map((item) => (
-                    <SidebarItem key={item.href} href={item.href} current={item.current}>
-                      <Icon>{item.icon}</Icon>
-                      <SidebarLabel>{item.label}</SidebarLabel>
-                      <NavBadge count={item.badge} />
-                    </SidebarItem>
-                  ))}
-                </SidebarSection>
-                {isProjectRoute ? (
-                  <SidebarSection>
-                    <SidebarHeading>Operations</SidebarHeading>
-                    {projectOperationsNavItems.map((item) => (
-                      <SidebarItem key={item.href} href={item.href} current={item.current}>
-                        <Icon>{item.icon}</Icon>
-                        <SidebarLabel>{item.label}</SidebarLabel>
-                      </SidebarItem>
-                    ))}
-                  </SidebarSection>
-                ) : null}
-                {isProjectRoute && projectSlug ? (
-                  <ProjectActivitySidebar projectSlug={projectSlug} />
-                ) : (
-                  <SidebarSection>
-                    <SidebarHeading>Spaces</SidebarHeading>
-                    {projects.map((project) => (
-                      <SidebarItem
-                        key={project.id}
-                        href={`/spaces/${project.slug}`}
-                        current={
-                          pathname === `/spaces/${project.slug}` || pathname.startsWith(`/spaces/${project.slug}/`)
-                        }
-                      >
-                        {project.slug === 'viberglass' ? (
-                          <Avatar slot="avatar" src="/teams/viberglass.svg" />
-                        ) : (
-                          <Avatar
-                            slot="avatar"
-                            initials={project.name.substring(0, 2).toUpperCase()}
-                            className="bg-brand-gradient text-brand-charcoal"
-                          />
-                        )}
-                        <SidebarLabel>{project.name}</SidebarLabel>
-                      </SidebarItem>
-                    ))}
-                    <SidebarItem href="/spaces/new">
-                      <Icon>
-                        <PlusIcon />
-                      </Icon>
-                      <SidebarLabel>New space</SidebarLabel>
-                    </SidebarItem>
-                  </SidebarSection>
-                )}
-              </SidebarBody>
-              <SidebarFooter>
-                <SidebarSection>
-                  <SidebarItem href="/settings/members">
-                    <Avatar
-                      square
-                      slot="avatar"
-                      src={user.avatarUrl ?? undefined}
-                      initials={getInitials(user.name, user.email)}
-                      className="bg-brand-gradient text-brand-charcoal"
-                    />
-                    <SidebarLabel>{user.name}</SidebarLabel>
-                  </SidebarItem>
-                </SidebarSection>
-                <SidebarSection>
-                  <SidebarItem
-                    onClick={(event) => {
-                      event.preventDefault()
-                      toggleTheme()
-                    }}
-                  >
-                    <Icon>{theme === 'dark' ? <SunIcon /> : <MoonIcon />}</Icon>
-                    <SidebarLabel>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</SidebarLabel>
-                  </SidebarItem>
-                  <SidebarItem
-                    onClick={(event) => {
-                      event.preventDefault()
-                      void handleSignOut()
-                    }}
-                  >
-                    <Icon>
-                      <ExitIcon />
-                    </Icon>
-                    <SidebarLabel>Sign out</SidebarLabel>
-                  </SidebarItem>
-                </SidebarSection>
-              </SidebarFooter>
-              <div className="max-lg:hidden">
-                <SidebarCollapseToggle />
-              </div>
-            </Sidebar>
-          }
-        >
-          <DemoWorkspaceBanner />
-          <SpaceOutlet />
-        </StackedLayout>
-        <Toaster
-          position="bottom-right"
-          richColors
-          closeButton
-          toastOptions={{
-            duration: 5000,
-          }}
-        />
-      </ProjectTheme>
+            </NavbarSection>
+          </Navbar>
+        }
+        sidebar={
+          <AppSidebar
+            user={user}
+            pathname={pathname}
+            spaces={spaces}
+            currentSpace={currentSpace}
+            needsYou={needsYou}
+            onSignOut={() => void signOut()}
+          />
+        }
+      >
+        <DemoWorkspaceBanner />
+        <SpaceOutlet />
+      </StackedLayout>
+      <Toaster position="bottom-right" richColors closeButton toastOptions={{ duration: 5000 }} />
     </ProjectProvider>
   )
 }

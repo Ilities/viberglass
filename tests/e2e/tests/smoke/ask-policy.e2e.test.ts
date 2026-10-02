@@ -55,7 +55,7 @@ test("only people on the task, maintainers and admins can ask the agent to build
   await expect(thread.getByRole("button", { name: "Build it" })).toHaveCount(0);
   expect((await askToBuild(guest.session.api, task.id)).status()).toBe(403);
   expect((await guest.session.api.post(`/api/tasks/${task.id}/messages`, { data: { body: "", action: "research" } })).status()).toBe(403);
-  expect((await (await guest.session.api.get(`/api/tasks/${task.id}`)).json()).data.capabilities).toEqual({ canAsk: false, canAskForCode: false });
+  expect((await (await guest.session.api.get(`/api/tasks/${task.id}`)).json()).data.capabilities).toMatchObject({ canAsk: false, canAskForCode: false });
 
   // On the task, the guest may ask it to build, with nothing approved first; the build runs and is theirs.
   expect((await adminApi.post(`/api/tasks/${task.id}/participants`, { data: { userId: guest.id, role: "watcher" } })).status()).toBe(201);
@@ -109,7 +109,7 @@ async function mentionsTheReviewer(
   const task = await createTask(adminApi, workspace.projectId, "Explain greeting.js.");
   const people = (await (await adminApi.get(`/api/tasks/${task.id}/participants`)).json()).data;
   expect(people).toContainEqual(expect.objectContaining({ userId: reviewer, role: "reviewer" }));
-  expect((await (await memberApi.get(`/api/tasks/${task.id}`)).json()).data.capabilities).toEqual({ canAsk: true, canAskForCode: true });
+  expect((await (await memberApi.get(`/api/tasks/${task.id}`)).json()).data.capabilities).toMatchObject({ canAsk: true, canAskForCode: true });
 
   // The plan arrives as the agent's post mentioning the reviewer, in place of a review request.
   await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);

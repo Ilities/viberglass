@@ -1,4 +1,4 @@
-import { canMaintainSpace, canSeeSpace, type SpaceRole, type WorkspaceRole } from "@viberglass/types";
+import { canMaintainSpace, canSeeSpace, spaceCapabilities, type SpaceCapabilities, type SpaceRole, type WorkspaceRole } from "@viberglass/types";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import { SPACE_ACCESS_ERROR_CODE, SpaceAccessError } from "../errors/SpaceAccessError";
@@ -52,10 +52,9 @@ export class SpaceAccessService {
     return { projectId: project.id, membership };
   }
 
-  /** The caller's membership and whether they may change the space (for the UI; the guard enforces it). */
-  async describe(viewer: SpaceViewer, projectId: string): Promise<{ membership: SpaceRole | null; canMaintain: boolean }> {
-    const membership = await this.deps.members.getRole(projectId, viewer.id);
-    return { membership, canMaintain: canMaintainSpace(viewer.role, membership) };
+  /** The caller's membership and what they may do in the space (for the UI; the guards enforce it). */
+  async describe(viewer: SpaceViewer, projectId: string): Promise<SpaceCapabilities> {
+    return spaceCapabilities(viewer.role, await this.deps.members.getRole(projectId, viewer.id));
   }
 
   async assertCanMaintain(viewer: SpaceViewer, idOrSlug: string): Promise<string> {

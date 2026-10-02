@@ -171,14 +171,7 @@ export function RunNextStepCard({
             owner="settled"
             eyebrow="Answered"
             title={`${agentName} answered in the task's thread`}
-            actions={
-              <>
-                {openTask}
-                <Button href={`/spaces/${project}/sessions/${step.sessionId}`} outline>
-                  Open the session
-                </Button>
-              </>
-            }
+            actions={openTask}
           >
             It wrote no document and changed no code. Reply in the thread to carry on.
           </HandoffCard>

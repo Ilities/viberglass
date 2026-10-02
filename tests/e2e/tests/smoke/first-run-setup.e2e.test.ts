@@ -94,7 +94,7 @@ test("a new admin can explore the demo workspace first, then remove it and set u
     await page.getByRole("button", { name: "Explore a demo workspace" }).click();
     await expect(page).toHaveURL(/\/spaces\/demo-acme-storefront$/);
     await expect(page.getByRole("status")).toContainText("a demo space with sample data");
-    await page.goto("/spaces/demo-acme-storefront/tasks");
+    // The space is its tasks.
     await page.getByText("Fix rounding in cart totals").click();
     await expect(page.getByRole("heading", { name: "Model quota used up" })).toBeVisible();
     await expect(page.getByRole("status")).toContainText("a demo space with sample data");

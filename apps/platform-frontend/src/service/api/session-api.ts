@@ -113,35 +113,6 @@ export interface SessionDetail {
   pendingRequest: AgentPendingRequest | null
 }
 
-export interface LaunchSessionParams {
-  clankerId: string
-  mode: AgentSessionMode
-  initialMessage: string
-}
-
-export interface LaunchSessionResult {
-  session: AgentSession
-  currentTurn: AgentTurn
-  job: { id: string; status: string }
-}
-
-export interface ParticipantInfo {
-  userId: string
-  name: string
-  avatarUrl: string | null
-  lastActiveAt: string
-}
-
-const TERMINAL_EVENT_TYPES: AgentSessionEventType[] = [
-  'session_completed',
-  'session_failed',
-  'session_cancelled',
-]
-
-export function isTerminalEventType(type: AgentSessionEventType): boolean {
-  return TERMINAL_EVENT_TYPES.includes(type)
-}
-
 // Helpers
 
 async function throwApiError(res: Response, fallback: string): Promise<never> {
@@ -150,17 +121,6 @@ async function throwApiError(res: Response, fallback: string): Promise<never> {
 }
 
 // API Functions
-
-export async function launchSession(ticketId: string, params: LaunchSessionParams): Promise<LaunchSessionResult> {
-  const res = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/agent-sessions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  })
-  if (!res.ok) return throwApiError(res, 'Failed to launch session')
-  const data = await res.json()
-  return data.data
-}
 
 export async function listSessionsForTicket(ticketId: string): Promise<AgentSession[]> {
   const res = await apiFetch(`${API_BASE_URL}/api/tasks/${ticketId}/agent-sessions`)
@@ -176,20 +136,6 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
   return data.data
 }
 
-export async function listSessionEvents(
-  sessionId: string,
-  opts?: { afterSequence?: number; limit?: number }
-): Promise<AgentSessionEvent[]> {
-  const params = new URLSearchParams()
-  if (opts?.afterSequence != null) params.set('afterSequence', String(opts.afterSequence))
-  if (opts?.limit != null) params.set('limit', String(opts.limit))
-  const qs = params.toString()
-  const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/events${qs ? `?${qs}` : ''}`)
-  if (!res.ok) return throwApiError(res, 'Failed to fetch session events')
-  const data = await res.json()
-  return data.data
-}
-
 export async function replyToSession(sessionId: string, replyText: string): Promise<void> {
   const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/reply`, {
     method: 'POST',
@@ -199,15 +145,6 @@ export async function replyToSession(sessionId: string, replyText: string): Prom
   if (!res.ok) return throwApiError(res, 'Failed to send reply')
 }
 
-export async function sendMessageToSession(sessionId: string, messageText: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/message`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messageText }),
-  })
-  if (!res.ok) return throwApiError(res, 'Failed to send message')
-}
-
 export async function approveSession(sessionId: string, approved: boolean): Promise<void> {
   const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/approve`, {
     method: 'POST',
@@ -215,42 +152,4 @@ export async function approveSession(sessionId: string, approved: boolean): Prom
     body: JSON.stringify({ approved }),
   })
   if (!res.ok) return throwApiError(res, 'Failed to submit approval')
-}
-
-export async function cancelSession(sessionId: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/cancel`, {
-    method: 'POST',
-  })
-  if (!res.ok) return throwApiError(res, 'Failed to cancel session')
-}
-
-export function getEventStreamUrl(sessionId: string): string {
-  return `${API_BASE_URL}/api/agent-sessions/${sessionId}/events/stream`
-}
-
-const ACTIVE_STATUSES = 'active,waiting_on_user,waiting_on_approval'
-
-export async function listProjectActiveSessions(projectId: string): Promise<AgentSession[]> {
-  const res = await apiFetch(
-    `${API_BASE_URL}/api/spaces/${projectId}/agent-sessions?statuses=${ACTIVE_STATUSES}&limit=20`,
-  )
-  if (!res.ok) return throwApiError(res, 'Failed to list space sessions')
-  const data = await res.json()
-  return data.data
-}
-
-export async function listAllActiveSessions(): Promise<AgentSession[]> {
-  const res = await apiFetch(
-    `${API_BASE_URL}/api/agent-sessions?statuses=${ACTIVE_STATUSES}`,
-  )
-  if (!res.ok) return throwApiError(res, 'Failed to list active sessions')
-  const data = await res.json()
-  return data.data
-}
-
-export async function getSessionParticipants(sessionId: string): Promise<ParticipantInfo[]> {
-  const res = await apiFetch(`${API_BASE_URL}/api/agent-sessions/${sessionId}/participants`)
-  if (!res.ok) return throwApiError(res, 'Failed to fetch participants')
-  const data = await res.json()
-  return data.data
 }

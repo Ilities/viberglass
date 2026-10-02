@@ -18,10 +18,10 @@ function markerClass(position: 'done' | 'current' | 'upcoming', move: TaskNextMo
   return 'border-[var(--gray-12)] bg-[var(--gray-12)] text-[var(--gray-1)]'
 }
 
-/** Research, Plan, Build: where the task is, and which step's work is on screen. */
+/** Research, Plan, Code: what the task has made so far, and which artifact is on screen. */
 export function TaskStepper({ currentStep, move, shownStep, onShowStep }: TaskStepperProps) {
   return (
-    <div role="tablist" aria-label="Steps" className="flex items-stretch">
+    <div role="tablist" aria-label="Artifacts" className="flex items-stretch">
       {TASK_STEPS.map((step, index) => {
         const { position, label } = describeStep(step, currentStep, move)
         const isShown = step === shownStep

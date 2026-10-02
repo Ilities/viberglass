@@ -1,4 +1,5 @@
 import type { SpaceRole } from './spaceAccess'
+import type { TaskChangeCapabilities } from './taskChangePolicy'
 import type { TaskParticipantRole } from './taskParticipant'
 import type { WorkspaceRole } from './workspaceRole'
 
@@ -43,8 +44,12 @@ export function artifactReviewers(participants: AskingParticipant[]): string[] {
   return [...new Set((reviewers.length > 0 ? reviewers : participants.filter((p) => p.role === 'owner')).map((p) => p.userId))]
 }
 
-/** What the caller may do on a task. */
-export interface TaskCapabilities {
+/** What the caller may say on a task, and ask the agent for. Viewers only read. */
+export interface TaskAskCapabilities {
+  canPost: boolean
   canAsk: boolean
   canAskForCode: boolean
 }
+
+/** What the caller may do on a task. */
+export type TaskCapabilities = TaskAskCapabilities & TaskChangeCapabilities

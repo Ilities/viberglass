@@ -1,12 +1,11 @@
 import { Theme } from '@radix-ui/themes'
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ApplicationLayout } from './ApplicationLayout'
 import { useAuth } from '@/context/auth-context'
 import { useTheme } from '@/context/theme-context'
 import { getProjects } from '@/service/api/project-api'
-import { getTickets } from '@/service/api/ticket-api'
 import { getNeedsYouCount } from '@/service/api/home-api'
 import type { AuthUser } from '@/service/api/auth-api'
 
@@ -23,16 +22,8 @@ jest.mock('@/context/project-context', () => ({
   useProject: () => ({ project: null, isLoading: true, error: null }),
 }))
 
-jest.mock('@/context/project-theme', () => ({
-  ProjectTheme: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}))
-
 jest.mock('@/service/api/project-api', () => ({
   getProjects: jest.fn(),
-}))
-
-jest.mock('@/service/api/ticket-api', () => ({
-  getTickets: jest.fn(),
 }))
 
 jest.mock('@/service/api/home-api', () => ({
@@ -46,7 +37,6 @@ jest.mock('sonner', () => ({
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
 const mockedUseTheme = useTheme as jest.MockedFunction<typeof useTheme>
 const mockedGetProjects = getProjects as jest.MockedFunction<typeof getProjects>
-const mockedGetTickets = getTickets as jest.MockedFunction<typeof getTickets>
 
 const USER: AuthUser = {
   id: 'user-1',
@@ -94,10 +84,6 @@ beforeEach(() => {
       slug: 'catalyst',
     },
   ] as Awaited<ReturnType<typeof getProjects>>)
-  mockedGetTickets.mockResolvedValue({
-    tickets: [],
-    pagination: { limit: 15, offset: 0, count: 0, total: 0 },
-  })
 })
 
 function renderLayout(initialPath: string) {
@@ -115,96 +101,95 @@ function renderLayout(initialPath: string) {
   )
 }
 
-describe('ApplicationLayout mobile navigation', () => {
-  it('shows platform nav items and project list in the drawer on global routes', async () => {
-    const user = userEvent.setup()
+function asRole(role: AuthUser['role']) {
+  mockedUseAuth.mockReturnValue({
+    user: { ...USER, role },
+    status: 'authenticated',
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn().mockResolvedValue(undefined),
+    adoptSession: jest.fn(),
+  })
+}
+
+async function openDrawer() {
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: 'Open navigation' }))
+  const drawer = screen.getByRole('dialog')
+  // Spaces load asynchronously; wait for the list before asserting.
+  await within(drawer).findByRole('link', { name: /Catalyst/i })
+  return drawer
+}
+
+function linkNames(drawer: HTMLElement): string[] {
+  return within(drawer)
+    .getAllByRole('link')
+    .map((link) => `${link.textContent?.trim()} ${link.getAttribute('href')}`)
+}
+
+describe('ApplicationLayout navigation', () => {
+  it('shows Home, Overview, the spaces and Settings, with no plumbing', async () => {
     renderLayout('/')
-
-    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
-
-    const mobileDrawer = screen.getByRole('dialog')
-
-    // Projects load asynchronously — wait for the list before asserting
-    expect(await within(mobileDrawer).findByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
+    const drawer = await openDrawer()
 
     for (const label of ['Home', 'Overview', 'Settings']) {
-      expect(
-        within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') }),
-      ).toBeInTheDocument()
+      expect(within(drawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
-    // The plumbing lives under Settings → Advanced, not in the main navigation.
-    for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens']) {
-      expect(within(mobileDrawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
+    for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens', 'Dashboard', 'Tasks']) {
+      expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
-    expect(within(mobileDrawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/members')
-
-    // The logo link and the Viberglass project link share the accessible
-    // name — assert the project one by its href
-    const viberglassLinks = within(mobileDrawer).getAllByRole('link', { name: /Viberglass/i })
+    expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/members')
+    const viberglassLinks = within(drawer).getAllByRole('link', { name: /Viberglass/i })
     expect(viberglassLinks.some((link) => link.getAttribute('href') === '/spaces/viberglass')).toBe(true)
-    expect(within(mobileDrawer).getByRole('link', { name: /New space/i })).toBeInTheDocument()
+    expect(within(drawer).getByRole('link', { name: /New space/i })).toBeInTheDocument()
   })
 
-  it('hides workspace plumbing from members', async () => {
-    mockedUseAuth.mockReturnValue({
-      user: { ...USER, role: 'member' },
-      status: 'authenticated',
-      login: jest.fn(),
-      register: jest.fn(),
-      logout: jest.fn().mockResolvedValue(undefined),
-      adoptSession: jest.fn(),
-    })
-    const user = userEvent.setup()
+  it('keeps the same sidebar inside a space, with that space expanded in place', async () => {
     renderLayout('/')
+    const outside = linkNames(await openDrawer())
+    cleanup()
 
-    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
-    const mobileDrawer = screen.getByRole('dialog')
-    expect(await within(mobileDrawer).findByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
+    renderLayout('/spaces/viberglass')
+    const drawer = await openDrawer()
+    const inside = linkNames(drawer)
 
-    for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates']) {
-      expect(within(mobileDrawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
-    }
-    for (const label of ['Home', 'Overview', 'Settings']) {
-      expect(within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
-    }
-    expect(within(mobileDrawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute(
-      'href',
-      '/settings/api-tokens',
-    )
+    expect(inside.filter((name) => !outside.includes(name))).toEqual([
+      'Runs /spaces/viberglass/runs',
+      'Schedules /spaces/viberglass/schedules',
+      'Settings /spaces/viberglass/settings',
+    ])
+    expect(outside.filter((name) => !inside.includes(name))).toEqual([])
+  })
+
+  it('opens Settings on Notifications for members', async () => {
+    asRole('member')
+    renderLayout('/')
+    const drawer = await openDrawer()
+
+    expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/notifications')
   })
 
   it('gives viewers Overview and no Home, since they have no threads of their own', async () => {
-    mockedUseAuth.mockReturnValue({
-      user: { ...USER, role: 'viewer' },
-      status: 'authenticated',
-      login: jest.fn(),
-      register: jest.fn(),
-      logout: jest.fn().mockResolvedValue(undefined),
-      adoptSession: jest.fn(),
-    })
-    const user = userEvent.setup()
+    asRole('viewer')
     renderLayout('/')
+    const drawer = await openDrawer()
 
-    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
-    const mobileDrawer = screen.getByRole('dialog')
-    expect(await within(mobileDrawer).findByRole('link', { name: /Catalyst/i })).toBeInTheDocument()
-    expect(within(mobileDrawer).getByRole('link', { name: /^Overview$/i })).toHaveAttribute('href', '/overview')
-    expect(within(mobileDrawer).queryByRole('link', { name: /^Home$/i })).not.toBeInTheDocument()
+    expect(within(drawer).getByRole('link', { name: /^Overview$/i })).toHaveAttribute('href', '/overview')
+    expect(within(drawer).queryByRole('link', { name: /^Home$/i })).not.toBeInTheDocument()
   })
 
-  it('shows project nav items in the drawer on project routes', async () => {
-    const user = userEvent.setup()
-    renderLayout('/spaces/viberglass')
+  it("shows guests and viewers no Runs, Schedules or New space, which they can't use", async () => {
+    for (const role of ['guest', 'viewer'] as const) {
+      asRole(role)
+      renderLayout('/spaces/viberglass')
+      const drawer = await openDrawer()
 
-    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
-
-    const mobileDrawer = screen.getByRole('dialog')
-
-    // Project section, then the Operations section beneath it
-    for (const label of ['Home', 'Overview', 'Dashboard', 'Tasks', 'Settings', 'Runs', 'Schedules']) {
-      expect(
-        within(mobileDrawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') }),
-      ).toBeInTheDocument()
+      for (const label of ['Runs', 'Schedules', 'New space']) {
+        expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
+      }
+      // The space's settings stay: everyone may read how a space works.
+      expect(linkNames(drawer)).toContain('Settings /spaces/viberglass/settings')
+      cleanup()
     }
   })
 })

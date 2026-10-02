@@ -1,3 +1,4 @@
+import type { HomeThread } from './home'
 import type { TaskCapabilities } from './taskAskPolicy'
 import type { TaskSituation } from './taskSituation'
 /**
@@ -150,7 +151,11 @@ export interface Ticket {
   owner?: { id: string; name: string }
   /** Where the task stands and whose move it is, for the person asking. Set by task responses. */
   situation?: TaskSituation
-  /** What the person asking may ask the agent for. Set when one task is fetched. */
+  /** The latest message in the thread. Set by task lists only. */
+  lastMessage?: HomeThread['lastMessage']
+  /** Entries by others since the person asking last read the thread. Set by task lists only. */
+  unread?: number
+  /** What the person asking may do on the task. Set when one task is fetched. */
   capabilities?: TaskCapabilities
   createdAt: string
   updatedAt: string

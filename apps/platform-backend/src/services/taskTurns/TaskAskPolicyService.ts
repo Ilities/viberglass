@@ -1,4 +1,4 @@
-import { canAskAgent, canAskForCode, type TaskCapabilities, type TaskTurnAction } from "@viberglass/types";
+import { canAskAgent, canAskForCode, type TaskAskCapabilities, type TaskTurnAction } from "@viberglass/types";
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
@@ -15,12 +15,12 @@ interface Dependencies {
   participants: Pick<TaskParticipantDAO, "list">;
 }
 
-const NO_CAPABILITIES: TaskCapabilities = { canAsk: false, canAskForCode: false };
+const NO_CAPABILITIES: TaskAskCapabilities = { canPost: false, canAsk: false, canAskForCode: false };
 
 /**
- * The one place that decides who may ask the agent for what on a task (ADR
- * 0008). Agreement replaced the approval gates; the one rule left is who may
- * ask for code.
+ * The one place that decides who may ask the agent for what on a task.
+ * Agreement replaced the approval gates; the one rule left is who may ask for
+ * code.
  */
 export class TaskAskPolicyService {
   private readonly deps: Dependencies;
@@ -36,7 +36,7 @@ export class TaskAskPolicyService {
     };
   }
 
-  async describe(userId: string, ticketId: string): Promise<TaskCapabilities> {
+  async describe(userId: string, ticketId: string): Promise<TaskAskCapabilities> {
     const projectId = await this.deps.owners.projectIdForTask(ticketId);
     if (!projectId) throw new TicketServiceError(TICKET_SERVICE_ERROR_CODE.TICKET_NOT_FOUND, "Ticket not found");
     const [user, spaceRole, participants] = await Promise.all([
@@ -46,7 +46,11 @@ export class TaskAskPolicyService {
     ]);
     if (!user || user.deactivatedAt || !(await this.canSee({ id: user.id, role: user.role }, projectId))) return NO_CAPABILITIES;
     const person = { userId, workspaceRole: user.role, spaceRole };
-    return { canAsk: canAskAgent(person, participants), canAskForCode: canAskForCode(person, participants) };
+    return {
+      canPost: user.role !== "viewer",
+      canAsk: canAskAgent(person, participants),
+      canAskForCode: canAskForCode(person, participants),
+    };
   }
 
   /**

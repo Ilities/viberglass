@@ -1,6 +1,7 @@
 import { Theme as RadixTheme } from '@radix-ui/themes'
-import { createContext, useContext, useEffect, useState } from 'react'
-import type { AccentColor } from '@/lib/project-colors'
+import { createContext, useContext, useEffect, useState, type ComponentProps } from 'react'
+
+type AccentColor = NonNullable<ComponentProps<typeof RadixTheme>['accentColor']>
 
 type AppTheme = 'light' | 'dark'
 

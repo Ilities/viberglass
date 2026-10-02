@@ -4,6 +4,7 @@ import { Heading, Subheading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { TabButton } from '@/components/tab-button'
 import { useAuth } from '@/context/auth-context'
+import { isRunner } from '@/lib/roles'
 import { getProjectsList } from '@/data'
 import { useSetupRedirect } from '@/pages/setup/useSetupRedirect'
 import { getHome } from '@/service/api/home-api'
@@ -50,7 +51,7 @@ export function HomePage() {
   if (!home && !failed) return <FunLoading retro />
 
   const isAdmin = user?.role === 'admin'
-  const canCreate = user?.role === 'admin' || user?.role === 'member'
+  const canCreate = isRunner(user?.role)
   const needsYou = home?.needsYou ?? []
   const threads = filterThreads(home?.threads ?? [], filter)
   const empty = needsYou.length === 0 && (home?.threads.length ?? 0) === 0

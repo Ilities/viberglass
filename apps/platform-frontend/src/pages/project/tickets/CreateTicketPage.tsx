@@ -244,7 +244,7 @@ export function CreateTicketPage() {
           </Field>
 
           <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
-            <Button outline href={`/spaces/${project}/tasks`}>
+            <Button outline href={`/spaces/${project}`}>
               Cancel
             </Button>
             <Button type="submit" color="brand" disabled={isSubmitting || !projectData}>

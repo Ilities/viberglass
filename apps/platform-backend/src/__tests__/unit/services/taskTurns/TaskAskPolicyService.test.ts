@@ -81,9 +81,10 @@ describe("TaskAskPolicyService", () => {
   }
 
   it("describes what the caller may ask for", async () => {
-    await expect(service().describe("tomi", TASK_ID)).resolves.toEqual({ canAsk: true, canAskForCode: true });
-    await expect(service().describe("stranger", TASK_ID)).resolves.toEqual({ canAsk: true, canAskForCode: false });
-    await expect(service({ role: "guest" }).describe("visitor", TASK_ID)).resolves.toEqual({ canAsk: false, canAskForCode: false });
+    await expect(service().describe("tomi", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: true });
+    await expect(service().describe("stranger", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: false });
+    await expect(service({ role: "guest" }).describe("visitor", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: false, canAskForCode: false });
+    await expect(service({ role: "viewer" }).describe("tomi", TASK_ID)).resolves.toEqual({ canPost: false, canAsk: false, canAskForCode: false });
   });
 
   it("refuses a build from someone who isn't on the task, saying who can ask", async () => {
