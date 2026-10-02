@@ -12,7 +12,7 @@ function clanker(agent: AgentType, deploymentConfig: Record<string, unknown>): C
     deploymentConfig,
     configFiles: [],
     agent,
-    secretIds: [],
+    secretBindings: [],
     status: "inactive",
     statusMessage: null,
     createdAt: "2026-10-02T00:00:00.000Z",

@@ -1,31 +1,30 @@
-import type { Clanker } from "@viberglass/types";
+import type { Clanker, CredentialRequest } from "@viberglass/types";
 import { getCodexAgentConfig } from "../clanker-config";
 import { SecretResolutionService } from "./SecretResolutionService";
+import { secretsSsmPrefix } from "./secretStorageDefaults";
 
 export class CredentialRequirementsService {
-  private secretResolutionService = new SecretResolutionService();
+  constructor(
+    private readonly secretResolutionService: Pick<SecretResolutionService, "getCredentialRequests"> = new SecretResolutionService(),
+  ) {}
 
-  async getRequiredCredentialsForClanker(clanker: Clanker): Promise<string[]> {
-    const secretMetadata =
-      await this.secretResolutionService.getSecretMetadataForClanker(
-        clanker.secretIds || [],
-      );
-    const requiredCredentialSet = new Set(
-      secretMetadata.map((secret) => secret.name),
-    );
+  async getRequiredCredentialsForClanker(clanker: Clanker): Promise<CredentialRequest[]> {
+    const requests = await this.secretResolutionService.getCredentialRequests(clanker.secretBindings || []);
 
     const codexAgentConfig = getCodexAgentConfig(clanker);
     if (codexAgentConfig) {
       const codexMode = codexAgentConfig.codexAuth.mode;
+      const secretName = codexAgentConfig.codexAuth.secretName;
       if (
-        (codexMode === "chatgpt_device" ||
-          codexMode === "chatgpt_device_stored") &&
-        codexAgentConfig.codexAuth.secretName
+        (codexMode === "chatgpt_device" || codexMode === "chatgpt_device_stored") &&
+        secretName &&
+        !requests.some((request) => request.envVar === secretName)
       ) {
-        requiredCredentialSet.add(codexAgentConfig.codexAuth.secretName);
+        // The shared Codex login cache, kept at the prefix plus its name.
+        requests.push({ envVar: secretName, ssmPath: `${secretsSsmPrefix()}/${secretName}` });
       }
     }
 
-    return Array.from(requiredCredentialSet);
+    return requests;
   }
 }

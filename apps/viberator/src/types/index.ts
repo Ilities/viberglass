@@ -3,7 +3,6 @@ export type {
   ExecutionContext,
   ExecutionResult,
   TestResult,
-  SecretMetadata,
   TicketMediaContext,
   ResourceLimits,
   BaseAgentConfig,

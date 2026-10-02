@@ -12,7 +12,6 @@ import { JobBootstrapService } from "../job/JobBootstrapService";
 import { CredentialRequirementsService } from "../CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
-import { SecretService } from "../SecretService";
 import {
   CLAW_SERVICE_ERROR_CODE,
   ClawServiceError,
@@ -35,7 +34,6 @@ export class ClawOrchestrationService {
   private projectDAO = new ProjectDAO();
   private projectScmConfigDAO = new ProjectScmConfigDAO();
   private integrationCredentialDAO = new IntegrationCredentialDAO();
-  private secretService = new SecretService();
   private clankerDAO = new ClankerDAO();
   private clawTemplateDAO = new ClawTaskTemplateDAO();
   private clawScheduleDAO = new ClawScheduleDAO();
@@ -100,13 +98,12 @@ export class ClawOrchestrationService {
           clankerId: template.clankerId,
           jobId,
           instructionFiles,
-          additionalSecretIds: template.secretIds,
+          additionalSecretBindings: template.secretBindings,
         },
         {
           projectDAO: this.projectDAO,
           projectScmConfigDAO: this.projectScmConfigDAO,
           integrationCredentialDAO: this.integrationCredentialDAO,
-          secretService: this.secretService,
           clankerDAO: this.clankerDAO,
           provisioningService: this.provisioningService,
           instructionStorageService: this.instructionStorageService,

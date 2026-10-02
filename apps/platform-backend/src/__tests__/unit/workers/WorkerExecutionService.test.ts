@@ -77,7 +77,7 @@ describe("WorkerExecutionService", () => {
         createdAt: "2024-01-01T00:00:00Z",
       },
       configFiles: [],
-      secretIds: [],
+      secretBindings: [],
     };
 
     // Mock JobService

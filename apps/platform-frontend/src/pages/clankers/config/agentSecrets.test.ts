@@ -1,5 +1,5 @@
 import type { Secret } from '@/service/api/secret-api'
-import { buildSecretPickerOptions, filterSecretsForAgent, getAllSecrets, getApplicableSecretNames, getSecretPickerDescription, getSecretPickerEmptyMessage } from './agentSecrets'
+import { applySecretSelection, buildSecretPickerOptions, defaultEnvVarForSecret, describeBindingsProblem, filterSecretsForAgent, getAllSecrets, getApplicableSecretNames, getSecretPickerDescription, getSecretPickerEmptyMessage } from './agentSecrets'
 
 function createSecret(id: string, name: string): Secret {
   return {
@@ -42,6 +42,43 @@ describe('agentSecrets', () => {
 
     const filtered = filterSecretsForAgent(secrets, 'qwen-cli', 'api_key')
     expect(filtered.map((secret) => secret.id)).toEqual(['s1'])
+  })
+
+  describe('bindings', () => {
+    const teamKey: Secret = { ...createSecret('k1', 'Team Anthropic key'), provider: 'anthropic' }
+    const legacy = createSecret('k2', 'OPENAI_API_KEY')
+
+    test('a model key starts out as the env var the agent reads for its provider', () => {
+      expect(defaultEnvVarForSecret(teamKey, 'claude-code')).toBe('ANTHROPIC_API_KEY')
+    })
+
+    test('a secret whose label is an env var name keeps it', () => {
+      expect(defaultEnvVarForSecret(legacy, 'codex')).toBe('OPENAI_API_KEY')
+    })
+
+    test('lists a provider key for agents that run the provider, whatever its label', () => {
+      expect(filterSecretsForAgent([teamKey], 'claude-code', 'api_key')).toEqual([teamKey])
+      expect(filterSecretsForAgent([teamKey], 'codex', 'api_key')).toEqual([])
+    })
+
+    test('keeps edited env vars when the selection changes', () => {
+      const bindings = [{ secretId: 'k1', envVar: 'ANTHROPIC_AUTH_TOKEN' }]
+      expect(applySecretSelection(bindings, ['k1', 'k2'], [teamKey, legacy], 'claude-code')).toEqual([
+        { secretId: 'k1', envVar: 'ANTHROPIC_AUTH_TOKEN' },
+        { secretId: 'k2', envVar: 'OPENAI_API_KEY' },
+      ])
+    })
+
+    test('flags invalid and repeated env vars', () => {
+      expect(describeBindingsProblem([{ secretId: 'k1', envVar: 'my key' }])).toContain("isn't a valid")
+      expect(
+        describeBindingsProblem([
+          { secretId: 'k1', envVar: 'ANTHROPIC_API_KEY' },
+          { secretId: 'k2', envVar: 'ANTHROPIC_API_KEY' },
+        ]),
+      ).toContain('Two secrets')
+      expect(describeBindingsProblem([{ secretId: 'k1', envVar: 'ANTHROPIC_API_KEY' }])).toBeNull()
+    })
   })
 
   describe('buildSecretPickerOptions', () => {
@@ -109,10 +146,9 @@ describe('agentSecrets', () => {
       expect(message).toContain('enable "Show all secrets"')
     })
 
-    test('suggests creating secrets with agent-specific names when showAllSecrets is false', () => {
+    test('suggests adding a key from a provider the agent runs', () => {
       const message = getSecretPickerEmptyMessage('claude-code', 'api_key', false)
-      expect(message).toContain('Create one with name like')
-      expect(message).toContain('ANTHROPIC_API_KEY')
+      expect(message).toContain('"Model key from" set to Anthropic')
     })
   })
 })

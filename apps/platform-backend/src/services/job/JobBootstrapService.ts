@@ -1,4 +1,5 @@
 import { hashConfig, RUN_MANIFEST_VERSION } from "@viberglass/telemetry";
+import { isObjectRecord } from "@viberglass/types";
 import { resolveComputeImage } from "../../clanker-config/resolveComputeImage";
 import { createChildLogger } from "../../config/logger";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
@@ -84,11 +85,11 @@ export class JobBootstrapService {
               ?.workerSettings ?? null,
         }),
         instructionsHash: hashConfig(payload.instructionFiles ?? null),
-        // Names only. The payload's requiredCredentials field holds variable
-        // names, never values, and nothing else from it is copied here.
+        // Env var names only. The payload's requiredCredentials never hold values,
+        // and nothing else from them is copied here.
         grantedCredentialNames: Array.isArray(payload.requiredCredentials)
-          ? payload.requiredCredentials.filter(
-              (name): name is string => typeof name === "string",
+          ? payload.requiredCredentials.flatMap((request: unknown) =>
+              isObjectRecord(request) && typeof request.envVar === "string" ? [request.envVar] : [],
             )
           : undefined,
         dispatchedAt: new Date().toISOString(),

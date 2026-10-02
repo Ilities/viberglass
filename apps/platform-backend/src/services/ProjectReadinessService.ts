@@ -80,7 +80,7 @@ export class ProjectReadinessService {
   }
 
   private async findExistingSecretIds(runners: Clanker[]): Promise<Set<string>> {
-    const ids = [...new Set(runners.flatMap((runner) => runner.secretIds))];
+    const ids = [...new Set(runners.flatMap((runner) => runner.secretBindings.map((binding) => binding.secretId)))];
     const found = await Promise.all(ids.map((id) => this.secretDAO.getSecret(id)));
     return new Set(found.flatMap((secret) => (secret ? [secret.id] : [])));
   }

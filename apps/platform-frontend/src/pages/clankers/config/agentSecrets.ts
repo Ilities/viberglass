@@ -1,5 +1,15 @@
 import type { Secret } from '@/service/api/secret-api'
-import { AGENT_LABELS, getAgentEnvVarNames, type AgentType, type CodexAuthMode } from '@viberglass/types'
+import {
+  AGENT_LABELS,
+  AGENT_PROVIDER_BINDINGS,
+  ENV_VAR_NAME_PATTERN,
+  getAgentEnvVarNames,
+  getModelProvider,
+  type AgentType,
+  type CodexAuthMode,
+  type ModelProviderId,
+  type SecretBinding,
+} from '@viberglass/types'
 import { DEFAULT_CODEX_AUTH_SECRET_NAME } from './types'
 
 /**
@@ -55,7 +65,59 @@ export function filterSecretsForAgent(
   }
 
   const allowed = new Set(names.map(normalizeSecretName))
-  return secrets.filter((secret) => allowed.has(normalizeSecretName(secret.name)))
+  return secrets.filter(
+    (secret) =>
+      (selectedAgent && secret.provider && providerEnvVar(selectedAgent, secret.provider)) ||
+      allowed.has(normalizeSecretName(secret.name)),
+  )
+}
+
+/** The env var this agent reads a provider's key from, when it runs that provider. */
+function providerEnvVar(agent: AgentType, provider: ModelProviderId): string | undefined {
+  return AGENT_PROVIDER_BINDINGS.find((binding) => binding.agent === agent && binding.provider === provider)?.envVar
+}
+
+/**
+ * The env var a newly attached secret starts out as: what the agent reads for the key's
+ * provider, else the label when it already is an env var name, else the agent's key name.
+ */
+export function defaultEnvVarForSecret(secret: Secret, agent: AgentType | '' | null | undefined): string {
+  const fromProvider = agent && secret.provider ? providerEnvVar(agent, secret.provider) : undefined
+  if (fromProvider) return fromProvider
+  if (ENV_VAR_NAME_PATTERN.test(secret.name)) return secret.name
+  return agent ? (getAgentEnvVarNames(agent).apiKey[0] ?? '') : ''
+}
+
+/** Bindings after the picker's selection changes: kept ones keep their env var, new ones get the default. */
+export function applySecretSelection(
+  bindings: SecretBinding[],
+  selectedIds: string[],
+  secrets: Secret[],
+  agent: AgentType | '' | null | undefined,
+): SecretBinding[] {
+  const selected = new Set(selectedIds)
+  const kept = bindings.filter((binding) => selected.has(binding.secretId))
+  const keptIds = new Set(kept.map((binding) => binding.secretId))
+  const added = selectedIds.flatMap((id) => {
+    if (keptIds.has(id)) return []
+    const secret = secrets.find((candidate) => candidate.id === id)
+    return secret ? [{ secretId: id, envVar: defaultEnvVarForSecret(secret, agent) }] : []
+  })
+  return [...kept, ...added]
+}
+
+/** A problem with the bindings that would make saving fail, or null. */
+export function describeBindingsProblem(bindings: SecretBinding[]): string | null {
+  const invalid = bindings.find((binding) => !ENV_VAR_NAME_PATTERN.test(binding.envVar))
+  if (invalid) {
+    return `"${invalid.envVar || '(empty)'}" isn't a valid environment variable name. Use capital letters, digits and underscores.`
+  }
+  const seen = new Set<string>()
+  for (const binding of bindings) {
+    if (seen.has(binding.envVar)) return `Two secrets are exposed as ${binding.envVar}. Each variable can hold one.`
+    seen.add(binding.envVar)
+  }
+  return null
 }
 
 export interface SecretPickerOption {
@@ -132,12 +194,13 @@ export function getSecretPickerEmptyMessage(
     return 'No secrets configured. Add secrets in the Secrets page to make them available here.'
   }
 
-  const names = getApplicableSecretNames(selectedAgent, codexAuthMode)
-  if (names.length === 0) {
+  if (!selectedAgent) {
     return 'No secrets available.'
   }
 
-  const suggestedNames = names.slice(0, 4).join(', ')
-  const remaining = names.length > 4 ? ` (+${names.length - 4} more)` : ''
-  return `No matching secrets found for this agent. Create one with name like ${suggestedNames}${remaining}, or enable "Show all secrets" to see other configured secrets.`
+  const providers = AGENT_PROVIDER_BINDINGS.filter((binding) => binding.agent === selectedAgent).map(
+    (binding) => getModelProvider(binding.provider).displayName,
+  )
+  const from = providers.length > 0 ? ` with "Model key from" set to ${providers.join(' or ')}` : ''
+  return `No model key for ${AGENT_LABELS[selectedAgent]} yet. Add one on the Secrets page${from}, or enable "Show all secrets" to see other configured secrets.`
 }

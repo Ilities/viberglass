@@ -25,7 +25,7 @@ interface KeyChecker {
 export class SetupModelKeyService {
   constructor(
     private readonly checker: KeyChecker = new ModelKeyChecker(),
-    private readonly secrets: Pick<SetupSecretStore, "saveByName"> = new SetupSecretStore(),
+    private readonly secrets: Pick<SetupSecretStore, "saveForProvider"> = new SetupSecretStore(),
   ) {}
 
   async saveModelKey(providerId: ModelProviderId, rawKey: string): Promise<SavedModelKey> {
@@ -45,7 +45,7 @@ export class SetupModelKeyService {
     }
 
     await this.checker.check(providerId, key);
-    const secretId = await this.secrets.saveByName(binding.envVar, key);
+    const secretId = await this.secrets.saveForProvider(providerId, `${provider.displayName} key`, key);
 
     return {
       provider: providerId,
@@ -53,7 +53,6 @@ export class SetupModelKeyService {
       agent: binding.agent,
       agentName: AGENT_LABELS[binding.agent],
       secretId,
-      secretName: binding.envVar,
     };
   }
 }

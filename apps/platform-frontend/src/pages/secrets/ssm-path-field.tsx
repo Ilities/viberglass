@@ -3,27 +3,24 @@ import { Input } from '@/components/input'
 import { useState } from 'react'
 
 interface SsmPathFieldProps {
-  name: string
   path: string
+  /** The path the secret is stored at now; absent for a new secret. */
+  storedPath?: string | null
   ssmPrefix: string
   onChange: (path: string) => void
 }
 
-export function defaultSsmPath(ssmPrefix: string, name: string): string {
-  return `${ssmPrefix}/${name.trim() || '<NAME>'}`
-}
-
-/** The SSM parameter a secret is stored at: the default path, with a custom one tucked under Advanced. */
-export function SsmPathField({ name, path, ssmPrefix, onChange }: SsmPathFieldProps) {
-  const defaultPath = defaultSsmPath(ssmPrefix, name)
-  // Opens by itself only for a secret that already has a custom path.
-  const [advancedOpen, setAdvancedOpen] = useState(() => path.trim() !== '' && path.trim() !== defaultPath)
+/** The SSM parameter a secret is stored at: under the prefix by its id, with a custom one tucked under Advanced. */
+export function SsmPathField({ path, storedPath, ssmPrefix, onChange }: SsmPathFieldProps) {
+  const defaultPath = storedPath || `${ssmPrefix}/<secret id>`
+  // Opens by itself only for a secret that already has a path outside the prefix.
+  const [advancedOpen, setAdvancedOpen] = useState(() => path.trim() !== '' && !path.trim().startsWith(`${ssmPrefix}/`))
 
   return (
     <Field>
       <Label>SSM parameter</Label>
       <Description data-testid="ssm-path-summary">
-        Stored at <code>{path.trim() || defaultPath}</code>. Agents on ECS and Lambda look the secret up at this path.
+        Stored at <code>{path.trim() || defaultPath}</code>. Renaming the secret doesn&apos;t move it.
       </Description>
       <details
         open={advancedOpen}
@@ -36,10 +33,10 @@ export function SsmPathField({ name, path, ssmPrefix, onChange }: SsmPathFieldPr
         <div className="mt-3 space-y-2">
           <Input value={path} onChange={(event) => onChange(event.target.value)} placeholder={defaultPath} />
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            Leave empty to use <code>{defaultPath}</code>. Agents on ECS and Lambda find a secret only at{' '}
-            <code>{ssmPrefix}/</code> plus its name, and may read nothing outside <code>{ssmPrefix}/</code>, so a secret
-            at a custom path never reaches them. Use one only for a parameter that already exists elsewhere and that
-            only the platform reads, such as a Docker runner&apos;s or an integration&apos;s credential.
+            Leave empty to use <code>{defaultPath}</code>. Agents on ECS and Lambda may read nothing outside{' '}
+            <code>{ssmPrefix}/</code>, so a secret at a custom path elsewhere never reaches them. Use one only for a
+            parameter that already exists and that only the platform reads, such as a Docker runner&apos;s or an
+            integration&apos;s credential.
           </p>
         </div>
       </details>

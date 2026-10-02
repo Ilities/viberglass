@@ -76,7 +76,7 @@ describe("ProjectReadinessService", () => {
       status: "inactive",
       statusMessage: null,
       deploymentStrategyId: "strategy-1",
-      secretIds: ["secret-1"],
+      secretBindings: [{ envVar: "ANTHROPIC_API_KEY", secretId: "secret-1" }],
       ...overrides,
     };
   }
@@ -110,7 +110,7 @@ describe("ProjectReadinessService", () => {
   });
 
   it("doesn't count a key whose secret is gone", async () => {
-    mockClankerDAO.listClankers.mockResolvedValue([runner({ status: "active", secretIds: ["deleted"] })]);
+    mockClankerDAO.listClankers.mockResolvedValue([runner({ status: "active", secretBindings: [{ envVar: "ANTHROPIC_API_KEY", secretId: "deleted" }] })]);
 
     const readiness = await new ProjectReadinessService().getReadiness("project-1");
 

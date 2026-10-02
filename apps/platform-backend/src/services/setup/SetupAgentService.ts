@@ -36,7 +36,7 @@ interface Strategies {
 }
 
 interface Secrets {
-  getSecretByName(name: string): Promise<{ id: string } | null>;
+  getLatestSecretForProvider(provider: ModelProviderId): Promise<{ id: string } | null>;
 }
 
 interface Starter {
@@ -56,7 +56,7 @@ function isUnchanged(existing: Clanker, update: CreateClankerRequest): boolean {
   return (
     existing.agent === update.agent &&
     existing.deploymentStrategyId === update.deploymentStrategyId &&
-    JSON.stringify(existing.secretIds) === JSON.stringify(update.secretIds) &&
+    JSON.stringify(existing.secretBindings) === JSON.stringify(update.secretBindings) &&
     JSON.stringify(existing.deploymentConfig?.agent) === JSON.stringify(update.deploymentConfig?.agent)
   );
 }
@@ -80,7 +80,7 @@ export class SetupAgentService {
   async prepareDefaultAgent(providerId: ModelProviderId): Promise<DefaultAgent> {
     const provider = getModelProvider(providerId);
     const binding = getDefaultAgentBindingForProvider(providerId);
-    const secret = binding ? await this.secrets.getSecretByName(binding.envVar) : null;
+    const secret = binding ? await this.secrets.getLatestSecretForProvider(providerId) : null;
     if (!binding || !secret) {
       throw new SetupServiceError(
         SETUP_SERVICE_ERROR_CODE.MODEL_KEY_MISSING,
@@ -95,7 +95,7 @@ export class SetupAgentService {
       deploymentStrategyId: strategy.id,
       deploymentConfig: { version: 1, strategy: config, agent: agentConfig(binding) },
       agent: binding.agent,
-      secretIds: [secret.id],
+      secretBindings: [{ envVar: binding.envVar, secretId: secret.id }],
     };
 
     const existing = await this.clankers.getClankerBySlug(DEFAULT_AGENT_SLUG);
@@ -143,7 +143,7 @@ export class SetupAgentService {
       deploymentConfig: { version: 1, strategy: config, agent: agentConfig(binding) },
       configFiles: [],
       agent: binding.agent,
-      secretIds: [],
+      secretBindings: [],
       status: "inactive",
       statusMessage: null,
       createdAt: "",

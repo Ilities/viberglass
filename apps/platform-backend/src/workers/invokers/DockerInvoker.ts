@@ -96,8 +96,8 @@ export class DockerInvoker implements WorkerInvoker {
     let secretEnvironment: Record<string, string> = {};
     try {
       secretEnvironment =
-        await this.secretResolutionService.resolveSecretsForClanker(
-          clanker.secretIds || [],
+        await this.secretResolutionService.resolveBindings(
+          clanker.secretBindings || [],
         );
     } catch (error) {
       throw new WorkerError(

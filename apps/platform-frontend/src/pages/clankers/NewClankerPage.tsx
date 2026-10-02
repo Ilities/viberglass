@@ -3,7 +3,6 @@ import { Checkbox, CheckboxField } from '@/components/checkbox'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
-import { MultiSelect } from '@/components/multi-select'
 import { PageMeta } from '@/components/page-meta'
 import { Textarea } from '@/components/textarea'
 import { createClanker, getDeploymentStrategies } from '@/service/api/clanker-api'
@@ -14,12 +13,14 @@ import {
   type CodexAuthMode,
   type ConfigFileInput,
   type DeploymentStrategy,
+  type SecretBinding,
 } from '@viberglass/types'
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AgentSpecificFields } from './config/agents'
-import { buildSecretPickerOptions, filterSecretsForAgent, getAllSecrets, getSecretPickerDescription, getSecretPickerEmptyMessage } from './config/agentSecrets'
+import { describeBindingsProblem, filterSecretsForAgent, getAllSecrets, getSecretPickerDescription, getSecretPickerEmptyMessage } from './config/agentSecrets'
 import { buildClankerDeploymentConfig } from './config/buildConfig'
+import { SecretBindingsField } from './config/secret-bindings-field'
 import { AgentSelectionCards, DeploymentStrategyCards } from './config/selectionCards'
 import { StrategySpecificFields } from './config/strategies'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE } from './config/types'
@@ -92,7 +93,7 @@ export function NewClankerPage() {
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>('')
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>(DEFAULT_AGENT_TYPE)
-  const [selectedSecretIds, setSelectedSecretIds] = useState<string[]>([])
+  const [secretBindings, setSecretBindings] = useState<SecretBinding[]>([])
   const [provisioningMode, setProvisioningMode] = useState<'managed' | 'prebuilt'>('managed')
   const [codexAuthMode, setCodexAuthMode] = useState<CodexAuthMode>(DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode)
   const [qwenEndpoint, setQwenEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint)
@@ -202,8 +203,9 @@ export function NewClankerPage() {
       harnessConfig?.fileType || '',
       showHarnessConfig ? harnessConfigContent : ''
     )
-    if (configFilesResult.error) {
-      setError(configFilesResult.error)
+    const problem = configFilesResult.error ?? describeBindingsProblem(secretBindings)
+    if (problem) {
+      setError(problem)
       setIsSubmitting(false)
       return
     }
@@ -236,7 +238,7 @@ export function NewClankerPage() {
         deploymentConfig,
         configFiles: configFilesResult.files,
         agent: selectedAgent || null,
-        secretIds: selectedSecretIds,
+        secretBindings,
       })
       navigate(`/settings/agents/${clanker.slug}`)
     } catch (err) {
@@ -369,13 +371,13 @@ export function NewClankerPage() {
               </div>
               <Description>{secretPickerDescription}</Description>
               <div className="mt-3">
-                <MultiSelect
-                  label=""
-                  options={buildSecretPickerOptions(secrets, selectableSecrets, selectedSecretIds, selectedAgent)}
-                  value={selectedSecretIds}
-                  onChange={setSelectedSecretIds}
+                <SecretBindingsField
+                  secrets={secrets}
+                  selectable={selectableSecrets}
+                  bindings={secretBindings}
+                  onChange={setSecretBindings}
+                  agent={selectedAgent}
                   emptyMessage={secretPickerEmptyMessage}
-                  searchable={true}
                 />
               </div>
             </Field>

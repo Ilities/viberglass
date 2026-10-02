@@ -3,7 +3,6 @@ import { Button } from '@/components/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
 import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
-import { MultiSelect } from '@/components/multi-select'
 import { Select } from '@/components/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
 import { Textarea } from '@/components/textarea'
@@ -20,7 +19,9 @@ import {
 import type { Secret } from '@/service/api/secret-api'
 import { listAllSecrets } from '@/service/api/secret-api'
 import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
-import type { ClawTaskTemplateSummary } from '@viberglass/types'
+import type { ClawTaskTemplateSummary, SecretBinding } from '@viberglass/types'
+import { describeBindingsProblem } from '@/pages/clankers/config/agentSecrets'
+import { SecretBindingsField } from '@/pages/clankers/config/secret-bindings-field'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -29,10 +30,10 @@ type TemplateForm = {
   description: string
   clankerId: string
   taskInstructions: string
-  secretIds: string[]
+  secretBindings: SecretBinding[]
 }
 
-const emptyForm: TemplateForm = { name: '', description: '', clankerId: '', taskInstructions: '', secretIds: [] }
+const emptyForm: TemplateForm = { name: '', description: '', clankerId: '', taskInstructions: '', secretBindings: [] }
 
 interface Props {
   projectId: string
@@ -89,7 +90,7 @@ export function TemplatesTab({ projectId }: Props) {
       description: t.description ?? '',
       clankerId: t.clankerId,
       taskInstructions,
-      secretIds: t.secretIds,
+      secretBindings: t.secretBindings,
     })
     setDialogOpen(true)
   }
@@ -108,6 +109,11 @@ export function TemplatesTab({ projectId }: Props) {
       toast.error('Task instructions are required')
       return
     }
+    const bindingsProblem = describeBindingsProblem(form.secretBindings)
+    if (bindingsProblem) {
+      toast.error(bindingsProblem)
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -118,7 +124,7 @@ export function TemplatesTab({ projectId }: Props) {
           description: form.description.trim() || null,
           clankerId: form.clankerId,
           taskInstructions: form.taskInstructions,
-          secretIds: form.secretIds,
+          secretBindings: form.secretBindings,
         })
         toast.success('Template created')
       } else if (activeTemplate) {
@@ -126,7 +132,7 @@ export function TemplatesTab({ projectId }: Props) {
           name: form.name.trim(),
           description: form.description.trim() || null,
           clankerId: form.clankerId,
-          secretIds: form.secretIds,
+          secretBindings: form.secretBindings,
         }
         if (form.taskInstructions.trim()) updates.taskInstructions = form.taskInstructions
         await updateClawTaskTemplate(activeTemplate.id, updates)
@@ -162,8 +168,6 @@ export function TemplatesTab({ projectId }: Props) {
   if (loading) {
     return <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">Loading...</div>
   }
-
-  const secretOptions = secrets.map((s) => ({ id: s.id, label: s.name, description: s.secretLocation }))
 
   return (
     <>
@@ -204,7 +208,9 @@ export function TemplatesTab({ projectId }: Props) {
                 <TableCell className="font-medium text-zinc-950 dark:text-white">{t.name}</TableCell>
                 <TableCell className="text-zinc-500 dark:text-zinc-400">{clankerName(t.clankerId)}</TableCell>
                 <TableCell className="text-zinc-500 dark:text-zinc-400">
-                  {t.secretIds.length > 0 ? `${t.secretIds.length} secret${t.secretIds.length > 1 ? 's' : ''}` : '—'}
+                  {t.secretBindings.length > 0
+                    ? t.secretBindings.map((binding) => binding.envVar).join(', ')
+                    : '—'}
                 </TableCell>
                 <TableCell className="max-w-xs truncate text-zinc-500 dark:text-zinc-400">
                   {t.description ?? '—'}
@@ -285,15 +291,18 @@ export function TemplatesTab({ projectId }: Props) {
                     rows={6}
                   />
                 </Field>
-                <MultiSelect
-                  label="Credentials"
-                  description="Secrets injected into the worker alongside the agent runner's own credentials."
-                  options={secretOptions}
-                  value={form.secretIds}
-                  onChange={(ids) => setForm((p) => ({ ...p, secretIds: ids }))}
-                  emptyMessage="No secrets configured. Add secrets in the Secrets section."
-                  searchable
-                />
+                <Field>
+                  <Label>Credentials</Label>
+                  <Description>Secrets injected into the worker alongside the agent runner&apos;s own credentials.</Description>
+                  <SecretBindingsField
+                    secrets={secrets}
+                    selectable={secrets}
+                    bindings={form.secretBindings}
+                    onChange={(secretBindings) => setForm((p) => ({ ...p, secretBindings }))}
+                    agent={clankers.find((c) => c.id === form.clankerId)?.agent}
+                    emptyMessage="No secrets configured. Add secrets in the Secrets section."
+                  />
+                </Field>
               </FieldGroup>
             </Fieldset>
           </DialogBody>

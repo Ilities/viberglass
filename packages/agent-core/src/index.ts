@@ -2,7 +2,6 @@
 export type {
   ResourceLimits,
   BaseAgentConfig,
-  SecretMetadata,
   TicketMediaContext,
   ExecutionContext,
   ExecutionResult,

@@ -1,76 +1,55 @@
-import { SecretService, SecretMetadata } from "./SecretService";
+import type { CredentialRequest, SecretBinding } from "@viberglass/types";
 import { SecretDAO } from "../persistence/secret/SecretDAO";
+import { SecretService } from "./SecretService";
 import { createChildLogger } from "../config/logger";
 
 const logger = createChildLogger({ service: "SecretResolutionService" });
 
 export class SecretResolutionService {
-  private secretService = new SecretService();
-  private secretDAO = new SecretDAO();
+  constructor(
+    private readonly secretService: Pick<SecretService, "resolveSecretValues"> = new SecretService(),
+    private readonly secretDAO: Pick<SecretDAO, "getSecretsByIds"> = new SecretDAO(),
+  ) {}
 
   /**
-   * Resolve secret values for selected secret IDs (for DockerInvoker)
-   * Returns a map of secret name to secret value
+   * Env var → value for workers that receive credentials in their environment (Docker).
+   * A secret that can't be resolved is left out with a warning, so the run fails on
+   * the missing credential rather than on an unrelated one.
    */
-  async resolveSecretsForClanker(
-    secretIds: string[],
-  ): Promise<Record<string, string>> {
-    if (secretIds.length === 0) {
-      logger.debug("No secrets to resolve");
-      return {};
-    }
-
-    logger.debug(`Resolving ${secretIds.length} secrets`, { secretIds });
-
-    // Get all available secrets
-    const allSecrets = await this.secretService.resolveSecrets();
-
-    // Get metadata for selected secrets
-    const secretRecords = await Promise.all(
-      secretIds.map((id) => this.secretDAO.getSecret(id)),
-    );
-
-    // Filter to only selected secrets
-    const filtered: Record<string, string> = {};
-    for (const record of secretRecords) {
-      if (record && allSecrets[record.name]) {
-        filtered[record.name] = allSecrets[record.name];
-        logger.debug(`Resolved secret: ${record.name}`);
-      } else if (record) {
-        logger.warn(`Secret value not found for: ${record.name}`);
+  async resolveBindings(bindings: SecretBinding[]): Promise<Record<string, string>> {
+    const resolved: Record<string, string> = {};
+    for (const binding of bindings) {
+      const value = await this.resolveSecretValue(binding.secretId);
+      if (value === null) {
+        logger.warn("Secret value not found for binding", { envVar: binding.envVar, secretId: binding.secretId });
+        continue;
       }
+      resolved[binding.envVar] = value;
     }
+    return resolved;
+  }
 
-    logger.debug(`Resolved ${Object.keys(filtered).length} secret values`);
-    return filtered;
+  /** One secret's value, or null when it is missing or can't be read. */
+  async resolveSecretValue(secretId: string): Promise<string | null> {
+    try {
+      return (await this.secretService.resolveSecretValues([secretId])).get(secretId) ?? null;
+    } catch (error) {
+      logger.warn("Failed to resolve secret", { secretId, error: (error as Error).message });
+      return null;
+    }
   }
 
   /**
-   * Get secret metadata for selected secret IDs (for ECS/Lambda invokers)
-   * Returns array of secret metadata that workers can use to resolve secrets at runtime
+   * What a worker loads for these bindings: the env var, and for SSM secrets the
+   * parameter ECS and Lambda workers read. Bindings to deleted secrets are left out.
    */
-  async getSecretMetadataForClanker(
-    secretIds: string[],
-  ): Promise<SecretMetadata[]> {
-    if (secretIds.length === 0) {
-      logger.debug("No secret metadata to fetch");
-      return [];
-    }
-
-    logger.debug(`Fetching metadata for ${secretIds.length} secrets`, {
-      secretIds,
+  async getCredentialRequests(bindings: SecretBinding[]): Promise<CredentialRequest[]> {
+    const secrets = await this.secretDAO.getSecretsByIds(bindings.map((binding) => binding.secretId));
+    const secretsById = new Map(secrets.map((secret) => [secret.id, secret]));
+    return bindings.flatMap((binding) => {
+      const secret = secretsById.get(binding.secretId);
+      if (!secret) return [];
+      return [{ envVar: binding.envVar, ssmPath: secret.secretLocation === "ssm" ? secret.secretPath : null }];
     });
-
-    const metadata = await Promise.all(
-      secretIds.map((id) => this.secretService.getSecret(id)),
-    );
-
-    // Filter out nulls (secrets that don't exist)
-    const validMetadata = metadata.filter(
-      (s): s is SecretMetadata => s !== null,
-    );
-
-    logger.debug(`Fetched metadata for ${validMetadata.length} secrets`);
-    return validMetadata;
   }
 }

@@ -131,7 +131,7 @@ export function ClankerDetailPage() {
 
         const [secretResults] = await Promise.all([
           Promise.all(
-            (clankerData.secretIds || []).map(async (secretId) => {
+            (clankerData.secretBindings || []).map(async ({ secretId }) => {
               try {
                 return await getSecret(secretId)
               } catch (error) {
@@ -467,17 +467,19 @@ export function ClankerDetailPage() {
 
               <div className="app-frame rounded-lg p-6">
                 <Subheading className="mb-4">Secrets</Subheading>
-                {secrets.length > 0 ? (
+                {clanker.secretBindings.length > 0 ? (
                   <div className="space-y-3">
-                    {secrets.map((secret) => (
-                      <div key={secret.id} className="rounded bg-[var(--gray-3)] p-3">
-                        <div className="font-medium text-[var(--gray-12)]">{secret.name}</div>
-                        <div className="mt-1 text-sm text-[var(--gray-9)]">
-                          {secret.secretLocation}
-                          {secret.secretPath && ` - ${secret.secretPath}`}
+                    {clanker.secretBindings.map((binding) => {
+                      const secret = secrets.find((candidate) => candidate.id === binding.secretId)
+                      return (
+                        <div key={binding.secretId} className="rounded bg-[var(--gray-3)] p-3">
+                          <div className="font-mono font-medium text-[var(--gray-12)]">{binding.envVar}</div>
+                          <div className="mt-1 text-sm text-[var(--gray-9)]">
+                            {secret ? `${secret.name} · ${secret.secretLocation}` : 'Secret deleted'}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="text-[var(--gray-9)]">No secrets configured.</div>

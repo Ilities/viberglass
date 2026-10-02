@@ -14,7 +14,7 @@ function clanker(id: string, overrides: Partial<Clanker> = {}): Clanker {
     deploymentConfig: null,
     configFiles: [],
     agent: "claude-code",
-    secretIds: [],
+    secretBindings: [],
     status: "active",
     statusMessage: null,
     createdAt: "2026-10-01T00:00:00Z",

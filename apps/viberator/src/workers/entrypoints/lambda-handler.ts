@@ -69,7 +69,7 @@ const isLambdaPayload = (value: unknown): value is LambdaPayload => {
     value["instructionFiles"].every(isInstructionFile) &&
     Array.isArray(value["requiredCredentials"]) &&
     value["requiredCredentials"].every(
-      (credential) => typeof credential === "string",
+      (credential) => isRecord(credential) && typeof credential["envVar"] === "string",
     )
   );
 };

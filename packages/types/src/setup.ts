@@ -19,7 +19,6 @@ export interface SavedModelKey {
   agent: AgentType
   agentName: string
   secretId: string
-  secretName: string
 }
 
 export interface RepositoryAccess {

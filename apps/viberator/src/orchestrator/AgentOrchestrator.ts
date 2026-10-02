@@ -93,26 +93,6 @@ export class AgentOrchestrator {
 
       execution.status = "running";
 
-      // Resolve secrets if provided
-      if (context.secrets && context.secrets.length > 0) {
-        this.logger.info("Resolving secrets for execution", {
-          executionId,
-          secretCount: context.secrets.length,
-        });
-
-        const secretValues = await this.configManager.resolveSecrets(
-          context.secrets,
-        );
-
-        // Inject secrets into environment
-        Object.assign(process.env, secretValues);
-
-        this.logger.info("Secrets resolved and injected into environment", {
-          executionId,
-          resolvedCount: Object.keys(secretValues).length,
-        });
-      }
-
       const prompt = context.promptOverride || this.buildAgentPrompt(context);
       const gitService = new GitService(this.logger, {
         userName: process.env.GIT_USER_NAME || "Vibes Viber",

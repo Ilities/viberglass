@@ -1,4 +1,4 @@
-import type { Clanker, ClankerStatus, IntegrationCredential, Integration, ProjectScmConfig } from "@viberglass/types";
+import type { Clanker, ClankerStatus, IntegrationCredential, Integration, ModelProviderId, ProjectScmConfig } from "@viberglass/types";
 import type { ProjectConfig } from "../../../../models/PMIntegration";
 import { SetupStatusService } from "../../../../services/setup/SetupStatusService";
 
@@ -63,7 +63,7 @@ function runner(status: ClankerStatus): Clanker {
     deploymentConfig: null,
     configFiles: [],
     agent: "opencode",
-    secretIds: ["secret-1"],
+    secretBindings: [{ envVar: "OPENCODE_API_KEY", secretId: "secret-1" }],
     status,
     statusMessage: "Docker image ready",
     createdAt: "",
@@ -71,11 +71,12 @@ function runner(status: ClankerStatus): Clanker {
   };
 }
 
-function service(state: { secrets?: string[]; github?: boolean; space?: boolean; agent?: ClankerStatus | null }) {
+function service(state: { secrets?: ModelProviderId[]; github?: boolean; space?: boolean; agent?: ClankerStatus | null }) {
   const defaultAgent = state.agent ? runner(state.agent) : null;
   return new SetupStatusService({
     secrets: {
-      getSecretByName: async (name: string) => (state.secrets?.includes(name) ? { id: name } : null),
+      getLatestSecretForProvider: async (provider: ModelProviderId) =>
+        state.secrets?.includes(provider) ? { id: provider } : null,
     },
     integrations: { listIntegrations: async () => (state.github ? [GITHUB] : []) },
     credentials: { getDefaultForIntegration: async () => (state.github ? TOKEN : null) },
@@ -102,7 +103,7 @@ describe("SetupStatusService", () => {
   });
 
   it("reports what's done so the flow can resume", async () => {
-    const status = await service({ secrets: ["OPENCODE_API_KEY"], github: true, space: true, agent: "deploying" }).getStatus();
+    const status = await service({ secrets: ["opencode-go"], github: true, space: true, agent: "deploying" }).getStatus();
 
     expect(status).toEqual({
       connectedProviders: ["opencode-go"],

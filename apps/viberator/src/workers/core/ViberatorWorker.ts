@@ -114,8 +114,8 @@ export class ViberatorWorker {
     this.currentTenantId = data.tenantId;
 
     // Resolve per-project SCM token from fetched credentials
-    const scmToken = data.scm?.credentialSecretName
-      ? this.fetchedCredentials?.[data.scm.credentialSecretName]
+    const scmToken = data.scm?.credentialEnvVar
+      ? this.fetchedCredentials?.[data.scm.credentialEnvVar]
       : undefined;
 
     try {
@@ -175,7 +175,6 @@ export class ViberatorWorker {
 
   private async loadPayloadCredentials(payload: WorkerPayload): Promise<void> {
     const credentials = await this.credentialProvider.getCredentials(
-      payload.tenantId,
       payload.requiredCredentials || [],
     );
     this.fetchedCredentials = credentials;

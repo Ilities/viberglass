@@ -1,13 +1,9 @@
-import {
-  GetParameterCommand,
-  GetParametersByPathCommand,
-  SSMClient,
-} from "@aws-sdk/client-ssm";
-import type { Configuration, SecretMetadata } from "../types";
+import { GetParametersByPathCommand, SSMClient } from "@aws-sdk/client-ssm";
+import type { Configuration } from "../types";
 import type { Logger } from "winston";
 
 /**
- * Handles loading configuration and secrets from AWS SSM Parameter Store.
+ * Handles loading configuration overrides from AWS SSM Parameter Store.
  */
 export class SsmConfigLoader {
   private client: SSMClient;
@@ -88,48 +84,6 @@ export class SsmConfigLoader {
     return config;
   }
 
-  /**
-   * Resolve secrets from SSM based on metadata.
-   * Used by ECS/Lambda workers to fetch runtime secrets.
-   */
-  async resolveSecrets(
-    secretMetadata: SecretMetadata[],
-  ): Promise<Record<string, string>> {
-    const resolved: Record<string, string> = {};
-
-    for (const secret of secretMetadata) {
-      if (secret.secretLocation !== "ssm" || !secret.secretPath) {
-        continue;
-      }
-
-      try {
-        const command = new GetParameterCommand({
-          Name: secret.secretPath,
-          WithDecryption: true,
-        });
-        const response = await this.client.send(command);
-
-        if (response.Parameter?.Value) {
-          resolved[secret.name] = response.Parameter.Value;
-          this.logger.debug(`Resolved secret from SSM: ${secret.name}`);
-        } else {
-          this.logger.warn(
-            `Secret ${secret.name} not found in SSM at path: ${secret.secretPath}`,
-          );
-        }
-      } catch (ssmError) {
-        this.logger.error(
-          `Failed to fetch secret ${secret.name} from SSM`,
-          { error: ssmError },
-        );
-      }
-    }
-
-    this.logger.info(
-      `Resolved ${Object.keys(resolved).length} of ${secretMetadata.length} SSM secrets`,
-    );
-    return resolved;
-  }
 }
 
 /**
