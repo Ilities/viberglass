@@ -31,6 +31,10 @@ describe("resolveComputeImage", () => {
     expect(resolveComputeImage(clanker({ type: "ecs", containerImage: "123.dkr.ecr/worker:1" }))).toBe("123.dkr.ecr/worker:1");
   });
 
+  it("reads the container image of a Kubernetes runner", () => {
+    expect(resolveComputeImage(clanker({ type: "kubernetes", containerImage: "registry.example/worker:1" }))).toBe("registry.example/worker:1");
+  });
+
   it("reads the image URI of a Lambda runner", () => {
     expect(resolveComputeImage(clanker({ type: "lambda", imageUri: "123.dkr.ecr/lambda:1" }))).toBe("123.dkr.ecr/lambda:1");
   });
