@@ -28,6 +28,8 @@ export interface DispatchTurnInput {
   documents: { research: string; plan: string };
   /** The latest summary of the conversation, written into the repository as SUMMARY.md. */
   summary: string;
+  /** The last commit an agent pushed to the task's branch, so the worker can tell it what people pushed since. */
+  lastAgentCommit: string | null;
 }
 
 /** What a harness with a compact command keeps when it compacts after a summary. */
@@ -149,6 +151,7 @@ export class TaskTurnJobDispatcher {
       allowCode: input.allowCode,
       acpSessionId,
       conversationStateUrl,
+      lastAgentCommit: input.lastAgentCommit,
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
     };

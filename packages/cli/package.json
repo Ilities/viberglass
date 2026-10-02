@@ -1,0 +1,28 @@
+{
+  "name": "@viberglass/cli",
+  "version": "1.0.0",
+  "description": "The viberglass command: take over a task's work on your machine",
+  "bin": {
+    "viberglass": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "jest",
+    "test:unit": "jest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@viberglass/types": "*",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

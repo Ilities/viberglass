@@ -71,6 +71,7 @@ export class ViberatorWorker {
   private compactInstructions?: string;
   private acpSessionId?: string;
   private conversationStateUrl?: string;
+  private lastAgentCommit?: string;
 
   constructor(
     agentAuthLifecycleFactory: AgentAuthLifecycleFactory,
@@ -176,6 +177,7 @@ export class ViberatorWorker {
         agentTurnId: this.agentTurnId,
         acpSessionId: this.acpSessionId,
         conversationStateUrl: this.conversationStateUrl,
+        lastAgentCommit: this.lastAgentCommit,
         turnAction: this.turnAction,
         allowCode: this.allowCode,
         coldStartTask: this.coldStartTask,
@@ -248,6 +250,7 @@ export class ViberatorWorker {
     this.compactInstructions = payload.compactInstructions;
     this.acpSessionId = payload.acpSessionId;
     this.conversationStateUrl = payload.conversationStateUrl;
+    this.lastAgentCommit = payload.lastAgentCommit ?? undefined;
   }
 
   private async loadPayloadCredentials(payload: WorkerPayload): Promise<void> {

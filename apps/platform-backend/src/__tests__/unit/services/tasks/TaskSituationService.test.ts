@@ -10,6 +10,7 @@ function setup() {
   const deps = {
     turns: {
       running: jest.fn().mockResolvedValue(new Map()),
+      paused: jest.fn().mockResolvedValue(new Map()),
       lastFinished: jest.fn().mockResolvedValue(new Map()),
       aggregates: jest.fn().mockResolvedValue(new Map()),
     },
@@ -21,6 +22,7 @@ function setup() {
     },
     mentions: { listOpen: jest.fn().mockResolvedValue(new Map()) },
     participants: { listDrivers: jest.fn().mockResolvedValue(new Map([["t-1", OLLI]])) },
+    takeovers: { listFor: jest.fn().mockResolvedValue(new Map()) },
   };
   return { deps, service: new TaskSituationService(deps) };
 }

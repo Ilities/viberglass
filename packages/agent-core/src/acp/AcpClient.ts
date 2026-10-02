@@ -8,7 +8,7 @@
 
 import { spawn, ChildProcess } from "child_process";
 import { Logger } from "winston";
-import type { PlatformSessionEvent } from "./types";
+import type { AcpMcpServer, PlatformSessionEvent } from "./types";
 import { defaultAcpEventMapper } from "./acpEventMapper";
 import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
@@ -32,11 +32,12 @@ export interface AcpRunOptions {
    * instructions, when it has a compact command.
    */
   compactInstructions?: string;
+  /** MCP servers the harness offers the agent as tools for this turn. */
+  mcpServers?: AcpMcpServer[];
 }
 
 export interface AcpRunResult {
   acpSessionId: string;
-  turnOutcome: "completed" | "needs_input";
   /** Whether the turn continued the harness's earlier session, or started cold and why. */
   sessionStart: AcpSessionStart;
   /** How full the harness's context was at the end of the turn, when it said. */
@@ -94,7 +95,6 @@ export class AcpClient {
   private child?: ChildProcess;
   private nextId = 1;
   private readonly pending = new Map<number, PendingRequest>();
-  private lastAssistantText = "";
   private currentSessionId = "";
   /** While `session/load` replays history the platform already has, its updates are dropped. */
   private replaying = false;
@@ -147,6 +147,7 @@ export class AcpClient {
         (method, params) => this.sendRequest(method, params),
         this.workDir,
         (replaying) => (this.replaying = replaying),
+        options.mcpServers,
       );
       const opened = await opener.open(sessionSupportOf(initialized), options.acpSessionId);
       this.currentSessionId = opened.sessionId;
@@ -164,11 +165,8 @@ export class AcpClient {
         this.reportSessionStart(sessionStart);
         await this.prompt(coldMessage);
       }
-      const turnOutcome = this.mapper.detectsNeedsInput(this.lastAssistantText)
-        ? "needs_input"
-        : "completed";
       const compacted = await this.compact(options.compactInstructions);
-      return { acpSessionId: this.currentSessionId, turnOutcome, sessionStart, contextUsage: this.contextUsage, compacted };
+      return { acpSessionId: this.currentSessionId, sessionStart, contextUsage: this.contextUsage, compacted };
     } finally {
       this.cleanup();
     }
@@ -239,12 +237,7 @@ export class AcpClient {
     if (command !== undefined) this.compactCommand = command;
     if (this.replaying) return;
     this.contextUsage = contextUsageOf(params) ?? this.contextUsage;
-    for (const event of this.mapper.mapSessionUpdate(params)) {
-      this.onEvent(event);
-      if (event.eventType === "assistant_message" && typeof event.payload.text === "string") {
-        this.lastAssistantText = event.payload.text;
-      }
-    }
+    for (const event of this.mapper.mapSessionUpdate(params)) this.onEvent(event);
   }
 
   private sendRequest(method: string, params: unknown): Promise<unknown> {

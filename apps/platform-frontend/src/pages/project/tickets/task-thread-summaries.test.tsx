@@ -17,6 +17,7 @@ jest.mock('@/service/api/discussion-api', () => ({
   getTaskTimeline: (...args: unknown[]) => mockTimeline(...args),
   postTaskMessage: (...args: unknown[]) => mockPost(...args),
   askAgent: jest.fn(),
+  getTaskBranch: jest.fn().mockResolvedValue(null),
 }))
 jest.mock('@/service/api/home-api', () => ({ markTaskRead: jest.fn().mockResolvedValue(undefined) }))
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
@@ -61,7 +62,7 @@ function renderThread(entries: TaskTimelineEntry[], runnable = [{ id: CLAUDE, na
           suggestionInput={{
             ticket: { status: 'open' },
             documents: { research: { content: '# R' }, planning: { content: '# P' } },
-            capabilities: { canPost: true, canAsk: true, canAskForCode: false, canEdit: false, canDelete: false },
+            capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
             newComments: { research: 0, planning: 0 },
             agentWorking: false,
           }}

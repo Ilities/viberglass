@@ -15,6 +15,7 @@ import { normalizeQwenAgentConfig } from "./agents/qwen";
 import { normalizeDockerStrategyConfig } from "./strategies/docker";
 import { normalizeEcsStrategyConfig } from "./strategies/ecs";
 import { normalizeLambdaStrategyConfig } from "./strategies/lambda";
+import { normalizeKubernetesStrategyConfig } from "./strategies/kubernetes";
 import { toObjectRecord } from "./parsers";
 
 function normalizeStrategyName(name: string | undefined): ClankerStrategyType {
@@ -24,6 +25,9 @@ function normalizeStrategyName(name: string | undefined): ClankerStrategyType {
   }
   if (normalized === "aws-lambda-container" || normalized === "lambda") {
     return "lambda";
+  }
+  if (normalized === "kubernetes") {
+    return "kubernetes";
   }
   return "docker";
 }
@@ -88,6 +92,10 @@ function normalizeStrategy(
 
   if (strategyType === "lambda") {
     return normalizeLambdaStrategyConfig(deploymentConfig);
+  }
+
+  if (strategyType === "kubernetes") {
+    return normalizeKubernetesStrategyConfig(deploymentConfig);
   }
 
   return normalizeDockerStrategyConfig(deploymentConfig);

@@ -191,3 +191,25 @@ export async function fetchWithRetry(
     }
   }
 }
+
+/**
+ * One POST whose answer the caller needs, without retries: for requests that
+ * mustn't happen twice, such as a question to a person.
+ */
+export async function postForJson(
+  url: string,
+  tenantId: string,
+  body: unknown,
+  timeoutMs: number,
+  callbackToken?: string,
+): Promise<unknown> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: buildCallbackHeaders(tenantId, callbackToken),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(getCallbackErrorMessage(data, response.statusText));
+  return data;
+}

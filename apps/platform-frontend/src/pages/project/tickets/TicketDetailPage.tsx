@@ -13,7 +13,6 @@ import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { SituationLine } from './situation-line'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
-import { TaskPendingRequest } from './pending-request-card'
 import { decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
 import { TaskActionsMenu } from './task-actions-menu'
 import { TaskFacts } from './task-facts'
@@ -204,6 +203,7 @@ export function TicketDetailPage() {
             <TaskFacts ticket={ticket} />
             <TaskThread
               taskId={ticket.id}
+              taskKey={ticket.key}
               project={project}
               refreshKey={threadRefreshKey}
               onOpenArtifact={(step) => {
@@ -213,12 +213,10 @@ export function TicketDetailPage() {
               agents={taskAgents(data.clankers, data.sessions)}
               canPost={Boolean(capabilities?.canPost)}
               canAsk={Boolean(capabilities?.canAsk)}
-              question={
-                <>
-                  <TaskFailureNotice move={move} project={project} />
-                  {capabilities?.canPost && <TaskPendingRequest sessions={data.sessions} onResolved={changed} />}
-                </>
-              }
+              canSteer={Boolean(capabilities?.canSteer)}
+              paused={data.sessions.some((session) => session.status === 'paused')}
+              pausedForSetup={move.kind === 'failed' && move.failure?.category === 'setup'}
+              notice={<TaskFailureNotice move={move} project={project} />}
               runnableAgents={runnableAgents(data.clankers)}
               onAsked={changed}
               suggestionInput={{

@@ -30,6 +30,7 @@
     "packages/chat-slack",
     "packages/platform-ui",
     "packages/mcp-server",
+    "packages/cli",
     "packages/integration-core",
     "packages/integrations/*",
     "apps/viberator",

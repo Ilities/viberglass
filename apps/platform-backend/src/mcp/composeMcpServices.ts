@@ -9,6 +9,7 @@ import { TicketPhaseDocumentCommentService } from "../services/TicketPhaseDocume
 import { TicketPhaseOrchestrationService } from "../services/TicketPhaseOrchestrationService";
 import { TaskTurnService } from "../services/taskTurns/TaskTurnService";
 import { currentActorId } from "../api/auth/requestActor";
+import { TaskCodeBranchService } from "../services/tasks/TaskCodeBranchService";
 
 const ticketDAO = new TicketDAO();
 const ticketPhaseDocumentDAO = new TicketPhaseDocumentDAO();
@@ -17,6 +18,8 @@ const projectDAO = new ProjectDAO();
 const workflowService = new TicketWorkflowService();
 const commentService = new TicketPhaseDocumentCommentService();
 const orchestrationService = new TicketPhaseOrchestrationService(new TaskTurnService());
+const codeBranches = new TaskCodeBranchService();
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * What one MCP caller may reach: `projectIds` null means every space (admins);
@@ -83,6 +86,13 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
       async get(ticketId) {
         await scope.assertTask(ticketId);
         return ticketDAO.getTicket(ticketId);
+      },
+
+      async branch(task) {
+        const ticketId = UUID.test(task) ? task : await ticketDAO.findIdByKey(task.toUpperCase());
+        if (!ticketId) return null;
+        await scope.assertTask(ticketId);
+        return codeBranches.describe(ticketId);
       },
 
       async create(params) {

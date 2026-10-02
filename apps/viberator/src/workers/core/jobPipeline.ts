@@ -83,6 +83,8 @@ export interface JobRunnerParams {
   sessionEventForwarder?: SessionEventForwarder;
   /** S3 URL of conversation state archive to restore before CLI launch */
   conversationStateUrl?: string;
+  /** The last commit an agent pushed to the task's branch. */
+  lastAgentCommit?: string;
   /** Per-project SCM token resolved from fetchedCredentials */
   scmToken?: string;
   selectAgentForExecution: (availableAgents: BaseAgentConfig[]) => BaseAgentConfig;
@@ -202,10 +204,11 @@ export async function setupJob(
       ),
   );
 
-  // A build on a task that already has a branch continues it, so the agent
-  // works on top of the earlier builds and the pull request gains commits.
+  // A turn on a task that already has a branch starts from it, so the agent
+  // works on top of the earlier builds, and of what people pushed there, and
+  // a build's pull request gains commits.
   const taskBranch =
-    data.jobKind === "execution" ? await prepareTaskBranch(params, repoDir) : undefined;
+    data.jobKind === "execution" || params.agentSessionId ? await prepareTaskBranch(params, repoDir) : undefined;
 
   // The exact commit the run starts from, captured before instruction files
   // are written and before the agent touches anything. "base branch was main"
@@ -241,7 +244,6 @@ export interface AgentExecutionResult {
   success: boolean;
   changedFiles: string[];
   errorMessage?: string;
-  acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
   newAcpSessionId?: string;
   acpSessionStart?: AcpSessionStart;
   acpContextUsage?: AcpContextUsage;
@@ -337,8 +339,7 @@ export async function executeAgentWithRetry(
         result = await executeSelectedAgent();
       }
 
-      const stopReason =
-        result.acpTurnOutcome ?? (result.success ? "completed" : "failed");
+      const stopReason = result.success ? "completed" : "failed";
 
       span.setAttributes(
         definedAttributes({

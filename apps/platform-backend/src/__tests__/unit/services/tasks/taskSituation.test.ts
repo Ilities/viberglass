@@ -29,6 +29,14 @@ describe("taskSituation", () => {
     ["a plan the agent mentioned Tomi on", { latestArtifact: PLAN_V2, openMentions: [{ person: TOMI, at: PLAN_V2.at }] }, "artifact_ready", "Plan v2 ready · Tomi"],
     ["people talking since the plan", { latestArtifact: PLAN_V2, lastMessageAt: "2026-10-01T11:00:00Z", openMentions: [{ person: MARIA, at: "2026-10-01T11:00:00Z" }] }, "discussing", "Discussing · Maria"],
     ["an agent question", { openQuestion: { askedOf: [MARIA], since: "t" } }, "question", "Question for Maria"],
+    ["the agent paused, with a question open", { pausedSince: "t", openQuestion: { askedOf: [MARIA], since: "t" } }, "paused", "Agent paused · Olli"],
+    ["work taken over by Tomi", { pausedSince: "t", takenOver: { by: TOMI, at: "t" } }, "paused", "Taken over locally · Tomi"],
+    [
+      "the agent paused by a setup failure",
+      { pausedSince: "t", lastTurn: { status: "failed" as const, at: "t", failure: { title: "Repository not reachable", category: "setup" as const } } },
+      "paused",
+      "Paused · Repository not reachable · Olli",
+    ],
     [
       "a failed turn",
       { lastTurn: { status: "failed" as const, at: "2026-10-01T09:00:00Z", failure: { title: "Credential expired", category: "setup" as const } } },
@@ -50,6 +58,12 @@ describe("taskSituation", () => {
     expect(situation(ready, as("owner")).yourMove).toBe(false);
     expect(situation({ runningTurn: { action: "plan", since: "t" } }, as("owner")).yourMove).toBe(false);
     expect(situation({ status: "resolved" }, as("owner")).yourMove).toBe(false);
+  });
+
+  it("puts the agent paused by a setup failure on admins too, since they fix it", () => {
+    const input = { pausedSince: "t", lastTurn: { status: "failed" as const, at: "t", failure: { title: "Credential expired", category: "setup" as const } } };
+    expect(situation(input, as("someone-else", true)).yourMove).toBe(true);
+    expect(situation(input, as("someone-else")).yourMove).toBe(false);
   });
 
   it("puts a setup failure on admins as well as the owner", () => {

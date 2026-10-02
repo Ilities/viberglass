@@ -86,6 +86,13 @@ export const TASK_ACTIVITY_KINDS = [
   'comment_added',
   'task_done',
   'pull_request_merged',
+  'question_asked',
+  'question_answered',
+  'question_reminded',
+  'agent_paused',
+  'agent_resumed',
+  'taken_over',
+  'handed_back',
 ] as const
 
 export type TaskActivityKind = (typeof TASK_ACTIVITY_KINDS)[number]

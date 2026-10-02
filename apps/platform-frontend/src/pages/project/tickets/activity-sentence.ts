@@ -47,5 +47,19 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       // Entries from before quotes name the line instead.
       if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`
       return typeof entry.payload.line === 'number' ? `${who} commented on the ${step}, line ${entry.payload.line}` : `${who} commented on the ${step}`
+    case 'question_asked':
+      return `The agent asked ${person} a question`
+    case 'question_answered':
+      return `${who} answered the agent's question`
+    case 'question_reminded':
+      return entry.payload.escalated === true ? `Told ${person} the agent's question is still unanswered` : `Reminded ${person} of the agent's question`
+    case 'agent_paused':
+      return `${who} paused the agent`
+    case 'agent_resumed':
+      return `${who} let the agent carry on`
+    case 'taken_over':
+      return `${who} took the work over from the agent`
+    case 'handed_back':
+      return `${who} handed the work back to the agent`
   }
 }

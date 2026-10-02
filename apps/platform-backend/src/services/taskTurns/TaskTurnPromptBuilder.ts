@@ -1,7 +1,7 @@
 import type { TaskTurnAction } from "@viberglass/types";
 import { PromptTemplateDAO, PROMPT_TYPE, type PromptType } from "../../persistence/promptTemplate/PromptTemplateDAO";
 import { PromptTemplateService } from "../PromptTemplateService";
-import { formatComments, formatEdits, formatMessages, formatReviewComments } from "./formatTurnContext";
+import { formatComments, formatEdits, formatMessages, formatPeople, formatReviewComments } from "./formatTurnContext";
 import type { TaskTurnContext } from "./taskTurnContext";
 
 export interface PromptRenderer {
@@ -47,6 +47,7 @@ export class TaskTurnPromptBuilder {
         ticketTitle: ticket.title,
         ticketDescription: ticket.description,
         externalTicketId: ticket.externalTicketId ?? undefined,
+        people: formatPeople(context.people),
         summaryDocument: context.summary || undefined,
         researchDocument: documents.research || undefined,
         planDocument: documents.plan || undefined,

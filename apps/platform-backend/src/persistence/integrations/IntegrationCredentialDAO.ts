@@ -142,6 +142,8 @@ export class IntegrationCredentialDAO {
     }
     if (input.expiresAt !== undefined) {
       updateData.expires_at = input.expiresAt ? new Date(input.expiresAt) : null;
+      // A new expiry date is worth its own warning.
+      updateData.expiry_warned_at = null;
     }
     if (input.isDefault !== undefined) {
       updateData.is_default = input.isDefault;

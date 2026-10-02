@@ -115,6 +115,7 @@ export class TaskTurnOutcomeService {
       mentioned,
       contextUsage: result.contextUsage ?? null,
       compacted: result.compacted ?? false,
+      commit: result.success ? (result.commitHash ?? null) : null,
     };
     await this.deps.turns.update(turn.id, { contentMarkdown: reply, contentJson: { ...outcome } });
     // Open until each person next posts in the thread, which is what makes it their move.

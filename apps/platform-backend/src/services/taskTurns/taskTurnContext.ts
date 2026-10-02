@@ -7,6 +7,14 @@ export interface TurnMessage {
   body: string;
   at: Date;
   via: "thread" | "session";
+  /** The agent's question this message answers. */
+  inAnswerTo?: string;
+}
+
+/** Someone on the task, with their roles on it, so the agent can ask them by name. */
+export interface TurnPerson {
+  name: string;
+  roles: string[];
 }
 
 export interface TurnComment {
@@ -32,6 +40,9 @@ export interface TaskTurnContext {
     pullRequestUrl: string | null;
   };
   documents: { research: string; plan: string };
+  people: TurnPerson[];
+  /** The last commit an agent's build pushed to the task's branch; what people pushed since is news to it. */
+  lastAgentCommit: string | null;
   /** The latest summary of the conversation; empty before the first. */
   summary: string;
   /** When this agent was last prompted on the task; null on its first turn. */

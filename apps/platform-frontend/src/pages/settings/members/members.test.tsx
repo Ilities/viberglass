@@ -72,6 +72,7 @@ describe('InviteForm for guests', () => {
     autoFixTags: [],
     customFieldMappings: {},
     defaultReviewerIds: [],
+    questionReminderHours: 4,
     createdAt: at,
     updatedAt: at,
   }))

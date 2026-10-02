@@ -47,6 +47,12 @@ export * from './secret'
 // Agent session types
 export * from './agentSession'
 
+// Questions agents ask people
+export * from './agentQuestion'
+
+// Taking a task's work over from the agent, and its branch
+export * from './taskHandoff'
+
 // Feature branch naming, shared by the worker and the run confirmation
 export * from './branchNaming'
 

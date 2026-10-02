@@ -1,4 +1,4 @@
-import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/087_task_summaries";
+import { TASK_TURN_COLD_START_TEMPLATE, TASK_TURN_TEMPLATE } from "../../../../migrations/088_agent_questions";
 import { PromptTemplateDAO, type PromptType } from "../../../../persistence/promptTemplate/PromptTemplateDAO";
 import type { PhaseDocumentComment } from "../../../../persistence/ticketing/TicketPhaseDocumentCommentDAO";
 import { PromptTemplateService } from "../../../../services/PromptTemplateService";
@@ -42,6 +42,8 @@ function context(overrides: Partial<TaskTurnContext> = {}): TaskTurnContext {
   return {
     ticket: { title: "Dark mode", description: "Let people switch themes", externalTicketId: null, pullRequestUrl: null },
     documents: { research: "", plan: "" },
+    people: [],
+    lastAgentCommit: null,
     summary: "",
     since: null,
     earlier: { messages: [], openComments: [] },
@@ -158,6 +160,43 @@ describe("TaskTurnPromptBuilder", () => {
     expect(prompt).toContain('<message via="live session" at="2026-10-01 10:05 UTC">\n[Tomi]: what about mobile?\n</message>');
     expect(prompt).toContain("Answer what was asked above.");
     expect(prompt).not.toMatch(/Write the (research|plan)/);
+  });
+
+  it("tells the agent who's on the task, and to ask them rather than guess", async () => {
+    const { prompt, coldStartPrompt } = await builder.build(
+      "p",
+      context({
+        people: [
+          { name: "Maria PM", roles: ["requester"] },
+          { name: "Tomi", roles: ["owner", "reviewer"] },
+        ],
+      }),
+      "research",
+      false,
+    );
+
+    expect(coldStartPrompt).toContain("<people>\n- Maria PM: requester\n- Tomi: owner, reviewer\n</people>\n</task>");
+    expect(prompt).toContain("ask with the ask_human tool instead of guessing");
+  });
+
+  it("marks a message that answers the agent's question", async () => {
+    const { prompt } = await builder.build(
+      "p",
+      context({
+        fresh: {
+          messages: [
+            { author: "Maria PM", body: "North", at: new Date("2026-10-01T10:05:00Z"), via: "thread", inAnswerTo: 'Which "warehouse"?\nNorth or South' },
+          ],
+          comments: [],
+          edits: [],
+          pullRequestComments: [],
+        },
+      }),
+      "research",
+      false,
+    );
+
+    expect(prompt).toContain('<message from="Maria PM" in-answer-to="Which &quot;warehouse&quot;? North or South" at="2026-10-01 10:05 UTC">\nNorth\n</message>');
   });
 
   it("reads mentions as names and keeps people's words inside their tags", async () => {

@@ -71,6 +71,21 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
     summaries: { latest: jest.fn().mockResolvedValue(summary) },
     documents: { getOrCreateDocument: jest.fn(async (_id: string, phase: string) => ({ content: phase === "research" ? " # R \n" : "" })) },
     pullRequest,
+    participants: {
+      list: jest.fn().mockResolvedValue([
+        { userId: "u-maria", name: "Maria", email: "maria@example.com", role: "requester", addedAt: "" },
+        { userId: "u-maria", name: "Maria", email: "maria@example.com", role: "owner", addedAt: "" },
+        { userId: "u-tomi", name: "Tomi", email: "tomi@example.com", role: "reviewer", addedAt: "" },
+      ]),
+    },
+    questions: { questionsAnsweredBy: jest.fn().mockResolvedValue(new Map([["after", "Which warehouse?"]])) },
+    agentTurns: {
+      listForTask: jest.fn().mockResolvedValue([
+        { id: "a", outcome: { commit: "abc123" } },
+        { id: "b", outcome: { commit: null } },
+        { id: "c", outcome: null },
+      ]),
+    },
   });
   return { instance, revisions, pullRequest };
 }
@@ -89,6 +104,21 @@ describe("TaskTurnContextLoader", () => {
     expect(context.earlier).toEqual({ messages: [], openComments: [] });
     expect(revisions.listHandEditsSince).not.toHaveBeenCalled();
     expect(context.documents).toEqual({ research: "# R", plan: "" });
+  });
+
+  it("names the people on the task with their roles, and marks the answers to the agent's questions", async () => {
+    const context = await loader().instance.load(input);
+
+    // People pushed after this commit is what the next turn is told about.
+    expect(context.lastAgentCommit).toBe("abc123");
+    expect(context.people).toEqual([
+      { name: "Maria", roles: ["requester", "owner"] },
+      { name: "Tomi", roles: ["reviewer"] },
+    ]);
+    expect(context.fresh.messages.map((m) => [m.body, m.inAnswerTo])).toEqual([
+      ["before", undefined],
+      ["after", "Which warehouse?"],
+    ]);
   });
 
   it("gives an agent new to the task the summary instead of the messages it covers", async () => {

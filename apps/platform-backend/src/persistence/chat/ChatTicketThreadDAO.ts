@@ -10,78 +10,29 @@ export interface ChatTicketThread {
   threadId: string;
   channelId: string;
   adapterName: string;
-  clankerId: string;
-  mode: string;
   createdAt: Date;
 }
 
+/** Each task's chat thread, at most one, which mirrors its thread in Viberglass. */
 export class ChatTicketThreadDAO {
-  async link(
-    ticketId: string,
-    threadId: string,
-    channelId: string,
-    adapterName: string,
-    clankerId: string,
-    mode: string,
-  ): Promise<ChatTicketThread> {
+  async link(ticketId: string, threadId: string, channelId: string, adapterName: string): Promise<ChatTicketThread> {
     const row = await db
       .insertInto("chat_ticket_threads")
-      .values({
-        ticket_id: ticketId,
-        thread_id: threadId,
-        channel_id: channelId,
-        adapter_name: adapterName,
-        clanker_id: clankerId,
-        mode,
-      })
-      .onConflict((oc) =>
-        oc
-          .column("ticket_id")
-          .doUpdateSet({
-            thread_id: threadId,
-            channel_id: channelId,
-            adapter_name: adapterName,
-            clanker_id: clankerId,
-            mode,
-          }),
-      )
+      .values({ ticket_id: ticketId, thread_id: threadId, channel_id: channelId, adapter_name: adapterName })
+      .onConflict((oc) => oc.column("ticket_id").doUpdateSet({ thread_id: threadId, channel_id: channelId, adapter_name: adapterName }))
       .returningAll()
       .executeTakeFirstOrThrow();
     return this.mapRow(row);
   }
 
   async getByTicketId(ticketId: string): Promise<ChatTicketThread | null> {
-    const row = await db
-      .selectFrom("chat_ticket_threads")
-      .selectAll()
-      .where("ticket_id", "=", ticketId)
-      .executeTakeFirst();
+    const row = await db.selectFrom("chat_ticket_threads").selectAll().where("ticket_id", "=", ticketId).executeTakeFirst();
     return row ? this.mapRow(row) : null;
   }
 
   async getByThreadId(threadId: string): Promise<ChatTicketThread | null> {
-    const row = await db
-      .selectFrom("chat_ticket_threads")
-      .selectAll()
-      .where("thread_id", "=", threadId)
-      .executeTakeFirst();
+    const row = await db.selectFrom("chat_ticket_threads").selectAll().where("thread_id", "=", threadId).executeTakeFirst();
     return row ? this.mapRow(row) : null;
-  }
-
-  async updateMode(ticketId: string, mode: string): Promise<void> {
-    await db
-      .updateTable("chat_ticket_threads")
-      .set({ mode })
-      .where("ticket_id", "=", ticketId)
-      .execute();
-  }
-
-  async listAll(): Promise<ChatTicketThread[]> {
-    const rows = await db
-      .selectFrom("chat_ticket_threads")
-      .selectAll()
-      .execute();
-    return rows.map((row) => this.mapRow(row));
   }
 
   private mapRow(row: ChatTicketThreadRow): ChatTicketThread {
@@ -91,8 +42,6 @@ export class ChatTicketThreadDAO {
       threadId: row.thread_id,
       channelId: row.channel_id,
       adapterName: row.adapter_name,
-      clankerId: row.clanker_id,
-      mode: row.mode,
       createdAt: row.created_at,
     };
   }

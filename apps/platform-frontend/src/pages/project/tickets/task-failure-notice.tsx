@@ -25,7 +25,7 @@ export function TaskFailureNotice({ move, project }: { move: TaskNextMove; proje
       }
     >
       <p>{guidance.summary}</p>
-      <p className="mt-1 text-[var(--gray-10)]">{guidance.canRetry ? 'Ask the agent to try again below.' : guidance.nextStep.replace(/ from the task/, '')}</p>
+      <p className="mt-1 text-[var(--gray-10)]">{guidance.canRetry ? 'Ask the agent to try again below, with instructions if it needs them, or take the work over.' : guidance.nextStep.replace(/ from the task/, '')}</p>
     </HandoffCard>
   )
 }

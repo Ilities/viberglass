@@ -140,6 +140,8 @@ export interface BaseWorkerPayload {
   acpSessionId?: string;
   /** S3 URL of conversation state archive to restore before CLI launch */
   conversationStateUrl?: string;
+  /** The last commit an agent pushed to the task's branch; the turn is told what people pushed after it. */
+  lastAgentCommit?: string | null;
   /**
    * W3C trace context linking this job's worker spans to the backend span
    * that dispatched it.

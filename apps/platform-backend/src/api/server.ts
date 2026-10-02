@@ -13,6 +13,11 @@ import * as dotenv from "dotenv";
 import { OrphanSweeper } from "../workers";
 import { HeartbeatSweeper } from "../workers/HeartbeatSweeper";
 import { PullRequestOutcomeSweeper } from "../workers/PullRequestOutcomeSweeper";
+import { PeriodicSweeper } from "../workers/PeriodicSweeper";
+import { QuestionReminderService } from "../services/questions/QuestionReminderService";
+import { CredentialExpiryWarner } from "../services/notifications/CredentialExpiryWarner";
+import { registerActivityListener } from "../services/tasks/activityListeners";
+import { RunFailureHandler } from "../services/taskTurns/RunFailureHandler";
 import { PullRequestOutcomeDAO } from "../persistence/job/PullRequestOutcomeDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import { IntegrationCredentialDAO } from "../persistence/integrations/IntegrationCredentialDAO";
@@ -24,7 +29,7 @@ import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
 import { retryWhileDatabaseUnreachable } from "./startup/retryWhileDatabaseUnreachable";
-import bot, { resumeChatBridges } from "../chat";
+import bot from "../chat";
 
 // Load environment variables
 dotenv.config();
@@ -77,6 +82,26 @@ const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
       [new TaskMergeCompleter()],
     )
   : null;
+
+// A failed run ends its turn, and a setup failure pauses the task's agent until someone retries.
+registerActivityListener(new RunFailureHandler());
+
+const questionReminders = new QuestionReminderService();
+const credentialExpiry = new CredentialExpiryWarner();
+const periodicSweepers = shouldRunBackgroundSweepers
+  ? [
+      new PeriodicSweeper(
+        "question reminders",
+        (now) => questionReminders.remindDue(now),
+        parseInt(process.env.QUESTION_REMINDER_SWEEP_INTERVAL_MS || "300000", 10),
+      ),
+      new PeriodicSweeper(
+        "credential expiry warnings",
+        (now) => credentialExpiry.warn(now),
+        parseInt(process.env.CREDENTIAL_EXPIRY_SWEEP_INTERVAL_MS || "21600000", 10),
+      ),
+    ]
+  : [];
 
 const clawSchedulingEngine = ClawSchedulingEngine.getInstance();
 
@@ -160,6 +185,7 @@ function onListening(): void {
     orphanSweeper?.start();
     heartbeatSweeper?.start();
     pullRequestOutcomeSweeper?.start();
+    for (const sweeper of periodicSweepers) sweeper.start();
   } else {
     logger.info("Background sweepers are disabled");
   }
@@ -196,9 +222,6 @@ async function startServer(): Promise<void> {
     );
   }
 
-  // Not awaited, so listening isn't held up; each bridge logs its own failure.
-  void resumeChatBridges();
-
   // Kick off chat SDK initialization in the background so Slack webhooks
   // don't time out waiting for PG state connect + Slack auth.test on the
   // first request.  We don't await it — the server must start listening
@@ -229,6 +252,7 @@ async function startServer(): Promise<void> {
     orphanSweeper?.stop();
     heartbeatSweeper?.stop();
     pullRequestOutcomeSweeper?.stop();
+    for (const sweeper of periodicSweepers) sweeper.stop();
     await clawSchedulingEngine.stop();
     server.close(async () => {
       // Spans are batched, so anything recorded since the last export would be

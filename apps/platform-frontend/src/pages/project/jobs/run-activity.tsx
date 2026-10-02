@@ -38,7 +38,7 @@ function formatClock(iso: string | null): string | null {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-function StepRow({ step, isLast, children }: { step: RunStep; isLast: boolean; children?: ReactNode }) {
+function StepRow({ step, isLast, cancelledBy, children }: { step: RunStep; isLast: boolean; cancelledBy?: string; children?: ReactNode }) {
   return (
     <li className="relative flex gap-4 pb-6">
       {!isLast && <span aria-hidden className="absolute top-4 left-[5px] h-full w-px bg-[var(--gray-6)]" />}
@@ -48,7 +48,7 @@ function StepRow({ step, isLast, children }: { step: RunStep; isLast: boolean; c
           <h3 className={clsx('text-sm font-semibold', TITLE_TONE[step.state])}>
             {step.title}
             {step.state === 'failed' && <span className="ml-2 font-normal">· failed here</span>}
-            {step.state === 'stopped' && <span className="ml-2 font-normal">· cancelled here</span>}
+            {step.state === 'stopped' && <span className="ml-2 font-normal">· {cancelledBy ? `${cancelledBy} cancelled it here` : 'cancelled here'}</span>}
           </h3>
           <span className="font-mono text-xs text-[var(--gray-9)] tabular-nums">{formatClock(step.startedAt)}</span>
         </div>
@@ -141,7 +141,7 @@ export function RunActivity({ job, project, nextStep, onShowRawLog }: RunActivit
     <div>
       <ol>
         {steps.map((step, index) => (
-          <StepRow key={step.key} step={step} isLast={index === steps.length - 1}>
+          <StepRow key={step.key} step={step} isLast={index === steps.length - 1} cancelledBy={job.cancelledBy?.name}>
             {step.key === 'prepare' && step.state !== 'upcoming' && <PrepareDetail job={job} />}
             {step.key === 'work' && step.state !== 'upcoming' && step.state !== 'not_reached' && (
               <WorkDetail job={job} project={project} onShowRawLog={onShowRawLog} />

@@ -15,6 +15,8 @@ export const AGENT_SESSION_STATUS = {
   ACTIVE: "active",
   WAITING_ON_USER: "waiting_on_user",
   WAITING_ON_APPROVAL: "waiting_on_approval",
+  /** Stopped by someone steering the task; asks wait until it's resumed. */
+  PAUSED: "paused",
   COMPLETED: "completed",
   FAILED: "failed",
   CANCELLED: "cancelled",

@@ -178,4 +178,19 @@ describe("ProjectReadinessService", () => {
       }),
     );
   });
+
+  it("warns ahead of a credential expiring within the week, while it still works", async () => {
+    const soon = new Date(Date.now() + 3 * 24 * 3_600_000);
+    mockCredentialDAO.getById.mockResolvedValue({ integrationId: "scm-1", expiresAt: soon.toISOString() });
+
+    const readiness = await new ProjectReadinessService().getReadiness("project-1");
+
+    expect(readiness?.checks).toContainEqual(
+      expect.objectContaining({
+        key: "scmCredential",
+        state: "ready",
+        warning: `The SCM credential expires on ${soon.toISOString().slice(0, 10)}. Replace it before then, or runs will stop.`,
+      }),
+    );
+  });
 });

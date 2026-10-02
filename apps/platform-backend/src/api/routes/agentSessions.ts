@@ -6,8 +6,6 @@ import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessio
 import { AgentPendingRequestDAO } from "../../persistence/agentSession/AgentPendingRequestDAO";
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
 import { AgentSessionCancellationService } from "../../services/agentSession/AgentSessionCancellationService";
-import { AgentSessionInteractionService } from "../../services/agentSession/AgentSessionInteractionService";
-import { SessionTurnContinuationService } from "../../services/agentSession/SessionTurnContinuationService";
 import { isAgentSessionServiceError } from "../../services/errors/AgentSessionServiceError";
 import {
   AGENT_SESSION_ACTIVE_STATUSES,
@@ -37,18 +35,6 @@ const queryService = new AgentSessionQueryService(
 );
 const presenceService = new SessionPresenceService();
 
-const turnContinuationService = new SessionTurnContinuationService(
-  sessionDAO,
-  agentTurnDAO,
-  agentSessionEventDAO,
-);
-const interactionService = new AgentSessionInteractionService(
-  sessionDAO,
-  agentTurnDAO,
-  agentSessionEventDAO,
-  agentPendingRequestDAO,
-  turnContinuationService,
-);
 const cancellationService = new AgentSessionCancellationService(
   sessionDAO,
   agentTurnDAO,
@@ -250,97 +236,6 @@ router.get(
     heartbeatTimer = setInterval(() => {
       if (!closed) res.write(": heartbeat\n\n");
     }, HEARTBEAT_MS);
-  },
-);
-
-router.post(
-  "/:sessionId/reply",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const { replyText } = req.body;
-      if (!replyText || typeof replyText !== "string") {
-        return res.status(400).json({ error: "replyText is required" });
-      }
-      const userId = req.authContext?.user.id;
-      const result = await interactionService.reply(
-        req.params.sessionId,
-        replyText,
-        userId,
-      );
-      return res.json({ success: true, data: result });
-    } catch (err) {
-      logger.error("Failed to reply to agent session", {
-        sessionId: req.params.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      if (isAgentSessionServiceError(err)) {
-        return res.status(err.statusCode).json({ error: err.message });
-      }
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.post(
-  "/:sessionId/message",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const { messageText } = req.body;
-      if (!messageText || typeof messageText !== "string") {
-        return res.status(400).json({ error: "messageText is required" });
-      }
-      const userId = req.authContext?.user.id;
-      const userName = req.authContext?.user.name;
-      const result = await interactionService.sendMessage(
-        req.params.sessionId,
-        messageText,
-        userId,
-        userName,
-      );
-      return res.json({ success: true, data: result });
-    } catch (err) {
-      logger.error("Failed to send message to agent session", {
-        sessionId: req.params.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      if (isAgentSessionServiceError(err)) {
-        return res.status(err.statusCode).json({ error: err.message });
-      }
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.post(
-  "/:sessionId/approve",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const { approved } = req.body;
-      if (typeof approved !== "boolean") {
-        return res
-          .status(400)
-          .json({ error: "approved (boolean) is required" });
-      }
-      const userId = req.authContext?.user.id;
-      const result = await interactionService.approve(
-        req.params.sessionId,
-        approved,
-        userId,
-      );
-      return res.json({ success: true, data: result });
-    } catch (err) {
-      logger.error("Failed to approve/reject agent session", {
-        sessionId: req.params.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      if (isAgentSessionServiceError(err)) {
-        return res.status(err.statusCode).json({ error: err.message });
-      }
-      return res.status(500).json({ error: "Internal server error" });
-    }
   },
 );
 

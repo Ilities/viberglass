@@ -65,6 +65,7 @@ export interface ProjectsTable {
   next_task_number: Generated<number>;
   default_owner_id: string | null;
   default_reviewer_ids: Generated<string[]>;
+  question_reminder_hours: Generated<number>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -116,6 +117,8 @@ export interface TicketsTable {
   workflow_phase: Generated<"research" | "planning" | "execution">;
   archived_at: Timestamp | null;
   pull_request_url: string | null;
+  taken_over_by: string | null;
+  taken_over_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -160,6 +163,7 @@ export interface IntegrationCredentialsTable {
   is_default: Generated<boolean>;
   description: string | null;
   expires_at: Timestamp | null;
+  expiry_warned_at: Timestamp | null;
   last_used_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
@@ -251,6 +255,9 @@ export interface JobsTable {
   error_message: string | null;
   created_at: Generated<Timestamp>;
   started_at: Timestamp | null;
+  worker_type: string | null;
+  worker_execution_id: string | null;
+  cancelled_by: string | null;
   finished_at: Timestamp | null;
   ticket_id: string | null;
   clanker_id: string | null;
@@ -697,17 +704,16 @@ export interface AgentPendingRequestsTable {
   response_json: Json | null;
   resolved_by: string | null;
   resolved_at: Timestamp | null;
+  addressee_user_id: string | null;
+  addressee_role: string | null;
+  blocking: Generated<boolean>;
+  options_json: Json | null;
+  due_at: Timestamp | null;
+  reminded_at: Timestamp | null;
+  escalated_at: Timestamp | null;
+  answer_message_id: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
-}
-
-export interface ChatSessionThreadsTable {
-  id: Generated<string>;
-  session_id: string;
-  thread_id: string;
-  channel_id: string;
-  adapter_name: string;
-  created_at: Generated<Timestamp>;
 }
 
 export interface ChatTicketThreadsTable {
@@ -716,8 +722,6 @@ export interface ChatTicketThreadsTable {
   thread_id: string;
   channel_id: string;
   adapter_name: string;
-  clanker_id: string;
-  mode: string;
   created_at: Generated<Timestamp>;
 }
 
@@ -779,7 +783,6 @@ export interface Database {
   agent_session_events: AgentSessionEventsTable;
   agent_pending_requests: AgentPendingRequestsTable;
   prompt_templates: PromptTemplatesTable;
-  chat_session_threads: ChatSessionThreadsTable;
   chat_ticket_threads: ChatTicketThreadsTable;
   api_tokens: ApiTokensTable;
 }

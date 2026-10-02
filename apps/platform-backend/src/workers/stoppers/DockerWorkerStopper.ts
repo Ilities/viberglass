@@ -15,8 +15,11 @@ function statusCodeOf(error: unknown): number | undefined {
 
 /** The part of the Docker API this stopper needs. */
 export interface DockerContainerLookup {
-  getContainer(id: string): { stop(): Promise<unknown> };
+  getContainer(id: string): { stop(options?: { t?: number }): Promise<unknown> };
 }
+
+/** Seconds a stopped worker gets to keep what it had done (push a commit, send its documents) before it's killed. */
+const STOP_GRACE_SECONDS = 20;
 
 /** Stops the container that DockerInvoker started for a job. */
 export class DockerWorkerStopper implements WorkerStopper {
@@ -30,7 +33,7 @@ export class DockerWorkerStopper implements WorkerStopper {
 
   async stop(jobId: string): Promise<boolean> {
     try {
-      await this.docker.getContainer(dockerJobContainerName(jobId)).stop();
+      await this.docker.getContainer(dockerJobContainerName(jobId)).stop({ t: STOP_GRACE_SECONDS });
       return true;
     } catch (error) {
       const statusCode = statusCodeOf(error);

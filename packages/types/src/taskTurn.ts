@@ -30,4 +30,8 @@ export interface TaskTurnOutcome {
   contextUsage?: { used: number; size: number | null } | null
   /** Whether the harness compacted its context after the turn, with our instructions. */
   compacted?: boolean
+  /** The commit a build pushed to the task's branch. */
+  commit?: string | null
+  /** The turn was stopped before it finished; `produced` is what it had done by then. */
+  stoppedPartway?: boolean
 }

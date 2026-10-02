@@ -23,6 +23,10 @@ import type { JobData } from "../../../types/Job";
 
 // Mock JobService
 jest.mock("../../../services/JobService");
+const mockRecordWorker = jest.fn().mockResolvedValue(undefined);
+jest.mock("../../../persistence/job/JobWorkerDAO", () => ({
+  JobWorkerDAO: jest.fn(() => ({ record: (...args: unknown[]) => mockRecordWorker(...args) })),
+}));
 
 // Mock WorkerInvokerFactory
 jest.mock("../../../workers/WorkerInvokerFactory", () => ({
@@ -601,6 +605,8 @@ describe("WorkerExecutionService", () => {
         expect(successCall[2].progress.executionId).toBe("exec-xyz-789");
         expect(successCall[2].progress.workerType).toBe("lambda");
       }
+      // Kept apart from progress, which later updates replace, so cancelling can stop the worker.
+      expect(mockRecordWorker).toHaveBeenCalledWith(mockJob.id, { workerType: "lambda", executionId: "exec-xyz-789" });
     });
   });
 

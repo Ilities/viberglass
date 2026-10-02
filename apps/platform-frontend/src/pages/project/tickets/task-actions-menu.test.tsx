@@ -6,7 +6,7 @@ import type { TaskCapabilities } from '@viberglass/types'
 import { testTask } from '../space/test-task'
 import { TaskActionsMenu } from './task-actions-menu'
 
-const NOTHING: TaskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canEdit: false, canDelete: false }
+const NOTHING: TaskCapabilities = { canPost: false, canAsk: false, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false }
 
 async function itemsFor(capabilities: TaskCapabilities) {
   render(

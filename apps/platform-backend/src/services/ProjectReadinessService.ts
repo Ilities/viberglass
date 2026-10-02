@@ -8,6 +8,9 @@ import { IntegrationCredentialDAO } from "../persistence/integrations";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
 import { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 
+/** How long before a credential expires that it's flagged. */
+export const EXPIRY_WARNING_MS = 7 * 24 * 3_600_000;
+
 export class ProjectReadinessService {
   constructor(
     private readonly projectDAO = new ProjectDAO(),
@@ -119,11 +122,19 @@ export class ProjectReadinessService {
       };
     }
 
+    // Warned a week ahead, so it's replaced before runs start failing on it.
+    const expiresSoon = expiresAt !== null && expiresAt.getTime() - Date.now() <= EXPIRY_WARNING_MS;
     return {
       key: "scmCredential",
       label: "SCM credential",
       state: "ready",
       summary: "The selected SCM credential is available.",
+      ...(expiresSoon && expiresAt
+        ? {
+            warning: `The SCM credential expires on ${expiresAt.toISOString().slice(0, 10)}. Replace it before then, or runs will stop.`,
+            remediationUrl,
+          }
+        : {}),
     };
   }
 }
