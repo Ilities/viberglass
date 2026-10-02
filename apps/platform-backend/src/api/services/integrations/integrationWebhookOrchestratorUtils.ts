@@ -135,36 +135,11 @@ export async function getInboundConfigForIntegrationOrThrow(
   const config = await webhookConfigDAO.getByIntegrationAndConfigId(
     integrationId,
     configId,
-    {
-      direction: "inbound",
-    },
   );
   if (!config) {
     throw new IntegrationRouteServiceError(
       404,
       "Inbound webhook configuration not found",
-    );
-  }
-
-  return config;
-}
-
-export async function getOutboundConfigForIntegrationOrThrow(
-  webhookConfigDAO: WebhookConfigDAO,
-  integrationId: string,
-  configId: string,
-) {
-  const config = await webhookConfigDAO.getByIntegrationAndConfigId(
-    integrationId,
-    configId,
-    {
-      direction: "outbound",
-    },
-  );
-  if (!config) {
-    throw new IntegrationRouteServiceError(
-      404,
-      "Outbound webhook configuration not found",
     );
   }
 

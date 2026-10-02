@@ -117,20 +117,14 @@ export interface BaseWorkerPayload {
   scm?: ScmPayload | null;
   /** Callback token for authenticating worker callbacks to the platform */
   callbackToken?: string;
-  /**
-   * ACP session fields — present only on interactive (multi-turn) jobs.
-   * Absent for one-shot jobs; workers must treat null/undefined as one-shot mode.
-   */
+  /** ACP session fields: present on a task's turns, absent on scheduled jobs. */
   /** Platform session UUID linking this job to an agent_sessions row */
   agentSessionId?: string;
   /** Platform turn UUID linking this job to an agent_turns row */
   agentTurnId?: string;
   /** What the task turn was asked for (research, plan, code, reply, summarise) */
   turnAction?: TaskTurnAction;
-  /**
-   * Whether the turn may change code. Absent on jobs that aren't task turns,
-   * where a build (jobKind execution) may and nothing else does.
-   */
+  /** Whether the turn may change code. Absent on scheduled jobs. */
   allowCode?: boolean;
   /** The prompt for a turn whose harness can't continue its session and starts cold */
   coldStartTask?: string;

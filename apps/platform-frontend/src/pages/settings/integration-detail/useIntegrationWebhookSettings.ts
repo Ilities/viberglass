@@ -1,15 +1,11 @@
 import {
   createIntegrationInboundWebhook,
   deleteIntegrationInboundWebhook,
-  deleteIntegrationOutboundWebhook,
   getIntegrationDeliveries,
   getIntegrationInboundWebhooks,
-  getIntegrationOutboundWebhook,
   retryIntegrationDelivery,
-  saveIntegrationOutboundWebhook,
   updateIntegrationInboundWebhook,
   type IntegrationInboundWebhookConfig,
-  type IntegrationOutboundWebhookConfig,
   type IntegrationWebhookDelivery,
 } from '@/service/api/integration-api'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -93,7 +89,6 @@ function parseGitHubAutoExecuteSettings(labelMappings?: Record<string, unknown> 
 export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegrationWebhookSettingsArgs) {
   const [inboundWebhooks, setInboundWebhooks] = useState<IntegrationInboundWebhookConfig[]>([])
   const [selectedInboundConfigId, setSelectedInboundConfigId] = useState<string | null>(null)
-  const [outboundWebhook, setOutboundWebhook] = useState<IntegrationOutboundWebhookConfig | null>(null)
   const [isLoadingWebhook, setIsLoadingWebhook] = useState(false)
   const [showSecret, setShowSecret] = useState(false)
   const [deliveries, setDeliveries] = useState<IntegrationWebhookDelivery[]>([])
@@ -101,9 +96,6 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
   const [autoExecute, setAutoExecute] = useState(false)
   const [inboundActive, setInboundActive] = useState(true)
   const [inboundEvents, setInboundEvents] = useState<string[]>([])
-  const [emitJobStarted, setEmitJobStarted] = useState(true)
-  const [emitJobEnded, setEmitJobEnded] = useState(true)
-  const [outboundApiToken, setOutboundApiToken] = useState('')
   const [isSavingWebhook, setIsSavingWebhook] = useState(false)
   const [selectedInboundProjectId, setSelectedInboundProjectId] = useState<string | null>(null)
   const [selectedInboundProviderProjectId, setSelectedInboundProviderProjectId] = useState<string | null>(null)
@@ -123,15 +115,11 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
         setIsLoadingWebhook(false)
         setInboundWebhooks([])
         setSelectedInboundConfigId(null)
-        setOutboundWebhook(null)
         setDeliveries([])
         setShowSecret(false)
         setAutoExecute(false)
         setInboundActive(true)
         setInboundEvents([])
-        setEmitJobStarted(true)
-        setEmitJobEnded(true)
-        setOutboundApiToken('')
         setSelectedInboundProjectId(null)
         setSelectedInboundProviderProjectId(null)
         setGitHubAutoExecuteMode('matching_events')
@@ -141,10 +129,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
 
       setIsLoadingWebhook(true)
       try {
-        const [inboundConfigs, outboundConfig] = await Promise.all([
-          getIntegrationInboundWebhooks(integrationEntityId),
-          getIntegrationOutboundWebhook(integrationEntityId),
-        ])
+        const inboundConfigs = await getIntegrationInboundWebhooks(integrationEntityId)
 
         if (!isActive) {
           return
@@ -158,19 +143,7 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
           return inboundConfigs[0]?.id || null
         })
 
-        setOutboundWebhook(outboundConfig)
         setInboundEvents(inboundConfigs[0]?.events || [])
-
-        if (outboundConfig) {
-          const enabled = new Set(outboundConfig.events)
-          setEmitJobStarted(enabled.has('job_started'))
-          setEmitJobEnded(enabled.has('job_ended'))
-        } else {
-          setEmitJobStarted(true)
-          setEmitJobEnded(true)
-        }
-
-        setOutboundApiToken('')
         setShowSecret(false)
       } catch (error) {
         console.error('Failed to load webhook config:', error)
@@ -391,79 +364,6 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     }
   }
 
-  const handleSaveOutboundWebhook = async (
-    providerProjectId?: string | null,
-    options?: { forcedEvents?: string[]; projectId?: string | null }
-  ) => {
-    if (!integrationEntityId) {
-      return
-    }
-
-    const events: string[] = options?.forcedEvents
-      ? [...options.forcedEvents]
-      : (() => {
-          const enabledEvents: string[] = []
-          if (emitJobStarted) {
-            enabledEvents.push('job_started')
-          }
-          if (emitJobEnded) {
-            enabledEvents.push('job_ended')
-          }
-          return enabledEvents
-        })()
-
-    setIsSavingWebhook(true)
-    try {
-      const config = await saveIntegrationOutboundWebhook(
-        integrationEntityId,
-        {
-          events,
-          apiToken: outboundApiToken.trim() || undefined,
-          providerProjectId,
-          projectId: options?.projectId,
-        },
-        outboundWebhook?.id
-      )
-      setOutboundWebhook(config)
-      setOutboundApiToken('')
-      toast.success('Outbound webhook settings saved')
-    } catch (error) {
-      console.error('Failed to save outbound webhook:', error)
-      toast.error('Failed to save outbound webhook settings', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      })
-    } finally {
-      setIsSavingWebhook(false)
-    }
-  }
-
-  const handleDeleteOutboundWebhook = async () => {
-    if (!integrationEntityId || !outboundWebhook) {
-      return
-    }
-
-    if (!window.confirm('Are you sure you want to remove outbound webhook events?')) {
-      return
-    }
-
-    setIsSavingWebhook(true)
-    try {
-      await deleteIntegrationOutboundWebhook(integrationEntityId, outboundWebhook.id)
-      setOutboundWebhook(null)
-      setEmitJobStarted(true)
-      setEmitJobEnded(true)
-      setOutboundApiToken('')
-      toast.success('Outbound webhook removed successfully')
-    } catch (error) {
-      console.error('Failed to delete outbound webhook:', error)
-      toast.error('Failed to remove outbound webhook', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      })
-    } finally {
-      setIsSavingWebhook(false)
-    }
-  }
-
   const handleSelectInboundWebhook = (configId: string) => {
     setSelectedInboundConfigId(configId)
     setShowSecret(false)
@@ -555,41 +455,27 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
       !areStringListsEqual(githubRequiredLabels, selectedInboundAutoExecuteSettings.requiredLabels)
     : false
 
-  const hasOutboundChanges = outboundWebhook
-    ? emitJobStarted !== outboundWebhook.events.includes('job_started') ||
-      emitJobEnded !== outboundWebhook.events.includes('job_ended') ||
-      outboundApiToken.trim().length > 0
-    : !emitJobStarted || !emitJobEnded || outboundApiToken.trim().length > 0
-
   return {
     autoExecute,
     deliveries,
-    emitJobEnded,
-    emitJobStarted,
     githubAutoExecuteMode,
     githubRequiredLabels,
     hasInboundChanges,
-    hasOutboundChanges,
     inboundActive,
     inboundEvents,
     inboundWebhooks,
     isLoadingDeliveries,
     isLoadingWebhook,
     isSavingWebhook,
-    outboundApiToken,
-    outboundWebhook,
     selectedInboundConfig,
     selectedInboundConfigId,
     selectedInboundProviderProjectId,
     selectedInboundProjectId,
     showSecret,
     setAutoExecute,
-    setEmitJobEnded,
-    setEmitJobStarted,
     setGitHubAutoExecuteMode,
     setGitHubRequiredLabels,
     setInboundActive,
-    setOutboundApiToken,
     setSelectedInboundProviderProjectId,
     setSelectedInboundProjectId,
     setShowSecret,
@@ -597,12 +483,10 @@ export function useIntegrationWebhookSettings({ integrationEntityId }: UseIntegr
     handleCopyWebhookUrl,
     handleCreateInboundWebhook,
     handleDeleteInboundWebhook,
-    handleDeleteOutboundWebhook,
     handleGenerateSecret,
     handleRefreshDeliveries,
     handleRetryDelivery,
     handleSaveInboundWebhook,
-    handleSaveOutboundWebhook,
     handleSelectInboundWebhook,
     handleToggleInboundEvent,
   }

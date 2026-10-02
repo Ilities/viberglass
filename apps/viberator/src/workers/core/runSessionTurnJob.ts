@@ -111,6 +111,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       await discardCodeChanges(repoDir);
       return { ...turn, changedFiles: [], codeDiscarded: true };
     }
+    if (!setup.taskBranch) throw new Error("The platform named no branch for this task, so the build has nowhere to go");
     const delivered = await deliverPullRequest(params, {
       repoDir,
       checkoutBaseBranch,

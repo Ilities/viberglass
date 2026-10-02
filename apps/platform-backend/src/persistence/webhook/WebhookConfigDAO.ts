@@ -12,7 +12,6 @@ import type { JsonObject } from "../types/database";
 
 export type SecretLocation = "database" | "ssm" | "env";
 export type WebhookProvider = "github" | "jira" | "shortcut" | "custom";
-export type WebhookDirection = "inbound" | "outbound";
 
 /**
  * Webhook configuration as stored in database
@@ -21,18 +20,15 @@ export interface WebhookConfig {
   id: string;
   projectId: string | null;
   provider: WebhookProvider;
-  direction: WebhookDirection;
   providerProjectId: string | null;
   integrationId: string | null;
   secretLocation: SecretLocation;
   secretPath: string | null;
   webhookSecretEncrypted: string | null;
-  apiTokenEncrypted: string | null;
   allowedEvents: string[];
   autoExecute: boolean;
   botUsername: string | null;
   labelMappings: JsonObject;
-  outboundTargetConfig?: JsonObject | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -44,18 +40,15 @@ export interface WebhookConfig {
 export interface CreateWebhookConfigDTO {
   projectId: string | null;
   provider: WebhookProvider;
-  direction?: WebhookDirection;
   providerProjectId?: string | null;
   integrationId?: string | null;
   secretLocation?: SecretLocation;
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
-  apiTokenEncrypted?: string | null;
   allowedEvents?: string[];
   autoExecute?: boolean;
   botUsername?: string | null;
   labelMappings?: JsonObject;
-  outboundTargetConfig?: JsonObject | null;
   active?: boolean;
 }
 
@@ -65,18 +58,15 @@ export interface CreateWebhookConfigDTO {
 export interface UpdateWebhookConfigDTO {
   projectId?: string | null;
   provider?: WebhookProvider;
-  direction?: WebhookDirection;
   providerProjectId?: string | null;
   integrationId?: string | null;
   secretLocation?: SecretLocation;
   secretPath?: string | null;
   webhookSecretEncrypted?: string | null;
-  apiTokenEncrypted?: string | null;
   allowedEvents?: string[];
   autoExecute?: boolean;
   botUsername?: string | null;
   labelMappings?: JsonObject;
-  outboundTargetConfig?: JsonObject | null;
   active?: boolean;
 }
 
@@ -94,22 +84,15 @@ export class WebhookConfigDAO {
         id,
         project_id: dto.projectId,
         provider: dto.provider,
-        direction: dto.direction ?? "inbound",
         provider_project_id: dto.providerProjectId ?? null,
         integration_id: dto.integrationId ?? null,
         secret_location: dto.secretLocation ?? "database",
         secret_path: dto.secretPath ?? null,
         webhook_secret_encrypted: dto.webhookSecretEncrypted ?? null,
-        api_token_encrypted: dto.apiTokenEncrypted ?? null,
         allowed_events: sql<string[]>`${JSON.stringify(dto.allowedEvents ?? [])}::jsonb`,
         auto_execute: dto.autoExecute ?? false,
         bot_username: dto.botUsername ?? null,
         label_mappings: sql<JsonObject>`${JSON.stringify(dto.labelMappings ?? {})}::jsonb`,
-        outbound_target_config:
-          dto.outboundTargetConfig === undefined ||
-          dto.outboundTargetConfig === null
-            ? null
-            : sql<JsonObject>`${JSON.stringify(dto.outboundTargetConfig)}::jsonb`,
         active: dto.active ?? true,
         created_at: timestamp,
         updated_at: timestamp,
@@ -118,31 +101,6 @@ export class WebhookConfigDAO {
       .executeTakeFirstOrThrow();
 
     return this.mapRowToConfig(result);
-  }
-
-  /**
-   * Get webhook configuration by project ID
-   */
-  async getConfigByProjectId(
-    projectId: string,
-    direction: WebhookDirection = "inbound",
-  ): Promise<WebhookConfig | null> {
-    let query = db
-      .selectFrom("webhook_provider_configs")
-      .selectAll()
-      .where("project_id", "=", projectId)
-      .where("active", "=", true);
-
-    query = query.where("direction", "=", direction);
-
-    const row = await query
-      .orderBy("created_at", "desc")
-      .orderBy("id", "desc")
-      .executeTakeFirst();
-
-    if (!row) return null;
-
-    return this.mapRowToConfig(row);
   }
 
   /**
@@ -170,13 +128,11 @@ export class WebhookConfigDAO {
 
     if (updates.projectId !== undefined) updateData.project_id = updates.projectId;
     if (updates.provider !== undefined) updateData.provider = updates.provider;
-    if (updates.direction !== undefined) updateData.direction = updates.direction;
     if (updates.providerProjectId !== undefined) updateData.provider_project_id = updates.providerProjectId;
     if (updates.integrationId !== undefined) updateData.integration_id = updates.integrationId;
     if (updates.secretLocation !== undefined) updateData.secret_location = updates.secretLocation;
     if (updates.secretPath !== undefined) updateData.secret_path = updates.secretPath;
     if (updates.webhookSecretEncrypted !== undefined) updateData.webhook_secret_encrypted = updates.webhookSecretEncrypted;
-    if (updates.apiTokenEncrypted !== undefined) updateData.api_token_encrypted = updates.apiTokenEncrypted;
     if (updates.allowedEvents !== undefined) {
       updateData.allowed_events = sql<string[]>`${JSON.stringify(updates.allowedEvents)}::jsonb`;
     }
@@ -184,12 +140,6 @@ export class WebhookConfigDAO {
     if (updates.botUsername !== undefined) updateData.bot_username = updates.botUsername;
     if (updates.labelMappings !== undefined) {
       updateData.label_mappings = sql<JsonObject>`${JSON.stringify(updates.labelMappings)}::jsonb`;
-    }
-    if (updates.outboundTargetConfig !== undefined) {
-      updateData.outbound_target_config =
-        updates.outboundTargetConfig === null
-          ? null
-          : sql<JsonObject>`${JSON.stringify(updates.outboundTargetConfig)}::jsonb`;
     }
     if (updates.active !== undefined) updateData.active = updates.active;
 
@@ -225,40 +175,13 @@ export class WebhookConfigDAO {
   }
 
   /**
-   * Get webhook configuration by integration ID
-   */
-  async getByIntegrationId(
-    integrationId: string,
-    direction?: WebhookDirection,
-  ): Promise<WebhookConfig | null> {
-    let query = db
-      .selectFrom("webhook_provider_configs")
-      .selectAll()
-      .where("integration_id", "=", integrationId)
-      .where("active", "=", true);
-
-    if (direction) {
-      query = query.where("direction", "=", direction);
-    }
-
-    const row = await query
-      .orderBy("created_at", "desc")
-      .orderBy("id", "desc")
-      .executeTakeFirst();
-
-    if (!row) return null;
-
-    return this.mapRowToConfig(row);
-  }
-
-  /**
-   * Get config by integration + config ID with optional direction/active filters.
+   * Get config by integration + config ID, optionally active only.
    * Useful for deterministic instance-scoped API operations.
    */
   async getByIntegrationAndConfigId(
     integrationId: string,
     configId: string,
-    options?: { direction?: WebhookDirection; activeOnly?: boolean },
+    options?: { activeOnly?: boolean },
   ): Promise<WebhookConfig | null> {
     let query = db
       .selectFrom("webhook_provider_configs")
@@ -268,10 +191,6 @@ export class WebhookConfigDAO {
 
     if (options?.activeOnly ?? false) {
       query = query.where("active", "=", true);
-    }
-
-    if (options?.direction) {
-      query = query.where("direction", "=", options.direction);
     }
 
     const row = await query.executeTakeFirst();
@@ -285,7 +204,7 @@ export class WebhookConfigDAO {
    */
   async listByIntegrationId(
     integrationId: string,
-    options?: { direction?: WebhookDirection; activeOnly?: boolean },
+    options?: { activeOnly?: boolean },
   ): Promise<WebhookConfig[]> {
     let query = db
       .selectFrom("webhook_provider_configs")
@@ -294,10 +213,6 @@ export class WebhookConfigDAO {
 
     if (options?.activeOnly ?? true) {
       query = query.where("active", "=", true);
-    }
-
-    if (options?.direction) {
-      query = query.where("direction", "=", options.direction);
     }
 
     const rows = await query
@@ -314,13 +229,11 @@ export class WebhookConfigDAO {
   async getActiveConfigByProviderProject(
     provider: WebhookProvider,
     providerProjectId: string,
-    direction: WebhookDirection = "inbound",
   ): Promise<WebhookConfig | null> {
     const row = await db
       .selectFrom("webhook_provider_configs")
       .selectAll()
       .where("provider", "=", provider)
-      .where("direction", "=", direction)
       .where("provider_project_id", "=", providerProjectId)
       .where("active", "=", true)
       .orderBy("created_at", "desc")
@@ -339,18 +252,11 @@ export class WebhookConfigDAO {
     provider: WebhookProvider,
     limit = 50,
     offset = 0,
-    direction?: WebhookDirection,
   ): Promise<WebhookConfig[]> {
-    let query = db
+    const rows = await db
       .selectFrom("webhook_provider_configs")
       .selectAll()
-      .where("provider", "=", provider);
-
-    if (direction) {
-      query = query.where("direction", "=", direction);
-    }
-
-    const rows = await query
+      .where("provider", "=", provider)
       .orderBy("created_at", "desc")
       .orderBy("id", "desc")
       .limit(limit)
@@ -366,18 +272,11 @@ export class WebhookConfigDAO {
   async listActiveConfigs(
     limit = 50,
     offset = 0,
-    direction?: WebhookDirection,
   ): Promise<WebhookConfig[]> {
-    let query = db
+    const rows = await db
       .selectFrom("webhook_provider_configs")
       .selectAll()
-      .where("active", "=", true);
-
-    if (direction) {
-      query = query.where("direction", "=", direction);
-    }
-
-    const rows = await query
+      .where("active", "=", true)
       .orderBy("created_at", "desc")
       .orderBy("id", "desc")
       .limit(limit)
@@ -394,18 +293,11 @@ export class WebhookConfigDAO {
     projectId: string,
     limit = 50,
     offset = 0,
-    direction?: WebhookDirection,
   ): Promise<WebhookConfig[]> {
-    let query = db
+    const rows = await db
       .selectFrom("webhook_provider_configs")
       .selectAll()
-      .where("project_id", "=", projectId);
-
-    if (direction) {
-      query = query.where("direction", "=", direction);
-    }
-
-    const rows = await query
+      .where("project_id", "=", projectId)
       .orderBy("created_at", "desc")
       .orderBy("id", "desc")
       .limit(limit)
@@ -420,8 +312,6 @@ export class WebhookConfigDAO {
       id: String(row.id),
       projectId: row.project_id ? String(row.project_id) : null,
       provider: row.provider as WebhookProvider,
-      direction:
-        ((row.direction as WebhookDirection | undefined) ?? "inbound"),
       providerProjectId: row.provider_project_id
         ? String(row.provider_project_id)
         : null,
@@ -431,9 +321,6 @@ export class WebhookConfigDAO {
       webhookSecretEncrypted: row.webhook_secret_encrypted
         ? String(row.webhook_secret_encrypted)
         : null,
-      apiTokenEncrypted: row.api_token_encrypted
-        ? String(row.api_token_encrypted)
-        : null,
       allowedEvents: row.allowed_events as string[],
       autoExecute: Boolean(row.auto_execute),
       botUsername: row.bot_username ? String(row.bot_username) : null,
@@ -441,10 +328,6 @@ export class WebhookConfigDAO {
         typeof row.label_mappings === "string"
           ? JSON.parse(row.label_mappings)
           : row.label_mappings,
-      outboundTargetConfig:
-        typeof row.outbound_target_config === "string"
-          ? JSON.parse(row.outbound_target_config)
-          : row.outbound_target_config ?? null,
       active: Boolean(row.active),
       createdAt: row.created_at as Date,
       updatedAt: row.updated_at as Date,

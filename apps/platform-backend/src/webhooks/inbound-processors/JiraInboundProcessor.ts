@@ -2,7 +2,7 @@
  * Jira inbound event processor
  *
  * Handles Jira issue_created and comment_created events,
- * creating tickets and optionally submitting jobs.
+ * creating tickets and optionally asking their agent to build.
  */
 
 import type {
@@ -12,23 +12,12 @@ import type {
 } from "../InboundEventProcessorResolver";
 import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
 import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
-import type { JobService } from "../../services/JobService";
-import { JOB_KIND } from "@viberglass/types";
+import type { WebhookBuildRequester } from "../WebhookBuildRequester";
 import type {
   CreateTicketRequest,
   Severity,
   TicketMetadata,
 } from "@viberglass/types";
-import type { JobData } from "../../types/Job";
-import { randomUUID } from "crypto";
-
-interface WebhookJobContext {
-  ticketId: string;
-  issueKey?: string;
-  triggeredBy?: string;
-  commentBody?: string;
-  stepsToReproduce?: string;
-}
 
 interface JiraIssuePayload {
   issue?: {
@@ -68,7 +57,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
 
   constructor(
     private ticketDAO: TicketDAO,
-    private jobService: JobService,
+    private builds: Pick<WebhookBuildRequester, "request">,
   ) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
@@ -166,12 +155,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     result.ticketId = ticket.id;
 
     if (config.autoExecute) {
-      result.jobId = await this.submitJob(
-        ticket.id,
-        resolvedTenantId,
-        payload,
-        event,
-      );
+      result.jobId = await this.builds.request(ticket.id);
     }
 
     return result;
@@ -244,34 +228,7 @@ export class JiraInboundProcessor implements InboundEventProcessor {
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
     result.ticketId = ticket.id;
 
-    const webhookContext: WebhookJobContext = {
-      ticketId: ticket.id,
-      issueKey: payload.issue?.key,
-      triggeredBy: "bot-command",
-      commentBody: commentBody.substring(0, 500),
-      stepsToReproduce: `Triggered by Jira comment on ${payload.issue?.key}`,
-    };
-
-    const jobData: JobData = {
-      id: randomUUID(),
-      jobKind: JOB_KIND.EXECUTION,
-      tenantId: resolvedTenantId,
-      repository:
-        event.metadata.repositoryId ||
-        this.extractJiraProjectKey(payload.issue?.key) ||
-        "",
-      task: `Fix Jira issue: ${payload.issue?.fields.summary}`,
-      context: webhookContext,
-      settings: {
-        runTests: true,
-      },
-      timestamp: Date.now(),
-    };
-
-    const jobResult = await this.jobService.submitJob(jobData, {
-      ticketId: ticket.id,
-    });
-    result.jobId = jobResult.jobId;
+    result.jobId = await this.builds.request(ticket.id);
 
     return result;
   }
@@ -290,40 +247,6 @@ export class JiraInboundProcessor implements InboundEventProcessor {
       return "low";
     }
     return "medium";
-  }
-
-  private async submitJob(
-    ticketId: string,
-    resolvedTenantId: string,
-    payload: JiraIssuePayload,
-    event: ParsedWebhookEvent,
-  ): Promise<string> {
-    const webhookContext: WebhookJobContext = {
-      ticketId,
-      issueKey: payload.issue!.key,
-      stepsToReproduce: `Jira Issue: ${payload.issue!.key}`,
-    };
-
-    const jobData: JobData = {
-      id: randomUUID(),
-      jobKind: JOB_KIND.EXECUTION,
-      tenantId: resolvedTenantId,
-      repository:
-        event.metadata.repositoryId ||
-        this.extractJiraProjectKey(payload.issue!.key) ||
-        "",
-      task: `Fix Jira issue: ${payload.issue!.fields.summary}`,
-      context: webhookContext,
-      settings: {
-        runTests: true,
-      },
-      timestamp: Date.now(),
-    };
-
-    const jobResult = await this.jobService.submitJob(jobData, {
-      ticketId,
-    });
-    return jobResult.jobId;
   }
 
   private createTicketMetadata(

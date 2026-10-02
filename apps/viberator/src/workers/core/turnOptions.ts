@@ -6,7 +6,7 @@ export interface TurnOptions {
   agentSessionId?: string;
   agentTurnId?: string;
   turnAction?: TaskTurnAction;
-  /** A build (or a turn asked for code) may change code; anything else's changes are thrown away. */
+  /** A turn asked for code may change it; any other turn's changes are thrown away. */
   allowCode: boolean;
   coldStartTask?: string;
   compactInstructions?: string;
@@ -16,13 +16,13 @@ export interface TurnOptions {
   taskBranch?: string;
 }
 
-/** The turn's options from its bootstrap payload; a run that isn't a turn only has `allowCode`. */
+/** The turn's options from its bootstrap payload; a scheduled job has none of them. */
 export function turnOptionsOf(payload: WorkerPayload): TurnOptions {
   return {
     agentSessionId: payload.agentSessionId,
     agentTurnId: payload.agentTurnId,
     turnAction: payload.turnAction,
-    allowCode: payload.allowCode ?? payload.jobKind === "execution",
+    allowCode: payload.allowCode ?? false,
     coldStartTask: payload.coldStartTask,
     compactInstructions: payload.compactInstructions,
     acpSessionId: payload.acpSessionId,

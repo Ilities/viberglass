@@ -15,13 +15,11 @@ function createConfig(provider: ProviderName): WebhookConfig {
     id: `cfg-${provider}`,
     projectId: "project-1",
     provider,
-    direction: "inbound",
     providerProjectId: `${provider}-project-1`,
     integrationId: "integration-1",
     secretLocation: "database",
     secretPath: null,
     webhookSecretEncrypted: `${provider}-secret`,
-    apiTokenEncrypted: null,
     allowedEvents: ["*"],
     autoExecute: false,
     botUsername: null,
@@ -277,11 +275,8 @@ describe("WebhookService", () => {
       findLatestShortcutStoryTicketByStoryId: jest.fn().mockResolvedValue(null),
       updateTicket: jest.fn().mockResolvedValue(undefined),
     };
-    const jobService = {
-      submitJob: jest.fn().mockResolvedValue({ jobId: "job-1" }),
-    };
-    const projectScmConfigDAO = {
-      getByProjectId: jest.fn().mockResolvedValue(null),
+    const builds = {
+      request: jest.fn().mockResolvedValue("job-1"),
     };
     const projectIntegrationLinkDAO = {
       getIntegrationProjects: jest.fn().mockResolvedValue([]),
@@ -290,8 +285,7 @@ describe("WebhookService", () => {
     // Create the processor resolver with the mocked dependencies
     const processorResolver = createDefaultInboundEventProcessorResolver(
       ticketDAO as any,
-      jobService as any,
-      projectScmConfigDAO as any,
+      builds,
       projectIntegrationLinkDAO as any,
     );
     const configResolver = new WebhookConfigResolver(configDAO as any);
@@ -335,7 +329,7 @@ describe("WebhookService", () => {
         deduplication,
         secretService,
         ticketDAO,
-        jobService,
+        builds,
         projectIntegrationLinkDAO,
       },
     };
@@ -366,7 +360,6 @@ describe("WebhookService", () => {
     expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
       "shortcut",
       "shortcut-project-1",
-      "inbound",
     );
     expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
       "shortcut-delivery-1",
@@ -375,7 +368,6 @@ describe("WebhookService", () => {
     expect(mocks.configDAO.getActiveConfigByProviderProject).not.toHaveBeenCalledWith(
       "github",
       expect.anything(),
-      "inbound",
     );
   });
 
@@ -424,7 +416,6 @@ describe("WebhookService", () => {
     expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
       "shortcut",
       "321",
-      "inbound",
     );
   });
 
@@ -481,7 +472,7 @@ describe("WebhookService", () => {
         autoFixRequested: false,
       }),
     );
-    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+    expect(mocks.builds.request).not.toHaveBeenCalled();
   });
 
   it("creates Shortcut ticket using integration-linked project when config project is missing", async () => {
@@ -895,7 +886,7 @@ describe("WebhookService", () => {
         autoFixRequested: false,
       }),
     );
-    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+    expect(mocks.builds.request).not.toHaveBeenCalled();
   });
 
   it("creates Jira ticket and job for bot-triggered comment_created flow", async () => {
@@ -931,7 +922,7 @@ describe("WebhookService", () => {
         autoFixRequested: true,
       }),
     );
-    expect(mocks.jobService.submitJob).toHaveBeenCalledTimes(1);
+    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
   });
 
   it("ignores unsupported Jira issue actions with explicit reason", async () => {
@@ -993,7 +984,6 @@ describe("WebhookService", () => {
     expect(mocks.configDAO.getActiveConfigByProviderProject).toHaveBeenCalledWith(
       "jira",
       "OPS",
-      "inbound",
     );
   });
 
@@ -1028,10 +1018,10 @@ describe("WebhookService", () => {
         autoFixRequested: false,
       }),
     );
-    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+    expect(mocks.builds.request).not.toHaveBeenCalled();
   });
 
-  it("submits GitHub job automatically for issues.opened when autoExecute is enabled", async () => {
+  it("asks for a build automatically on issues.opened when autoExecute is enabled", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issues.opened"];
     config.autoExecute = true;
@@ -1058,12 +1048,7 @@ describe("WebhookService", () => {
       ticketId: "ticket-1",
       jobId: "job-1",
     });
-    expect(mocks.jobService.submitJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        task: "Fix issue: Fix login bug",
-      }),
-      { ticketId: "ticket-1" },
-    );
+    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
   });
 
   it("skips GitHub auto-execute when label-gated policy does not match issue labels", async () => {
@@ -1095,7 +1080,7 @@ describe("WebhookService", () => {
     );
 
     expect(result.status).toBe("processed");
-    expect(mocks.jobService.submitJob).not.toHaveBeenCalled();
+    expect(mocks.builds.request).not.toHaveBeenCalled();
     expect(mocks.ticketDAO.createTicket).toHaveBeenCalledWith(
       expect.objectContaining({
         autoFixRequested: false,
@@ -1103,7 +1088,7 @@ describe("WebhookService", () => {
     );
   });
 
-  it("submits GitHub auto-execute job when label-gated policy matches issue labels", async () => {
+  it("asks for a build when the label-gated policy matches the issue's labels", async () => {
     const config = createConfig("github");
     config.allowedEvents = ["issues.opened"];
     config.autoExecute = true;
@@ -1141,7 +1126,7 @@ describe("WebhookService", () => {
         autoFixRequested: true,
       }),
     );
-    expect(mocks.jobService.submitJob).toHaveBeenCalledTimes(1);
+    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
   });
 
   it("creates ticket and job for bot-triggered issue_comment.created flow", async () => {
@@ -1177,7 +1162,7 @@ describe("WebhookService", () => {
         autoFixRequested: true,
       }),
     );
-    expect(mocks.jobService.submitJob).toHaveBeenCalledTimes(1);
+    expect(mocks.builds.request).toHaveBeenCalledWith("ticket-1");
   });
 
   it("ignores disallowed GitHub events with delivery diagnostics", async () => {
@@ -1260,10 +1245,7 @@ describe("WebhookService", () => {
     expect(result.status).toBe("processed");
     expect(mocks.configDAO.listByIntegrationId).toHaveBeenCalledWith(
       "integration-1",
-      {
-        direction: "inbound",
-        activeOnly: false,
-      },
+      { activeOnly: false },
     );
     expect(mocks.deduplication.shouldProcessDelivery).toHaveBeenCalledWith(
       "github-delivery-1",

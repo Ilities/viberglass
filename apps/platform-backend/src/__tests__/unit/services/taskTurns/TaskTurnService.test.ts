@@ -152,9 +152,20 @@ describe("TaskTurnService", () => {
 
     await service.ask("t-1", "maria", { message: "", action: "code" });
 
-    expect(deps.policy.assertCanAsk).toHaveBeenCalledWith("maria", "t-1", "code");
+    expect(deps.policy.assertCanAsk).toHaveBeenCalledWith("maria", "t-1", "code", { fromWebhook: undefined });
     expect(deps.discussion.create).toHaveBeenCalledWith("t-1", "maria", "Build it");
     expect(deps.continuation.launchForPendingMessages).toHaveBeenCalled();
+  });
+
+  it("builds for a webhook with nobody asking, posting nothing in the thread", async () => {
+    const { deps, service } = setup();
+
+    const result = await service.ask("t-1", null, { message: "", action: "code", fromWebhook: true });
+
+    expect(deps.policy.assertCanAsk).toHaveBeenCalledWith(null, "t-1", "code", { fromWebhook: true });
+    expect(deps.discussion.create).not.toHaveBeenCalled();
+    expect(deps.continuation.launchForPendingMessages).toHaveBeenCalled();
+    expect(result.messageId).toBeNull();
   });
 
   it("refuses an ask the policy refuses, before posting anything", async () => {

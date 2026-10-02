@@ -4,7 +4,6 @@ import type { IntegrationWebhookProviderPolicy } from "./IntegrationWebhookProvi
 
 interface DefaultIntegrationWebhookProviderPolicyOptions {
   providerLabel: string;
-  alwaysOnOutboundEvents?: boolean;
   useIntegrationProviderProjectIdFallback?: boolean;
 }
 
@@ -12,7 +11,6 @@ export class DefaultIntegrationWebhookProviderPolicy
   implements IntegrationWebhookProviderPolicy
 {
   private readonly providerLabel: string;
-  private readonly alwaysOnOutboundEvents: boolean;
   private readonly useIntegrationProviderProjectIdFallback: boolean;
 
   constructor(
@@ -20,17 +18,12 @@ export class DefaultIntegrationWebhookProviderPolicy
     options: DefaultIntegrationWebhookProviderPolicyOptions,
   ) {
     this.providerLabel = options.providerLabel;
-    this.alwaysOnOutboundEvents = options.alwaysOnOutboundEvents ?? false;
     this.useIntegrationProviderProjectIdFallback =
       options.useIntegrationProviderProjectIdFallback ?? true;
   }
 
   getProviderLabel(): string {
     return this.providerLabel;
-  }
-
-  shouldRequireAlwaysOnOutboundEvents(): boolean {
-    return this.alwaysOnOutboundEvents;
   }
 
   shouldUseIntegrationProviderProjectIdFallback(): boolean {

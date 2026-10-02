@@ -7,7 +7,6 @@ export type {
   UpdateIntegrationInput,
   LinkProjectIntegrationInput,
   UpsertInboundWebhookConfigInput,
-  UpsertOutboundWebhookConfigInput,
   DeliveryListResult,
   RetryInboundDeliveryResult,
 } from './types'

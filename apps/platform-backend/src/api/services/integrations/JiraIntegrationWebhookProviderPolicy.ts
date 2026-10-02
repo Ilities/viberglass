@@ -4,7 +4,6 @@ export class JiraIntegrationWebhookProviderPolicy extends DefaultIntegrationWebh
   constructor() {
     super("jira", {
       providerLabel: "Jira",
-      alwaysOnOutboundEvents: true,
       useIntegrationProviderProjectIdFallback: false,
     });
   }

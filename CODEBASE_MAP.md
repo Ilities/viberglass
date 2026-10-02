@@ -139,11 +139,10 @@ src/
 │   └── agentSession.ts      AGENT_SESSION_MODE, AGENT_SESSION_EVENT_TYPE, statuses
 ├── utils/                   Misc utility functions
 ├── webhooks/
-│   ├── feedback/            FeedbackService, provider-behaviors
 │   ├── inbound-processors/  Webhook payload processors per provider
 │   ├── middleware/          rawBody middleware
 │   ├── providers/           GitHub, Jira, Shortcut, Slack webhook verifiers
-│   ├── FeedbackService.ts
+│   ├── WebhookBuildRequester.ts   Asks the task's agent to build, as a turn
 │   └── webhookServiceFactory.ts
 ├── workers/
 │   ├── WorkerExecutionService.ts   Submits jobs to invokers
@@ -164,7 +163,7 @@ src/
 | `projects.ts` | `/api/spaces` | CRUD projects; GET/PUT/DELETE project integrations & SCM config; GET/PUT/DELETE project prompt-templates |
 | `tickets.ts` | `/api/tasks` | CRUD tickets; phase docs; phase approvals; agent sessions per ticket |
 | `jobs.ts` | `/api/jobs` | GET/POST/DELETE jobs; POST /:id/result, /progress, /logs, /logs/batch, /session-events/batch, /acp-session-id |
-| `integrations.ts` | `/api/integrations` | CRUD global integrations; link/unlink projects; inbound/outbound webhook config; credentials |
+| `integrations.ts` | `/api/integrations` | CRUD global integrations; link/unlink projects; inbound webhook config; credentials |
 | `clankers.ts` | `/api/clankers` | CRUD clankers |
 | `deployment-strategies.ts` | `/api/deployment-strategies` | CRUD deployment strategies |
 | `secrets.ts` | `/api/secrets` | CRUD secrets |
@@ -213,7 +212,7 @@ src/
 │       ├── UsersPage.tsx
 │       ├── PromptTemplatesPage.tsx     System-level prompt templates
 │       └── integration-detail/        Per-integration webhook sections (GitHub, Jira, Shortcut,
-│                                       Slack, Custom) + OutboundWebhookSection, DeliveryHistoryTable
+│                                       Slack, Custom) + DeliveryHistoryTable
 ├── components/              Shared UI: Alert, Badge, Button, Dialog, Dropdown, Input, Select,
 │                            Table, TabButton, Textarea, Spinner, Breadcrumbs, Sidebar, Navbar,
 │                            LogViewer, ProgressTimeline, EmptyState, etc.
@@ -598,7 +597,6 @@ packages/integrations/integration-<name>/
 │   │   └── index.ts               Exports
 │   ├── frontend/
 │   │   ├── <Name>InboundWebhookSection.tsx
-│   │   ├── <Name>OutboundWebhookSection.tsx
 ��   │   ├── plugin.ts              IntegrationFrontendPlugin definition
 │   │   └── index.ts               Exports
 │   └── index.ts                   Barrel export (both)
@@ -634,7 +632,6 @@ Defined in `packages/integration-core/src/frontend/types.ts`:
 interface IntegrationFrontendPlugin {
   id: string
   InboundWebhookSection?: ComponentType<InboundWebhookSectionProps>
-  OutboundWebhookSection?: ComponentType<OutboundWebhookSectionProps>
   AuthSection?: ComponentType<AuthSetupSectionProps>
 }
 ```

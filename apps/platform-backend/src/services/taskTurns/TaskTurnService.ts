@@ -19,6 +19,8 @@ export interface AskInput {
   agentId?: string;
   /** The thread message this asks with, when it's posted already (an answer to the agent's question). */
   postedMessageId?: string;
+  /** Asked by a webhook set to build on its own, with nobody asking. */
+  fromWebhook?: boolean;
 }
 
 export interface AskResult {
@@ -76,7 +78,7 @@ export class TaskTurnService {
     if (!text) throw new TaskTurnError(TASK_TURN_ERROR_CODE.NOTHING_ASKED, "Write what you'd like the agent to do.");
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
-    await this.deps.policy.assertCanAsk(actorId, ticket.id, action);
+    await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
     const clankerId = await this.deps.agents.resolve(ticket.id, { agentId: input.agentId, message: text });
     const messageId = input.postedMessageId ?? (actorId ? await this.deps.discussion.create(ticket.id, actorId, text) : null);
 
