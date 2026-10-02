@@ -1,7 +1,7 @@
-import { GetParameterCommand, SSMClient } from "@aws-sdk/client-ssm";
+import { SSMClient } from "@aws-sdk/client-ssm";
 import { DEFAULT_AGENT_TYPE } from "@viberglass/types";
 import type { BaseAgentConfig } from "@viberglass/agent-core";
-import { Configuration, SecretMetadata } from "../types";
+import { Configuration } from "../types";
 import type { Logger } from "winston";
 import * as dotenv from "dotenv";
 import { SsmConfigLoader } from "./SsmConfigLoader";
@@ -232,68 +232,5 @@ export class ConfigManager {
 
     this.logger.info(`Loaded agent configuration for: ${name}`);
     return agentConfig;
-  }
-
-  /**
-   * Resolve secrets from SSM/env based on metadata (for ECS/Lambda workers)
-   */
-  async resolveSecrets(
-    secretMetadata: SecretMetadata[],
-  ): Promise<Record<string, string>> {
-    const resolved: Record<string, string> = {};
-
-    for (const secret of secretMetadata) {
-      try {
-        if (secret.secretLocation === "env") {
-          // Read from environment variables
-          const value = process.env[secret.name];
-          if (value) {
-            resolved[secret.name] = value;
-            this.logger.debug(`Resolved secret from env: ${secret.name}`);
-          } else {
-            this.logger.warn(`Secret ${secret.name} not found in environment`);
-          }
-        } else if (
-          secret.secretLocation === "ssm" &&
-          secret.secretPath &&
-          this.ssmClient
-        ) {
-          // Use SSM loader if available, otherwise fetch directly
-          if (this.ssmLoader) {
-            const ssmSecrets = await this.ssmLoader.resolveSecrets([secret]);
-            Object.assign(resolved, ssmSecrets);
-          } else {
-            // Fallback to direct SSM fetch
-            const command = new GetParameterCommand({
-              Name: secret.secretPath,
-              WithDecryption: true,
-            });
-            const response = await this.ssmClient.send(command);
-
-            if (response.Parameter?.Value) {
-              resolved[secret.name] = response.Parameter.Value;
-              this.logger.debug(`Resolved secret from SSM: ${secret.name}`);
-            } else {
-              this.logger.warn(
-                `Secret ${secret.name} not found in SSM at path: ${secret.secretPath}`,
-              );
-            }
-          }
-        } else if (secret.secretLocation === "database") {
-          // Database secrets should already be resolved by the platform
-          // This is a fallback - log a warning
-          this.logger.warn(
-            `Secret ${secret.name} is stored in database but should be resolved by platform`,
-          );
-        }
-      } catch (error) {
-        this.logger.error(`Error resolving secret ${secret.name}`, { error });
-      }
-    }
-
-    this.logger.info(
-      `Resolved ${Object.keys(resolved).length} of ${secretMetadata.length} secrets`,
-    );
-    return resolved;
   }
 }

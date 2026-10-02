@@ -3,6 +3,8 @@
  * Clankers are individual viberator app worker configurations that do agentic tasks
  */
 
+import type { SecretBinding } from './secret'
+
 // Status of a clanker
 export type ClankerStatus = 'active' | 'inactive' | 'deploying' | 'failed'
 
@@ -99,7 +101,7 @@ export interface Clanker {
   deploymentConfig?: Record<string, unknown> | null
   configFiles: ClankerConfigFile[]
   agent?: AgentType | null
-  secretIds: string[]
+  secretBindings: SecretBinding[]
   status: ClankerStatus
   statusMessage?: string | null
   createdAt: string
@@ -120,7 +122,7 @@ export interface CreateClankerRequest {
   deploymentConfig?: Record<string, unknown> | null
   configFiles?: ConfigFileInput[]
   agent?: AgentType | null
-  secretIds?: string[]
+  secretBindings?: SecretBinding[]
 }
 
 // Request body for updating a clanker
@@ -131,7 +133,7 @@ export interface UpdateClankerRequest {
   deploymentConfig?: Record<string, unknown> | null
   configFiles?: ConfigFileInput[]
   agent?: AgentType | null
-  secretIds?: string[]
+  secretBindings?: SecretBinding[]
   status?: ClankerStatus
   statusMessage?: string | null
 }

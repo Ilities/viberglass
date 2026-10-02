@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { ENV_VAR_NAME_PATTERN, type ModelProviderId } from "@viberglass/types";
 import {
   SecretDAO,
   SecretLocation,
@@ -57,6 +58,8 @@ export interface SecretInput {
   name: string;
   secretLocation: SecretLocation;
   secretPath?: string | null;
+  sourceEnvVar?: string | null;
+  provider?: ModelProviderId | null;
   secretValue?: string;
 }
 
@@ -64,6 +67,8 @@ export interface SecretUpdate {
   name?: string;
   secretLocation?: SecretLocation;
   secretPath?: string | null;
+  sourceEnvVar?: string | null;
+  provider?: ModelProviderId | null;
   secretValue?: string;
 }
 
@@ -72,6 +77,8 @@ export interface SecretMetadata {
   name: string;
   secretLocation: SecretLocation;
   secretPath: string | null;
+  sourceEnvVar: string | null;
+  provider: ModelProviderId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,22 +113,16 @@ export class SecretService {
       );
     }
 
-    const existing = await this.secretDao.getSecretByName(name);
-    if (existing) {
-      throw new SecretServiceError(
-        SECRET_SERVICE_ERROR_CODE.SECRET_NAME_ALREADY_EXISTS,
-        "Secret name already exists",
-      );
-    }
-
+    const id = crypto.randomUUID();
     const secretLocation = input.secretLocation;
     const normalizedPath = this.normalizePath(input.secretPath);
 
     let secretPath: string | null = normalizedPath;
     let secretValueEncrypted: string | null = null;
+    let sourceEnvVar: string | null = null;
 
     if (secretLocation === "env") {
-      this.assertEnvironmentVariableSet(name);
+      sourceEnvVar = this.requireSourceEnvVar(input.sourceEnvVar);
       secretPath = null;
     }
 
@@ -143,15 +144,18 @@ export class SecretService {
           "Secret value is required for SSM storage",
         );
       }
-      secretPath = this.buildSsmPath(name, normalizedPath);
+      secretPath = normalizedPath ?? this.defaultSsmPath(id);
       await this.putSsmSecret(secretPath, input.secretValue);
     }
 
     const record = await this.secretDao.createSecret({
+      id,
       name,
       secretLocation,
       secretPath,
       secretValueEncrypted,
+      sourceEnvVar,
+      provider: input.provider ?? null,
     });
 
     return this.toMetadata(record);
@@ -176,11 +180,12 @@ export class SecretService {
         ? this.normalizePath(updates.secretPath)
         : existing.secretPath;
 
-    const becomesEnvReference =
-      nextLocation === "env" &&
-      (existing.secretLocation !== "env" || nextName !== existing.name);
-    if (becomesEnvReference) {
-      this.assertEnvironmentVariableSet(nextName);
+    let nextSourceEnvVar: string | null = null;
+    if (nextLocation === "env") {
+      const requested = updates.sourceEnvVar !== undefined ? updates.sourceEnvVar : existing.sourceEnvVar;
+      // An env secret already pointing at this variable stays editable without re-checking it.
+      const unchanged = existing.secretLocation === "env" && requested === existing.sourceEnvVar;
+      nextSourceEnvVar = unchanged ? existing.sourceEnvVar : this.requireSourceEnvVar(requested);
     }
 
     let nextPath: string | null = null;
@@ -202,7 +207,8 @@ export class SecretService {
     }
 
     if (nextLocation === "ssm") {
-      nextPath = this.buildSsmPath(nextName, normalizedPath);
+      // The stored path stays put on a rename: the id, not the label, places the parameter.
+      nextPath = normalizedPath ?? this.defaultSsmPath(existing.id);
       const ssmValue = await this.getSsmUpdateValue(
         existing,
         updates.secretValue,
@@ -240,6 +246,8 @@ export class SecretService {
       secretLocation: nextLocation,
       secretPath: nextPath,
       secretValueEncrypted: nextEncrypted,
+      sourceEnvVar: nextSourceEnvVar,
+      ...(updates.provider !== undefined ? { provider: updates.provider } : {}),
     });
 
     if (!record) {
@@ -263,16 +271,19 @@ export class SecretService {
     return this.secretDao.deleteSecret(id);
   }
 
-  async resolveSecrets(): Promise<Record<string, string>> {
-    const secrets = await this.secretDao.listSecrets(200, 0);
+  /** Values for these secrets, by secret id. Unknown ids are left out. */
+  async resolveSecretValues(ids: string[]): Promise<Map<string, string>> {
+    const secrets = await this.secretDao.getSecretsByIds(Array.from(new Set(ids)));
     const entries = await Promise.all(
-      secrets.map(async (secret) => {
-        const value = await this.resolveSecretValue(secret);
-        return [secret.name, value] as const;
-      }),
+      secrets.map(async (secret) => [secret.id, await this.resolveSecretValue(secret)] as const),
     );
+    return new Map(entries);
+  }
 
-    return Object.fromEntries(entries);
+  /** The value of the first secret with this label, for configs that name a secret. */
+  async resolveSecretValueByName(name: string): Promise<string | null> {
+    const secret = await this.secretDao.getSecretByName(name);
+    return secret ? this.resolveSecretValue(secret) : null;
   }
 
   async upsertWorkerAuthCache(
@@ -311,9 +322,11 @@ export class SecretService {
       });
     }
 
+    // Codex workers read the shared cache at the prefix plus this name.
     return this.createSecret({
       name: normalizedName,
       secretLocation: "ssm",
+      secretPath: `${this.ssmPrefix}/${normalizedName}`,
       secretValue: preparedAuthJson,
     });
   }
@@ -323,8 +336,15 @@ export class SecretService {
    * environment at run time. Refuse to save one that cannot resolve, rather
    * than letting runs fail later.
    */
-  private assertEnvironmentVariableSet(name: string): void {
-    if (process.env[name]) return;
+  private requireSourceEnvVar(value: string | null | undefined): string {
+    const name = value?.trim() ?? "";
+    if (!ENV_VAR_NAME_PATTERN.test(name)) {
+      throw new SecretServiceError(
+        SECRET_SERVICE_ERROR_CODE.SOURCE_ENV_VAR_INVALID,
+        "Name the server environment variable that holds the value, e.g. ANTHROPIC_API_KEY.",
+      );
+    }
+    if (process.env[name]) return name;
     throw new SecretServiceError(
       SECRET_SERVICE_ERROR_CODE.ENV_VARIABLE_NOT_SET,
       `${name} is not set on the Viberglass server, so this secret would have no value. ` +
@@ -334,10 +354,10 @@ export class SecretService {
 
   private async resolveSecretValue(secret: SecretRecord): Promise<string> {
     if (secret.secretLocation === "env") {
-      const value = process.env[secret.name];
+      const value = secret.sourceEnvVar ? process.env[secret.sourceEnvVar] : undefined;
       if (!value) {
         throw new Error(
-          `Environment variable ${secret.name} is not set for secret resolution`,
+          `Environment variable ${secret.sourceEnvVar ?? "(none)"} is not set for secret ${secret.name}`,
         );
       }
       return value;
@@ -353,7 +373,7 @@ export class SecretService {
     }
 
     if (secret.secretLocation === "ssm") {
-      const path = this.buildSsmPath(secret.name, secret.secretPath);
+      const path = secret.secretPath ?? this.defaultSsmPath(secret.id);
       const value = await this.getSsmSecret(path);
       if (!value) {
         throw new Error(`SSM secret not found at path ${path}`);
@@ -370,13 +390,8 @@ export class SecretService {
     return trimmed.length > 0 ? trimmed : null;
   }
 
-  private buildSsmPath(name: string, path?: string | null): string {
-    if (path) {
-      return path;
-    }
-
-    const normalizedName = name.replace(/^\/+/, "");
-    return `${this.ssmPrefix}/${normalizedName}`;
+  private defaultSsmPath(id: string): string {
+    return `${this.ssmPrefix}/${id}`;
   }
 
   private getSsmClient(): SSMClient {
@@ -535,6 +550,8 @@ export class SecretService {
       name: secret.name,
       secretLocation: secret.secretLocation,
       secretPath: secret.secretPath,
+      sourceEnvVar: secret.sourceEnvVar,
+      provider: secret.provider,
       createdAt: secret.createdAt,
       updatedAt: secret.updatedAt,
     };

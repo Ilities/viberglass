@@ -8,11 +8,10 @@ export class EnvironmentManager {
     credentials: Record<string, string | undefined>,
     environment?: Record<string, string>,
   ): void {
-    for (const [key, value] of Object.entries(credentials)) {
+    for (const [envVar, value] of Object.entries(credentials)) {
       if (value !== undefined) {
-        const envKey = this.keyToEnvVar(key);
-        process.env[envKey] = value;
-        this.logger.debug("Injected credential into environment", { envKey });
+        process.env[envVar] = value;
+        this.logger.debug("Injected credential into environment", { envVar });
       }
     }
 
@@ -40,11 +39,10 @@ export class EnvironmentManager {
     credentials: Record<string, string | undefined>,
     environment?: Record<string, string>,
   ): void {
-    for (const [key, value] of Object.entries(credentials)) {
+    for (const [envVar, value] of Object.entries(credentials)) {
       if (value !== undefined) {
-        const envKey = this.keyToEnvVar(key);
-        delete process.env[envKey];
-        this.logger.debug("Cleaned up credential from environment", { envKey });
+        delete process.env[envVar];
+        this.logger.debug("Cleaned up credential from environment", { envVar });
       }
     }
 
@@ -60,9 +58,5 @@ export class EnvironmentManager {
     }
 
     delete process.env[AGENT_ENV_PASSTHROUGH_VAR];
-  }
-
-  private keyToEnvVar(key: string): string {
-    return key.toUpperCase().replace(/-/g, "_");
   }
 }

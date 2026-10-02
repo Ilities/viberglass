@@ -14,7 +14,6 @@ import { InstructionStorageService } from "../instructions/InstructionStorageSer
 import { TaskBranchNamer } from "../tasks/TaskBranchNamer";
 import { JobService } from "../JobService";
 import { JobBootstrapService } from "../job/JobBootstrapService";
-import { SecretService } from "../SecretService";
 import { TicketMediaExecutionService } from "../TicketMediaExecutionService";
 import { buildBootstrapPayload, buildScmPayloadFromContext, prepareTicketRunContext } from "../ticketRunOrchestration";
 import type { TurnPrompts } from "./TaskTurnPromptBuilder";
@@ -67,7 +66,6 @@ export class TaskTurnJobDispatcher {
     projectDAO: new ProjectDAO(),
     projectScmConfigDAO: new ProjectScmConfigDAO(),
     integrationCredentialDAO: new IntegrationCredentialDAO(),
-    secretService: new SecretService(),
     clankerDAO: new ClankerDAO(),
     provisioningService: getClankerProvisioner(),
     instructionStorageService: new InstructionStorageService(),

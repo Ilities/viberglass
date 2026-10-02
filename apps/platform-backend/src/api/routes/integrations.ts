@@ -409,6 +409,7 @@ router.post(
           name: body.name,
           secretLocation: body.secretLocation,
           secretPath: body.secretPath,
+          sourceEnvVar: body.sourceEnvVar,
           secretValue: body.secretValue,
         });
       }

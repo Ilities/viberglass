@@ -21,15 +21,6 @@ export interface BaseAgentConfig extends Record<string, unknown> {
   resourceLimits: ResourceLimits;
 }
 
-export interface SecretMetadata {
-  id: string;
-  name: string;
-  secretLocation: "env" | "database" | "ssm";
-  secretPath: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface TicketMediaContext {
   id: string;
   kind: "screenshot" | "recording";
@@ -80,9 +71,7 @@ export interface ExecutionContext {
   // Job metadata
   jobKind?: string;
 
-  // Agent and secrets configuration
   agent?: string;
-  secrets?: SecretMetadata[];
   promptOverride?: string;
 
   // ACP interactive session fields

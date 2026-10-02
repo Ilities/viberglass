@@ -8,26 +8,25 @@ jest.mock("../../../../services/setup/SetupSecretStore", () => ({ SetupSecretSto
 
 function build() {
   const check = jest.fn(async (_provider: string, _key: string) => undefined);
-  const saveByName = jest.fn(async (_name: string, _value: string) => "secret-1");
-  const service = new SetupModelKeyService({ check }, { saveByName });
-  return { service, check, saveByName };
+  const saveForProvider = jest.fn(async (_provider: string, _name: string, _value: string) => "secret-1");
+  const service = new SetupModelKeyService({ check }, { saveForProvider });
+  return { service, check, saveForProvider };
 }
 
 describe("SetupModelKeyService", () => {
-  it("checks the key and saves it under the default harness's env var", async () => {
-    const { service, check, saveByName } = build();
+  it("checks the key and saves it as the provider's key", async () => {
+    const { service, check, saveForProvider } = build();
 
     const saved = await service.saveModelKey("opencode-go", "  key-123  ");
 
     expect(check).toHaveBeenCalledWith("opencode-go", "key-123");
-    expect(saveByName).toHaveBeenCalledWith("OPENCODE_API_KEY", "key-123");
+    expect(saveForProvider).toHaveBeenCalledWith("opencode-go", "OpenCode Go key", "key-123");
     expect(saved).toEqual({
       provider: "opencode-go",
       providerName: "OpenCode Go",
       agent: "opencode",
       agentName: "OpenCode",
       secretId: "secret-1",
-      secretName: "OPENCODE_API_KEY",
     });
   });
 
@@ -42,12 +41,12 @@ describe("SetupModelKeyService", () => {
   });
 
   it("saves nothing when the provider rejects the key", async () => {
-    const { service, check, saveByName } = build();
+    const { service, check, saveForProvider } = build();
     check.mockRejectedValue(
       new SetupServiceError(SETUP_SERVICE_ERROR_CODE.KEY_REJECTED, "rejected"),
     );
 
     await expect(service.saveModelKey("openai", "sk-abc")).rejects.toThrow("rejected");
-    expect(saveByName).not.toHaveBeenCalled();
+    expect(saveForProvider).not.toHaveBeenCalled();
   });
 });

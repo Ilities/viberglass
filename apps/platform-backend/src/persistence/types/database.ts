@@ -234,7 +234,7 @@ export interface ClankersTable {
   deployment_strategy_id: string | null;
   deployment_config: Json | null;
   agent: string | null;
-  secret_ids: Generated<Json>;
+  secret_bindings: Generated<Json>;
   status: Generated<"active" | "inactive" | "deploying" | "failed">;
   status_message: string | null;
   created_at: Generated<Timestamp>;
@@ -400,6 +400,8 @@ export interface SecretsTable {
   secret_location: "env" | "database" | "ssm";
   secret_path: string | null;
   secret_value_encrypted: string | null;
+  source_env_var: string | null;
+  provider: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -587,7 +589,7 @@ export interface ClawTaskTemplatesTable {
   clanker_id: string;
   task_instructions: string;
   config: Json;
-  secret_ids: Generated<Json>;
+  secret_bindings: Generated<Json>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

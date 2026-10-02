@@ -1,8 +1,7 @@
 import { getStrategyType } from "../clanker-config";
-import type { Clanker, ClankerStrategyType, Project, ProjectScmConfig } from "@viberglass/types";
+import type { Clanker, ClankerStrategyType, CredentialRequest, Project, ProjectScmConfig, SecretBinding } from "@viberglass/types";
 import type { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import type { IntegrationCredentialDAO } from "../persistence/integrations";
-import type { SecretService } from "./SecretService";
 import type { ProjectDAO } from "../persistence/project/ProjectDAO";
 import type { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import type { ClankerProvisioner } from "../provisioning/ClankerProvisioner";
@@ -52,7 +51,6 @@ export interface TicketRunOrchestrationDependencies {
   projectDAO: Pick<ProjectDAO, "getProject">;
   projectScmConfigDAO: Pick<ProjectScmConfigDAO, "getByProjectId">;
   integrationCredentialDAO: Pick<IntegrationCredentialDAO, "getById">;
-  secretService: Pick<SecretService, "getSecret">;
   clankerDAO: Pick<ClankerDAO, "getClanker" | "updateStatus">;
   provisioningService: Pick<ClankerProvisioner, "resolveAvailabilityStatus">;
   instructionStorageService: Pick<
@@ -66,7 +64,7 @@ export interface PrepareTicketRunContextInput {
   clankerId: string;
   jobId: string;
   instructionFiles?: Array<Partial<InlineInstructionFile>>;
-  additionalSecretIds?: string[];
+  additionalSecretBindings?: SecretBinding[];
 }
 
 export interface PreparedTicketRunContext {
@@ -77,7 +75,6 @@ export interface PreparedTicketRunContext {
   clanker: Clanker;
   executionClanker: Clanker;
   scmCredentialSecretId: string | null;
-  scmCredentialSecretName: string | null;
   workerType: ClankerStrategyType;
   mergedInstructionFiles: InlineInstructionFile[];
   workerInstructionFiles: WorkerInstructionFileReference[];
@@ -128,6 +125,14 @@ export function mergeInstructionFiles(
   addFiles(runtimeInstructionFiles);
 
   return Array.from(merged.values());
+}
+
+/** The worker reads the repository token from here; agents never see `VIBERGLASS_` variables. */
+export const SCM_TOKEN_ENV_VAR = "VIBERGLASS_SCM_TOKEN";
+
+/** Later bindings win for an env var, so a run's own credentials override the runner's. */
+function mergeSecretBindings(bindings: SecretBinding[]): SecretBinding[] {
+  return Array.from(new Map(bindings.map((binding) => [binding.envVar, binding])).values());
 }
 
 async function resolveScmCredentialSecretId(
@@ -224,20 +229,13 @@ export async function prepareTicketRunContext(
     deps.integrationCredentialDAO,
     scmConfig,
   );
-  let scmCredentialSecretName: string | null = null;
-  if (scmCredentialSecretId) {
-    const secretMeta = await deps.secretService.getSecret(scmCredentialSecretId);
-    scmCredentialSecretName = secretMeta?.name ?? null;
-  }
   const executionClanker: Clanker = {
     ...clanker,
-    secretIds: Array.from(
-      new Set([
-        ...(clanker.secretIds || []),
-        ...(scmCredentialSecretId ? [scmCredentialSecretId] : []),
-        ...(input.additionalSecretIds ?? []),
-      ]),
-    ),
+    secretBindings: mergeSecretBindings([
+      ...(clanker.secretBindings || []),
+      ...(scmCredentialSecretId ? [{ envVar: SCM_TOKEN_ENV_VAR, secretId: scmCredentialSecretId }] : []),
+      ...(input.additionalSecretBindings ?? []),
+    ]),
   };
   const workerType = getStrategyType(executionClanker);
   const mergedInstructionFiles = mergeInstructionFiles(
@@ -262,7 +260,6 @@ export async function prepareTicketRunContext(
     clanker,
     executionClanker,
     scmCredentialSecretId,
-    scmCredentialSecretName,
     workerType,
     mergedInstructionFiles,
     workerInstructionFiles,
@@ -297,7 +294,7 @@ export interface BuildBootstrapPayloadInput {
   context: unknown;
   settings: unknown;
   instructionFiles: WorkerInstructionFileReference[];
-  requiredCredentials: string[];
+  requiredCredentials: CredentialRequest[];
   callbackToken: string;
   executionClanker: Clanker;
   project: Project;
@@ -378,7 +375,7 @@ export function traceCarrierField(): Record<string, unknown> {
 export function buildScmPayloadFromContext(
   preparedContext: PreparedTicketRunContext,
 ): JobScmConfig | null {
-  const { scmConfig, scmCredentialSecretId, scmCredentialSecretName } = preparedContext;
+  const { scmConfig, scmCredentialSecretId } = preparedContext;
   if (!scmConfig) return null;
   const payload: JobScmConfig = {
     integrationId: scmConfig.integrationId,
@@ -391,7 +388,7 @@ export function buildScmPayloadFromContext(
       scmConfig.pullRequestBaseBranch?.trim() || scmConfig.baseBranch.trim() || "main",
     branchNameTemplate: scmConfig.branchNameTemplate?.trim() || null,
     credentialSecretId: scmCredentialSecretId || undefined,
-    credentialSecretName: scmCredentialSecretName || undefined,
+    credentialEnvVar: scmCredentialSecretId ? SCM_TOKEN_ENV_VAR : undefined,
   };
   return payload;
 }

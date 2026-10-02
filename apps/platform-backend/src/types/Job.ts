@@ -34,7 +34,8 @@ export interface JobScmConfig {
   pullRequestBaseBranch: string;
   branchNameTemplate?: string | null;
   credentialSecretId?: string | null;
-  credentialSecretName?: string | null;
+  /** The env var the worker finds the repository token in. */
+  credentialEnvVar?: string | null;
 }
 
 // Override configuration for per-ticket/enhance screen overrides

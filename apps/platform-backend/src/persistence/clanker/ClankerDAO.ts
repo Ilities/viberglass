@@ -12,7 +12,7 @@ import type {
   ConfigFileInput,
   AgentType,
 } from "@viberglass/types";
-import { DEFAULT_AGENT_TYPE, SUPPORTED_AGENT_TYPES } from "@viberglass/types";
+import { DEFAULT_AGENT_TYPE, SUPPORTED_AGENT_TYPES, parseSecretBindings } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import {
   InstructionStorageService,
@@ -118,7 +118,7 @@ export class ClankerDAO {
           ? JSON.stringify(request.deploymentConfig)
           : null,
         agent: request.agent || DEFAULT_AGENT_TYPE,
-        secret_ids: JSON.stringify(request.secretIds || []),
+        secret_bindings: JSON.stringify(request.secretBindings || []),
         status: "inactive",
         status_message: null,
         created_at: timestamp,
@@ -150,7 +150,7 @@ export class ClankerDAO {
         "clankers.deployment_strategy_id",
         "clankers.deployment_config",
         "clankers.agent",
-        "clankers.secret_ids",
+        "clankers.secret_bindings",
         "clankers.status",
         "clankers.status_message",
         "clankers.created_at",
@@ -187,7 +187,7 @@ export class ClankerDAO {
         "clankers.deployment_strategy_id",
         "clankers.deployment_config",
         "clankers.agent",
-        "clankers.secret_ids",
+        "clankers.secret_bindings",
         "clankers.status",
         "clankers.status_message",
         "clankers.created_at",
@@ -229,8 +229,8 @@ export class ClankerDAO {
         ? JSON.stringify(updates.deploymentConfig)
         : null;
     if (updates.agent !== undefined) updateData.agent = updates.agent;
-    if (updates.secretIds !== undefined)
-      updateData.secret_ids = JSON.stringify(updates.secretIds);
+    if (updates.secretBindings !== undefined)
+      updateData.secret_bindings = JSON.stringify(updates.secretBindings);
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.statusMessage !== undefined)
       updateData.status_message = updates.statusMessage;
@@ -265,7 +265,7 @@ export class ClankerDAO {
         "clankers.deployment_strategy_id",
         "clankers.deployment_config",
         "clankers.agent",
-        "clankers.secret_ids",
+        "clankers.secret_bindings",
         "clankers.status",
         "clankers.status_message",
         "clankers.created_at",
@@ -501,12 +501,7 @@ export class ClankerDAO {
           : null,
       configFiles,
       agent: isValidAgentType(row.agent) ? row.agent : null,
-      secretIds:
-        row.secret_ids != null
-          ? typeof row.secret_ids === "string"
-            ? JSON.parse(row.secret_ids)
-            : row.secret_ids
-          : [],
+      secretBindings: parseSecretBindings(row.secret_bindings),
       status: row.status,
       statusMessage: row.status_message || null,
       createdAt:

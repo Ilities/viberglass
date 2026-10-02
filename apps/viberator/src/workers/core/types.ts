@@ -53,8 +53,8 @@ export interface ScmPayload {
   pullRequestBaseBranch: string;
   branchNameTemplate?: string | null;
   credentialSecretId?: string | null;
-  /** Resolved secret name — worker looks this up in fetchedCredentials to get the token value */
-  credentialSecretName?: string | null;
+  /** The env var among the run's credentials that holds the repository token. */
+  credentialEnvVar?: string | null;
 }
 
 export interface TicketMediaPayload {
@@ -186,7 +186,7 @@ export interface MountedInstructionFile {
 export interface LambdaPayload extends BaseWorkerPayload {
   workerType: "lambda";
   instructionFiles: S3InstructionFile[];
-  requiredCredentials: string[]; // e.g., ['GITHUB_TOKEN', 'CLAUDE_API_KEY']
+  requiredCredentials: CredentialRequest[];
   deploymentConfig?: Record<string, unknown>;
 }
 
@@ -198,7 +198,7 @@ export interface LambdaPayload extends BaseWorkerPayload {
 export interface EcsPayload extends BaseWorkerPayload {
   workerType: "ecs";
   instructionFiles: S3InstructionFile[];
-  requiredCredentials: string[];
+  requiredCredentials: CredentialRequest[];
   deploymentConfig?: Record<string, unknown>;
 }
 
@@ -211,7 +211,7 @@ export interface EcsPayload extends BaseWorkerPayload {
 export interface DockerPayload extends BaseWorkerPayload {
   workerType: "docker";
   instructionFiles: MountedInstructionFile[];
-  requiredCredentials: string[];
+  requiredCredentials: CredentialRequest[];
   clankerConfig?: Record<string, unknown>; // Full config for Docker
 }
 
@@ -293,7 +293,7 @@ export interface JobResult {
    */
   runManifest?: ExecutionManifest;
 }
-import type { JobKind, TaskTurnAction } from "@viberglass/types";
+import type { CredentialRequest, JobKind, TaskTurnAction } from "@viberglass/types";
 import type { AcpContextUsage, AcpSessionStart } from "@viberglass/agent-core";
 import type { TurnDocuments } from "./turnArtifacts";
 import type { ExecutionManifest } from "@viberglass/telemetry";

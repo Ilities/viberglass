@@ -12,13 +12,34 @@ type Stored = { id: string; name: string; secretLocation: SecretLocation } | nul
 function build(existing: Stored = null, location: "database" | "ssm" = "database") {
   const getSecret = jest.fn(async (_id: string) => existing);
   const getSecretByName = jest.fn(async (_name: string) => existing);
+  const getLatestSecretForProvider = jest.fn(async (_provider: string) => existing);
   const createSecret = jest.fn(async (_input: SecretInput) => ({ id: "new-secret" }));
   const updateSecret = jest.fn(async (id: string, _updates: SecretUpdate) => ({ id }));
-  const store = new SetupSecretStore({ getSecret, getSecretByName }, { createSecret, updateSecret }, location);
+  const store = new SetupSecretStore({ getSecret, getSecretByName, getLatestSecretForProvider }, { createSecret, updateSecret }, location);
   return { store, createSecret, updateSecret };
 }
 
 describe("SetupSecretStore", () => {
+  it("creates a provider's key labelled for people, with its provider", async () => {
+    const { store, createSecret } = build();
+
+    await expect(store.saveForProvider("anthropic", "Anthropic key", "key")).resolves.toBe("new-secret");
+    expect(createSecret).toHaveBeenCalledWith({
+      name: "Anthropic key",
+      provider: "anthropic",
+      secretLocation: "database",
+      secretValue: "key",
+    });
+  });
+
+  it("replaces the value of the provider's latest key", async () => {
+    const { store, createSecret, updateSecret } = build({ id: "s1", name: "Anthropic key", secretLocation: "database" });
+
+    await expect(store.saveForProvider("anthropic", "Anthropic key", "new")).resolves.toBe("s1");
+    expect(createSecret).not.toHaveBeenCalled();
+    expect(updateSecret).toHaveBeenCalledWith("s1", { secretValue: "new" });
+  });
+
   it("creates a new secret encrypted in the database", async () => {
     const { store, createSecret } = build();
 

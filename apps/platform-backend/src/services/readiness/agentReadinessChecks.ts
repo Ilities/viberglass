@@ -10,7 +10,7 @@ function isUsable(runner: Clanker): boolean {
  * keys whose secret still exists.
  */
 export function agentCredentialsCheck(runners: Clanker[], existingSecretIds: Set<string>): ProjectReadinessCheck {
-  if (runners.some((runner) => runner.secretIds.some((id) => existingSecretIds.has(id)))) {
+  if (runners.some((runner) => runner.secretBindings.some((binding) => existingSecretIds.has(binding.secretId)))) {
     return {
       key: "agentCredentials",
       label: "Model key",
