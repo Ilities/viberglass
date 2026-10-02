@@ -14,6 +14,7 @@ import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
 import { approvePermissionRequest } from "./permissionReply";
 import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
+import { compactCommandOf, contextUsageOf, promptUsageOf, type AcpContextUsage } from "./acpSessionSignals";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -26,6 +27,11 @@ export interface AcpRunOptions {
    * session already has the context this carries, a fresh one doesn't.
    */
   coldStartMessage?: string;
+  /**
+   * After the turn, ask the harness to compact its context with these
+   * instructions, when it has a compact command.
+   */
+  compactInstructions?: string;
 }
 
 export interface AcpRunResult {
@@ -33,6 +39,10 @@ export interface AcpRunResult {
   turnOutcome: "completed" | "needs_input";
   /** Whether the turn continued the harness's earlier session, or started cold and why. */
   sessionStart: AcpSessionStart;
+  /** How full the harness's context was at the end of the turn, when it said. */
+  contextUsage?: AcpContextUsage;
+  /** Whether the harness compacted its context after the turn. */
+  compacted: boolean;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -89,6 +99,8 @@ export class AcpClient {
   /** While `session/load` replays history the platform already has, its updates are dropped. */
   private replaying = false;
   private readonly mapper: AcpEventMapper;
+  private contextUsage?: AcpContextUsage;
+  private compactCommand: string | null = null;
 
   constructor(
     private readonly command: string[],
@@ -155,7 +167,8 @@ export class AcpClient {
       const turnOutcome = this.mapper.detectsNeedsInput(this.lastAssistantText)
         ? "needs_input"
         : "completed";
-      return { acpSessionId: this.currentSessionId, turnOutcome, sessionStart };
+      const compacted = await this.compact(options.compactInstructions);
+      return { acpSessionId: this.currentSessionId, turnOutcome, sessionStart, contextUsage: this.contextUsage, compacted };
     } finally {
       this.cleanup();
     }
@@ -163,7 +176,20 @@ export class AcpClient {
 
   private async prompt(text: string): Promise<void> {
     this.logger.info("AcpClient sending prompt", { sessionId: this.currentSessionId });
-    await this.sendRequest("session/prompt", { sessionId: this.currentSessionId, prompt: [{ type: "text", text }] });
+    const result = await this.sendRequest("session/prompt", { sessionId: this.currentSessionId, prompt: [{ type: "text", text }] });
+    this.contextUsage = promptUsageOf(result) ?? this.contextUsage;
+  }
+
+  /** A failed compaction leaves the session as it was; the next cold start reads the summary instead. */
+  private async compact(instructions: string | undefined): Promise<boolean> {
+    if (!instructions || !this.compactCommand) return false;
+    try {
+      await this.prompt(`${this.compactCommand} ${instructions}`);
+      return true;
+    } catch (error) {
+      this.logger.warn("AcpClient compaction failed", { error: error instanceof Error ? error.message : String(error) });
+      return false;
+    }
   }
 
   private reportSessionStart(start: AcpSessionStart): void {
@@ -207,7 +233,12 @@ export class AcpClient {
   }
 
   private handleNotification(method: string, params: unknown): void {
-    if (method !== "session/update" || this.replaying) return;
+    if (method !== "session/update") return;
+    // Commands are announced while a load replays history, so they're read before replayed updates are dropped.
+    const command = compactCommandOf(params);
+    if (command !== undefined) this.compactCommand = command;
+    if (this.replaying) return;
+    this.contextUsage = contextUsageOf(params) ?? this.contextUsage;
     for (const event of this.mapper.mapSessionUpdate(params)) {
       this.onEvent(event);
       if (event.eventType === "assistant_message" && typeof event.payload.text === "string") {

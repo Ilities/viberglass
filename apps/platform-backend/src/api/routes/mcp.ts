@@ -14,7 +14,7 @@ const router = express.Router();
 const spaceAccess = new SpaceAccessService();
 const owners = new SpaceOwnershipDAO();
 
-/** The spaces this caller's token may reach: the same visibility as their user (ADR 0005). */
+/** The spaces this caller's token may reach: the same visibility as their user. */
 async function scopeFor(req: express.Request): Promise<McpScope> {
   const viewer = spaceViewerOf(req)!;
   return {

@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { Logger } from "winston";
-import type { AcpSessionStart, BaseAgentConfig } from "@viberglass/agent-core";
+import type { AcpContextUsage, AcpSessionStart, BaseAgentConfig } from "@viberglass/agent-core";
 import {
   ATTR_GEN_AI_AGENT_NAME,
   ATTR_GEN_AI_PROVIDER_NAME,
@@ -78,6 +78,8 @@ export interface JobRunnerParams {
   allowCode: boolean;
   /** The prompt to send instead if the harness can't continue its session. */
   coldStartTask?: string;
+  /** On a summarise turn, the instructions to compact the harness's context with afterwards. */
+  compactInstructions?: string;
   sessionEventForwarder?: SessionEventForwarder;
   /** S3 URL of conversation state archive to restore before CLI launch */
   conversationStateUrl?: string;
@@ -242,6 +244,8 @@ export interface AgentExecutionResult {
   acpTurnOutcome?: "completed" | "needs_input" | "needs_approval";
   newAcpSessionId?: string;
   acpSessionStart?: AcpSessionStart;
+  acpContextUsage?: AcpContextUsage;
+  acpCompacted?: boolean;
 }
 
 /**

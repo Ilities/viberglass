@@ -20,7 +20,7 @@ const PLAN_V2 = { kind: "plan" as const, version: 2, at: "2026-10-01T10:00:00Z" 
 const as = (id: string, isAdmin = false) => ({ id, isAdmin });
 const situation = (input: Partial<TaskSituationInput>, viewer = as("owner")) => taskSituation({ ...base, ...input }, viewer);
 
-describe("taskSituation (redesign §4)", () => {
+describe("taskSituation", () => {
   it.each([
     ["a new task", {}, "not_started", "Not started · Olli"],
     ["the agent writing the research", { runningTurn: { action: "research" as const, since: "t" } }, "agent_working", "Agent writing the research"],

@@ -8,7 +8,7 @@ import { collectArtifacts, materializeArtifacts } from "./turnArtifacts";
 import { discardCodeChanges, listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
 
 /**
- * One turn of a task's conversation with its agent (ADR 0008). The agent gets
+ * One turn of a task's conversation with its agent. The agent gets
  * the task's documents as files to revise, and its earlier session when the
  * harness can continue one. Afterwards the turn reports what it produced: the
  * documents it wrote, and its code changes as a commit on the task's pull
@@ -25,6 +25,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const snapshot = materializeArtifacts(repoDir, {
       research: data.context?.researchDocument,
       plan: data.context?.planDocument,
+      summary: data.context?.summaryDocument,
     });
 
     const executionContext: ExecutionContext = {
@@ -49,6 +50,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       maxExecutionTime: mergedSettings.maxExecutionTime,
       promptOverride: data.task,
       coldStartPrompt: params.coldStartTask,
+      compactInstructions: params.compactInstructions,
       agentSessionId: params.agentSessionId,
       acpSessionId: params.acpSessionId,
       onAcpEvent: (event) => params.sessionEventForwarder?.enqueue(event),
@@ -69,6 +71,8 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       documents,
       conversationStateUrl,
       sessionStart: result.acpSessionStart,
+      contextUsage: result.acpContextUsage,
+      compacted: result.acpCompacted,
     };
     if (changedFiles.length === 0) return turn;
 

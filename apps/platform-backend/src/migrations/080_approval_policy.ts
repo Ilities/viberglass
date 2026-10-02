@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// Approval policy (phase-2-3-handover §2.7): approvals name a user rather than
+// Approval policy: approvals name a user rather than
 // an email, and each space has default reviewers for its new tasks. An
 // approver recorded as an email nobody has any more becomes null.
 export async function up(db: Kysely<any>): Promise<void> {

@@ -14,7 +14,7 @@ type InviteStore = Pick<InviteDAO, "create" | "listOpen" | "findOpenByTokenHash"
 type UserLookup = Pick<UserDAO, "findByEmail" | "findById">;
 type SpaceLookup = { getProject(id: string): Promise<{ id: string } | null> };
 
-/** Invite links (ADR 0005): made by an admin, shown once, used once. */
+/** Invite links: made by an admin, shown once, used once. */
 export class InviteService {
   constructor(
     private readonly invites: InviteStore = new InviteDAO(),
@@ -23,7 +23,7 @@ export class InviteService {
     private readonly audit: Pick<AuditRecorder, "record"> = new AuditRecorder(),
   ) {}
 
-  /** `spaceIds` are spaces the invitee joins on accepting; a guest needs at least one (ADR 0005). */
+  /** `spaceIds` are spaces the invitee joins on accepting; a guest needs at least one. */
   async create(input: { email: string; role: WorkspaceRole; spaceIds: string[]; createdBy: string }): Promise<{
     invite: InviteRecord;
     token: string;

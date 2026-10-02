@@ -18,8 +18,7 @@ import type { Database } from "../persistence/types/database";
  *   - Retention differs. Manifests are the eval corpus and outlive the
  *     operational job record.
  *
- * `grader_version` is unused in Phase 0 — graders arrive in Phase 1 — but is
- * created now because backfilling a column onto runs already recorded is
+ * `grader_version` has no writer yet, but is created now because backfilling a column onto runs already recorded is
  * exactly the retrofit this table exists to avoid.
  */
 export async function up(db: Kysely<Database>): Promise<void> {

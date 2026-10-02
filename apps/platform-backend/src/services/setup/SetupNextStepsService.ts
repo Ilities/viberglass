@@ -18,7 +18,7 @@ const defaults = (): Dependencies => ({
   isTicketingSystem: (system) => integrationRegistry.get(system)?.category === "ticketing",
 });
 
-/** J1 step 7: what's left after setup (invite the team, connect Slack, connect a tracker). */
+/** What's left after setup (invite the team, connect Slack, connect a tracker). */
 export class SetupNextStepsService {
   private readonly deps: Dependencies;
 

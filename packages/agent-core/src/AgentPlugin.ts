@@ -61,8 +61,8 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
   /**
    * $HOME-relative paths holding the harness's sessions, archived after each
    * turn and restored before the next so the session can resume. They must
-   * cover everything the harness needs to load a session (check with
-   * docs/ux/harness-session-research.md's probe when adding a harness).
+   * cover everything the harness needs to load a session: check that a second
+   * container can load the first one's session before relying on a new harness.
    */
   readonly stateDirs?: string[];
 

@@ -14,7 +14,7 @@ export interface LastMessageFact {
   at: Date;
 }
 
-/** What many tasks' threads hold, at once, for their situations and Home (S4). */
+/** What many tasks' threads hold, at once, for their situations and Home. */
 export class TaskThreadFactsDAO {
   /** Each task's newest document version. */
   async latestRevisions(ticketIds: string[]): Promise<Map<string, LatestRevisionFact>> {

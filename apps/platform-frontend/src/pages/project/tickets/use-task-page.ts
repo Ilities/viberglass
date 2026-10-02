@@ -26,7 +26,7 @@ export interface TaskPageData {
 }
 
 const POLL_MS = 5000
-// A session stays open between turns (ADR 0008); only an active one has the agent working.
+// A session stays open between turns; only an active one has the agent working.
 const WORKING_SESSION = ['active']
 
 async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | null> {

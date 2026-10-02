@@ -67,7 +67,7 @@ const kimiCodePlugin: AgentPlugin<KimiCodeConfig> = {
   },
 
   // Kimi Code CLI keeps everything, its own binary included, in ~/.kimi-code. Resume across
-  // containers isn't verified yet (needs a Kimi key; docs/ux/harness-session-research.md).
+  // containers isn't verified yet: it needs a Kimi key to try.
   stateDirs: [".kimi-code"],
   stateExcludes: [".kimi-code/bin", ".kimi-code/credentials", ".kimi-code/logs"],
 

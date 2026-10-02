@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// The Inbox (phase-2-3-handover §2.6): one row per person per thing that
+// The Inbox: one row per person per thing that
 // needs them, plus the Slack account each person has linked for DMs.
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema

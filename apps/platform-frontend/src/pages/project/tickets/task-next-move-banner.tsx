@@ -12,7 +12,7 @@ import type { TaskPageData } from './use-task-page'
 
 const STEP_NOUN: Record<TaskStep, string> = { research: 'research', planning: 'plan', execution: 'build' }
 
-/** Starting, revising and trying again are asks in the thread below (ADR 0008); the banner says whose move it is. */
+/** Starting, revising and trying again are asks in the thread below; the banner says whose move it is. */
 const START: Record<TaskStep, { title: string; body: string }> = {
   research: {
     title: 'Ask the agent for the research',

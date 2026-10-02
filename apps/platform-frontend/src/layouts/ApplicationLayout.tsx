@@ -260,7 +260,7 @@ function ApplicationLayoutContent() {
   // /spaces/new is the create page, not a space: only routes with a space slug count.
   const isProjectRoute = pathname.startsWith('/spaces/') && Boolean(projectSlug)
 
-  // Runners, connections, secrets and prompt templates live under Settings → Advanced (ADR 0003).
+  // Runners, connections, secrets and prompt templates live under Settings → Advanced.
   const isSettingsRoute = ['/settings', '/settings/agents', '/settings/secrets'].some((prefix) => pathname.startsWith(prefix))
   // Viewers have no threads of their own; their way in is Overview.
   const wayInItems: NavLinkItem[] = [

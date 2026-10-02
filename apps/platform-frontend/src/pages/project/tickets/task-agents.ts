@@ -10,3 +10,10 @@ export function taskAgents(clankers: Clanker[], sessions: Pick<AgentSession, 'cl
     .sort((a, b) => Number(b.id === latest) - Number(a.id === latest))
     .map((clanker) => ({ kind: 'agent', id: clanker.id, name: clanker.name }))
 }
+
+/** Agents that are running and can take a turn, for bringing one in. */
+export function runnableAgents(clankers: Clanker[]): Array<{ id: string; name: string }> {
+  return clankers
+    .filter((clanker) => clanker.deploymentStrategyId && clanker.status === 'active')
+    .map((clanker) => ({ id: clanker.id, name: clanker.name }))
+}

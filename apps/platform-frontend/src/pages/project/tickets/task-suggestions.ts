@@ -1,6 +1,6 @@
 import type { TaskCapabilities, TaskTurnAction, Ticket } from '@viberglass/types'
 
-/** A common next move, offered above the composer; pressing it posts the label and asks the agent (ADR 0008). */
+/** A common next move, offered above the composer; pressing it posts the label and asks the agent. */
 export interface TaskSuggestion {
   action: TaskTurnAction
   label: string
@@ -16,7 +16,12 @@ export interface TaskSuggestionInput {
   /** The agent's latest turn on the task, if any. */
   latestTurn: { action: TaskTurnAction; status: string } | null
   agentWorking: boolean
+  /** How much the thread has grown since its latest summary, or since it began. */
+  sinceSummary?: { finishedTurns: number; messages: number }
 }
+
+/** When the thread has grown enough that a summary helps people and the next agent. */
+const SUMMARY_AFTER = { finishedTurns: 3, messages: 10 }
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
@@ -27,10 +32,18 @@ export function countNewComments(comments: Array<{ status: string; createdAt: st
 
 /**
  * What to offer next: try a failed turn again, revise with open comments, write
- * what's missing, and build, for whoever may ask for code. Nothing has to be
- * approved first: a task can go straight to code (ADR 0008).
+ * what's missing, summarise a thread that has grown, and build, for whoever may
+ * ask for code. Nothing has to be approved first: a task can go straight to code.
  */
-export function suggestTaskActions({ ticket, documents, capabilities, newComments, latestTurn, agentWorking }: TaskSuggestionInput): TaskSuggestion[] {
+export function suggestTaskActions({
+  ticket,
+  documents,
+  capabilities,
+  newComments,
+  latestTurn,
+  agentWorking,
+  sinceSummary,
+}: TaskSuggestionInput): TaskSuggestion[] {
   if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk) return []
   const suggestions: TaskSuggestion[] = []
   if (latestTurn?.status === 'failed' && (latestTurn.action !== 'code' || capabilities.canAskForCode)) {
@@ -46,6 +59,9 @@ export function suggestTaskActions({ ticket, documents, capabilities, newComment
   if (!hasPlan) suggestions.push({ action: 'plan', label: 'Write the plan' })
   if (hasPlan && newComments.planning > 0) {
     suggestions.push({ action: 'plan', label: `Revise the plan with ${plural(newComments.planning, 'comment')}` })
+  }
+  if (sinceSummary && (sinceSummary.finishedTurns >= SUMMARY_AFTER.finishedTurns || sinceSummary.messages >= SUMMARY_AFTER.messages)) {
+    suggestions.push({ action: 'summarise', label: 'Summarise so far' })
   }
   if (capabilities.canAskForCode) suggestions.push({ action: 'code', label: 'Build it' })
   return suggestions

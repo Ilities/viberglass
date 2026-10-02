@@ -22,13 +22,20 @@ function sessionLine(resumed: boolean | null): string | null {
   return null
 }
 
+/** "Context 75% full", or the tokens in it when the harness didn't say how big it is. */
+export function contextLine(usage: { used: number; size: number | null } | null | undefined): string | null {
+  if (!usage) return null
+  if (usage.size) return `Context ${Math.round((usage.used / usage.size) * 100)}% full`
+  return `${Math.round(usage.used / 1000)}k tokens in context`
+}
+
 /** "Tomi", "Tomi and Aino", "Tomi, Aino and Maria". */
 function joinNames(names: string[]): string {
   return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, project }: { entry: AgentTurn; project: string }) {
+export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: AgentTurn; project: string; summaryVersion?: number }) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
@@ -38,6 +45,7 @@ export function AgentTurnEntry({ entry, project }: { entry: AgentTurn; project: 
   const restLines = rest.split('\n')
   const shown = expanded ? rest : restLines.slice(0, PREVIEW_LINES).join('\n')
   const session = outcome ? sessionLine(outcome.resumed) : null
+  const context = contextLine(outcome?.contextUsage)
 
   return (
     <li aria-label={`${entry.agent.name}'s turn`} className="space-y-1 border-l-2 border-[var(--accent-7)] pl-3">
@@ -80,6 +88,11 @@ export function AgentTurnEntry({ entry, project }: { entry: AgentTurn; project: 
           take a look
         </p>
       )}
+      {outcome?.produced.includes('summary') && (
+        <p className="text-xs text-[var(--gray-10)]">{summaryVersion ? `Wrote Summary v${summaryVersion}` : 'Wrote a summary'}</p>
+      )}
+      {outcome?.compacted && <p className="text-xs text-[var(--gray-10)]">Compacted its context with the summary</p>}
+      {context && <p className="text-xs text-[var(--gray-10)]">{context}</p>}
       {outcome?.codeDiscarded && (
         <p className="text-xs text-[var(--gray-10)]">
           It changed code, but nobody asked it to build this time, so the changes weren&apos;t kept. Ask it to build it to keep them.

@@ -148,7 +148,7 @@ export function ProjectSettingsPage() {
         const mapped = mapLinkedIntegrations(links, categoryBySystem)
         setLinkedIntegrations(mapped)
 
-        // Phase 2: Use primaryTicketingIntegrationId instead of deprecated ticketSystem
+        // Use primaryTicketingIntegrationId instead of deprecated ticketSystem
         const primaryTicketingId = projectData.primaryTicketingIntegrationId
         if (primaryTicketingId) {
           const primaryMatch = mapped.find(
@@ -360,7 +360,7 @@ export function ProjectSettingsPage() {
     setAutoFixEnabled(Boolean(projectData.autoFixEnabled))
     setAutoFixTags(projectData.autoFixTags?.join(', ') ?? '')
 
-    // Phase 2: Use primaryTicketingIntegrationId instead of deprecated ticketSystem
+    // Use primaryTicketingIntegrationId instead of deprecated ticketSystem
     const primaryTicketingId = projectData.primaryTicketingIntegrationId
     if (primaryTicketingId) {
       const primaryMatch = ticketingIntegrations.find(

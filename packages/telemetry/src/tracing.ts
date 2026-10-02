@@ -52,8 +52,8 @@ let handle: TelemetryHandle | undefined;
  * are ESM (`"type": "module"`), and OpenTelemetry's auto-instrumentations patch
  * CommonJS via require-in-the-middle, so they need an ESM loader hook
  * (`--import`) rather than an in-process call. Wiring the loader into the
- * Lambda, ECS and Docker entrypoints is deferred; see README.md. What Phase 0
- * needs is lifecycle and GenAI spans, and those are hand-written anyway.
+ * Lambda, ECS and Docker entrypoints is deferred. What's needed is lifecycle and
+ * GenAI spans, and those are hand-written anyway.
  */
 export function startTelemetry(
   overrides: TelemetryConfigOverrides = {},

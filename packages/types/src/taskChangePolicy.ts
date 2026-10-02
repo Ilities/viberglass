@@ -16,7 +16,7 @@ export interface TaskChangeParticipant {
 const EDITING_PARTICIPANT_ROLES: TaskParticipantRole[] = ['requester', 'owner']
 
 /**
- * Who may change a task (plan §4 matrix): hard delete is for workspace admins;
+ * Who may change a task: hard delete is for workspace admins;
  * editing, archiving and marking done for admins, the space's maintainers and
  * the task's requester and owner. Guests and viewers never.
  */

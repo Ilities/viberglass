@@ -1,6 +1,6 @@
 /**
  * Opens the ACP session for a turn: continues the harness's earlier session
- * when it can, and says plainly when it can't (docs/ux/harness-session-research.md).
+ * when it can, and says plainly when it can't.
  */
 
 export type AcpSessionStart =

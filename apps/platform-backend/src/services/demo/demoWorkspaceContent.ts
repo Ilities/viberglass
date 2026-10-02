@@ -2,7 +2,7 @@ import { JOB_FAILURE_CODE, type TicketWorkflowPhase } from "@viberglass/types";
 
 /**
  * What the demo workspace contains: one space with tasks at every stage a
- * product leader meets today (ADR 0002, J1's "Explore a demo workspace"). All
+ * product leader meets today. All
  * of it is sample data; the repository and pull request links are fictional.
  */
 

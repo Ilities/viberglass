@@ -5,7 +5,7 @@ import { signIn } from "../../playwright/seedWorkspace";
 import { expect, signedInPage, test } from "../../playwright/smokeFixtures";
 import { askAgent, createTask, needsYou, runStatus, startResearch, timeline } from "../../playwright/tasks";
 
-/** Invites someone by link, has them accept it, and signs them in (J3, J4). */
+/** Invites someone by link, has them accept it, and signs them in. */
 async function invitePerson(adminApi: APIRequestContext, browser: Browser, name: string) {
   const email = `${name.toLowerCase().replace(/\s+/g, ".")}.${Date.now()}@example.com`;
   const password = `${name.replace(/\s+/g, "")}-password`;
@@ -27,9 +27,9 @@ async function runFinishes(api: APIRequestContext, jobId: string) {
   await expect.poll(() => runStatus(api, jobId), { timeout: 90_000 }).toBe("completed");
 }
 
-// Phase 2's exit (plan §12), as a conversation (ADR 0008): J9 steps 1, 3, 4
-// and 7 with three people, each step attributed and each person told what
-// needs them. Nothing is approved; asking the agent to go on is the agreement.
+// Three people iterate on one task as a conversation, each step attributed and
+// each person told what needs them. Nothing is approved; asking the agent to go
+// on is the agreement.
 test("a PM asks, a designer is mentioned and contributes, a reviewer comments on the rendered plan, has it revised and asks for the build", async ({
   adminApi,
   browser,

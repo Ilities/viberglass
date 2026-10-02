@@ -23,7 +23,7 @@ export type AdvanceAndRunResult = { jobId: string; status: string };
 
 /**
  * "Do this step now" for Slack and MCP: asks the agent for the step's work.
- * Nothing is approved on the way; the ask is the agreement (ADR 0008).
+ * Nothing is approved on the way; the ask is the agreement.
  */
 export class TicketPhaseOrchestrationService {
   constructor(private readonly turns: Pick<TaskTurnService, "ask">) {}

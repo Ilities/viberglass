@@ -1,9 +1,9 @@
 import { Kysely, sql } from "kysely";
 
-// Whose move, Home and unread (task-conversation-handover S4). Mentions by
+// Whose move, Home and unread. Mentions by
 // people and by the agent (with an artifact) share one table, open until the
 // person mentioned next posts in the thread. task_reads gives unread counts.
-// The Inbox page goes (redesign Q1), so its notifications table does too;
+// The Inbox page goes, so its notifications table does too;
 // Slack and email never read it.
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema

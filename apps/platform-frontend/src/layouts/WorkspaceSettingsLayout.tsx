@@ -13,7 +13,7 @@ function section(pathname: string, heading: string, items: Array<{ name: string;
 /**
  * Workspace settings. What a product leader needs sits under General; the
  * plumbing setup chose defaults for (runners, connections, secrets, prompt
- * templates) sits under Advanced, for admins only (ADR 0003).
+ * templates) sits under Advanced, for admins only.
  */
 export function WorkspaceSettingsLayout() {
   const pathname = useLocation().pathname

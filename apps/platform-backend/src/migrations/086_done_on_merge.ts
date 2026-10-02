@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// Done on merge (task-conversation-handover S5). Merged outcomes are final and
+// Done on merge. Merged outcomes are final and
 // never checked again, so tasks whose pull request merged before the sweeper
 // closed tasks are closed here, each with its quiet line.
 export async function up(db: Kysely<any>): Promise<void> {

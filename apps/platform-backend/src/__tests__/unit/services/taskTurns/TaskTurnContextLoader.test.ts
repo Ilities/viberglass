@@ -55,7 +55,8 @@ function message(id: string, createdAt: string) {
   return { id, ticketId: "t", author: { id: "u", name: "Maria" }, body: id, createdAt, editedAt: null };
 }
 
-function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[] } = {}) {
+function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[]; summary?: { content: string; createdAt: Date } } = {}) {
+  const summary = sources.summary ?? null;
   const revisions = { listHandEditsSince: jest.fn().mockResolvedValue([]) };
   const pullRequest = { forTask: jest.fn() };
   const instance = new TaskTurnContextLoader({
@@ -67,6 +68,7 @@ function loader(sources: { turns?: AgentTurn[]; comments?: PhaseDocumentComment[
       listByTicketAndPhase: jest.fn(async (_ticketId: string, phase: string) => (phase === "research" ? sources.comments ?? [] : [])),
     },
     revisions,
+    summaries: { latest: jest.fn().mockResolvedValue(summary) },
     documents: { getOrCreateDocument: jest.fn(async (_id: string, phase: string) => ({ content: phase === "research" ? " # R \n" : "" })) },
     pullRequest,
   });
@@ -87,6 +89,15 @@ describe("TaskTurnContextLoader", () => {
     expect(context.earlier).toEqual({ messages: [], openComments: [] });
     expect(revisions.listHandEditsSince).not.toHaveBeenCalled();
     expect(context.documents).toEqual({ research: "# R", plan: "" });
+  });
+
+  it("gives an agent new to the task the summary instead of the messages it covers", async () => {
+    const { instance } = loader({ summary: { content: " # Summary\n- agreed ", createdAt: new Date("2026-10-01T10:00:00Z") } });
+
+    const context = await instance.load(input);
+
+    expect(context.summary).toBe("# Summary\n- agreed");
+    expect(context.fresh.messages.map((m) => m.body)).toEqual(["after"]);
   });
 
   it("splits what the agent saw from what's new at its last finished turn", async () => {

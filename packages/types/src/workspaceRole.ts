@@ -1,4 +1,4 @@
-/** Workspace roles (ADR 0005). */
+/** Workspace roles. */
 export const WORKSPACE_ROLES = ['admin', 'member', 'guest', 'viewer'] as const
 
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number]

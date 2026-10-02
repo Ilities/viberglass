@@ -3,6 +3,8 @@
 //   AGENT_KNOWS=sess_old         the session it can continue (others fail)
 //   AGENT_FAIL_FIRST_PROMPT=1    the first prompt on a continued session fails
 //   AGENT_ECHO_PROMPT=1          the reply ends with the prompt it got
+//   AGENT_COMMANDS=compact       slash commands it announces when a session opens
+//   AGENT_USAGE=1200/200000      the usage_update it sends with each reply (used/size)
 // It replays one old message on load, and its reply names the methods it was called with.
 const readline = require("readline");
 
@@ -14,6 +16,15 @@ let failedOnce = false;
 
 const say = (sessionId, text) =>
   send({ method: "session/update", params: { sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } } } });
+
+const announceCommands = (sessionId) => {
+  const names = (process.env.AGENT_COMMANDS ?? "").split(",").filter(Boolean);
+  if (names.length === 0) return;
+  send({
+    method: "session/update",
+    params: { sessionId, update: { sessionUpdate: "available_commands_update", availableCommands: names.map((name) => ({ name, description: name })) } },
+  });
+};
 
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
   const msg = JSON.parse(line);
@@ -28,7 +39,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       },
     });
   }
-  if (msg.method === "session/new") return send({ id: msg.id, result: { sessionId: "sess_new" } });
+  if (msg.method === "session/new") {
+    announceCommands("sess_new");
+    return send({ id: msg.id, result: { sessionId: "sess_new" } });
+  }
   if (msg.method === "session/load" || msg.method === "session/resume") {
     if (msg.params.sessionId !== process.env.AGENT_KNOWS) return send({ id: msg.id, error: { code: -32002, message: "Resource not found" } });
     if (msg.method === "session/load") say(msg.params.sessionId, "an old reply, replayed");
@@ -42,6 +56,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const echo = process.env.AGENT_ECHO_PROMPT ? ` | ${msg.params.prompt.map((block) => block.text).join("")}` : "";
     say(msg.params.sessionId, `calls: ${calls.join(" ")}${echo}`);
+    if (process.env.AGENT_USAGE) {
+      const [used, size] = process.env.AGENT_USAGE.split("/").map(Number);
+      send({ method: "session/update", params: { sessionId: msg.params.sessionId, update: { sessionUpdate: "usage_update", used, size } } });
+    }
     return send({ id: msg.id, result: { stopReason: "end_turn" } });
   }
 });

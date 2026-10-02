@@ -81,7 +81,7 @@ export function AppRoutes() {
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/spaces/new" element={<NewProjectPage />} />
 
-        {/* Workspace settings: General, and the plumbing under Advanced. URLs stay put until Phase 2. */}
+        {/* Workspace settings: General, and the plumbing under Advanced. */}
         <Route element={<WorkspaceSettingsLayout />}>
           <Route path="/settings" element={<SettingsHome />} />
           <Route path="/settings/agents" element={<ClankersPage />} />

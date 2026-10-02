@@ -17,7 +17,7 @@ const person = (userId: string, workspaceRole: WorkspaceRole = "member", spaceRo
   spaceRole,
 });
 
-describe("ask rules (ADR 0008)", () => {
+describe("ask rules", () => {
   it("lets anyone on the task ask for code, whatever their role on it", () => {
     for (const id of ["maria", "owner", "tomi", "kaisa"]) expect(canAskForCode(person(id), participants)).toBe(true);
     expect(canAskForCode(person("stranger"), participants)).toBe(false);

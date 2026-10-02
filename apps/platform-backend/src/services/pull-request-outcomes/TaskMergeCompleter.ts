@@ -10,7 +10,7 @@ interface Dependencies {
   activity: Pick<TaskActivityRecorder, "record">;
 }
 
-/** Done is a merged pull request (ADR 0008): a merge closes every open task it belongs to, with a quiet line saying so. */
+/** Done is a merged pull request: a merge closes every open task it belongs to, with a quiet line saying so. */
 export class TaskMergeCompleter {
   private readonly deps: Dependencies;
 

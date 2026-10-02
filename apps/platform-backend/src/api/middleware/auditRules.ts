@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { changedFields, type AuditRule } from "./auditRequests";
 
-// Which changes the audit log records, per router (phase-2-3-handover §2.9).
+// Which changes the audit log records, per router.
 // Details are listed facts; request bodies carry passwords and secret values.
 
 const bodyField = (req: Request, field: string): unknown => (req.body && typeof req.body === "object" ? req.body[field] : undefined);

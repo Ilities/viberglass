@@ -7,7 +7,7 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * Lets admins, members and viewers read, but only admins change anything.
- * Guests don't see plumbing at all (ADR 0005).
+ * Guests don't see plumbing at all.
  *
  * For workspace plumbing (agent runners, integrations, prompt templates) that
  * members need to see in order to run work, but must not reconfigure.

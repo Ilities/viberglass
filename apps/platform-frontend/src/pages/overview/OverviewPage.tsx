@@ -9,7 +9,7 @@ import { OverviewSection } from './overview-section'
 
 const POLL_MS = 30_000
 
-/** Overview (IA §3.2): how the work is going across the workspace, and what's stuck. Read-only. */
+/** Overview: how the work is going across the workspace, and what's stuck. Read-only. */
 export function OverviewPage() {
   const [space, setSpace] = useState<string | undefined>(undefined)
   const [overview, setOverview] = useState<OverviewData | null>(null)

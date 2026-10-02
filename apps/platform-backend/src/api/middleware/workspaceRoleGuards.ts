@@ -8,7 +8,7 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const VIEWER_WRITABLE_PREFIXES = ["/api/auth/logout", "/api/inbox/", "/api/me/"];
 
 /**
- * Viewers are read-only on the server (ADR 0005). Mounted once after the auth
+ * Viewers are read-only on the server. Mounted once after the auth
  * context is attached, so every mutating route refuses them by default.
  * Requests without a signed-in user (worker callbacks, webhooks) pass through.
  */

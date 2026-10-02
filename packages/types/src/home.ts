@@ -1,7 +1,7 @@
 import type { TaskParticipantRole } from './taskParticipant'
 import type { TaskPerson, TaskSituation } from './taskSituation'
 
-/** One task thread on Home (redesign §6): what it is, where it stands, and what's new in it for you. */
+/** One task thread on Home: what it is, where it stands, and what's new in it for you. */
 export interface HomeThread {
   task: { id: string; key: string; title: string; spaceSlug: string; spaceName: string }
   situation: TaskSituation
@@ -20,7 +20,7 @@ export interface HomeData {
   threads: HomeThread[]
 }
 
-/** A task on Overview (J13): where it stands across the workspace. */
+/** A task on Overview: where it stands across the workspace. */
 export interface OverviewTask {
   task: { id: string; key: string; title: string; spaceSlug: string; spaceName: string }
   situation: TaskSituation

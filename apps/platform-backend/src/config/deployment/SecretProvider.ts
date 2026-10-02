@@ -9,7 +9,7 @@
  * - Amplify app IDs, ECR repository names
  * - OIDC role ARNs, region configuration
  *
- * Runtime tenant credentials (Phase 1) are multi-tenant data:
+ * Runtime tenant credentials are multi-tenant data:
  * - GitHub tokens, Jira API keys
  * - SCM provider credentials
  * - Per-tenant authentication data
@@ -57,7 +57,7 @@ export interface SecretOptions {
  * Cloud-agnostic deployment secret storage interface
  * All deployment secret providers must implement this contract
  *
- * Following the pattern established in Phase 1 CredentialProvider,
+ * Following the pattern of CredentialProvider,
  * but with environment-first API instead of tenant-first.
  */
 export interface SecretProvider {

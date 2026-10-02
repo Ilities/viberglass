@@ -63,6 +63,7 @@ export class AcpExecutor {
         userMessage: prompt,
         acpSessionId: context.acpSessionId,
         coldStartMessage: context.coldStartPrompt,
+        compactInstructions: context.compactInstructions,
       });
 
       this.logger.info("AcpExecutor completed", {
@@ -79,6 +80,8 @@ export class AcpExecutor {
         acpTurnOutcome: result.turnOutcome,
         newAcpSessionId: result.acpSessionId,
         acpSessionStart: result.sessionStart,
+        acpContextUsage: result.contextUsage,
+        acpCompacted: result.compacted,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

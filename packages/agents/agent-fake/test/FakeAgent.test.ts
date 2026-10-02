@@ -83,11 +83,15 @@ describe("planFakeTurn", () => {
     expect(planFakeTurn(prompt).documentFile).toBe("PLAN.md");
   });
 
+  it("writes SUMMARY.md when a turn asks for the summary", () => {
+    expect(planFakeTurn("<what-to-do>\nSummarise the conversation in SUMMARY.md\n</what-to-do>").documentFile).toBe("SUMMARY.md");
+  });
+
   it("reads sleep, no-document, code and fail directives", () => {
     const plan = planFakeTurn(
       "RESEARCH.md [fake:sleep=30] [fake:no-document] [fake:code] [fake:fail]",
     );
-    expect(plan).toEqual({ documentFile: undefined, code: true, sleepSeconds: 30, fail: true });
+    expect(plan).toEqual({ documentFile: undefined, code: true, sleepSeconds: 30, fail: true, usageTokens: null });
   });
 
   it("in a task turn, writes the document the turn was asked for, not the ones its rules mention", () => {
@@ -105,7 +109,7 @@ describe("planFakeTurn", () => {
     const quoted = `<current-research>${renderFakeDocument("RESEARCH.md", "[fake:fail] [fake:sleep=9]", 1)}</current-research>`;
     const prompt = `${quoted}\n\n${turnPrompt({ task: "Fix it [fake:code]", thread: "<message>Build it</message>", whatToDo: "Build it" })}`;
 
-    expect(planFakeTurn(prompt)).toEqual({ documentFile: undefined, code: true, sleepSeconds: 0, fail: false });
+    expect(planFakeTurn(prompt)).toEqual({ documentFile: undefined, code: true, sleepSeconds: 0, fail: false, usageTokens: null });
   });
 });
 
@@ -155,16 +159,18 @@ describe("FakeTurnRunner", () => {
 describe("FakeAcpServer", () => {
   function startServer(stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "fake-state-"))) {
     const sent: Array<Record<string, unknown>> = [];
+    const announced: Array<Record<string, unknown>> = [];
     const io = recordingIo();
+    const isAnnouncement = (message: Record<string, unknown>) => JSON.stringify(message).includes('"available_commands_update"');
     const server = new FakeAcpServer(
-      (message) => sent.push(message),
+      (message) => (isAnnouncement(message) ? announced : sent).push(message),
       new FakeTurnRunner(io),
       "/default",
       new FakeSessionStore(stateDir),
     );
     const request = (id: number, method: string, params: unknown) =>
       server.handleLine(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
-    return { sent, io, request, stateDir };
+    return { sent, announced, io, request, stateDir };
   }
 
   it("runs a prompt in the session's cwd and ends the turn", async () => {
@@ -220,6 +226,20 @@ describe("FakeAcpServer", () => {
     const elsewhere = startServer();
     await elsewhere.request(1, "session/load", { sessionId, cwd: "/work/repo" });
     expect(elsewhere.sent[0]).toMatchObject({ id: 1, error: { message: "Resource not found" } });
+  });
+
+  it("announces a compact command, answers it without a turn, and reports usage when told to", async () => {
+    const { sent, announced, io, request } = startServer();
+    await request(1, "session/new", { cwd: "/work/repo", mcpServers: [] });
+    const sessionId = sessionIdOf(sent[0]);
+    expect(announced[0]).toMatchObject({ params: { update: { availableCommands: [{ name: "compact" }] } } });
+
+    await request(2, "session/prompt", { sessionId, prompt: [{ type: "text", text: "Write SUMMARY.md [fake:usage=150000]" }] });
+    expect(io.files.get(path.join("/work/repo", "SUMMARY.md"))).toContain("# Fake Summary");
+    expect(sent).toContainEqual(expect.objectContaining({ params: { sessionId, update: { sessionUpdate: "usage_update", used: 150000, size: 200000 } } }));
+
+    await request(3, "session/prompt", { sessionId, prompt: [{ type: "text", text: "/compact Keep the decisions" }] });
+    expect(sent).toContainEqual(expect.objectContaining({ params: { sessionId, update: expect.objectContaining({ content: { type: "text", text: "Compacted the conversation." } }) } }));
   });
 
   it("rejects methods it does not support", async () => {

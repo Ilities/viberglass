@@ -1,7 +1,7 @@
 import { Kysely, sql } from "kysely";
 import { deriveKeyPrefix } from "@viberglass/types";
 
-// Task keys (phase-2-3-handover §2.4): each space gets a fixed prefix and a
+// Task keys: each space gets a fixed prefix and a
 // counter, each task its number and key (WEB-42). Existing tasks are numbered
 // in the order they were created.
 export async function up(db: Kysely<any>): Promise<void> {

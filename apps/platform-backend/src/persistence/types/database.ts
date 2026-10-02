@@ -476,6 +476,15 @@ export interface TaskMentionsTable {
   answered_at: Timestamp | null;
 }
 
+export interface TaskSummariesTable {
+  id: Generated<string>;
+  ticket_id: string;
+  version: number;
+  content: string;
+  agent_turn_id: string | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface TaskReadsTable {
   ticket_id: string;
   user_id: string;
@@ -754,6 +763,7 @@ export interface Database {
   task_messages: TaskMessagesTable;
   task_mentions: TaskMentionsTable;
   task_reads: TaskReadsTable;
+  task_summaries: TaskSummariesTable;
   task_activity: TaskActivityTable;
   audit_log: AuditLogTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;

@@ -1,4 +1,4 @@
-/** What people are told by Slack and email (plan §8). In the app, Home's Needs you and unread counts are the notifications. */
+/** What people are told by Slack and email. In the app, Home's Needs you and unread counts are the notifications. */
 export const NOTIFICATION_KINDS = [
   'review_requested',
   'mentioned',

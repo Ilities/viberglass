@@ -67,4 +67,18 @@ describe('countNewComments', () => {
     expect(countNewComments(comments, '2026-10-01T10:05:00.000Z')).toBe(1)
     expect(countNewComments(comments, '2026-10-01T09:00:00.000Z')).toBe(2)
   })
+
+  it('offers a summary once the thread has grown, after the documents and before the build', () => {
+    const plan = { documents: { research: doc('# R'), planning: doc('# P') } }
+    expect(labels({ ...plan, sinceSummary: { finishedTurns: 2, messages: 9 } })).toEqual([])
+    expect(labels({ ...plan, sinceSummary: { finishedTurns: 3, messages: 0 } })).toEqual(['Summarise so far'])
+    expect(
+      labels({ ...plan, newComments: { research: 0, planning: 1 }, sinceSummary: { finishedTurns: 0, messages: 10 }, capabilities: { canAsk: true, canAskForCode: true } })
+    ).toEqual(['Revise the plan with 1 comment', 'Summarise so far', 'Build it'])
+    expect(suggestTaskActions(input({ ...plan, sinceSummary: { finishedTurns: 5, messages: 0 } }))).toContainEqual({ action: 'summarise', label: 'Summarise so far' })
+  })
+
+  it('offers no summary while the agent works', () => {
+    expect(labels({ agentWorking: true, sinceSummary: { finishedTurns: 9, messages: 30 } })).toEqual([])
+  })
 })

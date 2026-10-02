@@ -1,4 +1,5 @@
 import type { AcpSessionStart } from "./acp/AcpSessionOpener";
+import type { AcpContextUsage } from "./acp/acpSessionSignals";
 import type { PlatformSessionEvent } from "./acp/types";
 import type { AgentUsageReport } from "./usage";
 
@@ -89,6 +90,8 @@ export interface ExecutionContext {
   acpSessionId?: string;
   /** The prompt for a turn that can't continue its session and starts cold. */
   coldStartPrompt?: string;
+  /** After the turn, compact the harness's context with these instructions, if it can. */
+  compactInstructions?: string;
   onAcpEvent?: (event: PlatformSessionEvent) => void;
 }
 
@@ -112,6 +115,10 @@ export interface ExecutionResult {
   newAcpSessionId?: string;
   /** Whether the turn continued the harness's earlier session, or started cold and why. */
   acpSessionStart?: AcpSessionStart;
+  /** How full the harness's context was at the end of the turn, when it said. */
+  acpContextUsage?: AcpContextUsage;
+  /** Whether the harness compacted its context after the turn. */
+  acpCompacted?: boolean;
   /**
    * Token usage and cost as reported by the CLI itself.
    *

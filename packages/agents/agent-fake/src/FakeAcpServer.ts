@@ -1,6 +1,11 @@
 import { randomUUID } from "crypto";
 import { FakeSessionStore } from "./FakeSessionStore";
 import { FakeTurnRunner } from "./FakeTurnRunner";
+import { planFakeTurn } from "./fakeTurnPlan";
+
+/** Like Claude Code, it announces a compact command, which the platform runs after a summary. */
+const COMPACT_COMMAND = "/compact";
+const CONTEXT_SIZE = 200_000;
 
 type JsonRpcId = number | string;
 
@@ -76,12 +81,16 @@ export class FakeAcpServer {
     switch (method) {
       case "initialize":
         return { protocolVersion: 1, agentCapabilities: { loadSession: true } };
-      case "session/new":
-        return { sessionId: this.openSession(params) };
+      case "session/new": {
+        const sessionId = this.openSession(params);
+        this.announceCommands(sessionId);
+        return { sessionId };
+      }
       case "session/load": {
         const sessionId = String(params.sessionId);
         if (!this.sessions.exists(sessionId)) throw new Error("Resource not found");
         this.sessionDirs.set(sessionId, this.cwdOf(params));
+        this.announceCommands(sessionId);
         return {};
       }
       case "session/prompt":
@@ -100,22 +109,30 @@ export class FakeAcpServer {
 
   private async prompt(params: Record<string, unknown>): Promise<unknown> {
     const sessionId = String(params.sessionId);
+    const text = promptText(params);
+    if (text.startsWith(COMPACT_COMMAND)) {
+      this.update(sessionId, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Compacted the conversation." } });
+      return { stopReason: "end_turn" };
+    }
     const repoDir = this.sessionDirs.get(sessionId) ?? this.defaultCwd;
     const turn = this.sessions.recordTurn(sessionId);
-    const message = await this.turnRunner.run(promptText(params), repoDir, turn);
+    const message = await this.turnRunner.run(text, repoDir, turn);
 
-    this.send({
-      jsonrpc: "2.0",
-      method: "session/update",
-      params: {
-        sessionId,
-        update: {
-          sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: message },
-        },
-      },
-    });
+    this.update(sessionId, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: message } });
+    const usage = planFakeTurn(text).usageTokens;
+    if (usage !== null) this.update(sessionId, { sessionUpdate: "usage_update", used: usage, size: CONTEXT_SIZE });
     return { stopReason: "end_turn" };
+  }
+
+  private announceCommands(sessionId: string): void {
+    this.update(sessionId, {
+      sessionUpdate: "available_commands_update",
+      availableCommands: [{ name: COMPACT_COMMAND.slice(1), description: "Compact the conversation" }],
+    });
+  }
+
+  private update(sessionId: string, update: Record<string, unknown>): void {
+    this.send({ jsonrpc: "2.0", method: "session/update", params: { sessionId, update } });
   }
 
   private cwdOf(params: Record<string, unknown>): string {

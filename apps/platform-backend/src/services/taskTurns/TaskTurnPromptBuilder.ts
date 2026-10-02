@@ -47,6 +47,7 @@ export class TaskTurnPromptBuilder {
         ticketTitle: ticket.title,
         ticketDescription: ticket.description,
         externalTicketId: ticket.externalTicketId ?? undefined,
+        summaryDocument: context.summary || undefined,
         researchDocument: documents.research || undefined,
         planDocument: documents.plan || undefined,
         pullRequestUrl: ticket.pullRequestUrl ?? undefined,

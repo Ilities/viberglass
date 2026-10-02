@@ -13,7 +13,7 @@
  * - OIDC role ARNs, infrastructure configuration
  * - Path: /viberator/{environment}/{category}/{key}
  *
- * **Runtime tenant credentials** (Phase 1 - ../credentials/):
+ * **Runtime tenant credentials** (../credentials/):
  * - Multi-tenant data used during application runtime
  * - GitHub tokens, Jira API keys, SCM provider credentials
  * - Per-tenant authentication data

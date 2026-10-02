@@ -83,6 +83,8 @@ export interface TicketJobContext extends BaseJobContext {
   ticketMedia?: JobTicketMedia[];
   researchDocument?: string;
   planDocument?: string;
+  /** The task's latest summary, for a summarise turn to rewrite. */
+  summaryDocument?: string;
 }
 
 export interface ResearchJobContext extends BaseJobContext {

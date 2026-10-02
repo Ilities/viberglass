@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// The task turn engine (docs/ux/task-conversation-handover.md, S2): a task has
+// The task turn engine: a task has
 // one session per agent rather than per step, each turn records what it was
 // asked for, a turn started from the thread links to the message that started
 // it, and document revisions are numbered versions that know their turn.

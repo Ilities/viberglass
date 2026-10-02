@@ -163,7 +163,7 @@ const normalizeOptionalString = (value?: string | null): string | null => {
 };
 
 /**
- * Phase 2: Enrich project with derived ticket system from primaryTicketingIntegrationId
+ * Enrich project with derived ticket system from primaryTicketingIntegrationId
  * This function resolves the ticketing system name from the primary integration
  * when the deprecated ticketSystem field is not set or needs to be overridden.
  */
@@ -195,7 +195,7 @@ async function enrichProjectWithDerivedTicketSystem(
 }
 
 /**
- * Phase 2: Enrich multiple projects with derived ticket systems
+ * Enrich multiple projects with derived ticket systems
  */
 async function enrichProjectsWithDerivedTicketSystems(
   projects: ProjectConfig[],
@@ -212,7 +212,7 @@ router.get("/", async (req, res) => {
     const visible = await spaceAccess.visibleProjectIds(spaceViewerOf(req)!);
     const projects = await projectService.listProjects(limit, offset, visible);
 
-    // Phase 2: Enrich projects with derived ticket systems from primary integrations
+    // Enrich projects with derived ticket systems from primary integrations
     const enrichedProjects =
       await enrichProjectsWithDerivedTicketSystems(projects);
 
@@ -237,7 +237,7 @@ router.get("/by-name/:name", async (req, res) => {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    // Phase 2: Enrich project with derived ticket system from primary integration
+    // Enrich project with derived ticket system from primary integration
     const enrichedProject = await enrichProjectWithDerivedTicketSystem(project);
     const viewerAccess = await spaceAccess.describe(spaceViewerOf(req)!, project.id);
 
@@ -271,7 +271,7 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    // Phase 2: Enrich project with derived ticket system from primary integration
+    // Enrich project with derived ticket system from primary integration
     const enrichedProject = await enrichProjectWithDerivedTicketSystem(project);
     const viewerAccess = await spaceAccess.describe(spaceViewerOf(req)!, project.id);
 
@@ -304,7 +304,7 @@ router.put(
         req.body,
       );
 
-      // Phase 2: Enrich project with derived ticket system from primary integration
+      // Enrich project with derived ticket system from primary integration
       const enrichedProject =
         await enrichProjectWithDerivedTicketSystem(updatedProject);
 

@@ -68,6 +68,7 @@ export class ViberatorWorker {
   private turnAction?: TaskTurnAction;
   private allowCode = false;
   private coldStartTask?: string;
+  private compactInstructions?: string;
   private acpSessionId?: string;
   private conversationStateUrl?: string;
 
@@ -178,6 +179,7 @@ export class ViberatorWorker {
         turnAction: this.turnAction,
         allowCode: this.allowCode,
         coldStartTask: this.coldStartTask,
+        compactInstructions: this.compactInstructions,
         sessionEventForwarder: this.sessionEventForwarder,
         selectAgentForExecution: (availableAgents) =>
           this.selectAgentForExecution(availableAgents),
@@ -243,6 +245,7 @@ export class ViberatorWorker {
     this.turnAction = payload.turnAction;
     this.allowCode = payload.allowCode ?? payload.jobKind === "execution";
     this.coldStartTask = payload.coldStartTask;
+    this.compactInstructions = payload.compactInstructions;
     this.acpSessionId = payload.acpSessionId;
     this.conversationStateUrl = payload.conversationStateUrl;
   }

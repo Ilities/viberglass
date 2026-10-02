@@ -5,7 +5,7 @@ import type { PlatformSessionEvent } from "../src/acp/types";
 
 const AGENT_SCRIPT = path.join(process.cwd(), "test", "fixtures", "resumingAgent.cjs");
 
-async function runTurn(env: Record<string, string>, acpSessionId?: string, coldStartMessage?: string) {
+async function runTurn(env: Record<string, string>, acpSessionId?: string, coldStartMessage?: string, compactInstructions?: string) {
   const events: PlatformSessionEvent[] = [];
   const client = new AcpClient(
     [process.execPath, AGENT_SCRIPT],
@@ -15,7 +15,7 @@ async function runTurn(env: Record<string, string>, acpSessionId?: string, coldS
     createLogger({ transports: [new transports.Console({ silent: true })] }),
     10_000,
   );
-  const result = await client.run({ userMessage: "Carry on", acpSessionId, coldStartMessage });
+  const result = await client.run({ userMessage: "Carry on", acpSessionId, coldStartMessage, compactInstructions });
   const replies = events.filter((event) => event.eventType === "assistant_message").map((event) => String(event.payload.text));
   const progress = events.filter((event) => event.eventType === "progress").map((event) => String(event.payload.text));
   return { result, replies, progress };
@@ -86,6 +86,24 @@ describe("AcpClient sessions", () => {
         COLD,
       );
       expect(replies).toEqual([`calls: initialize session/load session/prompt session/new session/prompt | ${COLD}`]);
+    });
+  });
+
+  describe("context and compaction", () => {
+    it("reports how full the harness's context is", async () => {
+      const { result } = await runTurn({ AGENT_SUPPORTS: "", AGENT_USAGE: "150000/200000" });
+      expect(result.contextUsage).toEqual({ used: 150000, size: 200000 });
+    });
+
+    it("compacts with our instructions after the turn, using the command the harness announced", async () => {
+      const { result, replies } = await runTurn({ AGENT_SUPPORTS: "", AGENT_COMMANDS: "help,compress", AGENT_ECHO_PROMPT: "1" }, undefined, undefined, "Keep the decisions");
+      expect(result.compacted).toBe(true);
+      expect(replies.at(-1)).toContain("| /compress Keep the decisions");
+    });
+
+    it("doesn't compact a harness without a compact command, or when nobody asked", async () => {
+      expect((await runTurn({ AGENT_SUPPORTS: "" }, undefined, undefined, "Keep the decisions")).result.compacted).toBe(false);
+      expect((await runTurn({ AGENT_SUPPORTS: "", AGENT_COMMANDS: "compact" })).result.compacted).toBe(false);
     });
   });
 });

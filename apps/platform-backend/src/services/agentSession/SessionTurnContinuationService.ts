@@ -93,7 +93,7 @@ export class SessionTurnContinuationService {
       });
       const prompts = await this.deps.prompts.build(ticket.projectId, context, action, allowCode);
       const job = await this.deps.dispatcher.dispatch(
-        { session, turnId: turn.id, action, allowCode, prompts, ticket, documents: context.documents },
+        { session, turnId: turn.id, action, allowCode, prompts, ticket, documents: context.documents, summary: context.summary },
         async (submitted) => {
           await this.agentTurnDAO.update(turn.id, { jobId: submitted.id });
           await this.agentSessionEventDAO.create({

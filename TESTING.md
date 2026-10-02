@@ -198,6 +198,7 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | A reviewer comments on text in the rendered plan; the comment follows its text through an edit, reaches the agent with its quote, and is outdated once the text is gone | `rendered-document-comments.e2e.test.ts` |
 | The audit log records secrets and role changes (never a secret's value), is admin-only, and filters by area | `audit-log.e2e.test.ts` |
 | Phase 2's exit, as a conversation: three people invited by link; the PM asks, the designer is @mentioned and replies, the agent mentions the reviewer when the plan is ready, the reviewer comments on the rendered plan, has it revised with the comment and asks for the build; Home's Needs you and the thread name each person | `phase-2-exit.e2e.test.ts` |
+| A turn whose context is past the threshold is followed by Summary v1, unasked and compacted, pinned in the thread; a second agent brought in starts cold from the summary | `summary-and-second-agent.e2e.test.ts` |
 | Home per role: a mentioned member sees it under Needs you with an unread count, and replying clears it; a new task is its owner's move, and the agent's research mentions the owner; a guest on a task is mentioned and replies; a viewer lands on Overview | `home.e2e.test.ts` |
 | Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
 | Asking again while the agent works joins its turn instead of starting another run; the next turn answers both asks | `no-duplicate-runs.e2e.test.ts` |
@@ -258,7 +259,7 @@ against a database that isn't empty; use `npm run test:e2e`, which resets it.
   turn of its session it is: it keeps sessions in its state directory, so it
   resumes like a real harness. Directives in people's words (a message, or
   the task description on a first turn) steer it: `[fake:sleep=N]`,
-  `[fake:no-document]`, `[fake:code]` (changes `fake-change.txt`),
+  `[fake:no-document]`, `[fake:code]` (changes `fake-change.txt`), `[fake:usage=N]` (reports N of 200,000 tokens in its context),
   `[fake:fail]`. It is test-only: not in the runner picker, not provisioned or
   pushed by infrastructure.
 

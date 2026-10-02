@@ -58,7 +58,7 @@ function DocumentStep({
   const noun = DOCUMENT_NOUN[step]
   const hasContent = document.content.trim().length > 0
   const { user } = useAuth()
-  // Nothing is approved, so any document can be edited; an edit is its next version (ADR 0008).
+  // Nothing is approved, so any document can be edited; an edit is its next version.
   const canEdit = Boolean(user && user.role !== 'viewer')
 
   const save = async (content: string) => {

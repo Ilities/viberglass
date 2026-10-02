@@ -1,6 +1,6 @@
 import { Kysely, sql } from "kysely";
 
-// Task participants (phase-2-3-handover §2.4): the requester, the owner, the
+// Task participants: the requester, the owner, the
 // reviewers and the watchers. Tasks made before this have none; their
 // creator was never recorded.
 export async function up(db: Kysely<any>): Promise<void> {

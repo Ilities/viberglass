@@ -18,7 +18,7 @@ import { WorkspaceHealth } from './workspace-health'
 
 const POLL_MS = 30_000
 
-/** Home (redesign §6): the task threads you're in, those that need you first. */
+/** Home: the task threads you're in, those that need you first. */
 export function HomePage() {
   useSetupRedirect()
   const { user } = useAuth()

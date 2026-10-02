@@ -17,7 +17,7 @@ const isOnTask = (person: AskingPerson, participants: AskingParticipant[]) =>
   participants.some((participant) => participant.userId === person.userId)
 
 /**
- * Who may ask the agent for research, a plan or a reply (ADR 0008): admins and
+ * Who may ask the agent for research, a plan or a reply: admins and
  * members, and guests once they're on the task. Viewers never ask.
  */
 export function canAskAgent(person: AskingPerson, participants: AskingParticipant[]): boolean {
@@ -27,9 +27,9 @@ export function canAskAgent(person: AskingPerson, participants: AskingParticipan
 }
 
 /**
- * Who may ask the agent to write code, the step that changes the repository
- * (ADR 0008): workspace admins, the space's maintainers, and anyone on the
- * task, guests included. Viewers never do.
+ * Who may ask the agent to write code, the step that changes the repository:
+ * workspace admins, the space's maintainers, and anyone on the task, guests
+ * included. Viewers never do.
  */
 export function canAskForCode(person: AskingPerson, participants: AskingParticipant[]): boolean {
   if (person.workspaceRole === 'viewer') return false
