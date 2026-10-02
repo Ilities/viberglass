@@ -1,7 +1,7 @@
 import { createChildLogger } from '../config/logger';
 import type { PullRequestOutcomeDAO } from '../persistence/job/PullRequestOutcomeDAO';
 import type { ProjectScmTokenResolver } from '../services/pull-request-outcomes/ProjectScmTokenResolver';
-import type { PullRequestOutcomeSource } from '../services/pull-request-outcomes/pullRequestOutcomeTypes';
+import type { PullRequestOutcome, PullRequestOutcomeListener, PullRequestOutcomeSource } from '../services/pull-request-outcomes/pullRequestOutcomeTypes';
 
 const logger = createChildLogger({ worker: 'PullRequestOutcomeSweeper' });
 
@@ -12,7 +12,8 @@ export interface PullRequestOutcomeSweeperConfig {
 }
 
 /**
- * Labels agent-opened PRs with whether they were merged or closed.
+ * Labels agent-opened PRs with whether they were merged or closed, and tells
+ * its listeners (a merge closes the task).
  *
  * Polls the SCM rather than waiting for webhooks, so PRs opened before this
  * existed, and PRs in repositories with no webhook configured, still get a
@@ -27,6 +28,7 @@ export class PullRequestOutcomeSweeper {
     private readonly tokens: Pick<ProjectScmTokenResolver, 'resolve'>,
     private readonly sources: PullRequestOutcomeSource[],
     config: PullRequestOutcomeSweeperConfig = {},
+    private readonly listeners: PullRequestOutcomeListener[] = [],
   ) {
     this.config = {
       sweepIntervalMs: config.sweepIntervalMs ?? 900_000,
@@ -87,6 +89,17 @@ export class PullRequestOutcomeSweeper {
     return recorded;
   }
 
+  /** A merged outcome is final and never checked again, so a listener's failure is logged rather than retried. */
+  private async tell(pullRequestUrl: string, outcome: PullRequestOutcome): Promise<void> {
+    for (const listener of this.listeners) {
+      try {
+        await listener.onOutcome(pullRequestUrl, outcome);
+      } catch (error) {
+        logger.error('Outcome listener failed', { pullRequestUrl, error: error instanceof Error ? error.message : error });
+      }
+    }
+  }
+
   /** Returns why no outcome was recorded, or null when one was. */
   private async check(pullRequestUrl: string, projectId: string | null): Promise<string | null> {
     const source = this.sources.find((candidate) => candidate.supports(pullRequestUrl));
@@ -97,7 +110,9 @@ export class PullRequestOutcomeSweeper {
       const token = await this.tokens.resolve(projectId);
       if (!token) return 'Project has no SCM token credential';
 
-      await this.outcomes.recordOutcome(pullRequestUrl, await source.fetchOutcome(pullRequestUrl, token));
+      const outcome = await source.fetchOutcome(pullRequestUrl, token);
+      await this.outcomes.recordOutcome(pullRequestUrl, outcome);
+      await this.tell(pullRequestUrl, outcome);
       return null;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);

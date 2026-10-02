@@ -19,6 +19,7 @@ import { IntegrationCredentialDAO } from "../persistence/integrations/Integratio
 import { SecretResolutionService } from "../services/SecretResolutionService";
 import { ProjectScmTokenResolver } from "../services/pull-request-outcomes/ProjectScmTokenResolver";
 import { GitHubPullRequestOutcomeSource } from "../services/pull-request-outcomes/GitHubPullRequestOutcomeSource";
+import { TaskMergeCompleter } from "../services/pull-request-outcomes/TaskMergeCompleter";
 import { ClawSchedulingEngine } from "../services/claw/ClawSchedulingEngine";
 import logger from "../config/logger";
 import { migrateToLatest } from "../migrations/migrator";
@@ -73,6 +74,7 @@ const pullRequestOutcomeSweeper = shouldRunBackgroundSweepers
           10,
         ),
       },
+      [new TaskMergeCompleter()],
     )
   : null;
 

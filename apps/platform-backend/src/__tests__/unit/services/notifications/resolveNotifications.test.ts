@@ -31,6 +31,7 @@ describe("resolveNotifications (plan §8)", () => {
     ["run_failed", { category: "platform" }, [{ userId: "admin-1", kind: "run_failed_setup" }, { userId: "admin-2", kind: "run_failed_setup" }]],
     ["run_failed", { category: "agent" }, [{ userId: "owner", kind: "run_failed_agent" }]],
     ["task_done", {}, [{ userId: "requester", kind: "task_done" }]],
+    ["pull_request_merged", { merged: true }, [{ userId: "requester", kind: "task_done" }, { userId: "owner", kind: "task_done" }]],
     ["comment_added", {}, []],
   ] as const)("%s %j notifies the right people", (kind, payload, expected) => {
     expect(notify(kind, payload)).toEqual(expected);

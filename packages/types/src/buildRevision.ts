@@ -29,6 +29,8 @@ export interface BuildPullRequestDetails {
   deletions: number | null
   changedFiles: number | null
   commitCount: number | null
+  /** Where the change can be seen running, when the repository's deployments or preview checks report one. */
+  previewUrl: string | null
 }
 
 /** A task's pull request and what reviewers still want changed on it. */

@@ -1,3 +1,4 @@
+import { TaskMergeCompleter } from '../../../services/pull-request-outcomes/TaskMergeCompleter';
 import { PullRequestOutcomeSweeper } from '../../../workers/PullRequestOutcomeSweeper';
 import type { PullRequestOutcome, PullRequestOutcomeSource } from '../../../services/pull-request-outcomes/pullRequestOutcomeTypes';
 
@@ -103,5 +104,44 @@ describe('PullRequestOutcomeSweeper', () => {
 
     sweeper.stop();
     expect(sweeper.isRunning()).toBe(false);
+  });
+
+  it('closes the task a merged pull request belongs to, through the merge completer', async () => {
+    const tasks = { listOpenTaskIds: jest.fn().mockResolvedValue(['task-1']) };
+    const tickets = { updateTicket: jest.fn() };
+    const activity = { record: jest.fn() };
+    const completer = new TaskMergeCompleter({ tasks, tickets, activity });
+    source.fetchOutcome.mockResolvedValue({ ...MERGED, mergedBy: 'dev-koskinen' });
+    const withListener = new PullRequestOutcomeSweeper(outcomes, tokens, [source], { recheckAfterMs: 60_000 }, [completer]);
+
+    await expect(withListener.sweep()).resolves.toBe(1);
+
+    expect(tasks.listOpenTaskIds).toHaveBeenCalledWith(URL_1);
+    expect(tickets.updateTicket).toHaveBeenCalledWith('task-1', { status: 'resolved' });
+    expect(activity.record).toHaveBeenCalledWith('task-1', { type: 'system' }, 'pull_request_merged', {
+      pullRequestUrl: URL_1,
+      merged: true,
+      mergedBy: 'dev-koskinen',
+    });
+  });
+
+  it('leaves tasks open for a pull request that is still open or was closed unmerged', async () => {
+    const tasks = { listOpenTaskIds: jest.fn().mockResolvedValue(['task-1']) };
+    const tickets = { updateTicket: jest.fn() };
+    const completer = new TaskMergeCompleter({ tasks, tickets, activity: { record: jest.fn() } });
+
+    await completer.onOutcome(URL_1, { ...MERGED, state: 'open', mergedAt: null });
+    await completer.onOutcome(URL_1, { ...MERGED, state: 'closed', mergedAt: null });
+
+    expect(tickets.updateTicket).not.toHaveBeenCalled();
+  });
+
+  it('still records the outcome when a listener fails', async () => {
+    const failing = { onOutcome: jest.fn().mockRejectedValue(new Error('database gone')) };
+    const withListener = new PullRequestOutcomeSweeper(outcomes, tokens, [source], {}, [failing]);
+
+    await expect(withListener.sweep()).resolves.toBe(1);
+    expect(outcomes.recordOutcome).toHaveBeenCalledWith(URL_1, MERGED);
+    expect(outcomes.recordError).not.toHaveBeenCalled();
   });
 });

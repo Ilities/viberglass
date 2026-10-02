@@ -52,6 +52,7 @@ function toOutcome(body: unknown): PullRequestOutcome {
     closedAt: toDate(body.closed_at),
     commentCount: toCount(body.comments),
     reviewCommentCount: toCount(body.review_comments),
+    mergedBy: isObjectRecord(body.merged_by) && typeof body.merged_by.login === "string" ? body.merged_by.login : null,
   };
 }
 

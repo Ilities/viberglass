@@ -17,6 +17,7 @@ function setup() {
       latestRevisions: jest.fn().mockResolvedValue(new Map()),
       lastMessages: jest.fn().mockResolvedValue(new Map()),
       openQuestions: jest.fn().mockResolvedValue(new Map()),
+      mergedBy: jest.fn().mockResolvedValue(new Map()),
     },
     mentions: { listOpen: jest.fn().mockResolvedValue(new Map()) },
     participants: { listDrivers: jest.fn().mockResolvedValue(new Map([["t-1", OLLI]])) },

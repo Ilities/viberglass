@@ -81,7 +81,45 @@ describe("GitHubPullRequestReviewSource", () => {
       deletions: 3,
       changedFiles: 2,
       commitCount: 2,
+      previewUrl: null,
     });
+  });
+
+  it("links the preview a successful deployment of the latest commit reports", async () => {
+    const latestCommit = {
+      nodes: [
+        {
+          commit: {
+            deployments: { nodes: [{ latestStatus: { state: "SUCCESS", environmentUrl: "https://shop-pr-7.vercel.app" } }, { latestStatus: { state: "FAILURE", environmentUrl: "https://broken.example" } }] },
+            checkSuites: { nodes: [] },
+          },
+        },
+      ],
+    };
+    const { details } = await new GitHubPullRequestReviewSource(github({ ...pullRequest, latestCommit })).fetchReview(URL_1, "tok", null);
+
+    expect(details.previewUrl).toBe("https://shop-pr-7.vercel.app");
+  });
+
+  it("falls back to a preview app's check run, and ignores other checks", async () => {
+    const latestCommit = {
+      nodes: [
+        {
+          commit: {
+            deployments: { nodes: [] },
+            checkSuites: {
+              nodes: [
+                { app: { slug: "github-actions" }, checkRuns: { nodes: [{ detailsUrl: "https://ci.example/run/1", conclusion: "SUCCESS" }] } },
+                { app: { slug: "netlify" }, checkRuns: { nodes: [{ detailsUrl: "https://deploy-preview-7--shop.netlify.app", conclusion: "SUCCESS" }] } },
+              ],
+            },
+          },
+        },
+      ],
+    };
+    const { details } = await new GitHubPullRequestReviewSource(github({ ...pullRequest, latestCommit })).fetchReview(URL_1, "tok", null);
+
+    expect(details.previewUrl).toBe("https://deploy-preview-7--shop.netlify.app");
   });
 
   it.each([
