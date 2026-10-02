@@ -7,7 +7,7 @@ import { lastMessageLine } from './home-threads'
 
 /** One task thread on Home: key, title, where it stands, what's new, and the last word in it. */
 export function HomeThreadRow({ thread }: { thread: HomeThread }) {
-  const line = lastMessageLine(thread)
+  const line = lastMessageLine(thread.lastMessage)
   const { situation } = thread
   return (
     <li>

@@ -30,3 +30,10 @@ export function canChangeTask(
   if (person.spaceRole === 'maintainer') return true
   return participants.some((p) => p.userId === person.userId && EDITING_PARTICIPANT_ROLES.includes(p.role))
 }
+
+/** Which changes the caller may make to a task, for the UI to show only those. */
+export interface TaskChangeCapabilities {
+  /** Edit details, archive, mark done or reopen. */
+  canEdit: boolean
+  canDelete: boolean
+}

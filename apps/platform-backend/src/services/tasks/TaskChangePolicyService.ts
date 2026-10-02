@@ -1,4 +1,4 @@
-import { canChangeTask, type TaskChange, type WorkspaceRole } from "@viberglass/types";
+import { canChangeTask, type TaskChange, type TaskChangeCapabilities, type WorkspaceRole } from "@viberglass/types";
 import { SpaceMemberDAO } from "../../persistence/project/SpaceMemberDAO";
 import { SpaceOwnershipDAO } from "../../persistence/project/SpaceOwnershipDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
@@ -35,14 +35,25 @@ export class TaskChangePolicyService {
 
   /** A task that doesn't exist passes, so the route answers 404 as before. */
   async assertCanChange(person: TaskChanger, ticketId: string, change: TaskChange): Promise<void> {
-    if (person.role === "admin") return;
+    const allowed = await this.allows(person, ticketId);
+    if (!allowed || allowed(change)) return;
+    throw new TaskChangePolicyError(TASK_CHANGE_POLICY_ERROR_CODE.NOT_ALLOWED, REFUSAL[change]);
+  }
+
+  async describe(person: TaskChanger, ticketId: string): Promise<TaskChangeCapabilities> {
+    const allowed = await this.allows(person, ticketId);
+    return { canEdit: allowed ? allowed("edit") : false, canDelete: allowed ? allowed("delete") : false };
+  }
+
+  /** Null when the task doesn't exist. */
+  private async allows(person: TaskChanger, ticketId: string): Promise<((change: TaskChange) => boolean) | null> {
+    if (person.role === "admin") return () => true;
     const projectId = await this.deps.owners.projectIdForTask(ticketId);
-    if (!projectId) return;
+    if (!projectId) return null;
     const [spaceRole, participants] = await Promise.all([
       this.deps.members.getRole(projectId, person.id),
       this.deps.participants.list(ticketId),
     ]);
-    if (canChangeTask(change, { userId: person.id, workspaceRole: person.role, spaceRole }, participants)) return;
-    throw new TaskChangePolicyError(TASK_CHANGE_POLICY_ERROR_CODE.NOT_ALLOWED, REFUSAL[change]);
+    return (change) => canChangeTask(change, { userId: person.id, workspaceRole: person.role, spaceRole }, participants);
   }
 }

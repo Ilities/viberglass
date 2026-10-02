@@ -12,12 +12,7 @@ import {
   type JobStatus,
 } from '@/service/api/job-api'
 import { getProjectBySlug as apiGetProjectBySlug, getProjects as apiGetProjects } from '@/service/api/project-api'
-import {
-  getTicketStats as apiGetTicketStats,
-  getTicket,
-  getTickets,
-} from '@/service/api/ticket-api'
-import { TICKET_ARCHIVE_FILTER, TICKET_STATUS } from '@viberglass/types'
+import { getTicket } from '@/service/api/ticket-api'
 import type {
   AutoFixStatus,
   Clanker,
@@ -25,29 +20,9 @@ import type {
   DeploymentStrategy,
   Project,
   Severity,
-  TaskSituation,
   Ticket,
-  TicketLifecycleStatus,
   TicketStats,
-  TicketWorkflowPhase,
 } from '@viberglass/types'
-
-// Extended ticket with computed status for UI
-export interface TicketSummary {
-  id: string
-  key: string
-  projectId: string
-  title: string
-  severity: Severity
-  category: string
-  timestamp: string
-  externalTicketId?: string
-  ticketSystem: string
-  autoFixStatus?: AutoFixStatus
-  status: TicketLifecycleStatus
-  workflowPhase: TicketWorkflowPhase
-  situation?: TaskSituation
-}
 
 // Project functions
 export async function getProjectsList(): Promise<Project[]> {
@@ -56,31 +31,6 @@ export async function getProjectsList(): Promise<Project[]> {
 
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   return await apiGetProjectBySlug(slug)
-}
-
-// Ticket functions
-export async function getRecentTickets(projectSlug?: string): Promise<TicketSummary[]> {
-  const { tickets } = await getTickets({
-    projectSlug,
-    limit: 10,
-    statuses: [TICKET_STATUS.OPEN, TICKET_STATUS.IN_PROGRESS, TICKET_STATUS.IN_REVIEW, TICKET_STATUS.RESOLVED],
-    archived: TICKET_ARCHIVE_FILTER.EXCLUDE,
-  })
-  return tickets.map((ticket) => ({
-    id: ticket.id,
-    key: ticket.key,
-    projectId: ticket.projectId,
-    title: ticket.title,
-    severity: ticket.severity,
-    category: ticket.category,
-    timestamp: ticket.timestamp,
-    externalTicketId: ticket.externalTicketId,
-    ticketSystem: ticket.ticketSystem,
-    autoFixStatus: ticket.autoFixStatus,
-    status: ticket.status,
-    workflowPhase: ticket.workflowPhase,
-    situation: ticket.situation,
-  }))
 }
 
 export async function getTicketDetails(id: string): Promise<Ticket | null> {
@@ -98,10 +48,6 @@ export async function getClankerBySlug(slug: string): Promise<Clanker | null> {
 
 export async function getDeploymentStrategiesList(): Promise<DeploymentStrategy[]> {
   return await apiGetDeploymentStrategies()
-}
-
-export async function getTicketStats(projectSlug?: string): Promise<TicketStats> {
-  return await apiGetTicketStats({ projectSlug })
 }
 
 // Job functions

@@ -40,6 +40,7 @@ import { TaskTurnService } from "../../services/taskTurns/TaskTurnService";
 import { TaskActivityRecorder } from "../../services/tasks/TaskActivityRecorder";
 import { SpaceAccessService } from "../../services/spaces/SpaceAccessService";
 import { taskChangeGuard } from "../middleware/taskChangeGuards";
+import { TaskChangePolicyService } from "../../services/tasks/TaskChangePolicyService";
 
 const router = express.Router();
 const ticketService = new TicketDAO();
@@ -139,6 +140,7 @@ registerTaskReadRoutes(router, {
   participantDAO: new TaskParticipantDAO(),
   situations: new TaskSituationService(),
   policy: new TaskAskPolicyService(),
+  changes: new TaskChangePolicyService(),
   reads: new TaskReadDAO(),
 });
 

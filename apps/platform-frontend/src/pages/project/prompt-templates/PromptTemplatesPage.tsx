@@ -171,13 +171,13 @@ export function PromptTemplatesPage() {
 
   return (
     <>
-      <PageMeta title={projectSlug ? `${projectSlug} | Prompt Templates` : 'Prompt Templates'} />
+      <PageMeta title={projectSlug ? `${projectSlug} | Agent instructions` : 'Agent instructions'} />
 
       <div className="flex items-end justify-between">
         <div>
-          <Heading>Prompt Templates</Heading>
+          <Heading>Agent instructions</Heading>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Customize how prompts are built for each run type. Leave unchanged to use system defaults.
+            What the agent is told in this space for each kind of work. Leave unchanged to use the workspace&apos;s defaults.
           </p>
         </div>
       </div>

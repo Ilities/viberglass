@@ -1,7 +1,5 @@
 import { Button } from '@/components/button'
-import { Link } from '@/components/link'
 import { Timestamp } from '@/components/timestamp'
-import { useAuth } from '@/context/auth-context'
 import { usePersonName } from '@/hooks/usePeople'
 import { getTaskTimeline } from '@/service/api/discussion-api'
 import { markTaskRead } from '@/service/api/home-api'
@@ -22,7 +20,7 @@ const ARTIFACT_STEP: Record<TaskArtifactKind, 'research' | 'planning'> = { resea
 
 interface TaskThreadProps {
   taskId: string
-  /** The space's slug, for links into live sessions. */
+  /** The space's slug, for links to the agent's runs. */
   project: string
   /** Changes whenever the task's runs, sessions or documents do, so the thread follows them. */
   refreshKey: string
@@ -31,28 +29,23 @@ interface TaskThreadProps {
   agents: Mentionable[]
   /** What the suggested actions are worked out from; the latest turn comes from the thread. */
   suggestionInput: Omit<TaskSuggestionInput, 'latestTurn'>
-  /** Whether the person may ask the agent, from the task's capabilities. */
+  /** Whether the person may post and ask the agent, from the task's capabilities. Viewers do neither. */
+  canPost: boolean
   canAsk: boolean
+  /** What needs answering before anything else: the agent's open question, or why its last run failed. Shown above the composer. */
+  question?: React.ReactNode
   /** Agents that can run, any of which can be brought in when it isn't on the task yet. */
   runnableAgents: BringableAgent[]
   /** The page reloads after an ask, to show the agent working. */
   onAsked: () => void
 }
 
-function MessageEntry({ entry, project }: { entry: Extract<TaskTimelineEntry, { kind: 'message' }>; project: string }) {
+function MessageEntry({ entry }: { entry: Extract<TaskTimelineEntry, { kind: 'message' }> }) {
   return (
     <li>
       <p className="text-xs text-[var(--gray-10)]">
         <span className="font-medium text-[var(--gray-11)]">{entry.author?.name ?? 'Someone'}</span>
-        {entry.channel === 'session' && entry.sessionId && (
-          <>
-            {' '}
-            to the agent, in the{' '}
-            <Link href={`/spaces/${project}/sessions/${entry.sessionId}`} className="underline">
-              live session
-            </Link>
-          </>
-        )}{' '}
+        {entry.channel === 'session' && ' to the agent'}{' '}
         · <Timestamp date={entry.at} />
       </p>
       <MessageBody body={entry.body} />
@@ -96,15 +89,15 @@ export function TaskThread({
   onOpenArtifact,
   agents,
   suggestionInput,
+  canPost,
   canAsk,
+  question,
   runnableAgents,
   onAsked,
 }: TaskThreadProps) {
-  const { user } = useAuth()
   const personName = usePersonName()
   const [entries, setEntries] = useState<TaskTimelineEntry[] | null>(null)
   const [messagesOnly, setMessagesOnly] = useState(false)
-  const canWrite = Boolean(user && user.role !== 'viewer')
 
   const load = useCallback(() => {
     getTaskTimeline(taskId)
@@ -117,9 +110,9 @@ export function TaskThread({
   // Seeing the thread reads it, again whenever something new shows up while it's open. Viewers are read-only on the server.
   const seen = entries ? entries.map((entry) => (entry.kind === 'agent_turn' ? `${entry.id}:${entry.status}` : entry.id)).join(',') : null
   useEffect(() => {
-    if (seen === null || !canWrite) return
+    if (seen === null || !canPost) return
     markTaskRead(taskId).catch(() => undefined)
-  }, [seen, canWrite, taskId])
+  }, [seen, canPost, taskId])
 
   if (!entries) return null
   const shown = messagesOnly ? entries.filter((entry) => entry.kind !== 'event') : entries
@@ -153,7 +146,7 @@ export function TaskThread({
         <ol className="space-y-4">
           {shown.map((entry) =>
             entry.kind === 'message' ? (
-              <MessageEntry key={entry.id} entry={entry} project={project} />
+              <MessageEntry key={entry.id} entry={entry} />
             ) : entry.kind === 'agent_turn' ? (
               <AgentTurnEntry key={entry.id} entry={entry} project={project} summaryVersion={summaries.versionByTurn.get(entry.id)} />
             ) : entry.kind === 'summary' ? (
@@ -167,8 +160,9 @@ export function TaskThread({
         </ol>
       )}
 
+      {question}
       {canAsk && <TaskSuggestedActions taskId={taskId} suggestions={suggestions} agentWorking={agentWorking} onAsked={posted} />}
-      {canWrite && <TaskComposer taskId={taskId} agents={canAsk ? agents : []} onPosted={posted} />}
+      {canPost && <TaskComposer taskId={taskId} agents={canAsk ? agents : []} onPosted={posted} />}
       {canAsk && !agentWorking && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} />}
     </section>
   )

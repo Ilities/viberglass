@@ -6,7 +6,7 @@ import {
 } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
-test("a session opens with what the person wrote, which reaches the agent", async ({
+test("a session opens with what the person wrote, which reaches the agent and shows in the task's thread", async ({
   adminApi,
   adminPage: page,
   workspace,
@@ -24,13 +24,8 @@ test("a session opens with what the person wrote, which reaches the agent", asyn
   await expect.poll(() => researchDocument(adminApi, task.id), { timeout: 90_000 }).toContain(opening);
   await expect.poll(() => sessionStatus(adminApi, sessionId), { timeout: 10_000 }).toBe("waiting_on_user");
 
-  // The page is titled with the task and opens with the person's message;
-  // the full prompt is there on request, not as the first thing to read.
-  await page.goto(`/spaces/${workspace.projectSlug}/sessions/${sessionId}`);
+  // There's no separate session page: the person's message is in the task's thread.
+  await page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
   await expect(page.getByRole("heading", { name: task.title })).toBeVisible();
-  await expect(page.getByText(opening, { exact: true })).toBeVisible();
-  const fullPrompt = page.getByText(/You're working on a task in Viberglass/);
-  await expect(fullPrompt).toBeHidden();
-  await page.getByText("View full prompt").click();
-  await expect(fullPrompt).toBeVisible();
+  await expect(page.getByRole("region", { name: "Thread" }).getByText(opening)).toBeVisible();
 });

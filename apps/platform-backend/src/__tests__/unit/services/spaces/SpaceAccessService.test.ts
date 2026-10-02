@@ -58,6 +58,26 @@ describe("SpaceAccessService", () => {
     await expect(access.assertCanMaintain(member, SPACE_ID)).rejects.toMatchObject({ statusCode: 403 });
   });
 
+  it("describes what each role may do in a space, for the UI to hide the rest", async () => {
+    await expect(service({ isPrivate: false, membership: "member" }).access.describe(member, SPACE_ID)).resolves.toEqual({
+      membership: "member",
+      canMaintain: false,
+      canCreateTasks: true,
+      canSeeRuns: true,
+    });
+    await expect(service({ isPrivate: false, membership: "maintainer" }).access.describe({ id: "g", role: "guest" }, SPACE_ID)).resolves.toEqual({
+      membership: "maintainer",
+      canMaintain: true,
+      canCreateTasks: false,
+      canSeeRuns: false,
+    });
+    await expect(service({ isPrivate: false, membership: null }).access.describe({ id: "v", role: "viewer" }, SPACE_ID)).resolves.toMatchObject({
+      canMaintain: false,
+      canCreateTasks: false,
+      canSeeRuns: false,
+    });
+  });
+
   it("limits lists for everyone but admins, and to joined spaces for guests", async () => {
     const { access, members } = service({ isPrivate: false, membership: null });
 

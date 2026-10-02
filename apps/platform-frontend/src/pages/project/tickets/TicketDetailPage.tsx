@@ -1,20 +1,11 @@
 import { Button } from '@/components/button'
 import { EmptyState } from '@/components/empty-state'
 import { Breadcrumbs } from '@/components/breadcrumbs'
-import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import { Heading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
 import { ProjectReadinessBanner } from '@/components/project-readiness'
-import { deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
-import {
-  CheckCircledIcon,
-  ChevronDownIcon,
-  ClipboardIcon,
-  EyeOpenIcon,
-  Pencil1Icon,
-  ResetIcon,
-  TrashIcon,
-} from '@radix-ui/react-icons'
+import { useProject } from '@/context/project-context'
+import { archiveTickets, deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
 import { TICKET_STATUS } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -22,9 +13,11 @@ import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
 import { SituationLine } from './situation-line'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
+import { TaskPendingRequest } from './pending-request-card'
 import { decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
-import { TaskNextMoveBanner } from './task-next-move-banner'
-import { TaskSidebar } from './task-sidebar'
+import { TaskActionsMenu } from './task-actions-menu'
+import { TaskFacts } from './task-facts'
+import { TaskFailureNotice } from './task-failure-notice'
 import { TaskStepView, type StepView } from './task-step-view'
 import { TaskStepper } from './task-stepper'
 import { workingSession, useTaskPage } from './use-task-page'
@@ -58,8 +51,10 @@ function Description({ text }: { text: string }) {
   )
 }
 
+/** A task: its thread, with the artifact being made beside it on wide screens. */
 export function TicketDetailPage() {
   const { project, id } = useParams<{ project: string; id: string }>()
+  const { project: space } = useProject()
   const navigate = useNavigate()
   const { data, isLoading, reload, setTicket, setDocument } = useTaskPage(id)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -76,7 +71,7 @@ export function TicketDetailPage() {
     []
   )
 
-  // A link to a run (including one a banner action just started) opens it; if it's new, load it.
+  // A link to a run opens it; if it's new, load it.
   const linkedRunMissing = Boolean(linkedRunId && data && !data.runs.some((run) => run.jobId === linkedRunId))
   useEffect(() => {
     if (linkedRunId) setOpenRunId(linkedRunId)
@@ -85,14 +80,15 @@ export function TicketDetailPage() {
     if (linkedRunMissing) changed()
   }, [linkedRunMissing, changed])
 
-  const setStatus = useCallback(
-    async (status: (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS], message: string) => {
+  const setDone = useCallback(
+    async (done: boolean) => {
       if (!data) return
       try {
-        const updated =
-          status === TICKET_STATUS.RESOLVED ? await updateTicket(data.ticket.id, { status }) : await setTicketStatus(data.ticket.id, status)
+        const updated = done
+          ? await updateTicket(data.ticket.id, { status: TICKET_STATUS.RESOLVED })
+          : await setTicketStatus(data.ticket.id, TICKET_STATUS.OPEN)
         setTicket(updated)
-        toast.success(message)
+        toast.success(done ? 'Task marked as done' : 'Task reopened')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to update the task')
       }
@@ -118,7 +114,7 @@ export function TicketDetailPage() {
     )
   }
 
-  const { ticket } = data
+  const { ticket, capabilities } = data
   const currentStep = ticket.workflowPhase
   const move = decideTaskNextMove({
     ticket,
@@ -139,10 +135,6 @@ export function TicketDetailPage() {
   const showStep = (step: TaskStep) => setSearchParams(step === currentStep ? {} : { step })
   const showView = (view: StepView) =>
     setSearchParams({ ...(shownStep === currentStep ? {} : { step: shownStep }), ...(view === 'document' ? {} : { view }) })
-  const openRun = (runId: string) => {
-    setOpenRunId(runId)
-    setSearchParams({ run: runId, view: 'runs' })
-  }
   const toggleRun = (runId: string) => setOpenRunId((open) => (open === runId ? null : runId))
   // The thread reloads when anything it shows may have changed.
   const threadRefreshKey = [
@@ -153,101 +145,63 @@ export function TicketDetailPage() {
     ticket.updatedAt,
   ].join('|')
 
+  const archive = async () => {
+    try {
+      await archiveTickets([ticket.id])
+      toast.success('Task archived')
+      navigate(`/spaces/${project}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to archive the task')
+    }
+  }
+
   return (
     <>
       <PageMeta title={`${ticket.title} | Task`} />
       <div className="flex h-full flex-col gap-6">
-        <Breadcrumbs
-          items={[
-            { label: project, href: `/spaces/${project}` },
-            { label: 'Tasks', href: `/spaces/${project}/tasks` },
-            { label: ticket.title },
-          ]}
-        />
-        <ProjectReadinessBanner projectId={ticket.projectId} showDemoNotice={false} />
+        <Breadcrumbs items={[{ label: space?.name ?? project, href: `/spaces/${project}` }, { label: ticket.key }]} />
+        {space?.viewerAccess?.canMaintain && <ProjectReadinessBanner projectId={ticket.projectId} showDemoNotice={false} />}
 
-        <div className="grid min-h-0 flex-1 gap-10 lg:grid-cols-[minmax(0,1fr)_17rem]">
-          <main className="min-w-0 space-y-7">
-            <header className="space-y-3">
-              <div className="flex items-start justify-between gap-6">
-                <div className="min-w-0 space-y-1">
-                  <Heading className="text-2xl leading-tight">{ticket.title}</Heading>
-                  {ticket.situation && <SituationLine situation={ticket.situation} />}
-                </div>
-                <Dropdown>
-                  <DropdownButton outline className="shrink-0">
-                    Actions
-                    <ChevronDownIcon data-slot="icon" />
-                  </DropdownButton>
-                  <DropdownMenu>
-                    <DropdownItem onClick={() => setIsEditDialogOpen(true)}>
-                      <Pencil1Icon className="size-4" />
-                      Edit details
-                    </DropdownItem>
-                    {ticket.screenshot && (
-                      <DropdownItem href={`/spaces/${project}/tasks/${ticket.id}/media`}>
-                        <EyeOpenIcon className="size-4" />
-                        View screenshots
-                      </DropdownItem>
-                    )}
-                    <DropdownItem
-                      onClick={() => {
-                        void navigator.clipboard.writeText(ticket.id)
-                        toast.success('Task ID copied')
-                      }}
-                    >
-                      <ClipboardIcon className="size-4" />
-                      Copy task ID
-                    </DropdownItem>
-                    <DropdownDivider />
-                    {ticket.status === TICKET_STATUS.RESOLVED ? (
-                      <DropdownItem onClick={() => void setStatus(TICKET_STATUS.OPEN, 'Task reopened')}>
-                        <ResetIcon className="size-4" />
-                        Reopen
-                      </DropdownItem>
-                    ) : (
-                      <DropdownItem onClick={() => void setStatus(TICKET_STATUS.RESOLVED, 'Task marked as done')}>
-                        <CheckCircledIcon className="size-4" />
-                        Mark as done
-                      </DropdownItem>
-                    )}
-                    <DropdownItem onClick={() => setIsDeleteDialogOpen(true)} className="text-red-600">
-                      <TrashIcon className="size-4" />
-                      Delete task
-                    </DropdownItem>
-                  </DropdownMenu>
-                </Dropdown>
-              </div>
-              {ticket.description && <Description text={ticket.description} />}
-            </header>
+        <header className="space-y-3">
+          <div className="flex items-start justify-between gap-6">
+            <div className="min-w-0 space-y-1">
+              <Heading className="text-2xl leading-tight">{ticket.title}</Heading>
+              {ticket.situation && <SituationLine situation={ticket.situation} />}
+            </div>
+            <TaskActionsMenu
+              ticket={ticket}
+              space={project}
+              capabilities={capabilities}
+              onEdit={() => setIsEditDialogOpen(true)}
+              onSetDone={(done) => void setDone(done)}
+              onArchive={() => void archive()}
+              onDelete={() => setIsDeleteDialogOpen(true)}
+            />
+          </div>
+          {ticket.description && <Description text={ticket.description} />}
+        </header>
 
-            <TaskNextMoveBanner
-              move={move}
+        <div className="grid min-h-0 flex-1 gap-10 xl:grid-cols-2">
+          <section aria-label="Artifact" className="min-w-0 space-y-6 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto">
+            <TaskStepper currentStep={currentStep} move={move} shownStep={shownStep} onShowStep={showStep} />
+            <TaskStepView
+              step={shownStep}
+              view={shownView}
+              onView={showView}
               data={data}
               project={project}
-              onChanged={changed}
-              onResolve={() => setStatus(TICKET_STATUS.RESOLVED, 'Task marked as done')}
-              onShowRun={openRun}
+              move={move}
+              openRunId={openRunId}
+              focusedRunId={linkedRunId}
+              focusedRunTab={searchParams.get('runTab')}
+              onToggleRun={toggleRun}
+              onDocumentSaved={setDocument}
+              onNewComments={countNewComments}
             />
+          </section>
 
-            <section className="space-y-6">
-              <TaskStepper currentStep={currentStep} move={move} shownStep={shownStep} onShowStep={showStep} />
-              <TaskStepView
-                step={shownStep}
-                view={shownView}
-                onView={showView}
-                data={data}
-                project={project}
-                move={move}
-                openRunId={openRunId}
-                focusedRunId={linkedRunId}
-                focusedRunTab={searchParams.get('runTab')}
-                onToggleRun={toggleRun}
-                onDocumentSaved={setDocument}
-                onNewComments={countNewComments}
-              />
-            </section>
-
+          <div className="min-w-0 space-y-8 xl:order-first">
+            <TaskFacts ticket={ticket} />
             <TaskThread
               taskId={ticket.id}
               project={project}
@@ -257,20 +211,25 @@ export function TicketDetailPage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               agents={taskAgents(data.clankers, data.sessions)}
-              canAsk={Boolean(data.capabilities?.canAsk)}
+              canPost={Boolean(capabilities?.canPost)}
+              canAsk={Boolean(capabilities?.canAsk)}
+              question={
+                <>
+                  <TaskFailureNotice move={move} project={project} />
+                  {capabilities?.canPost && <TaskPendingRequest sessions={data.sessions} onResolved={changed} />}
+                </>
+              }
               runnableAgents={runnableAgents(data.clankers)}
               onAsked={changed}
               suggestionInput={{
                 ticket,
                 documents: data.documents,
-                capabilities: data.capabilities,
+                capabilities,
                 newComments: { ...data.newComments, ...liveNewComments },
                 agentWorking: move.kind === 'working',
               }}
             />
-          </main>
-
-          <TaskSidebar data={data} project={project} openRunId={openRunId} onOpenRun={openRun} />
+          </div>
         </div>
       </div>
 
@@ -296,7 +255,7 @@ export function TicketDetailPage() {
           try {
             await deleteTicket(ticket.id)
             toast.success('Task deleted')
-            navigate(`/spaces/${project}/tasks`)
+            navigate(`/spaces/${project}`)
           } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to delete task')
           }

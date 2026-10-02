@@ -14,8 +14,7 @@ export function filterThreads(threads: HomeThread[], filter: HomeFilter): HomeTh
 }
 
 /** "Tomi: does the warehouse template have room…", the thread's last word. */
-export function lastMessageLine(thread: HomeThread): string | null {
-  const message = thread.lastMessage
+export function lastMessageLine(message: HomeThread['lastMessage'] | undefined): string | null {
   if (!message) return null
   return message.author ? `${message.author.name}: ${message.text}` : message.text
 }

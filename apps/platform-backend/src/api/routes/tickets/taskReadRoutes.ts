@@ -9,6 +9,7 @@ import { isDomainError } from "../../../services/errors/DomainError";
 import type { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
 import { situationTaskOf, type TaskSituationService } from "../../../services/tasks/TaskSituationService";
 import type { TaskAskPolicyService } from "../../../services/taskTurns/TaskAskPolicyService";
+import type { TaskChangePolicyService } from "../../../services/tasks/TaskChangePolicyService";
 import { spaceViewerOf } from "../../middleware/spaceAccessGuards";
 import { validateUuidParam } from "../../middleware/validation";
 import {
@@ -26,7 +27,8 @@ interface TaskReadRouteDependencies {
   participantDAO: Pick<TaskParticipantDAO, "listOwners">;
   situations: Pick<TaskSituationService, "describe">;
   policy: Pick<TaskAskPolicyService, "describe">;
-  reads: Pick<TaskReadDAO, "markRead">;
+  changes: Pick<TaskChangePolicyService, "describe">;
+  reads: Pick<TaskReadDAO, "markRead" | "unreadCounts">;
 }
 
 const situationViewerOf = (req: Request): SituationViewer => ({
@@ -36,13 +38,14 @@ const situationViewerOf = (req: Request): SituationViewer => ({
 
 /**
  * Reading tasks: the list, one task, and marking a task's thread read. Each
- * task comes with its situation for the person asking; one task also says what
- * they may ask the agent for. Registered after the routes with fixed paths
- * (`/stats`), so `/:id` doesn't shadow them.
+ * task comes with its situation for the person asking, and in a list its last
+ * message and unread count; one task also says what they may do on it.
+ * Registered after the routes with fixed paths (`/stats`), so `/:id` doesn't
+ * shadow them.
  */
 export function registerTaskReadRoutes(
   router: Router,
-  { ticketService, agentSessionDAO, spaceAccess, participantDAO, situations, policy, reads }: TaskReadRouteDependencies,
+  { ticketService, agentSessionDAO, spaceAccess, participantDAO, situations, policy, changes, reads }: TaskReadRouteDependencies,
 ): void {
   // GET /api/tasks - Tasks in the spaces the person can see
   router.get("/", async (req, res, next) => {
@@ -114,10 +117,12 @@ export function registerTaskReadRoutes(
       });
 
       const ticketIds = tickets.map((ticket) => ticket.id);
-      const [liveSessions, owners, described] = await Promise.all([
+      const viewer = situationViewerOf(req);
+      const [liveSessions, owners, described, unread] = await Promise.all([
         agentSessionDAO.listOpenSessionIdsByTicket(ticketIds),
         participantDAO.listOwners(ticketIds),
-        situations.describe(tickets.map(situationTaskOf), situationViewerOf(req)),
+        situations.describe(tickets.map(situationTaskOf), viewer),
+        reads.unreadCounts(viewer.id, ticketIds),
       ]);
 
       res.json({
@@ -125,8 +130,14 @@ export function registerTaskReadRoutes(
         data: tickets.map((ticket) => {
           const liveSessionId = liveSessions.get(ticket.id);
           const owner = owners.get(ticket.id);
-          const situation = described.get(ticket.id)?.situation;
-          return { ...ticket, ...(liveSessionId && { liveSessionId }), ...(owner && { owner }), ...(situation && { situation }) };
+          const facts = described.get(ticket.id);
+          return {
+            ...ticket,
+            ...(liveSessionId && { liveSessionId }),
+            ...(owner && { owner }),
+            ...(facts && { situation: facts.situation, lastMessage: facts.lastMessage }),
+            unread: unread.get(ticket.id) ?? 0,
+          };
         }),
         pagination: {
           limit,
@@ -148,18 +159,20 @@ export function registerTaskReadRoutes(
   });
 
 
-  // GET /api/tasks/:id - One task, with its situation and what the person may ask for
+  // GET /api/tasks/:id - One task, with its situation and what the person may do on it
   router.get("/:id", validateUuidParam("id"), async (req, res, next) => {
     try {
       const ticket = await ticketService.getTicket(req.params.id);
       if (!ticket) {
         return res.status(404).json({ error: "Ticket not found" });
       }
-      const [described, capabilities] = await Promise.all([
+      const user = req.authContext!.user;
+      const [described, asking, changing] = await Promise.all([
         situations.describe([situationTaskOf(ticket)], situationViewerOf(req)),
-        policy.describe(req.authContext!.user.id, ticket.id),
+        policy.describe(user.id, ticket.id),
+        changes.describe({ id: user.id, role: user.role }, ticket.id),
       ]);
-      res.json({ success: true, data: { ...ticket, situation: described.get(ticket.id)?.situation, capabilities } });
+      res.json({ success: true, data: { ...ticket, situation: described.get(ticket.id)?.situation, capabilities: { ...asking, ...changing } } });
     } catch (error) {
       next(error);
     }

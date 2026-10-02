@@ -4,8 +4,7 @@ import { Field, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Textarea } from '@/components/textarea'
-import { TICKET_STATUS, type Severity, type Ticket, type TicketLifecycleStatus } from '@viberglass/types'
-import { TICKET_STATUS_LABEL } from './ticket-display'
+import type { Severity, Ticket } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 
 export interface EditTicketValues {
@@ -13,20 +12,10 @@ export interface EditTicketValues {
   description: string
   severity: Severity
   category: string
-  status: TicketLifecycleStatus
 }
 
 function isSeverity(value: string): value is Severity {
   return value === 'low' || value === 'medium' || value === 'high' || value === 'critical'
-}
-
-function isTicketStatus(value: string): value is TicketLifecycleStatus {
-  return (
-    value === TICKET_STATUS.OPEN ||
-    value === TICKET_STATUS.IN_PROGRESS ||
-    value === TICKET_STATUS.IN_REVIEW ||
-    value === TICKET_STATUS.RESOLVED
-  )
 }
 
 interface EditTicketDialogProps {
@@ -41,7 +30,6 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
   const [description, setDescription] = useState(ticket.description)
   const [severity, setSeverity] = useState<Severity>(ticket.severity)
   const [category, setCategory] = useState(ticket.category)
-  const [status, setStatus] = useState<TicketLifecycleStatus>(ticket.status)
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
@@ -53,7 +41,6 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
     setDescription(ticket.description)
     setSeverity(ticket.severity)
     setCategory(ticket.category)
-    setStatus(ticket.status)
   }, [open, ticket])
 
   const handleSave = async () => {
@@ -64,7 +51,6 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
         description,
         severity,
         category,
-        status,
       })
     } finally {
       setIsSaving(false)
@@ -112,22 +98,6 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
             </Field>
           </div>
 
-          <Field>
-            <Label>Status</Label>
-            <Select
-              value={status}
-              onChange={(value) => {
-                if (isTicketStatus(value)) {
-                  setStatus(value)
-                }
-              }}
-            >
-              <option value={TICKET_STATUS.OPEN}>{TICKET_STATUS_LABEL[TICKET_STATUS.OPEN]}</option>
-              <option value={TICKET_STATUS.IN_PROGRESS}>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_PROGRESS]}</option>
-              <option value={TICKET_STATUS.IN_REVIEW}>{TICKET_STATUS_LABEL[TICKET_STATUS.IN_REVIEW]}</option>
-              <option value={TICKET_STATUS.RESOLVED}>{TICKET_STATUS_LABEL[TICKET_STATUS.RESOLVED]}</option>
-            </Select>
-          </Field>
         </div>
       </DialogBody>
 

@@ -2,36 +2,6 @@ import type { ClankerStatus, DeploymentStrategy } from '@viberglass/types'
 
 // Ticket formatting utilities
 
-export function formatSeverity(severity: string): { label: string; color: string; barColor: string; badgeColor: 'red' | 'orange' | 'yellow' | 'green' | 'zinc' } {
-  switch (severity) {
-    case 'critical':
-      return { label: 'Critical', color: 'bg-red-100 text-red-800', barColor: 'bg-red-500', badgeColor: 'red' }
-    case 'high':
-      return { label: 'High', color: 'bg-orange-100 text-orange-800', barColor: 'bg-orange-500', badgeColor: 'orange' }
-    case 'medium':
-      return { label: 'Medium', color: 'bg-yellow-100 text-yellow-800', barColor: 'bg-yellow-500', badgeColor: 'yellow' }
-    case 'low':
-      return { label: 'Low', color: 'bg-green-100 text-green-800', barColor: 'bg-green-500', badgeColor: 'green' }
-    default:
-      return { label: 'Unknown', color: 'bg-gray-100 text-gray-800', barColor: 'bg-gray-500', badgeColor: 'zinc' }
-  }
-}
-
-export function formatAutoFixStatus(status?: string): { label: string; color: string } {
-  switch (status) {
-    case 'completed':
-      return { label: 'Fixed', color: 'bg-green-100 text-green-800' }
-    case 'in_progress':
-      return { label: 'Fixing', color: 'bg-amber-100 text-amber-800' }
-    case 'pending':
-      return { label: 'Pending', color: 'bg-amber-100 text-amber-800' }
-    case 'failed':
-      return { label: 'Failed', color: 'bg-red-100 text-red-800' }
-    default:
-      return { label: 'Not Requested', color: 'bg-gray-100 text-gray-800' }
-  }
-}
-
 export function formatTicketSystem(system: string): string {
   const systems: Record<string, string> = {
     github: 'GitHub',
@@ -109,9 +79,9 @@ export function formatJobKind(kind: string): string {
     case 'research':
       return 'Research'
     case 'execution':
-      return 'Execution'
+      return 'Code'
     case 'planning':
-      return 'Planning'
+      return 'Plan'
     case 'reply':
       return 'Reply'
     case 'claw':

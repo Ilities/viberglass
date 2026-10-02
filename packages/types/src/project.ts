@@ -3,6 +3,7 @@
  */
 
 import { TicketOrigin, TicketSystem } from './common'
+import type { SpaceCapabilities } from './spaceAccess'
 
 // Worker settings that can be configured at project level
 export interface ProjectWorkerSettings {
@@ -107,7 +108,7 @@ export interface Project {
   /** Added as reviewers to every new task; the plan waits on them. */
   defaultReviewerIds: string[]
   /** The caller's place in the space; set when one space is fetched. */
-  viewerAccess?: { membership: 'maintainer' | 'member' | null; canMaintain: boolean }
+  viewerAccess?: SpaceCapabilities
   createdAt: string
   updatedAt: string
 }

@@ -11,12 +11,13 @@ const integration = (system: Integration["system"]): Integration => ({
   updatedAt: "2026-09-30T10:00:00Z",
 });
 
-function service(options: { users: number; invites: number; integrations: Integration[] }) {
+function service(options: { users: number; invites: number; integrations: Integration[]; slackToken?: boolean }) {
   return new SetupNextStepsService({
     users: { listUsers: jest.fn().mockResolvedValue(Array.from({ length: options.users }, (_, i) => ({ id: `u-${i}` }))) },
     invites: { listOpen: jest.fn().mockResolvedValue(Array.from({ length: options.invites }, (_, i) => ({ id: `i-${i}` }))) },
     integrations: { listIntegrations: jest.fn().mockResolvedValue(options.integrations) },
     isTicketingSystem: (system) => system === "jira",
+    slack: { isConfigured: () => Boolean(options.slackToken) },
   });
 }
 
@@ -37,5 +38,11 @@ describe("SetupNextStepsService", () => {
 
   it("counts an accepted invite, once the invitee has an account", async () => {
     await expect(service({ users: 2, invites: 0, integrations: [] }).getNextSteps()).resolves.toMatchObject({ teamInvited: true });
+  });
+
+  it("counts Slack set up by its bot token, as the personal Slack link does", async () => {
+    await expect(service({ users: 1, invites: 0, integrations: [], slackToken: true }).getNextSteps()).resolves.toMatchObject({
+      slackConnected: true,
+    });
   });
 });

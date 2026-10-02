@@ -3,12 +3,14 @@ import { IntegrationDAO } from "../../persistence/integrations/IntegrationDAO";
 import { InviteDAO } from "../../persistence/user/InviteDAO";
 import { UserDAO } from "../../persistence/user/UserDAO";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
+import { SlackWebApi } from "../notifications/SlackWebApi";
 
 interface Dependencies {
   users: Pick<UserDAO, "listUsers">;
   invites: Pick<InviteDAO, "listOpen">;
   integrations: Pick<IntegrationDAO, "listIntegrations">;
   isTicketingSystem: (system: TicketSystem) => boolean;
+  slack: Pick<SlackWebApi, "isConfigured">;
 }
 
 const defaults = (): Dependencies => ({
@@ -16,6 +18,7 @@ const defaults = (): Dependencies => ({
   invites: new InviteDAO(),
   integrations: new IntegrationDAO(),
   isTicketingSystem: (system) => integrationRegistry.get(system)?.category === "ticketing",
+  slack: new SlackWebApi(),
 });
 
 /** What's left after setup (invite the team, connect Slack, connect a tracker). */
@@ -34,7 +37,9 @@ export class SetupNextStepsService {
     ]);
     return {
       teamInvited: users.length > 1 || invites.length > 0,
-      slackConnected: integrations.some((integration: Integration) => integration.system === "slack"),
+      // Slack can be set up by its bot token in the environment, with no connection saved.
+      slackConnected:
+        this.deps.slack.isConfigured() || integrations.some((integration: Integration) => integration.system === "slack"),
       trackerConnected: integrations.some((integration: Integration) => this.deps.isTicketingSystem(integration.system)),
     };
   }

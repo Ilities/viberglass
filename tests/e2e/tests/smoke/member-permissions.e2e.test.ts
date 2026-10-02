@@ -30,7 +30,7 @@ test("workspace plumbing sits under Settings → Advanced, for admins only", asy
   await expect(memberPage.getByRole("link", { name: "Home", exact: true })).toBeVisible();
   await expect(memberPage.getByRole("link", { name: "Overview", exact: true })).toBeVisible();
   await memberPage.getByRole("link", { name: "Settings", exact: true }).click();
-  await expect(memberPage).toHaveURL(/\/settings\/api-tokens$/);
+  await expect(memberPage).toHaveURL(/\/settings\/notifications$/);
   for (const label of plumbing) {
     await expect(memberPage.getByRole("link", { name: label, exact: true })).toHaveCount(0);
   }

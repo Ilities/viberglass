@@ -4,7 +4,7 @@ import type { JobFailure, Ticket, TicketWorkflowPhase } from '@viberglass/types'
 
 export type TaskStep = TicketWorkflowPhase
 
-/** What happens next on a task, and whose move it is. One per task, shown at the top of its page. */
+/** Where a task's artifacts stand, from its runs: what the artifact bar and the failure notice show. */
 export type TaskNextMove =
   | { kind: 'start'; step: TaskStep }
   | { kind: 'working'; step: TaskStep; runId: string | null; sessionId: string | null }
@@ -61,7 +61,7 @@ export function decideTaskNextMove({ ticket, runs, documents, workingSession }: 
 }
 
 export const TASK_STEPS: TaskStep[] = ['research', 'planning', 'execution']
-export const STEP_NAME: Record<TaskStep, string> = { research: 'Research', planning: 'Plan', execution: 'Build' }
+export const STEP_NAME: Record<TaskStep, string> = { research: 'Research', planning: 'Plan', execution: 'Code' }
 
 export type StepPosition = 'done' | 'current' | 'upcoming'
 

@@ -1,6 +1,6 @@
 # Handover: the task as a conversation (build plan)
 
-Status: **plan, 2026-10-01** · Decisions: [ADR 0008](../adr/0008-tasks-are-conversations.md) (accepted by Jussi the same day, including "who may ask for code") · Product design: [`returning-visit-redesign.md`](./returning-visit-redesign.md) and [`information-architecture.md`](./information-architecture.md) · How to work on the repo: [`next-steps-handover.md`](./next-steps-handover.md) §2 and [`phase-2-3-handover.md`](./phase-2-3-handover.md) §4.
+Status: **S1–S7 done, 2026-10-02; next is S8 (§5)** · Decisions: [ADR 0008](../adr/0008-tasks-are-conversations.md) (accepted by Jussi the same day, including "who may ask for code") · Product design: [`returning-visit-redesign.md`](./returning-visit-redesign.md) and [`information-architecture.md`](./information-architecture.md) · How to work on the repo: [`next-steps-handover.md`](./next-steps-handover.md) §2 and [`phase-2-3-handover.md`](./phase-2-3-handover.md) §4.
 
 This is how to build ADR 0008 on the code as it is. It replaces the build order in the redesign's §9 with slices that each ship on their own, behind green unit tests and smoke journeys (run one suite at a time, `jest --maxWorkers=2`).
 
@@ -405,16 +405,43 @@ Planned:
 | Slack keeps the old keyword flow until S8 | Fine for the interim: it calls the same services, and keywords map onto actions |
 | Oversized files | Split as touched (AGENTS.md §6). Start with `workflowPhaseRoutes.ts` and the session services, which S2 rewrites anyway |
 
-## 5. Next step: S7
+## 5. Next step: S8 (start here in a new session)
 
-S1–S6 are done. S7 (pages and navigation) is next, then S8 (Phase 3 on the thread).
+S1–S7 are done (2026-10-02). S8 is next.
 
-**Where S4 left the hooks:**
-- **S5:** `PullRequestOutcomeSweeper` should set the task `resolved`. `taskSituation` already reads that as done; S5 adds "Done · merged by …", which needs the merger in the situation input.
-- **S6:** a summarise turn's `SUMMARY.md` has no artifact kind yet (`TaskSituationArtifact`, `TaskArtifactKind`).
-- **S7:** the space page can list its tasks grouped by `situation.state` straight from `GET /api/tasks`, which already includes it.
+### 5.1 State of the repository
+- **Committed** up to S6 (`41b49ff`). **Not committed:** S7, below. Check `git status` first; Jussi commits, agents don't.
+- **Verified after S7:** backend unit 1078, frontend 233, lint and type checks clean, smoke 44/44.
 
-**Before running agents in the dev stack:**
-- Rebuild the worker images, so the opencode image runs the new worker. Today's dev image sends `documentContent`, which the result callback now rejects. See next-steps-handover §2.1.
-- Rebuild the frontend image (`docker compose build frontend && docker compose up -d frontend`) whenever `packages/types` changes. The image bakes in its build of the types (`dist/`).
-- Migrations up to 087 run on startup when the dev backend restarts (RUN_MIGRATIONS_ON_STARTUP).
+### 5.2 How to work here
+- **Rules:** `.agents/AGENTS.md`: files ≤350 lines (split what you touch), no `as` casts beyond `as const`, comments never refer to design documents, ADRs, slices or plan labels.
+- **Tests:** one suite at a time, never in parallel: `npx jest --maxWorkers=2` in a package (backend: `--testPathPattern=unit`). Smoke: `npm run test:e2e` from the root (about 5 minutes). Rebuild the fake worker image after changing `apps/viberator`, `packages/agent-core` or `packages/agents/*`.
+- **Dev stack:** the frontend container bakes `packages/types/dist`; after changing `packages/types`, `npm run build -w @viberglass/types`, then `docker compose build frontend && docker compose up -d frontend`.
+
+### 5.3 What S7 built
+- **Permissions:** `SpaceCapabilities` (`viewerAccess` on one space: `canMaintain`, `canCreateTasks`, `canSeeRuns`); a task's `capabilities` add `canPost`, `canEdit`, `canDelete`. Task lists carry each task's `lastMessage` and `unread`.
+- **Sidebar** (`layouts/app-sidebar.tsx`): the same everywhere; the current space expands in place to Runs, Schedules (admins and members) and Settings; avatar menu with Notifications, API tokens, theme and sign out; one accent colour (`ProjectTheme` removed); the space switcher stays in the mobile top bar only.
+- **Space page** (`pages/project/space/`): tasks grouped by situation (Needs you first, Done folded), board or table, search and State · Artifact · Owner · Waiting on filters (severity under More filters), load more, Archived as a link, archiving for maintainers. `ProjectHomePage`, `TicketsPage` and the board and table went; `/spaces/:project/tasks` is gone.
+- **Task page:** no banner or History column; thread on the left and the artifact (Research · Plan · Code) on the right on wide screens; Details and People above the thread. The session page is gone: the agent's open question is answered above the composer, a failed run says why there (with the fix link for admins), and a running turn has Cancel run for admins and members. Actions show only what the person may do (Edit, Mark as done or Reopen, Archive, Delete); the edit dialog no longer sets the status.
+- **Settings:** workspace settings open on Members for admins and Notifications for everyone else; admin pages redirect non-admins. Space settings read as "About this space" for non-maintainers, with Connections and Agent instructions hidden. Runs, Schedules and Create task redirect guests and viewers to the space.
+- **Wording:** "Awaiting review" and the status labels are gone; run kinds read Research · Plan · Code.
+- **Also fixed:** Home's checklist said "Connect Slack" when Slack was set up by its bot token in the environment; it now counts that, as the personal Slack link does.
+- **Tests:** sidebar the same inside and outside a space (`ApplicationLayout.test.tsx`); space page, space settings and Actions menu by role; smoke `role-aware-actions` (a viewer and a guest see no action they can't take). Smoke specs that used the session page, the banner or the Tasks page now go through the task page.
+
+### 5.4 Open ends from earlier slices
+- **S3:** "Build it opens a PR" isn't covered end to end, and won't be (Jussi, 2026-10-02): tests must not depend on live GitHub, and mocking it isn't cheap. The worker's `GitService` hardcodes `api.github.com` and parses only github.com URLs, and the git fixture is read-only.
+- **S3:** people can add themselves as watchers, which lets any member or in-space guest ask for code. Decided (Jussi, 2026-10-02): that's intended; watchers may ask for code.
+- **S4:**
+  - "Mark done" on a mention doesn't exist; only replying answers one.
+  - Adding a reviewer sends the Slack review request but opens no mention.
+- **S5:** a merge closes its task within about an hour (sweeper recheck). A GitHub webhook would make it immediate.
+- **S6:**
+  - Codex compacts only through `compact_prompt` in its config, which isn't set.
+  - The summary threshold is global (`TASK_SUMMARY_CONTEXT_RATIO`, `TASK_SUMMARY_CONTEXT_TOKENS`).
+- **Webhooks:** the GitHub, Jira and Shortcut webhook processors still submit one-shot builds outside any session.
+
+### 5.5 S8
+See §3, S8:
+- `ask_human` as a mention of the person asked; open questions already make it their move (`agent_pending_requests` → situation `question`).
+- The Slack thread mirrors the task thread through `TaskTurnService`, replacing `threadMention`'s keyword resolver and the two polling bridges.
+- Then steering, take over and hand back, failure recovery, and runs that can be cancelled safely.

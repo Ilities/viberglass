@@ -1,5 +1,10 @@
+import { CancelRunButton } from '@/components/cancel-run-button'
 import { Link } from '@/components/link'
 import { Timestamp } from '@/components/timestamp'
+import { useAuth } from '@/context/auth-context'
+import { isRunner } from '@/lib/roles'
+import { cancelJob } from '@/service/api/job-api'
+import { toast } from 'sonner'
 import type { TaskTimelineEntry, TaskTurnAction } from '@viberglass/types'
 import { useState } from 'react'
 
@@ -34,12 +39,30 @@ function joinNames(names: string[]): string {
   return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
+/** Stops a running turn; the page picks up the cancelled run when it next refreshes. */
+function CancelTurn({ jobId }: { jobId: string }) {
+  const [isCancelling, setIsCancelling] = useState(false)
+  const cancel = async () => {
+    setIsCancelling(true)
+    try {
+      await cancelJob(jobId)
+      toast.success('Run cancelled')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel run')
+      setIsCancelling(false)
+    }
+  }
+  return <CancelRunButton label="Cancel run" isCancelling={isCancelling} onConfirm={() => void cancel()} />
+}
+
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
 export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: AgentTurn; project: string; summaryVersion?: number }) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
-  const runLink = entry.jobId ? `/spaces/${project}/runs/${entry.jobId}` : null
+  const { user } = useAuth()
+  // A run's page is an engineers' view; guests and viewers see the turn in the thread only.
+  const runLink = entry.jobId && isRunner(user?.role) ? `/spaces/${project}/runs/${entry.jobId}` : null
   // The intent is shown on its own, so the reply starts after it.
   const rest = outcome?.reply.trim().split('\n').slice(outcome.intent ? 1 : 0).join('\n').trim() ?? ''
   const restLines = rest.split('\n')
@@ -55,14 +78,18 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
         {session && ` · ${session}`}
       </p>
       {working && (
-        <p className="text-sm text-[var(--gray-11)]">
-          Working on it…{' '}
-          {runLink && (
-            <Link href={runLink} className="underline">
-              Watch
-            </Link>
-          )}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-[var(--gray-11)]">
+            Working on it…{' '}
+            {runLink && (
+              <Link href={runLink} className="underline">
+                Watch
+              </Link>
+            )}
+          </p>
+          {/* Cancelling is for those who run agents, as on the server. */}
+          {runLink && entry.jobId && <CancelTurn jobId={entry.jobId} />}
+        </div>
       )}
       {entry.status === 'failed' && (
         <p className="text-sm text-red-700">
@@ -96,13 +123,6 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
       {outcome?.codeDiscarded && (
         <p className="text-xs text-[var(--gray-10)]">
           It changed code, but nobody asked it to build this time, so the changes weren&apos;t kept. Ask it to build it to keep them.
-        </p>
-      )}
-      {!working && (
-        <p className="text-xs">
-          <Link href={`/spaces/${project}/sessions/${entry.sessionId}`} className="text-[var(--gray-10)] underline">
-            Open the session
-          </Link>
         </p>
       )}
     </li>

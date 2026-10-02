@@ -8,7 +8,7 @@ jest.mock('@/context/auth-context', () => ({ useAuth: jest.fn() }))
 
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
 
-function renderAs(role: 'admin' | 'member', path: string) {
+function renderAs(role: 'admin' | 'member' | 'guest', path: string) {
   mockedUseAuth.mockReturnValue({
     user: { id: 'u1', email: 'a@example.com', name: 'A', role },
     status: 'authenticated',
@@ -22,6 +22,7 @@ function renderAs(role: 'admin' | 'member', path: string) {
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route element={<WorkspaceSettingsLayout />}>
+            <Route path="/settings" element={<div>Settings home</div>} />
             <Route path="*" element={<div>Page</div>} />
           </Route>
         </Routes>
@@ -47,5 +48,18 @@ describe('WorkspaceSettingsLayout', () => {
     expect(screen.getByRole('link', { name: 'API tokens' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Advanced' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Secrets' })).not.toBeInTheDocument()
+  })
+
+  it('sends members away from admin pages instead of opening them to fail', () => {
+    renderAs('member', '/settings/secrets')
+
+    expect(screen.getByText('Settings home')).toBeInTheDocument()
+  })
+
+  it('gives guests notifications only', () => {
+    renderAs('guest', '/settings/notifications')
+
+    expect(screen.getByRole('link', { name: 'Notifications' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'API tokens' })).not.toBeInTheDocument()
   })
 })

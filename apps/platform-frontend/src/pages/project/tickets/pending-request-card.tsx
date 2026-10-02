@@ -1,18 +1,44 @@
 import { Button } from '@/components/button'
 import { Textarea } from '@/components/textarea'
-import { approveSession, replyToSession, type AgentPendingRequest, type ParticipantInfo } from '@/service/api/session-api'
+import { approveSession, getSessionDetail, replyToSession, type AgentPendingRequest, type AgentSession } from '@/service/api/session-api'
 import { ChatBubbleIcon, CheckCircledIcon, CrossCircledIcon } from '@radix-ui/react-icons'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 interface PendingRequestCardProps {
   sessionId: string
   pendingRequest: AgentPendingRequest
   onResolved: () => void
-  presentUsers?: ParticipantInfo[]
 }
 
-export function PendingRequestCard({ sessionId, pendingRequest, onResolved, presentUsers }: PendingRequestCardProps) {
+const WAITING = ['waiting_on_user', 'waiting_on_approval']
+
+/** The agent's open question or approval request on this task, if it has one, to answer here. */
+export function TaskPendingRequest({ sessions, onResolved }: { sessions: AgentSession[]; onResolved: () => void }) {
+  const waiting = sessions.find((session) => WAITING.includes(session.status))
+  const waitingId = waiting?.id
+  const waitingSince = waiting?.updatedAt
+  const [request, setRequest] = useState<AgentPendingRequest | null>(null)
+
+  useEffect(() => {
+    if (!waitingId) {
+      setRequest(null)
+      return
+    }
+    let current = true
+    getSessionDetail(waitingId)
+      .then((detail) => current && setRequest(detail.pendingRequest?.status === 'open' ? detail.pendingRequest : null))
+      .catch(() => current && setRequest(null))
+    return () => {
+      current = false
+    }
+  }, [waitingId, waitingSince])
+
+  if (!waiting || !request) return null
+  return <PendingRequestCard sessionId={waiting.id} pendingRequest={request} onResolved={onResolved} />
+}
+
+export function PendingRequestCard({ sessionId, pendingRequest, onResolved }: PendingRequestCardProps) {
   const [replyText, setReplyText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [resolvedByOther, setResolvedByOther] = useState(false)
@@ -58,7 +84,6 @@ export function PendingRequestCard({ sessionId, pendingRequest, onResolved, pres
   }
 
   const isInput = pendingRequest.requestType === 'input'
-  const otherViewers = (presentUsers ?? []).length > 1
 
   if (resolvedByOther) {
     return (
@@ -73,16 +98,9 @@ export function PendingRequestCard({ sessionId, pendingRequest, onResolved, pres
 
   return (
     <div className="rounded-xl border-2 border-[var(--accent-7)] bg-[var(--accent-2)] p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--accent-11)]">
-          <ChatBubbleIcon className="h-4 w-4" />
-          {isInput ? 'Agent needs your input' : 'Agent needs your approval'}
-        </div>
-        {otherViewers && (
-          <span className="text-[10px] text-[var(--gray-8)]">
-            {(presentUsers?.length ?? 0) - 1} other{((presentUsers?.length ?? 0) - 1) !== 1 ? 's' : ''} viewing
-          </span>
-        )}
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--accent-11)]">
+        <ChatBubbleIcon className="h-4 w-4" />
+        {isInput ? 'The agent asks' : 'The agent asks for approval'}
       </div>
 
       {pendingRequest.promptMarkdown && (
