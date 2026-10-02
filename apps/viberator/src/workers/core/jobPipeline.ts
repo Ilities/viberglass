@@ -117,7 +117,7 @@ export interface JobSetupResult {
   repoDir: string;
   checkoutBaseBranch: string;
   mergedSettings: MergedSettings;
-  /** Execution runs only: the branch the run commits to, checked out if it already existed. */
+  /** Task turns only: the branch the turn commits to, checked out if it already existed. */
   taskBranch?: TaskBranch;
 }
 
@@ -182,8 +182,7 @@ export async function setupJob(
   // A turn on a task that already has a branch starts from it, so the agent
   // works on top of the earlier builds, and of what people pushed there, and
   // a build's pull request gains commits.
-  const taskBranch =
-    data.jobKind === "execution" || params.agentSessionId ? await prepareTaskBranch(params, repoDir) : undefined;
+  const taskBranch = params.taskBranch ? await prepareTaskBranch(params, params.taskBranch, repoDir) : undefined;
 
   // The exact commit the run starts from, captured before instruction files
   // are written and before the agent touches anything. "base branch was main"

@@ -365,18 +365,15 @@ export interface WebhookProviderConfigsTable {
   id: Generated<string>;
   project_id: string | null;
   provider: "github" | "jira" | "shortcut" | "custom";
-  direction: Generated<"inbound" | "outbound">;
   provider_project_id: string | null;
   integration_id: string | null;
   secret_location: "database" | "ssm" | "env";
   secret_path: string | null;
   webhook_secret_encrypted: string | null;
-  api_token_encrypted: string | null;
   allowed_events: Generated<string[]>;
   auto_execute: Generated<boolean>;
   bot_username: string | null;
   label_mappings: Generated<JsonObject>;
-  outbound_target_config: JsonObject | null;
   active: Generated<boolean>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;

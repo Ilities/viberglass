@@ -2,7 +2,6 @@ import { randomBytes } from "crypto";
 import db from "../persistence/config/database";
 import { JobData, JobResult, JobStatus } from "../types/Job";
 import { createChildLogger } from "../config/logger";
-import type { FeedbackService } from "../webhooks/FeedbackService";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
 import { TicketLifecycleStatusService } from "./TicketLifecycleStatusService";
 import {
@@ -34,13 +33,11 @@ export interface SubmitJobOptions {
 }
 
 export class JobService {
-  private feedbackService?: FeedbackService;
   private ticketDAO: TicketDAO;
   private lifecycleStatusService: TicketLifecycleStatusService;
   private readonly activity = new TaskActivityRecorder();
 
-  constructor(feedbackService?: FeedbackService) {
-    this.feedbackService = feedbackService;
+  constructor() {
     this.ticketDAO = new TicketDAO();
     this.lifecycleStatusService = new TicketLifecycleStatusService();
   }
@@ -201,61 +198,6 @@ export class JobService {
 
       if (job?.ticket_id) {
         await this.synchronizeTicketStatus(job.ticket_id);
-      }
-
-      if (this.feedbackService && job?.ticket_id) {
-        if (status === "active") {
-          // Emit job-started outbound event asynchronously.
-          this.feedbackService
-            .postJobStarted({
-              id: job.id,
-              ticketId: job.ticket_id,
-              status: "active",
-              repository: job.repository || undefined,
-            })
-            .catch((error) => {
-              logger.error(
-                `Failed to post job-started event for job ${jobId} to outbound webhook`,
-                {
-                  error: error instanceof Error ? error.message : String(error),
-                  jobId,
-                  ticketId: job.ticket_id,
-                },
-              );
-            });
-        }
-
-        if (status === "completed" || status === "failed") {
-          // Emit job-ended outbound event asynchronously.
-          const outboundResult: JobResult = updates.result ?? {
-            success: status === "completed",
-            changedFiles: [],
-            executionTime: 0,
-            errorMessage: updates.errorMessage,
-          };
-
-          this.feedbackService
-            .postJobEnded(
-              {
-                id: job.id,
-                ticketId: job.ticket_id,
-                status,
-                result: outboundResult,
-                repository: job.repository || undefined,
-              },
-              outboundResult,
-            )
-            .catch((error) => {
-              logger.error(
-                `Failed to post job-ended event for job ${jobId} to outbound webhook`,
-                {
-                  error: error instanceof Error ? error.message : String(error),
-                  jobId,
-                  ticketId: job.ticket_id,
-                },
-              );
-            });
-        }
       }
     }
   }

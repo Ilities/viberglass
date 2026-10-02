@@ -57,12 +57,18 @@ export class TaskAskPolicyService {
   /**
    * Refuses with a reason the UI and Slack show as is. A null person is the
    * system, or Slack with no linked account: it may ask for anything but code,
-   * which has to be credited to someone.
+   * which has to be credited to someone. A webhook may ask for code too: the
+   * admin who set it to build on its own agreed to that.
    */
-  async assertCanAsk(userId: string | null, ticketId: string, action: TaskTurnAction): Promise<void> {
+  async assertCanAsk(
+    userId: string | null,
+    ticketId: string,
+    action: TaskTurnAction,
+    options: { fromWebhook?: boolean } = {},
+  ): Promise<void> {
     const wantsCode = action === "code";
     if (!userId) {
-      if (!wantsCode) return;
+      if (!wantsCode || options.fromWebhook) return;
       throw new TaskAskPolicyError(
         TASK_ASK_POLICY_ERROR_CODE.NO_PERSON,
         "Asking the agent to build needs a signed-in person, so it can be credited to them.",

@@ -13,7 +13,6 @@ import {
 import type { DeliveryListResult, RetryInboundDeliveryResult } from "./types";
 import {
   getInboundConfigForIntegrationOrThrow,
-  getOutboundConfigForIntegrationOrThrow,
 } from "./integrationWebhookOrchestratorUtils";
 
 interface DeliveryOrchestratorDeps {
@@ -46,26 +45,18 @@ export class WebhookDeliveryOrchestrator {
     };
   }
 
-  private async listDeliveries(
-    direction: "inbound" | "outbound",
+  async listInboundWebhookDeliveries(
     integrationId: string,
     configId: string,
     query: ParsedQs | { [key: string]: unknown },
   ): Promise<DeliveryListResult> {
     const integration =
       await this.deps.contextResolver.getIntegrationOrThrow(integrationId);
-    const config =
-      direction === "inbound"
-        ? await getInboundConfigForIntegrationOrThrow(
-            this.deps.webhookConfigDAO,
-            integration.id,
-            configId,
-          )
-        : await getOutboundConfigForIntegrationOrThrow(
-            this.deps.webhookConfigDAO,
-            integration.id,
-            configId,
-          );
+    const config = await getInboundConfigForIntegrationOrThrow(
+      this.deps.webhookConfigDAO,
+      integration.id,
+      configId,
+    );
     const statusFilter = parseDeliveryStatuses(query);
     if (statusFilter.invalidValues.length > 0) {
       throw new IntegrationRouteServiceError(
@@ -85,22 +76,6 @@ export class WebhookDeliveryOrchestrator {
       });
 
     return this.toDeliveryListResult(deliveries, limit, offset);
-  }
-
-  async listOutboundWebhookDeliveries(
-    integrationId: string,
-    configId: string,
-    query: ParsedQs | { [key: string]: unknown },
-  ): Promise<DeliveryListResult> {
-    return this.listDeliveries("outbound", integrationId, configId, query);
-  }
-
-  async listInboundWebhookDeliveries(
-    integrationId: string,
-    configId: string,
-    query: ParsedQs | { [key: string]: unknown },
-  ): Promise<DeliveryListResult> {
-    return this.listDeliveries("inbound", integrationId, configId, query);
   }
 
   async retryInboundWebhookDelivery(

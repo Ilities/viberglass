@@ -2,7 +2,6 @@ import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ComponentProps, ReactElement } from 'react'
 import { GitHubInboundWebhookSection } from './GitHubInboundWebhookSection'
-import { GitHubOutboundWebhookSection } from '@viberglass/integration-github/frontend'
 
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>)
@@ -47,20 +46,6 @@ function createInboundProps(
     onSelectInboundWebhook: jest.fn(),
     onToggleInboundEvent: jest.fn(),
     onToggleSecretVisibility: jest.fn(),
-    ...overrides,
-  }
-}
-
-function createOutboundProps(
-  overrides: Partial<ComponentProps<typeof GitHubOutboundWebhookSection>> = {}
-): ComponentProps<typeof GitHubOutboundWebhookSection> {
-  return {
-    isSavingWebhook: false,
-    outboundApiToken: '',
-    outboundWebhook: { hasApiToken: false, providerProjectId: 'acme/repo' },
-    providerProjectMapping: 'acme/repo',
-    onOutboundApiTokenChange: jest.fn(),
-    onSaveOutboundWebhook: jest.fn(),
     ...overrides,
   }
 }
@@ -184,22 +169,5 @@ describe('GitHub webhook sections', () => {
     fireEvent.change(requiredLabelsInput, { target: { value: 'autofix, AI-FIX' } })
 
     expect(onGitHubRequiredLabelsChange).toHaveBeenLastCalledWith(['autofix', 'ai-fix'])
-  })
-
-  it('renders always-on outbound feedback copy without delete controls', () => {
-    renderWithTheme(<GitHubOutboundWebhookSection {...createOutboundProps()} />)
-
-    expect(screen.getByRole('heading', { name: 'GitHub Feedback' })).toBeInTheDocument()
-    expect(screen.getByText('Always-on feedback events')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save feedback settings' })).toBeEnabled()
-    expect(screen.queryByRole('button', { name: /remove outbound webhook/i })).toBeNull()
-  })
-
-  it("enables feedback without a second token: it posts with the connection's own", () => {
-    renderWithTheme(<GitHubOutboundWebhookSection {...createOutboundProps({ outboundWebhook: null })} />)
-
-    expect(screen.queryByLabelText(/api token/i)).toBeNull()
-    expect(screen.getByText(/default GitHub token/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Enable feedback' })).toBeEnabled()
   })
 })

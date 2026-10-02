@@ -210,7 +210,6 @@ function toProviderConfig(dbConfig: WebhookConfig): WebhookProviderConfig {
     algorithm: "sha256",
     allowedEvents: dbConfig.allowedEvents,
     webhookSecret: dbConfig.webhookSecretEncrypted || undefined,
-    apiToken: dbConfig.apiTokenEncrypted || undefined,
     providerProjectId: dbConfig.providerProjectId || undefined,
   };
 }

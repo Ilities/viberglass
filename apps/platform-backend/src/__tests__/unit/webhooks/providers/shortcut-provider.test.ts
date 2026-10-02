@@ -1,11 +1,8 @@
 import crypto from 'crypto';
-import axios from 'axios';
 import {
   ShortcutWebhookProvider,
   createShortcutWebhookProviderDependencies,
 } from '../../../../webhooks/providers/ShortcutWebhookProvider';
-
-jest.mock('axios');
 
 describe('ShortcutWebhookProvider', () => {
   let provider: ShortcutWebhookProvider;
@@ -18,7 +15,6 @@ describe('ShortcutWebhookProvider', () => {
       algorithm: 'sha256',
       allowedEvents: ['story_created', 'comment_created'],
       webhookSecret: 'secret',
-      apiToken: 'token',
       providerProjectId: '22',
     }, createShortcutWebhookProviderDependencies());
   });
@@ -334,59 +330,5 @@ describe('ShortcutWebhookProvider', () => {
 
     expect(provider.verifySignature(rawBody, signature, secret)).toBe(true);
     expect(provider.verifySignature(rawBody, signature, 'wrong-secret')).toBe(false);
-  });
-
-  it('posts result comment, updates labels, and applies workflow state when configured', async () => {
-    provider = new ShortcutWebhookProvider({
-      type: 'shortcut',
-      secretLocation: 'database',
-      algorithm: 'sha256',
-      allowedEvents: ['job_ended'],
-      apiToken: 'token',
-      providerProjectId: '22',
-      labelMappings: {
-        shortcut: {
-          successLabel: 'autofix-submitted',
-          failureLabel: 'autofix-failed',
-          successWorkflowStateId: 5001,
-        },
-      },
-    }, createShortcutWebhookProviderDependencies());
-
-    const client = {
-      post: jest.fn().mockResolvedValue({}),
-      get: jest.fn().mockResolvedValue({
-        data: {
-          labels: [{ name: 'triage' }, { name: 'Autofix-Failed' }],
-        },
-      }),
-      put: jest.fn().mockResolvedValue({}),
-    };
-    (axios.create as jest.Mock).mockReturnValue(client);
-
-    await provider.postResult('101', {
-      success: true,
-      action: 'comment',
-      targetId: '101',
-      details: 'done',
-    });
-
-    expect(client.post).toHaveBeenCalledWith(
-      '/comments',
-      expect.objectContaining({ story_id: 101 }),
-    );
-    expect(client.put).toHaveBeenCalledWith(
-      '/stories/101',
-      expect.objectContaining({
-        labels: expect.arrayContaining([
-          expect.objectContaining({ name: 'triage' }),
-          expect.objectContaining({ name: 'autofix-submitted' }),
-        ]),
-      }),
-    );
-    expect(client.put).toHaveBeenCalledWith(
-      '/stories/101',
-      expect.objectContaining({ workflow_state_id: 5001 }),
-    );
   });
 });

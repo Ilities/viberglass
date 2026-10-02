@@ -118,6 +118,10 @@ describe("TaskAskPolicyService", () => {
     await expect(service().assertCanAsk(null, TASK_ID, "code")).rejects.toMatchObject({ code: "ASK_NO_PERSON" });
   });
 
+  it("lets a webhook set to build on its own ask for code", async () => {
+    await expect(service().assertCanAsk(null, TASK_ID, "code", { fromWebhook: true })).resolves.toBeUndefined();
+  });
+
   it("refuses someone who can no longer see the space, or who was deactivated", async () => {
     await expect(service({ canSee: false }).assertCanAsk("tomi", TASK_ID, "code")).rejects.toMatchObject({ code: "ASK_NOT_ALLOWED" });
     await expect(service({ deactivated: true }).assertCanAsk("tomi", TASK_ID, "reply")).rejects.toMatchObject({ code: "ASK_NOT_ALLOWED" });

@@ -1,4 +1,4 @@
-import type { ParsedWebhookEvent, WebhookResult } from '../../WebhookProvider';
+import type { ParsedWebhookEvent } from '../../WebhookProvider';
 
 export type ShortcutWebhookObjectType = 'story' | 'comment';
 
@@ -60,24 +60,6 @@ export interface ShortcutWebhookPayload {
   changedFields?: string[];
 }
 
-export interface ShortcutOutboundSettings {
-  successLabel: string;
-  failureLabel: string;
-  skipLabelUpdates: boolean;
-  successWorkflowStateId?: number;
-  failureWorkflowStateId?: number;
-}
-
-export interface ShortcutStory {
-  id: number;
-  name: string;
-  description?: string;
-  story_type: string;
-  state: string;
-  labels: string[];
-  url: string;
-}
-
 export interface ParsedShortcutEvent {
   eventType: string;
   deduplicationId: string;
@@ -85,17 +67,3 @@ export interface ParsedShortcutEvent {
   metadata: ParsedWebhookEvent['metadata'];
   payload: ShortcutWebhookPayload;
 }
-
-export interface ShortcutLabelResultConfig {
-  success: string;
-  failure: string;
-}
-
-export interface ShortcutPostResultInput {
-  storyId: string;
-  result: WebhookResult;
-}
-
-export const DEFAULT_SUCCESS_LABEL = 'fix-submitted';
-export const DEFAULT_FAILURE_LABEL = 'fix-failed';
-export const DEFAULT_SHORTCUT_API_BASE_URL = 'https://api.app.shortcut.com/api/v3';

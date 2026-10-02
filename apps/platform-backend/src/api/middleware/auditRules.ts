@@ -22,7 +22,7 @@ export const RUNNER_AUDIT: AuditRule[] = [
   { method: "DELETE", path: "/:id/config-files/:fileType", action: "runner.updated", targetType: "runner", targetParam: "id", details: (req) => ({ removedFile: req.params.fileType }) },
 ];
 
-const webhook = (direction: "inbound" | "outbound") => (): Record<string, unknown> => ({ direction });
+const webhook = (direction: "inbound") => (): Record<string, unknown> => ({ direction });
 
 export const CONNECTION_AUDIT: AuditRule[] = [
   { method: "POST", path: "/", action: "connection.created", targetType: "connection", details: (req) => ({ system: bodyField(req, "system") }) },
@@ -34,9 +34,6 @@ export const CONNECTION_AUDIT: AuditRule[] = [
   { method: "POST", path: "/:id/webhooks/inbound", action: "connection.webhook_changed", targetType: "connection", targetParam: "id", details: webhook("inbound") },
   { method: "PUT", path: "/:id/webhooks/inbound/:configId", action: "connection.webhook_changed", targetType: "connection", targetParam: "id", details: webhook("inbound") },
   { method: "DELETE", path: "/:id/webhooks/inbound/:configId", action: "connection.webhook_changed", targetType: "connection", targetParam: "id", details: webhook("inbound") },
-  { method: "POST", path: "/:id/webhooks/outbound", action: "connection.webhook_changed", targetType: "connection", targetParam: "id", details: webhook("outbound") },
-  { method: "PUT", path: "/:id/webhooks/outbound/:configId", action: "connection.webhook_changed", targetType: "connection", targetParam: "id", details: webhook("outbound") },
-  { method: "DELETE", path: "/:id/webhooks/outbound/:configId", action: "connection.webhook_changed", targetType: "connection", targetParam: "id", details: webhook("outbound") },
   { method: "POST", path: "/space/:projectId/link", action: "connection.linked", targetType: "connection", details: (req) => ({ spaceId: req.params.projectId, connectionId: bodyField(req, "integrationId") }) },
   { method: "DELETE", path: "/space/:projectId/link/:integrationId", action: "connection.unlinked", targetType: "connection", targetParam: "integrationId", details: (req) => ({ spaceId: req.params.projectId }) },
   { method: "PUT", path: "/space/:projectId/primary/:integrationId", action: "connection.made_primary", targetType: "connection", targetParam: "integrationId", details: (req) => ({ spaceId: req.params.projectId }) },

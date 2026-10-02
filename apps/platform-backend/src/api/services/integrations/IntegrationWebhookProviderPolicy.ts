@@ -4,7 +4,6 @@ export interface IntegrationWebhookProviderPolicy {
   readonly provider: WebhookProvider;
 
   getProviderLabel(): string;
-  shouldRequireAlwaysOnOutboundEvents(): boolean;
   shouldUseIntegrationProviderProjectIdFallback(): boolean;
   validateProviderProjectId(providerProjectId: string | null): void;
   normalizeInboundLabelMappings(

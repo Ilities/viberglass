@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps, ReactElement } from 'react'
 import { JiraInboundWebhookSection } from './JiraInboundWebhookSection'
-import { JiraOutboundWebhookSection } from './JiraOutboundWebhookSection'
 
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>)
@@ -44,29 +43,6 @@ function createInboundProps(
     onSelectInboundWebhook: jest.fn(),
     onToggleInboundEvent: jest.fn(),
     onToggleSecretVisibility: jest.fn(),
-    ...overrides,
-  }
-}
-
-function createOutboundProps(
-  overrides: Partial<ComponentProps<typeof JiraOutboundWebhookSection>> = {}
-): ComponentProps<typeof JiraOutboundWebhookSection> {
-  return {
-    isSavingWebhook: false,
-    outboundApiToken: '',
-    outboundWebhook: {
-      id: 'outbound-1',
-      provider: 'jira',
-      events: ['job_started', 'job_ended'],
-      active: true,
-      hasApiToken: true,
-      providerProjectId: 'OPS',
-      createdAt: '2026-02-10T00:00:00.000Z',
-      updatedAt: '2026-02-10T00:00:00.000Z',
-    },
-    projectMapping: 'OPS',
-    onOutboundApiTokenChange: jest.fn(),
-    onSaveOutboundWebhook: jest.fn(),
     ...overrides,
   }
 }
@@ -176,50 +152,5 @@ describe('Jira webhook sections', () => {
     const commentToggle = screen.getByRole('checkbox', { name: /Comment created/ })
     await user.click(commentToggle)
     expect(onToggleInboundEvent).toHaveBeenCalledWith('comment_created', true)
-  })
-
-  it('renders outbound always-on feedback copy', () => {
-    renderWithTheme(
-      <JiraOutboundWebhookSection
-        {...createOutboundProps({
-          projectMapping: null,
-        })}
-      />
-    )
-
-    expect(screen.getByRole('heading', { name: 'Jira Feedback' })).toBeInTheDocument()
-    expect(screen.getByText('Always-on feedback events')).toBeInTheDocument()
-    expect(screen.getByText(/Save an inbound Jira project key/i)).toBeInTheDocument()
-  })
-
-  it('requires token to enable outbound feedback when no config exists', () => {
-    renderWithTheme(
-      <JiraOutboundWebhookSection
-        {...createOutboundProps({
-          outboundWebhook: null,
-          outboundApiToken: '',
-        })}
-      />
-    )
-
-    expect(screen.getByRole('button', { name: 'Enable feedback' })).toBeDisabled()
-  })
-
-  it('allows outbound save when config exists', async () => {
-    const user = userEvent.setup()
-    const onSaveOutboundWebhook = jest.fn()
-
-    renderWithTheme(
-      <JiraOutboundWebhookSection
-        {...createOutboundProps({
-          onSaveOutboundWebhook,
-        })}
-      />
-    )
-
-    const saveButton = screen.getByRole('button', { name: 'Save feedback settings' })
-    expect(saveButton).toBeEnabled()
-    await user.click(saveButton)
-    expect(onSaveOutboundWebhook).toHaveBeenCalledTimes(1)
   })
 })
