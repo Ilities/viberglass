@@ -9,16 +9,21 @@ import { getClankersList, formatClankerStatus, formatDeploymentStrategy } from '
 import type { Clanker } from '@/data'
 import { PlusIcon } from '@radix-ui/react-icons'
 import { Link } from '@/components/link'
+import { listAllSecrets, type Secret } from '@/service/api/secret-api'
+import { getAgentLabel } from '@viberglass/types'
 import { useEffect, useState } from 'react'
+import { summarizeRunner } from './config/runnerSummary'
 
 export function ClankersPage() {
   const [clankers, setClankers] = useState<Clanker[]>([])
+  const [secrets, setSecrets] = useState<Secret[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
-      const data = await getClankersList()
+      const [data, allSecrets] = await Promise.all([getClankersList(), listAllSecrets().catch(() => [])])
       setClankers(data)
+      setSecrets(allSecrets)
       setIsLoading(false)
     }
     loadData()
@@ -65,6 +70,7 @@ export function ClankersPage() {
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {clankers.map((clanker, index) => {
             const statusInfo = formatClankerStatus(clanker.status)
+            const summary = summarizeRunner(clanker, secrets)
             return (
               <Link
                 key={clanker.id}
@@ -79,9 +85,21 @@ export function ClankersPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <h3 className="text-[15px] font-semibold leading-5 text-zinc-950 dark:text-white">{clanker.name}</h3>
-                    <p className="mt-0.5 text-sm leading-5 text-zinc-500 dark:text-zinc-400">
-                      {clanker.description || 'No description'}
+                    <p className="mt-0.5 text-sm leading-5 text-zinc-700 dark:text-zinc-300">
+                      {clanker.agent ? getAgentLabel(clanker.agent) : 'No agent'}
+                      {summary.usesChatGptLogin
+                        ? ' · ChatGPT login'
+                        : summary.providerLabel && ` · ${summary.providerLabel}`}
                     </p>
+                    {summary.problem ? (
+                      <p className="mt-0.5 text-xs leading-4 text-amber-700 dark:text-amber-400">No usable model key</p>
+                    ) : (
+                      summary.model && (
+                        <p className="mt-0.5 truncate font-mono text-xs leading-4 text-zinc-500 dark:text-zinc-400">
+                          {summary.model}
+                        </p>
+                      )
+                    )}
                   </div>
                 </div>
 

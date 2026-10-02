@@ -78,9 +78,18 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
     }
   }
 
+  if (selectedAgent === 'kimi-code') {
+    const endpoint = input.form.kimiEndpoint.trim()
+    const model = input.form.kimiModel.trim()
+    return {
+      type: 'kimi-code',
+      ...(endpoint ? { endpoint } : {}),
+      ...(model ? { model } : {}),
+    }
+  }
+
   const fallback =
     selectedAgent === 'claude-code' ||
-    selectedAgent === 'kimi-code' ||
     selectedAgent === 'mistral-vibe' ||
     selectedAgent === 'pi'
       ? selectedAgent
@@ -96,6 +105,7 @@ const FORM_AGENT_FIELDS: Partial<Record<AgentType, string[]>> = {
   'qwen-cli': ['endpoint'],
   opencode: ['endpoint', 'model'],
   antigravity: ['model'],
+  'kimi-code': ['endpoint', 'model'],
 }
 
 /** Keeps the stored agent's settings the form doesn't show, such as a Kimi endpoint and model set by setup. */

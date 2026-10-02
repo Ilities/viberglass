@@ -150,7 +150,7 @@ describe('buildClankerDeploymentConfig', () => {
     const kimiConfig = {
       version: 1,
       strategy: { type: 'docker', provisioningMode: 'prebuilt' },
-      agent: { type: 'kimi-code', endpoint: 'https://api.moonshot.ai/v1', model: 'kimi-k3' },
+      agent: { type: 'kimi-code', endpoint: 'https://api.moonshot.ai/v1', model: 'kimi-k3', temperature: 0.2 },
       runtime: { settings: { runTests: true } },
     }
 
@@ -158,11 +158,16 @@ describe('buildClankerDeploymentConfig', () => {
       const result = buildClankerDeploymentConfig({
         strategyName: 'docker',
         selectedAgent: 'kimi-code',
-        form: DEFAULT_CLANKER_CONFIG_FORM_STATE,
+        form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, kimiEndpoint: 'https://api.moonshot.ai/v1', kimiModel: 'kimi-k3' },
         existing: kimiConfig,
       })
 
-      expect(result.agent).toEqual({ type: 'kimi-code', endpoint: 'https://api.moonshot.ai/v1', model: 'kimi-k3' })
+      expect(result.agent).toEqual({
+        type: 'kimi-code',
+        endpoint: 'https://api.moonshot.ai/v1',
+        model: 'kimi-k3',
+        temperature: 0.2,
+      })
       expect(result.runtime).toEqual({ settings: { runTests: true } })
     })
 

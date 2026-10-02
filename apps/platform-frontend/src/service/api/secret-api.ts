@@ -2,6 +2,7 @@ import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import type {
   ApiResponse,
+  ModelProviderId,
   CreateSecretRequest,
   PaginatedResponse,
   Secret,
@@ -42,6 +43,20 @@ export async function getSecret(id: string): Promise<Secret> {
   }
   const data: ApiResponse<Secret> = await response.json()
   return data.data
+}
+
+/** Checks a model key with its provider without storing it; throws with the provider's reason. */
+export async function checkModelKey(provider: ModelProviderId, key: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/secrets/model-key-check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, key }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || "Couldn't check the key")
+  }
 }
 
 export async function createSecret(request: CreateSecretRequest): Promise<Secret> {

@@ -2,7 +2,7 @@ import { Input } from '@/components/input'
 import { MultiSelect } from '@/components/multi-select'
 import type { Secret } from '@/service/api/secret-api'
 import type { AgentType, SecretBinding } from '@viberglass/types'
-import { applySecretSelection, buildSecretPickerOptions } from './agentSecrets'
+import { applySecretSelection } from './agentSecrets'
 
 interface SecretBindingsFieldProps {
   secrets: Secret[]
@@ -28,7 +28,11 @@ export function SecretBindingsField({
     <div className="space-y-4">
       <MultiSelect
         label=""
-        options={buildSecretPickerOptions(secrets, selectable, selectedIds, agent)}
+        options={selectable.map((secret) => ({
+          id: secret.id,
+          label: secret.name,
+          description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
+        }))}
         value={selectedIds}
         onChange={(ids) => onChange(applySecretSelection(bindings, ids, secrets, agent))}
         emptyMessage={emptyMessage}
