@@ -7,6 +7,8 @@ export type AcpSessionStart =
   | { resumed: true; via: "resume" | "load" }
   | { resumed: false; reason: "first_turn" | "not_supported" | "failed"; detail?: string };
 
+import type { AcpMcpServer } from "./types";
+
 export interface AcpAgentSessionSupport {
   load: boolean;
   resume: boolean;
@@ -31,6 +33,8 @@ export class AcpSessionOpener {
     private readonly cwd: string,
     /** Told while `session/load` replays history, which the platform already has. */
     private readonly onReplay: (replaying: boolean) => void,
+    /** Offered on every open, since a harness starts a session's MCP servers again when it continues one. */
+    private readonly mcpServers: AcpMcpServer[] = [],
   ) {}
 
   async open(support: AcpAgentSessionSupport, previousSessionId?: string): Promise<{ sessionId: string; start: AcpSessionStart }> {
@@ -40,7 +44,7 @@ export class AcpSessionOpener {
     if (!via) return { sessionId: await this.create(), start: { resumed: false, reason: "not_supported" } };
     try {
       this.onReplay(via === "load");
-      await this.request(`session/${via}`, { sessionId: previousSessionId, cwd: this.cwd, mcpServers: [] });
+      await this.request(`session/${via}`, { sessionId: previousSessionId, cwd: this.cwd, mcpServers: this.mcpServers });
       return { sessionId: previousSessionId, start: { resumed: true, via } };
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -52,7 +56,7 @@ export class AcpSessionOpener {
 
   /** A fresh session, for a first turn or when the earlier one can't be continued. */
   async create(): Promise<string> {
-    const result = await this.request("session/new", { cwd: this.cwd, mcpServers: [] });
+    const result = await this.request("session/new", { cwd: this.cwd, mcpServers: this.mcpServers });
     return isRecord(result) && typeof result.sessionId === "string" ? result.sessionId : "";
   }
 }

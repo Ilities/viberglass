@@ -3,6 +3,7 @@ import type {
   ClankerStatus,
   CreateClankerRequest,
   DeploymentStrategy,
+  ModelProviderId,
   UpdateClankerRequest,
 } from "@viberglass/types";
 import { SetupAgentService } from "../../../../services/setup/SetupAgentService";
@@ -29,7 +30,7 @@ function runner(request: CreateClankerRequest | UpdateClankerRequest, status: Cl
     deploymentConfig: request.deploymentConfig ?? null,
     configFiles: [],
     agent: request.agent ?? "claude-code",
-    secretIds: request.secretIds ?? [],
+    secretBindings: request.secretBindings ?? [],
     status,
     statusMessage: null,
     createdAt: "",
@@ -42,7 +43,9 @@ function build(options: { ecsReady?: boolean; existing?: Clanker | null; secret?
   const createClanker = jest.fn(async (request: CreateClankerRequest) => runner(request));
   const updateClanker = jest.fn(async (_id: string, request: UpdateClankerRequest) => runner(request));
   const getDeploymentStrategyByName = jest.fn(async (name: string) => strategy(name));
-  const getSecretByName = jest.fn(async (_name: string) => (options.secret === false ? null : { id: "secret-1" }));
+  const getLatestSecretForProvider = jest.fn(async (_provider: ModelProviderId) =>
+    options.secret === false ? null : { id: "secret-1" },
+  );
   const getProvisioningPreflightError = jest.fn((_c: Clanker) =>
     options.ecsReady ? null : "ECS managed provisioning is missing required configuration",
   );
@@ -50,20 +53,20 @@ function build(options: { ecsReady?: boolean; existing?: Clanker | null; secret?
   const service = new SetupAgentService(
     { getClankerBySlug, createClanker, updateClanker },
     { getDeploymentStrategyByName },
-    { getSecretByName },
+    { getLatestSecretForProvider },
     { getProvisioningPreflightError },
     { start },
   );
-  return { service, createClanker, updateClanker, getSecretByName, start };
+  return { service, createClanker, updateClanker, getLatestSecretForProvider, start };
 }
 
 describe("SetupAgentService", () => {
   it("creates the default agent on local Docker with the key and the binding's model", async () => {
-    const { service, createClanker, getSecretByName, start } = build();
+    const { service, createClanker, getLatestSecretForProvider, start } = build();
 
     const agent = await service.prepareDefaultAgent("opencode-go");
 
-    expect(getSecretByName).toHaveBeenCalledWith("OPENCODE_API_KEY");
+    expect(getLatestSecretForProvider).toHaveBeenCalledWith("opencode-go");
     expect(createClanker).toHaveBeenCalledWith({
       name: "Default agent",
       description: "Runs OpenCode with your OpenCode Go key. Created by setup.",
@@ -74,7 +77,7 @@ describe("SetupAgentService", () => {
         agent: { type: "opencode", model: "opencode-go/deepseek-v4.1-flash" },
       },
       agent: "opencode",
-      secretIds: ["secret-1"],
+      secretBindings: [{ envVar: "OPENCODE_API_KEY", secretId: "secret-1" }],
     });
     expect(start).toHaveBeenCalled();
     expect(agent).toMatchObject({ slug: "default-agent", agentName: "OpenCode", compute: "docker", status: "deploying" });

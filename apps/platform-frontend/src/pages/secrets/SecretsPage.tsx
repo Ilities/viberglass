@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertActions, AlertBody, AlertDescription, AlertTitle } from '@/components/alert'
-import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { PageMeta } from '@/components/page-meta'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
@@ -9,30 +8,31 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import { Timestamp } from '@/components/timestamp'
 import {
   createSecret,
   deleteSecret,
-  getSecrets,
+  listAllSecrets,
   getSecretStorageDefaults,
   updateSecret,
   type Secret,
   type SecretLocation,
   type SecretStorageDefaults,
 } from '@/service/api/secret-api'
-import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { PlusIcon } from '@radix-ui/react-icons'
+import { getClankers, type Clanker } from '@/service/api/clanker-api'
+import { summarizeRunner } from '@/pages/clankers/config/runnerSummary'
+import { SecretsTable } from './secrets-table'
 import { SsmPathField } from './ssm-path-field'
-import { DEFAULT_SECRET_NAME_PRESET_GROUP_ID, SECRET_NAME_PRESET_GROUPS } from './secretNamePresets'
+import { ENV_VAR_NAME_PATTERN, MODEL_PROVIDERS, type ModelProviderId } from '@viberglass/types'
 
 type SecretFormState = {
   name: string
   secretLocation: SecretLocation
   secretPath: string
+  sourceEnvVar: string
+  provider: ModelProviderId | ''
   secretValue: string
 }
-
-const secretNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 const locationOptions: Array<{ value: SecretLocation; label: string; helper: string }> = [
   {
@@ -44,7 +44,7 @@ const locationOptions: Array<{ value: SecretLocation; label: string; helper: str
     value: 'env',
     label: 'Server environment variable (advanced)',
     helper:
-      'Reads the value from an environment variable with this name on the Viberglass server. The variable must already be set there.',
+      'Reads the value from an environment variable on the Viberglass server. The variable must already be set there.',
   },
   {
     value: 'ssm',
@@ -53,21 +53,25 @@ const locationOptions: Array<{ value: SecretLocation; label: string; helper: str
   },
 ]
 
-const badgeColors: Record<SecretLocation, 'green' | 'blue' | 'amber'> = {
-  env: 'green',
-  database: 'blue',
-  ssm: 'amber',
-}
-
 const emptyForm: SecretFormState = {
   name: '',
   secretLocation: 'database',
   secretPath: '',
+  sourceEnvVar: '',
+  provider: '',
   secretValue: '',
+}
+
+// The select can't hold an empty value, so "no provider" needs a value of its own.
+const NO_PROVIDER = 'none'
+
+function isModelProvider(value: string): value is ModelProviderId {
+  return MODEL_PROVIDERS.some((provider) => provider.id === value)
 }
 
 export function SecretsPage() {
   const [secrets, setSecrets] = useState<Secret[]>([])
+  const [runners, setRunners] = useState<Clanker[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
@@ -76,17 +80,24 @@ export function SecretsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [secretToDelete, setSecretToDelete] = useState<Secret | null>(null)
-  const [selectedPresetGroupId, setSelectedPresetGroupId] = useState(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
 
   const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
+  const modelKeys = secrets.filter((secret) => secret.provider && !secret.purpose)
+  const logins = secrets.filter((secret) => secret.purpose === 'codex_login')
+  const otherSecrets = secrets.filter((secret) => !secret.provider && !secret.purpose)
+  const usedBy = useMemo(() => {
+    const names = new Map<string, string[]>()
+    const use = (secretId: string, runner: Clanker) => names.set(secretId, [...(names.get(secretId) ?? []), runner.name])
+    for (const runner of runners) {
+      for (const binding of runner.secretBindings) use(binding.secretId, runner)
+      const loginSecretId = summarizeRunner(runner, []).loginSecretId
+      if (loginSecretId) use(loginSecretId, runner)
+    }
+    return names
+  }, [runners])
   const locationHelper = useMemo(() => {
     return locationOptions.find((option) => option.value === formState.secretLocation)?.helper || ''
   }, [formState.secretLocation])
-  const selectedPresetGroup = useMemo(() => {
-    return (
-      SECRET_NAME_PRESET_GROUPS.find((group) => group.id === selectedPresetGroupId) || SECRET_NAME_PRESET_GROUPS[0]
-    )
-  }, [selectedPresetGroupId])
 
   useEffect(() => {
     void loadSecrets()
@@ -98,8 +109,9 @@ export function SecretsPage() {
   async function loadSecrets() {
     setLoading(true)
     try {
-      const data = await getSecrets()
+      const [data, runners] = await Promise.all([listAllSecrets(), getClankers(100).catch(() => [])])
       setSecrets(data)
+      setRunners(runners)
     } catch (error) {
       toast.error('Failed to load secrets', {
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -113,7 +125,6 @@ export function SecretsPage() {
     setDialogMode('create')
     setActiveSecret(null)
     setFormState({ ...emptyForm, secretLocation: storageDefaults?.location ?? emptyForm.secretLocation })
-    setSelectedPresetGroupId(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
     setDialogOpen(true)
   }
 
@@ -124,6 +135,8 @@ export function SecretsPage() {
       name: secret.name,
       secretLocation: secret.secretLocation,
       secretPath: secret.secretPath || '',
+      sourceEnvVar: secret.sourceEnvVar || '',
+      provider: secret.provider || '',
       secretValue: '',
     })
     setDialogOpen(true)
@@ -143,8 +156,9 @@ export function SecretsPage() {
       return
     }
 
-    if (!secretNamePattern.test(trimmedName)) {
-      toast.error('Secret name must be a valid environment variable key')
+    const sourceEnvVar = formState.sourceEnvVar.trim()
+    if (formState.secretLocation === 'env' && !ENV_VAR_NAME_PATTERN.test(sourceEnvVar)) {
+      toast.error('Name the server environment variable, e.g. ANTHROPIC_API_KEY')
       return
     }
 
@@ -164,6 +178,8 @@ export function SecretsPage() {
         formState.secretLocation === 'ssm' && formState.secretPath.trim()
           ? formState.secretPath.trim()
           : undefined,
+      sourceEnvVar: formState.secretLocation === 'env' ? sourceEnvVar : null,
+      provider: formState.provider || null,
       secretValue:
         formState.secretLocation !== 'env' && formState.secretValue.trim() !== ''
           ? formState.secretValue
@@ -231,8 +247,6 @@ export function SecretsPage() {
         </Button>
       </div>
 
-      <Subheading>Configured secrets</Subheading>
-
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-zinc-500 dark:text-zinc-400">Loading...</div>
@@ -249,56 +263,35 @@ export function SecretsPage() {
           </Button>
         </div>
       ) : (
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Name</TableHeader>
-              <TableHeader>Storage</TableHeader>
-              <TableHeader>Reference</TableHeader>
-              <TableHeader>Updated</TableHeader>
-              <TableHeader />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {secrets.map((secret) => (
-              <TableRow key={secret.id}>
-                <TableCell className="font-medium text-zinc-950 dark:text-white">{secret.name}</TableCell>
-                <TableCell>
-                  <Badge color={badgeColors[secret.secretLocation]}>
-                    {secret.secretLocation === 'env'
-                      ? 'Env'
-                      : secret.secretLocation === 'database'
-                      ? 'Database'
-                      : 'SSM'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">
-                  {secret.secretLocation === 'ssm' ? secret.secretPath || '—' : '—'}
-                </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={secret.updatedAt} /></TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      plain
-                      onClick={() => openEditDialog(secret)}
-                      className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                    >
-                      <Pencil1Icon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      surface
-                      color="red"
-                      onClick={() => handleDelete(secret)}
-                      aria-label="Delete secret"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <>
+          {modelKeys.length > 0 && (
+            <section className="space-y-3">
+              <Subheading>Model keys</Subheading>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                AI provider keys. Runners pick one in their Model section; one key can serve several runners.
+              </p>
+              <SecretsTable secrets={modelKeys} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+            </section>
+          )}
+          {logins.length > 0 && (
+            <section className="space-y-3">
+              <Subheading>ChatGPT logins</Subheading>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Codex runners keep these signed in. Reconnect a runner from its page; deleting a login signs the runner out.
+              </p>
+              <SecretsTable secrets={logins} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+            </section>
+          )}
+          {otherSecrets.length > 0 && (
+            <section className="space-y-3">
+              <Subheading>Other secrets</Subheading>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Repository tokens, integration credentials, and variables runners expose to their agents.
+              </p>
+              <SecretsTable secrets={otherSecrets} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+            </section>
+          )}
+        </>
       )}
 
       <Dialog open={dialogOpen} onClose={closeDialog} size="lg">
@@ -313,44 +306,35 @@ export function SecretsPage() {
           <DialogBody>
             <Fieldset>
               <FieldGroup>
-                {dialogMode === 'create' && (
-                  <Field>
-                    <Label>Predefined values</Label>
-                    <Description>Pick an agent runner variant and click a value to autofill the secret name.</Description>
-                    <div className="mt-3 space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
-                      <Select value={selectedPresetGroup.id} onChange={setSelectedPresetGroupId}>
-                        {SECRET_NAME_PRESET_GROUPS.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {group.label}
-                          </option>
-                        ))}
-                      </Select>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{selectedPresetGroup.helper}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPresetGroup.names.map((name) => (
-                          <Button
-                            key={name}
-                            plain
-                            size="small"
-                            onClick={() => setFormState((prev) => ({ ...prev, name }))}
-                          >
-                            {name}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </Field>
-                )}
-
                 <Field>
-                  <Label>Secret name</Label>
-                  <Description>Must be a valid environment variable key.</Description>
+                  <Label>Name</Label>
+                  <Description>
+                    What you&apos;ll know it by. Runners choose the environment variable it&apos;s exposed as.
+                  </Description>
                   <Input
                     value={formState.name}
                     onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
-                    placeholder="GITHUB_TOKEN"
+                    placeholder="Team Anthropic key"
                     required
                   />
+                </Field>
+
+                <Field>
+                  <Label>Model key from</Label>
+                  <Description>For an AI model key, the provider that issued it. Leave as none for other secrets.</Description>
+                  <Select
+                    value={formState.provider || NO_PROVIDER}
+                    onChange={(value) =>
+                      setFormState((prev) => ({ ...prev, provider: isModelProvider(value) ? value : '' }))
+                    }
+                  >
+                    <option value={NO_PROVIDER}>None</option>
+                    {MODEL_PROVIDERS.filter((provider) => provider.id !== 'fake').map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.displayName}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
 
                 <Field>
@@ -377,11 +361,26 @@ export function SecretsPage() {
 
                 {formState.secretLocation === 'ssm' && (
                   <SsmPathField
-                    name={formState.name}
                     path={formState.secretPath}
+                    storedPath={dialogMode === 'edit' ? activeSecret?.secretPath : null}
                     ssmPrefix={storageDefaults?.ssmPrefix ?? '/viberator/secrets'}
                     onChange={(secretPath) => setFormState((prev) => ({ ...prev, secretPath }))}
                   />
+                )}
+
+                {formState.secretLocation === 'env' && (
+                  <Field>
+                    <Label>Server environment variable</Label>
+                    <Description>The variable on the Viberglass server that holds the value.</Description>
+                    <Input
+                      value={formState.sourceEnvVar}
+                      onChange={(event) =>
+                        setFormState((prev) => ({ ...prev, sourceEnvVar: event.target.value.toUpperCase() }))
+                      }
+                      placeholder="ANTHROPIC_API_KEY"
+                      className="font-mono"
+                    />
+                  </Field>
                 )}
 
                 {formState.secretLocation !== 'env' && (

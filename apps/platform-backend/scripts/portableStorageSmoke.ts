@@ -42,6 +42,9 @@ async function main(): Promise<void> {
       .addColumn("name", "text", (column) => column.notNull().unique())
       .addColumn("secret_location", "text", (column) => column.notNull())
       .addColumn("secret_path", "text")
+      .addColumn("source_env_var", "text")
+      .addColumn("provider", "text")
+      .addColumn("purpose", "text")
       .addColumn("secret_value_encrypted", "text")
       .addColumn("created_at", "timestamptz", (column) => column.notNull())
       .addColumn("updated_at", "timestamptz", (column) => column.notNull())
@@ -50,23 +53,24 @@ async function main(): Promise<void> {
     const { SecretService } = await import("../src/services/SecretService");
     const { WorkerBootstrapCredentials } = await import("../src/services/job/WorkerBootstrapCredentials");
     const { CredentialProvider } = await import("../../viberator/src/workers/infrastructure/CredentialProvider");
+    const { SecretResolutionService } = await import("../src/services/SecretResolutionService");
     const secrets = new SecretService();
     const privateValue = randomBytes(24).toString("hex");
     const secret = await secrets.createSecret({ name: "AGENT_KEY", secretLocation: "database", secretValue: privateValue });
     await secrets.createSecret({ name: "OTHER_RUN_KEY", secretLocation: "database", secretValue: "unlisted" });
     const stored = await db.selectFrom("secrets").select("secret_value_encrypted").where("id", "=", secret.id).executeTakeFirstOrThrow();
     assert(stored.secret_value_encrypted && !stored.secret_value_encrypted.includes(privateValue));
-    const payload = { requiredCredentials: ["AGENT_KEY"] };
-    const credentials = await new WorkerBootstrapCredentials(secrets).resolve(payload);
+    const payload = { requiredCredentials: [{ envVar: "AGENT_KEY" }], credentialBindings: [{ envVar: "AGENT_KEY", secretId: secret.id }] };
+    const credentials = await new WorkerBootstrapCredentials(new SecretResolutionService(secrets)).resolve(payload);
     assert.deepEqual(credentials, { AGENT_KEY: privateValue });
     assert(!("credentials" in payload));
     const logger = createLogger({ silent: true });
     const provider = new CredentialProvider(logger, { suppliedCredentials: credentials, ssmEnabled: false });
-    assert.equal(await provider.getCredential("tenant-1", "AGENT_KEY"), privateValue);
-    assert.equal(await provider.getCredential("tenant-1", "OTHER_RUN_KEY"), undefined);
+    assert.equal(await provider.getCredential({ envVar: "AGENT_KEY" }), privateValue);
+    assert.equal(await provider.getCredential({ envVar: "OTHER_RUN_KEY" }), undefined);
     const auth = JSON.stringify({ tokens: "test-token".repeat(1000) });
     await secrets.upsertWorkerAuthCache("CODEX_AUTH", auth, "database");
-    assert.equal(await secrets.resolveNamedSecret("CODEX_AUTH"), auth);
+    assert.equal(await secrets.resolveSecretValueByName("CODEX_AUTH"), auth);
 
     await sql`CREATE TABLE jobs (id text PRIMARY KEY, status text, progress jsonb, result jsonb,
       error_message text, started_at timestamptz, finished_at timestamptz, last_heartbeat timestamptz)`.execute(db);

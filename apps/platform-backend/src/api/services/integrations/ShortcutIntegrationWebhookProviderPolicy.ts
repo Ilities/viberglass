@@ -4,7 +4,6 @@ export class ShortcutIntegrationWebhookProviderPolicy extends DefaultIntegration
   constructor() {
     super("shortcut", {
       providerLabel: "Shortcut",
-      alwaysOnOutboundEvents: true,
       useIntegrationProviderProjectIdFallback: false,
     });
   }

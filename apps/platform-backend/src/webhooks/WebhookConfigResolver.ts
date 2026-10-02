@@ -30,10 +30,6 @@ export class WebhookConfigResolver {
         return null;
       }
 
-      if (directConfig.direction !== "inbound") {
-        return null;
-      }
-
       if (directConfig.provider !== options.providerName) {
         return null;
       }
@@ -51,10 +47,7 @@ export class WebhookConfigResolver {
     if (options.integrationId) {
       const integrationConfigs = await this.configDAO.listByIntegrationId(
         options.integrationId,
-        {
-          direction: "inbound",
-          activeOnly: false,
-        },
+        { activeOnly: false },
       );
       const providerConfigs = integrationConfigs.filter(
         (config) => config.provider === options.providerName,
@@ -66,7 +59,6 @@ export class WebhookConfigResolver {
       const config = await this.configDAO.getActiveConfigByProviderProject(
         options.providerName,
         providerProjectId,
-        "inbound",
       );
       if (config) {
         return config;
@@ -78,7 +70,6 @@ export class WebhookConfigResolver {
         event.metadata.projectId,
         50,
         0,
-        "inbound",
       );
       const providerConfigs = projectConfigs.filter(
         (config) => config.provider === options.providerName,
@@ -96,7 +87,6 @@ export class WebhookConfigResolver {
       provider,
       50,
       0,
-      "inbound",
     );
     return configs.find((config) => config.active) ?? null;
   }

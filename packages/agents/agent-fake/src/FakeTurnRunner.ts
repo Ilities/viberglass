@@ -58,6 +58,9 @@ export class FakeTurnRunner {
       await this.io.appendFile(path.join(repoDir, FAKE_CHANGE_FILE), `Changed by the fake agent on turn ${turn}.\n`);
       done.push(`Fake agent changed ${FAKE_CHANGE_FILE}.`);
     }
+    if (plan.sleepAfterSeconds > 0) {
+      await this.io.sleep(plan.sleepAfterSeconds * 1000);
+    }
     if (intents.length === 0) {
       return `Answering: fake agent, turn ${turn}.\n\nFake agent finished without writing a document.`;
     }

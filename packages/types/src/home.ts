@@ -9,6 +9,8 @@ export interface HomeThread {
   roles: TaskParticipantRole[]
   /** Entries by others since you last read the thread. */
   unread: number
+  /** Whether someone mentioned you there and you haven't replied or marked it done. */
+  mentionsYou: boolean
   lastMessage: { author: TaskPerson | null; text: string; at: string } | null
   /** When anything last happened in the thread. */
   latestActivityAt: string

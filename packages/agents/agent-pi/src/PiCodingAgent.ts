@@ -8,7 +8,7 @@ import type { PiConfig } from "./config";
 /**
  * Pi coding agent harness.
  *
- * One-shot execution: runs `pi --print` via executeAgentCLI.
+ * One-shot execution: runs `pi --print --mode json` in the repo via executeAgentCLI.
  * Interactive sessions: ACP bridge via `pi-acp` (spawns `pi --mode rpc`).
  *
  * Install: npm install -g @earendil-works/pi-coding-agent pi-acp
@@ -48,8 +48,17 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
     const piDir = path.join(harnessConfigDir, "pi");
     if (fs.existsSync(piDir)) {
       env.PI_CODING_AGENT_DIR = piDir;
+      env.PI_CODING_AGENT_SESSION_DIR = this.sessionDirectory();
     }
     return env;
+  }
+
+  /**
+   * Pi keeps sessions under PI_CODING_AGENT_DIR unless told otherwise. That
+   * directory is per-job here, so sessions are pinned to the archived `~/.pi`.
+   */
+  private sessionDirectory(): string {
+    return path.join(this.resolveHomeDirectory(process.env.HOME), ".pi", "agent", "sessions");
   }
 
   /**
@@ -64,6 +73,7 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
     const piConfigDir = path.join(workDir, ".harness-config", "pi");
     const env: NodeJS.ProcessEnv = {
       PI_CODING_AGENT_DIR: piConfigDir,
+      PI_CODING_AGENT_SESSION_DIR: this.sessionDirectory(),
     };
     if (this.config.apiKey) {
       env.ANTHROPIC_API_KEY = this.config.apiKey;
@@ -85,11 +95,7 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
 
       this.logger.info("Executing pi coding agent (one-shot)", { repoDir });
 
-      const args = [
-        "--print", prompt,
-        "--output-format", "json",
-        "--cwd", repoDir,
-      ];
+      const args = ["--print", "--mode", "json", "--", prompt];
 
       let result;
       try {

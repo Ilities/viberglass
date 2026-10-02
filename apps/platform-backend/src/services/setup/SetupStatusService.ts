@@ -1,6 +1,5 @@
 import {
   AGENT_LABELS,
-  getDefaultAgentBindingForProvider,
   MODEL_PROVIDERS,
   type Clanker,
   type IntegrationCredential,
@@ -21,7 +20,7 @@ import { DEFAULT_AGENT_SLUG } from "./SetupAgentService";
 import { DemoWorkspaceService } from "../demo/DemoWorkspaceService";
 
 interface Dependencies {
-  secrets: { getSecretByName(name: string): Promise<{ id: string } | null> };
+  secrets: { getLatestSecretForProvider(provider: ModelProviderId): Promise<{ id: string } | null> };
   integrations: { listIntegrations(system: "github"): Promise<Integration[]> };
   credentials: { getDefaultForIntegration(integrationId: string): Promise<IntegrationCredential | null> };
   projects: { listProjects(limit?: number): Promise<ProjectConfig[]> };
@@ -84,8 +83,7 @@ export class SetupStatusService {
   private async getConnectedProviders(): Promise<ModelProviderId[]> {
     const found = await Promise.all(
       MODEL_PROVIDERS.map(async (provider) => {
-        const binding = getDefaultAgentBindingForProvider(provider.id);
-        const secret = binding ? await this.deps.secrets.getSecretByName(binding.envVar) : null;
+        const secret = await this.deps.secrets.getLatestSecretForProvider(provider.id);
         return secret ? provider.id : null;
       }),
     );

@@ -12,7 +12,7 @@ function clanker(strategy: Record<string, unknown>): Clanker {
     deploymentConfig: { version: 1, strategy, agent: { type: "opencode" } },
     configFiles: [],
     agent: "opencode",
-    secretIds: [],
+    secretBindings: [],
     status: "active",
     statusMessage: null,
     createdAt: "2026-09-30T00:00:00.000Z",

@@ -17,7 +17,7 @@ function clanker(status: ClankerStatus = "inactive"): Clanker {
     deploymentConfig: { version: 1 },
     configFiles: [],
     agent: "opencode",
-    secretIds: [],
+    secretBindings: [],
     status,
     statusMessage: null,
     createdAt: "",

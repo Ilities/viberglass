@@ -16,7 +16,6 @@ describe("ConfigManager agent api key resolution", () => {
     process.env.QWEN_CLI_API_KEY = "";
     process.env.DASHSCOPE_API_KEY = "";
     process.env.GEMINI_API_KEY = "";
-    process.env.GOOGLE_API_KEY = "";
     delete process.env.AWS_REGION;
     delete process.env.SSM_PARAMETER_PATH;
   });
@@ -47,25 +46,13 @@ describe("ConfigManager agent api key resolution", () => {
     expect(qwen?.apiKey).toBe("");
   });
 
-  test("uses GEMINI_API_KEY as the gemini-cli key", async () => {
+  test("uses GEMINI_API_KEY as the antigravity key", async () => {
     process.env.GEMINI_API_KEY = "gemini-key";
-    process.env.GOOGLE_API_KEY = "google-key";
 
     const manager = new ConfigManager(createSilentLogger());
     await manager.loadConfiguration();
 
-    const gemini = manager.getAgentConfig("gemini-cli");
-    expect(gemini?.apiKey).toBe("gemini-key");
-  });
-
-  test("falls back to GOOGLE_API_KEY for gemini-cli", async () => {
-    process.env.GEMINI_API_KEY = "";
-    process.env.GOOGLE_API_KEY = "google-key";
-
-    const manager = new ConfigManager(createSilentLogger());
-    await manager.loadConfiguration();
-
-    const gemini = manager.getAgentConfig("gemini-cli");
-    expect(gemini?.apiKey).toBe("google-key");
+    const antigravity = manager.getAgentConfig("antigravity");
+    expect(antigravity?.apiKey).toBe("gemini-key");
   });
 });

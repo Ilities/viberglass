@@ -29,7 +29,7 @@ const clanker: Clanker = {
   },
   configFiles: [],
   agent: "opencode",
-  secretIds: [],
+  secretBindings: [],
   status: "active",
   statusMessage: null,
   createdAt: "2026-09-30T00:00:00.000Z",
@@ -44,14 +44,16 @@ function setup() {
   };
   const getDispatchStatus = jest.fn().mockResolvedValue("active");
   const saveBootstrapPayload = jest.fn().mockResolvedValue(undefined);
-  const getRequiredCredentialsForClanker = jest.fn().mockResolvedValue(["GITHUB_TOKEN"]);
+  const getRequiredCredentialsForClanker = jest.fn().mockResolvedValue([{ envVar: "GITHUB_TOKEN" }]);
+  const workerBindings = jest.fn().mockReturnValue([]);
   const invoker = new KubernetesInvoker(
     async () => client,
     { saveBootstrapPayload },
     { getRequiredCredentialsForClanker },
     { getStatus: getDispatchStatus },
+    { workerBindings },
   );
-  return { client, saveBootstrapPayload, getDispatchStatus, invoker };
+  return { client, saveBootstrapPayload, getDispatchStatus, workerBindings, invoker };
 }
 
 describe("KubernetesInvoker", () => {
@@ -74,7 +76,7 @@ describe("KubernetesInvoker", () => {
     });
     expect(saveBootstrapPayload).toHaveBeenCalledWith(job.id, expect.objectContaining({
       workerType: "kubernetes",
-      requiredCredentials: ["GITHUB_TOKEN"],
+      requiredCredentials: [{ envVar: "GITHUB_TOKEN" }],
     }));
     const request = client.createNamespacedJob.mock.calls[0][0];
     expect(request.namespace).toBe("viberglass-workers");
@@ -86,6 +88,25 @@ describe("KubernetesInvoker", () => {
     expect(request.body.spec.template.spec.containers[0].resources.requests.cpu).toBe("250m");
     expect(JSON.stringify(request.body.metadata)).not.toContain("private-callback-token");
     expect(JSON.stringify(request.body.spec.template.spec.containers[0].command)).not.toContain("private-callback-token");
+  });
+
+  it("includes the runner's Codex login binding without putting values in the Job", async () => {
+    const { client, invoker, workerBindings, saveBootstrapPayload } = setup();
+    const runner: Clanker = { ...clanker, agent: "codex", secretBindings: [{ envVar: "OPENAI_API_KEY", secretId: "model-key" }], deploymentConfig: {
+      version: 1, strategy: { type: "kubernetes", containerImage: "worker:codex" },
+      agent: { type: "codex", codexAuth: { mode: "chatgpt_device_stored", loginSecretId: "runner-login" } },
+    } };
+    workerBindings.mockReturnValue([{ envVar: "CODEX_AUTH_JSON", secretId: "runner-login" }]);
+    await invoker.invoke(job, runner);
+    expect(workerBindings).toHaveBeenCalledWith(runner);
+    expect(saveBootstrapPayload).toHaveBeenCalledWith(job.id, expect.objectContaining({
+      credentialBindings: [
+        { envVar: "OPENAI_API_KEY", secretId: "model-key" },
+        { envVar: "CODEX_AUTH_JSON", secretId: "runner-login" },
+      ],
+      optionalCredentials: [],
+    }));
+    expect(JSON.stringify(client.createNamespacedJob.mock.calls[0][0])).not.toContain("runner-login");
   });
 
   it("treats an existing Job for the same run as a successful retry", async () => {
@@ -102,11 +123,11 @@ describe("KubernetesInvoker", () => {
   it("keeps credential values out of persisted bootstrap data", async () => {
     const { saveBootstrapPayload, invoker } = setup();
     await invoker.invoke({ ...job, bootstrapPayload: {
-      agentSessionId: "session-1", requiredCredentials: ["AGENT_KEY"], credentials: { AGENT_KEY: "stale-value" },
+      agentSessionId: "session-1", requiredCredentials: [{ envVar: "AGENT_KEY" }], credentials: { AGENT_KEY: "stale-value" },
     } }, clanker);
     const payload = saveBootstrapPayload.mock.calls[0][1];
     expect(payload.agentSessionId).toBe("session-1");
-    expect(payload.requiredCredentials).toEqual(["AGENT_KEY"]);
+    expect(payload.requiredCredentials).toEqual([{ envVar: "AGENT_KEY" }]);
     expect(payload).not.toHaveProperty("credentials");
   });
 

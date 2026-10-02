@@ -47,6 +47,7 @@ export class HomeService {
             situation: about.situation,
             roles: row.roles,
             unread: unread.get(row.id) ?? 0,
+            mentionsYou: about.mentionsYou,
             lastMessage: about.lastMessage,
             latestActivityAt: about.latestActivityAt,
           },

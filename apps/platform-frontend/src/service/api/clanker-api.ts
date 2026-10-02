@@ -101,6 +101,19 @@ export async function startClanker(id: string): Promise<Clanker> {
   return data.data
 }
 
+/** Starts a login-only job on the runner (a ChatGPT login for Codex); follow it with the job API. */
+export async function startAgentLogin(id: string): Promise<{ jobId: string }> {
+  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/agent-login`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || error.message || "Couldn't start the login")
+  }
+  const data: ApiResponse<{ jobId: string }> = await response.json()
+  return data.data
+}
+
 export async function deactivateClanker(id: string): Promise<Clanker> {
   const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/deactivate`, {
     method: 'POST',

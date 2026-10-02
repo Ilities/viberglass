@@ -15,7 +15,6 @@ import {
   ProjectIntegrationLinkService,
   type UpdateIntegrationInput,
   type UpsertInboundWebhookConfigInput,
-  type UpsertOutboundWebhookConfigInput,
 } from "../services/integrations";
 import { IntegrationCredentialDAO } from "../../persistence/integrations";
 import { SecretService } from "../../services/SecretService";
@@ -316,116 +315,6 @@ router.delete(
 );
 
 router.get(
-  "/:id/webhooks/outbound",
-  withRouteErrorHandling(
-    "Error listing outbound webhook configs",
-    async (req, res) => {
-      const configs =
-        await integrationWebhookService.listOutboundWebhookConfigs(
-          req.params.id,
-        );
-
-      res.json({
-        success: true,
-        data: configs,
-      });
-    },
-  ),
-);
-
-router.post(
-  "/:id/webhooks/outbound",
-  withRouteErrorHandling(
-    "Error creating outbound webhook config",
-    async (req, res) => {
-      const config =
-        await integrationWebhookService.createOutboundWebhookConfig(
-          req.params.id,
-          req.body as UpsertOutboundWebhookConfigInput,
-        );
-
-      res.status(201).json({
-        success: true,
-        data: config,
-      });
-    },
-  ),
-);
-
-router.get(
-  "/:id/webhooks/outbound/:configId",
-  withRouteErrorHandling(
-    "Error fetching outbound webhook config",
-    async (req, res) => {
-      const config = await integrationWebhookService.getOutboundWebhookConfig(
-        req.params.id,
-        req.params.configId,
-      );
-
-      res.json({
-        success: true,
-        data: config,
-      });
-    },
-  ),
-);
-
-router.put(
-  "/:id/webhooks/outbound/:configId",
-  withRouteErrorHandling(
-    "Error updating outbound webhook config",
-    async (req, res) => {
-      const config =
-        await integrationWebhookService.updateOutboundWebhookConfig(
-          req.params.id,
-          req.params.configId,
-          req.body as UpsertOutboundWebhookConfigInput,
-        );
-
-      res.json({
-        success: true,
-        data: config,
-      });
-    },
-  ),
-);
-
-router.delete(
-  "/:id/webhooks/outbound/:configId",
-  withRouteErrorHandling(
-    "Error deleting outbound webhook config",
-    async (req, res) => {
-      await integrationWebhookService.deleteOutboundWebhookConfig(
-        req.params.id,
-        req.params.configId,
-      );
-      res.status(204).send();
-    },
-  ),
-);
-
-router.get(
-  "/:id/webhooks/outbound/:configId/deliveries",
-  withRouteErrorHandling(
-    "Error listing outbound webhook deliveries",
-    async (req, res) => {
-      const result =
-        await integrationWebhookService.listOutboundWebhookDeliveries(
-          req.params.id,
-          req.params.configId,
-          req.query,
-        );
-
-      res.json({
-        success: true,
-        data: result.data,
-        pagination: result.pagination,
-      });
-    },
-  ),
-);
-
-router.get(
   "/:id/webhooks/inbound/:configId/deliveries",
   withRouteErrorHandling(
     "Error listing webhook deliveries",
@@ -520,6 +409,7 @@ router.post(
           name: body.name,
           secretLocation: body.secretLocation,
           secretPath: body.secretPath,
+          sourceEnvVar: body.sourceEnvVar,
           secretValue: body.secretValue,
         });
       }

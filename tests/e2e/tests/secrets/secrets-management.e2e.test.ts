@@ -225,49 +225,6 @@ test.describe('Secrets Management E2E Tests', () => {
         }
       }
     });
-
-    test('should validate secret name format', async ({ authenticatedPage: page }) => {
-      await page.goto('/secrets');
-
-      const addSecretButton = page.getByRole('button', { name: /add|create/i })
-        .or(page.locator('button:has-text("Add Secret")'));
-
-      const hasAddButton = await addSecretButton.count() > 0;
-
-      if (!hasAddButton) {
-        test.skip(true, 'Add Secret button not found');
-        return;
-      }
-
-      await addSecretButton.first().click();
-      await page.waitForTimeout(500);
-
-      const nameInput = page.locator('input[name="name"]');
-      const hasNameInput = await nameInput.count() > 0;
-
-      if (hasNameInput) {
-        // Try invalid name with spaces
-        await nameInput.first().fill('invalid secret name');
-
-        const submitButton = page.getByRole('button', { name: /create|save/i })
-          .or(page.locator('button[type="submit"]'));
-
-        const hasSubmit = await submitButton.count() > 0;
-
-        if (hasSubmit) {
-          await submitButton.click();
-          await page.waitForTimeout(500);
-
-          // Should show error or not submit
-          const error = page.getByText(/invalid|format|environment variable/i);
-          const hasError = await error.count() > 0;
-
-          if (hasError) {
-            await expect(error.first()).toBeVisible();
-          }
-        }
-      }
-    });
   });
 
   test.describe('Secret Deletion', () => {

@@ -1,16 +1,5 @@
-import {AgentSessionMode, AgentSessionStatus, TicketWorkflowPhase} from "@viberglass/types";
+import type { TaskTurnAction } from "@viberglass/types";
 import type { Thread } from "chat";
-
-export type SessionAdvanceResult =
-  | { kind: "advance"; targetMode: AgentSessionMode }
-  | { kind: "chain"; firstMode: AgentSessionMode; thenMode: AgentSessionMode }
-  | { kind: "revise" }
-  | { kind: "invalid"; message: string };
-
-export type TicketAdvanceResult =
-  | { kind: "advance"; targetPhase: TicketWorkflowPhase }
-  | { kind: "chain"; firstPhase: TicketWorkflowPhase; thenPhase: TicketWorkflowPhase }
-  | { kind: "revise" };
 
 export interface ProjectSummary {
   id: string;
@@ -22,106 +11,28 @@ export interface ClankerSummary {
   name: string;
 }
 
-export interface SessionDetail {
-  session: {
-    status: AgentSessionStatus;
-    mode: AgentSessionMode;
-    ticketId: string;
-    clankerId: string;
-  };
-}
-
-export interface LaunchSessionResult {
-  session: { id: string };
-}
-
 /**
- * Services the backend must provide to the Slack handler extension.
- * Implement this interface in the backend composition root and pass it to
- * registerSlackHandlers().
+ * Services the backend provides to the Slack handlers. A task started from
+ * Slack has a thread there that mirrors its thread in Viberglass; what people
+ * do in it is done on the task as them (their linked Viberglass account).
  */
 export interface SlackHandlerServices {
-  // Data queries for the slash-command form
   /** The spaces the Slack user's linked account can see; every space for an unlinked account. */
   listProjects(slackUserId: string): Promise<ProjectSummary[]>;
   listClankers(): Promise<ClankerSummary[]>;
-
-  // Ticket + job lifecycle
   /** The Slack user's linked account, if any, is the task's requester. */
-  createTicket(params: {
-    projectId: string;
-    title: string;
-    description: string;
-    slackUserId: string;
-  }): Promise<{ id: string; projectId: string }>;
-  // Everything that starts or continues a run names the Slack user who did
-  // it, so it's credited to their linked account (or marked as from Slack).
-  runJob(params: {
-    ticketId: string;
-    clankerId: string;
-    mode: "research" | "planning" | "execution";
-    slackUserId: string;
-  }): Promise<{ jobId: string; status: string }>;
-  launchSession(params: {
-    ticketId: string;
-    clankerId: string;
-    mode: AgentSessionMode;
-    initialMessage: string;
-    slackUserId: string;
-  }): Promise<LaunchSessionResult>;
-
-  // Session state queries
-  getSessionDetail(sessionId: string): Promise<SessionDetail | null>;
-  resolveSessionAdvance(
-    instruction: string,
-    currentMode: AgentSessionMode,
-  ): SessionAdvanceResult;
-
-  // Session interaction
-  replyToSession(sessionId: string, text: string, slackUserId: string): Promise<void>;
-  sendMessageToSession(sessionId: string, text: string, slackUserId: string): Promise<void>;
-  approveSession(sessionId: string, approved: boolean, slackUserId: string): Promise<void>;
-
-  // Thread ↔ session mapping (adapter-agnostic; backend stamps the adapter name)
-  getSessionForThread(threadId: string): Promise<string | undefined>;
-  linkSessionThread(sessionId: string, thread: Thread): Promise<void>;
-  unlinkSession(sessionId: string): Promise<void>;
-
-  // Bridge control. A chain continues as `chainedBy`, the Slack user who started it.
-  startBridge(sessionId: string, thread: Thread, chainTo?: AgentSessionMode, chainedBy?: string): void;
-  stopBridge(sessionId: string): void;
-
-  // Ticket job flow (non-session)
-  resolveTicketAdvance(
-    instruction: string,
-    currentPhase: TicketWorkflowPhase,
-  ): TicketAdvanceResult;
-  // Moving a task on asks the agent for the next step, as the Slack user acting
-  // (their linked Viberglass account), under the task's ask policy.
-  advanceAndRunTicketJob(params: {
-    ticketId: string;
-    clankerId: string;
-    targetPhase: TicketWorkflowPhase;
-    slackUserId: string;
-  }): Promise<{ jobId: string; status: string }>;
-  chainAndRunTicketJob(params: {
-    ticketId: string;
-    clankerId: string;
-    firstPhase: TicketWorkflowPhase;
-    thenPhase: TicketWorkflowPhase;
-    slackUserId: string;
-  }): Promise<{ jobId: string; status: string }>;
-  runRevisionJob(params: {
-    ticketId: string;
-    clankerId: string;
-    mode: "research" | "planning";
-    revisionMessage: string;
-    slackUserId: string;
-  }): Promise<{ jobId: string; status: string }>;
-  linkTicketThread(ticketId: string, thread: Thread, clankerId: string, mode: string): Promise<void>;
-  getTicketForThread(threadId: string): Promise<{ ticketId: string; clankerId: string; mode: string } | undefined>;
-
-  // URL helpers
-  ticketUrl(projectSlug: string, ticketId: string): string | null;
+  createTicket(params: { projectId: string; title: string; description: string; slackUserId: string }): Promise<{ id: string; projectId: string }>;
   getProject(id: string): Promise<{ id: string; slug: string } | null>;
+  ticketUrl(projectSlug: string, ticketId: string): string | null;
+
+  /** Makes the Slack thread the task's, so the task's thread is mirrored in it. */
+  linkTaskThread(ticketId: string, thread: Thread): Promise<void>;
+  getTaskForThread(threadId: string): Promise<string | undefined>;
+
+  /** A message in the task's Slack thread: an answer to the agent, an ask of it when it mentions the bot, else a message. */
+  receiveThreadMessage(params: { ticketId: string; slackUserId: string; text: string; mentionsBot: boolean }): Promise<void>;
+  /** Asks the agent for a step, from a button or the launch form. */
+  askAgent(params: { ticketId: string; slackUserId: string; action: TaskTurnAction; agentId?: string }): Promise<void>;
+  /** Answers the agent's question with one of its options. */
+  answerQuestion(params: { questionId: string; option: number; slackUserId: string }): Promise<void>;
 }

@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SUPPORTED_AGENT_TYPES, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
+import { ENV_VAR_NAME_PATTERN, JOB_LOG_MESSAGE_MAX_LENGTH, MODEL_PROVIDERS, NATIVE_TICKET_ORIGIN, SUPPORTED_AGENT_TYPES, TICKET_STATUS, WORKSPACE_ROLES } from "@viberglass/types";
 import { integrationRegistry } from "../../integrations/registerIntegrationPlugins";
 import {
   instructionPathErrorMessage,
@@ -142,6 +142,7 @@ export const updateProjectSchema = Joi.object({
   isPrivate: Joi.boolean().optional(),
   defaultOwnerId: Joi.string().uuid().allow(null).optional(),
   defaultReviewerIds: Joi.array().items(Joi.string().uuid()).max(20).optional(),
+  questionReminderHours: Joi.number().integer().min(1).max(168).optional(),
 });
 
 export const projectScmConfigSchema = Joi.object({
@@ -177,6 +178,16 @@ const configFileSchema = Joi.object({
   content: Joi.string().required(),
 });
 
+/** Each env var at most once: a runner can't expose two secrets under one name. */
+const secretBindingsSchema = Joi.array()
+  .items(
+    Joi.object({
+      envVar: Joi.string().pattern(ENV_VAR_NAME_PATTERN).max(255).required(),
+      secretId: Joi.string().uuid().required(),
+    }),
+  )
+  .unique("envVar");
+
 export const clankerSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   description: Joi.string().allow(null, "").optional(),
@@ -187,7 +198,7 @@ export const clankerSchema = Joi.object({
     .valid(...SUPPORTED_AGENT_TYPES)
     .allow(null)
     .optional(),
-  secretIds: Joi.array().items(Joi.string().uuid()).optional(),
+  secretBindings: secretBindingsSchema.optional(),
 });
 
 export const updateClankerSchema = Joi.object({
@@ -200,7 +211,7 @@ export const updateClankerSchema = Joi.object({
     .valid(...SUPPORTED_AGENT_TYPES)
     .allow(null)
     .optional(),
-  secretIds: Joi.array().items(Joi.string().uuid()).optional(),
+  secretBindings: secretBindingsSchema.optional(),
   status: Joi.string()
     .valid("active", "inactive", "deploying", "failed")
     .optional(),
@@ -321,7 +332,6 @@ export const logBatchSchema = Joi.object({
     .required(),
 });
 
-const secretNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export const setupModelKeySchema = Joi.object({
   provider: Joi.string()
@@ -347,17 +357,25 @@ export const setupSpaceSchema = Joi.object({
   baseBranch: Joi.string().trim().min(1).max(255).optional(),
 });
 
+const secretProviderSchema = Joi.string()
+  .valid(...MODEL_PROVIDERS.map((provider) => provider.id))
+  .allow(null);
+
 export const secretSchema = Joi.object({
-  name: Joi.string().pattern(secretNamePattern).min(1).max(255).required(),
+  name: Joi.string().trim().min(1).max(255).required(),
   secretLocation: Joi.string().valid("env", "database", "ssm").required(),
   secretPath: Joi.string().max(500).allow(null, "").optional(),
+  sourceEnvVar: Joi.string().pattern(ENV_VAR_NAME_PATTERN).max(255).allow(null).optional(),
+  provider: secretProviderSchema.optional(),
   secretValue: Joi.string().allow("").optional(),
 });
 
 export const updateSecretSchema = Joi.object({
-  name: Joi.string().pattern(secretNamePattern).min(1).max(255).optional(),
+  name: Joi.string().trim().min(1).max(255).optional(),
   secretLocation: Joi.string().valid("env", "database", "ssm").optional(),
   secretPath: Joi.string().max(500).allow(null, "").optional(),
+  sourceEnvVar: Joi.string().pattern(ENV_VAR_NAME_PATTERN).max(255).allow(null).optional(),
+  provider: secretProviderSchema.optional(),
   secretValue: Joi.string().allow("").optional(),
 });
 
@@ -422,7 +440,7 @@ export const clawTaskTemplateSchema = Joi.object({
   clankerId: Joi.string().uuid().required(),
   taskInstructions: Joi.string().min(1).max(50000).required(),
   config: Joi.object().optional().default({}),
-  secretIds: Joi.array().items(Joi.string().uuid()).optional().default([]),
+  secretBindings: secretBindingsSchema.optional().default([]),
 });
 
 export const updateClawTaskTemplateSchema = Joi.object({
@@ -431,7 +449,7 @@ export const updateClawTaskTemplateSchema = Joi.object({
   clankerId: Joi.string().uuid().optional(),
   taskInstructions: Joi.string().min(1).max(50000).optional(),
   config: Joi.object().optional(),
-  secretIds: Joi.array().items(Joi.string().uuid()).optional(),
+  secretBindings: secretBindingsSchema.optional(),
 });
 
 export const clawScheduleSchema = Joi.object({

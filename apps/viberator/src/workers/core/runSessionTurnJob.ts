@@ -1,11 +1,18 @@
 import * as os from "os";
+import * as path from "path";
 import { ExecutionContext } from "../../types";
 import { JobResult } from "./types";
-import { JobRunnerParams, setupJob, executeAgentWithRetry, withJobLifecycle } from "./jobPipeline";
+import { JobRunnerParams, setupJob } from "./jobPipeline";
+import { executeAgentWithRetry } from "./agentExecution";
+import { withJobLifecycle } from "./jobLifecycle";
 import { captureAndStore, retrieveAndRestore } from "../runtime/SessionStateManager";
 import { deliverPullRequest } from "./deliverPullRequest";
 import { collectArtifacts, materializeArtifacts } from "./turnArtifacts";
 import { discardCodeChanges, listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
+import { QuestionRelay } from "../../questions/QuestionRelay";
+import { peoplesChanges } from "./peoplesChanges";
+import { keepPartialWork } from "./keepPartialWork";
+import { onStop } from "../runtime/stopSignal";
 
 /**
  * One turn of a task's conversation with its agent. The agent gets
@@ -22,6 +29,10 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     const setup = await setupJob(params, "session-turn");
     const { repoDir, checkoutBaseBranch, mergedSettings } = setup;
     await restoreConversationState(params);
+    const pushed = setup.taskBranch?.continued
+      ? await peoplesChanges(repoDir, params.lastAgentCommit ?? `origin/${checkoutBaseBranch}`)
+      : null;
+    const withPushed = (prompt: string | undefined) => (prompt && pushed ? `${pushed}\n\n${prompt}` : prompt);
     const snapshot = materializeArtifacts(repoDir, {
       research: data.context?.researchDocument,
       plan: data.context?.planDocument,
@@ -35,7 +46,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       repoDir,
       commitHash: "",
       jobKind: data.jobKind,
-      bugDescription: data.task,
+      bugDescription: withPushed(data.task) ?? data.task,
       stepsToReproduce: "",
       expectedBehavior: "",
       actualBehavior: "",
@@ -48,16 +59,35 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       runTests: params.allowCode ? mergedSettings.runTests : false,
       testCommand: params.allowCode ? mergedSettings.testCommand : undefined,
       maxExecutionTime: mergedSettings.maxExecutionTime,
-      promptOverride: data.task,
-      coldStartPrompt: params.coldStartTask,
+      promptOverride: withPushed(data.task),
+      coldStartPrompt: withPushed(params.coldStartTask),
       compactInstructions: params.compactInstructions,
       agentSessionId: params.agentSessionId,
       acpSessionId: params.acpSessionId,
       onAcpEvent: (event) => params.sessionEventForwarder?.enqueue(event),
     };
 
+    // Stopped partway (cancelled, paused, interrupted), the turn keeps what it had done.
+    const partialRun = {
+      jobId: data.id,
+      tenantId: data.tenantId,
+      allowCode: params.allowCode,
+      scmToken: params.scmToken,
+      git: params.gitService,
+      callbacks: params.callbackClient.turn,
+      logger,
+    };
+    const stopped = onStop(() => keepPartialWork(partialRun, { repoDir, snapshot, taskBranch: setup.taskBranch }));
     await sendProgress("execute", "Running ACP agent turn");
-    const result = await executeAgentWithRetry(params, executionContext);
+    const relay = new QuestionRelay(
+      { sendQuestion: (question) => params.callbackClient.turn.sendQuestion(data.id, data.tenantId, question) },
+      askHumanServerScript(),
+    );
+    executionContext.mcpServers = [await relay.start()];
+    const result = await executeAgentWithRetry(params, executionContext).finally(() => {
+      stopped();
+      return relay.close();
+    });
     await params.sessionEventForwarder?.flush();
     const conversationStateUrl = await saveConversationState(params, result.newAcpSessionId, executionContext.agent);
 
@@ -81,6 +111,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       await discardCodeChanges(repoDir);
       return { ...turn, changedFiles: [], codeDiscarded: true };
     }
+    if (!setup.taskBranch) throw new Error("The platform named no branch for this task, so the build has nowhere to go");
     const delivered = await deliverPullRequest(params, {
       repoDir,
       checkoutBaseBranch,
@@ -90,6 +121,11 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
     });
     return { ...turn, ...delivered };
   });
+}
+
+/** The worker's bundle puts the MCP server next to its entry point. */
+function askHumanServerScript(): string {
+  return path.join(__dirname, "ask-human-mcp.js");
 }
 
 /** Puts back the harness's saved home state, so it can continue its earlier session. */
@@ -114,14 +150,14 @@ async function saveConversationState(
 ): Promise<string | undefined> {
   const { data, callbackClient, logger } = params;
   if (!acpSessionId) return undefined;
-  await callbackClient.sendAcpSessionId(data.id, data.tenantId, acpSessionId);
+  await callbackClient.turn.sendAcpSessionId(data.id, data.tenantId, acpSessionId);
   try {
     const url = await captureAndStore(agent || "", params.agentSessionId || data.id, os.homedir(), logger);
     if (!url) {
       logger.warn("No conversation state to archive, or storing it failed", { jobId: data.id, agent });
       return undefined;
     }
-    await callbackClient.sendConversationStateUrl(data.id, data.tenantId, url);
+    await callbackClient.turn.sendConversationStateUrl(data.id, data.tenantId, url);
     return url;
   } catch (err) {
     logger.warn("Failed to capture conversation state", {

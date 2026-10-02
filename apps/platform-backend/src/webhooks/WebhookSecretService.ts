@@ -99,18 +99,6 @@ export class WebhookSecretService {
   }
 
   /**
-   * Get API token from configuration (for outbound calls)
-   * @param config - Webhook provider configuration
-   * @returns The plaintext API token
-   */
-  async getApiToken(config: WebhookProviderConfig): Promise<string> {
-    if (!config.apiToken) {
-      throw new Error("API token not configured");
-    }
-    return config.apiToken;
-  }
-
-  /**
    * Encrypt a secret for database storage
    * Uses AES-256-GCM with authenticated encryption
    * @param secret - Plaintext secret to encrypt

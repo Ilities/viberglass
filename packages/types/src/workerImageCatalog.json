@@ -49,9 +49,9 @@
     "includeInPushScript": true,
     "isAgentImage": false,
     "supportedAgents": [
+      "antigravity",
       "claude-code",
       "codex",
-      "gemini-cli",
       "kimi-code",
       "mistral-vibe",
       "opencode",
@@ -60,6 +60,23 @@
     ],
     "defaultForAgents": [
       "claude-code"
+    ]
+  },
+  {
+    "variant": "antigravity",
+    "repositoryName": "viberator-worker-antigravity",
+    "scriptImageName": "worker-antigravity",
+    "dockerfilePath": "infra/workers/docker/generated/antigravity.Dockerfile",
+    "includeInHarnessSetup": true,
+    "includeInInfraProvisioning": true,
+    "includeInBuildScript": true,
+    "includeInPushScript": true,
+    "isAgentImage": true,
+    "supportedAgents": [
+      "antigravity"
+    ],
+    "defaultForAgents": [
+      "antigravity"
     ]
   },
   {
@@ -109,23 +126,6 @@
     ],
     "defaultForAgents": [
       "fake"
-    ]
-  },
-  {
-    "variant": "gemini",
-    "repositoryName": "viberator-worker-gemini",
-    "scriptImageName": "worker-gemini",
-    "dockerfilePath": "infra/workers/docker/generated/gemini.Dockerfile",
-    "includeInHarnessSetup": true,
-    "includeInInfraProvisioning": true,
-    "includeInBuildScript": true,
-    "includeInPushScript": true,
-    "isAgentImage": true,
-    "supportedAgents": [
-      "gemini-cli"
-    ],
-    "defaultForAgents": [
-      "gemini-cli"
     ]
   },
   {

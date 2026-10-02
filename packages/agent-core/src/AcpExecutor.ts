@@ -64,10 +64,10 @@ export class AcpExecutor {
         acpSessionId: context.acpSessionId,
         coldStartMessage: context.coldStartPrompt,
         compactInstructions: context.compactInstructions,
+        mcpServers: context.mcpServers,
       });
 
       this.logger.info("AcpExecutor completed", {
-        turnOutcome: result.turnOutcome,
         acpSessionId: result.acpSessionId,
         sessionStart: result.sessionStart,
       });
@@ -77,7 +77,6 @@ export class AcpExecutor {
         changedFiles: [],
         executionTime: 0,
         cost: 0,
-        acpTurnOutcome: result.turnOutcome,
         newAcpSessionId: result.acpSessionId,
         acpSessionStart: result.sessionStart,
         acpContextUsage: result.contextUsage,

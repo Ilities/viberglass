@@ -4,23 +4,23 @@ import { AGENT_ENV_PASSTHROUGH_VAR } from "@viberglass/agent-core";
 export class EnvironmentManager {
   constructor(private readonly logger: Logger) {}
 
+  /**
+   * @param agentVisible credential env vars the run bound for the agent; they join the
+   *   agent passthrough like clanker-config variables do.
+   */
   inject(
     credentials: Record<string, string | undefined>,
     environment?: Record<string, string>,
+    agentVisible: string[] = [],
   ): void {
-    for (const [key, value] of Object.entries(credentials)) {
+    for (const [envVar, value] of Object.entries(credentials)) {
       if (value !== undefined) {
-        const envKey = this.keyToEnvVar(key);
-        process.env[envKey] = value;
-        this.logger.debug("Injected credential into environment", { envKey });
+        process.env[envVar] = value;
+        this.logger.debug("Injected credential into environment", { envVar });
       }
     }
 
-    if (!environment) {
-      return;
-    }
-
-    for (const [key, value] of Object.entries(environment)) {
+    for (const [key, value] of Object.entries(environment ?? {})) {
       process.env[key] = value;
       this.logger.debug("Injected clanker config environment variable", {
         key,
@@ -28,9 +28,9 @@ export class EnvironmentManager {
     }
 
     // Agent CLIs get a deny-by-default environment (see sanitizeAgentEnvironment).
-    // Clanker-config variables are operator-declared and meant for the agent, so
-    // name them explicitly as passthrough — still subject to the denylist.
-    const declared = Object.keys(environment);
+    // Clanker-config variables and bound secrets are operator-declared and meant for
+    // the agent, so name them explicitly as passthrough — still subject to the denylist.
+    const declared = Array.from(new Set([...Object.keys(environment ?? {}), ...agentVisible]));
     if (declared.length > 0) {
       process.env[AGENT_ENV_PASSTHROUGH_VAR] = declared.join(",");
     }
@@ -40,19 +40,14 @@ export class EnvironmentManager {
     credentials: Record<string, string | undefined>,
     environment?: Record<string, string>,
   ): void {
-    for (const [key, value] of Object.entries(credentials)) {
+    for (const [envVar, value] of Object.entries(credentials)) {
       if (value !== undefined) {
-        const envKey = this.keyToEnvVar(key);
-        delete process.env[envKey];
-        this.logger.debug("Cleaned up credential from environment", { envKey });
+        delete process.env[envVar];
+        this.logger.debug("Cleaned up credential from environment", { envVar });
       }
     }
 
-    if (!environment) {
-      return;
-    }
-
-    for (const key of Object.keys(environment)) {
+    for (const key of Object.keys(environment ?? {})) {
       delete process.env[key];
       this.logger.debug("Cleaned up clanker config environment variable", {
         key,
@@ -60,9 +55,5 @@ export class EnvironmentManager {
     }
 
     delete process.env[AGENT_ENV_PASSTHROUGH_VAR];
-  }
-
-  private keyToEnvVar(key: string): string {
-    return key.toUpperCase().replace(/-/g, "_");
   }
 }

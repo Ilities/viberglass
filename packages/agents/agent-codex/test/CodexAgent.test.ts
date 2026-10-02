@@ -1,6 +1,7 @@
 import { createLogger, transports } from "winston";
 import type { CodexConfig } from "../src";
 import { CodexAgent } from "../src";
+import { CODEX_COMPACT_PROMPT } from "../src/CodexAgent";
 import type { AgentCLIResult, ExecutionContext } from "@viberglass/agent-core";
 
 interface CapturedCommand {
@@ -184,5 +185,14 @@ describe("CodexAgent CLI invocation", () => {
       "sk-runtime",
     );
     expect(agent.capturedCommand.args.at(-1)).toBe("Implement the fix");
+  });
+});
+
+describe("CodexAgent ACP environment", () => {
+  it("gives codex-acp our compact prompt, since Codex's compact command takes no instructions", () => {
+    const agent = new CodexAgent(createCodexConfig(), createLogger({ silent: true }));
+    const env = agent.getAcpEnvironment("/tmp/harness-config");
+    expect(JSON.parse(String(env.CODEX_CONFIG))).toEqual({ compact_prompt: CODEX_COMPACT_PROMPT });
+    expect(CODEX_COMPACT_PROMPT).toContain("who agreed to each");
   });
 });

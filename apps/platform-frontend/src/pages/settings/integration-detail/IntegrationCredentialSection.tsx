@@ -12,8 +12,8 @@ import {
   updateIntegrationCredential,
 } from '@/service/api/integration-api'
 import { SsmPathField } from '@/pages/secrets/ssm-path-field'
-import { getSecrets, getSecretStorageDefaults, type Secret, type SecretStorageDefaults } from '@/service/api/secret-api'
-import type { CreateIntegrationCredentialRequest, UpdateIntegrationCredentialRequest, IntegrationCredential, SecretLocation } from '@viberglass/types'
+import { getSecretStorageDefaults, listAllSecrets, type Secret, type SecretStorageDefaults } from '@/service/api/secret-api'
+import { ENV_VAR_NAME_PATTERN, type CreateIntegrationCredentialRequest, type UpdateIntegrationCredentialRequest, type IntegrationCredential, type SecretLocation } from '@viberglass/types'
 import { PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -67,6 +67,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
   const [newCredentialLocation, setNewCredentialLocation] = useState<SecretLocation>('database')
   const [newCredentialPath, setNewCredentialPath] = useState('')
+  const [newCredentialSourceEnvVar, setNewCredentialSourceEnvVar] = useState('')
   const [newCredentialValue, setNewCredentialValue] = useState('')
   const [newCredentialIsDefault, setNewCredentialIsDefault] = useState(false)
   const [newCredentialDescription, setNewCredentialDescription] = useState('')
@@ -134,7 +135,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const loadSecrets = async () => {
     setIsLoadingSecrets(true)
     try {
-      const data = await getSecrets(100, 0)
+      const data = await listAllSecrets()
       setSecrets(data)
     } catch (error) {
       console.error('Failed to load secrets:', error)
@@ -151,6 +152,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
     setNewCredentialName('')
     setNewCredentialLocation(storageDefaults?.location ?? 'database')
     setNewCredentialPath('')
+    setNewCredentialSourceEnvVar('')
     setNewCredentialValue('')
     setNewCredentialIsDefault(false)
     setNewCredentialDescription('')
@@ -187,6 +189,11 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
           setIsSubmitting(false)
           return
         }
+        if (newCredentialLocation === 'env' && !ENV_VAR_NAME_PATTERN.test(newCredentialSourceEnvVar.trim())) {
+          toast.error('Name the server environment variable that holds the credential')
+          setIsSubmitting(false)
+          return
+        }
 
         // Create new secret
         request = {
@@ -195,6 +202,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
           secretLocation: newCredentialLocation,
           secretValue: newCredentialLocation !== 'env' ? newCredentialValue.trim() : undefined,
           secretPath: newCredentialLocation === 'ssm' && newCredentialPath.trim() ? newCredentialPath.trim() : undefined,
+          sourceEnvVar: newCredentialLocation === 'env' ? newCredentialSourceEnvVar.trim() : undefined,
           isDefault: newCredentialIsDefault,
           description: newCredentialDescription.trim() || null,
         }
@@ -518,11 +526,22 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                       </Field>
                       {newCredentialLocation === 'ssm' && (
                         <SsmPathField
-                          name={newCredentialName}
                           path={newCredentialPath}
                           ssmPrefix={storageDefaults?.ssmPrefix ?? '/viberator/secrets'}
                           onChange={setNewCredentialPath}
                         />
+                      )}
+                      {newCredentialLocation === 'env' && (
+                        <Field>
+                          <Label>Server environment variable</Label>
+                          <Description>The variable on the Viberglass server that holds the credential.</Description>
+                          <Input
+                            value={newCredentialSourceEnvVar}
+                            onChange={(e) => setNewCredentialSourceEnvVar(e.target.value.toUpperCase())}
+                            placeholder="GITHUB_TOKEN"
+                            className="font-mono"
+                          />
+                        </Field>
                       )}
                       {newCredentialLocation !== 'env' && (
                         <Field>

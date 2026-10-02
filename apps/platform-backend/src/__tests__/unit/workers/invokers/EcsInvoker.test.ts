@@ -23,10 +23,9 @@ jest.mock("@aws-sdk/client-ecs", () => ({
   RunTaskCommand: jest.fn().mockImplementation((input) => ({ input })),
 }));
 
-// Mock JobService
 const mockSaveBootstrapPayload = jest.fn().mockResolvedValue(undefined);
-jest.mock("../../../../services/JobService", () => ({
-  JobService: jest.fn().mockImplementation(() => ({
+jest.mock("../../../../services/job/JobBootstrapService", () => ({
+  JobBootstrapService: jest.fn().mockImplementation(() => ({
     saveBootstrapPayload: mockSaveBootstrapPayload,
   })),
 }));
@@ -69,7 +68,7 @@ describe("EcsInvoker", () => {
       status: "active",
       agent: "kimi-code",
       configFiles: [],
-      secretIds: [],
+      secretBindings: [],
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {

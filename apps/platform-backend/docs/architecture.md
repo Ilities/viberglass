@@ -124,8 +124,7 @@ Inbound webhook pipeline:
 5. Provider-specific inbound processor maps event -> ticket/job.
 6. Delivery attempt lifecycle is persisted.
 
-Outbound feedback pipeline:
-- `FeedbackService` + `feedback/*` orchestrates posting job updates to external systems.
+Nothing is posted back to the source system: a webhook that asks for a build starts a turn in the task's thread (`WebhookBuildRequester`), and its outcome shows there.
 
 Key components:
 - `ProviderRegistry`

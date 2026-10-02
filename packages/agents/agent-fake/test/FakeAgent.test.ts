@@ -91,7 +91,7 @@ describe("planFakeTurn", () => {
     const plan = planFakeTurn(
       "RESEARCH.md [fake:sleep=30] [fake:no-document] [fake:code] [fake:fail]",
     );
-    expect(plan).toEqual({ documentFile: undefined, code: true, sleepSeconds: 30, fail: true, usageTokens: null });
+    expect(plan).toEqual({ documentFile: undefined, code: true, sleepSeconds: 30, sleepAfterSeconds: 0, fail: true, usageTokens: null, ask: null });
   });
 
   it("in a task turn, writes the document the turn was asked for, not the ones its rules mention", () => {
@@ -109,7 +109,17 @@ describe("planFakeTurn", () => {
     const quoted = `<current-research>${renderFakeDocument("RESEARCH.md", "[fake:fail] [fake:sleep=9]", 1)}</current-research>`;
     const prompt = `${quoted}\n\n${turnPrompt({ task: "Fix it [fake:code]", thread: "<message>Build it</message>", whatToDo: "Build it" })}`;
 
-    expect(planFakeTurn(prompt)).toEqual({ documentFile: undefined, code: true, sleepSeconds: 0, fail: false, usageTokens: null });
+    expect(planFakeTurn(prompt)).toEqual({ documentFile: undefined, code: true, sleepSeconds: 0, sleepAfterSeconds: 0, fail: false, usageTokens: null, ask: null });
+  });
+
+  it("reads a question to ask, with its options and whom to ask, blocking unless asked later", () => {
+    expect(planFakeTurn("[fake:ask=Which warehouse?|North|South] [fake:ask-of=requester]").ask).toEqual({
+      question: "Which warehouse?",
+      options: ["North", "South"],
+      addressee: "requester",
+      blocking: true,
+    });
+    expect(planFakeTurn("[fake:ask-later=Dark mode too?]").ask).toEqual({ question: "Dark mode too?", options: [], addressee: null, blocking: false });
   });
 });
 
@@ -124,6 +134,23 @@ describe("FakeTurnRunner", () => {
     expect(io.sleeps).toEqual([2000]);
     expect(io.files.get(path.join("/repo", "RESEARCH.md"))).toContain("PM NOTE");
     expect(message).toBe("Writing the research: fake agent, turn 1.\n\nFake agent wrote RESEARCH.md.");
+  });
+
+  it("writes the document before waiting, when told to wait after", async () => {
+    const io = recordingIo();
+    const order: string[] = [];
+    const runner = new FakeTurnRunner({
+      ...io,
+      writeFile: async (filePath, contents) => {
+        order.push("write");
+        await io.writeFile(filePath, contents);
+      },
+      sleep: async (ms) => {
+        order.push(`sleep ${ms}`);
+      },
+    });
+    await runner.run("RESEARCH.md [fake:sleep-after=5]", "/repo");
+    expect(order).toEqual(["write", "sleep 5000"]);
   });
 
   it("says it's revising a document that's already there, and which turn it's on", async () => {

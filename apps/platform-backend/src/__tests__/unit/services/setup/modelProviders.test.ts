@@ -21,8 +21,17 @@ describe("model provider catalog", () => {
     });
   });
 
-  it("leaves out agents the platform can't select yet", () => {
-    expect(AGENT_PROVIDER_BINDINGS.some((binding) => String(binding.agent) === "pi")).toBe(false);
+  it("runs Google keys on Antigravity", () => {
+    expect(getDefaultAgentBindingForProvider("google")).toMatchObject({
+      agent: "antigravity",
+      envVar: "GEMINI_API_KEY",
+    });
+  });
+
+  it("offers Pi for Anthropic keys without making it the default", () => {
+    expect(AGENT_PROVIDER_BINDINGS).toContainEqual(
+      expect.objectContaining({ agent: "pi", provider: "anthropic", default: false }),
+    );
   });
 });
 

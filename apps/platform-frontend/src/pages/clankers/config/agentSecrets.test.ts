@@ -1,5 +1,5 @@
 import type { Secret } from '@/service/api/secret-api'
-import { filterSecretsForAgent, getAllSecrets, getApplicableSecretNames, getSecretPickerDescription, getSecretPickerEmptyMessage } from './agentSecrets'
+import { applySecretSelection, defaultEnvVarForSecret, describeBindingsProblem } from './agentSecrets'
 
 function createSecret(id: string, name: string): Secret {
   return {
@@ -13,83 +13,42 @@ function createSecret(id: string, name: string): Secret {
 }
 
 describe('agentSecrets', () => {
-  test('includes qwen API key aliases in applicable names', () => {
-    const names = getApplicableSecretNames('qwen-cli', 'api_key')
-    expect(names).toEqual(
-      expect.arrayContaining(['QWEN_CLI_API_KEY', 'DASHSCOPE_API_KEY', 'QWEN_API_KEY']),
-    )
+  const teamKey: Secret = { ...createSecret('k1', 'Team Anthropic key'), provider: 'anthropic' }
+  const legacy = createSecret('k2', 'OPENAI_API_KEY')
+  const notion = createSecret('k3', 'Notion workspace')
+
+  test('a model key starts out as the env var the agent reads for its provider', () => {
+    expect(defaultEnvVarForSecret(teamKey, 'claude-code')).toBe('ANTHROPIC_API_KEY')
   })
 
-  test('adds CODEX_AUTH_JSON for codex device auth modes', () => {
-    const names = getApplicableSecretNames('codex', 'chatgpt_device')
-    expect(names).toContain('CODEX_AUTH_JSON')
+  test('a secret whose label is an env var name keeps it', () => {
+    expect(defaultEnvVarForSecret(legacy, 'codex')).toBe('OPENAI_API_KEY')
   })
 
-  test('filters secrets by selected agent names', () => {
-    const secrets: Secret[] = [
-      createSecret('s1', 'QWEN_CLI_API_KEY'),
-      createSecret('s2', 'QWEN_API_ENDPOINT'),
-      createSecret('s3', 'OPENAI_API_KEY'),
-      createSecret('s4', 'UNRELATED_SECRET'),
-    ]
-
-    const filtered = filterSecretsForAgent(secrets, 'qwen-cli', 'api_key')
-    expect(filtered.map((secret) => secret.id)).toEqual(['s1'])
+  test('any other secret starts as its label in env var form', () => {
+    expect(defaultEnvVarForSecret(notion, 'claude-code')).toBe('NOTION_WORKSPACE')
+    expect(defaultEnvVarForSecret(createSecret('k4', '2nd key!'), 'claude-code')).toBe('_2ND_KEY')
   })
 
-  describe('getAllSecrets', () => {
-    test('returns all secrets without filtering', () => {
-      const secrets: Secret[] = [
-        createSecret('s1', 'QWEN_CLI_API_KEY'),
-        createSecret('s2', 'CUSTOM_SECRET'),
-        createSecret('s3', 'OPENAI_API_KEY'),
-        createSecret('s4', 'UNRELATED_SECRET'),
-      ]
-
-      const result = getAllSecrets(secrets)
-      expect(result).toEqual(secrets)
-      expect(result).toHaveLength(4)
-    })
-
-    test('returns empty array when no secrets exist', () => {
-      const result = getAllSecrets([])
-      expect(result).toEqual([])
-    })
+  test('keeps edited env vars when the selection changes', () => {
+    const bindings = [{ secretId: 'k1', envVar: 'ANTHROPIC_AUTH_TOKEN' }]
+    expect(applySecretSelection(bindings, ['k1', 'k2'], [teamKey, legacy], 'claude-code')).toEqual([
+      { secretId: 'k1', envVar: 'ANTHROPIC_AUTH_TOKEN' },
+      { secretId: 'k2', envVar: 'OPENAI_API_KEY' },
+    ])
+    expect(applySecretSelection(bindings, ['k2'], [teamKey, legacy], 'claude-code')).toEqual([
+      { secretId: 'k2', envVar: 'OPENAI_API_KEY' },
+    ])
   })
 
-  describe('getSecretPickerDescription', () => {
-    test('includes note about showing all secrets when showAllSecrets is true', () => {
-      const description = getSecretPickerDescription('claude-code', 'api_key', true)
-      expect(description).toContain('Showing all configured secrets')
-    })
-
-    test('does not include all secrets note when showAllSecrets is false', () => {
-      const description = getSecretPickerDescription('claude-code', 'api_key', false)
-      expect(description).not.toContain('Showing all configured secrets')
-    })
-
-    test('defaults to not showing all secrets when parameter is omitted', () => {
-      const description = getSecretPickerDescription('claude-code', 'api_key')
-      expect(description).not.toContain('Showing all configured secrets')
-    })
-  })
-
-  describe('getSecretPickerEmptyMessage', () => {
-    test('returns specific message when showAllSecrets is true and no secrets exist', () => {
-      const message = getSecretPickerEmptyMessage('claude-code', 'api_key', true)
-      expect(message).toContain('No secrets configured')
-      expect(message).toContain('Add secrets in the Secrets page')
-    })
-
-    test('suggests enabling show all secrets when filtered list is empty', () => {
-      const message = getSecretPickerEmptyMessage('claude-code', 'api_key', false)
-      expect(message).toContain('enable "Show all secrets"')
-    })
-
-    test('suggests creating secrets with agent-specific names when showAllSecrets is false', () => {
-      const message = getSecretPickerEmptyMessage('claude-code', 'api_key', false)
-      expect(message).toContain('Create one with name like')
-      expect(message).toContain('ANTHROPIC_API_KEY')
-    })
+  test('flags invalid and repeated env vars', () => {
+    expect(describeBindingsProblem([{ secretId: 'k1', envVar: 'my key' }])).toContain("isn't a valid")
+    expect(
+      describeBindingsProblem([
+        { secretId: 'k1', envVar: 'ANTHROPIC_API_KEY' },
+        { secretId: 'k2', envVar: 'ANTHROPIC_API_KEY' },
+      ]),
+    ).toContain('Two secrets')
+    expect(describeBindingsProblem([{ secretId: 'k1', envVar: 'ANTHROPIC_API_KEY' }])).toBeNull()
   })
 })

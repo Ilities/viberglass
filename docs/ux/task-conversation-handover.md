@@ -1,6 +1,6 @@
 # Handover: the task as a conversation (build plan)
 
-Status: **S1–S7 done, 2026-10-02; next is S8 (§5)** · Decisions: [ADR 0008](../adr/0008-tasks-are-conversations.md) (accepted by Jussi the same day, including "who may ask for code") · Product design: [`returning-visit-redesign.md`](./returning-visit-redesign.md) and [`information-architecture.md`](./information-architecture.md) · How to work on the repo: [`next-steps-handover.md`](./next-steps-handover.md) §2 and [`phase-2-3-handover.md`](./phase-2-3-handover.md) §4.
+Status: **Done: S1–S8 and the follow-ups, 2026-10-02. This closes the phase; what is left is in §5** · Decisions: [ADR 0008](../adr/0008-tasks-are-conversations.md) (accepted by Jussi the same day, including "who may ask for code") · Product design: [`returning-visit-redesign.md`](./returning-visit-redesign.md) and [`information-architecture.md`](./information-architecture.md) · How to work on the repo: [`next-steps-handover.md`](./next-steps-handover.md) §2 and [`phase-2-3-handover.md`](./phase-2-3-handover.md) §4.
 
 This is how to build ADR 0008 on the code as it is. It replaces the build order in the redesign's §9 with slices that each ship on their own, behind green unit tests and smoke journeys (run one suite at a time, `jest --maxWorkers=2`).
 
@@ -386,10 +386,50 @@ Planned:
 - Settings landings, role-aware actions everywhere, and the cuts in the IA doc.
 - **Tests:** the sidebar is the same inside and outside a space; a viewer and a guest see no action they can't take.
 
+**Done (2026-10-02).** What landed:
+- **Permissions:** `SpaceCapabilities` (`viewerAccess` on one space: `canMaintain`, `canCreateTasks`, `canSeeRuns`); a task's `capabilities` add `canPost`, `canEdit`, `canDelete`. Task lists carry each task's `lastMessage` and `unread`.
+- **Sidebar** (`layouts/app-sidebar.tsx`): the same everywhere; the current space expands in place to Runs, Schedules (admins and members) and Settings; avatar menu with Notifications, API tokens, theme and sign out; one accent colour (`ProjectTheme` removed); the space switcher stays in the mobile top bar only.
+- **Space page** (`pages/project/space/`): tasks grouped by situation (Needs you first, Done folded), board or table, search and State · Artifact · Owner · Waiting on filters (severity under More filters), load more, Archived as a link, archiving for maintainers. `ProjectHomePage`, `TicketsPage` and the board and table went; `/spaces/:project/tasks` is gone.
+- **Task page:** no banner or History column; thread on the left and the artifact (Research · Plan · Code) on the right on wide screens; Details and People above the thread. The session page is gone: the agent's open question is answered above the composer, a failed run says why there (with the fix link for admins), and a running turn has Cancel run for admins and members. Actions show only what the person may do (Edit, Mark as done or Reopen, Archive, Delete); the edit dialog no longer sets the status.
+- **Settings:** workspace settings open on Members for admins and Notifications for everyone else; admin pages redirect non-admins. Space settings read as "About this space" for non-maintainers, with Connections and Agent instructions hidden. Runs, Schedules and Create task redirect guests and viewers to the space.
+- **Wording:** "Awaiting review" and the status labels are gone; run kinds read Research · Plan · Code.
+- **Also fixed:** Home's checklist said "Connect Slack" when Slack was set up by its bot token in the environment; it now counts that, as the personal Slack link does.
+- **Tests:** sidebar the same inside and outside a space (`ApplicationLayout.test.tsx`); space page, space settings and Actions menu by role; smoke `role-aware-actions` (a viewer and a guest see no action they can't take). Smoke specs that used the session page, the banner or the Tasks page now go through the task page.
+
 ### S8. Then Phase 3, on the thread
 - `ask_human` as a mention of the addressee (Phase 3.2).
 - The Slack thread mirrors the task thread and calls `TaskTurnService` (replacing `threadMention`'s keyword resolver and the two polling bridges).
 - Then steering and interrupts, take over and hand back, failure recovery, and cancel-safe runs (Phase 3.4–3.7).
+
+**Done (2026-10-02).** What landed:
+- **Agent questions (`ask_human`):**
+  - Each session turn starts a localhost relay in the worker and offers the harness a stdio MCP server (`apps/viberator/src/questions/`, built as `dist/ask-human-mcp.js`) through ACP `mcpServers`, on new, loaded and resumed sessions. The MCP server only knows the relay's address and a per-turn secret; the callback token stays out of the agent's environment.
+  - The worker posts to `POST /api/jobs/:jobId/questions`. `AgentQuestionService` resolves the addressee (a role, a name, else the owner, the requester, then whoever opened the session) and records an open input request with options, blocking and a due time (migration 088; several can be open per session). Activity `question_asked` notifies them (Slack DM, email), and the situation reads "Question for Maria".
+  - The question is a `question` entry in the thread. Open ones are answered above the composer, with an option in one press or in writing (`POST /api/tasks/:id/questions/:questionId/answer`). The answer is a thread message linked to its question before the agent is asked, so the prompt marks it `in-answer-to`. A blocking question asks for the step it stopped again; otherwise it's a reply.
+  - `QuestionReminderService` reminds the addressee after the space's wait ("Unanswered questions" in space settings, default 4 hours), then tells the owner after as long again.
+  - Templates tell agents to ask instead of writing "needs confirmation", and the cold start lists the people on the task. The "ends with ?" guess is gone.
+  - Fake agent: `[fake:ask=Q|A|B]`, `[fake:ask-later=Q]` and `[fake:ask-of=WHO]`; it calls the real MCP server.
+- **Slack:**
+  - A task has one Slack thread (migration 089 drops per-session threads and the thread's step and agent). `TaskSlackMirror`, an Activity listener, posts what happens on the task: messages, runs starting and failing, the agent's reply with its documents and a next-step button, questions with option buttons, and answers. Changes that came from Slack aren't echoed.
+  - Replies there go through `TaskThreadInbound`, as the linked account: the person asked answers their question, a mention of the bot asks the agent, and anything else is a thread message.
+  - Removed: both polling bridges, the keyword resolver (`sessionAdvance`), `SessionCompletionNotice`, `AgentSessionInteractionService`, and the session `reply`, `message` and `approve` routes.
+- **Steering:** the owner, the space's maintainers and admins (`canSteer`) can interrupt a turn with a message ("Interrupt with this"), or pause and resume the agent. Migration 090 adds the `paused` session status. Asks wait while the agent is paused. An interrupt or a resume keeps the stopped step unless the message asks for another; resuming with nothing written posts "Carry on where you left off."
+- **Take over and hand back:**
+  - Taking over pauses the agent and records who has the work (migration 091). The card shows the task's branch and how to check it out. `viberglass checkout WEB-42` (`packages/cli`) gets the branch through the new `task_branch` MCP tool, using an API token.
+  - Handing back resumes with the person's note. Every turn now starts from the task's branch when it exists. The worker tells the agent what people pushed since the last agent commit (`<pushed-by-people>`); builds record their commit in the turn outcome.
+- **Failure recovery:**
+  - A failed run's turn ends even when its worker never reported (runner unavailable, a lost heartbeat). Before, the task said "Agent working" for good.
+  - Setup failures (credential, quota, repository, runner) pause the agent ("Paused · Repository not reachable", which is admins' move too). "Try again" resumes that task; admins can "Retry all paused runs" after the fix.
+  - The readiness banner warns a week before the SCM credential expires, and admins get one Slack and email warning per expiring connection credential (migration 092).
+- **Cancel-safe runs:**
+  - Jobs record their worker type and id, and who cancelled them (migration 093). `EcsWorkerStopper` stops ECS tasks. Lambda can't be stopped; its late result is refused, as before.
+  - Cancelling now ends the turn before the worker stops. Docker gives the worker 20 seconds, during which it sends back the documents it had written and, on a build, pushes a work-in-progress commit to the task's branch. The thread says "This turn was stopped. It kept the research it had written."
+  - The run shows who cancelled it, and the cancel dialog says how long a run has gone after 30 minutes.
+- **Verified:**
+  - Unit tests: backend 1135, frontend 247, worker 125, agent-core 44, fake agent 25, CLI 3.
+  - Lint and typechecks are clean, apart from earlier warnings and the MCP package's existing type-depth errors.
+  - Smoke 49/49. New and extended journeys: `agent-question`, `steer-the-agent`, `take-over-and-hand-back`, `failure-copy` (pause and retry after a fix) and `cancel-run` (partial work kept).
+- **Not verified:** a real Slack workspace (the adapter can't be pointed at a stub), a real ECS stop, and `ask_human` with real harnesses and models.
 
 **Order and dependencies:** S1 → S2 → S3. S4 needs S2 (agent posts and mentions). S5 can come any time. S6 needs S2. S7 needs S4. S8 needs S3. About 8–9 weeks to the end of S7.
 
@@ -405,43 +445,61 @@ Planned:
 | Slack keeps the old keyword flow until S8 | Fine for the interim: it calls the same services, and keywords map onto actions |
 | Oversized files | Split as touched (AGENTS.md §6). Start with `workflowPhaseRoutes.ts` and the session services, which S2 rewrites anyway |
 
-## 5. Next step: S8 (start here in a new session)
+## 5. Closing the phase (start here in a new session)
 
-S1–S7 are done (2026-10-02). S8 is next.
+The task as a conversation is built: S1–S8 are done, and with S8 so is Phase 3 of [`phase-2-3-handover.md`](./phase-2-3-handover.md). Jussi checked it in a live environment on 2026-10-02 (Slack, ECS, `ask_human` with real harnesses) and will bring improvements in a new session.
 
 ### 5.1 State of the repository
-- **Committed** up to S6 (`41b49ff`). **Not committed:** S7, below. Check `git status` first; Jussi commits, agents don't.
-- **Verified after S7:** backend unit 1078, frontend 233, lint and type checks clean, smoke 44/44.
+- **Committed** up to S7 (`bb67778`). **Not committed:** S8 and the follow-ups below. Check `git status` first; Jussi commits, agents don't.
+- **Migrations added in S8:** 088 (agent questions) to 094 (task branch named once). In order: 088 questions, 089 one Slack thread per task, 090 paused sessions, 091 take over, 092 credential expiry warnings, 093 worker ids and who cancelled, 094 the task branch.
+- **New packages:** `packages/cli` (the `viberglass checkout` command). `packages/mcp-server` builds its own declarations now (zod 4).
+- **Verified at the close:** backend 1141, frontend 249, worker 125, agent-core 44, fake agent 25, Codex 4 and CLI 3 unit tests pass, plus the worker-execution integration test. Lint and typechecks are clean, apart from two older frontend warnings in `usePolling` and a table component. Smoke 49/49, on a freshly built fake worker image.
 
-### 5.2 How to work here
-- **Rules:** `.agents/AGENTS.md`: files ≤350 lines (split what you touch), no `as` casts beyond `as const`, comments never refer to design documents, ADRs, slices or plan labels.
-- **Tests:** one suite at a time, never in parallel: `npx jest --maxWorkers=2` in a package (backend: `--testPathPattern=unit`). Smoke: `npm run test:e2e` from the root (about 5 minutes). Rebuild the fake worker image after changing `apps/viberator`, `packages/agent-core` or `packages/agents/*`.
-- **Dev stack:** the frontend container bakes `packages/types/dist`; after changing `packages/types`, `npm run build -w @viberglass/types`, then `docker compose build frontend && docker compose up -d frontend`.
+### 5.2 Follow-ups done after S8
+- A task's branch is named once, by its first build or a take over, and kept on the task (`tickets.task_branch`, migration 094). A `{{ jobId }}` or `{{ timestamp }}` template no longer names a new branch every build.
+- A mention can be marked done, without replying, from Home's "Needs you" and from the task.
+- Codex gets our compact prompt through `CODEX_CONFIG`, which codex-acp merges into its session config. The agent sandbox lets that variable through.
+- Split by responsibility:
+  - `JobService` into `JobQueryService` (reads) and `JobBootstrapService` (bootstrap payload and dispatch manifest).
+  - `TicketDAO` into `TicketListDAO` (lists and stats) and `ticketRow.ts` (row mapping).
+  - The worker's `jobPipeline` into setup, `agentExecution` and `jobLifecycle`.
+  - `ViberatorWorker` into `workerSettings`, `workerServices` and `selectAgent`.
+  - The turn-only callbacks out of `CallbackClient`, into `TurnCallbackClient`.
+  - Left whole on purpose: `schemas.ts` and `database.ts` are lists of schemas and table types.
 
-### 5.3 What S7 built
-- **Permissions:** `SpaceCapabilities` (`viewerAccess` on one space: `canMaintain`, `canCreateTasks`, `canSeeRuns`); a task's `capabilities` add `canPost`, `canEdit`, `canDelete`. Task lists carry each task's `lastMessage` and `unread`.
-- **Sidebar** (`layouts/app-sidebar.tsx`): the same everywhere; the current space expands in place to Runs, Schedules (admins and members) and Settings; avatar menu with Notifications, API tokens, theme and sign out; one accent colour (`ProjectTheme` removed); the space switcher stays in the mobile top bar only.
-- **Space page** (`pages/project/space/`): tasks grouped by situation (Needs you first, Done folded), board or table, search and State · Artifact · Owner · Waiting on filters (severity under More filters), load more, Archived as a link, archiving for maintainers. `ProjectHomePage`, `TicketsPage` and the board and table went; `/spaces/:project/tasks` is gone.
-- **Task page:** no banner or History column; thread on the left and the artifact (Research · Plan · Code) on the right on wide screens; Details and People above the thread. The session page is gone: the agent's open question is answered above the composer, a failed run says why there (with the fix link for admins), and a running turn has Cancel run for admins and members. Actions show only what the person may do (Edit, Mark as done or Reopen, Archive, Delete); the edit dialog no longer sets the status.
-- **Settings:** workspace settings open on Members for admins and Notifications for everyone else; admin pages redirect non-admins. Space settings read as "About this space" for non-maintainers, with Connections and Agent instructions hidden. Runs, Schedules and Create task redirect guests and viewers to the space.
-- **Wording:** "Awaiting review" and the status labels are gone; run kinds read Research · Plan · Code.
-- **Also fixed:** Home's checklist said "Connect Slack" when Slack was set up by its bot token in the environment; it now counts that, as the personal Slack link does.
-- **Tests:** sidebar the same inside and outside a space (`ApplicationLayout.test.tsx`); space page, space settings and Actions menu by role; smoke `role-aware-actions` (a viewer and a guest see no action they can't take). Smoke specs that used the session page, the banner or the Tasks page now go through the task page.
+### 5.3 How to work here
+- **Rules:** `.agents/AGENTS.md`: no `as` casts beyond `as const`, and comments never refer to design documents, ADRs, slices or plan labels. The size limits are a guide (Jussi, 2026-10-02): split by responsibility, never just to fit a line count, and don't let a file grow into a monster.
+- **Tests:** one suite, lint or typecheck per command, never chained or in parallel: `npx jest --maxWorkers=2` in a package (backend: `--testPathPattern=unit`). Smoke: `npm run test:e2e` from the root (about 6 minutes), at most once per checkpoint. Rebuild the fake worker image after changing `apps/viberator`, `packages/agent-core` or `packages/agents/*`, as its own step, never alongside tests.
+- **Dev stack:** the frontend container bakes `packages/types/dist`; after changing `packages/types`, `npm run build -w @viberglass/types`, then `docker compose build frontend && docker compose up -d frontend`. The backend runs the new migrations when it restarts.
+- **Fake agent directives** are listed in `TESTING.md`, including `[fake:ask=…]` and `[fake:sleep-after=N]`.
 
-### 5.4 Open ends from earlier slices
+### 5.4 Open ends and decisions
 - **S3:** "Build it opens a PR" isn't covered end to end, and won't be (Jussi, 2026-10-02): tests must not depend on live GitHub, and mocking it isn't cheap. The worker's `GitService` hardcodes `api.github.com` and parses only github.com URLs, and the git fixture is read-only.
 - **S3:** people can add themselves as watchers, which lets any member or in-space guest ask for code. Decided (Jussi, 2026-10-02): that's intended; watchers may ask for code.
-- **S4:**
-  - "Mark done" on a mention doesn't exist; only replying answers one.
-  - Adding a reviewer sends the Slack review request but opens no mention.
-- **S5:** a merge closes its task within about an hour (sweeper recheck). A GitHub webhook would make it immediate.
-- **S6:**
-  - Codex compacts only through `compact_prompt` in its config, which isn't set.
-  - The summary threshold is global (`TASK_SUMMARY_CONTEXT_RATIO`, `TASK_SUMMARY_CONTEXT_TOKENS`).
-- **Webhooks:** the GitHub, Jira and Shortcut webhook processors still submit one-shot builds outside any session.
+- **S4:** adding a reviewer sends the Slack review request but opens no mention. (A mention can now be marked done, from Home or the task, without replying.)
+- **S5:** a merge closes its task within about an hour (sweeper recheck). A GitHub webhook would make it immediate. Fine for now (Jussi, 2026-10-02).
+- **S6:** the summary threshold is global (`TASK_SUMMARY_CONTEXT_RATIO`, `TASK_SUMMARY_CONTEXT_TOKENS`). Fine as is (Jussi, 2026-10-02). Codex now gets our compact prompt through `CODEX_CONFIG`, which codex-acp merges into its session config.
+- **S8:**
+  - A stopped Lambda run keeps nothing; Docker and ECS give the worker time to keep its work. Fine (Jussi, 2026-10-02): a Lambda turn that finishes reports its documents like any other.
+- **Small things to do when something nearby is touched:**
+  - Adding a reviewer should open a mention, not only send the Slack review request.
+  - A task branch only counts as pushed after a completed build. After a stopped build's work-in-progress commit, the take-over card still suggests starting the branch from the base.
 
-### 5.5 S8
-See §3, S8:
-- `ask_human` as a mention of the person asked; open questions already make it their move (`agent_pending_requests` → situation `question`).
-- The Slack thread mirrors the task thread through `TaskTurnService`, replacing `threadMention`'s keyword resolver and the two polling bridges.
-- Then steering, take over and hand back, failure recovery, and runs that can be cancelled safely.
+### 5.5 Next steps
+1. **Webhook builds as task turns. Done (2026-10-02).**
+   - The GitHub, Jira and Shortcut processors ask through `WebhookBuildRequester`, which calls `TaskTurnService.ask(taskId, null, { action: "code", fromWebhook: true })`. The build is a turn in the task's thread. Nothing is posted in anyone's name.
+   - `TaskAskPolicyService` lets a webhook's ask build: the admin who turned on auto-execute agreed to it. A Slack ask with no linked account still can't.
+   - If the build can't start (no agent, say), the requester logs it and the delivery still succeeds, so a retried delivery doesn't create the task again.
+   - Before this change, the processors only inserted a `queued` job that no worker ever ran, and the resolver's `require` calls failed under tsx, so every GitHub delivery got a 500 in dev and e2e. The resolver now imports the processors statically.
+   - The worker's fallbacks for a build with no session are gone: a turn's branch always comes from the platform (`taskBranch`), and `allowCode` defaults to false.
+   - Smoke: `webhook-build` (50/50 at the time).
+   - Outbound feedback (comments, labels and custom destinations posted back to the source system) is removed (Jussi, 2026-10-02). It never actually fired. The outbound webhook config API and UI, the providers' outbound methods, and the `direction`, `api_token_encrypted` and `outbound_target_config` columns are gone (migration 095, which deletes the outbound rows).
+2. **The Phase 3 exit test** ([`phase-2-3-handover.md`](./phase-2-3-handover.md), end of §3): the J9 journey as one smoke run.
+   - The agent asks the PM a question, and she answers from Home.
+   - The designer is @mentioned.
+   - The reviewer comments on the rendered plan, has it revised, and asks for the build.
+   - The owner interrupts once, takes over and hands back.
+   - Every step shows in the thread.
+
+   Each piece already has a journey of its own, so this is mostly composing them.
+3. **Improvements from Jussi's live checks**, in a new session.

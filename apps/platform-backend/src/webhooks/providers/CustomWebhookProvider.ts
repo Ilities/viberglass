@@ -6,12 +6,10 @@
  */
 
 import crypto from 'crypto';
-import type { AxiosInstance } from 'axios';
 import { BaseWebhookProvider } from './BaseWebhookProvider';
 import type {
   ParsedWebhookEvent,
   WebhookProviderConfig,
-  WebhookResult,
 } from '../WebhookProvider';
 
 export class CustomWebhookProvider extends BaseWebhookProvider {
@@ -99,30 +97,5 @@ export class CustomWebhookProvider extends BaseWebhookProvider {
 
   getSupportedEvents(): string[] {
     return ['ticket_created'];
-  }
-
-  validateConfig(config: WebhookProviderConfig): boolean {
-    return Boolean(config.webhookSecret);
-  }
-
-  // Inbound-only provider: outbound methods are not supported
-  async postComment(_issueNumber: string, _body: string): Promise<void> {
-    throw new Error('Custom webhook provider does not support outbound operations');
-  }
-
-  async updateLabels(
-    _issueNumber: string,
-    _add: string[],
-    _remove: string[]
-  ): Promise<void> {
-    throw new Error('Custom webhook provider does not support outbound operations');
-  }
-
-  async postResult(_issueNumber: string, _result: WebhookResult): Promise<void> {
-    throw new Error('Custom webhook provider does not support outbound operations');
-  }
-
-  protected createHttpClient(): AxiosInstance {
-    throw new Error('Custom webhook provider does not support outbound API calls');
   }
 }

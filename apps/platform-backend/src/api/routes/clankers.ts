@@ -1,6 +1,6 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
-import type { Clanker } from "@viberglass/types";
+import type { Clanker, SecretBinding } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
@@ -16,12 +16,14 @@ import {
 } from "../../services/errors/ClankerServiceError";
 import { nextClankerStatus } from "../../services/clankerStatusTransition";
 import { ClankerStartService } from "../../services/ClankerStartService";
+import { AgentLoginJobService } from "../../services/codexLogin/AgentLoginJobService";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
 const healthService = new ClankerHealthService();
 const provisioningService = getClankerProvisioner();
 const startService = new ClankerStartService(clankerService, provisioningService);
+const agentLogins = new AgentLoginJobService();
 
 router.use(requireAuth);
 
@@ -65,10 +67,10 @@ async function refreshClankerStatus(clanker: Clanker): Promise<Clanker> {
   return clankerService.updateStatus(clanker.id, next.status, next.statusMessage);
 }
 
-async function validateSecretIds(secretIds?: string[]): Promise<void> {
-  if (!secretIds || secretIds.length === 0) return;
+async function validateSecretBindings(bindings?: SecretBinding[]): Promise<void> {
+  if (!bindings || bindings.length === 0) return;
   try {
-    await clankerService.validateSecretsExist(secretIds);
+    await clankerService.validateSecretsExist(bindings.map((binding) => binding.secretId));
   } catch (error) {
     throw new ClankerServiceError(
       CLANKER_SERVICE_ERROR_CODE.INVALID_SECRET_IDS,
@@ -118,7 +120,7 @@ router.post(
   "/",
   validateCreateClanker,
   asyncHandler(async (req, res) => {
-    await validateSecretIds(req.body.secretIds);
+    await validateSecretBindings(req.body.secretBindings);
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
   }),
@@ -142,7 +144,7 @@ router.put(
   validateUpdateClanker,
   asyncHandler(async (req, res) => {
     await requireClanker(req.params.id);
-    await validateSecretIds(req.body.secretIds);
+    await validateSecretBindings(req.body.secretBindings);
 
     const updatedClanker = await clankerService.updateClanker(
       req.params.id,
@@ -173,6 +175,16 @@ router.post(
     // Provisioning continues in the background so the UI can observe progress updates.
     const { clanker: deploying } = await startService.start(clanker);
     res.status(202).json({ success: true, data: deploying });
+  }),
+);
+
+// POST /api/clankers/:id/agent-login - Sign the runner's agent in (a ChatGPT login for Codex)
+router.post(
+  "/:id/agent-login",
+  validateUuidParam("id"),
+  asyncHandler(async (req, res) => {
+    const { jobId } = await agentLogins.start(req.params.id);
+    res.status(202).json({ success: true, data: { jobId } });
   }),
 );
 

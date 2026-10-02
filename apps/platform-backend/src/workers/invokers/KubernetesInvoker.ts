@@ -2,7 +2,8 @@ import type { Clanker, Project } from "@viberglass/types";
 import { resolveClankerConfig } from "../../clanker-config";
 import type { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import type { JobDispatchStateDAO } from "../../persistence/job/JobDispatchStateDAO";
-import type { JobService } from "../../services/JobService";
+import type { JobBootstrapService } from "../../services/job/JobBootstrapService";
+import type { CodexLoginService } from "../../services/codexLogin/CodexLoginService";
 import type { JobData } from "../../types/Job";
 import { ErrorClassification, WorkerError } from "../errors/WorkerError";
 import type { InvocationResult, WorkerInvoker } from "../WorkerInvoker";
@@ -19,9 +20,10 @@ export class KubernetesInvoker implements WorkerInvoker {
 
   constructor(
     private readonly clientFactory: () => Promise<KubernetesJobClient>,
-    private readonly jobs: Pick<JobService, "saveBootstrapPayload">,
+    private readonly jobs: Pick<JobBootstrapService, "saveBootstrapPayload">,
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker">,
     private readonly dispatchState: Pick<JobDispatchStateDAO, "getStatus">,
+    private readonly codexLogins: Pick<CodexLoginService, "workerBindings">,
   ) {}
 
   async invoke(job: JobData, clanker: Clanker, project?: Project): Promise<InvocationResult> {
@@ -65,7 +67,6 @@ export class KubernetesInvoker implements WorkerInvoker {
           context: job.context,
           settings: job.settings,
           instructionFiles: job.context.instructionFiles ?? [],
-          requiredCredentials: await this.credentials.getRequiredCredentialsForClanker(clanker),
           callbackToken: job.callbackToken,
           platformApiUrl,
           deploymentConfig: clanker.deploymentConfig,
@@ -74,7 +75,9 @@ export class KubernetesInvoker implements WorkerInvoker {
           overrides: job.overrides,
         };
     const codex = config.agent.type === "codex" ? config.agent.codexAuth : undefined;
-    payload.optionalCredentials = codex && codex.mode !== "api_key" ? [codex.secretName] : [];
+    payload.requiredCredentials ??= await this.credentials.getRequiredCredentialsForClanker(clanker);
+    payload.credentialBindings = [...(clanker.secretBindings ?? []), ...this.codexLogins.workerBindings(clanker)];
+    payload.optionalCredentials = codex && codex.mode !== "api_key" && !codex.loginSecretId ? [codex.secretName] : [];
     delete payload.credentials;
     await this.jobs.saveBootstrapPayload(job.id, payload);
 

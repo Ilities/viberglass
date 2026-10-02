@@ -51,7 +51,7 @@ storage:
   size: 5Gi
   storageClass: ""
 migration:
-  marker: 088_kubernetes_deployment_strategy
+  marker: 099_kubernetes_deployment_strategy
 ingress:
   enabled: false
   className: ""

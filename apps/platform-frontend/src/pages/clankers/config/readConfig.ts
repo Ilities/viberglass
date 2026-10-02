@@ -47,10 +47,13 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       lambdaTimeout: '',
       lambdaEphemeralStorage: '',
       codexAuthMode,
+      codexLoginSecretId: '',
       qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
       opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
       opencodeModel: input.agent === 'opencode' ? legacyOpenCodeModel : '',
-      geminiModel: input.agent === 'gemini-cli' ? legacyOpenCodeModel : '',
+      antigravityModel: input.agent === 'antigravity' ? legacyOpenCodeModel : '',
+      kimiEndpoint: '',
+      kimiModel: '',
     },
   }
 }
@@ -80,9 +83,11 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
     agent.type === 'codex'
       ? {
           codexAuthMode: agent.codexAuth.mode,
+          codexLoginSecretId: agent.codexAuth.loginSecretId ?? '',
         }
       : {
           codexAuthMode: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
+          codexLoginSecretId: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexLoginSecretId,
         }
 
   const qwenForm =
@@ -105,13 +110,24 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
           opencodeModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel,
         }
 
-  const geminiForm =
-    agent.type === 'gemini-cli'
+  const antigravityForm =
+    agent.type === 'antigravity'
       ? {
-          geminiModel: typeof agent.model === 'string' ? agent.model : '',
+          antigravityModel: typeof agent.model === 'string' ? agent.model : '',
         }
       : {
-          geminiModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel,
+          antigravityModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.antigravityModel,
+        }
+
+  const kimiForm =
+    agent.type === 'kimi-code'
+      ? {
+          kimiEndpoint: typeof agent.endpoint === 'string' ? agent.endpoint : '',
+          kimiModel: typeof agent.model === 'string' ? agent.model : '',
+        }
+      : {
+          kimiEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.kimiEndpoint,
+          kimiModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.kimiModel,
         }
 
   return {
@@ -120,7 +136,8 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
       ...codexForm,
       ...qwenForm,
       ...opencodeForm,
-      ...geminiForm,
+      ...antigravityForm,
+      ...kimiForm,
     },
   }
 }

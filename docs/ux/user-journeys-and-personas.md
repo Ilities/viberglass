@@ -187,7 +187,7 @@ Full tables: [`appendix-first-run.md`](./appendix-first-run.md) (FR1–FR23), [`
 **Integrations & secondary pages:**
 - **PG1/PG2 (S1):** archiving a project → 404 (no route). The delete dialog's "what will be lost" summary also 404s, and the error is swallowed.
 - **PG9/PG10 (S1):** integrations can't be deleted in the UI. Slack setup needs `.env` edits plus a backend restart.
-- **PG12 (S2):** custom outbound webhooks default to "Global (all projects)".
+- **PG12 (S2):** custom outbound webhooks default to "Global (all projects)". (Outbound webhooks were removed on 2026-10-02.)
 - **PG16 (S1):** prompt templates are raw Mustache containing pipeline output rules. Editing one can break runs; there's no reset, versioning or preview.
 - **PG19–PG21 (S1/S2):** schedules have no owner, destination, failure alert, next run or history. Deleting a template silently cascades to its schedules.
 - **PG14/PG18 (S2):** project settings has no people at all, and any member can delete a project. API tokens are personal but sit under "Platform", with no scope or expiry.

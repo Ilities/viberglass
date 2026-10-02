@@ -21,15 +21,9 @@ describe("IntegrationWebhookProviderPolicyResolver", () => {
     );
   });
 
-  it("exposes provider fallback and always-on outbound flags", () => {
+  it("exposes which providers fall back to the integration's project id", () => {
     const resolver = createDefaultIntegrationWebhookProviderPolicyResolver();
 
-    expect(resolver.resolve("github").shouldRequireAlwaysOnOutboundEvents()).toBe(
-      true,
-    );
-    expect(resolver.resolve("jira").shouldRequireAlwaysOnOutboundEvents()).toBe(
-      true,
-    );
     expect(
       resolver.resolve("shortcut").shouldUseIntegrationProviderProjectIdFallback(),
     ).toBe(false);

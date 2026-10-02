@@ -9,6 +9,7 @@ import { AgentSessionWorkerEventService } from "../../../services/agentSession/A
 import { SessionTurnContinuationService } from "../../../services/agentSession/SessionTurnContinuationService";
 import { isTerminalJobStatus } from "../../../services/job/jobStatus";
 import { JobService } from "../../../services/JobService";
+import { JobQueryService } from "../../../services/job/JobQueryService";
 import { TaskTurnOutcomeService, type RecordedTurn } from "../../../services/taskTurns/TaskTurnOutcomeService";
 import { TaskAutoSummariser } from "../../../services/taskTurns/TaskAutoSummariser";
 import { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
@@ -19,6 +20,7 @@ import { tenantMiddleware } from "../../middleware/tenantValidation";
 import { validateResultCallback } from "../../middleware/validation";
 
 const jobService = new JobService();
+const jobQueries = new JobQueryService();
 const runManifestDAO = new RunManifestDAO();
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionDAO = new AgentSessionDAO();
@@ -120,7 +122,7 @@ export function registerJobResultRoute(router: Router): void {
         });
 
         // Verify job belongs to tenant (SEC-03)
-        const job = await jobService.getJobStatus(jobId);
+        const job = await jobQueries.getJobStatus(jobId);
         if (!job) {
           return res.status(404).json({ error: "Job not found" });
         }

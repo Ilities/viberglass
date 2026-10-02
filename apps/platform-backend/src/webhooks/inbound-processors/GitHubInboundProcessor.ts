@@ -2,7 +2,7 @@
  * GitHub inbound event processor
  *
  * Handles GitHub issues.opened and issue_comment.created events,
- * creating tickets and optionally submitting jobs.
+ * creating tickets and optionally asking their agent to build.
  */
 
 import type {
@@ -12,26 +12,13 @@ import type {
 } from "../InboundEventProcessorResolver";
 import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
 import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
-import type { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
-import type { JobService } from "../../services/JobService";
+import type { WebhookBuildRequester } from "../WebhookBuildRequester";
 import type {
   CreateTicketRequest,
   Severity,
   TicketMetadata,
 } from "@viberglass/types";
-import { isObjectRecord, JOB_KIND } from "@viberglass/types";
-import type { JobData } from "../../types/Job";
-import { randomUUID } from "crypto";
-
-interface WebhookJobContext {
-  ticketId: string;
-  issueNumber?: number;
-  issueUrl?: string;
-  issueBody?: string;
-  triggeredBy?: string;
-  commentBody?: string;
-  stepsToReproduce?: string;
-}
+import { isObjectRecord } from "@viberglass/types";
 
 interface GitHubIssuePayload {
   action?: string;
@@ -90,8 +77,7 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
 
   constructor(
     private ticketDAO: TicketDAO,
-    private jobService: JobService,
-    private projectScmConfigDAO: ProjectScmConfigDAO,
+    private builds: Pick<WebhookBuildRequester, "request">,
   ) {}
 
   canProcess(event: ParsedWebhookEvent): boolean {
@@ -169,11 +155,7 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
     result.ticketId = ticket.id;
 
     if (autoExecuteIssueFix) {
-      result.jobId = await this.submitJob(
-        ticket.id,
-        resolvedProjectId,
-        payload,
-      );
+      result.jobId = await this.builds.request(ticket.id);
     }
 
     return result;
@@ -250,31 +232,7 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
     result.ticketId = ticket.id;
 
-    const webhookContext: WebhookJobContext = {
-      ticketId: ticket.id,
-      issueNumber: payload.issue?.number,
-      triggeredBy: "bot-command",
-      commentBody: payload.comment?.body?.substring(0, 500),
-      stepsToReproduce: `Triggered by bot comment: ${payload.comment?.body?.substring(0, 200)}`,
-    };
-
-    const jobData: JobData = {
-      id: randomUUID(),
-      jobKind: JOB_KIND.EXECUTION,
-      tenantId: resolvedProjectId,
-      repository: payload.repository?.full_name || "",
-      task: `Fix issue: ${payload.issue?.title}`,
-      context: webhookContext,
-      settings: {
-        runTests: true,
-      },
-      timestamp: Date.now(),
-    };
-
-    const jobResult = await this.jobService.submitJob(jobData, {
-      ticketId: ticket.id,
-    });
-    result.jobId = jobResult.jobId;
+    result.jobId = await this.builds.request(ticket.id);
 
     return result;
   }
@@ -363,61 +321,6 @@ export class GitHubInboundProcessor implements InboundEventProcessor {
       mode,
       requiredLabels: Array.from(new Set(requiredLabels)),
     };
-  }
-
-  private async submitJob(
-    ticketId: string,
-    resolvedProjectId: string,
-    payload: GitHubIssuePayload,
-  ): Promise<string> {
-    const webhookContext: WebhookJobContext = {
-      ticketId,
-      issueNumber: payload.issue!.number,
-      issueUrl: payload.issue!.html_url,
-      issueBody: payload.issue!.body,
-      stepsToReproduce: `Issue URL: ${payload.issue!.html_url}\nIssue number: ${payload.issue!.number}`,
-    };
-
-    // Fetch project SCM config to use repository and branch settings
-    const scmConfig =
-      await this.projectScmConfigDAO.getByProjectId(resolvedProjectId);
-
-    // Determine repository: use SCM config source repository if available, else fall back to payload
-    const repository =
-      scmConfig?.sourceRepository || payload.repository?.full_name || "";
-    const baseBranch = scmConfig?.baseBranch || "main";
-
-    const jobData: JobData = {
-      id: randomUUID(),
-      jobKind: JOB_KIND.EXECUTION,
-      tenantId: resolvedProjectId,
-      repository,
-      task: `Fix issue: ${payload.issue!.title}`,
-      baseBranch,
-      context: webhookContext,
-      settings: {
-        runTests: true,
-      },
-      scm: scmConfig
-        ? {
-            integrationId: scmConfig.integrationId,
-            integrationSystem: scmConfig.integrationSystem,
-            sourceRepository: scmConfig.sourceRepository,
-            baseBranch: scmConfig.baseBranch,
-            pullRequestRepository:
-              scmConfig.pullRequestRepository || scmConfig.sourceRepository,
-            pullRequestBaseBranch:
-              scmConfig.pullRequestBaseBranch || scmConfig.baseBranch,
-            branchNameTemplate: scmConfig.branchNameTemplate,
-          }
-        : undefined,
-      timestamp: Date.now(),
-    };
-
-    const jobResult = await this.jobService.submitJob(jobData, {
-      ticketId,
-    });
-    return jobResult.jobId;
   }
 
   private createTicketMetadata(

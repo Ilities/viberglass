@@ -16,6 +16,18 @@ export class TaskMentionDAO {
       .execute();
   }
 
+  /** Answers the person's open mentions on the task without a reply, as "done" does in a chat app. */
+  async markDone(ticketId: string, userId: string): Promise<number> {
+    const result = await db
+      .updateTable("task_mentions")
+      .set({ answered_at: new Date() })
+      .where("ticket_id", "=", ticketId)
+      .where("user_id", "=", userId)
+      .where("answered_at", "is", null)
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows);
+  }
+
   /** Each task's unanswered mentions, oldest first. */
   async listOpen(ticketIds: string[]): Promise<Map<string, OpenMention[]>> {
     const open = new Map<string, OpenMention[]>();

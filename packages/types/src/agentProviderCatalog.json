@@ -39,7 +39,7 @@
     "default": true
   },
   {
-    "agent": "gemini-cli",
+    "agent": "antigravity",
     "provider": "google",
     "envVar": "GEMINI_API_KEY",
     "default": true

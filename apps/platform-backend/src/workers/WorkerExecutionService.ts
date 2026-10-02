@@ -1,3 +1,4 @@
+import { JobWorkerDAO } from "../persistence/job/JobWorkerDAO";
 import { JOB_FAILURE_CODE, type Clanker, type Project } from "@viberglass/types";
 import {
   ATTR_VG_CLANKER_ID,
@@ -38,6 +39,7 @@ export interface ExecutionResult {
 export class WorkerExecutionService {
   private factory = getWorkerInvokerFactory();
   private jobService = new JobService();
+  private workers = new JobWorkerDAO();
   private config: Required<ExecutionConfig>;
 
   constructor(config: ExecutionConfig = {}) {
@@ -144,7 +146,8 @@ export class WorkerExecutionService {
 
         const result = await invoker.invoke(job, clanker, project);
 
-        // Success - store execution ID on job
+        // Success - store execution ID on job, where cancelling finds it to stop the worker
+        await this.workers.record(job.id, { workerType: result.workerType, executionId: result.executionId });
         await this.jobService.updateJobStatus(job.id, "active", {
           progress: {
             message: "Worker invoked successfully",

@@ -30,10 +30,9 @@ RUN groupadd -r viberator && useradd -r -g viberator -m -s /bin/bash viberator
 RUN npm install -g \
     @anthropic-ai/claude-code \
     @qwen-code/qwen-code@latest \
-    @google/gemini-cli \
     @openai/codex \
     opencode-ai@latest \
-    @earendil-works/pi-coding-agent \
+    @earendil-works/pi-coding-agent@^1.0.0 \
     pi-acp \
     typescript jest \
     @agentclientprotocol/claude-agent-acp \

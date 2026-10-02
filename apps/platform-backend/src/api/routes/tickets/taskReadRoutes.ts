@@ -5,6 +5,7 @@ import type { AgentSessionDAO } from "../../../persistence/agentSession/AgentSes
 import type { TaskParticipantDAO } from "../../../persistence/ticketing/TaskParticipantDAO";
 import type { TaskReadDAO } from "../../../persistence/ticketing/TaskReadDAO";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
+import type { TicketListDAO } from "../../../persistence/ticketing/TicketListDAO";
 import { isDomainError } from "../../../services/errors/DomainError";
 import type { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
 import { situationTaskOf, type TaskSituationService } from "../../../services/tasks/TaskSituationService";
@@ -21,7 +22,8 @@ import {
 } from "./taskListQuery";
 
 interface TaskReadRouteDependencies {
-  ticketService: Pick<TicketDAO, "getTicket" | "getTicketsWithFilters">;
+  ticketService: Pick<TicketDAO, "getTicket">;
+  ticketLists: Pick<TicketListDAO, "getTicketsWithFilters">;
   agentSessionDAO: Pick<AgentSessionDAO, "listOpenSessionIdsByTicket">;
   spaceAccess: Pick<SpaceAccessService, "scopeFor">;
   participantDAO: Pick<TaskParticipantDAO, "listOwners">;
@@ -45,7 +47,7 @@ const situationViewerOf = (req: Request): SituationViewer => ({
  */
 export function registerTaskReadRoutes(
   router: Router,
-  { ticketService, agentSessionDAO, spaceAccess, participantDAO, situations, policy, changes, reads }: TaskReadRouteDependencies,
+  { ticketService, ticketLists, agentSessionDAO, spaceAccess, participantDAO, situations, policy, changes, reads }: TaskReadRouteDependencies,
 ): void {
   // GET /api/tasks - Tasks in the spaces the person can see
   router.get("/", async (req, res, next) => {
@@ -104,7 +106,7 @@ export function registerTaskReadRoutes(
       }
       const scope = await spaceAccess.scopeFor(spaceViewerOf(req)!, projectSlug || projectId);
 
-      const { tickets, total } = await ticketService.getTicketsWithFilters({
+      const { tickets, total } = await ticketLists.getTicketsWithFilters({
         limit,
         offset,
         projectId: scope.projectId,
@@ -135,7 +137,7 @@ export function registerTaskReadRoutes(
             ...ticket,
             ...(liveSessionId && { liveSessionId }),
             ...(owner && { owner }),
-            ...(facts && { situation: facts.situation, lastMessage: facts.lastMessage }),
+            ...(facts && { situation: facts.situation, lastMessage: facts.lastMessage, mentionsYou: facts.mentionsYou }),
             unread: unread.get(ticket.id) ?? 0,
           };
         }),
@@ -172,7 +174,11 @@ export function registerTaskReadRoutes(
         policy.describe(user.id, ticket.id),
         changes.describe({ id: user.id, role: user.role }, ticket.id),
       ]);
-      res.json({ success: true, data: { ...ticket, situation: described.get(ticket.id)?.situation, capabilities: { ...asking, ...changing } } });
+      const facts = described.get(ticket.id);
+      res.json({
+        success: true,
+        data: { ...ticket, situation: facts?.situation, mentionsYou: facts?.mentionsYou ?? false, capabilities: { ...asking, ...changing } },
+      });
     } catch (error) {
       next(error);
     }

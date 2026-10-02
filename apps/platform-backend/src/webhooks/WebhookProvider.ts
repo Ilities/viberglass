@@ -1,11 +1,9 @@
 /**
  * Base webhook provider interfaces and types
  *
- * Defines the contract for webhook providers supporting both
- * inbound event processing and outbound result posting.
+ * Defines the contract for webhook providers: parsing inbound events and
+ * verifying their signatures.
  */
-
-import type { AxiosInstance } from 'axios';
 
 /**
  * Supported provider types
@@ -38,14 +36,8 @@ export interface WebhookProviderConfig {
   allowedEvents: string[];
   /** Webhook secret for database storage */
   webhookSecret?: string;
-  /** API token for outbound calls (posting results) */
-  apiToken?: string;
   /** Provider-specific project identifier (e.g., 'owner/repo' for GitHub) */
   providerProjectId?: string;
-  /** Optional GitHub/GitLab API base URL for self-hosted instances */
-  apiBaseUrl?: string;
-  /** Provider-specific behavior overrides (labels, transitions, etc.) */
-  labelMappings?: Record<string, unknown>;
 }
 
 /**
@@ -85,58 +77,13 @@ export interface ParsedWebhookEvent {
 }
 
 /**
- * Result of an outbound webhook operation
- */
-export interface WebhookResult {
-  /** Whether the operation succeeded */
-  success: boolean;
-  /** Type of action performed */
-  action: 'comment' | 'label_update' | 'status_update';
-  /** Target identifier (issue number, ticket key, etc.) */
-  targetId: string;
-  /** Human-readable details */
-  details?: string;
-  /** Commit hash if code was committed */
-  commitHash?: string;
-  /** Pull request URL if PR was created */
-  pullRequestUrl?: string;
-  /** Error message if operation failed */
-  errorMessage?: string;
-}
-
-/**
- * Options for posting a comment
- */
-export interface PostCommentOptions {
-  /** Comment body in markdown */
-  body: string;
-  /** Whether to include timestamp */
-  includeTimestamp?: boolean;
-}
-
-/**
- * Options for updating labels
- */
-export interface UpdateLabelsOptions {
-  /** Labels to add */
-  add: string[];
-  /** Labels to remove */
-  remove: string[];
-}
-
-/**
  * Abstract base class for webhook providers
  *
- * Providers must implement both inbound operations (parsing events,
- * verifying signatures) and outbound operations (posting results back
- * to the source platform).
+ * Providers parse inbound events and verify their signatures.
  */
 export abstract class WebhookProvider {
   /** Configured provider instance */
   protected config: WebhookProviderConfig;
-
-  /** HTTP client for outbound API calls */
-  protected httpClient?: AxiosInstance;
 
   constructor(config: WebhookProviderConfig) {
     this.config = config;
@@ -174,56 +121,4 @@ export abstract class WebhookProvider {
    * @returns Array of event type names
    */
   abstract getSupportedEvents(): string[];
-
-  /**
-   * Validate provider configuration
-   * @param config - Configuration to validate
-   * @returns True if configuration is valid
-   */
-  abstract validateConfig(config: WebhookProviderConfig): boolean;
-
-  // ========== OUTBOUND METHODS ==========
-
-  /**
-   * Post a comment to an issue/ticket
-   * @param issueNumber - Issue/ticket identifier
-   * @param body - Comment content
-   */
-  abstract postComment(issueNumber: string, body: string): Promise<void>;
-
-  /**
-   * Update labels on an issue/ticket
-   * @param issueNumber - Issue/ticket identifier
-   * @param add - Labels to add
-   * @param remove - Labels to remove
-   */
-  abstract updateLabels(
-    issueNumber: string,
-    add: string[],
-    remove: string[]
-  ): Promise<void>;
-
-  /**
-   * Post execution result as a formatted comment with label updates
-   * @param issueNumber - Issue/ticket identifier
-   * @param result - Execution result to post
-   */
-  abstract postResult(issueNumber: string, result: WebhookResult): Promise<void>;
-
-  /**
-   * Get HTTP client for outbound API calls
-   * Lazy-initialized with proper auth headers
-   */
-  protected getHttpClient(): AxiosInstance {
-    if (!this.httpClient) {
-      this.httpClient = this.createHttpClient();
-    }
-    return this.httpClient;
-  }
-
-  /**
-   * Create HTTP client with provider-specific auth
-   * Override in provider implementations
-   */
-  protected abstract createHttpClient(): AxiosInstance;
 }

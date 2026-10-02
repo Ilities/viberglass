@@ -79,7 +79,7 @@ function buildClanker(): Clanker {
     deploymentConfig: null,
     configFiles: [],
     agent: "claude-code",
-    secretIds: [],
+    secretBindings: [],
     status: "inactive",
     statusMessage: null,
     createdAt: "2026-02-20T00:00:00.000Z",

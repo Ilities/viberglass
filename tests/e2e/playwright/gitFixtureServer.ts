@@ -4,6 +4,9 @@ import { createServer, Server } from "http";
 import { tmpdir } from "os";
 import { join, normalize } from "path";
 
+/** Where tests find the fixture repository on disk. */
+export const GIT_FIXTURE_DIR_ENV = "E2E_GIT_FIXTURE_DIR";
+
 function git(cwd: string, ...args: string[]): void {
   execFileSync("git", args, { cwd, stdio: "ignore" });
 }
@@ -37,6 +40,31 @@ function createFixtureRepository(root: string): string {
  * Serves a fixture git repository over plain HTTP so worker containers can
  * clone it without network access or credentials.
  */
+/**
+ * Pushes a commit, as someone working on the task locally, to a branch of
+ * the fixture repository, starting it from main if it's new.
+ */
+export function pushToFixture(branch: string, file: string, contents: string, message: string): void {
+  const bareDir = process.env[GIT_FIXTURE_DIR_ENV];
+  if (!bareDir) throw new Error(`${GIT_FIXTURE_DIR_ENV} isn't set; the fixture starts in global setup`);
+  const workDir = mkdtempSync(join(tmpdir(), "viberglass-e2e-push-"));
+  try {
+    git(workDir, "clone", bareDir, ".");
+    try {
+      git(workDir, "checkout", "--track", `origin/${branch}`);
+    } catch {
+      git(workDir, "checkout", "-b", branch);
+    }
+    writeFileSync(join(workDir, file), contents);
+    git(workDir, "add", file);
+    git(workDir, "-c", "user.name=Dev Local", "-c", "user.email=dev@e2e.test", "commit", "-m", message);
+    git(workDir, "push", "origin", branch);
+    git(bareDir, "update-server-info");
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+}
+
 export class GitFixtureServer {
   private server?: Server;
   private root?: string;
@@ -69,6 +97,12 @@ export class GitFixtureServer {
       server.once("error", reject);
       server.listen(port, "0.0.0.0", resolve);
     });
+  }
+
+  /** The bare repository on disk; tests push to it directly, since the HTTP side is read-only. */
+  get repositoryDir(): string {
+    if (!this.root) throw new Error("The git fixture isn't started");
+    return join(this.root, "fixture.git");
   }
 
   async stop(): Promise<void> {

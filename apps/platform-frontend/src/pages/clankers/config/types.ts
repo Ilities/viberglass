@@ -16,10 +16,14 @@ export interface ClankerConfigFormState {
   lambdaTimeout: string
   lambdaEphemeralStorage: string
   codexAuthMode: CodexAuthMode
+  /** The runner's stored ChatGPT login; set by connecting, kept through edits. */
+  codexLoginSecretId: string
   qwenEndpoint: string
   opencodeEndpoint: string
   opencodeModel: string
-  geminiModel: string
+  antigravityModel: string
+  kimiEndpoint: string
+  kimiModel: string
 }
 
 export const DEFAULT_CODEX_AUTH_SECRET_NAME = 'CODEX_AUTH_JSON'
@@ -38,10 +42,13 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   lambdaTimeout: '',
   lambdaEphemeralStorage: '',
   codexAuthMode: 'api_key',
+  codexLoginSecretId: '',
   qwenEndpoint: '',
   opencodeEndpoint: '',
   opencodeModel: '',
-  geminiModel: '',
+  antigravityModel: '',
+  kimiEndpoint: '',
+  kimiModel: '',
 }
 
 export type StrategyName = 'docker' | 'ecs' | 'aws-lambda-container' | 'lambda' | 'kubernetes'
@@ -50,6 +57,8 @@ export interface BuildConfigInput {
   strategyName?: string
   selectedAgent?: AgentType | '' | null
   form: ClankerConfigFormState
+  /** The runner's stored deployment config, when editing. */
+  existing?: DeploymentConfig
 }
 
 export interface ReadConfigOutput {

@@ -12,8 +12,10 @@ const mockAutoSummariser = { afterTurn: jest.fn() };
 
 const mockSecretService = {
   upsertWorkerAuthCache: jest.fn(),
-  resolveNamedSecret: jest.fn(),
+  resolveBindings: jest.fn(),
 };
+
+const mockCodexLogins = { saveLogin: jest.fn() };
 
 const mockAgentTurnDAO = {
   getByJobId: jest.fn(),
@@ -59,6 +61,20 @@ jest.mock("../../../../api/middleware/validation", () => ({
 
 jest.mock("../../../../services/JobService", () => ({
   JobService: jest.fn(() => mockJobService),
+}));
+jest.mock("../../../../services/job/JobQueryService", () => ({
+  JobQueryService: jest.fn(() => ({ getJobStatus: (...args: unknown[]) => mockJobService.getJobStatus(...args) })),
+}));
+
+jest.mock("../../../../services/job/JobBootstrapService", () => ({
+  JobBootstrapService: jest.fn(() => ({ getBootstrapPayload: (...args: unknown[]) => mockJobService.getBootstrapPayload(...args) })),
+}));
+jest.mock("../../../../services/SecretResolutionService", () => ({
+  SecretResolutionService: jest.fn(() => mockSecretService),
+}));
+
+jest.mock("../../../../services/codexLogin/CodexLoginService", () => ({
+  CodexLoginService: jest.fn(() => mockCodexLogins),
 }));
 
 jest.mock("../../../../services/SecretService", () => ({
@@ -144,9 +160,9 @@ describe("job result callbacks", () => {
   }
 
   it("delivers only a Kubernetes run's credentials without persisting them", async () => {
-    const payload = { workerType: "kubernetes", requiredCredentials: ["AGENT_KEY"] };
+    const payload = { workerType: "kubernetes", requiredCredentials: [{ envVar: "AGENT_KEY" }] };
     mockJobService.getBootstrapPayload.mockResolvedValue({ tenantId: "tenant-1", status: "active", payload });
-    mockSecretService.resolveNamedSecret.mockResolvedValue("private-value");
+    mockSecretService.resolveBindings.mockResolvedValue({ AGENT_KEY: "private-value" });
     const handler = getRouteHandler("/:jobId/bootstrap", "get");
     if (typeof handler !== "function") throw new Error("Missing bootstrap handler");
     const res = { ...response(), setHeader: jest.fn() };
@@ -158,38 +174,53 @@ describe("job result callbacks", () => {
 
   it.each(["completed", "failed", "cancelled"])("refuses bootstrap credentials for a %s run", async (status) => {
     mockJobService.getBootstrapPayload.mockResolvedValue({
-      tenantId: "tenant-1", status, payload: { workerType: "kubernetes", requiredCredentials: ["AGENT_KEY"] },
+      tenantId: "tenant-1", status, payload: { workerType: "kubernetes", requiredCredentials: [{ envVar: "AGENT_KEY" }] },
     });
     const handler = getRouteHandler("/:jobId/bootstrap", "get");
     if (typeof handler !== "function") throw new Error("Missing bootstrap handler");
     const res = response();
     await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1" }, res);
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(mockSecretService.resolveNamedSecret).not.toHaveBeenCalled();
+    expect(mockSecretService.resolveBindings).not.toHaveBeenCalled();
   });
 
   it("refuses bootstrap credentials when the tenant differs", async () => {
     mockJobService.getBootstrapPayload.mockResolvedValue({
-      tenantId: "tenant-2", status: "active", payload: { workerType: "kubernetes", requiredCredentials: ["AGENT_KEY"] },
+      tenantId: "tenant-2", status: "active", payload: { workerType: "kubernetes", requiredCredentials: [{ envVar: "AGENT_KEY" }] },
     });
     const handler = getRouteHandler("/:jobId/bootstrap", "get");
     if (typeof handler !== "function") throw new Error("Missing bootstrap handler");
     const res = response();
     await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1" }, res);
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(mockSecretService.resolveNamedSecret).not.toHaveBeenCalled();
+    expect(mockSecretService.resolveBindings).not.toHaveBeenCalled();
   });
 
   it("stores a Kubernetes Codex auth refresh in the encrypted database", async () => {
     mockJobService.getJobStatus.mockResolvedValue({ data: { tenantId: "tenant-1" } });
     mockJobService.getBootstrapPayload.mockResolvedValue({
-      status: "active", payload: { workerType: "kubernetes", requiredCredentials: ["CODEX_AUTH"] },
+      status: "active", payload: { workerType: "kubernetes", requiredCredentials: [{ envVar: "CODEX_AUTH" }] },
     });
     mockSecretService.upsertWorkerAuthCache.mockResolvedValue({ id: "secret-1", secretLocation: "database" });
     const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
     if (typeof handler !== "function") throw new Error("Missing auth cache handler");
     await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "CODEX_AUTH", authJson: "{}" } }, response());
     expect(mockSecretService.upsertWorkerAuthCache).toHaveBeenCalledWith("CODEX_AUTH", "{}", "database");
+  });
+
+  it("updates the Kubernetes runner's stored Codex login", async () => {
+    mockJobService.getJobStatus.mockResolvedValue({ clankerId: "runner-1", data: { tenantId: "tenant-1" } });
+    mockJobService.getBootstrapPayload.mockResolvedValue({ status: "active", payload: {
+      workerType: "kubernetes", requiredCredentials: [{ envVar: "CODEX_AUTH_JSON", exposeToAgent: false }],
+    } });
+    mockCodexLogins.saveLogin.mockResolvedValue({ id: "login-1", secretLocation: "database" });
+    const handler = getRouteHandler("/:jobId/codex-auth-cache", "post");
+    if (typeof handler !== "function") throw new Error("Missing auth cache handler");
+    const res = response();
+    await handler({ params: { jobId: "job-1" }, tenantId: "tenant-1", body: { secretName: "CODEX_AUTH_JSON", authJson: "{}" } }, res);
+    expect(mockCodexLogins.saveLogin).toHaveBeenCalledWith("runner-1", "{}");
+    expect(mockSecretService.upsertWorkerAuthCache).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ success: true, secretId: "login-1", secretLocation: "database" });
   });
 
   it("refuses a Kubernetes auth refresh for an unlisted secret", async () => {

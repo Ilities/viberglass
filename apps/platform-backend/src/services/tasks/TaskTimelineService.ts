@@ -1,4 +1,5 @@
 import { ACTIVITY_SHOWN_ELSEWHERE_IN_THREAD, type TaskArtifactKind, type TaskTimelineEntry } from "@viberglass/types";
+import { AgentQuestionDAO, publicQuestion } from "../../persistence/agentSession/AgentQuestionDAO";
 import { TaskAgentTurnDAO } from "../../persistence/agentSession/TaskAgentTurnDAO";
 import { TaskSessionMessageDAO } from "../../persistence/agentSession/TaskSessionMessageDAO";
 import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
@@ -13,17 +14,25 @@ interface Dependencies {
   revisions: Pick<TicketPhaseDocumentRevisionDAO, "listByTicketWithAuthors">;
   activity: Pick<TaskActivityDAO, "list">;
   summaries: Pick<TaskSummaryDAO, "listForTask">;
+  questions: Pick<AgentQuestionDAO, "listForTask">;
 }
 
 const ARTIFACT_OF_PHASE: Record<string, TaskArtifactKind | undefined> = { research: "research", planning: "plan" };
 
 /** When two entries share a moment, a message reads before what it caused. */
-const ORDER_AT_SAME_TIME: Record<TaskTimelineEntry["kind"], number> = { message: 0, agent_turn: 1, artifact_version: 2, summary: 3, event: 4 };
+const ORDER_AT_SAME_TIME: Record<TaskTimelineEntry["kind"], number> = {
+  message: 0,
+  agent_turn: 1,
+  question: 2,
+  artifact_version: 3,
+  summary: 4,
+  event: 5,
+};
 
 /** A turn's entry says how its run went, so the run's own events would repeat it. Who cancelled it is still news. */
 const RUN_EVENTS_SHOWN_BY_TURN = new Set(["run_started", "run_finished", "run_failed"]);
 
-/** A task's one thread: what people said, each document version and summary, and what happened, in order. */
+/** A task's one thread: what people said, the agent's turns and questions, each document version and summary, and what happened, in order. */
 export class TaskTimelineService {
   private readonly deps: Dependencies;
 
@@ -35,18 +44,20 @@ export class TaskTimelineService {
       revisions: new TicketPhaseDocumentRevisionDAO(),
       activity: new TaskActivityDAO(),
       summaries: new TaskSummaryDAO(),
+      questions: new AgentQuestionDAO(),
       ...deps,
     };
   }
 
   async list(ticketId: string): Promise<TaskTimelineEntry[]> {
-    const [messages, sessionMessages, agentTurns, revisions, activity, summaries] = await Promise.all([
+    const [messages, sessionMessages, agentTurns, revisions, activity, summaries, questions] = await Promise.all([
       this.deps.messages.list(ticketId),
       this.deps.sessionMessages.listForTask(ticketId),
       this.deps.agentTurns.listForTask(ticketId),
       this.deps.revisions.listByTicketWithAuthors(ticketId),
       this.deps.activity.list(ticketId),
       this.deps.summaries.listForTask(ticketId),
+      this.deps.questions.listForTask(ticketId),
     ]);
 
     const turnJobs = new Set(agentTurns.flatMap((turn) => (turn.jobId ? [turn.jobId] : [])));
@@ -83,6 +94,7 @@ export class TaskTimelineService {
         sessionId: turn.sessionId,
         jobId: turn.jobId,
       })),
+      ...questions.map((record): TaskTimelineEntry => ({ kind: "question", id: record.id, at: record.askedAt, question: publicQuestion(record) })),
       ...this.versions(revisions),
       ...summaries.map((summary): TaskTimelineEntry => ({
         kind: "summary",

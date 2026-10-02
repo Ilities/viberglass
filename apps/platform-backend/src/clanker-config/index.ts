@@ -8,7 +8,7 @@ import type {
 } from "@viberglass/types";
 import { isClankerConfigV1 } from "@viberglass/types";
 import { normalizeCodexAgentConfig } from "./agents/codex";
-import { normalizeGeminiAgentConfig } from "./agents/gemini";
+import { normalizeAntigravityAgentConfig } from "./agents/antigravity";
 import { normalizeKimiAgentConfig } from "./agents/kimi";
 import { normalizeOpenCodeAgentConfig } from "./agents/opencode";
 import { normalizeQwenAgentConfig } from "./agents/qwen";
@@ -53,8 +53,8 @@ function normalizeAgent(
     return normalizeOpenCodeAgentConfig(agent);
   }
 
-  if (agent.type === "gemini-cli") {
-    return normalizeGeminiAgentConfig(agent);
+  if (agent.type === "antigravity") {
+    return normalizeAntigravityAgentConfig(agent);
   }
 
   if (agent.type === "kimi-code" || (!agent.type && fallbackAgent === "kimi-code")) {
@@ -73,8 +73,8 @@ function normalizeAgent(
     return normalizeOpenCodeAgentConfig(agent);
   }
 
-  if (!agent.type && fallbackAgent === "gemini-cli") {
-    return normalizeGeminiAgentConfig(agent);
+  if (!agent.type && fallbackAgent === "antigravity") {
+    return normalizeAntigravityAgentConfig(agent);
   }
 
   const candidate = agent.type || fallbackAgent;
@@ -82,6 +82,7 @@ function normalizeAgent(
   switch (candidate) {
     case "mistral-vibe":
     case "claude-code":
+    case "pi":
     case "fake":
       return { type: candidate };
     default:

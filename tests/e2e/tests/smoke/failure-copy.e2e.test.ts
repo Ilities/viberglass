@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { E2E } from "../../playwright/e2eEnvironment";
-import { createTask, runStatus, startResearch } from "../../playwright/tasks";
+import { createTask, researchDocument, runStatus, startResearch } from "../../playwright/tasks";
 import { expect, test } from "../../playwright/smokeFixtures";
 
 /** Opens a run page, retrying loads aborted by a container start (ERR_NETWORK_CHANGED). */
@@ -105,4 +105,35 @@ test("a setup failure sends admins to the fix and tells members an admin is need
   await openRun(memberPage, space.projectSlug, jobId, "Repository not reachable");
   await expect(memberPage.getByText(/A workspace admin needs to fix this/)).toBeVisible();
   await expect(memberPage.getByRole("link", { name: "Fix repository settings" })).toHaveCount(0);
+});
+
+test("a setup failure pauses the agent, and once an admin fixes it, retrying the paused runs finishes the work", async ({
+  adminApi,
+  adminPage: page,
+  workspace,
+}) => {
+  test.setTimeout(180_000);
+  const space = await createSpaceWithMissingRepository(adminApi);
+  const task = await createTask(adminApi, space.projectId, "Explain the code.");
+  const jobId = await startResearch(adminApi, task.id, workspace.clankerId);
+  await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("failed");
+
+  await page.goto(`/spaces/${space.projectSlug}/tasks/${task.id}`);
+  const thread = page.getByRole("region", { name: "Thread" });
+  const paused = thread.getByRole("region", { name: "Paused until the setup is fixed" });
+  await expect(paused).toBeVisible({ timeout: 15_000 });
+  await expect(thread.getByRole("region", { name: "The research failed" })).toContainText("Repository not reachable");
+
+  // The admin points the space at the right repository, then tries every paused run again.
+  const integrations = await (await adminApi.get("/api/integrations")).json();
+  const github = (integrations?.data ?? integrations).find((integration: { system: string }) => integration.system === "github");
+  const fixed = await adminApi.put(`/api/spaces/${space.projectId}/scm-config`, {
+    data: { integrationId: github.id, sourceRepository: E2E.workerReachableRepositoryUrl, baseBranch: "main" },
+  });
+  expect(fixed.ok()).toBe(true);
+  await paused.getByRole("button", { name: "Retry all paused runs" }).click();
+
+  await expect(thread.getByText("Research v1")).toBeVisible({ timeout: 120_000 });
+  expect(await researchDocument(adminApi, task.id)).toContain("# Fake Research");
+  await expect(paused).toHaveCount(0);
 });

@@ -9,7 +9,7 @@ import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
-import { JobService } from "../../services/JobService";
+import { JobBootstrapService } from "../../services/job/JobBootstrapService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
 
@@ -29,14 +29,14 @@ export class EcsInvoker implements WorkerInvoker {
   readonly name = "EcsInvoker";
   private client: ECSClient;
   private credentialRequirementsService: CredentialRequirementsService;
-  private jobService: JobService;
+  private bootstrap: JobBootstrapService;
 
   constructor(config?: { region?: string }) {
     this.client = new ECSClient({
       region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
     this.credentialRequirementsService = new CredentialRequirementsService();
-    this.jobService = new JobService();
+    this.bootstrap = new JobBootstrapService();
   }
 
   async invoke(
@@ -96,7 +96,7 @@ export class EcsInvoker implements WorkerInvoker {
     if (canUseJobRef) {
       if (!job.bootstrapPayload) {
         const built = await this.buildPayload(job, clanker, project);
-        await this.jobService.saveBootstrapPayload(job.id, built);
+        await this.bootstrap.saveBootstrapPayload(job.id, built);
       }
       containerCommand = [
         "node",

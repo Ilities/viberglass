@@ -28,23 +28,6 @@ export interface UpsertInboundWebhookConfigInput {
   active?: boolean
 }
 
-export interface UpsertOutboundWebhookConfigInput {
-  projectId?: string | null
-  events?: string[]
-  apiToken?: string
-  providerProjectId?: string | null
-  active?: boolean
-  outboundTargetConfig?: Record<string, unknown>
-  name?: string
-  targetUrl?: string
-  method?: string
-  headers?: Record<string, string>
-  auth?: Record<string, unknown>
-  signingSecret?: string | null
-  signatureAlgorithm?: string
-  retryPolicy?: Record<string, unknown>
-}
-
 export interface DeliveryListResult {
   data: Array<{
     id: string

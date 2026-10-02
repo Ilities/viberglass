@@ -14,7 +14,7 @@ parser.add_argument("--cluster", default="viberglass-local")
 parser.add_argument("--kubeconfig", default="/tmp/viberglass-local.kubeconfig")
 parser.add_argument("--namespace", default="viberglass")
 parser.add_argument("--release", default="viberglass")
-parser.add_argument("--agent", default="opencode", choices=["opencode", "codex", "claude-code", "gemini", "kimi", "mistral", "pi", "qwen", "fake"])
+parser.add_argument("--agent", default="opencode", choices=["opencode", "codex", "claude-code", "antigravity", "kimi", "mistral", "pi", "qwen", "fake"])
 parser.add_argument("--skip-build", action="store_true")
 args = parser.parse_args()
 workers_namespace = f"{args.namespace}-workers"

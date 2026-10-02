@@ -29,10 +29,7 @@ export class InboundWebhookConfigOrchestrator {
 
     const inboundConfigs = await this.webhookConfigDAO.listByIntegrationId(
       integration.id,
-      {
-        direction: "inbound",
-        activeOnly: false,
-      },
+      { activeOnly: false },
     );
 
     return inboundConfigs
@@ -73,7 +70,6 @@ export class InboundWebhookConfigOrchestrator {
     const created = await this.webhookConfigDAO.createConfig({
       projectId,
       provider,
-      direction: "inbound",
       integrationId: integration.id,
       providerProjectId,
       allowedEvents: input.allowedEvents || getDefaultInboundEvents(provider),

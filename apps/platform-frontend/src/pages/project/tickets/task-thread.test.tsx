@@ -19,6 +19,13 @@ const DANA = '22222222-2222-4222-8222-222222222222'
 const CLAUDE = '33333333-3333-4333-8333-333333333333'
 const mockPost = jest.fn()
 const mockAsk = jest.fn()
+const mockAnswer = jest.fn()
+const mockInterrupt = jest.fn()
+const mockPause = jest.fn()
+const mockResume = jest.fn()
+const mockBranch = jest.fn()
+const mockTakeOver = jest.fn()
+const mockHandBack = jest.fn()
 
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', name: 'Me', role: 'member' } }) }))
 const mockTimeline = jest.fn()
@@ -26,6 +33,13 @@ jest.mock('@/service/api/discussion-api', () => ({
   getTaskTimeline: (...args: unknown[]) => mockTimeline(...args),
   postTaskMessage: (...args: unknown[]) => mockPost(...args),
   askAgent: (...args: unknown[]) => mockAsk(...args),
+  answerQuestion: (...args: unknown[]) => mockAnswer(...args),
+  interruptAgent: (...args: unknown[]) => mockInterrupt(...args),
+  pauseAgent: (...args: unknown[]) => mockPause(...args),
+  resumeAgent: (...args: unknown[]) => mockResume(...args),
+  getTaskBranch: (...args: unknown[]) => mockBranch(...args),
+  takeOverTask: (...args: unknown[]) => mockTakeOver(...args),
+  handBackTask: (...args: unknown[]) => mockHandBack(...args),
 }))
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 jest.mock('@/hooks/usePeople', () => ({ usePersonName: () => () => null }))
@@ -99,12 +113,16 @@ const THREAD: TaskTimelineEntry[] = [
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
   documents: { research: { content: '# Research' }, planning: { content: '' } },
-  capabilities: { canPost: true, canAsk: true, canAskForCode: false, canEdit: false, canDelete: false },
+  capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
   newComments: { research: 1, planning: 0 },
   agentWorking: false,
 }
 
-function renderThread(onOpenArtifact = jest.fn(), onAsked = jest.fn(), rights = { canPost: true, canAsk: true }) {
+function renderThread(
+  onOpenArtifact = jest.fn(),
+  onAsked = jest.fn(),
+  rights: { canPost: boolean; canAsk: boolean; canSteer?: boolean; paused?: boolean } = { canPost: true, canAsk: true }
+) {
   render(
     <Theme>
       <MemoryRouter>
@@ -117,6 +135,8 @@ function renderThread(onOpenArtifact = jest.fn(), onAsked = jest.fn(), rights = 
           suggestionInput={SUGGESTION_INPUT}
           canPost={rights.canPost}
           canAsk={rights.canAsk}
+          canSteer={rights.canSteer}
+          paused={rights.paused}
           runnableAgents={[{ id: CLAUDE, name: 'Claude' }]}
           onAsked={onAsked}
         />
@@ -151,6 +171,7 @@ describe('TaskThread', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockTimeline.mockResolvedValue(THREAD)
+    mockBranch.mockResolvedValue(null)
   })
 
   it('shows messages, document versions and events in one thread', async () => {

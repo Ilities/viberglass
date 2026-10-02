@@ -105,7 +105,7 @@ export function buildDisplayEntries(timeline: TimelineEvent[]): DisplayEntry[] {
 const AGENT_COLOR_MAP: Record<string, string> = {
   claudecodeagent: 'blue',
   codex: 'green',
-  gemini: 'purple',
+  antigravity: 'purple',
   qwen: 'amber',
   kimi: 'pink',
   mistral: 'teal',

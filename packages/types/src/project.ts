@@ -107,6 +107,8 @@ export interface Project {
   defaultOwnerId?: string | null
   /** Added as reviewers to every new task; the plan waits on them. */
   defaultReviewerIds: string[]
+  /** Hours an agent's question waits before its addressee is reminded, and as long again before the task's owner hears. */
+  questionReminderHours: number
   /** The caller's place in the space; set when one space is fetched. */
   viewerAccess?: SpaceCapabilities
   createdAt: string
@@ -130,6 +132,8 @@ export interface ProjectReadinessCheck {
   code?: ProjectReadinessCode
   summary: string
   remediationUrl?: string
+  /** Something that's fine now and won't be soon, such as a credential about to expire. */
+  warning?: string
 }
 
 export interface ProjectReadiness {
@@ -189,6 +193,7 @@ export interface UpdateProjectRequest {
   isPrivate?: boolean
   defaultOwnerId?: string | null
   defaultReviewerIds?: string[]
+  questionReminderHours?: number
 }
 
 // Project summary for list views

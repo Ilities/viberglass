@@ -2,7 +2,7 @@
 
 Executes AI coding agent jobs dispatched from the platform backend via Lambda, ECS, or Docker.
 
-Supported agents: Claude Code, Qwen CLI, Gemini CLI, Mistral Vibe, OpenAI Codex, OpenCode, Kimi Code
+Supported agents: Claude Code, Qwen CLI, Google Antigravity, Mistral Vibe, OpenAI Codex, OpenCode, Kimi Code, Pi
 
 ## Local Development
 

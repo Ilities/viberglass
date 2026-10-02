@@ -76,7 +76,7 @@ describe("ProjectReadinessService", () => {
       status: "inactive",
       statusMessage: null,
       deploymentStrategyId: "strategy-1",
-      secretIds: ["secret-1"],
+      secretBindings: [{ envVar: "ANTHROPIC_API_KEY", secretId: "secret-1" }],
       ...overrides,
     };
   }
@@ -110,7 +110,7 @@ describe("ProjectReadinessService", () => {
   });
 
   it("doesn't count a key whose secret is gone", async () => {
-    mockClankerDAO.listClankers.mockResolvedValue([runner({ status: "active", secretIds: ["deleted"] })]);
+    mockClankerDAO.listClankers.mockResolvedValue([runner({ status: "active", secretBindings: [{ envVar: "ANTHROPIC_API_KEY", secretId: "deleted" }] })]);
 
     const readiness = await new ProjectReadinessService().getReadiness("project-1");
 
@@ -175,6 +175,21 @@ describe("ProjectReadinessService", () => {
         key: "scmCredential",
         state: "invalid",
         code: "replace_expired_scm_credential",
+      }),
+    );
+  });
+
+  it("warns ahead of a credential expiring within the week, while it still works", async () => {
+    const soon = new Date(Date.now() + 3 * 24 * 3_600_000);
+    mockCredentialDAO.getById.mockResolvedValue({ integrationId: "scm-1", expiresAt: soon.toISOString() });
+
+    const readiness = await new ProjectReadinessService().getReadiness("project-1");
+
+    expect(readiness?.checks).toContainEqual(
+      expect.objectContaining({
+        key: "scmCredential",
+        state: "ready",
+        warning: `The SCM credential expires on ${soon.toISOString().slice(0, 10)}. Replace it before then, or runs will stop.`,
       }),
     );
   });
