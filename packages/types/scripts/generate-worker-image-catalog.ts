@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * Generates packages/types/src/workerImageCatalog.json and
- * packages/types/src/agentProviderCatalog.json from agent plugin metadata.
+ * Generates packages/types/src/workerImageCatalog.json,
+ * packages/types/src/agentProviderCatalog.json and
+ * packages/types/src/agentPluginCatalog.json from agent plugin metadata.
  *
  * Run after building all agent packages:
  *   npm run generate:catalog
  *
- * CI check: run this, then verify both JSON files are unchanged (git diff --exit-code).
+ * CI check: run this, then verify the JSON files are unchanged (git diff --exit-code).
  */
 
 import * as path from "path";
@@ -38,10 +39,17 @@ interface PluginProviderBinding {
   endpoint?: string;
 }
 
+interface PluginEnvAliases {
+  apiKey?: string[];
+  endpoint?: string[];
+}
+
 interface LoadedPlugin {
   id: string;
   docker: PluginDockerMeta;
   providers: PluginProviderBinding[];
+  envAliases: PluginEnvAliases;
+  harnessConfigPatterns: string[];
 }
 
 interface CatalogEntry {
@@ -82,6 +90,8 @@ function loadPlugin(packageDirName: string): LoadedPlugin {
     id: plugin.id as string,
     docker: plugin.docker as PluginDockerMeta,
     providers: (plugin.providers ?? []) as PluginProviderBinding[],
+    envAliases: (plugin.envAliases ?? {}) as PluginEnvAliases,
+    harnessConfigPatterns: (plugin.harnessConfigPatterns ?? []) as string[],
   };
 }
 
@@ -244,3 +254,19 @@ fs.writeFileSync(
 console.log(
   `Generated agentProviderCatalog.json with ${providerBindings.length} bindings`,
 );
+
+// Per harness: env var names it reads its key and endpoint from, and config files it accepts.
+const agentPlugins = loadedPlugins
+  .map((p) => ({
+    agent: p.id,
+    apiKey: p.envAliases.apiKey ?? [],
+    endpoint: p.envAliases.endpoint ?? [],
+    harnessConfigFiles: p.harnessConfigPatterns,
+  }))
+  .sort((a, b) => a.agent.localeCompare(b.agent));
+
+fs.writeFileSync(
+  path.join(__dirname, "..", "src", "agentPluginCatalog.json"),
+  JSON.stringify(agentPlugins, null, 2) + "\n",
+);
+console.log(`Generated agentPluginCatalog.json with ${agentPlugins.length} agents`);

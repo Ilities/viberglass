@@ -14,7 +14,7 @@ import { Timestamp } from '@/components/timestamp'
 import {
   createSecret,
   deleteSecret,
-  getSecrets,
+  listAllSecrets,
   getSecretStorageDefaults,
   updateSecret,
   type Secret,
@@ -76,7 +76,7 @@ export function SecretsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [secretToDelete, setSecretToDelete] = useState<Secret | null>(null)
-  const [selectedPresetGroupId, setSelectedPresetGroupId] = useState(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
+  const [selectedPresetGroupId, setSelectedPresetGroupId] = useState<string>(DEFAULT_SECRET_NAME_PRESET_GROUP_ID)
 
   const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
   const locationHelper = useMemo(() => {
@@ -98,7 +98,7 @@ export function SecretsPage() {
   async function loadSecrets() {
     setLoading(true)
     try {
-      const data = await getSecrets()
+      const data = await listAllSecrets()
       setSecrets(data)
     } catch (error) {
       toast.error('Failed to load secrets', {

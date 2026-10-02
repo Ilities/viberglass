@@ -42,6 +42,8 @@ export interface BuildConfigInput {
   strategyName?: string
   selectedAgent?: AgentType | '' | null
   form: ClankerConfigFormState
+  /** The runner's stored deployment config, when editing. */
+  existing?: DeploymentConfig
 }
 
 export interface ReadConfigOutput {

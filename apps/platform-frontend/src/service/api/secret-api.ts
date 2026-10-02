@@ -18,6 +18,20 @@ export async function getSecrets(limit: number = 50, offset: number = 0): Promis
   return data.data
 }
 
+const SECRET_PAGE_SIZE = 100
+
+/** Every secret, fetched page by page; pickers and the Secrets page need the full list. */
+export async function listAllSecrets(): Promise<Secret[]> {
+  const secrets: Secret[] = []
+  for (;;) {
+    const page = await getSecrets(SECRET_PAGE_SIZE, secrets.length)
+    secrets.push(...page)
+    if (page.length < SECRET_PAGE_SIZE) {
+      return secrets
+    }
+  }
+}
+
 export async function getSecret(id: string): Promise<Secret> {
   const response = await apiFetch(`${API_BASE_URL}/api/secrets/${id}`)
   if (!response.ok) {

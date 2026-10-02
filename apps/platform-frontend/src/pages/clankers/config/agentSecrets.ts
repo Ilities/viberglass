@@ -1,29 +1,6 @@
 import type { Secret } from '@/service/api/secret-api'
-import { AGENT_LABELS, type AgentType, type CodexAuthMode } from '@viberglass/types'
-import { SECRET_NAME_PRESET_GROUPS } from '@/pages/secrets/secretNamePresets'
+import { AGENT_LABELS, getAgentEnvVarNames, type AgentType, type CodexAuthMode } from '@viberglass/types'
 import { DEFAULT_CODEX_AUTH_SECRET_NAME } from './types'
-
-function isAgentType(value: string): value is AgentType {
-  return (
-    value === 'claude-code' ||
-    value === 'qwen-cli' ||
-    value === 'codex' ||
-    value === 'opencode' ||
-    value === 'kimi-code' ||
-    value === 'antigravity' ||
-    value === 'mistral-vibe' ||
-    value === 'pi'
-  )
-}
-
-const PRESET_SECRET_NAMES_BY_AGENT = SECRET_NAME_PRESET_GROUPS.reduce<
-  Partial<Record<AgentType, string[]>>
->((acc, group) => {
-  if (isAgentType(group.id)) {
-    acc[group.id] = group.names
-  }
-  return acc
-}, {})
 
 /**
  * Get all configured secrets without filtering by agent presets.
@@ -52,7 +29,8 @@ export function getApplicableSecretNames(
     return []
   }
 
-  const presetNames = PRESET_SECRET_NAMES_BY_AGENT[selectedAgent] || []
+  const { apiKey, endpoint } = getAgentEnvVarNames(selectedAgent)
+  const presetNames = [...apiKey, ...endpoint]
   const codexNames = selectedAgent === 'codex' ? getCodexExtraSecretNames(codexAuthMode) : []
 
   const deduped = new Map<string, string>()
@@ -78,6 +56,37 @@ export function filterSecretsForAgent(
 
   const allowed = new Set(names.map(normalizeSecretName))
   return secrets.filter((secret) => allowed.has(normalizeSecretName(secret.name)))
+}
+
+export interface SecretPickerOption {
+  id: string
+  label: string
+  description: string
+}
+
+function describeLocation(secret: Secret): string {
+  return `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`
+}
+
+/**
+ * The selectable secrets, followed by any selected secret outside them. Changing the
+ * agent or the filter never drops a selection; the user sees it flagged and decides.
+ */
+export function buildSecretPickerOptions(
+  secrets: Secret[],
+  selectable: Secret[],
+  selectedIds: string[],
+  selectedAgent: AgentType | '' | null | undefined,
+): SecretPickerOption[] {
+  const selectableIds = new Set(selectable.map((secret) => secret.id))
+  const selected = new Set(selectedIds)
+  const notReadNote = selectedAgent ? ` · not read by ${AGENT_LABELS[selectedAgent]}` : ''
+  return [
+    ...selectable.map((secret) => ({ id: secret.id, label: secret.name, description: describeLocation(secret) })),
+    ...secrets
+      .filter((secret) => selected.has(secret.id) && !selectableIds.has(secret.id))
+      .map((secret) => ({ id: secret.id, label: secret.name, description: `${describeLocation(secret)}${notReadNote}` })),
+  ]
 }
 
 export function getSecretPickerDescription(

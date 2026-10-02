@@ -8,7 +8,7 @@ import { PageMeta } from '@/components/page-meta'
 import { Textarea } from '@/components/textarea'
 import { getClankerBySlug } from '@/data'
 import { getDeploymentStrategies, updateClanker } from '@/service/api/clanker-api'
-import { getSecrets, type Secret } from '@/service/api/secret-api'
+import { listAllSecrets, type Secret } from '@/service/api/secret-api'
 import {
   type AgentType,
   type Clanker,
@@ -21,6 +21,7 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AgentSpecificFields } from './config/agents'
 import {
+  buildSecretPickerOptions,
   filterSecretsForAgent,
   getAllSecrets,
   getSecretPickerDescription,
@@ -132,7 +133,7 @@ export function EditClankerPage() {
       const [clankerData, strategies, secretsData] = await Promise.all([
         getClankerBySlug(slug),
         getDeploymentStrategies(),
-        getSecrets(100, 0),
+        listAllSecrets(),
       ])
 
       if (!clankerData) {
@@ -177,18 +178,6 @@ export function EditClankerPage() {
       }
 
       setSkills(loadedSkills)
-
-      // Auto-enable "Show all secrets" if the clanker has secrets that don't match the current agent preset
-      const applicableSecrets = filterSecretsForAgent(
-        secretsData,
-        clankerData.agent || DEFAULT_AGENT_TYPE,
-        parsedConfig.form.codexAuthMode
-      )
-      const applicableIds = new Set(applicableSecrets.map((s) => s.id))
-      if ((clankerData.secretIds || []).some((id) => !applicableIds.has(id))) {
-        setShowAllSecrets(true)
-      }
-
       setIsLoading(false)
     }
 
@@ -200,7 +189,6 @@ export function EditClankerPage() {
     () => (showAllSecrets ? getAllSecrets(secrets) : filterSecretsForAgent(secrets, selectedAgent, codexAuthMode)),
     [codexAuthMode, secrets, selectedAgent, showAllSecrets]
   )
-  const selectableSecretIds = useMemo(() => new Set(selectableSecrets.map((secret) => secret.id)), [selectableSecrets])
   const secretPickerDescription = useMemo(
     () => getSecretPickerDescription(selectedAgent, codexAuthMode, showAllSecrets),
     [codexAuthMode, selectedAgent, showAllSecrets]
@@ -209,13 +197,6 @@ export function EditClankerPage() {
     () => getSecretPickerEmptyMessage(selectedAgent, codexAuthMode, showAllSecrets),
     [codexAuthMode, selectedAgent, showAllSecrets]
   )
-
-  useEffect(() => {
-    setSelectedSecretIds((previous) => {
-      const filtered = previous.filter((id) => selectableSecretIds.has(id))
-      return filtered.length === previous.length ? previous : filtered
-    })
-  }, [selectableSecretIds])
 
   function updateSkill(id: string, updates: Partial<SkillEntry>) {
     setSkills((previous) => previous.map((entry) => (entry.id === id ? { ...entry, ...updates } : entry)))
@@ -279,7 +260,7 @@ export function EditClankerPage() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-    const harnessConfig = getHarnessConfigFile(selectedAgent || '')
+    const harnessConfig = getHarnessConfigFile(selectedAgent)
     const configFilesResult = buildConfigFiles(
       agentInstructions,
       skills,
@@ -295,6 +276,7 @@ export function EditClankerPage() {
     const newDeploymentConfig = buildClankerDeploymentConfig({
       strategyName: selectedStrategy?.name,
       selectedAgent,
+      existing: clanker.deploymentConfig,
       form: {
         provisioningMode,
         containerImage: ((formData.get('containerImage') as string) || '').trim(),
@@ -402,28 +384,28 @@ export function EditClankerPage() {
               onAntigravityModelChange={setAntigravityModel}
             />
 
-            {getHarnessConfigFile(selectedAgent || '') && !showHarnessConfig && (
+            {getHarnessConfigFile(selectedAgent) && !showHarnessConfig && (
               <Field>
                 <Button
                   type="button"
                   outline
                   onClick={() => {
-                    const config = getHarnessConfigFile(selectedAgent || '')
+                    const config = getHarnessConfigFile(selectedAgent)
                     if (config) {
                       setHarnessConfigContent(config.placeholder)
                     }
                     setShowHarnessConfig(true)
                   }}
                 >
-                  Add {getHarnessConfigFile(selectedAgent || '')?.label}
+                  Add {getHarnessConfigFile(selectedAgent)?.label}
                 </Button>
               </Field>
             )}
 
-            {showHarnessConfig && getHarnessConfigFile(selectedAgent || '') && (
+            {showHarnessConfig && getHarnessConfigFile(selectedAgent) && (
               <Field>
                 <div className="flex items-center justify-between">
-                  <Label>{getHarnessConfigFile(selectedAgent || '')?.label}</Label>
+                  <Label>{getHarnessConfigFile(selectedAgent)?.label}</Label>
                   <Button
                     type="button"
                     plain
@@ -436,15 +418,14 @@ export function EditClankerPage() {
                   </Button>
                 </div>
                 <Description>
-                  Paste your harness configuration here. Use environment variable names like <code>$SECRET_NAME</code>{' '}
-                  or <code>{'{env:MINIMAX_API_KEY}'}</code> (for OpenCode) in the config - secrets assigned to this
-                  agent runner will be available as environment variables at runtime.
+                  Paste your harness configuration here. {getHarnessConfigFile(selectedAgent)?.referenceHint} Only
+                  model-provider variables, such as API keys and base URLs, reach the agent.
                 </Description>
                 <Textarea
                   rows={10}
                   value={harnessConfigContent}
                   onChange={(event) => setHarnessConfigContent(event.target.value)}
-                  placeholder={getHarnessConfigFile(selectedAgent || '')?.placeholder}
+                  placeholder={getHarnessConfigFile(selectedAgent)?.placeholder}
                   className="font-mono text-sm"
                 />
               </Field>
@@ -469,11 +450,7 @@ export function EditClankerPage() {
               <div className="mt-3">
                 <MultiSelect
                   label=""
-                  options={selectableSecrets.map((secret) => ({
-                    id: secret.id,
-                    label: secret.name,
-                    description: `${secret.secretLocation}${secret.secretPath ? ` - ${secret.secretPath}` : ''}`,
-                  }))}
+                  options={buildSecretPickerOptions(secrets, selectableSecrets, selectedSecretIds, selectedAgent)}
                   value={selectedSecretIds}
                   onChange={setSelectedSecretIds}
                   emptyMessage={secretPickerEmptyMessage}
