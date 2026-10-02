@@ -1,6 +1,6 @@
 # Handover: the task as a conversation (build plan)
 
-Status: **S1–S7 done, 2026-10-02; next is S8 (§5)** · Decisions: [ADR 0008](../adr/0008-tasks-are-conversations.md) (accepted by Jussi the same day, including "who may ask for code") · Product design: [`returning-visit-redesign.md`](./returning-visit-redesign.md) and [`information-architecture.md`](./information-architecture.md) · How to work on the repo: [`next-steps-handover.md`](./next-steps-handover.md) §2 and [`phase-2-3-handover.md`](./phase-2-3-handover.md) §4.
+Status: **S1–S8 done, 2026-10-02; what is left is in §5** · Decisions: [ADR 0008](../adr/0008-tasks-are-conversations.md) (accepted by Jussi the same day, including "who may ask for code") · Product design: [`returning-visit-redesign.md`](./returning-visit-redesign.md) and [`information-architecture.md`](./information-architecture.md) · How to work on the repo: [`next-steps-handover.md`](./next-steps-handover.md) §2 and [`phase-2-3-handover.md`](./phase-2-3-handover.md) §4.
 
 This is how to build ADR 0008 on the code as it is. It replaces the build order in the redesign's §9 with slices that each ship on their own, behind green unit tests and smoke journeys (run one suite at a time, `jest --maxWorkers=2`).
 
@@ -391,6 +391,36 @@ Planned:
 - The Slack thread mirrors the task thread and calls `TaskTurnService` (replacing `threadMention`'s keyword resolver and the two polling bridges).
 - Then steering and interrupts, take over and hand back, failure recovery, and cancel-safe runs (Phase 3.4–3.7).
 
+**Done (2026-10-02).** What landed:
+- **Agent questions (`ask_human`):**
+  - Each session turn starts a localhost relay in the worker and offers the harness a stdio MCP server (`apps/viberator/src/questions/`, built as `dist/ask-human-mcp.js`) through ACP `mcpServers`, on new, loaded and resumed sessions. The MCP server only knows the relay's address and a per-turn secret; the callback token stays out of the agent's environment.
+  - The worker posts to `POST /api/jobs/:jobId/questions`. `AgentQuestionService` resolves the addressee (a role, a name, else the owner, the requester, then whoever opened the session) and records an open input request with options, blocking and a due time (migration 088; several can be open per session). Activity `question_asked` notifies them (Slack DM, email), and the situation reads "Question for Maria".
+  - The question is a `question` entry in the thread. Open ones are answered above the composer, with an option in one press or in writing (`POST /api/tasks/:id/questions/:questionId/answer`). The answer is a thread message linked to its question before the agent is asked, so the prompt marks it `in-answer-to`. A blocking question asks for the step it stopped again; otherwise it's a reply.
+  - `QuestionReminderService` reminds the addressee after the space's wait ("Unanswered questions" in space settings, default 4 hours), then tells the owner after as long again.
+  - Templates tell agents to ask instead of writing "needs confirmation", and the cold start lists the people on the task. The "ends with ?" guess is gone.
+  - Fake agent: `[fake:ask=Q|A|B]`, `[fake:ask-later=Q]` and `[fake:ask-of=WHO]`; it calls the real MCP server.
+- **Slack:**
+  - A task has one Slack thread (migration 089 drops per-session threads and the thread's step and agent). `TaskSlackMirror`, an Activity listener, posts what happens on the task: messages, runs starting and failing, the agent's reply with its documents and a next-step button, questions with option buttons, and answers. Changes that came from Slack aren't echoed.
+  - Replies there go through `TaskThreadInbound`, as the linked account: the person asked answers their question, a mention of the bot asks the agent, and anything else is a thread message.
+  - Removed: both polling bridges, the keyword resolver (`sessionAdvance`), `SessionCompletionNotice`, `AgentSessionInteractionService`, and the session `reply`, `message` and `approve` routes.
+- **Steering:** the owner, the space's maintainers and admins (`canSteer`) can interrupt a turn with a message ("Interrupt with this"), or pause and resume the agent. Migration 090 adds the `paused` session status. Asks wait while the agent is paused. An interrupt or a resume keeps the stopped step unless the message asks for another; resuming with nothing written posts "Carry on where you left off."
+- **Take over and hand back:**
+  - Taking over pauses the agent and records who has the work (migration 091). The card shows the task's branch and how to check it out. `viberglass checkout WEB-42` (`packages/cli`) gets the branch through the new `task_branch` MCP tool, using an API token.
+  - Handing back resumes with the person's note. Every turn now starts from the task's branch when it exists. The worker tells the agent what people pushed since the last agent commit (`<pushed-by-people>`); builds record their commit in the turn outcome.
+- **Failure recovery:**
+  - A failed run's turn ends even when its worker never reported (runner unavailable, a lost heartbeat). Before, the task said "Agent working" for good.
+  - Setup failures (credential, quota, repository, runner) pause the agent ("Paused · Repository not reachable", which is admins' move too). "Try again" resumes that task; admins can "Retry all paused runs" after the fix.
+  - The readiness banner warns a week before the SCM credential expires, and admins get one Slack and email warning per expiring connection credential (migration 092).
+- **Cancel-safe runs:**
+  - Jobs record their worker type and id, and who cancelled them (migration 093). `EcsWorkerStopper` stops ECS tasks. Lambda can't be stopped; its late result is refused, as before.
+  - Cancelling now ends the turn before the worker stops. Docker gives the worker 20 seconds, during which it sends back the documents it had written and, on a build, pushes a work-in-progress commit to the task's branch. The thread says "This turn was stopped. It kept the research it had written."
+  - The run shows who cancelled it, and the cancel dialog says how long a run has gone after 30 minutes.
+- **Verified:**
+  - Unit tests: backend 1135, frontend 247, worker 125, agent-core 44, fake agent 25, CLI 3.
+  - Lint and typechecks are clean, apart from earlier warnings and the MCP package's existing type-depth errors.
+  - Smoke 49/49. New and extended journeys: `agent-question`, `steer-the-agent`, `take-over-and-hand-back`, `failure-copy` (pause and retry after a fix) and `cancel-run` (partial work kept).
+- **Not verified:** a real Slack workspace (the adapter can't be pointed at a stub), a real ECS stop, and `ask_human` with real harnesses and models.
+
 **Order and dependencies:** S1 → S2 → S3. S4 needs S2 (agent posts and mentions). S5 can come any time. S6 needs S2. S7 needs S4. S8 needs S3. About 8–9 weeks to the end of S7.
 
 ## 4. Risks and how each is handled
@@ -405,13 +435,13 @@ Planned:
 | Slack keeps the old keyword flow until S8 | Fine for the interim: it calls the same services, and keywords map onto actions |
 | Oversized files | Split as touched (AGENTS.md §6). Start with `workflowPhaseRoutes.ts` and the session services, which S2 rewrites anyway |
 
-## 5. Next step: S8 (start here in a new session)
+## 5. Where this leaves things (start here in a new session)
 
-S1–S7 are done (2026-10-02). S8 is next.
+S1–S8 are done (2026-10-02). What S8 built is in §3, S8.
 
 ### 5.1 State of the repository
-- **Committed** up to S6 (`41b49ff`). **Not committed:** S7, below. Check `git status` first; Jussi commits, agents don't.
-- **Verified after S7:** backend unit 1078, frontend 233, lint and type checks clean, smoke 44/44.
+- **Committed** up to S7 (`bb67778`). **Not committed:** S8. Check `git status` first; Jussi commits, agents don't.
+- **Verified after S8:** see §3, S8.
 
 ### 5.2 How to work here
 - **Rules:** `.agents/AGENTS.md`: files ≤350 lines (split what you touch), no `as` casts beyond `as const`, comments never refer to design documents, ADRs, slices or plan labels.
@@ -439,9 +469,9 @@ S1–S7 are done (2026-10-02). S8 is next.
   - Codex compacts only through `compact_prompt` in its config, which isn't set.
   - The summary threshold is global (`TASK_SUMMARY_CONTEXT_RATIO`, `TASK_SUMMARY_CONTEXT_TOKENS`).
 - **Webhooks:** the GitHub, Jira and Shortcut webhook processors still submit one-shot builds outside any session.
-
-### 5.5 S8
-See §3, S8:
-- `ask_human` as a mention of the person asked; open questions already make it their move (`agent_pending_requests` → situation `question`).
-- The Slack thread mirrors the task thread through `TaskTurnService`, replacing `threadMention`'s keyword resolver and the two polling bridges.
-- Then steering, take over and hand back, failure recovery, and runs that can be cancelled safely.
+- **S8:**
+  - Slack isn't checked against a real workspace, ECS stopping against a real cluster, or `ask_human` against real harnesses and models.
+  - Questions from runs outside a session (webhook builds) aren't possible: the relay is only offered on session turns.
+  - A `{{ jobId }}` or `{{ timestamp }}` branch template names a new branch every build, so a turn can't continue it and people's pushes aren't found.
+  - A stopped Lambda run keeps nothing; Docker and ECS give the worker time to keep its work.
+  - Several files touched here were already over the size limits and grew by a few lines: `JobService`, `TicketDAO`, `jobPipeline`, `ViberatorWorker`, `CallbackClient`, `schemas.ts`.

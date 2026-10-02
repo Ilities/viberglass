@@ -10,6 +10,7 @@ import {
 import { TaskTurnFactsDAO } from "../../persistence/agentSession/TaskTurnFactsDAO";
 import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
+import { TaskTakeoverDAO } from "../../persistence/ticketing/TaskTakeoverDAO";
 import { TaskThreadFactsDAO } from "../../persistence/ticketing/TaskThreadFactsDAO";
 import type { ThreadTaskRow } from "../../persistence/ticketing/TaskThreadListDAO";
 
@@ -33,10 +34,11 @@ export interface DescribedTask {
 }
 
 interface Dependencies {
-  turns: Pick<TaskTurnFactsDAO, "running" | "lastFinished" | "aggregates">;
+  turns: Pick<TaskTurnFactsDAO, "running" | "paused" | "lastFinished" | "aggregates">;
   thread: Pick<TaskThreadFactsDAO, "latestRevisions" | "lastMessages" | "openQuestions" | "mergedBy">;
   mentions: Pick<TaskMentionDAO, "listOpen">;
   participants: Pick<TaskParticipantDAO, "listDrivers">;
+  takeovers: Pick<TaskTakeoverDAO, "listFor">;
 }
 
 const MESSAGE_PREVIEW = 140;
@@ -64,14 +66,16 @@ export class TaskSituationService {
       thread: new TaskThreadFactsDAO(),
       mentions: new TaskMentionDAO(),
       participants: new TaskParticipantDAO(),
+      takeovers: new TaskTakeoverDAO(),
       ...deps,
     };
   }
 
   async describe(tasks: SituationTask[], viewer: SituationViewer): Promise<Map<string, DescribedTask>> {
     const ids = tasks.map((task) => task.id);
-    const [running, finished, aggregates, revisions, messages, questions, mentions, drivers, merges] = await Promise.all([
+    const [running, paused, finished, aggregates, revisions, messages, questions, mentions, drivers, merges, takeovers] = await Promise.all([
       this.deps.turns.running(ids),
+      this.deps.turns.paused(ids),
       this.deps.turns.lastFinished(ids),
       this.deps.turns.aggregates(ids),
       this.deps.thread.latestRevisions(ids),
@@ -80,6 +84,7 @@ export class TaskSituationService {
       this.deps.mentions.listOpen(ids),
       this.deps.participants.listDrivers(ids),
       this.deps.thread.mergedBy(ids),
+      this.deps.takeovers.listFor(ids),
     ]);
 
     return new Map(
@@ -106,6 +111,8 @@ export class TaskSituationService {
           owner: drivers.get(task.id) ?? null,
           latestArtifact,
           runningTurn: turnRunning ? { action: turnRunning.action, since: iso(turnRunning.since) } : null,
+          pausedSince: paused.has(task.id) ? iso(paused.get(task.id) ?? task.updatedAt) : null,
+          takenOver: takeovers.get(task.id) ?? null,
           lastTurn: lastTurn ? { status: lastTurn.status, at: iso(lastTurn.at), failure: lastTurn.failure } : null,
           openQuestion: question ? { askedOf: question.askedOf, since: iso(question.since) } : null,
           openMentions: mentions.get(task.id) ?? [],

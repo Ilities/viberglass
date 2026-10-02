@@ -27,6 +27,7 @@ const SPACE: Project = {
   isPrivate: true,
   keyPrefix: 'WEB',
   defaultReviewerIds: [],
+  questionReminderHours: 4,
   createdAt: '',
   updatedAt: '',
 }

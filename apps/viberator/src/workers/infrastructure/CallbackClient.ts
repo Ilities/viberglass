@@ -3,6 +3,7 @@ import type { ExecutionManifest } from "@viberglass/telemetry";
 import {
   FetchRetryConfig,
   fetchWithRetry,
+  postForJson,
   redactSensitiveInfo,
   isInternalLogMessage,
 } from "./callbackFetch";
@@ -233,6 +234,28 @@ export class CallbackClient {
       { timeoutMs: 10000, label: "conversation state URL" },
       { jobId },
     );
+  }
+
+  /** What a turn had done when it was stopped, so it isn't lost: documents so far, and a work-in-progress commit. */
+  async sendPartialResult(
+    jobId: string,
+    tenantId: string,
+    partial: { documents: Partial<Record<"research" | "plan" | "summary", string>>; commitHash?: string; branch?: string },
+  ): Promise<void> {
+    // No retries: the worker is being stopped and has seconds left.
+    await postForJson(`${this.apiUrl}/api/jobs/${jobId}/partial-result`, tenantId, partial, 5000, this.callbackToken);
+  }
+
+  /** Puts the agent's question to a person on the task; returns whom it reached. */
+  async sendQuestion(
+    jobId: string,
+    tenantId: string,
+    question: { question: string; options: string[]; addressee: string | null; blocking: boolean },
+  ): Promise<{ askedOf: string | null; blocking: boolean }> {
+    const body = await postForJson(`${this.apiUrl}/api/jobs/${jobId}/questions`, tenantId, question, 15000, this.callbackToken);
+    const data = typeof body === "object" && body !== null && "data" in body ? body.data : null;
+    const askedOf = typeof data === "object" && data !== null && "askedOf" in data && typeof data.askedOf === "string" ? data.askedOf : null;
+    return { askedOf, blocking: question.blocking };
   }
 
   private async post(

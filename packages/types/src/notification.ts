@@ -7,6 +7,9 @@ export const NOTIFICATION_KINDS = [
   'run_failed_setup',
   'run_failed_agent',
   'task_done',
+  'question_asked',
+  'question_reminder',
+  'credential_expiring',
 ] as const
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
@@ -31,6 +34,15 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
       return `A ${step} run on “${taskTitle}” failed and needs an admin${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`
     case 'run_failed_agent':
       return `The ${step} run on “${taskTitle}” failed${typeof payload.reason === 'string' ? `: ${payload.reason}` : ''}`
+    case 'question_asked':
+      return `The agent has a question for you on “${taskTitle}”${typeof payload.question === 'string' ? `: ${payload.question}` : ''}`
+    case 'question_reminder':
+      // The owner hears when the person asked hasn't answered; the person asked is reminded.
+      return payload.escalated === true
+        ? `The agent's question on “${taskTitle}” is still unanswered${typeof payload.askedOfName === 'string' ? ` by ${payload.askedOfName}` : ''}`
+        : `The agent is still waiting for your answer on “${taskTitle}”${typeof payload.question === 'string' ? `: ${payload.question}` : ''}`
+    case 'credential_expiring':
+      return `The ${typeof payload.credential === 'string' ? `“${payload.credential}” ` : ''}credential for ${typeof payload.connection === 'string' ? payload.connection : 'a connection'} expires on ${typeof payload.expiresOn === 'string' ? payload.expiresOn : 'soon'}. Replace it before then, or runs that use it will stop.`
     case 'task_done':
       if (payload.merged === true) {
         return typeof payload.mergedBy === 'string'

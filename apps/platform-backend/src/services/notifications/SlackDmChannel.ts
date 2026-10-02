@@ -10,6 +10,9 @@ const DM_KINDS: ReadonlySet<NotificationKind> = new Set([
   "task_assigned",
   "run_failed_setup",
   "run_failed_agent",
+  "question_asked",
+  "question_reminder",
+  "credential_expiring",
 ]);
 
 /** A Slack DM, for people who linked their Slack account. */

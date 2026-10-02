@@ -33,6 +33,8 @@ describe("resolveNotifications", () => {
     ["task_done", {}, [{ userId: "requester", kind: "task_done" }]],
     ["pull_request_merged", { merged: true }, [{ userId: "requester", kind: "task_done" }, { userId: "owner", kind: "task_done" }]],
     ["comment_added", {}, []],
+    ["question_asked", { userId: "requester", questionId: "q" }, [{ userId: "requester", kind: "question_asked" }]],
+    ["question_reminded", { userId: "owner", escalated: true }, [{ userId: "owner", kind: "question_reminder" }]],
   ] as const)("%s %j notifies the right people", (kind, payload, expected) => {
     expect(notify(kind, payload)).toEqual(expected);
   });

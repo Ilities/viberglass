@@ -111,6 +111,8 @@ export interface JobStatus {
   ticket: JobStatusTicket | null
   /** The live session this run is a turn of, if any. */
   agentSessionId: string | null
+  /** Who cancelled the run, when someone did. */
+  cancelledBy?: { id: string; name: string } | null
   clankerId: string | null
   clanker: JobStatusClanker | null
 }

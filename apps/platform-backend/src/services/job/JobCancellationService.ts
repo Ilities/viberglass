@@ -10,6 +10,7 @@ import {
 import { createChildLogger } from "../../config/logger";
 import type { WorkerStopper } from "../../workers/WorkerStopper";
 import { DockerWorkerStopper } from "../../workers/stoppers/DockerWorkerStopper";
+import { EcsWorkerStopper } from "../../workers/stoppers/EcsWorkerStopper";
 import { WorkerStopperChain } from "../../workers/WorkerStopperChain";
 import { TicketLifecycleStatusService } from "../TicketLifecycleStatusService";
 import { TaskActivityRecorder } from "../tasks/TaskActivityRecorder";
@@ -27,51 +28,35 @@ export class JobCancellationService {
     private readonly sessionDAO = new AgentSessionDAO(),
     private readonly turnDAO = new AgentTurnDAO(),
     private readonly eventDAO = new AgentSessionEventDAO(),
-    private readonly workerStoppers: WorkerStopper[] = [new DockerWorkerStopper()],
+    // Lambda can't be stopped mid-invocation: its run is marked cancelled and its late result refused.
+    private readonly workerStoppers: WorkerStopper[] = [new DockerWorkerStopper(), new EcsWorkerStopper()],
     private readonly ticketStatus: TicketStatusSynchronizer = new TicketLifecycleStatusService(),
     private readonly activity: Pick<TaskActivityRecorder, "record"> = new TaskActivityRecorder(),
   ) {}
 
   /**
    * Cancels a run and stops its worker. A run that was a turn of the task's
-   * conversation ends that turn; the session stays, waiting on people.
+   * conversation ends that turn first, so the worker, given a moment to keep
+   * what it had done, finds the turn stopped; the session stays, waiting on people.
    */
   async cancel(jobId: string, cancelledBy?: string): Promise<CancelJobResult> {
     const job = await this.getJob(jobId);
     if (!job) return "not_found";
-
-    const result = await this.stopJob(jobId);
-    if (result !== "cancelled") return result;
-
-    if (job.ticket_id) {
-      await this.activity.record(job.ticket_id, cancelledBy ? { type: "human", userId: cancelledBy } : { type: "system" }, "run_cancelled", {
-        jobId,
-      });
-    }
-
-    const turn = await this.turnDAO.getByJobId(jobId);
-    if (!turn) return "cancelled";
-    await this.turnDAO.update(turn.id, { status: AGENT_TURN_STATUS.CANCELLED, completedAt: new Date() });
-    const session = await this.sessionDAO.getById(turn.sessionId);
-    if (session?.status === AGENT_SESSION_STATUS.ACTIVE) {
-      const sequence = await this.eventDAO.getMaxSequence(session.id);
-      await this.eventDAO.create({
-        sessionId: session.id,
-        turnId: turn.id,
-        sequence: sequence + 1,
-        eventType: AGENT_SESSION_EVENT_TYPE.TURN_FAILED,
-        payloadJson: { reason: "Cancelled", cancelledBy: cancelledBy ?? null, jobId },
-      });
-      await this.sessionDAO.update(session.id, { status: AGENT_SESSION_STATUS.WAITING_ON_USER });
-    }
-    return "cancelled";
+    return this.stopJob(jobId, cancelledBy, async () => {
+      if (job.ticket_id) {
+        await this.activity.record(job.ticket_id, cancelledBy ? { type: "human", userId: cancelledBy } : { type: "system" }, "run_cancelled", {
+          jobId,
+        });
+      }
+      await this.endTurn(jobId, cancelledBy);
+    });
   }
 
   /**
-   * Marks the run cancelled and stops its worker, without touching any session.
-   * Once cancelled, worker callbacks for the run are rejected as terminal.
+   * Marks the run cancelled and stops its worker, without touching any session
+   * unless `beforeWorkerStops` does. Once cancelled, the run's result is refused.
    */
-  async stopJob(jobId: string): Promise<CancelJobResult> {
+  async stopJob(jobId: string, cancelledBy?: string, beforeWorkerStops?: () => Promise<void>): Promise<CancelJobResult> {
     const job = await this.getJob(jobId);
     if (!job) return "not_found";
     const { status } = job;
@@ -84,14 +69,33 @@ export class JobCancellationService {
         status: "cancelled",
         finished_at: new Date(),
         error_message: "Run cancelled by user",
+        cancelled_by: cancelledBy ?? null,
       })
       .where("id", "=", jobId)
       .where("status", "in", ["queued", "active"])
       .execute();
 
+    await beforeWorkerStops?.();
     await new WorkerStopperChain(this.workerStoppers).stop(jobId, "cancelled");
     if (job.ticket_id) await this.synchronizeTicketStatus(job.ticket_id);
     return "cancelled";
+  }
+
+  private async endTurn(jobId: string, cancelledBy: string | undefined): Promise<void> {
+    const turn = await this.turnDAO.getByJobId(jobId);
+    if (!turn) return;
+    await this.turnDAO.update(turn.id, { status: AGENT_TURN_STATUS.CANCELLED, completedAt: new Date() });
+    const session = await this.sessionDAO.getById(turn.sessionId);
+    if (session?.status !== AGENT_SESSION_STATUS.ACTIVE) return;
+    const sequence = await this.eventDAO.getMaxSequence(session.id);
+    await this.eventDAO.create({
+      sessionId: session.id,
+      turnId: turn.id,
+      sequence: sequence + 1,
+      eventType: AGENT_SESSION_EVENT_TYPE.TURN_FAILED,
+      payloadJson: { reason: "Cancelled", cancelledBy: cancelledBy ?? null, jobId },
+    });
+    await this.sessionDAO.update(session.id, { status: AGENT_SESSION_STATUS.WAITING_ON_USER });
   }
 
   private async getJob(jobId: string) {

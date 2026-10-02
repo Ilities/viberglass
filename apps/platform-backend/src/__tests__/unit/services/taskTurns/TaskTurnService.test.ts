@@ -104,6 +104,23 @@ describe("TaskTurnService", () => {
     expect(deps.sessions.create).not.toHaveBeenCalled();
   });
 
+  it("asks with a message already in the thread, such as an answer, without posting it again", async () => {
+    const { deps, service } = setup();
+    const result = await service.ask("t-1", "maria", { message: "North", action: "research", postedMessageId: "answer-1" });
+    expect(deps.discussion.create).not.toHaveBeenCalled();
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ taskMessageId: "answer-1" }));
+    expect(result.messageId).toBe("answer-1");
+  });
+
+  it("holds an ask while someone has the agent paused", async () => {
+    const { deps, service } = setup();
+    deps.sessions.getById.mockImplementation(async (id: string) => session({ id, status: "paused" }));
+    const result = await service.ask("t-1", "maria", { message: "Also cover Safari" });
+    expect(deps.turns.create).toHaveBeenCalledWith(expect.objectContaining({ role: "user", contentMarkdown: "Also cover Safari" }));
+    expect(deps.continuation.launchForPendingMessages).not.toHaveBeenCalled();
+    expect(result.job).toEqual({ id: null, status: "paused" });
+  });
+
   it("opens the agent's session on the task when it has none", async () => {
     const { deps, service } = setup();
     deps.sessions.getOpenByTicketAndClanker.mockResolvedValue(null);

@@ -1,4 +1,4 @@
-import { artifactReviewers, canAskAgent, canAskForCode, type AskingParticipant, type WorkspaceRole } from "@viberglass/types";
+import { artifactReviewers, canAskAgent, canAskForCode, canSteerAgent, type AskingParticipant, type WorkspaceRole } from "@viberglass/types";
 import { TaskAskPolicyService } from "../../../../services/taskTurns/TaskAskPolicyService";
 import { SpaceAccessError, SPACE_ACCESS_ERROR_CODE } from "../../../../services/errors/SpaceAccessError";
 
@@ -34,6 +34,14 @@ describe("ask rules", () => {
     expect(canAskAgent(person("visitor", "guest"), participants)).toBe(false);
     expect(canAskForCode(person("tomi", "guest"), participants)).toBe(true);
     expect(canAskForCode(person("visitor", "guest"), participants)).toBe(false);
+  });
+
+  it("lets the task's owner, the space's maintainers and admins steer the agent, and nobody else on it", () => {
+    expect(canSteerAgent(person("owner"), participants)).toBe(true);
+    expect(canSteerAgent(person("lead", "member", "maintainer"), [])).toBe(true);
+    expect(canSteerAgent(person("admin", "admin"), [])).toBe(true);
+    for (const id of ["maria", "tomi", "kaisa"]) expect(canSteerAgent(person(id), participants)).toBe(false);
+    expect(canSteerAgent(person("owner", "viewer"), participants)).toBe(false);
   });
 
   it("never lets a viewer ask", () => {
@@ -81,10 +89,10 @@ describe("TaskAskPolicyService", () => {
   }
 
   it("describes what the caller may ask for", async () => {
-    await expect(service().describe("tomi", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: true });
-    await expect(service().describe("stranger", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: false });
-    await expect(service({ role: "guest" }).describe("visitor", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: false, canAskForCode: false });
-    await expect(service({ role: "viewer" }).describe("tomi", TASK_ID)).resolves.toEqual({ canPost: false, canAsk: false, canAskForCode: false });
+    await expect(service().describe("tomi", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: true, canSteer: false });
+    await expect(service().describe("stranger", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: true, canAskForCode: false, canSteer: false });
+    await expect(service({ role: "guest" }).describe("visitor", TASK_ID)).resolves.toEqual({ canPost: true, canAsk: false, canAskForCode: false, canSteer: false });
+    await expect(service({ role: "viewer" }).describe("tomi", TASK_ID)).resolves.toEqual({ canPost: false, canAsk: false, canAskForCode: false, canSteer: false });
   });
 
   it("refuses a build from someone who isn't on the task, saying who can ask", async () => {

@@ -64,6 +64,10 @@ export const ticketGetSchema = {
   taskId: z.string().uuid().describe("Task UUID"),
 };
 
+export const ticketBranchSchema = {
+  task: z.string().min(1).describe("The task's key (WEB-42) or UUID"),
+};
+
 export const ticketTriggerSchema = {
   taskId: z.string().uuid().describe("Task UUID"),
   agentId: z.string().uuid().describe("UUID of the agent to run, from agent_list"),

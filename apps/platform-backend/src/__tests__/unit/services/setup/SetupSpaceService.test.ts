@@ -40,6 +40,7 @@ function project(overrides: Partial<ProjectConfig> = {}): ProjectConfig {
     isPrivate: false,
     keyPrefix: "WEB",
     defaultReviewerIds: [],
+  questionReminderHours: 4,
     createdAt: "",
     updatedAt: "",
     ...overrides,

@@ -2,13 +2,11 @@ import type { TaskActivityKind } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import { TaskActivityDAO } from "../../persistence/ticketing/TaskActivityDAO";
 import { currentActorId } from "../../api/auth/requestActor";
-import { NotificationService, type RecordedActivity } from "../notifications/NotificationService";
+import { NotificationService } from "../notifications/NotificationService";
 import { AuditActivityListener } from "../audit/AuditActivityListener";
+import { registeredActivityListeners, type ActivityListener } from "./activityListeners";
 
-/** Hears about every recorded change, e.g. to notify people about it. */
-export interface ActivityListener {
-  onActivity(activity: RecordedActivity): Promise<void>;
-}
+export type { ActivityListener };
 
 const logger = createChildLogger({ service: "TaskActivityRecorder" });
 
@@ -43,7 +41,7 @@ export class TaskActivityRecorder {
       });
       return;
     }
-    for (const listener of this.listeners) {
+    for (const listener of [...this.listeners, ...registeredActivityListeners()]) {
       try {
         await listener.onActivity({ ticketId, kind, actorId, payload });
       } catch (error) {

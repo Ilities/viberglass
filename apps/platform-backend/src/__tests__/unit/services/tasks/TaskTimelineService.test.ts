@@ -1,4 +1,5 @@
 import type { TaskActivityEntry } from "@viberglass/types";
+import type { AgentQuestionRecord } from "../../../../persistence/agentSession/AgentQuestionDAO";
 import type { TaskAgentTurn } from "../../../../persistence/agentSession/TaskAgentTurnDAO";
 import { TaskTimelineService } from "../../../../services/tasks/TaskTimelineService";
 
@@ -52,6 +53,7 @@ function service(sources: {
   activity?: TaskActivityEntry[];
   agentTurns?: TaskAgentTurn[];
   summaries?: Array<{ id: string; ticketId: string; version: number; content: string; agentTurnId: string | null; createdAt: Date }>;
+  questions?: AgentQuestionRecord[];
 }) {
   return new TaskTimelineService({
     messages: {
@@ -68,6 +70,7 @@ function service(sources: {
     revisions: { listByTicketWithAuthors: jest.fn(async () => sources.revisions ?? []) },
     activity: { list: jest.fn(async () => sources.activity ?? []) },
     summaries: { listForTask: jest.fn(async () => sources.summaries ?? []) },
+    questions: { listForTask: jest.fn(async () => sources.questions ?? []) },
   });
 }
 
@@ -139,5 +142,48 @@ describe("TaskTimelineService", () => {
 
     expect(thread.map((entry) => entry.id)).toEqual(["turn-1", "other", "cancelled"]);
     expect(thread[0]).toMatchObject({ kind: "agent_turn", agent: { name: "Claude" }, action: "research", outcome, jobId: "job-1", sessionId: "s-1" });
+  });
+
+  it("shows the agent's questions after the turn that asked, without the activity that repeats them", async () => {
+    const question: AgentQuestionRecord = {
+      id: "q-1",
+      ticketId: "t",
+      sessionId: "s-1",
+      turnId: "turn-1",
+      agent: { id: "claude", name: "Claude" },
+      askedOf: MARIA,
+      question: "Which warehouse?",
+      options: ["North", "South"],
+      blocking: true,
+      status: "open",
+      askedAt: "2026-10-01T10:01:30.000Z",
+      answer: null,
+      dueAt: new Date("2026-10-01T14:01:30.000Z"),
+      remindedAt: null,
+    };
+    const thread = await service({
+      agentTurns: [agentTurn("turn-1", "2026-10-01T10:01:00.000Z", "job-1")],
+      questions: [question],
+      activity: [activity("asked", "2026-10-01T10:01:30.000Z", "question_asked", { questionId: "q-1" })],
+    }).list("t");
+
+    expect(thread.map((entry) => entry.id)).toEqual(["turn-1", "q-1"]);
+    expect(thread[1]).toEqual({
+      kind: "question",
+      id: "q-1",
+      at: "2026-10-01T10:01:30.000Z",
+      question: {
+        id: "q-1",
+        sessionId: "s-1",
+        agent: { id: "claude", name: "Claude" },
+        askedOf: MARIA,
+        question: "Which warehouse?",
+        options: ["North", "South"],
+        blocking: true,
+        status: "open",
+        askedAt: "2026-10-01T10:01:30.000Z",
+        answer: null,
+      },
+    });
   });
 });

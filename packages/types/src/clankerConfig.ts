@@ -2,7 +2,7 @@ import type { AgentType } from "./clanker";
 
 export type ClankerConfigVersion = 1;
 
-export type ClankerStrategyType = "docker" | "ecs" | "lambda";
+export type ClankerStrategyType = "docker" | "ecs" | "lambda" | "kubernetes";
 
 export type CodexAuthMode =
   | "api_key"
@@ -73,10 +73,22 @@ export interface LambdaStrategyConfig {
   functionDetails?: Record<string, unknown>;
 }
 
+export interface KubernetesStrategyConfig {
+  type: "kubernetes";
+  provisioningMode?: "prebuilt";
+  containerImage?: string;
+  namespace?: string;
+  cpu?: string;
+  memory?: string;
+  ephemeralStorage?: string;
+  activeDeadlineSeconds?: number;
+}
+
 export type ClankerStrategyConfig =
   | DockerStrategyConfig
   | EcsStrategyConfig
-  | LambdaStrategyConfig;
+  | LambdaStrategyConfig
+  | KubernetesStrategyConfig;
 
 export interface CodexAuthConfig {
   mode: CodexAuthMode;

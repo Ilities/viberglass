@@ -223,6 +223,8 @@ export interface JobStatusResponse {
   };
   result: unknown;
   failedReason: string | null;
+  /** Who cancelled the run, when someone did. */
+  cancelledBy: { id: string; name: string } | null;
   createdAt: Date | null;
   processedAt: Date | null;
   finishedAt: Date | null;

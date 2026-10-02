@@ -17,6 +17,8 @@ import { isDomainError } from "../../services/errors/DomainError";
 import { registerCodexAuthCacheRoute } from "./jobs/codexAuthCacheRoute";
 import { registerJobResultRoute } from "./jobs/jobResultRoute";
 import { registerJobWorkerCallbackRoutes } from "./jobs/workerCallbackRoutes";
+import { registerQuestionCallbackRoute } from "./jobs/questionCallbackRoute";
+import { registerPartialResultRoute } from "./jobs/partialResultRoute";
 
 const router = Router();
 // Worker callbacks carry no user and pass through; people only reach runs in spaces they see.
@@ -184,6 +186,8 @@ router.get("/stats/queue", requireAuth, async (req: Request, res: Response) => {
 registerJobWorkerCallbackRoutes(router);
 registerJobResultRoute(router);
 registerCodexAuthCacheRoute(router);
+registerQuestionCallbackRoute(router);
+registerPartialResultRoute(router);
 
 
 export default router;

@@ -30,3 +30,20 @@ describe("notificationText for a merge", () => {
     expect(notificationText("task_done", null, "Gift notes", { merged: true })).toBe("“Gift notes” is done: its pull request was merged");
   });
 });
+
+describe("notificationText for the agent's questions", () => {
+  it("puts the question to the person asked, and reminds them", () => {
+    expect(notificationText("question_asked", null, "Gift notes", { question: "Which warehouse?" })).toBe(
+      "The agent has a question for you on “Gift notes”: Which warehouse?",
+    );
+    expect(notificationText("question_reminder", null, "Gift notes", { question: "Which warehouse?", escalated: false })).toBe(
+      "The agent is still waiting for your answer on “Gift notes”: Which warehouse?",
+    );
+  });
+
+  it("tells the owner whose answer it's still waiting for", () => {
+    expect(notificationText("question_reminder", null, "Gift notes", { askedOfName: "Maria", escalated: true })).toBe(
+      "The agent's question on “Gift notes” is still unanswered by Maria",
+    );
+  });
+});

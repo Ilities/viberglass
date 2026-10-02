@@ -16,6 +16,7 @@ import { useParams } from 'react-router-dom'
 
 // Select options can't have an empty value.
 const CREATOR_OWNS = 'creator'
+const QUESTION_REMINDER_HOURS = [1, 2, 4, 8, 24, 48]
 
 const SPACE_ROLE_LABEL: Record<SpaceRole, string> = { maintainer: 'Maintainer', member: 'Member' }
 
@@ -156,6 +157,33 @@ export function SpaceMembersPage() {
                 ))}
             </Select>
           )}
+        </div>
+
+        <div className="max-w-sm">
+          <Label>Unanswered questions</Label>
+          <Description>
+            When the agent asks someone a question and nobody answers, they&apos;re reminded after this long, and the
+            task&apos;s owner hears after as long again.
+          </Description>
+          <Select
+            aria-label="Remind about unanswered questions after"
+            value={String(project.questionReminderHours)}
+            disabled={!canMaintain || busy}
+            onChange={(hours) =>
+              void act(async () =>
+                setProject({
+                  ...(await updateProject(project.id, { questionReminderHours: Number(hours) })),
+                  viewerAccess: project.viewerAccess,
+                })
+              )
+            }
+          >
+            {QUESTION_REMINDER_HOURS.map((hours) => (
+              <option key={hours} value={String(hours)}>
+                {hours === 1 ? 'After an hour' : hours < 24 ? `After ${hours} hours` : `After ${hours / 24} day${hours === 24 ? '' : 's'}`}
+              </option>
+            ))}
+          </Select>
         </div>
 
         <section>

@@ -16,6 +16,8 @@ export function outcomeOf(json: JsonValue | null): TaskTurnOutcome | null {
     mentioned: Array.isArray(json.mentioned) ? json.mentioned.filter(isPerson) : [],
     contextUsage: contextUsageOf(json.contextUsage),
     compacted: json.compacted === true,
+    commit: typeof json.commit === "string" ? json.commit : null,
+    stoppedPartway: json.stoppedPartway === true,
   };
 }
 

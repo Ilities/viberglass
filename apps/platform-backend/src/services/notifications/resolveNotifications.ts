@@ -54,6 +54,10 @@ export function resolveNotifications(activity: ActivityForNotification, context:
         return to(withRoles(context, ["requester"]), "task_done");
       case "pull_request_merged":
         return to(withRoles(context, ["requester", "owner"]), "task_done");
+      case "question_asked":
+        return to(userId, "question_asked");
+      case "question_reminded":
+        return to(userId, "question_reminder");
       default:
         return [];
     }

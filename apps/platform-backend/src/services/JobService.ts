@@ -321,11 +321,14 @@ export class JobService {
       .selectFrom("jobs")
       .leftJoin("tickets", "tickets.id", "jobs.ticket_id")
       .leftJoin("clankers", "clankers.id", "jobs.clanker_id")
+      .leftJoin("users as canceller", "canceller.id", "jobs.cancelled_by")
       .select([
         "jobs.id",
         "jobs.status",
         "jobs.progress",
         "jobs.last_heartbeat",
+        "canceller.id as canceller_id",
+        "canceller.name as canceller_name",
         "jobs.repository",
         "jobs.task",
         "jobs.branch",
@@ -419,6 +422,7 @@ export class JobService {
       },
       result: job.result,
       failedReason: job.error_message,
+      cancelledBy: job.canceller_id && job.canceller_name ? { id: job.canceller_id, name: job.canceller_name } : null,
       createdAt: job.created_at,
       processedAt: job.started_at,
       finishedAt: job.finished_at,

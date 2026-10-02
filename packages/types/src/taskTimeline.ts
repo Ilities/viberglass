@@ -1,3 +1,4 @@
+import type { AgentQuestion } from './agentQuestion'
 import type { TaskActivityEntry, TaskActivityKind } from './taskDiscussion'
 import type { TaskTurnAction, TaskTurnOutcome } from './taskTurn'
 
@@ -44,6 +45,8 @@ export type TaskTimelineEntry =
       jobId: string | null
     }
   | { kind: 'event'; id: string; at: string; activity: TaskActivityEntry }
+  /** The agent asking someone on the task, and their answer once given. */
+  | { kind: 'question'; id: string; at: string; question: AgentQuestion }
   /** A summary of the conversation so far: the decisions, who agreed, the open questions. The latest is pinned. */
   | { kind: 'summary'; id: string; at: string; version: number; content: string }
 
@@ -51,4 +54,9 @@ export type TaskTimelineEntry =
  * Activity the thread shows another way: a posted message is the message
  * itself, and a hand edit is a new version of the document.
  */
-export const ACTIVITY_SHOWN_ELSEWHERE_IN_THREAD: ReadonlySet<TaskActivityKind> = new Set(['message_posted', 'document_edited'])
+export const ACTIVITY_SHOWN_ELSEWHERE_IN_THREAD: ReadonlySet<TaskActivityKind> = new Set([
+  'message_posted',
+  'document_edited',
+  'question_asked',
+  'question_answered',
+])

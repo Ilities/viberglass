@@ -4,6 +4,8 @@ export default defineConfig({
   entry: {
     "cli-worker": "src/workers/entrypoints/cli-handler.ts",
     "lambda-handler": "src/workers/entrypoints/lambda-handler.ts",
+    // Started by the agent's harness as its ask_human MCP server; found next to the worker's entry.
+    "ask-human-mcp": "src/questions/askHumanMcpServerMain.ts",
   },
   format: ["esm"],
   target: "node24",

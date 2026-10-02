@@ -200,10 +200,13 @@ instead of a model. It needs no API keys and runs in about a minute and a half.
 | Phase 2's exit, as a conversation: three people invited by link; the PM asks, the designer is @mentioned and replies, the agent mentions the reviewer when the plan is ready, the reviewer comments on the rendered plan, has it revised with the comment and asks for the build; Home's Needs you and the thread name each person | `phase-2-exit.e2e.test.ts` |
 | A turn whose context is past the threshold is followed by Summary v1, unasked and compacted, pinned in the thread; a second agent brought in starts cold from the summary | `summary-and-second-agent.e2e.test.ts` |
 | Home per role: a mentioned member sees it under Needs you with an unread count, and replying clears it; a new task is its owner's move, and the agent's research mentions the owner; a guest on a task is mentioned and replies; a viewer lands on Overview | `home.e2e.test.ts` |
-| Cancel stops the worker container; the run stays cancelled and writes nothing | `cancel-run.e2e.test.ts` |
+| Cancel stops the worker container; the run stays cancelled and writes nothing. A run stopped after writing its research keeps it as a version, and says who stopped it | `cancel-run.e2e.test.ts` |
+| The agent asks the requester a question with `ask_human`; it's in the thread and their move on Home; answering with an option resumes the research, which has the answer | `agent-question.e2e.test.ts` |
+| The owner interrupts a slow turn with an instruction, and the next turn has it; pausing stops the run and holds an ask, and letting it carry on finishes the plan with that ask | `steer-the-agent.e2e.test.ts` |
+| The owner takes the work over, a commit is pushed to the task's branch, and after handing back the agent's next turn is told about the commit | `take-over-and-hand-back.e2e.test.ts` |
 | Asking again while the agent works joins its turn instead of starting another run; the next turn answers both asks | `no-duplicate-runs.e2e.test.ts` |
 | Status says "Not started", "Agent working" only while a run is active, then "Awaiting review"; a failed run shows as failed | `status-truth.e2e.test.ts` |
-| Failures read by cause: agent failures offer *Try again* in the thread (a new run), research that writes no document is an answer rather than a failure, a setup failure sends admins to the fix and tells members an admin is needed | `failure-copy.e2e.test.ts` |
+| Failures read by cause: agent failures offer *Try again* in the thread (a new run), research that writes no document is an answer rather than a failure, a setup failure sends admins to the fix and tells members an admin is needed, and pauses the agent until an admin fixes it and retries every paused run | `failure-copy.e2e.test.ts` |
 | Members can't reach secrets, runner changes or project deletion, and don't see plumbing | `member-permissions.e2e.test.ts` |
 | A backend that starts before Postgres recovers once it is up | `late-database.e2e.test.ts` |
 | On an empty workspace, the first admin goes through setup (a wrong key is explained; key → repository → space → agent) and the first task's research document appears | `first-run-setup.e2e.test.ts` |
@@ -260,7 +263,8 @@ against a database that isn't empty; use `npm run test:e2e`, which resets it.
   resumes like a real harness. Directives in people's words (a message, or
   the task description on a first turn) steer it: `[fake:sleep=N]`,
   `[fake:no-document]`, `[fake:code]` (changes `fake-change.txt`), `[fake:usage=N]` (reports N of 200,000 tokens in its context),
-  `[fake:fail]`. It is test-only: not in the runner picker, not provisioned or
+  `[fake:fail]`, `[fake:sleep-after=N]` (writes its document, then waits), `[fake:ask=Q|A|B]` (asks Q
+  with `ask_human` and stops; `[fake:ask-later=Q]` carries on, `[fake:ask-of=WHO]` names whom). It is test-only: not in the runner picker, not provisioned or
   pushed by infrastructure.
 
 ### Writing a journey

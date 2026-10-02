@@ -6,6 +6,7 @@ import type { TaskTurnAction } from './taskTurn'
 export const TASK_SITUATION_STATES = [
   'not_started',
   'agent_working',
+  'paused',
   'question',
   'artifact_ready',
   'discussing',
@@ -46,6 +47,10 @@ export interface TaskSituationInput {
   latestArtifact: { kind: TaskSituationArtifact; version: number; at: string } | null
   /** The agent's turn running now. */
   runningTurn: { action: TaskTurnAction; since: string } | null
+  /** Since when someone has had the agent paused; asks wait until it's resumed. */
+  pausedSince?: string | null
+  /** Who took the work over from the agent, while they have it. */
+  takenOver?: { by: TaskPerson; at: string } | null
   /** The agent's latest finished turn. */
   lastTurn: { status: 'completed' | 'failed' | 'cancelled'; at: string; failure: { title?: string; category?: JobFailureCategory } | null } | null
   /** A question from the agent nobody has answered. */
@@ -99,13 +104,14 @@ const ownerOnly = (input: TaskSituationInput): TaskWaitingOn =>
 
 /**
  * Where a task stands and whose move it is, the same on Home,
- * the space page and the task page. In order: done, the agent working, a
- * question, a failure nothing has happened since, people talking since the
+ * the space page and the task page. In order: done, the agent working, the
+ * agent paused, a question, a failure nothing has happened since, people talking since the
  * latest artifact, the pull request, the latest artifact, else not started.
  */
 export function taskSituation(input: TaskSituationInput, viewer: SituationViewer): TaskSituation {
   const situation = decide(input)
-  const setupFailure = situation.state === 'failed' && (input.lastTurn?.failure?.category === 'setup' || input.lastTurn?.failure?.category === 'platform')
+  const failedOnSetup = input.lastTurn?.status === 'failed' && (input.lastTurn.failure?.category === 'setup' || input.lastTurn.failure?.category === 'platform')
+  const setupFailure = (situation.state === 'failed' || situation.state === 'paused') && failedOnSetup
   const yourMove =
     (situation.waitingOn.kind === 'people' && situation.waitingOn.people.some((person) => person.id === viewer.id)) ||
     (setupFailure && viewer.isAdmin)
@@ -123,6 +129,16 @@ function decide(input: TaskSituationInput): Omit<TaskSituation, 'yourMove'> {
     const { action, since } = input.runningTurn
     const revising = artifact && ARTIFACT_OF_ACTION[action] === artifact.kind ? REVISING[action] : undefined
     return { state: 'agent_working', label: `Agent ${revising ?? WORKING[action]}`, waitingOn: { kind: 'agent' }, since }
+  }
+
+  if (input.takenOver) {
+    const { by, at } = input.takenOver
+    return { state: 'paused', label: 'Taken over locally', waitingOn: { kind: 'people', people: [by] }, since: at }
+  }
+  if (input.pausedSince) {
+    // A setup failure pauses the agent until someone fixes it and tries again.
+    const failure = input.lastTurn?.status === 'failed' && input.lastTurn.failure?.category === 'setup' ? input.lastTurn.failure.title : undefined
+    return { state: 'paused', label: failure ? `Paused · ${failure}` : 'Agent paused', waitingOn: ownerOnly(input), since: input.pausedSince }
   }
 
   if (input.openQuestion) {

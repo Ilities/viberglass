@@ -55,6 +55,18 @@ export class TaskTurnFactsDAO {
     return new Map(rows.flatMap((row) => (isTaskTurnAction(row.action) ? [[row.ticket_id, { action: row.action, since: row.since }]] : [])));
   }
 
+  /** Tasks whose agent someone paused, and since when. */
+  async paused(ticketIds: string[]): Promise<Map<string, Date>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows = await db
+      .selectFrom("agent_sessions")
+      .select(["ticket_id", "updated_at"])
+      .where("ticket_id", "in", ticketIds)
+      .where("status", "=", "paused")
+      .execute();
+    return new Map(rows.map((row) => [row.ticket_id, row.updated_at]));
+  }
+
   /** Each task's latest finished turn, with why it failed. */
   async lastFinished(ticketIds: string[]): Promise<Map<string, FinishedTurnFact>> {
     if (ticketIds.length === 0) return new Map();

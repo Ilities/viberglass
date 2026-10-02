@@ -36,6 +36,20 @@ export function ProjectReadinessBanner({
   }, [projectId])
 
   if (!readiness) return null
+  const warnings = readiness.checks.filter((check) => check.warning)
+  if (readiness.automationAvailable && warnings.length > 0) {
+    return (
+      <section aria-label="Needs attention soon" className="rounded-xl border border-warning-300 bg-warning-50 p-4 text-sm dark:border-warning-900 dark:bg-warning-950/30">
+        {warnings.map((check) => (
+          <div key={check.key} className="flex flex-wrap items-center gap-3">
+            <ExclamationTriangleIcon className="size-5 shrink-0 text-warning-700 dark:text-warning-400" />
+            <p className="min-w-0 flex-1 text-warning-950 dark:text-warning-100">{check.warning}</p>
+            {check.remediationUrl ? <Button href={check.remediationUrl}>Replace it</Button> : null}
+          </div>
+        ))}
+      </section>
+    )
+  }
   if (readiness.automationAvailable) {
     if (!firstTaskHref || readiness.hasRuns) return null
     return (

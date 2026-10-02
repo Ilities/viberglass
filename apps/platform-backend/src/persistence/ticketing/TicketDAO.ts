@@ -235,6 +235,8 @@ export class TicketDAO {
         "t.workflow_phase",
         "t.archived_at",
         "t.pull_request_url",
+        "t.taken_over_by",
+        "t.taken_over_at",
         "t.created_at",
         "t.updated_at",
         "s.id as screenshot_id",
@@ -287,6 +289,8 @@ export class TicketDAO {
         "t.workflow_phase",
         "t.archived_at",
         "t.pull_request_url",
+        "t.taken_over_by",
+        "t.taken_over_at",
         "t.created_at",
         "t.updated_at",
         "s.id as screenshot_id",
@@ -454,14 +458,14 @@ export class TicketDAO {
   }
 
   /** Just enough of a task to name and link it, e.g. in a notification. */
-  async getSummary(id: string): Promise<{ title: string; key: string; spaceSlug: string } | null> {
+  async getSummary(id: string): Promise<{ title: string; key: string; spaceSlug: string; pullRequestUrl: string | null } | null> {
     const row = await db
       .selectFrom("tickets")
       .innerJoin("projects", "projects.id", "tickets.project_id")
-      .select(["tickets.title", "tickets.task_key", "projects.slug"])
+      .select(["tickets.title", "tickets.task_key", "tickets.pull_request_url", "projects.slug"])
       .where("tickets.id", "=", id)
       .executeTakeFirst();
-    return row ? { title: row.title, key: row.task_key, spaceSlug: row.slug } : null;
+    return row ? { title: row.title, key: row.task_key, spaceSlug: row.slug, pullRequestUrl: row.pull_request_url } : null;
   }
 
   async findIdByKey(key: string): Promise<string | null> {
@@ -518,6 +522,8 @@ export class TicketDAO {
         "t.workflow_phase",
         "t.archived_at",
         "t.pull_request_url",
+        "t.taken_over_by",
+        "t.taken_over_at",
         "t.created_at",
         "t.updated_at",
         "s.id as screenshot_id",
