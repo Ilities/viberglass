@@ -5,7 +5,7 @@ import codexPlugin from "@viberglass/agent-codex";
 import openCodePlugin from "@viberglass/agent-opencode";
 import kimiCodePlugin from "@viberglass/agent-kimi";
 import mistralVibePlugin from "@viberglass/agent-mistral-vibe";
-import geminiCLIPlugin from "@viberglass/agent-gemini";
+import antigravityPlugin from "@viberglass/agent-antigravity";
 import piPlugin from "@viberglass/agent-pi";
 import fakePlugin from "@viberglass/agent-fake";
 
@@ -17,7 +17,7 @@ export function buildAgentRegistry(): AgentRegistry {
     .register(openCodePlugin)
     .register(kimiCodePlugin)
     .register(mistralVibePlugin)
-    .register(geminiCLIPlugin)
+    .register(antigravityPlugin)
     .register(piPlugin)
     .register(fakePlugin);
 }

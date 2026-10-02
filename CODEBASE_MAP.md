@@ -34,7 +34,7 @@ viberator/
 ├── packages/
 │   ├── types/               @viberglass/types — shared TypeScript types
 │   ├── agent-core/          @viberglass/agent-core — base agent framework
-│   ├── agents/              Individual agent plugins (claude-code, codex, gemini…)
+│   ├── agents/              Individual agent plugins (claude-code, codex, antigravity…)
 │   ├── integration-core/    @viberglass/integration-core — base integration framework
 │   ├── integrations/        Individual integration plugins (github, jira, slack…)
 │   ├── platform-ui/         @viberglass/platform-ui — shared UI primitives
@@ -352,7 +352,7 @@ src/
 | `@viberglass/agent-core` | `packages/agent-core/` | Base framework for agent plugins | `BaseAgent`, `AgentPlugin`, `AgentRegistry`, `AcpExecutor`, `AcpClient`, `AgentAuthLifecycle`, `AgentEndpointEnvironment` |
 | `@viberglass/agent-claude-code` | `packages/agents/agent-claude-code/` | Claude Code agent | `claudeCodePlugin` (default export) |
 | `@viberglass/agent-codex` | `packages/agents/agent-codex/` | OpenAI Codex agent | `codexPlugin` |
-| `@viberglass/agent-gemini` | `packages/agents/agent-gemini/` | Google Gemini CLI agent | `geminiCLIPlugin` |
+| `@viberglass/agent-antigravity` | `packages/agents/agent-antigravity/` | Google Antigravity agent | `antigravityPlugin` |
 | `@viberglass/agent-kimi` | `packages/agents/agent-kimi/` | Kimi Code agent | `kimiCodePlugin` |
 | `@viberglass/agent-mistral-vibe` | `packages/agents/agent-mistral-vibe/` | Mistral Vibe agent (vibe-acp) | `mistralVibePlugin` |
 | `@viberglass/agent-opencode` | `packages/agents/agent-opencode/` | OpenCode agent | `openCodePlugin` |
@@ -712,7 +712,7 @@ interface AgentPlugin<TConfig extends BaseAgentConfig = BaseAgentConfig> {
 | `opencode` | `@viberglass/agent-opencode` | OpenCode |
 | `kimi-code` | `@viberglass/agent-kimi` | Kimi Code |
 | `mistral-vibe` | `@viberglass/agent-mistral-vibe` | Mistral via vibe-acp; stateDir `.vibe/logs/session` |
-| `gemini` | `@viberglass/agent-gemini` | Google Gemini CLI |
+| `antigravity` | `@viberglass/agent-antigravity` | Google Antigravity |
 | `pi` | `@viberglass/agent-pi` | Pi coding agent |
 
 ### ACP (Agent Communication Protocol)

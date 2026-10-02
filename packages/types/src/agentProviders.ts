@@ -19,7 +19,7 @@ export interface AgentProviderBinding {
 }
 
 function toBinding(entry: (typeof agentProviderCatalogData)[number]): AgentProviderBinding | null {
-  // Agents the platform can't select yet (e.g. Pi) stay out until they can.
+  // Agents the platform can't select stay out until they can.
   if (!isSupportedAgentType(entry.agent) || !isModelProviderId(entry.provider)) return null
   const { agent, provider, ...rest } = entry
   return { agent, provider, ...rest }

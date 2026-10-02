@@ -41,11 +41,12 @@ A **viberator** is the running instantiation of a Clanker. You can run multiple 
 |---------|----------|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Anthropic |
 | [Codex](https://github.com/openai/codex) | OpenAI |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Google |
+| [Google Antigravity](https://antigravity.google) | Google |
 | [Qwen CLI](https://github.com/QwenLM/qwen-cli) | Alibaba |
 | [Mistral Vibe](https://github.com/mistralai/mistral-vibe) | Mistral AI |
 | [OpenCode](https://github.com/opencode-ai/opencode) | OpenCode |
 | [Kimi Code](https://github.com/MoonshotAI/kimi-code) | Moonshot AI |
+| [Pi](https://pi.dev) | Earendil (many model providers) |
 
 ## Integrations
 
@@ -173,7 +174,7 @@ Before creating ECS or Lambda Clankers, the worker images need to be in ECR. The
 It runs automatically on any push to `main` that touches `apps/viberator/` or `infra/workers/docker/`. You can also trigger it manually from the Actions tab to target a specific environment and harness type:
 
 - **Environment:** `dev` or `prod`
-- **Harness:** `multi-agent` (default), `claude`, `codex`, `gemini`, `qwen`, `mistral`, `kimi`, `opencode`, `lambda`, or `all`
+- **Harness:** `multi-agent` (default), `claude`, `codex`, `antigravity`, `qwen`, `mistral`, `kimi`, `opencode`, `pi`, `lambda`, or `all`
 
 To push images manually from the command line:
 

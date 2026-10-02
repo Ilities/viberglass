@@ -115,7 +115,7 @@ export function EditClankerPage() {
   const [qwenEndpoint, setQwenEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.qwenEndpoint)
   const [opencodeEndpoint, setOpencodeEndpoint] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeEndpoint)
   const [opencodeModel, setOpencodeModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.opencodeModel)
-  const [geminiModel, setGeminiModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.geminiModel)
+  const [antigravityModel, setAntigravityModel] = useState(DEFAULT_CLANKER_CONFIG_FORM_STATE.antigravityModel)
   const [agentInstructions, setAgentInstructions] = useState('')
   const [skills, setSkills] = useState<SkillEntry[]>([])
   const [showAllSecrets, setShowAllSecrets] = useState(false)
@@ -155,7 +155,7 @@ export function EditClankerPage() {
       setQwenEndpoint(parsedConfig.form.qwenEndpoint)
       setOpencodeEndpoint(parsedConfig.form.opencodeEndpoint)
       setOpencodeModel(parsedConfig.form.opencodeModel)
-      setGeminiModel(parsedConfig.form.geminiModel)
+      setAntigravityModel(parsedConfig.form.antigravityModel)
 
       const loadedSkills: SkillEntry[] = []
       const harnessConfig = getHarnessConfigFile(clankerData.agent || '')
@@ -308,7 +308,7 @@ export function EditClankerPage() {
         qwenEndpoint,
         opencodeEndpoint,
         opencodeModel,
-        geminiModel,
+        antigravityModel,
       },
     })
 
@@ -394,12 +394,12 @@ export function EditClankerPage() {
               qwenEndpoint={qwenEndpoint}
               opencodeEndpoint={opencodeEndpoint}
               opencodeModel={opencodeModel}
-              geminiModel={geminiModel}
+              antigravityModel={antigravityModel}
               onCodexAuthModeChange={setCodexAuthMode}
               onQwenEndpointChange={setQwenEndpoint}
               onOpenCodeEndpointChange={setOpencodeEndpoint}
               onOpenCodeModelChange={setOpencodeModel}
-              onGeminiModelChange={setGeminiModel}
+              onAntigravityModelChange={setAntigravityModel}
             />
 
             {getHarnessConfigFile(selectedAgent || '') && !showHarnessConfig && (

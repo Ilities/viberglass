@@ -10,8 +10,9 @@ function isAgentType(value: string): value is AgentType {
     value === 'codex' ||
     value === 'opencode' ||
     value === 'kimi-code' ||
-    value === 'gemini-cli' ||
-    value === 'mistral-vibe'
+    value === 'antigravity' ||
+    value === 'mistral-vibe' ||
+    value === 'pi'
   )
 }
 
@@ -99,8 +100,8 @@ export function getSecretPickerDescription(
     return `${base}${allSecretsNote} Base URL and model can be set in the OpenCode section above.`
   }
 
-  if (selectedAgent === 'gemini-cli') {
-    return `${base}${allSecretsNote} Model can be set in the Gemini CLI section above.`
+  if (selectedAgent === 'antigravity') {
+    return `${base}${allSecretsNote} Model can be set in the Google Antigravity section above.`
   }
 
   if (
