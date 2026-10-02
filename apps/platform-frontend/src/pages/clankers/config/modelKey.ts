@@ -67,7 +67,7 @@ export function keysForProvider(secrets: Secret[], provider: ModelProviderId | '
 }
 
 type ProviderDefaultField = 'model' | 'endpoint'
-type ModelSetting = Exclude<keyof AgentSettings, 'codexAuthMode'>
+type ModelSetting = Exclude<keyof AgentSettings, 'codexAuthMode' | 'codexLoginSecretId'>
 
 /** Which agent setting holds a provider's default model or endpoint. */
 const PROVIDER_DEFAULT_FIELDS: Partial<Record<AgentType, Array<[ProviderDefaultField, ModelSetting]>>> = {

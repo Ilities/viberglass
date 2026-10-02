@@ -8,6 +8,8 @@ export interface RunnerSummary {
   /** The key the agent uses, or null when it has none. */
   key: { label: string; envVar: string } | null
   usesChatGptLogin: boolean
+  /** For a ChatGPT login: the stored login's secret, once the runner is connected. */
+  loginSecretId: string | null
   /** Why the runner can't run tasks as configured, or null. */
   problem: string | null
   extras: SecretBinding[]
@@ -20,6 +22,7 @@ export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConf
   const agentConfig = config?.agent
   const model = agentConfig && 'model' in agentConfig && typeof agentConfig.model === 'string' ? agentConfig.model : null
   const usesChatGptLogin = agentConfig?.type === 'codex' && agentConfig.codexAuth.mode !== 'api_key'
+  const loginSecretId = (agentConfig?.type === 'codex' && agentConfig.codexAuth.loginSecretId) || null
 
   const { provider, modelKey, extras } = splitRunnerBindings(clanker.secretBindings, secrets, agent)
   const keySecret = modelKey ? secrets.find((secret) => secret.id === modelKey.secretId) : undefined
@@ -27,7 +30,11 @@ export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConf
 
   // An agent with no provider to pick, like the test agent, needs no key.
   const needsKey = !usesChatGptLogin && providerOptionsForAgent(agent).length > 0
-  const problem = !needsKey
+  const problem = usesChatGptLogin
+    ? loginSecretId
+      ? null
+      : 'Not connected to ChatGPT yet. Start the runner, then connect your ChatGPT account below.'
+    : !needsKey
     ? null
     : !modelKey
       ? 'No model key: the agent has no key it reads, so tasks will fail. Edit the runner to choose one.'
@@ -40,6 +47,7 @@ export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConf
     model,
     key,
     usesChatGptLogin,
+    loginSecretId,
     problem,
     extras,
   }

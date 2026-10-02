@@ -18,9 +18,10 @@ import {
   StackIcon,
 } from '@radix-ui/react-icons'
 import { getAgentLabel, isObjectRecord, type Clanker } from '@viberglass/types'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
+import { ChatGptLoginCard } from './chatgpt-login-card'
 import { summarizeRunner } from './config/runnerSummary'
 
 function getStatusBadgeColor(status: Clanker['status']): 'green' | 'blue' | 'red' | 'zinc' {
@@ -118,39 +119,42 @@ export function ClankerDetailPage() {
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    async function loadData() {
-      if (!slug) {
-        setIsLoading(false)
-        return
-      }
-
-      try {
-        const clankerData = await getClankerBySlug(slug)
-        if (!clankerData) return
-
-        const [secretResults] = await Promise.all([
-          Promise.all(
-            (clankerData.secretBindings || []).map(async ({ secretId }) => {
-              try {
-                return await getSecret(secretId)
-              } catch (error) {
-                console.error(`Failed to fetch secret ${secretId}:`, error)
-                return null
-              }
-            })
-          ).then((results) => results.filter((secret): secret is Secret => secret !== null)),
-        ])
-
-        setClanker(clankerData)
-        setSecrets(secretResults)
-      } finally {
-        setIsLoading(false)
-      }
+  const loadData = useCallback(async () => {
+    if (!slug) {
+      setIsLoading(false)
+      return
     }
 
-    void loadData()
+    try {
+      const clankerData = await getClankerBySlug(slug)
+      if (!clankerData) return
+
+      const loginSecretId = summarizeRunner(clankerData, []).loginSecretId
+      const secretIds = [
+        ...(clankerData.secretBindings || []).map((binding) => binding.secretId),
+        ...(loginSecretId ? [loginSecretId] : []),
+      ]
+      const secretResults = await Promise.all(
+        secretIds.map(async (secretId) => {
+          try {
+            return await getSecret(secretId)
+          } catch (error) {
+            console.error(`Failed to fetch secret ${secretId}:`, error)
+            return null
+          }
+        }),
+      ).then((results) => results.filter((secret): secret is Secret => secret !== null))
+
+      setClanker(clankerData)
+      setSecrets(secretResults)
+    } finally {
+      setIsLoading(false)
+    }
   }, [slug])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
 
   useEffect(() => {
     if (!slug || !clanker || clanker.status !== 'deploying') {
@@ -462,6 +466,14 @@ export function ClankerDetailPage() {
                 </dl>
                 {statusHint && <div className="mt-4 text-sm text-[var(--gray-9)]">{statusHint}</div>}
               </div>
+
+              {summary.usesChatGptLogin && (
+                <ChatGptLoginCard
+                  clanker={clanker}
+                  login={secrets.find((secret) => secret.id === summary.loginSecretId) ?? null}
+                  onConnected={() => void loadData()}
+                />
+              )}
 
               {summary.extras.length > 0 && (
                 <div className="app-frame rounded-lg p-6">

@@ -122,6 +122,9 @@ export async function executeAgentWithRetry(
         result = await executeSelectedAgent();
       }
 
+      // Even a failed run may have refreshed the agent's login.
+      await agentAuthLifecycle.persistAfterRun(authContext);
+
       const stopReason = result.success ? "completed" : "failed";
 
       span.setAttributes(

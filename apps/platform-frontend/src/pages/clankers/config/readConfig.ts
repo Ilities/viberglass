@@ -46,6 +46,7 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       lambdaTimeout: '',
       lambdaEphemeralStorage: '',
       codexAuthMode,
+      codexLoginSecretId: '',
       qwenEndpoint: input.agent === 'qwen-cli' ? legacyQwenEndpoint : '',
       opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
       opencodeModel: input.agent === 'opencode' ? legacyOpenCodeModel : '',
@@ -76,9 +77,11 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
     agent.type === 'codex'
       ? {
           codexAuthMode: agent.codexAuth.mode,
+          codexLoginSecretId: agent.codexAuth.loginSecretId ?? '',
         }
       : {
           codexAuthMode: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexAuthMode,
+          codexLoginSecretId: DEFAULT_CLANKER_CONFIG_FORM_STATE.codexLoginSecretId,
         }
 
   const qwenForm =

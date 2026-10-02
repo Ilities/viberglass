@@ -3,12 +3,14 @@ import logger from "../../../config/logger";
 import { isSecretServiceError } from "../../../services/errors/SecretServiceError";
 import { JobQueryService } from "../../../services/job/JobQueryService";
 import { SecretService } from "../../../services/SecretService";
+import { CodexLoginService } from "../../../services/codexLogin/CodexLoginService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
 import { validateCodexAuthCache } from "../../middleware/validation";
 
 const jobQueries = new JobQueryService();
 const secretService = new SecretService();
+const codexLogins = new CodexLoginService();
 
 /** Where a Codex worker keeps the login it refreshed, for the next run. */
 export function registerCodexAuthCacheRoute(router: Router): void {
@@ -62,10 +64,10 @@ export function registerCodexAuthCacheRoute(router: Router): void {
           tenantId,
           secretName,
         });
-        const metadata = await secretService.upsertWorkerAuthCache(
-          secretName,
-          authJson,
-        );
+        // A runner's job keeps its own login; a job without a runner falls back to the shared one.
+        const metadata = job.clankerId
+          ? await codexLogins.saveLogin(job.clankerId, authJson)
+          : await secretService.upsertWorkerAuthCache(secretName, authJson);
 
         logger.info("Persisted Codex auth cache", {
           jobId,

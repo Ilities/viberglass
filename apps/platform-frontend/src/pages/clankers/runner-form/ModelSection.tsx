@@ -13,7 +13,6 @@ const NONE = 'none'
 
 interface ModelSectionProps {
   agent: AgentType | ''
-  strategyName?: string
   provider: ModelProviderId | ''
   modelKeyId: string
   secrets: Secret[]
@@ -27,7 +26,6 @@ interface ModelSectionProps {
 /** Which provider the agent talks to, with which of that provider's keys, and its model settings. */
 export function ModelSection({
   agent,
-  strategyName,
   provider,
   modelKeyId,
   secrets,
@@ -50,7 +48,7 @@ export function ModelSection({
   return (
     <FieldGroup>
       {agent === 'codex' && (
-        <AgentSpecificFields selectedAgent={agent} strategyName={strategyName} settings={settings} onChange={onSettingsChange} />
+        <AgentSpecificFields selectedAgent={agent} settings={settings} onChange={onSettingsChange} />
       )}
 
       {!usesChatGptLogin && (
@@ -112,7 +110,7 @@ export function ModelSection({
       )}
 
       {agent !== 'codex' && (
-        <AgentSpecificFields selectedAgent={agent} strategyName={strategyName} settings={settings} onChange={onSettingsChange} />
+        <AgentSpecificFields selectedAgent={agent} settings={settings} onChange={onSettingsChange} />
       )}
     </FieldGroup>
   )

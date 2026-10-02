@@ -5,6 +5,8 @@ export const JOB_KIND = {
   /** A task turn that answers in the thread, or rewrites a document the agent chose. */
   REPLY: 'reply',
   CLAW: 'claw',
+  /** Signs a runner's agent in (e.g. a ChatGPT login for Codex) and stores the login; runs nothing else. */
+  AGENT_LOGIN: 'agent_login',
 } as const
 
 export type JobKind = (typeof JOB_KIND)[keyof typeof JOB_KIND]

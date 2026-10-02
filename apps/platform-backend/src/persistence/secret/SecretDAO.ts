@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { isModelProviderId, type ModelProviderId } from "@viberglass/types";
+import { isModelProviderId, type ModelProviderId, type SecretPurpose } from "@viberglass/types";
 import db from "../config/database";
 
 export type SecretLocation = "env" | "database" | "ssm";
@@ -12,6 +12,7 @@ export interface SecretRecord {
   secretValueEncrypted: string | null;
   sourceEnvVar: string | null;
   provider: ModelProviderId | null;
+  purpose: SecretPurpose | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ export interface CreateSecretDTO {
   secretValueEncrypted?: string | null;
   sourceEnvVar?: string | null;
   provider?: ModelProviderId | null;
+  purpose?: SecretPurpose | null;
 }
 
 export interface UpdateSecretDTO {
@@ -51,6 +53,7 @@ export class SecretDAO {
         secret_value_encrypted: dto.secretValueEncrypted ?? null,
         source_env_var: dto.sourceEnvVar ?? null,
         provider: dto.provider ?? null,
+        purpose: dto.purpose ?? null,
         created_at: timestamp,
         updated_at: timestamp,
       })
@@ -182,6 +185,7 @@ export class SecretDAO {
         : null,
       sourceEnvVar: row.source_env_var ? String(row.source_env_var) : null,
       provider: typeof row.provider === "string" && isModelProviderId(row.provider) ? row.provider : null,
+      purpose: row.purpose === "codex_login" ? row.purpose : null,
       createdAt: row.created_at as Date,
       updatedAt: row.updated_at as Date,
     };

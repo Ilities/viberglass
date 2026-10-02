@@ -40,8 +40,9 @@ interface RunnerFormProps {
 }
 
 function settingsOf(form: AgentSettings): AgentSettings {
-  const { codexAuthMode, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel } = form
-  return { codexAuthMode, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel }
+  const { codexAuthMode, codexLoginSecretId, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel } =
+    form
+  return { codexAuthMode, codexLoginSecretId, qwenEndpoint, opencodeEndpoint, opencodeModel, antigravityModel, kimiEndpoint, kimiModel }
 }
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -231,7 +232,6 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
       <Section title="Model" description="Which AI provider the agent uses, and with which key.">
         <ModelSection
           agent={agent}
-          strategyName={selectedStrategy?.name}
           provider={provider}
           modelKeyId={modelKeyId}
           secrets={secrets}
@@ -298,7 +298,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
       >
         <SecretBindingsField
           secrets={secrets}
-          selectable={secrets.filter((secret) => secret.id !== modelKey?.secretId)}
+          selectable={secrets.filter((secret) => secret.id !== modelKey?.secretId && !secret.purpose)}
           bindings={extras}
           onChange={setExtras}
           agent={agent}

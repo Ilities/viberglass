@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { ENV_VAR_NAME_PATTERN, type ModelProviderId } from "@viberglass/types";
+import { ENV_VAR_NAME_PATTERN, type ModelProviderId, type SecretPurpose } from "@viberglass/types";
 import {
   SecretDAO,
   SecretLocation,
@@ -60,6 +60,8 @@ export interface SecretInput {
   secretPath?: string | null;
   sourceEnvVar?: string | null;
   provider?: ModelProviderId | null;
+  /** Only the platform sets this, for secrets it manages. */
+  purpose?: SecretPurpose | null;
   secretValue?: string;
 }
 
@@ -79,6 +81,7 @@ export interface SecretMetadata {
   secretPath: string | null;
   sourceEnvVar: string | null;
   provider: ModelProviderId | null;
+  purpose: SecretPurpose | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -156,6 +159,7 @@ export class SecretService {
       secretValueEncrypted,
       sourceEnvVar,
       provider: input.provider ?? null,
+      purpose: input.purpose ?? null,
     });
 
     return this.toMetadata(record);
@@ -552,6 +556,7 @@ export class SecretService {
       secretPath: secret.secretPath,
       sourceEnvVar: secret.sourceEnvVar,
       provider: secret.provider,
+      purpose: secret.purpose,
       createdAt: secret.createdAt,
       updatedAt: secret.updatedAt,
     };

@@ -58,6 +58,7 @@ describe('summarizeRunner', () => {
       [],
     )
 
-    expect(summary).toMatchObject({ usesChatGptLogin: true, problem: null })
+    expect(summary).toMatchObject({ usesChatGptLogin: true, loginSecretId: null })
+    expect(summary.problem).toContain('Not connected to ChatGPT')
   })
 })

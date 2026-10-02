@@ -11,6 +11,8 @@ import { createWorkerServices, type WorkerServices } from "./workerServices";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
 import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
 import { runClawJob } from "./runClawJob";
+import { runAgentLoginJob } from "./runAgentLoginJob";
+import type { JobRunnerParams } from "./jobPipeline";
 import { runSessionTurnJob } from "./runSessionTurnJob";
 import { cleanupJobWorkspace, cloneFreshRepository, sendWorkerProgress } from "./workerHelpers";
 import { jobWorkspaceDir } from "./taskWorkspace";
@@ -120,7 +122,12 @@ export class ViberatorWorker {
 
     try {
       const jobRunner =
-        data.jobKind === "claw" ? runClawJob : runSessionTurnJob;
+        data.jobKind === "agent_login"
+          ? (params: JobRunnerParams) =>
+              runAgentLoginJob({ ...params, agentName: this.settings.requestedAgent ?? "" })
+          : data.jobKind === "claw"
+            ? runClawJob
+            : runSessionTurnJob;
 
       return await jobRunner({
         data,
