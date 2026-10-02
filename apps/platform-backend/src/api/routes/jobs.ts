@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response, Router } from "express";
 import { JobService } from "../../services/JobService";
+import { JobQueryService } from "../../services/job/JobQueryService";
 import { JobData, JobStatus } from "../../types/Job";
 import { requireAuth } from "../middleware/authentication";
 import { requireRunnerRole } from "../middleware/workspaceRoleGuards";
@@ -25,6 +26,7 @@ const router = Router();
 const spaceAccess = new SpaceAccessService();
 router.param("jobId", jobParamGuard(spaceAccess));
 const jobService = new JobService();
+const jobQueries = new JobQueryService();
 const jobCancellationService = new JobCancellationService();
 
 router.post("/", requireRunnerRole, async (req: Request, res: Response) => {
@@ -76,7 +78,7 @@ router.post("/", requireRunnerRole, async (req: Request, res: Response) => {
 router.get("/:jobId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
-    const job = await jobService.getJobStatus(jobId);
+    const job = await jobQueries.getJobStatus(jobId);
 
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
@@ -102,7 +104,7 @@ router.get("/", requireAuth, async (req: Request, res: Response, next: NextFunct
     const ticketId = req.query.ticketId as string | undefined;
     const scope = await spaceAccess.scopeFor(spaceViewerOf(req)!, projectSlug);
 
-    const result = await jobService.listJobs({
+    const result = await jobQueries.listJobs({
       status,
       limit,
       projectSlug,
@@ -170,7 +172,7 @@ router.post("/:jobId/cancel", requireRunnerRole, async (req: Request, res: Respo
 
 router.get("/stats/queue", requireAuth, async (req: Request, res: Response) => {
   try {
-    const stats = await jobService.getQueueStats();
+    const stats = await jobQueries.getQueueStats();
 
     res.json(stats);
   } catch (error) {

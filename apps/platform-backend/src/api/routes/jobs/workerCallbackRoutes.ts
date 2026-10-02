@@ -7,7 +7,9 @@ import { AgentTurnDAO } from "../../../persistence/agentSession/AgentTurnDAO";
 import { AgentSessionWorkerEventService } from "../../../services/agentSession/AgentSessionWorkerEventService";
 import { SessionTurnContinuationService } from "../../../services/agentSession/SessionTurnContinuationService";
 import { isAgentSessionServiceError } from "../../../services/errors/AgentSessionServiceError";
-import { JobService } from "../../../services/JobService";
+import { JobBootstrapService } from "../../../services/job/JobBootstrapService";
+import { JobQueryService } from "../../../services/job/JobQueryService";
+import { recordLog, recordLogBatch, recordProgress } from "../../../services/job/JobProgressService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
 import {
@@ -16,7 +18,8 @@ import {
   validateProgressUpdate,
 } from "../../middleware/validation";
 
-const jobService = new JobService();
+const jobQueries = new JobQueryService();
+const bootstraps = new JobBootstrapService();
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionDAO = new AgentSessionDAO();
 const turnContinuationService = new SessionTurnContinuationService(
@@ -47,7 +50,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         const { jobId } = req.params;
         const tenantId = req.tenantId!;
 
-        const bootstrap = await jobService.getBootstrapPayload(jobId);
+        const bootstrap = await bootstraps.getBootstrapPayload(jobId);
         if (!bootstrap) {
           return res.status(404).json({ error: "Job not found" });
         }
@@ -91,7 +94,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         const tenantId = req.tenantId!;
         const { step, message, details } = req.body;
 
-        const job = await jobService.getJobStatus(jobId);
+        const job = await jobQueries.getJobStatus(jobId);
         if (!job) {
           return res.status(404).json({ error: "Job not found" });
         }
@@ -100,7 +103,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         }
 
         // Record progress (updates heartbeat)
-        await jobService.recordProgress(jobId, { step, message, details });
+        await recordProgress(jobId, { step, message, details });
 
         return res.json({
           success: true,
@@ -130,7 +133,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         const tenantId = req.tenantId!;
         const { level, message, source } = req.body;
 
-        const job = await jobService.getJobStatus(jobId);
+        const job = await jobQueries.getJobStatus(jobId);
         if (!job) {
           return res.status(404).json({ error: "Job not found" });
         }
@@ -139,7 +142,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         }
 
         // Record log line
-        await jobService.recordLog(jobId, { level, message, source });
+        await recordLog(jobId, { level, message, source });
 
         return res.json({
           success: true,
@@ -167,7 +170,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         const { jobId } = req.params;
         const tenantId = req.tenantId!;
         const { logs } = req.body;
-        const job = await jobService.getJobStatus(jobId);
+        const job = await jobQueries.getJobStatus(jobId);
 
         if (!job) {
           return res.status(404).json({ error: "Job not found" });
@@ -177,7 +180,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         }
 
         // Record batch of log lines with single bulk insert
-        await jobService.recordLogBatch(jobId, logs);
+        await recordLogBatch(jobId, logs);
 
         return res.json({
           success: true,

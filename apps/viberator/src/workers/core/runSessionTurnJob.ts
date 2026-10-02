@@ -2,7 +2,9 @@ import * as os from "os";
 import * as path from "path";
 import { ExecutionContext } from "../../types";
 import { JobResult } from "./types";
-import { JobRunnerParams, setupJob, executeAgentWithRetry, withJobLifecycle } from "./jobPipeline";
+import { JobRunnerParams, setupJob } from "./jobPipeline";
+import { executeAgentWithRetry } from "./agentExecution";
+import { withJobLifecycle } from "./jobLifecycle";
 import { captureAndStore, retrieveAndRestore } from "../runtime/SessionStateManager";
 import { deliverPullRequest } from "./deliverPullRequest";
 import { collectArtifacts, materializeArtifacts } from "./turnArtifacts";
@@ -72,13 +74,13 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       allowCode: params.allowCode,
       scmToken: params.scmToken,
       git: params.gitService,
-      callbacks: params.callbackClient,
+      callbacks: params.callbackClient.turn,
       logger,
     };
     const stopped = onStop(() => keepPartialWork(partialRun, { repoDir, snapshot, taskBranch: setup.taskBranch }));
     await sendProgress("execute", "Running ACP agent turn");
     const relay = new QuestionRelay(
-      { sendQuestion: (question) => params.callbackClient.sendQuestion(data.id, data.tenantId, question) },
+      { sendQuestion: (question) => params.callbackClient.turn.sendQuestion(data.id, data.tenantId, question) },
       askHumanServerScript(),
     );
     executionContext.mcpServers = [await relay.start()];
@@ -147,14 +149,14 @@ async function saveConversationState(
 ): Promise<string | undefined> {
   const { data, callbackClient, logger } = params;
   if (!acpSessionId) return undefined;
-  await callbackClient.sendAcpSessionId(data.id, data.tenantId, acpSessionId);
+  await callbackClient.turn.sendAcpSessionId(data.id, data.tenantId, acpSessionId);
   try {
     const url = await captureAndStore(agent || "", params.agentSessionId || data.id, os.homedir(), logger);
     if (!url) {
       logger.warn("No conversation state to archive, or storing it failed", { jobId: data.id, agent });
       return undefined;
     }
-    await callbackClient.sendConversationStateUrl(data.id, data.tenantId, url);
+    await callbackClient.turn.sendConversationStateUrl(data.id, data.tenantId, url);
     return url;
   } catch (err) {
     logger.warn("Failed to capture conversation state", {

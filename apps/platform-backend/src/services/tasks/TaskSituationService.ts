@@ -29,6 +29,8 @@ export function situationTaskOf(ticket: Pick<Ticket, "id" | "status" | "pullRequ
 
 export interface DescribedTask {
   situation: TaskSituation;
+  /** Whether the viewer has a mention there they haven't answered. */
+  mentionsYou: boolean;
   lastMessage: HomeThread["lastMessage"];
   latestActivityAt: string;
 }
@@ -129,7 +131,8 @@ export class TaskSituationService {
             : null;
         const latestActivityAt = newest(task.createdAt, message?.at, lastTurn?.at, revision?.at, codeAt, turnRunning?.since) ?? task.createdAt;
 
-        return [task.id, { situation: taskSituation(input, viewer), lastMessage, latestActivityAt: iso(latestActivityAt) }];
+        const mentionsYou = input.openMentions.some((mention) => mention.person.id === viewer.id);
+        return [task.id, { situation: taskSituation(input, viewer), mentionsYou, lastMessage, latestActivityAt: iso(latestActivityAt) }];
       }),
     );
   }

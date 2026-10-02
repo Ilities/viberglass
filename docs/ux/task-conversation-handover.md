@@ -461,17 +461,22 @@ S1–S8 are done (2026-10-02). What S8 built is in §3, S8.
 ### 5.4 Open ends from earlier slices
 - **S3:** "Build it opens a PR" isn't covered end to end, and won't be (Jussi, 2026-10-02): tests must not depend on live GitHub, and mocking it isn't cheap. The worker's `GitService` hardcodes `api.github.com` and parses only github.com URLs, and the git fixture is read-only.
 - **S3:** people can add themselves as watchers, which lets any member or in-space guest ask for code. Decided (Jussi, 2026-10-02): that's intended; watchers may ask for code.
-- **S4:**
-  - "Mark done" on a mention doesn't exist; only replying answers one.
-  - Adding a reviewer sends the Slack review request but opens no mention.
-- **S5:** a merge closes its task within about an hour (sweeper recheck). A GitHub webhook would make it immediate.
-- **S6:**
-  - Codex compacts only through `compact_prompt` in its config, which isn't set.
-  - The summary threshold is global (`TASK_SUMMARY_CONTEXT_RATIO`, `TASK_SUMMARY_CONTEXT_TOKENS`).
-- **Webhooks:** the GitHub, Jira and Shortcut webhook processors still submit one-shot builds outside any session.
+- **S4:** adding a reviewer sends the Slack review request but opens no mention. (A mention can now be marked done, from Home or the task, without replying.)
+- **S5:** a merge closes its task within about an hour (sweeper recheck). A GitHub webhook would make it immediate. Fine for now (Jussi, 2026-10-02).
+- **S6:** the summary threshold is global (`TASK_SUMMARY_CONTEXT_RATIO`, `TASK_SUMMARY_CONTEXT_TOKENS`). Fine as is (Jussi, 2026-10-02). Codex now gets our compact prompt through `CODEX_CONFIG`, which codex-acp merges into its session config.
 - **S8:**
   - Slack isn't checked against a real workspace, ECS stopping against a real cluster, or `ask_human` against real harnesses and models.
-  - Questions from runs outside a session (webhook builds) aren't possible: the relay is only offered on session turns.
-  - A `{{ jobId }}` or `{{ timestamp }}` branch template names a new branch every build, so a turn can't continue it and people's pushes aren't found.
-  - A stopped Lambda run keeps nothing; Docker and ECS give the worker time to keep its work.
-  - Several files touched here were already over the size limits and grew by a few lines: `JobService`, `TicketDAO`, `jobPipeline`, `ViberatorWorker`, `CallbackClient`, `schemas.ts`.
+  - A stopped Lambda run keeps nothing; Docker and ECS give the worker time to keep its work. Fine (Jussi, 2026-10-02): a Lambda turn that finishes reports its documents like any other.
+  - Fixed after S8: a task's branch is named once, by its first build or a take over, and kept on the task (`tickets.task_branch`, migration 094), so a `{{ jobId }}` or `{{ timestamp }}` template no longer names a new branch every build.
+  - Split after S8, by responsibility:
+    - `JobService` into `JobQueryService` (reads) and `JobBootstrapService` (bootstrap payload and dispatch manifest).
+    - `TicketDAO` into `TicketListDAO` (lists and stats) and `ticketRow.ts` (row mapping).
+    - The worker's `jobPipeline` into setup, `agentExecution` and `jobLifecycle`.
+    - `ViberatorWorker` into `workerSettings`, `workerServices` and `selectAgent`.
+    - The turn-only callbacks out of `CallbackClient`, into `TurnCallbackClient`.
+    - Left whole on purpose: `schemas.ts` and `database.ts` are lists of schemas and table types.
+  - The MCP package is on zod 4, like the SDK, so its declarations build. The backend's hand-written copy of its types is gone.
+
+### 5.5 Next steps
+- **Webhook builds as task turns.** The GitHub, Jira and Shortcut webhook processors still submit one-shot builds outside any session, the last one-shot path for tasks. Route them through `TaskTurnService.ask` as a system ask (no person, the action the webhook asked for), so they're turns in the task's thread: they can ask questions with `ask_human`, be interrupted, paused and taken over, and keep their work when stopped. Then remove the one-shot task path in the worker (`isOneShot`) and the services only it uses. Test: a smoke journey where a webhook's build shows as a turn in the thread.
+- **Manual checks in a live environment** (Jussi): Slack against a real workspace, stopping an ECS task, and `ask_human` with Claude Code, opencode and qwen.

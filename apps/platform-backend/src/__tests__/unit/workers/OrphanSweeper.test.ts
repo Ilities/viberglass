@@ -14,6 +14,10 @@ import { JobService } from '../../../services/JobService';
 
 // Mock JobService
 jest.mock('../../../services/JobService');
+const mockQueries = { findOrphanedJobs: jest.fn() };
+jest.mock('../../../services/job/JobSweeperQueries', () => ({
+  findOrphanedJobs: (...args: unknown[]) => mockQueries.findOrphanedJobs(...args),
+}));
 
 describe('OrphanSweeper', () => {
   let sweeper: OrphanSweeper;
@@ -27,10 +31,10 @@ describe('OrphanSweeper', () => {
 
     // Mock JobService
     mockJobService = {
-      findOrphanedJobs: jest.fn().mockResolvedValue([]),
       updateJobStatus: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<JobService>;
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
+    mockQueries.findOrphanedJobs.mockResolvedValue([]);
 
     sweeper = new OrphanSweeper({}, workers);
   });
@@ -50,13 +54,13 @@ describe('OrphanSweeper', () => {
         { id: 'job-2', started_at: new Date(Date.now() - 35 * 60_000) }, // 35 minutes ago
       ];
 
-      mockJobService.findOrphanedJobs.mockResolvedValue(orphanedJobs);
+      mockQueries.findOrphanedJobs.mockResolvedValue(orphanedJobs);
 
       const count = await sweeper.sweep();
 
       // Verify cutoff time was calculated correctly (default 30 minutes)
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
-      const cutoffArg = mockJobService.findOrphanedJobs.mock.calls[0][0] as Date;
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      const cutoffArg = mockQueries.findOrphanedJobs.mock.calls[0][0] as Date;
       const cutoffAge = Date.now() - cutoffArg.getTime();
       expect(cutoffAge).toBeGreaterThan(29 * 60_000); // ~30 minutes
       expect(cutoffAge).toBeLessThan(31 * 60_000);
@@ -78,7 +82,7 @@ describe('OrphanSweeper', () => {
     });
 
     it('should return 0 when no orphaned jobs found', async () => {
-      mockJobService.findOrphanedJobs.mockResolvedValue([]);
+      mockQueries.findOrphanedJobs.mockResolvedValue([]);
 
       const count = await sweeper.sweep();
 
@@ -90,7 +94,7 @@ describe('OrphanSweeper', () => {
       const now = Date.now();
       let capturedCutoff: Date | undefined;
 
-      mockJobService.findOrphanedJobs.mockImplementation((cutoff) => {
+      mockQueries.findOrphanedJobs.mockImplementation((cutoff) => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
@@ -111,10 +115,10 @@ describe('OrphanSweeper', () => {
       let capturedCutoff: Date | undefined;
 
       // Clear previous mocks and set fresh implementation
-      mockJobService.findOrphanedJobs.mockReset();
+      mockQueries.findOrphanedJobs.mockReset();
       mockJobService.updateJobStatus.mockReset();
 
-      mockJobService.findOrphanedJobs.mockImplementation((cutoff) => {
+      mockQueries.findOrphanedJobs.mockImplementation((cutoff) => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
@@ -138,7 +142,7 @@ describe('OrphanSweeper', () => {
       }, workers);
 
       const orphanedJobs = [{ id: 'job-timeout', started_at: new Date() }];
-      mockJobService.findOrphanedJobs.mockResolvedValue(orphanedJobs);
+      mockQueries.findOrphanedJobs.mockResolvedValue(orphanedJobs);
 
       await customSweeper.sweep();
 
@@ -156,7 +160,7 @@ describe('OrphanSweeper', () => {
       const now = Date.now();
       let capturedCutoff: Date | undefined;
 
-      mockJobService.findOrphanedJobs.mockImplementation((cutoff) => {
+      mockQueries.findOrphanedJobs.mockImplementation((cutoff) => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
@@ -208,7 +212,7 @@ describe('OrphanSweeper', () => {
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
     });
 
     it('should stop periodic sweeps when stop() is called', async () => {
@@ -217,9 +221,9 @@ describe('OrphanSweeper', () => {
       // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
-      mockJobService.findOrphanedJobs.mockClear();
+      mockQueries.findOrphanedJobs.mockClear();
 
       // Stop the sweeper
       sweeper.stop();
@@ -228,7 +232,7 @@ describe('OrphanSweeper', () => {
       // Advance past interval - no new sweep should occur
       await jest.advanceTimersByTimeAsync(60000);
 
-      expect(mockJobService.findOrphanedJobs).not.toHaveBeenCalled();
+      expect(mockQueries.findOrphanedJobs).not.toHaveBeenCalled();
     });
   });
 
@@ -243,17 +247,17 @@ describe('OrphanSweeper', () => {
       // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
-      mockJobService.findOrphanedJobs.mockClear();
+      mockQueries.findOrphanedJobs.mockClear();
 
       // Advance 1 second - not yet time for next sweep
       await jest.advanceTimersByTimeAsync(1000);
-      expect(mockJobService.findOrphanedJobs).not.toHaveBeenCalled();
+      expect(mockQueries.findOrphanedJobs).not.toHaveBeenCalled();
 
       // Advance another second - triggers next sweep
       await jest.advanceTimersByTimeAsync(1000);
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
       customSweeper.stop();
     });
@@ -264,19 +268,19 @@ describe('OrphanSweeper', () => {
       // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
 
-      mockJobService.findOrphanedJobs.mockClear();
+      mockQueries.findOrphanedJobs.mockClear();
 
       // Advance to next sweep (60 seconds)
       await jest.advanceTimersByTimeAsync(60000);
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Error Handling', () => {
     it('should handle findOrphanedJobs errors gracefully', async () => {
-      mockJobService.findOrphanedJobs.mockReset().mockRejectedValue(new Error('Database error'));
+      mockQueries.findOrphanedJobs.mockReset().mockRejectedValue(new Error('Database error'));
 
       // The sweep() method will reject on findOrphanedJobs error
       await expect(sweeper.sweep()).rejects.toThrow('Database error');
@@ -289,7 +293,7 @@ describe('OrphanSweeper', () => {
         { id: 'job-3', started_at: new Date() },
       ];
 
-      mockJobService.findOrphanedJobs.mockReset().mockResolvedValue(orphanedJobs);
+      mockQueries.findOrphanedJobs.mockReset().mockResolvedValue(orphanedJobs);
 
       // First updateJobStatus fails - sweep should stop there
       mockJobService.updateJobStatus
@@ -312,7 +316,7 @@ describe('OrphanSweeper', () => {
         started_at: new Date(Date.now() - 60 * 60_000),
       }));
 
-      mockJobService.findOrphanedJobs.mockResolvedValue(orphanedJobs);
+      mockQueries.findOrphanedJobs.mockResolvedValue(orphanedJobs);
 
       const count = await sweeper.sweep();
 
@@ -321,7 +325,7 @@ describe('OrphanSweeper', () => {
     });
 
     it('should handle empty result from findOrphanedJobs', async () => {
-      mockJobService.findOrphanedJobs.mockResolvedValue([]);
+      mockQueries.findOrphanedJobs.mockResolvedValue([]);
 
       const count = await sweeper.sweep();
 
@@ -338,7 +342,7 @@ describe('OrphanSweeper', () => {
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(mockJobService.findOrphanedJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findOrphanedJobs).toHaveBeenCalledTimes(1);
     });
   });
 });

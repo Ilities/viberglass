@@ -1,9 +1,9 @@
 import { Logger } from "winston";
+import { TurnCallbackClient } from "./TurnCallbackClient";
 import type { ExecutionManifest } from "@viberglass/telemetry";
 import {
   FetchRetryConfig,
   fetchWithRetry,
-  postForJson,
   redactSensitiveInfo,
   isInternalLogMessage,
 } from "./callbackFetch";
@@ -37,7 +37,9 @@ export interface CallbackResult {
   runManifest?: ExecutionManifest;
 }
 
+/** What a worker reports to the platform about its run; a task turn's own callbacks are on `turn`. */
 export class CallbackClient {
+  readonly turn: TurnCallbackClient;
   private apiUrl: string;
   private maxRetries: number;
   private retryDelay: number;
@@ -59,6 +61,12 @@ export class CallbackClient {
     this.maxRetries = config.maxRetries || 3;
     this.retryDelay = config.retryDelay || 1000;
     this.callbackToken = config.callbackToken;
+    this.turn = new TurnCallbackClient(logger, {
+      apiUrl: this.apiUrl,
+      maxRetries: this.maxRetries,
+      retryDelay: this.retryDelay,
+      callbackToken: this.callbackToken,
+    });
   }
 
   async sendResult(
@@ -130,34 +138,6 @@ export class CallbackClient {
     );
   }
 
-  async sendLog(
-    jobId: string,
-    tenantId: string,
-    log: {
-      level: "info" | "warn" | "error" | "debug";
-      message: string;
-      source?: string;
-    },
-  ): Promise<void> {
-    if (isInternalLogMessage(log.message)) {
-      return;
-    }
-
-    const body = {
-      level: log.level,
-      message: redactSensitiveInfo(log.message),
-      source: log.source || null,
-    };
-
-    await this.post(
-      `${this.apiUrl}/api/jobs/${jobId}/logs`,
-      tenantId,
-      body,
-      { timeoutMs: 5000, label: "job log" },
-      { jobId },
-    );
-  }
-
   async sendLogBatch(
     jobId: string,
     tenantId: string,
@@ -190,72 +170,6 @@ export class CallbackClient {
       { timeoutMs: 10000, label: "batch job logs" },
       { jobId, count: externalLogs.length },
     );
-  }
-
-  async sendSessionEventBatch(
-    jobId: string,
-    tenantId: string,
-    events: Array<{ eventType: string; payload: Record<string, unknown> }>,
-  ): Promise<void> {
-    if (events.length === 0) return;
-
-    await this.post(
-      `${this.apiUrl}/api/jobs/${jobId}/session-events/batch`,
-      tenantId,
-      { events },
-      { timeoutMs: 10000, label: "session event batch" },
-      { jobId, count: events.length },
-    );
-  }
-
-  async sendAcpSessionId(
-    jobId: string,
-    tenantId: string,
-    acpSessionId: string,
-  ): Promise<void> {
-    await this.post(
-      `${this.apiUrl}/api/jobs/${jobId}/acp-session-id`,
-      tenantId,
-      { acpSessionId },
-      { timeoutMs: 10000, label: "ACP session ID" },
-      { jobId },
-    );
-  }
-
-  async sendConversationStateUrl(
-    jobId: string,
-    tenantId: string,
-    conversationStateUrl: string,
-  ): Promise<void> {
-    await this.post(
-      `${this.apiUrl}/api/jobs/${jobId}/conversation-state-url`,
-      tenantId,
-      { conversationStateUrl },
-      { timeoutMs: 10000, label: "conversation state URL" },
-      { jobId },
-    );
-  }
-
-  /** What a turn had done when it was stopped, so it isn't lost: documents so far, and a work-in-progress commit. */
-  async sendPartialResult(
-    jobId: string,
-    tenantId: string,
-    partial: { documents: Partial<Record<"research" | "plan" | "summary", string>>; commitHash?: string; branch?: string },
-  ): Promise<void> {
-    // No retries: the worker is being stopped and has seconds left.
-    await postForJson(`${this.apiUrl}/api/jobs/${jobId}/partial-result`, tenantId, partial, 5000, this.callbackToken);
-  }
-
-  /** Puts the agent's question to a person on the task; returns whom it reached. */
-  async sendQuestion(
-    jobId: string,
-    tenantId: string,
-    question: { question: string; options: string[]; addressee: string | null; blocking: boolean },
-  ): Promise<{ askedOf: string | null; blocking: boolean }> {
-    const body = await postForJson(`${this.apiUrl}/api/jobs/${jobId}/questions`, tenantId, question, 15000, this.callbackToken);
-    const data = typeof body === "object" && body !== null && "data" in body ? body.data : null;
-    const askedOf = typeof data === "object" && data !== null && "askedOf" in data && typeof data.askedOf === "string" ? data.askedOf : null;
-    return { askedOf, blocking: question.blocking };
   }
 
   private async post(

@@ -3,6 +3,7 @@ import type { Router } from "express";
 import logger from "../../../config/logger";
 import type { ProjectDAO } from "../../../persistence/project/ProjectDAO";
 import type { TicketDAO } from "../../../persistence/ticketing/TicketDAO";
+import type { TicketListDAO } from "../../../persistence/ticketing/TicketListDAO";
 import type { IntegrationDAO } from "../../../persistence/integrations";
 import type { SpaceAccessService } from "../../../services/spaces/SpaceAccessService";
 import type { TaskParticipantService } from "../../../services/tasks/TaskParticipantService";
@@ -28,6 +29,7 @@ import {
 
 interface TicketCrudRouteDependencies {
   ticketService: TicketDAO;
+  ticketLists: Pick<TicketListDAO, "getTicketStats">;
   projectService: ProjectDAO;
   fileUploadService: FileUploadService;
   integrationDAO: IntegrationDAO;
@@ -42,6 +44,7 @@ export function registerTicketCrudRoutes(
   router: Router,
   {
     ticketService,
+    ticketLists,
     projectService,
     fileUploadService,
     integrationDAO,
@@ -146,7 +149,7 @@ export function registerTicketCrudRoutes(
       }
 
       const scope = await spaceAccess.scopeFor(spaceViewerOf(req)!, projectSlug || projectId);
-      const stats = await ticketService.getTicketStats(scope.projectId, scope.projectIds);
+      const stats = await ticketLists.getTicketStats(scope.projectId, scope.projectIds);
 
       res.json({
         success: true,

@@ -27,6 +27,8 @@ export function HomePage() {
   const [spaces, setSpaces] = useState<Project[]>([])
   const [filter, setFilter] = useState<HomeFilter>('all')
   const [failed, setFailed] = useState(false)
+  const [reloads, setReloads] = useState(0)
+  const reload = () => setReloads((count) => count + 1)
   const landing = landingFor(user?.role)
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function HomePage() {
       cancelled = true
       clearInterval(timer)
     }
-  }, [landing])
+  }, [landing, reloads])
 
   if (landing !== '/') return <Navigate to={landing} replace />
   if (!home && !failed) return <FunLoading retro />
@@ -79,7 +81,7 @@ export function HomePage() {
               <Subheading>Needs you</Subheading>
               <ul className="mt-3 space-y-2">
                 {needsYou.map((thread) => (
-                  <HomeThreadRow key={thread.task.id} thread={thread} />
+                  <HomeThreadRow key={thread.task.id} thread={thread} onChanged={reload} />
                 ))}
               </ul>
             </section>

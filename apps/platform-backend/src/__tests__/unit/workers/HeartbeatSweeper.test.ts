@@ -15,6 +15,10 @@ import { JobService } from '../../../services/JobService';
 
 // Mock JobService
 jest.mock('../../../services/JobService');
+const mockQueries = { findStaleJobs: jest.fn() };
+jest.mock('../../../services/job/JobSweeperQueries', () => ({
+  findStaleJobs: (...args: unknown[]) => mockQueries.findStaleJobs(...args),
+}));
 
 describe('HeartbeatSweeper', () => {
   let sweeper: HeartbeatSweeper;
@@ -28,10 +32,10 @@ describe('HeartbeatSweeper', () => {
 
     // Mock JobService
     mockJobService = {
-      findStaleJobs: jest.fn().mockResolvedValue([]),
       updateJobStatus: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<JobService>;
     (JobService as jest.Mock).mockImplementation(() => mockJobService);
+    mockQueries.findStaleJobs.mockResolvedValue([]);
 
     sweeper = new HeartbeatSweeper({}, workers);
   });
@@ -51,13 +55,13 @@ describe('HeartbeatSweeper', () => {
         { id: 'job-2', started_at: new Date(), last_heartbeat: new Date(Date.now() - 8 * 60_000) },
       ];
 
-      mockJobService.findStaleJobs.mockResolvedValue(staleJobs);
+      mockQueries.findStaleJobs.mockResolvedValue(staleJobs);
 
       const count = await sweeper.sweep();
 
       // Verify cutoff time was calculated correctly (default 5 minutes grace period)
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
-      const cutoffArg = mockJobService.findStaleJobs.mock.calls[0][0] as Date;
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
+      const cutoffArg = mockQueries.findStaleJobs.mock.calls[0][0] as Date;
       const cutoffAge = Date.now() - cutoffArg.getTime();
       expect(cutoffAge).toBeGreaterThan(4 * 60_000); // ~5 minutes
       expect(cutoffAge).toBeLessThan(6 * 60_000);
@@ -79,7 +83,7 @@ describe('HeartbeatSweeper', () => {
     });
 
     it('should return 0 when no stale jobs found', async () => {
-      mockJobService.findStaleJobs.mockResolvedValue([]);
+      mockQueries.findStaleJobs.mockResolvedValue([]);
 
       const count = await sweeper.sweep();
 
@@ -91,7 +95,7 @@ describe('HeartbeatSweeper', () => {
       const now = Date.now();
       let capturedCutoff: Date | undefined;
 
-      mockJobService.findStaleJobs.mockImplementation((cutoff) => {
+      mockQueries.findStaleJobs.mockImplementation((cutoff) => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
@@ -112,10 +116,10 @@ describe('HeartbeatSweeper', () => {
       let capturedCutoff: Date | undefined;
 
       // Clear previous mocks and set fresh implementation
-      mockJobService.findStaleJobs.mockReset();
+      mockQueries.findStaleJobs.mockReset();
       mockJobService.updateJobStatus.mockReset();
 
-      mockJobService.findStaleJobs.mockImplementation((cutoff) => {
+      mockQueries.findStaleJobs.mockImplementation((cutoff) => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
@@ -141,7 +145,7 @@ describe('HeartbeatSweeper', () => {
       const now = Date.now();
       let capturedCutoff: Date | undefined;
 
-      mockJobService.findStaleJobs.mockImplementation((cutoff) => {
+      mockQueries.findStaleJobs.mockImplementation((cutoff) => {
         capturedCutoff = cutoff as Date;
         return Promise.resolve([]);
       });
@@ -193,7 +197,7 @@ describe('HeartbeatSweeper', () => {
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
     });
 
     it('should stop periodic sweeps when stop() is called', async () => {
@@ -202,9 +206,9 @@ describe('HeartbeatSweeper', () => {
       // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
-      mockJobService.findStaleJobs.mockClear();
+      mockQueries.findStaleJobs.mockClear();
 
       // Stop the sweeper
       sweeper.stop();
@@ -213,7 +217,7 @@ describe('HeartbeatSweeper', () => {
       // Advance past interval - no new sweep should occur
       await jest.advanceTimersByTimeAsync(60000);
 
-      expect(mockJobService.findStaleJobs).not.toHaveBeenCalled();
+      expect(mockQueries.findStaleJobs).not.toHaveBeenCalled();
     });
   });
 
@@ -228,17 +232,17 @@ describe('HeartbeatSweeper', () => {
       // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
-      mockJobService.findStaleJobs.mockClear();
+      mockQueries.findStaleJobs.mockClear();
 
       // Advance 1 second - not yet time for next sweep
       await jest.advanceTimersByTimeAsync(1000);
-      expect(mockJobService.findStaleJobs).not.toHaveBeenCalled();
+      expect(mockQueries.findStaleJobs).not.toHaveBeenCalled();
 
       // Advance another second - triggers next sweep
       await jest.advanceTimersByTimeAsync(1000);
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
       customSweeper.stop();
     });
@@ -249,19 +253,19 @@ describe('HeartbeatSweeper', () => {
       // Initial sweep
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
 
-      mockJobService.findStaleJobs.mockClear();
+      mockQueries.findStaleJobs.mockClear();
 
       // Advance to next sweep (60 seconds)
       await jest.advanceTimersByTimeAsync(60000);
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Error Handling', () => {
     it('should handle findStaleJobs errors gracefully', async () => {
-      mockJobService.findStaleJobs.mockReset().mockRejectedValue(new Error('Database error'));
+      mockQueries.findStaleJobs.mockReset().mockRejectedValue(new Error('Database error'));
 
       // The sweep() method will reject on findStaleJobs error
       await expect(sweeper.sweep()).rejects.toThrow('Database error');
@@ -274,7 +278,7 @@ describe('HeartbeatSweeper', () => {
         { id: 'job-3', started_at: new Date(), last_heartbeat: new Date(Date.now() - 6 * 60_000) },
       ];
 
-      mockJobService.findStaleJobs.mockReset().mockResolvedValue(staleJobs);
+      mockQueries.findStaleJobs.mockReset().mockResolvedValue(staleJobs);
 
       // First updateJobStatus fails - sweep should stop there
       mockJobService.updateJobStatus
@@ -298,7 +302,7 @@ describe('HeartbeatSweeper', () => {
         last_heartbeat: new Date(Date.now() - 10 * 60_000),
       }));
 
-      mockJobService.findStaleJobs.mockResolvedValue(staleJobs);
+      mockQueries.findStaleJobs.mockResolvedValue(staleJobs);
 
       const count = await sweeper.sweep();
 
@@ -307,7 +311,7 @@ describe('HeartbeatSweeper', () => {
     });
 
     it('should handle empty result from findStaleJobs', async () => {
-      mockJobService.findStaleJobs.mockResolvedValue([]);
+      mockQueries.findStaleJobs.mockResolvedValue([]);
 
       const count = await sweeper.sweep();
 
@@ -324,7 +328,7 @@ describe('HeartbeatSweeper', () => {
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(0);
 
-      expect(mockJobService.findStaleJobs).toHaveBeenCalledTimes(1);
+      expect(mockQueries.findStaleJobs).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -344,7 +348,7 @@ describe('HeartbeatSweeper', () => {
         },
       ];
 
-      mockJobService.findStaleJobs.mockResolvedValue(jobsWithRecentHeartbeat);
+      mockQueries.findStaleJobs.mockResolvedValue(jobsWithRecentHeartbeat);
 
       // The sweeper should NOT mark this job as failed
       // because last_heartbeat is within grace period

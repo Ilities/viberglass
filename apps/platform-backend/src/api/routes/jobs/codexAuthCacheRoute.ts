@@ -1,13 +1,13 @@
 import { Request, Response, Router } from "express";
 import logger from "../../../config/logger";
 import { isSecretServiceError } from "../../../services/errors/SecretServiceError";
-import { JobService } from "../../../services/JobService";
+import { JobQueryService } from "../../../services/job/JobQueryService";
 import { SecretService } from "../../../services/SecretService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
 import { validateCodexAuthCache } from "../../middleware/validation";
 
-const jobService = new JobService();
+const jobQueries = new JobQueryService();
 const secretService = new SecretService();
 
 /** Where a Codex worker keeps the login it refreshed, for the next run. */
@@ -38,7 +38,7 @@ export function registerCodexAuthCacheRoute(router: Router): void {
           callbackTokenValidated: Boolean(req.callbackTokenValidated),
         });
 
-        const job = await jobService.getJobStatus(jobId);
+        const job = await jobQueries.getJobStatus(jobId);
         if (!job) {
           logger.warn("Codex auth cache callback rejected: job not found", {
             jobId,

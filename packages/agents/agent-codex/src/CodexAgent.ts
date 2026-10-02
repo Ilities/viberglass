@@ -4,6 +4,16 @@ import { Logger } from "winston";
 import * as path from "path";
 import type { CodexConfig } from "./config";
 
+/**
+ * What Codex keeps when it compacts its context. It has no instructions on
+ * its compact command, only this prompt in its config.
+ */
+export const CODEX_COMPACT_PROMPT = [
+  "Summarise this conversation for whoever carries on with the task, you included, after the earlier messages are gone.",
+  "Keep the decisions made on the task and who agreed to each, the open questions and whom they're for, what has been built so far and what's left to do.",
+  "SUMMARY.md in the repository holds the latest summary of the conversation; keep what still holds in it.",
+].join(" ");
+
 export class CodexAgent extends BaseAgent<CodexConfig> {
   constructor(config: CodexConfig, logger: Logger, gitService?: IAgentGitService) {
     super(config, logger, gitService);
@@ -25,6 +35,8 @@ export class CodexAgent extends BaseAgent<CodexConfig> {
           ? this.config.apiKey
           : undefined,
       OPENAI_BASE_URL: this.config.endpoint || undefined,
+      // codex-acp merges this into each session's config.
+      CODEX_CONFIG: JSON.stringify({ compact_prompt: CODEX_COMPACT_PROMPT }),
     };
   }
 

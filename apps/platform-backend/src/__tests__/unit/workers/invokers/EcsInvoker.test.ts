@@ -23,10 +23,9 @@ jest.mock("@aws-sdk/client-ecs", () => ({
   RunTaskCommand: jest.fn().mockImplementation((input) => ({ input })),
 }));
 
-// Mock JobService
 const mockSaveBootstrapPayload = jest.fn().mockResolvedValue(undefined);
-jest.mock("../../../../services/JobService", () => ({
-  JobService: jest.fn().mockImplementation(() => ({
+jest.mock("../../../../services/job/JobBootstrapService", () => ({
+  JobBootstrapService: jest.fn().mockImplementation(() => ({
     saveBootstrapPayload: mockSaveBootstrapPayload,
   })),
 }));

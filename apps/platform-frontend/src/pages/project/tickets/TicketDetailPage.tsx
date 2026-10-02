@@ -216,6 +216,7 @@ export function TicketDetailPage() {
               canSteer={Boolean(capabilities?.canSteer)}
               paused={data.sessions.some((session) => session.status === 'paused')}
               pausedForSetup={move.kind === 'failed' && move.failure?.category === 'setup'}
+              mentionsYou={Boolean(ticket.mentionsYou)}
               notice={<TaskFailureNotice move={move} project={project} />}
               runnableAgents={runnableAgents(data.clankers)}
               onAsked={changed}

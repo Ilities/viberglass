@@ -10,6 +10,7 @@ import { describeActivity } from './activity-sentence'
 import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
 import { BringInAgent, type BringableAgent } from './bring-in-agent'
+import { MarkMentionDone } from '@/components/mark-mention-done'
 import { MessageBody } from './message-body'
 import { OpenQuestions, QuestionEntry } from './question-entry'
 import { TaskComposer, type Mentionable } from './task-composer'
@@ -43,6 +44,8 @@ interface TaskThreadProps {
   paused?: boolean
   /** Whether a setup failure paused it. */
   pausedForSetup?: boolean
+  /** Whether someone mentioned the person here and they haven't replied or marked it done. */
+  mentionsYou?: boolean
   /** What needs dealing with before anything else, such as why the agent's last run failed. Shown above the composer. */
   notice?: React.ReactNode
   /** Agents that can run, any of which can be brought in when it isn't on the task yet. */
@@ -106,6 +109,7 @@ export function TaskThread({
   canSteer = false,
   paused = false,
   pausedForSetup = false,
+  mentionsYou = false,
   notice,
   runnableAgents,
   onAsked,
@@ -191,6 +195,12 @@ export function TaskThread({
       />
       {canPost && <OpenQuestions taskId={taskId} entries={entries} viewerId={user?.id} onAnswered={posted} />}
       {canAsk && <TaskSuggestedActions taskId={taskId} suggestions={suggestions} agentWorking={agentWorking} onAsked={posted} />}
+      {canPost && mentionsYou && (
+        <div className="flex items-center justify-between gap-4 text-sm text-[var(--gray-11)]">
+          <p>You were mentioned here. Reply below, or mark it done if there&apos;s nothing to say.</p>
+          <MarkMentionDone taskId={taskId} onDone={onAsked} />
+        </div>
+      )}
       {canPost && (
         <TaskComposer taskId={taskId} agents={canAsk ? agents : []} canInterrupt={canSteer && agentWorking} onPosted={posted} />
       )}

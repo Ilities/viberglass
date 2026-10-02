@@ -12,8 +12,9 @@ export interface TaskBranch {
 /**
  * Checks out the task's branch when an earlier build pushed it, so this build
  * adds commits to the same branch and pull request instead of starting again
- * from the base branch. Named once here: a template with `{{ timestamp }}`
- * would render differently if named again at push time.
+ * from the base branch. A task's turns use the name the platform gave its
+ * branch once; other runs name it here, once, since a template with
+ * `{{ timestamp }}` would render differently if named again at push time.
  */
 export async function prepareTaskBranch(
   params: JobRunnerParams,
@@ -24,7 +25,7 @@ export async function prepareTaskBranch(
     isObjectRecord(clankerConfig) && typeof clankerConfig.clankerId === "string"
       ? clankerConfig.clankerId
       : undefined;
-  const name = buildFeatureBranchName(
+  const name = params.taskBranch ?? buildFeatureBranchName(
     data.id,
     data.context?.ticketId,
     data.context?.originalTicketId,
