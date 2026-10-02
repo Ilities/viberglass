@@ -5,7 +5,7 @@ import { useAuth } from '@/context/auth-context'
 import { isRunner } from '@/lib/roles'
 import { cancelJob } from '@/service/api/job-api'
 import { toast } from 'sonner'
-import type { TaskTimelineEntry, TaskTurnAction } from '@viberglass/types'
+import type { TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberglass/types'
 import { useState } from 'react'
 
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
@@ -39,8 +39,20 @@ function joinNames(names: string[]): string {
   return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
+const KEPT: Record<TaskTurnProduct, string> = {
+  research: 'the research it had written',
+  plan: 'the plan it had written',
+  code: 'its code so far, as a work-in-progress commit',
+  summary: 'its summary',
+}
+
+/** What a stopped turn kept, in a sentence. */
+function keptWork(produced: TaskTurnProduct[]): string {
+  return joinNames(produced.map((product) => KEPT[product]))
+}
+
 /** Stops a running turn; the page picks up the cancelled run when it next refreshes. */
-function CancelTurn({ jobId }: { jobId: string }) {
+function CancelTurn({ jobId, startedAt }: { jobId: string; startedAt: string }) {
   const [isCancelling, setIsCancelling] = useState(false)
   const cancel = async () => {
     setIsCancelling(true)
@@ -52,7 +64,7 @@ function CancelTurn({ jobId }: { jobId: string }) {
       setIsCancelling(false)
     }
   }
-  return <CancelRunButton label="Cancel run" isCancelling={isCancelling} onConfirm={() => void cancel()} />
+  return <CancelRunButton label="Cancel run" startedAt={startedAt} isCancelling={isCancelling} onConfirm={() => void cancel()} />
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
@@ -88,7 +100,7 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
             )}
           </p>
           {/* Cancelling is for those who run agents, as on the server. */}
-          {runLink && entry.jobId && <CancelTurn jobId={entry.jobId} />}
+          {runLink && entry.jobId && <CancelTurn jobId={entry.jobId} startedAt={entry.at} />}
         </div>
       )}
       {entry.status === 'failed' && (
@@ -101,8 +113,12 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
           )}
         </p>
       )}
-      {entry.status === 'cancelled' && <p className="text-sm text-[var(--gray-11)]">This turn was cancelled.</p>}
-      {outcome?.intent && <p className="text-sm font-medium text-[var(--gray-12)]">{outcome.intent}</p>}
+      {entry.status === 'cancelled' && (
+        <p className="text-sm text-[var(--gray-11)]">
+          This turn was stopped.{outcome?.stoppedPartway && outcome.produced.length > 0 && ` It kept ${keptWork(outcome.produced)}.`}
+        </p>
+      )}
+      {outcome?.intent && !outcome.stoppedPartway && <p className="text-sm font-medium text-[var(--gray-12)]">{outcome.intent}</p>}
       {shown && <p className="text-sm whitespace-pre-wrap text-[var(--gray-12)]">{shown}</p>}
       {restLines.length > PREVIEW_LINES && (
         <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]">

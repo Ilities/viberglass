@@ -1,5 +1,6 @@
 import { JOB_FAILURE_CODE } from '@viberglass/types';
 import { JobService } from '../services/JobService';
+import { findOrphanedJobs } from '../services/job/JobSweeperQueries';
 import { createChildLogger } from '../config/logger';
 import { WorkerStopperChain } from './WorkerStopperChain';
 
@@ -70,7 +71,7 @@ export class OrphanSweeper {
 
     logger.debug('Running sweep', { cutoffTime });
 
-    const orphanedJobs = await this.jobService.findOrphanedJobs(cutoffTime);
+    const orphanedJobs = await findOrphanedJobs(cutoffTime);
 
     for (const job of orphanedJobs) {
       logger.warn('Marking job as timed out', {

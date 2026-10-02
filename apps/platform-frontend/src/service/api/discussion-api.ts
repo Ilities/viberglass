@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 import { toErrorFromResponse } from '@/service/api/user-api'
-import type { ApiResponse, TaskMessage, TaskTimelineEntry, TaskTurnAction } from '@viberglass/types'
+import type { ApiResponse, TaskCodeBranch, TaskMessage, TaskTimelineEntry, TaskTurnAction } from '@viberglass/types'
 
 async function read<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), fallback)
@@ -55,4 +55,77 @@ export async function askAgent(
   const { turn } = await postTaskMessage(taskId, ask.body ?? '', { action: ask.action, agentId: ask.agentId })
   if (!turn) throw new Error('The agent was not asked')
   return turn
+}
+
+/** Answers the agent's question; the answer is your message in the thread, and the agent's next turn reads it. */
+export async function answerQuestion(taskId: string, questionId: string, answer: string): Promise<AskedTurn> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/questions/${questionId}/answer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answer }),
+  })
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to answer the question')
+  const data: { turn: AskedTurn } = await response.json()
+  return data.turn
+}
+
+async function steer(taskId: string, what: 'pause' | 'resume', fallback: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/agent/${what}`, { method: 'POST' })
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), fallback)
+}
+
+/** Stops the agent's turn and starts one that answers this message straight away. */
+export async function interruptAgent(taskId: string, body: string): Promise<AskedTurn> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/agent/interrupt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  })
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to interrupt the agent')
+  const data: { turn: AskedTurn } = await response.json()
+  return data.turn
+}
+
+/** Stops the agent's turn, if it's working, and holds what people ask until it's resumed. */
+export function pauseAgent(taskId: string): Promise<void> {
+  return steer(taskId, 'pause', 'Failed to pause the agent')
+}
+
+export function resumeAgent(taskId: string): Promise<void> {
+  return steer(taskId, 'resume', 'Failed to let the agent carry on')
+}
+
+/** The task's branch and who has its work; null when its space has no repository. */
+export async function getTaskBranch(taskId: string): Promise<TaskCodeBranch | null> {
+  return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/branch`), 'Failed to load the task branch')
+}
+
+/** Pauses the agent and makes the work yours, on the task's branch. */
+export async function takeOverTask(taskId: string): Promise<TaskCodeBranch | null> {
+  return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/agent/take-over`, { method: 'POST' }), 'Failed to take the work over')
+}
+
+/** Gives the work back to the agent, which carries on from what you pushed. */
+export async function handBackTask(taskId: string, note: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/agent/hand-back`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  })
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to hand the work back')
+}
+
+/** Tries every run a setup failure paused again, once it's fixed; admins only. Returns how many tasks it retried. */
+export async function retryPausedRuns(): Promise<number> {
+  const data = await read<{ retried: number }>(
+    await apiFetch(`${API_BASE_URL}/api/tasks/paused-runs/retry`, { method: 'POST' }),
+    'Failed to retry the paused runs'
+  )
+  return data.retried
+}
+
+/** Done with being mentioned on the task, without replying: it stops being your move. */
+export async function markMentionsDone(taskId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/mentions/done`, { method: 'POST' })
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to mark it done')
 }

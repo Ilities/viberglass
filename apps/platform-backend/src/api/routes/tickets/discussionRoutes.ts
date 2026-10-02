@@ -3,10 +3,11 @@ import { isTaskTurnAction, mentionsAnAgent } from "@viberglass/types";
 import type { TaskDiscussionService } from "../../../services/tasks/TaskDiscussionService";
 import type { TaskTimelineService } from "../../../services/tasks/TaskTimelineService";
 import type { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
+import type { TaskMentionDAO } from "../../../persistence/ticketing/TaskMentionDAO";
 import { validateUuidParam } from "../../middleware/validation";
 
 /**
- * A task's thread, and posting to it. A message that mentions an agent, or
+ * A task's thread, posting to it, and being done with a mention. A message that mentions an agent, or
  * asks for an action, starts the agent's turn; who may ask for what is
  * TaskTurnService's to check. Registered on the tasks router, so its `:id`
  * guard applies; viewers are refused posting by the global guard.
@@ -17,8 +18,18 @@ export function registerTaskDiscussionRoutes(
     discussion: Pick<TaskDiscussionService, "post" | "list">;
     timeline: Pick<TaskTimelineService, "list">;
     turns: Pick<TaskTurnService, "ask">;
+    mentions: Pick<TaskMentionDAO, "markDone">;
   },
 ): void {
+  // Done with being mentioned without replying: it stops being their move.
+  router.post("/:id/mentions/done", validateUuidParam("id"), async (req, res, next) => {
+    try {
+      res.json({ success: true, data: { done: await deps.mentions.markDone(req.params.id, req.authContext!.user.id) } });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/:id/messages", validateUuidParam("id"), async (req, res, next) => {
     const body: unknown = req.body?.body ?? "";
     const action: unknown = req.body?.action;

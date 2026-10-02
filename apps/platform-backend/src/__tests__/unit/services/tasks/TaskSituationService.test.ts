@@ -10,6 +10,7 @@ function setup() {
   const deps = {
     turns: {
       running: jest.fn().mockResolvedValue(new Map()),
+      paused: jest.fn().mockResolvedValue(new Map()),
       lastFinished: jest.fn().mockResolvedValue(new Map()),
       aggregates: jest.fn().mockResolvedValue(new Map()),
     },
@@ -21,6 +22,7 @@ function setup() {
     },
     mentions: { listOpen: jest.fn().mockResolvedValue(new Map()) },
     participants: { listDrivers: jest.fn().mockResolvedValue(new Map([["t-1", OLLI]])) },
+    takeovers: { listFor: jest.fn().mockResolvedValue(new Map()) },
   };
   return { deps, service: new TaskSituationService(deps) };
 }
@@ -43,6 +45,9 @@ describe("TaskSituationService", () => {
     expect(described?.situation.waitingOn).toEqual({ kind: "people", people: [TOMI] });
     expect(described?.lastMessage).toEqual({ author: AGENT, text: "Revising the plan", at: at("10:00").toISOString() });
     expect(described?.latestActivityAt).toBe(at("10:00").toISOString());
+    // His mention is open, so he can mark it done.
+    expect(described?.mentionsYou).toBe(true);
+    expect((await service.describe([TASK], viewer("owner"))).get("t-1")?.mentionsYou).toBe(false);
   });
 
   it("shows a person's message as the last one, with mentions as plain names", async () => {

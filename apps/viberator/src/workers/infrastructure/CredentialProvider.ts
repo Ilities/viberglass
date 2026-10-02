@@ -1,12 +1,10 @@
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
+import type { CredentialRequest } from "@viberglass/types";
 import { Logger } from "winston";
 
 /**
- * Worker credential lookup from a run's supplied values, environment, or SSM.
- *
- * Fetches credentials from SSM Parameter Store using platform AWS credentials.
- * Supports both tenant-scoped (/prefix/{tenantId}/{key}) and global
- * (/prefix/{key}) path structures based on environment configuration.
+ * Loads the credentials a run asks for. Docker workers already have them in their
+ * environment; ECS and Lambda workers read each from the SSM path the platform sends.
  *
  * Features:
  * - 5-minute cache to reduce SSM API calls
@@ -19,7 +17,6 @@ export class CredentialProvider {
   private cache: Map<string, { value: string; expiry: number }>;
   private readonly ttl: number;
   private pathPrefix: string;
-  private readonly tenantScopedPath: boolean;
   private logger: Logger;
 
   constructor(
@@ -27,7 +24,6 @@ export class CredentialProvider {
     config?: {
       region?: string;
       pathPrefix?: string;
-      tenantScopedPath?: boolean;
       suppliedCredentials?: Record<string, string>;
       ssmEnabled?: boolean;
     },
@@ -44,16 +40,12 @@ export class CredentialProvider {
       process.env.SECRETS_SSM_PREFIX || "/viberator/secrets";
 
     if (tenantPathPrefix) {
-      this.tenantScopedPath = config?.tenantScopedPath ?? true;
       this.pathPrefix = this.normalizePrefix(tenantPathPrefix);
     } else if (hasConfiguredSecretsPrefix) {
-      this.tenantScopedPath = config?.tenantScopedPath ?? false;
       this.pathPrefix = this.normalizePrefix(secretsPathPrefix);
     } else if (legacyTenantPathPrefix) {
-      this.tenantScopedPath = config?.tenantScopedPath ?? true;
       this.pathPrefix = this.normalizePrefix(legacyTenantPathPrefix);
     } else {
-      this.tenantScopedPath = config?.tenantScopedPath ?? false;
       this.pathPrefix = this.normalizePrefix(secretsPathPrefix);
     }
 
@@ -69,26 +61,6 @@ export class CredentialProvider {
     const trimmed = prefix.trim();
     const prefixed = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
     return prefixed.replace(/\/+$/, "");
-  }
-
-  /**
-   * Transform credential key to environment variable name
-   * Converts lowercase/kebab-case to UPPERCASE_WITH_UNDERSCORES
-   * Example: github_token -> GITHUB_TOKEN
-   */
-  private keyToEnvVar(key: string): string {
-    return key.toUpperCase().replace(/-/g, "_");
-  }
-
-  private buildParameterName(tenantId: string, key: string): string {
-    const safeKey = key.replace(/[^a-zA-Z0-9_.-]/g, "_");
-
-    if (!this.tenantScopedPath) {
-      return `${this.pathPrefix}/${safeKey}`;
-    }
-
-    const safeTenantId = tenantId.replace(/[^a-zA-Z0-9_.-]/g, "-");
-    return `${this.pathPrefix}/${safeTenantId}/${safeKey}`;
   }
 
   /**
@@ -169,128 +141,46 @@ export class CredentialProvider {
     }
   }
 
-  /**
-   * Fetch a single credential for a tenant
-   *
-   * For Docker workers: checks process.env first (credentials from -e flags)
-   * For AWS workers: fetches from SSM Parameter Store
-   *
-   * @param tenantId - Tenant identifier
-   * @param key - Credential key (e.g., "github_token")
-   * @returns Credential value or undefined if not found
-   */
-  async getCredential(
-    tenantId: string,
-    key: string,
-  ): Promise<string | undefined> {
+  /** One credential: from the environment when the worker was started with it, else from SSM. */
+  async getCredential(request: CredentialRequest): Promise<string | undefined> {
     if (this.suppliedCredentials) {
-      return Object.prototype.hasOwnProperty.call(this.suppliedCredentials, key) ? this.suppliedCredentials[key] : undefined;
+      return Object.prototype.hasOwnProperty.call(this.suppliedCredentials, request.envVar)
+        ? this.suppliedCredentials[request.envVar] : undefined;
     }
-    const envVar = this.keyToEnvVar(key);
-
-    // Check environment variable first (Docker workers receive creds via -e flags)
-    if (process.env[envVar]) {
-      this.logger.debug("Credential found in environment", { envVar, key });
-      return process.env[envVar];
+    if (process.env[request.envVar]) {
+      this.logger.debug("Credential found in environment", { envVar: request.envVar });
+      return process.env[request.envVar];
     }
 
-    if (!this.ssmClient) return undefined;
-
-    // Fall back to SSM for AWS workers (Lambda/ECS)
-    const parameterName = this.buildParameterName(tenantId, key);
-
-    // Check cache first
-    const cached = this.cache.get(parameterName);
-    if (cached && cached.expiry > Date.now()) {
-      this.logger.debug("Credential cache hit", { parameterName });
-      return cached.value;
+    if (!request.ssmPath) {
+      this.logger.warn("Credential not in environment and not stored in SSM", { envVar: request.envVar });
+      return undefined;
     }
 
-    try {
-      const response = await this.ssmClient.send(
-        new GetParameterCommand({
-          Name: parameterName,
-          WithDecryption: true,
-        }),
-      );
-
-      const value = response.Parameter?.Value;
-      if (value) {
-        this.cache.set(parameterName, {
-          value,
-          expiry: Date.now() + this.ttl,
-        });
-        this.logger.debug("Credential fetched from SSM", { parameterName });
-      }
-
-      return value;
-    } catch (error) {
-      const err = error as { name?: string; message?: string };
-      const errorName = err.name;
-      if (errorName === "ParameterNotFound") {
-        this.logger.warn("Credential not found in SSM", {
-          parameterName,
-          error: errorName,
-        });
-        return undefined; // Soft fail per CONTEXT.md
-      }
-      if (
-        errorName === "AccessDeniedException" ||
-        errorName === "UnrecognizedClientException" ||
-        errorName === "InvalidClientTokenId" ||
-        errorName === "ExpiredTokenException" ||
-        errorName === "CredentialsProviderError"
-      ) {
-        this.logger.warn(
-          "Credential fetch skipped due unavailable AWS credentials",
-          {
-            parameterName,
-            error: errorName || "UnknownCredentialsError",
-            message: err.message,
-          },
-        );
-        return undefined;
-      }
-
-      throw error;
-    }
+    return this.getRawSsmValue(request.ssmPath);
   }
 
-  /**
-   * Fetch multiple credentials for a tenant in parallel
-   *
-   * @param tenantId - Tenant identifier
-   * @param keys - Array of credential keys to fetch
-   * @returns Map of key -> value (missing keys have undefined value)
-   */
+  /** Every requested credential, by env var; missing ones are undefined. */
   async getCredentials(
-    tenantId: string,
-    keys: string[],
+    requests: CredentialRequest[],
   ): Promise<Record<string, string | undefined>> {
     const results: Record<string, string | undefined> = {};
 
     await Promise.all(
-      keys.map(async (key) => {
-        results[key] = await this.getCredential(tenantId, key);
+      requests.map(async (request) => {
+        results[request.envVar] = await this.getCredential(request);
       }),
     );
 
     return results;
   }
 
-  /**
-   * Validate that required credentials are present
-   * Logs warnings for missing credentials but doesn't throw
-   *
-   * @param credentials - Fetched credentials map
-   * @param required - Array of required credential keys
-   * @returns Validation result with validity flag and missing keys
-   */
+  /** Logs the requested credentials that couldn't be loaded; never throws. */
   validateRequired(
     credentials: Record<string, string | undefined>,
-    required: string[],
+    requests: CredentialRequest[],
   ): { valid: boolean; missing: string[] } {
-    const missing = required.filter((key) => !credentials[key]);
+    const missing = requests.map((request) => request.envVar).filter((envVar) => !credentials[envVar]);
 
     if (missing.length > 0) {
       this.logger.warn("Missing required credentials", {

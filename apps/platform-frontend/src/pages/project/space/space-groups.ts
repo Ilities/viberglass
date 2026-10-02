@@ -19,6 +19,7 @@ export const SPACE_GROUP_LABEL: Record<SpaceGroup, string> = {
 export const STATE_FILTER_LABEL: Record<TaskSituationState, string> = {
   not_started: 'Not started',
   agent_working: 'Agent working',
+  paused: 'Agent paused',
   question: 'Question',
   artifact_ready: 'Ready for review',
   discussing: 'Discussing',

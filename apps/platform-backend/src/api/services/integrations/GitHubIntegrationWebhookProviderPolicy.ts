@@ -13,7 +13,6 @@ export class GitHubIntegrationWebhookProviderPolicy extends DefaultIntegrationWe
   constructor() {
     super("github", {
       providerLabel: "GitHub",
-      alwaysOnOutboundEvents: true,
     });
   }
 

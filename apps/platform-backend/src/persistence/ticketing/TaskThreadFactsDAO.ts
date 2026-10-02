@@ -54,26 +54,27 @@ export class TaskThreadFactsDAO {
     );
   }
 
-  /** The agent's unanswered questions on each task, asked of whoever opened the session. */
+  /** The agents' unanswered questions on each task: the people they're for, and since when the oldest waits. */
   async openQuestions(ticketIds: string[]): Promise<Map<string, { askedOf: TaskPerson[]; since: Date }>> {
-    if (ticketIds.length === 0) return new Map();
+    const open = new Map<string, { askedOf: TaskPerson[]; since: Date }>();
+    if (ticketIds.length === 0) return open;
     const rows = await db
       .selectFrom("agent_pending_requests as r")
       .innerJoin("agent_sessions as s", "s.id", "r.session_id")
-      .leftJoin("users as u", "u.id", "s.created_by")
-      .distinctOn("s.ticket_id")
+      .leftJoin("users as u", "u.id", "r.addressee_user_id")
       .select(["s.ticket_id", "r.created_at", "u.id as user_id", "u.name as user_name"])
       .where("s.ticket_id", "in", ticketIds)
       .where("r.status", "=", "open")
-      .orderBy("s.ticket_id")
       .orderBy("r.created_at", "asc")
       .execute();
-    return new Map(
-      rows.map((row) => [
-        row.ticket_id,
-        { askedOf: row.user_id && row.user_name ? [{ id: row.user_id, name: row.user_name }] : [], since: row.created_at },
-      ]),
-    );
+    for (const row of rows) {
+      const entry = open.get(row.ticket_id) ?? { askedOf: [], since: row.created_at };
+      if (row.user_id && row.user_name && !entry.askedOf.some((person) => person.id === row.user_id)) {
+        entry.askedOf.push({ id: row.user_id, name: row.user_name });
+      }
+      open.set(row.ticket_id, entry);
+    }
+    return open;
   }
 
   /** Who merged each task's pull request, from the line the merge left in the thread. */

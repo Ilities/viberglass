@@ -2,6 +2,7 @@ import type {
   Clanker,
   ClankerStatus,
   Project,
+  TaskCodeBranch,
   Ticket,
   TicketWorkflowPhase,
 } from "@viberglass/types";
@@ -84,6 +85,8 @@ export interface McpToolServices {
       filters: TicketListFilters,
     ): Promise<{ tickets: Ticket[]; total: number }>;
     get(ticketId: string): Promise<Ticket | null>;
+    /** The task's branch and who has its work, by key or id; null when there's no such task or repository. */
+    branch(task: string): Promise<TaskCodeBranch | null>;
     create(params: CreateTicketParams): Promise<Ticket>;
     trigger(
       ticketId: string,

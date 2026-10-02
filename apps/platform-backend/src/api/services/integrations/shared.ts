@@ -1,9 +1,4 @@
 import type { ParsedQs } from "qs";
-import {
-  parseCustomOutboundTargetConfig,
-  readCustomOutboundTargetConfig,
-  toPublicCustomOutboundTargetConfig,
-} from "../../../webhooks/feedback/customOutboundTargetConfig";
 import type { WebhookProvider } from "../../../persistence/webhook/WebhookConfigDAO";
 import type { DeliveryStatus } from "../../../persistence/webhook/WebhookDeliveryDAO";
 import { integrationRegistry } from "../../../integrations/registerIntegrationPlugins";
@@ -17,10 +12,6 @@ export function mapSystemToWebhookProvider(
 
 export function getDefaultInboundEvents(provider: WebhookProvider): string[] {
   return integrationRegistry.getDefaultInboundEvents(provider);
-}
-
-export function getDefaultOutboundEvents(): string[] {
-  return ["job_started", "job_ended"];
 }
 
 export function getProviderProjectIdFromIntegration(
@@ -61,37 +52,6 @@ export function serializeInboundWebhookConfig(
     providerProjectId: config.providerProjectId,
     projectId: config.projectId,
     labelMappings: config.labelMappings || {},
-    createdAt: config.createdAt,
-    updatedAt: config.updatedAt,
-  };
-}
-
-export function serializeOutboundWebhookConfig(config: {
-  id: string;
-  provider: WebhookProvider;
-  allowedEvents: string[];
-  active: boolean;
-  apiTokenEncrypted: string | null;
-  providerProjectId: string | null;
-  projectId: string | null;
-  outboundTargetConfig?: Record<string, unknown> | null;
-  createdAt: Date;
-  updatedAt: Date;
-}): Record<string, unknown> {
-  const customTarget =
-    config.provider === "custom"
-      ? readCustomOutboundTargetConfig(config.outboundTargetConfig || null)
-      : null;
-
-  return {
-    id: config.id,
-    provider: config.provider,
-    events: config.allowedEvents,
-    active: config.active,
-    hasApiToken: Boolean(config.apiTokenEncrypted),
-    providerProjectId: config.providerProjectId,
-    projectId: config.projectId,
-    ...(customTarget ? toPublicCustomOutboundTargetConfig(customTarget) : {}),
     createdAt: config.createdAt,
     updatedAt: config.updatedAt,
   };
@@ -185,30 +145,5 @@ export function parseDeliveryStatuses(
   return {
     statuses: uniqueValues as DeliveryStatus[],
     invalidValues: [],
-  };
-}
-
-export function parseCustomOutboundTargetConfigOrError(
-  body: unknown,
-  options: {
-    existing?: Record<string, unknown> | null;
-    requireNameAndUrl?: boolean;
-  } = {},
-): { config?: Record<string, unknown>; error?: string } {
-  const existingConfig = options.existing
-    ? readCustomOutboundTargetConfig(options.existing)
-    : null;
-  const parsed = parseCustomOutboundTargetConfig(body, {
-    existing: existingConfig,
-    requireNameAndUrl: options.requireNameAndUrl ?? false,
-  });
-  if (!parsed.config) {
-    return {
-      error: parsed.error || "Invalid custom outbound target configuration",
-    };
-  }
-
-  return {
-    config: parsed.config as unknown as Record<string, unknown>,
   };
 }

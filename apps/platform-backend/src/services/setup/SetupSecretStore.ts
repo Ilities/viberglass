@@ -1,3 +1,4 @@
+import type { ModelProviderId } from "@viberglass/types";
 import { SecretDAO, type SecretLocation } from "../../persistence/secret/SecretDAO";
 import { SecretService, type SecretInput, type SecretUpdate } from "../SecretService";
 import { setupSecretLocation } from "../secretStorageDefaults";
@@ -15,6 +16,7 @@ interface StoredSecret {
 export interface SecretLookup {
   getSecret(id: string): Promise<StoredSecret | null>;
   getSecretByName(name: string): Promise<StoredSecret | null>;
+  getLatestSecretForProvider(provider: ModelProviderId): Promise<StoredSecret | null>;
 }
 
 export interface SecretWriter {
@@ -42,6 +44,20 @@ export class SetupSecretStore {
 
     const created = await this.writer.createSecret({
       name,
+      secretLocation: this.location,
+      secretValue: value,
+    });
+    return created.id;
+  }
+
+  /** Creates a key for this provider, or replaces the value of its most recent one. */
+  async saveForProvider(provider: ModelProviderId, name: string, value: string): Promise<string> {
+    const existing = await this.lookup.getLatestSecretForProvider(provider);
+    if (existing) return this.replace(existing, value);
+
+    const created = await this.writer.createSecret({
+      name,
+      provider,
       secretLocation: this.location,
       secretValue: value,
     });

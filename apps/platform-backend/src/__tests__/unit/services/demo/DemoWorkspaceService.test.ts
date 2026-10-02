@@ -18,6 +18,7 @@ const DEMO_PROJECT: ProjectConfig = {
   isPrivate: false,
   keyPrefix: "WEB",
   defaultReviewerIds: [],
+  questionReminderHours: 4,
   createdAt: "",
   updatedAt: "",
 };

@@ -5,6 +5,7 @@ import {
   ticketCreateSchema,
   ticketGetSchema,
   ticketTriggerSchema,
+  ticketBranchSchema,
 } from "./schemas";
 
 export class TicketToolGroup implements ToolGroup {
@@ -97,6 +98,19 @@ export class TicketToolGroup implements ToolGroup {
               text: JSON.stringify(ticket, null, 2),
             },
           ],
+        };
+      },
+    );
+
+    server.tool(
+      "task_branch",
+      "Get the git branch a task's code is on, its repository and base branch, and who has taken the work over. `viberglass checkout` uses it.",
+      ticketBranchSchema,
+      async (params) => {
+        const branch = await services.tickets.branch(params.task);
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(branch ?? { error: "No such task, or its space has no repository" }) }],
+          ...(branch ? {} : { isError: true }),
         };
       },
     );

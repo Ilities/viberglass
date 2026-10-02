@@ -37,7 +37,7 @@ The installer builds the OpenCode worker and a deterministic fake worker. To use
 python3 infra/kubernetes/scripts/local.py --agent codex
 ```
 
-Use `--agent claude-code`, `gemini`, `kimi`, `mistral`, `pi`, or `qwen` as appropriate. Each invocation retains already-loaded images. A Clanker can use the default catalog image or an explicit image. Kubernetes forms support CPU, memory, temporary storage, and time limits. Activation checks namespace access, Job admission, and create/get/delete permissions; it cannot prove an image exists in the registry. Diagnose image pull failures through Pod events.
+Use `--agent claude-code`, `antigravity`, `kimi`, `mistral`, `pi`, or `qwen` as appropriate. Each invocation retains already-loaded images. A Clanker can use the default catalog image or an explicit image. Kubernetes forms support CPU, memory, temporary storage, and time limits. Activation checks namespace access, Job admission, and create/get/delete permissions; it cannot prove an image exists in the registry. Diagnose image pull failures through Pod events.
 
 ## Architecture and persistence
 
@@ -144,10 +144,14 @@ Run it against a disposable installation with both port forwards active. It crea
 
 The check validates strategy activation, credential bootstrap, media upload/download, research result persistence, session continuation in a different Pod, and cancellation during execution and dispatch. It needs no paid model key and does not push to external repositories. Paid-model and real-cloud behavior remain separate validation gates.
 
+### Updating an earlier experimental installation
+
+This branch now includes upstream migrations 088–098 and Kubernetes strategy migration 099. If a disposable installation already applied the former `088_kubernetes_deployment_strategy`, recreate its cluster before installing this version. Its migration history predates this merge and cannot accept the newly inserted upstream migrations in order. Do not recreate a cluster containing data you need; export its database and arrange a migration-history reconciliation first.
+
 ## Verified in this branch
 
-- Fresh backend/frontend/worker images and a clean kind installation, including all migrations through 088.
-- Backend unit suite: 152 suites / 1,122 tests; frontend suite: 48 suites / 235 tests.
+- Fresh backend/frontend/worker images and a clean kind installation, including all migrations through 099.
+- Backend unit suite: 171 suites / 1,188 tests; frontend suite: 53 suites / 256 tests; worker suite: 26 suites / 130 tests.
 - Real PostgreSQL/MinIO integration: encrypted run credentials, terminal status guards, Codex refresh, instructions, signed media, deletion, and session archives.
 - Installed app: activation, scoped credential/instruction bootstrap, browser media downloads, research documents, a resumed conversation in a separate Pod, and cancellation with worker Job deletion.
 - A running worker completed across backend/frontend rolling restarts.

@@ -3,15 +3,19 @@
  *
  * Defines the strategy pattern contract for processing inbound webhook events
  * from different providers. Each processor handles provider-specific logic for
- * creating tickets and optionally submitting jobs.
+ * creating tickets and optionally asking their agent to build.
  */
 
 import type { ParsedWebhookEvent, ProviderType } from './WebhookProvider';
 import type { WebhookConfig } from '../persistence/webhook/WebhookConfigDAO';
 import type { TicketDAO } from '../persistence/ticketing/TicketDAO';
-import type { ProjectScmConfigDAO } from '../persistence/project/ProjectScmConfigDAO';
 import type { ProjectIntegrationLinkDAO } from '../persistence/integrations/ProjectIntegrationLinkDAO';
-import type { JobService } from '../services/JobService';
+import type { WebhookBuildRequester } from './WebhookBuildRequester';
+import { CustomInboundProcessor } from './inbound-processors/CustomInboundProcessor';
+import { DefaultInboundProcessor } from './inbound-processors/DefaultInboundProcessor';
+import { GitHubInboundProcessor } from './inbound-processors/GitHubInboundProcessor';
+import { JiraInboundProcessor } from './inbound-processors/JiraInboundProcessor';
+import { ShortcutInboundProcessor } from './inbound-processors/ShortcutInboundProcessor';
 
 /**
  * Context passed to inbound event processors
@@ -44,7 +48,7 @@ export interface EventProcessingResult {
 /**
  * Interface for provider-specific inbound event processors
  *
- * Each processor handles the logic for creating tickets and jobs
+ * Each processor handles the logic for creating tickets and asking for builds
  * based on provider-specific event formats and business rules.
  */
 export interface InboundEventProcessor {
@@ -106,24 +110,14 @@ export class InboundEventProcessorResolver {
  */
 export function createDefaultInboundEventProcessorResolver(
   ticketDAO: TicketDAO,
-  jobService: JobService,
-  projectScmConfigDAO: ProjectScmConfigDAO,
+  builds: Pick<WebhookBuildRequester, 'request'>,
   projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
 ): InboundEventProcessorResolver {
-  // Defer import to avoid circular dependencies
-  /* eslint-disable @typescript-eslint/no-require-imports */
-  const { DefaultInboundProcessor } = require('./inbound-processors/DefaultInboundProcessor');
-  const { GitHubInboundProcessor } = require('./inbound-processors/GitHubInboundProcessor');
-  const { JiraInboundProcessor } = require('./inbound-processors/JiraInboundProcessor');
-  const { ShortcutInboundProcessor } = require('./inbound-processors/ShortcutInboundProcessor');
-  const { CustomInboundProcessor } = require('./inbound-processors/CustomInboundProcessor');
-  /* eslint-enable @typescript-eslint/no-require-imports */
-
   return new InboundEventProcessorResolver([
     new DefaultInboundProcessor(),
-    new GitHubInboundProcessor(ticketDAO, jobService, projectScmConfigDAO),
-    new JiraInboundProcessor(ticketDAO, jobService),
-    new ShortcutInboundProcessor(ticketDAO, jobService, projectIntegrationLinkDAO),
+    new GitHubInboundProcessor(ticketDAO, builds),
+    new JiraInboundProcessor(ticketDAO, builds),
+    new ShortcutInboundProcessor(ticketDAO, builds, projectIntegrationLinkDAO),
     new CustomInboundProcessor(ticketDAO),
   ]);
 }

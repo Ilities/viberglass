@@ -32,16 +32,16 @@ describe("ProjectScmTokenResolver", () => {
   const getByProjectId = jest.fn();
   const getById = jest.fn();
   const getDefaultForIntegration = jest.fn();
-  const resolveSecretsForClanker = jest.fn();
+  const resolveSecretValue = jest.fn();
   const resolver = new ProjectScmTokenResolver(
     { getByProjectId },
     { getById, getDefaultForIntegration },
-    { resolveSecretsForClanker },
+    { resolveSecretValue },
   );
 
   beforeEach(() => {
     jest.resetAllMocks();
-    resolveSecretsForClanker.mockResolvedValue({ GITHUB_TOKEN: "tok" });
+    resolveSecretValue.mockResolvedValue("tok");
   });
 
   it("uses the credential the project selected", async () => {
@@ -51,7 +51,7 @@ describe("ProjectScmTokenResolver", () => {
     await expect(resolver.resolve("project-1")).resolves.toBe("tok");
     expect(getById).toHaveBeenCalledWith("credential-2");
     expect(getDefaultForIntegration).not.toHaveBeenCalled();
-    expect(resolveSecretsForClanker).toHaveBeenCalledWith(["secret-2"]);
+    expect(resolveSecretValue).toHaveBeenCalledWith("secret-2");
   });
 
   it("falls back to the connection's default credential", async () => {
@@ -73,13 +73,13 @@ describe("ProjectScmTokenResolver", () => {
     getDefaultForIntegration.mockResolvedValue(credential({ credentialType: "ssh_key" }));
 
     await expect(resolver.resolve("project-1")).resolves.toBeNull();
-    expect(resolveSecretsForClanker).not.toHaveBeenCalled();
+    expect(resolveSecretValue).not.toHaveBeenCalled();
   });
 
   it("returns null when the secret has no value", async () => {
     getByProjectId.mockResolvedValue(scmConfig());
     getDefaultForIntegration.mockResolvedValue(credential());
-    resolveSecretsForClanker.mockResolvedValue({ GITHUB_TOKEN: "  " });
+    resolveSecretValue.mockResolvedValue("  ");
 
     await expect(resolver.resolve("project-1")).resolves.toBeNull();
   });

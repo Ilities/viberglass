@@ -6,10 +6,6 @@ export type {
   InboundWebhookSectionProps,
   IntegrationFrontendPlugin,
   IntegrationInboundWebhookConfig,
-  IntegrationOutboundWebhookConfig,
-  IntegrationOutboundWebhookTestResult,
   IntegrationProject,
   IntegrationWebhookDelivery,
-  OutboundWebhookSectionProps,
-  SelfManagedOutboundWebhookSectionProps,
 } from './types'

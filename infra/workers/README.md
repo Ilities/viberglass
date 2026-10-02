@@ -11,7 +11,7 @@ Docker images for Viberator workers.
 | `viberator-lambda.Dockerfile` | all agents | Lambda |
 | `viberator-worker-multi-agent.Dockerfile` | all agents | All CLIs pre-installed |
 | `agents/viberator-worker-qwen.Dockerfile` | qwen-cli | |
-| `agents/viberator-worker-gemini.Dockerfile` | gemini-cli | |
+| `generated/antigravity.Dockerfile` | antigravity | |
 | `agents/viberator-worker-mistral.Dockerfile` | mistral-vibe | |
 | `agents/viberator-worker-codex.Dockerfile` | codex | |
 | `agents/viberator-worker-opencode.Dockerfile` | opencode | |

@@ -2,16 +2,14 @@
  * Base webhook provider with common utility methods
  *
  * Extends WebhookProvider with shared functionality for parsing
- * payloads, extracting metadata, and formatting outbound messages.
+ * payloads and extracting metadata.
  */
 
 import type {
   WebhookEventMetadata,
   WebhookProviderConfig,
-  WebhookResult,
 } from "../WebhookProvider";
 import { WebhookProvider } from "../WebhookProvider";
-import type { AxiosInstance } from "axios";
 
 /**
  * GitHub webhook payload structure
@@ -60,7 +58,7 @@ type GenericPayload = Record<string, unknown>;
  * Abstract base provider with common utility methods
  *
  * Providers can extend this to get shared functionality for
- * payload parsing, metadata extraction, and message formatting.
+ * payload parsing and metadata extraction.
  */
 export abstract class BaseWebhookProvider extends WebhookProvider {
   constructor(config: WebhookProviderConfig) {
@@ -226,147 +224,5 @@ export abstract class BaseWebhookProvider extends WebhookProvider {
       action: this.extractAction(payload),
       sender: this.extractSender(payload),
     };
-  }
-
-  /**
-   * Format comment body from webhook result
-   *
-   * Creates a formatted markdown comment with status, commit info,
-   * PR link, and error details.
-   *
-   * @param result - Webhook execution result
-   * @returns Formatted markdown comment body
-   */
-  protected formatCommentBody(result: WebhookResult): string {
-    const status = result.success ? "Success" : "Failed";
-    const icon = result.success ? "✅" : "❌";
-
-    let body = `## ${icon} ${status}\n\n`;
-
-    if (result.commitHash) {
-      body += `**Commit:** \`${result.commitHash}\`\n\n`;
-    }
-
-    if (result.pullRequestUrl) {
-      body += `**Pull Request:** ${result.pullRequestUrl}\n\n`;
-    }
-
-    if (result.errorMessage) {
-      body += `**Error:**\n\`\`\`\n${this.escapeMarkdown(result.errorMessage)}\n\`\`\`\n\n`;
-    }
-
-    if (result.details) {
-      body += `**Details:**\n${this.escapeMarkdown(result.details)}\n`;
-    }
-
-    return body;
-  }
-
-  /**
-   * Format labels based on success/failure status
-   *
-   * Returns label updates for marking issues with execution status.
-   *
-   * @param success - Whether execution succeeded
-   * @param customLabels - Optional custom success/failure labels
-   * @returns Object with add and remove arrays
-   */
-  protected formatLabels(
-    success: boolean,
-    customLabels?: { success: string; failure: string },
-  ): { add: string[]; remove: string[] } {
-    const successLabel = customLabels?.success || "fix-submitted";
-    const failureLabel = customLabels?.failure || "fix-failed";
-
-    if (success) {
-      return {
-        add: [successLabel],
-        remove: [failureLabel],
-      };
-    }
-
-    return {
-      add: [failureLabel],
-      remove: [successLabel],
-    };
-  }
-
-  /**
-   * Escape special markdown characters
-   *
-   * @param text - Text to escape
-   * @returns Escaped text
-   */
-  protected escapeMarkdown(text: string): string {
-    // Escape characters that have special meaning in markdown
-    return text.replace(/([\\`*_{}[\]()#+\-.!|])/g, "\\$1");
-  }
-
-  /**
-   * Parse owner/repo from provider project ID
-   *
-   * @param projectId - Provider project ID (e.g., 'owner/repo')
-   * @returns Object with owner and repo properties
-   */
-  protected parseProjectId(projectId: string): { owner: string; repo: string } {
-    const parts = projectId.split("/");
-
-    if (parts.length >= 2) {
-      return { owner: parts[0], repo: parts.slice(1).join("/") };
-    }
-
-    // Single value, treat as repo with no owner path
-    return { owner: "", repo: parts[0] };
-  }
-
-  /**
-   * Create axios instance with Bearer token authentication
-   *
-   * @param baseUrl - API base URL
-   * @param token - Authentication token
-   * @returns Configured axios instance
-   */
-  protected createAuthenticatedClient(
-    baseUrl: string,
-    token: string,
-  ): AxiosInstance {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const axios = require("axios");
-
-    return axios.create({
-      baseURL: baseUrl,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "Viberglass-Webhook/1.0",
-      },
-    });
-  }
-
-  /**
-   * Handle API errors from outbound calls
-   *
-   * @param error - Error from axios
-   * @param context - Context string for error message
-   * @throws Error with context
-   */
-  protected handleApiError(error: unknown, context: string): never {
-    const axiosError = error as {
-      response?: { status?: number; data?: unknown };
-      request?: unknown;
-      message?: string;
-    };
-
-    if (axiosError.response) {
-      const status = axiosError.response.status;
-      const data = axiosError.response.data;
-      throw new Error(`${context}: HTTP ${status} - ${JSON.stringify(data)}`);
-    }
-
-    if (axiosError.request) {
-      throw new Error(`${context}: No response received`);
-    }
-
-    throw new Error(`${context}: ${axiosError.message || "Unknown error"}`);
   }
 }

@@ -10,7 +10,7 @@ export interface TaskSessionMessage {
   createdAt: Date;
 }
 
-/** What a message to a live session is stored as when the agent's tool needed a yes (AgentSessionInteractionService.approve). */
+/** What approving a tool request in a live session was stored as; it isn't something anyone said. */
 const TOOL_APPROVAL_TEXT = "Approval granted";
 
 /** Messages are stored as "[Name]: text" so the agent knows who spoke; the thread shows the name separately. */

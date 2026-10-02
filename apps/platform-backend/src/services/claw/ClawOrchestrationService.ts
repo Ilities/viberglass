@@ -8,10 +8,10 @@ import { IntegrationCredentialDAO } from "../../persistence/integrations";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import { JobService } from "../JobService";
+import { JobBootstrapService } from "../job/JobBootstrapService";
 import { CredentialRequirementsService } from "../CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
-import { SecretService } from "../SecretService";
 import {
   CLAW_SERVICE_ERROR_CODE,
   ClawServiceError,
@@ -34,13 +34,13 @@ export class ClawOrchestrationService {
   private projectDAO = new ProjectDAO();
   private projectScmConfigDAO = new ProjectScmConfigDAO();
   private integrationCredentialDAO = new IntegrationCredentialDAO();
-  private secretService = new SecretService();
   private clankerDAO = new ClankerDAO();
   private clawTemplateDAO = new ClawTaskTemplateDAO();
   private clawScheduleDAO = new ClawScheduleDAO();
   private clawExecutionService = new ClawExecutionService();
   private provisioningService = getClankerProvisioner();
   private jobService = new JobService();
+  private bootstraps = new JobBootstrapService();
   private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
   private instructionStorageService = new InstructionStorageService();
@@ -98,13 +98,12 @@ export class ClawOrchestrationService {
           clankerId: template.clankerId,
           jobId,
           instructionFiles,
-          additionalSecretIds: template.secretIds,
+          additionalSecretBindings: template.secretBindings,
         },
         {
           projectDAO: this.projectDAO,
           projectScmConfigDAO: this.projectScmConfigDAO,
           integrationCredentialDAO: this.integrationCredentialDAO,
-          secretService: this.secretService,
           clankerDAO: this.clankerDAO,
           provisioningService: this.provisioningService,
           instructionStorageService: this.instructionStorageService,
@@ -143,6 +142,7 @@ export class ClawOrchestrationService {
         preparedContext,
         {
           jobService: this.jobService,
+          bootstraps: this.bootstraps,
           credentialRequirementsService: this.credentialRequirementsService,
           workerExecutionService: this.workerExecutionService,
         },

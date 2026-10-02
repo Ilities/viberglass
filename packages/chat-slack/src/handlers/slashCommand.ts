@@ -30,8 +30,8 @@ export function registerSlashCommandHandler(
       const result = await event.openModal(
         Modal({
           callbackId: "viberator_launch",
-          title: "Launch Agent Session",
-          submitLabel: "Launch",
+          title: "Ask the agent",
+          submitLabel: "Ask",
           privateMetadata: JSON.stringify({ channelId: event.channel.id }),
           children: [
             Select({

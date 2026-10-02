@@ -73,7 +73,7 @@ with git_fixture() as repository_url:
  seclist=entity('GET','/api/secrets')
  secret=next((s for s in seclist if s['name']=='FAKE_API_KEY'),None)
  if not secret: secret=entity('POST','/api/secrets',{'name':'FAKE_API_KEY','secretValue':'offline-smoke-key','secretLocation':'database'})
- runner=entity('POST','/api/clankers',{'name':'Kubernetes Smoke '+str(int(time.time())),'agent':'fake','configFiles':[{'fileType':'AGENTS.md','content':'Use the local fixture repository for the smoke task.'}],'secretIds':[secret['id']],'deploymentStrategyId':strategy['id'],'deploymentConfig':{'version':1,'strategy':{'type':'kubernetes','containerImage':'viberator-worker-fake:local','cpu':'250m','memory':'512Mi'},'agent':{'type':'fake'}}})
+ runner=entity('POST','/api/clankers',{'name':'Kubernetes Smoke '+str(int(time.time())),'agent':'fake','configFiles':[{'fileType':'AGENTS.md','content':'Use the local fixture repository for the smoke task.'}],'secretBindings':[{'envVar':'FAKE_API_KEY','secretId':secret['id']}],'deploymentStrategyId':strategy['id'],'deploymentConfig':{'version':1,'strategy':{'type':'kubernetes','containerImage':'viberator-worker-fake:local','cpu':'250m','memory':'512Mi'},'agent':{'type':'fake'}}})
  entity('POST',f"/api/clankers/{runner['id']}/start",{})
  for i in range(60):
   status=entity('GET',f"/api/clankers/{runner['id']}")

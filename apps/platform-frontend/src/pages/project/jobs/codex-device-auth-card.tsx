@@ -12,7 +12,7 @@ function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null
 }
 
-/** The latest Codex device-login request among a run's progress updates, if one is waiting. */
+/** The latest Codex device-login request among a run's progress updates, if one is still waiting. */
 export function resolveCodexDeviceAuthPrompt(
   progressUpdates: Array<{ details: Record<string, unknown> | null }>,
   currentProgress: Record<string, unknown> | null
@@ -26,6 +26,8 @@ export function resolveCodexDeviceAuthPrompt(
   }
 
   for (const details of detailCandidates) {
+    // Newest first: a completed sign-in after the request means nobody needs to act.
+    if (details.kind === 'codex_device_auth_completed') return null
     if (details.kind !== 'codex_device_auth_required' && details.kind !== 'codex_device_auth_pending') continue
     const verificationUri = readString(details.verificationUri)
     const userCode = readString(details.userCode)

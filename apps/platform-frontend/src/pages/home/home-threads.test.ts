@@ -7,6 +7,7 @@ function thread(overrides: Partial<HomeThread> = {}): HomeThread {
     situation: { state: 'artifact_ready', label: 'Plan v2 ready', waitingOn: { kind: 'nobody' }, since: '2026-10-01T10:00:00Z', yourMove: false },
     roles: ['watcher'],
     unread: 0,
+    mentionsYou: false,
     lastMessage: null,
     latestActivityAt: '2026-10-01T10:00:00Z',
     ...overrides,

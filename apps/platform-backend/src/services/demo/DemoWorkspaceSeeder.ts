@@ -126,7 +126,7 @@ export class DemoWorkspaceSeeder {
       description: "Shows who ran the demo tasks. It never runs anything.",
       deploymentStrategyId: docker?.id ?? null,
       agent: "opencode",
-      secretIds: [],
+      secretBindings: [],
     });
     await this.deps.records.record("clanker", runner.id);
     await this.deps.clankers.updateStatus(runner.id, "inactive", "Sample data for the demo workspace.");

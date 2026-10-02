@@ -18,10 +18,11 @@ import {
   StackIcon,
 } from '@radix-ui/react-icons'
 import { getAgentLabel, isObjectRecord, type Clanker } from '@viberglass/types'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
-import { DEFAULT_CODEX_AUTH_SECRET_NAME } from './config/types'
+import { ChatGptLoginCard } from './chatgpt-login-card'
+import { summarizeRunner } from './config/runnerSummary'
 
 function getStatusBadgeColor(status: Clanker['status']): 'green' | 'blue' | 'red' | 'zinc' {
   switch (status) {
@@ -118,39 +119,42 @@ export function ClankerDetailPage() {
   const [secrets, setSecrets] = useState<Secret[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    async function loadData() {
-      if (!slug) {
-        setIsLoading(false)
-        return
-      }
-
-      try {
-        const clankerData = await getClankerBySlug(slug)
-        if (!clankerData) return
-
-        const [secretResults] = await Promise.all([
-          Promise.all(
-            (clankerData.secretIds || []).map(async (secretId) => {
-              try {
-                return await getSecret(secretId)
-              } catch (error) {
-                console.error(`Failed to fetch secret ${secretId}:`, error)
-                return null
-              }
-            })
-          ).then((results) => results.filter((secret): secret is Secret => secret !== null)),
-        ])
-
-        setClanker(clankerData)
-        setSecrets(secretResults)
-      } finally {
-        setIsLoading(false)
-      }
+  const loadData = useCallback(async () => {
+    if (!slug) {
+      setIsLoading(false)
+      return
     }
 
-    void loadData()
+    try {
+      const clankerData = await getClankerBySlug(slug)
+      if (!clankerData) return
+
+      const loginSecretId = summarizeRunner(clankerData, []).loginSecretId
+      const secretIds = [
+        ...(clankerData.secretBindings || []).map((binding) => binding.secretId),
+        ...(loginSecretId ? [loginSecretId] : []),
+      ]
+      const secretResults = await Promise.all(
+        secretIds.map(async (secretId) => {
+          try {
+            return await getSecret(secretId)
+          } catch (error) {
+            console.error(`Failed to fetch secret ${secretId}:`, error)
+            return null
+          }
+        }),
+      ).then((results) => results.filter((secret): secret is Secret => secret !== null))
+
+      setClanker(clankerData)
+      setSecrets(secretResults)
+    } finally {
+      setIsLoading(false)
+    }
   }, [slug])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
 
   useEffect(() => {
     if (!slug || !clanker || clanker.status !== 'deploying') {
@@ -188,11 +192,10 @@ export function ClankerDetailPage() {
 
   const statusInfo = formatClankerStatus(clanker.status)
   const statusHint = getStatusHint(clanker.status)
+  const summary = summarizeRunner(clanker, secrets)
   const deploymentConfig = isObjectRecord(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const v1Strategy = isObjectRecord(deploymentConfig?.strategy) ? deploymentConfig.strategy : null
-  const v1Agent = isObjectRecord(deploymentConfig?.agent) ? deploymentConfig.agent : null
   const strategyConfig = deploymentConfig?.version === 1 && v1Strategy ? v1Strategy : deploymentConfig
-  const agentConfig = deploymentConfig?.version === 1 && v1Agent ? v1Agent : null
   const deploymentDetails: Array<{ label: string; value: string }> = []
   let dockerBuildLogs: string[] = []
   const strategyName = readStrategyName(strategyConfig, clanker.deploymentStrategy?.name)
@@ -345,33 +348,6 @@ export function ClankerDetailPage() {
     })
   }
 
-  if (clanker.agent === 'codex') {
-    const codexAuth =
-      (isObjectRecord(agentConfig?.codexAuth) ? agentConfig.codexAuth : null) ||
-      (isObjectRecord(deploymentConfig?.codexAuth) ? deploymentConfig.codexAuth : null) ||
-      {}
-    const mode =
-      codexAuth.mode === 'chatgpt_device_stored'
-        ? 'chatgpt_device_stored'
-        : codexAuth.mode === 'chatgpt_device'
-          ? 'chatgpt_device'
-          : 'api_key'
-
-    deploymentDetails.push({
-      label: 'Codex Auth Mode',
-      value:
-        mode === 'chatgpt_device'
-          ? 'ChatGPT device auth (ephemeral token)'
-          : mode === 'chatgpt_device_stored'
-            ? 'ChatGPT device auth (persisted token)'
-            : 'API key',
-    })
-    deploymentDetails.push({
-      label: 'Codex Auth Secret (fixed)',
-      value: DEFAULT_CODEX_AUTH_SECRET_NAME,
-    })
-  }
-
   return (
     <>
       <PageMeta title={clanker ? `${clanker.name} | Agent runner` : 'Agent runner'} />
@@ -460,34 +436,70 @@ export function ClankerDetailPage() {
 
             <div className="space-y-6 lg:col-span-8 xl:col-span-9">
               <div className="app-frame rounded-lg p-6">
-                <Subheading className="mb-4">Description</Subheading>
-                <div className="text-[var(--gray-11)]">{clanker.description || 'No description provided.'}</div>
-                {statusHint && <div className="mt-3 text-sm text-[var(--gray-9)]">{statusHint}</div>}
+                <Subheading className="mb-4">Setup</Subheading>
+                {summary.problem && (
+                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                    {summary.problem}
+                  </div>
+                )}
+                <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
+                  <dt className="text-sm text-[var(--gray-9)]">Agent</dt>
+                  <dd className="text-sm text-[var(--gray-12)]">{formatAgent(clanker.agent)}</dd>
+                  <dt className="text-sm text-[var(--gray-9)]">Provider</dt>
+                  <dd className="text-sm text-[var(--gray-12)]">
+                    {summary.usesChatGptLogin ? 'OpenAI (ChatGPT login)' : (summary.providerLabel ?? 'Not set')}
+                  </dd>
+                  <dt className="text-sm text-[var(--gray-9)]">Model</dt>
+                  <dd className="text-sm text-[var(--gray-12)]">{summary.model ?? "The agent's default"}</dd>
+                  <dt className="text-sm text-[var(--gray-9)]">Key</dt>
+                  <dd className="text-sm text-[var(--gray-12)]">
+                    {summary.usesChatGptLogin ? (
+                      'ChatGPT login'
+                    ) : summary.key ? (
+                      <>
+                        {summary.key.label} <span className="font-mono text-xs text-[var(--gray-9)]">as {summary.key.envVar}</span>
+                      </>
+                    ) : (
+                      'None'
+                    )}
+                  </dd>
+                </dl>
+                {statusHint && <div className="mt-4 text-sm text-[var(--gray-9)]">{statusHint}</div>}
               </div>
 
-              <div className="app-frame rounded-lg p-6">
-                <Subheading className="mb-4">Secrets</Subheading>
-                {secrets.length > 0 ? (
+              {summary.usesChatGptLogin && (
+                <ChatGptLoginCard
+                  clanker={clanker}
+                  login={secrets.find((secret) => secret.id === summary.loginSecretId) ?? null}
+                  onConnected={() => void loadData()}
+                />
+              )}
+
+              {summary.extras.length > 0 && (
+                <div className="app-frame rounded-lg p-6">
+                  <Subheading className="mb-4">Extra environment variables</Subheading>
                   <div className="space-y-3">
-                    {secrets.map((secret) => (
-                      <div key={secret.id} className="rounded bg-[var(--gray-3)] p-3">
-                        <div className="font-medium text-[var(--gray-12)]">{secret.name}</div>
-                        <div className="mt-1 text-sm text-[var(--gray-9)]">
-                          {secret.secretLocation}
-                          {secret.secretPath && ` - ${secret.secretPath}`}
+                    {summary.extras.map((binding) => {
+                      const secret = secrets.find((candidate) => candidate.id === binding.secretId)
+                      return (
+                        <div key={binding.secretId} className="rounded bg-[var(--gray-3)] p-3">
+                          <div className="font-mono font-medium text-[var(--gray-12)]">{binding.envVar}</div>
+                          <div className="mt-1 text-sm text-[var(--gray-9)]">
+                            {secret ? `${secret.name} · ${secret.secretLocation}` : 'Secret deleted'}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
-                ) : (
-                  <div className="text-[var(--gray-9)]">No secrets configured.</div>
-                )}
-              </div>
+                </div>
+              )}
 
               {deploymentDetails.length > 0 && (
-                <div className="app-frame rounded-lg p-6">
-                  <Subheading className="mb-4">Deployment Configuration</Subheading>
-                  <div className="space-y-0">
+                <details className="app-frame rounded-lg p-6">
+                  <summary className="cursor-pointer">
+                    <Subheading className="inline">Compute details</Subheading>
+                  </summary>
+                  <div className="mt-4 space-y-0">
                     {deploymentDetails.map((detail, index) => (
                       <div key={detail.label} className={`${index > 0 ? 'border-t border-[var(--gray-6)]' : ''} py-3`}>
                         <div className="text-xs font-medium tracking-wider text-[var(--gray-9)] uppercase">
@@ -509,7 +521,7 @@ export function ClankerDetailPage() {
                       </pre>
                     </div>
                   )}
-                </div>
+                </details>
               )}
 
               <div className="app-frame rounded-lg p-6">

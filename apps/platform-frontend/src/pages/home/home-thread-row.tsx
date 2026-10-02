@@ -1,19 +1,23 @@
 import { Badge } from '@/components/badge'
 import { Link } from '@/components/link'
+import { MarkMentionDone } from '@/components/mark-mention-done'
 import { Timestamp } from '@/components/timestamp'
 import { taskPath } from '@/lib/taskPath'
 import { situationPhrase, type HomeThread } from '@viberglass/types'
 import { lastMessageLine } from './home-threads'
 
-/** One task thread on Home: key, title, where it stands, what's new, and the last word in it. */
-export function HomeThreadRow({ thread }: { thread: HomeThread }) {
+/**
+ * One task thread on Home: key, title, where it stands, what's new, and the
+ * last word in it. A mention can be marked done from here without opening it.
+ */
+export function HomeThreadRow({ thread, onChanged }: { thread: HomeThread; onChanged?: () => void }) {
   const line = lastMessageLine(thread.lastMessage)
   const { situation } = thread
   return (
-    <li>
+    <li className="flex items-center gap-2">
       <Link
         href={taskPath(thread.task.spaceSlug, thread.task)}
-        className="hover-lift flex items-start justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900"
+        className="hover-lift flex min-w-0 flex-1 items-start justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -34,6 +38,7 @@ export function HomeThreadRow({ thread }: { thread: HomeThread }) {
         </div>
         <Timestamp date={thread.latestActivityAt} className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400" />
       </Link>
+      {thread.mentionsYou && onChanged && <MarkMentionDone taskId={thread.task.id} onDone={onChanged} />}
     </li>
   )
 }

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -128,7 +129,14 @@ export function normalizeCodexHomeEnv(env: NodeJS.ProcessEnv): void {
   }
 }
 
+function hashAuthJson(authJson: string): string {
+  return createHash("sha256").update(compactJsonForStorage(authJson)).digest("hex");
+}
+
 export class CodexAuthManager {
+  /** The login the platform holds, as last loaded or uploaded; a different file on disk means Codex refreshed it. */
+  private syncedAuthHash: string | null = null;
+
   constructor(
     private readonly logger: Logger,
     private readonly callbackClient: ICodexCallbackClient,
@@ -139,7 +147,9 @@ export class CodexAuthManager {
   ) {}
 
   async materializeAuthCacheFromEnv(): Promise<void> {
-    const secretValue = process.env[this.settings.secretName];
+    const storedValue = process.env[this.settings.secretName];
+    // Values stored in SSM may be gzip-encoded to fit its size limit.
+    const secretValue = storedValue ? decodeCodexAuthFromSharedValue(storedValue) : storedValue;
     if (!secretValue || secretValue.trim().length === 0) {
       this.logger.info("No Codex auth cache value found in environment", {
         secretName: this.settings.secretName,
@@ -162,6 +172,7 @@ export class CodexAuthManager {
       mode: 0o600,
     });
     await fs.promises.chmod(authPath, 0o600);
+    this.syncedAuthHash = hashAuthJson(secretValue);
 
     this.logger.info("Materialized Codex auth cache from credential", {
       authPath,
@@ -503,7 +514,9 @@ export class CodexAuthManager {
       });
     });
 
-    await this.sendProgress("auth", "Codex device authentication completed");
+    await this.sendProgress("auth", "Codex device authentication completed", {
+      kind: "codex_device_auth_completed",
+    });
     this.logger.info("Codex device authentication completed", {
       jobId,
       tenantId,
@@ -532,6 +545,30 @@ export class CodexAuthManager {
         throw error;
       }
       this.logger.warn("Failed to upload Codex auth cache after login", {
+        jobId,
+        tenantId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Codex refreshes its tokens during a run. Uploading the refreshed login keeps the
+   * stored one current, so the next run doesn't need a new device login. Best effort:
+   * a failed upload costs a login later, not this run.
+   */
+  async uploadIfRefreshed(jobId: string, tenantId: string): Promise<void> {
+    const authPath = this.resolveAuthFilePathForRead();
+    if (!authPath) return;
+
+    try {
+      const authJson = await fs.promises.readFile(authPath, "utf-8");
+      if (!authJson.trim() || hashAuthJson(authJson) === this.syncedAuthHash) return;
+
+      this.logger.info("Codex refreshed its login during the run; uploading it", { jobId, tenantId });
+      await this.uploadAuthCache(jobId, tenantId);
+    } catch (error) {
+      this.logger.warn("Failed to upload refreshed Codex login", {
         jobId,
         tenantId,
         error: error instanceof Error ? error.message : String(error),
@@ -596,6 +633,7 @@ export class CodexAuthManager {
         mode: 0o600,
       });
       await fs.promises.chmod(authPath, 0o600);
+      this.syncedAuthHash = hashAuthJson(materializedAuthJson);
 
       this.logger.info("Materialized Codex auth cache from shared SSM", {
         authPath,
@@ -703,6 +741,7 @@ export class CodexAuthManager {
       secretName: this.settings.secretName,
       authJson: compactedAuthJson,
     });
+    this.syncedAuthHash = hashAuthJson(compactedAuthJson);
     this.logger.info("Codex auth cache upload callback succeeded", {
       jobId,
       tenantId,

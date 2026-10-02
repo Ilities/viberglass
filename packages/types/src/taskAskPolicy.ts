@@ -38,6 +38,17 @@ export function canAskForCode(person: AskingPerson, participants: AskingParticip
   return isOnTask(person, participants)
 }
 
+/**
+ * Who may steer the agent on a task: interrupt its turn, pause and resume it,
+ * take over its work and hand it back. The task's owner, the space's
+ * maintainers and workspace admins.
+ */
+export function canSteerAgent(person: AskingPerson, participants: AskingParticipant[]): boolean {
+  if (person.workspaceRole === 'viewer') return false
+  if (person.workspaceRole === 'admin' || person.spaceRole === 'maintainer') return true
+  return participants.some((participant) => participant.userId === person.userId && participant.role === 'owner')
+}
+
 /** Who the agent mentions when an artifact is ready: the task's reviewers, else its owner. */
 export function artifactReviewers(participants: AskingParticipant[]): string[] {
   const reviewers = participants.filter((p) => p.role === 'reviewer')
@@ -49,6 +60,7 @@ export interface TaskAskCapabilities {
   canPost: boolean
   canAsk: boolean
   canAskForCode: boolean
+  canSteer: boolean
 }
 
 /** What the caller may do on a task. */

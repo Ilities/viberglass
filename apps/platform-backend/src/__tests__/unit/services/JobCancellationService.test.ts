@@ -78,6 +78,19 @@ describe("JobCancellationService", () => {
     expect(mockSessionDAO.update).toHaveBeenCalledWith("session-1", { status: "waiting_on_user" });
   });
 
+  it("ends the turn before stopping the worker, which keeps what it had done for a stopped turn, and records who cancelled", async () => {
+    executeTakeFirst.mockResolvedValue({ status: "active", ticket_id: null });
+    mockTurnDAO.getByJobId.mockResolvedValue({ id: "turn-1", sessionId: "session-1" });
+    const docker = stopper(async () => true);
+
+    await serviceWith(docker).cancel("job-1", "user-1");
+
+    expect(setUpdate).toHaveBeenCalledWith(expect.objectContaining({ cancelled_by: "user-1" }));
+    const ended = mockTurnDAO.update.mock.invocationCallOrder[0];
+    const stopped = (docker.stop as jest.Mock).mock.invocationCallOrder[0];
+    expect(ended).toBeLessThan(stopped);
+  });
+
   it("is idempotent for a previously cancelled run", async () => {
     executeTakeFirst.mockResolvedValue({ status: "cancelled", ticket_id: null });
 

@@ -73,15 +73,18 @@ jest.mock("../../services/JobService", () => {
           mockJobStatusUpdates.set(jobId, { status, ...updates });
           return Promise.resolve(undefined);
         }),
-      getJobStatus: jest.fn(),
-      listJobs: jest.fn(),
       deleteJob: jest.fn(),
-      getQueueStats: jest.fn(),
-      getNextQueuedJob: jest.fn(),
-      findOrphanedJobs: jest.fn().mockResolvedValue([]), // Default to empty array
     })),
   };
 });
+
+const mockFindOrphanedJobs = jest.fn().mockResolvedValue([]);
+jest.mock("../../services/job/JobSweeperQueries", () => ({
+  findOrphanedJobs: (...args: unknown[]) => mockFindOrphanedJobs(...args),
+}));
+jest.mock("../../persistence/job/JobWorkerDAO", () => ({
+  JobWorkerDAO: jest.fn(() => ({ record: jest.fn().mockResolvedValue(undefined) })),
+}));
 
 describe("Worker Execution Integration Tests", () => {
   let jobService: JobService;
@@ -122,7 +125,7 @@ describe("Worker Execution Integration Tests", () => {
       functionName: "test-lambda-function",
     },
     configFiles: [],
-    secretIds: [],
+    secretBindings: [],
     ...overrides,
   });
 
@@ -402,7 +405,7 @@ describe("Worker Execution Integration Tests", () => {
     });
 
     it("should return 0 when no orphaned jobs found", async () => {
-      (jobService.findOrphanedJobs as jest.Mock).mockResolvedValue([]);
+      mockFindOrphanedJobs.mockResolvedValue([]);
 
       const orphanCount = await orphanSweeper.sweep();
 

@@ -26,6 +26,7 @@ RUN apt-get update && \
     curl \
     wget \
     ripgrep \
+    unzip \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -43,9 +44,10 @@ RUN npm install -g @anthropic-ai/claude-code @agentclientprotocol/claude-agent-a
 # Source: https://qwenlm.github.io/qwen-code-docs/
 RUN npm install -g @qwen-code/qwen-code@latest
 
-# Install Google Gemini CLI
-# Source: https://geminicli.com/docs/get-started/installation/
-RUN npm install -g @google/gemini-cli
+# Install Google Antigravity's ACP server
+COPY packages/agents/agent-antigravity/install-acp-server.sh /tmp/install-agy-acp.sh
+RUN sh /tmp/install-agy-acp.sh /opt/agy-acp && rm /tmp/install-agy-acp.sh
+ENV PATH="/opt/agy-acp:${PATH}"
 
 # Install OpenAI Codex CLI
 # Source: https://github.com/openai/codex
@@ -56,9 +58,9 @@ RUN npm install -g @openai/codex @agentclientprotocol/codex-acp
 RUN npm install -g opencode-ai@latest
 
 # Install Pi coding agent CLI and ACP bridge
-# Source: https://github.com/earendil-works/pi-coding-agent (pi-acp needs pi >= 0.81)
+# Source: https://github.com/earendil-works/pi (pi 1.x needs Node >= 22.19)
 # Source: https://github.com/svkozak/pi-acp
-RUN npm install -g @earendil-works/pi-coding-agent pi-acp
+RUN npm install -g @earendil-works/pi-coding-agent@^1.0.0 pi-acp
 
 # Install Kimi Code CLI for the runtime user to avoid /root permission issues.
 USER viberator
@@ -108,7 +110,7 @@ ENV NODE_ENV=production
 ENV WORK_DIR=/tmp/viberator-work
 
 # Multi-agent labels
-LABEL agent.types="claude-code,qwen-cli,gemini-cli,mistral-vibe,codex,opencode,kimi-code,pi" \
+LABEL agent.types="claude-code,qwen-cli,antigravity,mistral-vibe,codex,opencode,kimi-code,pi" \
       viberator.worker-type="multi-agent" \
       viberator.capabilities="all-agents"
 

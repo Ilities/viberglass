@@ -34,7 +34,8 @@ export interface JobScmConfig {
   pullRequestBaseBranch: string;
   branchNameTemplate?: string | null;
   credentialSecretId?: string | null;
-  credentialSecretName?: string | null;
+  /** The env var the worker finds the repository token in. */
+  credentialEnvVar?: string | null;
 }
 
 // Override configuration for per-ticket/enhance screen overrides
@@ -105,12 +106,16 @@ export interface ClawJobContext extends BaseJobContext {
   clawTemplateName: string;
 }
 
+/** A login-only job: it signs the runner's agent in and touches no repository. */
+export type AgentLoginJobContext = BaseJobContext;
+
 export type JobContext =
   | { jobKind: "execution"; context: TicketJobContext }
   | { jobKind: "research"; context: ResearchJobContext }
   | { jobKind: "planning"; context: PlanningJobContext }
   | { jobKind: "reply"; context: TicketJobContext }
-  | { jobKind: "claw"; context: ClawJobContext };
+  | { jobKind: "claw"; context: ClawJobContext }
+  | { jobKind: "agent_login"; context: AgentLoginJobContext };
 
 // Discriminated union for JobData based on jobKind
 export interface BaseJobData {
@@ -159,12 +164,18 @@ export interface ClawJobData extends BaseJobData {
   context: ClawJobContext;
 }
 
+export interface AgentLoginJobData extends BaseJobData {
+  jobKind: "agent_login";
+  context: AgentLoginJobContext;
+}
+
 export type JobData =
   | TicketJobData
   | ResearchJobData
   | PlanningJobData
   | ReplyJobData
-  | ClawJobData;
+  | ClawJobData
+  | AgentLoginJobData;
 
 export interface JobResult {
   success: boolean;
@@ -223,6 +234,8 @@ export interface JobStatusResponse {
   };
   result: unknown;
   failedReason: string | null;
+  /** Who cancelled the run, when someone did. */
+  cancelledBy: { id: string; name: string } | null;
   createdAt: Date | null;
   processedAt: Date | null;
   finishedAt: Date | null;

@@ -1,0 +1,95 @@
+[
+  {
+    "agent": "antigravity",
+    "apiKey": [
+      "GEMINI_API_KEY"
+    ],
+    "endpoint": [],
+    "harnessConfigFiles": []
+  },
+  {
+    "agent": "claude-code",
+    "apiKey": [
+      "ANTHROPIC_API_KEY",
+      "ANTHROPIC_AUTH_TOKEN"
+    ],
+    "endpoint": [
+      "ANTHROPIC_BASE_URL"
+    ],
+    "harnessConfigFiles": []
+  },
+  {
+    "agent": "codex",
+    "apiKey": [
+      "OPENAI_API_KEY"
+    ],
+    "endpoint": [
+      "CODEX_ENDPOINT",
+      "OPENAI_BASE_URL"
+    ],
+    "harnessConfigFiles": []
+  },
+  {
+    "agent": "fake",
+    "apiKey": [],
+    "endpoint": [],
+    "harnessConfigFiles": []
+  },
+  {
+    "agent": "kimi-code",
+    "apiKey": [
+      "KIMI_API_KEY",
+      "MOONSHOT_API_KEY"
+    ],
+    "endpoint": [
+      "KIMI_BASE_URL",
+      "KIMI_CODE_ENDPOINT",
+      "MOONSHOT_BASE_URL"
+    ],
+    "harnessConfigFiles": []
+  },
+  {
+    "agent": "mistral-vibe",
+    "apiKey": [
+      "MISTRAL_API_KEY"
+    ],
+    "endpoint": [],
+    "harnessConfigFiles": []
+  },
+  {
+    "agent": "opencode",
+    "apiKey": [
+      "OPENCODE_API_KEY",
+      "OPENAI_API_KEY"
+    ],
+    "endpoint": [
+      "OPENCODE_BASE_URL",
+      "OPENCODE_ENDPOINT",
+      "OPENAI_BASE_URL"
+    ],
+    "harnessConfigFiles": [
+      "opencode.json"
+    ]
+  },
+  {
+    "agent": "pi",
+    "apiKey": [
+      "ANTHROPIC_API_KEY"
+    ],
+    "endpoint": [],
+    "harnessConfigFiles": [
+      "pi/models.json"
+    ]
+  },
+  {
+    "agent": "qwen-cli",
+    "apiKey": [
+      "QWEN_CLI_API_KEY"
+    ],
+    "endpoint": [
+      "QWEN_API_ENDPOINT",
+      "OPENAI_BASE_URL"
+    ],
+    "harnessConfigFiles": []
+  }
+]

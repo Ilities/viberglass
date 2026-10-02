@@ -45,6 +45,7 @@ describe("TaskTurnOutcomeService", () => {
         mentioned: [{ id: "tomi", name: "Tomi Laine" }],
         contextUsage: null,
         compacted: false,
+        commit: "abc",
       },
     });
     // The run's Activity names what it produced last, and whom the agent mentioned.

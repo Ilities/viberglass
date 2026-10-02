@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { createLogger, transports } from "winston";
 import { PiCodingAgent } from "../src";
 import type { PiConfig } from "../src";
@@ -95,19 +98,15 @@ function createExecutionContext(): ExecutionContext {
 
 describe("PiCodingAgent", () => {
   describe("CLI invocation", () => {
-    it("invokes pi with --print, --output-format json, and --cwd", async () => {
+    it("invokes pi in print mode with JSON output, in the repo", async () => {
       const agent = new TestPiCodingAgent(createPiConfig());
 
-      await agent.run("Fix the bug", createExecutionContext(), "/tmp/pi-test");
+      await agent.run("- Fix the bug", createExecutionContext(), "/tmp/pi-test");
 
       expect(agent.capturedCommands).toHaveLength(1);
       const cmd = agent.capturedCommands[0];
       expect(cmd.command).toBe("pi");
-      expect(cmd.args).toContain("--print");
-      expect(cmd.args).toContain("Fix the bug");
-      expect(cmd.args).toContain("--output-format");
-      expect(cmd.args).toContain("json");
-      expect(cmd.args).toContain("--cwd");
+      expect(cmd.args).toEqual(["--print", "--mode", "json", "--", "- Fix the bug"]);
       expect(cmd.options.cwd).toBe("/tmp/pi-test/repo");
     });
 
@@ -130,6 +129,17 @@ describe("PiCodingAgent", () => {
       const env = agent.capturedCommands[0]?.options.env;
       expect(env?.PI_CODING_AGENT_DIR).toBe(
         "/tmp/pi-workdir/.harness-config/pi",
+      );
+    });
+
+    it("keeps sessions under ~/.pi rather than the per-job config dir", async () => {
+      const agent = new TestPiCodingAgent(createPiConfig());
+
+      await agent.run("Do task", createExecutionContext(), "/tmp/pi-workdir");
+
+      const env = agent.capturedCommands[0]?.options.env;
+      expect(env?.PI_CODING_AGENT_SESSION_DIR).toBe(
+        path.join(os.homedir(), ".pi", "agent", "sessions"),
       );
     });
 
@@ -180,12 +190,20 @@ describe("PiCodingAgent", () => {
       expect(agent.getAcpEnvironment("/nonexistent")).toEqual({});
     });
 
-    it("sets PI_CODING_AGENT_DIR when the pi harness subdir exists", () => {
+    it("sets PI_CODING_AGENT_DIR and the session dir when the pi harness subdir exists", () => {
       const logger = createLogger({ silent: true, transports: [] });
       const agent = new PiCodingAgent(createPiConfig({ apiKey: "" }), logger);
-      // PI_CODING_AGENT_DIR is only set when /tmp/pi exists — it won't in CI, so assert absent.
-      const env = agent.getAcpEnvironment("/tmp");
-      expect(env.PI_CODING_AGENT_DIR).toBeUndefined();
+      const harnessConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-harness-"));
+      fs.mkdirSync(path.join(harnessConfigDir, "pi"));
+
+      try {
+        expect(agent.getAcpEnvironment(harnessConfigDir)).toEqual({
+          PI_CODING_AGENT_DIR: path.join(harnessConfigDir, "pi"),
+          PI_CODING_AGENT_SESSION_DIR: path.join(os.homedir(), ".pi", "agent", "sessions"),
+        });
+      } finally {
+        fs.rmSync(harnessConfigDir, { recursive: true, force: true });
+      }
     });
   });
 });

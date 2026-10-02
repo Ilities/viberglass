@@ -5,7 +5,15 @@ import type { PlatformSessionEvent } from "../src/acp/types";
 
 const AGENT_SCRIPT = path.join(process.cwd(), "test", "fixtures", "resumingAgent.cjs");
 
-async function runTurn(env: Record<string, string>, acpSessionId?: string, coldStartMessage?: string, compactInstructions?: string) {
+const ASK_SERVER = { name: "viberglass", command: "node", args: ["ask.js"], env: [] };
+
+async function runTurn(
+  env: Record<string, string>,
+  acpSessionId?: string,
+  coldStartMessage?: string,
+  compactInstructions?: string,
+  mcpServers?: Array<typeof ASK_SERVER>,
+) {
   const events: PlatformSessionEvent[] = [];
   const client = new AcpClient(
     [process.execPath, AGENT_SCRIPT],
@@ -15,7 +23,7 @@ async function runTurn(env: Record<string, string>, acpSessionId?: string, coldS
     createLogger({ transports: [new transports.Console({ silent: true })] }),
     10_000,
   );
-  const result = await client.run({ userMessage: "Carry on", acpSessionId, coldStartMessage, compactInstructions });
+  const result = await client.run({ userMessage: "Carry on", acpSessionId, coldStartMessage, compactInstructions, mcpServers });
   const replies = events.filter((event) => event.eventType === "assistant_message").map((event) => String(event.payload.text));
   const progress = events.filter((event) => event.eventType === "progress").map((event) => String(event.payload.text));
   return { result, replies, progress };
@@ -64,6 +72,22 @@ describe("AcpClient sessions", () => {
     expect(result.sessionStart).toEqual({ resumed: false, reason: "failed", detail: "service failure" });
     expect(result.acpSessionId).toBe("sess_new");
     expect(replies).toEqual(["calls: initialize session/load session/prompt session/new session/prompt"]);
+  });
+
+  it("offers the turn's MCP servers to a new session", async () => {
+    const { replies } = await runTurn({ AGENT_SUPPORTS: "", AGENT_ECHO_MCP: "1" }, undefined, undefined, undefined, [ASK_SERVER]);
+    expect(replies).toEqual(["calls: initialize session/new session/prompt | mcp: viberglass=node"]);
+  });
+
+  it("offers them again to a continued session, whose harness starts them anew", async () => {
+    const { replies } = await runTurn(
+      { AGENT_SUPPORTS: "resume", AGENT_KNOWS: "sess_old", AGENT_ECHO_MCP: "1" },
+      "sess_old",
+      undefined,
+      undefined,
+      [ASK_SERVER],
+    );
+    expect(replies).toEqual(["calls: initialize session/resume session/prompt | mcp: viberglass=node"]);
   });
 
   describe("with a prompt for a cold start", () => {

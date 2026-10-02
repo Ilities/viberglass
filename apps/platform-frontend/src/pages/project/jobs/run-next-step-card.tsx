@@ -80,7 +80,7 @@ export function RunNextStepCard({
             owner="agent"
             eyebrow="Agent's move"
             title={`${agentName} is working`}
-            actions={<CancelRunButton label="Cancel run" {...cancel} />}
+            actions={<CancelRunButton label="Cancel run" startedAt={job.processedAt ?? job.createdAt} {...cancel} />}
           >
             {typeof job.progress?.message === 'string' ? `${job.progress.message}. ` : ''}
             You can leave this page; the run carries on and the task shows the result.
@@ -131,7 +131,7 @@ export function RunNextStepCard({
           <HandoffCard
             owner="settled"
             eyebrow="Cancelled"
-            title="This run was cancelled"
+            title={job.cancelledBy ? `${job.cancelledBy.name} cancelled this run` : 'This run was cancelled'}
             actions={
               <>
                 {step.canRunAgain && (
@@ -147,7 +147,7 @@ export function RunNextStepCard({
               </>
             }
           >
-            Nothing from it was saved.
+            What it had written by then, if anything, is kept on the task.
           </HandoffCard>
         )
       case 'superseded':

@@ -6,7 +6,7 @@ function input(overrides: Partial<TaskSuggestionInput> = {}): TaskSuggestionInpu
   return {
     ticket: { status: 'open' },
     documents: { research: doc(''), planning: doc('') },
-    capabilities: { canPost: true, canAsk: true, canAskForCode: false, canEdit: false, canDelete: false },
+    capabilities: { canPost: true, canAsk: true, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false },
     newComments: { research: 0, planning: 0 },
     latestTurn: null,
     agentWorking: false,
@@ -35,14 +35,14 @@ describe('suggestTaskActions', () => {
   })
 
   it('offers the build last to whoever may ask for code, with or without a plan', () => {
-    const coder = { canPost: true, canAsk: true, canAskForCode: true, canEdit: false, canDelete: false }
+    const coder = { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false }
     expect(labels({ capabilities: coder, documents: { research: doc(''), planning: doc('# P') } })).toEqual(['Build it'])
     expect(labels({ capabilities: coder })).toEqual(['Write the research', 'Write the plan', 'Build it'])
     expect(labels({ documents: { research: doc(''), planning: doc('# P') } })).toEqual([])
   })
 
   it('offers nothing to someone who may not ask, and no build retry to someone who may not ask for code', () => {
-    expect(labels({ capabilities: { canPost: true, canAsk: false, canAskForCode: false, canEdit: false, canDelete: false } })).toEqual([])
+    expect(labels({ capabilities: { canPost: true, canAsk: false, canAskForCode: false, canSteer: false, canEdit: false, canDelete: false } })).toEqual([])
     expect(labels({ capabilities: null })).toEqual([])
     expect(labels({ latestTurn: { action: 'code', status: 'failed' } })).not.toContain('Try again')
   })
@@ -73,7 +73,7 @@ describe('countNewComments', () => {
     expect(labels({ ...plan, sinceSummary: { finishedTurns: 2, messages: 9 } })).toEqual([])
     expect(labels({ ...plan, sinceSummary: { finishedTurns: 3, messages: 0 } })).toEqual(['Summarise so far'])
     expect(
-      labels({ ...plan, newComments: { research: 0, planning: 1 }, sinceSummary: { finishedTurns: 0, messages: 10 }, capabilities: { canPost: true, canAsk: true, canAskForCode: true, canEdit: false, canDelete: false } })
+      labels({ ...plan, newComments: { research: 0, planning: 1 }, sinceSummary: { finishedTurns: 0, messages: 10 }, capabilities: { canPost: true, canAsk: true, canAskForCode: true, canSteer: false, canEdit: false, canDelete: false } })
     ).toEqual(['Revise the plan with 1 comment', 'Summarise so far', 'Build it'])
     expect(suggestTaskActions(input({ ...plan, sinceSummary: { finishedTurns: 5, messages: 0 } }))).toContainEqual({ action: 'summarise', label: 'Summarise so far' })
   })

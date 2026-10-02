@@ -6,7 +6,6 @@
  *   tool_call_update     → tool_call_started / tool_call_completed
  *   plan                 → needs_approval
  *   session/request_permission → needs_approval
- *   natural question     → needs_input (heuristic via detectsNeedsInput)
  */
 
 import type { PlatformSessionEvent } from "./types";
@@ -110,13 +109,7 @@ function mapPermissionRequest(params: unknown): PlatformSessionEvent {
   };
 }
 
-function detectsNeedsInput(lastAssistantText: string): boolean {
-  const trimmed = lastAssistantText.trimEnd();
-  return trimmed.length > 0 && trimmed.endsWith("?");
-}
-
 export const defaultAcpEventMapper: AcpEventMapper = {
   mapSessionUpdate,
   mapPermissionRequest,
-  detectsNeedsInput,
 };

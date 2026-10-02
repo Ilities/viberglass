@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { JobService } from "../../services/JobService";
+import { validateCallbackToken as tokenMatches } from "../../services/job/JobCallbackService";
 import { createChildLogger } from "../../config/logger";
 
 const logger = createChildLogger({ middleware: "callbackTokenValidation" });
@@ -27,7 +27,6 @@ declare global {
   }
 }
 
-const jobService = new JobService();
 
 /**
  * Middleware to validate callback token for worker callbacks
@@ -64,7 +63,7 @@ export async function validateCallbackToken(
   }
 
   try {
-    const isValid = await jobService.validateCallbackToken(jobId, callbackToken);
+    const isValid = await tokenMatches(jobId, callbackToken);
 
     if (!isValid) {
       logger.warn("Invalid callback token", { jobId });

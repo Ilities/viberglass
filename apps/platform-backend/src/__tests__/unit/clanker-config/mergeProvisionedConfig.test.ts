@@ -25,7 +25,7 @@ function buildBaseClanker(overrides: Partial<Clanker>): Clanker {
     deploymentConfig: null,
     configFiles: [],
     agent: "codex",
-    secretIds: [],
+    secretBindings: [],
     status: "inactive",
     statusMessage: null,
     createdAt: "2026-02-20T00:00:00.000Z",

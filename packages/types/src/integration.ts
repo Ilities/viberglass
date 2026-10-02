@@ -111,6 +111,8 @@ export interface CreateIntegrationCredentialRequest {
   secretLocation?: SecretLocation
   secretValue?: string
   secretPath?: string | null
+  /** For `env` secrets: the server environment variable holding the value. */
+  sourceEnvVar?: string | null
   isDefault?: boolean
   description?: string | null
   expiresAt?: string | null

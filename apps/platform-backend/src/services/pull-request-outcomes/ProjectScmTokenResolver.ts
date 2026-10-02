@@ -11,7 +11,7 @@ export class ProjectScmTokenResolver {
   constructor(
     private readonly scmConfigs: Pick<ProjectScmConfigDAO, "getByProjectId">,
     private readonly credentials: Pick<IntegrationCredentialDAO, "getById" | "getDefaultForIntegration">,
-    private readonly secrets: Pick<SecretResolutionService, "resolveSecretsForClanker">,
+    private readonly secrets: Pick<SecretResolutionService, "resolveSecretValue">,
   ) {}
 
   async resolve(projectId: string): Promise<string | null> {
@@ -23,9 +23,7 @@ export class ProjectScmTokenResolver {
       : await this.credentials.getDefaultForIntegration(scmConfig.integrationId);
     if (!credential || credential.credentialType !== "token") return null;
 
-    const values = Object.values(
-      await this.secrets.resolveSecretsForClanker([credential.secretId]),
-    );
-    return values[0]?.trim() ? values[0] : null;
+    const value = await this.secrets.resolveSecretValue(credential.secretId);
+    return value?.trim() ? value : null;
   }
 }

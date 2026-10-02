@@ -3,7 +3,7 @@ import { AgentSessionDAO, type AgentSession } from "../../persistence/agentSessi
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import { AgentTurnDAO, type AgentTurn } from "../../persistence/agentSession/AgentTurnDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
-import { AGENT_SESSION_EVENT_TYPE, AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
+import { AGENT_SESSION_EVENT_TYPE, AGENT_SESSION_STATUS, AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
 import { agentSessionMutex } from "../agentSession/AgentSessionMutex";
 import { SessionTurnContinuationService } from "../agentSession/SessionTurnContinuationService";
 import { TASK_TURN_ERROR_CODE, TaskTurnError } from "../errors/TaskTurnError";
@@ -17,11 +17,15 @@ export interface AskInput {
   message: string;
   action?: TaskTurnAction;
   agentId?: string;
+  /** The thread message this asks with, when it's posted already (an answer to the agent's question). */
+  postedMessageId?: string;
+  /** Asked by a webhook set to build on its own, with nobody asking. */
+  fromWebhook?: boolean;
 }
 
 export interface AskResult {
   session: AgentSession;
-  /** The turn answering the message: a new one, or the one already running, which the message waits for. */
+  /** The turn answering the message: a new one, the one already running, which the message waits for, or, while the agent is paused, the message itself. */
   currentTurn: AgentTurn;
   job: { id: string | null; status: string };
   /** The thread message it posted; null when nobody asked (a system start). */
@@ -74,9 +78,9 @@ export class TaskTurnService {
     if (!text) throw new TaskTurnError(TASK_TURN_ERROR_CODE.NOTHING_ASKED, "Write what you'd like the agent to do.");
 
     // Asking is the agreement: nothing has to be approved first, but only some people may ask for code.
-    await this.deps.policy.assertCanAsk(actorId, ticket.id, action);
+    await this.deps.policy.assertCanAsk(actorId, ticket.id, action, { fromWebhook: input.fromWebhook });
     const clankerId = await this.deps.agents.resolve(ticket.id, { agentId: input.agentId, message: text });
-    const messageId = actorId ? await this.deps.discussion.create(ticket.id, actorId, text) : null;
+    const messageId = input.postedMessageId ?? (actorId ? await this.deps.discussion.create(ticket.id, actorId, text) : null);
 
     // Locked per task and agent so two asks can't each open a session.
     return agentSessionMutex.runExclusive(`task:${ticket.id}:${clankerId}`, async () => {
@@ -90,6 +94,10 @@ export class TaskTurnService {
         const running = await this.deps.turns.getInFlightAssistantTurn(session.id);
         if (running) {
           return { session, currentTurn: running, job: { id: running.jobId, status: "queued" }, messageId };
+        }
+        // Someone paused the agent: the ask waits for them to resume it.
+        if (session.status === AGENT_SESSION_STATUS.PAUSED) {
+          return { session, currentTurn: turn, job: { id: null, status: "paused" }, messageId };
         }
         const launched = await this.deps.continuation.launchForPendingMessages(session);
         if (!launched) throw new Error(`Turn ${turn.id} was queued but not launched`);

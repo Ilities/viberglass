@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps, ReactElement } from 'react'
 import { ShortcutInboundWebhookSection } from './ShortcutInboundWebhookSection'
-import { ShortcutOutboundWebhookSection } from './ShortcutOutboundWebhookSection'
 
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>)
@@ -44,29 +43,6 @@ function createInboundProps(
     onSelectInboundWebhook: jest.fn(),
     onToggleInboundEvent: jest.fn(),
     onToggleSecretVisibility: jest.fn(),
-    ...overrides,
-  }
-}
-
-function createOutboundProps(
-  overrides: Partial<ComponentProps<typeof ShortcutOutboundWebhookSection>> = {}
-): ComponentProps<typeof ShortcutOutboundWebhookSection> {
-  return {
-    isSavingWebhook: false,
-    outboundApiToken: '',
-    outboundWebhook: {
-      id: 'outbound-1',
-      provider: 'shortcut',
-      events: ['job_started', 'job_ended'],
-      active: true,
-      hasApiToken: true,
-      providerProjectId: '22',
-      createdAt: '2026-02-10T00:00:00.000Z',
-      updatedAt: '2026-02-10T00:00:00.000Z',
-    },
-    projectMapping: '22',
-    onOutboundApiTokenChange: jest.fn(),
-    onSaveOutboundWebhook: jest.fn(),
     ...overrides,
   }
 }
@@ -214,23 +190,5 @@ describe('Shortcut webhook sections', () => {
 
     await user.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onRetryDelivery).toHaveBeenCalledWith('delivery-1')
-  })
-
-  it('allows outbound save when token controls are available', async () => {
-    const user = userEvent.setup()
-    const onSaveOutboundWebhook = jest.fn()
-
-    renderWithTheme(
-      <ShortcutOutboundWebhookSection
-        {...createOutboundProps({
-          onSaveOutboundWebhook,
-        })}
-      />
-    )
-
-    const saveButton = screen.getByRole('button', { name: 'Save feedback settings' })
-    expect(saveButton).toBeEnabled()
-    await user.click(saveButton)
-    expect(onSaveOutboundWebhook).toHaveBeenCalledTimes(1)
   })
 })

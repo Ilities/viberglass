@@ -98,7 +98,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     });
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-1",
-      direction: "inbound",
     });
     mockWebhookDeliveryDAO.listDeliveriesByConfig.mockResolvedValue([
       {
@@ -153,7 +152,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     });
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-1",
-      direction: "inbound",
     });
     mockWebhookDeliveryDAO.listDeliveriesByConfig.mockResolvedValue([]);
 
@@ -181,7 +179,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     });
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-1",
-      direction: "inbound",
     });
 
     const response = await request(app)
@@ -205,7 +202,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     });
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-1",
-      direction: "inbound",
     });
     mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockResolvedValue({
       id: "delivery-row-1",
@@ -272,7 +268,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     });
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-1",
-      direction: "inbound",
     });
     mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockResolvedValue({
       id: "delivery-row-1",
@@ -307,7 +302,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     });
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-1",
-      direction: "inbound",
     });
     mockWebhookDeliveryDAO.getDeliveryByIdForConfig.mockResolvedValue({
       id: "delivery-row-1",
@@ -345,333 +339,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     );
   });
 
-  it("lists outbound configs independently for multiple same-provider integration instances", async () => {
-    mockIntegrationDAO.getIntegration.mockImplementation(
-      async (integrationId: string) => {
-        if (integrationId === "int-1") {
-          return {
-            id: "int-1",
-            system: "github",
-            values: { owner: "acme", repo: "one" },
-          };
-        }
-        if (integrationId === "int-2") {
-          return {
-            id: "int-2",
-            system: "github",
-            values: { owner: "acme", repo: "two" },
-          };
-        }
-        return null;
-      },
-    );
-    mockWebhookConfigDAO.listByIntegrationId.mockImplementation(
-      async (integrationId: string) => {
-        if (integrationId === "int-1") {
-          return [
-            {
-              id: "outbound-1",
-              provider: "github",
-              allowedEvents: ["job_started"],
-              active: true,
-              apiTokenEncrypted: "token-1",
-              providerProjectId: "acme/one",
-              createdAt: new Date("2026-02-09T10:00:00.000Z"),
-              updatedAt: new Date("2026-02-09T10:01:00.000Z"),
-            },
-          ];
-        }
-
-        return [
-          {
-            id: "outbound-2",
-            provider: "github",
-            allowedEvents: ["job_ended"],
-            active: true,
-            apiTokenEncrypted: "token-2",
-            providerProjectId: "acme/two",
-            createdAt: new Date("2026-02-09T10:00:00.000Z"),
-            updatedAt: new Date("2026-02-09T10:01:00.000Z"),
-          },
-        ];
-      },
-    );
-
-    const first = await request(app)
-      .get("/api/integrations/int-1/webhooks/outbound")
-      .expect(200);
-    const second = await request(app)
-      .get("/api/integrations/int-2/webhooks/outbound")
-      .expect(200);
-
-    expect(first.body.data).toEqual([
-      expect.objectContaining({ id: "outbound-1" }),
-    ]);
-    expect(second.body.data).toEqual([
-      expect.objectContaining({ id: "outbound-2" }),
-    ]);
-  });
-
-  it("lists outbound delivery history using the same delivery contract", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-1",
-      system: "github",
-    });
-    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
-      id: "outbound-1",
-      direction: "outbound",
-    });
-    mockWebhookDeliveryDAO.listDeliveriesByConfig.mockResolvedValue([
-      {
-        id: "delivery-outbound-1",
-        provider: "github",
-        webhookConfigId: "outbound-1",
-        deliveryId: "delivery-1",
-        eventType: "job_started",
-        status: "succeeded",
-        errorMessage: null,
-        ticketId: "ticket-1",
-        createdAt: new Date("2026-02-09T10:00:00.000Z"),
-        processedAt: new Date("2026-02-09T10:00:01.000Z"),
-      },
-    ]);
-
-    const response = await request(app)
-      .get(
-        "/api/integrations/int-1/webhooks/outbound/outbound-1/deliveries?status=succeeded",
-      )
-      .expect(200);
-
-    expect(mockWebhookDeliveryDAO.listDeliveriesByConfig).toHaveBeenCalledWith(
-      "outbound-1",
-      {
-        statuses: ["succeeded"],
-        limit: 50,
-        offset: 0,
-        sortOrder: "desc",
-      },
-    );
-    expect(response.body.data).toEqual([
-      expect.objectContaining({
-        id: "delivery-outbound-1",
-        status: "succeeded",
-        retryable: false,
-      }),
-    ]);
-  });
-
-  it("enforces deterministic single outbound config creation per integration/provider", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-1",
-      system: "github",
-      values: { owner: "acme", repo: "one" },
-    });
-    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([
-      {
-        id: "outbound-1",
-        provider: "github",
-      },
-    ]);
-
-    const response = await request(app)
-      .post("/api/integrations/int-1/webhooks/outbound")
-      .send({ events: ["job_started"] })
-      .expect(409);
-
-    expect(response.body).toEqual({
-      error:
-        "Outbound webhook configuration already exists for this integration/provider",
-    });
-    expect(mockWebhookConfigDAO.createConfig).not.toHaveBeenCalled();
-  });
-
-  it("forces Shortcut outbound events to include both job lifecycle updates", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-shortcut",
-      system: "shortcut",
-      values: {},
-    });
-    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([]);
-    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
-    mockWebhookConfigDAO.createConfig.mockResolvedValue({
-      id: "outbound-shortcut-1",
-      provider: "shortcut",
-      allowedEvents: ["job_started", "job_ended"],
-      active: true,
-      apiTokenEncrypted: "token-1",
-      providerProjectId: "123",
-      projectId: null,
-      createdAt: new Date("2026-02-11T10:00:00.000Z"),
-      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
-    });
-
-    await request(app)
-      .post("/api/integrations/int-shortcut/webhooks/outbound")
-      .send({
-        events: ["job_started"],
-        providerProjectId: "123",
-        apiToken: "shortcut-token",
-      })
-      .expect(201);
-
-    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: "shortcut",
-        direction: "outbound",
-        allowedEvents: ["job_started", "job_ended"],
-        providerProjectId: "123",
-      }),
-    );
-  });
-
-  it("forces Jira outbound events to include both job lifecycle updates", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-jira",
-      system: "jira",
-      values: {},
-    });
-    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([]);
-    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
-    mockWebhookConfigDAO.createConfig.mockResolvedValue({
-      id: "outbound-jira-1",
-      provider: "jira",
-      allowedEvents: ["job_started", "job_ended"],
-      active: true,
-      apiTokenEncrypted: "token-1",
-      providerProjectId: "OPS",
-      projectId: null,
-      createdAt: new Date("2026-02-11T10:00:00.000Z"),
-      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
-    });
-
-    await request(app)
-      .post("/api/integrations/int-jira/webhooks/outbound")
-      .send({
-        events: ["job_started"],
-        providerProjectId: "OPS",
-        apiToken: "jira-token",
-      })
-      .expect(201);
-
-    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: "jira",
-        direction: "outbound",
-        allowedEvents: ["job_started", "job_ended"],
-        providerProjectId: "OPS",
-      }),
-    );
-  });
-
-  it("forces GitHub outbound events to include both job lifecycle updates", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-github",
-      system: "github",
-      values: {},
-    });
-    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([]);
-    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
-    mockWebhookConfigDAO.createConfig.mockResolvedValue({
-      id: "outbound-github-1",
-      provider: "github",
-      allowedEvents: ["job_started", "job_ended"],
-      active: true,
-      apiTokenEncrypted: "token-1",
-      providerProjectId: "acme/repo",
-      projectId: null,
-      createdAt: new Date("2026-02-11T10:00:00.000Z"),
-      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
-    });
-
-    await request(app)
-      .post("/api/integrations/int-github/webhooks/outbound")
-      .send({
-        events: ["job_started"],
-        providerProjectId: "acme/repo",
-        apiToken: "github-token",
-      })
-      .expect(201);
-
-    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: "github",
-        direction: "outbound",
-        allowedEvents: ["job_started", "job_ended"],
-        providerProjectId: "acme/repo",
-      }),
-    );
-  });
-
-  it("forces GitHub outbound update to keep both lifecycle events enabled", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-github",
-      system: "github",
-      values: {},
-    });
-    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
-      id: "outbound-github-1",
-      provider: "github",
-      direction: "outbound",
-      active: true,
-      allowedEvents: ["job_started", "job_ended"],
-      apiTokenEncrypted: "token-1",
-      providerProjectId: "acme/repo",
-      projectId: null,
-      outboundTargetConfig: null,
-      createdAt: new Date("2026-02-11T10:00:00.000Z"),
-      updatedAt: new Date("2026-02-11T10:01:00.000Z"),
-    });
-    mockWebhookConfigDAO.updateConfig.mockResolvedValue(undefined);
-    mockWebhookConfigDAO.getConfigById.mockResolvedValue({
-      id: "outbound-github-1",
-      provider: "github",
-      active: true,
-      allowedEvents: ["job_started", "job_ended"],
-      apiTokenEncrypted: "token-1",
-      providerProjectId: "acme/repo",
-      projectId: null,
-      createdAt: new Date("2026-02-11T10:00:00.000Z"),
-      updatedAt: new Date("2026-02-11T10:02:00.000Z"),
-    });
-
-    await request(app)
-      .put("/api/integrations/int-github/webhooks/outbound/outbound-github-1")
-      .send({
-        events: ["job_started"],
-      })
-      .expect(200);
-
-    expect(mockWebhookConfigDAO.updateConfig).toHaveBeenCalledWith(
-      "outbound-github-1",
-      expect.objectContaining({
-        allowedEvents: ["job_started", "job_ended"],
-      }),
-    );
-  });
-
-  it("rejects deleting GitHub outbound feedback configuration", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-github",
-      system: "github",
-      values: {},
-    });
-    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
-      id: "outbound-github-1",
-      provider: "github",
-      direction: "outbound",
-      active: true,
-    });
-
-    const response = await request(app)
-      .delete("/api/integrations/int-github/webhooks/outbound/outbound-github-1")
-      .expect(400);
-
-    expect(response.body).toEqual({
-      error: "GitHub outbound webhook is required and cannot be removed",
-    });
-    expect(mockWebhookConfigDAO.deleteConfig).not.toHaveBeenCalled();
-  });
-
   it("accepts GitHub inbound label-gated auto-execute policy and repository mapping", async () => {
     mockIntegrationDAO.getIntegration.mockResolvedValue({
       id: "int-github",
@@ -682,7 +349,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     mockWebhookConfigDAO.createConfig.mockResolvedValue({
       id: "cfg-github-1",
       provider: "github",
-      direction: "inbound",
       allowedEvents: ["issues.opened"],
       autoExecute: true,
       active: true,
@@ -718,7 +384,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: "github",
-        direction: "inbound",
         providerProjectId: "acme/repo",
         projectId: "project-1",
         labelMappings: {
@@ -750,278 +415,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
         },
       }),
     );
-  });
-
-  it("rejects deleting Shortcut outbound feedback configuration", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-shortcut",
-      system: "shortcut",
-      values: {},
-    });
-    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
-      id: "outbound-shortcut-1",
-      provider: "shortcut",
-      direction: "outbound",
-      active: true,
-    });
-
-    const response = await request(app)
-      .delete("/api/integrations/int-shortcut/webhooks/outbound/outbound-shortcut-1")
-      .expect(400);
-
-    expect(response.body).toEqual({
-      error: "Shortcut outbound webhook is required and cannot be removed",
-    });
-    expect(mockWebhookConfigDAO.deleteConfig).not.toHaveBeenCalled();
-  });
-
-  it("rejects deleting Jira outbound feedback configuration", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-jira",
-      system: "jira",
-      values: {},
-    });
-    mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
-      id: "outbound-jira-1",
-      provider: "jira",
-      direction: "outbound",
-      active: true,
-    });
-
-    const response = await request(app)
-      .delete("/api/integrations/int-jira/webhooks/outbound/outbound-jira-1")
-      .expect(400);
-
-    expect(response.body).toEqual({
-      error: "Jira outbound webhook is required and cannot be removed",
-    });
-    expect(mockWebhookConfigDAO.deleteConfig).not.toHaveBeenCalled();
-  });
-
-  it("lists multiple custom outbound targets for a custom integration", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-custom",
-      system: "custom",
-      values: {},
-    });
-    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([
-      {
-        id: "outbound-custom-2",
-        provider: "custom",
-        allowedEvents: ["job_started"],
-        active: false,
-        apiTokenEncrypted: null,
-        providerProjectId: null,
-        outboundTargetConfig: {
-          name: "Slack sink",
-          targetUrl: "https://hooks.example.com/slack",
-          method: "POST",
-          headers: { "x-env": "dev" },
-          auth: {
-            type: "header",
-            headerName: "x-token",
-            headerValue: "secret",
-          },
-          signingSecret: "signing-secret",
-          signatureAlgorithm: "sha256",
-          retryPolicy: { maxAttempts: 3, backoffMs: 250, maxBackoffMs: 2000 },
-        },
-        createdAt: new Date("2026-02-09T10:00:00.000Z"),
-        updatedAt: new Date("2026-02-09T10:01:00.000Z"),
-      },
-      {
-        id: "outbound-custom-1",
-        provider: "custom",
-        allowedEvents: ["job_ended"],
-        active: true,
-        apiTokenEncrypted: null,
-        providerProjectId: null,
-        outboundTargetConfig: {
-          name: "Audit sink",
-          targetUrl: "https://hooks.example.com/audit",
-          method: "POST",
-          headers: {},
-          auth: { type: "none" },
-          signatureAlgorithm: "sha256",
-          retryPolicy: { maxAttempts: 1, backoffMs: 250, maxBackoffMs: 2000 },
-        },
-        createdAt: new Date("2026-02-09T09:00:00.000Z"),
-        updatedAt: new Date("2026-02-09T09:01:00.000Z"),
-      },
-      {
-        id: "outbound-github-noise",
-        provider: "github",
-        allowedEvents: ["job_ended"],
-        active: true,
-        apiTokenEncrypted: "token-1",
-        providerProjectId: "acme/repo",
-        createdAt: new Date("2026-02-09T08:00:00.000Z"),
-        updatedAt: new Date("2026-02-09T08:01:00.000Z"),
-      },
-    ]);
-
-    const response = await request(app)
-      .get("/api/integrations/int-custom/webhooks/outbound")
-      .expect(200);
-
-    expect(mockWebhookConfigDAO.listByIntegrationId).toHaveBeenCalledWith(
-      "int-custom",
-      {
-        direction: "outbound",
-        activeOnly: false,
-      },
-    );
-    expect(response.body.data).toEqual([
-      expect.objectContaining({
-        id: "outbound-custom-2",
-        provider: "custom",
-        name: "Slack sink",
-        targetUrl: "https://hooks.example.com/slack",
-        hasSigningSecret: true,
-      }),
-      expect.objectContaining({
-        id: "outbound-custom-1",
-        provider: "custom",
-        name: "Audit sink",
-        targetUrl: "https://hooks.example.com/audit",
-        hasSigningSecret: false,
-      }),
-    ]);
-  });
-
-  it("creates multiple custom outbound targets without single-config restriction", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-custom",
-      system: "custom",
-      values: {},
-    });
-    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([
-      {
-        id: "outbound-existing",
-        provider: "custom",
-      },
-    ]);
-    mockProjectLinkDAO.getIntegrationProjects.mockResolvedValue([]);
-    mockWebhookConfigDAO.createConfig
-      .mockResolvedValueOnce({
-        id: "outbound-custom-1",
-        provider: "custom",
-        allowedEvents: ["job_started"],
-        active: true,
-        apiTokenEncrypted: null,
-        providerProjectId: null,
-        outboundTargetConfig: {
-          name: "Slack sink",
-          targetUrl: "https://hooks.example.com/slack",
-          method: "POST",
-          headers: {},
-          auth: { type: "none" },
-          signatureAlgorithm: "sha256",
-          retryPolicy: { maxAttempts: 1, backoffMs: 250, maxBackoffMs: 2000 },
-        },
-        createdAt: new Date("2026-02-09T10:00:00.000Z"),
-        updatedAt: new Date("2026-02-09T10:01:00.000Z"),
-      })
-      .mockResolvedValueOnce({
-        id: "outbound-custom-2",
-        provider: "custom",
-        allowedEvents: ["job_ended"],
-        active: true,
-        apiTokenEncrypted: null,
-        providerProjectId: null,
-        outboundTargetConfig: {
-          name: "Audit sink",
-          targetUrl: "https://hooks.example.com/audit",
-          method: "PATCH",
-          headers: {},
-          auth: { type: "none" },
-          signatureAlgorithm: "sha256",
-          retryPolicy: { maxAttempts: 2, backoffMs: 300, maxBackoffMs: 2000 },
-        },
-        createdAt: new Date("2026-02-09T11:00:00.000Z"),
-        updatedAt: new Date("2026-02-09T11:01:00.000Z"),
-      });
-
-    const first = await request(app)
-      .post("/api/integrations/int-custom/webhooks/outbound")
-      .send({
-        name: "Slack sink",
-        targetUrl: "https://hooks.example.com/slack",
-        events: ["job_started"],
-      })
-      .expect(201);
-
-    const second = await request(app)
-      .post("/api/integrations/int-custom/webhooks/outbound")
-      .send({
-        name: "Audit sink",
-        targetUrl: "https://hooks.example.com/audit",
-        method: "PATCH",
-        events: ["job_ended"],
-        retryPolicy: { maxAttempts: 2, backoffMs: 300, maxBackoffMs: 2000 },
-      })
-      .expect(201);
-
-    expect(mockWebhookConfigDAO.createConfig).toHaveBeenCalledTimes(2);
-    expect(mockWebhookConfigDAO.createConfig).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        provider: "custom",
-        direction: "outbound",
-        integrationId: "int-custom",
-        outboundTargetConfig: expect.objectContaining({
-          name: "Slack sink",
-          targetUrl: "https://hooks.example.com/slack",
-        }),
-      }),
-    );
-    expect(mockWebhookConfigDAO.createConfig).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        provider: "custom",
-        direction: "outbound",
-        integrationId: "int-custom",
-        outboundTargetConfig: expect.objectContaining({
-          name: "Audit sink",
-          targetUrl: "https://hooks.example.com/audit",
-          method: "PATCH",
-        }),
-      }),
-    );
-    expect(first.body.data).toEqual(
-      expect.objectContaining({
-        id: "outbound-custom-1",
-        name: "Slack sink",
-      }),
-    );
-    expect(second.body.data).toEqual(
-      expect.objectContaining({
-        id: "outbound-custom-2",
-        name: "Audit sink",
-        method: "PATCH",
-      }),
-    );
-  });
-
-  it("rejects custom outbound target creation when target URL is missing", async () => {
-    mockIntegrationDAO.getIntegration.mockResolvedValue({
-      id: "int-custom",
-      system: "custom",
-      values: {},
-    });
-    mockWebhookConfigDAO.listByIntegrationId.mockResolvedValue([]);
-
-    const response = await request(app)
-      .post("/api/integrations/int-custom/webhooks/outbound")
-      .send({
-        name: "Invalid target",
-      })
-      .expect(400);
-
-    expect(response.body).toEqual({
-      error: "Custom outbound target URL is required",
-    });
-    expect(mockWebhookConfigDAO.createConfig).not.toHaveBeenCalled();
   });
 
   it("lists multiple custom inbound webhook configs for the same integration", async () => {
@@ -1069,10 +462,7 @@ describe("integration webhook routes (instance/config-scoped)", () => {
 
     expect(mockWebhookConfigDAO.listByIntegrationId).toHaveBeenCalledWith(
       "int-custom",
-      {
-        direction: "inbound",
-        activeOnly: false,
-      },
+      { activeOnly: false },
     );
     expect(response.body.data).toEqual([
       expect.objectContaining({
@@ -1141,7 +531,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       1,
       expect.objectContaining({
         provider: "custom",
-        direction: "inbound",
         integrationId: "int-custom",
         allowedEvents: ["ticket_created"],
       }),
@@ -1150,7 +539,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
       2,
       expect.objectContaining({
         provider: "custom",
-        direction: "inbound",
         integrationId: "int-custom",
         allowedEvents: ["ticket_created"],
       }),
@@ -1179,7 +567,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-custom-1",
       provider: "custom",
-      direction: "inbound",
       active: true,
     });
     mockWebhookConfigDAO.updateConfig.mockResolvedValue(undefined);
@@ -1223,7 +610,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-custom-1",
       provider: "custom",
-      direction: "inbound",
       active: true,
     });
     mockWebhookDeliveryDAO.listDeliveriesByConfig.mockResolvedValue([
@@ -1273,7 +659,6 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     mockWebhookConfigDAO.getByIntegrationAndConfigId.mockResolvedValue({
       id: "cfg-custom-1",
       provider: "custom",
-      direction: "inbound",
       active: true,
     });
     mockWebhookConfigDAO.deleteConfig.mockResolvedValue(true);
@@ -1287,16 +672,16 @@ describe("integration webhook routes (instance/config-scoped)", () => {
     );
   });
 
-  it("does not expose removed legacy compatibility delivery and outbound routes", async () => {
+  it("does not expose removed delivery or outbound webhook routes", async () => {
     await request(app).get("/api/integrations/int-1/deliveries").expect(404);
     await request(app)
       .post("/api/integrations/int-1/deliveries/delivery-row-1/retry")
       .expect(404);
     await request(app)
-      .put("/api/integrations/int-1/webhooks/outbound")
+      .get("/api/integrations/int-1/webhooks/outbound")
       .expect(404);
     await request(app)
-      .delete("/api/integrations/int-1/webhooks/outbound")
+      .post("/api/integrations/int-1/webhooks/outbound")
       .expect(404);
   });
 });

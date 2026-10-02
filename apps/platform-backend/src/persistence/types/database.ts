@@ -65,6 +65,7 @@ export interface ProjectsTable {
   next_task_number: Generated<number>;
   default_owner_id: string | null;
   default_reviewer_ids: Generated<string[]>;
+  question_reminder_hours: Generated<number>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -116,6 +117,9 @@ export interface TicketsTable {
   workflow_phase: Generated<"research" | "planning" | "execution">;
   archived_at: Timestamp | null;
   pull_request_url: string | null;
+  taken_over_by: string | null;
+  taken_over_at: Timestamp | null;
+  task_branch: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -160,6 +164,7 @@ export interface IntegrationCredentialsTable {
   is_default: Generated<boolean>;
   description: string | null;
   expires_at: Timestamp | null;
+  expiry_warned_at: Timestamp | null;
   last_used_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
@@ -229,7 +234,7 @@ export interface ClankersTable {
   deployment_strategy_id: string | null;
   deployment_config: Json | null;
   agent: string | null;
-  secret_ids: Generated<Json>;
+  secret_bindings: Generated<Json>;
   status: Generated<"active" | "inactive" | "deploying" | "failed">;
   status_message: string | null;
   created_at: Generated<Timestamp>;
@@ -251,6 +256,9 @@ export interface JobsTable {
   error_message: string | null;
   created_at: Generated<Timestamp>;
   started_at: Timestamp | null;
+  worker_type: string | null;
+  worker_execution_id: string | null;
+  cancelled_by: string | null;
   finished_at: Timestamp | null;
   ticket_id: string | null;
   clanker_id: string | null;
@@ -258,7 +266,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"research" | "planning" | "execution" | "reply" | "claw">;
+  job_kind: Generated<"research" | "planning" | "execution" | "reply" | "claw" | "agent_login">;
   agent_session_id: string | null;
   agent_turn_id: string | null;
 }
@@ -357,18 +365,15 @@ export interface WebhookProviderConfigsTable {
   id: Generated<string>;
   project_id: string | null;
   provider: "github" | "jira" | "shortcut" | "custom";
-  direction: Generated<"inbound" | "outbound">;
   provider_project_id: string | null;
   integration_id: string | null;
   secret_location: "database" | "ssm" | "env";
   secret_path: string | null;
   webhook_secret_encrypted: string | null;
-  api_token_encrypted: string | null;
   allowed_events: Generated<string[]>;
   auto_execute: Generated<boolean>;
   bot_username: string | null;
   label_mappings: Generated<JsonObject>;
-  outbound_target_config: JsonObject | null;
   active: Generated<boolean>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
@@ -395,6 +400,9 @@ export interface SecretsTable {
   secret_location: "env" | "database" | "ssm";
   secret_path: string | null;
   secret_value_encrypted: string | null;
+  source_env_var: string | null;
+  provider: string | null;
+  purpose: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -582,7 +590,7 @@ export interface ClawTaskTemplatesTable {
   clanker_id: string;
   task_instructions: string;
   config: Json;
-  secret_ids: Generated<Json>;
+  secret_bindings: Generated<Json>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -697,17 +705,16 @@ export interface AgentPendingRequestsTable {
   response_json: Json | null;
   resolved_by: string | null;
   resolved_at: Timestamp | null;
+  addressee_user_id: string | null;
+  addressee_role: string | null;
+  blocking: Generated<boolean>;
+  options_json: Json | null;
+  due_at: Timestamp | null;
+  reminded_at: Timestamp | null;
+  escalated_at: Timestamp | null;
+  answer_message_id: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
-}
-
-export interface ChatSessionThreadsTable {
-  id: Generated<string>;
-  session_id: string;
-  thread_id: string;
-  channel_id: string;
-  adapter_name: string;
-  created_at: Generated<Timestamp>;
 }
 
 export interface ChatTicketThreadsTable {
@@ -716,8 +723,6 @@ export interface ChatTicketThreadsTable {
   thread_id: string;
   channel_id: string;
   adapter_name: string;
-  clanker_id: string;
-  mode: string;
   created_at: Generated<Timestamp>;
 }
 
@@ -779,7 +784,6 @@ export interface Database {
   agent_session_events: AgentSessionEventsTable;
   agent_pending_requests: AgentPendingRequestsTable;
   prompt_templates: PromptTemplatesTable;
-  chat_session_threads: ChatSessionThreadsTable;
   chat_ticket_threads: ChatTicketThreadsTable;
   api_tokens: ApiTokensTable;
 }

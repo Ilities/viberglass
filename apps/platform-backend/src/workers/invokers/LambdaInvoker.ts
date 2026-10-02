@@ -10,7 +10,6 @@ import type { JobData } from "../../types/Job";
 import { WorkerInvoker, InvocationResult } from "../WorkerInvoker";
 import { WorkerError, ErrorClassification } from "../errors/WorkerError";
 import { createChildLogger } from "../../config/logger";
-import { SecretResolutionService } from "../../services/SecretResolutionService";
 import { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { resolveClankerConfig } from "../../clanker-config";
@@ -43,14 +42,12 @@ interface LambdaInvokeContext {
 export class LambdaInvoker implements WorkerInvoker {
   readonly name = "LambdaInvoker";
   private client: LambdaClient;
-  private secretResolutionService: SecretResolutionService;
   private credentialRequirementsService: CredentialRequirementsService;
 
   constructor(config?: { region?: string }) {
     this.client = new LambdaClient({
       region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
-    this.secretResolutionService = new SecretResolutionService();
     this.credentialRequirementsService = new CredentialRequirementsService();
   }
 
@@ -340,10 +337,6 @@ export class LambdaInvoker implements WorkerInvoker {
     clanker: Clanker,
     project?: Project,
   ): Promise<Record<string, unknown>> {
-    const secretMetadata =
-      await this.secretResolutionService.getSecretMetadataForClanker(
-        clanker.secretIds || [],
-      );
     const requiredCredentials =
       await this.credentialRequirementsService.getRequiredCredentialsForClanker(
         clanker,
@@ -364,7 +357,6 @@ export class LambdaInvoker implements WorkerInvoker {
       instructionFiles: job.context?.instructionFiles ?? [],
       deploymentConfig: clanker.deploymentConfig,
       agent: clanker.agent || DEFAULT_AGENT_TYPE,
-      secrets: secretMetadata,
       requiredCredentials,
       callbackToken: job.callbackToken,
       projectConfig: buildWorkerProjectConfig(project),

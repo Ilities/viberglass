@@ -33,7 +33,7 @@ jest.mock("fs", () => ({
 // Mock SecretResolutionService
 jest.mock("../../../../services/SecretResolutionService", () => ({
   SecretResolutionService: jest.fn().mockImplementation(() => ({
-    resolveSecretsForClanker: jest.fn().mockResolvedValue({}),
+    resolveBindings: jest.fn().mockResolvedValue({}),
   })),
 }));
 
@@ -84,7 +84,7 @@ describe("DockerInvoker", () => {
       status: "active",
       agent: "kimi-code",
       configFiles: [],
-      secretIds: [],
+      secretBindings: [],
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {

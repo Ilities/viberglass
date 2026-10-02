@@ -14,7 +14,7 @@ import type { JobResult } from "./types";
 import { failingWith } from "./JobFailureError";
 import type { JobRunnerParams } from "./jobPipeline";
 import { resolvePullRequestDescription, resolvePullRequestTitle } from "./pullRequestContent";
-import { prepareTaskBranch, type TaskBranch } from "./taskBranch";
+import type { TaskBranch } from "./taskBranch";
 
 export interface DeliveryInput {
   repoDir: string;
@@ -22,7 +22,7 @@ export interface DeliveryInput {
   changedFiles: string[];
   testsWereRequested: boolean;
   /** The task's branch, checked out at setup when an earlier build pushed it. */
-  taskBranch: TaskBranch | undefined;
+  taskBranch: TaskBranch;
 }
 
 /** Commits the turn's code changes to the task's branch, pushes it, and opens or finds its pull request. */
@@ -37,7 +37,7 @@ export async function deliverPullRequest(
   const pullRequestBaseBranch = scm?.pullRequestBaseBranch?.trim() || input.checkoutBaseBranch;
   const pullRequestRepository = scm?.pullRequestRepository?.trim() || scm?.sourceRepository?.trim() || repository;
 
-  const branch = input.taskBranch ?? (await prepareTaskBranch(params, repoDir));
+  const branch = input.taskBranch;
   if (!branch.continued) {
     await sendProgress("branch", "Creating feature branch");
     await gitService.createBranch(repoDir, branch.name);

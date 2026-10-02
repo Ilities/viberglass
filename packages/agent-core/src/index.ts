@@ -2,7 +2,6 @@
 export type {
   ResourceLimits,
   BaseAgentConfig,
-  SecretMetadata,
   TicketMediaContext,
   ExecutionContext,
   ExecutionResult,
@@ -40,7 +39,7 @@ export {
 } from "./agentStreamNormalizer";
 
 // ACP layer
-export type { PlatformSessionEvent } from "./acp/types";
+export type { AcpMcpServer, PlatformSessionEvent } from "./acp/types";
 export type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 export {
   defaultAcpEventMapper,

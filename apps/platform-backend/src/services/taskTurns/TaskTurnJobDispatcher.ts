@@ -11,8 +11,9 @@ import type { BaseJobData, JobData, TicketJobContext } from "../../types/Job";
 import { WorkerExecutionService } from "../../workers";
 import { CredentialRequirementsService } from "../CredentialRequirementsService";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
+import { TaskBranchNamer } from "../tasks/TaskBranchNamer";
 import { JobService } from "../JobService";
-import { SecretService } from "../SecretService";
+import { JobBootstrapService } from "../job/JobBootstrapService";
 import { TicketMediaExecutionService } from "../TicketMediaExecutionService";
 import { buildBootstrapPayload, buildScmPayloadFromContext, prepareTicketRunContext } from "../ticketRunOrchestration";
 import type { TurnPrompts } from "./TaskTurnPromptBuilder";
@@ -28,6 +29,8 @@ export interface DispatchTurnInput {
   documents: { research: string; plan: string };
   /** The latest summary of the conversation, written into the repository as SUMMARY.md. */
   summary: string;
+  /** The last commit an agent pushed to the task's branch, so the worker can tell it what people pushed since. */
+  lastAgentCommit: string | null;
 }
 
 /** What a harness with a compact command keeps when it compacts after a summary. */
@@ -63,17 +66,18 @@ export class TaskTurnJobDispatcher {
     projectDAO: new ProjectDAO(),
     projectScmConfigDAO: new ProjectScmConfigDAO(),
     integrationCredentialDAO: new IntegrationCredentialDAO(),
-    secretService: new SecretService(),
     clankerDAO: new ClankerDAO(),
     provisioningService: getClankerProvisioner(),
     instructionStorageService: new InstructionStorageService(),
   };
 
   constructor(
-    private readonly jobService: Pick<JobService, "submitJob" | "saveBootstrapPayload"> = new JobService(),
+    private readonly jobService: Pick<JobService, "submitJob"> = new JobService(),
+    private readonly bootstraps: Pick<JobBootstrapService, "saveBootstrapPayload"> = new JobBootstrapService(),
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker"> = new CredentialRequirementsService(),
     private readonly workers: Pick<WorkerExecutionService, "executeJob"> = new WorkerExecutionService(),
     private readonly media: Pick<TicketMediaExecutionService, "prepareForExecution"> = new TicketMediaExecutionService(),
+    private readonly branches: Pick<TaskBranchNamer, "nameFor"> = new TaskBranchNamer(),
   ) {}
 
   /**
@@ -149,11 +153,14 @@ export class TaskTurnJobDispatcher {
       allowCode: input.allowCode,
       acpSessionId,
       conversationStateUrl,
+      lastAgentCommit: input.lastAgentCommit,
+      // Named once for the task, so every turn and whoever takes over use the same branch.
+      taskBranch: await this.branches.nameFor(ticket.id, jobId),
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
     };
     jobData.bootstrapPayload = bootstrap;
-    await this.jobService.saveBootstrapPayload(jobId, bootstrap);
+    await this.bootstraps.saveBootstrapPayload(jobId, bootstrap);
     await onSubmitted({ id: jobId, prompt: task });
 
     this.workers

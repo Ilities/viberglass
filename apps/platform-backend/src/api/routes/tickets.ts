@@ -2,6 +2,7 @@ import express from "express";
 import logger from "../../config/logger";
 import { ProjectDAO } from "../../persistence/project/ProjectDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
+import { TicketListDAO } from "../../persistence/ticketing/TicketListDAO";
 import { FileUploadService } from "../../services/FileUploadService";
 import { createBuildPullRequestService } from "../../services/pull-request-reviews/createBuildPullRequestService";
 import { TicketPhaseDocumentCommentService } from "../../services/TicketPhaseDocumentCommentService";
@@ -34,6 +35,14 @@ import { TaskSituationService } from "../../services/tasks/TaskSituationService"
 import { TaskReadDAO } from "../../persistence/ticketing/TaskReadDAO";
 import { TaskAskPolicyService } from "../../services/taskTurns/TaskAskPolicyService";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
+import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
+import { registerTaskQuestionRoutes } from "./tickets/questionRoutes";
+import { registerTaskSteeringRoutes } from "./tickets/steeringRoutes";
+import { TaskSteeringService } from "../../services/taskTurns/TaskSteeringService";
+import { TaskTakeoverService } from "../../services/tasks/TaskTakeoverService";
+import { TaskCodeBranchService } from "../../services/tasks/TaskCodeBranchService";
+import { PausedRunRetryService } from "../../services/taskTurns/PausedRunRetryService";
+import { AgentQuestionAnswerService } from "../../services/questions/AgentQuestionAnswerService";
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
 import { TaskTimelineService } from "../../services/tasks/TaskTimelineService";
 import { TaskTurnService } from "../../services/taskTurns/TaskTurnService";
@@ -70,6 +79,15 @@ registerTaskDiscussionRoutes(router, {
   discussion: taskDiscussion,
   timeline: new TaskTimelineService(),
   turns: taskTurns,
+  mentions: new TaskMentionDAO(),
+});
+registerTaskQuestionRoutes(router, { answers: new AgentQuestionAnswerService({ asker: taskTurns }) });
+const steering = new TaskSteeringService({ turns: taskTurns });
+registerTaskSteeringRoutes(router, {
+  steering,
+  pausedRuns: new PausedRunRetryService({ steering }),
+  takeover: new TaskTakeoverService({ turns: taskTurns }),
+  branches: new TaskCodeBranchService(),
 });
 
 // GET /api/tasks/by-key/:key - A task by its key (WEB-42), for links that show the key.
@@ -123,8 +141,10 @@ router.post("/:id/set-status", validateUuidParam("id"), taskChangeGuard("edit"),
 });
 
 const spaceAccess = new SpaceAccessService();
+const ticketLists = new TicketListDAO();
 registerTicketCrudRoutes(router, {
   ticketService,
+  ticketLists,
   projectService,
   fileUploadService,
   integrationDAO: new IntegrationDAO(),
@@ -135,6 +155,7 @@ registerTicketCrudRoutes(router, {
 registerTaskMediaRoutes(router, { ticketService, fileUploadService });
 registerTaskReadRoutes(router, {
   ticketService,
+  ticketLists,
   agentSessionDAO: new AgentSessionDAO(),
   spaceAccess,
   participantDAO: new TaskParticipantDAO(),

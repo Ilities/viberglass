@@ -1,6 +1,6 @@
 import { Logger } from "winston";
 import type { PlatformSessionEvent } from "./types";
-import type { CallbackClient } from "../workers";
+import type { TurnCallbackClient } from "../workers/infrastructure/TurnCallbackClient";
 
 export class SessionEventForwarder {
   private currentJobId?: string;
@@ -9,7 +9,7 @@ export class SessionEventForwarder {
   private batchTimer?: NodeJS.Timeout;
 
   constructor(
-    private readonly callbackClient: CallbackClient,
+    private readonly callbackClient: Pick<TurnCallbackClient, "sendSessionEventBatch">,
     private readonly logger: Logger,
     private readonly batchSize: number = 20,
     private readonly batchIntervalMs: number = 1000,

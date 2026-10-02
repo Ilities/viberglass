@@ -1,6 +1,6 @@
 # Handover: Phase 2 (people) and Phase 3 (agent ↔ human)
 
-Status as of 2026-10-01 · Phase 2 is done and its exit journey passes (§2); Phase 1 is done and confirmed on AWS (Jussi, 2026-09-30); Phase 0's quick wins are done (§5; #17 dropped) · Owner of decisions: Jussi
+Status as of 2026-10-02 · Phase 3 is built, as the task conversation's S8: what landed, and what is left (its exit journey among it), is in [`task-conversation-handover.md`](./task-conversation-handover.md) §3 S8 and §5 · Phase 2 is done and its exit journey passes (§2); Phase 1 is done and confirmed on AWS (Jussi, 2026-09-30); Phase 0's quick wins are done (§5; #17 dropped) · Owner of decisions: Jussi
 
 This is the plan for the next two phases, written for whoever picks them up. For each phase it lists:
 - what the plan asks for;

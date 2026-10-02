@@ -3,6 +3,8 @@
  * Clankers are individual viberator app worker configurations that do agentic tasks
  */
 
+import type { SecretBinding } from './secret'
+
 // Status of a clanker
 export type ClankerStatus = 'active' | 'inactive' | 'deploying' | 'failed'
 
@@ -13,8 +15,9 @@ export type AgentType =
   | 'codex'
   | 'opencode'
   | 'kimi-code'
-  | 'gemini-cli'
+  | 'antigravity'
   | 'mistral-vibe'
+  | 'pi'
   | 'fake'
 
 export const DEFAULT_AGENT_TYPE: AgentType = 'claude-code'
@@ -25,8 +28,9 @@ export const SUPPORTED_AGENT_TYPES: AgentType[] = [
   'codex',
   'opencode',
   'kimi-code',
-  'gemini-cli',
+  'antigravity',
   'mistral-vibe',
+  'pi',
   // Deterministic e2e test agent. Accepted by the API, not offered in AGENT_OPTIONS.
   'fake',
 ]
@@ -37,8 +41,9 @@ export const AGENT_LABELS: Record<AgentType, string> = {
   codex: 'OpenAI Codex',
   opencode: 'OpenCode',
   'kimi-code': 'Kimi Code',
-  'gemini-cli': 'Gemini CLI',
+  antigravity: 'Google Antigravity',
   'mistral-vibe': 'Mistral Vibe',
+  pi: 'Pi',
   fake: 'Fake (end-to-end tests)',
 }
 
@@ -52,8 +57,9 @@ export const AGENT_OPTIONS: Array<{
   { value: 'codex', label: AGENT_LABELS.codex },
   { value: 'opencode', label: AGENT_LABELS.opencode },
   { value: 'kimi-code', label: AGENT_LABELS['kimi-code'] },
-  { value: 'gemini-cli', label: AGENT_LABELS['gemini-cli'] },
+  { value: 'antigravity', label: AGENT_LABELS.antigravity },
   { value: 'mistral-vibe', label: AGENT_LABELS['mistral-vibe'] },
+  { value: 'pi', label: AGENT_LABELS.pi },
 ]
 
 export function getAgentLabel(agent?: AgentType | null): string {
@@ -95,7 +101,7 @@ export interface Clanker {
   deploymentConfig?: Record<string, unknown> | null
   configFiles: ClankerConfigFile[]
   agent?: AgentType | null
-  secretIds: string[]
+  secretBindings: SecretBinding[]
   status: ClankerStatus
   statusMessage?: string | null
   createdAt: string
@@ -116,7 +122,7 @@ export interface CreateClankerRequest {
   deploymentConfig?: Record<string, unknown> | null
   configFiles?: ConfigFileInput[]
   agent?: AgentType | null
-  secretIds?: string[]
+  secretBindings?: SecretBinding[]
 }
 
 // Request body for updating a clanker
@@ -127,7 +133,7 @@ export interface UpdateClankerRequest {
   deploymentConfig?: Record<string, unknown> | null
   configFiles?: ConfigFileInput[]
   agent?: AgentType | null
-  secretIds?: string[]
+  secretBindings?: SecretBinding[]
   status?: ClankerStatus
   statusMessage?: string | null
 }

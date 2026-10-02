@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
+import { FakeMcpClient, mcpServersOf, type McpServerSpec } from "./FakeMcpClient";
 import { FakeSessionStore } from "./FakeSessionStore";
 import { FakeTurnRunner } from "./FakeTurnRunner";
-import { planFakeTurn } from "./fakeTurnPlan";
+import { planFakeTurn, type FakeQuestion } from "./fakeTurnPlan";
 
 /** Like Claude Code, it announces a compact command, which the platform runs after a summary. */
 const COMPACT_COMMAND = "/compact";
@@ -47,16 +48,19 @@ function promptText(params: Record<string, unknown>): string {
  * session/load and session/prompt. Each prompt runs one fake turn in the
  * session's working directory. Sessions are kept in its state directory, so a
  * later process continues one the way a real harness does, and a session
- * whose state is gone can't be loaded.
+ * whose state is gone can't be loaded. Asked to, it asks a question with the
+ * ask_human tool of the MCP server the session was opened with.
  */
 export class FakeAcpServer {
   private readonly sessionDirs = new Map<string, string>();
+  private readonly sessionTools = new Map<string, McpServerSpec[]>();
 
   constructor(
     private readonly send: (message: Record<string, unknown>) => void,
     private readonly turnRunner: FakeTurnRunner = new FakeTurnRunner(),
     private readonly defaultCwd: string = process.cwd(),
     private readonly sessions: FakeSessionStore = new FakeSessionStore(),
+    private readonly mcp: Pick<FakeMcpClient, "callTool"> = new FakeMcpClient(),
   ) {}
 
   async handleLine(line: string): Promise<void> {
@@ -90,6 +94,7 @@ export class FakeAcpServer {
         const sessionId = String(params.sessionId);
         if (!this.sessions.exists(sessionId)) throw new Error("Resource not found");
         this.sessionDirs.set(sessionId, this.cwdOf(params));
+        this.sessionTools.set(sessionId, mcpServersOf(params));
         this.announceCommands(sessionId);
         return {};
       }
@@ -104,6 +109,7 @@ export class FakeAcpServer {
     const sessionId = `fake_sess_${randomUUID()}`;
     this.sessions.create(sessionId);
     this.sessionDirs.set(sessionId, this.cwdOf(params));
+    this.sessionTools.set(sessionId, mcpServersOf(params));
     return sessionId;
   }
 
@@ -116,12 +122,26 @@ export class FakeAcpServer {
     }
     const repoDir = this.sessionDirs.get(sessionId) ?? this.defaultCwd;
     const turn = this.sessions.recordTurn(sessionId);
-    const message = await this.turnRunner.run(text, repoDir, turn);
+    const plan = planFakeTurn(text);
+    const asked = plan.ask ? await this.ask(sessionId, plan.ask) : null;
+    // A blocking question ends the turn: the answer comes as the next prompt.
+    const message =
+      asked && plan.ask?.blocking
+        ? `Waiting on an answer: fake agent, turn ${turn}.\n\n${asked}`
+        : [asked, await this.turnRunner.run(text, repoDir, turn)].filter(Boolean).join("\n\n");
 
     this.update(sessionId, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: message } });
-    const usage = planFakeTurn(text).usageTokens;
+    const usage = plan.usageTokens;
     if (usage !== null) this.update(sessionId, { sessionUpdate: "usage_update", used: usage, size: CONTEXT_SIZE });
     return { stopReason: "end_turn" };
+  }
+
+  /** Asks with the session's ask_human tool; says so when it has none. */
+  private async ask(sessionId: string, question: FakeQuestion): Promise<string> {
+    const server = this.sessionTools.get(sessionId)?.find((candidate) => candidate.name === "viberglass");
+    if (!server) return `Fake agent had no ask_human tool to ask: ${question.question}`;
+    const { question: text, options, addressee, blocking } = question;
+    return this.mcp.callTool(server, "ask_human", { question: text, options, blocking, ...(addressee ? { addressee } : {}) });
   }
 
   private announceCommands(sessionId: string): void {

@@ -1,7 +1,7 @@
 import { withPlainMentions, type PullRequestReviewComment, type TaskArtifactKind } from "@viberglass/types";
 import { formatCommentsForAgent } from "../comments/formatCommentsForAgent";
 import { formatPullRequestComments } from "../pull-request-reviews/formatPullRequestComments";
-import type { TurnComment, TurnEdit, TurnMessage } from "./taskTurnContext";
+import type { TurnComment, TurnEdit, TurnMessage, TurnPerson } from "./taskTurnContext";
 
 const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { research: "research", plan: "plan" };
 
@@ -27,9 +27,15 @@ export function formatMessages(messages: TurnMessage[]): string | undefined {
     .map((message) => {
       const from = message.author ? ` from="${escapeAttribute(message.author)}"` : "";
       const via = message.via === "session" ? ` via="live session"` : "";
-      return `<message${from}${via} at="${at(message.at)}">\n${escape(withPlainMentions(message.body).trim())}\n</message>`;
+      const answers = message.inAnswerTo ? ` in-answer-to="${escapeAttribute(message.inAnswerTo.replace(/\s+/g, " ").trim())}"` : "";
+      return `<message${from}${via}${answers} at="${at(message.at)}">\n${escape(withPlainMentions(message.body).trim())}\n</message>`;
     })
     .join("\n");
+}
+
+export function formatPeople(people: TurnPerson[]): string | undefined {
+  if (people.length === 0) return undefined;
+  return people.map((person) => `- ${escape(person.name)}: ${person.roles.join(", ")}`).join("\n");
 }
 
 export function formatComments(comments: TurnComment[]): string | undefined {

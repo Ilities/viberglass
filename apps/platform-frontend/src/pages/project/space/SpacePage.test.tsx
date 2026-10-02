@@ -30,6 +30,7 @@ function space(role: WorkspaceRole, membership: 'maintainer' | 'member' | null =
     isPrivate: false,
     keyPrefix: 'WEB',
     defaultReviewerIds: [],
+    questionReminderHours: 4,
     viewerAccess: spaceCapabilities(role, membership),
     createdAt: '',
     updatedAt: '',

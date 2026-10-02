@@ -5,7 +5,7 @@ const clanker: Clanker = {
   id: "runner", name: "Runner", slug: "runner", description: null,
   deploymentStrategyId: null, deploymentStrategy: null,
   deploymentConfig: { version: 1, strategy: { type: "kubernetes", containerImage: "worker:1", cpu: "250m" }, agent: { type: "opencode" } },
-  agent: "opencode", secretIds: [], configFiles: [], status: "inactive", statusMessage: null, createdAt: "", updatedAt: "",
+  agent: "opencode", secretBindings: [], configFiles: [], status: "inactive", statusMessage: null, createdAt: "", updatedAt: "",
 };
 
 describe("KubernetesProvisioningHandler", () => {

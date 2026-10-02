@@ -81,13 +81,13 @@ async function main(): Promise<void> {
 
   const clanker: Clanker = {
     id: randomUUID(), name: "Kubernetes smoke", slug: "kubernetes-smoke", description: null,
-    agent: "fake", configFiles: [], secretIds: [], status: "active", statusMessage: null,
+    agent: "fake", configFiles: [], secretBindings: [], status: "active", statusMessage: null,
     deploymentConfig: { version: 1, strategy: { type: "kubernetes", containerImage: image }, agent: { type: "fake" } },
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   };
   const invoker = new KubernetesInvoker(createKubernetesJobClient, {
     async saveBootstrapPayload(id, payload) { payloads.set(id, payload); },
-  }, { async getRequiredCredentialsForClanker() { return []; } }, { async getStatus() { return "active"; } });
+  }, { async getRequiredCredentialsForClanker() { return []; } }, { async getStatus() { return "active"; } }, { workerBindings() { return []; } });
   const stopper = new KubernetesWorkerStopper(createKubernetesJobClient);
   const client = await createKubernetesJobClient();
   const runs: string[] = [];

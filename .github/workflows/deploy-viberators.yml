@@ -32,11 +32,12 @@ on:
           - lambda
           - multi-agent
           - qwen
-          - gemini
+          - antigravity
           - mistral
           - codex
           - kimi
           - opencode
+          - pi
       image_tag:
         description: 'Image tag (default: latest)'
         required: false

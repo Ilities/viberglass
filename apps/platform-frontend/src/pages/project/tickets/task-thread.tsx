@@ -1,14 +1,18 @@
 import { Button } from '@/components/button'
 import { Timestamp } from '@/components/timestamp'
+import { useAuth } from '@/context/auth-context'
 import { usePersonName } from '@/hooks/usePeople'
 import { getTaskTimeline } from '@/service/api/discussion-api'
 import { markTaskRead } from '@/service/api/home-api'
 import type { TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
 import { describeActivity } from './activity-sentence'
+import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
 import { BringInAgent, type BringableAgent } from './bring-in-agent'
+import { MarkMentionDone } from '@/components/mark-mention-done'
 import { MessageBody } from './message-body'
+import { OpenQuestions, QuestionEntry } from './question-entry'
 import { TaskComposer, type Mentionable } from './task-composer'
 import { TaskSuggestedActions } from './task-suggested-actions'
 import { suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
@@ -20,6 +24,8 @@ const ARTIFACT_STEP: Record<TaskArtifactKind, 'research' | 'planning'> = { resea
 
 interface TaskThreadProps {
   taskId: string
+  /** The task's key (WEB-42), for the command that checks its branch out. */
+  taskKey?: string
   /** The space's slug, for links to the agent's runs. */
   project: string
   /** Changes whenever the task's runs, sessions or documents do, so the thread follows them. */
@@ -32,8 +38,16 @@ interface TaskThreadProps {
   /** Whether the person may post and ask the agent, from the task's capabilities. Viewers do neither. */
   canPost: boolean
   canAsk: boolean
-  /** What needs answering before anything else: the agent's open question, or why its last run failed. Shown above the composer. */
-  question?: React.ReactNode
+  /** Whether the person may interrupt, pause and resume the agent. */
+  canSteer?: boolean
+  /** Whether someone has the agent paused. */
+  paused?: boolean
+  /** Whether a setup failure paused it. */
+  pausedForSetup?: boolean
+  /** Whether someone mentioned the person here and they haven't replied or marked it done. */
+  mentionsYou?: boolean
+  /** What needs dealing with before anything else, such as why the agent's last run failed. Shown above the composer. */
+  notice?: React.ReactNode
   /** Agents that can run, any of which can be brought in when it isn't on the task yet. */
   runnableAgents: BringableAgent[]
   /** The page reloads after an ask, to show the agent working. */
@@ -81,9 +95,10 @@ function EventEntry({ entry, nameOf }: { entry: Extract<TaskTimelineEntry, { kin
   )
 }
 
-/** The task's one thread: what people and the agent said, each document version, and what happened, in order. */
+/** The task's one thread: what people and the agent said and asked, each document version, and what happened, in order. */
 export function TaskThread({
   taskId,
+  taskKey = '',
   project,
   refreshKey,
   onOpenArtifact,
@@ -91,10 +106,15 @@ export function TaskThread({
   suggestionInput,
   canPost,
   canAsk,
-  question,
+  canSteer = false,
+  paused = false,
+  pausedForSetup = false,
+  mentionsYou = false,
+  notice,
   runnableAgents,
   onAsked,
 }: TaskThreadProps) {
+  const { user } = useAuth()
   const personName = usePersonName()
   const [entries, setEntries] = useState<TaskTimelineEntry[] | null>(null)
   const [messagesOnly, setMessagesOnly] = useState(false)
@@ -149,6 +169,8 @@ export function TaskThread({
               <MessageEntry key={entry.id} entry={entry} />
             ) : entry.kind === 'agent_turn' ? (
               <AgentTurnEntry key={entry.id} entry={entry} project={project} summaryVersion={summaries.versionByTurn.get(entry.id)} />
+            ) : entry.kind === 'question' ? (
+              <QuestionEntry key={entry.id} entry={entry} />
             ) : entry.kind === 'summary' ? (
               <SummaryEntry key={entry.id} entry={entry} />
             ) : entry.kind === 'artifact_version' ? (
@@ -160,9 +182,28 @@ export function TaskThread({
         </ol>
       )}
 
-      {question}
+      {notice}
+      <AgentSteering
+        taskId={taskId}
+        taskKey={taskKey}
+        refreshKey={refreshKey}
+        agentWorking={agentWorking}
+        paused={paused}
+        pausedForSetup={pausedForSetup}
+        canSteer={canSteer}
+        onChanged={posted}
+      />
+      {canPost && <OpenQuestions taskId={taskId} entries={entries} viewerId={user?.id} onAnswered={posted} />}
       {canAsk && <TaskSuggestedActions taskId={taskId} suggestions={suggestions} agentWorking={agentWorking} onAsked={posted} />}
-      {canPost && <TaskComposer taskId={taskId} agents={canAsk ? agents : []} onPosted={posted} />}
+      {canPost && mentionsYou && (
+        <div className="flex items-center justify-between gap-4 text-sm text-[var(--gray-11)]">
+          <p>You were mentioned here. Reply below, or mark it done if there&apos;s nothing to say.</p>
+          <MarkMentionDone taskId={taskId} onDone={onAsked} />
+        </div>
+      )}
+      {canPost && (
+        <TaskComposer taskId={taskId} agents={canAsk ? agents : []} canInterrupt={canSteer && agentWorking} onPosted={posted} />
+      )}
       {canAsk && !agentWorking && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} />}
     </section>
   )

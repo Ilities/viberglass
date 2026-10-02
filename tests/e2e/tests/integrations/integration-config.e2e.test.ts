@@ -376,7 +376,7 @@ test.describe("Integration Configuration E2E Tests", () => {
   });
 
   test.describe("GitHub Targeted Webhook UI", () => {
-    test("should render GitHub-specific inbound and outbound sections", async ({
+    test("should render the GitHub-specific inbound section and no feedback section", async ({
       authenticatedPage: page,
     }) => {
       const hasConfiguredIntegration =
@@ -393,9 +393,8 @@ test.describe("Integration Configuration E2E Tests", () => {
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "GitHub Feedback" }),
-      ).toBeVisible();
+      ).toHaveCount(0);
       await expect(page.getByText("GitHub setup steps")).toBeVisible();
-      await expect(page.getByText("Always-on feedback events")).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Configuration" }),
       ).toHaveCount(0);
@@ -554,7 +553,7 @@ test.describe("Integration Configuration E2E Tests", () => {
   });
 
   test.describe("Jira Targeted Webhook UI", () => {
-    test("should render Jira-specific inbound and outbound sections", async ({
+    test("should render the Jira-specific inbound section and no feedback section", async ({
       authenticatedPage: page,
     }) => {
       const hasConfiguredIntegration =
@@ -571,9 +570,8 @@ test.describe("Integration Configuration E2E Tests", () => {
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Jira Feedback" }),
-      ).toBeVisible();
+      ).toHaveCount(0);
       await expect(page.getByText("Jira setup steps")).toBeVisible();
-      await expect(page.getByText("Always-on feedback events")).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Configuration" }),
       ).toHaveCount(0);
@@ -634,20 +632,6 @@ test.describe("Integration Configuration E2E Tests", () => {
         await saveInboundButton.click();
       }
 
-      const outboundSection = page.locator("section", {
-        has: page.getByRole("heading", { name: "Jira Feedback" }),
-      });
-
-      const outboundTokenInput = outboundSection.getByLabel("Jira API token");
-      if ((await outboundTokenInput.count()) > 0) {
-        await outboundTokenInput.fill("jira-e2e-outbound-token");
-      }
-      await outboundSection
-        .getByRole("button", {
-          name: /Save feedback settings|Enable feedback/,
-        })
-        .click();
-
       await page.reload();
 
       const issueUpdatedToggleAfterReload = page.getByLabel("Issue updated");
@@ -657,12 +641,6 @@ test.describe("Integration Configuration E2E Tests", () => {
         await expect(issueUpdatedToggleAfterReload).toBeChecked();
       }
 
-      await expect(
-        page.locator("section", {
-          has: page.getByRole("heading", { name: "Jira Feedback" }),
-        }),
-      ).toBeVisible();
-      await expect(page.getByRole("button", { name: "Remove outbound webhook" })).toHaveCount(0);
     });
 
     test("should support selecting between multiple inbound Jira configs", async ({
@@ -737,7 +715,7 @@ test.describe("Integration Configuration E2E Tests", () => {
   });
 
   test.describe("Shortcut Targeted Webhook UI", () => {
-    test("should render Shortcut-specific inbound and outbound sections", async ({
+    test("should render the Shortcut-specific inbound section and no feedback section", async ({
       authenticatedPage: page,
     }) => {
       const hasConfiguredIntegration =
@@ -754,9 +732,8 @@ test.describe("Integration Configuration E2E Tests", () => {
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Shortcut Feedback" }),
-      ).toBeVisible();
+      ).toHaveCount(0);
       await expect(page.getByText("Shortcut setup steps")).toBeVisible();
-      await expect(page.getByText("Always-on feedback events")).toBeVisible();
 
       await expect(
         page.getByText(
@@ -814,20 +791,6 @@ test.describe("Integration Configuration E2E Tests", () => {
         await saveInboundButton.click();
       }
 
-      const outboundSection = page.locator("section", {
-        has: page.getByRole("heading", { name: "Shortcut Feedback" }),
-      });
-      const outboundTokenInput =
-        outboundSection.getByLabel("Shortcut API token");
-      if ((await outboundTokenInput.count()) > 0) {
-        await outboundTokenInput.fill("shortcut-e2e-outbound-token");
-      }
-      await outboundSection
-        .getByRole("button", {
-          name: /Save feedback settings|Enable feedback/,
-        })
-        .click();
-
       await page.reload();
 
       const commentCreatedToggleAfterReload =
@@ -838,16 +801,11 @@ test.describe("Integration Configuration E2E Tests", () => {
         await expect(commentCreatedToggleAfterReload).toBeChecked();
       }
 
-      await expect(
-        page.locator("section", {
-          has: page.getByRole("heading", { name: "Shortcut Feedback" }),
-        }),
-      ).toBeVisible();
     });
   });
 
   test.describe("Custom Targeted Webhook UI", () => {
-    test("should render custom inbound and outbound sections", async ({
+    test("should render the custom inbound section and no outbound destinations", async ({
       authenticatedPage: page,
     }) => {
       const hasConfiguredIntegration =
@@ -864,14 +822,11 @@ test.describe("Integration Configuration E2E Tests", () => {
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Custom Outbound Destinations" }),
-      ).toBeVisible();
+      ).toHaveCount(0);
       await expect(page.getByText("Custom setup steps")).toBeVisible();
-      await expect(
-        page.getByText("destination-specific auth, headers, retry policy"),
-      ).toBeVisible();
     });
 
-    test("should allow creating targeted custom inbound and outbound webhook configs", async ({
+    test("should allow creating a targeted custom inbound webhook config", async ({
       authenticatedPage: page,
     }) => {
       const hasConfiguredIntegration =
@@ -914,43 +869,6 @@ test.describe("Integration Configuration E2E Tests", () => {
       await expect(
         inboundSection.getByText("Expected payload format"),
       ).toBeVisible();
-
-      const outboundSection = page.locator("section", {
-        has: page.getByRole("heading", {
-          name: "Custom Outbound Destinations",
-        }),
-      });
-
-      const destinationNameInput = outboundSection.getByLabel(
-        "Destination name",
-      );
-      const destinationUrlInput = outboundSection.getByLabel("Destination URL");
-      if (
-        (await destinationNameInput.count()) === 0 ||
-        (await destinationUrlInput.count()) === 0
-      ) {
-        test.skip(
-          true,
-          "Custom outbound destination form is unavailable in this environment",
-        );
-      }
-
-      const uniqueSuffix = `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
-      const destinationName = `E2E Destination ${uniqueSuffix}`;
-      await destinationNameInput.fill(destinationName);
-      await destinationUrlInput.fill(
-        `https://hooks.example.com/viberator/${uniqueSuffix}`,
-      );
-
-      await outboundSection
-        .getByRole("button", { name: /Create destination|Save destination/ })
-        .click();
-
-      await expect(
-        outboundSection.getByLabel("Destination name"),
-      ).toHaveValue(destinationName);
     });
   });
 

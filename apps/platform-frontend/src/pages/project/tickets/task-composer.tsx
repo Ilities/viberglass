@@ -1,6 +1,6 @@
 import { Button } from '@/components/button'
 import { useAuth } from '@/context/auth-context'
-import { postTaskMessage } from '@/service/api/discussion-api'
+import { interruptAgent, postTaskMessage } from '@/service/api/discussion-api'
 import { getPeopleDirectory } from '@/service/api/user-api'
 import { agentMentionToken, mentionToken } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
@@ -31,11 +31,13 @@ interface TaskComposerProps {
   taskId: string
   /** The agents that can be asked, the one already on the task first. */
   agents: Mentionable[]
+  /** Whether the person may stop the agent's running turn with their message. */
+  canInterrupt?: boolean
   onPosted: () => void
 }
 
 /** Writing in a task's thread, with @mentions of people, and of agents to ask them. */
-export function TaskComposer({ taskId, agents, onPosted }: TaskComposerProps) {
+export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }: TaskComposerProps) {
   const { user } = useAuth()
   const [people, setPeople] = useState<Mentionable[]>([])
   const [draft, setDraft] = useState('')
@@ -64,13 +66,15 @@ export function TaskComposer({ taskId, agents, onPosted }: TaskComposerProps) {
     setPicked((current) => (current.some((other) => other.id === entry.id) ? current : [...current, entry]))
   }
 
-  async function post() {
+  async function post(interrupt = false) {
     setIsPosting(true)
     try {
-      const { turn } = await postTaskMessage(taskId, withMentionTokens(draft, picked))
+      const body = withMentionTokens(draft, picked)
+      const turn = interrupt ? await interruptAgent(taskId, body) : (await postTaskMessage(taskId, body)).turn
       setDraft('')
       setPicked([])
-      if (turn) toast.success(turn.status === 'queued' ? 'The agent will read it when it finishes its turn' : 'Asked the agent')
+      if (interrupt) toast.success('Stopped the agent; it starts again with your message')
+      else if (turn) toast.success(turn.status === 'queued' ? 'The agent will read it when it finishes its turn' : turn.status === 'paused' ? 'The agent will read it when it carries on' : 'Asked the agent')
       onPosted()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to post the message')
@@ -109,9 +113,16 @@ export function TaskComposer({ taskId, agents, onPosted }: TaskComposerProps) {
       )}
       <div className="flex items-center justify-between gap-4">
         <p className="text-xs text-[var(--gray-10)]">People on this task see this. Mention the agent to ask it; it reads the thread when asked.</p>
-        <Button color="brand" disabled={isPosting || draft.trim().length === 0} onClick={() => void post()}>
-          {isPosting ? 'Posting…' : 'Post'}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {canInterrupt && (
+            <Button outline disabled={isPosting || draft.trim().length === 0} onClick={() => void post(true)}>
+              Interrupt with this
+            </Button>
+          )}
+          <Button color="brand" disabled={isPosting || draft.trim().length === 0} onClick={() => void post()}>
+            {isPosting ? 'Posting…' : 'Post'}
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -163,8 +163,7 @@ export class IntegrationManagementService {
     // If secretName is specified, resolve the secret value
     if (typeof config.secretName === "string") {
       try {
-        const secrets = await this.secretService.resolveSecrets();
-        const secretValue = secrets[config.secretName];
+        const secretValue = await this.secretService.resolveSecretValueByName(config.secretName);
         if (secretValue) {
           resolved.token = secretValue;
         }

@@ -92,4 +92,34 @@ describe('ProjectReadinessBanner', () => {
     await waitFor(() => expect(mockedGetProjectReadiness).toHaveBeenCalledWith('project-1'))
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('warns ahead of a credential expiring while the space still works', async () => {
+    mockedGetProjectReadiness.mockResolvedValue({
+      projectId: 'project-1',
+      automationAvailable: true,
+      hasRuns: true,
+      checks: [
+        {
+          key: 'scmCredential',
+          label: 'SCM credential',
+          state: 'ready',
+          summary: 'The selected SCM credential is available.',
+          warning: 'The SCM credential expires on 2026-10-05. Replace it before then, or runs will stop.',
+          remediationUrl: '/spaces/shop/settings',
+        },
+      ],
+    })
+
+    render(
+      <Theme>
+        <MemoryRouter>
+          <ProjectReadinessBanner projectId="project-1" />
+        </MemoryRouter>
+      </Theme>,
+    )
+
+    const banner = await screen.findByRole('region', { name: 'Needs attention soon' })
+    expect(banner).toHaveTextContent('expires on 2026-10-05')
+    expect(screen.getByRole('link', { name: 'Replace it' })).toHaveAttribute('href', '/spaces/shop/settings')
+  })
 })

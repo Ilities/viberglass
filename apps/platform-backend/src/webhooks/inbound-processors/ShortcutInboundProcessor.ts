@@ -2,7 +2,7 @@
  * Shortcut inbound event processor
  *
  * Handles Shortcut story_created, story_updated, and comment_created events,
- * creating tickets and optionally submitting jobs.
+ * creating tickets and optionally asking their agent to build.
  */
 
 import type {
@@ -13,25 +13,13 @@ import type {
 import type { ParsedWebhookEvent, ProviderType } from "../WebhookProvider";
 import type { TicketDAO } from "../../persistence/ticketing/TicketDAO";
 import type { ProjectIntegrationLinkDAO } from "../../persistence/integrations";
-import type { JobService } from "../../services/JobService";
-import { JOB_KIND } from "@viberglass/types";
+import type { WebhookBuildRequester } from "../WebhookBuildRequester";
 import type {
   CreateTicketRequest,
   Severity,
   TicketMetadata,
   UpdateTicketRequest,
 } from "@viberglass/types";
-import type { JobData } from "../../types/Job";
-import { randomUUID } from "crypto";
-
-interface WebhookJobContext {
-  ticketId: string;
-  issueNumber?: number;
-  issueUrl?: string;
-  triggeredBy?: string;
-  commentBody?: string;
-  stepsToReproduce?: string;
-}
 
 interface ShortcutStoryPayload {
   data?: {
@@ -59,7 +47,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
 
   constructor(
     private ticketDAO: TicketDAO,
-    private jobService: JobService,
+    private builds: Pick<WebhookBuildRequester, "request">,
     private projectIntegrationLinkDAO: ProjectIntegrationLinkDAO,
   ) {}
 
@@ -189,11 +177,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     result.ticketId = ticket.id;
 
     if (config.autoExecute && payload.data.story_type === "bug") {
-      result.jobId = await this.submitJob(
-        ticket.id,
-        resolvedTenantId,
-        payload.data,
-      );
+      result.jobId = await this.builds.request(ticket.id);
     }
 
     return result;
@@ -295,31 +279,7 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
     const ticket = await this.ticketDAO.createTicket(ticketRequest);
     result.ticketId = ticket.id;
 
-    const webhookContext: WebhookJobContext = {
-      ticketId: ticket.id,
-      issueNumber: payload.data.story_id,
-      triggeredBy: "bot-command",
-      commentBody: payload.data.text.substring(0, 500),
-      stepsToReproduce: `Triggered by Shortcut comment on story ${payload.data.story_id}`,
-    };
-
-    const jobData: JobData = {
-      id: randomUUID(),
-      jobKind: JOB_KIND.EXECUTION,
-      tenantId: resolvedTenantId,
-      repository: event.metadata.repositoryId || config.providerProjectId || "",
-      task: `Fix Shortcut story from comment: ${payload.data.story_id}`,
-      context: webhookContext,
-      settings: {
-        runTests: true,
-      },
-      timestamp: Date.now(),
-    };
-
-    const jobResult = await this.jobService.submitJob(jobData, {
-      ticketId: ticket.id,
-    });
-    result.jobId = jobResult.jobId;
+    result.jobId = await this.builds.request(ticket.id);
 
     return result;
   }
@@ -335,37 +295,6 @@ export class ShortcutInboundProcessor implements InboundEventProcessor {
       default:
         return "medium";
     }
-  }
-
-  private async submitJob(
-    ticketId: string,
-    resolvedTenantId: string,
-    data: NonNullable<ShortcutStoryPayload["data"]>,
-  ): Promise<string> {
-    const webhookContext: WebhookJobContext = {
-      ticketId,
-      issueNumber: data.id,
-      issueUrl: data.app_url,
-      stepsToReproduce: `Shortcut Story: ${data.app_url}`,
-    };
-
-    const jobData: JobData = {
-      id: randomUUID(),
-      jobKind: JOB_KIND.EXECUTION,
-      tenantId: resolvedTenantId,
-      repository: data.project?.name || "",
-      task: `Fix Shortcut story: ${data.name}`,
-      context: webhookContext,
-      settings: {
-        runTests: true,
-      },
-      timestamp: Date.now(),
-    };
-
-    const jobResult = await this.jobService.submitJob(jobData, {
-      ticketId,
-    });
-    return jobResult.jobId;
   }
 
   private createTicketMetadata(

@@ -6,7 +6,10 @@ import {
   type Ticket,
   type TicketWorkflowPhase,
 } from "@viberglass/types";
+import { AgentQuestionDAO } from "../../persistence/agentSession/AgentQuestionDAO";
+import { TaskAgentTurnDAO } from "../../persistence/agentSession/TaskAgentTurnDAO";
 import { type AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
+import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { TaskMessageDAO } from "../../persistence/ticketing/TaskMessageDAO";
 import { TaskSummaryDAO } from "../../persistence/ticketing/TaskSummaryDAO";
 import {
@@ -20,7 +23,7 @@ import {
 import { createBuildPullRequestService } from "../pull-request-reviews/createBuildPullRequestService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
 import { AGENT_TURN_ROLE, AGENT_TURN_STATUS } from "../../types/agentSession";
-import type { TaskTurnContext, TurnComment, TurnEdit, TurnMessage } from "./taskTurnContext";
+import type { TaskTurnContext, TurnComment, TurnEdit, TurnMessage, TurnPerson } from "./taskTurnContext";
 
 /** How much of the thread a cold start reads, newest last; what the latest summary covers is left to it. */
 const MESSAGE_LIMIT = 40;
@@ -40,6 +43,9 @@ interface Dependencies {
   documents: { getOrCreateDocument(ticketId: string, phase: TicketWorkflowPhase): Promise<{ content: string }> };
   summaries: Pick<TaskSummaryDAO, "latest">;
   pullRequest: { forTask(ticket: Pick<Ticket, "id" | "projectId" | "pullRequestUrl">): Promise<Pick<BuildPullRequest, "comments">> };
+  participants: Pick<TaskParticipantDAO, "list">;
+  questions: Pick<AgentQuestionDAO, "questionsAnsweredBy">;
+  agentTurns: Pick<TaskAgentTurnDAO, "listForTask">;
 }
 
 export interface LoadTurnContextInput {
@@ -65,6 +71,9 @@ export class TaskTurnContextLoader {
       documents: new TicketPhaseDocumentService(),
       summaries: new TaskSummaryDAO(),
       pullRequest: deps.pullRequest ?? createBuildPullRequestService(),
+      participants: new TaskParticipantDAO(),
+      questions: new AgentQuestionDAO(),
+      agentTurns: new TaskAgentTurnDAO(),
       ...deps,
     };
   }
@@ -72,7 +81,7 @@ export class TaskTurnContextLoader {
   async load(input: LoadTurnContextInput): Promise<TaskTurnContext> {
     const { ticket } = input;
     const since = await this.lastPromptedAt(input.sessionId, input.turnId);
-    const [threadMessages, comments, research, plan, summary, edits, pullRequest] = await Promise.all([
+    const [threadMessages, comments, research, plan, summary, edits, pullRequest, people, answered, agentTurns] = await Promise.all([
       this.deps.messages.list(ticket.id),
       this.openComments(ticket.id),
       this.deps.documents.getOrCreateDocument(ticket.id, TICKET_WORKFLOW_PHASE.RESEARCH),
@@ -80,6 +89,9 @@ export class TaskTurnContextLoader {
       this.deps.summaries.latest(ticket.id),
       since ? this.handEdits(ticket.id, since) : Promise.resolve([]),
       input.action === "code" && ticket.pullRequestUrl ? this.deps.pullRequest.forTask(ticket) : Promise.resolve(null),
+      this.people(ticket.id),
+      this.deps.questions.questionsAnsweredBy(ticket.id),
+      this.deps.agentTurns.listForTask(ticket.id),
     ]);
 
     const messages: TurnMessage[] = [
@@ -88,6 +100,7 @@ export class TaskTurnContextLoader {
         body: message.body,
         at: new Date(message.createdAt),
         via: "thread" as const,
+        inAnswerTo: answered.get(message.id),
       })),
       ...input.sessionMessages.map((turn) => ({
         author: null,
@@ -107,6 +120,8 @@ export class TaskTurnContextLoader {
         pullRequestUrl: ticket.pullRequestUrl ?? null,
       },
       documents: { research: research.content.trim(), plan: plan.content.trim() },
+      people,
+      lastAgentCommit: agentTurns.flatMap((turn) => (turn.outcome?.commit ? [turn.outcome.commit] : [])).at(-1) ?? null,
       summary: summary?.content.trim() ?? "",
       since,
       earlier: {
@@ -136,6 +151,16 @@ export class TaskTurnContextLoader {
         (turn.status === AGENT_TURN_STATUS.COMPLETED || turn.status === AGENT_TURN_STATUS.BLOCKED),
     );
     return answered.length > 0 ? answered[answered.length - 1].createdAt : null;
+  }
+
+  private async people(ticketId: string): Promise<TurnPerson[]> {
+    const byPerson = new Map<string, TurnPerson>();
+    for (const participant of await this.deps.participants.list(ticketId)) {
+      const person = byPerson.get(participant.userId) ?? { name: participant.name, roles: [] };
+      person.roles.push(participant.role);
+      byPerson.set(participant.userId, person);
+    }
+    return [...byPerson.values()];
   }
 
   private async openComments(ticketId: string): Promise<TurnComment[]> {

@@ -3,6 +3,8 @@
  * Claw is the scheduled task execution system for running clanker tasks on a schedule
  */
 
+import type { SecretBinding } from './secret'
+
 // Status of a claw execution
 export type ClawExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
 
@@ -21,7 +23,7 @@ export interface ClawTaskTemplate {
   clankerId: string
   taskInstructions: string
   config: Record<string, unknown>
-  secretIds: string[]
+  secretBindings: SecretBinding[]
   createdAt: string
   updatedAt: string
 }
@@ -34,7 +36,7 @@ export interface CreateClawTaskTemplateRequest {
   clankerId: string
   taskInstructions: string
   config?: Record<string, unknown>
-  secretIds?: string[]
+  secretBindings?: SecretBinding[]
 }
 
 // Request body for updating a task template
@@ -44,7 +46,7 @@ export interface UpdateClawTaskTemplateRequest {
   clankerId?: string
   taskInstructions?: string
   config?: Record<string, unknown>
-  secretIds?: string[]
+  secretBindings?: SecretBinding[]
 }
 
 // Task template summary for list views
@@ -54,7 +56,7 @@ export interface ClawTaskTemplateSummary {
   name: string
   description: string | null
   clankerId: string
-  secretIds: string[]
+  secretBindings: SecretBinding[]
   createdAt: string
   updatedAt: string
 }

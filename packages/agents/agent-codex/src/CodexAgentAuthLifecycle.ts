@@ -43,6 +43,7 @@ export interface CodexAgentAuthLifecycleDependencies {
   materializeFromEnvironment(): Promise<void>;
   ensureDeviceAuth(jobId: string, tenantId: string): Promise<void>;
   forceFreshDeviceAuth(jobId: string, tenantId: string): Promise<void>;
+  uploadIfRefreshed(jobId: string, tenantId: string): Promise<void>;
 }
 
 export class CodexAgentAuthLifecycle implements AgentAuthLifecycle {
@@ -81,5 +82,17 @@ export class CodexAgentAuthLifecycle implements AgentAuthLifecycle {
       context.jobId,
       context.tenantId,
     );
+  }
+
+  async login(context: AgentAuthContext): Promise<void> {
+    await this.dependencies.forceFreshDeviceAuth(context.jobId, context.tenantId);
+  }
+
+  async persistAfterRun(context: AgentAuthContext): Promise<void> {
+    if (context.agentName !== "codex" || this.dependencies.mode === "api_key") {
+      return;
+    }
+
+    await this.dependencies.uploadIfRefreshed(context.jobId, context.tenantId);
   }
 }
