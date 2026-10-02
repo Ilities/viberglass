@@ -27,7 +27,8 @@ test("workspace plumbing sits under Settings → Advanced, for admins only", asy
 
   // The main navigation has no plumbing for anyone; Settings leads to it.
   await memberPage.goto("/");
-  await expect(memberPage.getByRole("link", { name: "Pulse" })).toBeVisible();
+  await expect(memberPage.getByRole("link", { name: "Home", exact: true })).toBeVisible();
+  await expect(memberPage.getByRole("link", { name: "Overview", exact: true })).toBeVisible();
   await memberPage.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(memberPage).toHaveURL(/\/settings\/api-tokens$/);
   for (const label of plumbing) {

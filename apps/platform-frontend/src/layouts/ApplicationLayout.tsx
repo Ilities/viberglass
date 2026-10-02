@@ -28,7 +28,7 @@ import { ProjectProvider } from '@/context/project-context'
 import { ProjectTheme } from '@/context/project-theme'
 import { useTheme } from '@/context/theme-context'
 import { usePolling } from '@/hooks/usePolling'
-import { useInboxUnreadCount } from '@/hooks/useInboxUnreadCount'
+import { useNeedsYouCount } from '@/hooks/useNeedsYouCount'
 import type { AuthUser } from '@/service/api/auth-api'
 import { getProjects, Project } from '@/service/api/project-api'
 import { getTickets } from '@/service/api/ticket-api'
@@ -39,7 +39,6 @@ import {
   ClockIcon,
   ExitIcon,
   GearIcon,
-  EnvelopeClosedIcon,
   HomeIcon,
   MoonIcon,
   PlusIcon,
@@ -71,7 +70,7 @@ type NavLinkItem = {
   href: string
   label: string
   icon: React.ReactNode
-  /** A count shown next to the label, e.g. unread Inbox items. */
+  /** A count shown next to the label, e.g. threads that need you. */
   badge?: number
 }
 
@@ -231,7 +230,8 @@ function ApplicationLayoutContent() {
   const { user, status, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [projects, setProjects] = useState<Project[]>([])
-  const unreadInbox = useInboxUnreadCount(status === 'authenticated', pathname)
+  const isViewer = user?.role === 'viewer'
+  const needsYou = useNeedsYouCount(status === 'authenticated' && !isViewer, pathname)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -262,22 +262,13 @@ function ApplicationLayoutContent() {
 
   // Runners, connections, secrets and prompt templates live under Settings → Advanced (ADR 0003).
   const isSettingsRoute = ['/settings', '/settings/agents', '/settings/secrets'].some((prefix) => pathname.startsWith(prefix))
-  const inboxItem: NavLinkItem = {
-    href: '/inbox',
-    label: 'Inbox',
-    current: pathname.startsWith('/inbox'),
-    icon: <EnvelopeClosedIcon />,
-    badge: unreadInbox,
-  }
+  // Viewers have no threads of their own; their way in is Overview.
+  const wayInItems: NavLinkItem[] = [
+    ...(isViewer ? [] : [{ href: '/', label: 'Home', current: pathname === '/', icon: <HomeIcon />, badge: needsYou }]),
+    { href: '/overview', label: 'Overview', current: pathname.startsWith('/overview'), icon: <ActivityLogIcon /> },
+  ]
   const platformNavItems: NavLinkItem[] = [
-    { href: '/', label: 'Dashboard', current: !isProjectRoute && pathname === '/', icon: <HomeIcon /> },
-    inboxItem,
-    {
-      href: '/pulse',
-      label: 'Pulse',
-      current: pathname.startsWith('/pulse'),
-      icon: <ActivityLogIcon />,
-    },
+    ...wayInItems,
     {
       href: isAdmin ? '/settings/members' : '/settings/api-tokens',
       label: 'Settings',
@@ -371,17 +362,13 @@ function ApplicationLayoutContent() {
               <SidebarBody>
                 {isProjectRoute && (
                   <SidebarSection>
-                    <SidebarItem href="/" title="Home">
-                      <Icon>
-                        <HomeIcon />
-                      </Icon>
-                      <SidebarLabel>Home</SidebarLabel>
-                    </SidebarItem>
-                    <SidebarItem href={inboxItem.href} current={inboxItem.current}>
-                      <Icon>{inboxItem.icon}</Icon>
-                      <SidebarLabel>{inboxItem.label}</SidebarLabel>
-                      <NavBadge count={inboxItem.badge} />
-                    </SidebarItem>
+                    {wayInItems.map((item) => (
+                      <SidebarItem key={item.href} href={item.href} current={item.current}>
+                        <Icon>{item.icon}</Icon>
+                        <SidebarLabel>{item.label}</SidebarLabel>
+                        <NavBadge count={item.badge} />
+                      </SidebarItem>
+                    ))}
                   </SidebarSection>
                 )}
                 <SidebarSection>

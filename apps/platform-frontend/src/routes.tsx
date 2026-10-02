@@ -13,11 +13,10 @@ import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { SetupPage } from '@/pages/setup/SetupPage'
 
 // Main pages
-import { DashboardPage } from '@/pages/DashboardPage'
-import { InboxPage } from '@/pages/inbox/InboxPage'
+import { HomePage } from '@/pages/home/HomePage'
+import { OverviewPage } from '@/pages/overview/OverviewPage'
 import { NewProjectPage } from '@/pages/NewProjectPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
-import { SessionsPulsePage } from '@/pages/sessions/SessionsPulsePage'
 
 // Clanker pages
 import { ClankerDetailPage } from '@/pages/clankers/ClankerDetailPage'
@@ -78,10 +77,9 @@ export function AppRoutes() {
       {/* App routes (authenticated) */}
       <Route element={<ApplicationLayout />}>
         {/* Main routes */}
-        <Route path="/" element={<DashboardPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/overview" element={<OverviewPage />} />
         <Route path="/spaces/new" element={<NewProjectPage />} />
-        <Route path="/pulse" element={<SessionsPulsePage />} />
-        <Route path="/inbox" element={<InboxPage />} />
 
         {/* Workspace settings: General, and the plumbing under Advanced. URLs stay put until Phase 2. */}
         <Route element={<WorkspaceSettingsLayout />}>

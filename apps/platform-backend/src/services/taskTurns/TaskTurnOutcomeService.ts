@@ -2,6 +2,7 @@ import { artifactReviewers, TICKET_WORKFLOW_PHASE, type TaskTurnOutcome, type Ta
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
 import type { AgentTurn, AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
 import type { AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
+import { TaskMentionDAO } from "../../persistence/ticketing/TaskMentionDAO";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { PHASE_DOCUMENT_REVISION_SOURCE } from "../../persistence/ticketing/TicketPhaseDocumentRevisionDAO";
 import { AGENT_SESSION_EVENT_TYPE } from "../../types/agentSession";
@@ -47,14 +48,15 @@ interface Dependencies {
   documents: Pick<TicketPhaseDocumentService, "saveDocument">;
   workerEvents: Pick<AgentSessionWorkerEventService, "batchIngest">;
   participants: Pick<TaskParticipantDAO, "list">;
+  mentions: Pick<TaskMentionDAO, "createForTurn">;
 }
 
 /**
  * Records what a finished turn produced: each document it wrote as a new
  * version, and its reply and intent on the turn. A turn that produced an
  * artifact mentions the task's reviewers, or its owner, in place of a review
- * request. Then ends the turn, which starts the next one if people wrote
- * while it ran.
+ * request; the mention stays open until they answer. Then ends the turn,
+ * which starts the next one if people wrote while it ran.
  */
 export class TaskTurnOutcomeService {
   private readonly deps: Dependencies;
@@ -64,6 +66,7 @@ export class TaskTurnOutcomeService {
       events: new AgentSessionEventDAO(),
       documents: new TicketPhaseDocumentService(),
       participants: new TaskParticipantDAO(),
+      mentions: new TaskMentionDAO(),
       ...deps,
     };
   }
@@ -99,6 +102,8 @@ export class TaskTurnOutcomeService {
       mentioned,
     };
     await this.deps.turns.update(turn.id, { contentMarkdown: reply, contentJson: { ...outcome } });
+    // Open until each person next posts in the thread, which is what makes it their move (S4).
+    await this.deps.mentions.createForTurn(session.ticketId, turn.id, mentioned.map((person) => person.id));
 
     await this.deps.workerEvents.batchIngest(jobId, [
       {

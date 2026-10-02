@@ -1,6 +1,5 @@
 import { getClankersList, getTicketDetails } from '@/data'
 import { getJobs, type JobListItem } from '@/service/api/job-api'
-import { getTaskCapabilities } from '@/service/api/task-capabilities-api'
 import { listSessionsForTicket, type AgentSession } from '@/service/api/session-api'
 import {
   getPhaseDocumentComments,
@@ -31,7 +30,7 @@ const POLL_MS = 5000
 const WORKING_SESSION = ['active']
 
 async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | null> {
-  const [ticket, runs, research, planning, researchComments, planComments, sessions, capabilities] = await Promise.all([
+  const [ticket, runs, research, planning, researchComments, planComments, sessions] = await Promise.all([
     getTicketDetails(id),
     getJobs({ ticketId: id, limit: 50 }),
     getResearchDocument(id),
@@ -39,7 +38,6 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
     getPhaseDocumentComments(id, 'research').catch(() => []),
     getPhaseDocumentComments(id, 'planning').catch(() => []),
     listSessionsForTicket(id),
-    getTaskCapabilities(id).catch(() => null),
   ])
   if (!ticket) return null
   return {
@@ -51,7 +49,7 @@ async function loadTask(id: string): Promise<Omit<TaskPageData, 'clankers'> | nu
       planning: countNewComments(planComments, planning.document.updatedAt),
     },
     sessions,
-    capabilities,
+    capabilities: ticket.capabilities ?? null,
   }
 }
 
@@ -112,7 +110,11 @@ export function useTaskPage(routeId: string | undefined) {
     return () => clearInterval(timer)
   }, [isBusy, reload])
 
-  const setTicket = useCallback((ticket: Ticket) => setData((previous) => (previous ? { ...previous, ticket } : null)), [])
+  // Edits answer with the task alone; its situation and capabilities stay until the next load.
+  const setTicket = useCallback(
+    (ticket: Ticket) => setData((previous) => (previous ? { ...previous, ticket: { ...previous.ticket, ...ticket } } : null)),
+    []
+  )
   const setDocument = useCallback(
     (step: 'research' | 'planning', document: PhaseDocumentResponse) =>
       setData((previous) => (previous ? { ...previous, documents: { ...previous.documents, [step]: document } } : null)),

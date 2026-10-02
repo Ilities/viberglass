@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { DeleteTicketDialog } from './delete-ticket-dialog'
+import { SituationLine } from './situation-line'
 import { EditTicketDialog, type EditTicketValues } from './edit-ticket-dialog'
 import { decideTaskNextMove, TASK_STEPS, type TaskStep } from './task-next-move'
 import { TaskNextMoveBanner } from './task-next-move-banner'
@@ -169,7 +170,10 @@ export function TicketDetailPage() {
           <main className="min-w-0 space-y-7">
             <header className="space-y-3">
               <div className="flex items-start justify-between gap-6">
-                <Heading className="text-2xl leading-tight">{ticket.title}</Heading>
+                <div className="min-w-0 space-y-1">
+                  <Heading className="text-2xl leading-tight">{ticket.title}</Heading>
+                  {ticket.situation && <SituationLine situation={ticket.situation} />}
+                </div>
                 <Dropdown>
                   <DropdownButton outline className="shrink-0">
                     Actions

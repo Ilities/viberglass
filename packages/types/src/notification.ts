@@ -1,4 +1,4 @@
-/** What can land in someone's Inbox (plan §8). Agent questions and expiry warnings come with Phase 3. */
+/** What people are told by Slack and email (plan §8). In the app, Home's Needs you and unread counts are the notifications. */
 export const NOTIFICATION_KINDS = [
   'review_requested',
   'mentioned',
@@ -10,39 +10,6 @@ export const NOTIFICATION_KINDS = [
 ] as const
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
-
-/** The Inbox groups of J10, in the order they're shown. */
-export const INBOX_GROUPS = ['questions', 'reviews', 'mentions', 'failures', 'updates'] as const
-
-export type InboxGroup = (typeof INBOX_GROUPS)[number]
-
-export const INBOX_GROUP_OF: Record<NotificationKind, InboxGroup> = {
-  review_requested: 'reviews',
-  mentioned: 'mentions',
-  task_assigned: 'updates',
-  step_completed: 'updates',
-  run_failed_setup: 'failures',
-  run_failed_agent: 'failures',
-  task_done: 'updates',
-}
-
-export function isNotificationKind(value: string): value is NotificationKind {
-  return NOTIFICATION_KINDS.some((kind) => kind === value)
-}
-
-export interface InboxItem {
-  id: string
-  kind: NotificationKind
-  group: InboxGroup
-  /** One sentence, the same in the Inbox, Slack and email. */
-  text: string
-  task: { id: string; key: string; title: string; spaceSlug: string } | null
-  actor: { id: string; name: string } | null
-  createdAt: string
-  readAt: string | null
-  doneAt: string | null
-  snoozedUntil: string | null
-}
 
 const STEP_NOUN: Record<string, string> = { research: 'research', planning: 'plan', execution: 'build' }
 
@@ -67,34 +34,4 @@ export function notificationText(kind: NotificationKind, actorName: string | nul
     case 'task_done':
       return `${who} marked “${taskTitle}” as done`
   }
-}
-
-/** J10's My tasks: the tasks someone asked for, owns or reviews, by whose move it is. */
-export const MY_TASK_GROUPS = ['waiting_on_me', 'agent_working', 'waiting_on_others', 'done'] as const
-
-export type MyTaskGroup = (typeof MY_TASK_GROUPS)[number]
-
-export interface MyTask {
-  id: string
-  key: string
-  title: string
-  spaceSlug: string
-  group: MyTaskGroup
-  /** The caller's roles on the task. */
-  roles: Array<'requester' | 'owner' | 'reviewer' | 'watcher'>
-  updatedAt: string
-}
-
-/**
- * Whose move a task is, for one person: done; the agent's while a run is on;
- * theirs when it awaits review and they own or review it, or it's open and
- * they own it; otherwise someone else's.
- */
-export function myTaskGroup(status: 'open' | 'in_progress' | 'in_review' | 'resolved', roles: string[]): MyTaskGroup {
-  if (status === 'resolved') return 'done'
-  if (status === 'in_progress') return 'agent_working'
-  const owns = roles.includes('owner')
-  if (status === 'in_review' && (owns || roles.includes('reviewer'))) return 'waiting_on_me'
-  if (status === 'open' && owns) return 'waiting_on_me'
-  return 'waiting_on_others'
 }

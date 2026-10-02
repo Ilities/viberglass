@@ -3,7 +3,7 @@ import { selectText } from "../../playwright/documentSelection";
 import { E2E } from "../../playwright/e2eEnvironment";
 import { signIn } from "../../playwright/seedWorkspace";
 import { expect, signedInPage, test } from "../../playwright/smokeFixtures";
-import { askAgent, createTask, runStatus, startResearch, timeline } from "../../playwright/tasks";
+import { askAgent, createTask, needsYou, runStatus, startResearch, timeline } from "../../playwright/tasks";
 
 /** Invites someone by link, has them accept it, and signs them in (J3, J4). */
 async function invitePerson(adminApi: APIRequestContext, browser: Browser, name: string) {
@@ -22,9 +22,6 @@ async function invitePerson(adminApi: APIRequestContext, browser: Browser, name:
   return { id, name, api: session.api, page };
 }
 
-async function inbox(api: APIRequestContext): Promise<string[]> {
-  return (await (await api.get("/api/inbox")).json()).data.items.map((item: { text: string }) => item.text);
-}
 
 async function runFinishes(api: APIRequestContext, jobId: string) {
   await expect.poll(() => runStatus(api, jobId), { timeout: 90_000 }).toBe("completed");
@@ -51,17 +48,18 @@ test("a PM asks, a designer is mentioned and contributes, a reviewer comments on
     data: { body: `@[${designer.name}](user:${designer.id}) which tone fits our brand here?` },
   });
   expect(posted.status()).toBe(201);
-  await expect.poll(() => inbox(designer.api)).toContain(`E2E Admin mentioned you on “${task.title}”`);
+  await expect.poll(() => needsYou(designer.api)).toContain(`${task.title}: Discussing`);
   await designer.page.goto(`/spaces/${workspace.projectSlug}/tasks/${task.id}`);
   await designer.page.getByRole("textbox", { name: "Write a message" }).fill("Warm and short. No exclamation marks.");
   await designer.page.getByRole("button", { name: "Post" }).click();
   await expect(designer.page.getByText("Warm and short. No exclamation marks.")).toBeVisible();
+  // Replying answers the mention, so it's no longer the designer's move.
+  await expect.poll(() => needsYou(designer.api)).not.toContain(`${task.title}: Discussing`);
 
   // The PM adds the reviewer and asks for the plan; the agent mentions the reviewer when it's written.
   expect((await adminApi.post(`/api/tasks/${task.id}/participants`, { data: { userId: reviewer.id, role: "reviewer" } })).status()).toBe(201);
-  await expect.poll(() => inbox(reviewer.api)).toContain(`E2E Admin asked you to review “${task.title}”`);
   await runFinishes(adminApi, (await askAgent(adminApi, task.id, { action: "plan", body: "Write the plan" })).jobId);
-  await expect.poll(() => inbox(reviewer.api)).toContain(`The agent mentioned you on “${task.title}”: the plan is ready`);
+  await expect.poll(() => needsYou(reviewer.api)).toContain(`${task.title}: Plan v1 ready`);
 
   // 4. The reviewer comments on the rendered plan and asks the agent to revise it with the comment.
   const page = reviewer.page;

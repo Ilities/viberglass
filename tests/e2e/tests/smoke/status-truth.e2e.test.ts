@@ -35,7 +35,7 @@ test("status says an agent is working only while one runs, then asks for review"
   await expect.poll(() => runStatus(adminApi, jobId), { timeout: 90_000 }).toBe("completed");
   await expect(researchHeader).toContainText("Ready", { timeout: 15_000 });
   await expect.poll(() => taskStatus(adminApi, task.id)).toBe("in_review");
-  await expect(page.getByText("Awaiting review").first()).toBeVisible();
+  await expect(page.getByLabel("Situation")).toContainText("Your move · Research v1 ready · E2E Admin");
 });
 
 test("a failed run shows as failed, and the task is no longer in progress", async ({

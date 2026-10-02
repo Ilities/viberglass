@@ -7,13 +7,13 @@ export interface OutgoingNotification {
   ticketId: string | null;
   actorId: string | null;
   payload: Record<string, unknown>;
-  /** The sentence the Inbox shows too. */
+  /** One sentence, the same in Slack and email. */
   text: string;
   /** Where the person acts on it, when the platform's address is known. */
   link: string | null;
 }
 
-/** A way to reach someone: the Inbox, a Slack DM, email. Each decides what it carries. */
+/** A way to reach someone outside the app: a Slack DM, email. Each decides what it carries. */
 export interface NotificationChannel {
   readonly name: string;
   deliver(notification: OutgoingNotification): Promise<void>;

@@ -13,7 +13,7 @@ import { TicketWorkflowService } from "../../services/TicketWorkflowService";
 import { requireAuth } from "../middleware/authentication";
 import { validateUuidParam } from "../middleware/validation";
 import { TICKET_STATUS, type TicketLifecycleStatus } from "@viberglass/types";
-import { registerTicketCrudMediaRoutes } from "./tickets/crudMediaRoutes";
+import { registerTicketCrudRoutes } from "./tickets/crudRoutes";
 import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
 import { registerDocumentCommentRoutes } from "./tickets/documentCommentRoutes";
@@ -28,7 +28,10 @@ import { taskKeyParamGuard, taskParamGuard } from "../middleware/spaceAccessGuar
 import { TaskParticipantService } from "../../services/tasks/TaskParticipantService";
 import { TaskParticipantDAO } from "../../persistence/ticketing/TaskParticipantDAO";
 import { registerTaskParticipantRoutes } from "./tickets/participantRoutes";
-import { registerTaskCapabilityRoutes } from "./tickets/capabilityRoutes";
+import { registerTaskReadRoutes } from "./tickets/taskReadRoutes";
+import { registerTaskMediaRoutes } from "./tickets/taskMediaRoutes";
+import { TaskSituationService } from "../../services/tasks/TaskSituationService";
+import { TaskReadDAO } from "../../persistence/ticketing/TaskReadDAO";
 import { TaskAskPolicyService } from "../../services/taskTurns/TaskAskPolicyService";
 import { registerTaskDiscussionRoutes } from "./tickets/discussionRoutes";
 import { TaskDiscussionService } from "../../services/tasks/TaskDiscussionService";
@@ -118,16 +121,25 @@ router.post("/:id/set-status", validateUuidParam("id"), taskChangeGuard("edit"),
   }
 });
 
-registerTicketCrudMediaRoutes(router, {
+const spaceAccess = new SpaceAccessService();
+registerTicketCrudRoutes(router, {
   ticketService,
   projectService,
   fileUploadService,
   integrationDAO: new IntegrationDAO(),
-  agentSessionDAO: new AgentSessionDAO(),
-  spaceAccess: new SpaceAccessService(),
+  spaceAccess,
   participants: taskParticipants,
-  participantDAO: new TaskParticipantDAO(),
   activity: taskActivity,
+});
+registerTaskMediaRoutes(router, { ticketService, fileUploadService });
+registerTaskReadRoutes(router, {
+  ticketService,
+  agentSessionDAO: new AgentSessionDAO(),
+  spaceAccess,
+  participantDAO: new TaskParticipantDAO(),
+  situations: new TaskSituationService(),
+  policy: new TaskAskPolicyService(),
+  reads: new TaskReadDAO(),
 });
 
 registerTicketWorkflowPhaseRoutes(router, {
@@ -139,7 +151,6 @@ registerTicketWorkflowPhaseRoutes(router, {
 });
 registerDocumentCommentRoutes(router, { ticketPhaseDocumentCommentService });
 
-registerTaskCapabilityRoutes(router, { policy: new TaskAskPolicyService() });
 
 registerTicketExecutionRoutes(router, {
   ticketDAO: ticketService,

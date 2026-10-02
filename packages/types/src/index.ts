@@ -79,3 +79,5 @@ export * from './documentAnchor'
 
 // The workspace audit log
 export * from './auditLog'
+export * from './taskSituation'
+export * from './home'

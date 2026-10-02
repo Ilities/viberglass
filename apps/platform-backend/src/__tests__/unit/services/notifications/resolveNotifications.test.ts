@@ -1,4 +1,3 @@
-import { myTaskGroup } from "@viberglass/types";
 import { resolveNotifications, type RecipientContext } from "../../../../services/notifications/resolveNotifications";
 
 const context: RecipientContext = {
@@ -69,19 +68,5 @@ describe("resolveNotifications (plan §8)", () => {
   it("sends one item per person even when they hold several roles", () => {
     const both = { ...context, participants: [{ userId: "pm", role: "requester" as const }, { userId: "pm", role: "owner" as const }] };
     expect(resolveNotifications({ kind: "run_finished", actorId: null, payload: {} }, both)).toHaveLength(1);
-  });
-});
-
-describe("myTaskGroup (J10)", () => {
-  it.each([
-    ["resolved", ["owner"], "done"],
-    ["in_progress", ["owner"], "agent_working"],
-    ["in_review", ["reviewer"], "waiting_on_me"],
-    ["in_review", ["owner"], "waiting_on_me"],
-    ["in_review", ["requester"], "waiting_on_others"],
-    ["open", ["owner"], "waiting_on_me"],
-    ["open", ["requester"], "waiting_on_others"],
-  ] as const)("%s as %j is %s", (status, roles, group) => {
-    expect(myTaskGroup(status, [...roles])).toBe(group);
   });
 });

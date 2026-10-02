@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatAutoFixStatus, formatSeverity } from '@/data'
 import { Timestamp } from '@/components/timestamp'
 import { PlayIcon } from '@radix-ui/react-icons'
-import type { Clanker, Ticket } from '@viberglass/types'
+import { situationPhrase, type Clanker, type Ticket } from '@viberglass/types'
 import { useMemo, useState } from 'react'
 import { LiveSessionBadge } from './live-session-badge'
 import { formatTicketStatus, formatTicketWorkflowPhase } from './ticket-display'
@@ -140,7 +140,7 @@ export function TicketsTable({
                 </TableCell>
                 <TableCell>{ticket.category}</TableCell>
                 <TableCell>
-                  <Badge className={status.className}>{status.label}</Badge>
+                  <Badge className={status.className}>{ticket.situation ? situationPhrase(ticket.situation) : status.label}</Badge>
                 </TableCell>
                 <TableCell>
                   <Badge className={phase.className}>{phase.label}</Badge>

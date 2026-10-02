@@ -457,19 +457,6 @@ export interface AuditLogTable {
   created_at: Generated<Timestamp>;
 }
 
-export interface NotificationsTable {
-  id: Generated<string>;
-  recipient_id: string;
-  kind: string;
-  ticket_id: string | null;
-  actor_id: string | null;
-  payload_json: Generated<Json>;
-  created_at: Generated<Timestamp>;
-  read_at: Timestamp | null;
-  done_at: Timestamp | null;
-  snoozed_until: Timestamp | null;
-}
-
 export interface TaskMessagesTable {
   id: Generated<string>;
   ticket_id: string;
@@ -479,9 +466,20 @@ export interface TaskMessagesTable {
   edited_at: Timestamp | null;
 }
 
-export interface TaskMessageMentionsTable {
-  message_id: string;
+export interface TaskMentionsTable {
+  id: Generated<string>;
+  ticket_id: string;
   user_id: string;
+  message_id: string | null;
+  agent_turn_id: string | null;
+  created_at: Generated<Timestamp>;
+  answered_at: Timestamp | null;
+}
+
+export interface TaskReadsTable {
+  ticket_id: string;
+  user_id: string;
+  last_read_at: Generated<Timestamp>;
 }
 
 export interface TaskActivityTable {
@@ -754,9 +752,9 @@ export interface Database {
   space_members: SpaceMembersTable;
   task_participants: TaskParticipantsTable;
   task_messages: TaskMessagesTable;
-  task_message_mentions: TaskMessageMentionsTable;
+  task_mentions: TaskMentionsTable;
+  task_reads: TaskReadsTable;
   task_activity: TaskActivityTable;
-  notifications: NotificationsTable;
   audit_log: AuditLogTable;
   ticket_phase_documents: TicketPhaseDocumentsTable;
   ticket_phase_runs: TicketPhaseRunsTable;

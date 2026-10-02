@@ -121,3 +121,10 @@ export function shownRunId(url: string): string {
   if (!fromPath) throw new Error(`No run in ${url}`);
   return fromPath;
 }
+
+/** The threads on someone's Home where it's their move, as "title: phrase". */
+export async function needsYou(api: APIRequestContext): Promise<string[]> {
+  const body = await (await api.get("/api/home")).json();
+  const threads: Array<{ task: { title: string }; situation: { label: string } }> = body?.data?.needsYou ?? [];
+  return threads.map((thread) => `${thread.task.title}: ${thread.situation.label}`);
+}

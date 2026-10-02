@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-/** Where you hear about things: always the Inbox; Slack DMs once linked; email when the workspace has it. */
+/** Where you hear about things outside the app: Slack DMs once linked; email when the workspace has it. In the app, Home shows what needs you. */
 export function NotificationSettingsPage() {
   const { user } = useAuth()
   const [channels, setChannels] = useState<NotificationChannels | null>(null)
@@ -56,8 +56,8 @@ export function NotificationSettingsPage() {
         <div>
           <Heading>Notifications</Heading>
           <Text className="mt-2">
-            Everything that needs you lands in your Inbox. Review requests, mentions and failures on your tasks can also
-            reach you in Slack.
+            Home shows every task that needs you, with what&apos;s new in each. Review requests, mentions and failures on
+            your tasks can also reach you in Slack.
           </Text>
         </div>
         {channels && (

@@ -25,6 +25,7 @@ import type {
   DeploymentStrategy,
   Project,
   Severity,
+  TaskSituation,
   Ticket,
   TicketLifecycleStatus,
   TicketStats,
@@ -45,6 +46,7 @@ export interface TicketSummary {
   autoFixStatus?: AutoFixStatus
   status: TicketLifecycleStatus
   workflowPhase: TicketWorkflowPhase
+  situation?: TaskSituation
 }
 
 // Project functions
@@ -77,6 +79,7 @@ export async function getRecentTickets(projectSlug?: string): Promise<TicketSumm
     autoFixStatus: ticket.autoFixStatus,
     status: ticket.status,
     workflowPhase: ticket.workflowPhase,
+    situation: ticket.situation,
   }))
 }
 
