@@ -12,7 +12,7 @@ import {
   updateIntegrationCredential,
 } from '@/service/api/integration-api'
 import { SsmPathField } from '@/pages/secrets/ssm-path-field'
-import { getSecrets, getSecretStorageDefaults, type Secret, type SecretStorageDefaults } from '@/service/api/secret-api'
+import { getSecretStorageDefaults, listAllSecrets, type Secret, type SecretStorageDefaults } from '@/service/api/secret-api'
 import type { CreateIntegrationCredentialRequest, UpdateIntegrationCredentialRequest, IntegrationCredential, SecretLocation } from '@viberglass/types'
 import { PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useState } from 'react'
@@ -134,7 +134,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
   const loadSecrets = async () => {
     setIsLoadingSecrets(true)
     try {
-      const data = await getSecrets(100, 0)
+      const data = await listAllSecrets()
       setSecrets(data)
     } catch (error) {
       console.error('Failed to load secrets:', error)

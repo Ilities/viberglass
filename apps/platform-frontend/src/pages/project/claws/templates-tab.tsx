@@ -18,7 +18,7 @@ import {
   updateClawTaskTemplate,
 } from '@/service/api/claw-api'
 import type { Secret } from '@/service/api/secret-api'
-import { getSecrets } from '@/service/api/secret-api'
+import { listAllSecrets } from '@/service/api/secret-api'
 import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import type { ClawTaskTemplateSummary } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
@@ -54,7 +54,7 @@ export function TemplatesTab({ projectId }: Props) {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [t, c, s] = await Promise.all([getClawTaskTemplates(projectId), getClankers(100), getSecrets(100)])
+      const [t, c, s] = await Promise.all([getClawTaskTemplates(projectId), getClankers(100), listAllSecrets()])
       setTemplates(t)
       setClankers(c)
       setSecrets(s)

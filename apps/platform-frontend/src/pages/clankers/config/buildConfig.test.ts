@@ -145,4 +145,47 @@ describe('buildClankerDeploymentConfig', () => {
     expect(result.strategy).not.toHaveProperty('memorySize')
     expect(result.strategy).not.toHaveProperty('timeout')
   })
+
+  describe('when editing', () => {
+    const kimiConfig = {
+      version: 1,
+      strategy: { type: 'docker', provisioningMode: 'prebuilt' },
+      agent: { type: 'kimi-code', endpoint: 'https://api.moonshot.ai/v1', model: 'kimi-k3' },
+      runtime: { settings: { runTests: true } },
+    }
+
+    test('keeps agent settings the form has no inputs for', () => {
+      const result = buildClankerDeploymentConfig({
+        strategyName: 'docker',
+        selectedAgent: 'kimi-code',
+        form: DEFAULT_CLANKER_CONFIG_FORM_STATE,
+        existing: kimiConfig,
+      })
+
+      expect(result.agent).toEqual({ type: 'kimi-code', endpoint: 'https://api.moonshot.ai/v1', model: 'kimi-k3' })
+      expect(result.runtime).toEqual({ settings: { runTests: true } })
+    })
+
+    test('lets a blanked form field clear the stored value', () => {
+      const result = buildClankerDeploymentConfig({
+        strategyName: 'docker',
+        selectedAgent: 'opencode',
+        form: { ...DEFAULT_CLANKER_CONFIG_FORM_STATE, opencodeModel: '' },
+        existing: { version: 1, strategy: { type: 'docker' }, agent: { type: 'opencode', model: 'opencode-go/kimi-k3' } },
+      })
+
+      expect(result.agent).toEqual({ type: 'opencode' })
+    })
+
+    test('drops the old agent settings when the agent changes', () => {
+      const result = buildClankerDeploymentConfig({
+        strategyName: 'docker',
+        selectedAgent: 'claude-code',
+        form: DEFAULT_CLANKER_CONFIG_FORM_STATE,
+        existing: kimiConfig,
+      })
+
+      expect(result.agent).toEqual({ type: 'claude-code' })
+    })
+  })
 })

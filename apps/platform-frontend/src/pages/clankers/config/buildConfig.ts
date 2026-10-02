@@ -1,7 +1,8 @@
-import type {
-  AgentType,
-  ClankerAgentConfig,
-  ClankerStrategyConfig,
+import {
+  isObjectRecord,
+  type AgentType,
+  type ClankerAgentConfig,
+  type ClankerStrategyConfig,
 } from '@viberglass/types'
 import { DEFAULT_CODEX_AUTH_SECRET_NAME, type BuildConfigInput } from './types'
 import { normalizeStrategyName } from './normalizers'
@@ -89,10 +90,30 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
   }
 }
 
+/** Agent settings this form has inputs for; blanking one of these clears it. */
+const FORM_AGENT_FIELDS: Partial<Record<AgentType, string[]>> = {
+  codex: ['codexAuth'],
+  'qwen-cli': ['endpoint'],
+  opencode: ['endpoint', 'model'],
+  antigravity: ['model'],
+}
+
+/** Keeps the stored agent's settings the form doesn't show, such as a Kimi endpoint and model set by setup. */
+function keepUnshownAgentSettings(built: ClankerAgentConfig, existing: unknown): Record<string, unknown> {
+  if (!isObjectRecord(existing) || existing.type !== built.type) {
+    return { ...built }
+  }
+  const shown = new Set(FORM_AGENT_FIELDS[built.type] ?? [])
+  const unshown = Object.fromEntries(Object.entries(existing).filter(([key]) => !shown.has(key)))
+  return { ...unshown, ...built }
+}
+
 export function buildClankerDeploymentConfig(input: BuildConfigInput): Record<string, unknown> {
+  const existing = isObjectRecord(input.existing) && input.existing.version === 1 ? input.existing : null
   return {
     version: 1,
     strategy: buildStrategy(input),
-    agent: buildAgent(input.selectedAgent, input),
+    agent: keepUnshownAgentSettings(buildAgent(input.selectedAgent, input), existing?.agent),
+    ...(existing && isObjectRecord(existing.runtime) ? { runtime: existing.runtime } : {}),
   }
 }

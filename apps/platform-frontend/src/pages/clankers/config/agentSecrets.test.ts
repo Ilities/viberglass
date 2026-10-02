@@ -1,5 +1,5 @@
 import type { Secret } from '@/service/api/secret-api'
-import { filterSecretsForAgent, getAllSecrets, getApplicableSecretNames, getSecretPickerDescription, getSecretPickerEmptyMessage } from './agentSecrets'
+import { buildSecretPickerOptions, filterSecretsForAgent, getAllSecrets, getApplicableSecretNames, getSecretPickerDescription, getSecretPickerEmptyMessage } from './agentSecrets'
 
 function createSecret(id: string, name: string): Secret {
   return {
@@ -13,10 +13,17 @@ function createSecret(id: string, name: string): Secret {
 }
 
 describe('agentSecrets', () => {
-  test('includes qwen API key aliases in applicable names', () => {
-    const names = getApplicableSecretNames('qwen-cli', 'api_key')
-    expect(names).toEqual(
-      expect.arrayContaining(['QWEN_CLI_API_KEY', 'DASHSCOPE_API_KEY', 'QWEN_API_KEY']),
+  test('lists the names the agent plugin reads, key first', () => {
+    expect(getApplicableSecretNames('claude-code', 'api_key')).toEqual([
+      'ANTHROPIC_API_KEY',
+      'ANTHROPIC_AUTH_TOKEN',
+      'ANTHROPIC_BASE_URL',
+    ])
+  })
+
+  test('includes every provider key a multi-provider agent reads', () => {
+    expect(getApplicableSecretNames('opencode', 'api_key')).toEqual(
+      expect.arrayContaining(['OPENCODE_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'GROQ_API_KEY']),
     )
   })
 
@@ -28,13 +35,29 @@ describe('agentSecrets', () => {
   test('filters secrets by selected agent names', () => {
     const secrets: Secret[] = [
       createSecret('s1', 'QWEN_CLI_API_KEY'),
-      createSecret('s2', 'QWEN_API_ENDPOINT'),
+      createSecret('s2', 'QWEN_API_KEY'),
       createSecret('s3', 'OPENAI_API_KEY'),
       createSecret('s4', 'UNRELATED_SECRET'),
     ]
 
     const filtered = filterSecretsForAgent(secrets, 'qwen-cli', 'api_key')
     expect(filtered.map((secret) => secret.id)).toEqual(['s1'])
+  })
+
+  describe('buildSecretPickerOptions', () => {
+    const anthropic = createSecret('s1', 'ANTHROPIC_API_KEY')
+    const openai = createSecret('s2', 'OPENAI_API_KEY')
+
+    test('keeps a selected secret the agent does not read, flagged', () => {
+      const options = buildSecretPickerOptions([anthropic, openai], [openai], ['s1'], 'codex')
+      expect(options.map((option) => option.id)).toEqual(['s2', 's1'])
+      expect(options[1].description).toContain('not read by OpenAI Codex')
+    })
+
+    test('does not list unselected secrets outside the selectable ones', () => {
+      const options = buildSecretPickerOptions([anthropic, openai], [openai], [], 'codex')
+      expect(options.map((option) => option.id)).toEqual(['s2'])
+    })
   })
 
   describe('getAllSecrets', () => {

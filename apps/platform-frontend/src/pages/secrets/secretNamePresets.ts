@@ -1,59 +1,30 @@
+import { AGENT_OPTIONS, getAgentEnvVarNames, type AgentType } from '@viberglass/types'
+
 export type SecretNamePresetGroup = {
-  id: string
+  id: AgentType
   label: string
   helper: string
   names: string[]
 }
 
-export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = [
-  {
-    id: 'claude-code',
-    label: 'Claude Code',
-    helper: 'Recommended: ANTHROPIC_API_KEY. Falls back to CLAUDE_CODE_API_KEY.',
-    names: ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_MODEL'],
-  },
-  {
-    id: 'codex',
-    label: 'OpenAI Codex',
-    helper: 'Recommended: OPENAI_API_KEY. Falls back to CODEX_API_KEY.',
-    names: ['OPENAI_API_KEY', 'CODEX_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_ORG_ID'],
-  },
-  {
-    id: 'opencode',
-    label: 'OpenCode',
-    helper: 'Recommended: OPENCODE_API_KEY or OPENAI_API_KEY. Base URL can be set in agent settings.',
-    names: ['OPENCODE_API_KEY', 'OPENAI_API_KEY', 'OPENCODE_BASE_URL', 'OPENAI_BASE_URL'],
-  },
-  {
-    id: 'qwen-cli',
-    label: 'Qwen CLI',
-    helper: 'Recommended: QWEN_CLI_API_KEY. Configure endpoint in agent settings (not as a secret).',
-    names: ['QWEN_CLI_API_KEY', 'DASHSCOPE_API_KEY', 'QWEN_API_KEY'],
-  },
-  {
-    id: 'antigravity',
-    label: 'Google Antigravity',
-    helper: 'Required: GEMINI_API_KEY, a Gemini Developer API key.',
-    names: ['GEMINI_API_KEY'],
-  },
-  {
-    id: 'mistral-vibe',
-    label: 'Mistral Vibe',
-    helper: 'Recommended: MISTRAL_API_KEY.',
-    names: ['MISTRAL_API_KEY', 'MISTRAL_VIBE_API_KEY'],
-  },
-  {
-    id: 'kimi-code',
-    label: 'Kimi Code',
-    helper: 'Recommended: KIMI_API_KEY.',
-    names: ['KIMI_API_KEY', 'KIMI_CODE_API_KEY', 'KIMI_CODE_ENDPOINT'],
-  },
-  {
-    id: 'pi',
-    label: 'Pi',
-    helper: 'Pi reads the key of whichever provider its model uses, e.g. ANTHROPIC_API_KEY or ZAI_API_KEY.',
-    names: ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'ZAI_API_KEY', 'OPENCODE_API_KEY', 'OPENROUTER_API_KEY'],
-  },
-]
+function describe(apiKey: string[], endpoint: string[]): string {
+  const [recommended, ...alternatives] = apiKey
+  const parts = [
+    recommended ? `Model key: ${recommended}.` : '',
+    alternatives.length > 0 ? `Also read: ${alternatives.join(', ')}.` : '',
+    endpoint.length > 0 ? `Endpoint override: ${endpoint.join(' or ')}.` : '',
+  ]
+  return parts.filter(Boolean).join(' ')
+}
 
-export const DEFAULT_SECRET_NAME_PRESET_GROUP_ID = 'claude-code'
+export const SECRET_NAME_PRESET_GROUPS: SecretNamePresetGroup[] = AGENT_OPTIONS.map((option) => {
+  const { apiKey, endpoint } = getAgentEnvVarNames(option.value)
+  return {
+    id: option.value,
+    label: option.label,
+    helper: describe(apiKey, endpoint),
+    names: [...apiKey, ...endpoint],
+  }
+})
+
+export const DEFAULT_SECRET_NAME_PRESET_GROUP_ID: AgentType = 'claude-code'
