@@ -1,20 +1,19 @@
-import { buildFeatureBranchName, type TaskCodeBranch } from "@viberglass/types";
-import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
+import type { TaskCodeBranch } from "@viberglass/types";
 import { ProjectScmConfigDAO } from "../../persistence/project/ProjectScmConfigDAO";
 import { TaskTakeoverDAO } from "../../persistence/ticketing/TaskTakeoverDAO";
 import { TicketDAO } from "../../persistence/ticketing/TicketDAO";
+import { TaskBranchNamer } from "./TaskBranchNamer";
 
 interface Dependencies {
   tickets: Pick<TicketDAO, "getTicket">;
   scm: Pick<ProjectScmConfigDAO, "getByProjectId">;
   takeovers: Pick<TaskTakeoverDAO, "get" | "lastBuildBranch">;
-  sessions: Pick<AgentSessionDAO, "getLatestClankerIdByTicket">;
+  namer: Pick<TaskBranchNamer, "nameFor">;
 }
 
 /**
  * The task's branch, which its builds commit to, and who has the work now.
- * The branch a build pushed is the one; before any has, it's the name the
- * space's template gives the next build.
+ * Asking names the branch if nothing has yet, so the next build uses the same.
  */
 export class TaskCodeBranchService {
   private readonly deps: Dependencies;
@@ -24,7 +23,7 @@ export class TaskCodeBranchService {
       tickets: new TicketDAO(),
       scm: new ProjectScmConfigDAO(),
       takeovers: new TaskTakeoverDAO(),
-      sessions: new AgentSessionDAO(),
+      namer: new TaskBranchNamer(),
       ...deps,
     };
   }
@@ -34,15 +33,13 @@ export class TaskCodeBranchService {
     const ticket = await this.deps.tickets.getTicket(ticketId);
     const scm = ticket ? await this.deps.scm.getByProjectId(ticket.projectId) : null;
     if (!ticket || !scm?.sourceRepository.trim()) return null;
-    const [pushed, takenOver, clankerId] = await Promise.all([
+    const [branch, pushed, takenOver] = await Promise.all([
+      this.deps.namer.nameFor(ticketId, ticketId),
       this.deps.takeovers.lastBuildBranch(ticketId),
       this.deps.takeovers.get(ticketId),
-      this.deps.sessions.getLatestClankerIdByTicket(ticketId),
     ]);
-    const branch =
-      pushed ?? buildFeatureBranchName("", ticket.id, ticket.externalTicketId || ticket.id, clankerId ?? undefined, scm.branchNameTemplate);
     return {
-      branch,
+      branch: branch ?? pushed ?? "",
       repositoryUrl: scm.sourceRepository.trim(),
       baseBranch: scm.baseBranch.trim() || "main",
       pushed: pushed !== null,

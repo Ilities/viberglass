@@ -1,6 +1,7 @@
 import type { McpToolServices } from "@viberglass/mcp-server";
 import { isTicketOrigin, NATIVE_TICKET_ORIGIN, type TicketWorkflowPhase } from "@viberglass/types";
 import { TicketDAO } from "../persistence/ticketing/TicketDAO";
+import { TicketListDAO } from "../persistence/ticketing/TicketListDAO";
 import { TicketPhaseDocumentDAO } from "../persistence/ticketing/TicketPhaseDocumentDAO";
 import { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import { ProjectDAO } from "../persistence/project/ProjectDAO";
@@ -12,6 +13,7 @@ import { currentActorId } from "../api/auth/requestActor";
 import { TaskCodeBranchService } from "../services/tasks/TaskCodeBranchService";
 
 const ticketDAO = new TicketDAO();
+const ticketLists = new TicketListDAO();
 const ticketPhaseDocumentDAO = new TicketPhaseDocumentDAO();
 const clankerDAO = new ClankerDAO();
 const projectDAO = new ProjectDAO();
@@ -61,7 +63,7 @@ export function createMcpToolServices(scope: McpScope): McpToolServices {
     tickets: {
       async list(filters) {
         if (filters.projectId) await scope.assertSpace(filters.projectId);
-        return ticketDAO.getTicketsWithFilters({
+        return ticketLists.getTicketsWithFilters({
           limit: filters.limit ?? 50,
           offset: filters.offset ?? 0,
           projectId: filters.projectId,

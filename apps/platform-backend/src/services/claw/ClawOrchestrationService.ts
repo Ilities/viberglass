@@ -8,6 +8,7 @@ import { IntegrationCredentialDAO } from "../../persistence/integrations";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import { JobService } from "../JobService";
+import { JobBootstrapService } from "../job/JobBootstrapService";
 import { CredentialRequirementsService } from "../CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
@@ -41,6 +42,7 @@ export class ClawOrchestrationService {
   private clawExecutionService = new ClawExecutionService();
   private provisioningService = getClankerProvisioner();
   private jobService = new JobService();
+  private bootstraps = new JobBootstrapService();
   private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
   private instructionStorageService = new InstructionStorageService();
@@ -143,6 +145,7 @@ export class ClawOrchestrationService {
         preparedContext,
         {
           jobService: this.jobService,
+          bootstraps: this.bootstraps,
           credentialRequirementsService: this.credentialRequirementsService,
           workerExecutionService: this.workerExecutionService,
         },

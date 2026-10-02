@@ -142,6 +142,8 @@ export interface BaseWorkerPayload {
   conversationStateUrl?: string;
   /** The last commit an agent pushed to the task's branch; the turn is told what people pushed after it. */
   lastAgentCommit?: string | null;
+  /** The task's branch, named once by the platform; absent for runs outside a task. */
+  taskBranch?: string | null;
   /**
    * W3C trace context linking this job's worker spans to the backend span
    * that dispatched it.

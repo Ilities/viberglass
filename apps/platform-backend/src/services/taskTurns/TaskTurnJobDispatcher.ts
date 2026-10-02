@@ -11,7 +11,9 @@ import type { BaseJobData, JobData, TicketJobContext } from "../../types/Job";
 import { WorkerExecutionService } from "../../workers";
 import { CredentialRequirementsService } from "../CredentialRequirementsService";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
+import { TaskBranchNamer } from "../tasks/TaskBranchNamer";
 import { JobService } from "../JobService";
+import { JobBootstrapService } from "../job/JobBootstrapService";
 import { SecretService } from "../SecretService";
 import { TicketMediaExecutionService } from "../TicketMediaExecutionService";
 import { buildBootstrapPayload, buildScmPayloadFromContext, prepareTicketRunContext } from "../ticketRunOrchestration";
@@ -72,10 +74,12 @@ export class TaskTurnJobDispatcher {
   };
 
   constructor(
-    private readonly jobService: Pick<JobService, "submitJob" | "saveBootstrapPayload"> = new JobService(),
+    private readonly jobService: Pick<JobService, "submitJob"> = new JobService(),
+    private readonly bootstraps: Pick<JobBootstrapService, "saveBootstrapPayload"> = new JobBootstrapService(),
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker"> = new CredentialRequirementsService(),
     private readonly workers: Pick<WorkerExecutionService, "executeJob"> = new WorkerExecutionService(),
     private readonly media: Pick<TicketMediaExecutionService, "prepareForExecution"> = new TicketMediaExecutionService(),
+    private readonly branches: Pick<TaskBranchNamer, "nameFor"> = new TaskBranchNamer(),
   ) {}
 
   /**
@@ -152,11 +156,13 @@ export class TaskTurnJobDispatcher {
       acpSessionId,
       conversationStateUrl,
       lastAgentCommit: input.lastAgentCommit,
+      // Named once for the task, so every turn and whoever takes over use the same branch.
+      taskBranch: await this.branches.nameFor(ticket.id, jobId),
       ...(acpSessionId ? { coldStartTask: prompts.coldStartPrompt } : {}),
       ...(action === "summarise" ? { compactInstructions: COMPACT_INSTRUCTIONS } : {}),
     };
     jobData.bootstrapPayload = bootstrap;
-    await this.jobService.saveBootstrapPayload(jobId, bootstrap);
+    await this.bootstraps.saveBootstrapPayload(jobId, bootstrap);
     await onSubmitted({ id: jobId, prompt: task });
 
     this.workers

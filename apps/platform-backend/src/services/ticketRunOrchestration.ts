@@ -271,10 +271,8 @@ export async function prepareTicketRunContext(
 
 // Types for job submission helpers
 export interface JobSubmissionDependencies {
-  jobService: Pick<
-    typeof import("./JobService").JobService.prototype,
-    "submitJob" | "saveBootstrapPayload"
-  >;
+  jobService: Pick<typeof import("./JobService").JobService.prototype, "submitJob">;
+  bootstraps: Pick<typeof import("./job/JobBootstrapService").JobBootstrapService.prototype, "saveBootstrapPayload">;
   credentialRequirementsService: Pick<
     typeof import("./CredentialRequirementsService").CredentialRequirementsService.prototype,
     "getRequiredCredentialsForClanker"
@@ -483,7 +481,7 @@ async function dispatchJob(
   });
 
   jobData.bootstrapPayload = bootstrapPayload;
-  await deps.jobService.saveBootstrapPayload(jobData.id, bootstrapPayload);
+  await deps.bootstraps.saveBootstrapPayload(jobData.id, bootstrapPayload);
 
   // Invoke worker (fire-and-forget)
   deps.workerExecutionService

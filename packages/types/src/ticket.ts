@@ -151,6 +151,8 @@ export interface Ticket {
   owner?: { id: string; name: string }
   /** Where the task stands and whose move it is, for the person asking. Set by task responses. */
   situation?: TaskSituation
+  /** Whether someone mentioned the person asking and they haven't replied or marked it done. */
+  mentionsYou?: boolean
   /** The latest message in the thread. Set by task lists only. */
   lastMessage?: HomeThread['lastMessage']
   /** Entries by others since the person asking last read the thread. Set by task lists only. */

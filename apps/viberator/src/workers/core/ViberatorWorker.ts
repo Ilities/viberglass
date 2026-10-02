@@ -1,77 +1,37 @@
 import { createLogger, format, Logger, transports } from "winston";
-import * as path from "path";
 import * as fs from "fs";
-import { ConfigManager } from "../../config/ConfigManager";
-import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
-import type { BaseAgentConfig } from "@viberglass/agent-core";
-import type { TaskTurnAction } from "@viberglass/types";
-import { AcpExecutor } from "@viberglass/agent-core";
-import { Configuration } from "../../types";
-import GitService from "../../services/GitService";
-import {
-  CodingJobData,
-  JobOverrides,
-  JobResult,
-  ProjectConfigPayload,
-  WorkerPayload,
-} from "./types";
-import { CallbackClient } from "../infrastructure/CallbackClient";
+import { CodingJobData, JobResult, WorkerPayload } from "./types";
 import { CredentialProvider } from "../infrastructure/CredentialProvider";
 import { ConfigLoader } from "../infrastructure/ConfigLoader";
 import { InstructionFileManager } from "../runtime/InstructionFileManager";
 import { EnvironmentManager } from "../runtime/EnvironmentManager";
-import { LogForwarder } from "../runtime/LogForwarder";
-import { SessionEventForwarder } from "../../acp/SessionEventForwarder";
-import type { AgentAuthLifecycle } from "./agentAuthLifecycle";
+import { NO_SETTINGS, workerSettingsOf, type WorkerSettings } from "./workerSettings";
+import { selectAgent } from "./selectAgent";
+import { createWorkerServices, type WorkerServices } from "./workerServices";
 import type { AgentAuthLifecycleFactory } from "./agentAuthLifecycleFactory";
 import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
 import { runClawJob } from "./runClawJob";
 import { runSessionTurnJob } from "./runSessionTurnJob";
-import {
-  extractClankerEnvironment,
-  normalizeAgentName,
-  resolveClankerConfig,
-} from "./workerConfig";
-import { cleanupJobWorkspace, sendWorkerProgress } from "./workerHelpers";
+import { cleanupJobWorkspace, cloneFreshRepository, sendWorkerProgress } from "./workerHelpers";
 import { jobWorkspaceDir } from "./taskWorkspace";
 
 export class ViberatorWorker {
   private logger: Logger;
-  private config!: Configuration;
-  private orchestrator!: AgentOrchestrator;
   private readonly workDir: string;
-  private gitService!: GitService;
-  private callbackClient!: CallbackClient;
   private credentialProvider!: CredentialProvider;
   private configLoader!: ConfigLoader;
   private instructionFileManager!: InstructionFileManager;
   private environmentManager!: EnvironmentManager;
-  private logForwarder!: LogForwarder;
-  private sessionEventForwarder!: SessionEventForwarder;
-  private agentAuthLifecycle!: AgentAuthLifecycle;
+  private services!: WorkerServices;
   private readonly agentAuthLifecycleFactory: AgentAuthLifecycleFactory;
   private readonly agentEndpointEnvironmentFactory: AgentEndpointEnvironmentFactory;
   private initialized = false;
 
-  private clankerConfig?: { clankerId: string } & Record<string, unknown>;
-  private clankerEnvironment?: Record<string, string>;
-  private requestedAgent?: string;
-  private projectConfig?: ProjectConfigPayload;
-  private overrides?: JobOverrides;
+  private settings: WorkerSettings = NO_SETTINGS;
   private instructionFiles: Map<string, string> = new Map();
   private fetchedCredentials?: Record<string, string | undefined>;
   private currentJobId?: string;
   private currentTenantId?: string;
-  // ACP session fields — populated from payload on interactive (multi-turn) jobs.
-  private agentSessionId?: string;
-  private agentTurnId?: string;
-  private turnAction?: TaskTurnAction;
-  private allowCode = false;
-  private coldStartTask?: string;
-  private compactInstructions?: string;
-  private acpSessionId?: string;
-  private conversationStateUrl?: string;
-  private lastAgentCommit?: string;
 
   constructor(
     agentAuthLifecycleFactory: AgentAuthLifecycleFactory,
@@ -101,17 +61,24 @@ export class ViberatorWorker {
       this.environmentManager = new EnvironmentManager(this.logger);
 
       if (payload) {
-        this.configureFromPayload(payload);
+        this.settings = workerSettingsOf(payload, this.agentEndpointEnvironmentFactory, this.logger);
         await this.loadPayloadCredentials(payload);
       }
 
-      await this.initializeCoreServices(
-        payload?.callbackToken,
-        payload?.platformApiUrl,
-      );
+      this.services = await createWorkerServices({
+        logger: this.logger,
+        workDir: this.workDir,
+        settings: this.settings,
+        callbackToken: payload?.callbackToken,
+        platformApiUrl: payload?.platformApiUrl,
+        credentialProvider: this.credentialProvider,
+        authFactory: this.agentAuthLifecycleFactory,
+        sendProgress: (client, step, message, details) =>
+          sendWorkerProgress(client, this.logger, this.currentJobId, this.currentTenantId, step, message, details),
+      });
 
       if (payload) {
-        await this.agentAuthLifecycle.materializeFromEnvironment();
+        await this.services.agentAuthLifecycle.materializeFromEnvironment();
         this.instructionFiles =
           await this.instructionFileManager.loadFromPayload(
             payload,
@@ -159,35 +126,26 @@ export class ViberatorWorker {
         data,
         repositoryRoot: this.workDir,
         logger: this.logger,
-        gitService: this.gitService,
-        callbackClient: this.callbackClient,
-        orchestrator: this.orchestrator,
+        gitService: this.services.gitService,
+        callbackClient: this.services.callbackClient,
+        orchestrator: this.services.orchestrator,
         instructionFileManager: this.instructionFileManager,
         instructionFiles: this.instructionFiles,
         fetchedCredentials: this.fetchedCredentials || {},
-        clankerEnvironment: this.clankerEnvironment,
-        clankerConfig: this.clankerConfig,
-        projectConfig: this.projectConfig,
-        overrides: this.overrides,
-        agentAuthLifecycle: this.agentAuthLifecycle,
+        clankerEnvironment: this.settings.clankerEnvironment,
+        clankerConfig: this.settings.clankerConfig,
+        projectConfig: this.settings.projectConfig,
+        overrides: this.settings.overrides,
+        agentAuthLifecycle: this.services.agentAuthLifecycle,
         environmentManager: this.environmentManager,
-        logForwarder: this.logForwarder,
-        defaultTimeout: this.config.execution.defaultTimeout,
-        agentSessionId: this.agentSessionId,
-        agentTurnId: this.agentTurnId,
-        acpSessionId: this.acpSessionId,
-        conversationStateUrl: this.conversationStateUrl,
-        lastAgentCommit: this.lastAgentCommit,
-        turnAction: this.turnAction,
-        allowCode: this.allowCode,
-        coldStartTask: this.coldStartTask,
-        compactInstructions: this.compactInstructions,
-        sessionEventForwarder: this.sessionEventForwarder,
-        selectAgentForExecution: (availableAgents) =>
-          this.selectAgentForExecution(availableAgents),
+        logForwarder: this.services.logForwarder,
+        defaultTimeout: this.services.config.execution.defaultTimeout,
+        ...this.settings.turn,
+        sessionEventForwarder: this.services.sessionEventForwarder,
+        selectAgentForExecution: (availableAgents) => selectAgent(availableAgents, this.settings.requestedAgent, this.logger),
         sendProgress: (step, message, details) =>
           sendWorkerProgress(
-            this.callbackClient,
+            this.services.callbackClient,
             this.logger,
             this.currentJobId,
             this.currentTenantId,
@@ -197,60 +155,22 @@ export class ViberatorWorker {
           ),
         scmToken,
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
-          this.cloneRepositoryToWorkspace(repository, branch, workDir, scmToken),
+          cloneFreshRepository(this.services.gitService, repository, branch, workDir, scmToken),
       });
     } finally {
       // Cleanup runs after sendResult has already been called inside jobRunner,
       // so Lambda timeout during cleanup no longer causes the job to appear
       // stuck as "running" on the platform.
-      this.logForwarder.cleanup();
-      this.sessionEventForwarder.cleanup();
+      this.services.logForwarder.cleanup();
+      this.services.sessionEventForwarder.cleanup();
       this.environmentManager.cleanup(
         this.fetchedCredentials || {},
-        this.clankerEnvironment,
+        this.settings.clankerEnvironment,
       );
       cleanupJobWorkspace(this.logger, jobWorkspaceDir(this.workDir, data));
       this.currentJobId = undefined;
       this.currentTenantId = undefined;
     }
-  }
-
-  private configureFromPayload(payload: WorkerPayload): void {
-    this.clankerConfig = resolveClankerConfig(payload);
-
-    const payloadAgent = normalizeAgentName(payload.agent);
-    if (payloadAgent) {
-      this.requestedAgent = payloadAgent;
-    } else {
-      const clankerAgent = normalizeAgentName(this.clankerConfig?.agent);
-      if (clankerAgent) {
-        this.requestedAgent = clankerAgent;
-      }
-    }
-
-    const endpointEnvironment = this.agentEndpointEnvironmentFactory
-      .create({
-        requestedAgent: this.requestedAgent,
-        clankerConfig: this.clankerConfig,
-        logger: this.logger,
-      })
-      .resolve();
-    this.clankerEnvironment = extractClankerEnvironment(
-      this.clankerConfig,
-      endpointEnvironment,
-    );
-
-    this.projectConfig = payload.projectConfig;
-    this.overrides = payload.overrides;
-    this.agentSessionId = payload.agentSessionId;
-    this.agentTurnId = payload.agentTurnId;
-    this.turnAction = payload.turnAction;
-    this.allowCode = payload.allowCode ?? payload.jobKind === "execution";
-    this.coldStartTask = payload.coldStartTask;
-    this.compactInstructions = payload.compactInstructions;
-    this.acpSessionId = payload.acpSessionId;
-    this.conversationStateUrl = payload.conversationStateUrl;
-    this.lastAgentCommit = payload.lastAgentCommit ?? undefined;
   }
 
   private async loadPayloadCredentials(payload: WorkerPayload): Promise<void> {
@@ -265,104 +185,6 @@ export class ViberatorWorker {
       payload.requiredCredentials || [],
     );
 
-    this.environmentManager.inject(credentials, this.clankerEnvironment);
-  }
-
-  private async initializeCoreServices(
-    callbackToken?: string,
-    platformApiUrl?: string,
-  ): Promise<void> {
-    const configManager = new ConfigManager(this.logger);
-    this.config = await configManager.loadConfiguration();
-    this.logger.level = this.config.logging.level;
-
-    const agentConfigs = configManager.getAgentConfigs();
-    const acpExecutor = new AcpExecutor(this.logger);
-    this.orchestrator = new AgentOrchestrator(
-      agentConfigs,
-      this.logger,
-      configManager,
-      acpExecutor,
-    );
-    this.gitService = new GitService(this.logger, this.config.git);
-
-    this.callbackClient = new CallbackClient(this.logger, {
-      platformUrl: platformApiUrl || process.env.PLATFORM_API_URL,
-      maxRetries: 3,
-      retryDelay: 1000,
-      callbackToken,
-    });
-
-    this.logForwarder = new LogForwarder(this.logger, this.callbackClient);
-    this.sessionEventForwarder = new SessionEventForwarder(
-      this.callbackClient,
-      this.logger,
-    );
-    this.agentAuthLifecycle = this.agentAuthLifecycleFactory.create({
-      requestedAgent: this.requestedAgent,
-      clankerConfig: this.clankerConfig,
-      logger: this.logger,
-      callbackClient: this.callbackClient,
-      workDir: this.workDir,
-      sendProgress: (step, message, details) =>
-        sendWorkerProgress(
-          this.callbackClient,
-          this.logger,
-          this.currentJobId,
-          this.currentTenantId,
-          step,
-          message,
-          details,
-        ),
-      credentialProvider: this.credentialProvider,
-    });
-  }
-
-  private selectAgentForExecution(
-    availableAgents: BaseAgentConfig[],
-  ): BaseAgentConfig {
-    if (availableAgents.length === 0) {
-      throw new Error("No agents available");
-    }
-
-    const requestedAgent = this.requestedAgent || process.env.DEFAULT_AGENT;
-    const normalizedRequestedAgent = normalizeAgentName(requestedAgent);
-
-    if (!normalizedRequestedAgent) {
-      return availableAgents[0];
-    }
-
-    const matchedAgent = availableAgents.find(
-      (agent) => agent.name === normalizedRequestedAgent,
-    );
-
-    if (matchedAgent) {
-      return matchedAgent;
-    }
-
-    this.logger.warn(
-      "Requested agent is not configured in worker, falling back",
-      {
-        requestedAgent: normalizedRequestedAgent,
-        fallbackAgent: availableAgents[0].name,
-      },
-    );
-    return availableAgents[0];
-  }
-
-  private async cloneRepositoryToWorkspace(
-    repository: string,
-    branch: string,
-    workDir: string,
-    scmToken?: string,
-  ): Promise<string> {
-    const repoDir = path.join(workDir, "repo");
-
-    if (fs.existsSync(repoDir)) {
-      fs.rmSync(repoDir, { recursive: true, force: true });
-    }
-
-    await this.gitService.cloneRepository(repository, branch, workDir, scmToken);
-    return repoDir;
+    this.environmentManager.inject(credentials, this.settings.clankerEnvironment);
   }
 }

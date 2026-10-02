@@ -10,6 +10,9 @@ jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me',
 jest.mock('@/pages/setup/useSetupRedirect', () => ({ useSetupRedirect: () => undefined }))
 const mockHome = jest.fn()
 jest.mock('@/service/api/home-api', () => ({ getHome: () => mockHome() }))
+const mockDone = jest.fn()
+jest.mock('@/service/api/discussion-api', () => ({ markMentionsDone: (...args: unknown[]) => mockDone(...args) }))
+jest.mock('sonner', () => ({ toast: { error: jest.fn() } }))
 jest.mock('@/data', () => ({ getProjectsList: () => Promise.resolve([{ id: 'p', name: 'Web shop', slug: 'web' }]) }))
 
 function thread(id: string, overrides: Partial<HomeThread> = {}): HomeThread {
@@ -18,6 +21,7 @@ function thread(id: string, overrides: Partial<HomeThread> = {}): HomeThread {
     situation: { state: 'discussing', label: 'Discussing', waitingOn: { kind: 'nobody' }, since: '2026-10-01T10:00:00Z', yourMove: false },
     roles: ['watcher'],
     unread: 0,
+    mentionsYou: false,
     lastMessage: null,
     latestActivityAt: '2026-10-01T10:00:00Z',
     ...overrides,
@@ -66,6 +70,22 @@ describe('HomePage', () => {
     await userEvent.click(within(yours).getByRole('button', { name: 'Mine' }))
     expect(within(yours).queryByText('Task 2')).not.toBeInTheDocument()
     expect(within(yours).getByText('Task 3')).toBeInTheDocument()
+  })
+
+  it('marks a mention done from Home, and it stops needing you', async () => {
+    const mentioned = thread('1', {
+      mentionsYou: true,
+      situation: { state: 'discussing', label: 'Discussing', waitingOn: { kind: 'people', people: [{ id: 'me', name: 'Maria' }] }, since: 't', yourMove: true },
+    })
+    mockHome.mockResolvedValueOnce({ needsYou: [mentioned], threads: [] }).mockResolvedValue({ needsYou: [], threads: [{ ...mentioned, mentionsYou: false }] })
+    mockDone.mockResolvedValue(undefined)
+    renderHome()
+
+    const needsYou = await screen.findByRole('region', { name: 'Needs you' })
+    await userEvent.click(within(needsYou).getByRole('button', { name: 'Mark done' }))
+    expect(mockDone).toHaveBeenCalledWith('1')
+    expect(await screen.findByRole('region', { name: 'Your tasks' })).toHaveTextContent('Task 1')
+    expect(screen.queryByRole('region', { name: 'Needs you' })).not.toBeInTheDocument()
   })
 
   it('asks for something when there are no threads yet', async () => {

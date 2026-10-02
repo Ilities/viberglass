@@ -1,3 +1,5 @@
+import * as path from "path";
+import type GitService from "../../services/GitService";
 import * as fs from "fs";
 import { Logger } from "winston";
 import type { CallbackClient } from "../infrastructure/CallbackClient";
@@ -32,4 +34,18 @@ export function cleanupJobWorkspace(logger: Logger, workDir: string): void {
   } catch (error) {
     logger.warn("Failed to cleanup workspace", { workDir, error });
   }
+}
+
+/** Clones the repository into the workspace's `repo` folder, replacing whatever an earlier run left there. */
+export async function cloneFreshRepository(
+  git: Pick<GitService, "cloneRepository">,
+  repository: string,
+  branch: string,
+  workDir: string,
+  scmToken?: string,
+): Promise<string> {
+  const repoDir = path.join(workDir, "repo");
+  if (fs.existsSync(repoDir)) fs.rmSync(repoDir, { recursive: true, force: true });
+  await git.cloneRepository(repository, branch, workDir, scmToken);
+  return repoDir;
 }

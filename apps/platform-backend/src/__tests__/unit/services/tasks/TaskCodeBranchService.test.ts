@@ -1,35 +1,34 @@
 import { TaskCodeBranchService } from "../../../../services/tasks/TaskCodeBranchService";
 
-function setup(options: { pushed?: string | null; scm?: boolean; template?: string | null } = {}) {
+function setup(options: { pushed?: string | null; scm?: boolean } = {}) {
   const deps = {
     tickets: { getTicket: jest.fn().mockResolvedValue({ id: "t-1", projectId: "p-1", externalTicketId: "" }) },
     scm: {
       getByProjectId: jest.fn().mockResolvedValue(
-        options.scm === false
-          ? null
-          : { sourceRepository: " https://github.com/acme/web ", baseBranch: "develop", branchNameTemplate: options.template ?? null },
+        options.scm === false ? null : { sourceRepository: " https://github.com/acme/web ", baseBranch: "develop", branchNameTemplate: null },
       ),
     },
     takeovers: { get: jest.fn().mockResolvedValue(null), lastBuildBranch: jest.fn().mockResolvedValue(options.pushed ?? null) },
-    sessions: { getLatestClankerIdByTicket: jest.fn().mockResolvedValue("claude") },
+    namer: { nameFor: jest.fn().mockResolvedValue("viberator/t-1") },
   };
   return { deps, service: new TaskCodeBranchService(deps) };
 }
 
 describe("TaskCodeBranchService", () => {
-  it("names the branch a build pushed", async () => {
-    expect(await setup({ pushed: "viberator/t-1-custom" }).service.describe("t-1")).toEqual({
-      branch: "viberator/t-1-custom",
+  it("describes the task's branch, its repository, and whether a build pushed it", async () => {
+    const { deps, service } = setup({ pushed: "viberator/t-1" });
+    expect(await service.describe("t-1")).toEqual({
+      branch: "viberator/t-1",
       repositoryUrl: "https://github.com/acme/web",
       baseBranch: "develop",
       pushed: true,
       takenOver: null,
     });
+    expect(deps.namer.nameFor).toHaveBeenCalledWith("t-1", "t-1");
   });
 
-  it("names the branch the next build would use, before any has pushed", async () => {
+  it("says a branch no build has pushed starts from the base branch", async () => {
     expect(await setup().service.describe("t-1")).toMatchObject({ branch: "viberator/t-1", pushed: false });
-    expect((await setup({ template: "feature/{{ ticketId }}-{{ clanker }}" }).service.describe("t-1"))?.branch).toBe("feature/t-1-claude");
   });
 
   it("has nothing to say for a space without a repository", async () => {

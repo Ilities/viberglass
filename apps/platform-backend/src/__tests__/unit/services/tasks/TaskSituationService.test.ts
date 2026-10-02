@@ -45,6 +45,9 @@ describe("TaskSituationService", () => {
     expect(described?.situation.waitingOn).toEqual({ kind: "people", people: [TOMI] });
     expect(described?.lastMessage).toEqual({ author: AGENT, text: "Revising the plan", at: at("10:00").toISOString() });
     expect(described?.latestActivityAt).toBe(at("10:00").toISOString());
+    // His mention is open, so he can mark it done.
+    expect(described?.mentionsYou).toBe(true);
+    expect((await service.describe([TASK], viewer("owner"))).get("t-1")?.mentionsYou).toBe(false);
   });
 
   it("shows a person's message as the last one, with mentions as plain names", async () => {

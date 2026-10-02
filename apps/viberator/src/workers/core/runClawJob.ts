@@ -6,12 +6,9 @@ import {
   resolvePullRequestDescription,
   resolvePullRequestTitle,
 } from "./pullRequestContent";
-import {
-  JobRunnerParams,
-  setupJob,
-  executeAgentWithRetry,
-  withJobLifecycle,
-} from "./jobPipeline";
+import { JobRunnerParams, setupJob } from "./jobPipeline";
+import { executeAgentWithRetry } from "./agentExecution";
+import { withJobLifecycle } from "./jobLifecycle";
 import {
   ATTR_VG_BASE_BRANCH,
   ATTR_VG_BRANCH,

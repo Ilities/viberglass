@@ -15,6 +15,7 @@ const mockBranch = jest.fn()
 const mockTakeOver = jest.fn()
 const mockHandBack = jest.fn()
 const mockRetryAll = jest.fn()
+const mockMentionDone = jest.fn()
 
 let mockRole = 'member'
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', name: 'Me', role: mockRole } }) }))
@@ -31,6 +32,7 @@ jest.mock('@/service/api/discussion-api', () => ({
   takeOverTask: (...args: unknown[]) => mockTakeOver(...args),
   handBackTask: (...args: unknown[]) => mockHandBack(...args),
   retryPausedRuns: (...args: unknown[]) => mockRetryAll(...args),
+  markMentionsDone: (...args: unknown[]) => mockMentionDone(...args),
 }))
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 jest.mock('@/hooks/usePeople', () => ({ usePersonName: () => () => null }))
@@ -52,7 +54,10 @@ const SUGGESTION_INPUT = {
 function renderThread(
   onOpenArtifact = jest.fn(),
   onAsked = jest.fn(),
-  rights: { canPost: boolean; canAsk: boolean; canSteer?: boolean; paused?: boolean; pausedForSetup?: boolean } = { canPost: true, canAsk: true }
+  rights: { canPost: boolean; canAsk: boolean; canSteer?: boolean; paused?: boolean; pausedForSetup?: boolean; mentionsYou?: boolean } = {
+    canPost: true,
+    canAsk: true,
+  }
 ) {
   render(
     <Theme>
@@ -69,6 +74,7 @@ function renderThread(
           canSteer={rights.canSteer}
           paused={rights.paused}
           pausedForSetup={rights.pausedForSetup}
+          mentionsYou={rights.mentionsYou}
           runnableAgents={[{ id: CLAUDE, name: 'Claude' }]}
           onAsked={onAsked}
         />
@@ -270,5 +276,16 @@ describe('TaskThread and the agent', () => {
       expect(within(card).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
       expect(within(card).queryByRole('button', { name: 'Retry all paused runs' })).not.toBeInTheDocument()
     })
+  })
+
+  it('lets someone mentioned mark it done instead of replying', async () => {
+    mockTimeline.mockResolvedValue([])
+    mockMentionDone.mockResolvedValue(undefined)
+    const { onAsked } = renderThread(jest.fn(), jest.fn(), { canPost: true, canAsk: true, mentionsYou: true })
+
+    expect(await screen.findByText(/You were mentioned here/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark done' }))
+    await waitFor(() => expect(mockMentionDone).toHaveBeenCalledWith('t-1'))
+    await waitFor(() => expect(onAsked).toHaveBeenCalled())
   })
 })

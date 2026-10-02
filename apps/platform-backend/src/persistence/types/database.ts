@@ -119,6 +119,7 @@ export interface TicketsTable {
   pull_request_url: string | null;
   taken_over_by: string | null;
   taken_over_at: Timestamp | null;
+  task_branch: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

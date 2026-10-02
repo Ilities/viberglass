@@ -1,5 +1,6 @@
 import { JOB_FAILURE_CODE } from '@viberglass/types';
 import { JobService } from '../services/JobService';
+import { findStaleJobs } from '../services/job/JobSweeperQueries';
 import { createChildLogger } from '../config/logger';
 import { WorkerStopperChain } from './WorkerStopperChain';
 
@@ -70,7 +71,7 @@ export class HeartbeatSweeper {
 
     logger.debug('Running sweep', { staleThreshold });
 
-    const staleJobs = await this.jobService.findStaleJobs(staleThreshold);
+    const staleJobs = await findStaleJobs(staleThreshold);
 
     for (const job of staleJobs) {
       logger.warn('Marking job as failed (no heartbeat)', {

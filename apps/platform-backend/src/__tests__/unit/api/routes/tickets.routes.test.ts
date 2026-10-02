@@ -66,6 +66,9 @@ jest.mock("../../../../api/middleware/authentication", () => ({
 jest.mock("../../../../persistence/ticketing/TicketDAO", () => ({
   TicketDAO: jest.fn(() => mockTicketDAO),
 }));
+jest.mock("../../../../persistence/ticketing/TicketListDAO", () => ({
+  TicketListDAO: jest.fn(() => mockTicketDAO),
+}));
 
 jest.mock("../../../../persistence/project/ProjectDAO", () => ({
   ProjectDAO: jest.fn(() => mockProjectDAO),

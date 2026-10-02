@@ -123,3 +123,9 @@ export async function retryPausedRuns(): Promise<number> {
   )
   return data.retried
 }
+
+/** Done with being mentioned on the task, without replying: it stops being your move. */
+export async function markMentionsDone(taskId: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/mentions/done`, { method: 'POST' })
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to mark it done')
+}

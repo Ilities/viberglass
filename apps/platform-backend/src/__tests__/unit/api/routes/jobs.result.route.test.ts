@@ -58,6 +58,9 @@ jest.mock("../../../../api/middleware/validation", () => ({
 jest.mock("../../../../services/JobService", () => ({
   JobService: jest.fn(() => mockJobService),
 }));
+jest.mock("../../../../services/job/JobQueryService", () => ({
+  JobQueryService: jest.fn(() => ({ getJobStatus: (...args: unknown[]) => mockJobService.getJobStatus(...args) })),
+}));
 
 jest.mock("../../../../services/SecretService", () => ({
   SecretService: jest.fn(() => mockSecretService),

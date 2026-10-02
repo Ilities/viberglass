@@ -1,6 +1,6 @@
 import type { Logger } from "winston";
 import type GitService from "../../services/GitService";
-import type { CallbackClient } from "../infrastructure/CallbackClient";
+import type { TurnCallbackClient } from "../infrastructure/TurnCallbackClient";
 import type { TaskBranch } from "./taskBranch";
 import { collectArtifacts, type ArtifactSnapshot } from "./turnArtifacts";
 import { listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
@@ -12,7 +12,7 @@ export interface PartialWorkRun {
   allowCode: boolean;
   scmToken?: string;
   git: Pick<GitService, "createBranch" | "commitChanges" | "pushBranch">;
-  callbacks: Pick<CallbackClient, "sendPartialResult">;
+  callbacks: Pick<TurnCallbackClient, "sendPartialResult">;
   logger: Pick<Logger, "info">;
 }
 
