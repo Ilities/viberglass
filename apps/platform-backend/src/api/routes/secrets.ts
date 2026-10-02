@@ -1,6 +1,7 @@
 import express from "express";
 import {
   validateCreateSecret,
+  validateSetupModelKey,
   validateUpdateSecret,
   validateUuidParam,
 } from "../middleware/validation";
@@ -9,9 +10,11 @@ import { SecretService } from "../../services/SecretService";
 import { secretStorageDefaults } from "../../services/secretStorageDefaults";
 import logger from "../../config/logger";
 import { isSecretServiceError } from "../../services/errors/SecretServiceError";
+import { SetupModelKeyService } from "../../services/setup/SetupModelKeyService";
 
 const router = express.Router();
 const secretService = new SecretService();
+const modelKeyService = new SetupModelKeyService();
 
 router.use(requireAuth);
 
@@ -51,6 +54,16 @@ router.get("/:id", validateUuidParam("id"), async (req, res) => {
       error: error instanceof Error ? error.message : String(error),
     });
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /api/secrets/model-key-check - Check a model key with its provider before storing it
+router.post("/model-key-check", validateSetupModelKey, async (req, res, next) => {
+  try {
+    await modelKeyService.checkModelKey(req.body.provider, req.body.key);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
   }
 });
 

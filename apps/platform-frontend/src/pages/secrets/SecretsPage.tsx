@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertActions, AlertBody, AlertDescription, AlertTitle } from '@/components/alert'
-import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { PageMeta } from '@/components/page-meta'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/dialog'
@@ -9,8 +8,6 @@ import { Description, Field, FieldGroup, Fieldset, Label } from '@/components/fi
 import { Heading, Subheading } from '@/components/heading'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/table'
-import { Timestamp } from '@/components/timestamp'
 import {
   createSecret,
   deleteSecret,
@@ -21,9 +18,11 @@ import {
   type SecretLocation,
   type SecretStorageDefaults,
 } from '@/service/api/secret-api'
-import { Pencil1Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { PlusIcon } from '@radix-ui/react-icons'
+import { getClankers, type Clanker } from '@/service/api/clanker-api'
+import { SecretsTable } from './secrets-table'
 import { SsmPathField } from './ssm-path-field'
-import { ENV_VAR_NAME_PATTERN, getModelProvider, MODEL_PROVIDERS, type ModelProviderId } from '@viberglass/types'
+import { ENV_VAR_NAME_PATTERN, MODEL_PROVIDERS, type ModelProviderId } from '@viberglass/types'
 
 type SecretFormState = {
   name: string
@@ -53,12 +52,6 @@ const locationOptions: Array<{ value: SecretLocation; label: string; helper: str
   },
 ]
 
-const badgeColors: Record<SecretLocation, 'green' | 'blue' | 'amber'> = {
-  env: 'green',
-  database: 'blue',
-  ssm: 'amber',
-}
-
 const emptyForm: SecretFormState = {
   name: '',
   secretLocation: 'database',
@@ -77,6 +70,7 @@ function isModelProvider(value: string): value is ModelProviderId {
 
 export function SecretsPage() {
   const [secrets, setSecrets] = useState<Secret[]>([])
+  const [runners, setRunners] = useState<Clanker[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
@@ -87,6 +81,17 @@ export function SecretsPage() {
   const [secretToDelete, setSecretToDelete] = useState<Secret | null>(null)
 
   const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
+  const modelKeys = secrets.filter((secret) => secret.provider)
+  const otherSecrets = secrets.filter((secret) => !secret.provider)
+  const usedBy = useMemo(() => {
+    const names = new Map<string, string[]>()
+    for (const runner of runners) {
+      for (const binding of runner.secretBindings) {
+        names.set(binding.secretId, [...(names.get(binding.secretId) ?? []), runner.name])
+      }
+    }
+    return names
+  }, [runners])
   const locationHelper = useMemo(() => {
     return locationOptions.find((option) => option.value === formState.secretLocation)?.helper || ''
   }, [formState.secretLocation])
@@ -101,8 +106,9 @@ export function SecretsPage() {
   async function loadSecrets() {
     setLoading(true)
     try {
-      const data = await listAllSecrets()
+      const [data, runners] = await Promise.all([listAllSecrets(), getClankers(100).catch(() => [])])
       setSecrets(data)
+      setRunners(runners)
     } catch (error) {
       toast.error('Failed to load secrets', {
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -238,8 +244,6 @@ export function SecretsPage() {
         </Button>
       </div>
 
-      <Subheading>Configured secrets</Subheading>
-
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-zinc-500 dark:text-zinc-400">Loading...</div>
@@ -256,67 +260,26 @@ export function SecretsPage() {
           </Button>
         </div>
       ) : (
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Name</TableHeader>
-              <TableHeader>Storage</TableHeader>
-              <TableHeader>Reference</TableHeader>
-              <TableHeader>Updated</TableHeader>
-              <TableHeader />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {secrets.map((secret) => (
-              <TableRow key={secret.id}>
-                <TableCell className="font-medium text-zinc-950 dark:text-white">
-                  {secret.name}
-                  {secret.provider && (
-                    <div className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                      {getModelProvider(secret.provider).displayName} model key
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge color={badgeColors[secret.secretLocation]}>
-                    {secret.secretLocation === 'env'
-                      ? 'Env'
-                      : secret.secretLocation === 'database'
-                      ? 'Database'
-                      : 'SSM'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400">
-                  {secret.secretLocation === 'ssm'
-                    ? secret.secretPath || '—'
-                    : secret.secretLocation === 'env'
-                      ? secret.sourceEnvVar || '—'
-                      : '—'}
-                </TableCell>
-                <TableCell className="text-zinc-500 dark:text-zinc-400"><Timestamp date={secret.updatedAt} /></TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      plain
-                      onClick={() => openEditDialog(secret)}
-                      className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                    >
-                      <Pencil1Icon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      surface
-                      color="red"
-                      onClick={() => handleDelete(secret)}
-                      aria-label="Delete secret"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <>
+          {modelKeys.length > 0 && (
+            <section className="space-y-3">
+              <Subheading>Model keys</Subheading>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                AI provider keys. Runners pick one in their Model section; one key can serve several runners.
+              </p>
+              <SecretsTable secrets={modelKeys} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+            </section>
+          )}
+          {otherSecrets.length > 0 && (
+            <section className="space-y-3">
+              <Subheading>Other secrets</Subheading>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Repository tokens, integration credentials, and variables runners expose to their agents.
+              </p>
+              <SecretsTable secrets={otherSecrets} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+            </section>
+          )}
+        </>
       )}
 
       <Dialog open={dialogOpen} onClose={closeDialog} size="lg">

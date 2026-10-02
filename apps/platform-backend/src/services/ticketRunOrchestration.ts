@@ -1,4 +1,5 @@
 import { getStrategyType } from "../clanker-config";
+import { SCM_TOKEN_ENV_VAR } from "@viberglass/types";
 import type { Clanker, ClankerStrategyType, CredentialRequest, Project, ProjectScmConfig, SecretBinding } from "@viberglass/types";
 import type { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import type { IntegrationCredentialDAO } from "../persistence/integrations";
@@ -126,9 +127,6 @@ export function mergeInstructionFiles(
 
   return Array.from(merged.values());
 }
-
-/** The worker reads the repository token from here; agents never see `VIBERGLASS_` variables. */
-export const SCM_TOKEN_ENV_VAR = "VIBERGLASS_SCM_TOKEN";
 
 /** Later bindings win for an env var, so a run's own credentials override the runner's. */
 function mergeSecretBindings(bindings: SecretBinding[]): SecretBinding[] {

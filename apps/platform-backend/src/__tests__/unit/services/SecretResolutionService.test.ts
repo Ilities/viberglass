@@ -1,3 +1,4 @@
+import { SCM_TOKEN_ENV_VAR } from "@viberglass/types";
 import { SecretResolutionService } from "../../../services/SecretResolutionService";
 
 jest.mock("../../../services/SecretService", () => ({ SecretService: jest.fn() }));
@@ -59,8 +60,16 @@ describe("SecretResolutionService", () => {
         { envVar: "GONE", secretId: "gone" },
       ]),
     ).resolves.toEqual([
-      { envVar: "A", ssmPath: "/viberator/secrets/a" },
-      { envVar: "B", ssmPath: null },
+      { envVar: "A", ssmPath: "/viberator/secrets/a", exposeToAgent: true },
+      { envVar: "B", ssmPath: null, exposeToAgent: true },
+    ]);
+  });
+
+  it("keeps the repository token from the agent", async () => {
+    getSecretsByIds.mockResolvedValue([secret("repo", "database")]);
+
+    await expect(service.getCredentialRequests([{ envVar: SCM_TOKEN_ENV_VAR, secretId: "repo" }])).resolves.toEqual([
+      { envVar: SCM_TOKEN_ENV_VAR, ssmPath: null, exposeToAgent: false },
     ]);
   });
 });

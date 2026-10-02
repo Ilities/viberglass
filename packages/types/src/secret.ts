@@ -23,6 +23,9 @@ export interface SecretBinding {
   secretId: string
 }
 
+/** The worker reads a run's repository token from here; it is never passed to the agent. */
+export const SCM_TOKEN_ENV_VAR = 'VIBERGLASS_SCM_TOKEN'
+
 /** Env var names: what agent CLIs and the worker read credentials from. */
 export const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/
 
@@ -59,6 +62,11 @@ export interface UpdateSecretRequest {
 export interface CredentialRequest {
   envVar: string
   ssmPath?: string | null
+  /**
+   * Set for secrets a runner or task template binds on purpose: the worker passes them
+   * to the agent CLI, still subject to its deny-list. Platform credentials leave it unset.
+   */
+  exposeToAgent?: boolean
 }
 
 /** Reads stored `secret_bindings` JSON, dropping entries that aren't bindings. */

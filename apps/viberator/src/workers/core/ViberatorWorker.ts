@@ -184,6 +184,9 @@ export class ViberatorWorker {
       payload.requiredCredentials || [],
     );
 
-    this.environmentManager.inject(credentials, this.settings.clankerEnvironment);
+    const agentVisible = (payload.requiredCredentials || [])
+      .filter((request) => request.exposeToAgent)
+      .map((request) => request.envVar);
+    this.environmentManager.inject(credentials, this.settings.clankerEnvironment, agentVisible);
   }
 }

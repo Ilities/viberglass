@@ -50,6 +50,8 @@ function readLegacyConfig(input: ClankerConfigReadable): ReadConfigOutput {
       opencodeEndpoint: input.agent === 'opencode' ? legacyOpenCodeEndpoint : '',
       opencodeModel: input.agent === 'opencode' ? legacyOpenCodeModel : '',
       antigravityModel: input.agent === 'antigravity' ? legacyOpenCodeModel : '',
+      kimiEndpoint: '',
+      kimiModel: '',
     },
   }
 }
@@ -108,6 +110,17 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
           antigravityModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.antigravityModel,
         }
 
+  const kimiForm =
+    agent.type === 'kimi-code'
+      ? {
+          kimiEndpoint: typeof agent.endpoint === 'string' ? agent.endpoint : '',
+          kimiModel: typeof agent.model === 'string' ? agent.model : '',
+        }
+      : {
+          kimiEndpoint: DEFAULT_CLANKER_CONFIG_FORM_STATE.kimiEndpoint,
+          kimiModel: DEFAULT_CLANKER_CONFIG_FORM_STATE.kimiModel,
+        }
+
   return {
     form: {
       ...strategyForm,
@@ -115,6 +128,7 @@ function readV1Config(config: ClankerConfigV1): ReadConfigOutput {
       ...qwenForm,
       ...opencodeForm,
       ...antigravityForm,
+      ...kimiForm,
     },
   }
 }

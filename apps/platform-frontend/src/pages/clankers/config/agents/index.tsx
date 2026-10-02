@@ -1,65 +1,75 @@
-import type { AgentType, CodexAuthMode } from '@viberglass/types'
+import type { AgentType } from '@viberglass/types'
+import type { ClankerConfigFormState } from '../types'
+import { AntigravityAgentFields } from './antigravityFields'
 import { CodexAgentFields } from './codexFields'
+import { KimiAgentFields } from './kimiFields'
 import { OpenCodeAgentFields } from './opencodeFields'
 import { QwenAgentFields } from './qwenFields'
-import { AntigravityAgentFields } from './antigravityFields'
+
+/** The agent settings the runner form edits directly. */
+export type AgentSettings = Pick<
+  ClankerConfigFormState,
+  | 'codexAuthMode'
+  | 'qwenEndpoint'
+  | 'opencodeEndpoint'
+  | 'opencodeModel'
+  | 'antigravityModel'
+  | 'kimiEndpoint'
+  | 'kimiModel'
+>
 
 interface AgentSpecificFieldsProps {
   selectedAgent: AgentType | ''
   strategyName?: string
-  codexAuthMode: CodexAuthMode
-  qwenEndpoint: string
-  opencodeEndpoint: string
-  opencodeModel: string
-  antigravityModel: string
-  onCodexAuthModeChange: (mode: CodexAuthMode) => void
-  onQwenEndpointChange: (endpoint: string) => void
-  onOpenCodeEndpointChange: (endpoint: string) => void
-  onOpenCodeModelChange: (model: string) => void
-  onAntigravityModelChange: (model: string) => void
+  settings: AgentSettings
+  onChange: (changes: Partial<AgentSettings>) => void
 }
 
-export function AgentSpecificFields({
-  selectedAgent,
-  strategyName,
-  codexAuthMode,
-  qwenEndpoint,
-  opencodeEndpoint,
-  opencodeModel,
-  antigravityModel,
-  onCodexAuthModeChange,
-  onQwenEndpointChange,
-  onOpenCodeEndpointChange,
-  onOpenCodeModelChange,
-  onAntigravityModelChange,
-}: AgentSpecificFieldsProps) {
+/** Model and endpoint settings, for the agents that take them. */
+export function AgentSpecificFields({ selectedAgent, strategyName, settings, onChange }: AgentSpecificFieldsProps) {
   if (selectedAgent === 'codex') {
     return (
       <CodexAgentFields
         strategyName={strategyName}
-        codexAuthMode={codexAuthMode}
-        onCodexAuthModeChange={onCodexAuthModeChange}
+        codexAuthMode={settings.codexAuthMode}
+        onCodexAuthModeChange={(codexAuthMode) => onChange({ codexAuthMode })}
       />
     )
   }
 
   if (selectedAgent === 'qwen-cli') {
-    return <QwenAgentFields endpoint={qwenEndpoint} onEndpointChange={onQwenEndpointChange} />
+    return <QwenAgentFields endpoint={settings.qwenEndpoint} onEndpointChange={(qwenEndpoint) => onChange({ qwenEndpoint })} />
   }
 
   if (selectedAgent === 'opencode') {
     return (
       <OpenCodeAgentFields
-        endpoint={opencodeEndpoint}
-        model={opencodeModel}
-        onEndpointChange={onOpenCodeEndpointChange}
-        onModelChange={onOpenCodeModelChange}
+        endpoint={settings.opencodeEndpoint}
+        model={settings.opencodeModel}
+        onEndpointChange={(opencodeEndpoint) => onChange({ opencodeEndpoint })}
+        onModelChange={(opencodeModel) => onChange({ opencodeModel })}
       />
     )
   }
 
   if (selectedAgent === 'antigravity') {
-    return <AntigravityAgentFields model={antigravityModel} onModelChange={onAntigravityModelChange} />
+    return (
+      <AntigravityAgentFields
+        model={settings.antigravityModel}
+        onModelChange={(antigravityModel) => onChange({ antigravityModel })}
+      />
+    )
+  }
+
+  if (selectedAgent === 'kimi-code') {
+    return (
+      <KimiAgentFields
+        endpoint={settings.kimiEndpoint}
+        model={settings.kimiModel}
+        onEndpointChange={(kimiEndpoint) => onChange({ kimiEndpoint })}
+        onModelChange={(kimiModel) => onChange({ kimiModel })}
+      />
+    )
   }
 
   return null
