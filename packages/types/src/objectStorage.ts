@@ -38,3 +38,7 @@ export function objectStorageClientConfig(env: StorageEnvironment, region?: stri
 export function objectStorageBucket(env: StorageEnvironment): string {
   return env.S3_BUCKET?.trim() || env.AWS_S3_BUCKET?.trim() || "";
 }
+
+export function objectStoragePublicClientConfig(env: StorageEnvironment): ObjectStorageClientConfig {
+  return objectStorageClientConfig({ ...env, S3_ENDPOINT: env.S3_PUBLIC_ENDPOINT || env.S3_ENDPOINT });
+}

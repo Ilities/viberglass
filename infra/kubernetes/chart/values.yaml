@@ -1,0 +1,63 @@
+backend:
+  image: ""
+  replicas: 1
+  resources:
+    requests: {cpu: 250m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+  env: {}
+frontend:
+  image: ""
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 32Mi}
+    limits: {cpu: 500m, memory: 128Mi}
+imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+appSecret: viberglass-app
+storageSecret: viberglass-storage
+publicUrl: https://viberglass.example.com
+workers:
+  namespace: ""
+  registry: ghcr.io/ilities
+  imageTag: latest
+  imagePullSecrets: []
+  envSecret: viberglass-storage
+  quota:
+    pods: "10"
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    requests.ephemeral-storage: 40Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    count/jobs.batch: "100"
+database:
+  enabled: false
+  image: postgres:17-alpine
+  host: ""
+  port: 5432
+  name: viberglass
+  user: viberglass
+  ssl: true
+  storage: 5Gi
+  storageClass: ""
+storage:
+  enabled: false
+  image: cgr.dev/chainguard/minio:latest
+  endpoint: ""
+  publicEndpoint: ""
+  region: us-east-1
+  bucket: viberglass
+  forcePathStyle: false
+  size: 5Gi
+  storageClass: ""
+migration:
+  marker: 088_kubernetes_deployment_strategy
+ingress:
+  enabled: false
+  className: ""
+  host: viberglass.example.com
+  annotations: {}
+  tls: []
+networkPolicy:
+  enabled: true
+  workerExtraEgress: []

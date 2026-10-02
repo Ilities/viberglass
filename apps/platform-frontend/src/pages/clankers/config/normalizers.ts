@@ -3,6 +3,7 @@ import type { ProvisioningMode, StrategyName } from './types'
 
 export function normalizeStrategyName(value?: string): StrategyName {
   const normalized = (value || '').toLowerCase()
+  if (normalized === 'kubernetes') return 'kubernetes'
   if (normalized === 'ecs') return 'ecs'
   if (normalized === 'aws-lambda-container') return 'aws-lambda-container'
   if (normalized === 'lambda') return 'lambda'

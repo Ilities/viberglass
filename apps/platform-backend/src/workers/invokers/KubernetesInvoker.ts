@@ -1,12 +1,14 @@
 import type { Clanker, Project } from "@viberglass/types";
 import { resolveClankerConfig } from "../../clanker-config";
 import type { CredentialRequirementsService } from "../../services/CredentialRequirementsService";
+import type { JobDispatchStateDAO } from "../../persistence/job/JobDispatchStateDAO";
 import type { JobService } from "../../services/JobService";
 import type { JobData } from "../../types/Job";
 import { ErrorClassification, WorkerError } from "../errors/WorkerError";
 import type { InvocationResult, WorkerInvoker } from "../WorkerInvoker";
 import { buildWorkerProjectConfig } from "./projectConfig";
 import { buildKubernetesJob, kubernetesJobName } from "./kubernetesJob";
+import { kubernetesWorkerEnvironment } from "./kubernetesWorkerEnvironment";
 import {
   kubernetesStatusCode,
   type KubernetesJobClient,
@@ -19,6 +21,7 @@ export class KubernetesInvoker implements WorkerInvoker {
     private readonly clientFactory: () => Promise<KubernetesJobClient>,
     private readonly jobs: Pick<JobService, "saveBootstrapPayload">,
     private readonly credentials: Pick<CredentialRequirementsService, "getRequiredCredentialsForClanker">,
+    private readonly dispatchState: Pick<JobDispatchStateDAO, "getStatus">,
   ) {}
 
   async invoke(job: JobData, clanker: Clanker, project?: Project): Promise<InvocationResult> {
@@ -39,6 +42,11 @@ export class KubernetesInvoker implements WorkerInvoker {
     }
     if (strategy.namespace && strategy.namespace !== namespace) {
       throw new WorkerError(`Kubernetes namespace ${strategy.namespace} is not allowed`, ErrorClassification.PERMANENT);
+    }
+
+    const status = await this.dispatchState.getStatus(job.id);
+    if (status !== "queued" && status !== "active") {
+      throw new WorkerError("Run is no longer dispatchable", ErrorClassification.PERMANENT);
     }
 
     const payload: Record<string, unknown> = job.bootstrapPayload
@@ -78,12 +86,15 @@ export class KubernetesInvoker implements WorkerInvoker {
       platformApiUrl,
       config: strategy,
       environmentSecret: process.env.KUBERNETES_WORKER_ENV_SECRET?.trim(),
+      imagePullSecrets: process.env.KUBERNETES_WORKER_IMAGE_PULL_SECRETS?.split(",").map(name => name.trim()).filter(Boolean),
+      storageEnvironment: kubernetesWorkerEnvironment(process.env),
     });
     const name = kubernetesJobName(job.id);
 
     try {
       const client = await this.clientFactory();
       await client.createNamespacedJob({ namespace, body: manifest });
+      await this.removeCancelledJob(client, namespace, name, job.id);
       return { workerType: "kubernetes", executionId: name };
     } catch (error) {
       let failure = error;
@@ -92,6 +103,7 @@ export class KubernetesInvoker implements WorkerInvoker {
           const client = await this.clientFactory();
           const existing = await client.readNamespacedJob({ namespace, name });
           if (existing.metadata?.annotations?.["viberglass.dev/job-id"] === job.id) {
+            await this.removeCancelledJob(client, namespace, name, job.id);
             return { workerType: "kubernetes", executionId: name };
           }
         } catch (readError) {
@@ -109,6 +121,13 @@ export class KubernetesInvoker implements WorkerInvoker {
         failure,
       );
     }
+  }
+
+  private async removeCancelledJob(client: KubernetesJobClient, namespace: string, name: string, jobId: string): Promise<void> {
+    if (await this.dispatchState.getStatus(jobId) !== "cancelled") return;
+    try { await client.deleteNamespacedJob({ namespace, name, propagationPolicy: "Background" }); }
+    catch (error) { if (kubernetesStatusCode(error) !== 404) throw error; }
+    throw new WorkerError("Run was cancelled during dispatch", ErrorClassification.PERMANENT);
   }
 
   async isAvailable(): Promise<boolean> {

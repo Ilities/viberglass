@@ -87,7 +87,7 @@ async function main(): Promise<void> {
   };
   const invoker = new KubernetesInvoker(createKubernetesJobClient, {
     async saveBootstrapPayload(id, payload) { payloads.set(id, payload); },
-  }, { async getRequiredCredentialsForClanker() { return []; } });
+  }, { async getRequiredCredentialsForClanker() { return []; } }, { async getStatus() { return "active"; } });
   const stopper = new KubernetesWorkerStopper(createKubernetesJobClient);
   const client = await createKubernetesJobClient();
   const runs: string[] = [];

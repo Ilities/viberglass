@@ -42,14 +42,16 @@ function setup() {
     readNamespacedJob: jest.fn().mockResolvedValue({}),
     deleteNamespacedJob: jest.fn().mockResolvedValue({}),
   };
+  const getDispatchStatus = jest.fn().mockResolvedValue("active");
   const saveBootstrapPayload = jest.fn().mockResolvedValue(undefined);
   const getRequiredCredentialsForClanker = jest.fn().mockResolvedValue(["GITHUB_TOKEN"]);
   const invoker = new KubernetesInvoker(
     async () => client,
     { saveBootstrapPayload },
     { getRequiredCredentialsForClanker },
+    { getStatus: getDispatchStatus },
   );
-  return { client, saveBootstrapPayload, invoker };
+  return { client, saveBootstrapPayload, getDispatchStatus, invoker };
 }
 
 describe("KubernetesInvoker", () => {
@@ -138,3 +140,25 @@ describe("KubernetesInvoker", () => {
     },
   );
 });
+
+ it("does not dispatch a cancelled run", async () => {
+   process.env.KUBERNETES_WORKER_NAMESPACE = "viberglass-workers";
+   process.env.PLATFORM_API_URL = "http://backend";
+   try {
+     const { client, getDispatchStatus, invoker } = setup();
+     getDispatchStatus.mockResolvedValue("cancelled");
+     await expect(invoker.invoke(job, clanker)).rejects.toThrow("no longer dispatchable");
+     expect(client.createNamespacedJob).not.toHaveBeenCalled();
+   } finally { delete process.env.KUBERNETES_WORKER_NAMESPACE; delete process.env.PLATFORM_API_URL; }
+ });
+
+ it("removes a Job when cancellation races its creation", async () => {
+   process.env.KUBERNETES_WORKER_NAMESPACE = "viberglass-workers";
+   process.env.PLATFORM_API_URL = "http://backend";
+   try {
+     const { client, getDispatchStatus, invoker } = setup();
+     getDispatchStatus.mockResolvedValueOnce("active").mockResolvedValueOnce("cancelled");
+     await expect(invoker.invoke(job, clanker)).rejects.toThrow("cancelled during dispatch");
+     expect(client.deleteNamespacedJob).toHaveBeenCalledWith({ namespace: "viberglass-workers", name: kubernetesJobName(job.id), propagationPolicy: "Background" });
+   } finally { delete process.env.KUBERNETES_WORKER_NAMESPACE; delete process.env.PLATFORM_API_URL; }
+ });

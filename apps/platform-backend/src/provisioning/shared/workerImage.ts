@@ -11,9 +11,10 @@ function buildImageUrl(
   registry: string,
   prefix: string,
   repositoryName: string,
+  tag = "latest",
 ): string {
   const parts = [registry, prefix, repositoryName].filter(Boolean);
-  return `${parts.join("/")}:latest`;
+  return `${parts.join("/")}:${tag}`;
 }
 
 interface WorkerImageResolutionOptions {
@@ -69,5 +70,6 @@ export function getWorkerImageForClanker(
     return undefined;
   }
 
-  return buildImageUrl(registry, imagePrefix, repositoryName);
+  return buildImageUrl(registry, imagePrefix, repositoryName,
+    strategy === "kubernetes" ? process.env.KUBERNETES_WORKER_IMAGE_TAG || "latest" : "latest");
 }

@@ -222,6 +222,10 @@ export function NewClankerPage() {
       form: {
         provisioningMode,
         containerImage: ((formData.get('containerImage') as string) || '').trim(),
+        kubernetesCpu: typeof formData.get('kubernetesCpu') === 'string' ? String(formData.get('kubernetesCpu')).trim() : '',
+        kubernetesMemory: typeof formData.get('kubernetesMemory') === 'string' ? String(formData.get('kubernetesMemory')).trim() : '',
+        kubernetesStorage: typeof formData.get('kubernetesStorage') === 'string' ? String(formData.get('kubernetesStorage')).trim() : '',
+        kubernetesDeadline: typeof formData.get('kubernetesDeadline') === 'string' ? String(formData.get('kubernetesDeadline')).trim() : '',
         clusterArn: ((formData.get('clusterArn') as string) || '').trim(),
         taskDefinitionArn: ((formData.get('taskDefinitionArn') as string) || '').trim(),
         functionArn: ((formData.get('functionArn') as string) || '').trim(),

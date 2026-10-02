@@ -48,7 +48,7 @@ export interface DefaultAgent {
   slug: string
   agent: AgentType | null | undefined
   agentName: string
-  compute: 'ecs' | 'docker'
+  compute: 'ecs' | 'docker' | 'kubernetes'
   status: ClankerStatus
   statusMessage: string | null
 }

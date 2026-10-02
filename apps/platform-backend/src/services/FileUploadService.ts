@@ -9,7 +9,7 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 import { randomUUID } from "crypto";
-import { objectStorageBucket, objectStorageClientConfig, type MediaAsset } from "@viberglass/types";
+import { objectStorageBucket, objectStorageClientConfig, objectStoragePublicClientConfig, type MediaAsset } from "@viberglass/types";
 import { createChildLogger } from "../config/logger";
 import { buildMediaContentUrl } from "./ticket-media/publicApiUrl";
 import {
@@ -26,6 +26,7 @@ const bucketName = objectStorageBucket(process.env);
 const hasS3Bucket = bucketName.length > 0;
 
 const s3 = new S3Client(objectStorageClientConfig(process.env));
+const publicS3 = new S3Client(objectStoragePublicClientConfig(process.env));
 
 // Configure multer for memory storage
 export const upload = multer({
@@ -126,12 +127,13 @@ export class FileUploadService {
   async generateSignedUrlFromStorageUrl(
     storageUrl: string,
     expiresIn = 3600,
+    audience: "public" | "worker" = "public",
   ): Promise<string> {
     const location = parseMediaLocation(storageUrl);
 
     if (location.type === "s3") {
       return getSignedUrl(
-        s3,
+        audience === "worker" ? s3 : publicS3,
         new GetObjectCommand({
           Bucket: location.bucket,
           Key: location.key,

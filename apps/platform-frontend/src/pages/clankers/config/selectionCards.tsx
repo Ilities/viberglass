@@ -57,6 +57,10 @@ function toTitleCase(value: string): string {
 
 function getStrategyVisual(strategyName: string): StrategyVisual {
   const normalized = strategyName.trim().toLowerCase()
+  if (normalized === 'kubernetes') {
+    return { logoPath: '/logos/viberglass.svg', logoAlt: 'Kubernetes worker', summary: 'Runs each task as a Job in your configured Kubernetes cluster.' }
+  }
+
   if (normalized === 'ecs') {
     return {
       logoPath: '/logos/strategies/ecs.svg',

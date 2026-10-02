@@ -15,6 +15,7 @@ export class ProvisioningStrategyResolver {
     }
 
     const normalized = rawName.toLowerCase();
+    if (normalized === "kubernetes") return { kind: "resolved", strategy: "kubernetes" };
     if (normalized === "docker") {
       return { kind: "resolved", strategy: "docker" };
     }

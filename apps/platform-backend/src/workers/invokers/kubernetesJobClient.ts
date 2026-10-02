@@ -5,15 +5,20 @@ export type KubernetesJobClient = Pick<
   "createNamespacedJob" | "readNamespacedJob" | "deleteNamespacedJob"
 >;
 
-export async function createKubernetesJobClient(): Promise<KubernetesJobClient> {
-  const { BatchV1Api, KubeConfig } = await import("@kubernetes/client-node");
+export async function loadKubernetesConfig() {
+  const { KubeConfig } = await import("@kubernetes/client-node");
   const config = new KubeConfig();
   if (process.env.KUBERNETES_SERVICE_HOST) {
     config.loadFromCluster();
   } else {
     config.loadFromDefault();
   }
-  return config.makeApiClient(BatchV1Api);
+  return config;
+}
+
+export async function createKubernetesJobClient(): Promise<KubernetesJobClient> {
+  const { BatchV1Api } = await import("@kubernetes/client-node");
+  return (await loadKubernetesConfig()).makeApiClient(BatchV1Api);
 }
 
 export function kubernetesStatusCode(error: unknown): number | undefined {

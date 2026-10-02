@@ -145,7 +145,13 @@ Store agent credentials through the Secrets feature and attach them to the Clank
 
 ### Experimental Kubernetes support
 
-Worker execution, portable credentials, and S3-compatible storage are implemented. Full Kubernetes application installation and product setup are still pending. See [local Kubernetes verification and remaining gaps](docs/local-kubernetes.md) for runnable smoke tests and the installation checklist.
+The Helm distribution installs the backend, React/Vite frontend, migrations, local PostgreSQL and MinIO. Setup and runner forms support Kubernetes; agent executions run as bounded Jobs.
+
+```bash
+python3 infra/kubernetes/scripts/local.py
+```
+
+See [local Kubernetes installation](docs/local-kubernetes.md) for prerequisites, port forwards and the full-platform smoke test, and [deployment operations](docs/kubernetes-deployment.md) for external databases/storage, ingress, secrets and upgrades. OVHcloud infrastructure provisioning and production cloud validation remain pending.
 
 ---
 

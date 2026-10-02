@@ -7,6 +7,8 @@ import { DockerodeClientAdapter } from "./adapters/DockerodeClientAdapter";
 import { DockerProvisioningHandler } from "./strategies/DockerProvisioningHandler";
 import { EcsProvisioningHandler } from "./strategies/EcsProvisioningHandler";
 import { LambdaProvisioningHandler } from "./strategies/LambdaProvisioningHandler";
+import { KubernetesProvisioningHandler } from "./strategies/KubernetesProvisioningHandler";
+import { KubernetesClientAdapter } from "./adapters/KubernetesClientAdapter";
 
 let singletonProvisioner: ClankerProvisioner | null = null;
 
@@ -25,6 +27,7 @@ export function getClankerProvisioner(): ClankerProvisioner {
       docker: new DockerProvisioningHandler(dockerClient),
       ecs: new EcsProvisioningHandler(ecsClient),
       lambda: new LambdaProvisioningHandler(lambdaClient),
+      kubernetes: new KubernetesProvisioningHandler(new KubernetesClientAdapter()),
     },
   );
 

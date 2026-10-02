@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "viberglass.name" . }}-backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels: {app: "{{ include "viberglass.name" . }}-backend"}
+  template:
+    metadata:
+      labels: {app: "{{ include "viberglass.name" . }}-backend", database-client: "true"}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "viberglass.name" . }}-backend
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, fsGroup: 1001, seccompProfile: {type: RuntimeDefault}}
+      initContainers:
+        - name: wait-for-migrations
+          image: {{ required "backend.image is required" .Values.backend.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          command: [node, /app/bootstrap/wait.cjs, migrations]
+          {{- include "viberglass.backendEnvironment" . | nindent 10 }}
+          volumeMounts: [{name: bootstrap, mountPath: /app/bootstrap, readOnly: true}]
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {cpu: 500m, memory: 256Mi}}
+      containers:
+        - name: backend
+          image: {{ .Values.backend.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- include "viberglass.backendEnvironment" . | nindent 10 }}
+          ports: [{name: http, containerPort: 3000}]
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          startupProbe: {httpGet: {path: /health, port: http}, failureThreshold: 60, periodSeconds: 5}
+          readinessProbe: {httpGet: {path: /health, port: http}}
+          livenessProbe: {httpGet: {path: /health, port: http}}
+          resources: {{ toYaml .Values.backend.resources | nindent 12 }}
+      volumes:
+        - name: bootstrap
+          configMap: {name: "{{ include "viberglass.name" . }}-bootstrap"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "viberglass.name" . }}-backend
+spec:
+  selector: {app: "{{ include "viberglass.name" . }}-backend"}
+  ports: [{port: 3000, targetPort: http}]

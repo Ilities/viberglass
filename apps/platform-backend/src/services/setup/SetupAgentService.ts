@@ -113,8 +113,16 @@ export class SetupAgentService {
   private async chooseCompute(binding: AgentProviderBinding): Promise<{
     strategy: DeploymentStrategy;
     config: ClankerStrategyConfig;
-    compute: "ecs" | "docker";
+    compute: DefaultAgent["compute"];
   }> {
+    if (process.env.KUBERNETES_WORKER_NAMESPACE?.trim()) {
+      const strategy = await this.strategies.getDeploymentStrategyByName("kubernetes");
+      if (!strategy) throw new Error("The Kubernetes deployment strategy is missing; run migrations.");
+      const config: ClankerStrategyConfig = { type: "kubernetes", provisioningMode: "prebuilt" };
+      const error = this.provisioner.getProvisioningPreflightError(this.candidate(binding, strategy, config));
+      if (error) throw new Error(error);
+      return { strategy, config, compute: "kubernetes" };
+    }
     const ecs = await this.strategies.getDeploymentStrategyByName("ecs");
     if (ecs) {
       const config: ClankerStrategyConfig = { type: "ecs", provisioningMode: "managed" };
@@ -151,7 +159,7 @@ export class SetupAgentService {
     };
   }
 
-  private describe(clanker: Clanker, compute: "ecs" | "docker"): DefaultAgent {
+  private describe(clanker: Clanker, compute: DefaultAgent["compute"]): DefaultAgent {
     const agent = clanker.agent ?? "claude-code";
     return {
       clankerId: clanker.id,
