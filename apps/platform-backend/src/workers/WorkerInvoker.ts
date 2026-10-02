@@ -1,7 +1,7 @@
 import type { Clanker, Project } from "@viberglass/types";
 import type { JobData } from "../types/Job";
 
-export type WorkerType = "lambda" | "ecs" | "docker";
+export type WorkerType = "lambda" | "ecs" | "docker" | "kubernetes";
 
 export interface InvocationResult {
   executionId: string; // AWS Request ID, Task ARN, or Container ID

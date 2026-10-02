@@ -160,8 +160,8 @@ export interface BaseWorkerPayload {
 }
 
 /**
- * Instruction file reference for AWS workers (Lambda/ECS)
- * Files are usually fetched from S3 using platform credentials,
+ * Instruction file reference for hosted workers (Lambda/ECS/Kubernetes)
+ * Files are usually fetched from S3-compatible storage,
  * but can also be provided inline.
  */
 export interface S3InstructionFile {
@@ -204,6 +204,13 @@ export interface EcsPayload extends BaseWorkerPayload {
   deploymentConfig?: Record<string, unknown>;
 }
 
+export interface KubernetesPayload extends BaseWorkerPayload {
+  workerType: "kubernetes";
+  instructionFiles: S3InstructionFile[];
+  requiredCredentials: string[];
+  deploymentConfig?: Record<string, unknown>;
+}
+
 /**
  * Docker worker payload
  * Docker containers receive mount paths for instruction files
@@ -221,7 +228,7 @@ export interface DockerPayload extends BaseWorkerPayload {
  * Union type for all worker payloads
  * Use workerType field for type discrimination
  */
-export type WorkerPayload = LambdaPayload | EcsPayload | DockerPayload;
+export type WorkerPayload = LambdaPayload | EcsPayload | KubernetesPayload | DockerPayload;
 
 // ============================================================================
 // Legacy Job Types (retained for compatibility)
