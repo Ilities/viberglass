@@ -266,7 +266,7 @@ export interface JobsTable {
   last_heartbeat_grace_period_seconds: Generated<number>;
   callback_token: Generated<string>;
   bootstrap_payload: Json | null;
-  job_kind: Generated<"research" | "planning" | "execution" | "reply" | "claw">;
+  job_kind: Generated<"research" | "planning" | "execution" | "reply" | "claw" | "agent_login">;
   agent_session_id: string | null;
   agent_turn_id: string | null;
 }
@@ -402,6 +402,7 @@ export interface SecretsTable {
   secret_value_encrypted: string | null;
   source_env_var: string | null;
   provider: string | null;
+  purpose: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

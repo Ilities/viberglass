@@ -14,4 +14,8 @@ export class NoopAgentAuthLifecycle implements AgentAuthLifecycle {
   }
 
   async refreshAfterFailure(_context: AgentAuthContext): Promise<void> {}
+
+  async login(_context: AgentAuthContext): Promise<void> {}
+
+  async persistAfterRun(_context: AgentAuthContext): Promise<void> {}
 }

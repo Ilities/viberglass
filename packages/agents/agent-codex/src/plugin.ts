@@ -69,6 +69,8 @@ const codexPlugin: AgentPlugin<CodexConfig> = {
         codexAuthManager.ensureDeviceAuth(jobId, tenantId),
       forceFreshDeviceAuth: (jobId, tenantId) =>
         codexAuthManager.forceFreshDeviceAuth(jobId, tenantId),
+      uploadIfRefreshed: (jobId, tenantId) =>
+        codexAuthManager.uploadIfRefreshed(jobId, tenantId),
     });
   },
 

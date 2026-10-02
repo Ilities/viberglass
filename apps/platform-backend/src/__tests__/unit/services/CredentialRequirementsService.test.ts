@@ -1,4 +1,4 @@
-import type { Clanker } from "@viberglass/types";
+import type { Clanker, SecretBinding } from "@viberglass/types";
 import { CredentialRequirementsService } from "../../../services/CredentialRequirementsService";
 
 function createClanker(overrides: Partial<Clanker> = {}): Clanker {
@@ -34,7 +34,8 @@ function codexClanker(mode: string, secretName = "CODEX_AUTH_JSON"): Clanker {
 
 describe("CredentialRequirementsService", () => {
   const getCredentialRequests = jest.fn();
-  const service = new CredentialRequirementsService({ getCredentialRequests });
+  const workerBindings = jest.fn((_clanker: Clanker): SecretBinding[] => []);
+  const service = new CredentialRequirementsService({ getCredentialRequests }, { workerBindings });
 
   beforeEach(() => {
     getCredentialRequests.mockReset();
@@ -75,6 +76,15 @@ describe("CredentialRequirementsService", () => {
     await expect(service.getRequiredCredentialsForClanker(codexClanker("chatgpt_device"))).resolves.toEqual([
       { envVar: "CODEX_AUTH_JSON", ssmPath: null },
     ]);
+  });
+
+  it("asks for a connected runner's own login, for the worker only", async () => {
+    workerBindings.mockReturnValueOnce([{ envVar: "CODEX_AUTH_JSON", secretId: "login-1" }]);
+    getCredentialRequests.mockImplementation(async (bindings: SecretBinding[]) =>
+      bindings.map((binding) => ({ envVar: binding.envVar, ssmPath: null, exposeToAgent: true })),
+    );
+
+    await expect(service.getRequiredCredentialsForClanker(codexClanker("chatgpt_device_stored"))).resolves.toEqual([{ envVar: "CODEX_AUTH_JSON", ssmPath: null, exposeToAgent: false }]);
   });
 
   it("does not add the codex login cache for API key auth", async () => {

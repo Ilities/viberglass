@@ -48,6 +48,7 @@ function buildAgent(selectedAgent: AgentType | '' | null | undefined, input: Bui
       codexAuth: {
         mode: input.form.codexAuthMode,
         secretName: DEFAULT_CODEX_AUTH_SECRET_NAME,
+        ...(input.form.codexLoginSecretId ? { loginSecretId: input.form.codexLoginSecretId } : {}),
       },
     }
   }

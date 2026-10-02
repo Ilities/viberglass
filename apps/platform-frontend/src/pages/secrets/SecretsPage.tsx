@@ -20,6 +20,7 @@ import {
 } from '@/service/api/secret-api'
 import { PlusIcon } from '@radix-ui/react-icons'
 import { getClankers, type Clanker } from '@/service/api/clanker-api'
+import { summarizeRunner } from '@/pages/clankers/config/runnerSummary'
 import { SecretsTable } from './secrets-table'
 import { SsmPathField } from './ssm-path-field'
 import { ENV_VAR_NAME_PATTERN, MODEL_PROVIDERS, type ModelProviderId } from '@viberglass/types'
@@ -81,14 +82,16 @@ export function SecretsPage() {
   const [secretToDelete, setSecretToDelete] = useState<Secret | null>(null)
 
   const [storageDefaults, setStorageDefaults] = useState<SecretStorageDefaults | null>(null)
-  const modelKeys = secrets.filter((secret) => secret.provider)
-  const otherSecrets = secrets.filter((secret) => !secret.provider)
+  const modelKeys = secrets.filter((secret) => secret.provider && !secret.purpose)
+  const logins = secrets.filter((secret) => secret.purpose === 'codex_login')
+  const otherSecrets = secrets.filter((secret) => !secret.provider && !secret.purpose)
   const usedBy = useMemo(() => {
     const names = new Map<string, string[]>()
+    const use = (secretId: string, runner: Clanker) => names.set(secretId, [...(names.get(secretId) ?? []), runner.name])
     for (const runner of runners) {
-      for (const binding of runner.secretBindings) {
-        names.set(binding.secretId, [...(names.get(binding.secretId) ?? []), runner.name])
-      }
+      for (const binding of runner.secretBindings) use(binding.secretId, runner)
+      const loginSecretId = summarizeRunner(runner, []).loginSecretId
+      if (loginSecretId) use(loginSecretId, runner)
     }
     return names
   }, [runners])
@@ -268,6 +271,15 @@ export function SecretsPage() {
                 AI provider keys. Runners pick one in their Model section; one key can serve several runners.
               </p>
               <SecretsTable secrets={modelKeys} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
+            </section>
+          )}
+          {logins.length > 0 && (
+            <section className="space-y-3">
+              <Subheading>ChatGPT logins</Subheading>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Codex runners keep these signed in. Reconnect a runner from its page; deleting a login signs the runner out.
+              </p>
+              <SecretsTable secrets={logins} usedBy={usedBy} onEdit={openEditDialog} onDelete={handleDelete} />
             </section>
           )}
           {otherSecrets.length > 0 && (

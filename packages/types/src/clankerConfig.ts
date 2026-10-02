@@ -94,6 +94,8 @@ export interface CodexAuthConfig {
   mode: CodexAuthMode;
   secretName: string;
   apiKeySecretName?: string;
+  /** The runner's stored ChatGPT login, set when the runner is connected. */
+  loginSecretId?: string;
 }
 
 export interface CodexAgentConfig {

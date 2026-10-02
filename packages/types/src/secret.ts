@@ -3,6 +3,9 @@ import type { ModelProviderId } from './modelProviders'
 
 export type SecretLocation = 'env' | 'database' | 'ssm'
 
+/** What the platform keeps a secret for, when it manages the secret itself. */
+export type SecretPurpose = 'codex_login'
+
 export interface Secret {
   id: string
   /** A label for people; several secrets may share one. Never used as an env var name. */
@@ -13,6 +16,8 @@ export interface Secret {
   sourceEnvVar?: string | null
   /** For model keys: the provider that issued the key. */
   provider?: ModelProviderId | null
+  /** Set for secrets the platform manages, such as a runner's ChatGPT login; pickers leave these out. */
+  purpose?: SecretPurpose | null
   createdAt: string
   updatedAt: string
 }

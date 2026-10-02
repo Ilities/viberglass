@@ -296,7 +296,7 @@ export function TemplatesTab({ projectId }: Props) {
                   <Description>Secrets injected into the worker alongside the agent runner&apos;s own credentials.</Description>
                   <SecretBindingsField
                     secrets={secrets}
-                    selectable={secrets}
+                    selectable={secrets.filter((secret) => !secret.purpose)}
                     bindings={form.secretBindings}
                     onChange={(secretBindings) => setForm((p) => ({ ...p, secretBindings }))}
                     agent={clankers.find((c) => c.id === form.clankerId)?.agent}

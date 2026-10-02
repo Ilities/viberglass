@@ -12,6 +12,8 @@ export interface ClankerConfigFormState {
   lambdaTimeout: string
   lambdaEphemeralStorage: string
   codexAuthMode: CodexAuthMode
+  /** The runner's stored ChatGPT login; set by connecting, kept through edits. */
+  codexLoginSecretId: string
   qwenEndpoint: string
   opencodeEndpoint: string
   opencodeModel: string
@@ -32,6 +34,7 @@ export const DEFAULT_CLANKER_CONFIG_FORM_STATE: ClankerConfigFormState = {
   lambdaTimeout: '',
   lambdaEphemeralStorage: '',
   codexAuthMode: 'api_key',
+  codexLoginSecretId: '',
   qwenEndpoint: '',
   opencodeEndpoint: '',
   opencodeModel: '',

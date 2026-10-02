@@ -10,6 +10,7 @@ import { QwenAgentFields } from './qwenFields'
 export type AgentSettings = Pick<
   ClankerConfigFormState,
   | 'codexAuthMode'
+  | 'codexLoginSecretId'
   | 'qwenEndpoint'
   | 'opencodeEndpoint'
   | 'opencodeModel'
@@ -20,17 +21,15 @@ export type AgentSettings = Pick<
 
 interface AgentSpecificFieldsProps {
   selectedAgent: AgentType | ''
-  strategyName?: string
   settings: AgentSettings
   onChange: (changes: Partial<AgentSettings>) => void
 }
 
 /** Model and endpoint settings, for the agents that take them. */
-export function AgentSpecificFields({ selectedAgent, strategyName, settings, onChange }: AgentSpecificFieldsProps) {
+export function AgentSpecificFields({ selectedAgent, settings, onChange }: AgentSpecificFieldsProps) {
   if (selectedAgent === 'codex') {
     return (
       <CodexAgentFields
-        strategyName={strategyName}
         codexAuthMode={settings.codexAuthMode}
         onCodexAuthModeChange={(codexAuthMode) => onChange({ codexAuthMode })}
       />
