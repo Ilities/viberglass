@@ -167,7 +167,7 @@ export interface BaseWorkerPayload {
  * but can also be provided inline.
  */
 export interface S3InstructionFile {
-  fileType: string; // e.g., 'AGENTS.md', 'skills/code-review.md'
+  fileType: string; // e.g., 'AGENTS.md', 'opencode.json'
   s3Url?: string; // s3://bucket/key format
   content?: string; // inline content override
 }
