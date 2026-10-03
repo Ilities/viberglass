@@ -23,11 +23,11 @@ import { SecretBindingsField } from '../config/secret-bindings-field'
 import { DeploymentStrategyCards } from '../config/selectionCards'
 import { StrategySpecificFields } from '../config/strategies'
 import { DEFAULT_CLANKER_CONFIG_FORM_STATE, type ProvisioningMode } from '../config/types'
-import { AGENTS_FILE_TYPE, getHarnessConfigFile, isSkillPath } from '../instructionFiles'
+import { AGENTS_FILE_TYPE, getHarnessConfigFile } from '../instructionFiles'
+import { AgentInstructionsField } from './AgentInstructionsField'
 import { AgentSection } from './AgentSection'
 import { buildConfigFiles } from './configFiles'
 import { HarnessConfigEditor } from './HarnessConfigEditor'
-import { createSkillEntry, InstructionFilesSection, type SkillEntry } from './InstructionFilesSection'
 import { ModelSection } from './ModelSection'
 import { ToolsSection } from './ToolsSection'
 
@@ -75,7 +75,6 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
   const [modelKeyEnvVar, setModelKeyEnvVar] = useState('')
   const [extras, setExtras] = useState<SecretBinding[]>([])
   const [agentInstructions, setAgentInstructions] = useState('')
-  const [skills, setSkills] = useState<SkillEntry[]>([])
   const [harnessEnabled, setHarnessEnabled] = useState(false)
   const [harnessContent, setHarnessContent] = useState('')
   const [mcpServerIds, setMcpServerIds] = useState<string[]>(initial?.mcpServerIds ?? [])
@@ -104,16 +103,13 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         setExtras(keys.extras)
 
         const harnessConfig = getHarnessConfigFile(initial.agent ?? '')
-        const loadedSkills: SkillEntry[] = []
         for (const file of initial.configFiles) {
           if (file.fileType === AGENTS_FILE_TYPE) setAgentInstructions(file.content)
-          else if (isSkillPath(file.fileType)) loadedSkills.push(createSkillEntry(file.fileType, file.content))
           else if (harnessConfig && file.fileType === harnessConfig.fileType) {
             setHarnessContent(file.content)
             setHarnessEnabled(true)
           }
         }
-        setSkills(loadedSkills)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load runner settings')
       }
@@ -163,13 +159,8 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
     const formData = new FormData(event.currentTarget)
     const field = (name: string) => String(formData.get(name) ?? '').trim()
     const harnessConfig = getHarnessConfigFile(agent)
-    const configFiles = buildConfigFiles(
-      agentInstructions,
-      skills,
-      harnessConfig?.fileType ?? '',
-      harnessEnabled ? harnessContent : '',
-    )
-    const problem = configFiles.error ?? describeBindingsProblem(bindings)
+    const configFiles = buildConfigFiles(agentInstructions, harnessConfig?.fileType ?? '', harnessEnabled ? harnessContent : '')
+    const problem = describeBindingsProblem(bindings)
     if (problem) {
       setError(problem)
       return
@@ -197,7 +188,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
             lambdaEphemeralStorage: field('lambdaEphemeralStorage'),
           },
         }),
-        configFiles: configFiles.files,
+        configFiles,
         agent: agent || null,
         secretBindings: bindings,
         mcpServerIds,
@@ -270,8 +261,13 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         </FieldGroup>
       </Section>
 
-      <Section title="Instructions" description="AGENTS.md, skills under skills/, and the agent's own config file.">
+      <Section title="Instructions" description="AGENTS.md and the agent's own config file.">
         <FieldGroup>
+          <AgentInstructionsField
+            agentInstructions={agentInstructions}
+            onAgentInstructionsChange={setAgentInstructions}
+            onError={setError}
+          />
           <HarnessConfigEditor
             agent={agent}
             enabled={harnessEnabled}
@@ -288,13 +284,6 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
             onChange={setHarnessContent}
           />
         </FieldGroup>
-        <InstructionFilesSection
-          agentInstructions={agentInstructions}
-          onAgentInstructionsChange={setAgentInstructions}
-          skills={skills}
-          onSkillsChange={setSkills}
-          onError={setError}
-        />
       </Section>
 
       <Section title="Tools" description="MCP servers and skills an admin approved for the workspace.">

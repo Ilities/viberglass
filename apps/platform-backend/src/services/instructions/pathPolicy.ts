@@ -2,7 +2,6 @@ import path from "path";
 import { HARNESS_CONFIG_FILE_TYPES } from "@viberglass/types";
 
 const AGENTS_FILE = "AGENTS.md";
-const SKILLS_PREFIX = "skills/";
 
 function normalizeSeparators(input: string): string {
   return input.replace(/\\/g, "/");
@@ -44,14 +43,10 @@ export function isAllowedInstructionPath(input: string): boolean {
     return true;
   }
 
-  if (HARNESS_CONFIG_FILE_TYPES.includes(normalized)) {
-    return true;
-  }
-
-  return normalized.startsWith(SKILLS_PREFIX) && normalized.endsWith(".md");
+  return HARNESS_CONFIG_FILE_TYPES.includes(normalized);
 }
 
 export function instructionPathErrorMessage(input: string): string {
   const normalized = normalizeInstructionPath(input);
-  return `Invalid instruction file path "${normalized || input}". Allowed paths: AGENTS.md, ${HARNESS_CONFIG_FILE_TYPES.join(", ")}, and skills/**/*.md.`;
+  return `Invalid instruction file path "${normalized || input}". Allowed paths: AGENTS.md and ${HARNESS_CONFIG_FILE_TYPES.join(", ")}.`;
 }

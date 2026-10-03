@@ -150,7 +150,7 @@ export class ConfigLoader {
    * Parse config file content based on file type
    *
    * @param content - File content as string
-   * @param fileType - File type/extension (e.g., 'AGENTS.md', 'skills/review.md')
+   * @param fileType - File type/extension (e.g., 'AGENTS.md', 'opencode.json')
    * @returns Parsed config object or null if parsing fails
    */
   parseConfig(

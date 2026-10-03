@@ -203,7 +203,7 @@ ${context.testRequired ? "- Write tests for your changes" : ""}
 ${context.codingStandards ? `- Follow coding standards: ${context.codingStandards}` : ""}
 
 INSTRUCTIONS:
-0. Before making changes, read and follow AGENTS.md (if present), agents/AGENTS.md (if present), and relevant files under skills/ if present.
+0. Before making changes, read and follow AGENTS.md (if present) and agents/AGENTS.md (if present).
 1. Analyze the task and the relevant parts of the codebase
 2. Implement the task with minimal, focused changes
 3. ${context.runTests ? "Run tests to verify your changes" : "Verify your changes manually"}
@@ -261,7 +261,7 @@ ${context.testRequired ? "- Write tests for your fix" : ""}
 ${context.codingStandards ? `- Follow coding standards: ${context.codingStandards}` : ""}
 
 INSTRUCTIONS:
-0. Before making changes, read and follow AGENTS.md (if present), agents/AGENTS.md (if present), and relevant files under skills/ if present.
+0. Before making changes, read and follow AGENTS.md (if present) and agents/AGENTS.md (if present).
 1. Clone the repository
 2. Analyze the bug
 3. Identify the root cause
