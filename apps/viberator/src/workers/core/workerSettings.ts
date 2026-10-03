@@ -1,4 +1,5 @@
 import type { Logger } from "winston";
+import type { WorkerMcpServer, WorkerSkill } from "@viberglass/types";
 import type { AgentEndpointEnvironmentFactory } from "./agentEndpointEnvironmentFactory";
 import { turnOptionsOf, type TurnOptions } from "./turnOptions";
 import type { JobOverrides, ProjectConfigPayload, WorkerPayload } from "./types";
@@ -13,10 +14,13 @@ export interface WorkerSettings {
   projectConfig?: ProjectConfigPayload;
   overrides?: JobOverrides;
   turn: TurnOptions;
+  /** The runner's workspace MCP servers and skills. */
+  mcpServers: WorkerMcpServer[];
+  skills: WorkerSkill[];
 }
 
 /** A worker started without a payload runs no turn and changes no code. */
-export const NO_SETTINGS: WorkerSettings = { turn: { allowCode: false } };
+export const NO_SETTINGS: WorkerSettings = { turn: { allowCode: false }, mcpServers: [], skills: [] };
 
 export function workerSettingsOf(payload: WorkerPayload, endpoints: AgentEndpointEnvironmentFactory, logger: Logger): WorkerSettings {
   const clankerConfig = resolveClankerConfig(payload);
@@ -29,5 +33,7 @@ export function workerSettingsOf(payload: WorkerPayload, endpoints: AgentEndpoin
     projectConfig: payload.projectConfig,
     overrides: payload.overrides,
     turn: turnOptionsOf(payload),
+    mcpServers: payload.mcpServers ?? [],
+    skills: payload.skills ?? [],
   };
 }

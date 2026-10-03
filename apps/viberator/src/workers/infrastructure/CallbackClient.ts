@@ -1,9 +1,11 @@
 import { Logger } from "winston";
 import { TurnCallbackClient } from "./TurnCallbackClient";
 import type { ExecutionManifest } from "@viberglass/telemetry";
+import type { SkillFile } from "@viberglass/types";
 import {
   FetchRetryConfig,
   fetchWithRetry,
+  getJson,
   redactSensitiveInfo,
   isInternalLogMessage,
 } from "./callbackFetch";
@@ -169,6 +171,22 @@ export class CallbackClient {
       body,
       { timeoutMs: 10000, label: "batch job logs" },
       { jobId, count: externalLogs.length },
+    );
+  }
+
+  /** One of the runner's skills, for the worker to write where the agent's harness reads skills. */
+  async fetchSkill(jobId: string, tenantId: string, skillId: string): Promise<SkillFile[]> {
+    const body = await getJson(`${this.apiUrl}/api/jobs/${jobId}/skills/${skillId}`, tenantId, 30000, this.callbackToken);
+    const data = typeof body === "object" && body !== null && "data" in body ? body.data : null;
+    const files = typeof data === "object" && data !== null && "files" in data && Array.isArray(data.files) ? data.files : [];
+    return files.filter(
+      (file: unknown): file is SkillFile =>
+        typeof file === "object" &&
+        file !== null &&
+        "path" in file &&
+        typeof file.path === "string" &&
+        "contentBase64" in file &&
+        typeof file.contentBase64 === "string",
     );
   }
 

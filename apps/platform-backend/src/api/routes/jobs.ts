@@ -20,6 +20,7 @@ import { registerJobResultRoute } from "./jobs/jobResultRoute";
 import { registerJobWorkerCallbackRoutes } from "./jobs/workerCallbackRoutes";
 import { registerQuestionCallbackRoute } from "./jobs/questionCallbackRoute";
 import { registerPartialResultRoute } from "./jobs/partialResultRoute";
+import { registerSkillCallbackRoute } from "./jobs/skillCallbackRoute";
 
 const router = Router();
 // Worker callbacks carry no user and pass through; people only reach runs in spaces they see.
@@ -190,6 +191,7 @@ registerJobResultRoute(router);
 registerCodexAuthCacheRoute(router);
 registerQuestionCallbackRoute(router);
 registerPartialResultRoute(router);
+registerSkillCallbackRoute(router);
 
 
 export default router;

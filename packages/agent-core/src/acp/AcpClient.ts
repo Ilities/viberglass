@@ -15,6 +15,7 @@ import type { AcpEventMapper } from "./acpEventMapperTypes";
 import { approvePermissionRequest } from "./permissionReply";
 import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
 import { compactCommandOf, contextUsageOf, promptUsageOf, type AcpContextUsage } from "./acpSessionSignals";
+import { describeLeftOutMcpServers, mcpServersSupportedBy } from "./mcpServerSupport";
 
 export type AcpEventCallback = (event: PlatformSessionEvent) => void;
 
@@ -147,7 +148,7 @@ export class AcpClient {
         (method, params) => this.sendRequest(method, params),
         this.workDir,
         (replaying) => (this.replaying = replaying),
-        options.mcpServers,
+        this.supportedMcpServers(initialized, options.mcpServers ?? []),
       );
       const opened = await opener.open(sessionSupportOf(initialized), options.acpSessionId);
       this.currentSessionId = opened.sessionId;
@@ -170,6 +171,15 @@ export class AcpClient {
     } finally {
       this.cleanup();
     }
+  }
+
+  private supportedMcpServers(initialized: unknown, servers: AcpMcpServer[]): AcpMcpServer[] {
+    const { offered, leftOut } = mcpServersSupportedBy(initialized, servers);
+    if (leftOut.length > 0) {
+      this.logger.warn("AcpClient leaving out HTTP MCP servers the harness doesn't support", { leftOut });
+      this.onEvent({ eventType: "progress", payload: { text: describeLeftOutMcpServers(leftOut) } });
+    }
+    return offered;
   }
 
   private async prompt(text: string): Promise<void> {

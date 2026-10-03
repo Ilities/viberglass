@@ -37,7 +37,8 @@ const piPlugin: AgentPlugin<PiConfig> = {
   },
 
   stateDirs: [".pi"],
-  stateExcludes: [".pi/agent/auth.json"],
+  // mcp.json holds the run's MCP server headers, and is written fresh each run.
+  stateExcludes: [".pi/agent/auth.json", ".pi/agent/mcp.json"],
 
   harnessConfigPatterns: ["pi/models.json"],
 

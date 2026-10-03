@@ -44,6 +44,10 @@ export * from './setup'
 // Secret types
 export * from './secret'
 
+// Workspace MCP servers and skills that runners pick from
+export * from './mcpServer'
+export * from './skill'
+
 // Agent session types
 export * from './agentSession'
 

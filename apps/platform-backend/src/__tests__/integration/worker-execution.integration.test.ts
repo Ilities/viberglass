@@ -126,6 +126,8 @@ describe("Worker Execution Integration Tests", () => {
     },
     configFiles: [],
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     ...overrides,
   });
 

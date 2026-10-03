@@ -18,6 +18,8 @@ function clanker(status: ClankerStatus = "inactive"): Clanker {
     configFiles: [],
     agent: "opencode",
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     status,
     statusMessage: null,
     createdAt: "",

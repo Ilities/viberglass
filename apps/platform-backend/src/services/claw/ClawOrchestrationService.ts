@@ -12,6 +12,7 @@ import { JobBootstrapService } from "../job/JobBootstrapService";
 import { CredentialRequirementsService } from "../CredentialRequirementsService";
 import { WorkerExecutionService } from "../../workers";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
+import { RunnerToolResolver } from "../runs/RunnerToolResolver";
 import {
   CLAW_SERVICE_ERROR_CODE,
   ClawServiceError,
@@ -44,6 +45,7 @@ export class ClawOrchestrationService {
   private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
   private instructionStorageService = new InstructionStorageService();
+  private runnerTools = new RunnerToolResolver();
   private webhookService = new ClawWebhookService();
   private promptTemplateService = new PromptTemplateService(new PromptTemplateDAO());
 
@@ -107,6 +109,7 @@ export class ClawOrchestrationService {
           clankerDAO: this.clankerDAO,
           provisioningService: this.provisioningService,
           instructionStorageService: this.instructionStorageService,
+          runnerTools: this.runnerTools,
         },
       );
 

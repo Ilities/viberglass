@@ -102,6 +102,10 @@ export interface Clanker {
   configFiles: ClankerConfigFile[]
   agent?: AgentType | null
   secretBindings: SecretBinding[]
+  /** Workspace MCP servers the runner's agent gets. */
+  mcpServerIds: string[]
+  /** Workspace skills the runner's agent gets. */
+  skillIds: string[]
   status: ClankerStatus
   statusMessage?: string | null
   createdAt: string
@@ -123,6 +127,8 @@ export interface CreateClankerRequest {
   configFiles?: ConfigFileInput[]
   agent?: AgentType | null
   secretBindings?: SecretBinding[]
+  mcpServerIds?: string[]
+  skillIds?: string[]
 }
 
 // Request body for updating a clanker
@@ -134,6 +140,8 @@ export interface UpdateClankerRequest {
   configFiles?: ConfigFileInput[]
   agent?: AgentType | null
   secretBindings?: SecretBinding[]
+  mcpServerIds?: string[]
+  skillIds?: string[]
   status?: ClankerStatus
   statusMessage?: string | null
 }

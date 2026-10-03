@@ -17,6 +17,8 @@ import {
 import { nextClankerStatus } from "../../services/clankerStatusTransition";
 import { ClankerStartService } from "../../services/ClankerStartService";
 import { AgentLoginJobService } from "../../services/codexLogin/AgentLoginJobService";
+import { McpServerDAO } from "../../persistence/mcpServer/McpServerDAO";
+import { SkillDAO } from "../../persistence/skill/SkillDAO";
 
 const router = express.Router();
 const clankerService = new ClankerDAO();
@@ -24,6 +26,8 @@ const healthService = new ClankerHealthService();
 const provisioningService = getClankerProvisioner();
 const startService = new ClankerStartService(clankerService, provisioningService);
 const agentLogins = new AgentLoginJobService();
+const mcpServerDAO = new McpServerDAO();
+const skillDAO = new SkillDAO();
 
 router.use(requireAuth);
 
@@ -79,6 +83,23 @@ async function validateSecretBindings(bindings?: SecretBinding[]): Promise<void>
   }
 }
 
+/** The workspace MCP servers and skills a runner picks must exist. */
+async function validateTools(body: { mcpServerIds?: string[]; skillIds?: string[] }): Promise<void> {
+  const missing = async (ids: string[] | undefined, find: (ids: string[]) => Promise<Array<{ id: string }>>) => {
+    if (!ids || ids.length === 0) return [];
+    const found = new Set((await find(ids)).map((item) => item.id));
+    return ids.filter((id) => !found.has(id));
+  };
+  const missingServers = await missing(body.mcpServerIds, (ids) => mcpServerDAO.getByIds(ids));
+  const missingSkills = await missing(body.skillIds, (ids) => skillDAO.getByIds(ids));
+  if (missingServers.length > 0 || missingSkills.length > 0) {
+    throw new ClankerServiceError(
+      CLANKER_SERVICE_ERROR_CODE.INVALID_TOOL_IDS,
+      `MCP servers or skills not found: ${[...missingServers, ...missingSkills].join(", ")}`,
+    );
+  }
+}
+
 // GET /api/clankers - List all clankers
 router.get(
   "/",
@@ -121,6 +142,7 @@ router.post(
   validateCreateClanker,
   asyncHandler(async (req, res) => {
     await validateSecretBindings(req.body.secretBindings);
+    await validateTools(req.body);
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
   }),
@@ -145,6 +167,7 @@ router.put(
   asyncHandler(async (req, res) => {
     await requireClanker(req.params.id);
     await validateSecretBindings(req.body.secretBindings);
+    await validateTools(req.body);
 
     const updatedClanker = await clankerService.updateClanker(
       req.params.id,

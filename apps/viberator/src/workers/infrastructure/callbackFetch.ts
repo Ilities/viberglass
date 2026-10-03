@@ -213,3 +213,15 @@ export async function postForJson(
   if (!response.ok) throw new Error(getCallbackErrorMessage(data, response.statusText));
   return data;
 }
+
+/** One GET for something the run needs from the platform, such as a skill's files. */
+export async function getJson(url: string, tenantId: string, timeoutMs: number, callbackToken?: string): Promise<unknown> {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: buildCallbackHeaders(tenantId, callbackToken),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(getCallbackErrorMessage(data, response.statusText));
+  return data;
+}

@@ -36,7 +36,7 @@ describe('WorkspaceSettingsLayout', () => {
     renderAs('admin', '/settings/agents/default-agent')
 
     expect(screen.getByRole('heading', { name: 'Advanced' })).toBeInTheDocument()
-    for (const name of ['Members', 'API tokens', 'Agents & runners', 'Connections', 'Secrets', 'Prompt templates']) {
+    for (const name of ['Members', 'API tokens', 'Agents & runners', 'MCP servers', 'Skills', 'Connections', 'Secrets', 'Prompt templates']) {
       expect(screen.getByRole('link', { name })).toBeInTheDocument()
     }
     expect(screen.getByRole('link', { name: 'Agents & runners' })).toHaveAttribute('aria-current', 'page')

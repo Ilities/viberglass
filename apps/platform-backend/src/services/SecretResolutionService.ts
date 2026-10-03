@@ -1,4 +1,4 @@
-import { SCM_TOKEN_ENV_VAR, type CredentialRequest, type SecretBinding } from "@viberglass/types";
+import { isWorkerOnlyEnvVar, type CredentialRequest, type SecretBinding } from "@viberglass/types";
 import { SecretDAO } from "../persistence/secret/SecretDAO";
 import { SecretService } from "./SecretService";
 import { createChildLogger } from "../config/logger";
@@ -42,7 +42,7 @@ export class SecretResolutionService {
   /**
    * What a worker loads for these bindings: the env var, and for SSM secrets the
    * parameter ECS and Lambda workers read. Bindings to deleted secrets are left out.
-   * Everything but the repository token is meant for the agent.
+   * Everything but what the worker uses itself (the repository token, MCP headers) is meant for the agent.
    */
   async getCredentialRequests(bindings: SecretBinding[]): Promise<CredentialRequest[]> {
     const secrets = await this.secretDAO.getSecretsByIds(bindings.map((binding) => binding.secretId));
@@ -54,7 +54,7 @@ export class SecretResolutionService {
         {
           envVar: binding.envVar,
           ssmPath: secret.secretLocation === "ssm" ? secret.secretPath : null,
-          exposeToAgent: binding.envVar !== SCM_TOKEN_ENV_VAR,
+          exposeToAgent: !isWorkerOnlyEnvVar(binding.envVar),
         },
       ];
     });

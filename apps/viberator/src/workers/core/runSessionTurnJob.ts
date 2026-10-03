@@ -10,6 +10,7 @@ import { deliverPullRequest } from "./deliverPullRequest";
 import { collectArtifacts, materializeArtifacts } from "./turnArtifacts";
 import { discardCodeChanges, listCodeChanges, restoreArtifactFiles } from "./workingTreeChanges";
 import { QuestionRelay } from "../../questions/QuestionRelay";
+import { httpMcpServersOf } from "../runtime/workerMcpServers";
 import { peoplesChanges } from "./peoplesChanges";
 import { keepPartialWork } from "./keepPartialWork";
 import { onStop } from "../runtime/stopSignal";
@@ -83,7 +84,7 @@ export async function runSessionTurnJob(params: JobRunnerParams): Promise<JobRes
       { sendQuestion: (question) => params.callbackClient.turn.sendQuestion(data.id, data.tenantId, question) },
       askHumanServerScript(),
     );
-    executionContext.mcpServers = [await relay.start()];
+    executionContext.mcpServers = [await relay.start(), ...httpMcpServersOf(params.mcpServers, params.fetchedCredentials, logger)];
     const result = await executeAgentWithRetry(params, executionContext).finally(() => {
       stopped();
       return relay.close();

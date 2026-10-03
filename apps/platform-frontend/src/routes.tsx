@@ -49,6 +49,8 @@ import { ProjectIntegrationsPage } from '@/pages/project/settings/ProjectIntegra
 import { SpaceGeneralSettings } from '@/pages/project/settings/AboutSpacePage'
 import { SpaceMembersPage } from '@/pages/project/settings/SpaceMembersPage'
 import { SecretsPage } from '@/pages/secrets/SecretsPage'
+import { McpServersPage } from '@/pages/mcp-servers/McpServersPage'
+import { SkillsPage } from '@/pages/skills/SkillsPage'
 import { ApiTokensPage } from '@/pages/settings/ApiTokensPage'
 import { IntegrationDetailPage } from '@/pages/settings/IntegrationDetailPage'
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
@@ -85,6 +87,8 @@ export function AppRoutes() {
           <Route path="/settings/agents/new" element={<NewClankerPage />} />
           <Route path="/settings/agents/:slug" element={<ClankerDetailPage />} />
           <Route path="/settings/agents/:slug/edit" element={<EditClankerPage />} />
+          <Route path="/settings/mcp-servers" element={<McpServersPage />} />
+          <Route path="/settings/skills" element={<SkillsPage />} />
           <Route path="/settings/secrets" element={<SecretsPage />} />
           <Route path="/settings/connections" element={<IntegrationsPage />} />
           <Route path="/settings/connections/new/:integrationSystem" element={<IntegrationDetailPage />} />

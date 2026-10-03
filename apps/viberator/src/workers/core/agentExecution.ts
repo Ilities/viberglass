@@ -22,6 +22,7 @@ import { classifyAgentFailure } from "./classifyAgentFailure";
 import { failingWith, JobFailureError } from "./JobFailureError";
 import type { AgentAuthContext } from "./agentAuthLifecycle";
 import type { JobRunnerParams, ManifestScratch } from "./jobPipeline";
+import { installSkills } from "./installSkills";
 
 export interface AgentExecutionResult {
   success: boolean;
@@ -61,6 +62,7 @@ export async function executeAgentWithRetry(
   await failingWith(JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID, () =>
     agentAuthLifecycle.ensureReady(authContext),
   );
+  await installSkills(params, selectedAgent.name);
 
   const executeSelectedAgent = () =>
     orchestrator.executeAgent(selectedAgent, executionContext);

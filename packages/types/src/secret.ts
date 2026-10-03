@@ -1,5 +1,6 @@
 import { isObjectRecord } from './clankerConfig'
 import type { ModelProviderId } from './modelProviders'
+import { MCP_HEADER_ENV_VAR_PREFIX } from './mcpServer'
 
 export type SecretLocation = 'env' | 'database' | 'ssm'
 
@@ -30,6 +31,11 @@ export interface SecretBinding {
 
 /** The worker reads a run's repository token from here; it is never passed to the agent. */
 export const SCM_TOKEN_ENV_VAR = 'VIBERGLASS_SCM_TOKEN'
+
+/** Credentials the worker uses itself and keeps from the agent: the repository token and MCP server headers. */
+export function isWorkerOnlyEnvVar(envVar: string): boolean {
+  return envVar === SCM_TOKEN_ENV_VAR || envVar.startsWith(MCP_HEADER_ENV_VAR_PREFIX)
+}
 
 /** Env var names: what agent CLIs and the worker read credentials from. */
 export const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/

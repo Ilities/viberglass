@@ -15,6 +15,8 @@ function clanker(id: string, overrides: Partial<Clanker> = {}): Clanker {
     configFiles: [],
     agent: "claude-code",
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     status: "active",
     statusMessage: null,
     createdAt: "2026-10-01T00:00:00Z",

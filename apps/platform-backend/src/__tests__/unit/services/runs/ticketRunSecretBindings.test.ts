@@ -43,6 +43,8 @@ const runner: Clanker = {
     { envVar: "ANTHROPIC_API_KEY", secretId: "team-key" },
     { envVar: "NOTION_TOKEN", secretId: "runner-notion" },
   ],
+  mcpServerIds: ["server-1"],
+  skillIds: ["skill-1"],
   status: "active",
   statusMessage: null,
   createdAt: "",
@@ -74,6 +76,13 @@ function prepare(additionalSecretBindings = [{ envVar: "NOTION_TOKEN", secretId:
       clankerDAO: { getClanker: jest.fn(async () => runner), updateStatus: jest.fn() },
       provisioningService: { resolveAvailabilityStatus: jest.fn(async () => ({ status: "active" as const })) },
       instructionStorageService: { uploadJobInstructionFiles: jest.fn() },
+      runnerTools: {
+        resolve: jest.fn(async () => ({
+          mcpServers: [{ name: "linear", url: "https://mcp.linear.app/mcp", headers: [{ name: "Authorization", envVar: "VIBERGLASS_MCP_0_0" }] }],
+          skills: [{ id: "skill-1", name: "pdf-forms" }],
+          secretBindings: [{ envVar: "VIBERGLASS_MCP_0_0", secretId: "linear-token" }],
+        })),
+      },
     },
   );
 }
@@ -85,8 +94,16 @@ describe("a run's secret bindings", () => {
     expect(context.executionClanker.secretBindings).toEqual([
       { envVar: "ANTHROPIC_API_KEY", secretId: "team-key" },
       { envVar: "NOTION_TOKEN", secretId: "template-notion" },
+      { envVar: "VIBERGLASS_MCP_0_0", secretId: "linear-token" },
       { envVar: SCM_TOKEN_ENV_VAR, secretId: "repo-token" },
     ]);
+  });
+
+  it("carries the runner's MCP servers and skills for the worker's payload", async () => {
+    const context = await prepare([]);
+
+    expect(context.mcpServers.map((server) => server.name)).toEqual(["linear"]);
+    expect(context.skills).toEqual([{ id: "skill-1", name: "pdf-forms" }]);
   });
 
   it("tells the worker which variable holds the repository token", async () => {

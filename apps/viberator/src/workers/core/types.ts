@@ -117,6 +117,10 @@ export interface BaseWorkerPayload {
   scm?: ScmPayload | null;
   /** Callback token for authenticating worker callbacks to the platform */
   callbackToken?: string;
+  /** The runner's workspace MCP servers, offered to the agent on task turns. */
+  mcpServers?: WorkerMcpServer[];
+  /** The runner's workspace skills, written where the agent's harness reads skills. */
+  skills?: WorkerSkill[];
   /** ACP session fields: present on a task's turns, absent on scheduled jobs. */
   /** Platform session UUID linking this job to an agent_sessions row */
   agentSessionId?: string;
@@ -293,7 +297,7 @@ export interface JobResult {
    */
   runManifest?: ExecutionManifest;
 }
-import type { CredentialRequest, JobKind, TaskTurnAction } from "@viberglass/types";
+import type { CredentialRequest, JobKind, TaskTurnAction, WorkerMcpServer, WorkerSkill } from "@viberglass/types";
 import type { AcpContextUsage, AcpSessionStart } from "@viberglass/agent-core";
 import type { TurnDocuments } from "./turnArtifacts";
 import type { ExecutionManifest } from "@viberglass/telemetry";

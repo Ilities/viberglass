@@ -199,6 +199,8 @@ export const clankerSchema = Joi.object({
     .allow(null)
     .optional(),
   secretBindings: secretBindingsSchema.optional(),
+  mcpServerIds: Joi.array().items(Joi.string().uuid()).unique().optional(),
+  skillIds: Joi.array().items(Joi.string().uuid()).unique().optional(),
 });
 
 export const updateClankerSchema = Joi.object({
@@ -212,6 +214,8 @@ export const updateClankerSchema = Joi.object({
     .allow(null)
     .optional(),
   secretBindings: secretBindingsSchema.optional(),
+  mcpServerIds: Joi.array().items(Joi.string().uuid()).unique().optional(),
+  skillIds: Joi.array().items(Joi.string().uuid()).unique().optional(),
   status: Joi.string()
     .valid("active", "inactive", "deploying", "failed")
     .optional(),

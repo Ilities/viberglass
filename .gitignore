@@ -51,6 +51,7 @@ apps/slack-app/data/
 
 # Clanker instruction files (persist across container restarts)
 .clanker-instructions/
+.viberglass-skills/
 
 # Temporary files
 *.swp
@@ -59,3 +60,4 @@ apps/slack-app/data/
 /tests/e2e/.e2e-seed.json
 /tests/e2e/test-results/
 /tests/e2e/playwright-report/
+.zai-token

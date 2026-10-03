@@ -22,6 +22,18 @@ export const RUNNER_AUDIT: AuditRule[] = [
   { method: "DELETE", path: "/:id/config-files/:fileType", action: "runner.updated", targetType: "runner", targetParam: "id", details: (req) => ({ removedFile: req.params.fileType }) },
 ];
 
+export const MCP_SERVER_AUDIT: AuditRule[] = [
+  { method: "POST", path: "/", action: "mcp_server.created", targetType: "mcp_server", details: (req) => ({ name: bodyField(req, "name") }) },
+  { method: "PUT", path: "/:id", action: "mcp_server.updated", targetType: "mcp_server", targetParam: "id", details: changedFields },
+  { method: "DELETE", path: "/:id", action: "mcp_server.deleted", targetType: "mcp_server", targetParam: "id" },
+];
+
+export const SKILL_AUDIT: AuditRule[] = [
+  { method: "POST", path: "/", action: "skill.created", targetType: "skill", details: (req) => ({ file: req.file?.originalname }) },
+  { method: "PUT", path: "/:id", action: "skill.updated", targetType: "skill", targetParam: "id", details: (req) => ({ file: req.file?.originalname }) },
+  { method: "DELETE", path: "/:id", action: "skill.deleted", targetType: "skill", targetParam: "id" },
+];
+
 const webhook = (direction: "inbound") => (): Record<string, unknown> => ({ direction });
 
 export const CONNECTION_AUDIT: AuditRule[] = [

@@ -1,9 +1,10 @@
 import { BaseAgent } from "@viberglass/agent-core";
-import type { AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
+import type { AcpMcpServer, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
 import * as fs from "fs";
 import * as path from "path";
 import type { PiConfig } from "./config";
+import { piAgentDirectory, writePiMcpConfig } from "./piMcpConfig";
 
 /**
  * Pi coding agent harness.
@@ -51,6 +52,12 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
       env.PI_CODING_AGENT_SESSION_DIR = this.sessionDirectory();
     }
     return env;
+  }
+
+  /** pi-acp keeps the servers ACP offers without passing them to Pi, so Pi gets them through its own mcp.json. */
+  public override async configureMcpServers(servers: AcpMcpServer[], env: NodeJS.ProcessEnv): Promise<AcpMcpServer[]> {
+    writePiMcpConfig(piAgentDirectory(env), servers);
+    return [];
   }
 
   /**

@@ -6,6 +6,7 @@
 //   AGENT_COMMANDS=compact       slash commands it announces when a session opens
 //   AGENT_USAGE=1200/200000      the usage_update it sends with each reply (used/size)
 //   AGENT_ECHO_MCP=1             the reply ends with the MCP servers its session was opened with
+//   AGENT_MCP_HTTP=1             initialize advertises HTTP MCP servers
 // It replays one old message on load, and its reply names the methods it was called with.
 const readline = require("readline");
 
@@ -36,7 +37,11 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       id: msg.id,
       result: {
         protocolVersion: 1,
-        agentCapabilities: { loadSession: supports.includes("load"), sessionCapabilities: supports.includes("resume") ? { resume: {} } : {} },
+        agentCapabilities: {
+          loadSession: supports.includes("load"),
+          sessionCapabilities: supports.includes("resume") ? { resume: {} } : {},
+          mcpCapabilities: { http: Boolean(process.env.AGENT_MCP_HTTP) },
+        },
         receivedClientCapabilities: msg.params.clientCapabilities ?? null,
       },
     });
@@ -58,7 +63,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       return send({ id: msg.id, error: { code: -32603, message: "service failure" } });
     }
     const echo = process.env.AGENT_ECHO_PROMPT ? ` | ${msg.params.prompt.map((block) => block.text).join("")}` : "";
-    const mcp = process.env.AGENT_ECHO_MCP ? ` | mcp: ${mcpServers.map((server) => `${server.name}=${server.command}`).join(",")}` : "";
+    const mcp = process.env.AGENT_ECHO_MCP ? ` | mcp: ${mcpServers.map((server) => `${server.name}=${server.command ?? server.url}`).join(",")}` : "";
     say(msg.params.sessionId, `calls: ${calls.join(" ")}${echo}${mcp}`);
     if (process.env.AGENT_USAGE) {
       const [used, size] = process.env.AGENT_USAGE.split("/").map(Number);

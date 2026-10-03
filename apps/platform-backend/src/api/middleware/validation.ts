@@ -39,6 +39,7 @@ import {
   updateClawScheduleSchema,
   createApiTokenSchema,
 } from "./schemas";
+import { mcpServerSchema } from "./mcpServerSchema";
 
 const logger = createChildLogger({ middleware: "validation" });
 
@@ -147,6 +148,7 @@ export const validateLogEntry = createValidator(logEntrySchema);
 export const validateLogBatch = createValidator(logBatchSchema);
 export const validateCreateSecret = createValidator(secretSchema);
 export const validateUpdateSecret = createValidator(updateSecretSchema);
+export const validateMcpServer = createValidator(mcpServerSchema, { name: "mcpServer" });
 export const validateSetupModelKey = createValidator(setupModelKeySchema, {
   name: "setupModelKey",
 });

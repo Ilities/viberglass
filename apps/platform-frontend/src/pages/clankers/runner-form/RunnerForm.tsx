@@ -29,6 +29,7 @@ import { buildConfigFiles } from './configFiles'
 import { HarnessConfigEditor } from './HarnessConfigEditor'
 import { createSkillEntry, InstructionFilesSection, type SkillEntry } from './InstructionFilesSection'
 import { ModelSection } from './ModelSection'
+import { ToolsSection } from './ToolsSection'
 
 interface RunnerFormProps {
   /** The runner being edited; absent when creating one. */
@@ -55,7 +56,7 @@ function Section({ title, description, children }: { title: string; description:
   )
 }
 
-/** Creates or edits a runner: agent, then model and key, compute, instructions, and extra variables. */
+/** Creates or edits a runner: agent, then model and key, compute, instructions, tools, and extra variables. */
 export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel }: RunnerFormProps) {
   const initialForm = initial
     ? readClankerDeploymentConfig({ deploymentConfig: initial.deploymentConfig, agent: initial.agent }).form
@@ -77,6 +78,8 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
   const [skills, setSkills] = useState<SkillEntry[]>([])
   const [harnessEnabled, setHarnessEnabled] = useState(false)
   const [harnessContent, setHarnessContent] = useState('')
+  const [mcpServerIds, setMcpServerIds] = useState<string[]>(initial?.mcpServerIds ?? [])
+  const [skillIds, setSkillIds] = useState<string[]>(initial?.skillIds ?? [])
 
   useEffect(() => {
     async function load() {
@@ -197,6 +200,8 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         configFiles: configFiles.files,
         agent: agent || null,
         secretBindings: bindings,
+        mcpServerIds,
+        skillIds,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save agent runner')
@@ -289,6 +294,15 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
           skills={skills}
           onSkillsChange={setSkills}
           onError={setError}
+        />
+      </Section>
+
+      <Section title="Tools" description="MCP servers and skills an admin approved for the workspace.">
+        <ToolsSection
+          mcpServerIds={mcpServerIds}
+          skillIds={skillIds}
+          onMcpServerIdsChange={setMcpServerIds}
+          onSkillIdsChange={setSkillIds}
         />
       </Section>
 
