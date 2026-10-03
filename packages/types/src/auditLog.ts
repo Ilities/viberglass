@@ -1,5 +1,5 @@
 /** What the audit log covers, one area per kind of thing changed. */
-export const AUDIT_TARGET_TYPES = ['run', 'approval', 'connection', 'secret', 'runner', 'member', 'space', 'invite'] as const
+export const AUDIT_TARGET_TYPES = ['run', 'approval', 'connection', 'secret', 'runner', 'mcp_server', 'skill', 'member', 'space', 'invite'] as const
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number]
 
@@ -31,6 +31,12 @@ export const AUDIT_ACTION_TEXT = {
   'runner.deleted': 'deleted an agent',
   'runner.started': 'started an agent',
   'runner.stopped': 'stopped an agent',
+  'mcp_server.created': 'approved an MCP server',
+  'mcp_server.updated': 'changed an MCP server',
+  'mcp_server.deleted': 'removed an MCP server',
+  'skill.created': 'added a skill',
+  'skill.updated': 'uploaded a new version of a skill',
+  'skill.deleted': 'removed a skill',
   'member.created': 'created an account',
   'member.role_changed': "changed someone's workspace role",
   'member.deactivated': 'deactivated someone',

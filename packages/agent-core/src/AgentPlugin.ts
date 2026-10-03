@@ -72,6 +72,13 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
    */
   readonly stateExcludes?: string[];
 
+  /**
+   * $HOME-relative folders the harness reads user-level skills from; the
+   * worker writes the runner's skills there. Unset means `.agents/skills`,
+   * which most harnesses read.
+   */
+  readonly skillDirs?: string[];
+
   /** Relative file patterns that belong in .harness-config/ */
   readonly harnessConfigPatterns?: string[];
 

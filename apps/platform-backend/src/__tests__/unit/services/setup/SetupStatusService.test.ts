@@ -64,6 +64,8 @@ function runner(status: ClankerStatus): Clanker {
     configFiles: [],
     agent: "opencode",
     secretBindings: [{ envVar: "OPENCODE_API_KEY", secretId: "secret-1" }],
+    mcpServerIds: [],
+    skillIds: [],
     status,
     statusMessage: "Docker image ready",
     createdAt: "",

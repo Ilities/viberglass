@@ -38,6 +38,7 @@ const antigravityPlugin: AgentPlugin<AntigravityConfig> = {
 
   stateDirs: [ANTIGRAVITY_STATE_DIR],
   stateExcludes: [`${ANTIGRAVITY_STATE_DIR}/acp_token.json`],
+  skillDirs: [".gemini/config/skills"],
 
   providers: [{ provider: "google", envVar: "GEMINI_API_KEY", default: true }],
 

@@ -9,7 +9,7 @@ import {
   type CostProvenance,
   type TokenUsage,
 } from "@viberglass/telemetry";
-import { JOB_FAILURE_CODE, type TaskTurnAction } from "@viberglass/types";
+import { JOB_FAILURE_CODE, type TaskTurnAction, type WorkerMcpServer, type WorkerSkill } from "@viberglass/types";
 import GitService from "../../services/GitService";
 import { AgentOrchestrator } from "../../orchestrator/AgentOrchestrator";
 import { CodingJobData, JobOverrides, ProjectConfigPayload } from "./types";
@@ -62,6 +62,10 @@ export interface JobRunnerParams {
   taskBranch?: string;
   /** Per-project SCM token resolved from fetchedCredentials */
   scmToken?: string;
+  /** The runner's workspace MCP servers; task turns offer them to the agent. */
+  mcpServers: WorkerMcpServer[];
+  /** The runner's workspace skills, installed before the agent starts. */
+  skills: WorkerSkill[];
   selectAgentForExecution: (availableAgents: BaseAgentConfig[]) => BaseAgentConfig;
   sendProgress: (
     step: string,

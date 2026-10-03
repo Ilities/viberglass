@@ -39,7 +39,7 @@ export {
 } from "./agentStreamNormalizer";
 
 // ACP layer
-export type { AcpMcpServer, PlatformSessionEvent } from "./acp/types";
+export type { AcpHttpMcpServer, AcpMcpServer, AcpStdioMcpServer, PlatformSessionEvent } from "./acp/types";
 export type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 export {
   defaultAcpEventMapper,

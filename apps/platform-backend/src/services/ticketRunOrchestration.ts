@@ -1,12 +1,22 @@
 import { getStrategyType } from "../clanker-config";
 import { SCM_TOKEN_ENV_VAR } from "@viberglass/types";
-import type { Clanker, ClankerStrategyType, CredentialRequest, Project, ProjectScmConfig, SecretBinding } from "@viberglass/types";
+import type {
+  Clanker,
+  ClankerStrategyType,
+  CredentialRequest,
+  Project,
+  ProjectScmConfig,
+  SecretBinding,
+  WorkerMcpServer,
+  WorkerSkill,
+} from "@viberglass/types";
 import type { ClankerDAO } from "../persistence/clanker/ClankerDAO";
 import type { IntegrationCredentialDAO } from "../persistence/integrations";
 import type { ProjectDAO } from "../persistence/project/ProjectDAO";
 import type { ProjectScmConfigDAO } from "../persistence/project/ProjectScmConfigDAO";
 import type { ClankerProvisioner } from "../provisioning/ClankerProvisioner";
 import type { JobData, JobScmConfig } from "../types/Job";
+import type { RunnerToolResolver } from "./runs/RunnerToolResolver";
 import {
   type InlineInstructionFile as StoredInlineInstructionFile,
   type InstructionStorageService,
@@ -58,6 +68,7 @@ export interface TicketRunOrchestrationDependencies {
     InstructionStorageService,
     "uploadJobInstructionFiles"
   >;
+  runnerTools: Pick<RunnerToolResolver, "resolve">;
 }
 
 export interface PrepareTicketRunContextInput {
@@ -79,6 +90,8 @@ export interface PreparedTicketRunContext {
   workerType: ClankerStrategyType;
   mergedInstructionFiles: InlineInstructionFile[];
   workerInstructionFiles: WorkerInstructionFileReference[];
+  mcpServers: WorkerMcpServer[];
+  skills: WorkerSkill[];
 }
 
 function normalizeInstructionFile(
@@ -227,10 +240,12 @@ export async function prepareTicketRunContext(
     deps.integrationCredentialDAO,
     scmConfig,
   );
+  const tools = await deps.runnerTools.resolve(clanker);
   const executionClanker: Clanker = {
     ...clanker,
     secretBindings: mergeSecretBindings([
       ...(clanker.secretBindings || []),
+      ...tools.secretBindings,
       ...(scmCredentialSecretId ? [{ envVar: SCM_TOKEN_ENV_VAR, secretId: scmCredentialSecretId }] : []),
       ...(input.additionalSecretBindings ?? []),
     ]),
@@ -261,6 +276,8 @@ export async function prepareTicketRunContext(
     workerType,
     mergedInstructionFiles,
     workerInstructionFiles,
+    mcpServers: tools.mcpServers,
+    skills: tools.skills,
   };
 }
 
@@ -297,6 +314,8 @@ export interface BuildBootstrapPayloadInput {
   executionClanker: Clanker;
   project: Project;
   scm?: JobScmConfig | null;
+  mcpServers?: WorkerMcpServer[];
+  skills?: WorkerSkill[];
 }
 
 export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record<string, unknown> {
@@ -319,6 +338,8 @@ export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record
     executionClanker,
     project,
     scm,
+    mcpServers,
+    skills,
   } = input;
 
   return {
@@ -348,6 +369,8 @@ export function buildBootstrapPayload(input: BuildBootstrapPayloadInput): Record
       workerSettings: project.workerSettings,
     },
     ...(scm ? { scm } : {}),
+    ...(mcpServers && mcpServers.length > 0 ? { mcpServers } : {}),
+    ...(skills && skills.length > 0 ? { skills } : {}),
     ...traceCarrierField(),
   };
 }
@@ -473,6 +496,8 @@ async function dispatchJob(
     executionClanker,
     project,
     scm,
+    mcpServers: preparedContext.mcpServers,
+    skills: preparedContext.skills,
   });
 
   jobData.bootstrapPayload = bootstrapPayload;

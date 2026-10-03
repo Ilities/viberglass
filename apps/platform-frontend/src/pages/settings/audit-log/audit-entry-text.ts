@@ -6,6 +6,8 @@ export const AREA_LABEL: Record<AuditTargetType, string> = {
   connection: 'Connections',
   secret: 'Secrets',
   runner: 'Agents',
+  mcp_server: 'MCP servers',
+  skill: 'Skills',
   member: 'Members',
   space: 'Spaces',
   invite: 'Invites',

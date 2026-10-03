@@ -17,6 +17,8 @@ import deploymentStrategiesRouter from "./routes/deployment-strategies";
 import jobsRouter from "./routes/jobs";
 import runManifestsRouter from "./routes/runManifests";
 import secretsRouter from "./routes/secrets";
+import mcpServersRouter from "./routes/mcpServers";
+import skillsRouter from "./routes/skills";
 import setupRouter from "./routes/setup";
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
@@ -45,7 +47,16 @@ import { requireRole } from "./middleware/authentication";
 import { adminOnlyChanges } from "./middleware/adminOnlyChanges";
 import { withRequestActor } from "./auth/requestActor";
 import { auditRequests } from "./middleware/auditRequests";
-import { CONNECTION_AUDIT, INVITE_AUDIT, MEMBER_AUDIT, RUNNER_AUDIT, SECRET_AUDIT, SPACE_AUDIT } from "./middleware/auditRules";
+import {
+  CONNECTION_AUDIT,
+  INVITE_AUDIT,
+  MCP_SERVER_AUDIT,
+  MEMBER_AUDIT,
+  RUNNER_AUDIT,
+  SECRET_AUDIT,
+  SKILL_AUDIT,
+  SPACE_AUDIT,
+} from "./middleware/auditRules";
 import { refuseViewerChanges, requireRunnerRole, runnerOnlyChanges } from "./middleware/workspaceRoleGuards";
 
 function resolvePublicDirectory(): string {
@@ -195,6 +206,8 @@ app.use("/api/tasks", ticketsRouter);
 app.use("/api/webhooks", webhooksRouter);
 app.use("/api/clankers", adminOnlyChanges(), auditRequests(RUNNER_AUDIT), clankersRouter);
 app.use("/api/deployment-strategies", adminOnlyChanges(), deploymentStrategiesRouter);
+app.use("/api/mcp-servers", adminOnlyChanges(), auditRequests(MCP_SERVER_AUDIT), mcpServersRouter);
+app.use("/api/skills", adminOnlyChanges(), auditRequests(SKILL_AUDIT), skillsRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/run-manifests", requireRole("admin"), runManifestsRouter);
 app.use("/api/secrets", requireRole("admin"), auditRequests(SECRET_AUDIT), secretsRouter);

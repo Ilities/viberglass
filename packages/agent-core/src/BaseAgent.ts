@@ -44,6 +44,7 @@ import type { IAgentGitService } from "./git/IAgentGitService";
 import { NoopAgentGitService } from "./git/NoopAgentGitService";
 import type { BaseAgentConfig, ExecutionContext, ExecutionResult, AgentCLIResult } from "./types";
 import type { AgentUsageReport } from "./usage";
+import type { AcpMcpServer } from "./acp/types";
 
 export type { AgentCLIResult };
 
@@ -245,6 +246,14 @@ export abstract class BaseAgent<C extends BaseAgentConfig = BaseAgentConfig> {
 
   public getAcpEnvironment(_harnessConfigDir: string): NodeJS.ProcessEnv {
     return {};
+  }
+
+  /**
+   * The MCP servers to offer the harness over ACP. A harness whose ACP adapter
+   * doesn't pass servers on configures them itself here and returns none.
+   */
+  public async configureMcpServers(servers: AcpMcpServer[], _env: NodeJS.ProcessEnv): Promise<AcpMcpServer[]> {
+    return servers;
   }
 
   protected async prepareWorkingDirectory(

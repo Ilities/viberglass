@@ -6,6 +6,9 @@ import type { AcpEventMapper } from "./acp/acpEventMapperTypes";
 import { defaultAcpEventMapper } from "./acp/acpEventMapper";
 import type { IAgentGitService } from "./git/IAgentGitService";
 
+/** The shared skills folder that most harnesses read. */
+const DEFAULT_SKILL_DIR = ".agents/skills";
+
 export class AgentRegistry {
   private readonly plugins = new Map<string, AgentPlugin>();
 
@@ -59,6 +62,11 @@ export class AgentRegistry {
         p.stateDirs && p.stateDirs.length > 0 ? [[p.id, { dirs: p.stateDirs, excludes: p.stateExcludes ?? [] }]] : [],
       ),
     );
+  }
+
+  /** Where the agent's harness reads user-level skills, relative to $HOME. */
+  getSkillDirs(agentId: string): string[] {
+    return this.list().find((p) => p.id === agentId)?.skillDirs ?? [DEFAULT_SKILL_DIR];
   }
 
   getHarnessConfigPatterns(): string[] {

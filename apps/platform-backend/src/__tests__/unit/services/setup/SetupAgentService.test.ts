@@ -31,6 +31,8 @@ function runner(request: CreateClankerRequest | UpdateClankerRequest, status: Cl
     configFiles: [],
     agent: request.agent ?? "claude-code",
     secretBindings: request.secretBindings ?? [],
+    mcpServerIds: [],
+    skillIds: [],
     status,
     statusMessage: null,
     createdAt: "",

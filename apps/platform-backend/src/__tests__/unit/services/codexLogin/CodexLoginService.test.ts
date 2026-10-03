@@ -23,6 +23,8 @@ function codexRunner(codexAuth: Record<string, unknown>): Clanker {
     configFiles: [],
     agent: "codex",
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     status: "active",
     statusMessage: null,
     createdAt: "",

@@ -161,6 +161,8 @@ export class ViberatorWorker {
             details,
           ),
         scmToken,
+        mcpServers: this.settings.mcpServers,
+        skills: this.settings.skills,
         cloneRepositoryToWorkspace: (repository, branch, workDir) =>
           cloneFreshRepository(this.services.gitService, repository, branch, workDir, scmToken),
       });

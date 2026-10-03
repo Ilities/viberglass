@@ -41,6 +41,7 @@ const claudeCodePlugin: AgentPlugin<ClaudeCodeConfig> = {
 
   stateDirs: [".claude"],
   stateExcludes: [".claude/.credentials.json"],
+  skillDirs: [".claude/skills"],
 
   providers: [{ provider: "anthropic", envVar: "ANTHROPIC_API_KEY", default: true }],
 

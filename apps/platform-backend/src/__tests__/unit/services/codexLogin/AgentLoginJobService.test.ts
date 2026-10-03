@@ -23,6 +23,8 @@ function runner(overrides: Partial<Clanker> = {}, mode = "chatgpt_device_stored"
     configFiles: [],
     agent: "codex",
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     status: "active",
     statusMessage: null,
     createdAt: "",

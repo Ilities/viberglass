@@ -23,6 +23,7 @@ import {
   isAllowedInstructionPath,
   normalizeInstructionPath,
 } from "../../services/instructions/pathPolicy";
+import { ClankerToolsDAO, type ClankerTools } from "./ClankerToolsDAO";
 
 type ClankersRow = Selectable<Database["clankers"]>;
 type ClankerConfigFilesRow = Selectable<Database["clanker_config_files"]>;
@@ -100,6 +101,7 @@ function readStrategyTypeFromConfig(config: unknown): InstructionStrategyType | 
 
 export class ClankerDAO {
   private readonly instructionStorage = new InstructionStorageService();
+  private readonly tools = new ClankerToolsDAO();
 
   async createClanker(request: CreateClankerRequest): Promise<Clanker> {
     const clankerId = randomUUID();
@@ -130,6 +132,7 @@ export class ClankerDAO {
       const strategyType = await this.resolveClankerStrategyType(clankerId);
       await this.upsertConfigFiles(clankerId, request.configFiles, strategyType);
     }
+    await this.tools.replace(clankerId, { mcpServerIds: request.mcpServerIds, skillIds: request.skillIds });
 
     return this.getClanker(clankerId) as Promise<Clanker>;
   }
@@ -168,7 +171,7 @@ export class ClankerDAO {
 
     const configFiles = await this.getConfigFiles(id);
 
-    return this.mapRowToClanker(row, configFiles);
+    return this.mapRowToClanker(row, configFiles, await this.tools.get(id));
   }
 
   async getClankerBySlug(slug: string): Promise<Clanker | null> {
@@ -205,7 +208,7 @@ export class ClankerDAO {
 
     const configFiles = await this.getConfigFiles(row.id);
 
-    return this.mapRowToClanker(row, configFiles);
+    return this.mapRowToClanker(row, configFiles, await this.tools.get(row.id));
   }
 
   async updateClanker(
@@ -245,6 +248,7 @@ export class ClankerDAO {
       const strategyType = await this.resolveClankerStrategyType(id);
       await this.upsertConfigFiles(id, updates.configFiles, strategyType);
     }
+    await this.tools.replace(id, { mcpServerIds: updates.mcpServerIds, skillIds: updates.skillIds });
 
     return this.getClanker(id) as Promise<Clanker>;
   }
@@ -281,10 +285,11 @@ export class ClankerDAO {
       .offset(offset)
       .execute();
 
+    const toolsByClanker = await this.tools.getForClankers(rows.map((row) => row.id));
     const clankers: Clanker[] = [];
     for (const row of rows) {
       const configFiles = await this.getConfigFiles(row.id);
-      clankers.push(this.mapRowToClanker(row, configFiles));
+      clankers.push(this.mapRowToClanker(row, configFiles, toolsByClanker.get(row.id) ?? { mcpServerIds: [], skillIds: [] }));
     }
 
     return clankers;
@@ -467,6 +472,7 @@ export class ClankerDAO {
   private mapRowToClanker(
     row: ClankerWithStrategyRow,
     configFiles: ClankerConfigFile[],
+    tools: ClankerTools,
   ): Clanker {
     const deploymentStrategy: DeploymentStrategy | null = row.strategy_id
       ? {
@@ -502,6 +508,8 @@ export class ClankerDAO {
       configFiles,
       agent: isValidAgentType(row.agent) ? row.agent : null,
       secretBindings: parseSecretBindings(row.secret_bindings),
+      mcpServerIds: tools.mcpServerIds,
+      skillIds: tools.skillIds,
       status: row.status,
       statusMessage: row.status_message || null,
       createdAt:

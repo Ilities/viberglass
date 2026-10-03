@@ -241,6 +241,37 @@ export interface ClankersTable {
   updated_at: Generated<Timestamp>;
 }
 
+export interface McpServersTable {
+  id: Generated<string>;
+  name: string;
+  description: string | null;
+  url: string;
+  headers: Generated<Json>;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface SkillsTable {
+  id: Generated<string>;
+  name: string;
+  description: string;
+  storage_url: string;
+  file_count: number;
+  size_bytes: number;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ClankerMcpServersTable {
+  clanker_id: string;
+  mcp_server_id: string;
+}
+
+export interface ClankerSkillsTable {
+  clanker_id: string;
+  skill_id: string;
+}
+
 export interface JobsTable {
   id: string;
   tenant_id: string;
@@ -751,6 +782,10 @@ export interface Database {
   deployment_strategies: DeploymentStrategiesTable;
   clanker_config_files: ClankerConfigFilesTable;
   clankers: ClankersTable;
+  mcp_servers: McpServersTable;
+  skills: SkillsTable;
+  clanker_mcp_servers: ClankerMcpServersTable;
+  clanker_skills: ClankerSkillsTable;
   jobs: JobsTable;
   job_run_manifests: JobRunManifestsTable;
   pull_request_outcomes: PullRequestOutcomesTable;

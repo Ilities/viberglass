@@ -36,6 +36,7 @@ export class AcpExecutor {
     }
 
     env.HOME = agent.resolveHomeDirectory(env.HOME);
+    const mcpServers = await agent.configureMcpServers(context.mcpServers ?? [], env);
 
     const timeoutMs = (context.maxExecutionTime || 1800) * 1000;
 
@@ -64,7 +65,7 @@ export class AcpExecutor {
         acpSessionId: context.acpSessionId,
         coldStartMessage: context.coldStartPrompt,
         compactInstructions: context.compactInstructions,
-        mcpServers: context.mcpServers,
+        mcpServers,
       });
 
       this.logger.info("AcpExecutor completed", {

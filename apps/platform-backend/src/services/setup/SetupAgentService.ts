@@ -144,6 +144,8 @@ export class SetupAgentService {
       configFiles: [],
       agent: binding.agent,
       secretBindings: [],
+      mcpServerIds: [],
+      skillIds: [],
       status: "inactive",
       statusMessage: null,
       createdAt: "",

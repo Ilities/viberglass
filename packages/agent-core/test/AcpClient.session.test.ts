@@ -1,18 +1,19 @@
 import * as path from "path";
 import { createLogger, transports } from "winston";
 import { AcpClient } from "../src/acp/AcpClient";
-import type { PlatformSessionEvent } from "../src/acp/types";
+import type { AcpMcpServer, PlatformSessionEvent } from "../src/acp/types";
 
 const AGENT_SCRIPT = path.join(process.cwd(), "test", "fixtures", "resumingAgent.cjs");
 
 const ASK_SERVER = { name: "viberglass", command: "node", args: ["ask.js"], env: [] };
+const HTTP_SERVER = { type: "http" as const, name: "linear", url: "https://mcp.linear.app/mcp", headers: [] };
 
 async function runTurn(
   env: Record<string, string>,
   acpSessionId?: string,
   coldStartMessage?: string,
   compactInstructions?: string,
-  mcpServers?: Array<typeof ASK_SERVER>,
+  mcpServers?: AcpMcpServer[],
 ) {
   const events: PlatformSessionEvent[] = [];
   const client = new AcpClient(
@@ -88,6 +89,23 @@ describe("AcpClient sessions", () => {
       [ASK_SERVER],
     );
     expect(replies).toEqual(["calls: initialize session/resume session/prompt | mcp: viberglass=node"]);
+  });
+
+  it("offers HTTP MCP servers to a harness that advertises them", async () => {
+    const { replies } = await runTurn({ AGENT_SUPPORTS: "", AGENT_ECHO_MCP: "1", AGENT_MCP_HTTP: "1" }, undefined, undefined, undefined, [
+      ASK_SERVER,
+      HTTP_SERVER,
+    ]);
+    expect(replies).toEqual(["calls: initialize session/new session/prompt | mcp: viberglass=node,linear=https://mcp.linear.app/mcp"]);
+  });
+
+  it("leaves HTTP MCP servers out for a harness that doesn't advertise them, and says so", async () => {
+    const { replies, progress } = await runTurn({ AGENT_SUPPORTS: "", AGENT_ECHO_MCP: "1" }, undefined, undefined, undefined, [
+      ASK_SERVER,
+      HTTP_SERVER,
+    ]);
+    expect(replies).toEqual(["calls: initialize session/new session/prompt | mcp: viberglass=node"]);
+    expect(progress).toContain("This agent can't connect to MCP servers over HTTP, so it runs without: linear");
   });
 
   describe("with a prompt for a cold start", () => {

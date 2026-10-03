@@ -12,6 +12,7 @@ import { WorkerExecutionService } from "../../workers";
 import { CredentialRequirementsService } from "../CredentialRequirementsService";
 import { InstructionStorageService } from "../instructions/InstructionStorageService";
 import { TaskBranchNamer } from "../tasks/TaskBranchNamer";
+import { RunnerToolResolver } from "../runs/RunnerToolResolver";
 import { JobService } from "../JobService";
 import { JobBootstrapService } from "../job/JobBootstrapService";
 import { TicketMediaExecutionService } from "../TicketMediaExecutionService";
@@ -69,6 +70,7 @@ export class TaskTurnJobDispatcher {
     clankerDAO: new ClankerDAO(),
     provisioningService: getClankerProvisioner(),
     instructionStorageService: new InstructionStorageService(),
+    runnerTools: new RunnerToolResolver(),
   };
 
   constructor(
@@ -146,6 +148,8 @@ export class TaskTurnJobDispatcher {
         executionClanker: prepared.executionClanker,
         project: prepared.project,
         scm: jobData.scm,
+        mcpServers: prepared.mcpServers,
+        skills: prepared.skills,
       }),
       agentSessionId: session.id,
       agentTurnId: input.turnId,
