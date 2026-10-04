@@ -10,6 +10,9 @@ function isRunning(runner: Clanker): boolean {
  * keys whose secret still exists.
  */
 export function agentCredentialsCheck(runners: Clanker[], existingSecretIds: Set<string>): ProjectReadinessCheck {
+  if (runners.some((runner) => runner.modelEndpoint && !runnerCredentialProblem(runner, existingSecretIds))) {
+    return { key: "agentCredentials", label: "Model key", state: "ready", summary: "An agent has a model endpoint." };
+  }
   if (runners.some((runner) => runner.secretBindings.some((binding) => existingSecretIds.has(binding.secretId)))) {
     return {
       key: "agentCredentials",

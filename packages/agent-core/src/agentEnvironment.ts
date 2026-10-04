@@ -80,6 +80,7 @@ const PROVIDER_ALLOWLIST: readonly string[] = [
   "CLAUDE_CONFIG_DIR",
   // OpenAI / Codex
   "OPENAI_API_KEY",
+  "MODEL_ENDPOINT_API_KEY",
   "OPENAI_BASE_URL",
   "OPENAI_MODEL",
   "CODEX_AUTH_MODE",

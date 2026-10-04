@@ -160,6 +160,16 @@ describe("ProjectReadinessService", () => {
     expect(readiness?.checks.every((check) => check.state === "ready")).toBe(true);
   });
 
+  it("counts a runner with a shared endpoint as configured without a runner model key", async () => {
+    mockClankerDAO.listClankers.mockResolvedValue([runner({
+      agent: "opencode", status: "active", secretBindings: [], modelEndpoint: { endpointId: "endpoint", model: "qwen" },
+    })]);
+    const readiness = await new ProjectReadinessService().getReadiness("project-1");
+    expect(readiness?.automationAvailable).toBe(true);
+    expect(check(readiness, "agentCredentials")?.state).toBe("ready");
+    expect(check(readiness, "agentRunner")?.state).toBe("ready");
+  });
+
   it("distinguishes repository, credential, and runner setup failures", async () => {
     mockScmConfigDAO.getByProjectId.mockResolvedValue(null);
     mockClankerDAO.listClankers.mockResolvedValue([]);

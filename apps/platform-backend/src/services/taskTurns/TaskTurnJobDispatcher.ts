@@ -1,3 +1,4 @@
+import { runnerModelEndpoints } from "../modelEndpoints";
 import { randomUUID } from "crypto";
 import { isObjectRecord, type TaskTurnAction, type Ticket } from "@viberglass/types";
 import logger from "../../config/logger";
@@ -70,7 +71,7 @@ export class TaskTurnJobDispatcher {
     clankerDAO: new ClankerDAO(),
     provisioningService: getClankerProvisioner(),
     instructionStorageService: new InstructionStorageService(),
-    runnerTools: new RunnerToolResolver(),
+    runnerTools: new RunnerToolResolver(undefined, undefined, runnerModelEndpoints),
   };
 
   constructor(

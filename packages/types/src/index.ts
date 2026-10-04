@@ -92,3 +92,5 @@ export * from './documentAnchor'
 export * from './auditLog'
 export * from './taskSituation'
 export * from './home'
+
+export * from './modelEndpoints'

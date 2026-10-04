@@ -132,7 +132,7 @@ export class ClankerDAO {
       const strategyType = await this.resolveClankerStrategyType(clankerId);
       await this.upsertConfigFiles(clankerId, request.configFiles, strategyType);
     }
-    await this.tools.replace(clankerId, { mcpServerIds: request.mcpServerIds, skillIds: request.skillIds });
+    await this.tools.replace(clankerId, { mcpServerIds: request.mcpServerIds, skillIds: request.skillIds, modelEndpoint: request.modelEndpoint });
 
     return this.getClanker(clankerId) as Promise<Clanker>;
   }
@@ -248,7 +248,7 @@ export class ClankerDAO {
       const strategyType = await this.resolveClankerStrategyType(id);
       await this.upsertConfigFiles(id, updates.configFiles, strategyType);
     }
-    await this.tools.replace(id, { mcpServerIds: updates.mcpServerIds, skillIds: updates.skillIds });
+    await this.tools.replace(id, { mcpServerIds: updates.mcpServerIds, skillIds: updates.skillIds, modelEndpoint: updates.modelEndpoint });
 
     return this.getClanker(id) as Promise<Clanker>;
   }
@@ -510,6 +510,7 @@ export class ClankerDAO {
       secretBindings: parseSecretBindings(row.secret_bindings),
       mcpServerIds: tools.mcpServerIds,
       skillIds: tools.skillIds,
+      modelEndpoint: tools.modelEndpoint ?? null,
       status: row.status,
       statusMessage: row.status_message || null,
       createdAt:

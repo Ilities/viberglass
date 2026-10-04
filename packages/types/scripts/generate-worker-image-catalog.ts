@@ -50,6 +50,7 @@ interface LoadedPlugin {
   providers: PluginProviderBinding[];
   envAliases: PluginEnvAliases;
   harnessConfigPatterns: string[];
+  modelApiFormats: string[];
 }
 
 interface CatalogEntry {
@@ -92,6 +93,7 @@ function loadPlugin(packageDirName: string): LoadedPlugin {
     providers: (plugin.providers ?? []) as PluginProviderBinding[],
     envAliases: (plugin.envAliases ?? {}) as PluginEnvAliases,
     harnessConfigPatterns: (plugin.harnessConfigPatterns ?? []) as string[],
+    modelApiFormats: (plugin.customEndpoints?.apiFormats ?? []).filter((value: unknown): value is string => typeof value === "string"),
   };
 }
 
@@ -262,6 +264,7 @@ const agentPlugins = loadedPlugins
     apiKey: p.envAliases.apiKey ?? [],
     endpoint: p.envAliases.endpoint ?? [],
     harnessConfigFiles: p.harnessConfigPatterns,
+    modelApiFormats: p.modelApiFormats,
   }))
   .sort((a, b) => a.agent.localeCompare(b.agent));
 
