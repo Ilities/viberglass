@@ -37,7 +37,8 @@ function NavBadge({ count }: { count?: number }) {
   if (!count) return null
   return (
     <span
-      aria-label={`${count} unread`}
+      aria-label={`${count} need you`}
+      title="Questions and mentions waiting for you"
       className={clsx(
         'rounded-full bg-[var(--accent-9)] px-1.5 text-[11px] font-semibold text-white',
         // Collapsed, the item is just its icon, so the count sits on its corner.
@@ -59,7 +60,7 @@ function SpaceChildren({ slug, pathname, canSeeRuns }: { slug: string; pathname:
           { href: `${base}/schedules`, label: 'Schedules', icon: <ClockIcon /> },
         ]
       : []),
-    { href: `${base}/settings`, label: 'Settings', icon: <GearIcon /> },
+    { href: `${base}/settings`, label: 'Space settings', icon: <GearIcon /> },
   ]
   return (
     // Sidebar items are inline spans that need a flex column to lay out as rows.
@@ -146,7 +147,8 @@ export function AppSidebar({ user, pathname, spaces, currentSpace, needsYou, onS
             <NavIcon>
               <GearIcon />
             </NavIcon>
-            <SidebarLabel>Settings</SidebarLabel>
+            {/* Named by scope: inside a space, its own settings sit just above. Non-admins only have their own here. */}
+            <SidebarLabel>{user.role === 'admin' ? 'Workspace settings' : 'Your settings'}</SidebarLabel>
           </SidebarItem>
         </SidebarSection>
       </SidebarBody>

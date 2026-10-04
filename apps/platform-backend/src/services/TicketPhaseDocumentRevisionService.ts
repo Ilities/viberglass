@@ -14,6 +14,8 @@ export interface PhaseDocumentRevisionView {
   content: string;
   source: PhaseDocumentRevisionSource;
   actor: string | null;
+  /** Numbered from 1 per document, in the order versions were saved. */
+  version: number;
   createdAt: string;
 }
 
@@ -43,6 +45,7 @@ export class TicketPhaseDocumentRevisionService {
       content: revision.content,
       source: revision.source,
       actor: revision.actor,
+      version: revision.version,
       createdAt: revision.createdAt.toISOString(),
     };
   }

@@ -125,7 +125,11 @@ export class TaskSituationService {
         // The agent's latest turn reads as the last message when it came after what people wrote.
         const agentSpokeLast = lastTurn && (!message || lastTurn.at > message.at);
         const lastMessage: HomeThread["lastMessage"] = agentSpokeLast
-          ? { author: lastTurn.agent, text: lastTurn.intent ?? (lastTurn.status === "failed" ? "The run failed" : "Finished its turn"), at: iso(lastTurn.at) }
+          ? {
+              author: lastTurn.agent,
+              text: lastTurn.status === "failed" ? `Stopped: ${lastTurn.failure?.title ?? "the run failed"}.` : (lastTurn.intent ?? "Finished its turn."),
+              at: iso(lastTurn.at),
+            }
           : message
             ? { author: message.author, text: preview(message.body), at: iso(message.at) }
             : null;

@@ -27,8 +27,8 @@ export function IntegrationGrid({
   if (integrations.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-        <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No integrations available</h3>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">There are no integrations configured yet.</p>
+        <h3 className="text-lg font-semibold text-zinc-950 dark:text-white">No connections available</h3>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">There are no connections set up yet.</p>
       </div>
     )
   }

@@ -24,7 +24,7 @@ export function HomeThreadRow({ thread, onChanged }: { thread: HomeThread; onCha
             <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{thread.task.key}</span>
             <span className="truncate text-sm font-medium text-zinc-950 dark:text-white">{thread.task.title}</span>
             {thread.unread > 0 && (
-              <Badge color="amber" aria-label={`${thread.unread} unread`}>
+              <Badge color="amber" aria-label={`${thread.unread} new message${thread.unread === 1 ? '' : 's'}`}>
                 {thread.unread}
               </Badge>
             )}

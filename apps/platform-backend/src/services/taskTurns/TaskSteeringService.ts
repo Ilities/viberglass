@@ -1,6 +1,7 @@
 import { AgentSessionDAO, type AgentSession } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentSessionEventDAO } from "../../persistence/agentSession/AgentSessionEventDAO";
-import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
+import { AgentTurnDAO, type AgentTurn } from "../../persistence/agentSession/AgentTurnDAO";
+import type { TaskTurnAction } from "@viberglass/types";
 import { TaskTurnFactsDAO } from "../../persistence/agentSession/TaskTurnFactsDAO";
 import { AGENT_SESSION_ACTIVE_STATUSES, AGENT_SESSION_STATUS } from "../../types/agentSession";
 import { agentSessionMutex } from "../agentSession/AgentSessionMutex";
@@ -84,36 +85,55 @@ export class TaskSteeringService {
   /**
    * Lets the agent go on with the step pausing stopped, if it stopped one, and
    * what people wrote meanwhile; `note` is said first, when there's something
-   * to tell it. Returns whether the agent was paused.
+   * to tell it. Only the work the task was on last carries on: other paused
+   * sessions, such as older failed ones with other agents, are released without
+   * a new turn, so resuming never fans out into runs nobody asked for. Returns
+   * whether the agent was paused.
    */
   async resume(taskId: string, actorId: string, note?: string): Promise<boolean> {
     await this.assertCanSteer(actorId, taskId);
-    const paused = (await this.deps.sessions.listByTicket(taskId)).filter((session) => session.status === AGENT_SESSION_STATUS.PAUSED);
+    const paused = await this.pausedByRecency(taskId);
     if (paused.length === 0) return false;
     await this.deps.activity.record(taskId, { type: "human", userId: actorId }, "agent_resumed", {});
-    for (const session of paused) {
-      const stopped = await this.stoppedTurnAction(session);
-      await this.deps.sessions.update(session.id, { status: AGENT_SESSION_STATUS.WAITING_ON_USER });
-      // Asking for the stopped step takes in what people wrote meanwhile, in the same turn.
-      if (stopped || note) {
-        await this.deps.turns.ask(taskId, actorId, { message: note ?? CARRY_ON, action: stopped ?? "reply", agentId: session.clankerId });
-        continue;
-      }
-      await agentSessionMutex.runExclusive(session.id, () =>
-        this.deps.continuation.launchForPendingMessages({ ...session, status: AGENT_SESSION_STATUS.WAITING_ON_USER }),
-      );
+    const [{ session: target, last }, ...others] = paused;
+    for (const { session } of others) await this.deps.sessions.update(session.id, { status: AGENT_SESSION_STATUS.WAITING_ON_USER });
+
+    const stopped = last?.status === "cancelled" || last?.status === "failed" ? last.action : null;
+    await this.deps.sessions.update(target.id, { status: AGENT_SESSION_STATUS.WAITING_ON_USER });
+    // Asking for the stopped step takes in what people wrote meanwhile, in the same turn.
+    if (stopped || note) {
+      await this.deps.turns.ask(taskId, actorId, { message: note ?? CARRY_ON, action: stopped ?? "reply", agentId: target.clankerId });
+      return true;
     }
+    await agentSessionMutex.runExclusive(target.id, () =>
+      this.deps.continuation.launchForPendingMessages({ ...target, status: AGENT_SESSION_STATUS.WAITING_ON_USER }),
+    );
     return true;
+  }
+
+  /** What resuming would carry on: the agent, and the step it would ask for again, if any. */
+  async resumeTarget(taskId: string): Promise<{ sessionId: string; clankerId: string; action: TaskTurnAction | null } | null> {
+    const [latest] = await this.pausedByRecency(taskId);
+    if (!latest) return null;
+    const { session, last } = latest;
+    return { sessionId: session.id, clankerId: session.clankerId, action: last?.status === "cancelled" || last?.status === "failed" ? last.action : null };
+  }
+
+  /** The task's paused sessions with their latest agent turn, the one the task worked on last first. */
+  private async pausedByRecency(taskId: string): Promise<Array<{ session: AgentSession; last: AgentTurn | undefined }>> {
+    const paused = (await this.deps.sessions.listByTicket(taskId)).filter((session) => session.status === AGENT_SESSION_STATUS.PAUSED);
+    const withLast = await Promise.all(
+      paused.map(async (session) => ({
+        session,
+        last: (await this.deps.agentTurns.listBySession(session.id)).filter((turn) => turn.role === "assistant").at(-1),
+      })),
+    );
+    const at = (entry: { session: AgentSession; last: AgentTurn | undefined }) => (entry.last?.createdAt ?? entry.session.updatedAt).getTime();
+    return withLast.sort((a, b) => at(b) - at(a));
   }
 
   private async openSessions(taskId: string): Promise<AgentSession[]> {
     return (await this.deps.sessions.listByTicket(taskId)).filter((session) => AGENT_SESSION_ACTIVE_STATUSES.includes(session.status));
-  }
-
-  /** What the agent was doing when it was paused: its last turn, if pausing stopped it or a setup failure did. */
-  private async stoppedTurnAction(session: AgentSession) {
-    const last = (await this.deps.agentTurns.listBySession(session.id)).filter((turn) => turn.role === "assistant").at(-1);
-    return last?.status === "cancelled" || last?.status === "failed" ? last.action : null;
   }
 
   private async assertCanSteer(actorId: string, taskId: string): Promise<void> {

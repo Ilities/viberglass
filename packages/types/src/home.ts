@@ -29,12 +29,21 @@ export interface OverviewTask {
   pullRequestUrl: string | null
 }
 
+/** Overview's groups. Each task is in exactly one, so the counts add up to the tasks shown. */
+export const OVERVIEW_GROUPS = ['needsAttention', 'liveNow', 'waiting', 'notStarted', 'doneThisWeek'] as const
+
+export type OverviewGroup = (typeof OVERVIEW_GROUPS)[number]
+
 /** Overview, for viewers and anyone wanting the workspace picture. */
 export interface OverviewData {
-  /** Failed, or waiting on people for longer than a day. */
-  stuck: OverviewTask[]
-  inProgress: OverviewTask[]
-  doneThisWeek: OverviewTask[]
+  /** Failed, paused, asking a question, or waiting on people for longer than a day. */
+  needsAttention: OverviewTask[]
+  /** An agent is working on it now. */
   liveNow: OverviewTask[]
-  spaces: Array<{ slug: string; name: string; inProgress: number; stuck: number; doneThisWeek: number }>
+  /** Something to look at, a discussion or a pull request: someone's move, for less than a day. */
+  waiting: OverviewTask[]
+  /** Nothing asked for or written yet. */
+  notStarted: OverviewTask[]
+  doneThisWeek: OverviewTask[]
+  spaces: Array<{ slug: string; name: string } & Record<OverviewGroup, number>>
 }

@@ -33,7 +33,7 @@ export function SpaceTaskCard({ task, space, selection }: SpaceTaskCardProps) {
           <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{task.key}</span>
           <span className="truncate text-sm font-medium text-zinc-950 hover:underline dark:text-white">{task.title}</span>
           {(task.unread ?? 0) > 0 && (
-            <Badge color="amber" aria-label={`${task.unread} unread`}>
+            <Badge color="amber" aria-label={`${task.unread} new message${task.unread === 1 ? '' : 's'}`}>
               {task.unread}
             </Badge>
           )}

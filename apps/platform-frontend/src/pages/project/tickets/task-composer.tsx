@@ -3,7 +3,7 @@ import { useAuth } from '@/context/auth-context'
 import { interruptAgent, postTaskMessage } from '@/service/api/discussion-api'
 import { getPeopleDirectory } from '@/service/api/user-api'
 import { agentMentionToken, mentionToken } from '@viberglass/types'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 
 /** Someone or something a message can mention. */
@@ -43,6 +43,10 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
   const [draft, setDraft] = useState('')
   const [picked, setPicked] = useState<Mentionable[]>([])
   const [isPosting, setIsPosting] = useState(false)
+  const [active, setActive] = useState(0)
+  /** The @query Escape closed the list for; typing on opens it again. */
+  const [dismissed, setDismissed] = useState<string | null>(null)
+  const listId = useId()
 
   useEffect(() => {
     getPeopleDirectory()
@@ -60,10 +64,29 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
             .slice(0, 6),
     [agents, people, query, user?.id]
   )
+  const open = suggestions.length > 0 && dismissed !== query
+  const activeIndex = Math.min(active, suggestions.length - 1)
 
   function pick(entry: Mentionable) {
     setDraft((current) => current.replace(/@[\p{L}\p{N}._-]{0,30}$/u, `@${entry.name} `))
     setPicked((current) => (current.some((other) => other.id === entry.id) ? current : [...current, entry]))
+    setActive(0)
+  }
+
+  // The list follows the combobox pattern: arrows move, Enter or Tab picks, Escape closes; with it closed, keys type as usual.
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!open) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const step = event.key === 'ArrowDown' ? 1 : -1
+      setActive((activeIndex + step + suggestions.length) % suggestions.length)
+    } else if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      pick(suggestions[activeIndex])
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setDismissed(query)
+    }
   }
 
   async function post(interrupt = false) {
@@ -87,30 +110,45 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
     <div className="relative space-y-2">
       <textarea
         aria-label="Write a message"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={open ? `${listId}-${activeIndex}` : undefined}
         value={draft}
-        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={onKeyDown}
+        onChange={(event) => {
+          setDraft(event.target.value)
+          setActive(0)
+        }}
         rows={3}
         placeholder="Write a message. Type @ to mention someone, or the agent to ask it."
         className="w-full rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-3 text-sm text-[var(--gray-12)] focus:border-[var(--accent-8)] focus:outline-none"
       />
-      {suggestions.length > 0 && (
-        <ul role="listbox" aria-label="Mention" className="absolute z-10 rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-1 shadow">
-          {suggestions.map((entry) => (
-            <li key={`${entry.kind}:${entry.id}`}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={false}
-                onClick={() => pick(entry)}
-                className="flex w-full items-baseline gap-2 rounded px-3 py-1.5 text-left text-sm hover:bg-[var(--gray-3)]"
-              >
-                {entry.name}
-                {entry.kind === 'agent' && <span className="text-xs text-[var(--gray-10)]">agent</span>}
-              </button>
+      <ul
+        id={listId}
+        role="listbox"
+        aria-label="Mention"
+        hidden={!open}
+        className="absolute z-10 rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-1 shadow"
+      >
+        {open &&
+          suggestions.map((entry, index) => (
+            <li
+              key={`${entry.kind}:${entry.id}`}
+              id={`${listId}-${index}`}
+              role="option"
+              aria-selected={index === activeIndex}
+              // Keeps focus in the textarea, so typing carries on after a pick.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => pick(entry)}
+              className={`flex cursor-pointer items-baseline gap-2 rounded px-3 py-1.5 text-sm ${index === activeIndex ? 'bg-[var(--gray-4)]' : 'hover:bg-[var(--gray-3)]'}`}
+            >
+              {entry.name}
+              {entry.kind === 'agent' && <span className="text-xs text-[var(--gray-10)]">agent</span>}
             </li>
           ))}
-        </ul>
-      )}
+      </ul>
       <div className="flex items-center justify-between gap-4">
         <p className="text-xs text-[var(--gray-10)]">People on this task see this. Mention the agent to ask it; it reads the thread when asked.</p>
         <div className="flex shrink-0 gap-2">

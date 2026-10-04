@@ -65,13 +65,15 @@ export const STEP_NAME: Record<TaskStep, string> = { research: 'Research', plann
 
 export type StepPosition = 'done' | 'current' | 'upcoming'
 
-/** Where a step stands, in the words the stepper shows under its name. */
-export function describeStep(step: TaskStep, currentStep: TaskStep, move: TaskNextMove): { position: StepPosition; label: string } {
-  const index = TASK_STEPS.indexOf(step)
-  const currentIndex = TASK_STEPS.indexOf(currentStep)
-  if (index < currentIndex) return { position: 'done', label: 'Written' }
-  if (index > currentIndex) return { position: 'upcoming', label: 'Not yet' }
-  return { position: move.kind === 'done' ? 'done' : 'current', label: CURRENT_LABEL[move.kind] }
+/**
+ * Where an artifact stands, in the words its tab shows under its name. Steps
+ * are not a sequence: a task can go straight to code, so an earlier artifact
+ * counts as written only when it exists.
+ */
+export function describeStep(step: TaskStep, currentStep: TaskStep, move: TaskNextMove, exists: boolean): { position: StepPosition; label: string } {
+  if (step === currentStep) return { position: move.kind === 'done' ? 'done' : 'current', label: CURRENT_LABEL[move.kind] }
+  if (exists) return { position: 'done', label: step === 'execution' ? 'Pull request open' : 'Written' }
+  return { position: 'upcoming', label: 'None yet' }
 }
 
 const CURRENT_LABEL: Record<TaskNextMove['kind'], string> = {

@@ -46,6 +46,21 @@ const KEPT: Record<TaskTurnProduct, string> = {
   summary: 'its summary',
 }
 
+const WROTE: Record<TaskTurnProduct, string> = {
+  research: 'Wrote the research',
+  plan: 'Wrote the plan',
+  code: 'Pushed code to the pull request',
+  summary: 'Wrote a summary',
+}
+
+/** What a finished turn produced, as one sentence: "Wrote the research and the plan." Null when it only replied. */
+export function resultLine(produced: TaskTurnProduct[]): string | null {
+  const shown = produced.filter((product) => product !== 'summary')
+  if (shown.length === 0) return null
+  const [first, ...more] = shown.map((product) => WROTE[product])
+  return `${[first, ...more.map((line) => line.replace(/^Wrote /, '').replace(/^Pushed /, 'pushed '))].join(', ')}.`
+}
+
 /** What a stopped turn kept, in a sentence. */
 function keptWork(produced: TaskTurnProduct[]): string {
   return joinNames(produced.map((product) => KEPT[product]))
@@ -78,7 +93,10 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
   // The intent is shown on its own, so the reply starts after it.
   const rest = outcome?.reply.trim().split('\n').slice(outcome.intent ? 1 : 0).join('\n').trim() ?? ''
   const restLines = rest.split('\n')
-  const shown = expanded ? rest : restLines.slice(0, PREVIEW_LINES).join('\n')
+  // A turn that made an artifact is summed up by it; what it said stays a click away. A reply is the content itself.
+  const result = entry.status === 'completed' && outcome ? resultLine(outcome.produced) : null
+  const previewLines = result ? 0 : PREVIEW_LINES
+  const shown = expanded ? rest : restLines.slice(0, previewLines).join('\n')
   const session = outcome ? sessionLine(outcome.resumed) : null
   const context = contextLine(outcome?.contextUsage)
 
@@ -119,10 +137,11 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
         </p>
       )}
       {outcome?.intent && !outcome.stoppedPartway && <p className="text-sm font-medium text-[var(--gray-12)]">{outcome.intent}</p>}
+      {result && <p className="text-sm text-[var(--gray-11)]">{result}</p>}
       {shown && <p className="text-sm whitespace-pre-wrap text-[var(--gray-12)]">{shown}</p>}
-      {restLines.length > PREVIEW_LINES && (
+      {rest && restLines.length > previewLines && (
         <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]">
-          {expanded ? 'Show less' : 'Show the whole reply'}
+          {expanded ? 'Show less' : result ? 'Show what it said' : 'Show the whole reply'}
         </button>
       )}
       {outcome?.mentioned && outcome.mentioned.length > 0 && (

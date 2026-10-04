@@ -69,8 +69,8 @@ export function AcceptInvitePage() {
             <div>
               <Heading>Join Viberglass</Heading>
               <Text className="mt-2">
-                {invite.invitedByName ? `${invite.invitedByName} invited you` : 'You were invited'} as{' '}
-                <Strong>{ROLE_LABEL[invite.role]}</Strong>: {ROLE_DESCRIPTION[invite.role]}
+                {invite.invitedByName ? `${invite.invitedByName} invited you` : 'You were invited'} as {invite.role === 'admin' ? 'an' : 'a'}{' '}
+                <Strong>{ROLE_LABEL[invite.role].toLowerCase()}</Strong>. {ROLE_DESCRIPTION[invite.role]}
               </Text>
             </div>
             {error && (

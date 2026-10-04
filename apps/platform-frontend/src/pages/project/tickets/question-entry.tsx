@@ -7,36 +7,57 @@ import { ChatBubbleIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-type QuestionEntryProps = { entry: Extract<TaskTimelineEntry, { kind: 'question' }> }
+type QuestionEntryProps = {
+  entry: Extract<TaskTimelineEntry, { kind: 'question' }>
+  /** Whether the open question can be answered in the card below the thread, so it isn't repeated here in full. */
+  answerBelow?: boolean
+}
 
 function askedLine(question: AgentQuestion): string {
   return question.askedOf ? `${question.agent.name} asks ${question.askedOf.name}` : `${question.agent.name} asks`
 }
 
-/** The agent's question in the thread, and its answer once someone gives one. */
-export function QuestionEntry({ entry }: QuestionEntryProps) {
+/** Who answered, and for whom when it was someone else: "Quinn answered for Maria: Include Acme". */
+function answeredLine(question: AgentQuestion): string {
+  const answer = question.answer
+  if (!answer) return ''
+  const by = answer.by?.name ?? 'Someone'
+  const forSomeoneElse = question.askedOf && answer.by && question.askedOf.id !== answer.by.id ? ` for ${question.askedOf.name}` : ''
+  return `${by} answered${forSomeoneElse}: ${answer.text}`
+}
+
+/**
+ * The agent's question in the thread, and its answer once someone gives one.
+ * While it's open and answerable below, the thread only points there, so the
+ * question isn't shown twice.
+ */
+export function QuestionEntry({ entry, answerBelow = false }: QuestionEntryProps) {
   const { question } = entry
+  const open = question.status === 'open'
   const waiting = question.blocking ? 'The agent is waiting for the answer' : 'The agent carried on with its own assumption meanwhile'
   return (
     <li aria-label={`${question.agent.name}'s question`} className="space-y-1">
       <p className="text-xs text-[var(--gray-10)]">
         <span className="font-medium text-[var(--gray-11)]">{askedLine(question)}</span> · <Timestamp date={entry.at} />
       </p>
-      <p className="whitespace-pre-wrap text-sm text-[var(--gray-12)]">{question.question}</p>
-      {question.options.length > 0 && <p className="text-xs text-[var(--gray-10)]">Options: {question.options.join(' · ')}</p>}
-      <p className="text-xs text-[var(--gray-10)]">
-        {question.answer
-          ? `${question.answer.by?.name ?? 'Someone'} answered: ${question.answer.text}`
-          : question.status === 'open'
-            ? waiting
-            : 'No longer waiting for an answer'}
-      </p>
+      {open && answerBelow ? (
+        <p className="line-clamp-1 text-sm text-[var(--gray-11)]">
+          {question.question} <span className="text-xs text-[var(--gray-10)]">· {waiting}; answer it below.</span>
+        </p>
+      ) : (
+        <>
+          <p className="text-sm whitespace-pre-wrap text-[var(--gray-12)]">{question.question}</p>
+          <p className="text-xs text-[var(--gray-10)]">
+            {question.answer ? answeredLine(question) : open ? waiting : 'No longer waiting for an answer'}
+          </p>
+        </>
+      )}
     </li>
   )
 }
 
 /** Answering one open question: a press on an option, or a written answer. */
-function AnswerCard({ taskId, question, onAnswered }: { taskId: string; question: AgentQuestion; onAnswered: () => void }) {
+function AnswerCard({ taskId, question, viewerId, onAnswered }: { taskId: string; question: AgentQuestion; viewerId: string | undefined; onAnswered: () => void }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -63,6 +84,13 @@ function AnswerCard({ taskId, question, onAnswered }: { taskId: string; question
         {askedLine(question)}
       </p>
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--gray-11)]">{question.question}</p>
+      {question.askedOf && (
+        <p className="text-xs text-[var(--gray-10)]">
+          {question.askedOf.id === viewerId
+            ? "It's for you. Anyone on the task can help answer it."
+            : `It's for ${question.askedOf.name}, who was notified. Anyone on the task can answer if they know.`}
+        </p>
+      )}
       {question.options.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {question.options.map((option) => (
@@ -115,7 +143,7 @@ export function OpenQuestions({
       {[...open]
         .sort((a, b) => forViewer(a) - forViewer(b))
         .map((question) => (
-          <AnswerCard key={question.id} taskId={taskId} question={question} onAnswered={onAnswered} />
+          <AnswerCard key={question.id} taskId={taskId} question={question} viewerId={viewerId} onAnswered={onAnswered} />
         ))}
     </div>
   )

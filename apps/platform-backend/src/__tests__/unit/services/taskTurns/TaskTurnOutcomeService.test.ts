@@ -106,6 +106,15 @@ describe("TaskTurnOutcomeService", () => {
     });
   });
 
+  it("keeps what a turn wrote when it missed the document it was asked for, but ends it as failed", async () => {
+    const { deps, service } = setup(["Writing the research."]);
+
+    await service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "# Plan" }, missing: "research" });
+
+    expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "planning", "# Plan", { source: "agent", agentTurnId: "turn-1" });
+    expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [{ eventType: "turn_failed", payload: { produced: ["plan"] } }]);
+  });
+
   it("keeps nothing from a failed turn but what it said", async () => {
     const { deps, service } = setup([]);
 
@@ -123,5 +132,13 @@ describe("intentOf", () => {
     expect(intentOf("- Writing the research")).toBe("Writing the research");
     expect(intentOf("   ")).toBeNull();
     expect(intentOf("x".repeat(300))).toHaveLength(200);
+  });
+
+  it("stops at the end of the first sentence, so it never cuts off mid-thought", () => {
+    expect(
+      intentOf("Writing the research: I'll read the repo's instructions first. greeting lives in greeting.js:1 — export const greeting = () => 'hello'"),
+    ).toBe("Writing the research: I'll read the repo's instructions first.");
+    // A full stop inside a file name isn't the end of a sentence.
+    expect(intentOf("Checking greeting.js before I change it")).toBe("Checking greeting.js before I change it");
   });
 });

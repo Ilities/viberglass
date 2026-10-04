@@ -274,6 +274,8 @@ export interface PhaseDocumentRevisionResponse {
   content: string
   source: PhaseDocumentRevisionSource
   actor: string | null
+  /** Numbered from 1 per document, in the order versions were saved. */
+  version: number
   createdAt: string
 }
 

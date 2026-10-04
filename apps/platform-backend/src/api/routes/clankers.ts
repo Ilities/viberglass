@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from "express";
 import type { Clanker, SecretBinding } from "@viberglass/types";
 import { ClankerDAO } from "../../persistence/clanker/ClankerDAO";
 import { ClankerHealthService } from "../../services/ClankerHealthService";
+import { ClankerReadinessService } from "../../services/ClankerReadinessService";
 import { getClankerProvisioner } from "../../provisioning/provisioningFactory";
 import {
   validateCreateClanker,
@@ -23,6 +24,7 @@ import { SkillDAO } from "../../persistence/skill/SkillDAO";
 const router = express.Router();
 const clankerService = new ClankerDAO();
 const healthService = new ClankerHealthService();
+const readinessService = new ClankerReadinessService();
 const provisioningService = getClankerProvisioner();
 const startService = new ClankerStartService(clankerService, provisioningService);
 const agentLogins = new AgentLoginJobService();
@@ -108,8 +110,8 @@ router.get(
     const offset = parseInt(req.query.offset as string) || 0;
 
     const clankers = await clankerService.listClankers(limit, offset);
-    const refreshed = await Promise.all(
-      clankers.map((clanker) => refreshClankerStatus(clanker)),
+    const refreshed = await readinessService.withReadiness(
+      await Promise.all(clankers.map((clanker) => refreshClankerStatus(clanker))),
     );
 
     res.json({
@@ -132,7 +134,7 @@ router.get(
       );
     }
     const refreshed = await refreshClankerStatus(clanker);
-    res.json({ success: true, data: refreshed });
+    res.json({ success: true, data: await readinessService.one(refreshed) });
   }),
 );
 
@@ -155,7 +157,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const clanker = await requireClanker(req.params.id);
     const refreshed = await refreshClankerStatus(clanker);
-    res.json({ success: true, data: refreshed });
+    res.json({ success: true, data: await readinessService.one(refreshed) });
   }),
 );
 
@@ -174,7 +176,7 @@ router.put(
       req.body,
     );
     const refreshed = await refreshClankerStatus(updatedClanker);
-    res.json({ success: true, data: refreshed });
+    res.json({ success: true, data: await readinessService.one(refreshed) });
   }),
 );
 

@@ -1,0 +1,93 @@
+[
+  {
+    "route": "/",
+    "passes": 22,
+    "incomplete": [
+      {
+        "id": "aria-prohibited-attr",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 27
+      }
+    ],
+    "violations": []
+  },
+  {
+    "route": "/overview",
+    "passes": 22,
+    "incomplete": [
+      {
+        "id": "aria-prohibited-attr",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 124
+      }
+    ],
+    "violations": []
+  },
+  {
+    "route": "/spaces/storefront",
+    "passes": 24,
+    "incomplete": [
+      {
+        "id": "aria-prohibited-attr",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 115
+      }
+    ],
+    "violations": []
+  },
+  {
+    "route": "/spaces/storefront/tasks/STO-7",
+    "passes": 29,
+    "incomplete": [
+      {
+        "id": "aria-prohibited-attr",
+        "nodes": 2
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 124
+      }
+    ],
+    "violations": [
+      {
+        "id": "aria-required-children",
+        "impact": "critical",
+        "help": "Certain ARIA roles must contain particular children",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/aria-required-children?application=playwright",
+        "nodes": [
+          {
+            "html": "<div role=\"tablist\" aria-label=\"Research views\" class=\"mb-6 flex gap-1 border-b border-[var(--gray-5)]\">",
+            "target": [
+              ".border-\\[var\\(--gray-5\\)\\]"
+            ],
+            "summary": "Fix any of the following:\n  Element has children which are not allowed: button"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/settings/notifications",
+    "passes": 22,
+    "incomplete": [
+      {
+        "id": "aria-prohibited-attr",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 21
+      }
+    ],
+    "violations": []
+  }
+]

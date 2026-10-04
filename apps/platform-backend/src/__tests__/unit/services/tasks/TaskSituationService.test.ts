@@ -50,6 +50,17 @@ describe("TaskSituationService", () => {
     expect((await service.describe([TASK], viewer("owner"))).get("t-1")?.mentionsYou).toBe(false);
   });
 
+  it("says why the agent stopped when its last turn failed", async () => {
+    const { deps, service } = setup();
+    deps.turns.lastFinished.mockResolvedValue(
+      new Map([["t-1", { status: "failed", at: at("10:00"), failure: { title: "Model key rejected", category: "setup" }, agent: AGENT, intent: "Writing the research" }]]),
+    );
+
+    const described = (await service.describe([TASK], viewer("owner"))).get("t-1");
+
+    expect(described?.lastMessage?.text).toBe("Stopped: Model key rejected.");
+  });
+
   it("shows a person's message as the last one, with mentions as plain names", async () => {
     const { deps, service } = setup();
     deps.thread.lastMessages.mockResolvedValue(new Map([["t-1", { author: OLLI, body: "@[Tomi](user:11111111-1111-4111-8111-111111111111) can you\nlook?", at: at("09:00") }]]));

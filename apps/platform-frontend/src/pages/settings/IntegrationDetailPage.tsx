@@ -448,7 +448,7 @@ export function IntegrationDetailPage() {
         <div className="flex items-center gap-4">
           <Button href="/settings/connections" plain>
             <ArrowLeftIcon className="h-4 w-4" />
-            Back to Integrations
+            Back to Connections
           </Button>
         </div>
 
@@ -477,7 +477,7 @@ export function IntegrationDetailPage() {
             The {integrationType.label} integration is currently under development. Check back soon!
           </p>
           <Button href="/settings/connections" color="brand" className="mt-6">
-            Back to Integrations
+            Back to Connections
           </Button>
         </div>
       </div>
@@ -486,13 +486,13 @@ export function IntegrationDetailPage() {
 
   return (
     <>
-      <PageMeta title={`${integrationType.label} | Integration`} />
+      <PageMeta title={`${integrationType.label} | Connection`} />
       <div className="space-y-8 p-6 lg:p-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-4">
         <Button href="/settings/connections" plain>
           <ArrowLeftIcon className="h-4 w-4" />
-          Back to Integrations
+          Back to Connections
         </Button>
       </div>
 

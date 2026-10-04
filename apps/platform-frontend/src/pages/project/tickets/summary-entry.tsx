@@ -43,7 +43,7 @@ export function SummaryEntry({ entry }: { entry: SummaryEntryData }) {
 export function PinnedSummary({ entry }: { entry: SummaryEntryData }) {
   const [open, setOpen] = useState(true)
   return (
-    <section aria-label="Summary so far" className="space-y-1 rounded-lg border border-[var(--accent-6)] bg-[var(--accent-2)] px-4 py-3">
+    <section aria-label="Summary so far" className="space-y-1 rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] px-4 py-3">
       <div className="flex items-baseline justify-between gap-4">
         <h3 className="text-sm font-semibold text-[var(--gray-12)]">Summary so far</h3>
         <button type="button" onClick={() => setOpen(!open)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]" aria-expanded={open}>

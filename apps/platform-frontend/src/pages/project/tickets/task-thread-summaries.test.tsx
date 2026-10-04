@@ -15,6 +15,7 @@ const mockPost = jest.fn()
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', name: 'Me', role: 'member' } }) }))
 jest.mock('@/service/api/discussion-api', () => ({
   getTaskTimeline: (...args: unknown[]) => mockTimeline(...args),
+  getNextAgent: () => Promise.resolve({ clankerId: null, via: null, problem: null }),
   postTaskMessage: (...args: unknown[]) => mockPost(...args),
   askAgent: jest.fn(),
   getTaskBranch: jest.fn().mockResolvedValue(null),

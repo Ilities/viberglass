@@ -3,7 +3,7 @@ import { JOB_FAILURE_CODE, type JobFailureCode } from "@viberglass/types";
 const QUOTA =
   /insufficient[_ ]quota|quota|credit balance|out of credits|billing|rate[_ ]limit|too many requests|\b429\b|usage limit/i;
 const CREDENTIAL =
-  /invalid[_ ]api[_ ]key|invalid x-api-key|incorrect api key|authentication[_ ]error|unauthori[sz]ed|\b401\b|not logged in|please (run )?log ?in|api key (is )?(missing|not set|required)/i;
+  /invalid[_ ]api[_ ]key|invalid x-api-key|incorrect api key|authentication[_ ]error|authentication required|auth[_ ]required|unauthori[sz]ed|\b401\b|not logged in|please (run )?log ?in|api key (is )?(missing|not set|required)/i;
 
 /**
  * Why an agent run failed, from the error its CLI reported.

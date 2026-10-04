@@ -70,14 +70,44 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-/** Search, and the filters people find tasks by: state, artifact, owner and whose move. Severity is tucked away. */
+const SEVERITY_LABEL = (severity: Severity) => severity[0].toUpperCase() + severity.slice(1)
+
+/** The filters set away from their defaults, each with a label and how to clear it. */
+interface ActiveFilter {
+  key: string
+  label: string
+  clear: Partial<SpaceFilters>
+}
+
+function activeFilters(filters: SpaceFilters, people: SpaceFilterBarProps['people']): ActiveFilter[] {
+  const name = (list: Array<{ id: string; name: string }>, id: string) => list.find((person) => person.id === id)?.name ?? 'someone'
+  const entries: Array<ActiveFilter | null> = [
+    filters.search.trim() ? { key: 'search', label: `“${filters.search.trim()}”`, clear: { search: '' } } : null,
+    filters.state !== 'all' ? { key: 'state', label: STATE_FILTER_LABEL[filters.state], clear: { state: 'all' } } : null,
+    filters.artifact !== 'all' ? { key: 'artifact', label: ARTIFACT_LABEL[filters.artifact], clear: { artifact: 'all' } } : null,
+    filters.ownerId !== 'all' ? { key: 'owner', label: `Owned by ${name(people.owners, filters.ownerId)}`, clear: { ownerId: 'all' } } : null,
+    filters.waitingOn !== 'all'
+      ? { key: 'waitingOn', label: `Waiting on ${filters.waitingOn === 'agent' ? 'the agent' : name(people.waitedOn, filters.waitingOn)}`, clear: { waitingOn: 'all' } }
+      : null,
+    filters.severity !== 'all' ? { key: 'severity', label: `${SEVERITY_LABEL(filters.severity)} severity`, clear: { severity: 'all' } } : null,
+  ]
+  return entries.flatMap((entry) => (entry ? [entry] : []))
+}
+
+/**
+ * Search and state up front; artifact, owner, whose move and severity behind
+ * More filters. Whatever is set shows as a chip that clears it, so a hidden
+ * filter is never forgotten.
+ */
 export function SpaceFilterBar({ filters, onChange, people }: SpaceFilterBarProps) {
-  const [showMore, setShowMore] = useState(filters.severity !== 'all')
+  const hiddenSet = filters.artifact !== 'all' || filters.ownerId !== 'all' || filters.waitingOn !== 'all' || filters.severity !== 'all'
+  const [showMore, setShowMore] = useState(hiddenSet)
   const set = (patch: Partial<SpaceFilters>) => onChange({ ...filters, ...patch })
+  const active = activeFilters(filters, people)
 
   return (
     <div className="mt-6 space-y-3">
-      <div className="grid gap-3 lg:grid-cols-[minmax(16rem,1.6fr)_repeat(4,minmax(8rem,0.7fr))_auto] lg:items-end">
+      <div className="grid gap-3 sm:grid-cols-[minmax(16rem,1fr)_minmax(10rem,14rem)_auto] sm:items-end">
         <Field label="Search">
           <SearchInput placeholder="Search tasks..." name="search" value={filters.search} onChange={(event) => set({ search: event.target.value })} />
         </Field>
@@ -91,54 +121,78 @@ export function SpaceFilterBar({ filters, onChange, people }: SpaceFilterBarProp
             ))}
           </Select>
         </Field>
-        <Field label="Artifact">
-          <Select name="artifact" aria-label="Artifact" value={filters.artifact} onChange={(value) => set({ artifact: isArtifact(value) ? value : 'all' })}>
-            <option value="all">Any artifact</option>
-            {ARTIFACTS.map((artifact) => (
-              <option key={artifact} value={artifact}>
-                {ARTIFACT_LABEL[artifact]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Owner">
-          <Select name="owner" aria-label="Owner" value={filters.ownerId} onChange={(value) => set({ ownerId: value })}>
-            <option value="all">Anyone</option>
-            {people.owners.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Waiting on">
-          <Select name="waitingOn" aria-label="Waiting on" value={filters.waitingOn} onChange={(value) => set({ waitingOn: value })}>
-            <option value="all">Anyone</option>
-            <option value="agent">The agent</option>
-            {people.waitedOn.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Button plain onClick={() => setShowMore(!showMore)}>
+        <Button plain aria-expanded={showMore} onClick={() => setShowMore(!showMore)}>
           {showMore ? 'Fewer filters' : 'More filters'}
         </Button>
       </div>
       {showMore && (
-        <div className="grid gap-3 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Artifact">
+            <Select name="artifact" aria-label="Artifact" value={filters.artifact} onChange={(value) => set({ artifact: isArtifact(value) ? value : 'all' })}>
+              <option value="all">Any artifact</option>
+              {ARTIFACTS.map((artifact) => (
+                <option key={artifact} value={artifact}>
+                  {ARTIFACT_LABEL[artifact]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Owner">
+            <Select name="owner" aria-label="Owner" value={filters.ownerId} onChange={(value) => set({ ownerId: value })}>
+              <option value="all">Anyone</option>
+              {people.owners.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Waiting on">
+            <Select name="waitingOn" aria-label="Waiting on" value={filters.waitingOn} onChange={(value) => set({ waitingOn: value })}>
+              <option value="all">Anyone</option>
+              <option value="agent">The agent</option>
+              {people.waitedOn.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <Field label="Severity">
             <Select name="severity" aria-label="Severity" value={filters.severity} onChange={(value) => set({ severity: isSeverity(value) ? value : 'all' })}>
               <option value="all">Any severity</option>
               {SEVERITIES.map((severity) => (
                 <option key={severity} value={severity}>
-                  {severity[0].toUpperCase() + severity.slice(1)}
+                  {SEVERITY_LABEL(severity)}
                 </option>
               ))}
             </Select>
           </Field>
         </div>
+      )}
+      {active.length > 0 && (
+        <ul aria-label="Active filters" className="flex flex-wrap items-center gap-2">
+          {active.map((filter) => (
+            <li key={filter.key}>
+              <button
+                type="button"
+                onClick={() => set(filter.clear)}
+                aria-label={`Clear filter: ${filter.label}`}
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--gray-6)] bg-[var(--gray-2)] px-2.5 py-0.5 text-xs text-[var(--gray-12)] hover:bg-[var(--gray-4)]"
+              >
+                {filter.label}
+                <span aria-hidden>×</span>
+              </button>
+            </li>
+          ))}
+          {active.length > 1 && (
+            <li>
+              <Button plain className="text-xs" onClick={() => set(active.reduce<Partial<SpaceFilters>>((cleared, filter) => ({ ...cleared, ...filter.clear }), {}))}>
+                Clear all
+              </Button>
+            </li>
+          )}
+        </ul>
       )}
     </div>
   )

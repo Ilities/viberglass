@@ -51,20 +51,23 @@ export function IntegrationsPage() {
     )
   }
 
-  const configuredCount = integrations.filter((i) => i.configStatus === 'configured').length
-  const availableCount = integrations.filter((i) => i.configStatus === 'not_configured').length
-  const readyCount = new Set(integrations.filter((i) => i.configStatus !== 'stub').map((i) => i.system)).size
+  // Slack counts as in use once its bot is set up, even without a listed instance.
+  const inUse = (integration: IntegrationCardData) =>
+    integration.configStatus === 'configured' || (integration.system === 'slack' && slackBotConfigured)
+  const connected = integrations.filter(inUse)
+  const available = integrations.filter((integration) => !inUse(integration) && integration.configStatus === 'not_configured')
+  const later = integrations.filter((integration) => !inUse(integration) && integration.configStatus === 'stub')
 
   return (
     <>
-      <PageMeta title="Global Integrations" />
+      <PageMeta title="Connections" />
       <div className="space-y-8 p-6 lg:p-8">
         {/* Header */}
         <div>
-          <Heading>Integrations</Heading>
+          <Heading>Connections</Heading>
           <Text className="mt-2 text-[var(--gray-9)]">
-            Connect your project management and source control tools to enable seamless bug tracking and auto-fix
-            workflows.
+            The workspace&apos;s connections to code hosts, issue trackers and chat. Each space picks which of them it uses in its
+            own settings.
           </Text>
         </div>
 
@@ -74,29 +77,34 @@ export function IntegrationsPage() {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="app-frame rounded-lg p-4">
-            <div className="text-2xl font-semibold text-[var(--gray-12)]">{configuredCount}</div>
-            <div className="text-sm text-[var(--gray-9)]">Configured</div>
-          </div>
-          <div className="app-frame rounded-lg p-4">
-            <div className="text-2xl font-semibold text-[var(--gray-12)]">{availableCount}</div>
-            <div className="text-sm text-[var(--gray-9)]">Available</div>
-          </div>
-          <div className="app-frame rounded-lg p-4">
-            <div className="text-2xl font-semibold text-[var(--gray-12)]">{readyCount}</div>
-            <div className="text-sm text-[var(--gray-9)]">Ready to Use</div>
-          </div>
-        </div>
-
-        {/* Category Sections */}
         <section>
-          <Subheading>All Integrations</Subheading>
+          <Subheading>In use</Subheading>
           <div className="mt-4">
-            <IntegrationGrid integrations={integrations} configured={{ slack: slackBotConfigured }} />
+            {connected.length === 0 ? (
+              <Text>Nothing is connected yet. Connect a code host so agents can work on a repository.</Text>
+            ) : (
+              <IntegrationGrid integrations={connected} configured={{ slack: slackBotConfigured }} />
+            )}
           </div>
         </section>
+
+        {available.length > 0 && (
+          <section>
+            <Subheading>Available</Subheading>
+            <div className="mt-4">
+              <IntegrationGrid integrations={available} configured={{ slack: slackBotConfigured }} />
+            </div>
+          </section>
+        )}
+
+        {later.length > 0 && (
+          <details>
+            <summary className="cursor-pointer text-sm text-[var(--gray-10)]">Not available yet ({later.length})</summary>
+            <div className="mt-4">
+              <IntegrationGrid integrations={later} />
+            </div>
+          </details>
+        )}
       </div>
     </>
   )

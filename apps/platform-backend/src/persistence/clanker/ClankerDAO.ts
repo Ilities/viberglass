@@ -603,21 +603,25 @@ export class ClankerDAO {
     }
   }
 
+  /** One secret may back several variables, so each id is checked once. */
   async validateSecretsExist(secretIds: string[]): Promise<void> {
-    if (secretIds.length === 0) return;
+    const unique = [...new Set(secretIds)];
+    if (unique.length === 0) return;
 
-    this.validateSecretIds(secretIds);
+    this.validateSecretIds(unique);
 
     const secrets = await db
       .selectFrom("secrets")
       .select("id")
-      .where("id", "in", secretIds)
+      .where("id", "in", unique)
       .execute();
 
-    if (secrets.length !== secretIds.length) {
-      const found = secrets.map((s) => s.id);
-      const missing = secretIds.filter((id) => !found.includes(id));
-      throw new Error(`Secrets not found: ${missing.join(", ")}`);
+    const found = new Set(secrets.map((s) => s.id));
+    const missing = unique.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new Error(
+        `${missing.length === 1 ? "A chosen secret no longer exists" : `${missing.length} chosen secrets no longer exist`}. Pick another on the runner and save again. (${missing.join(", ")})`,
+      );
     }
   }
 }

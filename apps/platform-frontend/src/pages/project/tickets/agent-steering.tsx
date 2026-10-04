@@ -5,6 +5,7 @@ import type { TaskCodeBranch } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { HandoffCard } from '../jobs/handoff-card'
+import { ResumeTargetLine } from './resume-target-line'
 import { TaskTakeoverCard } from './task-takeover'
 
 interface AgentSteeringProps {
@@ -14,6 +15,8 @@ interface AgentSteeringProps {
   refreshKey: string
   agentWorking: boolean
   paused: boolean
+  /** An agent's name by id, to say which one carrying on resumes. */
+  agentName?: (id: string) => string | null
   /** Whether a setup failure paused it, until someone fixes the setup and tries again. */
   pausedForSetup?: boolean
   /** Whether the person may pause, resume and take over the agent, from the task's capabilities. */
@@ -26,7 +29,17 @@ interface AgentSteeringProps {
  * over. While it's paused, or someone has the work, everyone sees so, since
  * what they ask waits.
  */
-export function AgentSteering({ taskId, taskKey, refreshKey, agentWorking, paused, pausedForSetup = false, canSteer, onChanged }: AgentSteeringProps) {
+export function AgentSteering({
+  taskId,
+  taskKey,
+  refreshKey,
+  agentWorking,
+  paused,
+  agentName = () => null,
+  pausedForSetup = false,
+  canSteer,
+  onChanged,
+}: AgentSteeringProps) {
   const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [branch, setBranch] = useState<TaskCodeBranch | null>(null)
@@ -59,7 +72,16 @@ export function AgentSteering({ taskId, taskKey, refreshKey, agentWorking, pause
     }, 'The work is yours: the agent is paused')
 
   if (branch?.takenOver) {
-    return <TaskTakeoverCard taskId={taskId} taskKey={taskKey} branch={branch} canSteer={canSteer} onHandedBack={onChanged} />
+    return (
+      <TaskTakeoverCard
+        taskId={taskId}
+        taskKey={taskKey}
+        branch={branch}
+        canSteer={canSteer}
+        onHandedBack={onChanged}
+        resumes={<ResumeTargetLine taskId={taskId} refreshKey={refreshKey} agentName={agentName} />}
+      />
+    )
   }
   if (paused && pausedForSetup) {
     const admin = user?.role === 'admin'
@@ -84,6 +106,7 @@ export function AgentSteering({ taskId, taskKey, refreshKey, agentWorking, pause
         }
       >
         <p>What people ask waits. After the fix, try this task again, or every task the same problem paused.</p>
+        <ResumeTargetLine taskId={taskId} refreshKey={refreshKey} agentName={agentName} />
       </HandoffCard>
     )
   }
@@ -100,7 +123,9 @@ export function AgentSteering({ taskId, taskKey, refreshKey, agentWorking, pause
             </Button>
           )
         }
-      />
+      >
+        <ResumeTargetLine taskId={taskId} refreshKey={refreshKey} agentName={agentName} />
+      </HandoffCard>
     )
   }
   if (!canSteer || (!agentWorking && !branch)) return null

@@ -30,6 +30,41 @@ describe('summarizeRunner', () => {
     })
   })
 
+  it("tells a custom endpoint from the provider's own, by URL or by a variable that sets one", () => {
+    const own = summarizeRunner(
+      {
+        agent: 'opencode',
+        deploymentConfig: { version: 1, strategy: { type: 'docker' }, agent: { type: 'opencode', model: 'openrouter/x' } },
+        secretBindings: [{ envVar: 'OPENROUTER_API_KEY', secretId: 'key' }],
+      },
+      [key],
+    )
+    expect(own.customEndpoint).toBeNull()
+
+    const byUrl = summarizeRunner(
+      {
+        agent: 'opencode',
+        deploymentConfig: { version: 1, strategy: { type: 'docker' }, agent: { type: 'opencode', endpoint: 'https://api.z.ai/api/paas/v4' } },
+        secretBindings: [{ envVar: 'OPENROUTER_API_KEY', secretId: 'key' }],
+      },
+      [key],
+    )
+    expect(byUrl.customEndpoint).toEqual({ url: 'https://api.z.ai/api/paas/v4', envVar: null })
+
+    const byVariable = summarizeRunner(
+      {
+        agent: 'claude-code',
+        deploymentConfig: null,
+        secretBindings: [
+          { envVar: 'ANTHROPIC_API_KEY', secretId: 'key' },
+          { envVar: 'ANTHROPIC_BASE_URL', secretId: 'url' },
+        ],
+      },
+      [key],
+    )
+    expect(byVariable.customEndpoint).toEqual({ url: null, envVar: 'ANTHROPIC_BASE_URL' })
+  })
+
   it('flags a runner without a key its agent reads', () => {
     const summary = summarizeRunner(
       { agent: 'claude-code', deploymentConfig: null, secretBindings: [{ envVar: 'NOTION_TOKEN', secretId: 'n' }] },

@@ -36,6 +36,7 @@ describe("TicketPhaseDocumentRevisionService", () => {
         content: "Initial draft",
         source: "manual",
         actor: "author@example.com",
+        version: 3,
         createdAt: new Date("2026-03-01T09:00:00.000Z"),
       },
     ]);
@@ -59,6 +60,7 @@ describe("TicketPhaseDocumentRevisionService", () => {
         content: "Initial draft",
         source: "manual",
         actor: "author@example.com",
+        version: 3,
         createdAt: "2026-03-01T09:00:00.000Z",
       },
     ]);

@@ -15,6 +15,7 @@ describe("classifyAgentFailure", () => {
     ["Incorrect API key provided: sk-..."],
     ["authentication_error: invalid bearer token"],
     ["Not logged in. Please run /login"],
+    ["Authentication required"],
   ])("recognises rejected credentials: %s", (message) => {
     expect(classifyAgentFailure(message)).toBe(JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID);
   });

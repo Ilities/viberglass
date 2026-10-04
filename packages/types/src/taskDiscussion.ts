@@ -84,6 +84,8 @@ export const TASK_ACTIVITY_KINDS = [
   'document_edited',
   'document_approved',
   'comment_added',
+  /** A document comment resolved or reopened; the thread shows it on the comment. */
+  'comment_status_changed',
   'task_done',
   'pull_request_merged',
   'question_asked',

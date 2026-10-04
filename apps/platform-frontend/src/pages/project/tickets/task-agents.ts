@@ -11,9 +11,9 @@ export function taskAgents(clankers: Clanker[], sessions: Pick<AgentSession, 'cl
     .map((clanker) => ({ kind: 'agent', id: clanker.id, name: clanker.name }))
 }
 
-/** Agents that are running and can take a turn, for bringing one in. */
+/** Agents ready to take a turn (a key, running, not rejected), for bringing one in. */
 export function runnableAgents(clankers: Clanker[]): Array<{ id: string; name: string }> {
   return clankers
-    .filter((clanker) => clanker.deploymentStrategyId && clanker.status === 'active')
+    .filter((clanker) => clanker.readiness?.state === 'ready')
     .map((clanker) => ({ id: clanker.id, name: clanker.name }))
 }

@@ -47,22 +47,15 @@
         min-height: 100%;
     }
 
+    /* Neutral surfaces: the accent is kept for attention and primary actions, so it never competes with a status. */
     body {
         font-family: var(--font-sans);
-        background-color: color-mix(in srgb, var(--gray-2) 90%, #fef7e8 10%);
-        background-image:
-            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 38%, transparent) 0%, transparent 45%),
-            repeating-linear-gradient(0deg, transparent, transparent 27px, color-mix(in srgb, var(--gray-8) 8%, transparent) 28px),
-            repeating-linear-gradient(90deg, transparent, transparent 27px, color-mix(in srgb, var(--gray-8) 8%, transparent) 28px);
+        background-color: var(--gray-2);
         color: var(--gray-12);
     }
 
     .dark body {
-        background-color: color-mix(in srgb, var(--gray-2) 78%, #0f1116 22%);
-        background-image:
-            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 12%, transparent) 0%, transparent 55%),
-            repeating-linear-gradient(0deg, transparent, transparent 27px, color-mix(in srgb, var(--gray-10) 16%, transparent) 28px),
-            repeating-linear-gradient(90deg, transparent, transparent 27px, color-mix(in srgb, var(--gray-10) 16%, transparent) 28px);
+        background-color: var(--gray-1);
         color: var(--gray-12);
     }
 
@@ -129,13 +122,13 @@
     }
 
     .radix-themes :where(.rt-Card):hover {
-        background: color-mix(in srgb, var(--accent-3) 35%, white 65%);
-        border-color: color-mix(in srgb, var(--accent-8) 45%, transparent);
+        background: var(--gray-2);
+        border-color: var(--gray-7);
     }
 
     .dark .radix-themes :where(.rt-Card):hover {
-        background: color-mix(in srgb, var(--accent-4) 15%, var(--gray-3) 85%);
-        border-color: color-mix(in srgb, var(--accent-8) 40%, transparent);
+        background: var(--gray-3);
+        border-color: var(--gray-7);
     }
 
     /* Standardized ghost/outline button hover state */
@@ -146,33 +139,33 @@
 
     .radix-themes :where(.rt-variant-ghost):hover,
     .radix-themes :where(.rt-variant-outline):hover {
-        background: color-mix(in srgb, var(--accent-4) 55%, transparent) !important;
-        border-color: color-mix(in srgb, var(--accent-8) 45%, transparent) !important;
+        background: var(--gray-3) !important;
+        border-color: var(--gray-8) !important;
     }
 
     .dark .radix-themes :where(.rt-variant-ghost):hover,
     .dark .radix-themes :where(.rt-variant-outline):hover {
-        background: color-mix(in srgb, var(--accent-4) 30%, transparent) !important;
-        border-color: color-mix(in srgb, var(--accent-8) 45%, transparent) !important;
+        background: var(--gray-4) !important;
+        border-color: var(--gray-8) !important;
     }
 
     .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger) {
-        background: color-mix(in srgb, white 80%, var(--accent-2) 20%);
+        background: white;
         border-color: color-mix(in srgb, var(--gray-10) 26%, transparent) !important;
         transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
     }
 
     .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger):hover {
-        background: color-mix(in srgb, white 92%, var(--accent-2) 8%);
+        background: white;
         border-color: color-mix(in srgb, var(--gray-10) 45%, transparent) !important;
     }
 
     .dark .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger) {
-        background: color-mix(in srgb, var(--gray-3) 85%, #121821 15%);
+        background: var(--gray-2);
     }
 
     .dark .radix-themes :where(.rt-TextFieldRoot, .rt-TextAreaRoot, .rt-SelectTrigger):hover {
-        background: color-mix(in srgb, var(--gray-3) 95%, #121821 5%);
+        background: var(--gray-3);
         border-color: color-mix(in srgb, var(--gray-10) 55%, transparent) !important;
     }
 
@@ -215,22 +208,6 @@
         isolation: isolate;
     }
 
-    .app-canvas::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        z-index: -2;
-        opacity: 0.5;
-        background-image:
-            radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--accent-4) 65%, transparent) 0, transparent 42%),
-            radial-gradient(circle at 90% -10%, color-mix(in srgb, var(--accent-3) 55%, transparent) 0, transparent 34%);
-    }
-
-    .dark .app-canvas::before {
-        opacity: 0.2;
-    }
-
     .app-topbar {
         border-bottom: 1px solid color-mix(in srgb, var(--gray-10) 16%, transparent);
         background: color-mix(in srgb, white 82%, transparent);
@@ -244,71 +221,36 @@
 
     .app-frame {
         position: relative;
-        border: 1px solid color-mix(in srgb, var(--gray-10) 20%, transparent);
-        background: linear-gradient(
-            180deg,
-            color-mix(in srgb, var(--accent-3) 40%, white 60%) 0%,
-            color-mix(in srgb, var(--gray-1) 78%, white 22%) 100%
-        );
-        box-shadow:
-            5px 5px 0 color-mix(in srgb, var(--gray-10) 16%, transparent),
-            0 20px 35px color-mix(in srgb, var(--gray-10) 8%, transparent);
-    }
-
-    .app-frame::before {
-        content: '';
-        position: absolute;
-        top: -1px;
-        right: -1px;
-        left: -1px;
-        height: 4px;
-        background: repeating-linear-gradient(
-            90deg,
-            color-mix(in srgb, var(--accent-8) 70%, transparent),
-            color-mix(in srgb, var(--accent-8) 70%, transparent) 6px,
-            transparent 6px,
-            transparent 12px
-        );
-        opacity: 0.8;
+        border: 1px solid color-mix(in srgb, var(--gray-10) 16%, transparent);
+        background: white;
+        box-shadow: 0 1px 2px color-mix(in srgb, var(--gray-10) 10%, transparent);
     }
 
     .dark .app-frame {
-        border-color: color-mix(in srgb, var(--gray-10) 30%, transparent);
-        background: linear-gradient(
-            180deg,
-            color-mix(in srgb, var(--gray-3) 88%, #10151d 12%) 0%,
-            color-mix(in srgb, var(--gray-2) 83%, #0c1016 17%) 100%
-        );
-        box-shadow:
-            5px 5px 0 color-mix(in srgb, black 50%, transparent),
-            0 22px 35px color-mix(in srgb, black 28%, transparent);
+        border-color: color-mix(in srgb, var(--gray-10) 28%, transparent);
+        background: var(--gray-2);
+        box-shadow: none;
     }
 
     .mobile-drawer-frame {
         border-right: 1px solid color-mix(in srgb, var(--gray-10) 20%, transparent);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 32%, transparent) 0%, transparent 70%),
-            color-mix(in srgb, white 80%, var(--accent-2) 20%);
+        background: var(--gray-2);
         box-shadow: 16px 0 28px color-mix(in srgb, var(--gray-10) 20%, transparent);
         padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     }
 
     .dark .mobile-drawer-frame {
         border-right-color: color-mix(in srgb, var(--gray-10) 30%, transparent);
-        background: color-mix(in srgb, var(--gray-2) 90%, #111620 10%);
+        background: var(--gray-1);
         box-shadow: 18px 0 30px color-mix(in srgb, black 32%, transparent);
     }
 
     .app-sidebar-panel {
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--accent-3) 32%, transparent) 0%, transparent 70%),
-            color-mix(in srgb, white 80%, var(--accent-2) 20%);
+        background: var(--gray-2);
     }
 
     .dark .app-sidebar-panel {
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--accent-4) 14%, transparent) 0%, transparent 70%),
-            color-mix(in srgb, var(--gray-2) 82%, #0f131b 18%);
+        background: var(--gray-1);
     }
 
     @media (min-width: 1024px) {
@@ -323,12 +265,10 @@
 
     .ui-action-button {
         border-color: color-mix(in srgb, var(--gray-10) 24%, transparent) !important;
-        box-shadow: 2px 2px 0 color-mix(in srgb, var(--gray-10) 15%, transparent);
     }
 
     .dark .ui-action-button {
         border-color: color-mix(in srgb, var(--gray-10) 35%, transparent) !important;
-        box-shadow: 2px 2px 0 color-mix(in srgb, black 40%, transparent);
     }
 
     .ui-action-button[data-disabled] {
@@ -365,18 +305,14 @@
 
     .ui-menu-content {
         border: 1px solid color-mix(in srgb, var(--gray-10) 20%, transparent);
-        background: color-mix(in srgb, white 90%, var(--accent-2) 10%);
-        box-shadow:
-            4px 4px 0 color-mix(in srgb, var(--gray-10) 16%, transparent),
-            0 14px 28px color-mix(in srgb, var(--gray-10) 16%, transparent);
+        background: white;
+        box-shadow: 0 10px 24px color-mix(in srgb, var(--gray-10) 16%, transparent);
     }
 
     .dark .ui-menu-content {
         border-color: color-mix(in srgb, var(--gray-10) 35%, transparent);
-        background: color-mix(in srgb, var(--gray-3) 88%, #0f141d 12%);
-        box-shadow:
-            4px 4px 0 color-mix(in srgb, black 42%, transparent),
-            0 16px 28px color-mix(in srgb, black 25%, transparent);
+        background: var(--gray-3);
+        box-shadow: 0 12px 24px color-mix(in srgb, black 25%, transparent);
     }
 
     .ui-menu-item {
@@ -385,13 +321,11 @@
     }
 
     .ui-menu-item[data-highlighted] {
-        background: color-mix(in srgb, var(--accent-4) 55%, transparent);
-        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent);
+        background: var(--gray-4);
     }
 
     .dark .ui-menu-item[data-highlighted] {
-        background: color-mix(in srgb, var(--accent-4) 18%, transparent);
-        border-color: color-mix(in srgb, var(--accent-8) 20%, transparent);
+        background: var(--gray-5);
     }
 
     .ui-control-input {
@@ -400,12 +334,12 @@
 
     .ui-data-table {
         border: 1px solid color-mix(in srgb, var(--gray-10) 18%, transparent);
-        background: color-mix(in srgb, white 86%, var(--accent-2) 14%);
+        background: white;
     }
 
     .dark .ui-data-table {
         border-color: color-mix(in srgb, var(--gray-10) 32%, transparent);
-        background: color-mix(in srgb, var(--gray-3) 90%, #121923 10%);
+        background: var(--gray-2);
     }
 
     /* Card hover effects */
@@ -414,14 +348,14 @@
     }
 
     .ui-card:hover {
-        background: color-mix(in srgb, var(--accent-3) 30%, white 70%);
-        border-color: color-mix(in srgb, var(--accent-8) 40%, transparent);
+        background: var(--gray-2);
+        border-color: var(--gray-7);
         box-shadow: 0 4px 16px color-mix(in srgb, var(--gray-10) 12%, transparent);
     }
 
     .dark .ui-card:hover {
-        background: color-mix(in srgb, var(--accent-4) 12%, var(--gray-3) 88%);
-        border-color: color-mix(in srgb, var(--accent-8) 35%, transparent);
+        background: var(--gray-3);
+        border-color: var(--gray-7);
         box-shadow: 0 4px 16px color-mix(in srgb, black 25%, transparent);
     }
 
@@ -431,30 +365,31 @@
     }
 
     .ui-list-item:hover {
-        background: color-mix(in srgb, var(--accent-3) 50%, transparent);
+        background: var(--gray-3);
     }
 
     .dark .ui-list-item:hover {
-        background: color-mix(in srgb, var(--accent-4) 25%, transparent);
+        background: var(--gray-4);
     }
 
     /* Sidebar current route highlight */
+    /* The current route is marked in neutral; the brass bar beside it is the brand cue. */
     .sidebar-item[data-current] {
-        background: color-mix(in srgb, var(--accent-3) 55%, transparent);
-        border-color: color-mix(in srgb, var(--accent-8) 30%, transparent);
+        background: var(--gray-4);
+        border-color: transparent;
     }
 
     .sidebar-item[data-current] [data-slot="icon"] {
-        stroke: var(--accent-11) !important;
+        stroke: var(--gray-12) !important;
     }
 
     .dark .sidebar-item[data-current] {
-        background: color-mix(in srgb, var(--accent-4) 22%, transparent);
-        border-color: color-mix(in srgb, var(--accent-8) 28%, transparent);
+        background: var(--gray-4);
+        border-color: transparent;
     }
 
     .dark .sidebar-item[data-current] [data-slot="icon"] {
-        stroke: var(--accent-9) !important;
+        stroke: var(--gray-12) !important;
     }
 }
 

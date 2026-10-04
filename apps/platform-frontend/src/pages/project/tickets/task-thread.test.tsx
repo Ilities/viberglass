@@ -1,5 +1,5 @@
 import { Theme } from '@radix-ui/themes'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import {
   agentMentionToken,
@@ -31,6 +31,7 @@ jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me',
 const mockTimeline = jest.fn()
 jest.mock('@/service/api/discussion-api', () => ({
   getTaskTimeline: (...args: unknown[]) => mockTimeline(...args),
+  getNextAgent: () => Promise.resolve({ clankerId: null, via: null, problem: null }),
   postTaskMessage: (...args: unknown[]) => mockPost(...args),
   askAgent: (...args: unknown[]) => mockAsk(...args),
   answerQuestion: (...args: unknown[]) => mockAnswer(...args),
@@ -200,13 +201,19 @@ describe('TaskThread', () => {
     expect(screen.getByText('Research v1')).toBeInTheDocument()
   })
 
-  it("opens a version's document", async () => {
+  it("opens the latest version as the current document, and an earlier one at its own version", async () => {
+    mockTimeline.mockResolvedValue([
+      ...THREAD,
+      { kind: 'artifact_version', id: 'v-2', at: '2026-10-01T10:08:00Z', artifact: 'research', version: 2, author: null, byAgent: true },
+    ])
     const { onOpenArtifact } = renderThread()
-    fireEvent.click(await screen.findByRole('button', { name: 'Open Research v1' }))
-    expect(onOpenArtifact).toHaveBeenCalledWith('research')
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Research v2' }))
+    expect(onOpenArtifact).toHaveBeenLastCalledWith('research', null)
+    fireEvent.click(screen.getByRole('button', { name: 'Open Research v1' }))
+    expect(onOpenArtifact).toHaveBeenLastCalledWith('research', 1)
   })
 
-  it("shows the agent's turn: what it set out to do, what it said, and whether it continued its session", async () => {
+  it("shows the agent's turn: what it set out to do, what it made, and whether it continued its session; what it said is a click away", async () => {
     mockTimeline.mockResolvedValue([agentTurn()])
     renderThread()
 
@@ -214,6 +221,9 @@ describe('TaskThread', () => {
     expect(turn).toHaveTextContent('asked for the research')
     expect(turn).toHaveTextContent('continued its session')
     expect(turn).toHaveTextContent('Revising the research: covering the checkout')
+    expect(turn).toHaveTextContent('Wrote the research.')
+    expect(turn).not.toHaveTextContent('I added a section on the checkout flow.')
+    fireEvent.click(within(turn).getByRole('button', { name: 'Show what it said' }))
     expect(turn).toHaveTextContent('I added a section on the checkout flow.')
   })
 
@@ -258,7 +268,7 @@ describe('TaskThread', () => {
     mockPost.mockResolvedValue({ messages: [], turn: { sessionId: 's-1', turnId: 't-1', jobId: 'job-1', status: 'pending' } })
     renderThread()
 
-    const box = await screen.findByRole('textbox', { name: 'Write a message' })
+    const box = await screen.findByRole('combobox', { name: 'Write a message' })
     fireEvent.change(box, { target: { value: '@ag' } })
     fireEvent.click(await screen.findByRole('option', { name: /Claude/ }))
     fireEvent.change(box, { target: { value: '@Claude cover Safari too' } })
@@ -272,7 +282,7 @@ describe('TaskThread', () => {
     mockPost.mockResolvedValue({ messages: [], turn: null })
     renderThread()
 
-    const box = await screen.findByRole('textbox', { name: 'Write a message' })
+    const box = await screen.findByRole('combobox', { name: 'Write a message' })
     fireEvent.change(box, { target: { value: 'Can you look, @da' } })
     fireEvent.click(await screen.findByRole('option', { name: 'Dana' }))
     expect(box).toHaveValue('Can you look, @Dana ')
@@ -280,5 +290,93 @@ describe('TaskThread', () => {
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `Can you look, ${mentionToken('Dana', DANA)} `))
     await waitFor(() => expect(mockTimeline).toHaveBeenCalledTimes(2))
+  })
+
+  it('picks a mention with the keyboard the same as with a pointer, and keeps Enter for new lines otherwise', async () => {
+    mockTimeline.mockResolvedValue([])
+    mockPost.mockResolvedValue({ messages: [], turn: null })
+    renderThread()
+
+    const box = await screen.findByRole('combobox', { name: 'Write a message' })
+    fireEvent.change(box, { target: { value: 'Can you look, @' } })
+    await screen.findAllByRole('option')
+    const options = screen.getAllByRole('option')
+    const dana = options.findIndex((option) => option.textContent === 'Dana')
+    for (let step = 0; step < dana; step++) fireEvent.keyDown(box, { key: 'ArrowDown' })
+    expect(box).toHaveAttribute('aria-activedescendant', options[dana].id)
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(box).toHaveValue('Can you look, @Dana ')
+    expect(box).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.change(box, { target: { value: 'Can you look, @Dana and @da' } })
+    expect(await screen.findByRole('option', { name: 'Dana' })).toBeInTheDocument()
+    fireEvent.keyDown(box, { key: 'Escape' })
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(fireEvent.keyDown(box, { key: 'Enter' })).toBe(true)
+
+    fireEvent.change(box, { target: { value: 'Can you look, @Dana ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('t-1', `Can you look, ${mentionToken('Dana', DANA)} `))
+  })
+
+  it("shows a reviewer's comment itself beside a short quote, with whether it's resolved", async () => {
+    const commented = (id: string, comment: string): TaskTimelineEntry => ({
+      kind: 'event',
+      id,
+      at: '2026-10-01T10:09:00Z',
+      activity: {
+        id,
+        ticketId: 't-1',
+        actorType: 'human',
+        actor: { id: 'q', name: 'Quinn' },
+        kind: 'comment_added',
+        payload: { step: 'research', quote: '`greeting.js` exports **greeting**', commentId: `c-${id}`, comment },
+        createdAt: '2026-10-01T10:09:00Z',
+      },
+    })
+    const resolved: TaskTimelineEntry = {
+      kind: 'event',
+      id: 'r',
+      at: '2026-10-01T10:10:00Z',
+      activity: {
+        id: 'r',
+        ticketId: 't-1',
+        actorType: 'human',
+        actor: MARIA,
+        kind: 'comment_status_changed',
+        payload: { step: 'research', commentId: 'c-1', status: 'resolved' },
+        createdAt: '2026-10-01T10:10:00Z',
+      },
+    }
+    mockTimeline.mockResolvedValue([commented('1', 'Add a regression test.'), commented('2', 'Keep it short.'), resolved])
+    const onOpenComments = jest.fn()
+    render(
+      <Theme>
+        <MemoryRouter>
+          <TaskThread
+            taskId="t-1"
+            project="web"
+            refreshKey="1"
+            onOpenArtifact={jest.fn()}
+            onOpenComments={onOpenComments}
+            agents={[]}
+            suggestionInput={SUGGESTION_INPUT}
+            canPost={false}
+            canAsk={false}
+            runnableAgents={[]}
+            onAsked={jest.fn()}
+          />
+        </MemoryRouter>
+      </Theme>
+    )
+
+    const [first] = await screen.findAllByRole('listitem', { name: "Quinn's comment" })
+    expect(first).toHaveTextContent('Add a regression test.')
+    expect(first).toHaveTextContent('greeting.js exports greeting')
+    expect(screen.getAllByText('Resolved')).toHaveLength(1)
+    expect(screen.getAllByText('Open')[0]).toBeInTheDocument()
+    expect(screen.queryByText(/resolved a comment/)).not.toBeInTheDocument()
+    fireEvent.click(within(first).getByRole('button', { name: 'Open in comments' }))
+    expect(onOpenComments).toHaveBeenCalledWith('research')
   })
 })

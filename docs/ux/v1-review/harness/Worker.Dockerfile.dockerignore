@@ -1,0 +1,15 @@
+**
+!apps/
+!apps/viberator/
+!apps/viberator/dist/**
+!packages/
+!packages/types/
+!packages/types/dist/**
+!packages/telemetry/
+!packages/telemetry/dist/**
+!packages/agent-core/
+!packages/agent-core/dist/**
+!packages/agents/
+!packages/agents/agent-*/
+!packages/agents/agent-*/dist/**
+!packages/agents/agent-*/package.json

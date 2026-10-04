@@ -7,6 +7,7 @@ import { ProjectReadinessBanner } from '@/components/project-readiness'
 import { useProject } from '@/context/project-context'
 import { archiveTickets, deleteTicket, setTicketStatus, updateTicket } from '@/service/api/ticket-api'
 import { TICKET_STATUS } from '@viberglass/types'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -60,6 +61,11 @@ export function TicketDetailPage() {
   const [openRunId, setOpenRunId] = useState<string | null>(searchParams.get('run'))
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  // Below the two-column width, one of conversation or artifact shows at a time; a link to a run or document opens the artifact.
+  const wide = useMediaQuery('(min-width: 1280px)')
+  const [narrowView, setNarrowView] = useState<'conversation' | 'artifact'>(() =>
+    ['run', 'step', 'view', 'version'].some((key) => searchParams.has(key)) ? 'artifact' : 'conversation'
+  )
 
   const linkedRunId = searchParams.get('run')
   const changed = useCallback(() => void reload().catch(() => undefined), [reload])
@@ -87,7 +93,7 @@ export function TicketDetailPage() {
           ? await updateTicket(data.ticket.id, { status: TICKET_STATUS.RESOLVED })
           : await setTicketStatus(data.ticket.id, TICKET_STATUS.OPEN)
         setTicket(updated)
-        toast.success(done ? 'Task marked as done' : 'Task reopened')
+        toast.success(done ? 'Task finished. Its history stays; finishing merges nothing.' : 'Task reopened')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to update the task')
       }
@@ -122,6 +128,9 @@ export function TicketDetailPage() {
     workingSession: workingSession(data.sessions),
   })
 
+  const failedRunnerId = move.kind === 'failed' ? data.runs.find((run) => run.jobId === move.runId)?.clankerId : null
+  const failedRunner = data.clankers.find((clanker) => clanker.id === failedRunnerId)
+
   // A linked run shows its step; otherwise the step picked, or the current one.
   const linkedRun = data.runs.find((run) => run.jobId === linkedRunId)
   const requestedStep = searchParams.get('step')
@@ -131,7 +140,12 @@ export function TicketDetailPage() {
   const requestedView = searchParams.get('view')
   const shownView: StepView = isStepView(requestedView) ? requestedView : linkedRun ? 'runs' : 'document'
 
-  const showStep = (step: TaskStep) => setSearchParams(step === currentStep ? {} : { step })
+  // An earlier version of the shown document, opened from the thread.
+  const requestedVersion = Number(searchParams.get('version'))
+  const shownVersion = shownStep !== 'execution' && Number.isInteger(requestedVersion) && requestedVersion > 0 ? requestedVersion : null
+
+  const showStep = (step: TaskStep, version: number | null = null) =>
+    setSearchParams({ ...(step === currentStep ? {} : { step }), ...(version ? { version: String(version) } : {}) })
   const showView = (view: StepView) =>
     setSearchParams({ ...(shownStep === currentStep ? {} : { step: shownStep }), ...(view === 'document' ? {} : { view }) })
   const toggleRun = (runId: string) => setOpenRunId((open) => (open === runId ? null : runId))
@@ -180,12 +194,63 @@ export function TicketDetailPage() {
           {ticket.description && <Description text={ticket.description} />}
         </header>
 
+        {!wide && (
+          <div role="group" aria-label="Show" className="flex gap-2">
+            <Button
+              {...(narrowView === 'conversation' ? { color: 'zinc' as const } : { outline: true as const })}
+              aria-pressed={narrowView === 'conversation'}
+              onClick={() => setNarrowView('conversation')}
+            >
+              Conversation
+            </Button>
+            <Button
+              {...(narrowView === 'artifact' ? { color: 'zinc' as const } : { outline: true as const })}
+              aria-pressed={narrowView === 'artifact'}
+              onClick={() => setNarrowView('artifact')}
+            >
+              Artifacts
+            </Button>
+            {capabilities?.canPost && (
+              <Button
+                plain
+                className="ml-auto"
+                onClick={() => {
+                  setNarrowView('conversation')
+                  // After the conversation is shown again, so the composer can take focus.
+                  requestAnimationFrame(() => {
+                    const composer = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Write a message"]')
+                    composer?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                    composer?.focus({ preventScroll: true })
+                  })
+                }}
+              >
+                Write a reply
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Hidden rather than unmounted, so a draft and the scroll position survive switching. */}
         <div className="grid min-h-0 flex-1 gap-10 xl:grid-cols-2">
-          <section aria-label="Artifact" className="min-w-0 space-y-6 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto">
-            <TaskStepper currentStep={currentStep} move={move} shownStep={shownStep} onShowStep={showStep} />
+          <section
+            aria-label="Artifact"
+            hidden={!wide && narrowView !== 'artifact'}
+            className="min-w-0 space-y-6 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto">
+            <TaskStepper
+              currentStep={currentStep}
+              move={move}
+              shownStep={shownStep}
+              exists={{
+                research: data.documents.research.content.trim().length > 0,
+                planning: data.documents.planning.content.trim().length > 0,
+                execution: Boolean(ticket.pullRequestUrl),
+              }}
+              onShowStep={showStep}
+            />
             <TaskStepView
               step={shownStep}
               view={shownView}
+              version={shownVersion}
               onView={showView}
               data={data}
               project={project}
@@ -199,15 +264,21 @@ export function TicketDetailPage() {
             />
           </section>
 
-          <div className="min-w-0 space-y-8 xl:order-first">
-            <TaskFacts ticket={ticket} />
+          <div hidden={!wide && narrowView !== 'conversation'} className="min-w-0 space-y-8 xl:order-first">
+            <TaskFacts ticket={ticket} collapsed={!wide} />
             <TaskThread
               taskId={ticket.id}
               taskKey={ticket.key}
               project={project}
               refreshKey={threadRefreshKey}
-              onOpenArtifact={(step) => {
-                showStep(step)
+              onOpenComments={(step) => {
+                setNarrowView('artifact')
+                setSearchParams({ ...(step === currentStep ? {} : { step }), view: 'comments' })
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              onOpenArtifact={(step, version) => {
+                setNarrowView('artifact')
+                showStep(step, version)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               agents={taskAgents(data.clankers, data.sessions)}
@@ -217,8 +288,9 @@ export function TicketDetailPage() {
               paused={data.sessions.some((session) => session.status === 'paused')}
               pausedForSetup={move.kind === 'failed' && move.failure?.category === 'setup'}
               mentionsYou={Boolean(ticket.mentionsYou)}
-              notice={<TaskFailureNotice move={move} project={project} />}
+              notice={<TaskFailureNotice move={move} project={project} runner={failedRunner} />}
               runnableAgents={runnableAgents(data.clankers)}
+              clankers={data.clankers}
               onAsked={changed}
               suggestionInput={{
                 ticket,
@@ -226,6 +298,7 @@ export function TicketDetailPage() {
                 capabilities,
                 newComments: { ...data.newComments, ...liveNewComments },
                 agentWorking: move.kind === 'working',
+                lastFailure: move.kind === 'failed' ? move.failure : null,
               }}
             />
           </div>
