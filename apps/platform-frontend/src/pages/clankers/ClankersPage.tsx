@@ -1,9 +1,9 @@
 import { Avatar } from '@/components/avatar'
-import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
 import { FunLoading } from '@/components/fun-loading'
 import { Heading, Subheading } from '@/components/heading'
 import { PageMeta } from '@/components/page-meta'
+import { RunnerReadinessBadge } from '@/components/runner-readiness-badge'
 import { EmptyState } from '@/components/empty-state'
 import { getClankersList, formatClankerStatus, formatDeploymentStrategy } from '@/data'
 import type { Clanker } from '@/data'
@@ -91,35 +91,29 @@ export function ClankersPage() {
                         ? ' · ChatGPT login'
                         : summary.providerLabel && ` · ${summary.providerLabel}`}
                     </p>
-                    {summary.problem ? (
-                      <p className="mt-0.5 text-xs leading-4 text-amber-700 dark:text-amber-400">No usable model key</p>
-                    ) : (
-                      summary.model && (
-                        <p className="mt-0.5 truncate font-mono text-xs leading-4 text-zinc-500 dark:text-zinc-400">
-                          {summary.model}
-                        </p>
-                      )
+                    {summary.model && (
+                      <p className="mt-0.5 truncate font-mono text-xs leading-4 text-zinc-500 dark:text-zinc-400">
+                        {summary.model}
+                      </p>
                     )}
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 border-t border-zinc-950/5 pt-3 dark:border-white/5">
                   <div>
-                    <div className="text-xs text-zinc-500 dark:text-zinc-400">Status</div>
-                    <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
-                    {clanker.statusMessage && (
-                      <div className="mt-0.5 text-xs leading-4 text-zinc-500 dark:text-zinc-400">
-                        {clanker.statusMessage}
-                      </div>
-                    )}
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">Can take tasks</div>
+                    <RunnerReadinessBadge readiness={clanker.readiness} />
                   </div>
-                  <div>
+                  <div title={clanker.statusMessage ?? undefined}>
                     <div className="text-sm font-medium leading-5 text-brand-burnt-orange">
                       {formatDeploymentStrategy(clanker.deploymentStrategy)}
                     </div>
-                    <div className="text-xs text-zinc-500 dark:text-zinc-400">Deployment</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">Compute {statusInfo.label.toLowerCase()}</div>
                   </div>
                 </div>
+                {clanker.readiness?.problem && (
+                  <p className="mt-2 text-xs leading-4 text-zinc-600 dark:text-zinc-400">{clanker.readiness.problem}</p>
+                )}
 
                 {clanker.configFiles.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1">

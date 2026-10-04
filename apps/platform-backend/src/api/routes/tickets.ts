@@ -19,6 +19,7 @@ import { registerTicketExecutionRoutes } from "./tickets/executionRoutes";
 import { registerTicketWorkflowPhaseRoutes } from "./tickets/workflowPhaseRoutes";
 import { registerDocumentCommentRoutes } from "./tickets/documentCommentRoutes";
 import { registerTicketAgentSessionRoutes } from "./tickets/agentSessionRoutes";
+import { TaskTurnAgentResolver } from "../../services/taskTurns/TaskTurnAgentResolver";
 import { AgentSessionQueryService } from "../../services/agentSession/AgentSessionQueryService";
 import { AgentSessionDAO } from "../../persistence/agentSession/AgentSessionDAO";
 import { AgentTurnDAO } from "../../persistence/agentSession/AgentTurnDAO";
@@ -195,6 +196,7 @@ const agentSessionQueryService = new AgentSessionQueryService(
 registerTicketAgentSessionRoutes(router, {
   turns: taskTurns,
   queryService: agentSessionQueryService,
+  agents: new TaskTurnAgentResolver(),
 });
 
 export default router;

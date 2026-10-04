@@ -53,7 +53,7 @@ export function TaskActionsMenu({ ticket, space, capabilities, onEdit, onSetDone
             <DropdownDivider />
             <DropdownItem onClick={() => onSetDone(!done)}>
               {done ? <ResetIcon className="size-4" /> : <CheckCircledIcon className="size-4" />}
-              {done ? 'Reopen' : 'Mark as done'}
+              {done ? 'Reopen task' : 'Finish task'}
             </DropdownItem>
             {!ticket.archivedAt && (
               <DropdownItem onClick={onArchive}>

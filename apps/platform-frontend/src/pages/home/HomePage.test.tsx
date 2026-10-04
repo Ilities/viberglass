@@ -65,7 +65,7 @@ describe('HomePage', () => {
 
     const yours = screen.getByRole('region', { name: 'Your tasks' })
     expect(within(yours).getByText('Task 2')).toBeInTheDocument()
-    expect(within(yours).getByLabelText('2 unread')).toBeInTheDocument()
+    expect(within(yours).getByLabelText('2 new messages')).toBeInTheDocument()
 
     await userEvent.click(within(yours).getByRole('button', { name: 'Mine' }))
     expect(within(yours).queryByText('Task 2')).not.toBeInTheDocument()
@@ -82,7 +82,7 @@ describe('HomePage', () => {
     renderHome()
 
     const needsYou = await screen.findByRole('region', { name: 'Needs you' })
-    await userEvent.click(within(needsYou).getByRole('button', { name: 'Mark done' }))
+    await userEvent.click(within(needsYou).getByRole('button', { name: 'Acknowledge mention' }))
     expect(mockDone).toHaveBeenCalledWith('1')
     expect(await screen.findByRole('region', { name: 'Your tasks' })).toHaveTextContent('Task 1')
     expect(screen.queryByRole('region', { name: 'Needs you' })).not.toBeInTheDocument()

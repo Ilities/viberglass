@@ -29,6 +29,11 @@ jest.mock("../../../persistence/ticketing/TicketPhaseDocumentCommentDAO", () => 
   TicketPhaseDocumentCommentDAO: jest.fn(() => mockCommentDAO),
 }));
 
+const mockRecordActivity = jest.fn();
+jest.mock("../../../services/tasks/TaskActivityRecorder", () => ({
+  TaskActivityRecorder: jest.fn(() => ({ recordByCurrentActor: mockRecordActivity })),
+}));
+
 import { TicketPhaseDocumentCommentService } from "../../../services/TicketPhaseDocumentCommentService";
 
 describe("TicketPhaseDocumentCommentService", () => {
@@ -111,6 +116,13 @@ describe("TicketPhaseDocumentCommentService", () => {
 
     expect(mockCommentDAO.create).toHaveBeenCalledWith(expect.objectContaining({ lineNumber: 2, quote, content: "Why bold?" }));
     expect(comment.location).toEqual({ start: 11, end: 26, line: 2 });
+    // The thread shows what was asked, not only where.
+    expect(mockRecordActivity).toHaveBeenCalledWith("ticket-1", "comment_added", {
+      step: "planning",
+      quote: "Second **line**",
+      commentId: "c-1",
+      comment: "Why bold?",
+    });
   });
 
   it("refuses a quote that isn't in the document", async () => {
@@ -243,6 +255,11 @@ describe("TicketPhaseDocumentCommentService", () => {
         resolvedAt: expect.any(Date),
       }),
     );
+    expect(mockRecordActivity).toHaveBeenCalledWith("ticket-1", "comment_status_changed", {
+      step: "research",
+      commentId: "comment-1",
+      status: "resolved",
+    });
   });
 
   it("reopens a resolved comment", async () => {

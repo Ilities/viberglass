@@ -14,6 +14,17 @@ export async function getTaskTimeline(taskId: string): Promise<TaskTimelineEntry
   return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/timeline`), 'Failed to load the thread')
 }
 
+/** The agent an ask goes to when it names none; null, with why, when none would run. */
+export interface NextAgent {
+  clankerId: string | null
+  via: 'named' | 'on_task' | 'default' | 'first_ready' | null
+  problem: string | null
+}
+
+export async function getNextAgent(taskId: string): Promise<NextAgent> {
+  return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/next-agent`), 'Failed to load the agent')
+}
+
 /** The agent's turn a message started, or joined while one was running. */
 export interface AskedTurn {
   sessionId: string
@@ -91,6 +102,17 @@ export function pauseAgent(taskId: string): Promise<void> {
   return steer(taskId, 'pause', 'Failed to pause the agent')
 }
 
+/** What resuming, or handing back, carries on: one agent, and the step it asks for again (null: it reads what was written). */
+export interface ResumeTarget {
+  sessionId: string
+  clankerId: string
+  action: TaskTurnAction | null
+}
+
+export async function getResumeTarget(taskId: string): Promise<ResumeTarget | null> {
+  return read(await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/agent/resume-target`), 'Failed to load what the agent carries on with')
+}
+
 export function resumeAgent(taskId: string): Promise<void> {
   return steer(taskId, 'resume', 'Failed to let the agent carry on')
 }
@@ -127,5 +149,5 @@ export async function retryPausedRuns(): Promise<number> {
 /** Done with being mentioned on the task, without replying: it stops being your move. */
 export async function markMentionsDone(taskId: string): Promise<void> {
   const response = await apiFetch(`${API_BASE_URL}/api/tasks/${taskId}/mentions/done`, { method: 'POST' })
-  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to mark it done')
+  if (!response.ok) throw toErrorFromResponse(await response.json().catch(() => ({})), 'Failed to acknowledge the mention')
 }

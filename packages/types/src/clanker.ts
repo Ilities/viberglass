@@ -3,6 +3,7 @@
  * Clankers are individual viberator app worker configurations that do agentic tasks
  */
 
+import type { RunnerReadiness } from './runnerReadiness'
 import type { SecretBinding } from './secret'
 
 // Status of a clanker
@@ -108,6 +109,8 @@ export interface Clanker {
   skillIds: string[]
   status: ClankerStatus
   statusMessage?: string | null
+  /** Whether it can take a task; set by the API, which knows its secrets and runs. */
+  readiness?: RunnerReadiness
   createdAt: string
   updatedAt: string
 }

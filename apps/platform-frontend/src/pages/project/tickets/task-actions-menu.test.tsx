@@ -34,7 +34,7 @@ describe('TaskActionsMenu', () => {
   })
 
   it("lets the task's owner edit, close and archive it, but not delete it", async () => {
-    expect(await itemsFor({ ...NOTHING, canEdit: true })).toEqual(['Edit details', 'Copy link', 'Mark as done', 'Archive'])
+    expect(await itemsFor({ ...NOTHING, canEdit: true })).toEqual(['Edit details', 'Copy link', 'Finish task', 'Archive'])
   })
 
   it('adds delete for admins', async () => {

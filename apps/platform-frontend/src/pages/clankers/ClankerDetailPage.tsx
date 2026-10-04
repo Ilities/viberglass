@@ -23,6 +23,19 @@ import { useParams } from 'react-router-dom'
 import { ClankerActions } from './clanker-actions'
 import { ChatGptLoginCard } from './chatgpt-login-card'
 import { summarizeRunner } from './config/runnerSummary'
+import { RunnerReadinessBadge } from '@/components/runner-readiness-badge'
+import { Timestamp } from '@/components/timestamp'
+
+/** The latest run is what shows the credential works: nothing proves it until one finishes. */
+function LastRun({ readiness }: { readiness: Clanker['readiness'] }) {
+  const lastRun = readiness?.lastRun
+  if (!lastRun) return <span className="text-[var(--gray-10)]">None yet. The first task run checks the key and model.</span>
+  return (
+    <>
+      {lastRun.status === 'completed' ? 'Succeeded' : `Failed${lastRun.failureTitle ? `: ${lastRun.failureTitle}` : ''}`} · <Timestamp date={lastRun.at} />
+    </>
+  )
+}
 
 function getStatusBadgeColor(status: Clanker['status']): 'green' | 'blue' | 'red' | 'zinc' {
   switch (status) {
@@ -371,7 +384,7 @@ export function ClankerDetailPage() {
               <div>
                 <Heading className="text-2xl">{clanker.name}</Heading>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  <Badge color={getStatusBadgeColor(clanker.status)}>{statusInfo.label}</Badge>
+                  <RunnerReadinessBadge readiness={clanker.readiness} />
                   <Badge color="blue">{formatDeploymentStrategy(clanker.deploymentStrategy)}</Badge>
                   <Badge color="violet">{formatAgent(clanker.agent)}</Badge>
                 </div>
@@ -403,7 +416,7 @@ export function ClankerDetailPage() {
                   <div className="mx-1 h-px bg-[var(--gray-6)]" />
                   <InfoItem
                     icon={<CubeIcon className="h-4 w-4" />}
-                    label="Status"
+                    label="Compute"
                     value={<Badge color={getStatusBadgeColor(clanker.status)}>{statusInfo.label}</Badge>}
                   />
                   <div className="mx-1 h-px bg-[var(--gray-6)]" />
@@ -437,9 +450,9 @@ export function ClankerDetailPage() {
             <div className="space-y-6 lg:col-span-8 xl:col-span-9">
               <div className="app-frame rounded-lg p-6">
                 <Subheading className="mb-4">Setup</Subheading>
-                {summary.problem && (
+                {(clanker.readiness?.problem ?? summary.problem) && (
                   <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-                    {summary.problem}
+                    {clanker.readiness?.problem ?? summary.problem}
                   </div>
                 )}
                 <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
@@ -447,10 +460,40 @@ export function ClankerDetailPage() {
                   <dd className="text-sm text-[var(--gray-12)]">{formatAgent(clanker.agent)}</dd>
                   <dt className="text-sm text-[var(--gray-9)]">Provider</dt>
                   <dd className="text-sm text-[var(--gray-12)]">
-                    {summary.usesChatGptLogin ? 'OpenAI (ChatGPT login)' : (summary.providerLabel ?? 'Not set')}
+                    {summary.usesChatGptLogin
+                      ? 'OpenAI (ChatGPT login)'
+                      : summary.customEndpoint
+                        ? `${summary.providerLabel ?? 'Unknown'} key, sent to a custom endpoint`
+                        : (summary.providerLabel ?? 'Not set')}
                   </dd>
+                  {summary.customEndpoint && (
+                    <>
+                      <dt className="text-sm text-[var(--gray-9)]">Endpoint</dt>
+                      <dd className="text-sm text-[var(--gray-12)]">
+                        {summary.customEndpoint.url ? (
+                          <span className="font-mono text-xs">{summary.customEndpoint.url}</span>
+                        ) : (
+                          <>
+                            Set by <span className="font-mono text-xs">{summary.customEndpoint.envVar}</span>
+                          </>
+                        )}
+                        <p className="text-xs text-[var(--gray-10)]">
+                          The endpoint decides which model actually runs; this isn&apos;t a verified {summary.providerLabel ?? 'provider'} model.
+                        </p>
+                      </dd>
+                    </>
+                  )}
                   <dt className="text-sm text-[var(--gray-9)]">Model</dt>
-                  <dd className="text-sm text-[var(--gray-12)]">{summary.model ?? "The agent's default"}</dd>
+                  <dd className="text-sm text-[var(--gray-12)]">
+                    {summary.model ? `${summary.model} (as requested)` : "The agent's default"}
+                    <p className="text-xs text-[var(--gray-10)]">
+                      Each run records the model the agent reported in Run records; when it reports none, it shows as unknown.
+                    </p>
+                  </dd>
+                  <dt className="text-sm text-[var(--gray-9)]">Last run</dt>
+                  <dd className="text-sm text-[var(--gray-12)]">
+                    <LastRun readiness={clanker.readiness} />
+                  </dd>
                   <dt className="text-sm text-[var(--gray-9)]">Key</dt>
                   <dd className="text-sm text-[var(--gray-12)]">
                     {summary.usesChatGptLogin ? (

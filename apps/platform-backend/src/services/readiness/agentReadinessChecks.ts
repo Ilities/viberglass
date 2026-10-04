@@ -1,6 +1,6 @@
-import type { Clanker, ProjectReadinessCheck } from "@viberglass/types";
+import { runnerCredentialProblem, type Clanker, type ProjectReadinessCheck } from "@viberglass/types";
 
-function isUsable(runner: Clanker): boolean {
+function isRunning(runner: Clanker): boolean {
   return runner.status === "active" && Boolean(runner.deploymentStrategyId);
 }
 
@@ -28,9 +28,9 @@ export function agentCredentialsCheck(runners: Clanker[], existingSecretIds: Set
   };
 }
 
-/** Whether an agent is running, and if not, what's wrong with the one that isn't. */
-export function agentRunnerCheck(runners: Clanker[]): ProjectReadinessCheck {
-  const usable = runners.filter(isUsable);
+/** Whether an agent is running with a usable key, and if not, what's wrong with the one that isn't. */
+export function agentRunnerCheck(runners: Clanker[], existingSecretIds: Set<string>): ProjectReadinessCheck {
+  const usable = runners.filter((runner) => isRunning(runner) && !runnerCredentialProblem(runner, existingSecretIds));
   if (usable.length > 0) {
     return {
       key: "agentRunner",
@@ -55,6 +55,17 @@ export function agentRunnerCheck(runners: Clanker[]): ProjectReadinessCheck {
     (runner.slug === "default-agent" ? 0 : 3) + (runner.status === "deploying" ? 0 : runner.status === "failed" ? 1 : 2);
   const runner = [...runners].sort((a, b) => rank(a) - rank(b))[0];
   const remediationUrl = `/settings/agents/${runner.slug}`;
+  const credential = isRunning(runner) ? runnerCredentialProblem(runner, existingSecretIds) : null;
+  if (credential) {
+    return {
+      key: "agentRunner",
+      label: "Agent",
+      state: "unavailable",
+      code: "configure_agent_credentials",
+      summary: `${runner.name} can't run yet: ${credential.problem}`,
+      remediationUrl,
+    };
+  }
   if (runner.status === "deploying") {
     return {
       key: "agentRunner",

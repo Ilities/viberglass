@@ -79,6 +79,9 @@ export function HomePage() {
           {needsYou.length > 0 && (
             <section aria-label="Needs you" className="mt-8">
               <Subheading>Needs you</Subheading>
+              <p className="mt-1 text-xs text-[var(--gray-10)]">
+                Questions and mentions waiting for you. Answer or reply, or acknowledge a mention you don&apos;t need to answer; the task itself stays as it is.
+              </p>
               <ul className="mt-3 space-y-2">
                 {needsYou.map((thread) => (
                   <HomeThreadRow key={thread.task.id} thread={thread} onChanged={reload} />
@@ -91,6 +94,7 @@ export function HomePage() {
               <Subheading>Your tasks</Subheading>
               {canCreate && <AskForSomething spaces={spaces} />}
             </div>
+            <p className="mt-1 text-xs text-[var(--gray-10)]">Tasks you asked for, own, review or watch. The number is how many messages are new to you.</p>
             <div role="group" aria-label="Show" className="mt-2 flex border-b border-[var(--gray-a5)]">
               {HOME_FILTERS.map((value) => (
                 <TabButton key={value} active={filter === value} onClick={() => setFilter(value)}>

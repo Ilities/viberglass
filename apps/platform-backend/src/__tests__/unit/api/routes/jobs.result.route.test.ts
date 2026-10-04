@@ -8,6 +8,7 @@ const mockTurnOutcomes = {
   record: jest.fn(),
 };
 const mockAutoSummariser = { afterTurn: jest.fn() };
+const mockDocumentCheck = { missing: jest.fn() };
 
 const mockSecretService = {
   upsertWorkerAuthCache: jest.fn(),
@@ -74,6 +75,10 @@ jest.mock("../../../../services/taskTurns/TaskTurnService", () => ({
   TaskTurnService: jest.fn(() => ({})),
 }));
 
+jest.mock("../../../../services/taskTurns/TurnDocumentCheck", () => ({
+  TurnDocumentCheck: jest.fn(() => mockDocumentCheck),
+}));
+
 jest.mock("../../../../services/taskTurns/TaskTurnOutcomeService", () => ({
   TaskTurnOutcomeService: jest.fn(() => mockTurnOutcomes),
 }));
@@ -129,6 +134,7 @@ describe("job result callbacks", () => {
     jest.clearAllMocks();
     mockAgentTurnDAO.getByJobId.mockResolvedValue(null);
     mockAgentSessionDAO.listByLastJobId.mockResolvedValue([]);
+    mockDocumentCheck.missing.mockResolvedValue(null);
   });
 
   function resultHandler(): (req: unknown, res: unknown) => Promise<void> {
@@ -197,6 +203,27 @@ describe("job result callbacks", () => {
     expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ contextUsage: { used: 150000, size: 200000 }, compacted: true }));
     expect(mockAutoSummariser.afterTurn).toHaveBeenCalledWith(session, turn, { used: 150000, size: 200000 });
     expect(mockJobService.updateJobStatus.mock.invocationCallOrder[0]).toBeLessThan(mockAutoSummariser.afterTurn.mock.invocationCallOrder.at(-1) ?? 0);
+  });
+
+  it("fails a turn that came back without the document it was asked for", async () => {
+    const turn = { id: "turn-1", sessionId: "session-1", action: "research" };
+    const session = { id: "session-1", ticketId: "ticket-1" };
+    mockAgentTurnDAO.getByJobId.mockResolvedValue(turn);
+    mockAgentSessionDAO.getById.mockResolvedValue(session);
+    mockDocumentCheck.missing.mockResolvedValue("research");
+    const res = response();
+
+    await resultHandler()({ params: { jobId: "job-1" }, body: { success: true, documents: { plan: "# Plan" } }, tenantId: "tenant-1" }, res);
+
+    expect(mockDocumentCheck.missing).toHaveBeenCalledWith(turn, { plan: "# Plan" });
+    expect(mockTurnOutcomes.record).toHaveBeenCalledWith("job-1", session, turn, expect.objectContaining({ success: true, missing: "research", documents: { plan: "# Plan" } }));
+    expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(
+      "job-1",
+      "failed",
+      expect.objectContaining({ failureCode: "AGENT_NO_DOCUMENT", errorMessage: "The agent finished without writing the research." }),
+    );
+    expect(res.json).toHaveBeenCalledWith({ success: true, jobId: "job-1", status: "failed" });
+    expect(mockAutoSummariser.afterTurn).not.toHaveBeenCalled();
   });
 
   it("only records the status of a run that isn't a task turn", async () => {

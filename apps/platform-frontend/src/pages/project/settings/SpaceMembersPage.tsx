@@ -1,3 +1,4 @@
+import { RoleCapabilityTable } from '@/components/role-capabilities'
 import { Button } from '@/components/button'
 import { Description, Label } from '@/components/fieldset'
 import { Heading, Subheading } from '@/components/heading'
@@ -75,6 +76,9 @@ export function SpaceMembersPage() {
             Maintainers change this space's settings, members and templates; workspace admins are maintainers of every
             space. Members get the space's defaults and notifications.
           </Text>
+          <div className="mt-3">
+            <RoleCapabilityTable />
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}

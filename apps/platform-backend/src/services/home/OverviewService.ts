@@ -1,4 +1,4 @@
-import type { OverviewData, OverviewTask } from "@viberglass/types";
+import { type OverviewData, type OverviewGroup, type OverviewTask } from "@viberglass/types";
 import { TaskThreadListDAO } from "../../persistence/ticketing/TaskThreadListDAO";
 import { SpaceAccessService, type SpaceViewer } from "../spaces/SpaceAccessService";
 import { TaskSituationService } from "../tasks/TaskSituationService";
@@ -12,10 +12,20 @@ interface Dependencies {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Which group a task is in. Needing attention wins, so nothing is counted twice. */
+function groupOf({ situation }: OverviewTask, dayAgo: string): OverviewGroup {
+  const { state } = situation;
+  if (state === "done") return "doneThisWeek";
+  if (state === "failed" || state === "paused" || state === "question") return "needsAttention";
+  if (state === "agent_working") return "liveNow";
+  if (state === "not_started") return "notStarted";
+  return situation.waitingOn.kind === "people" && situation.since < dayAgo ? "needsAttention" : "waiting";
+}
+
 /**
- * Overview, for viewers and anyone wanting the workspace picture:
- * what's stuck (failed, or waiting on people for over a day), what's in
- * progress, what was done this week, and where an agent is working now.
+ * Overview, for viewers and anyone wanting the workspace picture: each task in
+ * one group (needs attention, agent working, waiting on people, not started,
+ * done this week), with the same counts per space.
  */
 export class OverviewService {
   private readonly deps: Dependencies;
@@ -49,29 +59,24 @@ export class OverviewService {
     });
 
     const dayAgo = new Date(now.getTime() - DAY_MS).toISOString();
-    const isStuck = ({ situation }: OverviewTask) =>
-      situation.state === "failed" || (situation.waitingOn.kind === "people" && situation.since < dayAgo);
-    const done = tasks.filter((task) => task.situation.state === "done");
-    const open = tasks.filter((task) => task.situation.state !== "done");
-    const stuck = open.filter(isStuck);
-    const inProgress = open.filter((task) => !isStuck(task));
-
+    const groups: Record<OverviewGroup, OverviewTask[]> = { needsAttention: [], liveNow: [], waiting: [], notStarted: [], doneThisWeek: [] };
     const spaces = new Map<string, OverviewData["spaces"][number]>();
-    const count = (task: OverviewTask, field: "inProgress" | "stuck" | "doneThisWeek") => {
-      const space = spaces.get(task.task.spaceSlug) ?? { slug: task.task.spaceSlug, name: task.task.spaceName, inProgress: 0, stuck: 0, doneThisWeek: 0 };
-      space[field] += 1;
+    for (const task of tasks) {
+      const group = groupOf(task, dayAgo);
+      groups[group].push(task);
+      const space = spaces.get(task.task.spaceSlug) ?? {
+        slug: task.task.spaceSlug,
+        name: task.task.spaceName,
+        needsAttention: 0,
+        liveNow: 0,
+        waiting: 0,
+        notStarted: 0,
+        doneThisWeek: 0,
+      };
+      space[group] += 1;
       spaces.set(space.slug, space);
-    };
-    inProgress.forEach((task) => count(task, "inProgress"));
-    stuck.forEach((task) => count(task, "stuck"));
-    done.forEach((task) => count(task, "doneThisWeek"));
+    }
 
-    return {
-      stuck,
-      inProgress,
-      doneThisWeek: done,
-      liveNow: open.filter((task) => task.situation.state === "agent_working"),
-      spaces: [...spaces.values()].sort((a, b) => a.name.localeCompare(b.name)),
-    };
+    return { ...groups, spaces: [...spaces.values()].sort((a, b) => a.name.localeCompare(b.name)) };
   }
 }

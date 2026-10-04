@@ -155,11 +155,11 @@ export function ProjectIntegrationsPage() {
   if (isProjectLoading || isLoading) {
     return (
       <>
-        <PageMeta title="Integrations" />
+        <PageMeta title="Connections" />
         <div className="space-y-8">
           <div>
-            <Heading>Integrations</Heading>
-            <Text className="mt-2">Loading integrations...</Text>
+            <Heading>Connections</Heading>
+            <Text className="mt-2">Loading connections…</Text>
           </div>
         </div>
       </>
@@ -168,13 +168,13 @@ export function ProjectIntegrationsPage() {
 
   return (
     <>
-      <PageMeta title="Integrations" />
+      <PageMeta title="Connections" />
       <div className="space-y-8">
         {/* Header */}
         <div>
-          <Heading>Integrations</Heading>
+          <Heading>Connections</Heading>
           <Text className="mt-2">
-            Link integrations to this space to enable task creation and sync with your external tools.
+            Choose which of the workspace's connections this space uses: its code host, and any issue tracker tasks sync with.
           </Text>
         </div>
 

@@ -3,6 +3,7 @@ import { Description, Field, FieldGroup, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
 import { Select } from '@/components/select'
 import { Subheading } from '@/components/heading'
+import { RoleCapabilityTable } from '@/components/role-capabilities'
 import { ROLE_DESCRIPTION, ROLE_LABEL } from '@/lib/roleCopy'
 import { createInvite, type Invite } from '@/service/api/invite-api'
 import { isWorkspaceRole, WORKSPACE_ROLES, type Project, type WorkspaceRole } from '@viberglass/types'
@@ -61,6 +62,9 @@ export function InviteForm({ spaces, onInvited }: { spaces: Project[]; onInvited
             <Description>{ROLE_DESCRIPTION[role]}</Description>
           </Field>
         </FieldGroup>
+        <div className="mt-3">
+          <RoleCapabilityTable />
+        </div>
         {spaces.length > 0 && (
           <fieldset className="mt-4">
             <legend className="text-sm font-medium text-zinc-950 dark:text-white">

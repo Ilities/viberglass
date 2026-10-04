@@ -51,6 +51,18 @@ describe('suggestTaskActions', () => {
     expect(suggestTaskActions(input({ latestTurn: { action: 'plan', status: 'failed' } }))[0]).toEqual({ action: 'plan', label: 'Try again' })
   })
 
+  it('tries again with the agent whose turn failed', () => {
+    const latestTurn = { action: 'research' as const, status: 'failed', agent: { id: 'qwen', name: 'Qwen' } }
+    expect(suggestTaskActions(input({ latestTurn }))[0]).toEqual({ action: 'research', label: 'Try again with Qwen', agentId: 'qwen' })
+  })
+
+  it("doesn't offer to try again when the setup has to be fixed first", () => {
+    const failed = { latestTurn: { action: 'plan' as const, status: 'failed' } }
+    expect(labels({ ...failed, lastFailure: { category: 'setup', retryable: false } })).not.toContain('Try again')
+    expect(labels({ ...failed, lastFailure: { category: 'setup', retryable: true } })).toContain('Try again')
+    expect(labels({ ...failed, lastFailure: { category: 'agent', retryable: true } })).toContain('Try again')
+  })
+
   it('offers nothing while the agent works, or once the task is done', () => {
     expect(labels({ agentWorking: true })).toEqual([])
     expect(labels({ ticket: { status: 'resolved' } })).toEqual([])

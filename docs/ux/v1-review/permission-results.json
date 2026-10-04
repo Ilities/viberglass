@@ -1,0 +1,134 @@
+[
+  {
+    "persona": "pm",
+    "method": "GET",
+    "route": "/api/secrets",
+    "status": 403
+  },
+  {
+    "persona": "pm",
+    "method": "GET",
+    "route": "/api/clankers",
+    "status": 200
+  },
+  {
+    "persona": "pm",
+    "method": "GET",
+    "route": "/api/spaces/58ab237f-f6c2-4d06-ac51-bd248e777e26",
+    "status": 404
+  },
+  {
+    "persona": "pm",
+    "method": "GET",
+    "route": "/api/tasks/440099fc-048b-4efa-a3d2-f92eab214be2",
+    "status": 200
+  },
+  {
+    "persona": "engineer",
+    "method": "GET",
+    "route": "/api/secrets",
+    "status": 403
+  },
+  {
+    "persona": "engineer",
+    "method": "GET",
+    "route": "/api/clankers",
+    "status": 200
+  },
+  {
+    "persona": "engineer",
+    "method": "GET",
+    "route": "/api/spaces/58ab237f-f6c2-4d06-ac51-bd248e777e26",
+    "status": 404
+  },
+  {
+    "persona": "engineer",
+    "method": "GET",
+    "route": "/api/tasks/440099fc-048b-4efa-a3d2-f92eab214be2",
+    "status": 200
+  },
+  {
+    "persona": "reviewer",
+    "method": "GET",
+    "route": "/api/secrets",
+    "status": 403
+  },
+  {
+    "persona": "reviewer",
+    "method": "GET",
+    "route": "/api/clankers",
+    "status": 403
+  },
+  {
+    "persona": "reviewer",
+    "method": "GET",
+    "route": "/api/spaces/58ab237f-f6c2-4d06-ac51-bd248e777e26",
+    "status": 404
+  },
+  {
+    "persona": "reviewer",
+    "method": "GET",
+    "route": "/api/tasks/440099fc-048b-4efa-a3d2-f92eab214be2",
+    "status": 200
+  },
+  {
+    "persona": "watcher",
+    "method": "GET",
+    "route": "/api/secrets",
+    "status": 403
+  },
+  {
+    "persona": "watcher",
+    "method": "GET",
+    "route": "/api/clankers",
+    "status": 200
+  },
+  {
+    "persona": "watcher",
+    "method": "GET",
+    "route": "/api/spaces/58ab237f-f6c2-4d06-ac51-bd248e777e26",
+    "status": 404
+  },
+  {
+    "persona": "watcher",
+    "method": "GET",
+    "route": "/api/tasks/440099fc-048b-4efa-a3d2-f92eab214be2",
+    "status": 200
+  },
+  {
+    "persona": "viewer",
+    "method": "GET",
+    "route": "/api/secrets",
+    "status": 403
+  },
+  {
+    "persona": "viewer",
+    "method": "GET",
+    "route": "/api/clankers",
+    "status": 200
+  },
+  {
+    "persona": "viewer",
+    "method": "GET",
+    "route": "/api/spaces/58ab237f-f6c2-4d06-ac51-bd248e777e26",
+    "status": 404
+  },
+  {
+    "persona": "viewer",
+    "method": "GET",
+    "route": "/api/tasks/440099fc-048b-4efa-a3d2-f92eab214be2",
+    "status": 200
+  },
+  {
+    "persona": "viewer",
+    "method": "POST",
+    "route": "/api/tasks/440099fc-048b-4efa-a3d2-f92eab214be2/messages",
+    "status": 403
+  },
+  {
+    "persona": "viewer",
+    "method": "POST",
+    "route": "/api/spaces",
+    "status": 403
+  }
+]

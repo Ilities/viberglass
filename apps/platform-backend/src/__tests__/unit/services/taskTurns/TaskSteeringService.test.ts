@@ -1,7 +1,22 @@
 import { TASK_ASK_POLICY_ERROR_CODE } from "../../../../services/errors/TaskAskPolicyError";
 import { CARRY_ON, TaskSteeringService } from "../../../../services/taskTurns/TaskSteeringService";
 
-const session = (overrides: Record<string, unknown> = {}) => ({ id: "s-1", ticketId: "t-1", clankerId: "claude", status: "active", ...overrides });
+const session = (overrides: Record<string, unknown> = {}) => ({
+  id: "s-1",
+  ticketId: "t-1",
+  clankerId: "claude",
+  status: "active",
+  updatedAt: new Date("2026-10-03T09:00:00Z"),
+  ...overrides,
+});
+const turn = (overrides: Record<string, unknown> = {}) => ({
+  id: "running",
+  role: "assistant",
+  status: "cancelled",
+  action: "plan",
+  createdAt: new Date("2026-10-03T09:00:00Z"),
+  ...overrides,
+});
 
 function setup(options: { canSteer?: boolean; askStatus?: string; cancelled?: string } = {}) {
   const deps = {
@@ -21,7 +36,7 @@ function setup(options: { canSteer?: boolean; askStatus?: string; cancelled?: st
     },
     agentTurns: {
       getInFlightAssistantTurn: jest.fn().mockResolvedValue({ id: "running", jobId: "job-running" }),
-      listBySession: jest.fn().mockResolvedValue([{ id: "running", role: "assistant", status: "cancelled", action: "plan" }]),
+      listBySession: jest.fn().mockResolvedValue([turn()]),
     },
     facts: { running: jest.fn().mockResolvedValue(new Map([["t-1", { action: "research", since: new Date() }]])) },
     jobs: { cancel: jest.fn().mockResolvedValue(options.cancelled ?? "cancelled") },
@@ -76,7 +91,7 @@ describe("TaskSteeringService", () => {
     it("starts a turn for what people asked while it was paused, when pausing stopped nothing", async () => {
       const { deps, service } = setup();
       deps.sessions.listByTicket.mockResolvedValue([session({ status: "paused" })]);
-      deps.agentTurns.listBySession.mockResolvedValue([{ id: "done", role: "assistant", status: "completed", action: "research" }]);
+      deps.agentTurns.listBySession.mockResolvedValue([turn({ id: "done", status: "completed", action: "research" })]);
       await service.resume("t-1", "u-owner");
 
       expect(deps.sessions.update).toHaveBeenCalledWith("s-1", { status: "waiting_on_user" });
@@ -92,6 +107,29 @@ describe("TaskSteeringService", () => {
 
       expect(deps.sessions.update).toHaveBeenCalledWith("s-1", { status: "waiting_on_user" });
       expect(deps.turns.ask).toHaveBeenCalledWith("t-1", "u-owner", { message: CARRY_ON, action: "plan", agentId: "claude" });
+      expect(deps.continuation.launchForPendingMessages).not.toHaveBeenCalled();
+    });
+
+    it("carries on only the work the task was on last, and releases older paused sessions without new runs", async () => {
+      const { deps, service } = setup();
+      deps.sessions.listByTicket.mockResolvedValue([
+        session({ id: "s-qwen", clankerId: "qwen", status: "paused" }),
+        session({ id: "s-claude", clankerId: "claude", status: "paused" }),
+        session({ id: "s-opencode", clankerId: "opencode", status: "paused" }),
+      ]);
+      const lastTurns: Record<string, ReturnType<typeof turn>> = {
+        "s-qwen": turn({ status: "failed", action: "research", createdAt: new Date("2026-10-03T08:00:00Z") }),
+        "s-claude": turn({ status: "cancelled", action: "code", createdAt: new Date("2026-10-03T09:20:00Z") }),
+        "s-opencode": turn({ status: "failed", action: "research", createdAt: new Date("2026-10-03T08:30:00Z") }),
+      };
+      deps.agentTurns.listBySession.mockImplementation(async (id: string) => [lastTurns[id]]);
+
+      await expect(service.resumeTarget("t-1")).resolves.toEqual({ sessionId: "s-claude", clankerId: "claude", action: "code" });
+      await service.resume("t-1", "u-owner", "Handed back: I fixed the test");
+
+      expect(deps.turns.ask).toHaveBeenCalledTimes(1);
+      expect(deps.turns.ask).toHaveBeenCalledWith("t-1", "u-owner", { message: "Handed back: I fixed the test", action: "code", agentId: "claude" });
+      for (const id of ["s-qwen", "s-claude", "s-opencode"]) expect(deps.sessions.update).toHaveBeenCalledWith(id, { status: "waiting_on_user" });
       expect(deps.continuation.launchForPendingMessages).not.toHaveBeenCalled();
     });
 

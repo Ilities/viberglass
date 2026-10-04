@@ -1,5 +1,6 @@
 import type { WorkspaceRole } from '@viberglass/types'
 import { API_BASE_URL } from '@/lib'
+import { fieldErrorsOf } from '@/lib/fieldErrors'
 import { fetchOrExplain } from './client'
 
 export type AuthUser = {
@@ -27,8 +28,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   const error = await response.json().catch(() => ({}))
-  const message = error.error || error.message || 'Request failed'
-  throw new Error(message)
+  throw fieldErrorsOf(error) ?? new Error(error.error || error.message || 'Request failed')
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {

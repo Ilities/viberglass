@@ -1,3 +1,4 @@
+import { TaskParticipationHelp } from '@/components/role-capabilities'
 import { Button } from '@/components/button'
 import { Fact, FactList } from '@/components/fact-list'
 import { Select } from '@/components/select'
@@ -112,6 +113,9 @@ export function TaskPeople({ taskId }: { taskId: string }) {
           )}
         </span>
       </Fact>
+      <div className="mt-2">
+        <TaskParticipationHelp />
+      </div>
     </FactList>
   )
 }

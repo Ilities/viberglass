@@ -1,9 +1,11 @@
-import type { TaskCapabilities, TaskTurnAction, Ticket } from '@viberglass/types'
+import type { JobFailure, TaskCapabilities, TaskTurnAction, Ticket } from '@viberglass/types'
 
 /** A common next move, offered above the composer; pressing it posts the label and asks the agent. */
 export interface TaskSuggestion {
   action: TaskTurnAction
   label: string
+  /** The agent to ask; none means whichever the task's next ask goes to. */
+  agentId?: string
 }
 
 export interface TaskSuggestionInput {
@@ -14,8 +16,10 @@ export interface TaskSuggestionInput {
   /** Open comments on each document made since its latest version, which the agent hasn't revised it with. */
   newComments: Record<'research' | 'planning', number>
   /** The agent's latest turn on the task, if any. */
-  latestTurn: { action: TaskTurnAction; status: string } | null
+  latestTurn: { action: TaskTurnAction; status: string; agent?: { id: string; name: string } } | null
   agentWorking: boolean
+  /** Why the latest run failed; a setup failure fails again until someone fixes the setup. */
+  lastFailure?: Pick<JobFailure, 'category' | 'retryable'> | null
   /** How much the thread has grown since its latest summary, or since it began. */
   sinceSummary?: { finishedTurns: number; messages: number }
 }
@@ -42,12 +46,19 @@ export function suggestTaskActions({
   newComments,
   latestTurn,
   agentWorking,
+  lastFailure,
   sinceSummary,
 }: TaskSuggestionInput): TaskSuggestion[] {
   if (agentWorking || ticket.status === 'resolved' || !capabilities?.canAsk) return []
   const suggestions: TaskSuggestion[] = []
-  if (latestTurn?.status === 'failed' && (latestTurn.action !== 'code' || capabilities.canAskForCode)) {
-    suggestions.push({ action: latestTurn.action, label: 'Try again' })
+  const needsSetupFix = lastFailure?.category === 'setup' && !lastFailure.retryable
+  if (latestTurn?.status === 'failed' && !needsSetupFix && (latestTurn.action !== 'code' || capabilities.canAskForCode)) {
+    // The same agent again: another one may be next on the task, and that isn't what "again" means.
+    suggestions.push(
+      latestTurn.agent
+        ? { action: latestTurn.action, label: `Try again with ${latestTurn.agent.name}`, agentId: latestTurn.agent.id }
+        : { action: latestTurn.action, label: 'Try again' }
+    )
   }
 
   const hasResearch = documents.research.content.trim().length > 0

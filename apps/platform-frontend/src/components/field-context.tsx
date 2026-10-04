@@ -41,22 +41,23 @@ export function FieldProvider({ disabled, children }: { disabled?: boolean; chil
   return <FieldContext.Provider value={value}>{children}</FieldContext.Provider>
 }
 
+// Each hook depends on the stable setter alone: the context object changes with the flag it sets.
 export function useRegisterFieldDescription() {
-  const context = useFieldContext()
+  const setHasDescription = useFieldContext()?.setHasDescription
 
   useEffect(() => {
-    if (!context) return
-    context.setHasDescription(true)
-    return () => context.setHasDescription(false)
-  }, [context])
+    if (!setHasDescription) return
+    setHasDescription(true)
+    return () => setHasDescription(false)
+  }, [setHasDescription])
 }
 
 export function useRegisterFieldError() {
-  const context = useFieldContext()
+  const setHasError = useFieldContext()?.setHasError
 
   useEffect(() => {
-    if (!context) return
-    context.setHasError(true)
-    return () => context.setHasError(false)
-  }, [context])
+    if (!setHasError) return
+    setHasError(true)
+    return () => setHasError(false)
+  }, [setHasError])
 }

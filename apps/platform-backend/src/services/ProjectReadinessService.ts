@@ -50,8 +50,9 @@ export class ProjectReadinessService {
     ]);
 
     // In the order setup asks for them: model key, repository, its token, a running agent.
+    const existingSecretIds = await this.findExistingSecretIds(runners);
     const checks: ProjectReadinessCheck[] = [
-      agentCredentialsCheck(runners, await this.findExistingSecretIds(runners)),
+      agentCredentialsCheck(runners, existingSecretIds),
       scmConfig?.sourceRepository.trim()
         ? {
             key: "repository",
@@ -68,7 +69,7 @@ export class ProjectReadinessService {
             remediationUrl: `/spaces/${project.slug}/settings`,
           },
       await this.getScmCredentialCheck(project.slug, scmConfig),
-      agentRunnerCheck(runners),
+      agentRunnerCheck(runners, existingSecretIds),
     ];
 
     return {

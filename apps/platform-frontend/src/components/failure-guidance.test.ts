@@ -16,10 +16,16 @@ describe('failureGuidance', () => {
     expect(guidance.title).toBe('Model quota used up')
   })
 
+  it("sends admins to the runner that failed when it's known", () => {
+    const guidance = failureGuidance({ ...quota, code: JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID }, true, 'shop', { name: 'Codex', slug: 'codex' })
+    expect(guidance.fix).toEqual({ label: "Check Codex's model key", href: '/settings/agents/codex' })
+    expect(guidance.nextStep).toMatch(/same setup will fail the same way/)
+  })
+
   it('tells members that an admin is needed, without a fix link', () => {
     const guidance = failureGuidance(quota, false, 'shop')
     expect(guidance.fix).toBeUndefined()
-    expect(guidance.nextStep).toMatch(/workspace admin needs to fix this/)
+    expect(guidance.nextStep).toMatch(/workspace admin needs to fix the setup/)
   })
 
   it('links repository failures to the project settings', () => {

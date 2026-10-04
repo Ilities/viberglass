@@ -132,6 +132,12 @@ export class AgentQuestionDAO {
     return rows.map(questionOf);
   }
 
+  /** Whether the turn asked a question nobody has answered yet. */
+  async hasOpenForTurn(turnId: string): Promise<boolean> {
+    const row = await selectQuestions().where("r.turn_id", "=", turnId).where("r.status", "=", "open").executeTakeFirst();
+    return row !== undefined;
+  }
+
   /** Each task's open questions, oldest first. */
   async listOpenForTasks(ticketIds: string[]): Promise<Map<string, AgentQuestionRecord[]>> {
     const open = new Map<string, AgentQuestionRecord[]>();

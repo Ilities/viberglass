@@ -128,17 +128,17 @@ function linkNames(drawer: HTMLElement): string[] {
 }
 
 describe('ApplicationLayout navigation', () => {
-  it('shows Home, Overview, the spaces and Settings, with no plumbing', async () => {
+  it('shows Home, Overview, the spaces and Workspace settings, with no plumbing', async () => {
     renderLayout('/')
     const drawer = await openDrawer()
 
-    for (const label of ['Home', 'Overview', 'Settings']) {
+    for (const label of ['Home', 'Overview', 'Workspace settings']) {
       expect(within(drawer).getByRole('link', { name: new RegExp(`^${label}$`, 'i') })).toBeInTheDocument()
     }
     for (const label of ['Agent runners', 'Secrets', 'Integrations', 'Users', 'Prompt Templates', 'API Tokens', 'Dashboard', 'Tasks']) {
       expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
     }
-    expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/members')
+    expect(within(drawer).getByRole('link', { name: /^Workspace settings$/i })).toHaveAttribute('href', '/settings/members')
     const viberglassLinks = within(drawer).getAllByRole('link', { name: /Viberglass/i })
     expect(viberglassLinks.some((link) => link.getAttribute('href') === '/spaces/viberglass')).toBe(true)
     expect(within(drawer).getByRole('link', { name: /New space/i })).toBeInTheDocument()
@@ -156,17 +156,17 @@ describe('ApplicationLayout navigation', () => {
     expect(inside.filter((name) => !outside.includes(name))).toEqual([
       'Runs /spaces/viberglass/runs',
       'Schedules /spaces/viberglass/schedules',
-      'Settings /spaces/viberglass/settings',
+      'Space settings /spaces/viberglass/settings',
     ])
     expect(outside.filter((name) => !inside.includes(name))).toEqual([])
   })
 
-  it('opens Settings on Notifications for members', async () => {
+  it('names settings by scope: a member has only their own, opening on Notifications', async () => {
     asRole('member')
     renderLayout('/')
     const drawer = await openDrawer()
 
-    expect(within(drawer).getByRole('link', { name: /^Settings$/i })).toHaveAttribute('href', '/settings/notifications')
+    expect(within(drawer).getByRole('link', { name: /^Your settings$/i })).toHaveAttribute('href', '/settings/notifications')
   })
 
   it('gives viewers Overview and no Home, since they have no threads of their own', async () => {
@@ -188,7 +188,7 @@ describe('ApplicationLayout navigation', () => {
         expect(within(drawer).queryByRole('link', { name: new RegExp(`^${label}$`, 'i') })).not.toBeInTheDocument()
       }
       // The space's settings stay: everyone may read how a space works.
-      expect(linkNames(drawer)).toContain('Settings /spaces/viberglass/settings')
+      expect(linkNames(drawer)).toContain('Space settings /spaces/viberglass/settings')
       cleanup()
     }
   })

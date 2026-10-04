@@ -20,6 +20,7 @@ export * from './integration'
 // Clanker types
 export * from './clanker'
 export * from './clankerConfig'
+export * from './runnerReadiness'
 export * from './job'
 
 // Run records: manifests and PR outcomes, for eval inspection

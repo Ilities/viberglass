@@ -1,7 +1,7 @@
 import { Theme } from '@radix-ui/themes'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { TaskTimelineEntry } from '@viberglass/types'
+import type { Clanker, TaskTimelineEntry } from '@viberglass/types'
 import { TaskThread } from './task-thread'
 
 const CLAUDE = '33333333-3333-4333-8333-333333333333'
@@ -20,8 +20,12 @@ const mockMentionDone = jest.fn()
 let mockRole = 'member'
 jest.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { id: 'me', name: 'Me', role: mockRole } }) }))
 const mockTimeline = jest.fn()
+const mockNextAgent = jest.fn()
+const mockResumeTarget = jest.fn()
 jest.mock('@/service/api/discussion-api', () => ({
   getTaskTimeline: (...args: unknown[]) => mockTimeline(...args),
+  getNextAgent: (...args: unknown[]) => mockNextAgent(...args),
+  getResumeTarget: (...args: unknown[]) => mockResumeTarget(...args),
   postTaskMessage: (...args: unknown[]) => mockPost(...args),
   askAgent: (...args: unknown[]) => mockAsk(...args),
   answerQuestion: (...args: unknown[]) => mockAnswer(...args),
@@ -42,6 +46,19 @@ jest.mock('@/service/api/user-api', () => ({
     { id: 'me', name: 'Me', email: 'me@example.com', avatarUrl: null },
   ]),
 }))
+
+const CLAUDE_RUNNER: Clanker = {
+  id: CLAUDE,
+  name: 'Claude',
+  slug: 'claude',
+  configFiles: [],
+  secretBindings: [],
+  mcpServerIds: [],
+  skillIds: [],
+  status: 'active',
+  createdAt: '',
+  updatedAt: '',
+}
 
 const SUGGESTION_INPUT = {
   ticket: { status: 'open' as const },
@@ -76,6 +93,7 @@ function renderThread(
           pausedForSetup={rights.pausedForSetup}
           mentionsYou={rights.mentionsYou}
           runnableAgents={[{ id: CLAUDE, name: 'Claude' }]}
+          clankers={[CLAUDE_RUNNER]}
           onAsked={onAsked}
         />
       </MemoryRouter>
@@ -127,6 +145,8 @@ describe('TaskThread and the agent', () => {
     jest.clearAllMocks()
     mockRole = 'member'
     mockBranch.mockResolvedValue(null)
+    mockNextAgent.mockResolvedValue({ clankerId: null, via: null, problem: null })
+    mockResumeTarget.mockResolvedValue({ sessionId: 's-1', clankerId: CLAUDE, action: 'code' })
   })
 
   describe("the agent's questions", () => {
@@ -137,7 +157,10 @@ describe('TaskThread and the agent', () => {
       const entry = await screen.findByRole('listitem', { name: "Claude's question" })
       expect(entry).toHaveTextContent('Claude asks Maria')
       expect(entry).toHaveTextContent('The agent is waiting for the answer')
-      expect(screen.getByRole('group', { name: "Answer Claude's question" })).toBeInTheDocument()
+      const card = screen.getByRole('group', { name: "Answer Claude's question" })
+      // The question is in full in one place only: the card that answers it.
+      expect(within(entry).getByText(/answer it below/)).toBeInTheDocument()
+      expect(card).toHaveTextContent("It's for Maria, who was notified. Anyone on the task can answer if they know.")
     })
 
     it('answers with an option in one press, and reloads the thread', async () => {
@@ -170,6 +193,15 @@ describe('TaskThread and the agent', () => {
       expect(screen.queryByRole('group', { name: "Answer Claude's question" })).not.toBeInTheDocument()
     })
 
+    it('says when someone answered for the person asked', async () => {
+      mockTimeline.mockResolvedValue([
+        question({ status: 'answered', answer: { by: { id: 'quinn', name: 'Quinn' }, text: 'North', at: '2026-10-01T10:20:00Z' } }),
+      ])
+      renderThread()
+
+      expect(await screen.findByRole('listitem', { name: "Claude's question" })).toHaveTextContent('Quinn answered for Maria: North')
+    })
+
     it("doesn't offer a viewer the answer", async () => {
       mockTimeline.mockResolvedValue([question()])
       renderThread(jest.fn(), jest.fn(), { canPost: false, canAsk: false })
@@ -187,7 +219,7 @@ describe('TaskThread and the agent', () => {
       mockPause.mockResolvedValue(undefined)
       const { onAsked } = renderThread(jest.fn(), jest.fn(), steerer)
 
-      fireEvent.change(await screen.findByRole('textbox', { name: 'Write a message' }), { target: { value: 'Use the new API' } })
+      fireEvent.change(await screen.findByRole('combobox', { name: 'Write a message' }), { target: { value: 'Use the new API' } })
       fireEvent.click(screen.getByRole('button', { name: 'Interrupt with this' }))
       await waitFor(() => expect(mockInterrupt).toHaveBeenCalledWith('t-1', 'Use the new API'))
       await waitFor(() => expect(onAsked).toHaveBeenCalled())
@@ -199,7 +231,7 @@ describe('TaskThread and the agent', () => {
     it("offers neither to someone who may only ask, nor while the agent isn't working", async () => {
       mockTimeline.mockResolvedValue([agentTurn({ status: 'running', outcome: null })])
       renderThread()
-      expect(await screen.findByRole('textbox', { name: 'Write a message' })).toBeInTheDocument()
+      expect(await screen.findByRole('combobox', { name: 'Write a message' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Interrupt with this' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Pause the agent' })).not.toBeInTheDocument()
     })
@@ -239,6 +271,8 @@ describe('TaskThread and the agent', () => {
       const { onAsked } = renderThread(jest.fn(), jest.fn(), steerer)
 
       expect(await screen.findByLabelText('Checkout commands')).toHaveTextContent('git switch -c viberator/t-1 origin/main')
+      // Says which agent handing back resumes, before anyone does.
+      expect(await screen.findByText(/Carrying on resumes Claude only, and asks it to build again/)).toBeInTheDocument()
       fireEvent.change(screen.getByRole('textbox', { name: 'Note for the agent' }), { target: { value: 'Fixed the header; add tests' } })
       fireEvent.click(screen.getByRole('button', { name: 'Hand back' }))
       await waitFor(() => expect(mockHandBack).toHaveBeenCalledWith('t-1', 'Fixed the header; add tests'))
@@ -278,13 +312,13 @@ describe('TaskThread and the agent', () => {
     })
   })
 
-  it('lets someone mentioned mark it done instead of replying', async () => {
+  it('lets someone mentioned acknowledge it instead of replying', async () => {
     mockTimeline.mockResolvedValue([])
     mockMentionDone.mockResolvedValue(undefined)
     const { onAsked } = renderThread(jest.fn(), jest.fn(), { canPost: true, canAsk: true, mentionsYou: true })
 
     expect(await screen.findByText(/You were mentioned here/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Mark done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge mention' }))
     await waitFor(() => expect(mockMentionDone).toHaveBeenCalledWith('t-1'))
     await waitFor(() => expect(onAsked).toHaveBeenCalled())
   })

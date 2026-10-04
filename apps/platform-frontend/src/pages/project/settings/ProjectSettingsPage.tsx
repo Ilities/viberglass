@@ -9,7 +9,6 @@ import { Input } from '@/components/input'
 import { Link } from '@/components/link'
 import { PageMeta } from '@/components/page-meta'
 import { Select } from '@/components/select'
-import { Switch, SwitchField } from '@/components/switch'
 import { useProject } from '@/context/project-context'
 import { getErrorMessage } from '@/lib/project-form'
 import {
@@ -33,6 +32,7 @@ import {
 import { GearIcon } from '@radix-ui/react-icons'
 import type { IntegrationCredential, TicketSystem } from '@viberglass/types'
 import { useEffect, useMemo, useState } from 'react'
+import { SpaceAdvancedSettings } from './SpaceAdvancedSettings'
 
 interface LinkedIntegrationOption {
   integrationEntityId: string
@@ -418,7 +418,7 @@ export function ProjectSettingsPage() {
 
     try {
       if (!name.trim()) {
-        throw new Error('Space name is required')
+        throw new Error('Give the space a name.')
       }
 
       const selectedTicketingIntegration = ticketingIntegrations.find(
@@ -443,12 +443,12 @@ export function ProjectSettingsPage() {
           (integration) => integration.integrationEntityId === scmIntegrationId
         )
         if (!selectedScmIntegration) {
-          throw new Error('Select a valid SCM integration linked to this space')
+          throw new Error('Choose a code host linked to this space under Connections, or choose No code connection.')
         }
 
         const normalizedSourceRepository = sourceRepository.trim()
         if (!normalizedSourceRepository) {
-          throw new Error('Source repository is required when SCM integration is selected')
+          throw new Error('Enter the repository address, e.g. https://github.com/acme/storefront, or choose No code connection.')
         }
 
         const scmConfig = await upsertProjectScmConfig(projectData.id, {
@@ -480,7 +480,7 @@ export function ProjectSettingsPage() {
   if (isProjectLoading && !projectData) {
     return (
       <div className="mx-auto max-w-4xl p-6 lg:p-8">
-        <Heading>Space Settings</Heading>
+        <Heading>Space settings</Heading>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Loading space settings...</p>
       </div>
     )
@@ -488,13 +488,11 @@ export function ProjectSettingsPage() {
 
   return (
     <>
-      <PageMeta title={projectData?.name ? `${projectData.name} | Settings` : 'Space Settings'} />
+      <PageMeta title={projectData?.name ? `${projectData.name} | Settings` : 'Space settings'} />
       <div className="max-w-4xl">
-        <Heading>Space Settings</Heading>
+        <Heading>Space settings</Heading>
 
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Configure core space settings, tracker integration, and SCM execution.
-        </p>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">What this space is called, who can see it, and the code its agents work on.</p>
 
         {projectError && (
           <div className="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
@@ -523,23 +521,151 @@ export function ProjectSettingsPage() {
             <Fieldset disabled={isSubmitting}>
               <FieldGroup className="space-y-8">
                 <Field>
-                  <Label>Space Name</Label>
-                  <Description>Update the space name shown across the platform.</Description>
+                  <Label>Name</Label>
+                  <Description>How the space appears in the sidebar and on its tasks.</Description>
                   <Input name="name" value={name} onChange={(event) => setName(event.target.value)} required />
                 </Field>
 
-                <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <span className="font-medium text-zinc-950 dark:text-white">Access: </span>
+                  {projectData.isPrivate ? 'Private. Only its members see it.' : 'Open. Everyone in the workspace can see it.'}{' '}
+                  <Link href={`/spaces/${project}/settings/members`} className="text-[var(--accent-11)] underline decoration-[var(--gray-7)] underline-offset-2 hover:decoration-current">
+                    Change access and members
+                  </Link>
+                </div>
+
+                <div className="rounded-xl border border-zinc-950/10 p-6 dark:border-white/10">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <Label className="text-base">Ticketing Integration</Label>
-                      <Description>Select which linked integration to use for bug tracking.</Description>
+                      <Label className="text-base">Repository</Label>
+                      <Description>The code the agents work on: where they clone it, which branch they start from, and how they push.</Description>
                     </div>
                     <Link
                       href={`/spaces/${project}/settings/connections`}
                       className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-burnt-orange hover:underline"
                     >
                       <GearIcon className="size-4" />
-                      Manage Links
+                      Connections
+                    </Link>
+                  </div>
+
+                  {scmLoadError && (
+                    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+                      {scmLoadError}
+                    </div>
+                  )}
+
+                  <FieldGroup className="space-y-4">
+                    <Field>
+                      <Label>Code host</Label>
+                      {isLoadingIntegrations || isLoadingScmConfig ? <Description>Loading code connections…</Description> : null}
+                      <Select
+                        name="scm_integration"
+                        value={scmIntegrationId}
+                        onChange={(value) => {
+                          if (value === '') return
+                          setScmIntegrationId(value)
+                        }}
+                        disabled={isLoadingIntegrations || isLoadingScmConfig || scmIntegrations.length === 0}
+                      >
+                        <option value={NONE_OPTION}>{scmIntegrations.length === 0 ? 'No code connection yet' : 'No code connection'}</option>
+                        {scmIntegrations.map((integration) => (
+                          <option key={integration.integrationEntityId} value={integration.integrationEntityId}>
+                            {integration.label} ({integration.system})
+                          </option>
+                        ))}
+                      </Select>
+                      {scmIntegrations.length === 0 ? (
+                        <Description className="mt-2">
+                          Link GitHub, GitLab or Bitbucket under{' '}
+                          <Link href={`/spaces/${project}/settings/connections`} className="text-brand-burnt-orange hover:underline">
+                            Connections
+                          </Link>{' '}
+                          first.
+                        </Description>
+                      ) : null}
+                    </Field>
+
+                    <Field>
+                      <Label>Repository address</Label>
+                      <Description>The address you would clone, e.g. https://github.com/acme/storefront.</Description>
+                      <Input
+                        name="source_repository"
+                        placeholder="https://github.com/acme/storefront"
+                        value={sourceRepository}
+                        onChange={(event) => setSourceRepository(event.target.value)}
+                        disabled={scmIntegrationId === NONE_OPTION}
+                      />
+                    </Field>
+
+                    <Field>
+                      <Label>Default branch</Label>
+                      <Description>Agents start from this branch and open pull requests into it. Usually main.</Description>
+                      <Input
+                        name="base_branch"
+                        placeholder="main"
+                        value={baseBranch}
+                        onChange={(event) => setBaseBranch(event.target.value)}
+                        disabled={scmIntegrationId === NONE_OPTION}
+                      />
+                    </Field>
+
+                    <Field>
+                      <Label>Access token</Label>
+                      <Description>
+                        The token agents clone and push with. It needs to read the repository and open pull requests. Tokens are added on
+                        the{' '}
+                        <Link href={`/settings/connections/${scmIntegrationId}`} className="text-brand-burnt-orange hover:underline">
+                          connection
+                        </Link>
+                        .
+                      </Description>
+                      <Select
+                        name="integration_credential_id"
+                        value={integrationCredentialId}
+                        onChange={(value) => {
+                          // Radix can emit an empty transition value while options are reconciling.
+                          if (value === '') return
+                          setIntegrationCredentialId(value)
+                        }}
+                        disabled={scmIntegrationId === NONE_OPTION || isLoadingIntegrationCredentials}
+                      >
+                        <option value={NONE_OPTION}>{isLoadingIntegrationCredentials ? 'Loading tokens…' : 'Choose a token'}</option>
+                        {integrationCredentials.map((credential) => (
+                          <option key={credential.id} value={credential.id}>
+                            {credential.name}
+                            {credential.isDefault ? ' (default)' : ''}
+                          </option>
+                        ))}
+                      </Select>
+                      {integrationCredentialsError ? (
+                        <Description className="mt-2 text-red-600 dark:text-red-400">{integrationCredentialsError}</Description>
+                      ) : null}
+                      {!isLoadingIntegrationCredentials && integrationCredentials.length === 0 && scmIntegrationId !== NONE_OPTION ? (
+                        <Description className="mt-2">
+                          This connection has no tokens yet. Add one on the{' '}
+                          <Link href={`/settings/connections/${scmIntegrationId}`} className="text-brand-burnt-orange hover:underline">
+                            connection
+                          </Link>
+                          .
+                        </Description>
+                      ) : null}
+                    </Field>
+                  </FieldGroup>
+                </div>
+
+                <div className="rounded-xl border border-zinc-950/10 p-6 dark:border-white/10">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Issue tracker</Label>
+                      <Description>Optional. Tasks can live in Viberglass alone, or sync with a tracker linked under Connections.</Description>
+                    </div>
+                    <Link
+                      href={`/spaces/${project}/settings/connections`}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-burnt-orange hover:underline"
+                    >
+                      <GearIcon className="size-4" />
+                      Connections
                     </Link>
                   </div>
 
@@ -566,8 +692,8 @@ export function ProjectSettingsPage() {
                       >
                         <option value={NONE_OPTION}>
                           {ticketingIntegrations.length === 0
-                            ? 'No integrations linked - use Viberglass as ticketing system'
-                            : 'Use Viberglass as ticketing system (no external integration)'}
+                            ? 'No tracker linked: tasks live in Viberglass'
+                            : 'None: tasks live in Viberglass'}
                         </option>
                         {ticketingIntegrations.map((integration) => (
                           <option key={integration.integrationEntityId} value={integration.integrationEntityId}>
@@ -577,224 +703,35 @@ export function ProjectSettingsPage() {
                       </Select>
                       {ticketingIntegrations.length === 0 && (
                         <Description className="mt-2">
-                          You can use Viberglass as your sole ticketing system, or{' '}
+                          Tasks live in Viberglass. To sync them with an issue tracker,{' '}
                           <Link
                             href={`/spaces/${project}/settings/connections`}
                             className="text-brand-burnt-orange hover:underline"
                           >
-                            link an external integration
-                          </Link>{' '}
-                          to sync tickets externally.
+                            link one under Connections
+                          </Link>
+                          .
                         </Description>
                       )}
                     </Field>
                   )}
                 </div>
 
-                <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div>
-                      <Label className="text-base">SCM Execution</Label>
-                      <Description>
-                        Configure repository, branch strategy, and credential secret used by agents.
-                      </Description>
-                    </div>
-                    <Link
-                      href={`/spaces/${project}/settings/connections`}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-burnt-orange hover:underline"
-                    >
-                      <GearIcon className="size-4" />
-                      Manage Links
-                    </Link>
-                  </div>
 
-                  {scmLoadError && (
-                    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
-                      {scmLoadError}
-                    </div>
-                  )}
-
-                  <FieldGroup className="space-y-4">
-                    <Field>
-                      <Label>SCM Integration</Label>
-                      {isLoadingIntegrations || isLoadingScmConfig ? (
-                        <Description>Loading SCM integration options...</Description>
-                      ) : null}
-                      <Select
-                        name="scm_integration"
-                        value={scmIntegrationId}
-                        onChange={(value) => {
-                          if (value === '') return
-                          setScmIntegrationId(value)
-                        }}
-                        disabled={isLoadingIntegrations || isLoadingScmConfig || scmIntegrations.length === 0}
-                      >
-                        <option value={NONE_OPTION}>{scmIntegrations.length === 0 ? 'No code connection yet' : 'Select a connection…'}</option>
-                        {scmIntegrations.map((integration) => (
-                          <option key={integration.integrationEntityId} value={integration.integrationEntityId}>
-                            {integration.label} ({integration.system})
-                          </option>
-                        ))}
-                      </Select>
-                      {scmIntegrations.length === 0 ? (
-                        <Description className="mt-2">
-                          Link a GitHub/GitLab/Bitbucket integration in{' '}
-                          <Link
-                            href={`/spaces/${project}/settings/connections`}
-                            className="text-brand-burnt-orange hover:underline"
-                          >
-                            project integrations
-                          </Link>{' '}
-                          to enable SCM configuration.
-                        </Description>
-                      ) : null}
-                    </Field>
-
-                    <Field>
-                      <Label>Source Repository</Label>
-                      <Description>Repository used by agent runners when executing runs.</Description>
-                      <Input
-                        name="source_repository"
-                        placeholder="https://github.com/org/repo"
-                        value={sourceRepository}
-                        onChange={(event) => setSourceRepository(event.target.value)}
-                        disabled={scmIntegrationId === NONE_OPTION}
-                      />
-                    </Field>
-
-                    <Field>
-                      <Label>Base Branch</Label>
-                      <Description>Default branch used as merge target and checkout base.</Description>
-                      <Input
-                        name="base_branch"
-                        placeholder="main"
-                        value={baseBranch}
-                        onChange={(event) => setBaseBranch(event.target.value)}
-                        disabled={scmIntegrationId === NONE_OPTION}
-                      />
-                    </Field>
-
-                    <Field>
-                      <Label>Pull Request Repository (Optional)</Label>
-                      <Description>
-                        Override PR destination repository. Leave empty to use source repository.
-                      </Description>
-                      <Input
-                        name="pr_repository"
-                        placeholder="https://github.com/org/repo"
-                        value={pullRequestRepository}
-                        onChange={(event) => setPullRequestRepository(event.target.value)}
-                        disabled={scmIntegrationId === NONE_OPTION}
-                      />
-                    </Field>
-
-                    <Field>
-                      <Label>Pull Request Base Branch (Optional)</Label>
-                      <Description>Override PR base branch. Leave empty to use base branch.</Description>
-                      <Input
-                        name="pr_base_branch"
-                        placeholder="main"
-                        value={pullRequestBaseBranch}
-                        onChange={(event) => setPullRequestBaseBranch(event.target.value)}
-                        disabled={scmIntegrationId === NONE_OPTION}
-                      />
-                    </Field>
-
-                    <Field>
-                      <Label>Branch Name Template (Optional)</Label>
-                      <Description>Template used by workers when creating fix branches.</Description>
-                      <Description>
-                        Available placeholders: <code>{'{{ ticket }}'}</code>, <code>{'{{ original_ticket }}'}</code>,{' '}
-                        <code>{'{{ clanker }}'}</code>.
-                      </Description>
-                      <Input
-                        name="branch_name_template"
-                        placeholder="viberator/{{ ticket }}"
-                        value={branchNameTemplate}
-                        onChange={(event) => setBranchNameTemplate(event.target.value)}
-                        disabled={scmIntegrationId === NONE_OPTION}
-                      />
-                    </Field>
-
-                    <Field>
-                      <Label>Integration Credential (Recommended)</Label>
-                      <Description>
-                        Select an integration credential for SCM authentication. These are managed in the{' '}
-                        <Link
-                          href={`/settings/connections/${scmIntegrationId}`}
-                          className="text-brand-burnt-orange hover:underline"
-                        >
-                          integration settings
-                        </Link>
-                        .
-                      </Description>
-                      <Select
-                        name="integration_credential_id"
-                        value={integrationCredentialId}
-                        onChange={(value) => {
-                          // Radix can emit an empty transition value while options are reconciling.
-                          if (value === '') return
-                          setIntegrationCredentialId(value)
-                        }}
-                        disabled={scmIntegrationId === NONE_OPTION || isLoadingIntegrationCredentials}
-                      >
-                        <option value={NONE_OPTION}>
-                          {isLoadingIntegrationCredentials
-                            ? 'Loading credentials...'
-                            : 'Select an integration credential'}
-                        </option>
-                        {integrationCredentials.map((credential) => (
-                          <option key={credential.id} value={credential.id}>
-                            {credential.name}
-                            {credential.isDefault ? ' (default)' : ''}
-                          </option>
-                        ))}
-                      </Select>
-                      {integrationCredentialsError ? (
-                        <Description className="mt-2 text-red-600 dark:text-red-400">
-                          {integrationCredentialsError}
-                        </Description>
-                      ) : null}
-                      {!isLoadingIntegrationCredentials &&
-                      integrationCredentials.length === 0 &&
-                      scmIntegrationId !== NONE_OPTION ? (
-                        <Description className="mt-2">
-                          No integration credentials configured. Create one in{' '}
-                          <Link
-                            href={`/settings/connections/${scmIntegrationId}`}
-                            className="text-brand-burnt-orange hover:underline"
-                          >
-                            integration settings
-                          </Link>
-                          .
-                        </Description>
-                      ) : null}
-                    </Field>
-                  </FieldGroup>
-                </div>
-
-                <div className="rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-6 dark:border-white/10 dark:bg-zinc-900/50">
-                  <SwitchField>
-                    <Label className="text-base">Enable Auto-fix</Label>
-                    <Description>Allow AI to automatically suggest and create PRs for bug reports.</Description>
-                    <Switch checked={autoFixEnabled} onChange={setAutoFixEnabled} />
-                  </SwitchField>
-
-                  {autoFixEnabled && (
-                    <Field className="mt-4">
-                      <Label>Auto-fix Tags</Label>
-                      <Description>
-                        Comma-separated tags to trigger automatic fixes (e.g. &quot;bug, high-priority&quot;).
-                      </Description>
-                      <Input
-                        name="auto_fix_tags"
-                        value={autoFixTags}
-                        onChange={(event) => setAutoFixTags(event.target.value)}
-                        placeholder="bug, fix-requested"
-                      />
-                    </Field>
-                  )}
-                </div>
+                <SpaceAdvancedSettings
+                  hasRepository={scmIntegrationId !== NONE_OPTION}
+                  pullRequestRepository={pullRequestRepository}
+                  onPullRequestRepositoryChange={setPullRequestRepository}
+                  pullRequestBaseBranch={pullRequestBaseBranch}
+                  onPullRequestBaseBranchChange={setPullRequestBaseBranch}
+                  branchNameTemplate={branchNameTemplate}
+                  onBranchNameTemplateChange={setBranchNameTemplate}
+                  autoFixEnabled={autoFixEnabled}
+                  onAutoFixEnabledChange={setAutoFixEnabled}
+                  autoFixTags={autoFixTags}
+                  onAutoFixTagsChange={setAutoFixTags}
+                  taskKeyExample={`${projectData.keyPrefix}-12`}
+                />
 
                 <div className="flex justify-end gap-4 border-t border-zinc-950/10 pt-8 dark:border-white/10">
                   <Button type="button" outline onClick={resetForm}>

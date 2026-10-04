@@ -25,8 +25,16 @@ function clanker(id: string, overrides: Partial<Clanker> = {}): Clanker {
   };
 }
 
+function ready(clankers: Clanker[]): Clanker[] {
+  return clankers.map((each) => ({
+    ...each,
+    readiness: each.readiness ?? { state: each.status === "active" ? "ready" : "not_running", problem: each.status === "active" ? null : "Not started.", lastRun: null },
+  }));
+}
+
 function setup() {
   const deps = {
+    readiness: { withReadiness: jest.fn(async (clankers: Clanker[]) => ready(clankers)) },
     sessions: { getLatestClankerIdByTicket: jest.fn().mockResolvedValue(null) },
     clankers: {
       getClanker: jest.fn(async (id: string) => (id === CLAUDE || id === CODEX ? clanker(id) : null)),
@@ -68,8 +76,43 @@ describe("TaskTurnAgentResolver", () => {
     deps.clankers.getClankerBySlug.mockResolvedValue(null);
     deps.clankers.listClankers.mockResolvedValue([clanker("stopped", { status: "inactive" }), clanker(CODEX)]);
     await expect(resolver.resolve("t", { message: "" })).resolves.toBe(CODEX);
+    await expect(resolver.preview("t")).resolves.toMatchObject({ clanker: { id: CODEX }, via: "first_ready" });
 
     deps.clankers.listClankers.mockResolvedValue([]);
     await expect(resolver.resolve("t", { message: "" })).rejects.toMatchObject({ code: "NO_AGENT", statusCode: 409 });
+  });
+
+  it("never picks an agent that isn't ready on its own", async () => {
+    const { deps, resolver } = setup();
+    const keyless = clanker(CLAUDE, { readiness: { state: "needs_key", problem: "No model key.", lastRun: null } });
+    deps.clankers.getClankerBySlug.mockResolvedValue(keyless);
+    deps.clankers.listClankers.mockResolvedValue([keyless, clanker(CODEX)]);
+    await expect(resolver.preview("t")).resolves.toMatchObject({ clanker: { id: CODEX }, via: "first_ready" });
+
+    deps.clankers.listClankers.mockResolvedValue([keyless]);
+    await expect(resolver.resolve("t", { message: "" })).rejects.toMatchObject({
+      code: "NO_AGENT",
+      message: expect.stringContaining("No model key."),
+    });
+  });
+
+  it("refuses an agent asked for, or already on the task, that has no key", async () => {
+    const { deps, resolver } = setup();
+    deps.clankers.getClanker.mockResolvedValue(clanker(CODEX, { name: "Codex", readiness: { state: "needs_key", problem: "No model key.", lastRun: null } }));
+
+    await expect(resolver.resolve("t", { agentId: CODEX, message: "" })).rejects.toMatchObject({
+      code: "AGENT_NOT_READY",
+      message: "Codex can't run yet. No model key.",
+    });
+    deps.sessions.getLatestClankerIdByTicket.mockResolvedValue(CODEX);
+    await expect(resolver.resolve("t", { message: "go on" })).rejects.toMatchObject({ code: "AGENT_NOT_READY" });
+  });
+
+  it("still lets a named agent run after its key was rejected, so a fixed key can be tried", async () => {
+    const { deps, resolver } = setup();
+    deps.clankers.getClanker.mockResolvedValue(
+      clanker(CODEX, { readiness: { state: "credential_rejected", problem: "Rejected.", lastRun: null } }),
+    );
+    await expect(resolver.resolve("t", { agentId: CODEX, message: "" })).resolves.toBe(CODEX);
   });
 });

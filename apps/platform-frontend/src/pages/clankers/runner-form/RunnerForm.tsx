@@ -56,7 +56,10 @@ function Section({ title, description, children }: { title: string; description:
   )
 }
 
-/** Creates or edits a runner: agent, then model and key, compute, instructions, tools, and extra variables. */
+/**
+ * Creates or edits a runner: name, agent, then model and key up front; compute
+ * (Docker by default), instructions, tools and extra variables fold under Advanced.
+ */
 export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, onCancel }: RunnerFormProps) {
   const initialForm = initial
     ? readClankerDeploymentConfig({ deploymentConfig: initial.deploymentConfig, agent: initial.agent }).form
@@ -87,6 +90,9 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         setDeploymentStrategies(strategies)
         setSecrets(allSecrets)
         if (!initial) {
+          // Docker on this host suits most runners; other compute stays under Advanced.
+          const docker = strategies.find((strategy) => strategy.name === 'docker') ?? strategies[0]
+          if (docker) setSelectedStrategyId((current) => current || docker.id)
           // A new runner on an agent with one provider starts with that provider's newest key.
           const options = providerOptionsForAgent(DEFAULT_AGENT_TYPE)
           if (options.length === 1) {
@@ -126,6 +132,15 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
       ? { secretId: modelKeyId, envVar: currentOption?.envVar ?? modelKeyEnvVar }
       : null
   const bindings = [...(modelKey ? [modelKey] : []), ...extras]
+
+  const advancedSummary = [
+    selectedStrategy ? `Runs on ${selectedStrategy.name === 'docker' ? 'Docker on this host' : selectedStrategy.name}` : 'No compute chosen',
+    agentInstructions.trim() ? 'custom instructions' : 'default instructions',
+    mcpServerIds.length + skillIds.length > 0 ? `${mcpServerIds.length + skillIds.length} tools` : 'no extra tools',
+    extras.length > 0 ? `${extras.length} extra variable${extras.length === 1 ? '' : 's'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   function changeSettings(changes: Partial<AgentSettings>) {
     setSettings((previous) => ({ ...previous, ...changes }))
@@ -242,72 +257,80 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         />
       </Section>
 
-      <Section title="Compute" description="Where the agent runs.">
-        <FieldGroup>
-          <DeploymentStrategyCards
-            strategies={deploymentStrategies}
-            value={selectedStrategyId}
-            onChange={(strategyId) => {
-              setSelectedStrategyId(strategyId)
-              setProvisioningMode('managed')
-            }}
-          />
-          <StrategySpecificFields
-            strategyName={selectedStrategy?.name}
-            provisioningMode={provisioningMode}
-            onProvisioningModeChange={setProvisioningMode}
-            defaults={initialForm}
-          />
-        </FieldGroup>
-      </Section>
+      <details className="mt-10 rounded-lg border border-zinc-950/10 px-5 py-4 dark:border-white/10">
+        <summary className="cursor-pointer text-base/6 font-semibold text-zinc-950 dark:text-white">
+          Advanced: compute, instructions, tools and extra variables
+          <span className="mt-1 block text-sm font-normal text-zinc-500 dark:text-zinc-400">{advancedSummary}</span>
+        </summary>
+        <div className="mt-6">
+          <Section title="Compute" description="Where the agent runs.">
+            <FieldGroup>
+              <DeploymentStrategyCards
+                strategies={deploymentStrategies}
+                value={selectedStrategyId}
+                onChange={(strategyId) => {
+                  setSelectedStrategyId(strategyId)
+                  setProvisioningMode('managed')
+                }}
+              />
+              <StrategySpecificFields
+                strategyName={selectedStrategy?.name}
+                provisioningMode={provisioningMode}
+                onProvisioningModeChange={setProvisioningMode}
+                defaults={initialForm}
+              />
+            </FieldGroup>
+          </Section>
 
-      <Section title="Instructions" description="AGENTS.md and the agent's own config file.">
-        <FieldGroup>
-          <AgentInstructionsField
-            agentInstructions={agentInstructions}
-            onAgentInstructionsChange={setAgentInstructions}
-            onError={setError}
-          />
-          <HarnessConfigEditor
-            agent={agent}
-            enabled={harnessEnabled}
-            content={harnessContent}
-            boundEnvVars={bindings.map((binding) => binding.envVar)}
-            onEnable={() => {
-              setHarnessContent(getHarnessConfigFile(agent)?.placeholder ?? '')
-              setHarnessEnabled(true)
-            }}
-            onRemove={() => {
-              setHarnessEnabled(false)
-              setHarnessContent('')
-            }}
-            onChange={setHarnessContent}
-          />
-        </FieldGroup>
-      </Section>
+          <Section title="Instructions" description="AGENTS.md and the agent's own config file.">
+            <FieldGroup>
+              <AgentInstructionsField
+                agentInstructions={agentInstructions}
+                onAgentInstructionsChange={setAgentInstructions}
+                onError={setError}
+              />
+              <HarnessConfigEditor
+                agent={agent}
+                enabled={harnessEnabled}
+                content={harnessContent}
+                boundEnvVars={bindings.map((binding) => binding.envVar)}
+                onEnable={() => {
+                  setHarnessContent(getHarnessConfigFile(agent)?.placeholder ?? '')
+                  setHarnessEnabled(true)
+                }}
+                onRemove={() => {
+                  setHarnessEnabled(false)
+                  setHarnessContent('')
+                }}
+                onChange={setHarnessContent}
+              />
+            </FieldGroup>
+          </Section>
 
-      <Section title="Tools" description="MCP servers and skills an admin approved for the workspace.">
-        <ToolsSection
-          mcpServerIds={mcpServerIds}
-          skillIds={skillIds}
-          onMcpServerIdsChange={setMcpServerIds}
-          onSkillIdsChange={setSkillIds}
-        />
-      </Section>
+          <Section title="Tools" description="MCP servers and skills an admin approved for the workspace.">
+            <ToolsSection
+              mcpServerIds={mcpServerIds}
+              skillIds={skillIds}
+              onMcpServerIdsChange={setMcpServerIds}
+              onSkillIdsChange={setSkillIds}
+            />
+          </Section>
 
-      <Section
-        title="Extra environment variables"
-        description="Other secrets the agent can use, such as tokens for MCP servers or documentation tools. Repository and cloud credentials never reach the agent."
-      >
-        <SecretBindingsField
-          secrets={secrets}
-          selectable={secrets.filter((secret) => secret.id !== modelKey?.secretId && !secret.purpose)}
-          bindings={extras}
-          onChange={setExtras}
-          agent={agent}
-          emptyMessage="No other secrets yet. Add them on the Secrets page."
-        />
-      </Section>
+          <Section
+            title="Extra environment variables"
+            description="Other secrets the agent can use, such as tokens for MCP servers or documentation tools. Repository and cloud credentials never reach the agent."
+          >
+            <SecretBindingsField
+              secrets={secrets}
+              selectable={secrets.filter((secret) => secret.id !== modelKey?.secretId && !secret.purpose)}
+              bindings={extras}
+              onChange={setExtras}
+              agent={agent}
+              emptyMessage="No other secrets yet. Add them on the Secrets page."
+            />
+          </Section>
+        </div>
+      </details>
 
       <div className="mt-10 flex gap-4">
         <Button type="submit" color="brand" disabled={isSubmitting}>

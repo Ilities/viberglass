@@ -12,6 +12,8 @@ import { TaskActivityRecorder } from "./tasks/TaskActivityRecorder";
 
 /** How much of a comment's quote its Activity entry keeps. */
 const QUOTE_IN_ACTIVITY = 80;
+/** Enough of a comment for the thread to show what was asked; the full text is on the document. */
+const COMMENT_IN_ACTIVITY = 600;
 
 export interface PhaseDocumentCommentView {
   id: string;
@@ -94,7 +96,12 @@ export class TicketPhaseDocumentCommentService {
       content,
       actor: input.actor,
     });
-    await this.activity.recordByCurrentActor(ticketId, "comment_added", { step: phase, quote: quote.exact.slice(0, QUOTE_IN_ACTIVITY) });
+    await this.activity.recordByCurrentActor(ticketId, "comment_added", {
+      step: phase,
+      quote: quote.exact.slice(0, QUOTE_IN_ACTIVITY),
+      commentId: comment.id,
+      comment: content.slice(0, COMMENT_IN_ACTIVITY),
+    });
 
     return this.toView(comment, document.content);
   }
@@ -139,6 +146,9 @@ export class TicketPhaseDocumentCommentService {
       resolvedAt,
       resolvedBy,
     });
+    if (updated.status !== existing.status) {
+      await this.activity.recordByCurrentActor(ticketId, "comment_status_changed", { step: phase, commentId, status: updated.status });
+    }
     const document = await this.documentDAO.getByTicketAndPhase(ticketId, phase);
 
     return this.toView(updated, document?.content ?? "");

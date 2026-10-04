@@ -47,6 +47,8 @@ export function describeActivity(entry: TaskActivityEntry, nameOf: (userId: stri
       // Entries from before quotes name the line instead.
       if (typeof entry.payload.quote === 'string') return `${who} commented on the ${step}: “${readableQuote(entry.payload.quote)}”`
       return typeof entry.payload.line === 'number' ? `${who} commented on the ${step}, line ${entry.payload.line}` : `${who} commented on the ${step}`
+    case 'comment_status_changed':
+      return `${who} ${entry.payload.status === 'resolved' ? 'resolved' : 'reopened'} a comment on the ${step}`
     case 'question_asked':
       return `The agent asked ${person} a question`
     case 'question_answered':

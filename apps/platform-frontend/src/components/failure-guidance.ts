@@ -13,13 +13,21 @@ export interface FailureGuidance {
   canRetry: boolean
 }
 
-function setupFixFor(code: string, project: string): { label: string; href: string } {
+/** The runner the failed run used, so a fix can go straight to it. */
+export interface FailedRunner {
+  name: string
+  slug: string
+}
+
+function setupFixFor(code: string, project: string, runner?: FailedRunner): { label: string; href: string } {
   switch (code) {
     case JOB_FAILURE_CODE.AGENT_CREDENTIAL_INVALID:
     case JOB_FAILURE_CODE.AGENT_QUOTA_EXHAUSTED:
-      return { label: 'Check the model key', href: '/settings/secrets' }
+      return runner
+        ? { label: `Check ${runner.name}'s model key`, href: `/settings/agents/${runner.slug}` }
+        : { label: 'Check the model key', href: '/settings/secrets' }
     case JOB_FAILURE_CODE.RUNNER_UNAVAILABLE:
-      return { label: 'Check agent runners', href: '/settings/agents' }
+      return runner ? { label: `Check ${runner.name}`, href: `/settings/agents/${runner.slug}` } : { label: 'Check agent runners', href: '/settings/agents' }
     default:
       return { label: 'Fix repository settings', href: `/spaces/${project}/settings` }
   }
@@ -30,7 +38,7 @@ function setupFixFor(code: string, project: string): { label: string; href: stri
  * everyone else an admin is needed; agent problems invite a retry; problems
  * in Viberglass itself say so instead of blaming the person's setup.
  */
-export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolean, project: string): FailureGuidance {
+export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolean, project: string, runner?: FailedRunner): FailureGuidance {
   const title = failure?.title ?? 'Run failed'
   const summary = failure?.summary ?? 'The run stopped before it could finish.'
 
@@ -40,14 +48,14 @@ export function failureGuidance(failure: JobFailure | undefined, isAdmin: boolea
         ? {
             title,
             summary,
-            nextStep: 'Fix the setup, then try again from the task.',
-            fix: setupFixFor(failure.code, project),
+            nextStep: 'Trying again with the same setup will fail the same way. Fix the setup, then try again from the task.',
+            fix: setupFixFor(failure.code, project, runner),
             canRetry: false,
           }
         : {
             title,
             summary,
-            nextStep: 'A workspace admin needs to fix this before the agent can run again. Let them know.',
+            nextStep: `A workspace admin needs to fix ${runner ? `${runner.name}'s setup` : 'the setup'} before the agent can run again; trying again before that fails the same way. Let them know.`,
             canRetry: false,
           }
     case 'agent':

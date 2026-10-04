@@ -390,8 +390,11 @@ export const integrationConfigSchema = Joi.object({
 
 const userRoleSchema = Joi.string().valid(...WORKSPACE_ROLES);
 
+/** Any well-formed address: a self-hosted workspace may use an internal domain outside the public top-level domains. */
+const EMAIL = Joi.string().email({ tlds: { allow: false } });
+
 export const registerSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: EMAIL.required(),
   name: Joi.string().min(1).max(255).required(),
   password: Joi.string().min(8).max(255).required(),
 });
@@ -405,12 +408,12 @@ export const updateUserRoleSchema = Joi.object({
 });
 
 export const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: EMAIL.required(),
   password: Joi.string().min(8).max(255).required(),
 });
 
 export const createInviteSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: EMAIL.required(),
   role: userRoleSchema.required(),
   spaceIds: Joi.array().items(Joi.string().uuid()).unique().default([]),
 });
@@ -425,7 +428,7 @@ export const resetPasswordSchema = Joi.object({
 });
 
 export const forgotPasswordSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: EMAIL.required(),
 });
 
 // Claw (scheduled task) schemas

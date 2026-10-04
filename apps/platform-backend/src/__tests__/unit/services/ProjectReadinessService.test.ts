@@ -73,6 +73,7 @@ describe("ProjectReadinessService", () => {
     return {
       name: "Default agent",
       slug: "default-agent",
+      agent: "claude-code",
       status: "inactive",
       statusMessage: null,
       deploymentStrategyId: "strategy-1",
@@ -136,6 +137,20 @@ describe("ProjectReadinessService", () => {
 
     expect(check(readiness, "agentRunner")).toMatchObject({ state: "missing", remediationUrl: "/setup" });
     expect(check(readiness, "agentCredentials")).toMatchObject({ state: "missing", remediationUrl: "/setup" });
+  });
+
+  it("doesn't call a running agent without a model key ready", async () => {
+    mockClankerDAO.listClankers.mockResolvedValue([runner({ status: "active", secretBindings: [] })]);
+
+    const readiness = await new ProjectReadinessService().getReadiness("project-1");
+
+    expect(readiness?.automationAvailable).toBe(false);
+    expect(check(readiness, "agentRunner")).toMatchObject({
+      state: "unavailable",
+      code: "configure_agent_credentials",
+      summary: expect.stringContaining("No model key"),
+      remediationUrl: "/settings/agents/default-agent",
+    });
   });
 
   it("reports a configured project as automation-ready", async () => {

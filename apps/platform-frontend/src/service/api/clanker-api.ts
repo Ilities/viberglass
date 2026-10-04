@@ -4,7 +4,6 @@ import type {
   ApiResponse,
   Clanker,
   ClankerConfigFile,
-  ClankerHealthStatus,
   CreateClankerRequest,
   DeploymentStrategy,
   PaginatedResponse,
@@ -131,18 +130,6 @@ export async function stopClanker(id: string): Promise<Clanker> {
   return deactivateClanker(id)
 }
 
-export async function getClankerHealth(id: string): Promise<ClankerHealthStatus> {
-  const response = await apiFetch(`${API_BASE_URL}/api/clankers/${id}/health`)
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Agent runner not found')
-    }
-    throw new Error('Failed to fetch agent runner health')
-  }
-  const data: ApiResponse<ClankerHealthStatus> = await response.json()
-  return data.data
-}
-
 // Config file API functions
 
 export async function getConfigFiles(clankerId: string): Promise<ClankerConfigFile[]> {
@@ -217,7 +204,6 @@ export async function getDeploymentStrategyByName(name: string): Promise<Deploym
 export type {
   Clanker,
   ClankerConfigFile,
-  ClankerHealthStatus,
   ConfigFileInput,
   CreateClankerRequest,
   DeploymentStrategy,

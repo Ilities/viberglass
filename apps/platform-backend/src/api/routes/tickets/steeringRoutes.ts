@@ -14,7 +14,7 @@ import { validateUuidParam } from "../../middleware/validation";
 export function registerTaskSteeringRoutes(
   router: Router,
   deps: {
-    steering: Pick<TaskSteeringService, "interrupt" | "pause" | "resume">;
+    steering: Pick<TaskSteeringService, "interrupt" | "pause" | "resume" | "resumeTarget">;
     takeover: Pick<TaskTakeoverService, "takeOver" | "handBack">;
     branches: Pick<TaskCodeBranchService, "describe">;
     pausedRuns: Pick<PausedRunRetryService, "pausedTaskIds" | "retryAll">;
@@ -59,6 +59,15 @@ export function registerTaskSteeringRoutes(
     try {
       await deps.steering.pause(req.params.id, req.authContext!.user.id);
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // What resuming, or handing the work back, would carry on: one agent, and the step it would ask for again.
+  router.get("/:id/agent/resume-target", validateUuidParam("id"), async (req, res, next) => {
+    try {
+      res.json({ success: true, data: await deps.steering.resumeTarget(req.params.id) });
     } catch (error) {
       next(error);
     }

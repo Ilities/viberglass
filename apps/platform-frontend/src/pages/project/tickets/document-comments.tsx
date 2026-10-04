@@ -1,3 +1,4 @@
+import { onTabListKeyDown } from '@/components/tab-button'
 import { Button } from '@/components/button'
 import { Textarea } from '@/components/textarea'
 import {
@@ -94,13 +95,14 @@ export function CommentComposer({
   return (
     <div className="space-y-2">
       <blockquote className="line-clamp-3 border-l-2 border-amber-400 pl-2 text-xs text-[var(--gray-10)]">{readableQuote(quote.exact)}</blockquote>
-      <div role="tablist" aria-label="Comment or suggest" className="flex gap-1">
+      <div role="tablist" aria-label="Comment or suggest" className="flex gap-1" onKeyDown={onTabListKeyDown}>
         {(['comment', 'suggestion'] as const).map((option) => (
           <button
             key={option}
             type="button"
             role="tab"
             aria-selected={mode === option}
+            tabIndex={mode === option ? 0 : -1}
             onClick={() => setMode(option)}
             className={`rounded px-2 py-0.5 text-xs ${mode === option ? 'bg-[var(--accent-9)] text-white' : 'text-[var(--gray-10)] hover:text-[var(--gray-12)]'}`}
           >

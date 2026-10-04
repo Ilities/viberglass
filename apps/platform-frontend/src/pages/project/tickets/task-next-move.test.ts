@@ -74,13 +74,17 @@ describe('decideTaskNextMove', () => {
 describe('describeStep', () => {
   const move = { kind: 'ready', step: 'planning' } as const
 
-  it('marks earlier steps written, later ones not yet, and the current one by the next move', () => {
-    expect(describeStep('research', 'planning', move)).toEqual({ position: 'done', label: 'Written' })
-    expect(describeStep('planning', 'planning', move)).toEqual({ position: 'current', label: 'Ready' })
-    expect(describeStep('execution', 'planning', move)).toEqual({ position: 'upcoming', label: 'Not yet' })
+  it('describes the shown step by the next move, and others by whether they exist', () => {
+    expect(describeStep('research', 'planning', move, true)).toEqual({ position: 'done', label: 'Written' })
+    expect(describeStep('planning', 'planning', move, true)).toEqual({ position: 'current', label: 'Ready' })
+    expect(describeStep('execution', 'planning', move, false)).toEqual({ position: 'upcoming', label: 'None yet' })
+  })
+
+  it("doesn't call research written when the task went straight to code", () => {
+    expect(describeStep('research', 'execution', { kind: 'working', step: 'execution', runId: null, sessionId: null }, false)).toEqual({ position: 'upcoming', label: 'None yet' })
   })
 
   it('marks the build done once the task is', () => {
-    expect(describeStep('execution', 'execution', { kind: 'done' })).toEqual({ position: 'done', label: 'Done' })
+    expect(describeStep('execution', 'execution', { kind: 'done' }, true)).toEqual({ position: 'done', label: 'Done' })
   })
 })

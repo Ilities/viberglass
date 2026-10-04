@@ -2,7 +2,7 @@ import { Button } from '@/components/button'
 import { Textarea } from '@/components/textarea'
 import { handBackTask } from '@/service/api/discussion-api'
 import type { TaskCodeBranch } from '@viberglass/types'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { HandoffCard } from '../jobs/handoff-card'
 
@@ -20,10 +20,12 @@ interface TaskTakeoverCardProps {
   branch: TaskCodeBranch
   canSteer: boolean
   onHandedBack: () => void
+  /** Which agent handing back resumes, and with what. */
+  resumes?: ReactNode
 }
 
 /** The task while someone works on it themselves: where the work is, and handing it back to the agent. */
-export function TaskTakeoverCard({ taskId, taskKey, branch, canSteer, onHandedBack }: TaskTakeoverCardProps) {
+export function TaskTakeoverCard({ taskId, taskKey, branch, canSteer, onHandedBack, resumes }: TaskTakeoverCardProps) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   if (!branch.takenOver) return null
@@ -56,6 +58,7 @@ export function TaskTakeoverCard({ taskId, taskKey, branch, canSteer, onHandedBa
       }
     >
       <p>The agent is paused. Push your commits to the task&apos;s branch, then hand it back: the agent reads what you pushed first.</p>
+      {resumes}
       <pre aria-label="Checkout commands" className="mt-3 overflow-x-auto rounded-md bg-[var(--gray-3)] p-3 font-mono text-xs text-[var(--gray-12)]">
         {checkoutCommands(branch, taskKey)}
       </pre>

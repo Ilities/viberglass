@@ -1,3 +1,4 @@
+import { fieldErrorsOf } from '@/lib/fieldErrors'
 import { API_BASE_URL } from '@/lib'
 import { apiFetch } from '@/service/api/client'
 
@@ -28,6 +29,9 @@ function toErrorMessage(error: unknown, fallback: string) {
   if (!error || typeof error !== 'object') {
     return fallback
   }
+
+  const fields = fieldErrorsOf(error)
+  if (fields) return fields.message
 
   if ('error' in error && typeof error.error === 'string' && error.error.trim()) {
     return error.error

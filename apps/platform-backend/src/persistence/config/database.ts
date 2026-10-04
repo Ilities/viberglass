@@ -1,5 +1,5 @@
 import { Kysely, PostgresDialect } from "kysely";
-import { Pool } from "pg";
+import { Pool, defaults, types } from "pg";
 import * as dotenv from "dotenv";
 import { Database } from "../types/database";
 
@@ -46,6 +46,15 @@ const dbConfig = process.env.DATABASE_URL
       user: process.env.DB_USER || "postgres",
       password: process.env.DB_PASSWORD || "",
     };
+
+/**
+ * Columns typed `timestamp` (without time zone) hold UTC, as the triggers that
+ * fill `updated_at` with the database's now() do. The process's own time zone
+ * must not leak into what it writes or reads there.
+ */
+const TIMESTAMP_WITHOUT_TIME_ZONE = 1114;
+defaults.parseInputDatesAsUTC = true;
+types.setTypeParser(TIMESTAMP_WITHOUT_TIME_ZONE, (value) => new Date(`${value.replace(" ", "T")}Z`));
 
 const pool = new Pool({
   host: dbConfig.host,

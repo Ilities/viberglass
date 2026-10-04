@@ -56,8 +56,17 @@ export function NotificationSettingsPage() {
         <div>
           <Heading>Notifications</Heading>
           <Text className="mt-2">
-            Home shows every task that needs you, with what&apos;s new in each. Review requests, mentions and failures on
-            your tasks can also reach you in Slack.
+            {user?.role === 'viewer' ? (
+              <>
+                You can read the spaces you belong to. Overview shows what&apos;s happening in them; open any task to follow its
+                conversation and documents.
+              </>
+            ) : (
+              <>
+                Home shows every task that needs you, with what&apos;s new in each. Review requests, mentions and failures on your
+                tasks can also reach you in Slack.
+              </>
+            )}
           </Text>
         </div>
         {channels && (
@@ -65,7 +74,7 @@ export function NotificationSettingsPage() {
             <section className="space-y-2">
               <Subheading>Slack</Subheading>
               {!channels.slackAvailable ? (
-                <Text>Slack isn't connected to this workspace. An admin can connect it under Settings → Connections.</Text>
+                <Text>Slack isn't connected to this workspace. An admin can connect it under Workspace settings → Connections.</Text>
               ) : channels.slackLinked ? (
                 <div className="flex items-center gap-3">
                   <Text>Linked. You get DMs for review requests, mentions, new tasks you own and failed runs.</Text>

@@ -1,5 +1,5 @@
 import { Button } from '@/components/button'
-import { TabButton } from '@/components/tab-button'
+import { onTabListKeyDown, TabButton } from '@/components/tab-button'
 import { useAuth } from '@/context/auth-context'
 import {
   savePlanningDocument,
@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { BuildPullRequestPanel } from './build-pull-request-panel'
 import { CommentableDocument } from './commentable-document'
 import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentComments } from './document-comments'
+import { DocumentVersion } from './document-version'
 import { STEP_NAME, type TaskNextMove, type TaskStep } from './task-next-move'
 import { TaskRunLine } from './task-run-line'
 import { countNewComments } from './task-suggestions'
@@ -23,6 +24,8 @@ export type StepView = 'document' | 'runs' | 'comments'
 interface TaskStepViewProps {
   step: TaskStep
   view: StepView
+  /** An earlier version of the document to show read-only, instead of the current one. */
+  version?: number | null
   onView: (view: StepView) => void
   data: TaskPageData
   project: string
@@ -39,6 +42,12 @@ interface TaskStepViewProps {
 }
 
 const DOCUMENT_NOUN = { research: 'research', planning: 'plan' } as const
+
+const VIEW_PANEL_ID = 'task-step-view-panel'
+const viewTabId = (view: StepView) => `task-step-view-tab-${view}`
+/** The artifact tabs (Research, Plan, Code) and the panel they show. */
+export const stepTabId = (step: TaskStep) => `task-artifact-tab-${step}`
+export const stepPanelId = (step: TaskStep) => `task-artifact-panel-${step}`
 
 function DocumentStep({
   step,
@@ -99,12 +108,18 @@ function DocumentStep({
   }
 
   if (!hasContent) {
+    // Read-only people are told who can make it and where to follow it, never to do what they can't.
+    const canAsk = Boolean(data.capabilities?.canAsk)
     const empty =
       move.kind === 'working'
         ? `The agent is writing the ${noun}. It appears here when it's done.`
         : move.kind === 'failed'
           ? `No ${noun} yet: the last run failed before writing it.`
-          : `No ${noun} yet. Ask the agent for it in the thread, or write it yourself.`
+          : canAsk
+            ? `No ${noun} yet. Ask the agent for it in the thread, or write it yourself.`
+            : canEdit
+              ? `No ${noun} yet. You can write it yourself; people on the task can ask the agent for it.`
+              : `No ${noun} yet. People on this task can ask the agent for it; it appears here, and in the thread, when it's written.`
     return (
       <div className="py-6 text-sm text-[var(--gray-10)]">
         <p>{empty}</p>
@@ -169,9 +184,11 @@ function BuildStep({ data }: { data: TaskPageData }) {
   }
   return (
     <p className="py-6 text-sm text-[var(--gray-10)]">
-      {isUpcoming
-        ? 'No build yet. Ask the agent to build it in the thread: it makes the change on a branch and opens a pull request.'
-        : 'No pull request yet. The build opens one when it finishes.'}
+      {!isUpcoming
+        ? 'No pull request yet. The build opens one when it finishes.'
+        : data.capabilities?.canAskForCode
+          ? 'No build yet. Ask the agent to build it in the thread: it makes the change on a branch and opens a pull request.'
+          : 'No build yet. People who can ask for code on this task can have the agent build it; its pull request shows here.'}
     </p>
   )
 }
@@ -180,6 +197,7 @@ function BuildStep({ data }: { data: TaskPageData }) {
 export function TaskStepView({
   step,
   view,
+  version = null,
   onView,
   data,
   project,
@@ -214,24 +232,27 @@ export function TaskStepView({
   const shown: StepView = view === 'comments' && !hasDocument ? 'document' : view
 
   return (
-    <div role="tabpanel" aria-label={STEP_NAME[step]}>
-      <div role="tablist" aria-label={`${STEP_NAME[step]} views`} className="mb-6 flex gap-1 border-b border-[var(--gray-5)]">
-        <TabButton active={shown === 'document'} onClick={() => onView('document')}>
+    <div role="tabpanel" id={stepPanelId(step)} aria-labelledby={stepTabId(step)}>
+      <div role="tablist" aria-label={`${STEP_NAME[step]} views`} className="mb-6 flex gap-1 border-b border-[var(--gray-5)]" onKeyDown={onTabListKeyDown}>
+        <TabButton role="tab" id={viewTabId('document')} aria-controls={VIEW_PANEL_ID} active={shown === 'document'} onClick={() => onView('document')}>
           {isDocumentStep ? 'Document' : 'Pull request'}
         </TabButton>
-        <TabButton active={shown === 'runs'} onClick={() => onView('runs')}>
+        <TabButton role="tab" id={viewTabId('runs')} aria-controls={VIEW_PANEL_ID} active={shown === 'runs'} onClick={() => onView('runs')}>
           Runs{stepRuns.length > 0 ? ` · ${stepRuns.length}` : ''}
         </TabButton>
         {hasDocument && (
-          <TabButton active={shown === 'comments'} onClick={() => onView('comments')}>
+          <TabButton role="tab" id={viewTabId('comments')} aria-controls={VIEW_PANEL_ID} active={shown === 'comments'} onClick={() => onView('comments')}>
             Comments{comments.openCount > 0 ? ` · ${comments.openCount}` : ''}
           </TabButton>
         )}
       </div>
 
+      <div role="tabpanel" id={VIEW_PANEL_ID} aria-labelledby={viewTabId(shown)}>
       {shown === 'document' && (
         <div className="space-y-8">
-          {documentStep ? (
+          {documentStep && version ? (
+            <DocumentVersion ticketId={data.ticket.id} step={documentStep} version={version} onShowCurrent={() => onView('document')} />
+          ) : documentStep ? (
             <DocumentStep
               step={documentStep}
               data={data}
@@ -268,6 +289,7 @@ export function TaskStepView({
         ))}
 
       {shown === 'comments' && documentStep && <CommentList comments={comments} onApplySuggestion={applySuggestion} />}
+      </div>
     </div>
   )
 }

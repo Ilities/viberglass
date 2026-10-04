@@ -374,7 +374,7 @@ describe('ProjectSettingsPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Source repository is required when SCM integration is selected')
+        screen.getByText('Enter the repository address, e.g. https://github.com/acme/storefront, or choose No code connection.')
       ).toBeInTheDocument()
     })
     expect(mockedUpsertProjectScmConfig).not.toHaveBeenCalled()

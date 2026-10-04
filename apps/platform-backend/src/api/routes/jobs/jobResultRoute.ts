@@ -13,7 +13,8 @@ import { JobQueryService } from "../../../services/job/JobQueryService";
 import { TaskTurnOutcomeService, type RecordedTurn } from "../../../services/taskTurns/TaskTurnOutcomeService";
 import { TaskAutoSummariser } from "../../../services/taskTurns/TaskAutoSummariser";
 import { TaskTurnService } from "../../../services/taskTurns/TaskTurnService";
-import { isObjectRecord } from "@viberglass/types";
+import { TurnDocumentCheck } from "../../../services/taskTurns/TurnDocumentCheck";
+import { isObjectRecord, JOB_FAILURE_CODE } from "@viberglass/types";
 import { RUN_MANIFEST_VERSION, type ExecutionManifest } from "@viberglass/telemetry";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
@@ -36,6 +37,7 @@ const turnOutcomeService = new TaskTurnOutcomeService({
 });
 
 const autoSummariser = new TaskAutoSummariser(new TaskTurnService());
+const documentCheck = new TurnDocumentCheck();
 
 function contextUsageOf(value: unknown): { used: number; size: number | null } | undefined {
   if (!isObjectRecord(value) || typeof value.used !== "number") return undefined;
@@ -139,9 +141,6 @@ export function registerJobResultRoute(router: Router): void {
           });
         }
 
-        // Determine status from success field
-        const status = result.success ? "completed" : "failed";
-
         // Execution half of the run manifest. Persisted before the rest of the
         // callback's work so a later failure in document handling or session
         // bookkeeping cannot cost us the record of what the agent actually did.
@@ -154,10 +153,20 @@ export function registerJobResultRoute(router: Router): void {
           agentTurn = session?.lastTurnId ? await agentTurnDAO.getById(session.lastTurnId) : null;
         }
         const session = agentTurn ? await agentSessionDAO.getById(agentTurn.sessionId) : null;
+        // A turn asked for research or a plan that ends without it, and without a question, didn't succeed.
+        const missing = agentTurn && result.success ? await documentCheck.missing(agentTurn, result.documents) : null;
+        const success = Boolean(result.success) && !missing;
+        const status = success ? "completed" : "failed";
+        const errorMessage = missing ? `The agent finished without writing the ${missing}.` : result.errorMessage;
+        const failureCode = missing
+          ? JOB_FAILURE_CODE.AGENT_NO_DOCUMENT
+          : typeof result.failureCode === "string" ? result.failureCode : undefined;
+
         let recordedTurn: RecordedTurn | null = null;
         if (agentTurn && session) {
           recordedTurn = await turnOutcomeService.record(jobId, session, agentTurn, {
             success: Boolean(result.success),
+            missing: missing ?? undefined,
             documents: result.documents,
             codeDiscarded: result.codeDiscarded === true,
             resumed: typeof result.sessionStart?.resumed === "boolean" ? result.sessionStart.resumed : undefined,
@@ -170,21 +179,20 @@ export function registerJobResultRoute(router: Router): void {
         // Update job status using existing JobService method
         await jobService.updateJobStatus(jobId, status, {
           result: {
-            success: result.success,
+            success,
             branch: result.branch,
             pullRequestUrl: result.pullRequestUrl,
             changedFiles: result.changedFiles,
             executionTime: result.executionTime,
-            errorMessage: result.errorMessage,
+            errorMessage,
             commitHash: result.commitHash,
           },
-          errorMessage: result.errorMessage,
-          failureCode:
-            typeof result.failureCode === "string" ? result.failureCode : undefined,
+          errorMessage,
+          failureCode,
           turn: recordedTurn ?? undefined,
         });
         // After the run is finished, so the summary is the session's next turn rather than waiting behind this one.
-        if (agentTurn && session && result.success) {
+        if (agentTurn && session && success) {
           await autoSummariser.afterTurn(session, agentTurn, contextUsageOf(result.contextUsage));
         }
 

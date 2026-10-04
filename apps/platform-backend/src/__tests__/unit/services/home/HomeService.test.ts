@@ -56,18 +56,25 @@ describe("HomeService", () => {
 });
 
 describe("OverviewService", () => {
-  it("sorts the workspace into stuck, in progress, done this week and live now, per space", async () => {
+  it("puts each task in exactly one group, so the counts add up, per space", async () => {
     const now = new Date("2026-10-03T12:00:00Z");
     const service = new OverviewService({
       access: { visibleProjectIds: jest.fn().mockResolvedValue(null) },
-      list: { listCurrent: jest.fn().mockResolvedValue([row("failed"), row("old"), row("fresh"), row("live"), row("done")]) },
+      list: {
+        listCurrent: jest
+          .fn()
+          .mockResolvedValue(["failed", "question", "old", "fresh", "live", "unstarted", "stale-unstarted", "done"].map((id) => row(id))),
+      },
       situations: {
         describe: jest.fn().mockResolvedValue(
           described([
             ["failed", situation({ state: "failed" }), ""],
+            ["question", situation({ state: "question", since: "2026-10-03T11:00:00Z" }), ""],
             ["old", situation({ since: "2026-10-01T09:00:00Z" }), ""],
             ["fresh", situation({ since: "2026-10-03T11:00:00Z" }), ""],
             ["live", situation({ state: "agent_working", waitingOn: { kind: "agent" }, since: "2026-10-01T09:00:00Z" }), ""],
+            ["unstarted", situation({ state: "not_started", since: "2026-10-03T11:00:00Z" }), ""],
+            ["stale-unstarted", situation({ state: "not_started", since: "2026-10-01T09:00:00Z" }), ""],
             ["done", situation({ state: "done", waitingOn: { kind: "nobody" } }), ""],
           ]),
         ),
@@ -78,10 +85,14 @@ describe("OverviewService", () => {
     const overview = await service.load({ id: "viewer", role: "viewer" });
     const ids = (list: Array<{ task: { id: string } }>) => list.map((item) => item.task.id);
 
-    expect(ids(overview.stuck)).toEqual(["failed", "old"]);
-    expect(ids(overview.inProgress)).toEqual(["fresh", "live"]);
+    expect(ids(overview.needsAttention)).toEqual(["failed", "question", "old"]);
     expect(ids(overview.liveNow)).toEqual(["live"]);
+    expect(ids(overview.waiting)).toEqual(["fresh"]);
+    // Not started is its own group, never "in progress".
+    expect(ids(overview.notStarted)).toEqual(["unstarted", "stale-unstarted"]);
     expect(ids(overview.doneThisWeek)).toEqual(["done"]);
-    expect(overview.spaces).toEqual([{ slug: "web", name: "Web shop", inProgress: 2, stuck: 2, doneThisWeek: 1 }]);
+    expect(overview.spaces).toEqual([
+      { slug: "web", name: "Web shop", needsAttention: 3, liveNow: 1, waiting: 1, notStarted: 2, doneThisWeek: 1 },
+    ]);
   });
 });
