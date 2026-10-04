@@ -1,3 +1,7 @@
+import { Select as RadixSelect } from '@radix-ui/themes'
+import { EndpointModelField } from './EndpointModelField'
+import { ModelEndpointDialog } from './ModelEndpointDialog'
+import { getAgentModelApiFormats, type ModelEndpoint, type ModelEndpointSelection } from '@viberglass/types'
 import { Button } from '@/components/button'
 import { Description, Field, FieldGroup, Label } from '@/components/fieldset'
 import { Select } from '@/components/select'
@@ -12,6 +16,11 @@ import { AddModelKeyDialog } from './AddModelKeyDialog'
 const NONE = 'none'
 
 interface ModelSectionProps {
+  endpoints: ModelEndpoint[]
+  endpointSelection: ModelEndpointSelection | null
+  onEndpointChange: (id: string) => void
+  onEndpointModelChange: (selection: ModelEndpointSelection) => void
+  onEndpointSaved: (endpoint: ModelEndpoint) => void
   agent: AgentType | ''
   provider: ModelProviderId | ''
   modelKeyId: string
@@ -25,6 +34,7 @@ interface ModelSectionProps {
 
 /** Which provider the agent talks to, with which of that provider's keys, and its model settings. */
 export function ModelSection({
+  endpoints, endpointSelection, onEndpointChange, onEndpointModelChange, onEndpointSaved,
   agent,
   provider,
   modelKeyId,
@@ -36,6 +46,9 @@ export function ModelSection({
   onKeyAdded,
 }: ModelSectionProps) {
   const [addingKey, setAddingKey] = useState(false)
+  const [addingEndpoint, setAddingEndpoint] = useState(false)
+  const endpoint = endpoints.find((item) => item.id === endpointSelection?.endpointId)
+  const formats = getAgentModelApiFormats(agent)
   const options = providerOptionsForAgent(agent)
   const usesChatGptLogin = agent === 'codex' && settings.codexAuthMode !== 'api_key'
   const keys = keysForProvider(secrets, provider, modelKeyId)
@@ -55,21 +68,31 @@ export function ModelSection({
         <>
           <Field>
             <Label>Provider</Label>
-            <Description>Who issued the key. {AGENT_LABELS[agent]} can run keys from these providers.</Description>
+            <Description>Choose a provider or a compatible endpoint for {AGENT_LABELS[agent]}.</Description>
             <Select
-              value={provider || NONE}
-              onChange={(value) => onProviderChange(options.find((option) => option.provider === value)?.provider ?? '')}
+              value={endpointSelection ? `endpoint:${endpointSelection.endpointId}` : provider || NONE}
+              onChange={(value) => {
+                if (value.startsWith('endpoint:')) onEndpointChange(value.slice(9))
+                else onProviderChange(options.find((option) => option.provider === value)?.provider ?? '')
+              }}
             >
-              <option value={NONE}>Choose a provider</option>
+              <option value={NONE}>Choose a provider or endpoint</option>
+              <RadixSelect.Group><RadixSelect.Label>Providers</RadixSelect.Label>
               {options.map((option) => (
-                <option key={option.provider} value={option.provider}>
+                <RadixSelect.Item key={option.provider} value={option.provider}>
                   {option.label}
-                </option>
-              ))}
+                </RadixSelect.Item>
+              ))}</RadixSelect.Group>
+              {endpoints.length > 0 && <RadixSelect.Group><RadixSelect.Label>Custom endpoints</RadixSelect.Label>
+                {endpoints.map((item) => <RadixSelect.Item key={item.id} value={`endpoint:${item.id}`}>{item.name}</RadixSelect.Item>)}
+              </RadixSelect.Group>}
             </Select>
+            {formats.length > 0 && <Button type="button" plain onClick={() => setAddingEndpoint(true)}>Add endpoint</Button>}
+            {addingEndpoint && <ModelEndpointDialog open onClose={() => setAddingEndpoint(false)} onSaved={(value) => { onEndpointSaved(value); setAddingEndpoint(false) }} secrets={secrets} formats={formats} />}
+            {endpoint && endpointSelection && <EndpointModelField endpoint={endpoint} selection={endpointSelection} onChange={onEndpointModelChange} onSaved={onEndpointSaved} secrets={secrets} formats={formats} />}
           </Field>
 
-          {provider && (
+          {provider && !endpointSelection && (
             <Field>
               <div className="flex items-center justify-between">
                 <Label>API key</Label>
@@ -109,7 +132,7 @@ export function ModelSection({
         </>
       )}
 
-      {agent !== 'codex' && (
+      {agent !== 'codex' && !endpointSelection && (
         <AgentSpecificFields selectedAgent={agent} settings={settings} onChange={onSettingsChange} />
       )}
     </FieldGroup>

@@ -78,6 +78,8 @@ describe("WorkerExecutionService", () => {
       },
       configFiles: [],
       secretBindings: [],
+      mcpServerIds: [],
+      skillIds: [],
     };
 
     // Mock JobService

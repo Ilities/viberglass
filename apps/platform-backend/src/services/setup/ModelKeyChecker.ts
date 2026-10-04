@@ -1,4 +1,5 @@
-import { getModelProvider, type ModelProvider, type ModelProviderId } from "@viberglass/types";
+import { buildModelKeyCheckRequest } from "./modelKeyCheckRequest";
+import { getModelProvider, type ModelProviderId } from "@viberglass/types";
 import { createChildLogger } from "../../config/logger";
 import {
   SETUP_SERVICE_ERROR_CODE,
@@ -7,25 +8,7 @@ import {
 import { resolveKeyCheckUrl } from "./modelProviderAvailability";
 
 const logger = createChildLogger({ service: "ModelKeyChecker" });
-const CHECK_TIMEOUT_MS = 10_000;
-
 type Fetch = (url: string, init: RequestInit) => Promise<Pick<Response, "status">>;
-
-function buildRequest(provider: ModelProvider, key: string): RequestInit {
-  const { auth, headers, post } = provider.keyCheck;
-  const authHeader: Record<string, string> =
-    auth.scheme === "bearer" ? { Authorization: `Bearer ${key}` } : { [auth.header]: key };
-  const signal = AbortSignal.timeout(CHECK_TIMEOUT_MS);
-  if (!post) {
-    return { method: "GET", headers: { ...headers, ...authHeader }, signal };
-  }
-  return {
-    method: "POST",
-    headers: { ...headers, ...authHeader, "Content-Type": "application/json" },
-    body: JSON.stringify(post.body),
-    signal,
-  };
-}
 
 /**
  * Checks a model API key with one request to the provider that needs a valid
@@ -49,7 +32,7 @@ export class ModelKeyChecker {
 
     let status: number;
     try {
-      const response = await this.fetchFn(url, buildRequest(provider, key));
+      const response = await this.fetchFn(url, buildModelKeyCheckRequest(provider.keyCheck, key));
       status = response.status;
     } catch (error) {
       logger.warn("Model key check could not reach the provider", {

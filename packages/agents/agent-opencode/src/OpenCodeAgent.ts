@@ -69,6 +69,7 @@ export class OpenCodeAgent extends BaseAgent<OpenCodeConfig> {
       const args = ["run", "--format", "json"];
 
       const model =
+        (process.env.OPENCODE_CONFIG_CONTENT ? this.getNonEmptyTrimmedString(process.env.OPENCODE_MODEL) : undefined) ??
         this.getNonEmptyTrimmedString(this.config.model) ??
         this.getNonEmptyTrimmedString(process.env.OPENCODE_MODEL);
       if (model) {

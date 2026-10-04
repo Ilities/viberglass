@@ -12,6 +12,20 @@ const key: Secret = {
 }
 
 describe('summarizeRunner', () => {
+  it('reports custom endpoint models without requiring a runner model key', () => {
+    const summary = summarizeRunner(
+      {
+        agent: 'opencode',
+        deploymentConfig: { version: 1, strategy: { type: 'docker' }, agent: { type: 'opencode', model: 'openrouter/x' } },
+        modelEndpoint: { endpointId: 'endpoint', model: 'qwen-test' },
+        secretBindings: [],
+      },
+      [],
+    )
+
+    expect(summary).toMatchObject({ providerLabel: 'Custom endpoint', model: 'qwen-test', key: null, problem: null })
+  })
+
   it('reports the provider, model and key the runner uses', () => {
     const summary = summarizeRunner(
       {

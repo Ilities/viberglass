@@ -9,7 +9,7 @@ ENV PATH="/home/viberator/.npm-global/bin:/home/viberator/.local/bin:/home/viber
 
 # Fragment: OpenCode agent
 # Source: https://opencode.ai/docs
-RUN npm install -g opencode-ai@latest
+RUN npm install -g opencode-ai@1.18.34
 
 RUN which opencode || echo "Warning: opencode not found in PATH"
 

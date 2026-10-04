@@ -1,3 +1,4 @@
+import type { ModelApiFormat, WorkerModelEndpoint } from "@viberglass/types";
 import { Logger } from "winston";
 import type { BaseAgentConfig } from "./types";
 import type { BaseAgent } from "./BaseAgent";
@@ -108,6 +109,11 @@ export interface AgentPlugin<C extends BaseAgentConfig = BaseAgentConfig> {
    * for a pasted key. Provider ids come from `MODEL_PROVIDERS` in
    * @viberglass/types; the catalog generator rejects unknown ones.
    */
+  readonly customEndpoints?: {
+    apiFormats: readonly ModelApiFormat[];
+    environment(endpoint: WorkerModelEndpoint): AgentEndpointEnvironment;
+  };
+
   readonly providers?: readonly AgentProviderBinding[];
 
   /** Docker image metadata — feeds the generated workerImageCatalog.json */
