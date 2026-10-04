@@ -69,6 +69,8 @@ describe("EcsInvoker", () => {
       agent: "kimi-code",
       configFiles: [],
       secretBindings: [],
+      mcpServerIds: [],
+      skillIds: [],
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       deploymentConfig: {

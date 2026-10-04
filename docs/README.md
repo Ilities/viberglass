@@ -25,6 +25,7 @@ Welcome to the Viberglass documentation. This directory contains technical docum
 ### Deployment
 
 - [DEPLOYMENT_SECRETS.md](DEPLOYMENT_SECRETS.md) - Managing secrets
+- [model-hosting-plan.md](model-hosting-plan.md) - Custom endpoints, Bedrock, model deployments and implementation progress
 - [operations/database-migrations.md](operations/database-migrations.md) - Database migration guide
 - [operations/github-actions-role.md](operations/github-actions-role.md) - GitHub Actions setup
 

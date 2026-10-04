@@ -1,3 +1,4 @@
+import { writePiModelConfig } from "./piModelConfig";
 import { BaseAgent } from "@viberglass/agent-core";
 import type { AcpMcpServer, AgentCLIResult, IAgentGitService, ExecutionContext } from "@viberglass/agent-core";
 import { Logger } from "winston";
@@ -47,6 +48,7 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
       env.ANTHROPIC_API_KEY = this.config.apiKey;
     }
     const piDir = path.join(harnessConfigDir, "pi");
+    writePiModelConfig(piDir);
     if (fs.existsSync(piDir)) {
       env.PI_CODING_AGENT_DIR = piDir;
       env.PI_CODING_AGENT_SESSION_DIR = this.sessionDirectory();
@@ -78,6 +80,7 @@ export class PiCodingAgent extends BaseAgent<PiConfig> {
   public getPiEnvironment(repoDir: string): NodeJS.ProcessEnv {
     const workDir = path.dirname(repoDir);
     const piConfigDir = path.join(workDir, ".harness-config", "pi");
+    writePiModelConfig(piConfigDir);
     const env: NodeJS.ProcessEnv = {
       PI_CODING_AGENT_DIR: piConfigDir,
       PI_CODING_AGENT_SESSION_DIR: this.sessionDirectory(),

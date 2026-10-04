@@ -80,6 +80,8 @@ function prepare(additionalSecretBindings = [{ envVar: "NOTION_TOKEN", secretId:
         resolve: jest.fn(async () => ({
           mcpServers: [{ name: "linear", url: "https://mcp.linear.app/mcp", headers: [{ name: "Authorization", envVar: "VIBERGLASS_MCP_0_0" }] }],
           skills: [{ id: "skill-1", name: "pdf-forms" }],
+          modelEndpoint: { name: "EU models", baseUrl: "https://eu.example.com/v1", apiFormat: "openai-chat" as const,
+            auth: { scheme: "none" as const }, extraHeaders: {}, model: "qwen", mayColdStart: false },
           secretBindings: [{ envVar: "VIBERGLASS_MCP_0_0", secretId: "linear-token" }],
         })),
       },
@@ -104,6 +106,14 @@ describe("a run's secret bindings", () => {
 
     expect(context.mcpServers.map((server) => server.name)).toEqual(["linear"]);
     expect(context.skills).toEqual([{ id: "skill-1", name: "pdf-forms" }]);
+  });
+
+  it("carries the resolved endpoint in the execution config without changing the stored runner", async () => {
+    const context = await prepare([]);
+    expect(context.executionClanker.deploymentConfig?.resolvedModelEndpoint).toMatchObject({
+      baseUrl: "https://eu.example.com/v1", model: "qwen", auth: { scheme: "none" },
+    });
+    expect(runner.deploymentConfig?.resolvedModelEndpoint).toBeUndefined();
   });
 
   it("tells the worker which variable holds the repository token", async () => {

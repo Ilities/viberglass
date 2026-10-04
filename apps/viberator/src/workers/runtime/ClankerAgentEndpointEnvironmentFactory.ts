@@ -1,3 +1,4 @@
+import { readWorkerModelEndpoint } from "@viberglass/types";
 import type {
   AgentEndpointEnvironmentFactory,
   AgentEndpointEnvironmentFactoryInput,
@@ -66,6 +67,14 @@ export class ClankerAgentEndpointEnvironmentFactory implements AgentEndpointEnvi
     }
 
     const plugin = agentRegistry().tryGet(effectiveAgent);
+    const config = isObjectRecord(input.clankerConfig?.deploymentConfig) ? input.clankerConfig.deploymentConfig : input.clankerConfig;
+    if (config?.resolvedModelEndpoint !== undefined) {
+      const endpoint = readWorkerModelEndpoint(config.resolvedModelEndpoint);
+      if (!endpoint || !plugin?.customEndpoints?.apiFormats.includes(endpoint.apiFormat)) {
+        throw new Error("The runner's model endpoint is invalid or unsupported by this agent");
+      }
+      return plugin.customEndpoints.environment(endpoint);
+    }
     if (plugin?.endpointEnvironment) {
       return plugin.endpointEnvironment({
         logger: input.logger,

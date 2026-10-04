@@ -3,6 +3,7 @@
  * Clankers are individual viberator app worker configurations that do agentic tasks
  */
 
+import type { ModelEndpointSelection } from './modelEndpoints'
 import type { SecretBinding } from './secret'
 
 // Status of a clanker
@@ -106,6 +107,7 @@ export interface Clanker {
   mcpServerIds: string[]
   /** Workspace skills the runner's agent gets. */
   skillIds: string[]
+  modelEndpoint?: ModelEndpointSelection | null
   status: ClankerStatus
   statusMessage?: string | null
   createdAt: string
@@ -128,6 +130,7 @@ export interface CreateClankerRequest {
   agent?: AgentType | null
   secretBindings?: SecretBinding[]
   mcpServerIds?: string[]
+  modelEndpoint?: ModelEndpointSelection | null
   skillIds?: string[]
 }
 
@@ -141,6 +144,7 @@ export interface UpdateClankerRequest {
   agent?: AgentType | null
   secretBindings?: SecretBinding[]
   mcpServerIds?: string[]
+  modelEndpoint?: ModelEndpointSelection | null
   skillIds?: string[]
   status?: ClankerStatus
   statusMessage?: string | null

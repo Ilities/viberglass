@@ -1,3 +1,4 @@
+import { waitForModelEndpoint } from "./modelEndpointReadiness";
 import * as fs from "fs";
 import { Logger } from "winston";
 import type { BaseAgentConfig } from "@viberglass/agent-core";
@@ -206,6 +207,8 @@ export async function setupJob(
       async () => instructionFileManager.materialize(repoDir, instructionFiles),
     );
   }
+
+  await waitForModelEndpoint(clankerConfig, sendProgress);
 
   const mergedSettings = mergeWorkerSettings({
     defaults: { maxExecutionTime: defaultTimeout },

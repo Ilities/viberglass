@@ -1,3 +1,5 @@
+import { modelEndpoints } from "../../services/modelEndpoints";
+import { isDomainError } from "../../services/errors/DomainError";
 import express from "express";
 import {
   validateCreateSecret,
@@ -116,9 +118,11 @@ router.delete("/:id", validateUuidParam("id"), async (req, res) => {
       return res.status(404).json({ error: "Secret not found" });
     }
 
+    await modelEndpoints.assertSecretRemovable(req.params.id);
     await secretService.deleteSecret(req.params.id);
     res.status(204).send();
   } catch (error) {
+    if (isDomainError(error)) return res.status(error.statusCode).json({ error: error.message });
     logger.error("Error deleting secret", {
       error: error instanceof Error ? error.message : String(error),
     });

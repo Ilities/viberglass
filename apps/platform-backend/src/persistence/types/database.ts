@@ -782,6 +782,8 @@ export interface Database {
   deployment_strategies: DeploymentStrategiesTable;
   clanker_config_files: ClankerConfigFilesTable;
   clankers: ClankersTable;
+  model_endpoints: ModelEndpointsTable;
+  clanker_model_endpoints: ClankerModelEndpointsTable;
   mcp_servers: McpServersTable;
   skills: SkillsTable;
   clanker_mcp_servers: ClankerMcpServersTable;
@@ -821,4 +823,26 @@ export interface Database {
   prompt_templates: PromptTemplatesTable;
   chat_ticket_threads: ChatTicketThreadsTable;
   api_tokens: ApiTokensTable;
+}
+
+export interface ModelEndpointsTable {
+  id: Generated<string>;
+  name: string;
+  base_url: string;
+  api_format: string;
+  auth: Json;
+  secret_id: string | null;
+  extra_headers: Json;
+  models: Json;
+  source: Generated<"manual" | "deployment">;
+  deployment_id: string | null;
+  may_cold_start: boolean;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ClankerModelEndpointsTable {
+  clanker_id: string;
+  endpoint_id: string;
+  model: string;
 }

@@ -1,3 +1,4 @@
+import { useModelEndpoints } from './useModelEndpoints'
 import { Button } from '@/components/button'
 import { FieldGroup, Field, Fieldset, Label } from '@/components/fieldset'
 import { Input } from '@/components/input'
@@ -62,6 +63,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
     ? readClankerDeploymentConfig({ deploymentConfig: initial.deploymentConfig, agent: initial.agent }).form
     : DEFAULT_CLANKER_CONFIG_FORM_STATE
 
+  const endpointState = useModelEndpoints(initial?.modelEndpoint)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deploymentStrategies, setDeploymentStrategies] = useState<DeploymentStrategy[]>([])
@@ -122,7 +124,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
   const currentOption = providerOptions.find((option) => option.provider === provider)
   const usesChatGptLogin = agent === 'codex' && settings.codexAuthMode !== 'api_key'
   const modelKey: SecretBinding | null =
-    modelKeyId && !usesChatGptLogin
+    modelKeyId && !usesChatGptLogin && !endpointState.selection
       ? { secretId: modelKeyId, envVar: currentOption?.envVar ?? modelKeyEnvVar }
       : null
   const bindings = [...(modelKey ? [modelKey] : []), ...extras]
@@ -132,6 +134,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
   }
 
   function chooseProvider(next: ModelProviderId | '', forAgent: AgentType | '' = agent) {
+    endpointState.setSelection(null)
     const options = providerOptionsForAgent(forAgent)
     const to = options.find((option) => option.provider === next)
     changeSettings(settingsForProvider(forAgent, settings, currentOption, to))
@@ -193,6 +196,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         secretBindings: bindings,
         mcpServerIds,
         skillIds,
+        modelEndpoint: endpointState.selection,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save agent runner')
@@ -202,9 +206,9 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
 
   return (
     <form onSubmit={handleSubmit} className="mt-8 w-full max-w-6xl">
-      {error && (
+      {(error || endpointState.error) && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
-          {error}
+          {error || endpointState.error}
         </div>
       )}
 
@@ -227,6 +231,14 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
 
       <Section title="Model" description="Which AI provider the agent uses, and with which key.">
         <ModelSection
+          endpoints={endpointState.forAgent(agent)}
+          endpointSelection={endpointState.selection}
+          onEndpointChange={endpointState.choose}
+          onEndpointModelChange={endpointState.setSelection}
+          onEndpointSaved={(endpoint) => {
+            endpointState.added(endpoint)
+            void listAllSecrets().then(setSecrets).catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not refresh keys'))
+          }}
           agent={agent}
           provider={provider}
           modelKeyId={modelKeyId}

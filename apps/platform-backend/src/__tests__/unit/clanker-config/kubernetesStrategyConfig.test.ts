@@ -19,6 +19,8 @@ function clanker(deploymentConfig: Record<string, unknown>): Clanker {
     configFiles: [],
     agent: "opencode",
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     status: "active",
     statusMessage: null,
     createdAt: "2026-09-30T00:00:00.000Z",
