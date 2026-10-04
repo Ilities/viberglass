@@ -1,3 +1,4 @@
+import { modelEndpointSchema } from "./modelEndpointSchema";
 import Joi from "joi";
 import { Request, Response, NextFunction } from "express";
 import type { MulterError } from "multer";
@@ -325,3 +326,5 @@ export const handleMulterError = (
   // Pass other errors to the next handler
   next(err);
 };
+
+export const validateModelEndpoint = createValidator(modelEndpointSchema);

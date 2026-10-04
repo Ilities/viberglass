@@ -1,3 +1,4 @@
+import { runnerModelEndpoints } from "../modelEndpoints";
 import { randomUUID } from "crypto";
 import logger from "../../config/logger";
 import { ClawTaskTemplateDAO } from "../../persistence/claw/ClawTaskTemplateDAO";
@@ -45,7 +46,7 @@ export class ClawOrchestrationService {
   private credentialRequirementsService = new CredentialRequirementsService();
   private workerExecutionService = new WorkerExecutionService();
   private instructionStorageService = new InstructionStorageService();
-  private runnerTools = new RunnerToolResolver();
+  private runnerTools = new RunnerToolResolver(undefined, undefined, runnerModelEndpoints);
   private webhookService = new ClawWebhookService();
   private promptTemplateService = new PromptTemplateService(new PromptTemplateDAO());
 

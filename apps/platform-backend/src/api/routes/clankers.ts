@@ -1,3 +1,4 @@
+import { modelEndpoints } from "../../services/modelEndpoints";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Clanker, SecretBinding } from "@viberglass/types";
@@ -145,6 +146,7 @@ router.post(
   asyncHandler(async (req, res) => {
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
+    await modelEndpoints.validateSelection(req.body.modelEndpoint, req.body.agent);
     const clanker = await clankerService.createClanker(req.body);
     res.status(201).json({ success: true, data: clanker });
   }),
@@ -167,7 +169,8 @@ router.put(
   validateUuidParam("id"),
   validateUpdateClanker,
   asyncHandler(async (req, res) => {
-    await requireClanker(req.params.id);
+    const existing = await requireClanker(req.params.id);
+    await modelEndpoints.validateSelection(req.body.modelEndpoint === undefined ? existing.modelEndpoint : req.body.modelEndpoint, req.body.agent === undefined ? existing.agent : req.body.agent);
     await validateSecretBindings(req.body.secretBindings);
     await validateTools(req.body);
 

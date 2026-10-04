@@ -498,6 +498,8 @@ export function ClankerDetailPage() {
                   <dd className="text-sm text-[var(--gray-12)]">
                     {summary.usesChatGptLogin ? (
                       'ChatGPT login'
+                    ) : clanker.modelEndpoint ? (
+                      'Configured by endpoint'
                     ) : summary.key ? (
                       <>
                         {summary.key.label} <span className="font-mono text-xs text-[var(--gray-9)]">as {summary.key.envVar}</span>

@@ -243,6 +243,7 @@ export async function prepareTicketRunContext(
   const tools = await deps.runnerTools.resolve(clanker);
   const executionClanker: Clanker = {
     ...clanker,
+    deploymentConfig: { ...clanker.deploymentConfig, resolvedModelEndpoint: tools.modelEndpoint },
     secretBindings: mergeSecretBindings([
       ...(clanker.secretBindings || []),
       ...tools.secretBindings,

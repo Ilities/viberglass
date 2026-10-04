@@ -1,6 +1,6 @@
 # Model hosting: custom endpoints, Bedrock, and deployed open-weight models
 
-Status: plan, 2026-10-03 · Owner of decisions: Jussi
+Status: implementation started, 2026-10-04 · Owner of decisions: Jussi
 
 ## Goal
 
@@ -46,6 +46,24 @@ Runner ──picks──▶ Model endpoint ◀──owns── Model deployment 
 3. **Model deployment.** A GPU deployment that Viberglass creates in the customer's cloud account. It owns exactly one model endpoint.
 
 ---
+
+## Implementation progress (2026-10-04)
+
+The first implementation covers generic model endpoints and readiness polling for manual endpoints. Bedrock role auth and cloud-created deployments remain planned; phase 5 remains deferred.
+
+- Workspace endpoint records and runner references, with foreign keys preventing removal of a used endpoint or its key. The current application has one workspace per database, matching shared secrets and MCP servers.
+- Admin API for list/create/update/delete and connection/model discovery. Authentication reuses shared secrets; the check refuses redirects. Manual model IDs work when discovery is unavailable. Deployment-owned records cannot be edited through this API.
+- Inline endpoint and key creation, endpoint/model selection, and editing in the runner form. Plugin metadata filters supported API formats: OpenCode supports `openai-chat`; Pi supports all three formats.
+- The worker resolves plugin-specific configuration. OpenCode receives a provider in `OPENCODE_CONFIG_CONTENT`; Pi writes per-job `pi/models.json` and default-model settings. Keys remain environment references rather than raw values in stored/generated configuration. Literal Pi headers are escaped to prevent command or environment interpolation.
+- Pi requires a placeholder key to make custom models selectable. Its SDK may send an anonymous auth header alongside the configured custom header; only the selected auth header carries the real key.
+- Manual endpoints marked as potentially cold wait for authenticated `GET /models` before the harness launches, with progress, a 15-minute timeout, and immediate failure on authentication rejection. Deployment wake requests and stopped-state detection need the deployment layer.
+- Harness installs are pinned to the versions exercised: OpenCode 1.18.34, Pi 1.0.2 and pi-acp 0.0.34.
+
+The migration and endpoint API were exercised on an isolated local PostgreSQL database. Both real harness CLIs completed requests against a local OpenAI-compatible test server, including custom auth headers after worker environment filtering. The full workspace unit suite passed after updating stale MCP/skill fixtures. Agent-browser checks covered inline endpoint creation, runner creation, and preserving the endpoint/model when editing and saving. Backend, worker and frontend builds passed.
+
+**Live-provider exit remains open:** OVH's model discovery returned HTTP 200 with Qwen3-Coder and gpt-oss models, but an anonymous completion request returned HTTP 429 (`API rate limit exceeded`). A successful local harness test does not establish a successful live OVH task.
+
+The cloud lifecycle questions and paid GPU trials below still need resolution before implementing managed deployments. No GPU resources have been created.
 
 ## Phase 1: Generic model endpoints
 

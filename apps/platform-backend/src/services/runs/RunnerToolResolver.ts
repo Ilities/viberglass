@@ -1,3 +1,4 @@
+import type { RunnerModelEndpointResolver } from "../modelEndpoints/RunnerModelEndpointResolver";
 import {
   isSecretHeader,
   MCP_HEADER_ENV_VAR_PREFIX,
@@ -7,12 +8,14 @@ import {
   type WorkerMcpServer,
   type WorkerMcpServerHeader,
   type WorkerSkill,
+  type WorkerModelEndpoint,
 } from "@viberglass/types";
 import { McpServerDAO } from "../../persistence/mcpServer/McpServerDAO";
 import { SkillDAO } from "../../persistence/skill/SkillDAO";
 
 /** What a run gets from its runner's MCP servers and skills. */
 export interface RunnerTools {
+  modelEndpoint?: WorkerModelEndpoint;
   mcpServers: WorkerMcpServer[];
   skills: WorkerSkill[];
   /** The secrets in MCP server headers, under env vars the worker keeps from the agent. */
@@ -38,15 +41,19 @@ export class RunnerToolResolver {
   constructor(
     private readonly servers: Pick<McpServerDAO, "getByIds"> = new McpServerDAO(),
     private readonly skills: Pick<SkillDAO, "getByIds"> = new SkillDAO(),
+    private readonly modelEndpoints?: Pick<RunnerModelEndpointResolver, "resolve">,
   ) {}
 
-  async resolve(clanker: Pick<Clanker, "mcpServerIds" | "skillIds">): Promise<RunnerTools> {
+  async resolve(clanker: Pick<Clanker, "mcpServerIds" | "skillIds" | "modelEndpoint" | "agent">): Promise<RunnerTools> {
     const [servers, skills] = await Promise.all([
       this.servers.getByIds(clanker.mcpServerIds ?? []),
       this.skills.getByIds(clanker.skillIds ?? []),
     ]);
-    const secretBindings: SecretBinding[] = [];
+    const model = await this.modelEndpoints?.resolve(clanker);
+    if (clanker.modelEndpoint && !model) throw new Error("Model endpoint resolver is required");
+    const secretBindings: SecretBinding[] = [...(model?.secretBindings ?? [])];
     return {
+      ...(model?.endpoint ? { modelEndpoint: model.endpoint } : {}),
       mcpServers: servers.map((server, index) => toWorkerServer(server, index, secretBindings)),
       skills: skills.map((skill) => ({ id: skill.id, name: skill.name })),
       secretBindings,

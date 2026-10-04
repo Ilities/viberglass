@@ -1,4 +1,4 @@
-import { runnerReadiness, type Clanker, type RunnerLastRun } from "@viberglass/types";
+import { runnerReadiness, type Clanker, type ModelEndpoint, type RunnerLastRun } from "@viberglass/types";
 import { ClankerReadinessService } from "../../../services/ClankerReadinessService";
 
 const KEY = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -23,10 +23,21 @@ function runner(overrides: Partial<Clanker> = {}): Clanker {
 }
 
 const REJECTED: RunnerLastRun = { status: "failed", failureCode: "AGENT_CREDENTIAL_INVALID", failureTitle: "Model key rejected", at: "2026-10-02T00:00:00Z" };
+const ENDPOINT: ModelEndpoint = {
+  id: "endpoint", name: "EU models", baseUrl: "https://models.example.com/v1", apiFormat: "openai-chat",
+  auth: { scheme: "bearer" }, secretId: KEY, models: ["qwen"], extraHeaders: {}, mayColdStart: false,
+  source: "manual", deploymentId: null, createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z",
+};
+const endpointRunner = () => runner({ agent: "opencode", modelEndpoint: { endpointId: ENDPOINT.id, model: "qwen" }, secretBindings: [] });
 
 describe("runnerReadiness", () => {
   it("is ready when configured with an existing key and running", () => {
     expect(runnerReadiness(runner(), new Set([KEY]), null)).toEqual({ state: "ready", problem: null, lastRun: null });
+  });
+
+  it("uses credentials from its selected endpoint rather than requiring a runner key", () => {
+    expect(runnerReadiness(endpointRunner(), new Set(), null).state).toBe("ready");
+    expect(runnerReadiness(endpointRunner(), new Set(), REJECTED).state).toBe("credential_rejected");
   });
 
   it("never calls a runner without a usable key ready, whatever its compute says", () => {
@@ -57,6 +68,7 @@ describe("ClankerReadinessService", () => {
     const deps = {
       secrets: { getSecretsByIds: jest.fn().mockResolvedValue([{ id: KEY, updatedAt: new Date(secretUpdatedAt) }]) },
       runs: { latestFinishedByClanker: jest.fn().mockResolvedValue(new Map(lastRun ? [["c-1", lastRun]] : [])) },
+      endpoints: { get: jest.fn().mockResolvedValue(ENDPOINT) },
     };
     return { deps, service: new ClankerReadinessService(deps) };
   }
@@ -67,6 +79,21 @@ describe("ClankerReadinessService", () => {
 
     expect(deps.secrets.getSecretsByIds).toHaveBeenCalledWith([KEY]);
     expect(withReadiness.readiness).toMatchObject({ state: "credential_rejected", lastRun: REJECTED });
+  });
+
+  it("clears a rejected endpoint credential after its shared key or endpoint changes", async () => {
+    const original = setup();
+    const [rejected] = await original.service.withReadiness([endpointRunner()]);
+    expect(rejected.readiness?.state).toBe("credential_rejected");
+    expect(original.deps.secrets.getSecretsByIds).toHaveBeenCalledWith([KEY]);
+
+    const [keyChanged] = await setup("2026-10-03T00:00:00Z").service.withReadiness([endpointRunner()]);
+    expect(keyChanged.readiness).toMatchObject({ state: "ready", lastRun: REJECTED });
+
+    const edited = setup();
+    edited.deps.endpoints.get.mockResolvedValue({ ...ENDPOINT, updatedAt: "2026-10-03T00:00:00Z" });
+    const [endpointChanged] = await edited.service.withReadiness([endpointRunner()]);
+    expect(endpointChanged.readiness?.state).toBe("ready");
   });
 
   it("forgets a rejected key once the key or the runner changed after that run", async () => {

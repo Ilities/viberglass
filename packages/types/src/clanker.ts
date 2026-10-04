@@ -4,6 +4,7 @@
  */
 
 import type { RunnerReadiness } from './runnerReadiness'
+import type { ModelEndpointSelection } from './modelEndpoints'
 import type { SecretBinding } from './secret'
 
 // Status of a clanker
@@ -107,6 +108,7 @@ export interface Clanker {
   mcpServerIds: string[]
   /** Workspace skills the runner's agent gets. */
   skillIds: string[]
+  modelEndpoint?: ModelEndpointSelection | null
   status: ClankerStatus
   statusMessage?: string | null
   /** Whether it can take a task; set by the API, which knows its secrets and runs. */
@@ -131,6 +133,7 @@ export interface CreateClankerRequest {
   agent?: AgentType | null
   secretBindings?: SecretBinding[]
   mcpServerIds?: string[]
+  modelEndpoint?: ModelEndpointSelection | null
   skillIds?: string[]
 }
 
@@ -144,6 +147,7 @@ export interface UpdateClankerRequest {
   agent?: AgentType | null
   secretBindings?: SecretBinding[]
   mcpServerIds?: string[]
+  modelEndpoint?: ModelEndpointSelection | null
   skillIds?: string[]
   status?: ClankerStatus
   statusMessage?: string | null

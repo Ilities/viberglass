@@ -26,6 +26,8 @@ function buildBaseClanker(overrides: Partial<Clanker>): Clanker {
     configFiles: [],
     agent: "codex",
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     status: "inactive",
     statusMessage: null,
     createdAt: "2026-02-20T00:00:00.000Z",

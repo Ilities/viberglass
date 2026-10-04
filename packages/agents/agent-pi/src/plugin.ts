@@ -1,3 +1,4 @@
+import { PiModelEndpointEnvironment } from "./PiModelEndpointEnvironment";
 import type { AgentPlugin, IAgentGitService } from "@viberglass/agent-core";
 import type { PiConfig } from "./config";
 import { PiCodingAgent } from "./PiCodingAgent";
@@ -35,6 +36,8 @@ const piPlugin: AgentPlugin<PiConfig> = {
   envAliases: {
     apiKey: ["ANTHROPIC_API_KEY"],
   },
+
+  customEndpoints: { apiFormats: ["openai-chat", "openai-responses", "anthropic-messages"], environment: (endpoint) => new PiModelEndpointEnvironment(endpoint) },
 
   stateDirs: [".pi"],
   // mcp.json holds the run's MCP server headers, and is written fresh each run.

@@ -13,6 +13,8 @@ function kimiClanker(deploymentConfig: Record<string, unknown>): Clanker {
     configFiles: [],
     agent: "kimi-code",
     secretBindings: [],
+    mcpServerIds: [],
+    skillIds: [],
     status: "inactive",
     statusMessage: null,
     createdAt: "2026-09-24T00:00:00.000Z",

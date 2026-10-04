@@ -5,7 +5,8 @@
       "GEMINI_API_KEY"
     ],
     "endpoint": [],
-    "harnessConfigFiles": []
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   },
   {
     "agent": "claude-code",
@@ -16,7 +17,8 @@
     "endpoint": [
       "ANTHROPIC_BASE_URL"
     ],
-    "harnessConfigFiles": []
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   },
   {
     "agent": "codex",
@@ -27,13 +29,15 @@
       "CODEX_ENDPOINT",
       "OPENAI_BASE_URL"
     ],
-    "harnessConfigFiles": []
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   },
   {
     "agent": "fake",
     "apiKey": [],
     "endpoint": [],
-    "harnessConfigFiles": []
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   },
   {
     "agent": "kimi-code",
@@ -46,7 +50,8 @@
       "KIMI_CODE_ENDPOINT",
       "MOONSHOT_BASE_URL"
     ],
-    "harnessConfigFiles": []
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   },
   {
     "agent": "mistral-vibe",
@@ -54,7 +59,8 @@
       "MISTRAL_API_KEY"
     ],
     "endpoint": [],
-    "harnessConfigFiles": []
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   },
   {
     "agent": "opencode",
@@ -69,6 +75,9 @@
     ],
     "harnessConfigFiles": [
       "opencode.json"
+    ],
+    "modelApiFormats": [
+      "openai-chat"
     ]
   },
   {
@@ -79,6 +88,11 @@
     "endpoint": [],
     "harnessConfigFiles": [
       "pi/models.json"
+    ],
+    "modelApiFormats": [
+      "openai-chat",
+      "openai-responses",
+      "anthropic-messages"
     ]
   },
   {
@@ -90,6 +104,7 @@
       "QWEN_API_ENDPOINT",
       "OPENAI_BASE_URL"
     ],
-    "harnessConfigFiles": []
+    "harnessConfigFiles": [],
+    "modelApiFormats": []
   }
 ]

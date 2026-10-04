@@ -22,17 +22,17 @@ export interface RunnerSummary {
 }
 
 /** What a runner runs on, in the terms the runner form uses, plus anything that stops it working. */
-export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings'>, secrets: Secret[]): RunnerSummary {
+export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'modelEndpoint'>, secrets: Secret[]): RunnerSummary {
   const agent = clanker.agent ?? ''
   const config = isClankerConfigV1(clanker.deploymentConfig) ? clanker.deploymentConfig : null
   const agentConfig = config?.agent
-  const model = agentConfig && 'model' in agentConfig && typeof agentConfig.model === 'string' ? agentConfig.model : null
+  const model = clanker.modelEndpoint?.model ?? (agentConfig && 'model' in agentConfig && typeof agentConfig.model === 'string' ? agentConfig.model : null)
   const usesChatGptLogin = agentConfig?.type === 'codex' && agentConfig.codexAuth.mode !== 'api_key'
   const loginSecretId = (agentConfig?.type === 'codex' && agentConfig.codexAuth.loginSecretId) || null
 
   const { provider, modelKey, extras } = splitRunnerBindings(clanker.secretBindings, secrets, agent)
   const keySecret = modelKey ? secrets.find((secret) => secret.id === modelKey.secretId) : undefined
-  const key = modelKey ? { label: keySecret?.name ?? 'Deleted secret', envVar: modelKey.envVar } : null
+  const key = !clanker.modelEndpoint && modelKey ? { label: keySecret?.name ?? 'Deleted secret', envVar: modelKey.envVar } : null
 
   const providerEndpoint = providerOptionsForAgent(agent).find((option) => option.provider === provider)?.endpoint ?? null
   const configuredUrl =
@@ -44,12 +44,12 @@ export function summarizeRunner(clanker: Pick<Clanker, 'agent' | 'deploymentConf
   const endpointVars = new Set(agent ? getAgentEnvVarNames(agent).endpoint : [])
   const endpointVar = extras.find((binding) => endpointVars.has(binding.envVar))?.envVar ?? null
   const customUrl = configuredUrl && configuredUrl !== providerEndpoint ? configuredUrl : null
-  const customEndpoint = customUrl || endpointVar ? { url: customUrl, envVar: endpointVar } : null
+  const customEndpoint = !clanker.modelEndpoint && (customUrl || endpointVar) ? { url: customUrl, envVar: endpointVar } : null
 
   const problem = runnerCredentialProblem(clanker, new Set(secrets.map((secret) => secret.id)))?.problem ?? null
 
   return {
-    providerLabel: provider ? getModelProvider(provider).displayName : null,
+    providerLabel: clanker.modelEndpoint ? 'Custom endpoint' : provider ? getModelProvider(provider).displayName : null,
     model,
     key,
     usesChatGptLogin,

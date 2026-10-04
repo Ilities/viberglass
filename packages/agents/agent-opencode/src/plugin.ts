@@ -1,3 +1,4 @@
+import { OpenCodeModelEndpointEnvironment } from "./OpenCodeModelEndpointEnvironment";
 import type { AgentPlugin, AgentEndpointEnvironment, IAgentGitService } from "@viberglass/agent-core";
 import { NoopAgentEndpointEnvironment } from "@viberglass/agent-core";
 import type { OpenCodeConfig } from "./config";
@@ -43,8 +44,8 @@ function resolveOpenCodeSettings(
   }
 
   const configuredAgent =
-    toNonEmptyString(clankerConfig?.agent as string) ||
-    toNonEmptyString(deploymentConfig.agent as string);
+    toNonEmptyString(clankerConfig?.agent) ||
+    toNonEmptyString(deploymentConfig.agent);
   if (configuredAgent !== "opencode") return {};
 
   return {
@@ -88,6 +89,8 @@ const openCodePlugin: AgentPlugin<OpenCodeConfig> = {
     apiKey: ["OPENCODE_API_KEY", "OPENAI_API_KEY"],
     endpoint: ["OPENCODE_BASE_URL", "OPENCODE_ENDPOINT", "OPENAI_BASE_URL"],
   },
+
+  customEndpoints: { apiFormats: ["openai-chat"], environment: (endpoint) => new OpenCodeModelEndpointEnvironment(endpoint) },
 
   stateDirs: [".local/share/opencode"],
   stateExcludes: [".local/share/opencode/auth.json", ".local/share/opencode/log"],

@@ -26,7 +26,7 @@ export interface RunnerReadiness {
   lastRun: RunnerLastRun | null
 }
 
-type RunnerShape = Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'status' | 'deploymentStrategyId'>
+type RunnerShape = Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'status' | 'deploymentStrategyId' | 'modelEndpoint'>
 
 /** Whether the runner's Codex signs in with a ChatGPT login rather than an API key. */
 export function runnerUsesChatGptLogin(clanker: Pick<Clanker, 'deploymentConfig'>): boolean {
@@ -41,11 +41,13 @@ function chatGptLoginSecretId(clanker: Pick<Clanker, 'deploymentConfig'>): strin
 
 /** What stops the runner's agent from authenticating as configured, or null. */
 export function runnerCredentialProblem(
-  clanker: Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings'>,
+  clanker: Pick<Clanker, 'agent' | 'deploymentConfig' | 'secretBindings' | 'modelEndpoint'>,
   existingSecretIds: ReadonlySet<string>,
 ): { state: 'needs_key' | 'needs_login'; problem: string } | null {
   const agent = clanker.agent
   if (!agent) return { state: 'needs_key', problem: 'No agent is chosen. An admin can edit the runner to pick one.' }
+  // Endpoint credentials belong to the shared endpoint, whose references are validated on save.
+  if (clanker.modelEndpoint) return null
   if (runnerUsesChatGptLogin(clanker)) {
     return chatGptLoginSecretId(clanker)
       ? null

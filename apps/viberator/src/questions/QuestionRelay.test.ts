@@ -9,6 +9,7 @@ describe("QuestionRelay", () => {
   async function start(sendQuestion: (input: AskHumanInput) => Promise<{ askedOf: string | null; blocking: boolean }>) {
     relay = new QuestionRelay({ sendQuestion }, "/worker/ask-human-mcp.js", "/usr/bin/node");
     const server = await relay.start();
+    if (!("env" in server)) throw new Error("Expected a stdio MCP server");
     const env = Object.fromEntries(server.env.map(({ name, value }) => [name, value]));
     return { server, url: env[QUESTION_RELAY_ENV.url], secret: env[QUESTION_RELAY_ENV.secret] };
   }
