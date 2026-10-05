@@ -45,6 +45,7 @@ function renderStep(step: 'research' | 'execution', capabilities: TaskCapabiliti
       <TaskStepView
         step={step}
         view="document"
+        onCompare={jest.fn()}
         onView={jest.fn()}
         data={data}
         project="shop"

@@ -62,18 +62,3 @@ export function RoleCapabilityTable() {
     </details>
   )
 }
-
-/** How task participation works, for the People panel on a task. */
-export function TaskParticipationHelp() {
-  return (
-    <details className="text-xs text-[var(--gray-10)]">
-      <summary className="cursor-pointer">What owner, reviewer and watcher mean</summary>
-      <ul className="mt-2 list-disc space-y-1 pl-4">
-        <li>The owner drives the task: it&apos;s their move when nobody else is asked, and they can pause the agent or take its work over.</li>
-        <li>Reviewers are asked to look when the agent writes something.</li>
-        <li>Watchers follow the task on Home without being asked to do anything.</li>
-        <li>Anyone on the task, guests included, can comment and ask the agent, including for code. Viewers only read.</li>
-      </ul>
-    </details>
-  )
-}

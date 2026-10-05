@@ -141,9 +141,11 @@ export function CustomEndpointSetup({ onDone }: { onDone: (endpointId: string, m
         </datalist>
         {found.length > 0 && <Description>The key was accepted; the endpoint lists {found.length} models.</Description>}
       </Field>
-      <Button type="button" className="w-full" disabled={busy || !agent} onClick={() => void save()}>
-        {busy ? 'Checking the endpoint…' : 'Check and continue'}
-      </Button>
+      <div>
+        <Button type="button" color="brand" disabled={busy || !agent} onClick={() => void save()}>
+          {busy ? 'Checking the endpoint…' : 'Check and continue'}
+        </Button>
+      </div>
     </div>
   )
 }

@@ -1,21 +1,56 @@
 import { FunLoading } from '@/components/fun-loading'
-import { Heading } from '@/components/heading'
+import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
-import { TabButton } from '@/components/tab-button'
+import { Select } from '@/components/select'
 import { getOverview } from '@/service/api/home-api'
 import type { OverviewData, OverviewGroup } from '@viberglass/types'
 import { useEffect, useState } from 'react'
+import { overviewMetrics } from './overview-metrics'
+import { OverviewOutcomes } from './overview-outcomes'
 import { OverviewSection } from './overview-section'
 
 const POLL_MS = 30_000
+/** The space picker's choice for every space; Radix's select keeps the empty value for no choice at all. */
+const ALL_SPACES = 'all'
 
-/** In the order a reader acts on them; a task is in only one. */
-const GROUPS: Array<{ key: OverviewGroup; title: string; empty: string }> = [
-  { key: 'needsAttention', title: 'Needs attention', empty: 'Nothing is failed, paused, asking, or waiting long.' },
-  { key: 'liveNow', title: 'Agent working', empty: 'No agent is working right now.' },
-  { key: 'waiting', title: 'Waiting on people', empty: 'Nothing is waiting on anyone.' },
-  { key: 'notStarted', title: 'Not started', empty: 'Every task has been started.' },
-  { key: 'doneThisWeek', title: 'Done this week', empty: 'Nothing done this week yet.' },
+/** In the order a reader acts on them; a task is in only one, so nothing is counted twice. */
+const LISTS: Array<{
+  key: Exclude<OverviewGroup, 'doneThisWeek'>
+  title: string
+  hint: string
+  empty: string
+  action: string
+  badged?: boolean
+}> = [
+  {
+    key: 'needsAttention',
+    title: 'Needs attention',
+    hint: 'Each task has a named next move',
+    empty: 'Nothing is failed, paused, asking, or waiting long.',
+    action: 'Open thread',
+    badged: true,
+  },
+  {
+    key: 'liveNow',
+    title: 'Live now',
+    hint: 'Not counted twice in the lists below',
+    empty: 'No agent is working right now.',
+    action: 'Follow',
+  },
+  {
+    key: 'waiting',
+    title: 'Waiting on people',
+    hint: 'Someone’s move, for less than a day',
+    empty: 'Nothing is waiting on anyone.',
+    action: 'Open',
+  },
+  {
+    key: 'notStarted',
+    title: 'Not started',
+    hint: 'Nothing asked for yet',
+    empty: 'Every task has been started.',
+    action: 'Open',
+  },
 ]
 
 /** Overview: how the work is going across the workspace, and what's stuck. Read-only. */
@@ -49,44 +84,50 @@ export function OverviewPage() {
   return (
     <>
       <PageMeta title="Overview" />
-      <Heading>Overview</Heading>
-      {failed && !overview && <p className="mt-6 text-sm text-red-600">The overview couldn&apos;t be loaded. Try again in a moment.</p>}
+      <PageHeader
+        eyebrow="Workspace overview · visible spaces only"
+        title="Work across the workspace"
+        description="Progress, blockers, and completed outcomes."
+        actions={
+          spaces.length > 1 && (
+            <div className="w-48">
+              <Select
+                aria-label="Overview space"
+                value={space ?? ALL_SPACES}
+                onChange={(value) => setSpace(value === ALL_SPACES ? undefined : value)}
+              >
+                <option value={ALL_SPACES}>All spaces</option>
+                {spaces.map((entry) => (
+                  <option key={entry.slug} value={entry.slug}>
+                    {entry.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )
+        }
+      />
+      {failed && !overview && (
+        <p className="text-sm text-red-600">The overview couldn&apos;t be loaded. Try again in a moment.</p>
+      )}
       {overview && (
         <>
-          {spaces.length > 1 && (
-            <div role="group" aria-label="Space" className="mt-4 flex flex-wrap border-b border-[var(--gray-a5)]">
-              <TabButton active={!space} onClick={() => setSpace(undefined)}>
-                All spaces
-              </TabButton>
-              {spaces.map((entry) => (
-                <TabButton key={entry.slug} active={space === entry.slug} onClick={() => setSpace(entry.slug)}>
-                  {entry.name}
-                </TabButton>
-              ))}
-            </div>
-          )}
-          <dl aria-label="Totals" className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {GROUPS.map(({ key, title }) => (
-              <div key={key} className="rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
-                <dt className="text-xs text-[var(--gray-10)]">{title}</dt>
-                <dd className="mt-1 text-2xl font-semibold text-[var(--gray-12)]">{overview[key].length}</dd>
+          <dl aria-label="Totals" className="mb-6 grid grid-cols-3 gap-4 max-sm:gap-1.5">
+            {overviewMetrics(overview).map((metric) => (
+              <div
+                key={metric.title}
+                className="rounded-lg border border-[var(--gray-5)] bg-[var(--color-panel-solid)] p-5 max-sm:p-3"
+              >
+                <dt className="text-xs text-[var(--gray-10)]">{metric.title}</dt>
+                <dd className="my-1 text-[29px] font-semibold text-[var(--gray-12)] max-sm:text-2xl">{metric.value}</dd>
+                <dd className="text-xs text-[var(--gray-10)]">{metric.detail}</dd>
               </div>
             ))}
           </dl>
-          <p className="mt-2 text-xs text-[var(--gray-10)]">Each task is counted once, in the first group that fits it.</p>
-          {!space && overview.spaces.length > 1 && (
-            <ul aria-label="Spaces" className="mt-4 space-y-1 text-sm text-[var(--gray-11)]">
-              {overview.spaces.map((entry) => (
-                <li key={entry.slug}>
-                  <span className="font-medium">{entry.name}</span>:{' '}
-                  {GROUPS.map(({ key, title }) => `${entry[key]} ${title.toLowerCase()}`).join(' · ')}
-                </li>
-              ))}
-            </ul>
-          )}
-          {GROUPS.map(({ key, title, empty }) => (
-            <OverviewSection key={key} title={title} tasks={overview[key]} empty={empty} />
+          {LISTS.map(({ key: group, ...list }) => (
+            <OverviewSection key={group} id={`overview-${group}`} {...list} tasks={overview[group]} />
           ))}
+          <OverviewOutcomes tasks={overview.doneThisWeek} />
         </>
       )}
     </>

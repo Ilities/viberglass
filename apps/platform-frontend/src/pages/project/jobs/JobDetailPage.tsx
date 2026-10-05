@@ -1,6 +1,5 @@
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Heading } from '@/components/heading'
-import { LogViewer } from '@/components/log-viewer'
 import { PageMeta } from '@/components/page-meta'
 import { TabButton } from '@/components/tab-button'
 import { useAuth } from '@/context/auth-context'
@@ -17,6 +16,7 @@ import { formatRunDuration, RunFacts } from './run-facts'
 import { decideRunNextStep } from './run-next-step'
 import { RunNextStepCard } from './run-next-step-card'
 import { RunPrompt } from './run-prompt'
+import { RunLog } from './run-log'
 import { RunRecordPanel } from './run-record-panel'
 import { resolveRunTab, type RunTab } from './run-tab'
 import { findNewerRun, useRunContext } from './use-run-context'
@@ -150,7 +150,7 @@ export function JobDetailPage() {
               />
             )}
             {activeTab === 'prompt' && <RunPrompt job={job} />}
-            {activeTab === 'log' && <LogViewer logs={job.logs || []} isConnected={isPolling && job.status === 'active'} />}
+            {activeTab === 'log' && <RunLog job={job} isPolling={isPolling} />}
             {activeTab === 'record' && isAdmin && <RunRecordPanel jobId={job.jobId} />}
           </main>
 

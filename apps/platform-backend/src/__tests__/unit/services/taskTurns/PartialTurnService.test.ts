@@ -1,8 +1,8 @@
 import { PartialTurnService } from "../../../../services/taskTurns/PartialTurnService";
 
-function setup(status = "cancelled") {
+function setup(status = "cancelled", action: string | null = "research") {
   const deps = {
-    turns: { getByJobId: jest.fn().mockResolvedValue({ id: "turn-1", sessionId: "s-1", status }), update: jest.fn() },
+    turns: { getByJobId: jest.fn().mockResolvedValue({ id: "turn-1", sessionId: "s-1", status, action }), update: jest.fn() },
     sessions: { getById: jest.fn().mockResolvedValue({ id: "s-1", ticketId: "t-1" }) },
     documents: { saveDocument: jest.fn().mockResolvedValue(undefined) },
   };
@@ -19,6 +19,14 @@ describe("PartialTurnService", () => {
     expect(deps.turns.update).toHaveBeenCalledWith("turn-1", {
       contentJson: expect.objectContaining({ produced: ["research", "code"], commit: "wip123", stoppedPartway: true }),
     });
+  });
+
+  it("keeps only the document the stopped turn was asked for", async () => {
+    const { deps, service } = setup("cancelled", "plan");
+    expect(await service.keep("job-1", { documents: { research: "# Research", plan: "# Plan so far" } })).toEqual(["plan"]);
+
+    expect(deps.documents.saveDocument).toHaveBeenCalledTimes(1);
+    expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "planning", "# Plan so far", { source: "agent", agentTurnId: "turn-1" });
   });
 
   it("refuses work for a turn that wasn't stopped", async () => {

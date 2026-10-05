@@ -307,7 +307,7 @@ export function TemplatesTab({ projectId }: Props) {
             </Fieldset>
           </DialogBody>
           <DialogActions>
-            <Button plain onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
+            <Button outline onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button color="brand" type="submit" disabled={isSubmitting}>
@@ -323,7 +323,7 @@ export function TemplatesTab({ projectId }: Props) {
           Deleting <strong>{toDelete?.name}</strong> will also remove all schedules that use it. This cannot be undone.
         </AlertDescription>
         <AlertActions>
-          <Button plain onClick={() => setDeleteOpen(false)}>
+          <Button outline onClick={() => setDeleteOpen(false)}>
             Cancel
           </Button>
           <Button color="red" onClick={confirmDelete}>

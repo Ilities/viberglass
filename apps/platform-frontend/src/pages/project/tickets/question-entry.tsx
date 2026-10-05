@@ -1,11 +1,11 @@
 import { Button } from '@/components/button'
 import { Textarea } from '@/components/textarea'
-import { Timestamp } from '@/components/timestamp'
 import { answerQuestion } from '@/service/api/discussion-api'
 import type { AgentQuestion, TaskTimelineEntry } from '@viberglass/types'
 import { ChatBubbleIcon } from '@radix-ui/react-icons'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { ThreadItem } from './thread-item'
 
 type QuestionEntryProps = {
   entry: Extract<TaskTimelineEntry, { kind: 'question' }>
@@ -36,23 +36,26 @@ export function QuestionEntry({ entry, answerBelow = false }: QuestionEntryProps
   const open = question.status === 'open'
   const waiting = question.blocking ? 'The agent is waiting for the answer' : 'The agent carried on with its own assumption meanwhile'
   return (
-    <li aria-label={`${question.agent.name}'s question`} className="space-y-1">
-      <p className="text-xs text-[var(--gray-10)]">
-        <span className="font-medium text-[var(--gray-11)]">{askedLine(question)}</span> · <Timestamp date={entry.at} />
-      </p>
+    <ThreadItem
+      who={question.agent.name}
+      isAgent
+      at={entry.at}
+      note={question.askedOf ? `asks ${question.askedOf.name}` : 'asks'}
+      label={`${question.agent.name}'s question`}
+    >
       {open && answerBelow ? (
-        <p className="line-clamp-1 text-sm text-[var(--gray-11)]">
+        <p className="line-clamp-1 text-[var(--gray-11)]">
           {question.question} <span className="text-xs text-[var(--gray-10)]">· {waiting}; answer it below.</span>
         </p>
       ) : (
         <>
-          <p className="text-sm whitespace-pre-wrap text-[var(--gray-12)]">{question.question}</p>
+          <p className="whitespace-pre-wrap text-[var(--gray-12)]">{question.question}</p>
           <p className="text-xs text-[var(--gray-10)]">
             {question.answer ? answeredLine(question) : open ? waiting : 'No longer waiting for an answer'}
           </p>
         </>
       )}
-    </li>
+    </ThreadItem>
   )
 }
 

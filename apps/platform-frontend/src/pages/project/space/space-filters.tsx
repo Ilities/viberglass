@@ -106,22 +106,28 @@ export function SpaceFilterBar({ filters, onChange, people }: SpaceFilterBarProp
   const active = activeFilters(filters, people)
 
   return (
-    <div className="mt-6 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-[minmax(16rem,1fr)_minmax(10rem,14rem)_auto] sm:items-end">
-        <Field label="Search">
-          <SearchInput placeholder="Search tasks..." name="search" value={filters.search} onChange={(event) => set({ search: event.target.value })} />
-        </Field>
-        <Field label="State">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-[16rem] flex-1">
+          <SearchInput
+            placeholder="Search tasks"
+            aria-label="Search tasks"
+            name="search"
+            value={filters.search}
+            onChange={(event) => set({ search: event.target.value })}
+          />
+        </div>
+        <div className="w-48">
           <Select name="state" aria-label="State" value={filters.state} onChange={(value) => set({ state: isState(value) ? value : 'all' })}>
-            <option value="all">Any state</option>
+            <option value="all">All situations</option>
             {TASK_SITUATION_STATES.map((state) => (
               <option key={state} value={state}>
                 {STATE_FILTER_LABEL[state]}
               </option>
             ))}
           </Select>
-        </Field>
-        <Button plain aria-expanded={showMore} onClick={() => setShowMore(!showMore)}>
+        </div>
+        <Button outline aria-expanded={showMore} onClick={() => setShowMore(!showMore)}>
           {showMore ? 'Fewer filters' : 'More filters'}
         </Button>
       </div>

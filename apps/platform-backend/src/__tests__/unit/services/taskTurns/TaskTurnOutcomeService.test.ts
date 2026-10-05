@@ -25,7 +25,7 @@ describe("TaskTurnOutcomeService", () => {
   it("saves each document the turn wrote as a version of its own, and records the reply", async () => {
     const { deps, service } = setup();
 
-    const recorded = await service.record("job-1", SESSION, TURN, {
+    const recorded = await service.record("job-1", SESSION, { id: "turn-1", action: "reply" }, {
       success: true,
       documents: { research: "# Research", plan: "# Plan" },
       resumed: true,
@@ -100,19 +100,37 @@ describe("TaskTurnOutcomeService", () => {
     const { deps, service } = setup();
     deps.participants.list.mockResolvedValue([{ userId: "owner", name: "Olli Owner", email: "o@x", role: "owner", addedAt: "" }]);
 
-    await expect(service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "# Plan" } })).resolves.toEqual({
+    await expect(service.record("job-1", SESSION, { id: "turn-1", action: "plan" }, { success: true, documents: { plan: "# Plan" } })).resolves.toEqual({
       step: "planning",
       mentioned: ["owner"],
     });
   });
 
-  it("keeps what a turn wrote when it missed the document it was asked for, but ends it as failed", async () => {
+  it("ends a turn that missed the document it was asked for as failed, keeping its code", async () => {
     const { deps, service } = setup(["Writing the research."]);
 
-    await service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "# Plan" }, missing: "research" });
+    await service.record("job-1", SESSION, TURN, { success: true, documents: { plan: "# Plan" }, commitHash: "abc", missing: "research" });
 
-    expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "planning", "# Plan", { source: "agent", agentTurnId: "turn-1" });
-    expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [{ eventType: "turn_failed", payload: { produced: ["plan"] } }]);
+    expect(deps.documents.saveDocument).not.toHaveBeenCalled();
+    expect(deps.workerEvents.batchIngest).toHaveBeenCalledWith("job-1", [{ eventType: "turn_failed", payload: { produced: ["code"] } }]);
+  });
+
+  it("keeps only the document the turn was asked for, not one the agent rewrote on its own", async () => {
+    const { deps, service } = setup();
+
+    const recorded = await service.record("job-1", SESSION, TURN, { success: true, documents: { research: "# Research", plan: "# Plan" } });
+
+    expect(deps.documents.saveDocument).toHaveBeenCalledTimes(1);
+    expect(deps.documents.saveDocument).toHaveBeenCalledWith("t-1", "research", "# Research", { source: "agent", agentTurnId: "turn-1" });
+    expect(recorded).toEqual({ step: "research", mentioned: ["tomi"] });
+  });
+
+  it("keeps no document from a build turn", async () => {
+    const { deps, service } = setup();
+
+    await service.record("job-1", SESSION, { id: "turn-1", action: "code" }, { success: true, documents: { plan: "# Plan" }, commitHash: "abc" });
+
+    expect(deps.documents.saveDocument).not.toHaveBeenCalled();
   });
 
   it("keeps nothing from a failed turn but what it said", async () => {

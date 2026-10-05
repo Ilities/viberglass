@@ -70,11 +70,12 @@ export async function recordProgress(
 }
 
 /**
- * A worker that is sending log lines is alive. The agent step streams logs
- * for minutes while sending no progress, so without this a long agent run
- * outlasts the heartbeat grace period and is given up while still working.
+ * A worker that is sending log lines or session events is alive. The agent
+ * step streams them for minutes while sending no progress, so without this a
+ * long agent run outlasts the heartbeat grace period and is given up while
+ * still working.
  */
-async function touchHeartbeat(jobId: string, at: Date): Promise<void> {
+export async function touchHeartbeat(jobId: string, at: Date): Promise<void> {
   await db.updateTable("jobs").set({ last_heartbeat: at }).where("id", "=", jobId).execute();
 }
 

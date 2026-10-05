@@ -56,7 +56,6 @@ function renderThread(entries: TaskTimelineEntry[], runnable = [{ id: CLAUDE, na
       <MemoryRouter>
         <TaskThread
           taskId="t-1"
-          project="web"
           refreshKey="1"
           onOpenArtifact={jest.fn()}
           agents={[]}

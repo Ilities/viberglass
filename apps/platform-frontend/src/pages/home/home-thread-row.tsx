@@ -1,44 +1,88 @@
+import { Avatar } from '@/components/avatar'
 import { Badge } from '@/components/badge'
-import { Link } from '@/components/link'
+import { Button } from '@/components/button'
+import { ListRow, MetaLine } from '@/components/list-panel'
 import { MarkMentionDone } from '@/components/mark-mention-done'
 import { Timestamp } from '@/components/timestamp'
+import { initialsOf } from '@/lib/initials'
 import { taskPath } from '@/lib/taskPath'
-import { situationPhrase, type HomeThread } from '@viberglass/types'
-import { lastMessageLine } from './home-threads'
+import type { HomeThread } from '@viberglass/types'
+import { needsYouReason, quotedLastMessage, turnLine } from './home-threads'
 
 /**
- * One task thread on Home: key, title, where it stands, what's new, and the
- * last word in it. A mention can be marked done from here without opening it.
+ * A thread that needs you: who's asking, why, what they said, and the one
+ * thing to do about it. A mention you needn't answer can be acknowledged here.
  */
-export function HomeThreadRow({ thread, onChanged }: { thread: HomeThread; onChanged?: () => void }) {
-  const line = lastMessageLine(thread.lastMessage)
-  const { situation } = thread
+export function NeedsYouRow({ thread, onChanged }: { thread: HomeThread; onChanged: () => void }) {
+  const href = taskPath(thread.task.spaceSlug, thread.task)
+  const asked = thread.situation.state === 'question'
+  const from = asked ? 'AI' : thread.lastMessage?.author ? initialsOf(thread.lastMessage.author.name) : '?'
   return (
-    <li className="flex items-center gap-2">
-      <Link
-        href={taskPath(thread.task.spaceSlug, thread.task)}
-        className="hover-lift flex min-w-0 flex-1 items-start justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{thread.task.key}</span>
-            <span className="truncate text-sm font-medium text-zinc-950 dark:text-white">{thread.task.title}</span>
-            {thread.unread > 0 && (
-              <Badge color="amber" aria-label={`${thread.unread} new message${thread.unread === 1 ? '' : 's'}`}>
-                {thread.unread}
-              </Badge>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
-            {situation.yourMove && <span className="font-semibold text-[var(--accent-11)]">Your move · </span>}
-            {situationPhrase(situation)}
-            <span className="text-zinc-500 dark:text-zinc-400"> · {thread.task.spaceName}</span>
-          </p>
-          {line && <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">{line}</p>}
-        </div>
-        <Timestamp date={thread.latestActivityAt} className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400" />
-      </Link>
-      {thread.mentionsYou && onChanged && <MarkMentionDone taskId={thread.task.id} onDone={onChanged} />}
-    </li>
+    <ListRow
+      label={thread.task.title}
+      leading={<Avatar initials={from} size="2" />}
+      badge={<Badge color="amber">{needsYouReason(thread)}</Badge>}
+      taskKey={thread.task.key}
+      title={thread.task.title}
+      href={href}
+      meta={
+        <MetaLine
+          parts={[
+            thread.mentionsYou && !asked ? quotedLastMessage(thread.lastMessage) : thread.situation.label,
+            thread.task.spaceName,
+            <Timestamp key="at" date={thread.latestActivityAt} />,
+          ]}
+        />
+      }
+      action={
+        <>
+          {thread.mentionsYou && !asked && <MarkMentionDone taskId={thread.task.id} onDone={onChanged} />}
+          {asked ? (
+            <Button href={href} color="brand">
+              Answer
+            </Button>
+          ) : (
+            <Button href={href} outline>
+              Open thread
+            </Button>
+          )}
+        </>
+      }
+    />
+  )
+}
+
+/** One of your threads: where it stands, whose turn it is, its last word, and how much is new. */
+export function ConversationRow({ thread }: { thread: HomeThread }) {
+  const href = taskPath(thread.task.spaceSlug, thread.task)
+  return (
+    <ListRow
+      label={thread.task.title}
+      taskKey={thread.task.key}
+      title={thread.task.title}
+      href={href}
+      titleExtra={
+        thread.unread > 0 && (
+          <Badge aria-label={`${thread.unread} new message${thread.unread === 1 ? '' : 's'}`}>
+            {thread.unread} unread
+          </Badge>
+        )
+      }
+      meta={
+        <MetaLine
+          parts={[
+            thread.situation.label,
+            turnLine(thread.situation),
+            quotedLastMessage(thread.lastMessage) ?? <Timestamp key="at" date={thread.latestActivityAt} />,
+            thread.task.spaceName,
+          ]}
+        />
+      }
+      action={
+        <Button href={href} outline>
+          Open
+        </Button>
+      }
+    />
   )
 }

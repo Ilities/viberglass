@@ -18,6 +18,27 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** Tool output kept on an event; a read can return a whole file, which the transcript doesn't need. */
+const MAX_TOOL_OUTPUT_CHARS = 4000;
+
+function truncated(text: string): string {
+  return text.length > MAX_TOOL_OUTPUT_CHARS ? `${text.slice(0, MAX_TOOL_OUTPUT_CHARS)}…` : text;
+}
+
+/** ACP's rawOutput is the harness's own shape: OpenCode sends `{ output, metadata }`, others a string. */
+function outputOf(params: Record<string, unknown>): string {
+  const raw = params.rawOutput ?? params.output;
+  if (typeof raw === "string") return truncated(raw);
+  if (isRecord(raw) && typeof raw.output === "string") return truncated(raw.output);
+  return "";
+}
+
+/** The files a tool call touches, as ACP's `locations` name them. */
+function locationsOf(params: Record<string, unknown>): string[] {
+  if (!Array.isArray(params.locations)) return [];
+  return params.locations.flatMap((location) => (isRecord(location) && typeof location.path === "string" ? [location.path] : []));
+}
+
 function mapToolCallUpdate(params: Record<string, unknown>): PlatformSessionEvent[] {
   const status = typeof params.status === "string" ? params.status : "";
   const state = typeof params.state === "string" ? params.state : status;
@@ -29,19 +50,23 @@ function mapToolCallUpdate(params: Record<string, unknown>): PlatformSessionEven
     typeof params.name === "string" ? params.name :
     (isRecord(params._meta) && typeof (params._meta as Record<string, unknown>).toolName === "string"
       ? (params._meta as Record<string, unknown>).toolName as string : "");
+  const kind = typeof params.kind === "string" ? params.kind : undefined;
 
-  if (state === "started" || state === "running" || state === "pending") {
+  // A harness can announce a call before it has its input (OpenCode sends `pending` with an empty one)
+  // and fill it in with `in_progress`; each is reported, and the transcript keeps the latest per call.
+  if (state === "started" || state === "running" || state === "pending" || state === "in_progress") {
     const input = isRecord(params.rawInput) ? params.rawInput : isRecord(params.input) ? params.input : {};
-    return [{ eventType: "tool_call_started", payload: { toolName, toolCallId, input } }];
+    return [{ eventType: "tool_call_started", payload: { toolName, toolCallId, kind, input, locations: locationsOf(params) } }];
   }
 
   if (state === "completed" || state === "done") {
-    const output = typeof params.rawOutput === "string" ? params.rawOutput : typeof params.output === "string" ? params.output : "";
-    return [{ eventType: "tool_call_completed", payload: { toolName, toolCallId, output, success: true } }];
+    return [{ eventType: "tool_call_completed", payload: { toolName, toolCallId, output: outputOf(params), success: true } }];
   }
 
   if (state === "failed" || state === "error") {
-    const error = typeof params.error === "string" ? params.error : "";
+    const error =
+      typeof params.error === "string" ? params.error :
+      isRecord(params.rawOutput) && typeof params.rawOutput.error === "string" ? params.rawOutput.error : "";
     return [{ eventType: "tool_call_completed", payload: { toolName, toolCallId, error, success: false } }];
   }
 

@@ -106,7 +106,7 @@ export function ClankerActions({ clanker, onClankerUpdated }: ClankerActionsProp
           </p>
         </DialogBody>
         <DialogActions>
-          <Button plain onClick={() => setShowDeleteDialog(false)}>
+          <Button outline onClick={() => setShowDeleteDialog(false)}>
             Cancel
           </Button>
           <Button color="red" disabled={isDeleting} onClick={handleDelete}>

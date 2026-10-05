@@ -71,9 +71,11 @@ export function RepositoryStep({ onDone }: { onDone: (repository: RepositoryAcce
             then choose this repository under Repository access.
           </Description>
         </Field>
-        <Button type="submit" className="w-full" disabled={isChecking || !repository.trim() || !token.trim()}>
-          {isChecking ? 'Checking with GitHub…' : 'Continue'}
-        </Button>
+        <div>
+          <Button type="submit" color="brand" disabled={isChecking || !repository.trim() || !token.trim()}>
+            {isChecking ? 'Checking with GitHub…' : 'Continue'}
+          </Button>
+        </div>
       </form>
     </SetupFrame>
   )

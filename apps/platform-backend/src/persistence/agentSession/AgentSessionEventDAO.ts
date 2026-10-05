@@ -105,6 +105,18 @@ export class AgentSessionEventDAO {
     return rows.map((row) => this.mapRow(row));
   }
 
+  /** What the agent did in a run, after `afterSequence`, in the order it streamed. */
+  async listByJob(jobId: string, afterSequence = 0): Promise<AgentSessionEvent[]> {
+    const rows = await db
+      .selectFrom("agent_session_events")
+      .selectAll()
+      .where("job_id", "=", jobId)
+      .where("sequence", ">", afterSequence)
+      .orderBy("sequence", "asc")
+      .execute();
+    return rows.map((row) => this.mapRow(row));
+  }
+
   /** What the agent said in a turn, in the order it streamed. */
   async listAssistantTextByTurn(turnId: string): Promise<string[]> {
     const rows = await db

@@ -817,7 +817,7 @@ export function ProjectSettingsPage() {
           </div>
         </DialogBody>
         <DialogActions>
-          <Button plain onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
+          <Button outline onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
             Cancel
           </Button>
           <Button outline onClick={() => void handleArchiveProject()} disabled={isDeleting || isArchiving}>

@@ -5,6 +5,7 @@ import { PHASE_DOCUMENT_REVISION_SOURCE } from "../../persistence/ticketing/Tick
 import { AGENT_TURN_STATUS } from "../../types/agentSession";
 import { AGENT_SESSION_SERVICE_ERROR_CODE, AgentSessionServiceError } from "../errors/AgentSessionServiceError";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import { documentsAskedFor } from "./documentsAskedFor";
 
 export interface PartialWork {
   documents: { research?: string; plan?: string };
@@ -46,7 +47,7 @@ export class PartialTurnService {
       ["research", TICKET_WORKFLOW_PHASE.RESEARCH],
       ["plan", TICKET_WORKFLOW_PHASE.PLANNING],
     ] as const) {
-      const content = work.documents[product]?.trim();
+      const content = documentsAskedFor(turn.action).includes(product) ? work.documents[product]?.trim() : undefined;
       if (!content) continue;
       await this.deps.documents.saveDocument(session.ticketId, phase, content, { source: PHASE_DOCUMENT_REVISION_SOURCE.AGENT, agentTurnId: turn.id });
       kept.push(product);

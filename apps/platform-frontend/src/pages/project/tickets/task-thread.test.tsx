@@ -129,7 +129,6 @@ function renderThread(
       <MemoryRouter>
         <TaskThread
           taskId="t-1"
-          project="web"
           refreshKey="1"
           onOpenArtifact={onOpenArtifact}
           agents={[{ kind: 'agent', id: CLAUDE, name: 'Claude' }]}
@@ -219,7 +218,7 @@ describe('TaskThread', () => {
 
     const turn = await screen.findByRole('listitem', { name: "Claude's turn" })
     expect(turn).toHaveTextContent('asked for the research')
-    expect(turn).toHaveTextContent('continued its session')
+    expect(turn).toHaveTextContent('Turn details · resumed session')
     expect(turn).toHaveTextContent('Revising the research: covering the checkout')
     expect(turn).toHaveTextContent('Wrote the research.')
     expect(turn).not.toHaveTextContent('I added a section on the checkout flow.')
@@ -242,7 +241,12 @@ describe('TaskThread', () => {
 
     expect(await screen.findByText('Working on it…')).toBeInTheDocument()
     expect(screen.getByText('This turn failed.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'See what happened' })).toHaveAttribute('href', '/spaces/web/runs/job-1')
+    // The run opens beside the thread on the same page, rather than on a page that sends you back here.
+    expect(screen.getByRole('link', { name: 'See what happened' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^[^?]*\?run=job-1$/)
+    )
+    expect(screen.getByRole('link', { name: 'See what happened' }).getAttribute('href')).not.toContain('/runs/')
     // While it works, nothing new is suggested.
     expect(screen.queryByRole('group', { name: 'Suggested actions' })).not.toBeInTheDocument()
   })
@@ -355,7 +359,6 @@ describe('TaskThread', () => {
         <MemoryRouter>
           <TaskThread
             taskId="t-1"
-            project="web"
             refreshKey="1"
             onOpenArtifact={jest.fn()}
             onOpenComments={onOpenComments}

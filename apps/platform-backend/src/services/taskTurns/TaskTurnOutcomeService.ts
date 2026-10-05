@@ -9,6 +9,7 @@ import { PHASE_DOCUMENT_REVISION_SOURCE } from "../../persistence/ticketing/Tick
 import { AGENT_SESSION_EVENT_TYPE } from "../../types/agentSession";
 import type { AgentSessionWorkerEventService } from "../agentSession/AgentSessionWorkerEventService";
 import { TicketPhaseDocumentService } from "../TicketPhaseDocumentService";
+import { documentsAskedFor } from "./documentsAskedFor";
 
 /** What the worker reports a turn produced. */
 export interface TurnResult {
@@ -92,7 +93,9 @@ export class TaskTurnOutcomeService {
   ): Promise<RecordedTurn | null> {
     const produced: TaskTurnProduct[] = [];
     if (result.success) {
-      const { research, plan } = result.documents ?? {};
+      const asked = documentsAskedFor(turn.action);
+      const research = asked.includes("research") ? result.documents?.research : undefined;
+      const plan = asked.includes("plan") ? result.documents?.plan : undefined;
       if (research?.trim()) {
         await this.saveVersion(session.ticketId, TICKET_WORKFLOW_PHASE.RESEARCH, research, turn.id);
         produced.push("research");

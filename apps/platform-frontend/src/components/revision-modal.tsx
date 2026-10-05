@@ -141,7 +141,7 @@ export function RevisionModal({ ticket, clankers, project, open, onClose, mode }
         </div>
       </DialogBody>
       <DialogActions>
-        <Button plain onClick={onClose} disabled={isRunning}>
+        <Button outline onClick={onClose} disabled={isRunning}>
           Cancel
         </Button>
         <Button color="brand" disabled={isRunning || !selectedClanker || !revisionMessage.trim()} onClick={handleRun}>

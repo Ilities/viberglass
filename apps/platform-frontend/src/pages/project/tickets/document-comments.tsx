@@ -116,7 +116,7 @@ export function CommentComposer({
         <Textarea autoFocus aria-label="Suggested wording" value={suggestion} onChange={(event) => setSuggestion(event.target.value)} rows={3} />
       )}
       <div className="flex justify-end gap-2">
-        <Button plain onClick={onCancel}>
+        <Button outline onClick={onCancel}>
           Cancel
         </Button>
         <Button

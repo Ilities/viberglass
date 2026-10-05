@@ -12,6 +12,7 @@ import type { AcpMcpServer, PlatformSessionEvent } from "./types";
 import { defaultAcpEventMapper } from "./acpEventMapper";
 import { withWorkingDirectory } from "../workingDirectoryEnvironment";
 import type { AcpEventMapper } from "./acpEventMapperTypes";
+import { ToolCallStartFilter } from "./ToolCallStartFilter";
 import { approvePermissionRequest } from "./permissionReply";
 import { AcpSessionOpener, describeSessionStart, sessionSupportOf, type AcpSessionStart } from "./AcpSessionOpener";
 import { compactCommandOf, contextUsageOf, promptUsageOf, type AcpContextUsage } from "./acpSessionSignals";
@@ -100,6 +101,7 @@ export class AcpClient {
   /** While `session/load` replays history the platform already has, its updates are dropped. */
   private replaying = false;
   private readonly mapper: AcpEventMapper;
+  private readonly toolCallStarts = new ToolCallStartFilter();
   private contextUsage?: AcpContextUsage;
   private compactCommand: string | null = null;
 
@@ -247,7 +249,9 @@ export class AcpClient {
     if (command !== undefined) this.compactCommand = command;
     if (this.replaying) return;
     this.contextUsage = contextUsageOf(params) ?? this.contextUsage;
-    for (const event of this.mapper.mapSessionUpdate(params)) this.onEvent(event);
+    for (const event of this.mapper.mapSessionUpdate(params)) {
+      if (this.toolCallStarts.keep(event)) this.onEvent(event);
+    }
   }
 
   private sendRequest(method: string, params: unknown): Promise<unknown> {

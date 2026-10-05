@@ -77,9 +77,11 @@ export function FirstTaskStep({
           />
           <Description>This starter only reads your code, so it's safe to try.</Description>
         </Field>
-        <Button type="submit" className="w-full" disabled={isStarting || !title.trim() || !description.trim()}>
-          {isStarting ? 'Starting…' : 'Start the task'}
-        </Button>
+        <div>
+          <Button type="submit" color="brand" disabled={isStarting || !title.trim() || !description.trim()}>
+            {isStarting ? 'Starting…' : 'Start the task'}
+          </Button>
+        </div>
         <Text>
           Or <TextLink href={`/spaces/${space.slug}`}>go to the space</TextLink> and start with your own task.
         </Text>
