@@ -10,8 +10,6 @@ interface TaskStepperProps {
   shownStep: TaskStep
   /** Which artifacts exist: a document with content, or a pull request. */
   exists: Record<TaskStep, boolean>
-  /** Whether the person may ask the agent; only they are told how. */
-  canAsk?: boolean
   onShowStep: (step: TaskStep) => void
 }
 
@@ -28,7 +26,7 @@ function markerClass(position: 'done' | 'current' | 'upcoming', move: TaskNextMo
  * stands. They're options, not stages: any can be asked for at any time, and
  * nothing waits on approval.
  */
-export function TaskStepper({ currentStep, move, shownStep, exists, canAsk = true, onShowStep }: TaskStepperProps) {
+export function TaskStepper({ currentStep, move, shownStep, exists, onShowStep }: TaskStepperProps) {
   return (
     <div className="space-y-2">
       <div role="tablist" aria-label="Artifacts" className="flex flex-wrap gap-x-6 gap-y-2" onKeyDown={onTabListKeyDown}>
@@ -47,7 +45,7 @@ export function TaskStepper({ currentStep, move, shownStep, exists, canAsk = tru
               onClick={() => onShowStep(step)}
               className={clsx(
                 'group flex items-start gap-2 border-b-2 pb-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-8)]',
-                isShown ? 'border-[var(--gray-12)]' : 'border-transparent hover:border-[var(--gray-6)]'
+                isShown ? 'border-[var(--accent-9)]' : 'border-transparent hover:border-[var(--gray-6)]'
               )}
             >
               <span aria-hidden className={clsx('mt-1 flex size-3.5 shrink-0 items-center justify-center rounded-full border', markerClass(position, move))}>
@@ -65,11 +63,6 @@ export function TaskStepper({ currentStep, move, shownStep, exists, canAsk = tru
           )
         })}
       </div>
-      {canAsk && (
-        <p className="text-xs text-[var(--gray-10)]">
-          Ask for any of these, in any order. Research and a plan help, but code can be asked for directly, and nothing needs approving.
-        </p>
-      )}
     </div>
   )
 }

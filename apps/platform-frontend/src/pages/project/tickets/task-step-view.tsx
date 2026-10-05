@@ -1,4 +1,3 @@
-import { onTabListKeyDown, TabButton } from '@/components/tab-button'
 import {
   savePlanningDocument,
   saveResearchDocument,
@@ -11,14 +10,12 @@ import { BuildPullRequestPanel } from './build-pull-request-panel'
 import { CommentList, useDocumentComments, type ApplySuggestion, type DocumentComments } from './document-comments'
 import { DocumentStep } from './document-step'
 import { DocumentVersion } from './document-version'
-import { STEP_NAME, type TaskNextMove, type TaskStep } from './task-next-move'
-import { TaskRunLine } from './task-run-line'
-import { runsForStep } from './step-runs'
+import { type TaskNextMove, type TaskStep } from './task-next-move'
 import { countNewComments } from './task-suggestions'
 import type { TaskPageData } from './use-task-page'
 
-/** What a step shows: its document (or the build's pull request), its runs, or every comment on its document. */
-export type StepView = 'document' | 'runs' | 'comments'
+/** Comments expand below the artifact; runs belong to the conversation. */
+export type StepView = 'document' | 'comments'
 
 interface TaskStepViewProps {
   step: TaskStep
@@ -31,21 +28,12 @@ interface TaskStepViewProps {
   onCompare: (version: number) => void
   onView: (view: StepView) => void
   data: TaskPageData
-  project: string
   move: TaskNextMove
-  openRunId: string | null
-  /** The run opened by link or from the banner, scrolled to once. */
-  focusedRunId: string | null
-  /** The view the linked run opens on (`?runTab=`). */
-  focusedRunTab: string | null
-  onToggleRun: (runId: string) => void
   onDocumentSaved: (step: 'research' | 'planning', document: PhaseDocumentResponse) => void
   /** The shown document's open comments made since its latest version, as they change here. */
   onNewComments: (step: 'research' | 'planning', count: number) => void
 }
 
-const VIEW_PANEL_ID = 'task-step-view-panel'
-const viewTabId = (view: StepView) => `task-step-view-tab-${view}`
 /** The artifact tabs (Research, Plan, Code) and the panel they show. */
 export const stepTabId = (step: TaskStep) => `task-artifact-tab-${step}`
 export const stepPanelId = (step: TaskStep) => `task-artifact-panel-${step}`
@@ -94,7 +82,7 @@ function BuildStep({ data }: { data: TaskPageData }) {
   )
 }
 
-/** One step's work, one view at a time: its document, its runs, or comments on the document. */
+/** The artifact, with its comments available below it. */
 export function TaskStepView({
   step,
   view,
@@ -103,17 +91,10 @@ export function TaskStepView({
   onCompare,
   onView,
   data,
-  project,
   move,
-  openRunId,
-  focusedRunId,
-  focusedRunTab,
-  onToggleRun,
   onDocumentSaved,
   onNewComments,
 }: TaskStepViewProps) {
-  const stepRuns = runsForStep(data.runs, step, data.ticket.workflowPhase)
-  const agentNames = new Map(data.clankers.map((clanker) => [clanker.id, clanker.name]))
   const isDocumentStep = step !== 'execution'
   const hasDocument = isDocumentStep && data.documents[step].content.trim().length > 0
   const documentStep = step === 'execution' ? null : step
@@ -132,99 +113,43 @@ export function TaskStepView({
     if (documentStep && hasDocument) onNewComments(documentStep, newCount)
   }, [documentStep, hasDocument, newCount, onNewComments])
 
-  const shown: StepView = view === 'comments' && !hasDocument ? 'document' : view
-
   return (
     <div role="tabpanel" id={stepPanelId(step)} aria-labelledby={stepTabId(step)}>
-      <div
-        role="tablist"
-        aria-label={`${STEP_NAME[step]} views`}
-        className="mb-6 flex gap-1 border-b border-[var(--gray-5)]"
-        onKeyDown={onTabListKeyDown}
-      >
-        <TabButton
-          role="tab"
-          id={viewTabId('document')}
-          aria-controls={VIEW_PANEL_ID}
-          active={shown === 'document'}
-          onClick={() => onView('document')}
+      {documentStep && version ? (
+        <DocumentVersion
+          ticketId={data.ticket.id}
+          step={documentStep}
+          version={version}
+          comparing={comparing}
+          onShowCurrent={() => onView('document')}
+        />
+      ) : documentStep ? (
+        <DocumentStep
+          step={documentStep}
+          data={data}
+          move={step === data.ticket.workflowPhase ? move : { kind: 'done' }}
+          comments={comments}
+          onApplySuggestion={applySuggestion}
+          onDocumentSaved={onDocumentSaved}
+          onCompare={onCompare}
+        />
+      ) : (
+        <BuildStep data={data} />
+      )}
+      {hasDocument && documentStep && !version && (
+        <details
+          open={view === 'comments'}
+          onToggle={(event) => {
+            if (event.currentTarget.open !== (view === 'comments')) onView(event.currentTarget.open ? 'comments' : 'document')
+          }}
+          className="mt-6 border-t border-[var(--gray-5)] pt-4"
         >
-          {isDocumentStep ? 'Document' : 'Pull request'}
-        </TabButton>
-        <TabButton
-          role="tab"
-          id={viewTabId('runs')}
-          aria-controls={VIEW_PANEL_ID}
-          active={shown === 'runs'}
-          onClick={() => onView('runs')}
-        >
-          Runs{stepRuns.length > 0 ? ` · ${stepRuns.length}` : ''}
-        </TabButton>
-        {hasDocument && (
-          <TabButton
-            role="tab"
-            id={viewTabId('comments')}
-            aria-controls={VIEW_PANEL_ID}
-            active={shown === 'comments'}
-            onClick={() => onView('comments')}
-          >
-            Comments{comments.openCount > 0 ? ` · ${comments.openCount}` : ''}
-          </TabButton>
-        )}
-      </div>
-
-      <div role="tabpanel" id={VIEW_PANEL_ID} aria-labelledby={viewTabId(shown)}>
-        {shown === 'document' && (
-          <div className="space-y-8">
-            {documentStep && version ? (
-              <DocumentVersion
-                ticketId={data.ticket.id}
-                step={documentStep}
-                version={version}
-                comparing={comparing}
-                onShowCurrent={() => onView('document')}
-              />
-            ) : documentStep ? (
-              <DocumentStep
-                step={documentStep}
-                data={data}
-                move={step === data.ticket.workflowPhase ? move : { kind: 'done' }}
-                comments={comments}
-                onApplySuggestion={applySuggestion}
-                onDocumentSaved={onDocumentSaved}
-                onCompare={onCompare}
-              />
-            ) : (
-              <BuildStep data={data} />
-            )}
-          </div>
-        )}
-
-        {shown === 'runs' &&
-          (stepRuns.length === 0 ? (
-            <p className="py-6 text-sm text-[var(--gray-10)]">No {STEP_NAME[step].toLowerCase()} runs yet.</p>
-          ) : (
-            <div className="divide-y divide-[var(--gray-4)]">
-              {stepRuns.map((run, index) => (
-                <TaskRunLine
-                  key={run.jobId}
-                  run={run}
-                  number={stepRuns.length - index}
-                  agentName={run.clankerId ? (agentNames.get(run.clankerId) ?? null) : null}
-                  project={project}
-                  isOpen={openRunId === run.jobId}
-                  onToggle={() => onToggleRun(run.jobId)}
-                  scrollIntoView={focusedRunId === run.jobId}
-                  linkedTab={focusedRunId === run.jobId ? focusedRunTab : null}
-                />
-              ))}
-            </div>
-          ))}
-
-        {shown === 'comments' && documentStep && (
-          <CommentList comments={comments} onApplySuggestion={applySuggestion} />
-        )}
-      </div>
+          <summary className="cursor-pointer text-sm text-[var(--gray-11)]">
+            Comments{comments.openCount > 0 && ` · ${comments.openCount} open`}
+          </summary>
+          {view === 'comments' && <div className="mt-4"><CommentList comments={comments} onApplySuggestion={applySuggestion} /></div>}
+        </details>
+      )}
     </div>
   )
 }

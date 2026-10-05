@@ -139,10 +139,6 @@ export function CommentList({ comments, onApplySuggestion }: { comments: Documen
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-[var(--gray-10)]">
-        Select text in the document to comment on it or suggest new wording. Asking for changes sends the open comments to
-        the agent.
-      </p>
       {open.length === 0 ? (
         <p className="text-sm text-[var(--gray-10)]">No open comments.</p>
       ) : (

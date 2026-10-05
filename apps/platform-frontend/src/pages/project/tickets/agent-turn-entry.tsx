@@ -2,12 +2,15 @@ import { CancelRunButton } from '@/components/cancel-run-button'
 import { Link } from '@/components/link'
 import { useAuth } from '@/context/auth-context'
 import { isRunner } from '@/lib/roles'
-import { cancelJob } from '@/service/api/job-api'
+import { cancelJob, type JobListItem } from '@/service/api/job-api'
+import { formatJobStatus } from '@/data'
+import { formatRunDuration } from '../jobs/run-facts'
+import { CheckCircledIcon, ExternalLinkIcon } from '@radix-ui/react-icons'
 import type { TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberglass/types'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ThreadItem } from './thread-item'
-import { TurnRunFacts } from './turn-run-facts'
 
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
 
@@ -91,14 +94,17 @@ function CancelTurn({ jobId, startedAt }: { jobId: string; startedAt: string }) 
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, summaryVersion }: { entry: AgentTurn; summaryVersion?: number }) {
+export function AgentTurnEntry({ entry, run, summaryVersion }: { entry: AgentTurn; run?: JobListItem; summaryVersion?: number }) {
   const [expanded, setExpanded] = useState(false)
-  const [detailsOpen, setDetailsOpen] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
   const { user } = useAuth()
-  // A run is an engineers' view; guests and viewers see the turn in the thread only. It opens beside the thread, on this page.
-  const runLink = entry.jobId && isRunner(user?.role) ? `?run=${encodeURIComponent(entry.jobId)}` : null
+  const [searchParams] = useSearchParams()
+  // Guests and viewers see the turn in the thread, without its technical details.
+  const runParams = new URLSearchParams(searchParams)
+  if (entry.jobId) runParams.set('run', entry.jobId)
+  runParams.delete('runTab')
+  const runLink = entry.jobId && isRunner(user?.role) ? `?${runParams}` : null
   // The intent is shown on its own, so the reply starts after it.
   const rest =
     outcome?.reply
@@ -116,6 +122,7 @@ export function AgentTurnEntry({ entry, summaryVersion }: { entry: AgentTurn; su
   const context = contextLine(outcome?.contextUsage)
 
   const facts = [session, context].filter((fact): fact is string => Boolean(fact))
+  const duration = run ? formatRunDuration(run.processedAt, run.finishedAt) : null
 
   return (
     <ThreadItem
@@ -187,25 +194,24 @@ export function AgentTurnEntry({ entry, summaryVersion }: { entry: AgentTurn; su
           to keep them.
         </p>
       )}
-      {((Boolean(entry.jobId) && !working) || facts.length > 0 || outcome?.compacted) && (
-        <details className="text-xs text-[var(--gray-10)]" onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
-          <summary className="cursor-pointer hover:text-[var(--gray-12)]">Turn details{facts.length > 0 && ` · ${facts.join(' · ')}`}</summary>
-          <div className="mt-1.5 space-y-1 pl-3">
-            {/* Loaded only once opened: a thread holds many turns. */}
-            {detailsOpen && entry.jobId && !working && <TurnRunFacts jobId={entry.jobId} />}
-            {outcome?.compacted && <p>Compacted its context with the summary.</p>}
-            {runLink && (
-              <p className="flex flex-wrap gap-x-4">
-                <Link href={runLink} className="underline">
-                  Everything it did, step by step
-                </Link>
-                <Link href={`${runLink}&runTab=record`} className="underline">
-                  The run's full record
-                </Link>
-              </p>
-            )}
-          </div>
-        </details>
+      {runLink && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-xs">
+          {run && (
+            <span className="inline-flex items-center gap-1.5 text-[var(--gray-10)]">
+              {run.status === 'completed' && <CheckCircledIcon className="size-3.5 text-green-600" />}
+              {formatJobStatus(run.status).label}{duration && ` · ${duration}`}
+            </span>
+          )}
+          <Link href={runLink} className="inline-flex items-center gap-1.5 text-[var(--gray-11)] hover:text-[var(--accent-11)]">
+            Run details <ExternalLinkIcon className="size-3" />
+          </Link>
+        </div>
+      )}
+      {(facts.length > 0 || outcome?.compacted) && (
+        <p className="text-xs text-[var(--gray-10)]">
+          {facts.join(' · ')}
+          {outcome?.compacted && `${facts.length > 0 ? ' · ' : ''}Compacted its context with the summary.`}
+        </p>
       )}
     </ThreadItem>
   )

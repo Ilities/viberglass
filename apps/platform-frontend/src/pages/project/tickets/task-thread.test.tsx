@@ -218,7 +218,8 @@ describe('TaskThread', () => {
 
     const turn = await screen.findByRole('listitem', { name: "Claude's turn" })
     expect(turn).toHaveTextContent('asked for the research')
-    expect(turn).toHaveTextContent('Turn details · resumed session')
+    expect(turn).toHaveTextContent('resumed session')
+    expect(within(turn).getByRole('link', { name: 'Run details' })).toHaveAttribute('href', '/?run=job-1')
     expect(turn).toHaveTextContent('Revising the research: covering the checkout')
     expect(turn).toHaveTextContent('Wrote the research.')
     expect(turn).not.toHaveTextContent('I added a section on the checkout flow.')
