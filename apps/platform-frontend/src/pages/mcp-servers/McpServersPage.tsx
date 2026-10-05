@@ -149,7 +149,7 @@ export function McpServersPage() {
         <AlertTitle>Remove {removing?.name}?</AlertTitle>
         <AlertDescription>Runners can no longer pick it. A server some runner still uses can&apos;t be removed.</AlertDescription>
         <AlertActions>
-          <Button plain onClick={() => setRemoving(null)}>
+          <Button outline onClick={() => setRemoving(null)}>
             Cancel
           </Button>
           <Button color="red" onClick={confirmRemove}>

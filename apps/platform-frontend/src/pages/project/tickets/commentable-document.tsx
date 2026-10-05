@@ -46,6 +46,8 @@ interface CommentableDocumentProps {
   /** Viewers read comments but can't add them. */
   canComment: boolean
   onApplySuggestion: ApplySuggestion
+  /** Larger type, for reading it full screen. */
+  reading?: boolean
 }
 
 /**
@@ -53,7 +55,7 @@ interface CommentableDocumentProps {
  * text offers to comment on it or suggest new wording; clicking a highlight
  * opens what was said about it.
  */
-export function CommentableDocument({ source, comments, canComment, onApplySuggestion }: CommentableDocumentProps) {
+export function CommentableDocument({ source, comments, canComment, onApplySuggestion, reading = false }: CommentableDocumentProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const documentRef = useRef<HTMLDivElement>(null)
   const [selection, setSelection] = useState<{ quote: TextQuote; placement: Placement; composing: boolean } | null>(null)
@@ -88,6 +90,7 @@ export function CommentableDocument({ source, comments, canComment, onApplySugge
       <div ref={documentRef} onMouseUp={captureSelection} onKeyUp={captureSelection}>
         <MarkdownDocument
           source={source}
+          reading={reading}
           highlights={highlights}
           activeHighlightId={thread?.ids[0] ?? null}
           onHighlightClick={(_id, element) => {

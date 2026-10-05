@@ -1,25 +1,35 @@
 import { EmptyState } from '@/components/empty-state'
+import { FilterPills } from '@/components/filter-pills'
 import { FunLoading } from '@/components/fun-loading'
-import { Heading, Subheading } from '@/components/heading'
+import { ListPanel } from '@/components/list-panel'
+import { PageHeader } from '@/components/page-header'
 import { PageMeta } from '@/components/page-meta'
-import { TabButton } from '@/components/tab-button'
+import { SectionHeader } from '@/components/section-header'
 import { useAuth } from '@/context/auth-context'
-import { isRunner } from '@/lib/roles'
 import { getProjectsList } from '@/data'
+import { isRunner } from '@/lib/roles'
 import { useSetupRedirect } from '@/pages/setup/useSetupRedirect'
 import { getHome } from '@/service/api/home-api'
 import type { HomeData, Project } from '@viberglass/types'
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { AskForSomething } from './ask-for-something'
-import { HomeThreadRow } from './home-thread-row'
-import { filterThreads, HOME_FILTER_LABEL, HOME_FILTERS, landingFor, type HomeFilter } from './home-threads'
+import { ConversationRow, NeedsYouRow } from './home-thread-row'
+import {
+  attentionLine,
+  filterThreads,
+  greeting,
+  HOME_FILTER_LABEL,
+  HOME_FILTERS,
+  landingFor,
+  type HomeFilter,
+} from './home-threads'
 import { NextStepsChecklist } from './next-steps-checklist'
 import { WorkspaceHealth } from './workspace-health'
 
 const POLL_MS = 30_000
 
-/** Home: the task threads you're in, those that need you first. */
+/** Home: the conversations you're in, those that need you first. */
 export function HomePage() {
   useSetupRedirect()
   const { user } = useAuth()
@@ -57,65 +67,72 @@ export function HomePage() {
   const needsYou = home?.needsYou ?? []
   const threads = filterThreads(home?.threads ?? [], filter)
   const empty = needsYou.length === 0 && (home?.threads.length ?? 0) === 0
+  const firstName = user?.name?.split(' ')[0]
 
   return (
     <>
       <PageMeta title="Home" />
-      <Heading>Home</Heading>
+      <PageHeader
+        eyebrow="Your workspace"
+        title={firstName ? `${greeting(new Date())}, ${firstName}` : 'Home'}
+        description={attentionLine(needsYou.length)}
+        actions={canCreate && !empty ? <AskForSomething spaces={spaces} /> : undefined}
+      />
       {isAdmin && <NextStepsChecklist />}
-      {isAdmin && <WorkspaceHealth />}
-      {failed && <p className="mt-6 text-sm text-red-600">Your tasks couldn&apos;t be loaded. Try again in a moment.</p>}
+      {failed && (
+        <p className="mb-6 text-sm text-red-600">Your tasks couldn&apos;t be loaded. Try again in a moment.</p>
+      )}
 
       {empty && !failed ? (
-        <div className="mt-8">
-          <EmptyState
-            title="Nothing here yet"
-            description="The tasks you ask for, own, review or are mentioned on show up here."
-            action={canCreate ? <AskForSomething spaces={spaces} /> : undefined}
-          />
-        </div>
+        <EmptyState
+          title="Nothing here yet"
+          description="The tasks you ask for, own, review or are mentioned on show up here."
+          action={canCreate ? <AskForSomething spaces={spaces} /> : undefined}
+        />
       ) : (
         <>
           {needsYou.length > 0 && (
-            <section aria-label="Needs you" className="mt-8">
-              <Subheading>Needs you</Subheading>
-              <p className="mt-1 text-xs text-[var(--gray-10)]">
-                Questions and mentions waiting for you. Answer or reply, or acknowledge a mention you don&apos;t need to answer; the task itself stays as it is.
-              </p>
-              <ul className="mt-3 space-y-2">
+            <section aria-labelledby="home-needs-you" className="mb-8">
+              <SectionHeader
+                id="home-needs-you"
+                title="Needs you"
+                count={needsYou.length}
+                hint="Questions and mentions you haven’t answered"
+              />
+              <ListPanel>
                 {needsYou.map((thread) => (
-                  <HomeThreadRow key={thread.task.id} thread={thread} onChanged={reload} />
+                  <NeedsYouRow key={thread.task.id} thread={thread} onChanged={reload} />
                 ))}
-              </ul>
+              </ListPanel>
             </section>
           )}
-          <section aria-label="Your tasks" className="mt-8">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Subheading>Your tasks</Subheading>
-              {canCreate && <AskForSomething spaces={spaces} />}
-            </div>
-            <p className="mt-1 text-xs text-[var(--gray-10)]">Tasks you asked for, own, review or watch. The number is how many messages are new to you.</p>
-            <div role="group" aria-label="Show" className="mt-2 flex border-b border-[var(--gray-a5)]">
-              {HOME_FILTERS.map((value) => (
-                <TabButton key={value} active={filter === value} onClick={() => setFilter(value)}>
-                  {HOME_FILTER_LABEL[value]}
-                </TabButton>
-              ))}
-            </div>
+          <section aria-labelledby="home-conversations" className="mb-8">
+            <SectionHeader id="home-conversations" title="Your conversations" hint="Newest activity first" />
+            <FilterPills
+              label="Show"
+              value={filter}
+              onChange={setFilter}
+              options={HOME_FILTERS.map((value) => ({ value, label: HOME_FILTER_LABEL[value] }))}
+            />
             {threads.length === 0 ? (
-              <p className="mt-4 text-sm text-[var(--gray-10)]">
-                {filter === 'unread' ? 'Nothing unread.' : filter === 'mine' ? "You don't own any other tasks." : 'No other tasks.'}
+              <p className="text-sm text-[var(--gray-10)]">
+                {filter === 'unread'
+                  ? 'Nothing unread.'
+                  : filter === 'mine'
+                    ? "You don't own any other tasks."
+                    : 'No other conversations.'}
               </p>
             ) : (
-              <ul className="mt-3 space-y-2">
+              <ListPanel>
                 {threads.map((thread) => (
-                  <HomeThreadRow key={thread.task.id} thread={thread} />
+                  <ConversationRow key={thread.task.id} thread={thread} />
                 ))}
-              </ul>
+              </ListPanel>
             )}
           </section>
         </>
       )}
+      {isAdmin && <WorkspaceHealth />}
     </>
   )
 }

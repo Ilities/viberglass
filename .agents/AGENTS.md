@@ -104,6 +104,12 @@ Inside the worker, `SessionStateManager`, `InstructionFileManager`, `ClankerAgen
 - If a user request conflicts with these rules, implement the request and explicitly call out the conflict.
 - **Always fix ALL failing tests before considering a task done — regardless of whether you caused the failure.** If tests were already failing before your changes, fix them anyway.
 
+### 8a) UI Buttons
+
+- Buttons in a row are all framed buttons of the same height: one primary (`color="brand"`), the rest `outline`. A Cancel, Back or Close next to Save/Create/Delete is always `outline`, never `plain`.
+- `plain` is only for a lone, low-weight action inside text or a dense list (Remove on a list item, Copy link), never beside a framed button.
+- Secondary buttons are neutral gray, not the accent colour; the accent is for the one primary action.
+
 ### 9) UI Change Verification
 
 When making UI changes, verify them visually using the agent-browser skill:

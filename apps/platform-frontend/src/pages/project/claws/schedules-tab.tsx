@@ -417,7 +417,7 @@ export function SchedulesTab({ projectId }: Props) {
             </Fieldset>
           </DialogBody>
           <DialogActions>
-            <Button plain onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
+            <Button outline onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button color="brand" type="submit" disabled={isSubmitting}>
@@ -433,7 +433,7 @@ export function SchedulesTab({ projectId }: Props) {
           Deleting <strong>{toDelete?.name}</strong> will stop all future runs. This cannot be undone.
         </AlertDescription>
         <AlertActions>
-          <Button plain onClick={() => setDeleteOpen(false)}>
+          <Button outline onClick={() => setDeleteOpen(false)}>
             Cancel
           </Button>
           <Button color="red" onClick={confirmDelete}>

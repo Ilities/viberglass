@@ -1,35 +1,29 @@
-import { Button } from '@/components/button'
-import { Timestamp } from '@/components/timestamp'
+import { MarkMentionDone } from '@/components/mark-mention-done'
 import { useAuth } from '@/context/auth-context'
 import { usePersonName } from '@/hooks/usePeople'
 import { getTaskTimeline } from '@/service/api/discussion-api'
 import { markTaskRead } from '@/service/api/home-api'
 import type { Clanker, TaskArtifactKind, TaskTimelineEntry } from '@viberglass/types'
 import { useCallback, useEffect, useState } from 'react'
-import { describeActivity } from './activity-sentence'
 import { AgentSteering } from './agent-steering'
 import { AgentTurnEntry } from './agent-turn-entry'
 import { BringInAgent, type BringableAgent } from './bring-in-agent'
-import { commentStatuses, CommentEntry, isFullComment } from './comment-entry'
-import { MarkMentionDone } from '@/components/mark-mention-done'
-import { MessageBody } from './message-body'
+import { CommentEntry, commentStatuses, isFullComment } from './comment-entry'
 import { NextAgentLine } from './next-agent-line'
 import { OpenQuestions, QuestionEntry } from './question-entry'
+import { PinnedSummary, SummaryEntry } from './summary-entry'
 import { TaskComposer, type Mentionable } from './task-composer'
 import { TaskSuggestedActions } from './task-suggested-actions'
 import { suggestTaskActions, type TaskSuggestionInput } from './task-suggestions'
+import { EventEntry, MessageEntry, RequestEntry, VersionEntry } from './thread-entries'
 import { summaryFacts } from './thread-summaries'
-import { PinnedSummary, SummaryEntry } from './summary-entry'
 
-const ARTIFACT_NAME: Record<TaskArtifactKind, string> = { research: 'Research', plan: 'Plan' }
 const ARTIFACT_STEP: Record<TaskArtifactKind, 'research' | 'planning'> = { research: 'research', plan: 'planning' }
 
 interface TaskThreadProps {
   taskId: string
   /** The task's key (WEB-42), for the command that checks its branch out. */
   taskKey?: string
-  /** The space's slug, for links to the agent's runs. */
-  project: string
   /** Changes whenever the task's runs, sessions or documents do, so the thread follows them. */
   refreshKey: string
   /** Opens a document at a version; null opens its current version, where people comment and edit. */
@@ -59,54 +53,14 @@ interface TaskThreadProps {
   clankers?: Clanker[]
   /** The page reloads after an ask, to show the agent working. */
   onAsked: () => void
-}
-
-function MessageEntry({ entry }: { entry: Extract<TaskTimelineEntry, { kind: 'message' }> }) {
-  return (
-    <li>
-      <p className="text-xs text-[var(--gray-10)]">
-        <span className="font-medium text-[var(--gray-11)]">{entry.author?.name ?? 'Someone'}</span>
-        {entry.channel === 'session' && ' to the agent'}{' '}
-        · <Timestamp date={entry.at} />
-      </p>
-      <MessageBody body={entry.body} />
-    </li>
-  )
-}
-
-function VersionEntry({ entry, onOpen }: { entry: Extract<TaskTimelineEntry, { kind: 'artifact_version' }>; onOpen: () => void }) {
-  const who = entry.byAgent ? 'Written by the agent' : `Edited by ${entry.author?.name ?? 'someone'}`
-  return (
-    <li className="flex items-center justify-between gap-4 rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] px-4 py-3">
-      <div>
-        <p className="text-sm font-medium text-[var(--gray-12)]">
-          {ARTIFACT_NAME[entry.artifact]} v{entry.version}
-        </p>
-        <p className="text-xs text-[var(--gray-10)]">
-          {who} · <Timestamp date={entry.at} />
-        </p>
-      </div>
-      <Button outline onClick={onOpen} aria-label={`Open ${ARTIFACT_NAME[entry.artifact]} v${entry.version}`}>
-        Open
-      </Button>
-    </li>
-  )
-}
-
-function EventEntry({ entry, nameOf }: { entry: Extract<TaskTimelineEntry, { kind: 'event' }>; nameOf: (id: string) => string }) {
-  return (
-    <li className="flex items-baseline justify-between gap-4 text-xs text-[var(--gray-10)]">
-      <span>{describeActivity(entry.activity, nameOf)}</span>
-      <Timestamp date={entry.at} className="shrink-0" />
-    </li>
-  )
+  /** The task as it was asked for, which opens the conversation. */
+  request?: { who: string; at: string; body: string } | null
 }
 
 /** The task's one thread: what people and the agent said and asked, each document version, and what happened, in order. */
 export function TaskThread({
   taskId,
   taskKey = '',
-  project,
   refreshKey,
   onOpenArtifact,
   onOpenComments = () => undefined,
@@ -122,6 +76,7 @@ export function TaskThread({
   runnableAgents,
   clankers = [],
   onAsked,
+  request = null,
 }: TaskThreadProps) {
   const { user } = useAuth()
   const personName = usePersonName()
@@ -137,7 +92,9 @@ export function TaskThread({
   useEffect(() => load(), [load, refreshKey])
 
   // Seeing the thread reads it, again whenever something new shows up while it's open. Viewers are read-only on the server.
-  const seen = entries ? entries.map((entry) => (entry.kind === 'agent_turn' ? `${entry.id}:${entry.status}` : entry.id)).join(',') : null
+  const seen = entries
+    ? entries.map((entry) => (entry.kind === 'agent_turn' ? `${entry.id}:${entry.status}` : entry.id)).join(',')
+    : null
   useEffect(() => {
     if (seen === null || !canPost) return
     markTaskRead(taskId).catch(() => undefined)
@@ -145,27 +102,48 @@ export function TaskThread({
 
   if (!entries) return null
   // A comment is a message about a document; a change to its status shows on the comment itself.
-  const listed = entries.filter((entry) => !(entry.kind === 'event' && entry.activity.kind === 'comment_status_changed'))
+  // The request opens the conversation, so the line saying the task was created would repeat it.
+  const listed = entries.filter(
+    (entry) =>
+      !(
+        entry.kind === 'event' &&
+        (entry.activity.kind === 'comment_status_changed' || (request && entry.activity.kind === 'task_created'))
+      )
+  )
   const shown = messagesOnly ? listed.filter((entry) => entry.kind !== 'event' || isFullComment(entry)) : listed
   const statuses = commentStatuses(entries)
   const nameOf = (id: string) => personName(id) ?? 'someone'
-  const latestTurn = entries.findLast((entry): entry is Extract<TaskTimelineEntry, { kind: 'agent_turn' }> => entry.kind === 'agent_turn') ?? null
-  const agentWorking = suggestionInput.agentWorking || latestTurn?.status === 'queued' || latestTurn?.status === 'running'
+  const latestTurn =
+    entries.findLast(
+      (entry): entry is Extract<TaskTimelineEntry, { kind: 'agent_turn' }> => entry.kind === 'agent_turn'
+    ) ?? null
+  const agentWorking =
+    suggestionInput.agentWorking || latestTurn?.status === 'queued' || latestTurn?.status === 'running'
   const summaries = summaryFacts(entries)
-  const suggestions = suggestTaskActions({ ...suggestionInput, agentWorking, latestTurn, sinceSummary: summaries.sinceLatest })
+  const suggestions = suggestTaskActions({
+    ...suggestionInput,
+    agentWorking,
+    latestTurn,
+    sinceSummary: summaries.sinceLatest,
+  })
   const onTask = new Set(entries.flatMap((entry) => (entry.kind === 'agent_turn' ? [entry.agent.id] : [])))
   const bringable = runnableAgents.filter((agent) => !onTask.has(agent.id))
   const latestVersion = new Map<TaskArtifactKind, number>()
-  for (const entry of entries) if (entry.kind === 'artifact_version') latestVersion.set(entry.artifact, Math.max(entry.version, latestVersion.get(entry.artifact) ?? 0))
+  for (const entry of entries)
+    if (entry.kind === 'artifact_version')
+      latestVersion.set(entry.artifact, Math.max(entry.version, latestVersion.get(entry.artifact) ?? 0))
   const posted = () => {
     load()
     onAsked()
   }
 
   return (
-    <section aria-label="Thread" className="space-y-5">
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--gray-6)] pb-2">
-        <h2 className="text-sm font-semibold text-[var(--gray-12)]">Thread</h2>
+    <section
+      aria-label="Conversation"
+      className="space-y-5 rounded-[9px] border border-[var(--gray-5)] bg-[var(--color-panel-solid)] p-6 max-sm:px-4"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-base font-semibold text-[var(--gray-12)]">Conversation</h2>
         <label className="flex items-center gap-2 text-xs text-[var(--gray-11)]">
           <input type="checkbox" checked={messagesOnly} onChange={(event) => setMessagesOnly(event.target.checked)} />
           Messages only
@@ -174,17 +152,22 @@ export function TaskThread({
 
       {summaries.latest && <PinnedSummary entry={summaries.latest} />}
 
-      {shown.length === 0 ? (
+      {shown.length === 0 && !request ? (
         <p className="text-sm text-[var(--gray-10)]">
-          {canAsk ? 'Nothing here yet. Ask the agent, or bring someone in with @.' : canPost ? 'Nothing here yet. Write below, or bring someone in with @.' : 'Nothing here yet. What people and the agent say shows up here.'}
+          {canAsk
+            ? 'Nothing here yet. Ask the agent, or bring someone in with @.'
+            : canPost
+              ? 'Nothing here yet. Write below, or bring someone in with @.'
+              : 'Nothing here yet. What people and the agent say shows up here.'}
         </p>
       ) : (
-        <ol className="space-y-4">
+        <ol className="space-y-6">
+          {request && <RequestEntry who={request.who} at={request.at} body={request.body} />}
           {shown.map((entry) =>
             entry.kind === 'message' ? (
               <MessageEntry key={entry.id} entry={entry} />
             ) : entry.kind === 'agent_turn' ? (
-              <AgentTurnEntry key={entry.id} entry={entry} project={project} summaryVersion={summaries.versionByTurn.get(entry.id)} />
+              <AgentTurnEntry key={entry.id} entry={entry} summaryVersion={summaries.versionByTurn.get(entry.id)} />
             ) : entry.kind === 'question' ? (
               <QuestionEntry key={entry.id} entry={entry} answerBelow={canPost} />
             ) : entry.kind === 'summary' ? (
@@ -193,7 +176,12 @@ export function TaskThread({
               <VersionEntry
                 key={entry.id}
                 entry={entry}
-                onOpen={() => onOpenArtifact(ARTIFACT_STEP[entry.artifact], entry.version === latestVersion.get(entry.artifact) ? null : entry.version)}
+                onOpen={() =>
+                  onOpenArtifact(
+                    ARTIFACT_STEP[entry.artifact],
+                    entry.version === latestVersion.get(entry.artifact) ? null : entry.version
+                  )
+                }
               />
             ) : entry.kind === 'event' && isFullComment(entry) ? (
               <CommentEntry
@@ -222,16 +210,28 @@ export function TaskThread({
         onChanged={posted}
       />
       {canPost && <OpenQuestions taskId={taskId} entries={entries} viewerId={user?.id} onAnswered={posted} />}
-      {canAsk && !agentWorking && <NextAgentLine taskId={taskId} refreshKey={refreshKey} clankers={clankers} agentsOnTask={onTask} />}
-      {canAsk && <TaskSuggestedActions taskId={taskId} suggestions={suggestions} agentWorking={agentWorking} onAsked={posted} />}
+      {canAsk && !agentWorking && (
+        <NextAgentLine taskId={taskId} refreshKey={refreshKey} clankers={clankers} agentsOnTask={onTask} />
+      )}
       {canPost && mentionsYou && (
         <div className="flex items-center justify-between gap-4 text-sm text-[var(--gray-11)]">
-          <p>You were mentioned here. Reply below, or acknowledge it if there&apos;s nothing to say; the task stays as it is.</p>
+          <p>
+            You were mentioned here. Reply below, or acknowledge it if there&apos;s nothing to say; the task stays as it
+            is.
+          </p>
           <MarkMentionDone taskId={taskId} onDone={onAsked} />
         </div>
       )}
       {canPost && (
-        <TaskComposer taskId={taskId} agents={canAsk ? agents : []} canInterrupt={canSteer && agentWorking} onPosted={posted} />
+        <TaskComposer
+          taskId={taskId}
+          agents={canAsk ? agents : []}
+          canInterrupt={canSteer && agentWorking}
+          onPosted={posted}
+        />
+      )}
+      {canAsk && (
+        <TaskSuggestedActions taskId={taskId} suggestions={suggestions} agentWorking={agentWorking} onAsked={posted} />
       )}
       {canAsk && !agentWorking && <BringInAgent taskId={taskId} agents={bringable} onAsked={posted} />}
     </section>

@@ -1,8 +1,8 @@
 import { Button } from '@/components/button'
-import { Link } from '@/components/link'
+import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from '@/components/dropdown'
 import type { Project } from '@viberglass/types'
 
-/** Start a task: straight to the new-task page with one space, otherwise pick the space first. */
+/** Start a task: straight to the new-task page with one space, otherwise pick the space from the button's menu. */
 export function AskForSomething({ spaces }: { spaces: Project[] }) {
   if (spaces.length === 0) {
     return (
@@ -19,13 +19,15 @@ export function AskForSomething({ spaces }: { spaces: Project[] }) {
     )
   }
   return (
-    <nav aria-label="Ask for something in" className="flex flex-wrap items-center justify-center gap-2 text-sm">
-      <span className="text-[var(--gray-11)]">Ask for something in</span>
-      {spaces.map((space) => (
-        <Link key={space.id} href={`/spaces/${space.slug}/tasks/new`} className="ui-text-action">
-          {space.name}
-        </Link>
-      ))}
-    </nav>
+    <Dropdown>
+      <DropdownButton color="brand">Ask for something</DropdownButton>
+      <DropdownMenu align="end">
+        {spaces.map((space) => (
+          <DropdownItem key={space.id} href={`/spaces/${space.slug}/tasks/new`}>
+            In {space.name}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+    </Dropdown>
   )
 }

@@ -264,7 +264,7 @@ export function ApiTokensPage() {
           </Fieldset>
         </DialogBody>
         <DialogActions>
-          <Button plain onClick={() => setCreateDialogOpen(false)}>
+          <Button outline onClick={() => setCreateDialogOpen(false)}>
             Cancel
           </Button>
           <Button onClick={handleCreate} disabled={!tokenName.trim() || isCreating}>
@@ -317,7 +317,7 @@ export function ApiTokensPage() {
           Are you sure you want to revoke <strong>{tokenToDelete?.name}</strong>? This action cannot be undone.
         </DialogDescription>
         <DialogActions>
-          <Button plain onClick={() => setDeleteDialogOpen(false)}>
+          <Button outline onClick={() => setDeleteDialogOpen(false)}>
             Cancel
           </Button>
           <Button color="red" onClick={handleDelete}>

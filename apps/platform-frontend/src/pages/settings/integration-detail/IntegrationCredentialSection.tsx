@@ -378,7 +378,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                           <Button color="brand" onClick={() => handleUpdate(credential.id)} disabled={isSubmitting}>
                             {isSubmitting ? 'Saving...' : 'Save Changes'}
                           </Button>
-                          <Button plain onClick={handleCancelEdit} disabled={isSubmitting}>
+                          <Button outline onClick={handleCancelEdit} disabled={isSubmitting}>
                             Cancel
                           </Button>
                         </div>
@@ -594,7 +594,7 @@ export function IntegrationCredentialSection({ integrationId, integrationSystem 
                     >
                       {isSubmitting ? 'Creating...' : 'Create Credential'}
                     </Button>
-                    <Button plain onClick={handleCancelCreate} disabled={isSubmitting}>
+                    <Button outline onClick={handleCancelCreate} disabled={isSubmitting}>
                       Cancel
                     </Button>
                   </div>

@@ -89,7 +89,7 @@ export function AddModelKeyDialog({ provider, open, onClose, onAdded }: AddModel
           </FieldGroup>
         </DialogBody>
         <DialogActions>
-          <Button plain onClick={close} disabled={isSaving}>
+          <Button outline onClick={close} disabled={isSaving}>
             Cancel
           </Button>
           <Button color="brand" type="submit" disabled={isSaving || !key.trim()}>

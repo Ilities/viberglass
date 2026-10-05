@@ -69,8 +69,6 @@ export function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/invite/:token" element={<AcceptInvitePage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-        {/* First-run setup: same focused frame as sign-in, but signed in (admins only) */}
-        <Route path="/setup" element={<SetupPage />} />
       </Route>
 
       {/* App routes (authenticated) */}
@@ -78,6 +76,8 @@ export function AppRoutes() {
         {/* Main routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/overview" element={<OverviewPage />} />
+        {/* First-run setup (admins only), in the app so the workspace it makes is right there */}
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/spaces/new" element={<NewProjectPage />} />
 
         {/* Workspace settings: General, and the plumbing under Advanced. */}

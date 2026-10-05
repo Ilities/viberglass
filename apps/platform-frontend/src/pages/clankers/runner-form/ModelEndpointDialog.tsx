@@ -255,7 +255,7 @@ export function ModelEndpointDialog({ open, onClose, onSaved, secrets, formats, 
           </FieldGroup>
         </DialogBody>
         <DialogActions>
-          <Button type="button" plain onClick={onClose} disabled={busy}>
+          <Button type="button" outline onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button type="submit" color="brand" disabled={busy || readOnly}>

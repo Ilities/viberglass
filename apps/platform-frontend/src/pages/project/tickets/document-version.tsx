@@ -4,6 +4,7 @@ import { Timestamp } from '@/components/timestamp'
 import { usePersonName } from '@/hooks/usePeople'
 import { getPhaseDocumentRevisions, type PhaseDocumentRevisionResponse } from '@/service/api/ticket-api'
 import { useEffect, useState } from 'react'
+import { FullScreenReader } from './full-screen-reader'
 import { diffLines } from './line-diff'
 import { MarkdownDocument } from './markdown/markdown-document'
 
@@ -13,6 +14,8 @@ interface DocumentVersionProps {
   ticketId: string
   step: 'research' | 'planning'
   version: number
+  /** Whether it opens compared with the current version. */
+  comparing?: boolean
   /** Leaves the old version for the current document. */
   onShowCurrent: () => void
 }
@@ -46,10 +49,17 @@ function Comparison({ before, after }: { before: string; after: string }) {
  * One saved version of a document, read-only, so a link to an earlier version
  * never shows the current text in its place. It can be compared with the current one.
  */
-export function DocumentVersion({ ticketId, step, version, onShowCurrent }: DocumentVersionProps) {
+export function DocumentVersion({
+  ticketId,
+  step,
+  version,
+  comparing: compareFirst = false,
+  onShowCurrent,
+}: DocumentVersionProps) {
   const personName = usePersonName()
   const [revisions, setRevisions] = useState<PhaseDocumentRevisionResponse[] | null>(null)
-  const [comparing, setComparing] = useState(false)
+  const [comparing, setComparing] = useState(compareFirst)
+  const [fullScreen, setFullScreen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -99,12 +109,32 @@ export function DocumentVersion({ ticketId, step, version, onShowCurrent }: Docu
               {comparing ? 'Hide comparison' : 'Compare with current'}
             </Button>
           )}
+          <Button outline onClick={() => setFullScreen(true)}>
+            Full screen
+          </Button>
           <Button outline onClick={onShowCurrent}>
             {isCurrent ? 'Comment or edit' : 'Open current'}
           </Button>
         </div>
       </header>
       {comparing ? <Comparison before={shown.content} after={current.content} /> : <MarkdownDocument source={shown.content} />}
+      <FullScreenReader
+        open={fullScreen}
+        onClose={() => setFullScreen(false)}
+        title={
+          <>
+            {name} v{shown.version}
+            {comparing && <span className="font-normal text-[var(--gray-10)]">compared with v{current.version}</span>}
+          </>
+        }
+        meta={
+          <>
+            {who} · <Timestamp date={shown.createdAt} />
+          </>
+        }
+      >
+        {comparing ? <Comparison before={shown.content} after={current.content} /> : <MarkdownDocument reading source={shown.content} />}
+      </FullScreenReader>
       {!isCurrent && <p className="text-xs text-[var(--gray-10)]">Older versions are read-only. Comments and edits go on the current version.</p>}
     </article>
   )

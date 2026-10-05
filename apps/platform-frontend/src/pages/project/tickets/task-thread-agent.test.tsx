@@ -81,7 +81,6 @@ function renderThread(
       <MemoryRouter>
         <TaskThread
           taskId="t-1"
-          project="web"
           refreshKey="1"
           onOpenArtifact={onOpenArtifact}
           agents={[{ kind: 'agent', id: CLAUDE, name: 'Claude' }]}
@@ -155,7 +154,7 @@ describe('TaskThread and the agent', () => {
       renderThread()
 
       const entry = await screen.findByRole('listitem', { name: "Claude's question" })
-      expect(entry).toHaveTextContent('Claude asks Maria')
+      expect(entry).toHaveTextContent(/Claude.*asks Maria/)
       expect(entry).toHaveTextContent('The agent is waiting for the answer')
       const card = screen.getByRole('group', { name: "Answer Claude's question" })
       // The question is in full in one place only: the card that answers it.

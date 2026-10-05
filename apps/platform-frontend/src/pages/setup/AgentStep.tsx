@@ -45,9 +45,11 @@ function AgentProgress({
     return (
       <>
         <SetupError message={statusMessage ?? 'The agent could not start.'} />
-        <Button className="w-full" onClick={onRetry} disabled={isRetrying}>
-          {isRetrying ? 'Starting again…' : 'Try again'}
-        </Button>
+        <div>
+          <Button color="brand" onClick={onRetry} disabled={isRetrying}>
+            {isRetrying ? 'Starting again…' : 'Try again'}
+          </Button>
+        </div>
       </>
     )
   }
@@ -107,9 +109,11 @@ export function AgentStep({
       {error ? (
         <>
           <SetupError message={error} />
-          <Button className="w-full" onClick={() => void start()} disabled={isStarting}>
-            {isStarting ? 'Starting again…' : 'Try again'}
-          </Button>
+          <div>
+            <Button color="brand" onClick={() => void start()} disabled={isStarting}>
+              {isStarting ? 'Starting again…' : 'Try again'}
+            </Button>
+          </div>
         </>
       ) : agent && !needsStart ? (
         <AgentProgress

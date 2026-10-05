@@ -7,6 +7,8 @@ export class SessionEventForwarder {
   private currentTenantId?: string;
   private eventBatch: PlatformSessionEvent[] = [];
   private batchTimer?: NodeJS.Timeout;
+  /** Batches go one at a time: sent side by side they can land out of order, and the reply's text with them. */
+  private sending: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly callbackClient: Pick<TurnCallbackClient, "sendSessionEventBatch">,
@@ -47,17 +49,17 @@ export class SessionEventForwarder {
       clearTimeout(this.batchTimer);
       this.batchTimer = undefined;
     }
-    if (this.eventBatch.length === 0) return;
+    if (this.eventBatch.length === 0) return this.sending;
     if (!this.currentJobId || !this.currentTenantId) return;
 
-    const batch = [...this.eventBatch];
+    const jobId = this.currentJobId;
+    const tenantId = this.currentTenantId;
+    const batch = this.eventBatch.map((e) => ({ eventType: e.eventType, payload: e.payload }));
     this.eventBatch = [];
 
-    await this.callbackClient.sendSessionEventBatch(
-      this.currentJobId,
-      this.currentTenantId,
-      batch.map((e) => ({ eventType: e.eventType, payload: e.payload })),
-    );
+    const sent = this.sending.then(() => this.callbackClient.sendSessionEventBatch(jobId, tenantId, batch));
+    this.sending = sent.catch(() => undefined);
+    await sent;
   }
 
   cleanup(): void {

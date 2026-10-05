@@ -402,7 +402,7 @@ export function SecretsPage() {
           </DialogBody>
 
           <DialogActions>
-            <Button plain onClick={closeDialog} disabled={isSubmitting}>
+            <Button outline onClick={closeDialog} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button color="brand" type="submit" disabled={isSubmitting}>
@@ -421,7 +421,7 @@ export function SecretsPage() {
           Workers will no longer receive this secret on invocation.
         </AlertBody>
         <AlertActions>
-          <Button plain onClick={() => setDeleteDialogOpen(false)}>
+          <Button outline onClick={() => setDeleteDialogOpen(false)}>
             Cancel
           </Button>
           <Button color="red" onClick={confirmDelete}>

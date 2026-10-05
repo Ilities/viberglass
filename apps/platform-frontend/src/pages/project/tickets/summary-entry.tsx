@@ -1,6 +1,7 @@
 import { Timestamp } from '@/components/timestamp'
 import type { TaskTimelineEntry } from '@viberglass/types'
 import { useState } from 'react'
+import { FullScreenReader } from './full-screen-reader'
 import { MarkdownDocument } from './markdown/markdown-document'
 
 export type SummaryEntryData = Extract<TaskTimelineEntry, { kind: 'summary' }>
@@ -26,11 +27,38 @@ function SummaryBody({ content }: { content: string }) {
   )
 }
 
+/** Reading a summary over the whole window. */
+function ReadFullScreen({ entry }: { entry: SummaryEntryData }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]">
+        Full screen
+      </button>
+      <FullScreenReader
+        open={open}
+        onClose={() => setOpen(false)}
+        title={`Summary v${entry.version}`}
+        meta={
+          <>
+            Written by the agent · <Timestamp date={entry.at} />
+          </>
+        }
+      >
+        <MarkdownDocument reading source={entry.content} />
+      </FullScreenReader>
+    </>
+  )
+}
+
 /** A summary of the conversation in the thread: the decisions, who agreed to them, the open questions. */
 export function SummaryEntry({ entry }: { entry: SummaryEntryData }) {
   return (
     <li aria-label={`Summary v${entry.version}`} className="space-y-1 rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] px-4 py-3">
-      <p className="text-sm font-medium text-[var(--gray-12)]">Summary v{entry.version}</p>
+      <div className="flex items-baseline justify-between gap-4">
+        <p className="text-sm font-medium text-[var(--gray-12)]">Summary v{entry.version}</p>
+        <ReadFullScreen entry={entry} />
+      </div>
       <p className="text-xs text-[var(--gray-10)]">
         Written by the agent · <Timestamp date={entry.at} />
       </p>
@@ -46,9 +74,12 @@ export function PinnedSummary({ entry }: { entry: SummaryEntryData }) {
     <section aria-label="Summary so far" className="space-y-1 rounded-lg border border-[var(--gray-6)] bg-[var(--gray-2)] px-4 py-3">
       <div className="flex items-baseline justify-between gap-4">
         <h3 className="text-sm font-semibold text-[var(--gray-12)]">Summary so far</h3>
-        <button type="button" onClick={() => setOpen(!open)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]" aria-expanded={open}>
-          {open ? 'Hide' : 'Show'}
-        </button>
+        <span className="flex gap-3">
+          <ReadFullScreen entry={entry} />
+          <button type="button" onClick={() => setOpen(!open)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]" aria-expanded={open}>
+            {open ? 'Hide' : 'Show'}
+          </button>
+        </span>
       </div>
       <p className="text-xs text-[var(--gray-10)]">
         v{entry.version} · <Timestamp date={entry.at} /> · say in the thread if something's wrong

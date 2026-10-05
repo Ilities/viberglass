@@ -61,9 +61,11 @@ export function SpaceStep({
           <Input name="name" value={name} onChange={(event) => setName(event.target.value)} />
           <Description>You can rename it later.</Description>
         </Field>
-        <Button type="submit" className="w-full" disabled={isCreating || !name.trim()}>
-          {isCreating ? 'Creating the space…' : 'Create space'}
-        </Button>
+        <div>
+          <Button type="submit" color="brand" disabled={isCreating || !name.trim()}>
+            {isCreating ? 'Creating the space…' : 'Create space'}
+          </Button>
+        </div>
         <Text>
           Agents research, plan and then open a pull request against {repository.defaultBranch}. Each step waits for
           your review.

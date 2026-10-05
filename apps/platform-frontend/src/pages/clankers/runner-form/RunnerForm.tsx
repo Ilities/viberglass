@@ -352,7 +352,7 @@ export function RunnerForm({ initial, submitLabel, submittingLabel, onSubmit, on
         <Button type="submit" color="brand" disabled={isSubmitting}>
           {isSubmitting ? submittingLabel : submitLabel}
         </Button>
-        <Button type="button" plain onClick={onCancel}>
+        <Button type="button" outline onClick={onCancel}>
           Cancel
         </Button>
       </div>

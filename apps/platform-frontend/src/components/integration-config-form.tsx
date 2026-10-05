@@ -271,7 +271,7 @@ export function IntegrationConfigForm({
       {/* Actions */}
       <div className="flex flex-col-reverse gap-4 border-t border-[var(--gray-6)] pt-6 sm:flex-row sm:justify-between">
         <div className="flex gap-4">
-          <Button type="button" plain onClick={onCancel}>
+          <Button type="button" outline onClick={onCancel}>
             Cancel
           </Button>
         </div>

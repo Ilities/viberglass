@@ -102,7 +102,7 @@ export function EditTicketDialog({ ticket, open, onClose, onSave }: EditTicketDi
       </DialogBody>
 
       <DialogActions>
-        <Button plain onClick={onClose} disabled={isSaving}>
+        <Button outline onClick={onClose} disabled={isSaving}>
           Cancel
         </Button>
         <Button onClick={handleSave} disabled={isSaving}>

@@ -1,5 +1,5 @@
 import type { HomeThread } from '@viberglass/types'
-import { filterThreads, landingFor, lastMessageLine } from './home-threads'
+import { attentionLine, filterThreads, greeting, landingFor, lastMessageLine, needsYouReason, turnLine } from './home-threads'
 
 function thread(overrides: Partial<HomeThread> = {}): HomeThread {
   return {
@@ -34,5 +34,38 @@ describe('Home threads', () => {
   it('lands viewers on Overview and everyone else on Home', () => {
     expect(landingFor('viewer')).toBe('/overview')
     for (const role of ['admin', 'member', 'guest', undefined]) expect(landingFor(role)).toBe('/')
+  })
+})
+
+describe('Home rows', () => {
+  const situation = (waitingOn: HomeThread['situation']['waitingOn'], state: HomeThread['situation']['state'] = 'artifact_ready') => ({
+    state,
+    label: 'Research v2 ready',
+    waitingOn,
+    since: 't',
+    yourMove: false,
+  })
+
+  it("says whose turn it is by first name, or that the agent's working", () => {
+    expect(turnLine(situation({ kind: 'people', people: [{ id: 'q', name: 'Quinn QA' }] }))).toBe("Quinn's turn")
+    expect(turnLine(situation({ kind: 'people', people: [{ id: 'q', name: 'Quinn QA' }, { id: 'd', name: 'Dev Engineer' }] }))).toBe("Quinn and Dev's turn")
+    expect(turnLine(situation({ kind: 'agent' }, 'discussing'))).toBe('Agent working')
+    expect(turnLine(situation({ kind: 'agent' }, 'agent_working'))).toBeNull()
+    expect(turnLine(situation({ kind: 'nobody' }))).toBeNull()
+  })
+
+  it('says why a thread needs you', () => {
+    expect(needsYouReason(thread({ situation: situation({ kind: 'nobody' }, 'question') }))).toBe('Agent asked you')
+    expect(needsYouReason(thread({ mentionsYou: true, lastMessage: { author: { id: 't', name: 'Tomi Laine' }, text: 'Look', at: 't' } }))).toBe('Tomi mentioned you')
+    expect(needsYouReason(thread())).toBe('Your move')
+  })
+
+  it('greets by the hour and counts what needs you', () => {
+    expect(greeting(new Date(2026, 9, 5, 9))).toBe('Good morning')
+    expect(greeting(new Date(2026, 9, 5, 14))).toBe('Good afternoon')
+    expect(greeting(new Date(2026, 9, 5, 21))).toBe('Good evening')
+    expect(attentionLine(0)).toBe('Your conversations and next moves, in one place.')
+    expect(attentionLine(1)).toBe('One conversation needs your attention.')
+    expect(attentionLine(2)).toBe('2 conversations need your attention.')
   })
 })

@@ -50,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <div className="mt-4 flex gap-4">
               <Button onClick={() => window.location.reload()}>Reload page</Button>
-              <Button plain onClick={() => window.history.back()}>
+              <Button outline onClick={() => window.history.back()}>
                 Go back
               </Button>
             </div>

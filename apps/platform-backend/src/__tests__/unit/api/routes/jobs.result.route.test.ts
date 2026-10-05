@@ -31,6 +31,7 @@ const mockAgentSessionDAO = {
 const mockAgentSessionEventDAO = {
   getMaxSequence: jest.fn(),
   create: jest.fn(),
+  listByJob: jest.fn(),
 };
 
 const mockAgentPendingRequestDAO = {};
@@ -38,6 +39,8 @@ const mockAgentPendingRequestDAO = {};
 const mockAgentSessionWorkerEventService = {
   batchIngest: jest.fn(),
 };
+
+const mockTouchHeartbeat = jest.fn();
 
 jest.mock("../../../../api/middleware/authentication", () => ({
   requireAuth: jest.fn(),
@@ -116,6 +119,13 @@ jest.mock("../../../../persistence/agentSession/AgentPendingRequestDAO", () => (
 
 jest.mock("../../../../services/agentSession/AgentSessionWorkerEventService", () => ({
   AgentSessionWorkerEventService: jest.fn(() => mockAgentSessionWorkerEventService),
+}));
+
+jest.mock("../../../../services/job/JobProgressService", () => ({
+  recordLog: jest.fn(),
+  recordLogBatch: jest.fn(),
+  recordProgress: jest.fn(),
+  touchHeartbeat: (...args: unknown[]) => mockTouchHeartbeat(...args),
 }));
 
 import jobsRouter from "../../../../api/routes/jobs";
@@ -393,5 +403,31 @@ describe("job result callbacks", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Codex auth cache exceeds SSM size limit (4100 bytes)",
     });
+  });
+
+  it("counts a batch of session events as a heartbeat, so a long agent turn is not given up", async () => {
+    const handler = getRouteHandler("/:jobId/session-events/batch", "post");
+    if (typeof handler !== "function") throw new Error("Missing session events handler");
+    const res = response();
+    const events = [{ eventType: "reasoning", payload: { text: "Reading the code" } }];
+
+    await handler({ params: { jobId: "job-1" }, body: { events } }, res);
+
+    expect(mockAgentSessionWorkerEventService.batchIngest).toHaveBeenCalledWith("job-1", events);
+    expect(mockTouchHeartbeat).toHaveBeenCalledWith("job-1", expect.any(Date));
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+  });
+
+  it("lists what the agent did in a run after the sequence the page already has", async () => {
+    const handler = getRouteHandler("/:jobId/events", "get");
+    if (typeof handler !== "function") throw new Error("Missing run events handler");
+    const events = [{ id: "e1", sequence: 4, eventType: "reasoning", payloadJson: { text: "Reading" } }];
+    mockAgentSessionEventDAO.listByJob.mockResolvedValue(events);
+    const res = response();
+
+    await handler({ params: { jobId: "job-1" }, query: { afterSequence: "3" } }, res);
+
+    expect(mockAgentSessionEventDAO.listByJob).toHaveBeenCalledWith("job-1", 3);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: events });
   });
 });

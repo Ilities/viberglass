@@ -111,13 +111,11 @@ export function ModelKeyStep({
               />
             </Field>
             {hasSavedKey && !key.trim() && <Text>Your saved {provider.displayName} key will be used.</Text>}
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isChecking || !provider || (!key.trim() && !hasSavedKey)}
-            >
-              {isChecking ? `Checking with ${provider?.displayName}…` : 'Continue'}
-            </Button>
+            <div>
+              <Button type="submit" color="brand" disabled={isChecking || !provider || (!key.trim() && !hasSavedKey)}>
+                {isChecking ? `Checking with ${provider?.displayName}…` : 'Continue'}
+              </Button>
+            </div>
           </>
         )}
       </form>

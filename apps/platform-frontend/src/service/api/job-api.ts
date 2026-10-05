@@ -212,3 +212,20 @@ export async function getJobQueueStats(): Promise<JobQueueStats> {
 
   return response.json()
 }
+
+/** One streamed piece of what the agent did in a run: a thought, a reply chunk, a tool call. */
+export interface RunEvent {
+  id: string
+  sequence: number | string
+  eventType: string
+  payloadJson: Record<string, unknown> | null
+  createdAt: string
+}
+
+/** A run's events after `afterSequence`, to follow it while it runs. */
+export async function listRunEvents(jobId: string, afterSequence = 0): Promise<RunEvent[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/jobs/${jobId}/events?afterSequence=${afterSequence}`)
+  if (!response.ok) throw new Error('Failed to load what the agent did')
+  const body = await response.json()
+  return body.data
+}

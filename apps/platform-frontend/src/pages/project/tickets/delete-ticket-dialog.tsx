@@ -35,7 +35,7 @@ export function DeleteTicketDialog({ ticket, open, onClose, onConfirm }: DeleteT
       </DialogBody>
 
       <DialogActions>
-        <Button plain onClick={onClose} disabled={isDeleting}>
+        <Button outline onClick={onClose} disabled={isDeleting}>
           Cancel
         </Button>
         <Button color="red" onClick={handleConfirm} disabled={isDeleting}>

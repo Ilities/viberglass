@@ -80,7 +80,7 @@ export function SetupPage() {
   return (
     <>
       <PageMeta title="Set up Viberglass" />
-      <div className="grid w-full max-w-md gap-10">
+      <div className="grid w-full max-w-[790px] gap-6">
         {step === 'model' && (
           <ModelKeyStep
             providers={loaded.providers}
@@ -93,7 +93,7 @@ export function SetupPage() {
           />
         )}
         {step === 'model' && (
-          <div className="grid gap-3 border-t border-zinc-950/10 pt-6 dark:border-white/10">
+          <div className="grid gap-3">
             <SetupError message={demoError} />
             <Text>
               Want to look around first?{' '}

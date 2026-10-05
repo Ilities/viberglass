@@ -44,7 +44,7 @@ export function CancelRunButton({
           new run later.
         </AlertDescription>
         <AlertActions>
-          <Button plain onClick={() => setOpen(false)}>
+          <Button outline onClick={() => setOpen(false)}>
             Keep running
           </Button>
           <Button

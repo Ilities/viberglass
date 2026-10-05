@@ -1,12 +1,12 @@
 import { CancelRunButton } from '@/components/cancel-run-button'
 import { Link } from '@/components/link'
-import { Timestamp } from '@/components/timestamp'
 import { useAuth } from '@/context/auth-context'
 import { isRunner } from '@/lib/roles'
 import { cancelJob } from '@/service/api/job-api'
-import { toast } from 'sonner'
 import type { TaskTimelineEntry, TaskTurnAction, TaskTurnProduct } from '@viberglass/types'
 import { useState } from 'react'
+import { toast } from 'sonner'
+import { ThreadItem } from './thread-item'
 
 type AgentTurn = Extract<TaskTimelineEntry, { kind: 'agent_turn' }>
 
@@ -22,8 +22,8 @@ const ASKED_FOR: Record<TaskTurnAction, string> = {
 const PREVIEW_LINES = 4
 
 function sessionLine(resumed: boolean | null): string | null {
-  if (resumed === true) return 'continued its session'
-  if (resumed === false) return 'started a fresh session'
+  if (resumed === true) return 'resumed session'
+  if (resumed === false) return 'fresh session'
   return null
 }
 
@@ -79,19 +79,32 @@ function CancelTurn({ jobId, startedAt }: { jobId: string; startedAt: string }) 
       setIsCancelling(false)
     }
   }
-  return <CancelRunButton label="Cancel run" startedAt={startedAt} isCancelling={isCancelling} onConfirm={() => void cancel()} />
+  return (
+    <CancelRunButton
+      label="Cancel run"
+      startedAt={startedAt}
+      isCancelling={isCancelling}
+      onConfirm={() => void cancel()}
+    />
+  )
 }
 
 /** One of the agent's turns in the thread: what it said it would do, and what it said. */
-export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: AgentTurn; project: string; summaryVersion?: number }) {
+export function AgentTurnEntry({ entry, summaryVersion }: { entry: AgentTurn; summaryVersion?: number }) {
   const [expanded, setExpanded] = useState(false)
   const { outcome } = entry
   const working = entry.status === 'queued' || entry.status === 'running'
   const { user } = useAuth()
-  // A run's page is an engineers' view; guests and viewers see the turn in the thread only.
-  const runLink = entry.jobId && isRunner(user?.role) ? `/spaces/${project}/runs/${entry.jobId}` : null
+  // A run is an engineers' view; guests and viewers see the turn in the thread only. It opens beside the thread, on this page.
+  const runLink = entry.jobId && isRunner(user?.role) ? `?run=${encodeURIComponent(entry.jobId)}` : null
   // The intent is shown on its own, so the reply starts after it.
-  const rest = outcome?.reply.trim().split('\n').slice(outcome.intent ? 1 : 0).join('\n').trim() ?? ''
+  const rest =
+    outcome?.reply
+      .trim()
+      .split('\n')
+      .slice(outcome.intent ? 1 : 0)
+      .join('\n')
+      .trim() ?? ''
   const restLines = rest.split('\n')
   // A turn that made an artifact is summed up by it; what it said stays a click away. A reply is the content itself.
   const result = entry.status === 'completed' && outcome ? resultLine(outcome.produced) : null
@@ -100,16 +113,19 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
   const session = outcome ? sessionLine(outcome.resumed) : null
   const context = contextLine(outcome?.contextUsage)
 
+  const facts = [session, context].filter((fact): fact is string => Boolean(fact))
+
   return (
-    <li aria-label={`${entry.agent.name}'s turn`} className="space-y-1 border-l-2 border-[var(--accent-7)] pl-3">
-      <p className="text-xs text-[var(--gray-10)]">
-        <span className="font-medium text-[var(--gray-11)]">{entry.agent.name}</span> · asked for {ASKED_FOR[entry.action]} ·{' '}
-        <Timestamp date={entry.at} />
-        {session && ` · ${session}`}
-      </p>
+    <ThreadItem
+      who={entry.agent.name}
+      isAgent
+      at={entry.at}
+      note={`asked for ${ASKED_FOR[entry.action]}`}
+      label={`${entry.agent.name}'s turn`}
+    >
       {working && (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-[var(--gray-11)]">
+          <p className="text-[var(--gray-11)]">
             Working on it…{' '}
             {runLink && (
               <Link href={runLink} className="underline">
@@ -122,7 +138,7 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
         </div>
       )}
       {entry.status === 'failed' && (
-        <p className="text-sm text-red-700 dark:text-red-400">
+        <p className="text-red-700 dark:text-red-400">
           This turn failed.{' '}
           {runLink && (
             <Link href={runLink} className="underline">
@@ -132,34 +148,60 @@ export function AgentTurnEntry({ entry, project, summaryVersion }: { entry: Agen
         </p>
       )}
       {entry.status === 'cancelled' && (
-        <p className="text-sm text-[var(--gray-11)]">
-          This turn was stopped.{outcome?.stoppedPartway && outcome.produced.length > 0 && ` It kept ${keptWork(outcome.produced)}.`}
+        <p className="text-[var(--gray-11)]">
+          This turn was stopped.
+          {outcome?.stoppedPartway && outcome.produced.length > 0 && ` It kept ${keptWork(outcome.produced)}.`}
         </p>
       )}
-      {outcome?.intent && !outcome.stoppedPartway && <p className="text-sm font-medium text-[var(--gray-12)]">{outcome.intent}</p>}
-      {result && <p className="text-sm text-[var(--gray-11)]">{result}</p>}
-      {shown && <p className="text-sm whitespace-pre-wrap text-[var(--gray-12)]">{shown}</p>}
+      {outcome?.intent && !outcome.stoppedPartway && <p className="text-[var(--gray-12)]">{outcome.intent}</p>}
+      {result && <p className="text-[var(--gray-11)]">{result}</p>}
+      {shown && <p className="whitespace-pre-wrap text-[var(--gray-12)]">{shown}</p>}
       {rest && restLines.length > previewLines && (
-        <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-[var(--gray-10)] hover:text-[var(--gray-12)]"
+        >
           {expanded ? 'Show less' : result ? 'Show what it said' : 'Show the whole reply'}
         </button>
       )}
       {outcome?.mentioned && outcome.mentioned.length > 0 && (
         <p className="text-xs text-[var(--gray-10)]">
-          Asked <span className="font-medium text-[var(--gray-11)]">{joinNames(outcome.mentioned.map((person) => person.name))}</span> to
-          take a look
+          Asked{' '}
+          <span className="font-medium text-[var(--gray-11)]">
+            {joinNames(outcome.mentioned.map((person) => person.name))}
+          </span>{' '}
+          to take a look
         </p>
       )}
       {outcome?.produced.includes('summary') && (
-        <p className="text-xs text-[var(--gray-10)]">{summaryVersion ? `Wrote Summary v${summaryVersion}` : 'Wrote a summary'}</p>
-      )}
-      {outcome?.compacted && <p className="text-xs text-[var(--gray-10)]">Compacted its context with the summary</p>}
-      {context && <p className="text-xs text-[var(--gray-10)]">{context}</p>}
-      {outcome?.codeDiscarded && (
         <p className="text-xs text-[var(--gray-10)]">
-          It changed code, but nobody asked it to build this time, so the changes weren&apos;t kept. Ask it to build it to keep them.
+          {summaryVersion ? `Wrote Summary v${summaryVersion}` : 'Wrote a summary'}
         </p>
       )}
-    </li>
+      {outcome?.codeDiscarded && (
+        <p className="text-xs text-[var(--gray-10)]">
+          It changed code, but nobody asked it to build this time, so the changes weren&apos;t kept. Ask it to build it
+          to keep them.
+        </p>
+      )}
+      {(facts.length > 0 || outcome?.compacted || (runLink && !working)) && (
+        <details className="text-xs text-[var(--gray-10)]">
+          <summary className="cursor-pointer hover:text-[var(--gray-12)]">
+            Turn details{facts.length > 0 && ` · ${facts.join(' · ')}`}
+          </summary>
+          <div className="mt-1.5 space-y-1 pl-3">
+            {outcome?.compacted && <p>Compacted its context with the summary.</p>}
+            {runLink && (
+              <p>
+                <Link href={`${runLink}&runTab=log`} className="underline">
+                  Everything it did, step by step
+                </Link>
+              </p>
+            )}
+          </div>
+        </details>
+      )}
+    </ThreadItem>
   )
 }

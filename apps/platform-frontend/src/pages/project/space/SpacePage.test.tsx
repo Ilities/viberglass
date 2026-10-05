@@ -62,7 +62,11 @@ describe('SpacePage', () => {
     renderAs('member', 'member')
 
     const groups = await screen.findAllByRole('region')
-    expect(groups.map((group) => group.getAttribute('aria-label'))).toEqual(['Needs you', 'Agent working', 'Done'])
+    expect(groups.map((group) => group.getAttribute('aria-label') ?? group.querySelector('h2')?.textContent)).toEqual([
+      'Needs you',
+      'Agent working',
+      'Done',
+    ])
     expect(within(groups[0]).getByText('Task 2')).toBeInTheDocument()
     expect(within(groups[2]).queryByText('Task 3')).not.toBeInTheDocument()
     expect(screen.queryByText(/Dashboard|Open Issues|Awaiting review/)).not.toBeInTheDocument()

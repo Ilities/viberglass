@@ -11,7 +11,7 @@ import { SessionTurnContinuationService } from "../../../services/agentSession/S
 import { isAgentSessionServiceError } from "../../../services/errors/AgentSessionServiceError";
 import { JobBootstrapService } from "../../../services/job/JobBootstrapService";
 import { JobQueryService } from "../../../services/job/JobQueryService";
-import { recordLog, recordLogBatch, recordProgress } from "../../../services/job/JobProgressService";
+import { recordLog, recordLogBatch, recordProgress, touchHeartbeat } from "../../../services/job/JobProgressService";
 import { validateCallbackToken } from "../../middleware/callbackTokenValidation";
 import { tenantMiddleware } from "../../middleware/tenantValidation";
 import {
@@ -231,6 +231,7 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
         }
 
         await workerEventService.batchIngest(jobId, events);
+        await touchHeartbeat(jobId, new Date());
         return res.json({ success: true });
       } catch (err) {
         logger.error("Failed to ingest session events", {

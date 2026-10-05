@@ -162,7 +162,7 @@ export function McpServerDialog({ open, server, secrets, onClose, onSaved }: Mcp
           </Fieldset>
         </DialogBody>
         <DialogActions>
-          <Button plain onClick={onClose} disabled={saving}>
+          <Button outline onClick={onClose} disabled={saving}>
             Cancel
           </Button>
           <Button color="brand" type="submit" disabled={saving}>

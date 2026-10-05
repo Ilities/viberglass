@@ -107,8 +107,12 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
   }
 
   return (
-    <div className="relative space-y-2">
+    <div className="relative space-y-2 border-t border-[var(--gray-5)] pt-5">
+      <label htmlFor={`${listId}-input`} className="block text-xs text-[var(--gray-10)]">
+        Message the people on this task
+      </label>
       <textarea
+        id={`${listId}-input`}
         aria-label="Write a message"
         role="combobox"
         aria-autocomplete="list"
@@ -121,9 +125,9 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
           setDraft(event.target.value)
           setActive(0)
         }}
-        rows={3}
-        placeholder="Write a message. Type @ to mention someone, or the agent to ask it."
-        className="w-full rounded-lg border border-[var(--gray-6)] bg-[var(--gray-1)] p-3 text-sm text-[var(--gray-12)] focus:border-[var(--accent-8)] focus:outline-none"
+        rows={4}
+        placeholder="Write a message… Use @ to bring in the agent."
+        className="min-h-[95px] w-full resize-y rounded-[7px] border border-[var(--gray-7)] bg-[var(--gray-1)] p-3 text-sm leading-normal text-[var(--gray-12)] focus:border-[var(--accent-8)] focus:outline-none"
       />
       <ul
         id={listId}
@@ -150,7 +154,11 @@ export function TaskComposer({ taskId, agents, canInterrupt = false, onPosted }:
           ))}
       </ul>
       <div className="flex items-center justify-between gap-4">
-        <p className="text-xs text-[var(--gray-10)]">People on this task see this. Mention the agent to ask it; it reads the thread when asked.</p>
+        <p className="text-xs text-[var(--gray-10)]">
+          Messages stay in the thread.
+          <br />
+          The agent reads them when asked.
+        </p>
         <div className="flex shrink-0 gap-2">
           {canInterrupt && (
             <Button outline disabled={isPosting || draft.trim().length === 0} onClick={() => void post(true)}>

@@ -1,4 +1,3 @@
-import { LogViewer } from '@/components/log-viewer'
 import { TabButton } from '@/components/tab-button'
 import { useAuth } from '@/context/auth-context'
 import { Timestamp } from '@/components/timestamp'
@@ -11,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CodexDeviceAuthCard, resolveCodexDeviceAuthPrompt } from '../jobs/codex-device-auth-card'
 import { RunActivity } from '../jobs/run-activity'
 import { formatRunDuration } from '../jobs/run-facts'
+import { RunLog } from '../jobs/run-log'
 import { RunPrompt } from '../jobs/run-prompt'
 import { RunRecordPanel } from '../jobs/run-record-panel'
 import { resolveRunTab, type RunTab } from '../jobs/run-tab'
@@ -111,7 +111,7 @@ export function TaskRunLine({ run, number, agentName, project, isOpen, onToggle,
           ) : tab === 'record' && isAdmin ? (
             <RunRecordPanel jobId={job.jobId} />
           ) : (
-            <LogViewer logs={job.logs || []} isConnected={isPolling && job.status === 'active'} />
+            <RunLog job={job} isPolling={isPolling} />
           )}
         </div>
       )}

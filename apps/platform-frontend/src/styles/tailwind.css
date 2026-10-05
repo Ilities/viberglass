@@ -275,6 +275,17 @@
         box-shadow: none;
     }
 
+    /* The full-screen reader fills the window: Radix pads the scroll area around every dialog. */
+    .rt-DialogScrollPadding:has(> .ui-full-screen-dialog) {
+        padding: 0 !important;
+    }
+
+    /* Radix pulls ghost buttons out by their padding to line their text up with
+       body text; beside other buttons that knocks them out of the row. */
+    .ui-action-button.rt-variant-ghost {
+        margin: 0 !important;
+    }
+
     .ui-text-action {
         display: inline-flex;
         align-items: center;
