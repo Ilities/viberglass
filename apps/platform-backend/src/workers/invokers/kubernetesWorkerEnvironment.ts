@@ -1,0 +1,14 @@
+const environmentKeys = [
+  "S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_FORCE_PATH_STYLE", "AWS_REGION", "AWS_S3_BUCKET",
+  "OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+  "OTEL_SDK_DISABLED", "VIBERGLASS_DEPLOYMENT_ENV", "VIBERGLASS_OTEL_CONSOLE",
+];
+
+export function kubernetesWorkerEnvironment(env: NodeJS.ProcessEnv): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const name of environmentKeys) {
+    const value = env[name];
+    if (value) values[name] = value;
+  }
+  return values;
+}

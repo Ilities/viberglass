@@ -3,6 +3,9 @@ import * as os from "os";
 import * as path from "path";
 import { createLogger, transports } from "winston";
 import { InstructionFileManager } from "./InstructionFileManager";
+import { ConfigLoader } from "../infrastructure/ConfigLoader";
+import type { KubernetesPayload } from "../core/types";
+import { JOB_KIND } from "@viberglass/types";
 
 describe("InstructionFileManager.materialize", () => {
   test("stores clanker AGENTS file under agents/ without overwriting repo AGENTS.md", async () => {
@@ -51,5 +54,40 @@ describe("InstructionFileManager.materialize", () => {
     } finally {
       fs.rmSync(repoDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("InstructionFileManager.loadFromPayload", () => {
+  test("loads Kubernetes instruction files from remote storage or inline content", async () => {
+    const logger = createLogger({ level: "error", transports: [new transports.Console({ silent: true })] });
+    const loader = new ConfigLoader(logger);
+    const fetchFiles = jest.spyOn(loader, "fetchInstructionFiles").mockResolvedValue([
+      { fileType: "docs/review.md", content: "remote instructions" },
+    ]);
+    const payload: KubernetesPayload = {
+      workerType: "kubernetes",
+      credentials: {},
+      jobKind: JOB_KIND.EXECUTION,
+      tenantId: "tenant-1",
+      jobId: "job-1",
+      clankerId: "clanker-1",
+      repository: "https://example.com/repo.git",
+      task: "Fix a bug",
+      requiredCredentials: [],
+      instructionFiles: [
+        { fileType: "AGENTS.md", content: "inline instructions" },
+        { fileType: "docs/review.md", s3Url: "s3://instructions/review.md" },
+      ],
+    };
+
+    const files = await new InstructionFileManager(logger).loadFromPayload(payload, loader);
+
+    expect(files).toEqual(new Map([
+      ["AGENTS.md", "inline instructions"],
+      ["docs/review.md", "remote instructions"],
+    ]));
+    expect(fetchFiles).toHaveBeenCalledWith([
+      { fileType: "docs/review.md", s3Url: "s3://instructions/review.md" },
+    ]);
   });
 });

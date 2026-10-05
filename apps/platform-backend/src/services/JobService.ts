@@ -123,6 +123,7 @@ export class JobService {
       failureCode?: string;
       /** What a task turn produced, and whom it mentioned, for the run's Activity and notifications. */
       turn?: { step: string; mentioned: string[] };
+      expectedStatus?: JobStatus;
     } = {},
   ): Promise<void> {
     const failure =
@@ -153,11 +154,16 @@ export class JobService {
       updateData.last_heartbeat = new Date();
     }
 
-    await db
+    let query = db
       .updateTable("jobs")
       .set(updateData)
       .where("id", "=", jobId)
-      .execute();
+      .where("status", "in", ["queued", "active"]);
+    if (updates.expectedStatus) {
+      query = query.where("status", "=", updates.expectedStatus);
+    }
+    const updated = await query.executeTakeFirst();
+    if (updated.numUpdatedRows === 0n) return;
 
     logger.info("Job status updated", { jobId, status, ...updates });
 

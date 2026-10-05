@@ -1,0 +1,73 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "viberglass.name" . }}-database
+spec:
+  podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-postgres"}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {database-client: "true"}}}]
+      ports: [{protocol: TCP, port: 5432}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "viberglass.name" . }}-backend
+spec:
+  podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-backend"}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-frontend"}}}]
+      ports: [{protocol: TCP, port: 3000}]
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: "{{ include "viberglass.workersNamespace" . }}"}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: viberglass-worker}}
+      ports: [{protocol: TCP, port: 3000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "viberglass.name" . }}-storage
+spec:
+  podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-minio"}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-backend"}}
+        - podSelector: {matchLabels: {storage-client: "true"}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: "{{ include "viberglass.workersNamespace" . }}"}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: viberglass-worker}}
+      ports: [{protocol: TCP, port: 9000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "viberglass.name" . }}-workers
+  namespace: {{ include "viberglass.workersNamespace" . }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: "{{ .Release.Namespace }}"}}
+          podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-backend"}}
+      ports: [{protocol: TCP, port: 3000}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: "{{ .Release.Namespace }}"}}
+          podSelector: {matchLabels: {app: "{{ include "viberglass.name" . }}-minio"}}
+      ports: [{protocol: TCP, port: 9000}]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 127.0.0.0/8]
+      ports: [{protocol: TCP, port: 443}, {protocol: TCP, port: 80}, {protocol: TCP, port: 22}]
+    {{- with .Values.networkPolicy.workerExtraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

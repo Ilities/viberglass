@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "viberglass.name" . }}-migrate-{{ .Release.Revision }}
+spec:
+  ttlSecondsAfterFinished: 86400
+  activeDeadlineSeconds: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels: {app: "{{ include "viberglass.name" . }}-migrate", database-client: "true"}
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, seccompProfile: {type: RuntimeDefault}}
+      initContainers:
+        - name: wait-for-database
+          image: {{ .Values.backend.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          command: [node, /app/bootstrap/wait.cjs, database]
+          {{- include "viberglass.backendEnvironment" . | nindent 10 }}
+          volumeMounts: [{name: bootstrap, mountPath: /app/bootstrap, readOnly: true}]
+      containers:
+        - name: migrate
+          image: {{ .Values.backend.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          command: [node, dist/migrations/migrator.js]
+          {{- include "viberglass.backendEnvironment" . | nindent 10 }}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: "1", memory: 512Mi}}
+      volumes:
+        - name: bootstrap
+          configMap: {name: "{{ include "viberglass.name" . }}-bootstrap"}
+{{- if .Values.storage.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "viberglass.name" . }}-bucket-{{ .Release.Revision }}
+spec:
+  ttlSecondsAfterFinished: 86400
+  activeDeadlineSeconds: 300
+  backoffLimit: 2
+  template:
+    metadata:
+      labels: {app: "{{ include "viberglass.name" . }}-bucket", storage-client: "true"}
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: bucket
+          image: {{ .Values.backend.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          command: [node, /app/bootstrap/bucket.cjs]
+          {{- include "viberglass.backendEnvironment" . | nindent 10 }}
+          volumeMounts: [{name: bootstrap, mountPath: /app/bootstrap, readOnly: true}]
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {cpu: 500m, memory: 256Mi}}
+      volumes:
+        - name: bootstrap
+          configMap: {name: "{{ include "viberglass.name" . }}-bootstrap"}
+{{- end }}

@@ -2,6 +2,12 @@ import { WorkerInvoker, WorkerType } from './WorkerInvoker';
 import { LambdaInvoker } from './invokers/LambdaInvoker';
 import { EcsInvoker } from './invokers/EcsInvoker';
 import { DockerInvoker } from './invokers/DockerInvoker';
+import { JobDispatchStateDAO } from '../persistence/job/JobDispatchStateDAO';
+import { KubernetesInvoker } from './invokers/KubernetesInvoker';
+import { createKubernetesJobClient } from './invokers/kubernetesJobClient';
+import { JobBootstrapService } from '../services/job/JobBootstrapService';
+import { CodexLoginService } from '../services/codexLogin/CodexLoginService';
+import { CredentialRequirementsService } from '../services/CredentialRequirementsService';
 import { createChildLogger } from '../config/logger';
 
 const logger = createChildLogger({ component: 'WorkerInvokerFactory' });
@@ -24,6 +30,13 @@ export class WorkerInvokerFactory {
     this.invokers.set('lambda', new LambdaInvoker(config.lambda));
     this.invokers.set('ecs', new EcsInvoker(config.ecs));
     this.invokers.set('docker', new DockerInvoker(config.docker));
+    this.invokers.set('kubernetes', new KubernetesInvoker(
+      createKubernetesJobClient,
+      new JobBootstrapService(),
+      new CredentialRequirementsService(),
+      new JobDispatchStateDAO(),
+      new CodexLoginService(),
+    ));
 
     logger.info('Initialized invokers', {
       types: Array.from(this.invokers.keys()),

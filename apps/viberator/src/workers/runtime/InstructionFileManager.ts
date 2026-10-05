@@ -6,6 +6,7 @@ import { ConfigLoader } from "../infrastructure/ConfigLoader";
 import {
   DockerPayload,
   EcsPayload,
+  KubernetesPayload,
   LambdaPayload,
   WorkerPayload,
 } from "../core/types";
@@ -32,8 +33,8 @@ export class InstructionFileManager {
     payload: WorkerPayload,
     configLoader: ConfigLoader,
   ): Promise<Map<string, string>> {
-    if (payload.workerType === "lambda" || payload.workerType === "ecs") {
-      return this.loadAwsInstructionFiles(payload, configLoader);
+    if (payload.workerType === "lambda" || payload.workerType === "ecs" || payload.workerType === "kubernetes") {
+      return this.loadRemoteInstructionFiles(payload, configLoader);
     }
 
     return this.loadDockerInstructionFiles(payload);
@@ -197,12 +198,12 @@ export class InstructionFileManager {
     }
   }
 
-  private async loadAwsInstructionFiles(
-    payload: LambdaPayload | EcsPayload,
+  private async loadRemoteInstructionFiles(
+    payload: LambdaPayload | EcsPayload | KubernetesPayload,
     configLoader: ConfigLoader,
   ): Promise<Map<string, string>> {
     this.logger.info(
-      "InstructionFileManager: Fetching instruction files for AWS environment",
+      "InstructionFileManager: Fetching remote instruction files",
       {
         count: payload.instructionFiles.length,
         fileTypes: payload.instructionFiles.map((f) => f.fileType),

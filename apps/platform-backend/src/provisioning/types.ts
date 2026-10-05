@@ -1,6 +1,6 @@
 import type { ClankerStatus } from "@viberglass/types";
 
-export type ProvisioningStrategyName = "docker" | "ecs" | "lambda";
+export type ProvisioningStrategyName = "docker" | "ecs" | "lambda" | "kubernetes";
 
 export interface ProvisioningResult {
   deploymentConfig?: Record<string, unknown> | null;

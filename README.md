@@ -142,7 +142,17 @@ Key variables:
 With `docker compose`, optional settings go in a `.env` file in the repository root. See [docs/local-development.md](docs/local-development.md) for local email (Mailpit) and Slack.
 
 
-Agent API keys go in the worker's environment, not the platform backend. In production, store them in AWS SSM under `/viberglass-viberator/`.
+Store agent credentials through the Secrets feature and attach them to the Clanker. AWS workers can use SSM; experimental Kubernetes workers receive selected database/environment secrets through authenticated backend bootstrap. See [portable storage and credentials](docs/portable-storage-and-credentials.md).
+
+### Experimental Kubernetes support
+
+The Helm distribution installs the backend, React/Vite frontend, migrations, local PostgreSQL and MinIO. Setup and runner forms support Kubernetes; agent executions run as bounded Jobs.
+
+```bash
+python3 infra/kubernetes/scripts/local.py
+```
+
+See [local Kubernetes installation](docs/local-kubernetes.md) for prerequisites, port forwards and the full-platform smoke test, and [deployment operations](docs/kubernetes-deployment.md) for external databases/storage, ingress, secrets and upgrades. OVHcloud infrastructure provisioning and production cloud validation remain pending.
 
 ---
 

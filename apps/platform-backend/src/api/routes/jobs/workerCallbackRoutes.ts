@@ -1,3 +1,5 @@
+import { SecretResolutionService } from "../../../services/SecretResolutionService";
+import { WorkerBootstrapCredentials } from "../../../services/job/WorkerBootstrapCredentials";
 import { Request, Response, Router } from "express";
 import logger from "../../../config/logger";
 import { AgentPendingRequestDAO } from "../../../persistence/agentSession/AgentPendingRequestDAO";
@@ -20,6 +22,7 @@ import {
 
 const jobQueries = new JobQueryService();
 const bootstraps = new JobBootstrapService();
+const bootstrapCredentials = new WorkerBootstrapCredentials(new SecretResolutionService());
 const agentTurnDAO = new AgentTurnDAO();
 const agentSessionDAO = new AgentSessionDAO();
 const turnContinuationService = new SessionTurnContinuationService(
@@ -66,9 +69,17 @@ export function registerJobWorkerCallbackRoutes(router: Router): void {
           });
         }
 
+        let payload = bootstrap.payload;
+        if (payload.workerType === "kubernetes") {
+          if (bootstrap.status !== "active") {
+            return res.status(403).json({ error: "Worker credentials are only available for an active run" });
+          }
+          payload = { ...payload, credentials: await bootstrapCredentials.resolve(payload) };
+        }
+        res.setHeader("Cache-Control", "no-store");
         return res.json({
           success: true,
-          data: bootstrap.payload,
+          data: payload,
         });
       } catch (error) {
         logger.error("Failed to fetch job bootstrap payload", {

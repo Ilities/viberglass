@@ -1,0 +1,22 @@
+backend:
+  image: viberglass-k8s-backend:local
+frontend:
+  image: viberglass-k8s-frontend:local
+publicUrl: http://localhost:3100
+workers:
+  namespace: viberglass-workers
+  registry: ""
+  imageTag: local
+  quota:
+    pods: "4"
+    requests.cpu: "4"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 4Gi
+database:
+  enabled: true
+  ssl: false
+storage:
+  enabled: true
+  publicEndpoint: http://localhost:39000
+  forcePathStyle: true

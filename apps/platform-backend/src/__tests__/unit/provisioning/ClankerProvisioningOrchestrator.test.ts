@@ -53,6 +53,7 @@ describe("ClankerProvisioningOrchestrator", () => {
         docker: docker.handler,
         ecs: ecs.handler,
         lambda: lambda.handler,
+        kubernetes: buildHandlerMocks().handler,
       },
     );
 
@@ -85,27 +86,28 @@ describe("ClankerProvisioningOrchestrator", () => {
         docker: docker.handler,
         ecs: ecs.handler,
         lambda: lambda.handler,
+        kubernetes: buildHandlerMocks().handler,
       },
     );
 
-    const clanker = buildClanker("kubernetes", { type: "docker" });
+    const clanker = buildClanker("unsupported-provider", { type: "docker" });
     const preflight = orchestrator.getProvisioningPreflightError(clanker);
     const provision = await orchestrator.provision(clanker);
     const deprovision = await orchestrator.deprovision(clanker);
     const availability = await orchestrator.resolveAvailabilityStatus(clanker);
 
-    expect(preflight).toBe("Unsupported deployment strategy: kubernetes");
+    expect(preflight).toBe("Unsupported deployment strategy: unsupported-provider");
     expect(provision).toEqual({
       status: "inactive",
-      statusMessage: "Unsupported deployment strategy: kubernetes",
+      statusMessage: "Unsupported deployment strategy: unsupported-provider",
     });
     expect(availability).toEqual({
       status: "inactive",
-      statusMessage: "Unsupported deployment strategy: kubernetes",
+      statusMessage: "Unsupported deployment strategy: unsupported-provider",
     });
     expect(deprovision).toEqual({
       status: "inactive",
-      statusMessage: "Unsupported deployment strategy: kubernetes",
+      statusMessage: "Unsupported deployment strategy: unsupported-provider",
     });
   });
 });

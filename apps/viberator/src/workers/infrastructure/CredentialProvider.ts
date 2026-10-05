@@ -12,7 +12,8 @@ import { Logger } from "winston";
  * - Required credential validation with soft fail
  */
 export class CredentialProvider {
-  private ssmClient: SSMClient;
+  private ssmClient?: SSMClient;
+  private readonly suppliedCredentials?: Record<string, string>;
   private cache: Map<string, { value: string; expiry: number }>;
   private readonly ttl: number;
   private pathPrefix: string;
@@ -23,9 +24,12 @@ export class CredentialProvider {
     config?: {
       region?: string;
       pathPrefix?: string;
+      suppliedCredentials?: Record<string, string>;
+      ssmEnabled?: boolean;
     },
   ) {
     this.logger = logger;
+    this.suppliedCredentials = config?.suppliedCredentials;
     const tenantPathPrefix =
       config?.pathPrefix || process.env.SSM_PARAMETER_PREFIX;
     const legacyTenantPathPrefix = process.env.TENANT_CONFIG_PATH_PREFIX;
@@ -45,7 +49,7 @@ export class CredentialProvider {
       this.pathPrefix = this.normalizePrefix(secretsPathPrefix);
     }
 
-    this.ssmClient = new SSMClient({
+    this.ssmClient = config?.ssmEnabled === false ? undefined : new SSMClient({
       region: config?.region || process.env.AWS_REGION || "eu-west-1",
     });
 
@@ -72,13 +76,18 @@ export class CredentialProvider {
   }
 
   /**
-   * Fetch a raw value directly from SSM without env var fallback
-   * Used for shared secrets like Codex auth cache that are never passed via env vars
+   * Resolve a shared auth cache through supplied values or SSM, without environment fallback.
    *
    * @param parameterName - The full SSM parameter path
    * @returns The parameter value or undefined if not found
    */
   async getRawSsmValue(parameterName: string): Promise<string | undefined> {
+    if (this.suppliedCredentials) {
+      const name = parameterName.slice(this.pathPrefix.length + 1);
+      return parameterName.startsWith(`${this.pathPrefix}/`) && Object.prototype.hasOwnProperty.call(this.suppliedCredentials, name)
+        ? this.suppliedCredentials[name] : undefined;
+    }
+    if (!this.ssmClient) return undefined;
     // Check cache first
     const cached = this.cache.get(parameterName);
     if (cached && cached.expiry > Date.now()) {
@@ -134,6 +143,10 @@ export class CredentialProvider {
 
   /** One credential: from the environment when the worker was started with it, else from SSM. */
   async getCredential(request: CredentialRequest): Promise<string | undefined> {
+    if (this.suppliedCredentials) {
+      return Object.prototype.hasOwnProperty.call(this.suppliedCredentials, request.envVar)
+        ? this.suppliedCredentials[request.envVar] : undefined;
+    }
     if (process.env[request.envVar]) {
       this.logger.debug("Credential found in environment", { envVar: request.envVar });
       return process.env[request.envVar];

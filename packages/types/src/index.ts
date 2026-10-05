@@ -94,3 +94,4 @@ export * from './taskSituation'
 export * from './home'
 
 export * from './modelEndpoints'
+export * from './objectStorage'
